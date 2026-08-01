@@ -100,7 +100,7 @@ export function rangeDelete(
 	// A range consuming both endpoints whole leaves only a bare ending to reparse, which yields
 	// no blocks; the placeholder takes the start block's ending, not a literal LF (G4.20).
 	const lineEnding = trailingLineEnding(startRaw);
-	const reparsed = parse(mergedRaw || lineEnding);
+	const reparsed = parse(mergedRaw || lineEnding, { scope: 'fragment' });
 	const replacement: CstNode[] =
 		reparsed.children.length > 0 ? reparsed.children : [emptyParagraph('', lineEnding)];
 	for (const node of replacement) sharing.stamp(node);

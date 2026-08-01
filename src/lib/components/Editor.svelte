@@ -181,7 +181,7 @@
 		resolver: LinkReferenceResolver;
 		signature: string;
 	} {
-		const d = parse(src);
+		const d = parse(src, { scope: 'document' });
 		if (d.children.length === 0) {
 			// A blank-lines-only source parses to zero blocks; the caret placeholder
 			// takes the source's own ending (G4.20), so a CRLF file gains no lone LF.

@@ -70,7 +70,7 @@ export async function pasteDispatch(
 	const pastedText = applyPasteTransforms(input.pastedText);
 	if (!pastedText) return {};
 
-	const parsed = parse(pastedText);
+	const parsed = parse(pastedText, { scope: 'fragment' });
 	if (parsed.children.length === 0) return {};
 
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;

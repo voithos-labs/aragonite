@@ -36,6 +36,14 @@ export function registerPasteTransform(transform: PasteTransform): void {
 }
 
 /**
+ * Non-throwing registration probe, so an idempotent module (HMR, a re-imported registrar) asks
+ * before registering instead of catching the duplicate throw.
+ */
+export function isPasteTransformRegistered(name: string): boolean {
+	return transforms.has(name);
+}
+
+/**
  * Run every transform over `text` in registration order, each seeing the prior's output;
  * a null return leaves the running text untouched.
  */

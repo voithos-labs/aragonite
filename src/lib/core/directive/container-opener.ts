@@ -72,7 +72,14 @@ export function registerDirectiveOpeners(): void {
 			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
 			// One nesting level deeper, so nested directives share the container-depth cap.
 			const bodyLines = splitLines(bodyText);
-			const inner = parseBlocks(bodyLines, 0, bodyLines.length, defaultGrammarView, ctx.depth + 1);
+			const inner = parseBlocks(
+				bodyLines,
+				0,
+				bodyLines.length,
+				defaultGrammarView,
+				ctx.depth + 1,
+				ctx.isDocumentParse
+			);
 			const body: Document = { kind: 'document', ...inner };
 			// isDirectiveCloser guarantees an all-colon line, so its length IS the colon count.
 			const closerColonCount = closerLine.text.length;

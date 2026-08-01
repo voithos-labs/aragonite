@@ -147,7 +147,7 @@ async function replaceTableWithPaste(
 
 	// This route never reaches pasteDispatch, so the paste transforms run here too; the rule
 	// lives in the helper, applied at both sites.
-	const parsed = parse(applyPasteTransforms(pasted));
+	const parsed = parse(applyPasteTransforms(pasted), { scope: 'fragment' });
 	if (parsed.children.length === 0) return;
 
 	const tableNode = blockNodeAt(doc, tablePath);

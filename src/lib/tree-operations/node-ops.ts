@@ -185,7 +185,10 @@ function separatorSplitsOffNextLine(raw: string, lineEnding: string): boolean {
 		);
 	}
 	const probe = NEXT_PROSE_LINE + lineEnding;
-	return parse(raw + lineEnding + probe).children.length > parse(raw + probe).children.length;
+	return (
+		parse(raw + lineEnding + probe, { scope: 'fragment' }).children.length >
+		parse(raw + probe, { scope: 'fragment' }).children.length
+	);
 }
 
 /**
@@ -351,9 +354,10 @@ export function updateNodeContent(
 		return { op: 'noop' };
 	}
 
-	// The instance grammar reaches the routine content-commit reparse;
-	// absent (paste, split/merge reparse) defaults to the global grammar.
-	const parsed = parse(newText, { grammar }).children;
+	// The instance grammar reaches the routine content-commit reparse; absent (paste,
+	// split/merge reparse) defaults to the global grammar. Fragment scope: this is one
+	// block's bytes, whatever its position, so a position-scoped kind must not mint here.
+	const parsed = parse(newText, { grammar, scope: 'fragment' }).children;
 	const first: CstNode | undefined = parsed[0];
 	// A container whose empty body will be backfilled: a marker-consuming container (a
 	// GitHub alert) needs its raw rebuilt from that body, or G1.1 stale-raw fires.
@@ -405,7 +409,7 @@ export function updateNodeContent(
  * a hand-written prefix rule, so a kind registered later is covered the day it registers.
  */
 export function lineOpensAs(line: string, grammar?: GrammarView): AnyBlockKind {
-	return parse(`${line}\n`, { grammar }).children[0]?.kind ?? 'paragraph';
+	return parse(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
 }
 
 /**
@@ -426,7 +430,7 @@ export function reclassifyContainer(
 	if (!descriptor?.isContainer || !isBlockOpenerRegistered(node.kind)) return null;
 
 	if (perfEnabled()) recordContainerKindReparse();
-	const parsed = parse(node.raw, { grammar }).children;
+	const parsed = parse(node.raw, { grammar, scope: 'fragment' }).children;
 	// A container's raw is one block by construction; a multi-block reparse means bytes
 	// this seam has no slot for — leave it to the gesture that owns the mutation.
 	if (parsed.length !== 1 || parsed[0].kind === node.kind) return null;
@@ -472,7 +476,7 @@ export function focusTargetInReplacement(
 // ── Reparse helper (private) ──
 
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
-	const doc = parse(raw);
+	const doc = parse(raw, { scope: 'fragment' });
 	if (doc.children.length > 0) {
 		if (DEV && doc.children.length > 1) {
 			// Split/merge halves are single-block for every reachable gesture; blocks past the

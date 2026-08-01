@@ -17,9 +17,9 @@ declare a kind ──┬─▶ descriptor   how it merges, its container/chrome 
 
 Only the kind and its descriptor are always required. A component makes it visible; grammar makes it parseable from Markdown. A kind with no component renders a visible raw fallback; a kind with no descriptor is an error at first use.
 
-**Registration is process-global and register-once.** A kind is a definition every editor on the page shares — the `customElements` model, where `customElements.define` defines an element for every document. Registering the same kind, component, or opener twice is a **conflict that throws**, not a silent override, so a plugin colliding with a built-in or another plugin fails loudly. There is no unregister and no runtime replace. (Under a dev server, re-evaluating a registration module replaces its prior registrations in place, so a changed definition takes effect on re-run; editing a plugin unit's own `definePlugin` still needs a page reload.)
+**Registration is process-global and register-once.** A kind is a definition every editor on the page shares — the `customElements` model, where `customElements.define` defines an element for every document. Registering the same kind, component, or opener twice is a **conflict that throws**, not a silent override, so a plugin colliding with a built-in or another plugin fails loudly. There is no unregister and no runtime replace. (Under a dev server, re-evaluating a registration module replaces its prior registrations in place, so a changed definition takes effect on re-run; editing a plugin unit's own `definePlugin` still needs a page reload. That replace covers **every** register-once seam, the paste-transform registry included, while production and a test run keep the throw — so the throw is what your suite observes.)
 
-Registrations get packaged into a **plugin unit** whose `setup` runs at most once per process — so you write each `register*` call straight, and the unit, not a per-call guard, owns idempotence.
+Registrations get packaged into a **plugin unit** whose `setup` runs at most once per process — so you write each `register*` call straight, and the unit, not a per-call guard, owns idempotence. A registrar that runs at **module scope** instead has no such owner, and guards each call on a probe: `isBlockKindDeclared`, `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isPasteTransformRegistered`, `isDirectiveRegistered`, and `isInlineKindDeclared` for the inline tier. Guard on the probe, never on a module-level `registered` flag — a flag survives `resetPluginPlatformForTests()` and silently skips the re-registration your next test case needs.
 
 ### The plugin unit
 
@@ -323,6 +323,8 @@ closure: simpleLeafClosure({
 
 Omitting one of the four is a compile error, and a baked column stays overridable (a render-primary leaf scoping its `selectionPaint` to the revealed state, say).
 
+**`simOracle` is the cell most authors hesitate over**, because the simulation battery is a repo script rather than a published kit. It answers the same way every other column does, and the question is about your **mechanism**, not about who runs the tests. The example above is `implemented` because that kind has its own e2e driving it under the corruption oracles; a plugin that adds no kind-specific simulation machinery writes `inherit-default`, which is the honest answer for most plugins and what several bundled kinds declare. `inherit-default` claims no coverage — it says your kind meets the simulation exactly as the generic ceremony does. `not-supported` is for a subsystem that is structurally absent, which a caret-bearing kind's simulation never is.
+
 **Strip containers: `containerClosure`.** A container of real child blocks under a rebuilt marker wrapper answers four columns the same structural way — its children are the paint and search surfaces, it reorders whole-block through the parent `BlockList`, and it holds no clipboard anchor of its own — and its `roundTrip` is always `implemented` (its `rebuildRaw` is the mechanism). `containerClosure` bakes those, asking for the `roundTripVia` string plus the four the container determines — `focus`, `mergeBackspace`, `undo`, `simOracle`:
 
 ```ts
@@ -436,7 +438,9 @@ Nested-editor interiors — a second editor's state serialized as a blob — are
 
 **Native parity is the tier's whole claim**: the editor's caret and sticky-column traversal enter and leave your block like any built-in text block, IME composition is respected, undo batches like prose, the clipboard is intercepted for plain-Markdown copy/cut/paste like every editable surface, and a cross-block selection sweeps through your text.
 
-**One spread wires the source surface.** Write `<div {...leaf.surfaceProps}>` on your source contenteditable and the nine DOM handlers, the `contenteditable` / `role` / `tabindex` / `spellcheck` attributes, and two view-lifecycle contracts land at once — so a forgotten handler (a dropped `oncompositionend` that silently breaks IME) can't happen. The two contracts the spread owns are the ones every consumer used to hand-write: the source is populated as a **single text node** (so `textContent === source` and the offset walk stays exact), and focus is parked on the editor root when the source unmounts. You add only your own `class` / `aria-label`, plus `bind:this` in render-primary mode (the folded view has no source element to bind). Two modes:
+**One spread wires the source surface.** Write `<div {...leaf.surfaceProps}>` on your source contenteditable and the nine DOM handlers, the `contenteditable` / `role` / `tabindex` / `spellcheck` attributes, and two view-lifecycle contracts land at once — so a forgotten handler (a dropped `oncompositionend` that silently breaks IME) can't happen. The two contracts the spread owns are the ones every consumer used to hand-write: the source is populated as a **single text node** (so `textContent === source` and the offset walk stays exact), and focus is parked on the editor root when the source unmounts.
+
+That single text node carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines: without it the browser collapses the line breaks on screen while the offset walk goes on counting them, so the caret sits nowhere near where it looks. Beyond that you add only your own `class` / `aria-label`, and **`bind:this` in both modes** — the factory reaches your element only through `getEl()`, so plain mode's view sync reads it exactly as a reveal does; the modes differ only in that render-primary's `getEl()` returns null while the view is folded. Two modes:
 
 - **`'plain'`** — the source is always the editable view; every keystroke commits to the tree (prose-like undo batching). The spread's sync mirrors external rewrites (undo, a structural replace) into the source and gates `contenteditable` off the mode, so the always-mounted surface goes inert in reading mode; the factory owns the Chromium trailing-newline caret anchor and the caret restore.
 - **`'render-primary'`** — a rendered view by default; focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once** — the whole reveal→edit→blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering; the spread owns the source surface (populate-once-per-reveal included) and `onRenderPointerDown` is on the returned surface for the rendered view.
@@ -565,6 +569,22 @@ Two rules place a plugin opener on it:
 Ties break by kind name, deterministically — dispatch never depends on registration order — but a shared priority is a smell, and the dev build warns on it. Price into a gap instead.
 
 The opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
+
+## Openers and document position
+
+`OpenContext.isDocumentParse` tells an opener whether the parse it is dispatching in was handed a whole document or one block's bytes. It is `true` for `parse(source)` (the default scope) and for the editor's load of the `source` prop; it is `false` for every reparse the editor runs while you type, which pass `{ scope: 'fragment' }` (the scope union is exported as `ParseScope`): the content commit, split and merge, the clipboard parse, a container body. `isFirstInWindow` is not this signal, and reads like it: a parse window starting mid-document has a first block too. A kind scoped to a document position gates on the composition rather than the flag alone.
+
+```ts
+tryOpen(ctx) {
+	if (!ctx.isDocumentParse || ctx.index !== 0 || ctx.depth !== 0 || ctx.leadingTrivia !== '')
+		return null;
+	// ... your syntax
+}
+```
+
+The flag stays constant through nested container recursion, so `depth` is what tells you a blockquote or list body is not the document top. Declare `interruptsParagraph: false`: a line that interrupts a paragraph has a paragraph before it, so it is not at line 0 by construction. Pair the opener with a paste transform. Pasted text reaches `parse` as a fragment, so your opener declines it, and the transform is where you decide what pasted front matter should become (a fenced block, say) instead of leaving the syntax live mid-document.
+
+The residual, stated plainly. A fragment edit that should dissolve the kind does dissolve it: break the closing fence and the block becomes the constituent blocks its bytes now warrant. Restoring those bytes does not put the kind back in the live tree, because nothing reparses across a block boundary after a commit. `getSource()` returns the correct bytes and a reload restores the block. That limit is not specific to position-scoped kinds (it is the general case of two blocks whose bytes jointly reparse as one), and it has a sibling: typing the syntax at the document top also needs a reload before the kind appears, since the commit reparse sees one block's bytes and declines by design.
 
 ## Inline kinds
 
@@ -785,7 +805,15 @@ Why the dev build is where plugin development belongs — what each mistake does
 
 ## Verifying your plugin
 
-**Round-trip is the contract.** Read the live document back with `editor.getSource()` and confirm it equals what you authored. Then test the case that matters most for a plugin platform: author a document using your directive **with your plugin not registered** — the generic fallback must return it byte-for-byte, so uninstalling a plugin never corrupts a saved document.
+**Round-trip is the contract.** The headless form needs no editor — `parse` and `serialize` both ship on `aragonite/plugin`:
+
+```
+import { parse, serialize } from 'aragonite/plugin';
+
+expect(serialize(parse(MY_SOURCE))).toBe(MY_SOURCE);
+```
+
+Then read the live document back with `editor.getSource()` and confirm it equals what you authored. Then test the case that matters most for a plugin platform: author a document using your directive **with your plugin not registered** — the generic fallback must return it byte-for-byte, so uninstalling a plugin never corrupts a saved document.
 
 **Dev-mode warnings are your guard channel.** The shape checks above only fire in a dev build. Run `vite dev` while developing and watch the console: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, or a collapse probe that contradicts the descriptor all warn there and are silent in production. A clean dev-console round-trip is the signal your plugin is sound.
 
@@ -804,7 +832,46 @@ beforeEach(() => {
 
 Reset **then** re-install — the reset only empties the registries. It clears every non-built-in schema registration (kinds, components, openers, commands, installed plugins), the inline syntax and widget registries, the paste surface and transform pipelines, and the `:::` directive registry. Built-in registrations survive, exactly as in production.
 
-Two things it does not restore. It wipes **all** paste surfaces, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset (parse and round-trip cases are unaffected). And it touches no runtime state — the undo stack, the selection, and the live document are yours to set up. The function is test-only and throws if called outside a detected test environment; detection is Vitest-specific.
+Two things it does not restore. It wipes **all** paste surfaces, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset (parse and round-trip cases are unaffected). And it touches no runtime state — the undo stack, the selection, and the live document are yours to set up. `resetPluginPlatformForTests` is test-only and throws if called outside a detected test environment; detection is Vitest-specific.
+
+The rest of the subpath, at a glance:
+
+| Export                                                       | Role                                                                          |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `installEditorDomStubsForTests`                              | Install the browser APIs a mounted editor calls and jsdom lacks               |
+| `applyPasteTransforms`                                       | Run the registered paste pipeline over a string, exactly as a real paste does |
+| `runKindConformance`                                         | The per-kind closure battery                                                  |
+| `checkCopyIsRawByteSlice`                                    | That battery's clipboard executor, drivable directly against a kind           |
+| `runContainerConformance`, `reversedAncestryLeavesRootStale` | The container harness, and the companion that proves its ancestry cell bites  |
+| `runInlineKindConformance`                                   | The inline-rung battery                                                       |
+
+**Testing a paste transform.** `registerPasteTransform` writes into a registry nothing else on the public surface reads, so `applyPasteTransforms(text)` ships beside the reset. It is the very function every clipboard→parse route runs, which is what makes driving it proof that your transform is _wired_ rather than proof that your pure function works:
+
+```
+import { applyPasteTransforms, resetPluginPlatformForTests } from 'aragonite/testing';
+
+it('converts on paste', () => {
+	registerMyPlugin();
+	expect(applyPasteTransforms(CLIPBOARD_TEXT)).toBe(CONVERTED_TEXT);
+});
+```
+
+**Mounting your component.** A component tier is only really verified mounted, and a jsdom mount is a supported way to do it. Two of the three things standing in the way are jsdom gaps rather than editor requirements, and the helper closes both:
+
+```
+// @vitest-environment jsdom
+import { mount, flushSync } from 'svelte';
+import { Editor } from 'aragonite';
+import { installEditorDomStubsForTests } from 'aragonite/testing';
+
+installEditorDomStubsForTests(); // ResizeObserver + scrollIntoView, installed only where absent
+
+const target = document.body.appendChild(document.createElement('div'));
+const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scrollMode: 'host' } });
+flushSync(); // the first render has to land before you can assert on it
+```
+
+`scrollMode="host"` is the third. The default `'self'` gives the editor its own scrollport, and against a zero-height jsdom viewport windowing unmounts the very block you are asserting on; `'host'` turns windowing off, so every block stays mounted. From there `target.querySelector` reaches your component's own chrome and `editor.getSource()` is a byte-exact assertion surface.
 
 ### The conformance battery — registering a kind enrolls it
 
@@ -817,6 +884,8 @@ it('my kind conforms', async () => {
 	await runKindConformance(declaredPluginKind(MY_KIND));
 });
 ```
+
+**The fixture contract**, because two executors depend on it and only a thrown assertion would otherwise teach it: your `conformanceFixture` must parse to your kind at **`children[0]`**, and the undo and clipboard cells build their document by **appending** a sentinel block after it. A fixture that puts your kind anywhere but first fails the clipboard cell, and a kind that can only appear somewhere other than the document top is not enrollable in those two cells as they stand.
 
 It resolves with a per-cell report and throws naming every failed cell — so a `conformanceFixture` that stops parsing to your kind, or a closure cell that lies about a mechanism the runner can observe, fails the moment you register it. Where a cell claims a mechanism the runner cannot reach generically (a kind-specific copy, say), supply a check for it: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })` — `ctx` hands you the parsed fixture and the kind's node.
 
@@ -1049,6 +1118,8 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | Export                   | Role                                                                |
 | ------------------------ | ------------------------------------------------------------------- |
 | `parse`                  | Parse a body of Markdown into a document you can lift children from |
+| `ParseScope`             | `parse`'s scope option: whole document, or one block's bytes        |
+| `serialize`              | Serialize a whole document back to its exact source bytes           |
 | `serializeChildren`      | Join child nodes back into their exact source bytes                 |
 | `trimTrailingLineEnding` | Read a child's display text without dropping a trailing line ending |
 | `normalizeLineEndings`   | Normalize external text (a plugin-owned input surface) to LF        |
@@ -1096,9 +1167,11 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Idempotence probes**
 
-| Export                                                                           | Role                                               |
-| -------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered` | Guard each register-once call so re-import is safe |
+| Export                                                                           | Role                                                         |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `isBlockKindDeclared`                                                            | Probe a kind declaration, where both declaration seams throw |
+| `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered` | Guard each register-once call so re-import is safe           |
+| `isPasteTransformRegistered`                                                     | The same guard for a paste transform's name                  |
 
 **Paste transforms** _(pre-freeze / unstable)_ — the recipe is in [Paste transforms](#paste-transforms)
 

@@ -57,6 +57,15 @@ export function declaredPluginKind(name: string): PluginBlockKind {
 	return name as PluginBlockKind;
 }
 
+/**
+ * Non-throwing declaration probe, so an idempotent module (HMR, a re-imported registrar) asks
+ * before declaring instead of catching {@link declarePluginKind}'s or {@link declaredPluginKind}'s
+ * throw.
+ */
+export function isBlockKindDeclared(name: string): boolean {
+	return declaredPluginKinds.has(name);
+}
+
 export function __clearDeclaredPluginKindsForTests(): void {
 	declaredPluginKinds.clear();
 }
@@ -91,10 +100,7 @@ export function declaredPluginInlineKind(name: string): PluginInlineKind {
 	return name as PluginInlineKind;
 }
 
-/**
- * The inline mirror of {@link isBlockKindRegistered}, so a plugin re-declaring idempotently
- * guards on this instead of catching {@link declaredPluginInlineKind}'s throw.
- */
+/** The inline mirror of {@link isBlockKindDeclared}. */
 export function isInlineKindDeclared(name: string): boolean {
 	return declaredPluginInlineKinds.has(name);
 }

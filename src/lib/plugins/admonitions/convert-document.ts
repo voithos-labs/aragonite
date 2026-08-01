@@ -8,7 +8,7 @@ import { parse, type PasteTransform } from '$lib/plugin';
 import { convertAlertBlockquoteRaw, hasGithubAlert, type AlertConversion } from './gh-alert';
 
 export function convertGithubAlertsInDocument(source: string): AlertConversion {
-	const doc = parse(source);
+	const doc = parse(source, { scope: 'document' });
 	let changed = false;
 	const parts: string[] = [doc.prefix];
 	for (const child of doc.children) {

@@ -61,7 +61,8 @@ export function parseBlockquote(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
-	depth: number = 0
+	depth: number = 0,
+	isDocumentParse: boolean = false
 ): BlockOpenerResult {
 	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
 
@@ -70,7 +71,14 @@ export function parseBlockquote(
 		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
 	);
 
-	const inner = parseBlocks(strippedLines, 0, strippedLines.length, defaultGrammarView, depth + 1);
+	const inner = parseBlocks(
+		strippedLines,
+		0,
+		strippedLines.length,
+		defaultGrammarView,
+		depth + 1,
+		isDocumentParse
+	);
 
 	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)?.[0] ?? '';
 	const quoteDepth = (quotePrefix.match(/>/g) ?? []).length || 1;

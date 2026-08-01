@@ -24,8 +24,10 @@ export interface OpenContext {
 	/** The line at `index`, precomputed once per dispatch. */
 	line: ParsedLine;
 	leadingTrivia: string;
-	/** True for the first content block of a parse window. With `leadingTrivia`, the "preceded by blank" interrupt context (GFM §4.4). */
+	/** True for the first content block of a parse window, which is NOT a document-position signal: a window starting mid-document has one too. With `leadingTrivia`, the "preceded by blank" interrupt context (GFM §4.4). */
 	isFirstInWindow: boolean;
+	/** True when this parse entry was given a whole document (`parse` scope `'document'`), false for one block's bytes read standalone. Constant through nested container recursion, so a document-position gate composes it with `index`/`depth`/`leadingTrivia`. */
+	isDocumentParse: boolean;
 	/** Container-nesting depth of this parse level (0 at the document root). A container opener that reparses its body recurses at `depth + 1`; the cap (`MAX_NESTING_DEPTH`) folds deeper input into paragraph content. */
 	depth: number;
 	/**

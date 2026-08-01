@@ -193,7 +193,8 @@ async function executeCell(
 			return {
 				status: 'boundary',
 				detail:
-					'note-taking simulation under the corruption oracles — executed in the e2e sim battery'
+					'note-taking simulation under the corruption oracles — run by the platform sweep ' +
+					'over the kinds it enrolls, never by this runner'
 			};
 	}
 }
@@ -362,10 +363,18 @@ const CLIPBOARD_SENTINEL = '\n\nclipboard sentinel\n';
  * honest meaning of `clipboard: inherit-default`. A kind that synthesizes on copy
  * diverges and this throws. Exported so a regression test can drive it against a kind
  * the runner would otherwise route to a custom check.
+ *
+ * Fixture contract: `fixture` parses to `kind` at `children[0]`, and the sentinel block the
+ * copy sweeps into is appended AFTER it.
  */
 export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
 	const doc = parse(fixture + CLIPBOARD_SENTINEL);
-	assertIs(doc.children[0].kind, kind, `"${kind}" is the top-level copy subject`);
+	assertIs(
+		doc.children[0].kind,
+		kind,
+		`"${kind}" is the top-level copy subject: a conformanceFixture must parse to its kind ` +
+			`at children[0], with the kit's sentinel block appended after it`
+	);
 	const lastIndex = doc.children.length - 1;
 	assert(lastIndex >= 1, 'fixture + sentinel yields a second block to copy across');
 	const kindNode = doc.children[0];
