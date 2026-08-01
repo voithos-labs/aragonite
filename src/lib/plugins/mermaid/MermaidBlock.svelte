@@ -18,10 +18,13 @@
 
 	let boxEl: HTMLElement | undefined = $state();
 
-	// Every steady state but edit mode carries a focus surface, so a broken diagram is
-	// still an arrow stop and a recovery entry point rather than a caret trap.
+	// Every steady state carries a focus surface — the edit textarea included, so a broken or
+	// empty diagram is an arrow stop and a recovery entry point rather than a caret trap.
 	function focusSurfaceEl(): HTMLElement | null {
-		return boxEl?.querySelector<HTMLElement>('.mermaid-viewport, .mermaid-surface') ?? null;
+		return (
+			boxEl?.querySelector<HTMLElement>('.mermaid-source, .mermaid-viewport, .mermaid-surface') ??
+			null
+		);
 	}
 
 	const { containerApi, updateOwnMetadata, handleKeydown, getPresentationMode, getTheme } =
@@ -43,6 +46,12 @@
 	const code = $derived(getPluginMetadata<MermaidMetadata>(node)?.code ?? '');
 	const displayCode = $derived(trimTrailingLineEnding(code));
 
+	// An empty diagram has no picture to draw and nothing worth reporting — the engine
+	// rejects empty input — so its natural view is the edit surface, and reading mode, which
+	// writes no bytes, gets a placeholder.
+	const isEmpty = $derived(displayCode.trim() === '');
+	const isReading = $derived(getPresentationMode() === 'reading');
+
 	// ── Rendering ───────────────────────────────────────────────────────────────
 
 	let rendered = $state<MermaidRenderResult | null>(null);
@@ -51,7 +60,7 @@
 		// Reading the theme here is what subscribes this effect to a flip, which has to
 		// redraw because the engine writes colors into the SVG.
 		const theme = getTheme();
-		if (!hasMermaidRenderer()) return;
+		if (isEmpty || !hasMermaidRenderer()) return;
 		let stale = false;
 		void renderMermaid(current, theme).then(async (result) => {
 			if (stale) return;
@@ -146,35 +155,60 @@
 
 	// ── Edit mode ───────────────────────────────────────────────────────────────
 
-	let mode = $state<'render' | 'edit'>('render');
+	let editRequested = $state(false);
 	let textareaEl = $state<HTMLTextAreaElement | undefined>();
 	let draft = $state('');
 	let editSeed = '';
+
+	const editing = $derived(editRequested || (isEmpty && !isReading));
+
+	function seedDraft(): void {
+		editSeed = displayCode;
+		draft = editSeed;
+	}
+
+	// The document can change under an open box (a host undo, a structural replace), and the
+	// blur commit would then write a draft seeded from bytes that are gone.
+	$effect(() => {
+		if (!editing || displayCode === editSeed) return;
+		seedDraft();
+	});
+
+	// The box follows its text: a textarea has no intrinsic content height, and the inline
+	// height a native resize handle writes dies with the element on every exit from edit mode.
+	$effect(() => {
+		void draft;
+		const el = textareaEl;
+		if (!el) return;
+		el.style.height = 'auto';
+		el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+	});
 
 	function refocusBlock(): void {
 		void tick().then(() => focusSurfaceEl()?.focus());
 	}
 
 	function openEdit(): void {
-		if (mode === 'edit') return;
 		// Reading mode writes no bytes, and a code edit would; the button is CSS-hidden
 		// there too, so this closes the command path.
-		if (getPresentationMode() === 'reading') return;
-		editSeed = displayCode;
-		draft = editSeed;
-		mode = 'edit';
+		if (isReading) return;
+		if (!editing) seedDraft();
+		editRequested = true;
 		void tick().then(() => textareaEl?.focus());
 	}
 
 	function cancelEdit(): void {
-		mode = 'render';
+		editRequested = false;
+		// An empty diagram keeps its edit view, so the abandoned draft goes with the request
+		// that made it rather than surviving in a box that never closed.
+		seedDraft();
 		refocusBlock();
 	}
 
 	function commitEdit(refocus: boolean): void {
-		if (mode !== 'edit') return;
+		if (!editing) return;
 		const value = draft;
-		mode = 'render';
+		editRequested = false;
 		// The textarea value is LF-normalized, so the seed must be compared the same way:
 		// an untouched CRLF block must not rewrite its bytes on blur.
 		if (value === normalizeLineEndings(editSeed)) return;
@@ -230,7 +264,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="mermaid-block" bind:this={boxEl} onkeydown={handleKeydown}>
-	{#if mode === 'edit'}
+	{#if editing}
 		<textarea
 			bind:this={textareaEl}
 			bind:value={draft}
@@ -250,7 +284,20 @@
 				Reset view
 			</button>
 		</div>
-		{#if !hasMermaidRenderer()}
+		{#if isEmpty}
+			<!-- Reading mode only: everywhere else an empty diagram renders its edit surface. -->
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div
+				class="mermaid-surface"
+				tabindex="0"
+				role="group"
+				aria-label="Empty diagram"
+				onpointerdown={onSurfacePointerDown}
+				ondblclick={onSurfaceDblClick}
+			>
+				<div class="mermaid-empty">Empty diagram</div>
+			</div>
+		{:else if !hasMermaidRenderer()}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-surface"
@@ -441,19 +488,23 @@
 		justify-content: center;
 	}
 
+	/* Height is written by the fit-to-content effect; `overflow-y: hidden` keeps the grow
+	   visible instead of scrolled. */
 	.mermaid-source {
 		display: block;
 		width: 100%;
-		min-height: 6em;
+		min-height: 1.4em;
 		box-sizing: border-box;
 		padding: 8px;
 		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.9em;
+		line-height: 1.5;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 		border: 1px solid var(--color-accent, #567b67);
 		border-radius: 4px;
 		color: inherit;
-		resize: vertical;
+		overflow-y: hidden;
+		resize: none;
 	}
 
 	.mermaid-static {
@@ -478,7 +529,8 @@
 		color: var(--color-danger, #e06c75);
 	}
 
-	.mermaid-loading {
+	.mermaid-loading,
+	.mermaid-empty {
 		padding: 12px;
 		font-size: 0.85em;
 		color: var(--color-text-muted, #aaaaaa);
