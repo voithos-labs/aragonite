@@ -197,3 +197,58 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(focusedKind).not.toBe('thematicBreak');
 	});
 });
+
+// A host that widens and pads the block list moves the visible side gutter off the root and
+// onto the LIST, which reports its own identity — so the whole band went unclaimed. The
+// `?paddedList=on` harness applies that layout (requirements/selection/dead-space-click.md).
+test.describe('dead-space clicks in a host-padded block list', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto('?paddedList=on');
+	});
+
+	const listBox = () =>
+		editor.page.evaluate(() => {
+			const el = document.querySelector('.editor > .block-list') as HTMLElement;
+			const r = el.getBoundingClientRect();
+			return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+		}) as Promise<Box>;
+
+	async function firstBlockBox(): Promise<Box> {
+		const r = await editor.getBlock(0).boundingBox();
+		if (!r) throw new Error('no box for block 0');
+		return { left: r.x, right: r.x + r.width, top: r.y, bottom: r.y + r.height };
+	}
+
+	test('a click in the list’s own padding lands the caret at the end of that line', async () => {
+		await editor.loadContent('first para\n\nsecond para\n');
+		const list = await listBox();
+		const para = await firstBlockBox();
+
+		// Inside the list's padding band: the block's own box ends short of the list's edge.
+		await editor.page.mouse.click(list.right - 6, para.top + 6);
+		await editor.typeText('!');
+		await editor.bridge.waitForSourceContains('!');
+
+		expect((await editor.bridge.getSource()).trim()).toBe('first para!\n\nsecond para');
+	});
+
+	// The press half still discriminates: a drag that STARTED on a block reports the list as
+	// its click target too, and collapsing there would throw away the selection.
+	test('a drag-select released in the list’s padding keeps its selection', async () => {
+		await editor.loadContent('first para\n\nsecond para\n');
+		const list = await listBox();
+		const para = await firstBlockBox();
+
+		await editor.page.mouse.move(para.left + 4, para.top + 6);
+		await editor.page.mouse.down();
+		await editor.page.mouse.move(list.right - 6, para.top + 6, { steps: 8 });
+		await editor.page.mouse.up();
+
+		expect(await editor.page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain(
+			'first para'
+		);
+	});
+});

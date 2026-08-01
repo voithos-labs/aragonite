@@ -1147,6 +1147,14 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   Shift+Tab dedenting a four-space-indented one to column 0, each split the block while the rule
   sat at two of ten commit sites. One door now, pinned by G4.24 against an eleventh.
 
+- **A host that pads the block list no longer gets a dead click band.** Clicks in the editor's
+  dead space (the padding beside a block, the area below the last one) place a caret, but the
+  gesture claimed only clicks whose target was the editor root. A host layout that widens and pads
+  the block list itself moves the whole visible side gutter onto the list, which reports its own
+  identity, so every click in that band did nothing at all. Dead space is now the root and the
+  block lists inside it. Every other decline holds, and the press half of the gesture still
+  discriminates a drag that started on a block and released in the gutter.
+
 - **The published `svelte` peer floor rises to `^5.29.0`, and now says something true.** The
   declared floor was `^5.0.0`, but `editable-leaf.ts` imports `createAttachmentKey` from
   `svelte/attachments`, a subpath svelte's `exports` map does not carry before 5.29.0. A consumer

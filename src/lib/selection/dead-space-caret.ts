@@ -1,9 +1,10 @@
 /**
- * Caret placement for a click in the editor's dead space: the root's padding beside a block, or
- * the area below the last one. The rule is one sentence: clamp the point into the nearest
- * block's box and let `blockAtPoint` resolve the leaf under it, so nothing here knows a block
- * kind. "Below the last block" means the last MOUNTED one, since the bands come from the live
- * DOM, which under virtual rendering is the window rather than the document.
+ * Caret placement for a click in the editor's dead space: the root's or a block list's own
+ * padding beside a block, and the area below the last one. The rule is one sentence: clamp the
+ * point into the nearest block's box and let `blockAtPoint` resolve the leaf under it, so
+ * nothing here knows a block kind. "Below the last block" means the last MOUNTED one, since the
+ * bands come from the live DOM, which under virtual rendering is the window rather than the
+ * document.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -65,25 +66,22 @@ export interface DeadSpaceCaret {
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	// The press half of the gesture, because `click` alone cannot tell a dead-space click from a
-	// drag that STARTED on a block and released in the margin: both report the root as target.
-	let pressedOnRoot = false;
+	// drag that STARTED on a block and released in the margin: both report dead space as target.
+	let pressedOnDeadSpace = false;
 
 	return {
 		notePress(root, event) {
-			// The root is the only target that means "dead space": every overlay, handle, badge
-			// and header-slot node is a descendant with its own identity, and a press on a block
-			// reports the block.
-			pressedOnRoot =
-				event.target === root &&
+			pressedOnDeadSpace =
+				isDeadSpace(root, event.target) &&
 				event.button === 0 &&
 				// Shift belongs to selection extension, the modifiers to platform commands.
 				!(event.shiftKey || event.ctrlKey || event.metaKey || event.altKey);
 		},
 
 		handleClick(root, event) {
-			const pressed = pressedOnRoot;
-			pressedOnRoot = false;
-			if (!pressed || event.target !== root) return false;
+			const pressed = pressedOnDeadSpace;
+			pressedOnDeadSpace = false;
+			if (!pressed || !isDeadSpace(root, event.target)) return false;
 			// A drag that ended in the margin leaves a real range behind; collapsing it would
 			// throw away what the user just selected. This sees only NATIVE ranges: a cross-block
 			// range is overlay-painted with the native selection empty, and is ended below instead.
@@ -127,6 +125,18 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * The targets that mean "dead space": the root, and any block list inside it. A host that
+ * widens or pads `.block-list` moves the whole visible side gutter onto the list, which
+ * reports itself rather than the root. Everything else the editor renders — blocks,
+ * overlays, handles, badges, windowing spacers, header-slot content — has its own identity
+ * and is declined here.
+ */
+function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
+	if (target === root) return true;
+	return target instanceof Element && target.classList.contains('block-list');
+}
 
 /**
  * Where the caret goes for a resolved hit: an internal child path (empty for a
