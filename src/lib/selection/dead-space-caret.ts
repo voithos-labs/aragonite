@@ -130,13 +130,6 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/**
- * The targets that mean "dead space": the root, and any block list inside it. A host that
- * widens or pads `.block-list` moves the whole visible side gutter onto the list, which
- * reports itself rather than the root. Everything else the editor renders — blocks,
- * overlays, handles, badges, windowing spacers, header-slot content — has its own identity
- * and is declined here.
- */
 /** The component the landing addresses: this one on a character surface, else the leaf a
  *  coordinate-addressed kind's internal path names. */
 function leafOf(component: BlockComponent, path: number[]): BlockComponent | null {
@@ -144,6 +137,12 @@ function leafOf(component: BlockComponent, path: number[]): BlockComponent | nul
 	return component.getBlockComponentByPath?.(path) ?? null;
 }
 
+/**
+ * The targets that mean "dead space": the root, and any block list inside it. A host that
+ * widens or pads `.block-list` moves the whole visible side gutter onto the list, which
+ * reports itself rather than the root. Everything else the editor renders has its own
+ * identity and is declined here.
+ */
 function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
 	if (target === root) return true;
 	return target instanceof Element && target.classList.contains('block-list');

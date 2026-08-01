@@ -34,11 +34,22 @@ function capturingEvent() {
 	};
 }
 
-function harness(source: string, sourceStart: number) {
+interface HarnessOptions {
+	/** Omitted selection stands in for a widget selected on a DIFFERENT block. */
+	selectWidget?: boolean;
+	readOnly?: boolean;
+	/** The paste route consults the cross-block seam before the widget arm; every other
+	 *  route leaves the trap in place, which is what proves it never fell through. */
+	crossBlockDeclines?: boolean;
+}
+
+function harness(source: string, sourceStart: number, options: HarnessOptions = {}) {
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
-	widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+	if (options.selectWidget !== false) {
+		widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+	}
 
 	const trap = new Proxy(
 		{},
@@ -61,7 +72,7 @@ function harness(source: string, sourceStart: number) {
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
 		selection: { isCrossBlock: false, anchor: null, focus: null },
-		crossBlock: trap,
+		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
 		stickyColumn: { reset: () => {} },
 		blockEdit: {
 			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
@@ -73,7 +84,7 @@ function harness(source: string, sourceStart: number) {
 		},
 		widgetSelection,
 		setPendingCursor: () => {},
-		isReadOnly: () => false,
+		isReadOnly: () => options.readOnly === true,
 		foldRevealBeforeMutation: () => null,
 		get linkRef() {
 			return undefined;
@@ -125,6 +136,55 @@ describe('createTextClipboard — selected-widget cut', () => {
 		await handlers.onCut(e as never);
 		expect(e.payload()).toBe('![a](x)');
 		expect(commits[0]).toEqual({ index: 0, raw: 'trail\n', before: 0, after: 0 });
+	});
+});
+
+// The root seam's arm: the browser dispatches at <body> when the paragraph holds no text
+// position, and the editor root hands the event back here. Forwarding to the same handlers the
+// caret route reaches is what carries the reading gate and the sticky reset along with it.
+describe('createTextClipboard — claimRootClipboard', () => {
+	it('routes each clipboard type to the arm the caret route reaches', async () => {
+		const copy = harness('lead![cat](x)\n', 4);
+		const copyEvent = capturingEvent();
+		expect(copy.handlers.claimRootClipboard({ ...copyEvent, type: 'copy' } as never)).toBe(true);
+		expect(copyEvent.payload()).toBe('![cat](x)');
+		expect(copy.commits).toEqual([]);
+
+		const cut = harness('lead![cat](x)\n', 4);
+		const cutEvent = capturingEvent();
+		expect(cut.handlers.claimRootClipboard({ ...cutEvent, type: 'cut' } as never)).toBe(true);
+		await tick();
+		expect(cutEvent.payload()).toBe('![cat](x)');
+		expect(cut.commits[0]).toEqual({ index: 0, raw: 'lead\n', before: 4, after: 4 });
+
+		const paste = harness('lead![cat](x)\n', 4, { crossBlockDeclines: true });
+		const pasteEvent = capturingEvent();
+		pasteEvent.clipboardData.setData('text/plain', 'PASTED');
+		expect(paste.handlers.claimRootClipboard({ ...pasteEvent, type: 'paste' } as never)).toBe(true);
+		await tick();
+		expect(paste.commits[0].raw).toBe('leadPASTED\n');
+	});
+
+	// The trap deps prove it: a decline must not reach a handler, or the block would answer
+	// for a widget selected somewhere else.
+	it('declines when the selected widget is not this block’s', () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4, { selectWidget: false });
+		expect(handlers.claimRootClipboard({ ...capturingEvent(), type: 'copy' } as never)).toBe(false);
+		expect(commits).toEqual([]);
+	});
+
+	it('declines an event type no arm owns', () => {
+		const { handlers } = harness('lead![cat](x)\n', 4);
+		expect(handlers.claimRootClipboard({ ...capturingEvent(), type: 'beforeinput' } as never)).toBe(
+			false
+		);
+	});
+
+	it('carries the reading gate: a cut copies and commits nothing', async () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4, { readOnly: true });
+		expect(handlers.claimRootClipboard({ ...capturingEvent(), type: 'cut' } as never)).toBe(true);
+		await tick();
+		expect(commits).toEqual([]);
 	});
 });
 

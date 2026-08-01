@@ -69,8 +69,9 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 	 * Who owns an event that reached no block surface. `defaultPrevented` is the block
 	 * surfaces' receipt: every arm of their shared clipboard skeleton prevents before it
 	 * writes. The one arm that declines to the native default is a collapsed cell caret,
-	 * which is neither of the states below. The widget arm is tried first — selecting one
-	 * clears any cross-block range, so the two are never live together.
+	 * which is neither of the states below. Exactly one arm ever matches: the editor wires
+	 * widget selection and cross-block selection to clear each other, so the order here
+	 * decides nothing.
 	 */
 	function targetOf(event: ClipboardEvent, root: HTMLElement): RootClipboardTarget | null {
 		if (event.defaultPrevented) return null;
@@ -107,8 +108,8 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 	 * straight to the cross-block arm discarded it for want of any `text/plain`.
 	 */
 	async function paste(event: ClipboardEvent): Promise<void> {
-		// Read the range synchronously with the event, while `claims` still guarantees a
-		// cross-block selection — below the await, a read could only report nothing.
+		// Read the range synchronously with the event, while the cross-block arm still
+		// guarantees a selection — below the await, a read could only report nothing.
 		const rangeStartPath = deps.selection.start?.path.slice();
 		const images = imageArm.filesOf(event.clipboardData);
 		if (images.length === 0) {

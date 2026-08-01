@@ -211,8 +211,9 @@ describe('editor-root clipboard routing', () => {
 			expect(seen).toEqual([]);
 		});
 
-		// Widget selection clears any cross-block range, so a widget-owning block that
-		// declines leaves nothing for the cross-block arm to write but an empty payload.
+		// The editor never presents both states at once, so a decline has no second arm to
+		// reach: writing the cross-block range here would serve a selection the seam's own
+		// caller cannot have handed it.
 		it('does not fall through to the cross-block arm when the block declines', () => {
 			const h = harness({ widgetBlock: widgetBlock(false).block });
 			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
