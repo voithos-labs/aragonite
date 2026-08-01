@@ -37,6 +37,7 @@ describe('blockquote Enter override', () => {
 
 		await pressKeyAt(mounted, [0, 0], 5, ENTER);
 
-		expect(mounted.source()).toBe('> alpha\n>\n>\n>\n> beta\n');
+		// One new quoted blank line, not two: `beta` already carries the run's separator.
+		expect(mounted.source()).toBe('> alpha\n>\n>\n> beta\n');
 	});
 });

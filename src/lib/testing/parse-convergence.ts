@@ -2,14 +2,13 @@
  * The parse-convergence oracle. A byte round-trip after a mutation is a tautology (G2.1
  * makes `serialize∘parse` identity), so this compares the LIVE tree against
  * `parse(serialize(live))` STRUCTURALLY instead: kinds, children shape, and parse-derived
- * metadata. Empty-paragraph placeholders are dropped symmetrically, using the parser's own
- * blank-line rule (GFM §2.1). The reparse uses the ambient grammar, so an unregistered
- * kind reads as a false divergence.
+ * metadata. The comparison is exact — since 0.9.36 the parser materializes blank lines as
+ * blocks, so an empty paragraph reparses as itself. The reparse uses the ambient grammar,
+ * so an unregistered kind reads as a false divergence.
  */
 
 import type { BlockMetadataByKind, CstNode, Document } from '../core/nodes';
-import { splitLines } from '../core/lines';
-import { isBlankLine, parse } from '../core/parser';
+import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import { show } from './conformance-core';
 
@@ -30,17 +29,6 @@ const METADATA_FIELDS: {
 	list: ['ordered'],
 	listItem: ['marker', 'taskItem', 'taskChecked', 'taskMarker']
 };
-
-/** An empty-paragraph placeholder the parser folds into trivia — a tolerated transient. */
-function isEmptyParagraphPlaceholder(node: CstNode): boolean {
-	if (node.kind !== 'paragraph' || node.children) return false;
-	return splitLines(node.raw).every((line) => isBlankLine(line.text));
-}
-
-/** Children with the tolerated empty-paragraph placeholders dropped, both sides symmetrically. */
-function comparableChildren(node: Document | CstNode): CstNode[] {
-	return (node.children ?? []).filter((c) => !isEmptyParagraphPlaceholder(c));
-}
 
 /** True when the live tree converges structurally with a fresh parse of its serialization. */
 export function parseConverges(doc: Document): boolean {
@@ -63,10 +51,10 @@ function diffChildren(
 	reparsed: Document | CstNode,
 	path: number[]
 ): string | null {
-	const liveKids = comparableChildren(live);
-	const reKids = comparableChildren(reparsed);
+	const liveKids = live.children ?? [];
+	const reKids = reparsed.children ?? [];
 	if (liveKids.length !== reKids.length) {
-		return `[${path.join(',')}] live has ${liveKids.length} comparable children, reparsed has ${reKids.length}`;
+		return `[${path.join(',')}] live has ${liveKids.length} children, reparsed has ${reKids.length}`;
 	}
 	for (let i = 0; i < liveKids.length; i++) {
 		const divergence = diffNode(liveKids[i], reKids[i], [...path, i]);

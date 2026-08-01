@@ -396,7 +396,10 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 	const tail = isWholeBlockUnit(kindNode) ? kindNode.raw : kindNode.raw.slice(startOffset);
 	assertIs(
 		copied,
-		tail + sentinel.leadingTrivia + sentinel.raw.slice(0, endOffset),
+		tail +
+			bytesBetween(doc.children, 1, lastIndex) +
+			sentinel.leadingTrivia +
+			sentinel.raw.slice(0, endOffset),
 		`"${kind}" copy is a raw byte slice — no kind-specific synthesis`
 	);
 }
@@ -419,9 +422,20 @@ function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
 		: kindNode.raw.slice(0, interiorOffset(kindNode));
 	assertIs(
 		copied,
-		sentinel.raw.slice(startOffset) + kindNode.leadingTrivia + head,
+		sentinel.raw.slice(startOffset) +
+			bytesBetween(doc.children, 1, kindIndex) +
+			kindNode.leadingTrivia +
+			head,
 		`"${kind}" copy is a raw byte slice — no kind-specific synthesis`
 	);
+}
+
+/** The blocks a sweep crosses whole: a blank run beside the sentinel materializes as these. */
+function bytesBetween(children: CstNode[], from: number, to: number): string {
+	return children
+		.slice(from, to)
+		.map((node) => node.leadingTrivia + node.raw)
+		.join('');
 }
 
 /**

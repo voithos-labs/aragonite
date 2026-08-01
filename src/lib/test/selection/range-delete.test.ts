@@ -91,7 +91,9 @@ describe('rangeDelete — end-container post-end siblings preservation', () => {
 	it('end inside first paragraph of multi-paragraph blockquote preserves later paragraphs', () => {
 		const src = 'before\n\n> first para\n>\n> second para\n>\n> third para\n';
 		const { source } = run(src, { path: [0], offset: 4 }, { path: [1, 0], offset: 5 });
-		expect(source).toBe('befo para\n\n>\n> second para\n>\n> third para\n');
+		// The deleted first paragraph takes its own separator with it, so the surviving
+		// paragraph opens the quote rather than trailing a blank first row.
+		expect(source).toBe('befo para\n\n> second para\n>\n> third para\n');
 	});
 
 	it('end inside multi-paragraph list item preserves later paragraphs in same item', () => {

@@ -106,6 +106,12 @@ export type { ParsedLine } from './core/lines';
 // GFM §2.1's blank line (spaces and tabs only). `String.trim()` would admit the whole
 // Unicode whitespace set and split a block on a pasted non-breaking space.
 export { isBlankLine } from './core/parser';
+// A container whose body sits between chrome lines of its own (`:::note` … `:::`,
+// `<summary>` … `</details>`) parses that body here, not with `parse`: the blank line
+// against a chrome line is a separator, and only this seam knows to keep it out of the
+// children. See `design/syntax-tree.md` § blank lines.
+export { parseContainerBody } from './core/parser';
+export type { ContainerBodyWrap } from './core/parser';
 
 // ── Fence grammar (pre-freeze: refined against the fence-claiming reference plugins) ──
 // The built-in CommonMark fence recognizers, so a plugin claiming a fence (```mermaid)

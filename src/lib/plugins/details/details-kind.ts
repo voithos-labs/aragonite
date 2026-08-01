@@ -16,7 +16,7 @@ import {
 	registerChromeLeaf,
 	setPluginMetadata,
 	getPluginMetadata,
-	parse,
+	parseContainerBody,
 	serializeChildren,
 	trimTrailingLineEnding,
 	matchFenceOpen,
@@ -253,7 +253,11 @@ export function registerDetailsKind(): void {
 				.map((l) => l.raw)
 				.join('');
 			// A fresh parse entry, so the body's own line 0 must not read as the document top.
-			const body = parse(bodyText, { scope: 'fragment' });
+			const body = parseContainerBody(
+				bodyText,
+				{ afterOpenerLine: true, beforeCloserLine: true },
+				{ scope: 'fragment' }
+			);
 			const raw = ctx.lines
 				.slice(ctx.index, closeIdx + 1)
 				.map((l) => l.raw)

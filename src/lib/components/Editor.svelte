@@ -45,7 +45,6 @@
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
-	import { trailingLineEnding } from '../core/lines';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
 	import {
@@ -183,9 +182,9 @@
 	} {
 		const d = parse(src, { scope: 'document' });
 		if (d.children.length === 0) {
-			// A blank-lines-only source parses to zero blocks; the caret placeholder
-			// takes the source's own ending (G4.20), so a CRLF file gains no lone LF.
-			d.children.push(emptyParagraph('', trailingLineEnding(src)));
+			// Only the empty source parses to zero blocks — a blank line is a block of its
+			// own — so there is no authored ending to inherit and LF is the whole answer.
+			d.children.push(emptyParagraph('', '\n'));
 		}
 		for (const child of d.children) {
 			ensureEditableContainers(child);

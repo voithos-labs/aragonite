@@ -54,16 +54,10 @@ export function parse(
 		(opts?.scope ?? 'document') === 'document'
 	);
 	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
-	return {
-		kind: 'document',
-		prefix: result.prefix,
-		children: result.children,
-		suffix: result.suffix
-	};
+	return { kind: 'document', prefix: '', children: result.children, suffix: result.suffix };
 }
 
 interface ParseBlocksResult {
-	prefix: string;
 	children: CstNode[];
 	suffix: string;
 }
@@ -72,7 +66,10 @@ interface ParseBlocksResult {
  * The seam block-incremental parsing re-parses ranges through. Contract, pinned by
  * test/core/parse-blocks-window.test.ts: a block-aligned window parses identically to a full
  * parse of the window's text. A window is a FRAGMENT unless its caller says otherwise, so
- * `parse` is the only entry that defaults to document scope.
+ * `parse` alone defaults to document scope.
+ *
+ * Blank-line rule (`design/syntax-tree.md`): the first blank line of a run separates and folds
+ * into trivia; every later one is an empty paragraph carrying its own bytes.
  */
 export function parseBlocks(
 	lines: ParsedLine[],
@@ -83,22 +80,27 @@ export function parseBlocks(
 	isDocumentParse: boolean = false
 ): ParseBlocksResult {
 	const children: CstNode[] = [];
-	let prefix = '';
 	let pendingTrivia = '';
+	// Nothing precedes the window's first block, so its separator slot opens already spent —
+	// which is what makes a leading run materialize in full.
+	let separatorSpent = true;
 	let index = start;
-
-	while (index < end && isBlankLine(lines[index].text)) {
-		prefix += lines[index].raw;
-		index++;
-	}
-
-	if (index === end) return { prefix, children, suffix: pendingTrivia };
 
 	while (index < end) {
 		const line = lines[index];
 
 		if (isBlankLine(line.text)) {
-			pendingTrivia += line.raw;
+			// A zero-byte line is a container strip's artifact, not one the author wrote: it can
+			// neither separate nor render.
+			if (line.raw !== '') {
+				if (separatorSpent) {
+					children.push({ kind: 'paragraph', leadingTrivia: pendingTrivia, raw: line.raw });
+					pendingTrivia = '';
+				} else {
+					pendingTrivia += line.raw;
+					separatorSpent = true;
+				}
+			}
 			index++;
 			continue;
 		}
@@ -118,10 +120,57 @@ export function parseBlocks(
 		const { node, consumed } = parseNextBlock(ctx);
 		children.push(node);
 		pendingTrivia = '';
+		separatorSpent = false;
 		index += consumed;
 	}
 
-	return { prefix, children, suffix: pendingTrivia };
+	return { children, suffix: pendingTrivia };
+}
+
+export interface ContainerBodyWrap {
+	/** A chrome line of the container's own sits above the body (`:::note`, `<summary>`). */
+	afterOpenerLine?: boolean;
+	/** A chrome line of the container's own sits below the body (`:::`, `</details>`). */
+	beforeCloserLine?: boolean;
+}
+
+/**
+ * Parse a container body that sits between the container's own chrome lines. A blank line
+ * against a chrome line separates exactly as it does between blocks, so it lands in
+ * `prefix`/`suffix` while the rest of its run materializes as body content. A blank line with
+ * no body on its far side separated nothing and stays content. A container whose body starts
+ * at its own first line (blockquote, list item) has no wrap and uses `parse`. `opts.scope` is
+ * required for the reason G4.27 exists: a new parse entry cannot recover it.
+ */
+export function parseContainerBody(
+	bodyText: string,
+	wrap: ContainerBodyWrap,
+	opts: { scope: ParseScope; depth?: number }
+): Document {
+	const lines = splitLines(bodyText);
+	let first = 0;
+	let last = lines.length;
+	let prefix = '';
+	let suffix = '';
+
+	if (wrap.afterOpenerLine && last - first >= 2 && isBlankLine(lines[first].text)) {
+		prefix = lines[first].raw;
+		first++;
+	}
+	if (wrap.beforeCloserLine && last - first >= 2 && isBlankLine(lines[last - 1].text)) {
+		last--;
+		suffix = lines[last].raw;
+	}
+
+	const inner = parseBlocks(
+		lines,
+		first,
+		last,
+		defaultGrammarView,
+		opts.depth ?? 0,
+		opts.scope === 'document'
+	);
+	return { kind: 'document', prefix, children: inner.children, suffix: inner.suffix + suffix };
 }
 
 // ── Dispatch ────────────────────────────────────────────────────────────
@@ -190,6 +239,18 @@ const NON_BLANK_CHAR = /[^ \t]/;
 
 export function isBlankLine(text: string): boolean {
 	return !NON_BLANK_CHAR.test(text);
+}
+
+/**
+ * Nothing but blank lines — what the blank-line rule mints a block from. Blankness is the
+ * parser's (GFM §2.1), never `String.trim()`: a non-breaking space is content.
+ */
+export function isBlankSource(source: string): boolean {
+	return splitLines(source).every((line) => isBlankLine(line.text));
+}
+
+export function isBlankParagraph(node: { kind: string; raw: string }): boolean {
+	return node.kind === 'paragraph' && isBlankSource(node.raw);
 }
 
 export function joinRaw(lines: ParsedLine[], startIndex: number, endIndex: number): string {

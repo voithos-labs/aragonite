@@ -41,7 +41,7 @@ describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => 
 				{ path: [0], offset: 0, cellCoordinate: true },
 				{ path: [1], offset: 5 }
 			)
-		).toBe('\r\n\r\n');
+		).toBe('\r\n');
 	});
 
 	it('leaves an LF document on LF', () => {

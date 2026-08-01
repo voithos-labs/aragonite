@@ -20,7 +20,7 @@ import {
 } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath } from '../tree-operations/path-mutate';
-import { nodeAt } from '../tree-operations/node-ops';
+import { clearRedundantSeparator, nodeAt } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
 	rebuildUnsharedAncestry,
@@ -60,6 +60,8 @@ export function deleteSubtreesIdentityGated(
 		const path = deletionPaths[i];
 		if (nodeAt(doc, path) === targetNodes[i]) {
 			deleteAtPath(doc, path);
+			const parent = nodeAt(doc, path.slice(0, -1));
+			if (parent) clearRedundantSeparator(parent, path[path.length - 1], sharing);
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
 	}

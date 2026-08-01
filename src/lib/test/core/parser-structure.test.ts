@@ -18,16 +18,18 @@ describe('structural: headings', () => {
 	});
 });
 
+// The blank-line layout itself is pinned in core/blank-line-blocks.test.ts; these hold the
+// two document fields against it.
 describe('structural: document prefix/suffix', () => {
-	it('captures leading blank lines as prefix', () => {
+	it('leaves prefix empty — a leading blank line is a block, not document whitespace', () => {
 		const doc = parse('\n\n# Title\n');
-		expect(doc.prefix).toBe('\n\n');
-		expect(doc.children.length).toBe(1);
+		expect(doc.prefix).toBe('');
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph', 'heading']);
 	});
 
-	it('captures trailing blank lines as suffix', () => {
-		const doc = parse('# Title\n\n\n');
-		expect(doc.suffix).toBe('\n\n');
+	it('captures a lone trailing blank line as suffix', () => {
+		const doc = parse('# Title\n\n');
+		expect(doc.suffix).toBe('\n');
 		expect(doc.children.length).toBe(1);
 	});
 
@@ -36,13 +38,6 @@ describe('structural: document prefix/suffix', () => {
 		expect(doc.prefix).toBe('');
 		expect(doc.suffix).toBe('');
 		expect(doc.children.length).toBe(0);
-	});
-
-	it('only blank lines go into prefix', () => {
-		const doc = parse('\n\n\n');
-		expect(doc.prefix).toBe('\n\n\n');
-		expect(doc.children.length).toBe(0);
-		expect(doc.suffix).toBe('');
 	});
 });
 

@@ -8,16 +8,9 @@
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
-import {
-	makeBlockNode,
-	setPluginMetadata,
-	type AnyBlockKind,
-	type CstNode,
-	type Document
-} from '../nodes';
-import { parseBlocks, joinRaw } from '../parser';
-import { splitLines, trailingLineEnding, type ParsedLine } from '../lines';
-import { defaultGrammarView } from '../../schema/block-openers';
+import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
+import { parseContainerBody, joinRaw } from '../parser';
+import { trailingLineEnding, type ParsedLine } from '../lines';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF, type DirectiveContainerMetadata } from './kinds';
@@ -70,17 +63,16 @@ export function registerDirectiveOpeners(): void {
 			const closerLine = ctx.lines[closerIdx];
 			const bodyText = joinRaw(ctx.lines, ctx.index + 1, closerIdx);
 			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
-			// One nesting level deeper, so nested directives share the container-depth cap.
-			const bodyLines = splitLines(bodyText);
-			const inner = parseBlocks(
-				bodyLines,
-				0,
-				bodyLines.length,
-				defaultGrammarView,
-				ctx.depth + 1,
-				ctx.isDocumentParse
+			// One nesting level deeper, so nested directives share the container-depth cap; the
+			// body stays inside this parse entry, so it inherits its scope.
+			const body = parseContainerBody(
+				bodyText,
+				{ afterOpenerLine: true, beforeCloserLine: true },
+				{
+					scope: ctx.isDocumentParse ? 'document' : 'fragment',
+					depth: ctx.depth + 1
+				}
 			);
-			const body: Document = { kind: 'document', ...inner };
 			// isDirectiveCloser guarantees an all-colon line, so its length IS the colon count.
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
