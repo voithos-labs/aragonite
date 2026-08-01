@@ -118,6 +118,19 @@ test.describe('mermaid reference plugin', () => {
 		expect(await editor.bridge.getSource()).toBe(SEED);
 	});
 
+	test('undo works from the diagram’s own focus surface, with no caret elsewhere', async () => {
+		await editor.editFirstDiagram(EDITED_CODE);
+		await editor.page.keyboard.press('Control+Enter');
+		await editor.bridge.waitForSourceContains(EDITED_CODE);
+
+		// A keyboard commit hands focus back to the diagram, which is where a user presses
+		// undo next — no click away first.
+		await expect(editor.firstViewport).toBeFocused();
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains(EDITED_CODE);
+		expect(await editor.bridge.getSource()).toBe(SEED);
+	});
+
 	test('Escape cancels the edit without touching the source', async ({ page }) => {
 		await editor.editFirstDiagram(EDITED_CODE);
 		await page.keyboard.press('Escape');

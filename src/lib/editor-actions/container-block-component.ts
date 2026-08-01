@@ -13,8 +13,16 @@ import {
 	dispatchGetBlockComponentByPath
 } from './focus/focus-dispatch';
 import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
+import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
+import {
+	getCommand,
+	isEditorGlobalChord,
+	resolveBinding,
+	type GlobalCommandContext
+} from '../schema/commands';
+import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { StickyColumnState } from '../cursor/sticky-column';
@@ -68,6 +76,33 @@ export function composeWholeBlockFocusSurface(
 function focusWholeBlockEl(el: HTMLElement): void {
 	if (!el.hasAttribute('tabindex')) el.tabIndex = -1;
 	el.focus();
+}
+
+export interface EditorGlobalChordDeps
+	extends Pick<GlobalCommandContext, 'history' | 'pluginEditor' | 'onCommandError'> {
+	getKind: () => AnyBlockKind;
+	getKeybindingOverrides: () => KeybindingOverrideMap | undefined;
+	isReading: () => boolean;
+}
+
+/**
+ * Undo/redo for a block that IS its own focus target: no inner leaf carries the global tier
+ * for it, and the editor root declines while focus sits on the block. `true` means the chord
+ * was consumed — including in reading mode, or a read-only document gets the browser's native
+ * undo. Bypassing `dispatchKeyCommand` is what owes it that gate.
+ */
+export function handleEditorGlobalChord(chord: string, deps: EditorGlobalChordDeps): boolean {
+	if (!isEditorGlobalChord(chord)) return false;
+	if (deps.isReading()) return true;
+	const binding = resolveBinding(chord, deps.getKind(), deps.getKeybindingOverrides());
+	if (binding) {
+		getCommand(binding.command)?.({
+			history: deps.history,
+			pluginEditor: deps.pluginEditor,
+			onCommandError: deps.onCommandError
+		});
+	}
+	return true;
 }
 
 export interface WholeBlockKeyDeps {
