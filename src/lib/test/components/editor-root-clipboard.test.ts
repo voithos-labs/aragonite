@@ -166,14 +166,10 @@ describe('editor-root clipboard routing', () => {
 	// A selected inline widget is the second state whose event lands here: selecting one
 	// clears the native selection, and in a block with no text position nothing re-seats it.
 	describe('selected-widget arm', () => {
-		function widgetBlock(claims = true) {
+		function widgetBlock() {
 			const seen: string[] = [];
 			const block = {
-				claimRootClipboard: (e: ClipboardEvent) => {
-					if (!claims) return false;
-					seen.push(e.type);
-					return true;
-				}
+				claimRootClipboard: (e: ClipboardEvent) => void seen.push(e.type)
 			} as unknown as BlockComponent;
 			return { block, seen };
 		}
@@ -211,14 +207,16 @@ describe('editor-root clipboard routing', () => {
 			expect(seen).toEqual([]);
 		});
 
-		// The editor never presents both states at once, so a decline has no second arm to
-		// reach: writing the cross-block range here would serve a selection the seam's own
-		// caller cannot have handed it.
-		it('does not fall through to the cross-block arm when the block declines', () => {
-			const h = harness({ widgetBlock: widgetBlock(false).block });
+		// The editor never presents both states at once, so the widget target is terminal:
+		// writing the cross-block range too would serve a selection the seam's own caller
+		// cannot have handed it. The block here writes nothing, so any write is the range's.
+		it('never falls through to the cross-block arm, even with a range live', () => {
+			const { block, seen } = widgetBlock();
+			const h = harness({ widgetBlock: block });
 			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
 
 			expect(h.fire('copy', document.body).written.size).toBe(0);
+			expect(seen).toEqual(['copy']);
 		});
 	});
 

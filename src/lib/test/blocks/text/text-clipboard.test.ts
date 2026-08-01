@@ -30,7 +30,9 @@ function capturingEvent() {
 			setData: (type: string, value: string) => void store.set(type, value),
 			getData: (type: string) => store.get(type) ?? ''
 		},
-		payload: () => store.get('text/plain') ?? ''
+		payload: () => store.get('text/plain') ?? '',
+		/** Distinguishes a handler that wrote nothing from one that never ran at all. */
+		wrote: () => store.has('text/plain')
 	};
 }
 
@@ -146,13 +148,13 @@ describe('createTextClipboard — claimRootClipboard', () => {
 	it('routes each clipboard type to the arm the caret route reaches', async () => {
 		const copy = harness('lead![cat](x)\n', 4);
 		const copyEvent = capturingEvent();
-		expect(copy.handlers.claimRootClipboard({ ...copyEvent, type: 'copy' } as never)).toBe(true);
+		copy.handlers.claimRootClipboard({ ...copyEvent, type: 'copy' } as never);
 		expect(copyEvent.payload()).toBe('![cat](x)');
 		expect(copy.commits).toEqual([]);
 
 		const cut = harness('lead![cat](x)\n', 4);
 		const cutEvent = capturingEvent();
-		expect(cut.handlers.claimRootClipboard({ ...cutEvent, type: 'cut' } as never)).toBe(true);
+		cut.handlers.claimRootClipboard({ ...cutEvent, type: 'cut' } as never);
 		await tick();
 		expect(cutEvent.payload()).toBe('![cat](x)');
 		expect(cut.commits[0]).toEqual({ index: 0, raw: 'lead\n', before: 4, after: 4 });
@@ -160,30 +162,37 @@ describe('createTextClipboard — claimRootClipboard', () => {
 		const paste = harness('lead![cat](x)\n', 4, { crossBlockDeclines: true });
 		const pasteEvent = capturingEvent();
 		pasteEvent.clipboardData.setData('text/plain', 'PASTED');
-		expect(paste.handlers.claimRootClipboard({ ...pasteEvent, type: 'paste' } as never)).toBe(true);
+		paste.handlers.claimRootClipboard({ ...pasteEvent, type: 'paste' } as never);
 		await tick();
 		expect(paste.commits[0].raw).toBe('leadPASTED\n');
 	});
 
-	// The trap deps prove it: a decline must not reach a handler, or the block would answer
+	// The trap deps prove it: the guard must not reach a handler, or the block would answer
 	// for a widget selected somewhere else.
-	it('declines when the selected widget is not this block’s', () => {
+	it('stays inert when the selected widget is not this block’s', () => {
 		const { handlers, commits } = harness('lead![cat](x)\n', 4, { selectWidget: false });
-		expect(handlers.claimRootClipboard({ ...capturingEvent(), type: 'copy' } as never)).toBe(false);
+		const event = capturingEvent();
+		handlers.claimRootClipboard({ ...event, type: 'copy' } as never);
+		expect(event.wrote()).toBe(false);
 		expect(commits).toEqual([]);
 	});
 
-	it('declines an event type no arm owns', () => {
-		const { handlers } = harness('lead![cat](x)\n', 4);
-		expect(handlers.claimRootClipboard({ ...capturingEvent(), type: 'beforeinput' } as never)).toBe(
-			false
-		);
+	it('stays inert for an event type no arm owns', () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4);
+		const event = capturingEvent();
+		handlers.claimRootClipboard({ ...event, type: 'beforeinput' } as never);
+		expect(event.wrote()).toBe(false);
+		expect(commits).toEqual([]);
 	});
 
-	it('carries the reading gate: a cut copies and commits nothing', async () => {
+	// Reading mode degrades the cut to the copy path, which writes the visible selection
+	// (empty here) rather than the widget slice — so `wrote` is what says it ran at all.
+	it('carries the reading gate: a cut still writes, and commits nothing', async () => {
 		const { handlers, commits } = harness('lead![cat](x)\n', 4, { readOnly: true });
-		expect(handlers.claimRootClipboard({ ...capturingEvent(), type: 'cut' } as never)).toBe(true);
+		const event = capturingEvent();
+		handlers.claimRootClipboard({ ...event, type: 'cut' } as never);
 		await tick();
+		expect(event.wrote()).toBe(true);
 		expect(commits).toEqual([]);
 	});
 });
