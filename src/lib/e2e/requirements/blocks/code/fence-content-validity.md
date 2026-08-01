@@ -14,8 +14,8 @@ The two sources, written out (with the escapes, so the fence runs stay readable)
 `"```js\n```\nconst x = 1\n```"` and ``"```j`s\nconst x = 1\n```"``.
 
 A third rule answers the other direction, which no content region can produce: bytes a
-sink TRUNCATED past the block's own closer, leaving the opener over a body with nothing
-to end it. Same swallowed heading, no character to blame.
+sink TRUNCATED past one of the block's own fence lines, leaving an opener nothing ends or
+a closer nothing opened. Same swallowed heading, no character to blame.
 
 One write seam answers for every route that commits bytes — typing, IME composition end,
 paste, and the sinks that reach a node's raw with no surface in front of them — so no
@@ -26,16 +26,22 @@ it must.
 
 ## The three rules
 
-- **A dropped closer is restored.** A write that leaves the block's own opener in place
-  but no closer below it gets the closer back, on the block's own run length, indent and
-  line ending (the BLOCK's ending, since the written slice may carry none). The metadata
-  still claims a closed fence and an unclosed one absorbs every block below it at the next
-  parse, so the session's structure is what the bytes are made legal for. It declines
-  unless the surviving first line is that opener: a line that reads as this fence's closer
-  is a closer the write STRANDED, which no metadata claims, and sizing a fence to it would
-  invent a block the tree never held. On a truncation the rule and the escalation cannot
-  both fire: escalation triggers on a body line that reads as this block's closer, which is
-  the line the restore probe reads AS the closer, and a truncation only removes bytes.
+- **The fence lines are reconciled, in whichever direction the write broke them.** An
+  unclosed fence absorbs every block below it at the next parse, and a truncation can mint
+  one from either half, so the surviving first line decides which repair applies. With the
+  block's own opener still there, a missing closer is restored — on the block's own run
+  length, indent and line ending (the BLOCK's ending, since the written slice may carry
+  none), because the metadata still claims a closed fence and the session's structure is
+  what the bytes are made legal for. Without that opener, a surviving line reading as this
+  fence's closer is machinery the write STRANDED: no metadata claims a block to size a
+  fence to, and as text the run would open one over the live siblings below, so it is
+  dropped and the body fragment merges as prose. The drop declines when an opener above
+  could close on the run — same marker, no longer than it — since that run is then a live
+  block's terminator; a foreign-marker or longer-run open line is body text the run never
+  terminated.
+  On a truncation the restore and the escalation cannot both fire: escalation triggers on a
+  body line that reads as this block's closer, which is the line the restore probe reads AS
+  the closer, and a truncation only removes bytes.
 - **A fence run escalates the fence.** A body line the parser would read as this
   block's closer grows BOTH runs past it, so the line stays content. This is what
   paste has always done with a pasted run, and it is the same shape as a directive's
@@ -95,13 +101,18 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
   that assigns raw directly does not, and the G4.28 scan cannot see one. The bare writes
   that remain (the chrome-clear and cell-clear arms of the delete branches) reach kinds
   whose slots a `fencedCode` cannot occupy, so none of them can drop a closer today.
-- **A truncation that takes the OPENER is not repaired.** The mirror case, a range
-  consuming a code block's opener and leaving its closer behind as a stray run, reparses
-  to a NEW unclosed fence over live siblings. Nothing in the metadata claims that block,
-  so the restore rule declines it by design, in both its shapes: a lone closer line, and a
-  closer whose run is LONGER than the opener the write took (legal GFM, and what loaded
-  markdown supplies). Its own class, tracked as issue #58, not the live-tree convergence
-  family (#21), whose separator fix cannot stop a fence absorber.
+- **A bare fence's lone surviving line is read as the closer.** ` ``` ` with no info
+  string reads as this block's opener and as its closer alike, so a write leaving only that
+  line is ambiguous: a head-side truncation meant to keep an empty code block, a tail-side
+  one to strand residue. It is dropped, since the run is unclaimed either way and restoring
+  would mint a block from residue — so an emptied bare fence disappears rather than
+  surviving empty. A fence with an info string, or a stranded run longer than the block's
+  own, is unambiguous and takes its own arm.
+- **The in-place sinks keep a kind their bytes no longer describe.** The range-delete
+  same-block arm writes raw with no reparse behind it and nothing re-derives the kind
+  afterwards, so a drop that turns a code block into prose leaves the node claiming
+  `fencedCode`. Kind-generic and not the fence rule's (a heading losing its `#` on the same
+  arm does it too); the bytes are correct, so nothing is absorbed on reload.
 
 ## Happy paths
 
@@ -119,6 +130,9 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
 - a selection running from inside a code body past its closer, deleted, leaves one closed
   code block with the blocks below it still siblings — through every range-delete arm
   (same-block, cross-block merge, the chrome wall, a table endpoint)
+- a selection running from an earlier block into a code body, deleted, leaves the surviving
+  body fragment as prose and the blocks below it still siblings — through the same four arms,
+  including a code block nested in a blockquote
 
 ## Edge cases
 
@@ -130,10 +144,25 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
   left in the DOM (pinned at the component level, `code-fence-write-commit.test.ts`)
 - a restored closer carries the block's own run length, opener indent and line ending —
   a four-backtick block gets four back, a CRLF block a CRLF, including when the document's
-  last block has no trailing newline and the slice carries no ending at all
-- a delete that consumes the opener restores nothing, whether the survivor is a lone closer
-  line or a longer run: the fence is gone, not broken (issue #58)
+  last block has no trailing newline and the slice carries no ending at all; a drop rejoins
+  the surviving lines on that same ending rather than stranding half a separator
+- a delete that consumes the opener drops the survivor's fence run, whether that is a lone
+  closer line or one LONGER than the opener the delete took (legal GFM, and what loaded
+  markdown supplies): the fence is gone, not broken
+- a delete that consumes BOTH fence lines reconciles nothing — no run survives to drop and
+  no metadata survives to restore from
 - a find/replace whose match runs from the body through the closer line gets the closer
-  back, so the block below it stays a sibling
+  back, and one that runs from the opener line down drops the closer it strands, so either
+  way the block below it stays a sibling
+- a replacement that pushes text ABOVE a surviving opener keeps the closer that opener
+  claims, rather than unclosing a live block
 - the collapsed caret keeps the offset the truncation gave it — the closer lands after it,
   and a restore never escalates, so no run grows under the caret
+
+## Miss-analysis
+
+- The restore rule shipped watching only the shape a START-side truncation makes (opener
+  kept, closer taken), because every pin drove a range that BEGAN in a code body — so its
+  decline on a stranded closer read as a deliberate limit rather than as half a rule; and
+  an end-side pin would have reached no fence rule at all, since the generic merge
+  normalized the joined raw against the START block's rule alone (issue #58).

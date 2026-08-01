@@ -36,6 +36,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'four hard-invariant bullets asserted in EVERY scenario, and the two tests are one parametrized loop over the atomic variants'
 	},
 	{
+		spec: 'blocks/code/fence-content-validity.spec.ts',
+		reason:
+			'the write rule reaches most of its doors headlessly (the byte sinks, find/replace, the range-delete arms), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'
+	},
+	{
 		spec: 'perf/perf-gate.perf.spec.ts',
 		reason:
 			'two parametrized loops run 13 gated rows, and the bullets state budget, baseline policy and what the gate cannot see rather than scenarios'
