@@ -144,7 +144,7 @@ export function registerMermaidKind(): void {
 			},
 			clipboard: {
 				mode: 'implemented',
-				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); cross-block slice inherits the default'
+				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); a cross-block range carries the unit whole, per the kit byte-slice check'
 			},
 			simOracle: {
 				mode: 'implemented',

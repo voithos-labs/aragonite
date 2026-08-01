@@ -10,7 +10,11 @@ import {
 	getBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
 import { listRegisteredOpeners } from '$lib/schema/block-openers';
-import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
+import {
+	checkCopyIsRawByteSlice,
+	resetPluginPlatformForTests,
+	runKindConformance
+} from '$lib/testing';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import {
 	registerCalloutKind,
@@ -115,6 +119,17 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 			expect(statusOf(report, 'mergeBackspace')).toBe('executed');
 		}
 	);
+
+	// The kind whose clipboard cell claims a cross-block range carries it whole: the claim is
+	// the kit's byte check, not prose, since the runner routes an `implemented` cell to the
+	// browser sweep and would never execute it.
+	it('mermaid backs its cross-block clipboard claim with the byte-slice check', () => {
+		registerMermaidKind();
+		const kind = declaredPluginKind(MERMAID);
+		expect(() =>
+			checkCopyIsRawByteSlice(kind, getBlockKindDescriptor(kind).conformanceFixture!)
+		).not.toThrow();
+	});
 
 	// Lockstep, dir tier: both directions, so neither an unenrolled new plugin nor a
 	// stale entry for a deleted one survives.

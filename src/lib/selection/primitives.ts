@@ -38,6 +38,22 @@ export interface CellSelectionPoint {
  */
 export type SelectionPoint = CharSelectionPoint | CellSelectionPoint;
 
+/** An endpoint whose block offered no position to land on; the funnel resolves the side. */
+export interface WholeBlockEndpoint {
+	path: number[];
+	wholeBlock: true;
+}
+
+/**
+ * What an entry path may hand the selection funnel. Only {@link SelectionPoint} is ever
+ * stored, so an unresolved endpoint cannot reach a consumer.
+ */
+export type SelectionEndpoint = SelectionPoint | WholeBlockEndpoint;
+
+export function isWholeBlockEndpoint(endpoint: SelectionEndpoint): endpoint is WholeBlockEndpoint {
+	return 'wholeBlock' in endpoint;
+}
+
 /**
  * Anchor/focus pair. Same path + same offset is collapsed; same path + different offsets
  * is a single-block range the browser owns (SelectionState stays null); different paths

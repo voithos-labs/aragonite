@@ -6,9 +6,8 @@
 
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
-import { offsetFromViewportPoint } from '../../../selection/native-bridge';
 import { createPointerDragSession } from '../../../selection/pointer-session';
-import { blockAtPoint } from '../../../selection/block-hit-test';
+import { blockAtPoint, endpointAtPoint } from '../../../selection/block-hit-test';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -92,15 +91,10 @@ export function installCellDragListener(
 	function extendToForeignBlock(clientX: number, clientY: number): void {
 		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
 		if (!hit) return;
-		// A table destination addresses cells by row-major index, so it must carry
-		// cellCoordinate for the whole-row snap to fire symmetrically with the anchor.
-		const offset = hit.foreignDragHitTest
-			? hit.foreignDragHitTest(clientX, clientY)
-			: offsetFromViewportPoint(hit.element, clientX, clientY);
-		if (offset === null) return;
-		const focusPoint: SelectionPoint = hit.foreignDragHitTest
-			? ({ path: hit.path, offset, cellCoordinate: true } satisfies CellSelectionPoint)
-			: { path: hit.path, offset };
+		// Shared with the cross-block drag, so a table destination carries cellCoordinate for the
+		// whole-row snap symmetrically with the anchor, and a surfaceless kind is not hit-tested.
+		const focusPoint = endpointAtPoint(hit, clientX, clientY);
+		if (!focusPoint) return;
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {

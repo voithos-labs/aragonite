@@ -6,12 +6,12 @@
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
-import type { CellSelectionPoint, SelectionPoint } from './primitives';
+import type { SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
-import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
+import { applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './path-math';
 import { createPointerDragSession } from './pointer-session';
-import { blockAtPoint } from './block-hit-test';
+import { blockAtPoint, endpointAtPoint } from './block-hit-test';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,17 +47,8 @@ export function installDragListener(
 			return;
 		}
 
-		const isCellCoordinate = !!hit.foreignDragHitTest;
-		const offset = isCellCoordinate
-			? hit.foreignDragHitTest!(clientX, clientY)
-			: offsetFromViewportPoint(hit.element, clientX, clientY);
-		if (offset === null) return;
-
-		// A table endpoint's offset is a row-major cell index, not a char offset; the flag
-		// routes collapse/reveal to the deep cell, matching the keyboard path.
-		const focusPoint: SelectionPoint = isCellCoordinate
-			? ({ path: hit.path, offset, cellCoordinate: true } satisfies CellSelectionPoint)
-			: { path: hit.path, offset };
+		const focusPoint = endpointAtPoint(hit, clientX, clientY);
+		if (!focusPoint) return;
 		if (!ctx.selection.isCrossBlock) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {

@@ -161,8 +161,8 @@ function landingFor(
 	// A kind with only the drag hook addresses cells and named no caret landing.
 	if (hit.foreignDragHitTest) return null;
 	// Reading mode flips contenteditable off, and a non-editable leaf has no character position.
-	if (!hit.element.matches('[contenteditable="true"]')) return null;
-	const offset = offsetFromViewportPoint(hit.element, probeX, probeY);
+	if (!hit.charSurface?.matches('[contenteditable="true"]')) return null;
+	const offset = offsetFromViewportPoint(hit.charSurface, probeX, probeY);
 	return offset === null ? null : { path: [], offset };
 }
 
