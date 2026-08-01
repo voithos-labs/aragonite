@@ -16,6 +16,7 @@ import type {
 	CommitAfterTick,
 	ContainerEditActions,
 	FocusActions,
+	HistoryActions,
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
@@ -32,6 +33,7 @@ import {
 	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
 	FOCUS_KEY,
+	HISTORY_KEY,
 	type EditorDoc,
 	type EditorPolicies,
 	type EditorServices,
@@ -46,6 +48,7 @@ import { createBlockquoteOverrides } from '../blockquote-overrides';
 import {
 	composeWholeBlockFocusSurface,
 	createContainerBlockComponent,
+	handleEditorGlobalChord,
 	handleWholeBlockKeys,
 	isEditableEventTarget
 } from '../container-block-component';
@@ -275,6 +278,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const {
 		controller,
 		stickyColumn,
@@ -423,9 +427,25 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
 
+	const globalChordDeps = {
+		getKind: () => deps.getNode().kind,
+		history,
+		pluginEditor,
+		onCommandError: (report: Parameters<typeof emitCommandError>[1]) =>
+			emitCommandError(editorEvents, report),
+		getKeybindingOverrides: keybindingOverrides,
+		isReading: () => isReadingMode(getPresentationMode)
+	};
+
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
+		// Own-surface only: a chord bubbling from an inner leaf already met the global tier
+		// there, and re-firing it here would double-fire.
+		if (chord && ownsWholeBlockFocus(e) && handleEditorGlobalChord(chord, globalChordDeps)) {
+			e.preventDefault();
+			return;
+		}
 		if (
 			chord &&
 			dispatchKindCommand(
@@ -442,14 +462,18 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleWholeBlockKeydown(e);
 	};
 
-	// The whole-block-focus affordances, dispatched from the wrapper's bubble phase.
-	// The three gates keep a focused sibling (a toolbar button would double-fire its
-	// click and an Enter split) and a plugin's own editable surface untouched.
-	function handleWholeBlockKeydown(e: KeyboardEvent): void {
-		if (!wholeBlockSurface) return;
+	// The three gates keep a focused sibling (a toolbar button would double-fire its click
+	// and an Enter split) and a plugin's own editable surface untouched.
+	function ownsWholeBlockFocus(e: KeyboardEvent): boolean {
+		if (!wholeBlockSurface) return false;
 		const focusEl = wholeBlockSurface();
-		if (!focusEl || !focusEl.contains(document.activeElement)) return;
-		if (isEditableEventTarget(e.target)) return;
+		if (!focusEl || !focusEl.contains(document.activeElement)) return false;
+		return !isEditableEventTarget(e.target);
+	}
+
+	// The whole-block-focus affordances, dispatched from the wrapper's bubble phase.
+	function handleWholeBlockKeydown(e: KeyboardEvent): void {
+		if (!ownsWholeBlockFocus(e)) return;
 
 		// A whole-block surface is tabindex-focusable independent of contenteditable,
 		// so this path is live in reading mode: arrows stay, edits gate.

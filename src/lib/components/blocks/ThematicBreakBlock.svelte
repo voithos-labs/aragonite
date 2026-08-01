@@ -16,14 +16,12 @@
 		type EditorServices
 	} from '../../editor-keys';
 	import { eventToChord } from '../../schema/keybindings';
-	import {
-		resolveBinding,
-		getCommand,
-		isEditorGlobalChord,
-		type CommandId
-	} from '../../schema/commands';
+	import { type CommandId } from '../../schema/commands';
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../schema/block-commands';
-	import { handleWholeBlockKeys } from '../../editor-actions/container-block-component';
+	import {
+		handleEditorGlobalChord,
+		handleWholeBlockKeys
+	} from '../../editor-actions/container-block-component';
 	import { placeCaret } from '../../selection/caret-doors';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -87,16 +85,21 @@
 
 	// ── Event Handlers ──────────────────────────────────────────────────
 
+	// Shared with the plugin container factory, so undo/redo from a block's own focus
+	// surface has one definition instead of a built-in and a plugin copy.
+	const globalChordDeps = {
+		getKind: () => node.kind,
+		history,
+		pluginEditor,
+		onCommandError,
+		getKeybindingOverrides: keybindingOverrides,
+		isReading
+	};
+
 	function onKeyDown(e: KeyboardEvent): void {
-		// The local arm exists to consume the chord even in reading mode; without the
-		// preventDefault a read-only document gets the browser's native undo. It
-		// bypasses dispatchKeyCommand, so it owes the reading gate itself.
 		const chord = eventToChord(e);
-		if (chord && isEditorGlobalChord(chord)) {
+		if (chord && handleEditorGlobalChord(chord, globalChordDeps)) {
 			e.preventDefault();
-			if (isReading()) return;
-			const binding = resolveBinding(chord, node.kind, keybindingOverrides());
-			if (binding) getCommand(binding.command)?.({ history, pluginEditor, onCommandError });
 			return;
 		}
 
