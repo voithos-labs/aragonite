@@ -23,6 +23,7 @@ import {
 	matchFenceClose,
 	htmlBlockTagLineMatcher,
 	OPENER_PRIORITIES,
+	type ContainerBodyWrap,
 	type CstNode
 } from '$lib/plugin';
 
@@ -32,6 +33,9 @@ export const DETAILS_SUMMARY = 'details-summary';
 const OPEN_LINE = /^<details( open)?>$/;
 const SUMMARY_LINE = /^<summary>(.*)<\/summary>$/;
 const CLOSE_LINE = /^<\/details>$/;
+
+/** `<summary>` above and `</details>` below, so a blank against either belongs to the element. */
+const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true, beforeCloserLine: true };
 
 export interface DetailsMetadata {
 	open: boolean;
@@ -179,6 +183,7 @@ export function registerDetailsKind(): void {
 		container: {
 			contract: 'opaque',
 			rebuildRaw: rebuildDetailsRaw,
+			bodyWrap: BODY_WRAP,
 			reservedChrome: {
 				kind: detailsSummary,
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
@@ -253,11 +258,7 @@ export function registerDetailsKind(): void {
 				.map((l) => l.raw)
 				.join('');
 			// A fresh parse entry, so the body's own line 0 must not read as the document top.
-			const body = parseContainerBody(
-				bodyText,
-				{ afterOpenerLine: true, beforeCloserLine: true },
-				{ scope: 'fragment' }
-			);
+			const body = parseContainerBody(bodyText, BODY_WRAP, { scope: 'fragment' });
 			const raw = ctx.lines
 				.slice(ctx.index, closeIdx + 1)
 				.map((l) => l.raw)

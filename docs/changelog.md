@@ -109,7 +109,10 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   line that belongs to the container, not to the body. Parsing such a body through `parse` would
   read that line as an empty first row; `parseContainerBody` keeps it in `innerPrefix`/`innerSuffix`
   and materializes the rest of the run as content. The bundled details, admonition and GitHub-alert
-  containers use it.
+  containers use it. A kind declares the same wrap as `container.bodyWrap` (`DIRECTIVE_BODY_WRAP`
+  for a `:::` body), which is what lets the editor's separator settle tell the wrap's own blank
+  line from a spare one; the container conformance kit probes the parse and fails a declaration
+  that disagrees with it.
 
 - **Typing `</details>` inside a `<details>` no longer destroys it.** The terminator is a fixed
   token with no fence length to escalate, so the `:::` containers' escalation fix was unavailable

@@ -396,21 +396,53 @@ export function mergeWithNext(parent: NodeParent, blockIndex: number): Structura
 // ── Delete ──
 
 /**
- * Drop the separator at `index` when nothing above it needs one: at the head, or below a
- * blank block, where the parser reads the extra line as one more empty paragraph. Every
- * splice that changes what precedes a block settles it. `sharing` owns the write (G1.9).
+ * Settle the separator at `index`: nothing above it needs one at the body head or below a blank
+ * block, where the parser would read the extra line as one more empty paragraph. Every splice
+ * that changes what precedes a block settles it. `sharing` owns the write (G1.9).
  */
 export function clearRedundantSeparator(
-	parent: { children?: CstNode[] },
+	parent: SeparatorParent,
 	index: number,
 	sharing?: SharingState
 ): void {
 	const node = parent.children?.[index];
 	if (!node || node.leadingTrivia === '') return;
-	const predecessor = index > 0 ? parent.children![index - 1] : undefined;
+	const bodyStart = bodyStartIndex(parent);
+	if (index < bodyStart) return;
+	const predecessor = index > bodyStart ? parent.children![index - 1] : undefined;
 	if (predecessor !== undefined && !isBlankParagraph(predecessor)) return;
 	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, index, sharing) : node;
+	const freed = owned.leadingTrivia;
 	owned.leadingTrivia = '';
+	absorbWrapPrefix(parent, bodyStart, index, freed);
+}
+
+/** A container's children plus the two fields the settle reads; the Document has neither. */
+type SeparatorParent = { kind?: string; innerPrefix?: string; children?: CstNode[] };
+
+/** Reserved chrome is not a body block, so the body window opens past it. */
+function bodyStartIndex(parent: SeparatorParent): number {
+	if (parent.kind === undefined) return 0;
+	return tryGetBlockKindDescriptor(parent.kind as AnyBlockKind)?.reservedChrome ? 1 : 0;
+}
+
+/**
+ * A chrome-wrapped container's parse peels the blank line against its opener into `innerPrefix`
+ * (`core/parser.parseContainerBody`), so a separator freed above the body head is that line
+ * rather than dead bytes: hand it over, or the peel eats the head block instead.
+ */
+function absorbWrapPrefix(
+	parent: SeparatorParent,
+	bodyStart: number,
+	index: number,
+	freed: string
+): void {
+	if (parent.kind === undefined || (parent.innerPrefix ?? '') !== '') return;
+	if (!tryGetBlockKindDescriptor(parent.kind as AnyBlockKind)?.bodyWrap?.afterOpenerLine) return;
+	const head = parent.children?.[bodyStart];
+	if (!head || head.leadingTrivia !== '') return;
+	if (index !== bodyStart && !isBlankParagraph(head)) return;
+	parent.innerPrefix = trailingLineEnding(freed);
 }
 
 /**

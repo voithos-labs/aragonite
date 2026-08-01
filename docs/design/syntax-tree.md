@@ -121,7 +121,7 @@ One blank line separates two blocks and becomes the next block's `leadingTrivia`
 
 That rule is what makes the tree's **shape** a fixed point of `serialize` → `parse`, not just its bytes: a deliberately typed blank line is a block the moment it is typed, and reloads as the same block. Every construct that separates blocks — Enter's split, a block delete, a structural paste — derives its separator from it, so no path can mint a blank line the reload reads differently.
 
-A container inherits the rule through strip-and-recurse. The exception is a container whose body sits between chrome lines of its own (`:::note` … `:::`, `<summary>` … `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. That distinction is a seam of the plugin API, not a per-kind branch in the parser.
+A container inherits the rule through strip-and-recurse. The exception is a container whose body sits between chrome lines of its own (`:::note` … `:::`, `<summary>` … `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. That distinction is a seam of the plugin API, not a per-kind branch in the parser: the kind declares the wrap it parses with, and the separator settle every splice runs through reads the declaration — inside a wrap, the line a settle frees above the body head is the wrap's own, not spare bytes.
 
 ### Scope boundaries
 

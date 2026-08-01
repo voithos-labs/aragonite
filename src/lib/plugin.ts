@@ -217,6 +217,9 @@ export {
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
 // The `rebuildRaw` for a directive container whose child 0 is an editable title.
 export { createDirectiveRebuild } from './editor-actions/plugin/directive-container';
+// The wrap every `:::` body parses with; a directive kind declares it as its `container.bodyWrap`
+// so the editor's separator settle knows the blank line against the fence belongs to the fence.
+export { DIRECTIVE_BODY_WRAP } from './core/directive/kinds';
 
 // ── Renderer utilities ────────────────────────────────────────────────────────
 // A bounded LRU memo for a renderer's per-source work, sync or async (store the

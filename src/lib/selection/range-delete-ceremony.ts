@@ -19,7 +19,7 @@ import {
 	pathsEqual
 } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { deleteAtPath } from '../tree-operations/path-mutate';
+import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import { clearRedundantSeparator, nodeAt } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
@@ -64,6 +64,25 @@ export function deleteSubtreesIdentityGated(
 			if (parent) clearRedundantSeparator(parent, path[path.length - 1], sharing);
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
+	}
+}
+
+/**
+ * Install a truncated endpoint's replacement and settle the follower's separator: a truncation
+ * that leaves a blank block otherwise turns the follower's separator into one more blank line
+ * on reload (G2.13). Every endpoint-install site routes here; `sharing` owns the writes.
+ */
+export function installTruncatedEndpoint(
+	doc: Document,
+	path: number[],
+	replacement: CstNode[],
+	sharing: SharingState
+): void {
+	for (const node of replacement) sharing.stamp(node);
+	replaceAtPath(doc, path, replacement);
+	const parent = nodeAt(doc, path.slice(0, -1));
+	if (parent) {
+		clearRedundantSeparator(parent, path[path.length - 1] + replacement.length, sharing);
 	}
 }
 

@@ -1,5 +1,6 @@
 import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
 import { registerOnce } from './register-once';
@@ -69,6 +70,14 @@ export interface BlockKindDescriptor {
 	 * byte-check, and its `rebuildRaw` must be deterministic over children/metadata/inner trivia.
 	 */
 	containerContract?: 'strip' | 'grid' | 'opaque';
+	/**
+	 * The wrap this container's opener parses its body with, when the body sits between chrome
+	 * lines of the container's own: a parse then peels the chrome-adjacent blank line into
+	 * `innerPrefix`/`innerSuffix` (`core/parser.parseContainerBody`), which is what makes that
+	 * line the wrap's rather than a body block. Absent = the body starts at the container's own
+	 * first line (blockquote, list item) and `innerPrefix` is always empty.
+	 */
+	bodyWrap?: ContainerBodyWrap;
 	/**
 	 * The kind has no standalone line recognizer, so `parse(raw)` would NOT reproduce it: its
 	 * container's rebuildRaw owns the syntax, and a content edit writes `raw` without re-deriving.
@@ -171,6 +180,7 @@ export interface BlockKindDescriptor {
 export interface ContainerDescriptorGroup {
 	contract: 'strip' | 'grid' | 'opaque';
 	rebuildRaw: (node: CstNode) => void;
+	bodyWrap?: ContainerBodyWrap;
 	reservedChrome?: BlockKindDescriptor['reservedChrome'];
 	containerPaste?: BlockKindDescriptor['containerPaste'];
 	unwrapRole?: UnwrapRole;
@@ -183,6 +193,7 @@ export interface ContainerDescriptorGroup {
 const CONTAINER_ONLY_KEYS = [
 	'isContainer',
 	'containerContract',
+	'bodyWrap',
 	'rebuildRaw',
 	'reservedChrome',
 	'containerPaste',
