@@ -10,8 +10,10 @@ test.describe('one edit event per op — blockquote splitBlock exit', () => {
 		await editor.goto();
 	});
 
+	// A block below the quote is load-bearing: with nothing to leave to, the exit appends
+	// one, and the append is a second op rather than a second event for this one.
 	test('Enter on empty trailing blockquote paragraph emits exactly one edit event', async () => {
-		await editor.loadContent('> first\n>\n> \n');
+		await editor.loadContent('> first\n>\n> \n\nafter\n');
 		const before = await editor.bridge.getSource();
 		const paras = editor.page.locator('.blockquote-block [contenteditable="true"]');
 		await paras.last().click();
@@ -23,5 +25,8 @@ test.describe('one edit event per op — blockquote splitBlock exit', () => {
 		});
 
 		expect(count).toBe(1);
+		// The empty child leaves the quote rather than the document: the quote keeps `first`
+		// and the caret lands on the block below.
+		expect(await editor.bridge.getSource()).toBe('> first\n\nafter\n');
 	});
 });

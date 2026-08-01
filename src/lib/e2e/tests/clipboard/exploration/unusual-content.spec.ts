@@ -22,7 +22,9 @@ test.describe('clipboard exploration: unusual content', () => {
 		expect(src).toContain('two');
 	});
 
-	test('paste content with leading blank lines does not create empty paragraphs', async () => {
+	// The clipboard's bytes are the answer: leading blank lines are blocks the author
+	// copied, so they arrive as empty paragraphs rather than being dropped on the way in.
+	test('paste content with leading blank lines keeps them as empty blocks', async () => {
 		await editor.loadContent('target\n');
 		await editor.page.evaluate(() => navigator.clipboard.writeText('\n\nactual content\n'));
 
@@ -30,8 +32,15 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('actual content');
 
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('actual content');
+		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
+		expect(src).toBe('target\n\n\n\nactual content\n');
+		const pastedCount = await editor.getDomBlockCount();
+		expect(pastedCount).toBe(4);
+
+		// The run separates from `target` rather than folding into it, so the bytes reload
+		// as the blocks on screen.
+		await editor.loadContent(src);
+		expect(await editor.getDomBlockCount()).toBe(pastedCount);
 	});
 
 	test('paste into thematic break (non-editable) — either no-op or creates paragraph', async () => {
