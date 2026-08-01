@@ -67,14 +67,12 @@ export const TRIGGER_DENSE_KINDS = ['bracket-footnote', 'colon', 'dollar'] as co
 export type TriggerDenseKind = (typeof TRIGGER_DENSE_KINDS)[number];
 
 /**
- * Prose dense in one INLINE TRIGGER, for the report-only rows measuring what an
- * installed inline rung costs. Kept out of `FIXTURE_SHAPES` because those sweep into
- * every gated row and a rung's cost is a plugin's business, not a ceiling the editor
- * owes. Each corpus isolates its rung's dominant cost: `colon` is mostly DECLINING
- * colons, `dollar` is shell prose (issue #27) with one real math span, and
- * `bracket-footnote` is definition-free so the control route parses the same document
- * — though its row measures the scanner consultation AND the mounted reference's
- * whole-document renumber walk together, not the rung alone.
+ * Prose dense in one INLINE TRIGGER, for the report-only rows measuring an installed
+ * rung's cost. Outside `FIXTURE_SHAPES`: those sweep into every gated row, and a rung's
+ * cost is a plugin's business, not a ceiling the editor owes. Each corpus isolates its
+ * rung's dominant cost: `colon` mostly DECLINES, `dollar` is shell prose (#27) with one
+ * real span, and `bracket-footnote` is definition-free so the control route parses the
+ * same document, though its row includes the reference's whole-document renumber walk.
  */
 export function generateTriggerDense(
 	kind: TriggerDenseKind,

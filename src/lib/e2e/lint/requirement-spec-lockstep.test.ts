@@ -1,18 +1,11 @@
 /**
  * G4.23 — requirement↔spec lockstep. `docs/contributing/testing.md` makes the filesystem the
- * authoritative list of what the e2e suite covers: every spec pairs with a requirement file
- * and vice versa. Three rules in descending strength: PAIRING (hard, both directions plus
- * stem collision), SHAPE (hard, catches the placeholder written to satisfy pairing), and
- * SCENARIO INFLATION (allowlisted — divergence is legal, unexplained divergence is not).
- *
- * Rule 3 is a RATIO because equality was measured and refuted: two thirds of pairs diverge
- * legitimately, so equality would need a per-pair allowlist and would pressure the suite
- * toward one-assertion padding. A green run does NOT prove any scenario maps to the test
- * covering it — bullets and titles are semantic paraphrases, so no lexical pairing survives.
- *
- * PLACEMENT: this is the e2e-TREE lint home; library-source lints live in
- * `src/lib/test/invariants`, which `test:editor:invariants` covers and this file is outside
- * of. Verify a change here with `npx vitest run src/lib/e2e/lint/`.
+ * authoritative list of e2e coverage: every spec pairs with a requirement file and vice
+ * versa. Three rules, descending: PAIRING (hard, both directions plus stem collision), SHAPE
+ * (hard, catches the placeholder written to satisfy pairing), SCENARIO INFLATION (allowlisted
+ * ratio; equality was measured and refuted, so divergence is legal and unexplained divergence
+ * is not). Bullets are semantic paraphrases: a green run proves pairing, never
+ * scenario-to-test mapping. Lives outside `test:editor:invariants`; verify via `src/lib/e2e/lint/`.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';

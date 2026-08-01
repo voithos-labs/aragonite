@@ -27,13 +27,12 @@ export interface EditorRects {
 	 *  true once the block's element is present. */
 	reveal(path: number[]): Promise<boolean>;
 	/**
-	 * Reveal (mount) the block at `path`, then scroll the viewport to it. `block` defaults
-	 * to `'nearest'`; `hold` (default true) keeps the reveal's pin afterward, so a later
-	 * layout shift cannot push the target back out of view. Resolves true only once the
-	 * position settles; a reveal superseded by a later one stops refining and reports
-	 * honest visibility instead of fighting it for the scroll. The pin is the reveal
-	 * anchor (`cursor/reveal-anchor.ts`), which host-scroll mode has no use for —
-	 * windowing never activates there.
+	 * Reveal (mount) the block at `path`, then scroll the viewport to it. `block` defaults to
+	 * `'nearest'`; `hold` (default true) keeps the reveal's pin afterward, so a later layout
+	 * shift cannot push the target back out. Resolves true only once the position settles; a
+	 * reveal superseded by a later one stops refining and reports honest visibility. The pin
+	 * is the reveal anchor (`cursor/reveal-anchor.ts`), inert in host-scroll mode where
+	 * windowing never activates.
 	 */
 	scrollTo(
 		path: readonly number[],
