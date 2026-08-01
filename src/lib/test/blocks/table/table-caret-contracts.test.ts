@@ -1,17 +1,11 @@
 // @vitest-environment jsdom
 //
-// The three contracts the table's own two layers owe the caret machinery, none of which a
-// reader of either component would guess and none of which anything else observes.
-//   · The grid and row markup contribute NO characters: a stray text node joins the raw-offset
-//     walk (`cursor/widget-offset.ts`) and shifts a parked cross-block caret by its length. The
-//     rule is a template-formatting habit that one reflow undoes, and only the rendered DOM can
-//     say whether it still holds.
-//   · The park door owes the opposite of the focus door — it must NOT end the live range,
-//     because the extend that reached it is still growing one. The G2.12 source scan reads
-//     focus FORWARDS and park CALLERS, so which of its child's doors a container lands through
-//     is invisible to it.
-//   · A path-addressed landing carries its offset down to the cell, which is how undo puts the
-//     caret back where the edit was rather than at the cell's start.
+// The three contracts the table's two layers owe the caret machinery, which nothing else
+// observes: the grid and row markup contribute NO characters (a stray text node joins the
+// raw-offset walk and shifts a parked caret by its length; only rendered DOM can say the
+// habit holds); the park door must NOT end the live range (G2.12 reads focus forwards and
+// park callers, so a container's inner door choice is invisible to it); and a path-addressed
+// landing carries its offset down to the cell, which is how undo restores the exact spot.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';

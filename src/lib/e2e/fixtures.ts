@@ -1,18 +1,13 @@
 import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
 
-// Shared e2e `test`, carrying two independent teardown guards.
-//
-// 1. The console watch. Commit-time and startup invariants devWarn on the console rather than
-//    through the structured error event, so a spec watching only `getCapturedErrors()` lets a
-//    fire pass silently. A spec that INTENTIONALLY trips one names its tags via
-//    `test.use({ expectInvariants: [...] })`: each named tag must fire and no other may, so
-//    an expected fire that STOPS firing is caught too — a boolean waiver could not see that.
-//
-// 2. The container-parity walk, which the console watch cannot cover: Svelte's
-//    `each_key_duplicate` is swallowed by BlockHost's boundary into the editor's `error`
-//    event, with no console line and no pageerror. Runs unconditionally, gated only on an
-//    editor having registered a document so editor-less routes skip the walker's loud throw.
+// Shared e2e `test`, carrying two teardown guards. 1) The console watch: invariants devWarn
+// on the console, not the structured error event, so a spec watching only
+// `getCapturedErrors()` lets a fire pass. A spec that intentionally trips one names its tags
+// via `test.use({ expectInvariants })`: each named tag must fire and no other may, so an
+// expected fire that stops firing is caught too. 2) The container-parity walk, which the
+// console cannot cover: `each_key_duplicate` is swallowed by BlockHost's boundary with no
+// console line; gated on an editor having registered a document, so editor-less routes skip.
 
 interface InvariantFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */

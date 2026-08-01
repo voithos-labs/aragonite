@@ -1,16 +1,11 @@
 /**
- * Container-parity invariant for keyed BlockList rendering, the browser-context mirror of
- * `test/harness/container-parity.ts`. Detects: a structural mutation that extends `children`
- * without `childIds`, giving the trailing keyed-each entries `undefined` keys and drifting
- * post-undo reconciliation from the CST.
- *
- * Deliberately tolerated: a never-mounted container, whose `childIds` is minted lazily and so
- * reads `undefined` — not a desync, and unable to render the keyed each at all. Only a
- * DEFINED-but-mismatched `childIds` is flagged.
- *
- * Subjects come from `window.__parityDocuments`, not the single-editor `window.__test`
- * handle, which on a two-editor route audits whichever registered first. Returns mismatches
- * rather than asserting, so the spec owns the diff and can compose it with other checks.
+ * Container-parity invariant for keyed BlockList rendering, the browser mirror of
+ * `test/harness/container-parity.ts`: a mutation extending `children` without `childIds`
+ * gives trailing keyed-each entries `undefined` keys and drifts post-undo reconciliation.
+ * A never-mounted container is tolerated (`childIds` mints lazily); only a defined-but-
+ * mismatched array flags. Subjects come from `window.__parityDocuments`, since the
+ * `window.__test` handle on a two-editor route audits whichever registered first.
+ * Returns mismatches rather than asserting, so the spec owns the diff.
  */
 
 import type { Page } from '@playwright/test';
