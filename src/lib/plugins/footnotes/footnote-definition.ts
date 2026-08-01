@@ -70,7 +70,8 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const stripped = defLines
 		.map((line, i) => line.raw.replace(i === 0 ? MARKER_STRIP : CONTINUATION_INDENT, ''))
 		.join('');
-	const body = parse(stripped);
+	// A fresh parse entry, so the body's own line 0 must not read as the document top.
+	const body = parse(stripped, { scope: 'fragment' });
 
 	const node: CstNode = {
 		kind: declaredPluginKind(FOOTNOTE_DEF_KIND),

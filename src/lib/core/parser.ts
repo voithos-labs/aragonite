@@ -29,16 +29,30 @@ export const MAX_NESTING_DEPTH = 512;
 
 // ── Public entry point ──────────────────────────────────────────────────
 
+/** Whether `source` is a whole document or one block's bytes read standalone. */
+export type ParseScope = 'document' | 'fragment';
+
 /**
  * Parse GFM to a lossless CST. `opts.grammar` is the per-instance grammar view, defaulting to
  * the global openers. It filters only the TOP-LEVEL opener dispatch: nested container reparses
  * and the paragraph-interrupt scan read the global grammar, the documented enablement boundary,
- * so a top-level disabled kind is skipped and a nested one is not.
+ * so a top-level disabled kind is skipped and a nested one is not. `opts.scope` reaches openers
+ * as `ctx.isDocumentParse`; it defaults to `'document'`, so whole-source callers need nothing.
  */
-export function parse(source: string, opts?: { grammar?: GrammarView }): Document {
+export function parse(
+	source: string,
+	opts?: { grammar?: GrammarView; scope?: ParseScope }
+): Document {
 	const t0 = perfEnabled() ? performance.now() : 0;
 	const lines = splitLines(source);
-	const result = parseBlocks(lines, 0, lines.length, opts?.grammar ?? defaultGrammarView);
+	const result = parseBlocks(
+		lines,
+		0,
+		lines.length,
+		opts?.grammar ?? defaultGrammarView,
+		0,
+		(opts?.scope ?? 'document') === 'document'
+	);
 	if (perfEnabled()) recordParse(performance.now() - t0, result.children.length);
 	return {
 		kind: 'document',
@@ -57,14 +71,16 @@ interface ParseBlocksResult {
 /**
  * The seam block-incremental parsing re-parses ranges through. Contract, pinned by
  * test/core/parse-blocks-window.test.ts: a block-aligned window parses identically to a full
- * parse of the window's text.
+ * parse of the window's text. A window is a FRAGMENT unless its caller says otherwise, so
+ * `parse` is the only entry that defaults to document scope.
  */
 export function parseBlocks(
 	lines: ParsedLine[],
 	start: number,
 	end: number,
 	grammar: GrammarView = defaultGrammarView,
-	depth: number = 0
+	depth: number = 0,
+	isDocumentParse: boolean = false
 ): ParseBlocksResult {
 	const children: CstNode[] = [];
 	let prefix = '';
@@ -95,6 +111,7 @@ export function parseBlocks(
 			line,
 			leadingTrivia: pendingTrivia,
 			isFirstInWindow: children.length === 0,
+			isDocumentParse,
 			grammar,
 			depth
 		};

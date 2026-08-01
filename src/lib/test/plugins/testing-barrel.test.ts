@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import {
+	applyPasteTransforms,
+	installEditorDomStubsForTests,
 	resetPluginPlatformForTests,
 	runContainerConformance,
 	runKindConformance,
@@ -19,8 +21,10 @@ import {
 	registerInlineWidgetKind,
 	registerPasteTransform,
 	registerDirective,
+	isBlockKindDeclared,
 	isBlockKindRegistered,
 	isBlockOpenerRegistered,
+	isPasteTransformRegistered,
 	isDirectiveRegistered,
 	definePlugin,
 	isPluginInstalled
@@ -62,8 +66,10 @@ describe('resetPluginPlatformForTests aggregate', () => {
 
 	it('clears every public register-once registry so a re-install never throws a dup', () => {
 		installProbePlugin();
+		expect(isBlockKindDeclared('probe-block')).toBe(true);
 		expect(isBlockKindRegistered('probe-block')).toBe(true);
 		expect(isBlockOpenerRegistered('probe-block')).toBe(true);
+		expect(isPasteTransformRegistered('probe-transform')).toBe(true);
 		expect(isInlineKindDeclared('probe-inline')).toBe(true);
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(true);
 		expect(isPluginInstalled('probeplugin')).toBe(true);
@@ -72,8 +78,10 @@ describe('resetPluginPlatformForTests aggregate', () => {
 
 		resetPluginPlatformForTests();
 
+		expect(isBlockKindDeclared('probe-block')).toBe(false);
 		expect(isBlockKindRegistered('probe-block')).toBe(false);
 		expect(isBlockOpenerRegistered('probe-block')).toBe(false);
+		expect(isPasteTransformRegistered('probe-transform')).toBe(false);
 		expect(isInlineKindDeclared('probe-inline')).toBe(false);
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(false);
 		expect(isPluginInstalled('probeplugin')).toBe(false);
@@ -106,6 +114,11 @@ describe('aragonite/testing conformance surface', () => {
 		expect(typeof runContainerConformance).toBe('function');
 		expect(typeof runKindConformance).toBe('function');
 		expect(typeof checkCopyIsRawByteSlice).toBe('function');
+	});
+
+	it('publishes the paste-pipeline driver and the mount stubs', () => {
+		expect(typeof applyPasteTransforms).toBe('function');
+		expect(typeof installEditorDomStubsForTests).toBe('function');
 	});
 });
 

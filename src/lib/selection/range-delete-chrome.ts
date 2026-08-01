@@ -184,7 +184,7 @@ export function reparseWithFallback(
 	leadingTrivia: string,
 	lineEnding: string
 ): CstNode[] {
-	const reparsed = parse(raw || lineEnding);
+	const reparsed = parse(raw || lineEnding, { scope: 'fragment' });
 	if (reparsed.children.length === 0) {
 		return [emptyParagraph(leadingTrivia, lineEnding)];
 	}

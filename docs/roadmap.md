@@ -26,19 +26,15 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    has not convened); and landing whatever the consumer's remaining manual passes (journal
    surface, real-webview gestures) surface before the freeze.
 
-2. **Second clean-room run, scoped to the post-0.9.12 surfaces** — a walled-off author, a
-   current tarball and public docs only, building something the new seams carry — **and
-   writing tests for their plugin**, so the run probes the third-party testing story the
-   conformance battery ships (0.9.24), not just authoring discoverability. The first
-   run validated container/chrome discoverability; nothing has third-party-validated the unit,
-   transforms, portal widgets, or the leaf tier. One support question is the benchmark. The
-   subject should exercise **editable-leaf plain mode** — its only consumer today is the
-   synthetic memo fixture — plus a paste transform; natural candidates are an Obsidian-style
-   `%%` comment block or YAML front matter (whose doc-position-only grammar and `---`-vs-setext
-   conflict stress the opener seam). On promotion in-repo (the admonitions precedent), port the
-   plain-mode battery onto the real plugin and retire memo. A clean-room run is still
-   owner-orchestrated — it probes discoverability, not external evidence; the external-author
-   gate at the freeze cut is deliberately a separate box.
+2. **Clean-room 2 residue: the plain-mode promotion decision.** The second run executed
+   2026-08-01 (front matter subject: editable-leaf plain mode, a paste transform, its own
+   `aragonite/testing` suite; artifacts gitignored under `docs/superpowers/cleanroom-2/`), and
+   its findings landed as pre-freeze refinements — the docs pack carried three of the five
+   requirements unaided, and one support question was the recorded benchmark. What stays
+   forward: if a plain-mode kind promotes in-repo (the admonitions precedent — front matter is
+   the natural candidate), port the plain-mode battery onto the real plugin and retire the memo
+   fixture; until one does, memo remains plain mode's only consumer. The external-author gate at
+   the freeze cut stays a separate box — the run probed discoverability, not external evidence.
 3. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
    full pitch: every block kind + every bundled plugin — fixtures stay off it
    (`src/routes/test/plugins/README.md`) — theme and prop toggles, polished debug panel. This
@@ -57,7 +53,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      audits before milestones, not after incidents. Accumulated freeze-review pointers from the
      2026-07 burn-down: container `conformanceFixture` requiredness; forbid a `terminatorCollision`
      exemption where `bodyWrite` is declared; `chordsForCommand` lands with the 1.2 unified command
-     registry; `EditorRects` naming.
+     registry; `EditorRects` naming; the conformance fixture position contract (kind at
+     `children[0]`, sentinel appended — documented 0.9.36, promote to a checked contract or state
+     why not).
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings

@@ -4,6 +4,33 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **A block opener can tell a whole-document parse from a block-local reparse.** Every routine
+  edit reparses just the edited block's text, so an opener that gates on document position saw
+  line 0 wherever that block sat, and a plugin kind scoped to the top of the document (front
+  matter is the canonical case) minted from an edit anywhere. The live tree then held a block
+  its own bytes do not warrant, which byte round-trip cannot see, since the bytes re-emit
+  verbatim either way. `parse` now takes a scope, `'document'` (the default, so public and
+  whole-source callers are unchanged) or `'fragment'`, and openers read it as
+  `ctx.isDocumentParse`. Every internal reparse declares itself a fragment: the content commit,
+  split and merge, both delete arms, both paste routes, search-and-replace, container kind
+  re-derivation, and the bundled plugins' container bodies, which run a fresh parse whose line 0
+  is not the document's. The flag is constant through nested container recursion, so a position
+  gate composes it with `index`, `depth` and `leadingTrivia`. A position-scoped kind now arrives
+  from a document parse only: authoring one in place, or restoring one whose closer was broken,
+  takes a reload. The field is required on `OpenContext`, so an author who builds a synthetic
+  context in their own opener tests adds one line.
+
+- **Plugin surface: the gaps a clean-room author hit.** `serialize` joins `parse` on
+  `aragonite/plugin`, so the round-trip test the guide asks for first no longer needs the
+  other barrel; `isBlockKindDeclared` and `isPasteTransformRegistered` complete the
+  register-once probe set, so a module-scope registrar can ask instead of catching a throw.
+  `aragonite/testing` grows `applyPasteTransforms` — the production pipeline itself, so a
+  registered transform's wiring is testable headlessly — and `installEditorDomStubsForTests`,
+  which closes the undocumented jsdom setup between an author and a mounted plugin component.
+  The plugin guide gains the mount recipe, the `white-space` consequence of the single-text-node
+  contract, the conformance fixture's `children[0]` contract, and the honest `simOracle` answer
+  for a plugin outside the repo.
+
 - **Typing `</details>` inside a `<details>` no longer destroys it.** The terminator is a fixed
   token with no fence length to escalate, so the `:::` containers' escalation fix was unavailable
   and the container silently stopped containing its own body on reload. A container kind can now

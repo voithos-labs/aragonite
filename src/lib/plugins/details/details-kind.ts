@@ -252,7 +252,8 @@ export function registerDetailsKind(): void {
 				.slice(summaryIdx + 1, closeIdx)
 				.map((l) => l.raw)
 				.join('');
-			const body = parse(bodyText);
+			// A fresh parse entry, so the body's own line 0 must not read as the document top.
+			const body = parse(bodyText, { scope: 'fragment' });
 			const raw = ctx.lines
 				.slice(ctx.index, closeIdx + 1)
 				.map((l) => l.raw)

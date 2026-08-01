@@ -31,7 +31,7 @@ export type { CommandId } from './schema/commands';
 
 // ── CST utilities ────────────────────────────────────────────────────────────
 
-export { parse } from './core/parser';
+export { parse, type ParseScope } from './core/parser';
 export { serialize } from './core/serializer';
 export { parseInline, getContentRange, isProseKind } from './core/inline';
 export type { ContentRange } from './core/inline';

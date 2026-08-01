@@ -57,7 +57,8 @@ export function parseList(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
-	depth: number = 0
+	depth: number = 0,
+	isDocumentParse: boolean = false
 ): BlockOpenerResult {
 	const firstMatch = matchListItem(lines[startIndex].text)!;
 	const ordered = firstMatch.ordered;
@@ -113,7 +114,8 @@ export function parseList(
 			0,
 			strippedLines.length,
 			defaultGrammarView,
-			depth + 1
+			depth + 1,
+			isDocumentParse
 		);
 
 		items.push({

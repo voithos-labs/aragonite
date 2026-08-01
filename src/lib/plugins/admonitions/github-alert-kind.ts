@@ -40,7 +40,8 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;
 
-	const body = parse(stripBody(ctx.lines, ctx.index + 1, nextIndex));
+	// A fresh parse entry, so the body's own line 0 must not read as the document top.
+	const body = parse(stripBody(ctx.lines, ctx.index + 1, nextIndex), { scope: 'fragment' });
 
 	const node: CstNode = {
 		kind: declaredPluginKind(GITHUB_ALERT),

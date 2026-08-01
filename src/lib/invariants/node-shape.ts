@@ -52,8 +52,10 @@ export function checkStaleRaw(node: CstNode): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
 	// `listItem` is never a top-level block, so its raw re-parses to a wrapping `list`;
-	// unwrap one level by kind to reach the grammatical correspondent.
-	const top = parse(node.raw).children[0];
+	// unwrap one level by kind to reach the grammatical correspondent. Document scope
+	// because the oracle gets no document position: fragment would fire on every
+	// legitimate position-scoped node at the top.
+	const top = parse(node.raw, { scope: 'document' }).children[0];
 	const correspondent =
 		top?.kind === node.kind ? top : top?.children?.find((c) => c.kind === node.kind);
 
@@ -116,7 +118,9 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
 
-	const blocks = parse(node.raw).children;
+	// Document scope for the same reason as G1.1's probe: the node arrives without its
+	// document position, and fragment would fire on a legitimate position-scoped node.
+	const blocks = parse(node.raw, { scope: 'document' }).children;
 	if (blocks.length !== 1 || blocks[0].kind !== node.kind) {
 		if (!hasStandaloneRecognizer(node.kind)) return null;
 		return {

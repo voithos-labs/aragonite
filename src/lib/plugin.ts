@@ -95,9 +95,9 @@ export { registerGlobalCommand } from './schema/global-commands';
 // ── Parse / serialize helpers ────────────────────────────────────────────────
 // Re-exported so an opener needn't reach into core/ deep paths the packaged artifact
 // doesn't expose.
-export { parse } from './core/parser';
+export { parse, type ParseScope } from './core/parser';
 export type { Document } from './core/nodes';
-export { concatChildren as serializeChildren } from './core/serializer';
+export { serialize, concatChildren as serializeChildren } from './core/serializer';
 export { trimTrailingLineEnding, normalizeLineEndings } from './core/lines';
 // The `ParsedLine[]` every line-scoped seam here consumes — without it a `source →
 // source` transform holding nothing but a string could not reach `blockquoteExtent`.
@@ -153,9 +153,11 @@ export function computeInlineContent(node: NodeView): InlineNode[] {
 // ── Idempotent-registration probes ─────────────────────────────────────────────
 // The register-once registries throw on duplicate; a plugin re-registers safely
 // (HMR / re-import) by guarding on these.
+export { isBlockKindDeclared } from './schema/plugin-kind';
 export { isBlockKindRegistered } from './schema/block-kind-descriptor';
 export { isBlockComponentRegistered } from './schema/block-component-registry';
 export { isBlockOpenerRegistered } from './schema/block-openers';
+export { isPasteTransformRegistered } from './tree-operations/paste/paste-transforms';
 
 // ── Container-authoring surface (pre-freeze: refined against real plugin blocks) ──
 // Lets a plugin build an editable nested container as thinly as the built-in

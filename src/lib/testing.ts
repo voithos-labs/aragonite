@@ -41,6 +41,17 @@ export function resetPluginPlatformForTests(): void {
 	__resetDirectiveRegistryForTests();
 }
 
+// ── Mounting the editor under a non-browser DOM ──────────────────────────────
+
+export { installEditorDomStubsForTests } from './testing/mount-dom-stubs';
+
+// ── Paste pipeline ───────────────────────────────────────────────────────────
+// The production pipeline itself, not a test-only seam: the very function every
+// clipboard→parse route runs (G4.11), so driving it observes the registered
+// transforms rather than a re-implementation of them.
+
+export { applyPasteTransforms } from './tree-operations/paste/paste-transforms';
+
 // ── Container conformance kit (G4.3) ─────────────────────────────────────────
 
 export {
