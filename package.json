@@ -163,6 +163,7 @@
 		"prepack": "npm run package && node scripts/verify-pack.mjs"
 	},
 	"dependencies": {
+		"esm-env": "^1.2.2",
 		"highlight.js": "^11.11.1"
 	},
 	"peerDependencies": {

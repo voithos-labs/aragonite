@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
@@ -23,9 +23,6 @@ function topEntry(deps: EditorActionsDeps) {
 }
 
 describe('checkSnapshotIntegrity (G1.9)', () => {
-	beforeEach(() => vi.stubEnv('DEV', true));
-	afterEach(() => vi.unstubAllEnvs());
-
 	it('fires when serialized bytes are written through a shared node', () => {
 		const { deps, controller } = makeHarness('hello\n');
 		controller.pushUndoSnapshot(0, 0);

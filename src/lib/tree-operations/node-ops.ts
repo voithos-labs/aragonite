@@ -7,6 +7,7 @@
  * STRUCTURAL one through its own container's scope via `commitMultiScope`.
  */
 
+import { DEV } from 'esm-env';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { parse } from '../core/parser';
@@ -177,7 +178,7 @@ export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
  * own, so the separator never lands inside a body.
  */
 function separatorSplitsOffNextLine(raw: string, lineEnding: string): boolean {
-	if (import.meta.env.DEV && !probeLineOpensAsProse()) {
+	if (DEV && !probeLineOpensAsProse()) {
 		devWarn(
 			'tree-ops',
 			`a registered opener claims ${JSON.stringify(NEXT_PROSE_LINE)}, so the split-separator probe no longer stands in for prose`
@@ -473,7 +474,7 @@ export function focusTargetInReplacement(
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
 	const doc = parse(raw);
 	if (doc.children.length > 0) {
-		if (import.meta.env.DEV && doc.children.length > 1) {
+		if (DEV && doc.children.length > 1) {
 			// Split/merge halves are single-block for every reachable gesture; blocks past the
 			// first are dropped here, so fail loud. `updateNodeContent` is the multi-block path.
 			devWarn(

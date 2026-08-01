@@ -5,6 +5,7 @@
  * replace island's `data-source-*` span equals the raw span of the DOM it displaced.
  */
 
+import { DEV } from 'esm-env';
 import { ambientSpanOf } from '../ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
 import {
@@ -113,7 +114,7 @@ export function applyIslandDecorations(
 		if (ambient && ambient.contains(range.startContainer)) range.setStartAfter(ambient);
 
 		const extracted = range.extractContents();
-		if (import.meta.env.DEV) {
+		if (DEV) {
 			const displaced = rawTextOfNode(extracted, raw);
 			if (displaced !== raw.slice(start, end)) {
 				devWarn('decorations', 'replace island span disagrees with the displaced DOM bytes', {

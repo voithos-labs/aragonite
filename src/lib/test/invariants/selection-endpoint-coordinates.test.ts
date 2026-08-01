@@ -1,12 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
 import { parse } from '../../core/parser';
 import { checkCrossBlockEndpointCoordinates } from '../../invariants/selection-endpoints';
 import { createSelectionState } from '../../selection/selection-state.svelte';
-
-afterEach(() => vi.unstubAllEnvs());
 
 // A table block plus a paragraph — [0] is the table, [1] the prose.
 const doc = () => parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
@@ -55,7 +53,6 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 // passes through with its character offset intact — the shape the belt exists for.
 describe('G1.29 fires from the storing seam', () => {
 	it('warns when a length-1 table path is stored with a character offset', () => {
-		vi.stubEnv('DEV', true);
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
 		vi.mocked(devWarn).mockClear();
@@ -70,7 +67,6 @@ describe('G1.29 fires from the storing seam', () => {
 	});
 
 	it('stays silent for a normalized cell endpoint', () => {
-		vi.stubEnv('DEV', true);
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
 		vi.mocked(devWarn).mockClear();

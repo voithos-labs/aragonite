@@ -4,14 +4,16 @@
  * engine (reactivity) read it downward; a flag in editor-actions would close a cycle.
  */
 
+import { DEV } from 'esm-env';
+
 let inCommit = false;
 
 export function beginCommit(): void {
-	if (import.meta.env.DEV) inCommit = true;
+	if (DEV) inCommit = true;
 }
 
 export function endCommit(): void {
-	if (import.meta.env.DEV) inCommit = false;
+	if (DEV) inCommit = false;
 }
 
 export function isCommitInProgress(): boolean {

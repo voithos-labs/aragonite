@@ -4,6 +4,7 @@
  * that only arms in dev/Vitest, leaving production one boolean check per record call.
  * Internal — never exported from the editor barrel.
  */
+import { DEV } from 'esm-env';
 import type { DocumentView } from '../core/node-views';
 
 declare const process: { env?: Record<string, string | undefined> } | undefined;
@@ -60,7 +61,7 @@ function emptySnapshot(): PerfSnapshot {
 // ── Switch and readout ──────────────────────────────────────────────────────
 
 export function enablePerfInstruments(): void {
-	if (import.meta.env.DEV || (typeof process !== 'undefined' && process?.env?.VITEST)) {
+	if (DEV || (typeof process !== 'undefined' && process?.env?.VITEST)) {
 		enabled = true;
 	}
 }

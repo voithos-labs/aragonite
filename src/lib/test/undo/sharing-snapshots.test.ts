@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
@@ -15,11 +15,7 @@ function makeHarness(source: string) {
 }
 
 describe('structural-sharing snapshots', () => {
-	beforeEach(() => {
-		vi.stubEnv('DEV', true);
-		vi.mocked(devWarn).mockClear();
-	});
-	afterEach(() => vi.unstubAllEnvs());
+	beforeEach(() => vi.mocked(devWarn).mockClear());
 
 	it('a snapshot push shares nodes instead of cloning them', () => {
 		const { deps, controller } = makeHarness('hello\n\nworld\n');

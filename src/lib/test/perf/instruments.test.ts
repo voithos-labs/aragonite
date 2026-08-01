@@ -9,7 +9,6 @@ import {
 	enablePerfInstruments,
 	markKeystrokeSettle,
 	markKeystrokeStart,
-	perfEnabled,
 	perfSnapshot,
 	recordBlockRender,
 	recordDecorationRun,
@@ -62,14 +61,22 @@ beforeEach(() => {
 	resetPerfInstruments();
 	disablePerfInstruments();
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+	vi.unstubAllEnvs();
+	vi.doUnmock('esm-env');
+	vi.resetModules();
+});
 
 describe('perf instruments', () => {
-	it('enable is a no-op outside dev and Vitest', () => {
-		vi.stubEnv('DEV', false);
+	// `DEV` is a build-time constant, so the production arm of the switch is reachable
+	// only by re-importing the module against a false one.
+	it('enable is a no-op outside dev and Vitest', async () => {
+		vi.resetModules();
+		vi.doMock('esm-env', () => ({ DEV: false }));
 		vi.stubEnv('VITEST', '');
-		enablePerfInstruments();
-		expect(perfEnabled()).toBe(false);
+		const production = await import('../../perf/instruments');
+		production.enablePerfInstruments();
+		expect(production.perfEnabled()).toBe(false);
 	});
 
 	it('records nothing while disabled', () => {

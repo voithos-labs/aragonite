@@ -14,13 +14,9 @@ function compositionFires(): unknown[][] {
 	return vi.mocked(devWarn).mock.calls.filter(([tag]) => tag === 'invariant:composition-window');
 }
 
-beforeEach(() => {
-	vi.stubEnv('DEV', true);
-	vi.mocked(devWarn).mockClear();
-});
+beforeEach(() => vi.mocked(devWarn).mockClear());
 afterEach(() => {
 	document.body.innerHTML = '';
-	vi.unstubAllEnvs();
 });
 
 describe('editable surface — the composing gate', () => {

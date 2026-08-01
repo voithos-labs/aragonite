@@ -15,7 +15,6 @@ import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 
 beforeEach(() => {
-	vi.stubEnv('DEV', true);
 	vi.mocked(devWarn).mockClear();
 	resetInlineState();
 	registerMathInline();
@@ -24,7 +23,6 @@ beforeEach(() => {
 afterEach(() => {
 	document.body.innerHTML = '';
 	resetInlineState();
-	vi.unstubAllEnvs();
 });
 
 function revealFires(): unknown[][] {

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { DEV } from 'esm-env';
 import { tick } from 'svelte';
 import {
 	registerBlockListState,
@@ -88,7 +89,7 @@ describe('state-registry', () => {
 		}
 
 		it('warns when a second LIVE component claims a node the first still renders', async () => {
-			if (!import.meta.env.DEV) return;
+			if (!DEV) return;
 			const node = makeFakeNode();
 			registerBlockListState(node, stateWithRefs(true));
 			registerBlockListState(node, stateWithRefs(true));
