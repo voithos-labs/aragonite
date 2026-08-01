@@ -6,13 +6,14 @@
 
 import type { DocumentView } from '../core/node-views';
 import { nodeAt } from '../tree-operations/node-ops';
-import type { SelectionPoint } from './primitives';
-import { normalize } from './primitives';
+import type { SelectionEndpoint, SelectionPoint } from './primitives';
+import { isWholeBlockEndpoint, normalize } from './primitives';
 import {
 	cellEndpointDeepPath,
 	normalizeTableEndpoint,
 	snapCrossBlockTableEndpoints
 } from './table-endpoint-snap';
+import { normalizeCharEndpoint } from './char-endpoint-snap';
 import { pathsEqual } from './path-math';
 import { assertInvariant } from '../invariants/assert';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
@@ -51,8 +52,8 @@ export interface SelectionState {
 	readonly end: SelectionPoint | null;
 	readonly selectAllCount: number;
 
-	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void;
-	extendFocus(point: SelectionPoint): void;
+	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void;
+	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
 	incrementSelectAllCount(): void;
@@ -163,9 +164,9 @@ class SelectionStateImpl implements SelectionState {
 		return this.#selectAllCount;
 	}
 
-	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void {
-		const a = this.#normalizePoint(anchor);
-		const f = this.#normalizePoint(focus);
+	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
+		const a = this.#normalizePoint(anchor, focus.path);
+		const f = this.#normalizePoint(focus, anchor.path);
 		// A same-path prose pair is a single-block range the browser owns; storing it mints an
 		// INVISIBLE cross-block state. Refuse it here so no entry path can. Intra-table rects
 		// share the table path but flag a cell coordinate, and the same-offset keyboard seed is
@@ -181,11 +182,11 @@ class SelectionStateImpl implements SelectionState {
 		this.#notify();
 	}
 
-	extendFocus(point: SelectionPoint): void {
+	extendFocus(point: SelectionEndpoint): void {
 		if (!this.#anchor) {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
-		const f = this.#normalizePoint(point);
+		const f = this.#normalizePoint(point, this.#anchor.path);
 		// A focus back on the anchor's prose leaf contracts to a single-block range. No
 		// `offset !== offset` guard, unlike #isSamePathProseRange: extendFocus never seeds, so
 		// landing exactly on the anchor offset is a collapse that must not be stored either.
@@ -222,12 +223,20 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	// The funnel every entry path (keyboard, shift-click, drag, select-all, undo restore) goes
-	// through, so a table endpoint can never be stored as a deep cell path with a char offset.
-	// Never normalize at a call site instead. Idempotent; without getDoc, points pass raw.
-	#normalizePoint(point: SelectionPoint): SelectionPoint {
+	// through: a table endpoint can never be stored as a deep cell path with a char offset, and a
+	// char offset can never be stored outside the space its own block addresses (both funnels'
+	// headers). Never normalize at a call site instead. Idempotent; without a doc nothing can be
+	// measured, so points pass raw.
+	#normalizePoint(point: SelectionEndpoint, otherPath: readonly number[]): SelectionPoint {
 		const getDoc = this.#getDoc;
-		if (!getDoc || point.cellCoordinate) return point;
-		return normalizeTableEndpoint(getDoc(), point.path, point.offset);
+		if (!getDoc) {
+			return isWholeBlockEndpoint(point) ? { path: point.path.slice(), offset: 0 } : point;
+		}
+		const doc = getDoc();
+		if (isWholeBlockEndpoint(point)) return normalizeCharEndpoint(doc, point, otherPath);
+		if (point.cellCoordinate) return point;
+		const snapped = normalizeTableEndpoint(doc, point.path, point.offset);
+		return snapped.cellCoordinate ? snapped : normalizeCharEndpoint(doc, snapped, otherPath);
 	}
 
 	collapse(): void {

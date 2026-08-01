@@ -40,6 +40,25 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   find-and-replace, the range-delete join, the paste container-merge — repairs the same way,
   and a sink wired in later inherits the rule.
 
+- **A selection dragged onto a rendered diagram no longer cuts it in half.** Dragging from the
+  text above into a mermaid block and then copying put a broken fence on the clipboard; cutting
+  destroyed the opening one and left a remnant that reloads as a paragraph. The endpoint carried a
+  character offset counted off the RENDERED body — the diagram's own labels and the block's
+  toolbar — and every byte consumer sliced with it, while the overlay painted the whole block, so
+  the damage was invisible until the bytes moved. A block with no character positions (the
+  `blockFocus: 'whole-block'` class: thematic breaks, diagrams, any childless opaque plugin kind)
+  now addresses only its two ends, and an endpoint landing inside one takes the unit whole, on the
+  side document order puts it. The rule lives in the selection funnel every entry path already
+  goes through — pointer drag, Shift+click, `setSelection`, undo restore — beside the table
+  endpoint's, and a char endpoint can no longer be stored outside its own block's raw either.
+  The pointer hit-test stopped offering a character surface for a block that renders none, so the
+  offset is not minted in the first place. Whole-block selection painting, keyboard extension and
+  table drags are byte-identical to before. The kind-conformance kit's copy cell had been
+  certifying the truncation — it derived its expectation from the rule under test — and now
+  drives both endpoint roles through the real funnel and asserts the contract; G1.29 grew the
+  matching belt.
+>>>>>>> edc41d80 (! (selection) a pointer drag onto a whole-block kind minted a char offset every byte consumer sliced with)
+
 - **A block opener can tell a whole-document parse from a block-local reparse.** Every routine
   edit reparses just the edited block's text, so an opener that gates on document position saw
   line 0 wherever that block sat, and a plugin kind scoped to the top of the document (front
