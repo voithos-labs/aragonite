@@ -29,8 +29,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   consumed, on the block's own run length, indent and line ending, and it reaches the endpoint
   arms that reparse as well as the ones that write in place: the closer-consumed class is
   repaired across the range-delete arms (same-block, cross-block merge, the container wall, a
-  table endpoint) and through find/replace. The opener-side mirror, where a delete consumes the
-  opener and strands the closer, is tracked as issue #58.
+  table endpoint) and through find/replace.
 
 - **Find-and-replace and cross-block edits no longer split a code block.** A replacement or a
   delete that lands a fence run on a body line now grows the block's fence instead of
@@ -57,7 +56,6 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   certifying the truncation — it derived its expectation from the rule under test — and now
   drives both endpoint roles through the real funnel and asserts the contract; G1.29 grew the
   matching belt.
->>>>>>> edc41d80 (! (selection) a pointer drag onto a whole-block kind minted a char offset every byte consumer sliced with)
 
 - **A block opener can tell a whole-document parse from a block-local reparse.** Every routine
   edit reparses just the edited block's text, so an opener that gates on document position saw
