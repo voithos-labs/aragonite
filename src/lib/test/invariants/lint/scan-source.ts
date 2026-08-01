@@ -68,8 +68,12 @@ export function stripComments(text: string): string {
 /**
  * Recursively collect `.ts`/`.svelte` files under `dir`, excluding test, e2e,
  * and `.d.ts`. With no argument, scans every root in `REPO_WIDE_ROOTS`.
+ * `includeTests` is for a rule that binds the whole packaged tree, not just runtime code.
  */
-export function collectEditorSources(dir?: string): SourceFile[] {
+export function collectEditorSources(
+	dir?: string,
+	options: { includeTests?: boolean } = {}
+): SourceFile[] {
 	const repoRoot = path.resolve('.');
 	const files: SourceFile[] = [];
 
@@ -77,7 +81,7 @@ export function collectEditorSources(dir?: string): SourceFile[] {
 		for (const entry of readdirSync(current, { withFileTypes: true })) {
 			const full = path.join(current, entry.name);
 			if (entry.isDirectory()) {
-				if (entry.name === 'test' || entry.name === 'e2e') continue;
+				if (!options.includeTests && (entry.name === 'test' || entry.name === 'e2e')) continue;
 				walk(full);
 				continue;
 			}
