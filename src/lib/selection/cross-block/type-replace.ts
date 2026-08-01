@@ -11,7 +11,12 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
-import { blockNodeAt, normalizeBodyWrite, updateNodeContent } from '../../tree-operations/node-ops';
+import {
+	blockNodeAt,
+	normalizeBodyWrite,
+	updateNodeContent,
+	writeOwnRaw
+} from '../../tree-operations/node-ops';
 import { focusCollapsedCaret } from '../native-bridge';
 import {
 	ensureUnsharedChild,
@@ -82,10 +87,15 @@ export async function handleCrossBlockTypeReplace(
 				const chain = ensureUnsharedPath(doc, caret.path, sharing);
 				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
 				// Degraded, but still a body write: this arm splices raw with no reparse, so the
-				// owner's rule is all that stands between a typed `>` and a terminator line.
-				owned.raw = normalizeBodyWrite(
-					chain[chain.length - 2]?.kind,
-					owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
+				// container's rule and the leaf's own are all that stand between a typed `>` or
+				// backtick and a terminator line.
+				writeOwnRaw(
+					owned,
+					normalizeBodyWrite(
+						chain[chain.length - 2]?.kind,
+						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
+					),
+					ctx.grammar
 				);
 				rebuildUnsharedChain(doc, chain, sharing, ctx.grammar);
 				return [{ op: 'noop' }];

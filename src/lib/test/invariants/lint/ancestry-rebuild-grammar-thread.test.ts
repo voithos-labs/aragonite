@@ -1,11 +1,11 @@
 /**
- * Sibling-path parity for the ancestry rebuild's grammar, the twin of
- * `nested-actions-grammar-thread`: a container's kind re-parse must resolve through the
- * INSTANCE grammar. The parameter is required-nullable, so the type already stops an
- * omission; what it cannot stop is a caller answering `undefined` because threading was
- * inconvenient, which is how the rule shipped at 3 of 12 sites. Hence the scan's subject
- * is that literal. Exempt: the published container-conformance kit, which has no registry
- * view to source a grammar from.
+ * Sibling-path parity for the re-parsing seams' grammar, the twin of
+ * `nested-actions-grammar-thread`: a kind re-parse — an ancestry rebuild, or the leaf
+ * byte-write door's metadata refresh — must resolve through the INSTANCE grammar. The
+ * parameter is required-nullable, so the type already stops an omission; what it cannot
+ * stop is a caller answering `undefined` because threading was inconvenient, which is how
+ * the rule shipped at 3 of 12 sites. Hence the scan's subject is that literal. Exempt: the
+ * published container-conformance kit, which has no registry view to source a grammar from.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -13,7 +13,7 @@ import { collectEditorSources, stripComments } from './scan-source';
 
 const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
 
-const SEAMS = ['rebuildUnsharedChain', 'rebuildUnsharedAncestry'] as const;
+const SEAMS = ['rebuildUnsharedChain', 'rebuildUnsharedAncestry', 'writeOwnRaw'] as const;
 
 interface GlobalGrammarCall {
 	relPath: string;

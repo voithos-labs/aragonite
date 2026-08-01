@@ -7,7 +7,8 @@
 
 import { registerBlockOpener } from '../../schema/block-openers';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
-import { matchFenceOpen, parseFencedCode } from './fenced-code';
+import { matchFenceOpen } from './fence-syntax';
+import { parseFencedCode } from './fenced-code';
 import { matchHeading } from './heading';
 import { matchThematicBreak } from './thematic-break';
 import { matchBlockquote, parseBlockquote } from './blockquote';

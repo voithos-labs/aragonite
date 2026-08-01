@@ -7,7 +7,7 @@
 
 import type { FencedCodeMetadata } from '../../../core/nodes';
 import { trailingLineEnding } from '../../../core/lines';
-import { matchFenceClose } from '../../../core/parsers/fenced-code';
+import { matchFenceClose } from '../../../core/parsers/fence-syntax';
 
 export interface FenceExitInput {
 	text: string;

@@ -13,7 +13,12 @@ import { trailingLineEnding } from '../core/lines';
 import { walkBetween, charOffsetOf } from './primitives';
 import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path-math';
 import { firstLeafAtOrAfter } from './path-lookup';
-import { blockNodeAt, emptyParagraph, normalizeBodyWrite } from '../tree-operations/node-ops';
+import {
+	blockNodeAt,
+	emptyParagraph,
+	normalizeBodyWrite,
+	writeOwnRaw
+} from '../tree-operations/node-ops';
 import { replaceAtPath } from '../tree-operations/path-mutate';
 import { deleteSubtreesIdentityGated } from './range-delete-ceremony';
 import {
@@ -89,7 +94,9 @@ export function rangeDelete(
 		// start.path resolved above, so the chain reaches the leaf; the fallback still routes
 		// through the unshare seam, never a raw capture.
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
-		owned.raw = mergedRaw;
+		// No reparse on this arm, so the survivor's own grammar answers here: a join can mint
+		// a line the kind reads as its terminator (a fence run in a code body).
+		writeOwnRaw(owned, mergedRaw, grammar);
 		rebuildUnsharedChain(doc, chain, sharing, grammar);
 		return {
 			newDoc: doc,

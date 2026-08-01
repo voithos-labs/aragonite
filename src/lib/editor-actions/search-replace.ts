@@ -8,6 +8,7 @@ import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { writeOwnRaw } from '../tree-operations/node-ops';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import {
 	replacePreservingFirst,
@@ -23,15 +24,6 @@ function descend(root: CstNode, rel: number[]): CstNode | null {
 	let node: CstNode | undefined = root;
 	for (const i of rel) node = node?.children?.[i];
 	return node ?? null;
-}
-
-/**
- * Substituted text made legal as this kind's raw. Reparsing a private clone bypasses
- * `updateNodeContent`, so this is the one write that must apply the rule itself.
- */
-function toLegalRaw(kind: CstNode['kind'], substituted: string): string {
-	const normalize = getBlockKindDescriptor(kind).normalizeRawWrite;
-	return normalize ? normalize(substituted) : substituted;
 }
 
 function groupBy<K>(matches: Match[], key: (m: Match) => K): Map<K, Match[]> {
@@ -57,8 +49,9 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const rel = ranges[0].path.slice(1);
 			const leaf = descend(child, rel);
 			if (!leaf) continue;
-			const substituted = applyRangesToText(leaf.raw, ranges, template);
-			leaf.raw = toLegalRaw(leaf.kind, substituted);
+			// Reparsing a private clone bypasses `updateNodeContent`, so the kind's own raw
+			// rule is applied here rather than inherited from that sink.
+			writeOwnRaw(leaf, applyRangesToText(leaf.raw, ranges, template), deps.grammar);
 		}
 		// A nested leaf's edit must propagate up the clone's materialized container raw
 		// before the reparse from `child.raw`; a top-level leaf needs none.

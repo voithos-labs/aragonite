@@ -55,7 +55,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      exemption where `bodyWrite` is declared; `chordsForCommand` lands with the 1.2 unified command
      registry; `EditorRects` naming; the conformance fixture position contract (kind at
      `children[0]`, sentinel appended — documented 0.9.36, promote to a checked contract or state
-     why not).
+     why not); promote the bare-`.raw =` scan into G4.28 (the `rawAssignments()` parser private to
+     the G4.20 lint moves to `scan-source`, and G4.28 gains a "no bare raw write outside the
+     sanctioned set" arm — the rung that would have caught #45's hole at birth).
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings

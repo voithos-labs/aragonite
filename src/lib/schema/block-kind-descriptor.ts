@@ -75,12 +75,14 @@ export interface BlockKindDescriptor {
 	 */
 	contextDependentKind?: boolean;
 	/**
-	 * Make text legal as this kind's `raw` before an in-place write lands — a delimiter the
-	 * container joins verbatim would otherwise restructure it (a bare `|` in a tableCell deletes
-	 * the row's last column). Applied at the write sink; idempotent and prefix-composable, since
-	 * callers map carets through the same pass.
+	 * Make text legal as this kind's `raw` before an in-place write lands — bytes the grammar
+	 * would restructure otherwise (a bare `|` in a tableCell deletes the row's last column; a
+	 * fence run in a fencedCode body splits the block). Applied at every write sink
+	 * (`tree-operations/node-ops.writeOwnRaw`); reads `node` for the block's own shape, and
+	 * must be idempotent. A kind whose pass is not prefix-composable owes its callers a caret
+	 * image of its own — tableCell's `escapedCellOffset` is the composable case.
 	 */
-	normalizeRawWrite?: (raw: string) => string;
+	normalizeRawWrite?: (raw: string, node: NodeView) => string;
 	/**
 	 * Make text legal as a CHILD's raw inside this container's body (container kinds only) —
 	 * `normalizeRawWrite`'s ancestor-side counterpart, for a container whose FIXED terminator

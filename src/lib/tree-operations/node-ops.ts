@@ -63,6 +63,24 @@ export function normalizeBodyWrite(ownerKind: AnyBlockKind | undefined, raw: str
 const forBody = (parent: BodyParentArg, raw: string): string =>
 	normalizeBodyWrite(ownerKindOf(parent), raw);
 
+/**
+ * Write `raw` as `node`'s OWN bytes through its kind's rule — {@link normalizeBodyWrite}'s
+ * node-side twin, for the kind's own grammar rather than its container's. Every sink writing
+ * a leaf's bytes without the kind's surface in front of it owes this call (pinned by
+ * `lint/leaf-raw-write-rule`). A rewrite can move parse-derived metadata (an escalated fence
+ * length), which an in-place sink has no reparse to re-derive, so this door does it.
+ */
+export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | undefined): void {
+	const descriptor = tryGetBlockKindDescriptor(node.kind);
+	const legal = descriptor?.normalizeRawWrite?.(raw, node) ?? raw;
+	node.raw = legal;
+	// A context-dependent kind's raw does not reparse to itself, so its metadata was never
+	// parse-derived and a fragment parse would only mis-read it.
+	if (legal === raw || descriptor?.contextDependentKind) return;
+	const reparsed = parse(legal, { grammar, scope: 'fragment' }).children;
+	if (reparsed.length === 1 && reparsed[0].kind === node.kind) node.metadata = reparsed[0].metadata;
+}
+
 // ── Node minting ──
 
 /**
@@ -350,7 +368,7 @@ export function updateNodeContent(
 	// reparsing would downgrade it: keep the kind and write raw through the kind's own
 	// legality pass, since a delimiter arriving bare would restructure the container.
 	if (oldDescriptor.contextDependentKind) {
-		node.raw = oldDescriptor.normalizeRawWrite?.(newText) ?? newText;
+		writeOwnRaw(node, newText, grammar);
 		return { op: 'noop' };
 	}
 

@@ -59,7 +59,9 @@ rather than letting a pasted run terminate the block.
 ## One door, not a rule per gesture
 
 The reconciliation runs inside the block's single display-commit funnel
-(`commitDisplay`, pinned by G4.24), not at the gestures that write. That matters
+(`commitDisplay`, pinned by G4.24) and, for routes that never cross the component
+(find-and-replace, cross-block joins), at the byte sinks via the kind's
+`normalizeRawWrite` (`writeOwnRaw`, pinned by G4.28) — never per gesture. That matters
 because a gesture can put an existing body run into terminator position without
 adding a character: Enter splitting a line around a mid-line run, or Shift+Tab
 dedenting a four-space-indented run to column 0. Both were reachable while the rule
@@ -72,10 +74,10 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
   that they differ from what was typed or pasted — an embedding app cannot surface
   "we dropped a character your fence could not hold". An event for it is a
   freeze-surface decision, not this rule's to make.
-- **Write routes outside this surface do not cross the funnel.** Find-and-replace
-  writes a leaf's raw through the kind descriptor's `normalizeRawWrite`, which
-  `fencedCode` does not declare, so a replacement that lands a closer run on a body
-  line still splits the block. Tracked as issue #45.
+- **Bare `.raw =` writes escape both doors.** `fencedCode` declares
+  `normalizeRawWrite`, so every sink that consults the hook reconciles — but a write
+  that assigns raw directly (the cross-block delete truncations) can still drop a
+  closer, a lost terminator escalation cannot repair. Tracked as issue #55.
 
 ## Happy paths
 
