@@ -15,6 +15,7 @@ export default tseslint.config(
 			'**/build/',
 			'**/.svelte-kit/',
 			'**/node_modules/',
+			'.claude/',
 			'docs/',
 			'conformance-results/',
 			'perf-results/',
