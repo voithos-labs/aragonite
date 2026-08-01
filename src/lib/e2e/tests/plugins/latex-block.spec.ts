@@ -265,4 +265,30 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await editor.bridge.waitForSourceNotContains('$$ax^2$$');
 		await expect(editor.renderedKatex).toHaveCount(1);
 	});
+
+	test('an undo taken inside the revealed source re-seeds it, so the blur commits nothing stale', async ({
+		page
+	}) => {
+		// A committed edit to THIS block, so the undo below has something of its own to restore.
+		await editor.revealFromBefore();
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('a');
+		await editor.getBlock(2).click();
+		await editor.bridge.waitForSourceContains('$$ax^2$$');
+
+		// Reveal again, type one uncommitted char, and undo from inside the source.
+		await editor.revealByClick();
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.type('b');
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('$$x^2$$');
+
+		// The open source now holds pre-undo text; blurring must not commit it back over the undo.
+		await editor.getBlock(2).click();
+		await expect(editor.renderedKatex).toHaveCount(1);
+		expect(await editor.bridge.getSource()).toBe('Before\n\n$$x^2$$\n\nAfter\n');
+		expect(await roundTripStable(editor.page)).toBe(true);
+	});
 });

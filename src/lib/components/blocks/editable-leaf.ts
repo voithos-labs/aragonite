@@ -6,7 +6,7 @@
  * blur). Call synchronously during init. Contract: plugin-guide § The editable leaf.
  */
 
-import { getContext, tick, untrack } from 'svelte';
+import { getContext, tick } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
@@ -161,9 +161,9 @@ export interface EditableLeaf {
 
 	// ── View hooks ─────────────────────────────────────────────────────────────
 	/**
-	 * Plain mode: sync `sourceText` into the source element as a single text node,
-	 * restoring the caret when the text changed under a live one. Call from a `$effect` —
-	 * reading `sourceText` inside tracks the node's raw.
+	 * Sync `sourceText` into the source element as a single text node, restoring the caret
+	 * when the text changed under a live one. Call from a `$effect` — reading `sourceText`
+	 * inside tracks the node's raw.
 	 */
 	syncSource(): void;
 	/** Effect-cleanup hook: park focus on the editor root when the source unmounts while focused. */
@@ -524,38 +524,34 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		oncompositionend: editableSurface.onCompositionEnd
 	};
 
-	// The mode splits the view-lifecycle contract, so each branch owns its attachment.
-	// render-primary's object is fully static (constant `contenteditable`, since reveal
-	// never fires in reading mode), so its single attachment is a stable reference.
+	// Both modes mirror external raw changes (undo, structural replace) into the source —
+	// tracked, so it re-runs on raw change. A render-primary edit is ephemeral until blur, so
+	// nothing else moves the raw mid-edit and the mirror cannot clobber an in-flight one. No
+	// cleanup, so it never parks focus mid-edit.
+	const syncAttachment = () => {
+		syncSource();
+	};
+	// Park focus when the source unmounts. A separate, stable, untracked attachment, so a
+	// recompute of the spread never fires the park mid-edit.
+	const parkAttachment = (el: HTMLElement) => () => parkFocusOnEditorRoot(el, getEditorRoot());
+
+	// The mode splits the rest of the view-lifecycle contract: render-primary's
+	// `contenteditable` is constant, since reveal never fires in reading mode.
 	const surfaceProps: EditableLeafSurfaceProps =
 		mode === 'render-primary'
 			? {
 					...surfaceHandlers,
 					contenteditable: 'true',
-					[createAttachmentKey()]: (el: HTMLElement) => {
-						// Populate ONCE per reveal — element mount IS the reveal. Single text node
-						// so `textContent === source` and the ambient offset walk stays exact;
-						// untracked, so an unrelated recompute never clobbers an ephemeral edit.
-						el.textContent = untrack(() => sourceText());
-						return () => parkFocusOnEditorRoot(el, getEditorRoot());
-					}
+					[createAttachmentKey()]: syncAttachment,
+					[createAttachmentKey()]: parkAttachment
 				}
 			: {
 					...surfaceHandlers,
 					get contenteditable() {
 						return isReading() ? 'false' : 'true';
 					},
-					// Plain mode: mirror external raw changes (undo, structural replace) into
-					// the always-mounted source — tracked, so it re-runs on raw change. No
-					// cleanup, so it never parks focus mid-edit.
-					[createAttachmentKey()]: () => {
-						syncSource();
-					},
-					// Park focus when the source unmounts. A separate, stable, untracked
-					// attachment, so a reactive-`contenteditable` recompute of the spread never
-					// fires the park mid-edit.
-					[createAttachmentKey()]: (el: HTMLElement) => () =>
-						parkFocusOnEditorRoot(el, getEditorRoot())
+					[createAttachmentKey()]: syncAttachment,
+					[createAttachmentKey()]: parkAttachment
 				};
 
 	return {
