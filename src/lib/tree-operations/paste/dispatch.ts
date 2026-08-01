@@ -22,7 +22,7 @@ import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { applyPasteTransforms } from './paste-transforms';
-import { materializeBlankLines, pickPasteStrategy } from './strategy';
+import { pickPasteStrategy } from './strategy';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -140,7 +140,7 @@ export async function pasteDispatch(
 		await surface.onScopedStructuralPaste({
 			doc: ctx.doc,
 			targetPath: input.targetPath,
-			blocks: materializeBlankLines(parsed.children, trailingLineEnding(targetNode.raw)),
+			blocks: parsed.children,
 			controller: ctx.controller,
 			undoEntry: ctx.undoEntry ?? 'own'
 		});
@@ -155,8 +155,7 @@ export async function pasteDispatch(
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const blocks = materializeBlankLines(parsed.children, trailingLineEnding(targetNode.raw));
-	const result = hook(targetNode, input.offset, blocks, input.preDelete);
+	const result = hook(targetNode, input.offset, parsed.children, input.preDelete);
 	await applyStructuralResult(input.targetPath, result, ctx);
 	return {};
 }

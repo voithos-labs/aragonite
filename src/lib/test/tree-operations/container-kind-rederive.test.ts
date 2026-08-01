@@ -36,7 +36,7 @@ describe('reclassifyContainer', () => {
 	});
 
 	it('carries the slot leading trivia onto the replacement', () => {
-		const doc: Document = parse('intro\n\n\n> [!TI\n');
+		const doc: Document = parse('intro\n\n> [!TI\n');
 		const quoteIndex = 1;
 		const trivia = doc.children[quoteIndex].leadingTrivia;
 		expect(trivia).not.toBe('');

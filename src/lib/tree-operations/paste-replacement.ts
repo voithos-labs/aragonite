@@ -7,6 +7,7 @@
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { isBlankParagraph } from '../core/parser';
 import { ensureEditableContainers } from './node-ops';
 import { parseFirstBlock } from './parse-block';
 
@@ -42,10 +43,10 @@ export function buildPastedReplacement(
 	for (let i = 0; i < blocks.length; i++) {
 		const node = { ...blocks[i] };
 		const prev = newNodes[newNodes.length - 1];
-		const prevIsEmptyParagraph = prev !== undefined && isEmptyParagraphNode(prev);
+		const prevIsEmptyParagraph = prev !== undefined && isBlankParagraph(prev);
 		if (newNodes.length === 0) {
 			node.leadingTrivia = originalTrivia;
-		} else if (isEmptyParagraphNode(blocks[i]) || prevIsEmptyParagraph) {
+		} else if (isBlankParagraph(blocks[i]) || prevIsEmptyParagraph) {
 			node.leadingTrivia = blocks[i].leadingTrivia ?? '';
 		} else {
 			node.leadingTrivia = blocks[i].leadingTrivia ? blocks[i].leadingTrivia : lineEnding;
@@ -65,12 +66,4 @@ export function buildPastedReplacement(
 	}
 
 	return newNodes;
-}
-
-// ── Internal ───────────────────────────────────────────────────────────────
-
-/** A paragraph containing only a line ending — its own blank-line separator. */
-function isEmptyParagraphNode(node: CstNode): boolean {
-	if (node.kind !== 'paragraph') return false;
-	return node.raw === '' || node.raw === '\n' || node.raw === '\r\n';
 }

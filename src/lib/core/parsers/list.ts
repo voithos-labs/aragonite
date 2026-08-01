@@ -128,7 +128,7 @@ export function parseList(
 				taskChecked: task?.checked ?? false,
 				taskMarker: task?.rawMarker ?? null
 			},
-			innerPrefix: inner.prefix,
+			innerPrefix: '',
 			children: inner.children,
 			innerSuffix: inner.suffix
 		});

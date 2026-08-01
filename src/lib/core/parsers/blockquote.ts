@@ -89,7 +89,7 @@ export function parseBlockquote(
 			leadingTrivia,
 			raw,
 			metadata: { quoteDepth },
-			innerPrefix: inner.prefix,
+			innerPrefix: '',
 			children: inner.children,
 			innerSuffix: inner.suffix
 		},

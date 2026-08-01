@@ -582,7 +582,7 @@ tryOpen(ctx) {
 }
 ```
 
-The flag stays constant through nested container recursion, so `depth` is what tells you a blockquote or list body is not the document top. Declare `interruptsParagraph: false`: a line that interrupts a paragraph has a paragraph before it, so it is not at line 0 by construction. Pair the opener with a paste transform. Pasted text reaches `parse` as a fragment, so your opener declines it, and the transform is where you decide what pasted front matter should become (a fenced block, say) instead of leaving the syntax live mid-document.
+The flag stays constant through nested container recursion, so `depth` is what tells you a blockquote or list body is not the document top. `parseContainerBody` takes the scope as a required argument for the same reason `parse` accepts one: a body is a new parse entry and nothing in it can recover the scope. An opener reparsing a body that stays inside the dispatching parse passes its own (`ctx.isDocumentParse ? 'document' : 'fragment'`, plus `depth: ctx.depth + 1`); one that re-enters with a body it assembled itself passes `'fragment'`. Declare `interruptsParagraph: false`: a line that interrupts a paragraph has a paragraph before it, so it is not at line 0 by construction. Pair the opener with a paste transform. Pasted text reaches `parse` as a fragment, so your opener declines it, and the transform is where you decide what pasted front matter should become (a fenced block, say) instead of leaving the syntax live mid-document.
 
 The residual, stated plainly. A fragment edit that should dissolve the kind does dissolve it: break the closing fence and the block becomes the constituent blocks its bytes now warrant. Restoring those bytes does not put the kind back in the live tree, because nothing reparses across a block boundary after a commit. `getSource()` returns the correct bytes and a reload restores the block. That limit is not specific to position-scoped kinds (it is the general case of two blocks whose bytes jointly reparse as one), and it has a sibling: typing the syntax at the document top also needs a reload before the kind appears, since the commit reparse sees one block's bytes and declines by design.
 
@@ -1115,17 +1115,18 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Parse / serialize helpers**
 
-| Export                   | Role                                                                |
-| ------------------------ | ------------------------------------------------------------------- |
-| `parse`                  | Parse a body of Markdown into a document you can lift children from |
-| `ParseScope`             | `parse`'s scope option: whole document, or one block's bytes        |
-| `serialize`              | Serialize a whole document back to its exact source bytes           |
-| `serializeChildren`      | Join child nodes back into their exact source bytes                 |
-| `trimTrailingLineEnding` | Read a child's display text without dropping a trailing line ending |
-| `normalizeLineEndings`   | Normalize external text (a plugin-owned input surface) to LF        |
-| `isBlankLine`            | GFM §2.1's blank-line test — spaces and tabs only, never `trim()`   |
-| `splitLines`             | Split source into the parsed lines every line-scoped seam consumes  |
-| `Document`, `ParsedLine` | The parsed-document shape, and a single parsed source line          |
+| Export                                    | Role                                                                                                                  |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `parse`                                   | Parse a body of Markdown into a document you can lift children from                                                   |
+| `ParseScope`                              | The scope both parse entries take: whole document, or one block's bytes                                               |
+| `parseContainerBody`, `ContainerBodyWrap` | Parse a container body that sits between chrome lines of your own, keeping their blank separators out of the children |
+| `serialize`                               | Serialize a whole document back to its exact source bytes                                                             |
+| `serializeChildren`                       | Join child nodes back into their exact source bytes                                                                   |
+| `trimTrailingLineEnding`                  | Read a child's display text without dropping a trailing line ending                                                   |
+| `normalizeLineEndings`                    | Normalize external text (a plugin-owned input surface) to LF                                                          |
+| `isBlankLine`                             | GFM §2.1's blank-line test — spaces and tabs only, never `trim()`                                                     |
+| `splitLines`                              | Split source into the parsed lines every line-scoped seam consumes                                                    |
+| `Document`, `ParsedLine`                  | The parsed-document shape, and a single parsed source line                                                            |
 
 **Renderer utilities**
 

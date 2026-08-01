@@ -86,6 +86,33 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   contract, the conformance fixture's `children[0]` contract, and the honest `simOracle` answer
   for a plugin outside the repo.
 
+- **A blank line you typed is still there when the document reloads.** Type into a paragraph,
+  press Enter twice, type again: the editor showed three blocks, the file held the same bytes,
+  and reopening it showed two — the deliberate empty line came back as invisible whitespace on
+  the paragraph below, with no caret to put in it. An app that recreates the editor on every tab
+  switch hit that on every switch. Blank lines beyond the block separator are now blocks: in a run
+  of blank lines the first separates, exactly as before, and every later one is an empty paragraph
+  holding that line's exact bytes. The rule lives where trivia absorption already lived, so
+  containers inherit it through strip-and-recurse and a single-blank-line document parses to the
+  same blocks it always did. What this buys beyond the bug is a second guarantee beside the
+  byte-for-byte round trip: the tree's SHAPE is now a fixed point of save-then-load, so no editing
+  path can leave a document that reloads as a different one. The separator each path derives —
+  Enter's split, a block delete, an empty-paragraph merge — follows from that one rule rather than
+  from its own arithmetic, which closed three more places where a delete or a second Enter left a
+  blank line the reload counted differently.
+
+- **A pasted blank line is the same block a typed or loaded one is.** Structural paste minted an
+  explicit empty row per blank-line separator on the clipboard, so `one⏎⏎two` pasted one block wider
+  than the same bytes reached any other way. Paste parses the clipboard, so the parser's rule is now
+  the whole answer and the materialization is gone.
+
+- **Plugin surface: `parseContainerBody` for a container bracketed by chrome lines of its own.**
+  A `:::note` … `:::` or `<summary>` … `</details>` body is separated from those lines by a blank
+  line that belongs to the container, not to the body. Parsing such a body through `parse` would
+  read that line as an empty first row; `parseContainerBody` keeps it in `innerPrefix`/`innerSuffix`
+  and materializes the rest of the run as content. The bundled details, admonition and GitHub-alert
+  containers use it.
+
 - **Typing `</details>` inside a `<details>` no longer destroys it.** The terminator is a fixed
   token with no fence length to escalate, so the `:::` containers' escalation fix was unavailable
   and the container silently stopped containing its own body on reload. A container kind can now

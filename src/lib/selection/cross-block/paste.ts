@@ -19,7 +19,6 @@ import { applyPasteTransforms } from '../../tree-operations/paste/paste-transfor
 import { parse } from '../../core/parser';
 import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathsEqual } from '../path-math';
-import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
 import { emitClipboardError } from '../../editor-events';
@@ -152,8 +151,7 @@ async function replaceTableWithPaste(
 
 	const tableNode = blockNodeAt(doc, tablePath);
 	if (!tableNode) return;
-	const blocks = materializeBlankLines(parsed.children, trailingLineEnding(tableNode.raw));
-	const replacement = normalizeReplacementTrivia(tableNode, blocks);
+	const replacement = normalizeReplacementTrivia(tableNode, parsed.children);
 	for (const node of replacement) ensureEditableContainers(node);
 
 	mutCtx.pushUndoSnapshot();

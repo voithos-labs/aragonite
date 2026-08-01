@@ -52,20 +52,34 @@ describe('split separator — the half that absorbs gets one', () => {
 	});
 });
 
-describe('split separator — the halves that close get none', () => {
-	// Over-minting is not a convergence defect, so convergence cannot guard these. Each kind
-	// here closes on its own, so a blank would widen the document's spacing for nothing.
-	const closesOnItsOwn: readonly [name: string, source: string, offset: number][] = [
+describe('split separator — the empty half that needs one', () => {
+	// A lone blank line after a block is that block's trailing trivia, so an empty second
+	// half only survives the reload as a block when a separator opens its run.
+	const emptyHalfBecomesBlock: readonly [name: string, source: string, offset: number][] = [
 		['heading', '## Title\n', 8],
 		['thematic break', '---\n', 3],
-		['setext heading', 'Title\n=====\n', 5],
-		// A body that swallows a blank line as content would take the separator INSIDE itself,
-		// which is why the predicate asks what a blank line DOES, not whether the join merges.
+		['setext heading', 'Title\n=====\n', 5]
+	];
+
+	for (const [name, source, offset] of emptyHalfBecomesBlock) {
+		it(`${name}`, () => {
+			const doc = parse(source);
+			splitNode(doc, 0, offset);
+			expect(doc.children[1].leadingTrivia).toBe('\n');
+			expect(describeConvergence(doc)).toBeNull();
+		});
+	}
+});
+
+describe('split separator — the halves that close get none', () => {
+	// A body that swallows a blank line as content would take the separator INSIDE itself,
+	// which is why the predicate asks what a blank line DOES, not whether the join merges.
+	const swallowsTheBlank: readonly [name: string, source: string, offset: number][] = [
 		['unclosed fence', '```\ncode\n', 9],
 		['unclosed html block', '<pre>\nliteral\n', 13]
 	];
 
-	for (const [name, source, offset] of closesOnItsOwn) {
+	for (const [name, source, offset] of swallowsTheBlank) {
 		it(`${name}`, () => {
 			const doc = parse(source);
 			splitNode(doc, 0, offset);
@@ -78,6 +92,14 @@ describe('split separator — the halves that close get none', () => {
 		splitNode(doc, 0, 0);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(serialize(doc)).toBe('\nHello\n');
+	});
+
+	it('a successor already carrying the run’s separator', () => {
+		const doc = parse('one\n\ntwo\n');
+		splitNode(doc, 0, 3);
+		expect(doc.children[1].leadingTrivia).toBe('');
+		expect(serialize(doc)).toBe('one\n\n\ntwo\n');
+		expect(describeConvergence(doc)).toBeNull();
 	});
 });
 

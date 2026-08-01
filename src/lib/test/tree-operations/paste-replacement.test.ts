@@ -44,9 +44,9 @@ describe('buildPastedReplacement — structural separator at leading slice bound
 	});
 
 	it('does not override an already-meaningful trivia on the first pasted block', () => {
-		const parsed = parse('\n\nfoo\n');
-		expect(parsed.children).toHaveLength(1);
-		const blockWithTrivia = { ...parsed.children[0], leadingTrivia: '\n' };
+		const parsed = parse('bar\n\nfoo\n');
+		expect(parsed.children[1].leadingTrivia).toBe('\n');
+		const blockWithTrivia = { ...parsed.children[1] };
 
 		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'before\n' };
 		const replacement = buildPastedReplacement(leaf, 6, [blockWithTrivia]);

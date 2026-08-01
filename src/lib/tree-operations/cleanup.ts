@@ -1,6 +1,7 @@
 import type { CstNode, Document } from '../core/nodes';
 import type { SharingState } from './sharing';
 import { spliceChildren } from './children';
+import { clearRedundantSeparator } from './node-ops';
 import { ensureUnsharedPath } from './unshare';
 
 /**
@@ -26,6 +27,7 @@ export function cascadeCleanupEmptyAncestors(
 		const node = parent.children[idx];
 		if (!node || !node.children || node.children.length > 0) break;
 		spliceChildren(parent as CstNode, idx, 1);
+		clearRedundantSeparator(parent, idx, sharing);
 		currentPath = parentPath;
 	}
 }

@@ -115,7 +115,13 @@ The built-in priorities, in order:
 8. Link reference definition
 9. Nothing claimed it → start a paragraph and consume continuation lines (this arm also detects setext headings and tables)
 
-Blank lines between blocks become the next block's `leadingTrivia`. Leading and trailing document whitespace becomes `Document.prefix` / `suffix`.
+### Blank lines
+
+One blank line separates two blocks and becomes the next block's `leadingTrivia`. **Every further blank line in the run is an empty paragraph block of its own**, holding that line's exact bytes — a whitespace-only line included. A document-leading run has nothing to separate from, so it materializes in full and `Document.prefix` stays empty; a lone trailing blank line is still `Document.suffix`.
+
+That rule is what makes the tree's **shape** a fixed point of `serialize` → `parse`, not just its bytes: a deliberately typed blank line is a block the moment it is typed, and reloads as the same block. Every construct that separates blocks — Enter's split, a block delete, a structural paste — derives its separator from it, so no path can mint a blank line the reload reads differently.
+
+A container inherits the rule through strip-and-recurse. The exception is a container whose body sits between chrome lines of its own (`:::note` … `:::`, `<summary>` … `</details>`): there the blank line against a chrome line is a separator like any other, so it lands in `innerPrefix` / `innerSuffix` while the rest of its run materializes. That distinction is a seam of the plugin API, not a per-kind branch in the parser.
 
 ### Scope boundaries
 

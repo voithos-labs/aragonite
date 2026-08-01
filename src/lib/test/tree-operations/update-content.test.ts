@@ -187,13 +187,16 @@ describe('deleteNode', () => {
 		expect(ids).toEqual(['id-1', 'id-3']);
 	});
 
-	it('transfers leading trivia to the next block', () => {
+	it('leaves the next block one separator, not two', () => {
 		const source = 'A\n\nB\n\nC\n';
 		const doc = parse(source);
 		const triviaB = doc.children[1].leadingTrivia;
 		const triviaC = doc.children[2].leadingTrivia;
 		deleteNode(doc, 1);
-		expect(doc.children[1].leadingTrivia).toBe(triviaB + triviaC);
+		// Not triviaB + triviaC: the successor keeps its own separator, since a second blank
+		// line would reload as an empty paragraph the delete never left behind.
+		expect(triviaB).not.toBe('');
+		expect(doc.children[1].leadingTrivia).toBe(triviaC);
 	});
 });
 

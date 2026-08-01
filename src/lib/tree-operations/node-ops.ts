@@ -10,7 +10,7 @@
 import { DEV } from 'esm-env';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { parse } from '../core/parser';
+import { isBlankParagraph, isBlankSource, parse } from '../core/parser';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
@@ -177,7 +177,12 @@ export function splitNode(
 		secondRaw += lineEnding;
 	}
 
-	const separator = separatorSplitsOffNextLine(firstRaw, lineEnding) ? lineEnding : '';
+	const separator = splitSeparator(
+		firstRaw,
+		secondRaw,
+		lineEnding,
+		parent.children[blockIndex + 1]
+	);
 	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
 	const secondNode = reparseAsNode(secondRaw, separator);
 
@@ -199,10 +204,58 @@ export function probeLineOpensAsProse(grammar?: GrammarView): boolean {
 }
 
 /**
+ * Leading trivia for a freshly minted BLANK block. A blank line is a block only past its
+ * run's first line, so it separates from a non-blank predecessor — unless a run is already
+ * open below, where the successor's own separator opens it.
+ */
+function blankBlockTrivia(
+	predecessorIsBlank: boolean,
+	successor: CstNode | undefined,
+	lineEnding: string
+): string {
+	if (predecessorIsBlank) return '';
+	const runOpenBelow =
+		successor !== undefined && (successor.leadingTrivia !== '' || isBlankParagraph(successor));
+	return runOpenBelow ? '' : lineEnding;
+}
+
+/** True when `node` is absent or a blank block — the two ways a blank run is open above. */
+function opensBlankRunAbove(node: CstNode | undefined): boolean {
+	return node === undefined || isBlankParagraph(node);
+}
+
+/**
+ * The second half's leading trivia. A blank half follows {@link blankBlockTrivia}; a prose
+ * half takes a separator exactly when lazy continuation would fold the halves back together.
+ */
+function splitSeparator(
+	firstRaw: string,
+	secondRaw: string,
+	lineEnding: string,
+	successor: CstNode | undefined
+): string {
+	if (isBlankSource(secondRaw)) {
+		const trivia = blankBlockTrivia(isBlankSource(firstRaw), successor, lineEnding);
+		// A body that swallows blank lines (an unclosed fence) takes the separator inside
+		// itself and gains nothing, so ask the bytes rather than assume.
+		return trivia !== '' && blankHalfBecomesBlock(firstRaw, secondRaw, lineEnding) ? trivia : '';
+	}
+	return separatorSplitsOffNextLine(firstRaw, lineEnding) ? lineEnding : '';
+}
+
+function blankHalfBecomesBlock(firstRaw: string, secondRaw: string, lineEnding: string): boolean {
+	return (
+		parse(firstRaw + lineEnding + secondRaw, { scope: 'fragment' }).children.length >
+		parse(firstRaw + secondRaw, { scope: 'fragment' }).children.length
+	);
+}
+
+/**
  * Would a blank line between `raw` and the line after it split off a second block? Asking
  * that directly, rather than whether the tight join merges, is what keeps the predicate
  * free of a kind list: a construct whose body swallows both forms alike answers no on its
- * own, so the separator never lands inside a body.
+ * own, so the separator never lands inside a body. Blank blocks are discounted on both
+ * sides — the separator materializes as one, and counting it would answer yes for every raw.
  */
 function separatorSplitsOffNextLine(raw: string, lineEnding: string): boolean {
 	if (DEV && !probeLineOpensAsProse()) {
@@ -212,10 +265,12 @@ function separatorSplitsOffNextLine(raw: string, lineEnding: string): boolean {
 		);
 	}
 	const probe = NEXT_PROSE_LINE + lineEnding;
-	return (
-		parse(raw + lineEnding + probe, { scope: 'fragment' }).children.length >
-		parse(raw + probe, { scope: 'fragment' }).children.length
-	);
+	return contentBlockCount(raw + lineEnding + probe) > contentBlockCount(raw + probe);
+}
+
+function contentBlockCount(source: string): number {
+	return parse(source, { scope: 'fragment' }).children.filter((node) => !isBlankParagraph(node))
+		.length;
 }
 
 /**
@@ -252,7 +307,20 @@ export function mergeWithPrevious(parent: NodeParent, blockIndex: number): Struc
 	const curr = parent.children[blockIndex];
 
 	const mergedRaw = trimTrailingLineEnding(prev.raw) + curr.raw;
-	const mergedNode = reparseAsNode(mergedRaw, prev.leadingTrivia);
+	// A merge of two blank blocks collapses the run, so prev's separator no longer describes
+	// where the survivor sits; re-derive it.
+	const trivia = isBlankSource(mergedRaw)
+		? blankBlockTrivia(
+				opensBlankRunAbove(parent.children[blockIndex - 2]),
+				parent.children[blockIndex + 1],
+				trailingLineEnding(prev.raw)
+			)
+		: prev.leadingTrivia;
+	const mergedNode = reparseAsNode(mergedRaw, trivia);
+	// curr's own separator dies with it, so the successor inherits it unless it has one —
+	// the same rule `deleteNode` applies, and for the same reason.
+	const successor = parent.children[blockIndex + 1];
+	if (successor) successor.leadingTrivia = successor.leadingTrivia || curr.leadingTrivia;
 	parent.children.splice(blockIndex - 1, 2, mergedNode);
 	return replacePreservingFirst(blockIndex - 1, 2, 1);
 }
@@ -328,8 +396,27 @@ export function mergeWithNext(parent: NodeParent, blockIndex: number): Structura
 // ── Delete ──
 
 /**
- * Remove the node at `blockIndex`, transferring its leading trivia to the next sibling.
- * Pass `sharing` to unshare that successor — the op's only in-place write — beforehand.
+ * Drop the separator at `index` when nothing above it needs one: at the head, or below a
+ * blank block, where the parser reads the extra line as one more empty paragraph. Every
+ * splice that changes what precedes a block settles it. `sharing` owns the write (G1.9).
+ */
+export function clearRedundantSeparator(
+	parent: { children?: CstNode[] },
+	index: number,
+	sharing?: SharingState
+): void {
+	const node = parent.children?.[index];
+	if (!node || node.leadingTrivia === '') return;
+	const predecessor = index > 0 ? parent.children![index - 1] : undefined;
+	if (predecessor !== undefined && !isBlankParagraph(predecessor)) return;
+	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, index, sharing) : node;
+	owned.leadingTrivia = '';
+}
+
+/**
+ * Remove the node at `blockIndex`, leaving the next sibling separated from its new
+ * predecessor and no more. Pass `sharing` to unshare the nodes written — the successor's
+ * trivia is the op's only in-place write.
  */
 export function deleteNode(
 	parent: NodeParent,
@@ -344,10 +431,13 @@ export function deleteNode(
 		const successor = sharing
 			? ensureUnsharedChild(parent, blockIndex + 1, sharing)
 			: parent.children[blockIndex + 1];
-		successor.leadingTrivia = deleted.leadingTrivia + successor.leadingTrivia;
+		// The successor inherits the deleted separator only when it has none of its own:
+		// concatenating both leaves behind a blank line the delete should have taken.
+		successor.leadingTrivia = successor.leadingTrivia || deleted.leadingTrivia;
 	}
 
 	parent.children.splice(blockIndex, 1);
+	clearRedundantSeparator(parent, blockIndex, sharing);
 	return { op: 'delete', at: blockIndex, count: 1 };
 }
 
