@@ -64,11 +64,20 @@ const forBody = (parent: BodyParentArg, raw: string): string =>
 	normalizeBodyWrite(ownerKindOf(parent), raw);
 
 /**
- * Write `raw` as `node`'s OWN bytes through its kind's rule — {@link normalizeBodyWrite}'s
- * node-side twin, for the kind's own grammar rather than its container's. Every sink writing
- * a leaf's bytes without the kind's surface in front of it owes this call (pinned by
- * `lint/leaf-raw-write-rule`). A rewrite can move parse-derived metadata (an escalated fence
- * length), which an in-place sink has no reparse to re-derive, so this door does it.
+ * `raw` made legal as `node`'s OWN bytes — {@link normalizeBodyWrite}'s node-side twin, for the
+ * kind's own grammar rather than its container's. Sinks that REPLACE the node with a reparse of
+ * the result call this door: the reparse re-derives metadata from the bytes, so structure the
+ * rule restores from the old metadata (a fence closer a truncation consumed) must land first.
+ */
+export function normalizeOwnRaw(node: NodeView, raw: string): string {
+	return tryGetBlockKindDescriptor(node.kind)?.normalizeRawWrite?.(raw, node) ?? raw;
+}
+
+/**
+ * Write `raw` as `node`'s OWN bytes through its kind's rule — {@link normalizeOwnRaw}'s in-place
+ * sink. Every sink writing a leaf's bytes without the kind's surface in front of it owes one of
+ * the two (pinned by `lint/leaf-raw-write-rule`). A rewrite can move parse-derived metadata (an
+ * escalated fence length), which an in-place sink has no reparse to re-derive, so this door does it.
  */
 export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | undefined): void {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);

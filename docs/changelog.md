@@ -4,6 +4,16 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **A delete or a find/replace that runs past a code block's closing fence no longer swallows
+  the document on reload.** A selection running from inside a code body past its closer used to
+  leave an unclosed fence over blocks the session still showed as siblings, correct on screen
+  and absorbed at the next load. The kind's write rule now restores the closer the edit
+  consumed, on the block's own run length, indent and line ending, and it reaches the endpoint
+  arms that reparse as well as the ones that write in place: the closer-consumed class is
+  repaired across the range-delete arms (same-block, cross-block merge, the container wall, a
+  table endpoint) and through find/replace. The opener-side mirror, where a delete consumes the
+  opener and strands the closer, is tracked as issue #58.
+
 - **Find-and-replace and cross-block edits no longer split a code block.** A replacement or a
   delete that lands a fence run on a body line now grows the block's fence instead of
   terminating it, and a backtick reaching a backtick fence's info string is dropped rather than
