@@ -16,6 +16,7 @@ demoting the heading.
 - the seeded end-caret lands at the content end (before the underline), not at raw end — the split only exercises the suffix rule from there
 - Enter mid-title: the heading half keeps the underline and setext kind; the tail becomes a paragraph
 - the live tree converges with a reparse of its own serialization after the split (catches a cut that left a block's kind stale vs its raw)
+- the empty block below takes a blank-line separator of its own, so the split's bytes reload as two blocks rather than as a heading with a trailing blank line for a suffix
 
 ## User interactions
 

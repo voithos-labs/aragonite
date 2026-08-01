@@ -11,4 +11,4 @@ Boundary behavior for Enter/Backspace and kind-change reversals.
 - Backspace after thematic break: focuses the break (whole-block focus), no byte change; a second Backspace deletes it
 - kind change reversal: deleting the # prefix from a heading reverts to paragraph
 - split heading at middle: first block stays heading, second becomes paragraph (no marker duplication)
-- Enter at end of heading: heading unchanged, new empty paragraph created
+- Enter at end of heading: heading unchanged, new empty paragraph created — and it is in the bytes, so reloading them shows the same two blocks rather than a heading with trailing whitespace

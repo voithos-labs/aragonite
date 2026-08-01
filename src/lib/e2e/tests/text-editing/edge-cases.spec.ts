@@ -92,11 +92,14 @@ test.describe('text editing — edge cases', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
 
-		const domCount = await editor.getDomBlockCount();
-		expect(domCount).toBe(2);
+		await editor.waitForBlockHostCount(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-		// Empty block may be absorbed as trivia by the parser — verify via DOM.
-		const secondBlock = editor.getBlock(1);
-		await expect(secondBlock).toBeVisible();
+
+		// The empty block is in the bytes rather than folded into the heading's trailing
+		// trivia, so reloading them shows the same two blocks.
+		const src = await editor.bridge.getSource();
+		expect(src).toBe('# Heading\n\n\n');
+		await editor.loadContent(src);
+		expect(await editor.getDomBlockCount()).toBe(2);
 	});
 });

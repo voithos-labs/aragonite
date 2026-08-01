@@ -10,8 +10,8 @@ test.describe('blockquote navigation — after Enter (empty middle paragraph)', 
 	});
 
 	test('Enter at end of inner paragraph, then ArrowDown from empty paragraph reaches next paragraph', async () => {
-		// No Markdown loads to {"1", "", "2"} — CommonMark collapses blank > lines.
-		// Build the transient empty middle via a real Enter.
+		// The empty middle is built by a real Enter, not loaded: the regression this guards
+		// is the split's own re-render, which a loaded document never runs.
 		await editor.loadContent('> 1\n>\n> 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: /^1$/ });
 		await first.click();
