@@ -396,6 +396,10 @@
 
 	export const claimRootClipboard = clipboardHandlers.claimRootClipboard;
 
+	export function snapCaretToPoint(clientX: number, clientY: number): void {
+		widgetInteraction.snapClickToWidgetEdge(clientX, clientY);
+	}
+
 	/** The display length the CARET walks — the DOM's while a reveal is open, since the
 	 *  CST hasn't seen that edit. Against a stale `node.raw`, an edited reveal at the
 	 *  block's end traps the caret: no press reads as "at the boundary". */
@@ -508,6 +512,7 @@
 		isVerticallyTransparent,
 		enterEdgeWidget,
 		claimRootClipboard,
+		snapCaretToPoint,
 		runCommand
 	} satisfies BlockComponent);
 

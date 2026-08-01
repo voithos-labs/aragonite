@@ -20,6 +20,8 @@ describe('createDeadSpaceCaret routing', () => {
 	let component: BlockComponent & { focus: ReturnType<typeof vi.fn> };
 	let focusByPath: Mock<(path: number[], offset: number) => void>;
 	let resetSelectionForClick: Mock<() => void>;
+	let leafSnap: Mock<(x: number, y: number) => void>;
+	let ownSnap: Mock<(x: number, y: number) => void>;
 	const origFromPoint = document.elementFromPoint;
 
 	beforeEach(() => {
@@ -50,12 +52,16 @@ describe('createDeadSpaceCaret routing', () => {
 		document.elementFromPoint = (() => table) as typeof document.elementFromPoint;
 
 		focusByPath = vi.fn(() => {});
+		leafSnap = vi.fn(() => {});
+		ownSnap = vi.fn(() => {});
 		component = {
 			editable: true,
 			focusable: true,
 			focus: vi.fn(),
 			getCursorOffset: () => null,
-			focusByPath
+			focusByPath,
+			snapCaretToPoint: ownSnap,
+			getBlockComponentByPath: () => ({ snapCaretToPoint: leafSnap }) as unknown as BlockComponent
 		} as unknown as BlockComponent & { focus: ReturnType<typeof vi.fn> };
 		resetSelectionForClick = vi.fn(() => {});
 	});
@@ -115,5 +121,24 @@ describe('createDeadSpaceCaret routing', () => {
 		component = { ...component, focusable: false } as typeof component;
 		expect(clickAt(20, TABLE_BOX.top + 20)).toBe(false);
 		expect(resetSelectionForClick).not.toHaveBeenCalled();
+	});
+
+	// The probe point, not the click point: the surface answers it as it would a click there,
+	// and a caret landing at an atomic widget's edge has nothing to show for itself until it
+	// does. jsdom resolves no point→offset, so the shallow door's landing is e2e-driven and
+	// only the deep one's routing is decidable here.
+	describe('click-intent snap', () => {
+		it('hands the probe point to the leaf the internal path names', () => {
+			clickAt(20, TABLE_BOX.top + 20);
+			expect(leafSnap).toHaveBeenCalledWith(TABLE_BOX.left + 1, TABLE_BOX.top + 20);
+			// Never the container's own door: the landing addresses the cell, not the grid.
+			expect(ownSnap).not.toHaveBeenCalled();
+		});
+
+		it('declines a block that publishes no snap door', () => {
+			component = { ...component, getBlockComponentByPath: () => null } as typeof component;
+			expect(clickAt(20, TABLE_BOX.top + 20)).toBe(true);
+			expect(leafSnap).not.toHaveBeenCalled();
+		});
 	});
 });

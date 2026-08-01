@@ -410,7 +410,8 @@
 			measurePartialRects,
 			runCommand,
 			getSelectionOffsets,
-			applyMenuClipboard
+			applyMenuClipboard,
+			snapCaretToPoint
 		};
 		return publishRefSlot(index, self, setRef, getRef);
 	});
@@ -888,7 +889,11 @@
 		const y = lastClickClientY;
 		lastClickClientX = null;
 		lastClickClientY = null;
-		widgetInteraction.snapClickToWidgetEdge(x, y);
+		snapCaretToPoint(x, y);
+	}
+
+	function snapCaretToPoint(clientX: number | null, clientY: number | null): void {
+		widgetInteraction.snapClickToWidgetEdge(clientX, clientY);
 	}
 
 	function onFocus(): void {
