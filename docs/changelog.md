@@ -1147,6 +1147,18 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   Shift+Tab dedenting a four-space-indented one to column 0, each split the block while the rule
   sat at two of ten commit sites. One door now, pinned by G4.24 against an eleventh.
 
+- **Copy, cut and paste reach a selected image in a paragraph of its own.** Selecting an inline
+  widget clears the native selection, so whether the chord's event reaches the block came down to
+  whether the paragraph held a text position for a caret to survive in. Beside prose one does, and
+  that is the shape every test used. In a widget-only paragraph none does, so the browser
+  dispatched at `<body>` and the chord died silently: Mod+C wrote nothing, Mod+X neither wrote nor
+  cut, Mod+V did nothing. That is the same hole the editor root's clipboard fallback already
+  existed for one selection state further out, so its gate now covers the selected widget too and
+  forwards the event to the block that owns it. Forwarding rather than re-implementing means the
+  reading-mode gate, the source-reveal fold and the sticky-column reset come along with it, and
+  all three arms are fixed at once rather than copy alone. Both selection routes are affected and
+  both are now pinned: clicking the image, and stepping into it from the block above.
+
 - **A host that pads the block list no longer gets a dead click band.** Clicks in the editor's
   dead space (the padding beside a block, the area below the last one) place a caret, but the
   gesture claimed only clicks whose target was the editor root. A host layout that widens and pads

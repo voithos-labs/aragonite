@@ -187,6 +187,13 @@ export interface BlockComponent {
 	 */
 	getSelectionOffsets?(): { start: number; end: number } | null;
 	/**
+	 * Claim a copy/cut/paste the editor root received because a selection state this block
+	 * owns seats no native caret: a selected inline widget in a block with no text position
+	 * leaves the native selection empty, so the browser dispatches at `<body>`. False leaves
+	 * the event to the root seam's other arms.
+	 */
+	claimRootClipboard?(event: ClipboardEvent): boolean;
+	/**
 	 * Run a clipboard action from the table cell's right-click menu against the offsets
 	 * captured at menu-open (focus/selection may have moved since).
 	 */

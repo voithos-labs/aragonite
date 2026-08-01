@@ -60,7 +60,17 @@ export interface TextClipboardDeps {
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
-export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers {
+export interface TextClipboard extends ClipboardHandlers {
+	/**
+	 * The block's own handler for a copy/cut/paste the editor root received. A selected
+	 * widget clears the native selection, so in a block with no text position for a caret to
+	 * survive in the browser dispatches at `<body>` and no surface binding sees it. False
+	 * when no widget of this block is selected — the root seam's cue to keep looking.
+	 */
+	claimRootClipboard(event: ClipboardEvent): boolean;
+}
+
+export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 	function getSelectedTextFromRaw(): string {
 		const offsets = deps.cursor.getRawSelection();
 		if (!offsets) return '';
@@ -83,7 +93,7 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}
 
-	return createClipboardHandlers({
+	const handlers = createClipboardHandlers({
 		stickyColumn: deps.stickyColumn,
 		selection: deps.selection,
 		getDoc: deps.getDoc,
@@ -193,4 +203,18 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 			}
 		}
 	});
+
+	return {
+		...handlers,
+		// Routed to the same arms the caret route reaches, so the reading gate, the reveal
+		// fold and the sticky reset come along rather than being re-carried here.
+		claimRootClipboard(event) {
+			if (selectedWidgetOnThisBlock() === null) return false;
+			if (event.type === 'copy') handlers.onCopy(event);
+			else if (event.type === 'cut') void handlers.onCut(event);
+			else if (event.type === 'paste') void handlers.onPaste(event);
+			else return false;
+			return true;
+		}
+	};
 }

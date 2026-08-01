@@ -892,10 +892,11 @@
 
 	// ── Editor-root clipboard routing ────────────────────────────────────
 	//
-	// The keydown sibling's counterpart: a cross-block Ctrl+C/X/V that Chromium
-	// retargeted to <body> because the parked caret found no text position. Same
-	// containment — the arms claim only events landing on THIS root, or on the body
-	// with this instance holding the body-chord claim.
+	// The keydown sibling's counterpart: a Ctrl+C/X/V that Chromium retargeted to <body>
+	// because the selection found no text position to park a caret in — a cross-block
+	// endpoint, or a selected inline widget. Same containment — the arms claim only
+	// events landing on THIS root, or on the body with this instance holding the
+	// body-chord claim.
 	const rootClipboard = createEditorRootClipboard({
 		selection: selectionState,
 		getDoc,
@@ -904,7 +905,11 @@
 		get onPasteImage() {
 			return onPasteImage;
 		},
-		events
+		events,
+		getSelectedWidgetBlock: () => {
+			const selected = widgetSelection.getSelected();
+			return selected ? getBlockComponent(selected.paragraphPath) : null;
+		}
 	});
 
 	$effect(() => {

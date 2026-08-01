@@ -394,6 +394,8 @@
 		return widgetInteraction.enterEdgeWidget(side);
 	}
 
+	export const claimRootClipboard = clipboardHandlers.claimRootClipboard;
+
 	/** The display length the CARET walks — the DOM's while a reveal is open, since the
 	 *  CST hasn't seen that edit. Against a stale `node.raw`, an edited reveal at the
 	 *  block's end traps the caret: no press reads as "at the boundary". */
@@ -505,6 +507,7 @@
 		focusAtColumn,
 		isVerticallyTransparent,
 		enterEdgeWidget,
+		claimRootClipboard,
 		runCommand
 	} satisfies BlockComponent);
 
