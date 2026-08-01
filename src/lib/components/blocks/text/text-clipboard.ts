@@ -64,10 +64,10 @@ export interface TextClipboard extends ClipboardHandlers {
 	/**
 	 * The block's own handler for a copy/cut/paste the editor root received. A selected
 	 * widget clears the native selection, so in a block with no text position for a caret to
-	 * survive in the browser dispatches at `<body>` and no surface binding sees it. False
+	 * survive in the browser dispatches at `<body>` and no surface binding sees it. A no-op
 	 * when no widget of this block is selected.
 	 */
-	claimRootClipboard(event: ClipboardEvent): boolean;
+	claimRootClipboard(event: ClipboardEvent): void;
 }
 
 export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
@@ -209,12 +209,10 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		// Routed to the same arms the caret route reaches, so the reading gate, the reveal
 		// fold and the sticky reset come along rather than being re-carried here.
 		claimRootClipboard(event) {
-			if (selectedWidgetOnThisBlock() === null) return false;
+			if (selectedWidgetOnThisBlock() === null) return;
 			if (event.type === 'copy') handlers.onCopy(event);
 			else if (event.type === 'cut') void handlers.onCut(event);
 			else if (event.type === 'paste') void handlers.onPaste(event);
-			else return false;
-			return true;
 		}
 	};
 }
