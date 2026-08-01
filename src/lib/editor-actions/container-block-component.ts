@@ -78,8 +78,10 @@ function focusWholeBlockEl(el: HTMLElement): void {
 	el.focus();
 }
 
-export interface EditorGlobalChordDeps
-	extends Pick<GlobalCommandContext, 'history' | 'pluginEditor' | 'onCommandError'> {
+export interface EditorGlobalChordDeps extends Pick<
+	GlobalCommandContext,
+	'history' | 'pluginEditor' | 'onCommandError'
+> {
 	getKind: () => AnyBlockKind;
 	getKeybindingOverrides: () => KeybindingOverrideMap | undefined;
 	isReading: () => boolean;

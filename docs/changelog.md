@@ -14,6 +14,34 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   behind a collapsed Versions outline, defaulting to reading mode with one toggle flipping the
   same bytes to styled source: the single-render-path claim, live.
 
+- **An edit surface left open over a changing document used to write back over the change.** A
+  block whose source is revealed for editing (block math, a math fence, any render-primary
+  plugin block) and a diagram's edit box both took one copy of the text when they opened and
+  never looked again, so an undo — or any write landing from outside that gesture — left the
+  open box holding bytes the document had moved past, and the commit on blur put them back. The
+  undo looked dead: it did land, and the next blur reverted it. Both surfaces now follow the
+  document while they are open, re-seeding when it changes under them; an in-flight draft is
+  discarded rather than a committed change reverted. The obligation is written down for plugin
+  authors, whose own edit surfaces owe the same.
+
+- **Undo and redo now work from a diagram's own focus surface.** Pressing Ctrl+Z on a focused
+  mermaid block did nothing — the block resolved only its kind's keymap, and the editor's
+  root-level handler declines while focus sits on a block that is its own focus target. Since a
+  keyboard commit hands focus straight back to the diagram, that was exactly where a user
+  reached for undo. The chord now runs there, for every present and future whole-block plugin
+  kind, matching what the built-in thematic break already did. Inside a plugin's own textarea
+  the browser's draft undo is unchanged.
+
+- **An empty diagram no longer shows a render error.** The engine rejects empty input, so a
+  ` ```mermaid ` fence with nothing in it painted a red error card — including the moment the
+  keystroke completing the info string converted the block, which then parked the caret on that
+  card with no way into edit mode from the keyboard. An empty diagram now shows its edit
+  surface, so the caret lands typing-ready the way a ` ```math ` fence already does, and reading
+  mode shows a dimmed placeholder instead.
+
+- **The diagram edit box grows with its text.** It previously carried a drag-to-resize handle
+  whose height was thrown away the moment edit mode closed, so every resize had to be redone.
+
 - **A range delete running from an earlier block into a code block used to leave the closing
   fence behind as a stray run**, which reparsed as a new unclosed fence and absorbed every block
   below it on reload. The fence write rule now answers in both directions: it restores a closer
