@@ -10,7 +10,7 @@ import type { Document } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { tableCellCount } from '../table-endpoint-snap';
 import { CURSOR_END } from '../../block-component';
-import { normalizeLineEndings, trailingLineEnding } from '../../core/lines';
+import { normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';

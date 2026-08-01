@@ -11,7 +11,6 @@ import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { parse } from '../../core/parser';
-import { trailingLineEnding } from '../../core/lines';
 import { isBlockNode, nodeAt } from '../node-ops';
 import { getPasteSurface, type PasteRange } from '../paste-surfaces';
 import { isReservedChromeChild } from '../../schema/reserved-chrome';
