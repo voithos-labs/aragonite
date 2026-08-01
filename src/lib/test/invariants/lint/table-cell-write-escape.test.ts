@@ -1,29 +1,16 @@
 /**
  * The tableCell raw-write seam. A cell's raw is joined verbatim into its row and the
  * parser truncates a row that reparses wider than the delimiter's column count, so one
- * unescaped `|` silently deletes the last column's content. The rule belongs to the kind
- * and runs at the write sink, because three gestures each carried it at their call site
- * and each lost it. The door rule below is the caret half no seam can absorb — the
- * sink's inserted backslashes move the offset a caller reports.
+ * unescaped `|` silently deletes the last column's content. The hook the rule rides is
+ * pinned in `leaf-raw-write-rule`; what is cell-specific lives here: one implementation
+ * of the escape, and the caret half no seam can absorb — the sink's inserted backslashes
+ * move the offset a caller reports.
  */
 
 import { describe, it, expect } from 'vitest';
-import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { collectEditorSources } from './scan-source';
 
-const SINK = 'src/lib/tree-operations/node-ops.ts';
 const CELL = 'src/lib/components/blocks/table/TableCellBlock.svelte';
-
-/**
- * Every file naming the capability in code, and why. A new name here is a new write path
- * that skipped the sink — decide explicitly rather than inherit an escape by accident.
- */
-const CAPABILITY_SITES: Record<string, string> = {
-	'src/lib/schema/block-kind-descriptor.ts': 'the field declaration',
-	'src/lib/schema/built-in-descriptors.ts': 'tableCell declares it',
-	[SINK]: 'the write sink applies it',
-	'src/lib/editor-actions/search-replace.ts': 'reparses a private clone; cannot reach the sink'
-};
 
 /** The rule itself has one implementation; a second is what let two escapes disagree. */
 const RULE_HOME = 'src/lib/schema/table-cell-raw.ts';
@@ -51,25 +38,11 @@ function namesInCode(sources: { relPath: string; code: string }[], re: RegExp): 
 		.sort();
 }
 
-describe('the tableCell write rule lives on the kind and runs at the sink', () => {
+describe('the tableCell escape has one implementation', () => {
 	const sources = collectEditorSources();
 
 	it('inspected at least one editor source file', () => {
 		expect(sources.length).toBeGreaterThan(0);
-	});
-
-	it('tableCell declares the capability', () => {
-		expect(typeof getBlockKindDescriptor('tableCell').normalizeRawWrite).toBe('function');
-	});
-
-	it('the sink applies whatever the kind declared', () => {
-		const sink = sources.find((f) => f.relPath === SINK);
-		expect(sink, `${SINK} not found`).toBeDefined();
-		expect(CAPABILITY.test(sink!.code), `the sink stopped applying the capability`).toBe(true);
-	});
-
-	it('exactly the documented sites name the capability', () => {
-		expect(namesInCode(sources, CAPABILITY)).toEqual(Object.keys(CAPABILITY_SITES).sort());
 	});
 
 	it('exactly the documented readers name the rule (no second implementation)', () => {

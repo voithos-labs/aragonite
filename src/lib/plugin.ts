@@ -111,8 +111,8 @@ export { isBlankLine } from './core/parser';
 // The built-in CommonMark fence recognizers, so a plugin claiming a fence (```mermaid)
 // never reimplements the rules. The opener match keeps verbatim indent/info bytes, for
 // byte-exact rebuilds.
-export { matchFenceOpen, matchFenceClose } from './core/parsers/fenced-code';
-export type { FenceOpen } from './core/parsers/fenced-code';
+export { matchFenceOpen, matchFenceClose } from './core/parsers/fence-syntax';
+export type { FenceOpen } from './core/parsers/fence-syntax';
 
 // ── HTML tag-line grammar (pre-freeze: refined against the details reference plugin) ──
 // CommonMark's type-6 tag-line shape for one tag name. What actually closes such a

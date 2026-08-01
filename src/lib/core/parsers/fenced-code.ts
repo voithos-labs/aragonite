@@ -1,65 +1,7 @@
 import type { ParsedLine } from '../lines';
 import { joinRaw } from '../parser';
 import type { BlockOpenerResult } from '../../schema/block-openers';
-
-/**
- * The fence-open shape, re-exported on `aragonite/plugin` for fence-claiming openers:
- * `info` is the trimmed dispatch string; `indent`/`infoRaw` are the verbatim rebuild bytes.
- */
-export interface FenceOpen {
-	marker: '`' | '~';
-	length: number;
-	info: string;
-	indent: string;
-	infoRaw: string;
-}
-
-// Backtick info may not contain backticks (CommonMark §4.5); tilde info may.
-const BACKTICK_OPEN = /^( {0,3})(`{3,})([^`]*)$/;
-const TILDE_OPEN = /^( {0,3})(~{3,})(.*)$/;
-
-export function matchFenceOpen(text: string): FenceOpen | null {
-	const m = text.match(BACKTICK_OPEN) ?? text.match(TILDE_OPEN);
-	if (!m) return null;
-	const [, indent, fence, infoRaw] = m;
-	return {
-		marker: fence[0] as '`' | '~',
-		length: fence.length,
-		info: infoRaw.trim(),
-		indent,
-		infoRaw
-	};
-}
-
-export function matchFenceClose(text: string, marker: '`' | '~', minLength: number): boolean {
-	const pattern = marker === '`' ? /^ {0,3}(`{3,})\s*$/ : /^ {0,3}(~{3,})\s*$/;
-	const m = text.match(pattern);
-	return Boolean(m && m[1].length >= minLength);
-}
-
-/**
- * The fence length needed to wrap `body`: one past every body line the parser would read
- * as this block's closer, never below `minimum`. Without it a body line reproducing the
- * terminator closes the block early and ejects everything below it on reparse. A floor,
- * not a target: it never shortens an existing fence.
- */
-export function escalatedFenceLength(body: string, marker: '`' | '~', minimum: number): number {
-	let required = minimum;
-	for (const line of body.split('\n')) {
-		// Splitting on `\n` leaves a CRLF body's `\r` on the tail; a closer line's text excludes it.
-		const text = line.endsWith('\r') ? line.slice(0, -1) : line;
-		if (matchFenceClose(text, marker, required)) required = fenceRunLength(text, marker) + 1;
-	}
-	return required;
-}
-
-function fenceRunLength(text: string, marker: '`' | '~'): number {
-	let index = 0;
-	while (text[index] === ' ') index++;
-	let run = 0;
-	while (text[index + run] === marker) run++;
-	return run;
-}
+import { matchFenceClose } from './fence-syntax';
 
 export function parseFencedCode(
 	lines: ParsedLine[],

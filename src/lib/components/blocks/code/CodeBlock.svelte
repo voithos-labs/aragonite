@@ -40,7 +40,7 @@
 	import { indentLines, dedentLines, type IndentResult } from './code-indent';
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
-	import { reconcileFenceWrite, type FenceShape } from './code-fence-write';
+	import { fenceShapeOf, reconcileFenceWrite } from '../../../schema/fenced-code-raw';
 	import { computeFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
@@ -184,11 +184,6 @@
 
 	function getDisplayText(): string {
 		return trimTrailingLineEnding(node.raw);
-	}
-
-	function fenceShapeOf(view: NodeView): FenceShape {
-		const meta = metadataOf(view, 'fencedCode');
-		return { marker: meta.fenceMarker, length: meta.fenceLength, closed: meta.closed };
 	}
 
 	/**

@@ -4,8 +4,8 @@
  * line the parser would read as its closer has to run on EVERY display commit, and two
  * gestures split the block by rewriting bytes without adding a character. So
  * `commitDisplay` is the block's only `updateBlockContent` call site, and this fails the
- * day another gesture writes around it. Scoped to the one file: the rule is this
- * surface's, and other blocks have no fence to escalate.
+ * day another gesture writes around it. Scoped to the one file because it is the CARET
+ * half; byte sinks reaching a code block without this surface answer to G4.28.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

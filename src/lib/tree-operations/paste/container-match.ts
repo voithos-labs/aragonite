@@ -7,7 +7,7 @@
 import { CURSOR_END } from '../../block-component';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import { nodeAt } from '../node-ops';
+import { nodeAt, writeOwnRaw } from '../node-ops';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
@@ -216,7 +216,11 @@ async function applyContainerMatchingMerge(
 				// The merged leaf sits BELOW the scope node — own its full spine.
 				const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 				const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
-				ownedLeaf.raw = displayBefore + firstItemText + displayAfter + targetLineEnding;
+				writeOwnRaw(
+					ownedLeaf,
+					displayBefore + firstItemText + displayAfter + targetLineEnding,
+					ctx.grammar
+				);
 				rebuildUnsharedChain(ctx.doc, chain, sharing, ctx.grammar);
 				return [{ op: 'noop' }];
 			},
@@ -250,7 +254,7 @@ async function applyContainerMatchingMerge(
 			// The merged leaf sits BELOW the scope node — own its full spine.
 			const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 			const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
-			ownedLeaf.raw = displayBefore + firstItemText + targetLineEnding;
+			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
 			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
 			// Both rebuilds run before the splice, so the published children carry correct
 			// raws in one reactive flush.

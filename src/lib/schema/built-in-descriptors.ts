@@ -21,6 +21,7 @@ import {
 	rebuildTableRowRaw
 } from './container-rebuilders';
 import { normalizeCellRaw } from './table-cell-raw';
+import { normalizeFencedRaw } from './fenced-code-raw';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -194,6 +195,7 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		normalizeRawWrite: normalizeFencedRaw,
 		keymap: [
 			{ chord: 'Enter', command: 'code.newline' },
 			{ chord: 'Tab', command: 'code.indent' },

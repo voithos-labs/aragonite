@@ -3,10 +3,11 @@ import {
 	reconcileFenceWrite,
 	type FenceShape,
 	type FenceWriteMode
-} from '../../../components/blocks/code/code-fence-write';
+} from '$lib/schema/fenced-code-raw';
 
-// The write seam both routes share: what the block's grammar can hold once an edit
-// has landed in a content region. Where an edit may land is code-fence-boundary's.
+// The write seam every route shares — the display funnel, the paste surface, and the byte
+// sinks that reach a node's raw without a surface: what the block's grammar can hold once
+// an edit has landed in a content region. Where an edit may land is code-fence-boundary's.
 
 const backtick = (length = 3, closed = true): FenceShape => ({ marker: '`', length, closed });
 
@@ -102,6 +103,12 @@ describe('reconcileFenceWrite — info-string sanitization', () => {
 	// typing a fourth backtick there widens the fence the user is still authoring.
 	it('leaves an OPEN fence opener alone', () => {
 		expect(write('````js\ncode', backtick(3, false), 'authored').display).toBe('````js\ncode');
+	});
+
+	// The authoring exemption is the AUTHOR's; a literal write to an open fence is a sink
+	// writing content, and the backtick it lands demotes the block to a paragraph.
+	it('drops a backtick a LITERAL write lands in an open fence’s info string', () => {
+		expect(write('```j`s\ncode', backtick(3, false), 'literal').display).toBe('```js\ncode');
 	});
 });
 

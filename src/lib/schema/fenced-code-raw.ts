@@ -1,12 +1,15 @@
 /**
- * Write-side fence reconciliation — the one seam every route committing new display
- * text consults (typing/IME, paste). `code-fence-boundary.ts` polices WHERE an edit
- * may land; this polices what the grammar can hold once it has. ESCALATE grows both
- * runs past a body line that would read as the closer; SANITIZE drops backticks from
- * a backtick fence's info string (CommonMark §4.5). An authored open fence is exempt.
+ * The fencedCode raw-write rule, declared on the kind as `normalizeRawWrite` and applied at
+ * every write sink. ESCALATE grows both runs past a body line that would read as the closer;
+ * SANITIZE drops backticks from a backtick fence's info string (CommonMark §4.5). Both read
+ * the block's OWN fence shape, which is why the pass takes a node and not just bytes. An
+ * authored open fence is exempt: typing the closer is the gesture.
  */
 
-import { escalatedFenceLength, matchFenceClose } from '../../../core/parsers/fenced-code';
+import { metadataOf } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
+import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { escalatedFenceLength, matchFenceClose } from '../core/parsers/fence-syntax';
 
 export interface FenceShape {
 	marker: '`' | '~';
@@ -34,11 +37,30 @@ export interface FenceWriteResult {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
+export function fenceShapeOf(node: NodeView): FenceShape {
+	const meta = metadataOf(node, 'fencedCode');
+	return { marker: meta.fenceMarker, length: meta.fenceLength, closed: meta.closed };
+}
+
 export function reconcileFenceWrite(input: FenceWriteInput): FenceWriteResult {
 	const { fence, mode } = input;
 	if (!fence.closed && mode === 'authored') return { display: input.display, caret: input.caret };
-	const sanitized = fence.closed ? sanitizeInfoString(input) : input;
-	return escalateFenceRuns({ ...input, ...sanitized });
+	return escalateFenceRuns({ ...input, ...sanitizeInfoString(input) });
+}
+
+/**
+ * A whole fencedCode `raw` made legal — the kind's `normalizeRawWrite`. Literal by
+ * construction: a sink reaching a node's bytes without its surface is never the author
+ * typing the block's own syntax.
+ */
+export function normalizeFencedRaw(raw: string, node: NodeView): string {
+	const written = reconcileFenceWrite({
+		display: trimTrailingLineEnding(raw),
+		caret: 0,
+		fence: fenceShapeOf(node),
+		mode: 'literal'
+	});
+	return written.display + trailingLineEnding(raw);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

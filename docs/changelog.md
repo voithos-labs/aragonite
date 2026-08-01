@@ -4,6 +4,14 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **Find-and-replace and cross-block edits no longer split a code block.** A replacement or a
+  delete that lands a fence run on a body line now grows the block's fence instead of
+  terminating it, and a backtick reaching a backtick fence's info string is dropped rather than
+  demoting the block. The reconciliation that already guarded typing (the display-commit
+  funnel) is now the kind's `normalizeRawWrite`, so every byte sink that consults the hook —
+  find-and-replace, the range-delete join, the paste container-merge — repairs the same way,
+  and a sink wired in later inherits the rule.
+
 - **A block opener can tell a whole-document parse from a block-local reparse.** Every routine
   edit reparses just the edited block's text, so an opener that gates on document position saw
   line 0 wherever that block sat, and a plugin kind scoped to the top of the document (front
