@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
@@ -11,8 +11,6 @@ import {
 	rebuildOwnedContainer,
 	rebuildUnsharedAncestry
 } from '../../tree-operations/unshare';
-
-afterEach(() => vi.unstubAllEnvs());
 
 function sharedDoc(src: string) {
 	const sharing = createSharingState();
@@ -92,7 +90,6 @@ it('rebuildOwnedContainer unshares the children of any grid, not just table', ()
 // Without the range check its sibling walk carries (G1.22), an off-the-end index is an
 // epoch-dependent crash: silent `undefined` before the first snapshot, TypeError after.
 it('ensureUnsharedChild flags an out-of-range index instead of throwing', () => {
-	vi.stubEnv('DEV', true);
 	const { doc, sharing } = sharedDoc('- a\n');
 	const [list] = ensureUnsharedPath(doc, [0], sharing);
 	vi.mocked(devWarn).mockClear();
@@ -115,7 +112,6 @@ it('ensureUnsharedChild treats an out-of-range index the same before and after a
 // G1.22 is the ONE axis separating the two shared-spine walks: the strict path flags an
 // off-the-end index, the tolerant rebuild swallows it (post-delete hands short paths).
 it('fires G1.22 only on the strict unshare path, never on the tolerant rebuild', () => {
-	vi.stubEnv('DEV', true);
 	const firedInRangeAssert = () =>
 		vi.mocked(devWarn).mock.calls.some(([tag]) => tag === 'invariant:unshare-path-in-range');
 

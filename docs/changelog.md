@@ -1185,6 +1185,17 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   block lists inside it. Every other decline holds, and the press half of the gesture still
   discriminates a drag that started on a block and released in the gutter.
 
+- **The library loads under a non-Vite bundler: `import.meta.env` is gone, and `esm-env` joins
+  as the second hard dependency.** `import.meta.env` is a Vite-only extension, so outside a Vite
+  bundle the object is undefined and the first module-scope read threw at import time — the
+  library could not load at all, which the packaging step had been reporting as a warning for as
+  long as the reads existed. Every dev gate now reads `esm-env`'s `DEV`, whose export conditions
+  every bundler resolves, so the dev assertions still compile out of a production build
+  everywhere rather than only under Vite. The runtime override seam is unchanged, and a
+  source-scan guard fails the day a `import.meta.env` read is born again. `npm run package` is
+  warning-free. The new dependency is a few bytes and already in every install: svelte depends
+  on it.
+
 - **The published `svelte` peer floor rises to `^5.29.0`, and now says something true.** The
   declared floor was `^5.0.0`, but `editable-leaf.ts` imports `createAttachmentKey` from
   `svelte/attachments`, a subpath svelte's `exports` map does not carry before 5.29.0. A consumer
@@ -1211,7 +1222,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   included, would do the same. The field is inert for anyone installing aragonite (npm reads
   `overrides` only from the top-level project) and ships in the tarball as dead metadata.
 
-Ship gates: unit 5947, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
+Ship gates: unit 5951, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
 was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
 container-head rows plus the row-shape verification at the batch base). The e2e figure is the
 last full battery's; the unit figure is current.

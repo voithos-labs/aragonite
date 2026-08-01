@@ -3,6 +3,7 @@
  * false positive must not crash a real editor. In production the predicate is not even
  * invoked. Tests call predicates directly rather than going through here.
  */
+import { DEV } from 'esm-env';
 import { devWarn } from '../dev-warn';
 
 export interface InvariantViolation {
@@ -12,7 +13,7 @@ export interface InvariantViolation {
 }
 
 export function assertInvariant(tag: string, check: () => InvariantViolation | null): void {
-	if (!import.meta.env.DEV) return;
+	if (!DEV) return;
 	const violation = check();
 	if (violation) {
 		// `invariant:` namespaces the console marker so the e2e simulation's error

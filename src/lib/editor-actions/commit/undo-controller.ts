@@ -4,6 +4,7 @@
  * them. Keystroke batching is delegated to text-batch.ts.
  */
 
+import { DEV } from 'esm-env';
 import { tick } from 'svelte';
 import type { BlockComponent } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
@@ -108,7 +109,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			children: [...deps.doc.children],
 			suffix: deps.doc.suffix
 		};
-		return { snapshot, integrity: import.meta.env.DEV ? digestDoc(snapshot) : undefined };
+		return { snapshot, integrity: DEV ? digestDoc(snapshot) : undefined };
 	}
 
 	function recordSnapshotPerf(): void {
@@ -240,7 +241,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		deps.stickyColumn.reset();
 		textBatch.interrupt();
 
-		if (import.meta.env.DEV) {
+		if (DEV) {
 			// Both declared coordinates must be doc-absolute; `invariants` stays a runtime
 			// leaf, so the number[]→DocPath mint lives here at the ceremony.
 			assertCommitPaths(
@@ -275,7 +276,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				} else {
 					applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
 					args.publish(childrenCopy, idsCopy, refsCopy);
-					if (import.meta.env.DEV) {
+					if (DEV) {
 						assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
 					}
 				}
@@ -287,12 +288,12 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					discarded = true;
 				} else {
 					args.publish();
-					if (import.meta.env.DEV) {
+					if (DEV) {
 						assertCommittedNodes(touchedContainersWithChildren(args.touchedNodes?.()));
 					}
 				}
 			}
-			if (!discarded && import.meta.env.DEV) {
+			if (!discarded && DEV) {
 				// G1.9 commit seam: a missed copy-path-on-write here corrupts the freshest
 				// entry — catch it at the commit, not at some distant undo. Never throws.
 				assertUndoTopIntegrity(deps.undoManager.peekUndo() ?? undefined);
@@ -302,7 +303,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			reportCommitError(args, err);
 			// Loud in dev; production swallows so one failed mutation doesn't kill the
 			// editor. The tree is intact either way: rolled back, or never published.
-			if (import.meta.env.DEV) throw err;
+			if (DEV) throw err;
 			return false;
 		}
 

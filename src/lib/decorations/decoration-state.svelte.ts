@@ -1,3 +1,4 @@
+import { DEV } from 'esm-env';
 import type { CstNode } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import {
@@ -92,7 +93,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	}
 
 	function warnUnrenderableIslands(sourceName: string, decs: Decoration[]): void {
-		if (!import.meta.env.DEV) return;
+		if (!DEV) return;
 		const doc = deps.getDoc();
 		for (const dec of decs) {
 			if (dec.type !== 'widget' && dec.type !== 'replace') continue;

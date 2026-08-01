@@ -3,7 +3,7 @@
 // G1.25 fired through the real pool: each illegal bracket transition reaches
 // devWarn on the `invariant:pool-bracket` tag, and a legal bracketed pass stays
 // silent (a false-firing invariant poisons the channel every e2e spec watches).
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
@@ -30,11 +30,7 @@ function bracketFires(): unknown[][] {
 	return vi.mocked(devWarn).mock.calls.filter(([tag]) => tag === 'invariant:pool-bracket');
 }
 
-beforeEach(() => {
-	vi.stubEnv('DEV', true);
-	vi.mocked(devWarn).mockClear();
-});
-afterEach(() => vi.unstubAllEnvs());
+beforeEach(() => vi.mocked(devWarn).mockClear());
 
 describe('widget pool — bracket discipline (G1.25)', () => {
 	it('acquire outside a bracket fires', () => {

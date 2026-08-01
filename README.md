@@ -169,7 +169,7 @@ Does the design actually work in practice? Well, the eight bundled plugins (admo
 
 Let's start by establishing the right context: most editors ship as a toolkit, and you assemble the editor yourself. CodeMirror is a dozen `@codemirror/*` packages plus a Lezer grammar; ProseMirror is `prosemirror-model` and `-state` and `-view` and `-transform` and however much glue you write to make them a product. Aragonite, on the other hand, is one library you import, with the parser, serializer, block editing, windowing, undo, selection, decorations, presentation modes, and the plugin platform already wired to each other.
 
-(And it drags almost nothing behind it. Exactly one hard runtime dependency, highlight.js, for code-block syntax colors. Svelte is a peer you already have and compiles away rather than shipping a framework runtime; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
+(And it drags almost nothing behind it. Two hard runtime dependencies: highlight.js, for code-block syntax colors, and esm-env, a few bytes of bundler-agnostic dev-flag resolution that svelte itself already depends on. Svelte is a peer you already have and compiles away rather than shipping a framework runtime; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
 
 For all of that surface area the code stays relatively compact: about 54k lines of typescript and svelte for the shipped library, roughly 5.6k of which is the eight bundled plugins [^13]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
 
@@ -178,7 +178,7 @@ For all of that surface area the code stays relatively compact: about 54k lines 
   <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, selection, and the bundled plugins; the schema registry, invariants, public API, decorations, and windowing each take progressively smaller slices." src="docs/assets/loc-light.svg">
 </picture>
 
-I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with one hard dependency behind it. The test suite, meanwhile, is roughly twice the size of the library (~120k lines), which says more about my paranoia than the leanness.
+I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with two hard dependencies behind it. The test suite, meanwhile, is roughly twice the size of the library (~120k lines), which says more about my paranoia than the leanness.
 
 # Fast
 

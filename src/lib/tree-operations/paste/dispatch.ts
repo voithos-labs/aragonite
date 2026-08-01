@@ -6,6 +6,7 @@
  * block's `pendingCursorOffset` may address a block the range delete is about to unmount.
  */
 
+import { DEV } from 'esm-env';
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
@@ -118,7 +119,7 @@ export async function pasteDispatch(
 	}
 
 	const surface = getPasteSurface(targetNode.kind);
-	if (import.meta.env.DEV && surface === undefined) {
+	if (DEV && surface === undefined) {
 		console.warn(
 			`[paste-dispatch] No paste surface registered for kind`,
 			targetNode.kind,

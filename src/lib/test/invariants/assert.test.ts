@@ -5,11 +5,11 @@ import { devWarn } from '../../dev-warn';
 import { assertInvariant, type InvariantViolation } from '../../invariants/assert';
 
 describe('assertInvariant — dev-runtime channel', () => {
-	beforeEach(() => {
-		vi.stubEnv('DEV', true);
-		vi.mocked(devWarn).mockClear();
+	beforeEach(() => vi.mocked(devWarn).mockClear());
+	afterEach(() => {
+		vi.doUnmock('esm-env');
+		vi.resetModules();
 	});
-	afterEach(() => vi.unstubAllEnvs());
 
 	// The tag is namespaced `invariant:<tag>` so the e2e simulation's error
 	// collector can match violations via the `[invariant:` console marker.
@@ -30,10 +30,14 @@ describe('assertInvariant — dev-runtime channel', () => {
 		expect(devWarn).not.toHaveBeenCalled();
 	});
 
-	it('does not run the predicate in production', () => {
-		vi.stubEnv('DEV', false);
+	// `DEV` is a build-time constant, so the production branch is reachable only by
+	// re-importing the module against a false one.
+	it('does not run the predicate in production', async () => {
+		vi.resetModules();
+		vi.doMock('esm-env', () => ({ DEV: false }));
+		const production = await import('../../invariants/assert');
 		const check = vi.fn(() => null);
-		assertInvariant('test', check);
+		production.assertInvariant('test', check);
 		expect(check).not.toHaveBeenCalled();
 	});
 });

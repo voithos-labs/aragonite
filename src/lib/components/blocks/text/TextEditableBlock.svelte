@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { DEV } from 'esm-env';
 	import { getContext, tick, untrack } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
@@ -523,7 +524,7 @@
 	}
 
 	$effect(() => {
-		if (import.meta.env.DEV && ambientPrefixText && !isProseKind(node.kind)) {
+		if (DEV && ambientPrefixText && !isProseKind(node.kind)) {
 			console.warn(
 				`[TextEditableBlock] ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix. The ambient marker will not render correctly.`
 			);
