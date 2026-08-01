@@ -23,6 +23,11 @@ claiming only root-targeted clicks leaves that band inert.
   middle row lands in that row — not in the table's last cell.
 - Click in the block list's own padding under a host layout that pads it
   (`?paddedList=on`): the caret lands at the end of that line, same as the root's padding.
+- Click beside a line that ends at an atomic widget (an image-only paragraph): the caret
+  lands on the widget's trailing edge and the synthetic caret paints there — the same
+  answer a click INSIDE the block at that point gives. The probe point is clamped into the
+  block's box, so the surface answers it as it answers a click; the landing offset was
+  always right, it was the visual representation that was missing.
 
 ## Edge cases
 
@@ -40,9 +45,16 @@ claiming only root-targeted clicks leaves that band inert.
 - The band scan is root-wide, so a click in a NESTED list's gutter resolves the nearest
   line document-wide rather than within that container. Geometrically that is the line
   the click is level with, so the answer is the same one; no separate rule.
+- A landing down the deep door (a table cell) is handed the same point, but the cell
+  surface paints no synthetic indicator of its own, so only the caret moves. The routing
+  is unit-pinned (`test/selection/dead-space-caret-routing.test.ts`), not asserted here.
 
 ## Miss-analysis
 
 - The host-padded-list band went unclaimed because every fixture used the demo's default
   layout, where the whole gutter belongs to the root — the suite never exercised a host
   that restyles `.block-list`, though host layouts are a documented consumer surface.
+- The widget-edge landing had no visual representation because every test here asserted
+  the landed OFFSET (type a character, read the source), which was never wrong. Nothing
+  asked whether the caret could be seen, and at an element-level position beside an atomic
+  island only the synthetic indicator answers that.

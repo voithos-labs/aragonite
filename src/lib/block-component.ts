@@ -129,6 +129,14 @@ export interface BlockComponent {
 	/** Cascade focus down a path of child indices to reach a leaf at the given offset. */
 	focusByPath?(path: number[], offset: number): void;
 	/**
+	 * Apply this surface's own click-intent caret snap for a viewport point inside its box,
+	 * after a landing has been placed. A caret that fell at an atomic widget's edge has no
+	 * visual representation there, so the prose surface moves it onto the edge and paints the
+	 * indicator Chromium omits; one that landed in real text is left alone. Omitted by
+	 * surfaces with no such snap.
+	 */
+	snapCaretToPoint?(clientX: number, clientY: number): void;
+	/**
 	 * Descend child indices to the BlockComponent at the leaf, or null if the path
 	 * doesn't resolve. Empty `path` returns this component. Containers implement it.
 	 */

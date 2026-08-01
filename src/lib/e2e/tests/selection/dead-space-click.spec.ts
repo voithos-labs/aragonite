@@ -179,6 +179,26 @@ test.describe('dead-space clicks place a caret', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
 
+	// The landed offset abuts an atomic widget, where Chromium paints no caret and nothing can
+	// ask whether it did — so the synthetic indicator is the only observable that says the
+	// landing has a visual representation. A click INSIDE the block at the same point paints it.
+	test('a click beside a widget-only line lands the caret on the widget’s edge', async () => {
+		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
+		const root = await rootBox();
+		const widget = await editor.page.locator('[data-image-widget]').boundingBox();
+		if (!widget) throw new Error('no box for the image widget');
+
+		await editor.page.mouse.click(root.right - 5, widget.y + widget.height / 2);
+
+		await expect(editor.page.locator('[data-image-widget].md-snap-after')).toHaveCount(1);
+		// The offset the snap lands on is the one the click already resolved: after the image.
+		// A real keystroke, because an element-level position beside an atomic widget is
+		// reached by the caret-edge dispatch, which only a keydown fires.
+		await editor.typeSlowly('Z');
+		await editor.bridge.waitForSourceContains('Z');
+		expect(await editor.bridge.getSource()).toContain('sample.png)Z');
+	});
+
 	// A rule holds no character position, so the click declines rather than handing
 	// it the whole-block focus a click ON the rule means.
 	test('a document ending in a thematic break is not focused by the click below it', async () => {

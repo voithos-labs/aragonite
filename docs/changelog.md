@@ -1147,6 +1147,16 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   Shift+Tab dedenting a four-space-indented one to column 0, each split the block while the rule
   sat at two of ten commit sites. One door now, pinned by G4.24 against an eleventh.
 
+- **A click beside an image-only line puts the caret somewhere you can see it.** The dead-space
+  click clamps its point into the nearest block's box and lets that block resolve the landing,
+  but it then seated the caret through the plain programmatic door. Beside a line that ends at an
+  atomic widget that door parks an element-level caret, which Chromium paints nothing for, so the
+  click looked like it had done nothing at all. The landing now goes on to ask the surface the
+  same question a click inside the box asks it, which for a prose block moves the caret onto the
+  widget's edge and paints the synthetic caret there. The offset was never wrong; what was
+  missing was any way to see it. A landing that resolves into a coordinate-addressed kind's own
+  internals (a table cell) is handed the same point, so the rule reaches both doors.
+
 - **Copy, cut and paste reach a selected image in a paragraph of its own.** Selecting an inline
   widget clears the native selection, so whether the chord's event reaches the block came down to
   whether the paragraph held a text position for a caret to survive in. Beside prose one does, and

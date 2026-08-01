@@ -119,6 +119,10 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			// the leaf's own `focus`.
 			if (landing.path.length === 0) component.focus(landing.offset);
 			else component.focusByPath!(landing.path, landing.offset);
+			// The probe point is inside the block's box, so the surface answers it exactly as it
+			// answers a click there: a landing at an atomic widget's edge has nothing to show for
+			// itself until the surface's own snap paints it.
+			leafOf(component, landing.path)?.snapCaretToPoint?.(probeX, probeY);
 			return true;
 		}
 	};
@@ -133,6 +137,13 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
  * overlays, handles, badges, windowing spacers, header-slot content — has its own identity
  * and is declined here.
  */
+/** The component the landing addresses: this one on a character surface, else the leaf a
+ *  coordinate-addressed kind's internal path names. */
+function leafOf(component: BlockComponent, path: number[]): BlockComponent | null {
+	if (path.length === 0) return component;
+	return component.getBlockComponentByPath?.(path) ?? null;
+}
+
 function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
 	if (target === root) return true;
 	return target instanceof Element && target.classList.contains('block-list');
