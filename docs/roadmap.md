@@ -1,6 +1,6 @@
 # Roadmap
 
-aragonite is the editor module — an independent library delivered at v1.0. Downstream consumers (the limestone app is the first) live in their own repos; this roadmap is the editor's own forward plan. Shipped milestones live in `docs/changelog.md`; this file is forward-looking only.
+aragonite is the editor module — an independent library delivered at v1.0. Downstream consumers (the first is limestone, the note-taking app aragonite was extracted from, not itself public) live in their own repos; this roadmap is the editor's own forward plan. Shipped milestones live in `docs/changelog.md`; this file is forward-looking only.
 
 ## Product theses
 
@@ -12,9 +12,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 ## Pre-1.0 — the plugin platform (freeze at the open-source release)
 
-**1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and an internal limestone integration (without open-sourcing). Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
+**1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and the limestone integration, which ran in 2026-07. Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
-1. **Limestone internal integration — remaining scope.** The integration ran (2026-07) and paid
+1. **Limestone integration — remaining scope.** The integration ran (2026-07) and paid
    as predicted: the editor is the app's editor, the findings landed as 0.9.36 refinements, and
    the consumer-lens directions below are its architectural residue. The 0.9.25 **field-report
    workflow** has now run end to end against the real app (reproduce → `serializeDiagnostics()` →
@@ -28,7 +28,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 2. **Clean-room 2 residue: the plain-mode promotion decision.** The second run executed
    2026-08-01 (front matter subject: editable-leaf plain mode, a paste transform, its own
-   `aragonite/testing` suite; artifacts gitignored under `docs/superpowers/cleanroom-2/`), and
+   `aragonite/testing` suite; its artifacts stay internal records), and
    its findings landed as pre-freeze refinements — the docs pack carried three of the five
    requirements unaided, and one support question was the recorded benchmark. What stays
    forward: if a plain-mode kind promotes in-repo (the admonitions precedent — front matter is
@@ -36,24 +36,17 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    fixture; until one does, memo remains plain mode's only consumer. The external-author gate at
    the freeze cut stays a separate box — the run probed discoverability, not external evidence.
 3. **Freeze cut at release** — in order:
-   - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
-     audits before milestones, not after incidents. Accumulated freeze-review pointers from the
-     2026-07 burn-down: container `conformanceFixture` requiredness; forbid a `terminatorCollision`
-     exemption where `bodyWrite` is declared; `chordsForCommand` lands with the 1.2 unified command
-     registry; `EditorRects` naming; the conformance fixture position contract (kind at
-     `children[0]`, sentinel appended — documented 0.9.36, promote to a checked contract or state
-     why not); promote the bare-`.raw =` scan into G4.28 (the `rawAssignments()` parser private to
-     the G4.20 lint moves to `scan-source`, and G4.28 gains a "no bare raw write outside the
-     sanctioned set" arm — the rung that would have caught #45's hole at birth); re-state
-     `normalizeRawWrite`'s contract from the shipped implementations (the signature and arm
-     semantics moved twice in 0.9.36 — sanitize/escalate/restore/drop plus the two-door metadata
-     re-derivation — and the docstring was never re-derived from what shipped; an
-     author-declarable capability freezes at whatever it says); state the per-layer collision
-     policy in one place and confirm it is the one to freeze (plugin-unit install
-     first-wins-with-warn, registrars dev-replace/prod-throw, directive names setup-order
-     yield — three semantics stacked; #70 holds the consumer-facing half); `isFirstInWindow`
-     remove-or-justify (zero consumers outside the parser since `isDocumentParse` landed, and a
-     documented false friend on the public `OpenContext`).
+   - **Scoped pre-freeze re-audit** (a structured review pass, matched to what changed since 2026-07) —
+     audits before milestones, not after incidents. Most of the accumulated freeze-review
+     pointers from the 2026-07 burn-down landed in the 2026-08 open-source prep (conformance
+     guards for `conformanceFixture` and the `bodyWrite`/`terminatorCollision` pairing, the
+     checked fixture-position contract, the G4.28 bare-`.raw =` arm, the re-derived
+     `normalizeRawWrite` docstring, the one-place collision-policy statement, `isFirstInWindow`
+     removed). Still open for the re-audit: `chordsForCommand` lands with the 1.2 unified
+     command registry, and `EditorRects` naming (the embedding instance says `getRects()`, the
+     plugin context says `.rects`, each consistent with its own surface's convention; decide
+     whether the two surfaces should agree). The collision policy's consumer-facing half stays
+     ledgered as #70.
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
@@ -69,7 +62,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      a weekend contributor meets the rules before the scar tissue); a CODE_OF_CONDUCT; the PR
      flow and external-contributor setup; dev-loop friction retired or documented (the SSR
      registrar-poison class was structurally fixed in 0.9.27 — dev re-registration replaces
-     instead of throwing; only the chorded plugin-global-command residual remains ledgered); a first pass of curated entry-level issues. The bar stays
+     instead of throwing; only the chorded plugin-global-command residual remains); a first pass of curated entry-level issues. The bar stays
      high — the reading order is what changes.
    - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
      pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
@@ -77,15 +70,13 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    - Final contract reconciliation; **pre-freeze labels come off** — the `(pre-freeze)` section
      markers in `src/lib/plugin.ts` are the published signal telling an external author which
      parts of the frozen contract are not yet frozen, so `grep -c pre-freeze src/lib/plugin.ts`
-     returning nonzero after the cut means the API is lying about its own stability; pending
-     owner decisions land:
-     per-scope keying for the reveal mount-waiter registry (multi-instance), the `env.ts`
-     toolchain-seam decision (route direct `import.meta.env` reads through `editorEnv` vs narrowing
-     the claim), grouping `BlockComponent`'s optional capability probes into named facets, an
-     a11y strings table (announcements are hardcoded English today), and the dist-pruning stance —
-     the tarball ships every internal module's `.d.ts` (encapsulation is exports-map-level: deep
-     imports blocked, files greppable), and the clean-room author read them as the designed
-     types-reference; decide prune vs. document-as-contract.
+     returning nonzero after the cut means the API is lying about its own stability. The
+     pending owner decisions this bullet used to carry landed in the 2026-08 prep: the env
+     seam's split is deliberate and lint-enforced (G4.25; the override door ships on
+     `aragonite/testing`), `BlockComponent` members stay flat with the three-layer grouping as
+     documentation, the a11y strings table shipped for core chrome (bundled plugins own their
+     strings, the import-boundary lint makes a shared table unrepresentable), and the shipped
+     `.d.ts` surface is documented as contract in `plugin-contract.md` rather than pruned.
    - **Freeze litmus**: the contract must not preclude a consumer-built rendered reading mode
      (markers hidden, widgets rendered) — always-visible-styled-source is the editor's default, not
      a wall; verify no frozen surface hard-binds it.
@@ -132,9 +123,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      the consumer's actual history representation, together with the `EditEvent` real-delta
      discriminant (`plugin-contract.md` § Deferred) — the two are one design, and neither is
      shaped without the consumer at the table.
-   - **Branch protection at the flip to public**: run `node scripts/apply-branch-protection.mjs`.
-     The API plan-gates protection on private free-plan repos, so it cannot be pre-applied; the
-     required status contexts mirror ci.yml's job names (a job rename updates the script).
+   - **Branch protection at the flip to public**: run `node scripts/apply-branch-protection.mjs`
+     as part of the flip, which is the first point the API accepts protection rules for this repo;
+     the required status contexts mirror ci.yml's job names (a job rename updates the script).
    - **Post-freeze versioning**: from 1.0, breaking changes to any frozen surface ride a major
      version; additive needs ship as 1.x minors.
 
@@ -161,9 +152,9 @@ milestone that touches each area inherits it rather than rediscovering it:
   exercised by a gate rather than discovered by a user. Validator: each webview find of the next
   integration lands as a row in that example's checklist, not a surprise.
 - **Singletons earn their keep only until the second claimant arrives.** The process-global
-  reveal anchor produced two consumer-visible defects; the interaction trace interleaves
-  instances by design, and per-scope keying for the reveal mount-waiter registry is still on
-  the freeze-cut list. Standing direction for anything new: a process-global slot is a
+  reveal anchor produced two consumer-visible defects, the interaction trace interleaves
+  instances by design, and the reveal mount-waiter registry had to move off its bare-index
+  process-global key. Standing direction for anything new: a process-global slot is a
   deliberate choice with a written second-claimant story, not a default.
 - **Every gesture that places a caret is a data-loss candidate until proven otherwise.** The
   precondition no suite had ever built — a live cross-block range before a caret-placing

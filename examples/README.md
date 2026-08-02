@@ -16,7 +16,7 @@ From a fresh clone:
 
 ```sh
 npm install        # repo root, once — installs the library's build toolchain
-npm run package    # build dist/ (the example consumes the library from source)
+npm run package    # build dist/ (the example imports it through the exports map)
 
 cd examples/consumer
 npm install        # links the local library + the example's own deps
