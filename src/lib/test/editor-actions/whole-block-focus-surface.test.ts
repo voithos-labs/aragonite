@@ -78,7 +78,7 @@ describe('composeWholeBlockFocusSurface', () => {
 });
 
 describe('container shim through a composed fallback surface', () => {
-	function shim(boxEl: HTMLElement) {
+	function shim(boxEl: HTMLElement, declared: HTMLElement | null = null) {
 		return createContainerBlockComponent({
 			selection: createSelectionState(),
 			get innerBlockRefs() {
@@ -91,7 +91,7 @@ describe('container shim through a composed fallback surface', () => {
 				return mermaidNode();
 			},
 			getFocusEl: composeWholeBlockFocusSurface(
-				() => null,
+				() => declared,
 				() => boxEl,
 				() => 'mermaid'
 			)
@@ -111,6 +111,17 @@ describe('container shim through a composed fallback surface', () => {
 		shim(boxEl).focus(0);
 		expect(document.activeElement).toBe(boxEl);
 		expect(boxEl.getAttribute('tabindex')).toBe('0');
+	});
+
+	// An empty diagram declares its edit textarea as the focus surface: already in the tab
+	// order, so minting -1 took it out. The arm above guarded only an EXPLICIT tabindex.
+	it('focus() leaves an already-focusable surface’s tab order alone', () => {
+		const boxEl = box();
+		const textarea = document.createElement('textarea');
+		boxEl.appendChild(textarea);
+		shim(boxEl, textarea).focus(0);
+		expect(document.activeElement).toBe(textarea);
+		expect(textarea.hasAttribute('tabindex')).toBe(false);
 	});
 
 	it('focusAtColumn() (vertical entry) also lands on the box', () => {

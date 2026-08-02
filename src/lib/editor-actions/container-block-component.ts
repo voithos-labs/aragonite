@@ -71,10 +71,11 @@ export function composeWholeBlockFocusSurface(
 	};
 }
 
-// The fallback box is a plain div, focusable only once a tabindex is minted. Never
-// overwrite an explicit one — that could remove tab-reachability.
+// The fallback box is a plain div, focusable only once a tabindex is minted. A surface
+// already in the tab order (an explicit tabindex, or a natively focusable element like a
+// plugin's edit textarea) keeps it — writing -1 would only take it out.
 function focusWholeBlockEl(el: HTMLElement): void {
-	if (!el.hasAttribute('tabindex')) el.tabIndex = -1;
+	if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.tabIndex = -1;
 	el.focus();
 }
 
@@ -107,11 +108,29 @@ export function handleEditorGlobalChord(chord: string, deps: EditorGlobalChordDe
 	return true;
 }
 
-export interface WholeBlockKeyDeps {
+export interface BlockEdgeExitDeps {
 	getIndex: () => number;
+	focus: Pick<FocusActions, 'moveFocus'>;
+}
+
+/**
+ * The four plain-arrow exits out of a block, in the direction the key points. Shared by
+ * whole-block focus and the plugin container's `moveFocusOut`, so a surface that reaches its
+ * own edge lands the same way the built-ins do. False for any other key.
+ */
+export function focusAcrossBlockEdge(key: string, deps: BlockEdgeExitDeps): boolean {
+	const index = deps.getIndex();
+	if (key === 'ArrowUp') void deps.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+	else if (key === 'ArrowLeft') void deps.focus.moveFocus(index - 1, 'end');
+	else if (key === 'ArrowDown') void deps.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+	else if (key === 'ArrowRight') void deps.focus.moveFocus(index + 1, 'start');
+	else return false;
+	return true;
+}
+
+export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	getRaw: () => string;
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock'>;
-	focus: Pick<FocusActions, 'moveFocus'>;
 	isReading: () => boolean;
 	stickyColumn: Pick<StickyColumnState, 'noteKey'>;
 }
@@ -146,21 +165,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	}
 
 	const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
-	if (!plainArrow) return;
-	const index = deps.getIndex();
-	if (e.key === 'ArrowUp') {
-		e.preventDefault();
-		void deps.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
-	} else if (e.key === 'ArrowLeft') {
-		e.preventDefault();
-		void deps.focus.moveFocus(index - 1, 'end');
-	} else if (e.key === 'ArrowDown') {
-		e.preventDefault();
-		void deps.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
-	} else if (e.key === 'ArrowRight') {
-		e.preventDefault();
-		void deps.focus.moveFocus(index + 1, 'start');
-	}
+	if (plainArrow && focusAcrossBlockEdge(e.key, deps)) e.preventDefault();
 }
 
 // Copy is a read, so it never gates; cut's delete gates on reading mode and only runs

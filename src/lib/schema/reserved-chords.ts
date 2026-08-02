@@ -155,8 +155,8 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',
 		chords: ['Mod+Enter'],
-		keys: ['Enter', 'Escape', 'Tab'],
-		note: 'Commits the diagram edit. Bundled-plugin chord, listed unconditionally — it coincides with the table keymap, so gating it on the install would change no answer.'
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape', 'Tab'],
+		note: 'Commits the diagram edit; the arrows are the edit box’s boundary exits, and a modified one is declined rather than claimed. Bundled-plugin chord, listed unconditionally — it coincides with the table keymap, so gating it on the install would change no answer.'
 	},
 	{
 		file: 'schema/keybindings.ts',
