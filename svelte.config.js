@@ -9,7 +9,11 @@ const config = {
 	kit: {
 		adapter: adapter({
 			fallback: 'index.html'
-		})
+		}),
+		paths: {
+			// Empty locally; the Pages build sets /aragonite for the project-page subdirectory.
+			base: process.env.BASE_PATH ?? ''
+		}
 	}
 };
 
