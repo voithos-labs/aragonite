@@ -52,6 +52,16 @@
 		typeof window !== 'undefined' &&
 		new URLSearchParams(window.location.search).get('paddedList') === 'on';
 
+	// `?searchAnchor=on` mounts a fixed pane OUTSIDE `.aragonite-editor-theme` and hands it to
+	// the editor as the find/replace bar's home. Off by default: the pane and its controls
+	// would overlay geometry the rest of the suite measures.
+	const searchAnchorOn =
+		typeof window !== 'undefined' &&
+		new URLSearchParams(window.location.search).get('searchAnchor') === 'on';
+	let searchAnchorEl = $state<HTMLElement>();
+	let anchorAttached = $state(true);
+	let editorTheme = $state('dark');
+
 	// `?presentationMode=…` starts in that mode; the prop reads live, so the header
 	// toggles need no remount (unlike blockDragHandles).
 	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline'];
@@ -181,7 +191,8 @@
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
 					{onPasteImage}
 					header={headerOn ? documentHero : undefined}
-					theme="dark"
+					theme={editorTheme}
+					searchBarAnchor={anchorAttached ? searchAnchorEl : null}
 				/>
 			{/key}
 			<SelectionToolbar {editor} />
@@ -190,7 +201,45 @@
 	</div>
 </div>
 
+{#if searchAnchorOn}
+	<!-- Deliberately outside `.aragonite-editor-theme`: a themed ancestor here would resolve
+	     the bar's tokens for it and hide a seam that forgot to carry its own scope. -->
+	<div class="anchor-pane" data-testid="search-anchor" bind:this={searchAnchorEl}></div>
+	<div class="anchor-controls">
+		<button
+			type="button"
+			data-testid="anchor-toggle"
+			onclick={() => (anchorAttached = !anchorAttached)}
+		>
+			Anchor: {anchorAttached ? 'on' : 'off'}
+		</button>
+		<button
+			type="button"
+			data-testid="theme-toggle"
+			onclick={() => (editorTheme = editorTheme === 'dark' ? 'light' : 'dark')}
+		>
+			Theme: {editorTheme}
+		</button>
+	</div>
+{/if}
+
 <style>
+	/* Positioned, so the bar's own absolute placement resolves against the pane — the
+	   consumer side of "the anchor is the box". */
+	.anchor-pane {
+		position: fixed;
+		top: 8px;
+		right: 8px;
+		width: 420px;
+		height: 44px;
+	}
+	.anchor-controls {
+		position: fixed;
+		bottom: 8px;
+		right: 8px;
+		display: flex;
+		gap: 6px;
+	}
 	.test-harness {
 		width: 100vw;
 		height: 100vh;

@@ -4,6 +4,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+
 - **The demo app is now the pitch.** The `/` showcase document reads as a tour — every block
   kind and all eight bundled plugins in service of a narrative, with a `[[toc]]` outline for
   navigation — under a restrained header that gains a theme toggle (the `theme` prop's first
@@ -13,6 +14,15 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   `docs/changelog.md` — a real 1700-line document under virtual rendering with find over it —
   behind a collapsed Versions outline, defaulting to reading mode with one toggle flipping the
   same bytes to styled source: the single-render-path claim, live.
+
+- **The find/replace bar can live in the host's own chrome.** In host-scroll mode the bar rode
+  the editor box partway down someone else's page, so it scrolled out of sight with the document
+  it searched while the pane's top strip — where a reader looks for a find field — stayed empty.
+  The new `searchBarAnchor` prop takes an element and renders the same bar into it: the
+  component, the Ctrl+F / Ctrl+H chords, Esc and the pre-search caret restore all stay the
+  editor's, and only the DOM position moves. The relocated bar carries its own theme scope, so
+  an anchor outside the editor still gets themed colors and follows a live `theme` change.
+  Reads live, and placement inside the anchor is the host's.
 
 - **An edit surface left open over a changing document used to write back over the change.** A
   block whose source is revealed for editing (block math, a math fence, any render-primary
