@@ -3,7 +3,9 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import {
 	applyPasteTransforms,
+	configureEditorEnv,
 	installEditorDomStubsForTests,
+	resetEditorEnv,
 	resetPluginPlatformForTests,
 	runContainerConformance,
 	runKindConformance,
@@ -33,7 +35,6 @@ import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { pluginGlobalBinding } from '$lib/schema/commands';
 import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import { stripComments } from '../invariants/lint/scan-source';
 import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind } from '$lib/plugin';
@@ -119,6 +120,13 @@ describe('aragonite/testing conformance surface', () => {
 	it('publishes the paste-pipeline driver and the mount stubs', () => {
 		expect(typeof applyPasteTransforms).toBe('function');
 		expect(typeof installEditorDomStubsForTests).toBe('function');
+	});
+
+	// The reset's own error tells a non-Vitest runner to opt in through this door, so it
+	// has to be reachable from the subpath that error is thrown on.
+	it('publishes the editor-env override door', () => {
+		expect(typeof configureEditorEnv).toBe('function');
+		expect(typeof resetEditorEnv).toBe('function');
 	});
 });
 

@@ -1,8 +1,8 @@
 /**
  * The editor's toolchain-coupling seam: build flags come from `esm-env`, here and at the
- * `if (DEV)` gates whose constant a production build folds away. A consumer whose bundler
- * resolves no export conditions overrides via `configureEditorEnv` rather than inheriting
- * a build assumption.
+ * `if (DEV)` gates whose constant a production build folds away. The override door for a
+ * toolchain those defaults read wrong (a bundler resolving no export conditions, a runner
+ * other than Vitest) is published on the `aragonite/testing` subpath, not from here.
  */
 
 import { DEV } from 'esm-env';

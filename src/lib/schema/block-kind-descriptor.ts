@@ -84,12 +84,12 @@ export interface BlockKindDescriptor {
 	 */
 	contextDependentKind?: boolean;
 	/**
-	 * Make text legal as this kind's `raw` before an in-place write lands — bytes the grammar
-	 * would restructure otherwise (a bare `|` in a tableCell deletes the row's last column; a
-	 * fence run in a fencedCode body splits the block). Applied at every write sink
-	 * (`tree-operations/node-ops.writeOwnRaw`); reads `node` for the block's own shape, and
-	 * must be idempotent. A kind whose pass is not prefix-composable owes its callers a caret
-	 * image of its own — tableCell's `escapedCellOffset` is the composable case.
+	 * Make `raw` legal as this kind's own bytes: escape what the grammar would restructure, and
+	 * restore, drop, escalate or sanitize the block's own syntax around a write that broke it
+	 * (`schema/fenced-code-raw.ts` is the worked rule). Reads `node` for the block's own shape, and
+	 * must be idempotent; a pass that is not prefix-composable owes callers a caret image. Both doors
+	 * in `tree-operations/node-ops` apply it: `writeOwnRaw` in place, re-deriving metadata by
+	 * fragment reparse, and `normalizeOwnRaw` ahead of a replacing sink's reparse.
 	 */
 	normalizeRawWrite?: (raw: string, node: NodeView) => string;
 	/**
