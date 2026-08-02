@@ -14,8 +14,8 @@ import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import {
 	registerCalloutKind,
-	NOTE,
-	NOTE_TITLE
+	CALLOUT,
+	CALLOUT_TITLE
 } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
@@ -31,7 +31,7 @@ import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 // (docs/contributing/culture.md).
 
 const MEMO_KIND = () => declaredPluginKind(MEMO_BLOCK);
-const NOTE_KIND = () => declaredPluginKind(NOTE);
+const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 
 const statusOf = (report: Awaited<ReturnType<typeof runKindConformance>>, column: string) =>
 	report.cells.find((c) => c.column === column)?.status;
@@ -56,7 +56,7 @@ describe('kind conformance — plugin kinds enroll', () => {
 	// A container kind: round-trip (rebuildRaw) and merge-role eligibility execute;
 	// its kind-specific clipboard mechanism is boundary until the browser sweep.
 	it('executes round-trip and merge cells for a container kind', async () => {
-		const report = await runKindConformance(NOTE_KIND());
+		const report = await runKindConformance(CALLOUT_KIND());
 		expect(statusOf(report, 'roundTrip')).toBe('executed');
 		expect(statusOf(report, 'mergeBackspace')).toBe('executed');
 		expect(statusOf(report, 'clipboard')).toBe('boundary');
@@ -66,7 +66,7 @@ describe('kind conformance — plugin kinds enroll', () => {
 	// so no registered kind sits outside every battery.
 	it('every kind the dogfood registrars register executes its headless cells', async () => {
 		const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
-		expect(registered).toContain(declaredPluginKind(NOTE_TITLE));
+		expect(registered).toContain(declaredPluginKind(CALLOUT_TITLE));
 		for (const k of registered) {
 			const report = await runKindConformance(k);
 			expect(new Set(report.cells.map((c) => c.column))).toEqual(

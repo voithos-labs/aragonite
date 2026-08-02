@@ -35,20 +35,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    the natural candidate), port the plain-mode battery onto the real plugin and retire the memo
    fixture; until one does, memo remains plain mode's only consumer. The external-author gate at
    the freeze cut stays a separate box — the run probed discoverability, not external evidence.
-3. **Demo polish — the pitch, last** — fill the showcase route (stood up in 0.9.23) with the
-   full pitch: every block kind + every bundled plugin — fixtures stay off it
-   (`src/routes/test/plugins/README.md`) — theme and prop toggles, polished debug panel. This
-   is the "surpass Obsidian" argument made visible. The reference-plugin aesthetic decision is
-   made and shipped (restrained gutter-rail chrome on the showcased admonitions/details; chrome
-   remains the plugin author's call) — the showcase inherits it; demo polish extends the same
-   restraint to whatever it adds. The showcase **surfaces the presentation modes (0.9.26) as
-   toggles** — reading mode plus block- and inline-granular live preview beside styled
-   source — so the first impression is not markers-everywhere, and the freeze litmus "the
-   contract must not preclude a rendered reading mode" is a working proof, not a paper check.
-   The showcase also gains a `/changelog` route rendering `docs/changelog.md` with the editor
-   itself in reading mode, the toc plugin as navigation, and Mod+F search: the changelog page
-   is the dogfood.
-4. **Freeze cut at release** — in order:
+3. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (forge-review, passes matched to what changed since 2026-07) —
      audits before milestones, not after incidents. Accumulated freeze-review pointers from the
      2026-07 burn-down: container `conformanceFixture` requiredness; forbid a `terminatorCollision`

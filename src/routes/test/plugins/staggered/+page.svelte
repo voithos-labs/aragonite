@@ -12,7 +12,7 @@
 	// Editor 1 parses these bytes under callout only, so `<details>` falls to the built-in
 	// htmlBlock; editor 2 parses them after detailsPlugin registered, so it resolves.
 	const SEED = [
-		':::note Title',
+		':::callout Title',
 		'First',
 		':::',
 		'',

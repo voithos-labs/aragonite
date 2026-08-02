@@ -16,7 +16,7 @@ import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
 const PLUGIN_DOC =
 	'Intro paragraph.\n\n' +
-	':::note Title\nFirst\n:::\n\n' +
+	':::callout Title\nFirst\n:::\n\n' +
 	'- alpha\n- beta\n\n' +
 	'<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n\n' +
 	'Tail paragraph.\n';
@@ -124,17 +124,17 @@ test.describe('plugin-container ops simulation', () => {
 		// The note sits mid-document, so a mis-scoped reorder would teleport it to a
 		// different root index; the gesture asserts the source is byte-identical,
 		// putting the resolver's opaque-boundary decline under the oracle stack.
-		const declineNoteIdx = await topLevelIndexOf(page, 'note');
+		const declineNoteIdx = await topLevelIndexOf(page, 'callout');
 		await g.reorderInContainer([declineNoteIdx, 1]);
 		await checkOracles('note-body-reorder-declined');
 
 		// ── Callout chrome + body typing ────────────────────────────────────────
-		let noteIdx = await topLevelIndexOf(page, 'note');
+		let noteIdx = await topLevelIndexOf(page, 'callout');
 		await typeAtPath(ctx, [noteIdx, 0], '!');
 		// The container raw must have been rebuilt from children — a stale opaque raw
-		// would still read `:::note Title`, the opaque-stale-raw invariant's positive check.
-		expect(await containerRaw(page, 'note')).toContain(':::note Title!');
-		await checkOracles('note-title-edit');
+		// would still read `:::callout Title`, the opaque-stale-raw invariant's positive check.
+		expect(await containerRaw(page, 'callout')).toContain(':::callout Title!');
+		await checkOracles('callout-title-edit');
 
 		// Liveness pin: a source that silently stopped emitting would leave the battery green
 		// with zero decoration coverage. It sits after the FIRST EDIT, not at load, because
@@ -150,7 +150,7 @@ test.describe('plugin-container ops simulation', () => {
 		// callout leaf to the container handler and commits a metadataUpdate.
 		await g.pause();
 		await g.setCalloutKind();
-		expect(await containerRaw(page, 'note')).toContain(':::warning');
+		expect(await containerRaw(page, 'callout')).toContain(':::aside');
 		await checkOracles('note-set-kind');
 
 		// ── Read-only global-command detour (net identity) ──────────────────────
@@ -224,7 +224,7 @@ test.describe('plugin-container ops simulation', () => {
 		// Drag a selection from the callout body, across the list and the container
 		// boundaries, to the details summary — the aliasing stressor a clipboard
 		// commit spanning two opaque containers exposes.
-		noteIdx = await topLevelIndexOf(page, 'note');
+		noteIdx = await topLevelIndexOf(page, 'callout');
 		detailsIdx = await topLevelIndexOf(page, 'details');
 		await editor.dragFromTo([noteIdx, 1], 0, [detailsIdx, 0], 3);
 		await g.copySelection();

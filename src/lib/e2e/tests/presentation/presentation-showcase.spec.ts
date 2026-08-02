@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures';
+import { waitForEditorHydrated } from '../../page-probes';
 
 // The `/` showcase's presentation-mode toggle. No `window.__test` bridge on this
 // route — rendered-DOM assertions only, like showcase-route.spec.ts.
@@ -7,7 +8,8 @@ import { test, expect } from '../../fixtures';
 test.describe('/ showcase presentation toggle', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
-		await expect(page.locator('.block-host').first()).toBeVisible();
+		// The route SSRs: a click on painted-but-unhydrated chrome reaches no handler.
+		await waitForEditorHydrated(page);
 	});
 
 	test('reading hides markers, keeps rendered widgets; source restores', async ({ page }) => {

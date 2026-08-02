@@ -63,10 +63,10 @@ describe('chromeAwareRangeDelete keeps CRLF on both truncated endpoints', () => 
 	it('start inside the callout body, end at the last prose block', () => {
 		expect(
 			run(
-				'Above\r\n\r\n:::note Title\r\nBody1\r\n\r\nBody2\r\n:::\r\n\r\nBelow\r\n',
+				'Above\r\n\r\n:::callout Title\r\nBody1\r\n\r\nBody2\r\n:::\r\n\r\nBelow\r\n',
 				{ path: [1, 1], offset: 0 },
 				{ path: [2], offset: 5 }
 			)
-		).toBe('Above\r\n\r\n:::note Title\r\n\r\n:::\r\n\r\n\r\n');
+		).toBe('Above\r\n\r\n:::callout Title\r\n\r\n:::\r\n\r\n\r\n');
 	});
 });

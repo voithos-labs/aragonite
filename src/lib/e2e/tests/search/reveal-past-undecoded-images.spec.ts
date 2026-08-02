@@ -36,7 +36,7 @@ test('search Previous to a far match past undecoded images keeps the active high
 	await page.route('https://picsum.photos/**', () => {});
 
 	const editor = new EditorPage(page);
-	await editor.goto(); // default SHOWCASE_CONTENT
+	await editor.goto(); // default HARNESS_SHOWCASE_CONTENT
 
 	await editor.clickBlock(0);
 	await page.keyboard.press(`${primaryModifier}+f`);

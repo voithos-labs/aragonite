@@ -21,6 +21,8 @@ export interface PanelStateShape {
 export const MIN_PANEL_WIDTH = 300;
 export const DEFAULT_PANEL_WIDTH = 420;
 
+// Expanded by default = has something to show before the user has touched anything.
+// Every other section reads empty until a click, an edit, or an explicit arm.
 export function defaultPanelState(): PanelStateShape {
 	return {
 		open: false,
@@ -30,7 +32,7 @@ export function defaultPanelState(): PanelStateShape {
 			selection: false,
 			undo: false,
 			inline: false,
-			opsLog: true,
+			opsLog: false,
 			trace: false
 		},
 		width: DEFAULT_PANEL_WIDTH

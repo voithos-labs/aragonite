@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures';
+import { waitForEditorHydrated } from '../../page-probes';
 
 // The `/` showcase mounts <Editor> with all eight bundled plugins installed the consumer way
 // (subpath imports, injected latex/mermaid engines) and exposes no `window.__test` bridge, so this
@@ -9,7 +10,8 @@ import { test, expect } from '../../fixtures';
 test.describe('/ showcase route', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
-		await expect(page.locator('.block-host').first()).toBeVisible();
+		// The route SSRs, and the plugin surfaces below only exist post-hydration.
+		await waitForEditorHydrated(page);
 	});
 
 	test('renders the showcase document as a block list', async ({ page }) => {

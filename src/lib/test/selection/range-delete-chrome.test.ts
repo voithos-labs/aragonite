@@ -11,7 +11,7 @@ import type { SelectionPoint } from '../../selection/primitives';
 
 // Two body children so in-place truncation is distinguishable from an upward merge. Paths:
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below.
-const FIXTURE = 'Above\n\n:::note Title\nBody1\n\nBody2\n:::\n\nBelow\n';
+const FIXTURE = 'Above\n\n:::callout Title\nBody1\n\nBody2\n:::\n\nBelow\n';
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
@@ -62,29 +62,29 @@ describe('chrome wall — rangeDelete post-states', () => {
 
 	it('pins the fixture parse: title + two body paragraphs', () => {
 		const note = parse(FIXTURE).children[1];
-		expect(note.kind).toBe('note');
-		expect(note.children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph', 'paragraph']);
+		expect(note.kind).toBe('callout');
+		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'paragraph', 'paragraph']);
 		expect(note.children?.map((c) => c.raw)).toEqual(['Title\n', 'Body1\n', 'Body2\n']);
 	});
 
 	it('end-in-chrome, full coverage: chrome clears in place, body intact, no merge', () => {
 		const { doc, source, caret } = run(FIXTURE, point([0], 2), point([1, 0], 5));
-		expect(source).toBe('Ab\n\n:::note\nBody1\n\nBody2\n:::\n\nBelow\n');
-		expect(doc.children[1].children?.[0].kind).toBe('note-title');
+		expect(source).toBe('Ab\n\n:::callout\nBody1\n\nBody2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.[0].kind).toBe('callout-title');
 		expect(caret).toEqual({ path: [0], offset: 2 });
 	});
 
 	it('end-in-chrome, partial coverage: chrome keeps its tail, never merged upward', () => {
 		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 0], 3));
-		expect(source).toBe('Ab\n\n:::note le\nBody1\n\nBody2\n:::\n\nBelow\n');
-		expect(doc.children[1].children?.[0].kind).toBe('note-title');
+		expect(source).toBe('Ab\n\n:::callout le\nBody1\n\nBody2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.[0].kind).toBe('callout-title');
 	});
 
 	it('chrome between: start truncates, chrome clears, end body child keeps its tail in place', () => {
 		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 2));
-		expect(source).toBe('Ab\n\n:::note\ndy1\n\nBody2\n:::\n\nBelow\n');
+		expect(source).toBe('Ab\n\n:::callout\ndy1\n\nBody2\n:::\n\nBelow\n');
 		expect(doc.children[1].children?.map((c) => c.kind)).toEqual([
-			'note-title',
+			'callout-title',
 			'paragraph',
 			'paragraph'
 		]);
@@ -92,24 +92,24 @@ describe('chrome wall — rangeDelete post-states', () => {
 
 	it('start-in-chrome, end outside: title keeps its head, body deletes, container survives', () => {
 		const { doc, source, caret } = run(FIXTURE, point([1, 0], 3), point([2], 3));
-		expect(source).toBe('Above\n\n:::note Tit\n:::\n\now\n');
-		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title']);
+		expect(source).toBe('Above\n\n:::callout Tit\n:::\n\now\n');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['callout-title']);
 		expect(caret).toEqual({ path: [1, 0], offset: 3 });
 	});
 
 	it('chrome start into own body: the chrome/body wall holds inside one container', () => {
 		const { doc, source } = run(FIXTURE, point([1, 0], 3), point([1, 2], 3));
-		expect(source).toBe('Above\n\n:::note Tit\n\ny2\n:::\n\nBelow\n');
-		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
+		expect(source).toBe('Above\n\n:::callout Tit\n\ny2\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['callout-title', 'paragraph']);
 	});
 
 	// Equivalence pin (range-delete-ceremony.ts): with start inside the end container resolveEndWall
 	// returns null, so nothing is consumed — dropping that start-inside guard deletes the container.
 	it('start in chrome, end at the container last byte: the container survives (start-inside guard)', () => {
 		const { doc, source } = run(FIXTURE, point([1, 0], 3), point([1, 2], 5));
-		expect(source).toBe('Above\n\n:::note Tit\n\n\n:::\n\nBelow\n');
-		expect(doc.children[1].kind).toBe('note');
-		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
+		expect(source).toBe('Above\n\n:::callout Tit\n\n\n:::\n\nBelow\n');
+		expect(doc.children[1].kind).toBe('callout');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['callout-title', 'paragraph']);
 		expect(doc.children[1].children?.[0].raw).toBe('Tit\n');
 	});
 
@@ -133,9 +133,9 @@ describe('chrome wall — rangeDelete post-states', () => {
 	// in place to an empty paragraph, because the wall's in-place rule guards the chrome/body edge.
 	it('end fully covering a body child leaves it as an empty paragraph in place', () => {
 		const { doc, source } = run(FIXTURE, point([0], 2), point([1, 1], 5));
-		expect(source).toBe('Ab\n\n:::note\n\n\nBody2\n:::\n\nBelow\n');
+		expect(source).toBe('Ab\n\n:::callout\n\n\nBody2\n:::\n\nBelow\n');
 		expect(doc.children[1].children?.map((c) => c.kind)).toEqual([
-			'note-title',
+			'callout-title',
 			'paragraph',
 			'paragraph'
 		]);
@@ -162,7 +162,7 @@ describe('chrome wall — generic-path parity (gate stays out of the way)', () =
 
 	it('body-only range merges exactly like a blockquote', () => {
 		const callout = run(FIXTURE, point([1, 1], 2), point([1, 2], 3));
-		expect(callout.source).toBe('Above\n\n:::note Title\nBoy2\n:::\n\nBelow\n');
+		expect(callout.source).toBe('Above\n\n:::callout Title\nBoy2\n:::\n\nBelow\n');
 
 		const bq = run('Above\n\n> Body1\n>\n> Body2\n\nBelow\n', point([1, 0], 2), point([1, 1], 3));
 		expect(bq.source).toBe('Above\n\n> Boy2\n\nBelow\n');

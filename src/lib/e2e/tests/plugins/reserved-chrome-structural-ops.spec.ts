@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import {
 	PluginsPage,
-	readNote,
+	readCallout,
 	activeBlockPath,
 	capturedErrors,
 	stateConsistencyViolations,
@@ -9,7 +9,7 @@ import {
 } from './reserved-chrome-helpers';
 
 /**
- * The `:::note` callout reserves child 0 as an editable `note-title` chrome leaf (see
+ * The `:::callout` callout reserves child 0 as an editable `callout-title` chrome leaf (see
  * src/routes/test/plugins/callout). Gate 2 — reserved-index-0 structural ops: the merge walk
  * targets the last BODY child (never the title); an interior Backspace against the not-mergeable
  * title moves focus instead of merging; typing keeps the kind; Enter descends into the body
@@ -30,15 +30,15 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		page
 	}) => {
 		// Callout followed by a top-level paragraph to fold in.
-		await editor.loadContent('Above\n\n:::note Title\nBody\n:::\n\nAfter\n');
+		await editor.loadContent('Above\n\n:::callout Title\nBody\n:::\n\nAfter\n');
 		await editor.focusBlockAtPath([2], 0); // start of "After"
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('BodyAfter');
 
-		const note = await readNote(page, 1);
-		expect(note.childCount).toBe(2);
-		expect(note.childTexts[0]).toBe('Title'); // title untouched
-		expect(note.childTexts[1]).toBe('BodyAfter'); // merged into last body child
+		const callout = await readCallout(page, 1);
+		expect(callout.childCount).toBe(2);
+		expect(callout.childTexts[0]).toBe('Title'); // title untouched
+		expect(callout.childTexts[1]).toBe('BodyAfter'); // merged into last body child
 		expect(await editor.bridge.getSource()).not.toMatch(/^After$/m);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -53,9 +53,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 
 		// The not-mergeable title refuses the merge; focus moves to the title end,
 		// the tree is unchanged — body prose never enters chrome.
-		const note = await readNote(page, 1);
-		expect(note.childCount).toBe(2);
-		expect(note.childTexts).toEqual(['Title', 'Body']);
+		const callout = await readCallout(page, 1);
+		expect(callout.childCount).toBe(2);
+		expect(callout.childTexts).toEqual(['Title', 'Body']);
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -70,10 +70,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		// the container descriptor's unwrapRole.quoteShaped capability. The callout omits it, so
 		// the tree-op returns [] and the strategy early-returns — the chrome is neither lifted nor
 		// destroyed.
-		const note = await readNote(page, 1);
-		expect(note.rootCount).toBe(2);
-		expect(note.childCount).toBe(2);
-		expect(note.childTexts).toEqual(['Title', 'Body']);
+		const callout = await readCallout(page, 1);
+		expect(callout.rootCount).toBe(2);
+		expect(callout.childCount).toBe(2);
+		expect(callout.childTexts).toEqual(['Title', 'Body']);
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -90,41 +90,41 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		// body child, no split, no commit.
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
-		const note = await readNote(page, 1);
-		expect(note.childCount).toBe(2);
-		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
-		expect(note.childTexts).toEqual(['Title', 'Body']);
-		expect(note.raw).toBe(':::note Title\nBody\n:::\n');
+		const callout = await readCallout(page, 1);
+		expect(callout.childCount).toBe(2);
+		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
+		expect(callout.childTexts).toEqual(['Title', 'Body']);
+		expect(callout.raw).toBe(':::callout Title\nBody\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 
 		// The caret landed at body offset 0: a typed character heads the body text.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('XBody');
-		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'XBody']);
+		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'XBody']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
 	test('Gate 2c (empty body): Enter in a title-only callout mints and focuses an empty body paragraph', async ({
 		page
 	}) => {
-		await editor.loadContent('Above\n\n:::note Title\n:::\n');
-		const seed = await readNote(page, 1);
+		await editor.loadContent('Above\n\n:::callout Title\n:::\n');
+		const seed = await readCallout(page, 1);
 		expect(seed.childCount).toBe(1);
-		expect(seed.childKinds).toEqual(['note-title']);
+		expect(seed.childKinds).toEqual(['callout-title']);
 
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.keyboard.press('Enter');
 		await expect.poll(() => activeBlockPath(page)).toEqual([1, 1]);
 
-		const note = await readNote(page, 1);
-		expect(note.childCount).toBe(2);
-		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
-		expect(note.childTexts).toEqual(['Title', '']);
+		const callout = await readCallout(page, 1);
+		expect(callout.childCount).toBe(2);
+		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
+		expect(callout.childTexts).toEqual(['Title', '']);
 
 		// The minted paragraph is a live caret target, not just a CST splice.
 		await editor.typeText('New body');
 		await editor.bridge.waitForSourceContains('New body');
-		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'New body']);
+		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'New body']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -145,26 +145,28 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		// single undo would consume it and "BodyQ" would survive. Poll the CST children (not the
 		// source bytes) so the assert waits for the tree to re-materialize the reverted text.
 		await editor.undo();
-		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts)).toEqual(['Title', 'Body']);
+		await expect
+			.poll(() => readCallout(page, 1).then((n) => n.childTexts))
+			.toEqual(['Title', 'Body']);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 2d: typing into the title KEEPS the note-title kind (contextDependentKind)', async ({
+	test('Gate 2d: typing into the title KEEPS the callout-title kind (contextDependentKind)', async ({
 		page
 	}) => {
 		await editor.loadContent(FIXTURE);
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains(':::note TitleX');
+		await editor.bridge.waitForSourceContains(':::callout TitleX');
 
-		// note-title is registered via registerChromeLeaf, so it carries contextDependentKind.
+		// callout-title is registered via registerChromeLeaf, so it carries contextDependentKind.
 		// updateNodeContent honors that flag: a content commit writes raw and keeps the kind
 		// instead of re-deriving it from the bare title line (which has no recognizer and would
 		// downgrade to paragraph).
-		const note = await readNote(page, 1);
-		expect(note.childKinds[0]).toBe('note-title');
-		expect(note.childTexts[0]).toBe('TitleX');
-		expect(await editor.bridge.getSource()).toContain(':::note TitleX');
+		const callout = await readCallout(page, 1);
+		expect(callout.childKinds[0]).toBe('callout-title');
+		expect(callout.childTexts[0]).toBe('TitleX');
+		expect(await editor.bridge.getSource()).toContain(':::callout TitleX');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -181,8 +183,8 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		await editor.bridge.waitForSourceContains('more');
 
 		expect(await stateConsistencyViolations(page)).toEqual([]);
-		const note = await readNote(page, 1);
-		expect(note.childKinds[0]).toBe('note-title'); // chrome row still index 0
+		const callout = await readCallout(page, 1);
+		expect(callout.childKinds[0]).toBe('callout-title'); // chrome row still index 0
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 	// ── Gate 5 — paste into the title ────────────────────────────────────────
@@ -194,15 +196,15 @@ test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste'
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await page.evaluate(() => navigator.clipboard.writeText('x\n\ny'));
 		await page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceContains(':::note Titlex y');
+		await editor.bridge.waitForSourceContains(':::callout Titlex y');
 
-		// Newlines collapse to a single space; the chrome stays one note-title node
+		// Newlines collapse to a single space; the chrome stays one callout-title node
 		// instead of splitting into paragraphs.
-		const note = await readNote(page, 1);
-		expect(note.childCount).toBe(2);
-		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
-		expect(note.childTexts).toEqual(['Titlex y', 'Body']);
-		expect(await editor.bridge.getSource()).toBe('Above\n\n:::note Titlex y\nBody\n:::\n');
+		const callout = await readCallout(page, 1);
+		expect(callout.childCount).toBe(2);
+		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
+		expect(callout.childTexts).toEqual(['Titlex y', 'Body']);
+		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout Titlex y\nBody\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });

@@ -44,15 +44,15 @@
 		color: var(--color-text-muted, #aaaaaa);
 	}
 
-	/* The `note-title` leaf is CSS-promoted to a title row, but stays a real block inside
+	/* The `callout-title` leaf is CSS-promoted to a title row, but stays a real block inside
 	   the sole `.block-list` so selection and windowing treat it as an ordinary child. */
-	.callout-block :global(.note-title) {
+	.callout-block :global(.callout-title) {
 		font-weight: 600;
 		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
 		margin-bottom: 4px;
 		padding-bottom: 4px;
 	}
-	.callout-block :global(.note-title:empty)::before {
+	.callout-block :global(.callout-title:empty)::before {
 		content: 'Title';
 		color: var(--color-ui-dulled, #afb1b3);
 		pointer-events: none;

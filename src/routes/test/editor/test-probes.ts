@@ -2,9 +2,7 @@ import type { Editor, PastedImage, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseConverges } from '$lib/testing/parse-convergence';
-import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
-import { findBlockPathForElement } from '$lib/selection/path-lookup';
-import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
+import { nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
@@ -21,10 +19,14 @@ import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import {
 	dumpTree,
 	dumpUndoStack,
-	dumpInlineTree,
 	dumpOperationsLog,
 	dumpInteractionTrace
 } from '$lib/debug/inspect';
+import {
+	dumpFocusedInlineTree,
+	isCrossBlockSnapshot,
+	liveSelectionText
+} from '../../debug-panel/panel-sections';
 import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
 import {
 	enableInteractionTrace,
@@ -59,92 +61,6 @@ export interface TestProbeDeps {
 	setSource: (md: string) => void;
 	setKeybindings: (overrides: KeybindingOverride[] | undefined) => void;
 	setPresentationMode: (mode: PresentationMode) => void;
-}
-
-// ── Selection inspection (shared with the DebugPanel getters) ──────────────
-
-// Prefers the range's container over document.activeElement so the path still
-// resolves once focus moved to the panel; the last selection still points into the editor.
-export function getFocusedBlockPath(): number[] | null {
-	if (typeof window === 'undefined') return null;
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return null;
-	const node = sel.getRangeAt(0).startContainer;
-	const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
-	return findBlockPathForElement(el);
-}
-
-export function dumpFocusedInlineTree(source: string): string {
-	const path = getFocusedBlockPath();
-	if (!path) return '';
-	const doc = parse(source);
-	const node = nodeAt(doc, path);
-	if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
-	const range = getContentRange(node);
-	const inline = parseInline(node.raw, range.start, range.end);
-	return dumpInlineTree(inline);
-}
-
-function isCrossBlockSnapshot(sel: {
-	anchor: { path: number[] };
-	focus: { path: number[] };
-}): boolean {
-	const a = sel.anchor.path;
-	const f = sel.focus.path;
-	if (a.length !== f.length) return true;
-	for (let i = 0; i < a.length; i++) {
-		if (a[i] !== f[i]) return true;
-	}
-	return false;
-}
-
-function describeNode(node: Node): string {
-	if (node.nodeType === Node.TEXT_NODE) return '#text';
-	if (node.nodeType === Node.ELEMENT_NODE) {
-		const el = node as Element;
-		const cls =
-			typeof el.className === 'string' && el.className ? '.' + el.className.split(' ')[0] : '';
-		return el.tagName.toLowerCase() + cls;
-	}
-	return '#' + node.nodeType;
-}
-
-// editor.getSelection()'s cross-block branch only populates while SelectionState is
-// active, so single-block carets fall back to reading the native selection.
-export function liveSelectionText(editor: EditorInstance | undefined): string {
-	const editorSel = editor?.getSelection();
-	if (editorSel && isCrossBlockSnapshot(editorSel)) {
-		const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
-		return `anchor=${fmt(editorSel.anchor)} focus=${fmt(editorSel.focus)} cross-block=true`;
-	}
-	if (typeof window === 'undefined') return '(no selection)';
-	const nativeSel = window.getSelection();
-	if (!nativeSel || nativeSel.rangeCount === 0) return '(no selection)';
-	const range = nativeSel.getRangeAt(0);
-	const startNode = range.startContainer;
-	const endNode = range.endContainer;
-	const startEl =
-		startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as Element);
-	const endEl = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : (endNode as Element);
-	const startPath = findBlockPathForElement(startEl);
-	const endPath = findBlockPathForElement(endEl);
-	if (!startPath || !endPath) return '(no selection in editor)';
-	const lines = [
-		`mode=single-block${range.collapsed ? ' (caret)' : ' (range)'}`,
-		`anchor=[${startPath.join(',')}] focus=[${endPath.join(',')}]`,
-		// Native Range offsets are child-index counts against startContainer/endContainer,
-		// not raw offsets; the `raw:` line below carries the CST-coordinate values.
-		`range: startContainer=${describeNode(range.startContainer)} startOffset=${range.startOffset} endContainer=${describeNode(range.endContainer)} endOffset=${range.endOffset}`
-	];
-	if (editorSel) {
-		const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
-		lines.push(`raw: anchor=${fmt(editorSel.anchor)} focus=${fmt(editorSel.focus)}`);
-	}
-	if (!range.collapsed) {
-		const selected = nativeSel.toString();
-		if (selected) lines.push(`selected=${JSON.stringify(selected)}`);
-	}
-	return lines.join('\n');
 }
 
 // ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
@@ -187,10 +103,9 @@ function firstTextLeafToken(node: CstNode): string | null {
 	return node.raw.match(/[A-Za-z0-9]+/)?.[0] ?? null;
 }
 
-// One row per kind that declares a conformanceFixture, parsed in the ROUTE's registry:
-// a fixture shadowed by another plugin's directive (admonition's `:::note` under the
-// co-registered callout) carries a null token, so the sweep records that reachability
-// gap rather than the bridge hiding it.
+// One row per kind that declares a conformanceFixture, parsed in the ROUTE's registry: a
+// fixture another plugin's opener claims parses to the wrong kind and yields a null token,
+// so the sweep records that reachability gap rather than the bridge hiding it.
 function collectConformanceEntries(): ConformanceSweepEntry[] {
 	const entries: ConformanceSweepEntry[] = [];
 	for (const kind of getAllRegisteredKinds()) {

@@ -12,7 +12,7 @@ import { topLevelIndexOf } from './helpers';
 // (opaque container, not-mergeable leaf, atomic inline widget) and two dispatch paths (a
 // registered name resolving to a factory node, an unregistered one to the generic lossless
 // kinds) — none of which the oracle stack had seen under a state-accumulating watcher.
-// `:::note` and `:::mystery` drive both dispatch paths at parse.
+// `:::callout` and `:::mystery` drive both dispatch paths at parse.
 
 const DIRECTIVE_DOC =
 	'Lead paragraph.\n\n' +
@@ -20,7 +20,7 @@ const DIRECTIVE_DOC =
 	// depend on it — a plugin claiming it fails the generic count assertion loudly, by design.
 	':::mystery\nGeneric body.\n:::\n\n' +
 	'Middle paragraph.\n\n' +
-	':::note Note title\nRegistered body.\n:::\n\n' +
+	':::callout Note title\nRegistered body.\n:::\n\n' +
 	'Tail paragraph.\n';
 
 async function directiveBlockCount(page: Page): Promise<number> {
@@ -105,7 +105,7 @@ test.describe('directive-ops simulation', () => {
 		await checkOracles('tip-body-split');
 
 		// ── Container tier (registered): edit the callout's body child ───────────
-		const noteIndex = await topLevelIndexOf(page, 'note');
+		const noteIndex = await topLevelIndexOf(page, 'callout');
 		await g.editContainerBody([noteIndex, 1], ' reg');
 		expect(await editor.bridge.getSource()).toContain('Registered body. reg');
 		await checkOracles('note-body-edit');

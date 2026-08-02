@@ -65,7 +65,7 @@ test('scrollTo to the document tail past undecoded images lands it in view, not 
 	await page.route('https://picsum.photos/**', () => {});
 
 	const editor = new EditorPage(page);
-	await editor.goto(); // default SHOWCASE_CONTENT — sized/unsized images + wide tables
+	await editor.goto(); // default HARNESS_SHOWCASE_CONTENT — sized/unsized images + wide tables
 
 	const last = (await cstBlockCount(page)) - 1;
 	const sel = JSON.stringify([last]);

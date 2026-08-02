@@ -4,7 +4,7 @@ import { PluginsPage, readContainer, waitForContainer, roundTripStable } from '.
 // Read the callout by CST path through the bridge: document root child [0] is the callout, and its
 // children are the paragraphs the edits must move — never the document root.
 
-test.describe('plugin container: :::note callout editability', () => {
+test.describe('plugin container: :::callout editability', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -18,7 +18,7 @@ test.describe('plugin container: :::note callout editability', () => {
 		// Seed parsed as a real container, not a fallback paragraph. Child 0 is the reserved
 		// editable title; the body paragraph follows it.
 		let state = await readContainer(page);
-		expect(state.kind).toBe('note');
+		expect(state.kind).toBe('callout');
 		expect(state.rootCount).toBe(1);
 		expect(state.childCount).toBe(2);
 		expect(state.childTexts).toEqual(['Title', 'First']);
@@ -48,8 +48,8 @@ test.describe('plugin container: :::note callout editability', () => {
 		// The callout's own raw was rebuilt from ALL children — a stale raw would still read the
 		// seed opener line alone. The blank line between the body paragraphs is the split's
 		// separator, re-emitted by that same rebuild.
-		expect(afterSplitTyping.raw).toBe(':::note Title\nFirst one\n\ntwo\n:::\n');
-		expect(await editor.bridge.getSource()).toBe(':::note Title\nFirst one\n\ntwo\n:::\n');
+		expect(afterSplitTyping.raw).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::callout Title\nFirst one\n\ntwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 
@@ -60,8 +60,8 @@ test.describe('plugin container: :::note callout editability', () => {
 		const afterMerge = await waitForContainer(page, 0, (s) => s.childCount === 2);
 		expect(afterMerge.rootCount).toBe(1);
 		expect(afterMerge.childTexts).toEqual(['Title', 'First onetwo']);
-		expect(afterMerge.raw).toBe(':::note Title\nFirst onetwo\n:::\n');
-		expect(await editor.bridge.getSource()).toBe(':::note Title\nFirst onetwo\n:::\n');
+		expect(afterMerge.raw).toBe(':::callout Title\nFirst onetwo\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::callout Title\nFirst onetwo\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 		await editor.waitForUndoBatchFlush();
 
@@ -82,10 +82,10 @@ test.describe('plugin container: :::note callout editability', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('a cross-block copy ending mid-title pastes back as a real note, not bare text', async ({
+	test('a cross-block copy ending mid-title pastes back as a real callout, not bare text', async ({
 		page
 	}) => {
-		await editor.loadContent('Above\n\n:::note Title\nBody\n:::\n\nBelow\n');
+		await editor.loadContent('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 
 		// Drag-select from the prose above into the middle of the title, then copy.
 		await editor.dragFromTo([0], 2, [1, 0], 3);
@@ -94,18 +94,18 @@ test.describe('plugin container: :::note callout editability', () => {
 		await editor.waitForClipboardWrite();
 
 		// Paste into "Below": wrapper-less bytes would reparse to a paragraph; the
-		// synthesized closer makes them reparse to a second `:::note`.
+		// synthesized closer makes them reparse to a second `:::callout`.
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.press('End');
 		await page.keyboard.press('Control+v');
-		await editor.bridge.waitForSourceMatches(/:::note[\s\S]*:::note/);
+		await editor.bridge.waitForSourceMatches(/:::callout[\s\S]*:::callout/);
 
 		const noteCount = await page.evaluate(
 			() =>
 				(window as any).__test
 					.getDocument()
-					.children.filter((c: { kind: string }) => c.kind === 'note').length
+					.children.filter((c: { kind: string }) => c.kind === 'callout').length
 		);
 		expect(noteCount).toBe(2);
 	});

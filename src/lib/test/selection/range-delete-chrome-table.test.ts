@@ -13,13 +13,14 @@ import type { SelectionPoint } from '../../selection/primitives';
 // already-snapped cell indices (start = row start, end = inclusive row-last cell).
 
 // [0]=Above, [1]=note ([1,0]=title, [1,1]=table of rows (a,b)/(1,2)), [2]=Below.
-const TBL_FIXTURE = 'Above\n\n:::note Title\n| a | b |\n| --- | --- |\n| 1 | 2 |\n:::\n\nBelow\n';
+const TBL_FIXTURE =
+	'Above\n\n:::callout Title\n| a | b |\n| --- | --- |\n| 1 | 2 |\n:::\n\nBelow\n';
 // [0]=table, [1]=note ([1,0]=title, [1,1]=para "Body"), [2]=Below.
 const TBL_ABOVE_FIXTURE =
-	'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\nBody\n:::\n\nBelow\n';
+	'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\nBody\n:::\n\nBelow\n';
 // [0]=table, [1]=note ([1,0]=title, [1,1]=table of rows (c,d)/(3,4)), [2]=Below.
 const TBL_BOTH_FIXTURE =
-	'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\n| c | d |\n| --- | --- |\n| 3 | 4 |\n:::\n\nBelow\n';
+	'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\n| c | d |\n| --- | --- |\n| 3 | 4 |\n:::\n\nBelow\n';
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
@@ -44,8 +45,8 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 
 	it('pins the fixture parse: title + table body child', () => {
 		const note = parse(TBL_FIXTURE).children[1];
-		expect(note.kind).toBe('note');
-		expect(note.children?.map((c) => c.kind)).toEqual(['note-title', 'table']);
+		expect(note.kind).toBe('callout');
+		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'table']);
 		expect(note.children?.[1].children).toHaveLength(2);
 	});
 
@@ -54,18 +55,18 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 		const { doc, source, caret } = run(TBL_FIXTURE, point([0], 2), point([1, 1], 1));
 		// The truncated prose head keeps its line ending, so the blank line the source had between it
 		// and the container survives — matching the chrome-start case below.
-		expect(source).toBe('Ab\n\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
+		expect(source).toBe('Ab\n\n:::callout\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
 		const note = doc.children[1];
-		expect(note.children?.map((c) => c.kind)).toEqual(['note-title', 'table']);
+		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'table']);
 		expect(note.children?.[0].raw).toBe('\n');
 		expect(caret).toEqual({ path: [0], offset: 2 });
 	});
 
 	it('chrome-start endpoint: mid-title → body table truncates the title by raw write', () => {
 		const { doc, source, caret } = run(TBL_FIXTURE, point([1, 0], 3), point([1, 1], 1));
-		expect(source).toBe('Above\n\n:::note Tit\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
+		expect(source).toBe('Above\n\n:::callout Tit\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n');
 		const note = doc.children[1];
-		expect(note.children?.map((c) => c.kind)).toEqual(['note-title', 'table']);
+		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'table']);
 		expect(note.children?.[0].raw).toBe('Tit\n');
 		expect(caret).toEqual({ path: [1, 0], offset: 3 });
 	});
@@ -73,10 +74,10 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 	it('body table emptied but not last child: chrome clears, the rest of the body survives', () => {
 		// Body = table + trailing paragraph, so the emptied table is NOT a
 		// last-child chain — no unit delete, the wall clear applies instead.
-		const source = 'Above\n\n:::note Title\n| a | b |\n| --- | --- |\n\nAfter\n:::\n\nBelow\n';
+		const source = 'Above\n\n:::callout Title\n| a | b |\n| --- | --- |\n\nAfter\n:::\n\nBelow\n';
 		const { doc, source: out } = run(source, point([0], 2), point([1, 1], 1));
-		expect(out).toBe('Ab\n\n:::note\n\nAfter\n:::\n\nBelow\n');
-		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
+		expect(out).toBe('Ab\n\n:::callout\n\nAfter\n:::\n\nBelow\n');
+		expect(doc.children[1].children?.map((c) => c.kind)).toEqual(['callout-title', 'paragraph']);
 	});
 
 	it('G1.9: the covered chrome clears through an unshared copy, never the snapshot node', () => {
@@ -95,9 +96,9 @@ describe('chrome wall × table branch — table endpoint outside the container',
 	it('chrome-end endpoint: table above → mid-title keeps the tail in the chrome leaf', () => {
 		// start.offset 2 = row-start of body row (1,2) → that row removed, header kept.
 		const { doc, source, caret } = run(TBL_ABOVE_FIXTURE, point([0], 2), point([1, 0], 3));
-		expect(source).toBe('| a | b |\n| --- | --- |\n\n:::note le\nBody\n:::\n\nBelow\n');
+		expect(source).toBe('| a | b |\n| --- | --- |\n\n:::callout le\nBody\n:::\n\nBelow\n');
 		const note = doc.children[1];
-		expect(note.children?.map((c) => c.kind)).toEqual(['note-title', 'paragraph']);
+		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'paragraph']);
 		expect(note.children?.[0].raw).toBe('le\n');
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
@@ -120,18 +121,18 @@ describe('chrome wall × table branch — table endpoint outside the container',
 	it('table → table across the wall: the between chrome clears via the shared collection', () => {
 		const { doc, source, caret } = run(TBL_BOTH_FIXTURE, point([0], 2), point([1, 1], 1));
 		expect(source).toBe(
-			'| a | b |\n| --- | --- |\n\n:::note\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
+			'| a | b |\n| --- | --- |\n\n:::callout\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
 		const note = doc.children[1];
-		expect(note.children?.map((c) => c.kind)).toEqual(['note-title', 'table']);
+		expect(note.children?.map((c) => c.kind)).toEqual(['callout-title', 'table']);
 		expect(note.children?.[0].raw).toBe('\n');
 		expect(caret).toEqual({ path: [0, 0, 1], offset: 1 });
 	});
 
 	it('a container strictly between two outside tables still deletes whole (no stray clear)', () => {
-		const source = `| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\nBody\n:::\n\n| c | d |\n| --- | --- |\n| 3 | 4 |\n`;
+		const source = `| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\nBody\n:::\n\n| c | d |\n| --- | --- |\n| 3 | 4 |\n`;
 		const { doc } = run(source, point([0], 2), point([2], 1));
-		expect(serialize(doc)).not.toContain(':::note');
+		expect(serialize(doc)).not.toContain(':::callout');
 		expect(doc.children.filter((c) => c.kind === 'table')).toHaveLength(2);
 	});
 });

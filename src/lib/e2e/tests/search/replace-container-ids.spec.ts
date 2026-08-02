@@ -8,7 +8,7 @@ import { primaryModifier } from '../../platform';
 test.describe('search — replace preserves container ids', () => {
 	test('Replace All over "list" never desyncs nested container ids', async ({ page }) => {
 		const editor = new EditorPage(page);
-		await editor.goto(); // SHOWCASE_CONTENT by default — do not loadContent
+		await editor.goto(); // HARNESS_SHOWCASE_CONTENT by default — do not loadContent
 
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
 

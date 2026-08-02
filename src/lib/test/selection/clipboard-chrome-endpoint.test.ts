@@ -30,19 +30,19 @@ describe('cross-block copy ending in reserved chrome', () => {
 	beforeEach(registerPlugins);
 
 	it('mid-title endpoint synthesizes a reparseable note with truncated title, empty body', () => {
-		const doc = parse('Above\n\n:::note Title\nBody\n:::\n\nBelow\n');
+		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 3));
-		const note = parse(text).children.find((c) => c.kind === 'note');
+		const note = parse(text).children.find((c) => c.kind === 'callout');
 		expect(note).toBeDefined();
-		expect(note!.children?.map((c) => c.kind)).toEqual(['note-title']);
+		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
 		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe('Tit');
 	});
 
 	it('whole-title endpoint (offset at chrome end) synthesizes the full title, empty body', () => {
-		const doc = parse('Above\n\n:::note Title\nBody\n:::\n\nBelow\n');
+		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 5));
-		const note = parse(text).children.find((c) => c.kind === 'note');
-		expect(note!.children?.map((c) => c.kind)).toEqual(['note-title']);
+		const note = parse(text).children.find((c) => c.kind === 'callout');
+		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
 		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe('Title');
 	});
 

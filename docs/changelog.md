@@ -4,6 +4,16 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **The demo app is now the pitch.** The `/` showcase document reads as a tour — every block
+  kind and all eight bundled plugins in service of a narrative, with a `[[toc]]` outline for
+  navigation — under a restrained header that gains a theme toggle (the `theme` prop's first
+  demo consumer), a drag-handles toggle (disabled in reading mode, where the editor never shows
+  handles), a search hint and a changelog link; the debug panel mounts there default-closed as
+  the "under the hood" view. A new `/changelog` route renders aragonite's own
+  `docs/changelog.md` — a real 1700-line document under virtual rendering with find over it —
+  behind a collapsed Versions outline, defaulting to reading mode with one toggle flipping the
+  same bytes to styled source: the single-render-path claim, live.
+
 - **A range delete running from an earlier block into a code block used to leave the closing
   fence behind as a stray run**, which reparsed as a new unclosed fence and absorbed every block
   below it on reload. The fence write rule now answers in both directions: it restores a closer
