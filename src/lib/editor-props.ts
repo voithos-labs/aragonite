@@ -34,6 +34,11 @@ export interface EditorProps {
 	header?: Snippet;
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
+	/** Where the editor's own find/replace bar renders. Default (absent) keeps it pinned inside
+	 *  the editor root; an element relocates the SAME bar into it, theme scope included, so
+	 *  host-scroll embeds can put it in a pane's chrome instead of mid-page. Read live, and
+	 *  ignored while `searchBar` is false. Positioning inside it is the element's own business. */
+	searchBarAnchor?: HTMLElement | null;
 	/** Who owns the scroll, set once at mount. `'self'` (default) makes the root its own
 	 *  scrollport, so windowing keeps the mounted set O(viewport). `'host'` lets an
 	 *  ancestor scroll it: windowing never activates and EVERY block stays mounted, which

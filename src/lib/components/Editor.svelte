@@ -80,6 +80,7 @@
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
+	import { portalInto } from './portal';
 	import {
 		registerEditor,
 		unregisterEditor,
@@ -113,6 +114,7 @@
 		header,
 		blockDragHandles = true,
 		searchBar = true,
+		searchBarAnchor,
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
@@ -1273,8 +1275,15 @@
 	aria-label="Markdown editor"
 >
 	{#if searchBar}
-		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. -->
-		<div class="search-anchor">
+		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. Portaled
+		     out, it drops that positioning (the consumer's element is the box) and carries the
+		     theme scope, since custom properties resolve by DOM ancestry. -->
+		<div
+			class:search-anchor={!searchBarAnchor}
+			class:aragonite-editor-theme={!!searchBarAnchor}
+			data-editor-theme={searchBarAnchor ? theme : undefined}
+			{@attach portalInto(searchBarAnchor)}
+		>
 			<SearchBar
 				replaceExpanded={replaceExpanded && canReplace}
 				onToggleReplace={() => (replaceExpanded = canReplace && !replaceExpanded)}

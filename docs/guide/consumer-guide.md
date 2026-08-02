@@ -99,6 +99,7 @@ Optional props customize URL and image handling and the editor's affordances.
 | `scrollMode`       | `'self'` (default — the editor owns its scrollport) or `'host'` (an ancestor scrolls it; see [Host scroll mode](#host-scroll-mode))       |
 | `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available                                    |
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
+| `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
 | `presentationMode` | `'source'` (default), `'reading'`, or a `preview-*` rung (see [Presentation modes](#presentation-modes))                                  |
 | `keybindings`      | Per-instance keymap overrides — rebind or disable a chord (see [Keyboard shortcuts](#keyboard-shortcuts))                                 |
@@ -106,7 +107,7 @@ Optional props customize URL and image handling and the editor's affordances.
 
 **Set-once at mount** — `resolveImageUrl`, `resolveLinkUrl`, `imageLoadPolicy`, `onLinkActivate`, `onPasteImage`, `blockDragHandles`, `scrollMode`, and `plugins`. They thread to the renderer through context, and a post-mount swap is not guaranteed to re-render already-built blocks; set them at mount and treat them as fixed for the editor's lifetime. Two are sharper than the rest. A block reads `onPasteImage` when it mounts, and under virtual rendering blocks mount lazily — so a mid-session swap can leave different blocks holding different hooks. `scrollMode` is snapshotted outright, deliberately: reading it live would make the editor's hottest path depend on it.
 
-`theme`, `searchBar`, `presentationMode`, and `keybindings` read live and may change after mount, and `header` re-renders like any other snippet.
+`theme`, `searchBar`, `searchBarAnchor`, `presentationMode`, and `keybindings` read live and may change after mount, and `header` re-renders like any other snippet.
 
 ## Image paste
 
@@ -165,6 +166,23 @@ The root reflects a `data-scroll-mode` attribute in host mode. **Treat it as an 
 - **Height changes do not slide the document.** A slot that grows or shrinks while the reader is scrolled down is compensated, so the block they were reading stays where it was. At the top of the document, growth pushes content down — which is what a reader looking at the header expects. In host mode the shift is left to the page: an embedded editor never writes an ancestor's scroll position.
 - **The find bar overlays the slot's top strip.** The bar rides the editor's top edge in both modes — one rule, one mount site. In self mode that means it covers the header only at the very top of the scroll; in host mode, where the root never scrolls, it covers it whenever the bar is open.
 - **A header taller than the viewport degrades gracefully.** At the top of the scroll it leaves the block list no room to intersect the viewport, so almost nothing mounts until the reader scrolls past it. Accepted rather than special-cased — a header that tall is a layout the slot is not for.
+
+### Where the find bar lives
+
+By default the bar pins to the editor root's top edge. In self-scroll mode that reads as a document's own find bar, which is what it is. In host-scroll mode the root is a box partway down someone else's page, so the bar rides that box: it sits mid-page and scrolls out of sight with the document it searches, while the pane's own chrome — where a reader expects a find field — stays empty.
+
+`searchBarAnchor` fixes that without giving up the bar. Hand it an element and the editor renders the same bar into it. Everything else stays the editor's: the component, `Mod+F` / `Mod+H`, Esc, the match navigation, and the caret restore that puts the cursor back where the search started. Only the DOM position moves.
+
+```svelte
+<div class="pane-chrome" bind:this={findBarSlot}></div>
+<div class="pane-body">
+	<Editor {source} scrollMode="host" searchBarAnchor={findBarSlot} />
+</div>
+```
+
+- **The prop reads live.** `null` or `undefined` puts the bar back in the editor root, so an anchor that mounts with a panel and unmounts with it is fine. It has no effect while `searchBar` is `false` — that switch turns the whole feature off, chords included.
+- **Placement inside the anchor is yours.** The editor treats the element as the box and exports no positioning knobs. The bar positions itself absolutely, so give the anchor `position: relative` (or another positioned ancestor) and size it; otherwise the bar resolves against whatever the page's layout offers next.
+- **The bar brings its own theme scope.** Custom properties resolve by DOM ancestry, so an anchor outside the editor would otherwise strip the bar's colors down to its fallbacks. The relocated node carries the `.aragonite-editor-theme` class and the effective `data-editor-theme`, and both track a `theme` change live — you do not need to theme the anchor yourself.
 
 ## Embedding in a webview shell
 
