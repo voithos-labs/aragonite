@@ -12,7 +12,7 @@ import {
 	dispatchFocusAtColumn,
 	dispatchGetBlockComponentByPath
 } from './focus/focus-dispatch';
-import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
+import { revealChildOrWait, type RefSlots } from '../reactivity/publish-ref.svelte';
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
@@ -185,6 +185,9 @@ export interface ContainerBlockComponentDeps {
 	 *  reaches no child to borrow it from. */
 	readonly selection: SelectionState;
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
+	/** The same scope's slots — the array for the dispatch walks, this for the reveal's
+	 *  mount-wait, which needs an identity the array's replacement can't invalidate. */
+	readonly refSlots: RefSlots<BlockComponent>;
 	readonly nodeChildrenLength: number;
 	/** For the pure-data transparency test, which must work off-window where
 	 *  `innerBlockRefs` is sparse (VR-6). */
@@ -279,9 +282,8 @@ export function createContainerBlockComponent(
 			const isInWindow = deps.isInWindow;
 			if (deps.revealChild) {
 				await revealChildOrWait(head, {
+					slots: deps.refSlots,
 					childCount: deps.nodeChildrenLength,
-					getRef: (i) => deps.innerBlockRefs[i],
-					dropRef: (i) => (deps.innerBlockRefs[i] = undefined),
 					revealChild: deps.revealChild,
 					isStale: isInWindow ? (i) => !isInWindow(i) : undefined,
 					isInWindow

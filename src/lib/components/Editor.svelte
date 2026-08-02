@@ -35,9 +35,10 @@
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
-	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
+	import { refSlotsOver, revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
+	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
@@ -210,6 +211,7 @@
 	// Plain array: $state's mutation guards revert writes from a BlockHost publish
 	// that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
+	const blockRefSlots = refSlotsOver(() => blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
 	let headerEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
@@ -488,15 +490,12 @@
 		// a spurious cross-level wake, and — load-bearing for VR-5 — degrades instead of
 		// hanging when a stale model left `top` outside the recomputed window.
 		await revealChildOrWait(top, {
+			slots: blockRefSlots,
 			childCount: doc.children.length,
-			getRef: (i) => blockRefs[i],
 			revealChild: topWindowing.revealChild,
 			// The windowed each-block's conditional cleanup can strand a detached ref in
-			// its slot, which would silently no-op the reveal; dropping it lets the
+			// its slot, which would silently no-op the reveal; `isStale` drops it so the
 			// scroll and a fresh mount run.
-			dropRef: (i) => {
-				blockRefs[i] = undefined;
-			},
 			isStale: (i) => !topWindowing.isInWindow(i),
 			isInWindow: topWindowing.isInWindow
 		});
@@ -525,6 +524,7 @@
 		get blockRefs() {
 			return blockRefs;
 		},
+		blockRefSlots,
 		setDoc: (v) => {
 			doc = v;
 		},
@@ -678,7 +678,7 @@
 		reorderAnnouncement = message;
 	};
 	const reorder = createReorderAction(editorActionsDeps, controller, (to, total) => {
-		announceReorder(`Moved block to position ${to + 1} of ${total}`);
+		announceReorder(movedBlockToPosition(to + 1, total));
 	});
 
 	// ── Context provision ───────────────────────────────────────────────
@@ -1237,13 +1237,6 @@
 		claimsChord
 	} satisfies EditorInstance);
 
-	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
-		blockRefs[i] = r;
-	}
-	function getBlockRefSlot(i: number): BlockComponent | undefined {
-		return blockRefs[i];
-	}
-
 	// ── Test-only surface ───────────────────────────────────────────────
 
 	function getOperationsLog() {
@@ -1275,7 +1268,7 @@
 		getDecorationEngine: () => decorationEngine,
 		// Constructs the stale-slot artifact the windowed each-block's cleanup can
 		// leave behind (see revealPath's isStale wiring); e2e-only.
-		setBlockRefSlot
+		setBlockRefSlot: blockRefSlots.set
 	};
 </script>
 
@@ -1292,7 +1285,7 @@
 	bind:this={editorEl}
 	tabindex="-1"
 	role="group"
-	aria-label="Markdown editor"
+	aria-label={EDITOR_LABEL}
 >
 	{#if searchBar}
 		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. Portaled
@@ -1321,8 +1314,7 @@
 	<BlockList
 		children={doc.children}
 		{blockIds}
-		setRef={setBlockRefSlot}
-		getRef={getBlockRefSlot}
+		slots={blockRefSlots}
 		parentPath={[]}
 		window={topWindowing.window}
 		reorderable={true}

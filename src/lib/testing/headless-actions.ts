@@ -12,6 +12,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
+import { refSlotsOver } from '../reactivity/publish-ref.svelte';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
@@ -100,6 +101,7 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 		get blockRefs() {
 			return blockRefs;
 		},
+		blockRefSlots: refSlotsOver(() => blockRefs),
 		setDoc: (v: Document) => {
 			Object.assign(doc, v);
 		},

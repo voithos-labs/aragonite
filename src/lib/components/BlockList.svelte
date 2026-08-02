@@ -2,17 +2,17 @@
 	import type { AmbientPrefix, BlockComponent } from '../block-component';
 	import type { NodeView } from '../core/node-views';
 	import type { WindowResult } from '../reactivity/block-window.svelte';
+	import type { RefSlots } from '../reactivity/publish-ref.svelte';
 	import { sliceWindow } from '../reactivity/window-slice';
 	import BlockHost from './BlockHost.svelte';
 
-	// setRef/getRef are owner-supplied callbacks: a `bind:` $bindable array desyncs
-	// from the owner's state across cross-effect mutations. `reorderable` is true only
-	// when these children ARE reorder units (document root, list, blockquote).
+	// `slots` is owner-supplied: a `bind:` $bindable array desyncs from the owner's state
+	// across cross-effect mutations. `reorderable` is true only when these children ARE
+	// reorder units (document root, list, blockquote).
 	let {
 		children,
 		blockIds,
-		setRef,
-		getRef,
+		slots,
 		parentPath = [],
 		ambientPrefixForFirst = '',
 		window: win = undefined,
@@ -20,8 +20,7 @@
 	}: {
 		children: readonly NodeView[];
 		blockIds: string[];
-		setRef: (i: number, r: BlockComponent | undefined) => void;
-		getRef: (i: number) => BlockComponent | undefined;
+		slots: RefSlots<BlockComponent>;
 		parentPath?: number[];
 		ambientPrefixForFirst?: AmbientPrefix;
 		window?: WindowResult;
@@ -49,8 +48,7 @@
 			id={blockIds[absoluteIndex]}
 			{parentPath}
 			ambientPrefix={absoluteIndex === 0 ? ambientPrefixForFirst : ''}
-			{setRef}
-			{getRef}
+			{slots}
 			{reorderable}
 		/>
 	{/each}

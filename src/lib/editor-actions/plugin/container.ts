@@ -43,6 +43,7 @@ import { emitCommandError } from '../../editor-events';
 import { pluginKindOwner } from '../../schema/plugin-install';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
+import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 import { createBlockquoteOverrides } from '../blockquote-overrides';
 import {
@@ -93,8 +94,7 @@ export interface ContainerBlockDeps {
 export interface ContainerBlockListProps {
 	children: readonly NodeView[];
 	blockIds: string[];
-	setRef: (i: number, r: BlockComponent | undefined) => void;
-	getRef: (i: number) => BlockComponent | undefined;
+	slots: RefSlots<BlockComponent>;
 	parentPath?: number[];
 	window?: WindowResult;
 	reorderable?: boolean;
@@ -393,6 +393,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
+		refSlots: listState.refSlots,
 		get nodeChildrenLength() {
 			return deps.getNode().children?.length ?? 0;
 		},
@@ -414,8 +415,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		get blockIds() {
 			return listState.innerBlockIds;
 		},
-		setRef: (i, r) => (listState.innerBlockRefs[i] = r),
-		getRef: (i) => listState.innerBlockRefs[i],
+		slots: listState.refSlots,
 		get parentPath() {
 			return deps.getPath();
 		},

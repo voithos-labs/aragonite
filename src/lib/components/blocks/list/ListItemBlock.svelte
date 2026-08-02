@@ -32,7 +32,7 @@
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
-	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { dispatchKindCommand } from '../../../schema/block-commands';
 	import type { AnyCommandId } from '../../../schema/command-id';
@@ -42,14 +42,12 @@
 		node,
 		index,
 		myPath = [],
-		setRef,
-		getRef
+		slots
 	}: {
 		node: NodeView;
 		index: number;
 		myPath?: number[];
-		setRef?: (i: number, r: BlockComponent | undefined) => void;
-		getRef?: (i: number) => BlockComponent | undefined;
+		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -196,6 +194,7 @@
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
+		refSlots: listState.refSlots,
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
 		},
@@ -207,8 +206,8 @@
 	});
 
 	$effect(() => {
-		if (!setRef || !getRef) return;
-		return publishRefSlot(index, containerApi, setRef, getRef);
+		if (!slots) return;
+		return publishRefSlot(slots, index, containerApi);
 	});
 
 	// ── Commands ────────────────────────────────────────────────────────
@@ -256,8 +255,7 @@
 		<BlockList
 			children={node.children ?? []}
 			blockIds={listState.innerBlockIds}
-			setRef={(i, r) => (listState.innerBlockRefs[i] = r)}
-			getRef={(i) => listState.innerBlockRefs[i]}
+			slots={listState.refSlots}
 			parentPath={myPath}
 			window={windowing.window}
 			ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}

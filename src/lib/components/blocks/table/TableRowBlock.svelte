@@ -24,7 +24,7 @@
 		setNestedActionsContexts,
 		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
-	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 	import TableGrip from './TableGrip.svelte';
 
@@ -37,8 +37,7 @@
 		rowCount,
 		alignments = [],
 		myPath = [],
-		setRef,
-		getRef,
+		slots,
 		onOpenRowMenu,
 		onRowGripPointerDown
 	}: {
@@ -50,8 +49,7 @@
 		rowCount: number;
 		alignments?: readonly TableAlignment[];
 		myPath?: number[];
-		setRef?: (i: number, r: BlockComponent | undefined) => void;
-		getRef?: (i: number) => BlockComponent | undefined;
+		slots?: RefSlots<BlockComponent>;
 		onOpenRowMenu?: (rowIdx: number, e: MouseEvent) => void;
 		onRowGripPointerDown?: (rowIdx: number, e: PointerEvent) => void;
 	} = $props();
@@ -176,7 +174,7 @@
 	} satisfies BlockComponent);
 
 	$effect(() => {
-		if (!setRef || !getRef) return;
+		if (!slots) return;
 		const self: BlockComponent = {
 			editable,
 			focusable,
@@ -187,15 +185,8 @@
 			focusByPath,
 			getBlockComponentByPath
 		};
-		return publishRefSlot(index, self, setRef, getRef);
+		return publishRefSlot(slots, index, self);
 	});
-
-	function setCellRef(i: number, r: BlockComponent | undefined): void {
-		cellsState.innerBlockRefs[i] = r;
-	}
-	function getCellRef(i: number): BlockComponent | undefined {
-		return cellsState.innerBlockRefs[i];
-	}
 </script>
 
 <!-- The grip is the row's first child so it lands in the table's zero-width gutter track
@@ -216,8 +207,7 @@
 			{columnCount}
 			{rowCount}
 			alignment={alignments[colIdx] ?? 'none'}
-			setRef={setCellRef}
-			getRef={getCellRef}
+			slots={cellsState.refSlots}
 		/>
 	{/each}
 </div>
