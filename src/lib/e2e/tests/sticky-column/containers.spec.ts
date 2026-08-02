@@ -99,27 +99,27 @@ test.describe('sticky column: edge cases', () => {
 		await editor.goto();
 	});
 
+	// One blank line separates and the next is the empty block, so three newlines is exactly
+	// one empty paragraph between the two — asserted, not guarded, or the arm skips itself.
 	test('capture in empty paragraph does not crash', async () => {
-		await editor.loadContent('Above.\n\n\n\nBelow paragraph with text.\n');
+		await editor.loadContent('Above.\n\n\nBelow paragraph with text.\n');
 
 		const editables = editor.page.locator('[contenteditable="true"]');
 		const count = await editables.count();
-		if (count >= 3) {
-			await editables.nth(1).click();
-			await editor.page.keyboard.press('ArrowDown');
-			await editor.waitForRenderFlush();
+		expect(count).toBe(3);
 
-			const targetX = await editor.getCaretPixelX();
-			const below = editables.nth(count - 1);
-			const belowRect = await below.boundingBox();
-			if (belowRect) {
-				// Lower-bound the landing too: a tolerance wide enough to swallow the
-				// content inset would otherwise let a degenerate (x≈0) caret pass under it.
-				// The caret must sit at/after the paragraph's left edge, not collapse to 0.
-				expect(targetX).toBeGreaterThan(belowRect.x - PIXEL_TOLERANCE);
-				expect(targetX).toBeLessThan(belowRect.x + 20);
-			}
-		}
+		await editables.nth(1).click();
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.waitForRenderFlush();
+
+		const targetX = await editor.getCaretPixelX();
+		const belowRect = await editables.nth(count - 1).boundingBox();
+		expect(belowRect).not.toBeNull();
+		// Lower-bound the landing too: a tolerance wide enough to swallow the
+		// content inset would otherwise let a degenerate (x≈0) caret pass under it.
+		// The caret must sit at/after the paragraph's left edge, not collapse to 0.
+		expect(targetX).toBeGreaterThan(belowRect!.x - PIXEL_TOLERANCE);
+		expect(targetX).toBeLessThan(belowRect!.x + 20);
 	});
 
 	test('editor blur resets sticky column — blur, re-focus, fresh capture', async () => {

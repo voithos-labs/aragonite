@@ -170,11 +170,17 @@ test.describe('the fold seam is core, not latex-local', () => {
 
 		await emptyThenMerge(editor, ref, ['[^a', '[^', '[', '']);
 		await editor.bridge.waitForBlockCount(2);
-		// The extra blank line is the editor's plain merge-an-emptied-middle-block shape
-		// (reproducible with no widget in the document); what this pins is that `[^a]` is gone from
-		// the merged bytes rather than resurrected.
-		expect(await editor.bridge.getSource()).toBe('above\n\n\n[^a]: note\n');
+		// The emptied block takes its own blank line with it — the plain
+		// merge-an-emptied-middle-block shape, reproducible with no widget in the document. What
+		// this pins is that `[^a]` is gone from the merged bytes rather than resurrected.
+		const merged = await editor.bridge.getSource();
+		expect(merged).toBe('above\n\n[^a]: note\n');
 		expect(await capturedErrors(page)).toEqual([]);
+
+		// A leftover blank line would reload as a block the live tree does not have, which is how
+		// the pre-materialization shape this once pinned went unnoticed.
+		await editor.loadContent(merged);
+		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 
 	test('backspace-merging an emptied directive-text reveal does not resurrect it', async ({
