@@ -38,17 +38,17 @@ describe('separator settle inside a chrome-wrapped container', () => {
 	afterEach(__resetSchemaRegistriesForTests);
 
 	it('hands the freed separator to the wrap when the body head has none', () => {
-		const { doc, raw } = deleteBodyChild(':::note\nA\n\nB\n:::\n', 1);
+		const { doc, raw } = deleteBodyChild(':::callout\nA\n\nB\n:::\n', 1);
 
-		expect(raw).toBe(':::note\n\nB\n:::\n');
+		expect(raw).toBe(':::callout\n\nB\n:::\n');
 		expect(doc.children[0].innerPrefix).toBe('\n');
 		expectParseConverged(doc);
 	});
 
 	it('drops it when the wrap already holds its line', () => {
-		const { doc, raw } = deleteBodyChild(':::note\n\nA\n\nB\n:::\n', 1);
+		const { doc, raw } = deleteBodyChild(':::callout\n\nA\n\nB\n:::\n', 1);
 
-		expect(raw).toBe(':::note\n\nB\n:::\n');
+		expect(raw).toBe(':::callout\n\nB\n:::\n');
 		expect(doc.children[0].innerPrefix).toBe('\n');
 		expectParseConverged(doc);
 	});
@@ -56,8 +56,8 @@ describe('separator settle inside a chrome-wrapped container', () => {
 	// The chrome leaf sits at child 0 and is not a body block, so the body head is child 1:
 	// reading the leaf as a predecessor left the head separated from nothing.
 	it('treats the reserved chrome leaf as above the body, not as a predecessor', () => {
-		const doc = parse(':::note Title\n\nA\n\nB\n:::\n');
-		expect(doc.children[0].children?.[0].kind).toBe('note-title');
+		const doc = parse(':::callout Title\n\nA\n\nB\n:::\n');
+		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
 
 		deleteNode(doc.children[0] as unknown as { children: CstNode[] }, 1);
 		rebuildAncestryRaw(doc.children[0], []);
@@ -67,7 +67,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 	});
 
 	it('keeps a blank body head alive by moving the separator above it', () => {
-		const doc = parse(':::note\n\n\nB\n\nC\n:::\n');
+		const doc = parse(':::callout\n\n\nB\n\nC\n:::\n');
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'B\n', 'C\n']);
 
 		// Drop B, leaving the blank head and C, whose separator is then the only spare line.

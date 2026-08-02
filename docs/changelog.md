@@ -4,7 +4,6 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
-
 - **The demo app is now the pitch.** The `/` showcase document reads as a tour — every block
   kind and all eight bundled plugins in service of a narrative, with a `[[toc]]` outline for
   navigation — under a restrained header that gains a theme toggle (the `theme` prop's first
