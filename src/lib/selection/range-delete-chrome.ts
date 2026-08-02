@@ -10,16 +10,15 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { parse } from '../core/parser';
 import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
 import { charOffsetOf } from './primitives';
 import { comparePaths, pathsEqual } from './path-math';
-import { emptyParagraph, normalizeOwnRaw } from '../tree-operations/node-ops';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
-	installTruncatedEndpoint
+	installTruncatedEndpoint,
+	reparseTruncatedEndpoint
 } from './range-delete-ceremony';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
@@ -165,21 +164,4 @@ export function lastChildDescendant(container: ChromeContainer, path: number[]):
 		node = children[path[i]];
 	}
 	return node;
-}
-
-/**
- * Reparse a truncated endpoint's surviving slice, through the source kind's own write rule:
- * the reparse re-derives metadata from bytes, so structure the truncation dropped and the rule
- * restores (a fence closer) has to land before it. Leading trivia is preserved and an empty
- * slice gives a bare paragraph, on the source block's line ending (G4.20).
- */
-export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[] {
-	const lineEnding = trailingLineEnding(node.raw);
-	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, { scope: 'fragment' });
-	if (reparsed.children.length === 0) {
-		return [emptyParagraph(node.leadingTrivia, lineEnding)];
-	}
-	const cloned = reparsed.children.slice();
-	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
-	return cloned;
 }

@@ -35,10 +35,9 @@ const READER_SITES: Record<string, string> = {
  */
 const PRE_REPARSE_SITES: Record<string, string> = {
 	[SINK]: 'the reader itself',
-	'src/lib/selection/range-delete.ts':
-		'the cross-block merge normalizes the end slice, then reparses the joined raw',
-	'src/lib/selection/range-delete-chrome.ts':
-		'the truncated-endpoint reparse, shared with the table branch'
+	'src/lib/selection/range-delete.ts': 'the cross-block merge normalizes the end slice',
+	'src/lib/selection/range-delete-ceremony.ts':
+		'the endpoint-survivor reparse, shared by all three branches'
 };
 
 /**
@@ -47,7 +46,9 @@ const PRE_REPARSE_SITES: Record<string, string> = {
  * rule silently, so the inheritance is pinned on the helper's own name.
  */
 const PRE_REPARSE_INHERITORS: Record<string, string> = {
-	'src/lib/selection/range-delete-chrome.ts': 'defines it, and uses it for both endpoints',
+	'src/lib/selection/range-delete-ceremony.ts': 'defines it',
+	'src/lib/selection/range-delete.ts': 'the generic merge installs its survivor through it',
+	'src/lib/selection/range-delete-chrome.ts': 'both endpoints of a wall range',
 	'src/lib/selection/range-delete-table.ts':
 		'both prose endpoints of a table range route through it'
 };

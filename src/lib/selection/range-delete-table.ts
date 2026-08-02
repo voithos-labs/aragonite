@@ -20,7 +20,8 @@ import {
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
 	installTruncatedEndpoint,
-	rebuildSharedAncestries
+	rebuildSharedAncestries,
+	reparseTruncatedEndpoint
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
 import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
@@ -33,11 +34,7 @@ import {
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
-import {
-	nearestChromeContainer,
-	isChromeChild,
-	reparseTruncatedEndpoint
-} from './range-delete-chrome';
+import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 

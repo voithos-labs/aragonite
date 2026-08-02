@@ -58,7 +58,7 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		expect(s.start).toEqual({ path: [1], offset: 0 });
 		const after = deleteSelected(doc, s);
 		expect(after).not.toContain('```');
-		expect(after).toBe('Above text\n text\n');
+		expect(after).toBe('Above text\n\n text\n');
 	});
 
 	// Document order, not the anchor/focus role: a backward drag ends its anchor AFTER the
