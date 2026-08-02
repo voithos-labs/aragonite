@@ -1,9 +1,11 @@
 <script lang="ts">
 	import Section from './Section.svelte';
-	import { createPanelState, MIN_PANEL_WIDTH, type SectionKey } from './panel-state.svelte';
+	import { type createPanelState, MIN_PANEL_WIDTH, type SectionKey } from './panel-state.svelte';
 	import { enableInteractionTrace } from '$lib/debug/interaction-trace';
 
 	interface Props {
+		/** Owned by the mounting route, so a header affordance and Ctrl+Shift+D share one state. */
+		panel: ReturnType<typeof createPanelState>;
 		rawSource: string;
 		getCst: () => string;
 		getSelection: () => string;
@@ -14,6 +16,7 @@
 		opsLogTick: number;
 	}
 	let {
+		panel,
 		rawSource,
 		getCst,
 		getSelection,
@@ -23,8 +26,6 @@
 		getTrace,
 		opsLogTick
 	}: Props = $props();
-
-	const panel = createPanelState();
 
 	const cstText = $derived(getCst());
 	const selectionText = $derived(getSelection());
@@ -177,9 +178,9 @@
 		top: 0;
 		right: 0;
 		height: 100vh;
-		background: var(--debug-bg, #1e1e1e);
-		color: var(--debug-fg, #ddd);
-		border-left: 1px solid var(--debug-divider, #2a2a2a);
+		background: var(--color-bg-elevated, #2a2c33);
+		color: var(--color-text, #d6d9e0);
+		border-left: 1px solid var(--color-border, #3d4047);
 		display: flex;
 		flex-direction: column;
 		/* Both axes stated: `overflow-y: auto` alone computes the other to auto per CSS, and
@@ -214,8 +215,8 @@
 		align-items: center;
 		gap: 8px;
 		padding: 8px 12px;
-		border-bottom: 1px solid var(--debug-divider, #2a2a2a);
-		background: var(--debug-header-bg, #252525);
+		border-bottom: 1px solid var(--color-border, #3d4047);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 	}
 	.debug-panel-title {
 		flex: 1;
@@ -227,11 +228,11 @@
 		padding: 2px 8px;
 		cursor: pointer;
 		border-radius: 3px;
-		color: var(--debug-fg, #ddd);
+		color: var(--color-text, #d6d9e0);
 	}
 	.copy-all:hover,
 	.close-btn:hover {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
 	}
 	.close-btn {
 		font-size: 18px;
@@ -241,7 +242,7 @@
 	.debug-panel,
 	.debug-panel :global(.debug-section-body) {
 		scrollbar-width: thin;
-		scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
 	}
 	.debug-panel::-webkit-scrollbar,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar {
@@ -254,12 +255,12 @@
 	}
 	.debug-panel::-webkit-scrollbar-thumb,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-thumb {
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--color-ui-muted, #a4a4a4);
 		border-radius: 4px;
 	}
 	.debug-panel::-webkit-scrollbar-thumb:hover,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-thumb:hover {
-		background: rgba(255, 255, 255, 0.22);
+		background: var(--color-ui-dulled, #afb1b3);
 	}
 	.debug-panel::-webkit-scrollbar-corner,
 	.debug-panel :global(.debug-section-body)::-webkit-scrollbar-corner {

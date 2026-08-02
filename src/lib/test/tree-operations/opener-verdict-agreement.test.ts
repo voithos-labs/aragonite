@@ -22,7 +22,7 @@ import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
  * and every edit to their opener line pays the full container parse. Falling through is
  * the safe answer, so membership here is a cost, not a correctness problem.
  */
-const CONSERVATIVE = new Set(['directiveContainer', 'admonition', 'details', 'note']);
+const CONSERVATIVE = new Set(['directiveContainer', 'admonition', 'details', 'callout']);
 
 beforeAll(() => {
 	resetPluginPlatformForTests();

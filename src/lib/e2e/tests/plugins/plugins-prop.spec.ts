@@ -18,8 +18,8 @@ test.describe('plugins prop: install before the first parse', () => {
 		await editor.gotoPlugins(); // default callout seed
 
 		const callout = await readContainer(page, 0);
-		expect(callout.kind).toBe('note');
-		expect(callout.childKinds[0]).toBe('note-title');
+		expect(callout.kind).toBe('callout');
+		expect(callout.childKinds[0]).toBe('callout-title');
 		// A too-late install shows as one of two fallbacks: grammar off → `paragraph`;
 		// grammar on but callout unregistered → generic `directiveContainer`.
 		expect(callout.kind).not.toBe('paragraph');
@@ -36,10 +36,10 @@ test.describe('plugins prop: install before the first parse', () => {
 
 	test('re-runs the prop cleanly on a fresh load', async ({ page }) => {
 		await editor.gotoPlugins();
-		expect((await readContainer(page, 0)).kind).toBe('note');
+		expect((await readContainer(page, 0)).kind).toBe('callout');
 
 		await editor.gotoPlugins(); // fresh process, prop re-installs
-		expect((await readContainer(page, 0)).kind).toBe('note');
+		expect((await readContainer(page, 0)).kind).toBe('callout');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 });

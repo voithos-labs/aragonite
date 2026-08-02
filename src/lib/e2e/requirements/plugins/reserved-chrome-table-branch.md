@@ -1,6 +1,6 @@
 # Feature: Fork-A Spike — Reserved-child-0 Chrome Wall × Table Branch
 
-The `:::note` callout reserves child index 0 as an editable `note-title` chrome
+The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
 leaf. This gate proves the rangeDelete wall holds when a range endpoint is a table
 cell (the table branch dispatches ahead of the chrome branch). Behavioral gate:
 CST/selection read by path via `window.__test`, not visuals.
@@ -12,7 +12,7 @@ branch, so the wall rule must hold there too: covered chrome clears, chrome
 endpoints truncate in place, and a fully-consumed container unit-deletes.
 
 - substrate: a table in the callout body parses as a real child (title + table)
-- between (prose → body table cell): the title clears in place to an empty note-title, the table takes its whole-row-snap semantics, nothing hoists into the opener line; undo restores the title at the CHILD level
+- between (prose → body table cell): the title clears in place to an empty callout-title, the table takes its whole-row-snap semantics, nothing hoists into the opener line; undo restores the title at the CHILD level
 - chrome-start endpoint (mid-title → body table cell): the title truncates by raw write — kind and node survive, no reparse-replacement; the caret stays in the title; undo restores at the child level
 - chrome-end endpoint (table above → mid-title): the title keeps its uncovered tail in the chrome leaf; the start table takes its row semantics
 - table → table across the wall: the strictly-between title clears, never node-deletes (shared deletion-collection coverage)

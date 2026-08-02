@@ -30,14 +30,14 @@ export async function toggleCollapse(ctx: SimContext): Promise<void> {
  * times out, the same fail-loud shape `toggleCollapse` uses.
  */
 export async function setCalloutKind(ctx: SimContext): Promise<void> {
-	const noteIdx = await topLevelNoteIndex(ctx.page);
-	if (noteIdx < 0) throw new Error('setCalloutKind: no note callout in the document');
+	const calloutIdx = await topLevelCalloutIndex(ctx.page);
+	if (calloutIdx < 0) throw new Error('setCalloutKind: no callout in the document');
 
-	const current = await calloutType(ctx.page, noteIdx);
-	const next = current === 'warning' ? 'note' : 'warning';
-	const chord = next === 'warning' ? '8' : '7';
+	const current = await calloutType(ctx.page, calloutIdx);
+	const next = current === 'aside' ? 'callout' : 'aside';
+	const chord = next === 'aside' ? '8' : '7';
 
-	await ctx.editor.clickBlockAtPath([noteIdx, 1], 0);
+	await ctx.editor.clickBlockAtPath([calloutIdx, 1], 0);
 	await ctx.page.keyboard.press(`${primaryModifier}+${chord}`);
 	await ctx.editor.bridge.waitForSourceContains(`:::${next}`);
 	await ctx.editor.waitForRenderFlush();
@@ -94,20 +94,20 @@ export async function publishDocStats(ctx: SimContext): Promise<void> {
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
 }
 
-// Top-level index of the `note` callout — the type change keeps `kind: 'note'`,
+// Top-level index of the callout — the type change keeps `kind: 'callout'`,
 // so this still resolves after a setKind.
-async function topLevelNoteIndex(page: Page): Promise<number> {
+async function topLevelCalloutIndex(page: Page): Promise<number> {
 	return page.evaluate(() =>
 		(window as any).__test
 			.getDocument()
-			.children.findIndex((c: { kind?: string }) => c.kind === 'note')
+			.children.findIndex((c: { kind?: string }) => c.kind === 'callout')
 	);
 }
 
 // Current callout type read off the opaque container's authoritative raw opener.
-async function calloutType(page: Page, noteIdx: number): Promise<string> {
+async function calloutType(page: Page, calloutIdx: number): Promise<string> {
 	return page.evaluate((i) => {
 		const raw = ((window as any).__test.getDocument().children[i]?.raw ?? '') as string;
 		return /^:::(\w+)/.exec(raw)?.[1] ?? '';
-	}, noteIdx);
+	}, calloutIdx);
 }

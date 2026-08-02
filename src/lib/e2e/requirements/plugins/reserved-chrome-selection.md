@@ -1,6 +1,6 @@
 # Feature: Fork-A Spike — Reserved-child-0 Chrome Selection Parity
 
-The `:::note` callout reserves child index 0 as an editable `note-title` chrome
+The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
 leaf, rendered inside the callout's sole `.block-list`. This de-risking spike
 proves native-block selection parity extends INTO that chrome. Behavioral gate:
 CST/selection read by path via `window.__test`, not visuals.
@@ -15,7 +15,7 @@ CST/selection read by path via `window.__test`, not visuals.
 
 ## Substrate
 
-- the seed parses as a real container: the title is a reserved child-0 `note-title` leaf, the callout round-trips byte-for-byte, and no error is captured
+- the seed parses as a real container: the title is a reserved child-0 `callout-title` leaf, the callout round-trips byte-for-byte, and no error is captured
 
 ## User interactions
 

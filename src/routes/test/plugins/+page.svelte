@@ -73,7 +73,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const CALLOUT_SEED = ':::note Title\nFirst\n:::\n';
+	const CALLOUT_SEED = ':::callout Title\nFirst\n:::\n';
 	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
 	const MATH_SEED = 'Before $x^2$ after\n\nNext\n';
 	// Two inline equations in ONE paragraph: a same-block click-away must fold the revealed
@@ -133,9 +133,7 @@
 	// The rung mints a built-in image; the explicit size makes one resize step visible in
 	// the bytes, with prose either side as blur and caret targets.
 	const WIKI_EMBED_SEED = 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n';
-	// `note` and `warning` are deliberately absent: the co-registered callout dogfood
-	// claims those directive names first. The fenced `> [!NOTE]` is the convert
-	// affordance's negative — it must stay literal.
+	// The fenced `> [!NOTE]` is the convert affordance's negative — it must stay literal.
 	const ADMONITIONS_SEED = [
 		'# Admonitions',
 		'',

@@ -405,7 +405,7 @@ export class Gestures {
 	}
 
 	// A minted-command chord that bubbles from a callout leaf to the container handler.
-	// Resyncs around the opener-byte rewrite; needs a loaded `:::note` callout.
+	// Resyncs around the opener-byte rewrite; needs a loaded `:::callout` callout.
 	setCalloutKind(): Promise<void> {
 		return setCalloutKind(this.ctx);
 	}

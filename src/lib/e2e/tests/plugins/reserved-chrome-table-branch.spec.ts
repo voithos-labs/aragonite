@@ -2,14 +2,14 @@ import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import {
 	PluginsPage,
-	readNote,
+	readCallout,
 	activeBlockPath,
 	capturedErrors,
 	stateConsistencyViolations
 } from './reserved-chrome-helpers';
 
 /**
- * The `:::note` callout reserves child 0 as an editable `note-title` chrome leaf (see
+ * The `:::callout` callout reserves child 0 as an editable `callout-title` chrome leaf (see
  * src/routes/test/plugins/callout). Gate 6 — the chrome wall × the table branch: `involvesTable`
  * dispatches before `involvesReservedChrome`, so a range with a table endpoint takes the table
  * branch, and the wall must hold there too — covered chrome clears, chrome endpoints truncate in
@@ -26,15 +26,16 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 
 	// ── Gate 6 — chrome wall × table branch ─────────────────────────────
 
-	// Table in the callout body: [0]=para "Above", [1]=note ([1,0]=title,
+	// Table in the callout body: [0]=para "Above", [1]=callout ([1,0]=title,
 	// [1,1]=table of header row (a,b) + body row (1,2)), [2]=para "Below".
-	const TBL_FIXTURE = 'Above\n\n:::note Title\n| a | b |\n| --- | --- |\n| 1 | 2 |\n:::\n\nBelow\n';
-	// Table ABOVE the callout: [0]=table, [1]=note ([1,0]=title, [1,1]=para "Body").
+	const TBL_FIXTURE =
+		'Above\n\n:::callout Title\n| a | b |\n| --- | --- |\n| 1 | 2 |\n:::\n\nBelow\n';
+	// Table ABOVE the callout: [0]=table, [1]=callout ([1,0]=title, [1,1]=para "Body").
 	const TBL_ABOVE_FIXTURE =
-		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\nBody\n:::\n\nBelow\n';
-	// Tables on both sides of the wall: [0]=table, [1]=note ([1,0]=title, [1,1]=table).
+		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\nBody\n:::\n\nBelow\n';
+	// Tables on both sides of the wall: [0]=table, [1]=callout ([1,0]=title, [1,1]=table).
 	const TBL_BOTH_FIXTURE =
-		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\n| c | d |\n| --- | --- |\n| 3 | 4 |\n:::\n\nBelow\n';
+		'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::callout Title\n| c | d |\n| --- | --- |\n| 3 | 4 |\n:::\n\nBelow\n';
 
 	async function cellCenter(page: Page, nth: number): Promise<{ x: number; y: number }> {
 		const box = await page.locator('[role="cell"]').nth(nth).boundingBox();
@@ -58,10 +59,10 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 
 	test('Gate 6 substrate: a table parses as a real callout body child', async ({ page }) => {
 		await editor.loadContent(TBL_FIXTURE);
-		const note = await readNote(page, 1);
-		expect(note.kind).toBe('note');
-		expect(note.childKinds).toEqual(['note-title', 'table']);
-		expect(note.childTexts[0]).toBe('Title');
+		const callout = await readCallout(page, 1);
+		expect(callout.kind).toBe('callout');
+		expect(callout.childKinds).toEqual(['callout-title', 'table']);
+		expect(callout.childTexts[0]).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -78,17 +79,17 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::note\n');
+		await editor.bridge.waitForSourceContains(':::callout\n');
 
-		const note = await readNote(page, 1);
-		expect(note.childKinds).toEqual(['note-title', 'table']);
-		expect(note.childTexts[0]).toBe('');
-		expect(note.raw).toBe(':::note\n| 1 | 2 |\n| --- | --- |\n:::\n');
+		const callout = await readCallout(page, 1);
+		expect(callout.childKinds).toEqual(['callout-title', 'table']);
+		expect(callout.childTexts[0]).toBe('');
+		expect(callout.raw).toBe(':::callout\n| 1 | 2 |\n| --- | --- |\n:::\n');
 		// The truncated prose head keeps its line ending, so the blank line the source had between
 		// it and the container survives — matching the chrome-start case below, whose arm always
 		// terminated its head.
 		expect(await editor.bridge.getSource()).toBe(
-			'Ab\n\n:::note\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
+			'Ab\n\n:::callout\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -98,9 +99,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		// (not the source bytes) so the reads below wait for the tree to re-materialize.
 		await editor.undo();
 		await expect
-			.poll(() => readNote(page, 1).then((n) => n.childKinds))
-			.toEqual(['note-title', 'table']);
-		expect((await readNote(page, 1)).childTexts).toEqual([
+			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
+			.toEqual(['callout-title', 'table']);
+		expect((await readCallout(page, 1)).childTexts).toEqual([
 			'Title',
 			'| a | b |\n| --- | --- |\n| 1 | 2 |'
 		]);
@@ -117,22 +118,22 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::note Tit\n');
+		await editor.bridge.waitForSourceContains(':::callout Tit\n');
 
-		const note = await readNote(page, 1);
-		expect(note.childKinds).toEqual(['note-title', 'table']);
-		expect(note.childTexts[0]).toBe('Tit');
+		const callout = await readCallout(page, 1);
+		expect(callout.childKinds).toEqual(['callout-title', 'table']);
+		expect(callout.childTexts[0]).toBe('Tit');
 		expect(await editor.bridge.getSource()).toBe(
-			'Above\n\n:::note Tit\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
+			'Above\n\n:::callout Tit\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
 		await expect
-			.poll(() => readNote(page, 1).then((n) => n.childKinds))
-			.toEqual(['note-title', 'table']);
-		expect((await readNote(page, 1)).childTexts[0]).toBe('Title');
+			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
+			.toEqual(['callout-title', 'table']);
+		expect((await readCallout(page, 1)).childTexts[0]).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 	});
 
@@ -146,13 +147,13 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::note le');
+		await editor.bridge.waitForSourceContains(':::callout le');
 
-		const note = await readNote(page, 1);
-		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
-		expect(note.childTexts).toEqual(['le', 'Body']);
+		const callout = await readCallout(page, 1);
+		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
+		expect(callout.childTexts).toEqual(['le', 'Body']);
 		expect(await editor.bridge.getSource()).toBe(
-			'| a | b |\n| --- | --- |\n\n:::note le\nBody\n:::\n\nBelow\n'
+			'| a | b |\n| --- | --- |\n\n:::callout le\nBody\n:::\n\nBelow\n'
 		);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -167,19 +168,19 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::note\n');
+		await editor.bridge.waitForSourceContains(':::callout\n');
 
-		const note = await readNote(page, 1);
-		expect(note.childKinds).toEqual(['note-title', 'table']);
-		expect(note.childTexts[0]).toBe('');
+		const callout = await readCallout(page, 1);
+		expect(callout.childKinds).toEqual(['callout-title', 'table']);
+		expect(callout.childTexts[0]).toBe('');
 		expect(await editor.bridge.getSource()).toBe(
-			'| a | b |\n| --- | --- |\n\n:::note\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
+			'| a | b |\n| --- | --- |\n\n:::callout\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
 		);
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
-		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts[0])).toBe('Title');
+		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		expect(await editor.bridge.getSource()).toBe(TBL_BOTH_FIXTURE);
 	});
 
@@ -194,7 +195,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceNotContains(':::note');
+		await editor.bridge.waitForSourceNotContains(':::callout');
 
 		expect(await editor.bridge.getSource()).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
@@ -203,9 +204,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		// One-splice unit delete undoes to the full container, children intact.
 		await editor.undo();
 		await expect
-			.poll(() => readNote(page, 1).then((n) => n.childKinds))
-			.toEqual(['note-title', 'paragraph']);
-		expect((await readNote(page, 1)).childTexts).toEqual(['Title', 'Body']);
+			.poll(() => readCallout(page, 1).then((n) => n.childKinds))
+			.toEqual(['callout-title', 'paragraph']);
+		expect((await readCallout(page, 1)).childTexts).toEqual(['Title', 'Body']);
 		expect(await editor.bridge.getSource()).toBe(TBL_ABOVE_FIXTURE);
 	});
 });

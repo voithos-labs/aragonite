@@ -119,11 +119,11 @@ describe('range delete that consumes a fenced code opener', () => {
 		});
 
 		it('drops it on the end truncation, which takes the opener and not the closer', () => {
-			const doc = parse(':::note Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
+			const doc = parse(':::callout Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
 
 			rangeDelete(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 8 }, sharing(), undefined);
 
-			expect(kindsOf(doc)).toEqual(['note', 'paragraph', 'paragraph']);
+			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);
 			expect(doc.children[1].raw).toBe('dy\n');
 			expectParseConverged(doc);
 		});
@@ -131,7 +131,7 @@ describe('range delete that consumes a fenced code opener', () => {
 		// The whole surviving tail IS the closer line, so dropping it empties the endpoint; the
 		// wall keeps that slot rather than merging it away, so a placeholder holds the caret.
 		it('drops a tail that is exactly the closer line', () => {
-			const doc = parse(':::note Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
+			const doc = parse(':::callout Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
 
 			rangeDelete(
 				doc,
@@ -141,7 +141,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				undefined
 			);
 
-			expect(kindsOf(doc)).toEqual(['note', 'paragraph', 'paragraph']);
+			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);
 			expect(parse(serialize(doc)).children.length).toBe(2);
 			expectParseConverged(doc);
 		});

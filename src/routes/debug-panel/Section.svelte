@@ -24,7 +24,7 @@
 
 <style>
 	.debug-section {
-		border-bottom: 1px solid var(--debug-divider, #2a2a2a);
+		border-bottom: 1px solid var(--color-border, #3d4047);
 	}
 	.debug-section-header {
 		all: unset;
@@ -35,22 +35,22 @@
 		gap: 6px;
 		cursor: pointer;
 		font-weight: 600;
-		color: var(--debug-fg, #ddd);
+		color: var(--color-text, #d6d9e0);
 	}
 	.debug-section-header:hover {
-		background: var(--debug-header-hover, rgba(255, 255, 255, 0.04));
+		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
 	}
 	.caret {
 		width: 12px;
 		font-size: 10px;
-		color: var(--debug-muted, #888);
+		color: var(--color-text-muted, #aaaaaa);
 	}
 	.debug-section-body {
 		padding: 8px;
-		font-family: var(--font-mono, monospace);
+		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 12px;
 		line-height: 1.4;
-		color: var(--debug-fg, #ddd);
+		color: var(--color-text, #d6d9e0);
 		/* pre-wrap preserves the dumps' indentation; overflow-wrap breaks the long unbreakable
 		   tokens (hex ids, spaceless raw snippets) that would force a horizontal scrollbar. */
 		white-space: pre-wrap;

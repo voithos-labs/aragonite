@@ -1,9 +1,12 @@
 /**
- * `:::note` fenced-div callout: a plugin container kind on the public registration
+ * `:::callout` fenced-div callout: a plugin container kind on the public registration
  * seams, dispatched through the shared `:::name` directive primitive. Dev/e2e only.
  * The title lives in the opener line yet is a real CST child at index 0, so
  * `strip(raw) !== serialize(children)` — hence the `'opaque'` container contract, where
  * `raw` is authoritative and exempt from `checkStaleRaw`'s byte-level guard.
+ *
+ * Its directive names are claimed by no other plugin: a contended name resolves by install
+ * order, which differs between an SSR process and a fresh browser realm.
  */
 
 import {
@@ -23,8 +26,10 @@ import {
 	type ParsedDirective
 } from '$lib/plugin';
 
-export const NOTE = 'note';
-export const NOTE_TITLE = 'note-title';
+export const CALLOUT = 'callout';
+export const CALLOUT_TITLE = 'callout-title';
+/** The second variant, so the kind switch has somewhere to switch to. */
+export const ASIDE = 'aside';
 
 interface CalloutMetadata {
 	calloutType: string;
@@ -41,12 +46,12 @@ interface CalloutMetadata {
 function calloutFromDirective(parsed: ParsedDirective): CstNode {
 	const title = parsed.fence.info.trim();
 	const node: CstNode = {
-		kind: declaredPluginKind(NOTE),
+		kind: declaredPluginKind(CALLOUT),
 		leadingTrivia: parsed.leadingTrivia,
 		raw: parsed.raw,
 		innerPrefix: parsed.body?.prefix ?? '',
 		children: [
-			chromeChild(declaredPluginKind(NOTE_TITLE), title),
+			chromeChild(declaredPluginKind(CALLOUT_TITLE), title),
 			...(parsed.body?.children ?? [])
 		],
 		innerSuffix: parsed.body?.suffix ?? ''
@@ -63,10 +68,10 @@ function calloutFromDirective(parsed: ParsedDirective): CstNode {
 
 /**
  * The container-rebuild inverse the commit primitive runs when children mutate. The
- * variant name lives in metadata (no hardcoded type), so a `:::warning` round-trips.
+ * variant name lives in metadata (no hardcoded type), so a `:::aside` round-trips.
  */
 export const rebuildCalloutRaw = createDirectiveRebuild<CalloutMetadata>(
-	(meta) => meta?.calloutType ?? NOTE
+	(meta) => meta?.calloutType ?? CALLOUT
 );
 
 export function registerCalloutKind(): void {
@@ -74,13 +79,13 @@ export function registerCalloutKind(): void {
 	// Idempotent, so it re-runs cleanly after a schema reset.
 	activateDirectives();
 
-	const note = declarePluginKind(NOTE);
-	const noteTitle = declarePluginKind(NOTE_TITLE);
+	const callout = declarePluginKind(CALLOUT);
+	const calloutTitle = declarePluginKind(CALLOUT_TITLE);
 
 	// A chord bubbling from an inner leaf to the container resolves here and commits
 	// through the container's own metadata seam. The partial patch merges over the fence
 	// bytes, so colonCount/closer fields survive the rebuild; `arg` arrives as `unknown`.
-	const setKind = registerBlockCommand(note, 'callout.setKind', (ctx) => {
+	const setKind = registerBlockCommand(callout, 'callout.setKind', (ctx) => {
 		if (typeof ctx.arg !== 'string') return false;
 		ctx.updateMetadata({ calloutType: ctx.arg });
 		return true;
@@ -88,12 +93,12 @@ export function registerCalloutKind(): void {
 
 	// Idempotent for HMR: the directive registry survives a schema reset, so
 	// re-registering would throw without the guard.
-	if (!isDirectiveRegistered('container', NOTE)) {
-		registerDirective('container', NOTE, { kind: note, fromDirective: calloutFromDirective });
-		registerDirective('container', 'warning', { kind: note, fromDirective: calloutFromDirective });
+	if (!isDirectiveRegistered('container', CALLOUT)) {
+		registerDirective('container', CALLOUT, { kind: callout, fromDirective: calloutFromDirective });
+		registerDirective('container', ASIDE, { kind: callout, fromDirective: calloutFromDirective });
 	}
 
-	registerBlockKind(note, {
+	registerBlockKind(callout, {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -101,10 +106,10 @@ export function registerCalloutKind(): void {
 			// Child-0 chrome breaks `strip(raw) === serialize(children)` — see the header.
 			contract: 'opaque',
 			rebuildRaw: rebuildCalloutRaw,
-			reservedChrome: { kind: noteTitle },
+			reservedChrome: { kind: calloutTitle },
 			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
 		},
-		conformanceFixture: ':::note My Title\n\nbody\n\n:::\n',
+		conformanceFixture: ':::callout My Title\n\nbody\n\n:::\n',
 		closure: containerClosure({
 			roundTripVia: 'container contract=opaque — rebuildCalloutRaw (directive)',
 			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
@@ -126,12 +131,12 @@ export function registerCalloutKind(): void {
 		// layout-translated by the browser ('1'→'!'), so eventToChord would emit
 		// `Mod+Shift+!` and never match. 7/8 also sit past the Mod+0–6 heading.cycle range.
 		keymap: [
-			{ chord: 'Mod+7', command: setKind, arg: 'note' },
-			{ chord: 'Mod+8', command: setKind, arg: 'warning' }
+			{ chord: 'Mod+7', command: setKind, arg: CALLOUT },
+			{ chord: 'Mod+8', command: setKind, arg: ASIDE }
 		]
 	});
 
 	// Reserved-child-0 chrome via the public seam: no `$lib` component import, and the
-	// leaf is kind-sticky (contextDependentKind) so typing keeps `note-title`.
-	registerChromeLeaf(noteTitle, { blockClass: 'note-title' });
+	// leaf is kind-sticky (contextDependentKind) so typing keeps `callout-title`.
+	registerChromeLeaf(calloutTitle, { blockClass: 'callout-title' });
 }

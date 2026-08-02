@@ -9,8 +9,9 @@ on `/test/plugins` (seed-gated where noted), never packaged, never showcased.
   fixture: the four reserved-chrome e2e batteries, the chrome unit suites
   (range-delete, clipboard endpoints, merge collapse), and the simulation gestures
   all build on it — minimal on purpose, so those suites observe the chrome seams,
-  not plugin features. Its co-registration ahead of admonitions on `/test/plugins`
-  also keeps directive-name first-wins arbitration exercised. Redundant with
+  not plugin features. Its `:::callout`/`:::aside` names are claimed by no other
+  plugin: a contended name resolves by install order, and the dev server's order
+  (every route in one process) is not a fresh browser realm's. Redundant with
   admonitions as a _product_; load-bearing as a _fixture_ — that redundancy is
   resolved by classification, not deletion.
 - `memo/` — a `%%` plain editable leaf; the only plain-mode `createEditableLeaf`

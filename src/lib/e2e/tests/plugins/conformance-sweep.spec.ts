@@ -27,11 +27,6 @@ const BEFORE = 'top filler';
 const AFTER = 'end filler';
 const NEIGHBOUR_TOKEN = 'filler';
 
-// `admonition`'s `:::note` fixture is shadowed by the co-registered callout dogfood on
-// /test/plugins, so no admonition node mounts; the callout `note` entry sweeps the same
-// container-directive DOM behaviours. Any OTHER unreachable kind is a real regression.
-const FIXTURE_UNREACHABLE = new Set(['admonition']);
-
 const WALK_LIMIT = 30;
 
 // Every column test iterates whatever the bridge returns, so a kind silently dropped from
@@ -45,7 +40,8 @@ const ENROLLMENT_FLOOR = [
 	'mermaid',
 	'mathBlock',
 	'toc',
-	'note'
+	'callout',
+	'admonition'
 ];
 
 // ── Enrollment ────────────────────────────────────────────────────────────────
@@ -267,7 +263,8 @@ test('focus walk enters and exits each kind without trapping', async ({ page }) 
 		}
 	}
 
-	expect(unreachable.sort()).toEqual([...FIXTURE_UNREACHABLE].sort());
+	// Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar.
+	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
 	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
 });
 
@@ -305,7 +302,8 @@ test('cross-block selection paints within each kind', async ({ page }) => {
 		await page.keyboard.press('ArrowRight');
 	}
 
-	expect(unreachable.sort()).toEqual([...FIXTURE_UNREACHABLE].sort());
+	// Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar.
+	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
 	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
 });
 
@@ -383,6 +381,7 @@ test('search paints or degrades per kind', async ({ page }) => {
 		await closeSearch(page, find);
 	}
 
-	expect(unreachable.sort()).toEqual([...FIXTURE_UNREACHABLE].sort());
+	// Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar.
+	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
 	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
 });

@@ -137,11 +137,11 @@ describe('range delete that consumes a fenced code closer', () => {
 		});
 
 		it('restores the closer of a code block truncated outside the wall', () => {
-			const doc = parse('```js\nbody\n```\n\n:::note Title\nBody1\n:::\n\nBelow\n');
+			const doc = parse('```js\nbody\n```\n\n:::callout Title\nBody1\n:::\n\nBelow\n');
 
 			rangeDelete(doc, { path: [0], offset: 8 }, { path: [1, 0], offset: 3 }, sharing(), undefined);
 
-			expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'note', 'paragraph']);
+			expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'callout', 'paragraph']);
 			expectParseConverged(doc);
 		});
 	});

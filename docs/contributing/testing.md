@@ -278,7 +278,7 @@ It gates **steady-state** p50, which means it is blind to a one-slow-keystroke r
 
 ## Debug panel
 
-A collapsible side panel on the `/test/editor` route, for ad-hoc debugging and for capturing snapshots in bug reports. Not present in production builds.
+A collapsible side panel on the `/` showcase and `/test/editor` routes, closed until it is toggled open, for ad-hoc debugging and for capturing snapshots in bug reports. Not present in production builds.
 
 **Toggle:** `Ctrl+Shift+D` / `Cmd+Shift+D`. `Escape` closes it when focus is inside.
 **Resize:** drag the left edge. Minimum 300px; width persists in localStorage alongside the open/expanded state.

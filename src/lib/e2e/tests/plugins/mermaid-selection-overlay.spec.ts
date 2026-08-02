@@ -13,7 +13,7 @@ import { PluginsPage } from './helpers';
 const RENDERED_DOC =
 	'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
-const CALLOUT_DOC = 'before\n\n:::note Title\nBody\n:::\n\nafter\n';
+const CALLOUT_DOC = 'before\n\n:::callout Title\nBody\n:::\n\nafter\n';
 
 const MIDDLE_OVERLAY = "[data-block-path='[1]'] > .selection-overlay-middle";
 

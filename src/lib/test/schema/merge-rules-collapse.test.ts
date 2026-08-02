@@ -15,7 +15,7 @@ const OPEN_DETAILS = '<details open>\n<summary>Sum</summary>\n\nBody\n\n</detail
 const CLOSED_DETAILS = '<details>\n<summary>Sum</summary>\n\nHidden\n\n</details>\n';
 const OPEN_WITH_NESTED_CLOSED =
 	'<details open>\n<summary>Outer</summary>\n\n' + CLOSED_DETAILS + '\n</details>\n';
-const CALLOUT = ':::note Title\nBody\n:::\n';
+const CALLOUT = ':::callout Title\nBody\n:::\n';
 
 function parseBlock(src: string): CstNode {
 	return parse(src).children[0];

@@ -9,7 +9,7 @@ across all three tiers while the note simulation's oracle stack — structured e
 `[invariant:…]` console watcher, live-CST round-trip, nested BlockListState audit —
 re-checks after every move, with a fixed seed for determinism.
 
-The loaded document opens both dispatch paths at once: `:::note` (claimed by the
+The loaded document opens both dispatch paths at once: `:::callout` (claimed by the
 harness callout plugin) and `:::mystery` (claimed by nothing, so it must land on the
 generic container).
 

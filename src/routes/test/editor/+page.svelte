@@ -1,26 +1,15 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
-	import { parse } from '$lib/core/parser';
-	import {
-		dumpTree,
-		dumpUndoStack,
-		dumpOperationsLog,
-		dumpInteractionTrace
-	} from '$lib/debug/inspect';
-	import { interactionTraceSnapshot } from '$lib/debug/interaction-trace';
-	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
+	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-	import DebugPanel from './debug-panel/DebugPanel.svelte';
+	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
+	import { createPanelState } from '../../debug-panel/panel-state.svelte';
+	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
 	import SelectionToolbar from './SelectionToolbar.svelte';
-	import {
-		harnessPasteImage,
-		installTestProbes,
-		liveSelectionText,
-		dumpFocusedInlineTree
-	} from './test-probes';
+	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
-	let source = $state(SHOWCASE_CONTENT);
+	let source = $state(HARNESS_SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
@@ -88,43 +77,8 @@
 		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
 	}
 
-	// Bumped by editor ops AND native selectionchange: without the selectionchange half,
-	// clicking in a block moves the caret with no Svelte signal, so the panel never refreshes.
-	let panelTick = $state(0);
-
-	$effect(() => {
-		if (typeof window === 'undefined' || !editor) return;
-		const log = editor.__test.getOperationsLog?.();
-		if (!log) return;
-		const unsub = log.subscribe(() => {
-			panelTick += 1;
-		});
-		return () => unsub();
-	});
-
-	$effect(() => {
-		if (typeof document === 'undefined') return;
-		const onSelectionChange = () => {
-			panelTick += 1;
-		};
-		document.addEventListener('selectionchange', onSelectionChange);
-		return () => document.removeEventListener('selectionchange', onSelectionChange);
-	});
-
-	// MUST NOT feed back into the `source` prop: Editor re-initializes from source
-	// changes, which would wipe undo / selection / CST on every op.
-	const liveSource = $derived.by(() => {
-		void panelTick;
-		return editor?.getSource() ?? source;
-	});
-
-	// LIVE first: the panel's job is the state a reparse cannot express (a live-kind-vs-raw
-	// desync, a transient block the serializer trims). Where the two views differ IS the bug.
-	function cstSection(): string {
-		const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(parse(liveSource))}`;
-		if (!editor) return reparse;
-		return `--- LIVE ---\n${dumpTree(editor.__test.getDocument())}\n\n${reparse}`;
-	}
+	const panel = createPanelState();
+	const panelFeed = createDebugPanelFeed(() => editor);
 
 	trackParityDocument(() => editor);
 
@@ -232,37 +186,7 @@
 			{/key}
 			<SelectionToolbar {editor} />
 		</div>
-		<DebugPanel
-			rawSource={liveSource}
-			getCst={cstSection}
-			getSelection={() => {
-				void panelTick;
-				return liveSelectionText(editor);
-			}}
-			getUndoStack={() => {
-				void panelTick;
-				const stack = editor?.__test?.getUndoStack?.();
-				return stack ? dumpUndoStack(stack) : '(editor not ready)';
-			}}
-			getInlineTree={() => {
-				// panelTick read FIRST: if editor is undefined on the first evaluation, the
-				// early return below would skip the signal read and the derived would
-				// never subscribe.
-				void panelTick;
-				if (!editor) return '';
-				return dumpFocusedInlineTree(liveSource);
-			}}
-			getOpsLog={() => {
-				const log = editor?.__test?.getOperationsLog?.();
-				return log ? dumpOperationsLog(log) : '';
-			}}
-			getTrace={() => {
-				// The section's expand arms the recorder (DebugPanel.toggleTrace).
-				void panelTick;
-				return dumpInteractionTrace(interactionTraceSnapshot());
-			}}
-			opsLogTick={panelTick}
-		/>
+		<DebugPanel {panel} {...panelFeed} />
 	</div>
 </div>
 
