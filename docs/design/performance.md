@@ -42,6 +42,8 @@ A flat high-block-count keystroke cost was once recorded here as an O(top-level-
 
 **Environment scaling.** Ceilings derive from baselines measured on the calibration machine. A slower environment scales the whole ceiling via `PERF_RUNNER_SCALE` instead of re-blessing baselines per host. Local runs stay unscaled — that's the tight gate. CI sets the scale in the workflow from its measured slowdown, which makes the CI perf job a gross-regression net rather than a precision instrument; that job measures the production build (`perf:check:prod`).
 
+**On any host that is not the calibration machine, an unscaled `perf:check` reads red by design** — measured 2.2-3.4x on pure JS on a laptop, and scaling cannot green the container-head rows there because the dev-build undo-batch cliff (issue #71) is multiplicative, not linear. Treat a non-pinned-host run as diagnostic, not as a regression signal.
+
 ## Key architectural decisions
 
 **Container raw materialization.** Container nodes keep their full materialized outer source text. That spends memory on the amplification axis to buy it back on the undo axis, via structural-sharing undo. The amplification is linear and bounded at realistic sizes, whereas the only budget-busting cliffs — clone time proportional to node count, and a multi-GB undo-stack heap — both sat on the undo axis, and clone-on-write keyed by child ids eliminates both. Deriving container raw instead would fix the cheap problem and leave the expensive one. The 0.9.27 falsification benchmark (the combined depth-x-size axis in `container-raw.bench.ts`) is the standing evidence: realistic deep nesting pays ~1-2 ms/keystroke of ancestry rebuild — floor class — with the superlinear tail confined to adversarial shapes.
