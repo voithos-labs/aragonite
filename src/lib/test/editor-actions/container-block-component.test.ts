@@ -4,6 +4,7 @@ import { createContainerBlockComponent } from '$lib/editor-actions/container-blo
 import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 
 function makeRef(): BlockComponent {
 	return {
@@ -32,6 +33,7 @@ function container(refs: BlockComponent[]): BlockComponent {
 		get innerBlockRefs() {
 			return refs;
 		},
+		refSlots: refSlotsOver(() => refs),
 		get nodeChildrenLength() {
 			return refs.length;
 		},
@@ -78,6 +80,7 @@ describe('createContainerBlockComponent', () => {
 			get innerBlockRefs() {
 				return refs;
 			},
+			refSlots: refSlotsOver(() => refs),
 			get nodeChildrenLength() {
 				return refs.length;
 			},
@@ -140,6 +143,7 @@ describe('createContainerBlockComponent', () => {
 			get innerBlockRefs() {
 				return [];
 			},
+			refSlots: refSlotsOver(() => []),
 			get nodeChildrenLength() {
 				return 1;
 			},
@@ -166,6 +170,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 			get innerBlockRefs() {
 				return refs;
 			},
+			refSlots: refSlotsOver(() => refs),
 			get nodeChildrenLength() {
 				return refs.length;
 			},
@@ -229,6 +234,7 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 			get innerBlockRefs() {
 				return refs;
 			},
+			refSlots: refSlotsOver(() => refs),
 			get nodeChildrenLength() {
 				return refs.length;
 			},
@@ -309,6 +315,7 @@ describe('createContainerBlockComponent — measurePartialRects (opaque single-u
 			get innerBlockRefs() {
 				return [];
 			},
+			refSlots: refSlotsOver(() => []),
 			get nodeChildrenLength() {
 				return over.childCount ?? 0;
 			},

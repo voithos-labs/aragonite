@@ -6,6 +6,7 @@ import BlockHost from '$lib/components/BlockHost.svelte';
 import type { BlockComponent } from '$lib/block-component';
 import type { Document, PluginBlockKind } from '$lib/core/nodes';
 import type { NodeView } from '$lib/core/node-views';
+import { refSlotsOver, type RefSlots } from '$lib/reactivity/publish-ref.svelte';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { testClosure } from '$lib/test/support/closure';
@@ -29,8 +30,7 @@ export interface HostProps {
 	parentPath?: number[];
 	ambientPrefix?: string;
 	reorderable?: boolean;
-	setRef?: (i: number, r: BlockComponent | undefined) => void;
-	getRef?: (i: number) => BlockComponent | undefined;
+	slots?: RefSlots<BlockComponent>;
 }
 
 export interface MountedHost {
@@ -54,10 +54,7 @@ export function mountBlockHost(
 	props.index ??= 0;
 	props.node ??= doc.children[props.index];
 	props.id ??= `block-${props.index}`;
-	props.setRef ??= (i, r) => {
-		refs[i] = r;
-	};
-	props.getRef ??= (i) => refs[i];
+	props.slots ??= refSlotsOver(() => refs);
 	const instance = mount(BlockHost, {
 		target,
 		// The required props are filled above, but only at runtime — the declared

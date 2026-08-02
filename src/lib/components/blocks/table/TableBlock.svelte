@@ -541,9 +541,8 @@
 		// A row scrolled off-window can leave a detached ref in its slot, so the scroll gates
 		// on live window bounds (a present ref is a cache, not a mount oracle) and drops it.
 		await revealChildOrWait(rowIdx, {
+			slots: rowsState.refSlots,
 			childCount: rowCount,
-			getRef: (i) => rowsState.innerBlockRefs[i],
-			dropRef: (i) => (rowsState.innerBlockRefs[i] = undefined),
 			revealChild: windowing.revealChild,
 			isStale: (i) => i < bounds.start || i >= bounds.end,
 			isInWindow: windowing.isInWindow
@@ -634,13 +633,6 @@
 			return { left: r.left - editorLeft, right: r.right - editorLeft };
 		});
 	}
-
-	function setRowRef(i: number, r: BlockComponent | undefined): void {
-		rowsState.innerBlockRefs[i] = r;
-	}
-	function getRowRef(i: number): BlockComponent | undefined {
-		return rowsState.innerBlockRefs[i];
-	}
 </script>
 
 <!-- Delegated listeners for the cell grid (cells are the interactive surfaces); the
@@ -681,8 +673,7 @@
 			{rowCount}
 			alignments={meta?.alignments ?? []}
 			myPath={[...myPath, rowIdx]}
-			setRef={setRowRef}
-			getRef={getRowRef}
+			slots={rowsState.refSlots}
 			onOpenRowMenu={(r, e) => {
 				if (suppressRowGripClick) return;
 				openMenu('row', r, e);

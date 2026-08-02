@@ -6,7 +6,6 @@
 		FocusActions,
 		ListContext
 	} from '../../../action-contracts';
-	import type { BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
@@ -111,6 +110,7 @@
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
+		refSlots: listState.refSlots,
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
 		},
@@ -120,13 +120,6 @@
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow
 	});
-
-	function setItemRef(i: number, r: BlockComponent | undefined): void {
-		listState.innerBlockRefs[i] = r;
-	}
-	function getItemRef(i: number): BlockComponent | undefined {
-		return listState.innerBlockRefs[i];
-	}
 </script>
 
 <div class="list-block" bind:this={boxEl}>
@@ -142,8 +135,7 @@
 			node={item}
 			index={absoluteIndex}
 			myPath={[...myPath, absoluteIndex]}
-			setRef={setItemRef}
-			getRef={getItemRef}
+			slots={listState.refSlots}
 		/>
 	{/each}
 	{#if win.active}

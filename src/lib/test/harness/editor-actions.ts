@@ -12,6 +12,7 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
@@ -87,7 +88,8 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 		},
 		set innerBlockRefs(v: (BlockComponent | undefined)[]) {
 			innerBlockRefs = v;
-		}
+		},
+		refSlots: refSlotsOver(() => innerBlockRefs)
 	};
 }
 
@@ -169,6 +171,7 @@ export function makeEditorActionsDeps(
 		get blockRefs() {
 			return blockRefs;
 		},
+		blockRefSlots: refSlotsOver(() => blockRefs),
 		setDoc: (v: Document) => {
 			Object.assign(doc, v);
 		},

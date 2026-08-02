@@ -4,6 +4,7 @@ import { createContainerBlockComponent } from '$lib/editor-actions/container-blo
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode } from '$lib/core/nodes';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 
 // A reveal aimed into a COLLAPSED container opens its expand door first, so the descent
 // runs against the post-expansion window instead of dead-ending on the clamp. The door
@@ -37,6 +38,7 @@ function shim(over: {
 		get innerBlockRefs() {
 			return over.refs;
 		},
+		refSlots: refSlotsOver(() => over.refs),
 		get nodeChildrenLength() {
 			return over.refs.length;
 		},

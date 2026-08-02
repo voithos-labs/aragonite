@@ -14,6 +14,7 @@
 	import BlockDragHandle from './BlockDragHandle.svelte';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 	import { defaultRegistryView } from '../schema/registry-view';
+	import { FAILED_BLOCK_LABEL } from '../a11y-strings';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
@@ -25,7 +26,7 @@
 		type EditorServices
 	} from '../editor-keys';
 	import { useMountGauge } from '../perf/use-mount-gauge.svelte';
-	import { publishRefSlot } from '../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../reactivity/publish-ref.svelte';
 	import { devWarn } from '../dev-warn';
 
 	let {
@@ -34,8 +35,7 @@
 		id,
 		parentPath = [],
 		ambientPrefix = '',
-		setRef,
-		getRef,
+		slots,
 		reorderable = false
 	}: {
 		node: NodeView;
@@ -43,8 +43,7 @@
 		id: string;
 		parentPath?: number[];
 		ambientPrefix?: AmbientPrefix;
-		setRef?: (i: number, r: BlockComponent | undefined) => void;
-		getRef?: (i: number) => BlockComponent | undefined;
+		slots?: RefSlots<BlockComponent>;
 		reorderable?: boolean;
 	} = $props();
 
@@ -126,8 +125,8 @@
 	});
 
 	$effect(() => {
-		if (!setRef || !getRef) return;
-		return publishRefSlot(index, ref, setRef, getRef);
+		if (!slots) return;
+		return publishRefSlot(slots, index, ref);
 	});
 
 	// No `focus` means neither sanctioned shape was published. `defineBlockComponent`
@@ -267,7 +266,7 @@
 		{/if}
 
 		{#snippet failed()}
-			<div class="failed-block" data-failed-block role="group" aria-label="Block failed to render">
+			<div class="failed-block" data-failed-block role="group" aria-label={FAILED_BLOCK_LABEL}>
 				<span class="failed-block-notice">⚠ block failed to render</span>
 				<pre class="failed-block-raw">{node.raw}</pre>
 			</div>

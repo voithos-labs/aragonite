@@ -8,6 +8,7 @@ import {
 } from '$lib/editor-actions/container-block-component';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 
 // A kind whose declared focus element is absent (a render-error state the plugin forgot
 // to cover) must degrade to a focusable box, never a no-op that strands the caret.
@@ -84,6 +85,7 @@ describe('container shim through a composed fallback surface', () => {
 			get innerBlockRefs() {
 				return [];
 			},
+			refSlots: refSlotsOver(() => []),
 			get nodeChildrenLength() {
 				return 0;
 			},

@@ -10,10 +10,14 @@ import type { BlockComponent } from '../block-component';
 import type { NodeView } from '../core/node-views';
 import { assignIds } from '../block-id';
 import { registerBlockListState } from './state-registry';
+import { refSlotsOver, type RefSlots } from './publish-ref.svelte';
 
 export interface BlockListState {
 	innerBlockIds: string[];
 	innerBlockRefs: (BlockComponent | undefined)[];
+	/** This scope's slot accessors, minted once here so every consumer — the child list,
+	 *  the container surface, the mount registry — addresses the scope by one identity. */
+	readonly refSlots: RefSlots<BlockComponent>;
 }
 
 /** `getNode` must be a live getter — by-value freezes on the initial node and misses
@@ -39,7 +43,8 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		},
 		set innerBlockRefs(value) {
 			innerBlockRefs = value;
-		}
+		},
+		refSlots: refSlotsOver(() => innerBlockRefs)
 	};
 
 	// Sync so callers outside a reactive context (unit tests) see the entry on creation.

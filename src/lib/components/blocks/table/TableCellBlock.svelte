@@ -43,7 +43,7 @@
 	import { createEditableSurface, createClipboardHandlers } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
-	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import {
 		selectWholeDocument,
 		extendFocusToNextBlock,
@@ -85,8 +85,7 @@
 		columnCount,
 		rowCount,
 		alignment = 'none',
-		setRef,
-		getRef
+		slots
 	}: {
 		node: NodeView;
 		index: number;
@@ -96,8 +95,7 @@
 		columnCount: number;
 		rowCount: number;
 		alignment?: TableAlignment;
-		setRef?: (i: number, r: BlockComponent | undefined) => void;
-		getRef?: (i: number) => BlockComponent | undefined;
+		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -397,7 +395,7 @@
 	} satisfies BlockComponent);
 
 	$effect(() => {
-		if (!setRef || !getRef) return;
+		if (!slots) return;
 		const self: BlockComponent = {
 			editable,
 			focusable,
@@ -413,7 +411,7 @@
 			applyMenuClipboard,
 			snapCaretToPoint
 		};
-		return publishRefSlot(index, self, setRef, getRef);
+		return publishRefSlot(slots, index, self);
 	});
 
 	// ── Render pipeline ────────────────────────────────────────────────────

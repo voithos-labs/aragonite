@@ -9,12 +9,11 @@ import {
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
+import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
 
 function makeFakeState(): BlockListState {
-	return {
-		innerBlockIds: [],
-		innerBlockRefs: []
-	};
+	const innerBlockRefs: BlockListState['innerBlockRefs'] = [];
+	return { innerBlockIds: [], innerBlockRefs, refSlots: refSlotsOver(() => innerBlockRefs) };
 }
 
 function makeFakeNode(kind: CstNode['kind'] = 'list'): CstNode {
@@ -82,10 +81,10 @@ describe('state-registry', () => {
 
 		/** A torn-down mount's `bind:this` slots are cleared; a live one's are not. */
 		function stateWithRefs(mounted: boolean): BlockListState {
-			return {
-				innerBlockIds: ['a'],
-				innerBlockRefs: [mounted ? ({} as BlockListState['innerBlockRefs'][number]) : undefined]
-			};
+			const innerBlockRefs: BlockListState['innerBlockRefs'] = [
+				mounted ? ({} as BlockListState['innerBlockRefs'][number]) : undefined
+			];
+			return { innerBlockIds: ['a'], innerBlockRefs, refSlots: refSlotsOver(() => innerBlockRefs) };
 		}
 
 		it('warns when a second LIVE component claims a node the first still renders', async () => {

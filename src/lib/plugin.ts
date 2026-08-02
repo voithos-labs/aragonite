@@ -176,6 +176,7 @@ export type {
 	ContainerBlockDeps,
 	ContainerBlockListProps
 } from './editor-actions/plugin/container';
+export type { RefSlots } from './reactivity/publish-ref.svelte';
 // The one seam allowed to import components/, so editor-actions keeps no upward
 // value edge to the component tree.
 export function registerChromeLeaf(kind: AnyBlockKind, opts?: ChromeLeafOptions): void {
@@ -227,7 +228,7 @@ export { DIRECTIVE_BODY_WRAP } from './core/directive/kinds';
 export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
 
-// ── Paste transforms (pre-freeze: refined against the conversion-config direction) ──
+// ── Paste transforms (pre-freeze: refined against the admonitions alert→directive rewrite) ──
 // A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline
 // (null). Transforms run in install order at every paste site — never on load or typing.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';

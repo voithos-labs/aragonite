@@ -9,6 +9,7 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoManager } from '$lib/undo/manager';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createEditorEvents } from '$lib/editor-events';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { parse } from '$lib/core/parser';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
@@ -41,6 +42,7 @@ function makeEnv(source: string) {
 		get blockRefs() {
 			return blockRefs;
 		},
+		blockRefSlots: refSlotsOver(() => blockRefs),
 		setDoc: () => {},
 		setBlockIds: (v: string[]) => {
 			blockIds = v;

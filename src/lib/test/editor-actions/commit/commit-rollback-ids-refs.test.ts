@@ -3,6 +3,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { asDocPath } from '$lib/selection/path-math';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
@@ -44,7 +45,8 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 			set innerBlockRefs(v) {
 				if (refsWrites++ === 0) throw new Error('publish boom');
 				stashedRefs = v as unknown[];
-			}
+			},
+			refSlots: refSlotsOver(() => stashedRefs as BlockListState['innerBlockRefs'])
 		};
 
 		const scopes: MultiScopeTarget[] = [

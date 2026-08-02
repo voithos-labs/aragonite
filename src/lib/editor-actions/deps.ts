@@ -9,6 +9,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
 import type { GrammarView } from '../schema/block-openers';
+import type { RefSlots } from '../reactivity/publish-ref.svelte';
 export type {
 	CommitController,
 	CommitStructuralArgs,
@@ -22,6 +23,9 @@ export interface EditorActionsDeps {
 	get doc(): Document;
 	get blockIds(): string[];
 	get blockRefs(): (BlockComponent | undefined)[];
+	/** The top-level scope's slot identity, so the doc-scope adapter reports the same
+	 *  scope the editor's own BlockList publishes into. */
+	blockRefSlots: RefSlots<BlockComponent>;
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;

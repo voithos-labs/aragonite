@@ -11,6 +11,7 @@ import type { BlockComponent } from '$lib/block-component';
 import type { TableContext } from '$lib/action-contracts';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { EditorPolicies, EditorServices } from '$lib/editor-keys';
 import { TABLE_CONTEXT_KEY } from '$lib/editor-keys';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -107,10 +108,7 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 			colIdx: 0,
 			columnCount: 2,
 			rowCount: 2,
-			setRef: (i: number, r: BlockComponent | undefined) => {
-				refs[i] = r;
-			},
-			getRef: (i: number) => refs[i]
+			slots: refSlotsOver(() => refs)
 		},
 		context
 	});

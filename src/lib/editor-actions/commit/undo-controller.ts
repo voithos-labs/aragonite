@@ -577,7 +577,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			set innerBlockRefs(v: (BlockComponent | undefined)[]) {
 				deps.setBlockRefs(v);
-			}
+			},
+			refSlots: deps.blockRefSlots
 		};
 	}
 
