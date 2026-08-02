@@ -57,6 +57,46 @@ describe('a lone blank document is the block you type into', () => {
 	});
 });
 
+// A blank block opened above an existing separator carries none of its own — the run below opens
+// it. Typing there ends the blank line, and with it the arrangement that let the separator go.
+// Miss-analysis: the split's own bytes were pinned, and so was typing into a blank line at the
+// document tail (where the blank half does carry a separator); no case typed into a blank line
+// with a block below it, the one shape whose reload merged the halves back.
+describe('typing into the blank line an Enter opened', () => {
+	it('takes back the separator the blank line was standing in for', () => {
+		const doc = parse('Hello world\n\nSecond paragraph\n');
+		splitNode(doc, 0, 11);
+		expect(serialize(doc)).toBe('Hello world\n\n\nSecond paragraph\n');
+
+		updateNodeContent(doc, 1, 'x\n');
+
+		expect(serialize(doc)).toBe('Hello world\n\nx\n\nSecond paragraph\n');
+		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
+	});
+
+	it('mints none at the tail, where the blank half already carried one', () => {
+		const doc = parse('Hello world\n');
+		splitNode(doc, 0, 11);
+		updateNodeContent(doc, 1, 'x\n');
+
+		expect(serialize(doc)).toBe('Hello world\n\nx\n');
+	});
+
+	it('mints none below a blank predecessor, which is the separating line', () => {
+		const doc = parse('a\n\n\n\nb\n');
+		expect(layout(doc.children)).toEqual([
+			['paragraph', '', 'a\n'],
+			['paragraph', '\n', '\n'],
+			['paragraph', '', '\n'],
+			['paragraph', '', 'b\n']
+		]);
+
+		updateNodeContent(doc, 2, 'x\n');
+
+		expect(serialize(doc)).toBe('a\n\n\nx\nb\n');
+	});
+});
+
 describe('an Enter at block start survives the reload', () => {
 	it('reloads a leading empty paragraph as a block', () => {
 		const doc = parse('a\n');
