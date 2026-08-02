@@ -6,14 +6,14 @@ New to the repo? Run it with the root [`README.md`](../README.md), work in it wi
 
 ## Start here
 
-| If you want to…                     | Read                                                 |
-| ----------------------------------- | ---------------------------------------------------- |
-| **Understand how the editor works** | [`design/editor.md`](design/editor.md)               |
-| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md) |
-| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md)     |
-| **Contribute to the editor itself** | [`contributing/culture.md`](contributing/culture.md) |
+| If you want to…                     | Read                                                                                                  |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                                |
+| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                                  |
+| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md)                                                      |
+| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md), then [`contributing/culture.md`](contributing/culture.md) |
 
-Everything else hangs off those four. The folders are split by **audience**, not by topic.
+Everything else hangs off those four. `CONTRIBUTING.md` gets you set up and through the gates; `culture.md` is the second step, and the one to take before your first edit. The folders are split by **audience**, not by topic.
 
 ## `design/` — how it works
 
@@ -31,7 +31,7 @@ The system's shape and its load-bearing contracts. `editor.md` is the orientatio
 
 ## `guide/` — using aragonite
 
-The published docs pack: this folder, and only this folder, is what a third-party plugin author receives.
+The published docs pack: `docs/guide` is listed in the package's `files`, so this folder, and only this folder, is what a third-party plugin author receives with the npm install.
 
 | Doc                                                  | Scope                                                    |
 | ---------------------------------------------------- | -------------------------------------------------------- |
@@ -51,7 +51,7 @@ Because the pack ships flat, a markdown link inside `guide/` may only point at a
 | [`contributing/code-style.md`](contributing/code-style.md)                 | Code style conventions                                  |
 | [`contributing/commit-conventions.md`](contributing/commit-conventions.md) | Commit message format                                   |
 
-`culture.md` is the one to read first, and the one people skip. Every rule in it was paid for by a real bug.
+`culture.md` is the one to read before you write code, and the one people skip. Every rule in it was paid for by a real bug.
 
 ## Records + reference
 

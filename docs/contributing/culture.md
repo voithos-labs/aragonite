@@ -6,11 +6,27 @@ The rules you can't get from reading the code. Every one of them was paid for by
 
 aragonite holds a mutable tree that is simultaneously the undo history and the source of truth
 for the DOM. That combination goes wrong in a small number of specific ways, and this file is
-the list of them. Skim it before your first edit; read it properly before your first structural
-change.
+the list of them. The five rules below are the short version, and they are enough to carry into
+your first edit; read the casebook properly before your first structural change.
 
 Where a mechanism is specified elsewhere, this doc carries the rule and the scar, and points at
 the spec.
+
+## The five rules
+
+Five lines is what a newcomer can actually hold on the way to their first edit. Everything
+below this section is the evidence.
+
+1. **The CST is the single source of truth.** Where the tree and the DOM disagree, the tree
+   wins.
+2. **Reactive state crosses module boundaries as getters, never values.** A value read is a
+   snapshot, plus a dependency you did not ask for.
+3. **`await tick()` is the only sequencing primitive.** No `setTimeout`, no `rAF`, no
+   microtask tricks.
+4. **Rules live at choke points, not call sites.** If a rule can move into the seam, it moves
+   into the seam.
+5. **A bug fix closes the class and mints the guard.** Fixing only the instance you found is
+   half a fix.
 
 ## The enforcement ladder
 
@@ -18,16 +34,18 @@ the spec.
 can: prefer types and seams that make the violation inexpressible; where types can't reach, a
 dev-mode guard that fails at the gate (`invariants/`, catalogued in
 `docs/design/invariants.md`); prose only for what neither can hold. When you touch a
-convention, ask whether it can climb a rung — the 2026-07 audit's most durable fixes were
-exactly such promotions (a throwing tree-op became a nullable return; a comment-stated path
-convention became factory-minted arguments plus a guard).
+convention, ask whether it can climb a rung — the most durable fixes of the 2026-07 audit (a
+large internal review that produced most of the rules in this file, and "the audit" from here
+on) were exactly such promotions: a throwing tree-op became a nullable return, a comment-stated
+path convention became factory-minted arguments plus a guard.
 
 Corollary: **when a bug is fixed, close the class, not the instance** — and mint the guard
 that would have caught it.
 
-## Sharp edges
+## The casebook: why each rule exists
 
-Each rule names its incident. These are the ways this codebase actually gets corrupted.
+Each rule names its incident. These are the ways this codebase actually gets corrupted. The
+G-numbers name entries in the invariant catalog, `docs/design/invariants.md`.
 
 - **Node copies re-read through the `$state` tree before use; never hold a raw copy after the
   proxy has observed it.** Incident: Svelte's ownership tracking corrupted keyed `{#each}`
@@ -48,13 +66,14 @@ Each rule names its incident. These are the ways this codebase actually gets cor
   keyed rendering. Non-render consumers use the `getInlineContent` accessor (external,
   non-reactive WeakMap). No reactive inline-cache field may exist.
 - **Only `await tick()` for sequencing.** `setTimeout`/`rAF`/microtask tricks are symptoms of
-  a wrong operation flow — the predecessor editor died of them.
+  a wrong operation flow — the predecessor editor, the pre-aragonite attempt at this same
+  editor (the README's Origin story), died of them.
 - **Rules live at choke points, not call sites.** Cross-block selection endpoints normalize
   INSIDE `SelectionState.enterCrossBlock`/`extendFocus` — never construct endpoints around it.
   Commit event/snapshot paths are doc-absolute, minted by the scope factories
   (`block-edit-scope.ts`), asserted by G1.16 — never compose paths in a caller. Both seams
-  exist because the call-site versions missed sites: two of the three 2026-07 corruption
-  Criticals were entry paths that skipped a wrap five siblings carried. Since 0.9.24 the
+  exist because the call-site versions missed sites: two of the three corruption Criticals in
+  the audit were entry paths that skipped a wrap five siblings carried. Since 0.9.24 the
   factory mints carry the `DocPath` brand, and the op-family composers now build their
   doc-absolute paths through the branded helpers too; G1.16 stays the runtime belt for the
   JS callers the type can't reach.
@@ -76,7 +95,7 @@ Each rule names its incident. These are the ways this codebase actually gets cor
 
 ## The bug shape to fear: sibling-path parity
 
-The dominant class of the 2026-07 audit — one rule enforced at N−1 of N sibling entry paths
+The dominant class of the audit — one rule enforced at N−1 of N sibling entry paths
 (endpoint normalization, undo fallback paths, merge fallbacks, keymap dispatch). Habits that
 kill it:
 
