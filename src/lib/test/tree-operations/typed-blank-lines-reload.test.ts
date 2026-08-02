@@ -41,6 +41,22 @@ describe('a typed blank line survives the reload', () => {
 	});
 });
 
+// The tree spine under the typed-fence e2e gesture, which pinned the pre-materialization shape
+// (a lone blank line was document whitespace, so typing minted a block BELOW it) until this rule
+// made it a block of its own.
+describe('a lone blank document is the block you type into', () => {
+	it('fills that block rather than leaving a blank line above the new one', () => {
+		const doc = parse('\n');
+		expect(layout(doc.children)).toEqual([['paragraph', '', '\n']]);
+
+		updateNodeContent(doc, 0, '```\ncode\n```\n');
+
+		expect(serialize(doc)).toBe('```\ncode\n```\n');
+		expect(layout(doc.children)).toEqual([['fencedCode', '', '```\ncode\n```\n']]);
+		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
+	});
+});
+
 describe('an Enter at block start survives the reload', () => {
 	it('reloads a leading empty paragraph as a block', () => {
 		const doc = parse('a\n');
