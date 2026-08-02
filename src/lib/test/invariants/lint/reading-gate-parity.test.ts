@@ -22,7 +22,7 @@ const GATE_OWNER_FILES = new Set([
 const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/blocks/list/ListItemBlock.svelte': /\breadOnly\b/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
-	'src/lib/components/blocks/ThematicBreakBlock.svelte': /isReading\s*\(/
+	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/
 };
 
 // Set equality trips the day a new editable surface is born — the dominant future-site
@@ -34,6 +34,7 @@ const DISPATCH_SITE_FILES = [
 	'src/lib/components/blocks/text/TextEditableBlock.svelte',
 	'src/lib/components/blocks/table/TableCellBlock.svelte',
 	'src/lib/editor-actions/plugin/container.ts',
+	'src/lib/editor-actions/container-block-component.ts',
 	'src/lib/selection/cross-block/keydown.ts',
 	'src/lib/components/blocks/list/ListItemBlock.svelte',
 	'src/lib/components/editor-root-keydown.ts'
@@ -131,8 +132,8 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 			)
 		).toBe(true);
 		expect(
-			LOCAL_GATE_SITES['src/lib/components/blocks/ThematicBreakBlock.svelte'].test(
-				'if (isReading()) return;'
+			LOCAL_GATE_SITES['src/lib/editor-actions/container-block-component.ts'].test(
+				'if (deps.isReading()) return true;'
 			)
 		).toBe(true);
 		expect(
