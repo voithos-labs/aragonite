@@ -393,7 +393,7 @@ export function mergeWithNext(parent: NodeParent, blockIndex: number): Structura
 	return replacePreservingFirst(blockIndex, 2, 1);
 }
 
-// ── Delete ──
+// ── Separators ──
 
 /**
  * Settle the separator at `index`: nothing above it needs one at the body head or below a blank
@@ -434,13 +434,36 @@ export function dropDoubledSeparator(
 	owned.leadingTrivia = '';
 }
 
+/**
+ * The separator a block takes back when it stops being blank: its own blank line was what stood
+ * between it and a non-blank predecessor. Call at the fill — {@link clearRedundantSeparator}
+ * frees a separator in exactly the cases this declines, and a block that was never blank keeps
+ * whatever its bytes earned (a paragraph under a heading needs none).
+ */
+export function restoreSeparatorOnFill(
+	parent: BodyParentArg,
+	index: number,
+	sharing?: SharingState
+): void {
+	const node = parent.children[index];
+	if (!node || node.leadingTrivia !== '' || isBlankParagraph(node)) return;
+	if (index <= bodyStartFor(ownerKindOf(parent))) return;
+	if (isBlankParagraph(parent.children[index - 1])) return;
+	const owned = sharing ? ensureUnsharedChild(parent, index, sharing) : node;
+	owned.leadingTrivia = trailingLineEnding(owned.raw);
+}
+
 /** A container's children plus the two fields the settle reads; the Document has neither. */
 type SeparatorParent = { kind?: string; innerPrefix?: string; children?: CstNode[] };
 
 /** Reserved chrome is not a body block, so the body window opens past it. */
 function bodyStartIndex(parent: SeparatorParent): number {
-	if (parent.kind === undefined) return 0;
-	return tryGetBlockKindDescriptor(parent.kind as AnyBlockKind)?.reservedChrome ? 1 : 0;
+	return bodyStartFor(parent.kind);
+}
+
+function bodyStartFor(kind: string | undefined): number {
+	if (kind === undefined) return 0;
+	return tryGetBlockKindDescriptor(kind as AnyBlockKind)?.reservedChrome ? 1 : 0;
 }
 
 /**
@@ -461,6 +484,8 @@ function absorbWrapPrefix(
 	if (index !== bodyStart && !isBlankParagraph(head)) return;
 	parent.innerPrefix = trailingLineEnding(freed);
 }
+
+// ── Delete ──
 
 /**
  * Remove the node at `blockIndex`, leaving the next sibling separated from its new
@@ -500,6 +525,20 @@ export function deleteNode(
  * carries the id/ref across a mint.
  */
 export function updateNodeContent(
+	parent: BodyParentArg,
+	blockIndex: number,
+	text: string,
+	grammar?: GrammarView
+): StructuralChange {
+	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
+	const change = writeParsedContent(parent, blockIndex, text, grammar);
+	// The blank line this block WAS is what separated it from the block above (`splitSeparator`
+	// leaves a blank half none of its own when a run is already open below).
+	if (wasBlank) restoreSeparatorOnFill(parent, blockIndex);
+	return change;
+}
+
+function writeParsedContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,

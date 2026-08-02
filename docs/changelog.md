@@ -95,6 +95,13 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   repaired across the range-delete arms (same-block, cross-block merge, the container wall, a
   table endpoint) and through find/replace.
 
+- **Enter, then typing, no longer merges the two paragraphs on reload.** Pressing Enter at the
+  end of a paragraph that has a block below it opens an empty line, and that line was its own
+  separator: typing into it ended the blank line and left nothing between the new text and the
+  paragraph above, so the session showed two paragraphs and the next load showed one. A block
+  filled where a blank line stood now takes back the separator that blank line was, except where
+  nothing is owed (the document or container head, or a blank block already standing above it).
+
 - **Pasting into a table cell no longer splits the table when the text carries blank edge
   lines.** A copy that picked up an empty line above or below its text (a selection dragged past
   the paragraph's edges is the usual way) read as several blocks, and a cell holds no blocks, so
