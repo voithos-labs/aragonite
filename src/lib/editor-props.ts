@@ -78,6 +78,16 @@ export interface EditorInstance {
 	getDecorations(): DecorationRegistry;
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
+	/**
+	 * Every MODIFIER chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd).
+	 * Composed live from the kind keymaps, the command tables, installed plugins, the
+	 * `keybindings` overrides and the search option, so a host accelerator table can be derived
+	 * rather than hand-copied. Bare keys are out of contract: a focused document owns them.
+	 */
+	reservedChords(): ReadonlySet<string>;
+	/** Whether this instance consumes that keystroke, answered with the editor's own chord
+	 *  normalization so a host never re-implements the Ctrl/Cmd fold. */
+	claimsChord(event: KeyboardEvent): boolean;
 }
 
 /**

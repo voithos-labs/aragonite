@@ -80,6 +80,7 @@
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
+	import { collectReservedChords, chordIsClaimed } from '../schema/reserved-chords';
 	import { portalInto } from './portal';
 	import {
 		registerEditor,
@@ -1175,6 +1176,16 @@
 		return rects;
 	}
 
+	// Recomposed per call rather than derived: the kind and plugin registries are
+	// process-global and mutate outside this component's reactive graph.
+	export function reservedChords(): ReadonlySet<string> {
+		return collectReservedChords({ searchBar, keybindings: overridesMap });
+	}
+
+	export function claimsChord(event: KeyboardEvent): boolean {
+		return chordIsClaimed(event, reservedChords());
+	}
+
 	// Reads the public snapshot, so it covers single-block carets the cross-block
 	// SelectionState never holds.
 	function selectionSummary(): string {
@@ -1214,7 +1225,9 @@
 		getSearch,
 		getDecorations,
 		getRects,
-		getDiagnostics
+		getDiagnostics,
+		reservedChords,
+		claimsChord
 	} satisfies EditorInstance);
 
 	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {

@@ -64,7 +64,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 `<Editor>` is controlled-by-prop-at-mount, read imperatively.
 
 - **`source`** is read once at mount. An internal effect re-syncs the document if the prop changes; there is no two-way binding.
-- **`bind:this`** exposes eight methods:
+- **`bind:this`** exposes ten methods:
   - **`getSource()`** — serialize the live document back to Markdown.
   - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies. Each endpoint (`SelectionPoint`) is a discriminated union: `offset` is a character index into the block, unless `cellCoordinate: true` marks it a table cell index — narrow on the flag before reading `offset` as a character offset.
   - **`setSelection(snapshot)`** — put a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)).
@@ -73,6 +73,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
   - **`getRects()`** — viewport-space geometry over the rendered document (see [Decorations and rects](#decorations-and-rects)).
   - **`getDecorations()`** — register a view-only annotation source, no plugin needed (same section).
   - **`getDiagnostics()`** — the field-report door: arm the interaction trace and serialize an attachable bug report (see [Diagnostics](#diagnostics)).
+  - **`reservedChords()`** / **`claimsChord(event)`** — which modifier chords this instance consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)).
 
 ### Restoring a selection
 
@@ -192,11 +193,24 @@ A desktop shell (Tauri/wry, WebView2, Electron) runs the editor on the same engi
 
 Which chords reach the page, and whether the shell or the document gets first refusal, is shell-specific. Where the shell resolves its accelerator first, the chord is consumed before any `keydown` reaches the document: the editor cannot bind it, observe it, or report that it went missing, and no `keybindings` override reaches a key that never arrives. Where the shell dispatches to the page first, the editor sees the chord and a capture-phase `preventDefault()` suppresses the shell's own action. Tauri/wry on WebView2 measures as the second kind, with reload and the devtools chords all arriving at the document and their defaults preventable. Assume neither arrangement; measure yours.
 
-- **Verify the chord map in the real shell.** A browser run proves the keymap resolves, not that the chord arrives. Walk the [shortcut table](#keyboard-shortcuts) and your own app's bindings in the built application, on every platform you ship.
+- **Verify the chord map in the real shell.** A browser run proves the keymap resolves, not that the chord arrives. Walk the [shortcut table](#keyboard-shortcuts) and your own app's bindings in the built application, on every platform you ship. Derive the editor's half of that walk from [`reservedChords()`](#which-shortcuts-the-editor-consumes) rather than copying the table, so it cannot go stale between releases.
 - **A webview's zoom hotkeys may well be off already.** A zoom control driving `--editor-font-size` (see [Theming](#theming)) reaches for exactly the chords a webview is most likely to reserve, which makes it this section's bellwether. The collision is not a foregone conclusion, though: Tauri's zoom-hotkey option defaults to off, so on that shell `Mod+=` and `Mod+-` arrive at the page untouched and a host zoom control bound to them works. Measure before designing around a collision, and equally before assuming there is none.
 - **A chord's fate can differ between your debug build and your shipped one.** Tauri enables the web inspector by default in debug builds and gates it behind a feature flag in release builds, so `F12` opens devtools while you develop and finds nothing to open in what you ship. Measure in the build you ship, not the one you iterate in.
 - **The host's switches are coarse; the page's is fine.** A shell exposes a switch over a whole built-in accelerator family rather than a per-chord list, and there can be more than one family with its own default (Tauri splits page zoom out from the rest and defaults it off), so "the shell's accelerators" is rarely one setting. Where the shell dispatches to the page first, a capture-phase `preventDefault()` is the per-chord route its configuration does not offer. Check your shell's current documentation for what each switch covers.
 - **A capture-phase key listener of your own needs an "inside the editor" guard.** A host that handles keys on `window` or `document` before the page sees them has to decline the ones headed for the editor, and the test is containment in the element you mounted `<Editor>` into (its root carries the `.editor` class). A guard inherited from a previously embedded editor keys off a selector that now matches nothing, which reads as "never inside the editor" and quietly swallows every editing chord.
+
+### Which shortcuts the editor consumes
+
+An app that registers its own accelerators needs to know what the document already claims. Ask the editor rather than keeping a copy:
+
+- **`editor.reservedChords()`** returns a `ReadonlySet<string>` of normalized chord strings — every modifier chord this instance consumes.
+- **`editor.claimsChord(event)`** answers the same question for one `KeyboardEvent`, using the editor's own normalization. A host key handler can call it directly and skip re-deriving the platform rule: Ctrl and Cmd both fold to `Mod`, so a macOS `Ctrl+B` and a `Cmd+B` give the same answer, and a CapsLock-uppercased letter matches its lowercase binding.
+
+The set is composed on each call, not baked at build time, so it already reflects the block kinds your plugins registered, the global chords they claimed, and the per-instance `keybindings` overrides you passed — a chord you disabled globally drops out, one you bound appears. Turning `searchBar` off drops `Mod+F` and `Mod+H` with it.
+
+**Modifier chords only, by design.** Bare keys — `Enter`, `Tab`, `Escape`, the arrows, `Backspace` — never appear, and that is the contract rather than an omission. A focused document owns them whatever the set says, so an app shortcut bound to one is lost while the caret is in a block regardless. The same reasoning is why the set is the right input for an accelerator table and the wrong input for a "what can the user press here" help sheet: for that, use the [shortcut table](#keyboard-shortcuts).
+
+Two things the answer cannot cover. It describes the chords the editor _consumes_, not the ones that _reach it_ — a shell that resolves its accelerator first takes the chord before any handler runs, which is the measurement this section opens with. And a chord the editor does not claim is not thereby free: the browser's own editing chords still apply inside a contenteditable.
 
 ### Clipboard in a webview
 
@@ -355,6 +369,8 @@ Outside that contract sits the editor's own visual language — the syntax and c
 `Mod` is Ctrl on Windows/Linux and Cmd on macOS.
 
 Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with the key's own value, single letters uppercased. Shifted-symbol forms are not modeled: `Shift+1` reaches the editor as whatever symbol the keyboard layout produces, so bind digits and letters (`Mod+7`), never the shifted symbol.
+
+This table is for a reader. An app deriving an accelerator map should read `editor.reservedChords()` instead — it is composed from the live keymaps and covers the chords claimed outside them (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)).
 
 **What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing**, **Block reorder** and **Tables** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck).
 

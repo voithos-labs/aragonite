@@ -24,6 +24,14 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   an anchor outside the editor still gets themed colors and follows a live `theme` change.
   Reads live, and placement inside the anchor is the host's.
 
+- **The editor now answers which keyboard chords it consumes.** `editor.reservedChords()` returns
+  the modifier chords this instance claims and `editor.claimsChord(event)` answers for one
+  keystroke, using the editor's own normalization — so an app registering accelerators no longer
+  hand-copies a shortcut list that drifts every release, nor re-implements the Ctrl/Cmd fold.
+  The set is composed live from the kind keymaps, the command tables, installed plugins, the
+  `keybindings` overrides and the search option, and it covers the chords claimed outside the
+  keymaps too. Bare keys stay out of contract: a focused document owns them regardless.
+
 - **An edit surface left open over a changing document used to write back over the change.** A
   block whose source is revealed for editing (block math, a math fence, any render-primary
   plugin block) and a diagram's edit box both took one copy of the text when they opened and
