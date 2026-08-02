@@ -22,7 +22,7 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 ## The five things to know
 
 1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It is not two-way bound.
-2. **`bind:this` is the instance surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`, `getDiagnostics()` read; `setSelection()` is the one that writes.
+2. **`bind:this` is the instance surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`, `getDiagnostics()` read; `setSelection()` and `placeCaretAtPoint()` are the two that write.
 3. **Theming is CSS custom properties** on the editor's own root. Nothing lands on `:root`.
 4. **Plugins are process-global**, installed once at mount. Two editors share one grammar, never any state.
 5. **`editor.__test.*` is not part of the contract.** It is internal and will move.
@@ -64,10 +64,11 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 `<Editor>` is controlled-by-prop-at-mount, read imperatively.
 
 - **`source`** is read once at mount. An internal effect re-syncs the document if the prop changes; there is no two-way binding.
-- **`bind:this`** exposes ten methods:
+- **`bind:this`** exposes eleven methods:
   - **`getSource()`** — serialize the live document back to Markdown.
   - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies. Each endpoint (`SelectionPoint`) is a discriminated union: `offset` is a character index into the block, unless `cellCoordinate: true` marks it a table cell index — narrow on the flag before reading `offset` as a character offset.
   - **`setSelection(snapshot)`** — put a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)).
+  - **`placeCaretAtPoint(x, y)`** — land the caret at a viewport point exactly as a click there would, and report whether one landed. For a shell that owns chrome beside the document: the shell decides whether to answer a click on its own territory, the editor decides where the caret goes — a click below the last entry lands at the document end. `false` means nothing focusable resolved and the click is still yours. Points resolve against the blocks currently rendered, so "below the document" means the last rendered block, not the last parsed one.
   - **`getEvents()`** — the observer surface (see [Events](#events)).
   - **`getSearch()`** — the find/replace controller (see [Search](#search)).
   - **`getRects()`** — viewport-space geometry over the rendered document (see [Decorations and rects](#decorations-and-rects)).
@@ -155,6 +156,7 @@ What the host's own CSS has to provide:
 
 - **Resolve the scroller before the editor's first use.** The editor finds the ancestor that scrolls it once, at first need. A shell that swaps its scroller in afterwards — a panel that expands, a wrapper replaced on a route transition — leaves the editor measuring against the wrong box. Settle the layout first, or remount the editor.
 - **A clipping wrapper needs left padding.** Host mode drops the editor's own padding, and the hover drag handle sits in a gutter outside the block box. A wrapper with `overflow: hidden` and no padding clips the handle away entirely, so mouse drag-reorder silently disappears — reserve at least `0.85rem` on the left. Keyboard reorder (Alt+Arrow) is unaffected.
+- **The reading column's side inset belongs to the editor, not to an ancestor.** Host mode drops the editor's own padding, so the inset that narrows the text column is yours to add — and where you put it decides whether the margin beside the text is clickable. On the editor element or on the block list inside it, the editor claims the whole gutter and a click there lands the caret on the nearest line. On any ancestor of the editor element, that band is your shell's: the click never reaches a surface the editor can claim, and the margin beside every line goes dead while looking like part of the document. If the band genuinely is your chrome, answer the click yourself and hand the point to [`placeCaretAtPoint(x, y)`](#the-component-contract).
 - **A drag autoscrolls whatever actually scrolls.** That is the nearest ancestor you made scrollable, or the page's own viewport when nothing between the editor and the document scrolls. One box it will never scroll is a fixed-height `overflow: hidden` wrapper: a reader cannot wheel one back, so a drag that scrolled it would strand content out of reach. Reveal does move such a box, deliberately — it can put the block on screen and leave it there.
 
 The root reflects a `data-scroll-mode` attribute in host mode. **Treat it as an implementation detail, not contract** — it may start being emitted in self mode too. Style host-mode embeddings through your own wrapper elements, which you control; the mode's own layout rules are already scoped to the editor.

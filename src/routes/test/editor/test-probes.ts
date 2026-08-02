@@ -363,6 +363,9 @@ export function installTestProbes({
 		// the endpoint UNION variant it got, and the path-only projection drops `cellCoordinate`.
 		getSelection: (): EditorSelection | null => editor.getSelection(),
 		setSelection: (selection: EditorSelection): Promise<boolean> => editor.setSelection(selection),
+		// The real instance door, called the way a shell answering a click on its own chrome
+		// calls it — viewport coordinates the shell read off its own element.
+		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;

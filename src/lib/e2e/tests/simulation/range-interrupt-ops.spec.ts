@@ -48,6 +48,11 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		title: 'a click in the right margin lands a caret and ends the range',
 		doc: PROSE_DOC
 	},
+	'place-caret-at-point': {
+		route: 'editor',
+		title: 'a host shell’s placeCaretAtPoint lands a caret and ends the range',
+		doc: PROSE_DOC
+	},
 	'dead-space-below-table': {
 		route: 'editor',
 		title: 'a click below a table ends the range and types in the cell it landed in',

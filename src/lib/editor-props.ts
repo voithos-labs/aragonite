@@ -73,6 +73,15 @@ export interface EditorInstance {
 	 * and an unresolvable path or an unsettled scroll resolves false.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
+	/**
+	 * Land the caret at a viewport point exactly as a click there would: the point clamps into
+	 * the nearest block's box, the block under it resolves the landing, and a live cross-block
+	 * range ends first. For a shell owning chrome beside the document — it decides whether to
+	 * answer a click on its own territory, the editor decides where the caret goes. False when
+	 * no focusable landing resolves. Points resolve against the MOUNTED blocks, so one below
+	 * the document lands in the last rendered block rather than the last parsed one.
+	 */
+	placeCaretAtPoint(x: number, y: number): boolean;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
