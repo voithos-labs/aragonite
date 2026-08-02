@@ -2,6 +2,7 @@
 // The verify-pack negative gate catches any straggler this misses.
 import { rmSync } from 'node:fs';
 
-for (const dir of ['dist/test', 'dist/e2e']) {
-	rmSync(dir, { recursive: true, force: true });
+// plugins/README.md is the internal bundled-plugin tier doc; consumers read docs/guide.
+for (const target of ['dist/test', 'dist/e2e', 'dist/plugins/README.md']) {
+	rmSync(target, { recursive: true, force: true });
 }
