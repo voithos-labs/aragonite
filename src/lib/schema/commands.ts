@@ -158,6 +158,11 @@ export function isReservedUiChord(chord: string): boolean {
 	return RESERVED_UI_CHORDS.has(normalizeChord(chord));
 }
 
+/** The same pair, for the callers that must enumerate it rather than test one chord. */
+export function reservedUiChords(): readonly string[] {
+	return [...RESERVED_UI_CHORDS];
+}
+
 /**
  * `candidateCommand` is the id the incoming registration will bind (the mint is deterministic:
  * name IS the id). A dev-server re-eval re-binding its OWN command to its OWN chord is an
@@ -204,6 +209,12 @@ export function registerPluginGlobalBinding(binding: KeyBinding): void {
 
 export function pluginGlobalBinding(chord: string): KeyBinding | null {
 	return pluginGlobalKeymap.find((b) => normalizeChord(b.chord) === chord) ?? null;
+}
+
+/** Every chord the plugin-global tier binds right now. Registration is process-global, so
+ *  this reflects plugins any mounted editor installed. */
+export function pluginGlobalChords(): readonly string[] {
+	return pluginGlobalKeymap.map((b) => normalizeChord(b.chord));
 }
 
 export function __resetPluginGlobalKeymapForTests(): void {
