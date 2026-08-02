@@ -247,5 +247,6 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 			),
 			PARAMS
 		);
-	});
+		// ~2s alone; the full battery's worker saturation blows the default 5s cap.
+	}, 20_000);
 });
