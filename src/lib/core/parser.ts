@@ -112,7 +112,6 @@ export function parseBlocks(
 			end,
 			line,
 			leadingTrivia: pendingTrivia,
-			isFirstInWindow: children.length === 0,
 			isDocumentParse,
 			grammar,
 			depth

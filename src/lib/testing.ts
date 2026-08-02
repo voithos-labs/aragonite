@@ -29,7 +29,7 @@ export function resetPluginPlatformForTests(): void {
 			'resetPluginPlatformForTests() is test-only — it wipes the process-global plugin ' +
 				'registries, which is corruption in a running editor. No test environment was ' +
 				'detected (process.env.VITEST is unset). Detection is Vitest-specific; another ' +
-				'runner must opt in through the editor env seam before calling this.'
+				'runner opts in with configureEditorEnv({ isTest: true }), exported beside this.'
 		);
 	}
 	__resetSchemaRegistriesForTests();
@@ -40,6 +40,12 @@ export function resetPluginPlatformForTests(): void {
 	__clearDeclaredPluginInlineKindsForTests();
 	__resetDirectiveRegistryForTests();
 }
+
+// ── Editor env override ──────────────────────────────────────────────────────
+// The door the reset's own error names: a runner other than Vitest declares itself a
+// test environment here, and `resetEditorEnv` puts the detected defaults back.
+
+export { configureEditorEnv, resetEditorEnv } from './env';
 
 // ── Mounting the editor under a non-browser DOM ──────────────────────────────
 

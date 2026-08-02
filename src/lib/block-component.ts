@@ -1,10 +1,11 @@
 /**
- * The view-layer contract every rendered block satisfies, plus the cursor sentinels
- * and ambient-prefix shape blocks produce. Orchestration reaches a block only through
- * this interface, so a capability a block lacks is an omitted optional member rather
- * than a kind check upstream. Authoritative for external authors: each member's
- * docstring states its contract; the caret members form three layers (landing doors,
- * point resolution, boundary policy — docs/design/editor.md § The editing surface).
+ * The view-layer contract every rendered block satisfies, plus the cursor sentinels and
+ * ambient-prefix shape blocks produce. Orchestration reaches a block only through this
+ * interface, so a capability a block lacks is an omitted optional member rather than a kind
+ * check upstream. Authoritative for external authors: each member's docstring states its
+ * contract. Members stay flat: the caret members' three layers (landing doors, point
+ * resolution, boundary policy) are documentation, in docs/design/editor.md § The editing
+ * surface, and `ContainerBlockComponent` is the one promoted tier.
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
