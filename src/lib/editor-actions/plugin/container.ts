@@ -48,6 +48,7 @@ import { createBlockquoteOverrides } from '../blockquote-overrides';
 import {
 	composeWholeBlockFocusSurface,
 	createContainerBlockComponent,
+	focusAcrossBlockEdge,
 	handleEditorGlobalChord,
 	handleWholeBlockKeys,
 	isEditableEventTarget
@@ -146,6 +147,13 @@ export interface ContainerBlock {
 	 * this kind's keymap. Kind-only, so a bubbled undo/redo never double-fires.
 	 */
 	handleKeydown(e: KeyboardEvent): void;
+	/**
+	 * Hand the caret to the neighbour a plain arrow points at — the boundary exit for a
+	 * plugin-owned editable whose caret has reached its own edge. Routes through the
+	 * editor's focus traversal, so the landing inherits skip-non-focusable, container
+	 * entry and windowing reveal. False for a modified or non-arrow key: leave it native.
+	 */
+	moveFocusOut(e: KeyboardEvent): boolean;
 }
 
 // ── Collapse gates ───────────────────────────────────────────────────────────
@@ -462,6 +470,15 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleWholeBlockKeydown(e);
 	};
 
+	const moveFocusOut = (e: KeyboardEvent): boolean => {
+		if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false;
+		// Classified through the door before the move (G2.10). A plugin editable exposes no
+		// caret X to measure, so a vertical exit carries the column it arrived with, exactly
+		// as a whole-block pass-through does.
+		stickyColumn.noteKey(e);
+		return focusAcrossBlockEdge(e.key, { getIndex: deps.getIndex, focus: parentFocus });
+	};
+
 	// The three gates keep a focused sibling (a toolbar button would double-fire its click
 	// and an Enter split) and a plugin's own editable surface untouched.
 	function ownsWholeBlockFocus(e: KeyboardEvent): boolean {
@@ -507,6 +524,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		containerApi,
 		updateOwnMetadata,
 		handleKeydown,
+		moveFocusOut,
 		getPresentationMode,
 		getTheme
 	};

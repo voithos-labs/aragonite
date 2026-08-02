@@ -41,6 +41,17 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   discarded rather than a committed change reverted. The obligation is written down for plugin
   authors, whose own edit surfaces owe the same.
 
+- **Arrow keys now leave a diagram's edit box.** The box is a textarea, and a textarea swallows
+  every arrow at its own boundaries, so a caret that entered one could not walk out — worst on
+  an empty diagram, whose edit surface is its only view and where the caret lands typing-ready
+  the moment the fence is typed: the mouse was the only way out. The four boundary arrows now
+  hand the caret to the next block the way every other editing surface does, committing the
+  draft on the way exactly as clicking away does; mid-text and Shift-extending arrows stay the
+  textarea's. Plugin blocks get the same door — a container can move focus out of itself — so
+  any plugin kind with its own editing surface can offer the exit, and the obligation to do so
+  is written down for authors. A whole-block focus landing also stopped dropping such a surface
+  out of the document's tab order on its way in.
+
 - **Undo and redo now work from a diagram's own focus surface.** Pressing Ctrl+Z on a focused
   mermaid block did nothing — the block resolved only its kind's keymap, and the editor's
   root-level handler declines while focus sits on a block that is its own focus target. Since a

@@ -27,17 +27,23 @@
 		);
 	}
 
-	const { containerApi, updateOwnMetadata, handleKeydown, getPresentationMode, getTheme } =
-		createContainerBlock({
-			getNode: () => node,
-			getIndex: () => index,
-			getPath: () => myPath,
-			getBoxEl: () => boxEl,
-			getFocusEl: focusSurfaceEl,
-			// Read live per dispatch, so an undo that replaces the node still reaches the
-			// current handlers.
-			commandHooks: () => ({ openEdit, openFocusView })
-		});
+	const {
+		containerApi,
+		updateOwnMetadata,
+		handleKeydown,
+		moveFocusOut,
+		getPresentationMode,
+		getTheme
+	} = createContainerBlock({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
+		getBoxEl: () => boxEl,
+		getFocusEl: focusSurfaceEl,
+		// Read live per dispatch, so an undo that replaces the node still reaches the
+		// current handlers.
+		commandHooks: () => ({ openEdit, openFocusView })
+	});
 
 	// The factory routes whole-block focus, delete, traversal and reorder, and carries
 	// the `measurePartialRects` the overlays paint off: there are no child hosts here.
@@ -219,6 +225,19 @@
 		if (refocus) refocusBlock();
 	}
 
+	// Logical lines, not visual: the box carries no editor caret geometry, so the newlines
+	// around a collapsed caret decide the first and last line, and a wrapped row does not.
+	function atEditBoxEdge(key: string): boolean {
+		const el = textareaEl;
+		if (!el || el.selectionStart !== el.selectionEnd) return false;
+		const at = el.selectionStart;
+		if (key === 'ArrowUp') return !el.value.slice(0, at).includes('\n');
+		if (key === 'ArrowDown') return !el.value.slice(at).includes('\n');
+		if (key === 'ArrowLeft') return at === 0;
+		if (key === 'ArrowRight') return at === el.value.length;
+		return false;
+	}
+
 	function onTextareaKeydown(e: KeyboardEvent): void {
 		// The textarea owns its keys while editing, native undo included; no chord may
 		// bubble to the container keymap mid-edit.
@@ -229,6 +248,10 @@
 		} else if (e.key === 'Escape') {
 			e.preventDefault();
 			cancelEdit();
+		} else if (atEditBoxEdge(e.key) && moveFocusOut(e)) {
+			// Focus leaves the box, so `focusout` commits the draft: the arrow exit forks
+			// nothing off the blur path.
+			e.preventDefault();
 		} else if (e.key === 'Tab') {
 			// Escape is the exit, so Tab indents in place. execCommand inserts through the
 			// input event, keeping the `draft` binding and native undo whole.
