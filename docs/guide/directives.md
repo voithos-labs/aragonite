@@ -108,13 +108,15 @@ Activation is a **call, not an import side effect**: importing an `aragonite/plu
 
 On `aragonite/plugin`, labelled **pre-freeze / unstable** (refined against real consumers until the open-source release):
 
-| Entry                      | Role                                                                      |
-| -------------------------- | ------------------------------------------------------------------------- |
-| `activateDirectives`       | turn the grammar on; call once at startup, before the first parse         |
-| `registerDirective`        | map a `(tier, name)` to a kind                                            |
-| `isDirectiveRegistered`    | probe a `(tier, name)`; the first-wins guard                              |
-| `parseDirectiveAttributes` | opt-in `info → { label, id, classes, properties }` reader (no inverse)    |
-| `serializeDirective`       | lossless fence serializer a registered kind's `rebuildRaw` uses           |
-| `createDirectiveRebuild`   | build the `rebuildRaw` for a container whose child 0 is an editable title |
+| Entry                      | Role                                                                                                                   |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `activateDirectives`       | turn the grammar on; call once at startup, before the first parse                                                      |
+| `registerDirective`        | map a `(tier, name)` to a kind                                                                                         |
+| `isDirectiveRegistered`    | probe a `(tier, name)`; the first-wins guard                                                                           |
+| `parseDirectiveAttributes` | opt-in `info → { label, id, classes, properties }` reader (no inverse)                                                 |
+| `serializeDirective`       | lossless fence serializer a registered kind's `rebuildRaw` uses                                                        |
+| `escalatedColonCount`      | the fence length a body needs, for an emitter building `:::name` text by hand rather than through `serializeDirective` |
+| `createDirectiveRebuild`   | build the `rebuildRaw` for a container whose child 0 is an editable title                                              |
+| `DIRECTIVE_BODY_WRAP`      | the wrap every `:::` body parses with; declare it as your container kind's `bodyWrap`                                  |
 
 with the supporting types `DirectiveTier`, `DirectiveDefinition`, `ParsedDirective`, `DirectiveFence`, and `DirectiveAttributes`.

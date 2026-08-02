@@ -220,7 +220,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   strands the caret. Typing, split, cross-block typing and both delete arms go through the rule —
   a range delete normalizes the raw it MERGES, since a join can mint a terminator line out of two
   lines that each held one harmlessly mid-line. Paste and block move do not yet, and keep the
-  ledger entry. The requirement is structural rather than remembered: the byte sinks take a parent
+  entry in the defect ledger (the repo's GitHub issues). The requirement is structural rather than remembered: the byte sinks take a parent
   that has ANSWERED which container owns it, so a sink added later cannot inherit the gap silently.
 
 - **Plugin/testing surface: the container conformance kit's `terminatorCollision` cell writes
@@ -246,7 +246,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   sessions of the note simulation had been failing the parse-convergence oracle on exactly this and now
   pass. Three producers of the same divergence remain, all of them mutations that invalidate a tight
   join instead of minting one (a kind demotion, a delete between two paragraphs, a reorder); they keep
-  the ledger entry.
+  an open ledger entry.
 
 - **Behavior change: a trailing backslash then Enter is now two paragraphs, not a hard break.** Enter
   splits everywhere else in the editor, and it separates now, so it can no longer leave a soft join
@@ -379,7 +379,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   answer rather than a gap: it holds no character position, and the whole-block focus a click ON
   it means would arm the next Backspace against a block the user only clicked near.
 
-  The decline was hiding a data loss, which is the part worth reading twice. The ledger recorded
+  The decline was hiding a data loss, which is the part worth reading twice. The tracked issue recorded
   this as invisible, on the grounds that the browser's own click handling reaches the same cell
   anyway — and beside a block it does. What it does not do is end the editor's overlay-painted
   cross-block range, which only the claimed path clears: with a range live, a click beside a table
@@ -417,7 +417,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   row had ever seen the consultation a registered rung adds. Four report-only rows now load a
   trigger-dense fixture twice, once with the rung installed and once on the rung-free route:
   bracket-dense under footnotes, colon-dense under emoji, dollar-dense under latex, and plain prose
-  under an installed unreserved rung. The last was the one the ledger called the gate's blindest
+  under an installed unreserved rung. The last was the one the tracked issue called the gate's blindest
   spot, on the theory that registering `:` turns on a per-character probe for the whole document,
   and it is not observable: 2.3 ms p50 either way at 100KB. The trigger-dense rows are at or below
   noise too. What the rows did surface is the mechanism the footnote fixture carries alongside the
@@ -556,7 +556,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
 
 - **Testing surface: `runInlineKindConformance` — the battery a registered inline rung is held
   to.** Block kinds have had an executable closure matrix and containers their own kit; inline
-  rungs, where the limestone integration's defect density concentrated, had nothing. The kit drives
+  rungs, where the first consumer app's integration concentrated its defect density, had nothing. The kit drives
   the seven things a rung can break without moving a byte: what it claims over the author's own
   fixtures, that its claims tile the scan range the block offered rather than reading past it, that
   it declines the grammar overlap its prefix shadows, that its widget is one atomic self-delimiting
@@ -897,7 +897,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   count — unrelated to where the caret was. All five routes reached that target through a
   synchronous ref lookup, which cannot mount an off-window block, so once the pasted run cleared the
   render window's overscan the landing silently no-op'd: the user pasted, typed, and nothing
-  happened anywhere in the document. The ledger named one route; the pinned repro exercised a
+  happened anywhere in the document. The tracked issue named one route; the pinned repro exercised a
   different one, which is the tell that the bound was on the wrong thing. A landing index that
   scales with the clipboard is the defect, and every structural paste has one, so the fix is a
   single reveal seam the paste layer lands through — doc-absolute path in, scroll-mount-focus out
@@ -960,8 +960,8 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
 - **The adjacent-widget-boundary click-snap flake was the spec's own race, not an editor
   defect.** The geometry read ran with no image-decode barrier, so a pre-decode 0x0 widget box put
   the click inside the image once it decoded, and the widget select suppressed the snap caret. The
-  spec now waits for the decode and asserts the specific edge; the ledger entry's original suspect
-  (the reveal-anchor pointerdown clear) is falsified in the entry's closing record. Reproduced
+  spec now waits for the decode and asserts the specific edge; the tracked issue's original suspect
+  (the reveal-anchor pointerdown clear) is falsified in its closing record. Reproduced
   naturally at 15/60 under contention, 180/180 green after.
 
 - **The byte-corruption family from the 0.9.35 review is closed.** Typing `:::` in an admonition
@@ -1121,7 +1121,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   LANDINGS clamp with it: `focus` and `focusAtColumn` seat the caret on editable content, so a
   door that aims at a fence line — the cross-container merge fallback moves focus to a block's
   END, which is the closer run — no longer hands the user a position whose next keystroke
-  disappears. Arrow navigation and clicks can still park there; that half is in the ledger. The
+  disappears. Arrow navigation and clicks can still park there; that half stays an open ledger entry. The
   one exception is an UNCLOSED fence: with no closer to orphan, its markers stay editable, because
   demoting the block is how a just-typed ` ``` ` is un-typed and nothing can be absorbed. Two
   consequences beyond the bug: select-all then delete inside a code block now empties the body
@@ -1267,7 +1267,7 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   switches exhaustively on `origin` sees the new arm at compile time. The alternative costed in the
   issue stays rejected: deferring the hook call until the caret is known good puts the delete before
   the import, so a host whose import fails would wipe the user's selection with nothing to show for
-  it. The branch, which the ledger recorded as never reproduced, turns out to be reachable through
+  it. The branch, which the issue recorded as never reproduced, turns out to be reachable through
   the delete's own re-entrancy serialization — a paste arriving while a cross-block delete is parked
   on its reveal waits that delete out, and the delete collapses the selection on its way through —
   and now has a unit repro. Its residual is filed rather than fixed: the paste's undo snapshot is
@@ -1420,6 +1420,39 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   with bundled declarations that spell the type `SerializeOptions`. Any future typed release, 0.8
   included, would do the same. The field is inert for anyone installing aragonite (npm reads
   `overrides` only from the top-level project) and ships in the tarball as dead metadata.
+
+- **Two editors on one page no longer reach into each other's mounts.** The registry a windowed
+  reveal waits on ("wake me when child N of this list mounts") was keyed by the bare child index
+  for the whole process, so a mount at index N anywhere, a nested list item, a table cell, or a
+  second editor instance, woke every waiter sitting at index N. Nothing corrupted: each waiter
+  re-checked its own slot and went back to waiting. But that was a correction, not a guarantee,
+  and each false wake spent one of the reveal's bounded turns. The registry is now keyed per
+  scope, so a foreign wake is unrepresentable rather than absorbed. `BlockList` takes the scope's
+  slot accessors as one `slots` prop in place of the `setRef`/`getRef` pair; a container built
+  with `createContainerBlock` spreads `blockListProps` and needs no change.
+
+- **The conformance kits stopped taking a plugin author's word for it.** A container declaring
+  `bodyWrite` must now assert its `terminatorCollision` cell (the capability exists only to
+  repair that collision, so excusing the cell excused the proof), a profile whose bodyWrap
+  probe has no `conformanceFixture` fails loud instead of passing vacuously, and the
+  fixture-position contract (kind at `children[0]`, sentinel appended) is checked where every
+  executor receives the fixture rather than documented beside it. A fixture that runs to EOF
+  and swallows the undo sentinel is now an error instead of a silently weaker probe.
+
+- **`aragonite/testing` publishes the editor-env override door.** `configureEditorEnv` and
+  `resetEditorEnv` were reachable only inside this repo while `env.ts`'s own header offered
+  them to consumers; a plugin suite on a runner other than Vitest can now say
+  `configureEditorEnv({ isTest: true })` through the published barrel.
+
+- **`OpenContext.isFirstInWindow` is gone.** Zero readers since `isDocumentParse` landed, and
+  the guide already warned it read like a signal it is not. An opener that wants "am I at the
+  document start" asks `isDocumentParse`; blank-line interrupt context rides `leadingTrivia`.
+
+- **The tarball carries its own paperwork.** The three-guide docs pack ships under
+  `docs/guide` (the copy in `node_modules` matches the installed version), third-party
+  notices ship as `LICENSE-THIRD-PARTY.md` (the commonmark.js emphasis port, the gemoji
+  table, the WHATWG entity data), and `aragonite/package.json` resolves for the tooling that
+  probes it.
 
 Ship gates: unit 5951, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
 was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two

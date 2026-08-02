@@ -61,7 +61,7 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 ### What is stable, what is not
 
 - **Registration base — stable.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the idempotence probes. These shapes will not change in a breaking way. (One exception landed pre-freeze: an opener's return became a line count in 0.9.36, see [What an opener returns](#what-an-opener-returns).)
-- **Pre-freeze / unstable.** The plugin unit, the container factory and chrome leaf, the inline surface, the directive surface, the fence grammar, and paste transforms. They are being built and refined against real consumers, and freeze at the public release — until then the shapes may change. Each is labelled in the [API reference](#api-reference).
+- **Pre-freeze / unstable.** Everything else, and the [API reference](#api-reference) below carries the list rather than this sentence: **a section labelled _(pre-freeze / unstable)_ may still change shape until the freeze.** Those labels mirror the section headers of the `aragonite/plugin` entry point (`src/lib/plugin.ts` in the repository), so the two cannot drift apart. The big families are the plugin unit itself, the authoring tiers (container, editable leaf, inline, directive), the grammar hooks, paste transforms, and the view surfaces (decorations, rects, selection geometry). Each is being refined against real consumers and freezes at the public release.
 
 ## Per-instance context
 
@@ -303,7 +303,7 @@ export function notePlugin(): EditorPlugin {
 - `{ mode: 'inherit-default' }` — the generic editor ceremony, nothing kind-specific.
 - `{ mode: 'not-supported', reason }` — the subsystem is structurally absent; name the degradation.
 
-`Record<ClosureColumn, …>` makes a missing column a compile error and the required field makes a missing block one. Two coherence rules also hold at bootstrap: a container must declare `roundTrip: implemented` (its `rebuildRaw` is the mechanism), and a `not-mergeable` kind cannot declare `mergeBackspace: inherit-default` (it has no default merge to inherit). The full row-by-tier reference is the closure matrix in `docs/design/plugin-contract.md`.
+`Record<ClosureColumn, …>` makes a missing column a compile error and the required field makes a missing block one. Two coherence rules also hold at bootstrap: a container must declare `roundTrip: implemented` (its `rebuildRaw` is the mechanism), and a `not-mergeable` kind cannot declare `mergeBackspace: inherit-default` (it has no default merge to inherit). The full row-by-tier reference is the closure matrix in `docs/design/plugin-contract.md` (in the repository).
 
 **Name a mechanism your own kind carries.** `implemented` needs a nameable `via` — your component, your `rebuildRaw`, your test — never an internal editor mechanism you do not own; a cell you cannot name honestly is `inherit-default` or `not-supported`, never an invented capability.
 
@@ -385,7 +385,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 
 Three rules for that file, each earned the hard way:
 
-- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container ref through it. Both the name and the shape are fixed: the component registry types a block's exports as either a leaf surface or a container's `containerApi`, and the container arm is `ContainerBlockComponent`, which requires the descent verbs (`focusByPath`, `revealByPath`, `parkCaret` and the rest) rather than leaving them optional. So omitting the export, or publishing a surface missing one of them, fails `npm run check` at the call that registers your component (`definePluginBlock` in the recipe above, `registerBlockComponent` if you register by hand). The factory's surface satisfies that by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
+- **`export { containerApi }` is the whole publication.** That one instance export is your block's `BlockComponent` surface, and the editor resolves a container ref through it. Both the name and the shape are fixed: the component registry types a block's exports as either a leaf surface or a container's `containerApi`, and the container arm is `ContainerBlockComponent`, which requires the descent verbs (`focusByPath`, `revealByPath`, `parkCaret` and the rest) rather than leaving them optional. So omitting the export, or publishing a surface missing one of them, fails your typecheck (svelte-check, or `tsc` on a plain-TypeScript plugin) at the call that registers your component (`definePluginBlock` in the recipe above, `registerBlockComponent` if you register by hand). The factory's surface satisfies that by construction; a hand-rolled one can annotate itself `satisfies ContainerBlockComponent` to get the same error at the definition instead of at the registration.
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read — `var(--color-ui-muted, #a4a4a4)` — so the block still renders outside `.editor` scope. Match that fallback to the token's **dark base** value; dark is the base. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 
@@ -447,7 +447,7 @@ That single text node carries every newline your source holds, which makes **`wh
 
 **Commit semantics.** A commit parses the edited text and lands it through the editor's own edit ladder: same-kind text updates the node in place (caret preserved), a kind change remounts the block, and text that parses to **multiple blocks structurally replaces the leaf with all of them**, the caret following the edit position into whichever block it falls in. Editing past your own fence therefore re-splits the document instead of wedging foreign text into your node, and the byte round-trip holds through every commit.
 
-Block math (`$$…$$` in the LaTeX dogfood plugin) is the worked example: its component script is the factory call, one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe — `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`.
+Block math (`$$…$$` in the bundled `aragonite/plugins/latex` plugin) is the worked example: its component script is the factory call, one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe — `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`.
 
 ## Presentation modes
 
@@ -464,7 +464,7 @@ How each tier reads it:
 | Inline widget (editing)    | `ctx.presentationMode` on the `InlineWidgetEditingContext` your `onSelectedKey` receives                                                                                                                                                                                                                                                                                                |
 | Block component (DOM tier) | The `data-presentation` attribute on the editor root (`el.closest('[data-presentation]')`); **absent means `'source'`**. The fallback for a component holding only a DOM handle (no factory). A **point-in-time** read — correct in a gesture handler or at initial render, but not reactive: a live flip does not re-render a mounted block through it (see the reactivity note below) |
 
-What the platform already does for you in `reading` mode — so most plugins need no mode code at all: your editable-leaf never reveals and never commits; chord dispatch (block commands, global commands, keymaps) dead-keys at the dispatcher; the container factory's whole-block Enter/Backspace/reorder gate; and marker spans hide by CSS. You read the mode yourself when your component owns an edit affordance of its own — a toolbar button, a click-to-edit swap, an interactive widget — which must go inert (the Mermaid block's Edit button and the details disclosure are the in-repo examples), or when your rendering should genuinely differ between a source view and a reading view.
+What the platform already does for you in `reading` mode — so most plugins need no mode code at all: your editable-leaf never reveals and never commits; chord dispatch (block commands, global commands, keymaps) dead-keys at the dispatcher; the container factory's whole-block Enter/Backspace/reorder gate; and marker spans hide by CSS. You read the mode yourself when your component owns an edit affordance of its own — a toolbar button, a click-to-edit swap, an interactive widget — which must go inert (the bundled mermaid block's Edit button and the details disclosure are the worked examples), or when your rendering should genuinely differ between a source view and a reading view.
 
 `preview-block` is different: it is a **fully live editing** mode, so none of those reading gates fire — you type, edit, and command in it exactly as in source. What it changes is that every block except the focused one hides its markers. A **render-primary** plugin block (a diagram, a chart — the [render-primary recipe](#recipe-a-render-primary-block)) gets this for free: it already renders its picture when unfocused and reveals its source only on caret entry, in every non-reading mode, which _is_ block-granular preview. A plugin block that instead renders always-visible source chrome should hide that chrome when it is not the focused block; the built-in prose kinds do this by CSS, and the reveal-on-focus render-primary pattern is the supported way for a plugin to match it. A reactive "am I the focused block" block-tier signal is a later rung.
 
@@ -576,7 +576,7 @@ The opt-in `:::name` directive grammar registers its container opener at 45, bet
 
 ## Openers and document position
 
-`OpenContext.isDocumentParse` tells an opener whether the parse it is dispatching in was handed a whole document or one block's bytes. It is `true` for `parse(source)` (the default scope) and for the editor's load of the `source` prop; it is `false` for every reparse the editor runs while you type, which pass `{ scope: 'fragment' }` (the scope union is exported as `ParseScope`): the content commit, split and merge, the clipboard parse, a container body. `isFirstInWindow` is not this signal, and reads like it: a parse window starting mid-document has a first block too. A kind scoped to a document position gates on the composition rather than the flag alone.
+`OpenContext.isDocumentParse` tells an opener whether the parse it is dispatching in was handed a whole document or one block's bytes. It is `true` for `parse(source)` (the default scope) and for the editor's load of the `source` prop; it is `false` for every reparse the editor runs while you type, which pass `{ scope: 'fragment' }` (the scope union is exported as `ParseScope`): the content commit, split and merge, the clipboard parse, a container body. Nothing else on the context answers the question, and one field reads like it does: `index === 0` says only that the block is first in the parse window, and a window starting mid-document has a first block too. A kind scoped to a document position gates on the composition rather than the flag alone.
 
 ```ts
 tryOpen(ctx) {
@@ -836,7 +836,7 @@ beforeEach(() => {
 
 Reset **then** re-install — the reset only empties the registries. It clears every non-built-in schema registration (kinds, components, openers, commands, installed plugins), the inline syntax and widget registries, the paste surface and transform pipelines, and the `:::` directive registry. Built-in registrations survive, exactly as in production.
 
-Two things it does not restore. It wipes **all** paste surfaces, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset (parse and round-trip cases are unaffected). And it touches no runtime state — the undo stack, the selection, and the live document are yours to set up. `resetPluginPlatformForTests` is test-only and throws if called outside a detected test environment; detection is Vitest-specific.
+Two things it does not restore. It wipes **all** paste surfaces, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset (parse and round-trip cases are unaffected). And it touches no runtime state — the undo stack, the selection, and the live document are yours to set up. `resetPluginPlatformForTests` is test-only and throws if called outside a detected test environment; detection is Vitest-specific, so a suite on another runner opts in first with `configureEditorEnv({ isTest: true })`.
 
 The rest of the subpath, at a glance:
 
@@ -848,6 +848,7 @@ The rest of the subpath, at a glance:
 | `checkCopyIsRawByteSlice`                                    | That battery's clipboard executor, drivable directly against a kind           |
 | `runContainerConformance`, `reversedAncestryLeavesRootStale` | The container harness, and the companion that proves its ancestry cell bites  |
 | `runInlineKindConformance`                                   | The inline-rung battery                                                       |
+| `configureEditorEnv`, `resetEditorEnv`                       | Declare a non-Vitest runner a test environment, and restore the defaults      |
 
 **Testing a paste transform.** `registerPasteTransform` writes into a registry nothing else on the public surface reads, so `applyPasteTransforms(text)` ships beside the reset. It is the very function every clipboard→parse route runs, which is what makes driving it proof that your transform is _wired_ rather than proof that your pure function works:
 
@@ -1105,14 +1106,14 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Container authoring and chrome** _(pre-freeze / unstable)_
 
-| Export                                                                                                            | Role                                                                                                                      |
-| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `createContainerBlock`                                                                                            | Wire a nested-`BlockList` container so your block is as thin as the blockquote                                            |
-| `BlockList`                                                                                                       | The child-list component your container renders with the factory's props                                                  |
-| `registerChromeLeaf`                                                                                              | Register a container's title/summary leaf with a default keymap                                                           |
-| `chromeChild`                                                                                                     | Mint the reserved child-0 node for that leaf — the title/summary text plus its trailing newline                           |
-| `isCollapsedContainer`                                                                                            | Read a container's collapse state, so a component and the model layer agree                                               |
-| `ContainerBlock`, `ContainerBlockComponent`, `ContainerBlockDeps`, `ContainerBlockListProps`, `ChromeLeafOptions` | The container API, the component surface it returns, the deps it takes, the child-list props, and the chrome-leaf options |
+| Export                                                                                                                        | Role                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createContainerBlock`                                                                                                        | Wire a nested-`BlockList` container so your block is as thin as the blockquote                                                                                            |
+| `BlockList`                                                                                                                   | The child-list component your container renders with the factory's props                                                                                                  |
+| `registerChromeLeaf`                                                                                                          | Register a container's title/summary leaf with a default keymap                                                                                                           |
+| `chromeChild`                                                                                                                 | Mint the reserved child-0 node for that leaf — the title/summary text plus its trailing newline                                                                           |
+| `isCollapsedContainer`                                                                                                        | Read a container's collapse state, so a component and the model layer agree                                                                                               |
+| `ContainerBlock`, `ContainerBlockComponent`, `ContainerBlockDeps`, `ContainerBlockListProps`, `RefSlots`, `ChromeLeafOptions` | The container API, the component surface it returns, the deps it takes, the child-list props, the child-ref slot accessors those props carry, and the chrome-leaf options |
 
 **Editable-leaf authoring** _(pre-freeze / unstable)_
 

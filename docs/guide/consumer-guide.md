@@ -2,6 +2,8 @@
 
 How to embed, theme, and wire the editor as a library. Extending it with your own block or inline content instead? That's the [plugin author guide](plugin-guide.md).
 
+This guide, the plugin guide, and the [directive grammar](directives.md) ship inside the npm package under `docs/guide`, so the copy in your `node_modules` is the one that matches the version you installed.
+
 ## What you are embedding
 
 aragonite is a Markdown editor you mount as a Svelte component. You hand it Markdown; you read Markdown back. There is no intermediate document format to convert into and out of — the raw source **is** the document, and `serialize(parse(source)) === source` holds for every valid GFM file. What you save is what the user authored, byte for byte.
@@ -41,9 +43,16 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 <button onclick={() => save(editor.getSource())}>Save</button>
 ```
 
+## Toolchain requirements
+
+Two things your build needs. Both are already true in a SvelteKit app.
+
+- **TypeScript `moduleResolution` must be `bundler`, `node16`, or `nodenext`.** The subpath types (`aragonite/plugin`, `aragonite/plugins/*`, `aragonite/testing`) resolve through the package's `exports` map, which classic `node` resolution never reads: the root `aragonite` import still typechecks, while every subpath import reports "Cannot find module". A SvelteKit-generated `tsconfig.json` is already on `bundler`.
+- **The package ships uncompiled `.svelte` components and `.svelte.js` rune modules**, which your Vite Svelte plugin compiles out of `node_modules`. That is `vite-plugin-svelte`'s default behavior, so it needs no configuration. If you hand-tune `optimizeDeps` or `ssr.noExternal`, keep `aragonite` on the Svelte plugin's side of those lists rather than pre-bundling it.
+
 ## Public API
 
-Everything supported is re-exported from the package barrel (`aragonite`). Adding an export is non-breaking; removing one is breaking — so the surface is kept small and grows on demand. The barrel itself (`src/lib/index.ts`) is the authoritative list; this is the map.
+Everything supported is re-exported from the package barrel (`aragonite`). Adding an export is non-breaking; removing one is breaking — so the surface is kept small and grows on demand. The barrel itself (`src/lib/index.ts` in the repository) is the authoritative list; this is the map.
 
 | Group                  | What you get                                                                                                                                                                                                                                                                                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -64,7 +73,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
 `<Editor>` is controlled-by-prop-at-mount, read imperatively.
 
 - **`source`** is read once at mount. An internal effect re-syncs the document if the prop changes; there is no two-way binding.
-- **`bind:this`** exposes eleven methods:
+- **`bind:this`** exposes the instance methods:
   - **`getSource()`** — serialize the live document back to Markdown.
   - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies. Each endpoint (`SelectionPoint`) is a discriminated union: `offset` is a character index into the block, unless `cellCoordinate: true` marks it a table cell index — narrow on the flag before reading `offset` as a character offset.
   - **`setSelection(snapshot)`** — put a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)).
@@ -516,7 +525,7 @@ Float a formatting bar above the user's selection — the standard use of the tw
 3. **Single-block selections** (anchor and focus in the same block): `getSelection()` reports the range's real endpoints — distinct anchor/focus raw offsets on the shared path — so anchor with `rangeRects(path, startOffset, endOffset)`, the same call as the cross-block case with a real end offset in place of `SELECTION_END`. (Reading the native `window.getSelection()` range works too, since within one block the editor delegates selection to the browser.)
 4. **Re-anchor on the next `selectionChange`, not on scroll.** Rects are viewport-space snapshots; a `position: fixed` bar drifts under scroll until the selection next changes. Wire a scroll listener only if your UX demands live tracking.
 
-The demo route's `SelectionToolbar` component follows this recipe; its single-block branch still reads the native Range directly — an equivalent that predates within-block range reporting.
+The demo route's `SelectionToolbar` component (in the repository) follows this recipe; its single-block branch still reads the native Range directly — an equivalent that predates within-block range reporting.
 
 ## Rewriting a document
 
