@@ -35,9 +35,11 @@ export const READING_NOTES_NOTE: NoteFixture = {
 	],
 	expectedMarkdown:
 		'# Reading Notes: On Style\n' +
+		'\n' +
 		'Passages worth keeping, with my own comment nested under each.\n' +
 		'\n' +
 		'## Clarity\n' +
+		'\n' +
 		'> Omit needless words.\n' +
 		'>\n' +
 		'> > Even the ones that feel load-bearing usually are not.\n' +

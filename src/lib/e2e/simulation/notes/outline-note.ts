@@ -54,9 +54,11 @@ export const OUTLINE_NOTE: NoteFixture = {
 	],
 	expectedMarkdown:
 		'# Field Notes Outline\n' +
+		'\n' +
 		'Three levels of structure, typed top-down.\n' +
 		'\n' +
 		'## Observations\n' +
+		'\n' +
 		'- Canopy layer\n' +
 		'  - Light filters through gaps\n' +
 		'    - Epiphytes cluster on high branches\n' +

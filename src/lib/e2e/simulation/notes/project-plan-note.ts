@@ -102,19 +102,23 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 	],
 	expectedMarkdown:
 		'# Q3 Editor Project Plan\n' +
+		'\n' +
 		'Scope, milestones, and open risks for the next quarter.\n' +
 		'\n' +
 		'## Workstreams\n' +
+		'\n' +
 		'- Parser hardening\n' +
 		'  - Fuzz the block scanner\n' +
 		'- Selection rework and overlays\n' +
 		'\n' +
 		'## Milestones\n' +
+		'\n' +
 		'1. Freeze the CST node model\n' +
 		'   1. Land the schema seam\n' +
 		'2. Ship the plugin API\n' +
 		'\n' +
 		'## Release checklist\n' +
+		'\n' +
 		'- [x] Audit round-trip fixtures\n' +
 		'- [ ] Run the simulation suite\n' +
 		'- [ ] Tag the release branch\n' +
@@ -124,6 +128,7 @@ export const PROJECT_PLAN_NOTE: NoteFixture = {
 		'> so we sequence it after the schema seam lands.\n' +
 		'\n' +
 		'## Build snippet\n' +
+		'\n' +
 		'```\n' +
 		'npm run test:editor\n' +
 		'npm run test:e2e\n' +
