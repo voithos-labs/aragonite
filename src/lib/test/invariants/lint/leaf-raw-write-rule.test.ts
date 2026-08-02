@@ -1,15 +1,14 @@
 /**
  * A kind's own raw-write rule (`normalizeRawWrite`) reaches its bytes through two readers —
  * `writeOwnRaw` in place, `normalizeOwnRaw` for a sink that reparses the result — and every
- * sink writing a leaf's raw without the kind's surface calls one. Issues #45 and #55 were the
- * parity holes: the G4.24 funnel lint pinned the code SURFACE's write sites, so find-and-replace
- * and the delete truncations reached a fence through doors nothing watched. The site lists
- * below make sink N+1 a decision.
+ * sink writing a leaf's raw without the kind's surface calls one (issues #45, #55). The site
+ * lists make sink N+1 a decision; the sanctioned-writes arm makes a sink that names neither
+ * reader one too.
  */
 
 import { describe, it, expect } from 'vitest';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { collectEditorSources, stripComments } from './scan-source';
+import { collectEditorSources, rawAssignments, stripComments } from './scan-source';
 
 const SINK = 'src/lib/tree-operations/node-ops.ts';
 
@@ -95,7 +94,7 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
 	});
 
 	// Fails when a sink is wired in or unwired, making door N+1 an explicit decision. A bare
-	// `.raw =` write never names the reader and still escapes this scan.
+	// `.raw =` write names no reader; the sanctioned-writes arm below is what catches those.
 	it('exactly the documented sinks call the reader', () => {
 		expect(namesInCode(sources, READER)).toEqual(Object.keys(READER_SITES).sort());
 	});
@@ -108,6 +107,116 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
 		expect(namesInCode(sources, PRE_REPARSE_HELPER)).toEqual(
 			Object.keys(PRE_REPARSE_INHERITORS).sort()
 		);
+	});
+});
+
+// ── The bare write: a byte sink that names neither reader ────────────────────
+
+/**
+ * Files holding a `<node>.raw =` write that consults no kind rule, each with the count it is
+ * sanctioned for — a file-granular entry would let write N+1 in unnoticed. A sanctioned write
+ * either IS a kind re-emitting its own bytes, or cannot reach a kind that declares a rule.
+ */
+const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
+	[SINK]: {
+		count: 6,
+		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse or restores bytes the slot already held. The deep-leaf merge target is gated by `mergeRole`, which `fencedCode` declines'
+	},
+	'src/lib/schema/container-rebuilders.ts': {
+		count: 5,
+		why: 'the built-in containers re-emit their own bytes from their children (G4.20 arm 3 reads the same writes)'
+	},
+	'src/lib/core/directive/kinds.ts': { count: 1, why: "the directive container's own rebuildRaw" },
+	'src/lib/editor-actions/plugin/directive-container.ts': {
+		count: 1,
+		why: 'the titled-directive rebuildRaw factory'
+	},
+	'src/lib/plugins/admonitions/github-alert-kind.ts': {
+		count: 2,
+		why: "the alert's own rebuildRaw, empty-body and filled arms"
+	},
+	'src/lib/plugins/details/details-kind.ts': {
+		count: 1,
+		why: "the details container's rebuildRaw"
+	},
+	'src/lib/plugins/footnotes/footnote-definition.ts': {
+		count: 1,
+		why: "the definition's own rebuildRaw"
+	},
+	'src/lib/plugins/mermaid/mermaid-kind.ts': {
+		count: 1,
+		why: 'the mermaid leaf re-emits its fence from its own metadata — for its bytes, the kind IS the rule'
+	},
+	'examples/consumer/src/routes/dev-guard/dev-probe.ts': {
+		count: 1,
+		why: "the reference plugin's own rebuildRaw"
+	},
+	'src/lib/editor-actions/commit/undo-controller.ts': {
+		count: 1,
+		why: 'the rollback restores raws the tree already held; nothing new is minted'
+	},
+	'src/lib/selection/range-delete-ceremony.ts': {
+		count: 1,
+		why: 'the chrome-clear: a reserved-chrome slot, which no leaf kind declaring a rule can occupy'
+	},
+	'src/lib/selection/range-delete-chrome.ts': {
+		count: 2,
+		why: "both endpoints' chrome-clear arms, same reserved slot"
+	},
+	'src/lib/selection/range-delete-table.ts': {
+		count: 4,
+		why: 'two chrome-clear arms plus two cell clears; a cleared cell is empty, which `tableCell`’s own rule already returns unchanged'
+	},
+	'src/lib/tree-operations/list/reconcile-task.ts': {
+		count: 2,
+		why: "moves the task marker between the item's metadata and its first paragraph, kind-guarded to paragraph"
+	},
+	'src/lib/tree-operations/list/unwrap-merge.ts': {
+		count: 1,
+		why: 'the list-item merge target, which throws unless it is a paragraph'
+	},
+	'src/lib/tree-operations/list/terminator.ts': {
+		count: 1,
+		why: "appends the list's own line ending to the deepest leaf; an ending terminates a line rather than restructuring one"
+	},
+	'src/lib/tree-operations/paste/container-match.ts': {
+		count: 1,
+		why: "the last pasted item's leaf, gated to a paragraph by `hasSingleParagraphChild` — the merged target beside it routes through the reader, so the pair is asymmetric"
+	},
+	'src/lib/components/image/image-edit-commit.ts': {
+		count: 1,
+		why: 'rewrites the image link in its host paragraph; no kind declaring a rule renders image widgets (`fencedCode` carries no inline, `tableCell` no widgets)'
+	},
+	'src/lib/testing/container-conformance.ts': {
+		count: 3,
+		why: "the published kit's own fixture bytes, written into a throwaway parse"
+	}
+};
+
+const BARE_WRITE_RULE =
+	'a `<node>.raw =` write reaches a leaf’s bytes with no kind rule in front of it — the shape ' +
+	'issue #45 shipped through. Route it through `writeOwnRaw` (in place) or `normalizeOwnRaw` ' +
+	'(ahead of your own reparse), or add the file to BARE_RAW_WRITE_ALLOWLIST with its count and ' +
+	'the reason its writes cannot reach a kind that declares one';
+
+describe('every bare raw write is sanctioned', () => {
+	const writes = rawAssignments(collectEditorSources());
+
+	it('no file outside the sanctioned set writes a leaf’s raw directly', () => {
+		const unsanctioned = writes
+			.filter((w) => !(w.relPath in BARE_RAW_WRITE_ALLOWLIST))
+			.map((w) => w.relPath);
+		expect([...new Set(unsanctioned)], BARE_WRITE_RULE).toEqual([]);
+	});
+
+	it('each sanctioned file holds exactly the writes its entry accounts for', () => {
+		for (const [relPath, entry] of Object.entries(BARE_RAW_WRITE_ALLOWLIST)) {
+			const found = writes.filter((w) => w.relPath === relPath).length;
+			expect(
+				found,
+				`${relPath} holds ${found} bare raw writes, sanctioned for ${entry.count} — ${entry.why}`
+			).toBe(entry.count);
+		}
 	});
 });
 

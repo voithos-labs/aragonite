@@ -1,8 +1,8 @@
 /**
- * Shared primitives for the source-scan guards (G4.1, G4.2, G4.4): editor source off
- * disk, asserted against structural patterns the type system can't express.
- * Comment-stripping matters — an invariant is documented in comments naming the very
- * tokens its scan looks for, so a raw substring match would flag its own documentation.
+ * Shared primitives for the source-scan guards: editor source off disk, asserted against
+ * structural patterns the type system can't express. Comment-stripping matters — an
+ * invariant is documented in comments naming the very tokens its scan looks for, so a raw
+ * substring match would flag its own documentation.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -111,4 +111,51 @@ export function readEditorFile(relFromEditor: string): SourceFile {
 		text,
 		code: stripComments(text)
 	};
+}
+
+// ── Raw-write statements ─────────────────────────────────────────────────────
+
+/** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
+const MAX_STATEMENT_SPAN = 600;
+
+/**
+ * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and NOT at a
+ * newline: Prettier wraps exactly the long concatenations G4.20's literal arm reads, and
+ * stopping at the first newline truncates them to `.raw =` with no right-hand side in sight.
+ * G4.28 reads the same statements as its bare-write census.
+ */
+export function rawAssignments(
+	sources: SourceFile[]
+): Array<{ relPath: string; statement: string }> {
+	const out: Array<{ relPath: string; statement: string }> = [];
+	for (const f of sources) {
+		const re = /\.raw\s*\+?=(?!=)/g;
+		let m: RegExpExecArray | null;
+		while ((m = re.exec(f.code)) !== null) {
+			let depth = 0;
+			let quote: string | null = null;
+			const limit = Math.min(f.code.length, m.index + MAX_STATEMENT_SPAN);
+			let end = limit;
+			for (let i = m.index; i < limit; i++) {
+				const c = f.code[i];
+				if (quote) {
+					if (c === '\\') i++;
+					else if (c === quote) quote = null;
+					continue;
+				}
+				if (c === "'" || c === '"' || c === '`') quote = c;
+				else if (c === '(' || c === '[' || c === '{') depth++;
+				else if (c === ')' || c === ']' || c === '}') depth--;
+				else if (c === ';' && depth <= 0) {
+					end = i;
+					break;
+				} else if (c === '\n' && f.code[i + 1] === '\n' && depth <= 0) {
+					end = i;
+					break;
+				}
+			}
+			out.push({ relPath: f.relPath, statement: f.code.slice(m.index, end) });
+		}
+	}
+	return out;
 }

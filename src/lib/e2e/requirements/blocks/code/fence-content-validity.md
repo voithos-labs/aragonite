@@ -96,11 +96,13 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
   that they differ from what was typed or pasted — an embedding app cannot surface
   "we dropped a character your fence could not hold". An event for it is a
   freeze-surface decision, not this rule's to make.
-- **Bare `.raw =` writes escape every door.** `fencedCode` declares
-  `normalizeRawWrite`, so every sink that consults the hook reconciles — but a write
-  that assigns raw directly does not, and the G4.28 scan cannot see one. The bare writes
-  that remain (the chrome-clear and cell-clear arms of the delete branches) reach kinds
-  whose slots a `fencedCode` cannot occupy, so none of them can drop a closer today.
+- **Bare `.raw =` writes reconcile nothing, but no longer arrive unseen.** `fencedCode`
+  declares `normalizeRawWrite`, so every sink that consults the hook reconciles — a write
+  that assigns raw directly does not. G4.28 now takes a census of those writes across every
+  library source and holds each file to a sanctioned count, so write N+1 is a decision rather
+  than a hole. The sanctioned writes are the kinds' own rebuilders, the paragraph-guarded
+  merges, and the chrome-clear and cell-clear arms of the delete branches: none reaches a slot
+  a `fencedCode` can occupy, so none of them can drop a closer today.
 - **A bare fence's lone surviving line is read as the closer.** ` ``` ` with no info
   string reads as this block's opener and as its closer alike, so a write leaving only that
   line is ambiguous: a head-side truncation meant to keep an empty code block, a tail-side

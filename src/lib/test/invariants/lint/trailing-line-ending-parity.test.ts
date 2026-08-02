@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, type SourceFile } from './scan-source';
+import { collectEditorSources, rawAssignments, type SourceFile } from './scan-source';
 
 // ── Source extraction ────────────────────────────────────────────────────────
 
@@ -182,48 +182,6 @@ const TERNARY_RULE =
 	'copied from, and copy #13 dropped the CRLF arm four separate times';
 
 // ── Arm 5 support: the rule's domain ─────────────────────────────────────────
-
-/** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
-const MAX_STATEMENT_SPAN = 600;
-
-/**
- * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and NOT
- * at a newline: Prettier wraps exactly the long concatenations this arm exists to catch,
- * and stopping at the first newline truncates them to `.raw =` with no literal in sight.
- */
-function rawAssignments(sources: SourceFile[]): Array<{ relPath: string; statement: string }> {
-	const out: Array<{ relPath: string; statement: string }> = [];
-	for (const f of sources) {
-		const re = /\.raw\s*\+?=(?!=)/g;
-		let m: RegExpExecArray | null;
-		while ((m = re.exec(f.code)) !== null) {
-			let depth = 0;
-			let quote: string | null = null;
-			const limit = Math.min(f.code.length, m.index + MAX_STATEMENT_SPAN);
-			let end = limit;
-			for (let i = m.index; i < limit; i++) {
-				const c = f.code[i];
-				if (quote) {
-					if (c === '\\') i++;
-					else if (c === quote) quote = null;
-					continue;
-				}
-				if (c === "'" || c === '"' || c === '`') quote = c;
-				else if (c === '(' || c === '[' || c === '{') depth++;
-				else if (c === ')' || c === ']' || c === '}') depth--;
-				else if (c === ';' && depth <= 0) {
-					end = i;
-					break;
-				} else if (c === '\n' && f.code[i + 1] === '\n' && depth <= 0) {
-					end = i;
-					break;
-				}
-			}
-			out.push({ relPath: f.relPath, statement: f.code.slice(m.index, end) });
-		}
-	}
-	return out;
-}
 
 /**
  * Writes that legitimately mint a newline literal into a node's bytes. The count is part
