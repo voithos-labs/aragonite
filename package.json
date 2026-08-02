@@ -1,7 +1,7 @@
 {
 	"name": "aragonite",
 	"version": "0.9.35",
-	"description": "CST block editor for GFM Markdown",
+	"description": "Svelte 5 block editor for GFM Markdown with byte-for-byte lossless round-trip and a plugin platform",
 	"keywords": [
 		"markdown",
 		"gfm",
@@ -10,7 +10,12 @@
 		"wysiwyg",
 		"contenteditable",
 		"syntax-tree",
-		"svelte"
+		"svelte",
+		"markdown-editor",
+		"lossless",
+		"plugin",
+		"commonmark",
+		"svelte5"
 	],
 	"homepage": "https://github.com/voithos-labs/aragonite#readme",
 	"bugs": {
@@ -91,10 +96,13 @@
 			"svelte": "./dist/testing.js",
 			"default": "./dist/testing.js"
 		},
-		"./styles/editor-theme.css": "./dist/styles/editor-theme.css"
+		"./styles/editor-theme.css": "./dist/styles/editor-theme.css",
+		"./package.json": "./package.json"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"docs/guide",
+		"LICENSE-THIRD-PARTY.md"
 	],
 	"sideEffects": [
 		"**/*.css",

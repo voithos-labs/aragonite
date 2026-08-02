@@ -2,6 +2,7 @@
  * Delimiter runs (`*` `_` `~`) and CommonMark §6.2 phase 2 matching: a faithful port of
  * commonmark.js 0.31.2 processEmphasis (openers_bottom, odd-match on original run lengths,
  * closer re-use). The reference's two linked lists are overlays here, not pointers on the nodes.
+ * commonmark.js is (c) 2014 John MacFarlane, BSD-2-Clause; see LICENSE-THIRD-PARTY.md.
  */
 
 import type { InlineNode } from '../../nodes';
