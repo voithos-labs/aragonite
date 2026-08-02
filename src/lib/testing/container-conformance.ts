@@ -526,13 +526,22 @@ export function checkTerminatorCollision(
 
 /**
  * Hold the kind to its schema declarations. A declared `unwrapRole` must name implemented
- * strategies because the nested dispatcher indexes them unguarded.
+ * strategies because the nested dispatcher indexes them unguarded, and a capability whose only
+ * job is a cell's repair may not ship behind that cell's excuse.
  */
 export function checkDeclarationSanity(
 	kind: AnyBlockKind,
 	profile: ContainerConformanceProfile
 ): void {
 	const descriptor = getBlockKindDescriptor(kind);
+
+	if (descriptor.bodyWrite && profile.terminatorCollision.mode !== 'assert') {
+		fail(
+			`${kind} declares container.bodyWrite but its profile marks terminatorCollision ` +
+				`"${profile.terminatorCollision.mode}" — the rule exists only to repair that collision, ` +
+				`so assert the cell with a fixture whose body reproduces the terminator`
+		);
+	}
 
 	const role = descriptor.unwrapRole;
 	if (role) {
@@ -576,11 +585,24 @@ export function checkDeclarationSanity(
  * on reload (`tree-operations/node-ops.clearRedundantSeparator`).
  */
 function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
+	if (descriptor.containerContract === 'grid') return;
 	const fixture = descriptor.conformanceFixture;
-	if (!fixture || descriptor.containerContract === 'grid') return;
-	// The probe rebuilds and reparses the node's own raw, so it needs the kind at the top level.
+	if (fixture === undefined) {
+		fail(
+			`${kind} declares no conformanceFixture, so the bodyWrap probe cannot run — it asserts ` +
+				`the declaration in both directions, so every non-grid container needs a fixture ` +
+				`whose top level opens a "${kind}" carrying a body`
+		);
+	}
 	const node = parse(fixture).children.find((child) => child.kind === kind);
-	if (!node?.children?.length) return;
+	// A kind that never parses at the top level (listItem) has no node of its own to rebuild
+	// and reparse, and the parser hands it no innerPrefix to peel.
+	if (!node) return;
+	assert(
+		node.children?.length,
+		`${kind} conformanceFixture opens a "${kind}" with no body child, leaving its ` +
+			`container.bodyWrap declaration unprobed`
+	);
 
 	const expected = node.children.length;
 	const ending = trailingLineEnding(node.raw) || '\n';

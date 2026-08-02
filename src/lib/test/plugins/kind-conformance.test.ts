@@ -212,6 +212,35 @@ describe('kind conformance — a broken plugin registration fails', () => {
 		await expect(runKindConformance(MEMO_KIND())).rejects.toThrow(/finds no match/);
 	});
 
+	// The kit drives the fixture's FIRST block as the subject (undo deletes it, the
+	// byte-slice copy sweeps from it), so a kind parked under a later one leaves the undo
+	// cell deleting a bystander and reporting `executed`.
+	it('rejects a conformanceFixture whose kind is not under the first block', async () => {
+		registerAdmonitions();
+		const alert = declaredPluginKind(GITHUB_ALERT);
+		augmentBlockKind(alert, {
+			conformanceFixture: 'lead paragraph\n\n> > [!NOTE]\n> > Heads up.\n'
+		});
+
+		await expect(runKindConformance(alert)).rejects.toThrow(
+			/conformanceFixture must open with the "githubAlert" block/
+		);
+	});
+
+	// The undo cell's trailing sentinel must parse as its OWN block: a fixture running to
+	// EOF swallows it, and deleting the doc's only block still pushes one entry.
+	it('rejects a conformanceFixture that swallows the undo cell sentinel', async () => {
+		registerMermaidKind();
+		const kind = declaredPluginKind(MERMAID);
+		const closure = getBlockKindDescriptor(kind).closure;
+		augmentBlockKind(kind, {
+			conformanceFixture: '```mermaid\ngraph TD\n',
+			closure: { ...closure, undo: { mode: 'inherit-default' } }
+		});
+
+		await expect(runKindConformance(kind)).rejects.toThrow(/trailing sentinel/);
+	});
+
 	// Parity with the container kit's `assertExemptionDocumented`: an exempt cell must
 	// carry a substantive reason, never a one-word placeholder that documents nothing.
 	it('rejects an exempt cell whose declared reason is not substantive', async () => {
