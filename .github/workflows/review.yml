@@ -71,7 +71,7 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       # issue_comment runs on the default branch; check out the PR head so the agent
@@ -89,7 +89,7 @@ jobs:
         run: |
           git config --local --unset-all 'http.https://github.com/.extraheader' || true
           ! grep -qi 'extraheader' .git/config
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1.0.183
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
