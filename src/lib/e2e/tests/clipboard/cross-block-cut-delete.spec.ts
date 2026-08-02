@@ -22,6 +22,20 @@ test.describe('cross-block clipboard: cut', () => {
 		expect(source).toContain('aaa');
 	});
 
+	// Issue #60: a cut whose selection opens at a block's first character kept the survivor but
+	// dropped the blank line above it, so the reload glued it to the block above.
+	test('Ctrl+X from a block start keeps the blank line above the survivor', async () => {
+		await editor.loadContent('alpha\n\nbravo\n\ncharlie\n');
+		await editor.dragFromTo([1], 0, [2], 4);
+		await editor.waitForCrossBlock(true);
+		await editor.page.keyboard.press('Control+x');
+		await editor.bridge.waitForSourceEquals('alpha\n\nlie\n');
+
+		// The symptom was a reload artifact: the bytes reparse as ONE paragraph without it.
+		await editor.loadContent(await editor.bridge.getSource());
+		expect(await editor.getDomBlockCount()).toBe(2);
+	});
+
 	test('Ctrl+X then undo restores original document', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();

@@ -141,9 +141,9 @@ describe('chrome wall — rangeDelete post-states', () => {
 			'paragraph'
 		]);
 		expect(doc.children[1].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'Body2\n']);
-		// The placeholder survives the reload only because the separator freed above it became
-		// the wrap's own line: `innerPrefix` is what the `:::` peel eats.
-		expect(doc.children[1].innerPrefix).toBe('\n');
+		// The placeholder survives the reload only because a second blank line stands below it:
+		// the `:::` peel eats the first one, and the follower's separator is that second line.
+		expect(doc.children[1].children?.map((c) => c.leadingTrivia)).toEqual(['', '', '\n']);
 		expectParseConverged(doc);
 	});
 

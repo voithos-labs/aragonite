@@ -417,6 +417,23 @@ export function clearRedundantSeparator(
 	absorbWrapPrefix(parent, bodyStart, index, freed);
 }
 
+/**
+ * A blank block IS a blank line, so it and its follower share ONE separator: two of them reload
+ * as a second empty paragraph (G2.13). The follower's is the one that stands, so a later fill of
+ * this slot (a paste over a cut range) still finds the follower separated.
+ */
+export function dropDoubledSeparator(
+	parent: SeparatorParent,
+	index: number,
+	sharing?: SharingState
+): void {
+	const node = parent.children?.[index];
+	if (!node || node.leadingTrivia === '' || !isBlankParagraph(node)) return;
+	if ((parent.children?.[index + 1]?.leadingTrivia ?? '') === '') return;
+	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, index, sharing) : node;
+	owned.leadingTrivia = '';
+}
+
 /** A container's children plus the two fields the settle reads; the Document has neither. */
 type SeparatorParent = { kind?: string; innerPrefix?: string; children?: CstNode[] };
 

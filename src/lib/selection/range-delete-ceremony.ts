@@ -9,6 +9,8 @@ import type { GrammarView } from '../schema/block-openers';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
+import { parse } from '../core/parser';
+import { trailingLineEnding } from '../core/lines';
 import { walkBetween } from './primitives';
 import {
 	comparePaths,
@@ -20,7 +22,13 @@ import {
 } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
-import { clearRedundantSeparator, nodeAt } from '../tree-operations/node-ops';
+import {
+	clearRedundantSeparator,
+	dropDoubledSeparator,
+	emptyParagraph,
+	nodeAt,
+	normalizeOwnRaw
+} from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
 	rebuildUnsharedAncestry,
@@ -68,9 +76,26 @@ export function deleteSubtreesIdentityGated(
 }
 
 /**
- * Install a truncated endpoint's replacement and settle the follower's separator: a truncation
- * that leaves a blank block otherwise turns the follower's separator into one more blank line
- * on reload (G2.13). Every endpoint-install site routes here; `sharing` owns the writes.
+ * Reparse the bytes surviving at an endpoint's slot, through the source kind's own write rule:
+ * the reparse re-derives metadata from bytes, so structure the truncation dropped and the rule
+ * restores (a fence closer) has to land before it. The slot's leading trivia rides across, and
+ * an empty slice gives a bare paragraph, on the source block's line ending (G4.20).
+ */
+export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[] {
+	const lineEnding = trailingLineEnding(node.raw);
+	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, { scope: 'fragment' });
+	if (reparsed.children.length === 0) {
+		return [emptyParagraph(node.leadingTrivia, lineEnding)];
+	}
+	const cloned = reparsed.children.slice();
+	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
+	return cloned;
+}
+
+/**
+ * Install an endpoint's replacement and settle the separator it now shares with its follower: a
+ * truncation that leaves a blank block otherwise reloads with one more blank line (G2.13). Every
+ * endpoint-install site routes here; `sharing` owns the writes.
  */
 export function installTruncatedEndpoint(
 	doc: Document,
@@ -82,7 +107,7 @@ export function installTruncatedEndpoint(
 	replaceAtPath(doc, path, replacement);
 	const parent = nodeAt(doc, path.slice(0, -1));
 	if (parent) {
-		clearRedundantSeparator(parent, path[path.length - 1] + replacement.length, sharing);
+		dropDoubledSeparator(parent, path[path.length - 1] + replacement.length - 1, sharing);
 	}
 }
 

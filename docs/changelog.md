@@ -87,6 +87,15 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   repaired across the range-delete arms (same-block, cross-block merge, the container wall, a
   table endpoint) and through find/replace.
 
+- **A cross-block delete no longer glues its survivor to the block above.** Deleting a selection
+  that ran from one block into a later one kept the merged text but dropped the blank line
+  separating it from the block above, so the session showed two blocks and the next load showed
+  one paragraph. The merged survivor now inherits its slot's separator, the way the container-wall
+  and table endpoints already did, so every gesture riding that delete (Backspace, Delete, cut,
+  typing over a selection, paste, IME) is covered at once. The same install settles the single
+  separator a blank survivor and its follower share, so a fully emptied block still reloads as a
+  block instead of dissolving into the document's trailing whitespace.
+
 - **Find-and-replace and cross-block edits no longer split a code block.** A replacement or a
   delete that lands a fence run on a body line now grows the block's fence instead of
   terminating it, and a backtick reaching a backtick fence's info string is dropped rather than
