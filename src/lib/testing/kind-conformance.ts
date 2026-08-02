@@ -134,6 +134,15 @@ function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): Kind
 	if (!nodePath) {
 		fail(`kind conformance failed for "${kind}": conformanceFixture parses to no "${kind}" node`);
 	}
+	// The one place every executor receives the fixture, so the position contract they drive
+	// `doc.children[0]` on (undo deletes it, the byte-slice copy sweeps from it) is settled here.
+	if (nodePath[0] !== 0) {
+		fail(
+			`kind conformance failed for "${kind}": conformanceFixture must open with the "${kind}" ` +
+				`block (found under top-level index ${nodePath[0]}) — the kit drives the fixture's first ` +
+				`block and rides its own sentinel beside it`
+		);
+	}
 	return { kind, descriptor, fixture, doc, node: nodeAtPath(doc, nodePath), nodePath };
 }
 
@@ -316,8 +325,12 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 			detail: `no conformanceFixture — undo depth runs in the ${BROWSER_SWEEP}`
 		};
 
-	// The trailing sentinel guarantees a second block to delete.
 	const doc = parse(ctx.fixture + '\n\nundo sentinel\n');
+	assert(
+		doc.children.length > 1,
+		`the kit's trailing sentinel parses beside the "${ctx.kind}" fixture rather than being ` +
+			`swallowed by it, so there is a second block to delete`
+	);
 	const { deps } = createHeadlessActions(doc.children);
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);

@@ -153,6 +153,30 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 		).rejects.toThrow(/ancestry: "callout" is on the leaf's ancestry/);
 	});
 
+	// `bodyWrite` exists only to repair a terminator collision, so a profile excusing that
+	// cell ships the repair unprobed behind a reason that reads reviewed.
+	it('fails declaration sanity when bodyWrite ships with an excused terminatorCollision cell', async () => {
+		await expect(
+			runContainerConformance(DETAILS_KIND(), {
+				...detailsProfile,
+				terminatorCollision: {
+					mode: 'boundary',
+					reason: 'red-test bait: excusing the one cell that drives the bodyWrite repair'
+				}
+			})
+		).rejects.toThrow(/declarations: details declares container\.bodyWrite/);
+	});
+
+	// The bodyWrap probe reads the descriptor's OWN fixture, so a container carrying none
+	// leaves the declaration unprobed while the cell still reports asserted.
+	it('fails declaration sanity when the container carries no conformanceFixture', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: undefined });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout declares no conformanceFixture/
+		);
+	});
+
 	it('refuses an exempt cell whose reason is not substantive', async () => {
 		await expect(
 			runContainerConformance(CALLOUT_KIND(), {
