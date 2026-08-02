@@ -21,7 +21,7 @@ import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { applyPasteTransforms } from './paste-transforms';
-import { pickPasteStrategy } from './strategy';
+import { contentBlocks, pickPasteStrategy } from './strategy';
 
 export type PasteStrategy = 'inline' | 'structural';
 
@@ -125,7 +125,8 @@ export async function pasteDispatch(
 			`— falling through to default hooks. Register via registerPasteSurface() if this kind has its own paste semantics.`
 		);
 	}
-	const clipboardStrategy = pickPasteStrategy(parsed);
+	const blocks = surface?.blankEdgesArePackaging ? contentBlocks(parsed.children) : parsed.children;
+	const clipboardStrategy = pickPasteStrategy(blocks);
 
 	// A surface omitting both structural hooks (code blocks) forces paste inline, so its
 	// markdown stays verbatim.
@@ -139,7 +140,7 @@ export async function pasteDispatch(
 		await surface.onScopedStructuralPaste({
 			doc: ctx.doc,
 			targetPath: input.targetPath,
-			blocks: parsed.children,
+			blocks: blocks.slice(),
 			controller: ctx.controller,
 			undoEntry: ctx.undoEntry ?? 'own'
 		});
@@ -154,7 +155,7 @@ export async function pasteDispatch(
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, parsed.children, input.preDelete);
+	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete);
 	await applyStructuralResult(input.targetPath, result, ctx);
 	return {};
 }

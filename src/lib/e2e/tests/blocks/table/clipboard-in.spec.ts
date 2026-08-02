@@ -36,10 +36,12 @@ test.describe('table block: paste in', () => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(3).click();
 		await page.keyboard.press('Home');
-		// Single-paragraph clipboard (no blank-line separator) keeps the inline path.
+		// One content paragraph: the blank lines the copy wrapped around it are packaging, so the
+		// cell keeps the inline path rather than breaking the table around them.
 		await page.evaluate(() => navigator.clipboard.writeText('  \nhello\nworld\n  '));
 		await page.keyboard.press('Control+v');
 		await editor.bridge.waitForSourceContains('| 1 | hello world2 |');
+		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 
 	// ── Structural ──────────────────────────────────────────────────────

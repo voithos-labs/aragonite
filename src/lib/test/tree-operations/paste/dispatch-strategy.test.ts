@@ -5,6 +5,7 @@ import {
 	defaultInlineHook,
 	defaultStructuralHook
 } from '../../../tree-operations/paste/dispatch';
+import { contentBlocks } from '../../../tree-operations/paste/strategy';
 import { parse } from '../../../core/parser';
 import type { CstNode } from '../../../core/nodes';
 
@@ -12,30 +13,48 @@ function makePara(raw: string): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw };
 }
 
+const blocksOf = (source: string) => parse(source).children;
+
 describe('paste-dispatch — strategy selection', () => {
 	it('picks inline for a single-paragraph clipboard', () => {
-		const parsed = parse('just some text\n');
-		expect(pickPasteStrategy(parsed)).toBe('inline');
+		expect(pickPasteStrategy(blocksOf('just some text\n'))).toBe('inline');
 	});
 
 	it('picks structural for multiple paragraphs', () => {
-		const parsed = parse('para one\n\npara two\n');
-		expect(pickPasteStrategy(parsed)).toBe('structural');
+		expect(pickPasteStrategy(blocksOf('para one\n\npara two\n'))).toBe('structural');
 	});
 
-	it('picks structural for a single heading', () => {
-		const parsed = parse('# just a heading\n');
-		expect(pickPasteStrategy(parsed)).toBe('structural');
+	it.each(['# just a heading\n', '- just an item\n', '```\ncode\n```\n'])(
+		'picks structural for %j',
+		(source) => {
+			expect(pickPasteStrategy(blocksOf(source))).toBe('structural');
+		}
+	);
+});
+
+// A surface holding no blocks classifies past the copy's packaging; every other target reads the
+// clipboard whole, which is what keeps a pasted blank run a blank run in prose.
+describe('paste-dispatch — the clipboard’s content blocks', () => {
+	const WRAPPED = '  \nhello\nworld\n  ';
+
+	it('drops the blank blocks a copy wrapped around one paragraph', () => {
+		expect(pickPasteStrategy(contentBlocks(blocksOf(WRAPPED)))).toBe('inline');
 	});
 
-	it('picks structural for a single list', () => {
-		const parsed = parse('- just an item\n');
-		expect(pickPasteStrategy(parsed)).toBe('structural');
+	it('leaves that same clipboard structural for a target reading it whole', () => {
+		expect(pickPasteStrategy(blocksOf(WRAPPED))).toBe('structural');
 	});
 
-	it('picks structural for a single code block', () => {
-		const parsed = parse('```\ncode\n```\n');
-		expect(pickPasteStrategy(parsed)).toBe('structural');
+	it('keeps two content blocks structural', () => {
+		expect(pickPasteStrategy(contentBlocks(blocksOf('a\n\nb\n')))).toBe('structural');
+	});
+
+	it('keeps a single non-paragraph content block structural', () => {
+		expect(pickPasteStrategy(contentBlocks(blocksOf('  \n# Hello\n  ')))).toBe('structural');
+	});
+
+	it('picks inline for packaging alone, so a whitespace paste splices no blocks', () => {
+		expect(pickPasteStrategy(contentBlocks(blocksOf('\n\n\n')))).toBe('inline');
 	});
 });
 
