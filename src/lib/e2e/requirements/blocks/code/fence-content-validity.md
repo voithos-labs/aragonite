@@ -166,3 +166,9 @@ sat at two of the block's ten commit sites, and both reproduce the same corrupti
   decline on a stranded closer read as a deliberate limit rather than as half a rule; and
   an end-side pin would have reached no fence rule at all, since the generic merge
   normalized the joined raw against the START block's rule alone (issue #58).
+
+- The typed-closer case kept a pre-materialization byte expectation (a lone blank line was
+  document prefix, so it rode along above the typed block) for the whole 0.9.36 stream: the
+  sweep that followed blank lines into blocks picked its e2e projects by the files it
+  touched, and this one names no blank line in its fixture. The byte claim now has a tree
+  pin (`typed-blank-lines-reload.test.ts`), which runs in every unit pass.
