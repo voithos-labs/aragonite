@@ -1,6 +1,10 @@
+<script lang="ts">
+	import { DRAG_HANDLE_TITLE } from '../a11y-strings';
+</script>
+
 <!-- aria-hidden + non-focusable: keyboard reorder (Alt+Arrow) is the operable,
 	screen-reader-visible path, so this mouse-only grip stays out of the tab/SR flow. -->
-<span class="block-drag-handle" aria-hidden="true" title="Drag to reorder — or Alt+↑ / Alt+↓">
+<span class="block-drag-handle" aria-hidden="true" title={DRAG_HANDLE_TITLE}>
 	<span class="grip"><span class="dots"></span></span>
 </span>
 

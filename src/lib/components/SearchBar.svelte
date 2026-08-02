@@ -1,6 +1,20 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { EDITOR_SERVICES_KEY, type EditorServices } from '../editor-keys';
+	import {
+		SEARCH_CLOSE_LABEL,
+		SEARCH_CLOSE_TITLE,
+		SEARCH_FIND,
+		SEARCH_MATCH_CASE,
+		SEARCH_NEXT_LABEL,
+		SEARCH_NEXT_TITLE,
+		SEARCH_PREVIOUS_LABEL,
+		SEARCH_PREVIOUS_TITLE,
+		SEARCH_REGEX,
+		SEARCH_REPLACE,
+		SEARCH_TOGGLE_REPLACE,
+		SEARCH_WHOLE_WORD
+	} from '../a11y-strings';
 
 	// `replaceExpanded` is owned by Editor so the root Ctrl+H shortcut and the
 	// chevron share one source of truth; the chevron reports toggles back up.
@@ -47,26 +61,26 @@
 				type="button"
 				class="search-chevron"
 				class:on={replaceExpanded}
-				title="Toggle replace"
-				aria-label="Toggle replace"
+				title={SEARCH_TOGGLE_REPLACE}
+				aria-label={SEARCH_TOGGLE_REPLACE}
 				aria-expanded={replaceExpanded}
 				onclick={() => onToggleReplace?.()}>›</button
 			>
 			<input
 				bind:this={findInput}
 				class="search-input"
-				placeholder="Find"
+				placeholder={SEARCH_FIND}
 				value={search.query}
 				oninput={(e) => search.setQuery(e.currentTarget.value)}
 				onkeydown={onFindKeydown}
-				aria-label="Find"
+				aria-label={SEARCH_FIND}
 			/>
 			<button
 				type="button"
 				class="search-tog"
 				class:on={search.options.caseSensitive}
-				title="Match case"
-				aria-label="Match case"
+				title={SEARCH_MATCH_CASE}
+				aria-label={SEARCH_MATCH_CASE}
 				aria-pressed={search.options.caseSensitive}
 				onclick={() => search.setOptions({ caseSensitive: !search.options.caseSensitive })}
 				>Aa</button
@@ -75,8 +89,8 @@
 				type="button"
 				class="search-tog"
 				class:on={search.options.wholeWord}
-				title="Whole word"
-				aria-label="Whole word"
+				title={SEARCH_WHOLE_WORD}
+				aria-label={SEARCH_WHOLE_WORD}
 				aria-pressed={search.options.wholeWord}
 				onclick={() => search.setOptions({ wholeWord: !search.options.wholeWord })}>W</button
 			>
@@ -84,8 +98,8 @@
 				type="button"
 				class="search-tog"
 				class:on={search.options.regex}
-				title="Regex"
-				aria-label="Regex"
+				title={SEARCH_REGEX}
+				aria-label={SEARCH_REGEX}
 				aria-pressed={search.options.regex}
 				onclick={() => search.setOptions({ regex: !search.options.regex })}>.*</button
 			>
@@ -105,22 +119,22 @@
 			<button
 				type="button"
 				class="search-nav"
-				title="Previous"
-				aria-label="Previous match"
+				title={SEARCH_PREVIOUS_TITLE}
+				aria-label={SEARCH_PREVIOUS_LABEL}
 				onclick={() => search.prev()}>‹</button
 			>
 			<button
 				type="button"
 				class="search-nav"
-				title="Next"
-				aria-label="Next match"
+				title={SEARCH_NEXT_TITLE}
+				aria-label={SEARCH_NEXT_LABEL}
 				onclick={() => search.next()}>›</button
 			>
 			<button
 				type="button"
 				class="search-x"
-				title="Close"
-				aria-label="Close search"
+				title={SEARCH_CLOSE_TITLE}
+				aria-label={SEARCH_CLOSE_LABEL}
 				onclick={() => search.close()}>✕</button
 			>
 		</div>
@@ -128,11 +142,11 @@
 			<div class="search-row">
 				<input
 					class="search-input"
-					placeholder="Replace"
+					placeholder={SEARCH_REPLACE}
 					value={search.replacement}
 					oninput={(e) => search.setReplacement(e.currentTarget.value)}
 					onkeydown={onReplaceKeydown}
-					aria-label="Replace"
+					aria-label={SEARCH_REPLACE}
 				/>
 				<button type="button" class="search-btn" onclick={() => search.replaceCurrent()}
 					>Replace</button
