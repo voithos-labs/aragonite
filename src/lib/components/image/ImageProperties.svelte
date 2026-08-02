@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { ImageFields } from '../../core/nodes';
 	import type { WidgetTarget } from './widget-selection-state.svelte';
+	import { IMAGE_PROPERTIES_LABEL } from '../../a11y-strings';
 
 	let {
 		target,
@@ -86,7 +87,7 @@
 	bind:this={popoverEl}
 	class="md-image-properties"
 	role="dialog"
-	aria-label="Image properties"
+	aria-label={IMAGE_PROPERTIES_LABEL}
 	tabindex="-1"
 	onkeydown={handleKeyDown}
 >

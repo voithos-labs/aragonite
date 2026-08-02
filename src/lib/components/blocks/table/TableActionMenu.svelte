@@ -5,6 +5,13 @@
 		type ClipboardAction
 	} from './table-menu-model';
 	import type { TableAxisAction } from '../../../action-contracts';
+	import {
+		ALIGN_CENTER,
+		ALIGN_LEFT,
+		ALIGN_RIGHT,
+		COLUMN_ALIGNMENT,
+		TABLE_ACTIONS
+	} from '../../../a11y-strings';
 
 	let {
 		items,
@@ -141,9 +148,9 @@
 	// 'none' renders identically to 'left', so the left segment reads active for both.
 	// Visible text stays L/C/R; the accessible name carries the full word.
 	const alignmentSegments = [
-		{ value: 'left', label: 'L', name: 'Left' },
-		{ value: 'center', label: 'C', name: 'Center' },
-		{ value: 'right', label: 'R', name: 'Right' }
+		{ value: 'left', label: 'L', name: ALIGN_LEFT },
+		{ value: 'center', label: 'C', name: ALIGN_CENTER },
+		{ value: 'right', label: 'R', name: ALIGN_RIGHT }
 	] as const;
 </script>
 
@@ -151,7 +158,7 @@
 	bind:this={menuEl}
 	class="table-action-menu"
 	role="menu"
-	aria-label="Table actions"
+	aria-label={TABLE_ACTIONS}
 	tabindex="-1"
 	style:left="{clamped ? clamped.x : x}px"
 	style:top="{clamped ? clamped.y : y}px"
@@ -177,7 +184,7 @@
 		{:else if item.kind === 'separator'}
 			<div class="table-action-menu-separator" role="separator"></div>
 		{:else}
-			<div class="table-action-menu-alignment" role="group" aria-label="Column alignment">
+			<div class="table-action-menu-alignment" role="group" aria-label={COLUMN_ALIGNMENT}>
 				{#each alignmentSegments as seg (seg.value)}
 					{@const active =
 						item.current === seg.value || (seg.value === 'left' && item.current === 'none')}
