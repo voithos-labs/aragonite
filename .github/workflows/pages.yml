@@ -1,0 +1,50 @@
+name: Pages
+# Manual only: the repo is private until the flip, and the runbook fires the
+# first deploy by hand. A push trigger belongs here once the site is public.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One live site, so deploys serialize; cancelling one half-published is worse
+# than queueing it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+# Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The project page serves from a subdirectory, so every URL the build bakes in
+      # has to carry that prefix.
+      - run: npm run build
+        env:
+          BASE_PATH: /aragonite
+      # Pages answers any path it has no file for with 404.html. The SPA fallback
+      # has to be that page too, or a deep link (/aragonite/changelog) dead-ends.
+      - run: cp build/index.html build/404.html
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
