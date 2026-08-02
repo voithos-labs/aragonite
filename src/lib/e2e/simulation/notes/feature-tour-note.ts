@@ -102,29 +102,35 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 	],
 	expectedMarkdown:
 		'# Inline Feature Tour\n' +
+		'\n' +
 		'This tour walks through **bold**, *italic*, and ***bold-italic*** text, plus `inline code` and an [opening link](https://example.com/start).\n' +
 		'\n' +
 		'## Emphasis and code\n' +
+		'\n' +
 		'Mix **strong claims** with *soft asides*; combine them as ***both at once*** when a point needs weight.\n' +
 		'\n' +
 		'Call `render()` then `commit()`, and cross out ~~the deprecated path~~ or ~the single flag~ so readers skip it.\n' +
 		'\n' +
 		'## Links and autolinks\n' +
+		'\n' +
 		'See the [guide](https://example.com/guide) and the [API notes](https://example.com/api) for details.\n' +
 		'\n' +
 		'Bare links autolink too: visit https://example.com/raw or email us at team@example.com directly.\n' +
 		'\n' +
 		'## Entities and escapes\n' +
+		'\n' +
 		'Footer reads &copy; 2026 &mdash; all rights reserved, and the contraction it&#39;s renders cleanly.\n' +
 		'\n' +
 		'To show literal markup, escape it: \\*not italic\\*, \\[not a link\\], and a backtick \\` stays plain.\n' +
 		'\n' +
 		'## Quick lists\n' +
+		'\n' +
 		'- **Skim** the headings first\n' +
 		'- Read the *examples* next\n' +
 		'- Try the `snippets` last\n' +
 		'\n' +
 		'## Reading order\n' +
+		'\n' +
 		'1. Open the [guide](https://example.com/guide)\n' +
 		'2. Run every code sample once\n' +
 		'3. Note anything ~~unclear~~ confusing\n' +
@@ -132,6 +138,7 @@ export const FEATURE_TOUR_NOTE: NoteFixture = {
 		'That closes the tour.\n' +
 		'\n' +
 		'## A hard break\n' +
+		'\n' +
 		'First half of the thought,\\\n' +
 		'and the second half on its own visible line.\n'
 };
