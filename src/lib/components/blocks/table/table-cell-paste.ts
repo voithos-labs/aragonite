@@ -59,6 +59,7 @@ export function tableCellInlinePaste(
 
 export const tableCellPasteSurface: PasteSurface = {
 	kind: 'tableCell',
+	blankEdgesArePackaging: true,
 	onInlinePaste: tableCellInlinePaste,
 	onScopedStructuralPaste: tableCellScopedStructuralPaste
 };

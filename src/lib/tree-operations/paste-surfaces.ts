@@ -33,6 +33,11 @@ export interface ScopedStructuralPasteInput {
 
 export interface PasteSurface {
 	kind: AnyBlockKind;
+	/**
+	 * This surface holds text, never blocks (a table cell), so a blank block at the clipboard's
+	 * edge is the copy's packaging: it neither picks the route nor lands in a structural splice.
+	 */
+	blankEdgesArePackaging?: boolean;
 	/** Splice `text` into `node` at `offset` (optionally pre-deleting a range). Pure. */
 	onInlinePaste?(
 		node: CstNode,

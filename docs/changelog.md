@@ -95,6 +95,15 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   repaired across the range-delete arms (same-block, cross-block merge, the container wall, a
   table endpoint) and through find/replace.
 
+- **Pasting into a table cell no longer splits the table when the text carries blank edge
+  lines.** A copy that picked up an empty line above or below its text (a selection dragged past
+  the paragraph's edges is the usual way) read as several blocks, and a cell holds no blocks, so
+  the paste broke the table around the row instead of dropping the text into the cell. Blank
+  blocks at a clipboard's edges are packaging now, not content: a cell classifies by what is
+  left, so one paragraph flattens into the cell as any other text does, while two content blocks
+  or a single non-paragraph block still break the table at the paste row. Prose targets read the
+  clipboard whole, so a pasted blank run is still a blank run.
+
 - **A cross-block delete no longer glues its survivor to the block above.** Deleting a selection
   that ran from one block into a later one kept the merged text but dropped the blank line
   separating it from the block above, so the session showed two blocks and the next load showed
