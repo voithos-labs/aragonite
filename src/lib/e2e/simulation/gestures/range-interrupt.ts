@@ -23,6 +23,7 @@ export type RangeInterruptGesture =
 	| 'dead-space-below'
 	| 'dead-space-below-table'
 	| 'dead-space-margin'
+	| 'place-caret-at-point'
 	| 'image-click'
 	| 'drag-handle-press'
 	| 'escape'
@@ -50,6 +51,9 @@ const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	// are contiguous inside its ancestors' raw — see `predict`.
 	'dead-space-below-table': { consumes: 'caret', build: 'select-all', act: clickBelowLastBlock },
 	'dead-space-margin': { consumes: 'caret', build: 'select-all', act: clickInRightMargin },
+	// The consumer door onto the same landing: no press and no click target in front of it,
+	// so it reaches the range-ending preamble by its own route.
+	'place-caret-at-point': { consumes: 'caret', build: 'select-all', act: placeCaretBelowDocument },
 	'image-click': { consumes: 'block', build: 'select-all', act: clickImageWidget },
 	'drag-handle-press': { consumes: 'range', build: 'prose-range', act: pressDragHandle },
 	// The one caret-pinned gesture on a prose range: Escape collapses to the ANCHOR, and a
@@ -267,12 +271,33 @@ async function editorBox(ctx: SimContext): Promise<{ left: number; right: number
 
 async function clickBelowLastBlock(ctx: SimContext): Promise<undefined> {
 	const root = await editorBox(ctx);
-	const bottom = await ctx.page.evaluate(() => {
+	await ctx.page.mouse.click(root.left + 40, (await lastBlockBottom(ctx)) + 30);
+	return undefined;
+}
+
+/**
+ * The public `placeCaretAtPoint`, called as a host shell owning chrome below the document
+ * calls it. A programmatic call on purpose: the API is the door under test, not a shortcut
+ * around a gesture, and a false answer means it placed nothing to type into.
+ */
+async function placeCaretBelowDocument(ctx: SimContext): Promise<undefined> {
+	const root = await editorBox(ctx);
+	const point = { x: root.left + 40, y: (await lastBlockBottom(ctx)) + 30 };
+	const placed = await ctx.page.evaluate(
+		(p) => (window as any).__test.placeCaretAtPoint(p.x, p.y) as boolean,
+		point
+	);
+	if (!placed) {
+		throw new Error(`[${ctx.label}] placeCaretAtPoint declined the point below the document`);
+	}
+	return undefined;
+}
+
+async function lastBlockBottom(ctx: SimContext): Promise<number> {
+	return ctx.page.evaluate(() => {
 		const blocks = document.querySelectorAll('[data-block-path]:not([data-block-path*=","])');
 		return (blocks[blocks.length - 1] as HTMLElement).getBoundingClientRect().bottom;
 	});
-	await ctx.page.mouse.click(root.left + 40, bottom + 30);
-	return undefined;
 }
 
 /**

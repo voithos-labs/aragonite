@@ -1,10 +1,10 @@
 /**
- * Caret placement for a click in the editor's dead space: the root's or a block list's own
- * padding beside a block, and the area below the last one. The rule is one sentence: clamp the
- * point into the nearest block's box and let `blockAtPoint` resolve the leaf under it, so
- * nothing here knows a block kind. "Below the last block" means the last MOUNTED one, since the
- * bands come from the live DOM, which under virtual rendering is the window rather than the
- * document.
+ * Caret placement from a viewport point: the dead-space click (the root's or a block list's own
+ * padding beside a block, and the area below the last one) and the public `placeCaretAtPoint`,
+ * which shares the walk under the gesture guards. The rule is one sentence: clamp the point into
+ * the nearest block's box and let `blockAtPoint` resolve the leaf under it, so nothing here knows
+ * a block kind. "Below the last block" means the last MOUNTED one, since the bands come from the
+ * live DOM, which under virtual rendering is the window rather than the document.
  */
 
 import type { BlockComponent } from '../block-component';
@@ -62,12 +62,55 @@ export interface DeadSpaceCaret {
 	notePress(root: HTMLElement, event: MouseEvent): void;
 	/** Returns whether the click was claimed; false leaves every existing click semantic alone. */
 	handleClick(root: HTMLElement, event: MouseEvent): boolean;
+	/**
+	 * The landing walk with no gesture discrimination in front of it, for a caller that has
+	 * already decided to answer the point — the public `placeCaretAtPoint`. Shared rather than
+	 * reimplemented, so the two can never resolve one point differently.
+	 */
+	placeAtPoint(root: HTMLElement, x: number, y: number): boolean;
 }
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	// The press half of the gesture, because `click` alone cannot tell a dead-space click from a
 	// drag that STARTED on a block and released in the margin: both report dead space as target.
 	let pressedOnDeadSpace = false;
+
+	function placeAtPoint(root: HTMLElement, x: number, y: number): boolean {
+		const rects = [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) =>
+			el.getBoundingClientRect()
+		);
+		const band = nearestBand(rects, y);
+		if (!band) return false;
+
+		const rect = rects[band.index];
+		const probeX = band.belowAll ? rect.right - 1 : clamp(x, rect.left + 1, rect.right - 1);
+		const probeY = clamp(y, rect.top + 1, rect.bottom - 1);
+
+		const hit = blockAtPoint(root, probeX, probeY);
+		if (!hit) return false;
+		const landing = landingFor(hit, probeX, probeY);
+		if (!landing) return false;
+
+		const component = deps.getBlockComponent(hit.path);
+		if (!component?.focusable) return false;
+		// An internal landing needs the deep door; a block declaring the hook without it
+		// can't be reached, and declining here keeps the selection intact.
+		if (landing.path.length > 0 && !component.focusByPath) return false;
+
+		// Only once the landing is known, so a declined point leaves the selection as it
+		// found it: a live range stays painted over a caret placed elsewhere, and the next
+		// printable key type-replaces the whole of it.
+		deps.resetSelectionForClick();
+		// Both doors end the live range (`selection/caret-doors.ts`); `focusByPath` reaches
+		// the leaf's own `focus`.
+		if (landing.path.length === 0) component.focus(landing.offset);
+		else component.focusByPath!(landing.path, landing.offset);
+		// The probe point is inside the block's box, so the surface answers it exactly as it
+		// answers a click there: a landing at an atomic widget's edge has nothing to show for
+		// itself until the surface's own snap paints it.
+		leafOf(component, landing.path)?.snapCaretToPoint?.(probeX, probeY);
+		return true;
+	}
 
 	return {
 		notePress(root, event) {
@@ -88,43 +131,10 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			const native = root.ownerDocument.defaultView?.getSelection();
 			if (native && native.rangeCount > 0 && !native.isCollapsed) return false;
 
-			const rects = [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) =>
-				el.getBoundingClientRect()
-			);
-			const band = nearestBand(rects, event.clientY);
-			if (!band) return false;
+			return placeAtPoint(root, event.clientX, event.clientY);
+		},
 
-			const rect = rects[band.index];
-			const probeX = band.belowAll
-				? rect.right - 1
-				: clamp(event.clientX, rect.left + 1, rect.right - 1);
-			const probeY = clamp(event.clientY, rect.top + 1, rect.bottom - 1);
-
-			const hit = blockAtPoint(root, probeX, probeY);
-			if (!hit) return false;
-			const landing = landingFor(hit, probeX, probeY);
-			if (!landing) return false;
-
-			const component = deps.getBlockComponent(hit.path);
-			if (!component?.focusable) return false;
-			// An internal landing needs the deep door; a block declaring the hook without it
-			// can't be reached, and declining here keeps the selection intact.
-			if (landing.path.length > 0 && !component.focusByPath) return false;
-
-			// Only once the landing is known, so a declined click leaves the selection as it
-			// found it: a live range stays painted over a caret placed elsewhere, and the next
-			// printable key type-replaces the whole of it.
-			deps.resetSelectionForClick();
-			// Both doors end the live range (`selection/caret-doors.ts`); `focusByPath` reaches
-			// the leaf's own `focus`.
-			if (landing.path.length === 0) component.focus(landing.offset);
-			else component.focusByPath!(landing.path, landing.offset);
-			// The probe point is inside the block's box, so the surface answers it exactly as it
-			// answers a click there: a landing at an atomic widget's edge has nothing to show for
-			// itself until the surface's own snap paints it.
-			leafOf(component, landing.path)?.snapCaretToPoint?.(probeX, probeY);
-			return true;
-		}
+		placeAtPoint
 	};
 }
 

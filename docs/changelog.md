@@ -23,6 +23,14 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   an anchor outside the editor still gets themed colors and follows a live `theme` change.
   Reads live, and placement inside the anchor is the host's.
 
+- **A host shell can hand the editor a click on its own chrome.** `editor.placeCaretAtPoint(x, y)`
+  lands the caret at a viewport point exactly as a click there would — the point clamps into the
+  reading column, the block under it resolves the landing, a live cross-block range ends first —
+  and reports whether a caret landed. It is the seam for a shell that owns chrome beside the
+  document (a journal entry's padding, a card's footer band): the shell decides whether to answer
+  the click on its territory, the editor decides where the caret goes. The landing is the editor's
+  own dead-space walk, shared rather than reimplemented, so the two cannot disagree about a point.
+
 - **The editor now answers which keyboard chords it consumes.** `editor.reservedChords()` returns
   the modifier chords this instance claims and `editor.claimsChord(event)` answers for one
   keystroke, using the editor's own normalization — so an app registering accelerators no longer

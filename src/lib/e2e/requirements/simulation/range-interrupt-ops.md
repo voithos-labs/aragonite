@@ -50,6 +50,7 @@ not about.
 | ------------------------ | ----------- | ----------------------- | ------------------------------------------ |
 | `dead-space-below`       | select-all  | one-char document       | **key at the caret in the last block**     |
 | `dead-space-margin`      | select-all  | one-char document       | **key at the caret at that line's end**    |
+| `place-caret-at-point`   | select-all  | one-char document       | **key at the caret in the last block**     |
 | `dead-space-below-table` | select-all  | one-char document       | **key at the caret in the nearest cell**   |
 | `image-click`            | select-all  | one-char document       | **the selected image block replaced**      |
 | `drag-handle-press`      | prose range | **range span replaced** | key at the caret the press left            |
@@ -85,6 +86,9 @@ lacks, and the resolver reports null rather than guessing when it does not hold.
   block's end, and the key inserts there. Every other byte survives
 - dead-space click in the right margin: same contract through the same handler, a
   different band
+- `placeCaretAtPoint` with a point below the document: the consumer door onto the same
+  landing, reached with no press and no click target in front of it, so it owes the
+  range-ending by its own route
 - Escape: collapses the range to its anchor and the key inserts there
 - TOC entry click: the range ends, the caret lands at the target heading, and the key
   inserts there. The landing goes through `rects.navigateTo`, not through any pointer
@@ -145,7 +149,9 @@ lacks, and the resolver reports null rather than guessing when it does not hold.
 - every gesture is a real mouse or keyboard action: clicks at computed dead-space
   points, a hover then press/release on the reorder grip, real chords for the find bar,
   a click on the painted KaTeX glyphs rather than the island center (a center click
-  degenerates to a corner outside the hit-test)
+  degenerates to a corner outside the hit-test). `place-caret-at-point` is the one
+  exception and not a shortcut: the public method IS the door a host shell drives, so
+  calling it is the real interaction
 - the keystroke is one printable letter chosen absent from the source, so its insertion
   index is unique and no check can latch onto a coincidence
 - every probe closes with a real undo back to the pre-gesture source, so the family can

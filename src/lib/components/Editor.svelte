@@ -1160,6 +1160,12 @@
 		return (await restoreThroughRevealRoad(selection, false)) === 'applied';
 	}
 
+	// The dead-space click's own landing walk, minus the press/target discrimination a host
+	// caller has already done for itself. See `editor-props.ts` for the contract.
+	export function placeCaretAtPoint(x: number, y: number): boolean {
+		return editorEl ? deadSpaceCaret.placeAtPoint(editorEl, x, y) : false;
+	}
+
 	export function getEvents(): EditorEvents {
 		return events;
 	}
@@ -1221,6 +1227,7 @@
 		getSource,
 		getSelection,
 		setSelection,
+		placeCaretAtPoint,
 		getEvents,
 		getSearch,
 		getDecorations,
