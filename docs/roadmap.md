@@ -44,7 +44,16 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      `children[0]`, sentinel appended — documented 0.9.36, promote to a checked contract or state
      why not); promote the bare-`.raw =` scan into G4.28 (the `rawAssignments()` parser private to
      the G4.20 lint moves to `scan-source`, and G4.28 gains a "no bare raw write outside the
-     sanctioned set" arm — the rung that would have caught #45's hole at birth).
+     sanctioned set" arm — the rung that would have caught #45's hole at birth); re-state
+     `normalizeRawWrite`'s contract from the shipped implementations (the signature and arm
+     semantics moved twice in 0.9.36 — sanitize/escalate/restore/drop plus the two-door metadata
+     re-derivation — and the docstring was never re-derived from what shipped; an
+     author-declarable capability freezes at whatever it says); state the per-layer collision
+     policy in one place and confirm it is the one to freeze (plugin-unit install
+     first-wins-with-warn, registrars dev-replace/prod-throw, directive names setup-order
+     yield — three semantics stacked; #70 holds the consumer-facing half); `isFirstInWindow`
+     remove-or-justify (zero consumers outside the parser since `isDocumentParse` landed, and a
+     documented false friend on the public `OpenContext`).
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
