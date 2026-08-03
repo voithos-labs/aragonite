@@ -1456,9 +1456,10 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
 
 Ship gates: unit 6284, e2e 1731 (six clean shards; every red traced: a load-flake tail that
 passes isolated, the #66 order dependence, and the #81 wall-clock margin), check 0/0, lint 0.
-The perf gate's local read is red on every pre-2026-08 calibration row; an A/B against the
-parent commit measured identical numbers on both trees, so the code is exonerated and the
-host drift is ledgered as #80, with CI's scaled perf job as the standing arbiter.
+The perf gate ran on a non-pinned host this session, which reads red by design
+(`docs/design/performance.md`); an A/B against the parent commit measured identical numbers
+on both trees, so the change set carries no keystroke regression, and CI's scaled perf job
+stands as the arbiter until a pinned-host run.
 
 ### 0.9.35: the navigation API + toc v2
 
