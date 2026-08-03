@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { EditEvent } from '$lib/editor-events';
 
-describe('moveFocus past the last block', () => {
+// Whichever test runs first pays the dynamic import of half the editor: ~4.7s alone, so the
+// default 5s cap is blown by any battery contention. A hang guard, not a budget.
+describe('moveFocus past the last block', { timeout: 20_000 }, () => {
 	it('emits op=appendBlock and no op=split', async () => {
 		const { createEditorEvents } = await import('$lib/editor-events');
 		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');

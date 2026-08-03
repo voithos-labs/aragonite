@@ -11,6 +11,10 @@ import {
 // one selector definition instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
+/** Hang guard on the harness installing `window.__test`, not a budget for it: a battery
+ *  saturating one dev server pushes hydration well past the seconds a quiet host takes. */
+export const BRIDGE_INSTALL_TIMEOUT = 60_000;
+
 export class EditorPage {
 	readonly editorContainer: Locator;
 	readonly bridge: EditorBridge;
@@ -26,7 +30,7 @@ export class EditorPage {
 		await this.page.goto(`/test/editor${query}`);
 		await this.editorContainer.waitFor({ state: 'visible' });
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
+			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
 	}
 
@@ -37,7 +41,8 @@ export class EditorPage {
 		// serialize() normalizes trailing whitespace; compare on trimmed forms.
 		await this.page.waitForFunction(
 			(expected) => {
-				const actual = (window as any).__test.getSource() as string;
+				const actual = (window as any).__test?.getSource() as string | undefined;
+				if (actual === undefined) return false;
 				return actual.replace(/\s+$/, '') === expected.replace(/\s+$/, '');
 			},
 			md,
@@ -57,7 +62,8 @@ export class EditorPage {
 		const minLength = fixture.replace(/\s+$/, '').length;
 		await this.page.waitForFunction(
 			(min) => {
-				const doc = (window as any).__test.getDocument();
+				const doc = (window as any).__test?.getDocument();
+				if (!doc) return false;
 				let length = doc.prefix.length + doc.suffix.length;
 				for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
 				return length >= min;

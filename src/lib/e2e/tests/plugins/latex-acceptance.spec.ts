@@ -5,8 +5,7 @@ import { PluginsPage, clickWidgetCenter } from './helpers';
  * Acceptance-axis coverage for the LaTeX extension, each test labelled with the spec's axis id.
  * These assert what only a real browser can prove: A1 (reveal holds scroll + geometry + caret), A2
  * (one of N equations re-renders alone; memo primitive unit-pinned in math-renderer.test.ts), A7
- * (every multiline environment renders), A5 (invalid math shows a legible message). A1 flakiness
- * watch: folding a tall block can trip a windowing geometry re-estimate — suspect that FIRST.
+ * (every multiline environment renders), A5 (invalid math shows a legible message).
  */
 
 // A pad tall enough that the block-math fixture scrolls in a default viewport, so the A1 "no
@@ -62,8 +61,29 @@ class AcceptancePage extends PluginsPage {
 			return editor.scrollTop;
 		});
 		if (scrollTop === null) throw new Error('centerBlockMath: editor or render not found');
-		await this.waitForRenderFlush();
+		await this.waitForScrollSettle();
 		return this.editorScrollTop();
+	}
+
+	/**
+	 * A height change reaches scrollTop through the windowing scope's BATCHED measure pass, not
+	 * the render commit, so a fixed two-frame flush reads mid-flight once a loaded machine pushes
+	 * the pass past it. Counted in frames, not milliseconds: a slow host waits proportionally.
+	 */
+	async waitForScrollSettle(): Promise<void> {
+		await this.page.evaluate(async () => {
+			const editor = document.querySelector('.editor') as HTMLElement;
+			const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+			let last = editor.scrollTop;
+			for (let held = 0, i = 0; held < 5 && i < 180; i++) {
+				await frame();
+				if (editor.scrollTop === last) held++;
+				else {
+					held = 0;
+					last = editor.scrollTop;
+				}
+			}
+		});
 	}
 
 	async editorScrollTop(): Promise<number> {
@@ -110,7 +130,7 @@ test.describe('latex acceptance axes', () => {
 		// Reveal: the source textbox is a taller affordance, but the scroll must hold.
 		await clickWidgetCenter(editor.blockRender);
 		await expect(editor.blockSource).toHaveCount(1);
-		await editor.waitForRenderFlush();
+		await editor.waitForScrollSettle();
 		expect(Math.abs((await editor.editorScrollTop()) - baselineScroll)).toBeLessThanOrEqual(
 			SCROLL_TOLERANCE
 		);
@@ -120,7 +140,7 @@ test.describe('latex acceptance axes', () => {
 		await page.keyboard.press('End');
 		await page.keyboard.press('ArrowRight');
 		await expect(editor.blockRender).toHaveCount(1);
-		await editor.waitForRenderFlush();
+		await editor.waitForScrollSettle();
 		expect(Math.abs((await editor.editorScrollTop()) - baselineScroll)).toBeLessThanOrEqual(
 			SCROLL_TOLERANCE
 		);

@@ -45,8 +45,11 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      removed). Still open for the re-audit: `chordsForCommand` lands with the 1.2 unified
      command registry, and `EditorRects` naming (the embedding instance says `getRects()`, the
      plugin context says `.rects`, each consistent with its own surface's convention; decide
-     whether the two surfaces should agree). The collision policy's consumer-facing half stays
-     ledgered as #70.
+     whether the two surfaces should agree), and one decision the mount-waiter rekeying left
+     behind: every production reveal caller supplies `isInWindow`, so the waiter registry has
+     no production reader today; with `RefSlots` public, either require the option and delete
+     the wait path, or keep the registry as the documented fallback and say so at the type.
+     The collision policy's consumer-facing half stays ledgered as #70.
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings

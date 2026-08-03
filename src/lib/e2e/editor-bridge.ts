@@ -19,43 +19,33 @@ export class EditorBridge {
 	// ── Settling Predicates ─────────────────────────────────────────────
 	// Use these instead of waitForTimeout to wait for editor state to
 	// reach a specific shape. Predicates poll the source/block bridge so
-	// tests stop the moment the assertion would pass.
+	// tests stop the moment the assertion would pass. Each reads the bridge through a
+	// guard: Playwright rejects a wait whose predicate THROWS, so a page that has not
+	// installed its probes yet must read as "not settled" rather than dereference undefined.
 
 	async waitForSourceContains(expected: string, timeout = 2000): Promise<void> {
-		await this.page.waitForFunction(
-			(e) => ((window as any).__test.getSource() as string).includes(e),
-			expected,
-			{ timeout, polling: 16 }
-		);
+		await this.waitForSourceWith((source, arg) => source.includes(arg), expected, timeout);
 	}
 
 	async waitForSourceNotContains(forbidden: string, timeout = 2000): Promise<void> {
-		await this.page.waitForFunction(
-			(e) => !((window as any).__test.getSource() as string).includes(e),
-			forbidden,
-			{ timeout, polling: 16 }
-		);
+		await this.waitForSourceWith((source, arg) => !source.includes(arg), forbidden, timeout);
 	}
 
 	async waitForSourceMatches(pattern: RegExp, timeout = 2000): Promise<void> {
-		await this.page.waitForFunction(
-			(p) => new RegExp(p.source, p.flags).test((window as any).__test.getSource() as string),
+		await this.waitForSourceWith(
+			(source, arg) => new RegExp(arg.source, arg.flags).test(source),
 			{ source: pattern.source, flags: pattern.flags },
-			{ timeout, polling: 16 }
+			timeout
 		);
 	}
 
 	async waitForSourceEquals(expected: string, timeout = 2000): Promise<void> {
-		await this.page.waitForFunction(
-			(e) => ((window as any).__test.getSource() as string) === e,
-			expected,
-			{ timeout, polling: 16 }
-		);
+		await this.waitForSourceWith((source, arg) => source === arg, expected, timeout);
 	}
 
 	async waitForBlockCount(expected: number, timeout = 2000): Promise<void> {
 		await this.page.waitForFunction(
-			(e) => ((window as any).__test.getBlockCount() as number) === e,
+			(e) => (window as any).__test?.getBlockCount() === e,
 			expected,
 			{ timeout, polling: 16 }
 		);
@@ -64,8 +54,9 @@ export class EditorBridge {
 	async waitForSource(predicate: (source: string) => boolean, timeout = 2000): Promise<void> {
 		await this.page.waitForFunction(
 			(predSrc) => {
-				const fn = new Function('source', `return (${predSrc})(source);`);
-				return fn((window as any).__test.getSource() as string);
+				const source = (window as any).__test?.getSource() as string | undefined;
+				if (source === undefined) return false;
+				return new Function('source', `return (${predSrc})(source);`)(source);
 			},
 			predicate.toString(),
 			{ timeout, polling: 16 }
@@ -79,8 +70,10 @@ export class EditorBridge {
 	): Promise<void> {
 		await this.page.waitForFunction(
 			({ predSrc, value }) => {
+				const source = (window as any).__test?.getSource() as string | undefined;
+				if (source === undefined) return false;
 				const fn = new Function('source', 'arg', `return (${predSrc})(source, arg);`);
-				return fn((window as any).__test.getSource() as string, value);
+				return fn(source, value);
 			},
 			{ predSrc: predicate.toString(), value: arg as any },
 			{ timeout, polling: 16 }
