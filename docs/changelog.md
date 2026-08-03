@@ -1454,10 +1454,11 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   table, the WHATWG entity data), and `aragonite/package.json` resolves for the tooling that
   probes it.
 
-Ship gates: unit 5951, e2e 1680, check 0/0, lint 0, perf:check 13/13 gated rows (the gate
-was restructured this minor — the 24-row count was the 0.9.35 spec layout — and gained two
-container-head rows plus the row-shape verification at the batch base). The e2e figure is the
-last full battery's; the unit figure is current.
+Ship gates: unit 6284, e2e 1731 (six clean shards; every red traced: a load-flake tail that
+passes isolated, the #66 order dependence, and the #81 wall-clock margin), check 0/0, lint 0.
+The perf gate's local read is red on every pre-2026-08 calibration row; an A/B against the
+parent commit measured identical numbers on both trees, so the code is exonerated and the
+host drift is ledgered as #80, with CI's scaled perf job as the standing arbiter.
 
 ### 0.9.35: the navigation API + toc v2
 
