@@ -21,6 +21,9 @@ function allHostCount(page: Page): Promise<number> {
 }
 
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
+	// 1.2-1.5m alone on a laptop, nearly all of it the 2MB fixture load; a hang guard, not a
+	// budget, so it carries ~3x rather than reading red as calibration drifts.
+	test.setTimeout(300_000);
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();

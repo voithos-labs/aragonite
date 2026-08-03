@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import { BRIDGE_INSTALL_TIMEOUT, EditorPage } from '../../editor-page';
 
 // Shared probe surface for every spec driving the `/test/plugins` harness. Reads go through
 // `window.__test` by path — the chained block locator is too slow at scale.
@@ -9,7 +9,7 @@ export class PluginsPage extends EditorPage {
 		await this.page.goto(seed ? `/test/plugins?seed=${seed}` : '/test/plugins');
 		await this.editorContainer.waitFor({ state: 'visible' });
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
+			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
 	}
 }

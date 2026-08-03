@@ -33,7 +33,9 @@ const PROJECT_DIRS = [
 
 export default defineConfig({
 	testDir: './src/lib/e2e/tests',
-	timeout: 30_000,
+	// A hang guard, not a budget: a first navigation onto a heavy route blows 30s under
+	// many-worker contention on slower hosts (#81), and a real hang still fails at 60.
+	timeout: 60_000,
 	retries: 0,
 	use: {
 		baseURL: 'http://localhost:1420',

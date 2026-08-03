@@ -32,6 +32,8 @@ Which gate you run scales with what you're doing. Gate scope follows the **files
 
 Two rules from culture.md, both paid for by incidents: **never pipe a gate command** (`npm test | tail` reports the pipe's exit code, not the gate's, so capture to a file and check the exit explicitly), and **long batteries run alone**, never concurrently with other work on the same tree.
 
+Two more honest warnings about the battery on real hardware. First, a handful of heavy specs carry wall-clock budgets sized on the pinned machine, so a slower laptop or a loaded host can tip one red without your change being wrong; the tracked set lives in [issue #81](https://github.com/voithos-labs/aragonite/issues/81), and CI is the arbiter, same as perf. Second, a battery you interrupt can leave a dev server alive on port 1420, and the next run will happily reuse it and serve stale code, which looks like everything failing instantly; kill leftover node processes before rerunning.
+
 ## Commit messages
 
 Symbol-prefixed, lowercase, one logical change per commit. Full convention: [`docs/contributing/commit-conventions.md`](docs/contributing/commit-conventions.md).
@@ -47,6 +49,8 @@ Review is root-cause first, and it will ask for the test alongside the fix. The 
 ## Filing defects
 
 Defects and proposals go straight to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), each labelled with one `severity:` and one `area:` label. The issue forms ask for the shape we want, so filling one in is the whole job: what is wrong, how to reproduce it, and where it seems to live.
+
+A note on reading the ledger: it is deliberately a memory, not a scoreboard. `severity: watch` entries record observed signals with no confirmed defect, and small true things stay open until fixed rather than being tidied away, so the open count runs higher than the defect count. The labels are the sort order.
 
 ## Fixing bugs
 

@@ -14,8 +14,9 @@ const salt = (sample: number) => 'z'.repeat(sample);
 /** Discarded samples per size — the warm-up ramp is steepest across the first two. */
 const WARMUPS = 2;
 
-/** Timed samples per size; the minimum of these is the size's reported cost. */
-const REPETITIONS = 4;
+/** Timed samples per size; the minimum of these is the size's reported cost. Sixteen, not four:
+ *  a battery starves the longer size's windows first, and four reached 7.7 against a ceiling of 8. */
+const REPETITIONS = 16;
 
 export interface ScanGrowth {
 	/** Best-of wall time at [N, 4N], milliseconds. */
