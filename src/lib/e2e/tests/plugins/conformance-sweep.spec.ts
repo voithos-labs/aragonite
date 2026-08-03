@@ -58,11 +58,17 @@ test('enrollment covers the known-kind floor', async ({ page }) => {
 
 // ── Locate ──────────────────────────────────────────────────────────────────
 
-// Every load gets a unique leading-trivia prefix: the harness's setSource writes a `source` $state
-// and a same-value write is a Svelte no-op, so with two kinds sharing a byte-identical fixture doc
-// a prior iteration's typed mutation would survive into the next kind's run. Blank lines are
-// lossless leadingTrivia — no block, no searchable text, block indices unchanged.
-let loadSeq = 0;
+// Clear to empty before every load: the editor reloads on `source !== lastSource`, so two kinds
+// sharing a byte-identical fixture (list/listItem, table/tableRow) would skip the reload and
+// inherit the prior iteration's typed mutation. Every sweep document carries both fillers, so a
+// blank serialization is a state no fixture load can be mistaken for.
+async function clearDocument(page: Page): Promise<void> {
+	await page.evaluate(() => (window as any).__test.setSource(''));
+	await page.waitForFunction(() => (window as any).__test.getSource().trim() === '', null, {
+		timeout: 3000,
+		polling: 16
+	});
+}
 
 // Load `BEFORE / fixture / AFTER` and resolve the fixture block. The kind is sought only among the
 // MIDDLE blocks: `paragraph`'s fixture is itself a paragraph, so a whole-document scan would match
@@ -72,11 +78,10 @@ async function loadAndLocate(
 	plugins: PluginsPage,
 	entry: SweepEntry
 ): Promise<{ topIndex: number | null; afterIndex: number }> {
-	const doc = `${'\n'.repeat(loadSeq++)}${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
+	const doc = `${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
+	await clearDocument(page);
 	await page.evaluate((d) => (window as any).__test.setSource(d), doc);
-	// Exact-source settle: every sweep document carries both fillers, so an includes() predicate is
-	// satisfiable by the PRIOR kind's stale document. serialize() normalizes trailing whitespace;
-	// compare trimmed forms.
+	// serialize() normalizes trailing whitespace; compare trimmed forms.
 	await page.waitForFunction(
 		(expected) => {
 			const actual = (window as any).__test.getSource() as string;

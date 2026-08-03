@@ -56,6 +56,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'the edge-case bullets are properties the two race cases carry jointly, including one explicitly not-covered case'
 	},
 	{
+		spec: 'plugins/conformance-sweep.spec.ts',
+		reason:
+			'four column tests sweep every enrolled kind; the bullets state per-column semantics, enrolment properties and the miss-analysis, not one-test scenarios'
+	},
+	{
 		spec: 'plugins/callout-container.spec.ts',
 		reason: 'compound test: "type, split, merge, and undo" walks six bullets in one session'
 	},
