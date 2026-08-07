@@ -47,25 +47,11 @@
 	const isReading = $derived(isReadingMode(policies?.presentationMode));
 
 	// Rendering, not sequencing: the component exists only while it IS the live gap.
+	// Focusing the contenteditable seats a caret in it (Chromium); no manual range needed.
 	$effect(() => {
 		if (!proxyEl) return;
 		proxyEl.focus();
-		seatCaretInProxy(proxyEl);
 	});
-
-	/**
-	 * The gap's door clears the native selection, and a contenteditable holding no range
-	 * receives no `beforeinput` at all — so the proxy needs a caret of its own to type into.
-	 */
-	function seatCaretInProxy(el: HTMLElement): void {
-		const selection = el.ownerDocument.defaultView?.getSelection();
-		if (!selection || el.contains(selection.anchorNode)) return;
-		const range = el.ownerDocument.createRange();
-		range.selectNodeContents(el);
-		range.collapse(true);
-		selection.removeAllRanges();
-		selection.addRange(range);
-	}
 
 	// The move that leaves must not be re-captured by the boundary it is leaving.
 	const EXIT = { skipGapStop: true } as const;

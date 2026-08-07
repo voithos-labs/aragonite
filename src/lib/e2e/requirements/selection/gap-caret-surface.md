@@ -42,8 +42,9 @@ Arrival is `gap-caret-arrival.md`; minting and undo are `gap-caret-editing.md`.
 - **The reading-mode DOM assertion is not discriminating on its own.** Once the gap is
   cleared at the choke point, no proxy renders at all, so "no `[data-gap-caret]` is
   contenteditable" holds whether or not the component's own reading-mode guard exists. The
-  choke point in `Editor.svelte`'s mode-flip effect is the load-bearing half; the component
-  guard is the belt.
+  spec flips the mode through the harness probe precisely because a toggle click blurs the
+  proxy and `onFocusOut` clears the gap before the choke point runs; with the probe flip,
+  deleting the choke-point clear goes red. The component guard stays the unpinned belt.
 - Window blur (a `relatedTarget` of `null`) KEEPS the gap, matching a native caret.
 - **An arrival emits `selectionChange` more than once.** The state write fires while DOM
   focus is still in the source block, so it reports that block; the proxy's own range

@@ -101,14 +101,16 @@ test.describe('a presentation-mode flip ends the gap', () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await arriveAtBoundary(editor);
 
-		await page.getByTestId('presentation-toggle').click();
+		// Flip WITHOUT moving DOM focus: a toggle click blurs the proxy, and onFocusOut then
+		// clears the gap before the choke point ever runs — the flip must be the only actor.
+		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
 
 		await editor.bridge.waitForGapCaret(null);
 		// The choke point is what closes #88; this second read is the belt, and it is
 		// non-discriminating on its own — a cleared gap renders no proxy either way.
 		await expect(page.locator('[data-gap-caret] [contenteditable="true"]')).toHaveCount(0);
 
-		await page.getByTestId('presentation-toggle').click();
+		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
 		await editor.waitForRenderFlush();
 		expect(await editor.bridge.getGapCaret()).toBeNull();
 	});
