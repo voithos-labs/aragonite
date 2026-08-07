@@ -548,7 +548,8 @@ export function deleteNode(
  * reparsed block into the slot rather than reassigning `kind` in place, and multi-block
  * text mints every parsed block. Only a same-kind single-block edit writes fields in
  * place, so routine typing keeps the node's object identity; `replacePreservingFirst`
- * carries the id/ref across a mint.
+ * carries the id/ref across a mint. `sharing` owns the separator settle's FOLLOWER write —
+ * the one byte this op lands on a node the caller's own unshare never covered.
  */
 export function updateNodeContent(
 	parent: BodyParentArg,
