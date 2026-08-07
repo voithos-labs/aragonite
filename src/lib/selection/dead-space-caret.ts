@@ -81,7 +81,10 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	let pressedOnDeadSpace = false;
 
 	function placeAtPoint(root: HTMLElement, x: number, y: number): boolean {
-		const boundary = rootBoundaryOutsideBands(root, y);
+		// One measuring pass for both walks: the boundary question and the band clamp read the
+		// same layout, and a second query would force it again inside one click.
+		const blocks = measureBlocks(root);
+		const boundary = rootBoundaryOutsideBands(blocks, y);
 		if (boundary !== null && canGapStop(deps.gapScope, [], boundary)) {
 			// The preamble first, as on the block landing below — it clears the gap, so
 			// nothing may run between it and the door. The door ends a live range (G2.12).
@@ -89,13 +92,13 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			placeGapCaret(deps.gapScope.selection, { parentPath: [], index: boundary });
 			return true;
 		}
-		const rects = [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) =>
-			el.getBoundingClientRect()
+		const band = nearestBand(
+			blocks.map((b) => b.rect),
+			y
 		);
-		const band = nearestBand(rects, y);
 		if (!band) return false;
 
-		const rect = rects[band.index];
+		const rect = blocks[band.index].rect;
 		const probeX = band.belowAll ? rect.right - 1 : clamp(x, rect.left + 1, rect.right - 1);
 		const probeY = clamp(y, rect.top + 1, rect.bottom - 1);
 
@@ -153,20 +156,30 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
+/** Every mounted block's path and box, in document order, since bands may nest and both
+ *  walks below depend on that order. */
+interface MeasuredBlock {
+	path: number[] | null;
+	rect: DOMRect;
+}
+
+function measureBlocks(root: HTMLElement): MeasuredBlock[] {
+	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) => ({
+		path: readBlockPath(el),
+		rect: el.getBoundingClientRect()
+	}));
+}
+
 /**
  * The root-level boundary a `y` belonging to NO band names: the editor's leading padding,
  * and the space between two adjacent bands where a layout leaves one. Below the last band
  * is excluded — that y is the end-of-document gesture, and under windowing the last MOUNTED
  * band is not the last block. Indices come off the path attribute for the same reason.
  */
-function rootBoundaryOutsideBands(root: HTMLElement, y: number): number | null {
-	const bands: { index: number; top: number; bottom: number }[] = [];
-	for (const el of root.querySelectorAll<HTMLElement>('[data-block-path]')) {
-		const path = readBlockPath(el);
-		if (path?.length !== 1) continue;
-		const rect = el.getBoundingClientRect();
-		bands.push({ index: path[0], top: rect.top, bottom: rect.bottom });
-	}
+function rootBoundaryOutsideBands(blocks: MeasuredBlock[], y: number): number | null {
+	const bands = blocks.flatMap((b) =>
+		b.path?.length === 1 ? [{ index: b.path[0], top: b.rect.top, bottom: b.rect.bottom }] : []
+	);
 	if (bands.length === 0) return null;
 	// Only when the document's own first block is mounted: above a windowed-out slice the
 	// blocks the point sits over are not the ones the boundary would name.

@@ -29,4 +29,4 @@ Rules:
 
 ## Bug fixes carry a miss-analysis
 
-Every `!` fix records one line: **what test should have caught this, and why none did.** It lives in the requirement file of the regression test, not in the commit message. See `docs/contributing/culture.md` § Fixing bugs.
+Every `!` fix records one line: **what test should have caught this, and why none did.** It lives in the regression test's requirement file (e2e) or as that test's own header line (unit), never in the commit message. See `docs/contributing/culture.md` § Fixing bugs.

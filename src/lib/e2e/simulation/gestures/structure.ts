@@ -197,6 +197,38 @@ export async function toggleTask(ctx: SimContext, listItemPath: number[]): Promi
 	await actThenResync(ctx, () => checkbox.click());
 }
 
+/**
+ * The one insert that starts from no block at all: Backspace at `boundaryIndex`'s offset 0
+ * parks the between-blocks caret, and the next key mints a paragraph there (empty `text` =
+ * Enter). Both halves are asserted, because an arrival that entered the block instead would
+ * record an ordinary edit as gap coverage. Preconditions are the fixture's: `boundaryIndex`
+ * names a character-addressed block whose leading boundary both neighbours declare.
+ */
+export async function mintAtGap(
+	ctx: SimContext,
+	boundaryIndex: number,
+	text: string
+): Promise<void> {
+	await ctx.editor.clickBlockAtPath([boundaryIndex], 0);
+	await ctx.page.keyboard.press('Backspace');
+	try {
+		await ctx.editor.bridge.waitForGapCaret({ parentPath: [], index: boundaryIndex });
+	} catch {
+		throw new Error(
+			`[${ctx.label}] mintAtGap: Backspace at block ${boundaryIndex} parked no gap caret ` +
+				`there, got ${JSON.stringify(await ctx.editor.bridge.getGapCaret())}; both ` +
+				`neighbours must declare the facing edge.`
+		);
+	}
+	await actThenResync(ctx, async () => {
+		if (text) await ctx.editor.typeSlowly(text);
+		else await ctx.page.keyboard.press('Enter');
+		// The mint's own focus of the new block is what ends the gap; without it the keys
+		// still belong to the proxy and the "minted" bytes came from somewhere else.
+		await ctx.editor.bridge.waitForGapCaret(null);
+	});
+}
+
 async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	await act();

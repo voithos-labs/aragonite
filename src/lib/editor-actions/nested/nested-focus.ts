@@ -26,22 +26,21 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 			position: FocusPosition,
 			options?: MoveFocusOptions
 		): Promise<void> {
-			// node.children.length is authoritative: refs.length lags after structural
-			// ops because bind:this fires asynchronously.
 			await dispatchMoveFocus(
 				state.innerBlockRefs,
 				innerIndex,
 				position,
 				stickyColumn,
+				{ focus: parent.focus, index: deps.index },
 				{
-					focus: parent.focus,
-					index: deps.index
-				},
-				deps.node.children?.length,
-				options,
-				// The boundaries this scope owns are its own children's, so the container's
-				// doc-absolute path is their parent. Read live: `path` moves under edits.
-				(boundaryIndex) => parent.focus.tryGapStop(deps.path, boundaryIndex)
+					// node.children.length is authoritative: refs.length lags after structural
+					// ops because bind:this fires asynchronously.
+					childCount: deps.node.children?.length,
+					options,
+					// The boundaries this scope owns are its own children's, so the container's
+					// doc-absolute path is their parent. Read live: `path` moves under edits.
+					gapStop: (boundaryIndex) => parent.focus.tryGapStop(deps.path, boundaryIndex)
+				}
 			);
 		}
 	};

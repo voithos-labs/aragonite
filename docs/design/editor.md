@@ -1,6 +1,6 @@
 # Editor — Design Spec
 
-The orientation point for the whole system. Read this first; read a subsystem's spec when your task touches it.
+The orientation point for the whole system. §§ 1-3 orient any task; the rest is per-subsystem reading, and a subsystem's own spec goes deeper still.
 
 ## 1. What this is
 
@@ -404,6 +404,22 @@ The hook's `(startOffset, endOffset)` shape is stable, but what an offset _means
 
 A block that doesn't implement the hook falls back to the full-block overlay. That's fine for a middle block; for an endpoint it loses the "selection ends mid-line" visual.
 
+### The gap caret
+
+The third selection mode, and the only one that is not a range: a caret parked BETWEEN two sibling blocks, at a boundary no block's own editing surface can reach. Between a table and a code fence, say, or above a document that opens with a table. Without it those boundaries have no insertion point at all.
+
+A gap position is a container path plus a child index: the boundary before that child, with the root as the empty path and `index === children.length` as the scope's trailing edge. It is collapsed by construction, never an endpoint, never half of a range.
+
+**Eligibility is declared, never inferred.** A kind whose surface traps the caret at its edges declares `gapEdges` (`before`, `after`, or `both`) in its descriptor, and a boundary opens only when both blocks facing it declare the edge they present to it. No selection or orchestration code names a kind. The v1 set: table and fenced code on both edges; thematic break before only, because its focused Enter already grows a sibling below it; the bundled math block and math fence on both; the mermaid diagram before only. Containers are deliberately undeclared, so a container-to-container boundary still has no insertion point. The root's trailing boundary is excluded too, since the move-past-end append already owns it, and reading mode, having no caret at all, has no arrival.
+
+**Arrival** rides seams that already existed. A directional focus move stops at an eligible boundary instead of entering its target, which covers the arrows and the Backspace/Delete-at-edge focus fallbacks together; a dead-space click whose y falls between two root bands lands there; the undo restore road parks one it recorded. A targeted landing (a numeric offset, a consumer's `setSelection`) never stops. Placing the gap ends a live cross-block range first, and any other caret claim clears it: both rules live inside the selection state rather than at the call sites.
+
+**At the gap**, a printable key or an IME commit mints a paragraph carrying the text, and Enter mints an empty one. Both go through the ordinary commit ceremony, so a mint is one undo entry and one `insertBlock` edit event. Arrows and Escape leave for the neighbour they point at. Shift+Arrow is deliberately the plain arrow: a single block selected whole is not a representable cross-block state, and the per-kind shapes it would need are exactly the kind dispatch selection code refuses. Every other input, paste above all, is declined rather than guessed at. Focus lives on a hidden proxy behind the painted line, which is what lets the editor-global chords resolve there as they do anywhere else.
+
+**Undo stores it as itself.** An entry's recorded selection is either an editor selection or a gap position, so undoing a mint returns the caret to the boundary the paragraph came from. A restore whose container path no longer resolves degrades to the ordinary fallback landing rather than parking where nothing would paint it.
+
+**It is not public in v1.** The gap never enters the `SelectionPoint` union, and `getSelection()` reports null while one is live. That is a pre-freeze decision rather than a limit of the model: admitting it later is additive, and admitting it now would freeze a shape no consumer has exercised.
+
 ### Search
 
 Find/replace is a **read-only lens over the CST** — it renders nothing itself and mutates nothing until you ask it to.
@@ -496,7 +512,7 @@ That redundancy is the price of the round-trip guarantee, and what it buys is a 
 The editor exposes an observer surface via `getEvents()`. Four channels, and `on(name, cb)` returns a disposer. Events fire synchronously from their emission sites; handlers must not mutate the document (reentrant edits are not supported).
 
 - **`edit`** — after every commit. The payload is a discriminated union keyed by `op`: the commit primitive emits the structural variants, the debounced keystroke flush emits `input`, the history layer emits `undo` / `redo`. **`path` is doc-absolute for every op** — including `input` (the edited leaf) and every nested container op — and resolves from the document root to the operated node, or to the one-past-end slot an append creates. Column-shaped table ops target the table and carry the column index in `detail`.
-- **`selectionChange`** — the selection snapshot, or `null`. Two emitters feed it: the cross-block state's own change notification, and a bridge off the browser's `selectionchange` for caret motion inside one block. Subscribers read the editor back rather than taking a payload, so a gesture that writes state and then moves the caret must not notify between the two — the state seam takes a batch for exactly that, and the restore road spans both halves with one (see § 10).
+- **`selectionChange`** — the selection snapshot, or `null`. Two emitters feed it: the cross-block state's own change notification, and a bridge off the browser's `selectionchange` for caret motion inside one block. Subscribers read the editor back rather than taking a payload, so a gesture that writes state and then moves the caret must not notify between the two — the state seam takes a batch for exactly that, and the restore road spans both halves with one (see § 10). A gap arrival is the one carve-out, and it is loud rather than silent: the caret landing there belongs to the gap surface's own focus effect, a tick after the state batch, so no batch can span both halves. An arrival emits a short burst instead of one notification, and only its last emission is settled; subscribers read the value the burst ends on, which is null while a gap is live (§ The gap caret).
 - **`presentationModeChange`** — the effective presentation mode after a `presentationMode` prop change (never fired at mount).
 - **`error`** — a failure the editor _contained_ rather than propagated, discriminated by `origin`: a `subscriber` throw (one observer's throw never starves the others, and is never silently swallowed), a `render` throw (caught by the per-`BlockHost` boundary, which degrades that block to a readable fallback while its siblings survive), a `commit` throw (the ceremony rolls the undo/redo stacks back to their pre-commit state before reporting), a `command` throw (a plugin's block-command handler — the gesture no-ops and the error is attributed to its kind, command id, and owning plugin), a `decoration` throw (a decoration source's `provide` — its prior decorations are retained rather than blanked, attributed to the source), or a `clipboard` failure (a paste that consumed the gesture and inserted nothing, or a host image-import hook that threw — the channel a host reads to release an asset it imported for `onPasteImage`). One seam for surfacing or logging every contained failure.
 

@@ -27,6 +27,10 @@ const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph
 // the gap and the block below becomes a lazy continuation on reparse, reddening the
 // convergence oracle over the deferred class in issue #21 — nothing this probe tests.
 const TOC_DOC = '# Overview\n\nSome prose here.\n\n## Details\n\n[[toc]]\n\nFooter line.\n';
+// A table FIRST, so the editor's leading padding is the gap boundary a click can reach; the
+// trailing paragraph is long enough to anchor the select-all the family builds from.
+const LEADING_TABLE_DOC =
+	'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n```\ncode\n```\n\ntrailing paragraph\n';
 
 interface Probe {
 	/** The plugins route is only for gestures a bundled plugin's surface provides. */
@@ -102,6 +106,12 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		title: 'a TOC entry click types at the heading it navigated to',
 		doc: TOC_DOC,
 		ready: '.toc-block-nav'
+	},
+	'gap-caret-click': {
+		route: 'editor',
+		title: 'a click into a gap boundary ends the range and mints a paragraph there',
+		doc: LEADING_TABLE_DOC,
+		ready: '.table-block'
 	}
 };
 

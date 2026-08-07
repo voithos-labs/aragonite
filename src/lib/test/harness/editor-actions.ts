@@ -61,10 +61,15 @@ export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent
 	} as BlockComponent;
 }
 
-/** An inert gap scope over an empty document, for the walks that assert non-gap landings. */
-export function makeEmptyGapScope(): GapStopScope {
-	const doc = parse('');
+/** A gap scope over `source`: the kinds it parses to are what declare the eligible edges. */
+export function makeGapScope(source: string): GapStopScope {
+	const doc = parse(source);
 	return { getDoc: () => doc, selection: createSelectionState() };
+}
+
+/** An inert gap scope, for the walks that assert non-gap landings. */
+export function makeEmptyGapScope(): GapStopScope {
+	return makeGapScope('');
 }
 
 export function makeStickyColumn(x: number | null = null): StickyColumnState {

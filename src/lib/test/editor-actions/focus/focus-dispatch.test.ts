@@ -34,8 +34,7 @@ describe('dispatchMoveFocus', () => {
 			'start',
 			makeStickyColumn(),
 			{ focus: parentFocus, index: 5 },
-			undefined,
-			{ append: false }
+			{ options: { append: false } }
 		);
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(6, 'start', { append: false });
 	});

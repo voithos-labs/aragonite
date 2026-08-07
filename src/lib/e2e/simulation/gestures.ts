@@ -13,6 +13,7 @@ import {
 	hardBreakAt,
 	indent,
 	indentEmptyItem,
+	mintAtGap,
 	nestQuote,
 	outdent,
 	outdentEmptyItem,
@@ -290,6 +291,15 @@ export class Gestures {
 
 	toggleTask(listItemPath: number[]): Promise<void> {
 		return toggleTask(this.ctx, listItemPath);
+	}
+
+	/**
+	 * Mint a paragraph at the between-blocks caret before `boundaryIndex`: the insert whose
+	 * commit path no other gesture reaches, since the boundary belongs to no block's surface.
+	 * Empty `text` presses Enter instead.
+	 */
+	mintAtGap(boundaryIndex: number, text: string): Promise<void> {
+		return mintAtGap(this.ctx, boundaryIndex, text);
 	}
 
 	insertImage(alt: string, url: string): Promise<void> {
