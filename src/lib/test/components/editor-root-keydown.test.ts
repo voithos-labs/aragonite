@@ -349,6 +349,7 @@ describe('editor-root keydown — body-chord containment', () => {
 describe('editor-root keydown — a focused surface inside the root owns its chords', () => {
 	it('a global chord resolves nothing while a focusable child holds focus', () => {
 		const h = harness();
+		registerEditor(h.root);
 		const surface = document.createElement('div');
 		surface.tabIndex = 0;
 		h.root.append(surface);
