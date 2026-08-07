@@ -193,12 +193,15 @@ describe('unbatched entry-path emission counts', () => {
 	// caret claim, or a click leaves a phantom gap painted beside the new caret.
 	it('a pointerdown ends a live gap caret, shift held or not', () => {
 		for (const isShift of [false, true]) {
-			const state = createSelectionState();
+			let notifies = 0;
+			const state = createSelectionState({ onChange: () => notifies++ });
 			state.setGapCaret({ parentPath: [], index: 1 });
+			notifies = 0;
 
 			resetForPointerDown(state, makeStickyColumn(), isShift);
 
 			expect(state.gapCaret).toBeNull();
+			expect(notifies).toBe(2);
 		}
 	});
 
