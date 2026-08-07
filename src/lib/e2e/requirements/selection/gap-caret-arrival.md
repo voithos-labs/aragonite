@@ -51,9 +51,13 @@ editing wave and get their own requirement.
 - The click route lands ROOT-level gaps only. The band walk is a flat query over
   `[data-block-path]`, and nested bands nest inside their container's; arrows and restore
   reach nested gaps.
-- Root block bands tile flush — no margin separates two block hosts — so the only band-less
-  strip a click reaches today is the leading padding. The between-two-bands rule is written
-  for the geometry, not for a layout that has it.
+- Root block bands tile flush (0.0000px across every built-in kind pair, both palettes,
+  zoom 0.9-1.75), so the only band-less strip a click reaches today is the leading padding.
+  A host stylesheet that gives `.block-host` a margin does open the strip, which is what
+  the between-two-bands rule is for.
+- A gap live when the presentation mode flips to reading survives the flip: the mode-flip
+  blur takes DOM focus off the proxy and the self-focus effect does not re-arm, so the gap
+  is leavable only by clicking. Ledgered; closed in the editing wave.
 - Entering a container from outside lands its deepest leaf as before and does not visit a
   nested scope-end gap; only a move that starts inside the scope sees it.
 - Container kinds (blockquote, list, details, admonitions) declare no edges, so a

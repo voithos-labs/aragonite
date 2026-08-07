@@ -270,6 +270,14 @@ test.describe('gap caret under virtual rendering', () => {
 		await editor.loadContent(WINDOWED);
 		expect(await editor.bridge.getBlockKind(100)).toBe('table');
 		expect(await editor.bridge.getBlockKind(101)).toBe('fencedCode');
+		// A CST read passes with windowing off; the mounted-host count is what proves a slice.
+		const mountedRootHosts = await page.evaluate(
+			() =>
+				[...document.querySelectorAll('[data-block-path]')].filter(
+					(el) => JSON.parse(el.getAttribute('data-block-path')!).length === 1
+				).length
+		);
+		expect(mountedRootHosts).toBeLessThan(60);
 
 		await page.evaluate(() => (window as any).__test.rects.scrollTo([100], { block: 'center' }));
 		await page.locator('[role="cell"]').nth(LAST_CELL).click();
