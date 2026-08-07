@@ -52,7 +52,10 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      The collision policy's consumer-facing half stays ledgered as #70. Also for the re-audit:
      the separator-settle pattern now has five seams calling the restore/drop door pair by
      hand (the #73 class); the probe-based `settleSeparator` funnel that would close the class
-     structurally was priced out of the keystroke path — re-price it at the audit.
+     structurally was priced out of the keystroke path — re-price it at the audit, and unify
+     the family's parent types while there (`SeparatorParent` vs `BodyParentArg` is what forces
+     casts between adjacent calls; `mintSeparator` needs only `bodyStartFor(kind)`, which both
+     answer).
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
