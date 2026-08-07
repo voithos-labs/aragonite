@@ -7,7 +7,8 @@
 import { CURSOR_END } from '../../block-component';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import { nodeAt, writeOwnRaw } from '../node-ops';
+import { nodeAt, restoreSeparatorAfterBlank, writeOwnRaw } from '../node-ops';
+import { isBlankParagraph } from '../../core/parser';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
@@ -141,6 +142,10 @@ export async function applyContainerMatchingPaste(
 
 	normalizePastedListMarkers(unwrap.items, outer);
 	renumberPastedOrderedMarkers(unwrap.items, outer, unwrap.spliceIndex);
+	// A blank target IS the separating line of the body block below it, so the splice consuming
+	// it leaves both ends owed one (GH #73). An emptied post-delete stub separated nothing.
+	const replaced = outer.children?.[unwrap.spliceIndex];
+	const replacedBlank = replaced !== undefined && isBlankParagraph(replaced);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
@@ -155,6 +160,12 @@ export async function applyContainerMatchingPaste(
 				newCount: unwrap.items.length
 			};
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
+			if (replacedBlank) {
+				const parent = { children: scopeView.children, ownerKind: scopeView.node.kind };
+				restoreSeparatorAfterBlank(parent, unwrap.spliceIndex, scopeView.sharing);
+				const below = unwrap.spliceIndex + unwrap.items.length;
+				restoreSeparatorAfterBlank(parent, below, scopeView.sharing);
+			}
 			// The already-proxied tail; the pasted items carry precomputed markers.
 			renumberOrderedList(
 				scopeView.node,
