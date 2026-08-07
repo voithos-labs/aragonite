@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { parse } from '$lib/core/parser';
+import { isBlankParagraph, parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '$lib/tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { arbBlankSeparatedGfmDoc, freshOrFixedSeed } from './arbitraries';
-import { displayLength } from '$lib/core/lines';
+import { displayLength, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 // G2.13: an edit on a loaded document leaves a tree that reloads to its own block shape —
@@ -15,11 +15,13 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(424242) } as const;
 
-// The gestures whose separator handling the blank-line rule governs: Enter, block delete,
-// and a content commit. A deep-leaf merge writes a leaf's raw without reparsing its kind, a
-// separate contract this oracle would report against.
-type Gesture = { op: 'split' | 'delete' | 'update'; at: number; offset: number };
+// The gestures whose separator handling the blank-line rule governs: Enter, block delete, a
+// content commit, and typing into a blank BLOCK. A deep-leaf merge writes a leaf's raw without
+// reparsing its kind, a separate contract this oracle would report against.
+type Gesture = { op: 'split' | 'delete' | 'update' | 'fill'; at: number; offset: number };
 
+// `fill` is drawn by its own property below rather than joining this list: a fourth arm re-rolls
+// every seed of the three-gesture stream, trading the coverage it has for coverage it hasn't.
 const arbGesture: fc.Arbitrary<Gesture> = fc.record({
 	op: fc.constantFrom('split', 'delete', 'update'),
 	at: fc.nat({ max: 6 }),
@@ -29,6 +31,7 @@ const arbGesture: fc.Arbitrary<Gesture> = fc.record({
 function applyGesture(doc: Document, gesture: Gesture): void {
 	const count = doc.children.length;
 	if (count === 0) return;
+	if (gesture.op === 'fill') return applyFill(doc, gesture.at);
 	const at = gesture.at % count;
 	const node: CstNode = doc.children[at];
 	// Enter and Backspace split a PROSE leaf: a container descends to its leaf, and a
@@ -50,6 +53,18 @@ function applyGesture(doc: Document, gesture: Gesture): void {
 	}
 }
 
+/**
+ * Typing into a blank block, indexed over the blank blocks so the draw always lands on one:
+ * `update` rewrites a node's own bytes and so can never change its blankness, which left the
+ * transition the blank-line rule lives on unreachable by construction (GH #73).
+ */
+function applyFill(doc: Document, at: number): void {
+	const blanks = doc.children.flatMap((node, i) => (isBlankParagraph(node) ? [i] : []));
+	if (blanks.length === 0) return;
+	const target = blanks[at % blanks.length];
+	updateNodeContent(doc, target, 'x' + trailingLineEnding(doc.children[target].raw));
+}
+
 function divergenceAfterEdit(source: string, gesture: Gesture): string | null {
 	const doc = parse(source);
 	applyGesture(doc, gesture);
@@ -66,6 +81,18 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		fc.assert(
 			fc.property(arbBlankSeparatedGfmDoc, arbGesture, (source, gesture) => {
 				const divergence = divergenceAfterEdit(source, gesture);
+				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
+			}),
+			PARAMS
+		);
+	});
+
+	// GH #73: `update` rewrites a node's OWN bytes, so no gesture above can change a block's
+	// blankness and the transition the blank-line rule lives on was unreachable by construction.
+	it('typing into a blank block leaves a tree that reloads to its own shape', () => {
+		fc.assert(
+			fc.property(arbBlankSeparatedGfmDoc, fc.nat({ max: 6 }), (source, at) => {
+				const divergence = divergenceAfterEdit(source, { op: 'fill', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
 			PARAMS

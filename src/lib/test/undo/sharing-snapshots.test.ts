@@ -3,8 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
 import { devWarn } from '../../dev-warn';
 import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createHistoryActions } from '../../editor-actions/commit/history';
+import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 
 function makeHarness(source: string) {
@@ -60,6 +62,22 @@ describe('structural-sharing snapshots', () => {
 		expect(deps.undoManager.getStacks().undo[0].integrity).toBeDefined();
 		await history.requestUndo();
 		expect(devWarn).not.toHaveBeenCalled();
+	});
+
+	// GH #73: filling a blank block hands its follower the separator the blank line had been —
+	// a node the caller's unshare never covered, since it only owns the block being typed into.
+	// Miss-analysis: every sharing case drove a write to the block the gesture NAMES, so the one
+	// op that writes a bystander's bytes had no pin.
+	it('a blank fill unshares the follower it hands the separator to', async () => {
+		const { deps, controller, history } = makeHarness('alpha\n\n\ndelta\n');
+		const actions = createBlockEditActions(deps, controller);
+		controller.pushUndoSnapshot(1, 0);
+
+		await actions.updateBlockContent(1, 'x\n');
+		await history.requestUndo();
+
+		expect(devWarn).not.toHaveBeenCalled();
+		expect(serialize(deps.doc)).toBe('alpha\n\n\ndelta\n');
 	});
 
 	it('mutating a shared node between push and restore trips the integrity oracle', async () => {

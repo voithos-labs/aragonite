@@ -13,6 +13,7 @@ export {
 	emptyParagraph,
 	paragraphNode,
 	restoreSeparatorOnFill,
+	restoreSeparatorAfterBlank,
 	dropDoubledSeparator,
 	nodeAt
 } from './node-ops';

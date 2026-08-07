@@ -240,12 +240,16 @@ export interface ContainerEditActions {
 	nudgeReactivity(): void;
 	/**
 	 * Copy-path-on-write wrapper for out-of-ceremony writes (routine typing): unshares the
-	 * spine doc-root → `absPath`, calls `write` with the owned chain (outermost first),
-	 * rebuilds innermost-first. The caller still pushes its own checkpoint and nudges.
+	 * spine doc-root → `absPath`, calls `write` with the owned chain (outermost first) and the
+	 * epoch to own anything OFF that spine, then rebuilds innermost-first. The caller still
+	 * pushes its own checkpoint and nudges.
 	 * True means the rebuild re-derived a container's kind (typing the rest of a
 	 * `> [!TIP]` marker), remounting the edited leaf — the caller re-places the caret.
 	 */
-	withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): boolean;
+	withUnsharedSpine(
+		absPath: number[],
+		write: (chain: CstNode[], sharing: SharingState) => void
+	): boolean;
 	/**
 	 * Preferred entry for structural container mutations: spine unshare, snapshot,
 	 * publish, edit event, post-tick. `mutate` receives the OWNED container with its

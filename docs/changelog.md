@@ -116,6 +116,15 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   filled where a blank line stood now takes back the separator that blank line was, except where
   nothing is owed (the document or container head, or a blank block already standing above it).
 
+- **Typing or pasting into a blank line no longer merges the block below it.** The repair above
+  covered the blank line an Enter opens, which leaves its separator on the block beneath it. A
+  blank line a LOAD produces carries that separator itself, and it was doubling as the separator
+  of whatever followed — so filling the slot, by typing into it or by pasting text or blocks over
+  it, took the line away and left the block below butting against the new content. The session
+  showed both blocks and the next load showed one, with the bytes unchanged either way. A blank
+  line that stops being blank now hands a separator to its own slot and to its follower,
+  whichever end of the pair was holding the line, and declines where one is already there.
+
 - **Pasting into a table cell no longer splits the table when the text carries blank edge
   lines.** A copy that picked up an empty line above or below its text (a selection dragged past
   the paragraph's edges is the usual way) read as several blocks, and a cell holds no blocks, so

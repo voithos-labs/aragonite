@@ -451,9 +451,31 @@ export function restoreSeparatorOnFill(
 ): void {
 	const node = parent.children[index];
 	if (!node || node.leadingTrivia !== '' || isBlankParagraph(node)) return;
+	mintSeparator(parent, index, sharing);
+}
+
+/**
+ * The separator the block BELOW a consumed blank line takes back — the same mint minus the
+ * blank-self guard, since a blank follower needs the line as much as a prose one. It takes one
+ * only where its own follower holds none: two would reload as a second empty paragraph
+ * ({@link dropDoubledSeparator}'s rule, declined here rather than undone after).
+ */
+export function restoreSeparatorAfterBlank(
+	parent: BodyParentArg,
+	index: number,
+	sharing?: SharingState
+): void {
+	const node = parent.children[index];
+	if (!node || node.leadingTrivia !== '') return;
+	if (isBlankParagraph(node) && (parent.children[index + 1]?.leadingTrivia ?? '') !== '') return;
+	mintSeparator(parent, index, sharing);
+}
+
+/** A blank line off the node's own bytes (G4.20), where one does structural work at all. */
+function mintSeparator(parent: BodyParentArg, index: number, sharing?: SharingState): void {
 	if (index <= bodyStartFor(ownerKindOf(parent))) return;
 	if (isBlankParagraph(parent.children[index - 1])) return;
-	const owned = sharing ? ensureUnsharedChild(parent, index, sharing) : node;
+	const owned = sharing ? ensureUnsharedChild(parent, index, sharing) : parent.children[index];
 	owned.leadingTrivia = trailingLineEnding(owned.raw);
 }
 
@@ -532,14 +554,24 @@ export function updateNodeContent(
 	parent: BodyParentArg,
 	blockIndex: number,
 	text: string,
-	grammar?: GrammarView
+	grammar?: GrammarView,
+	sharing?: SharingState
 ): StructuralChange {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
 	const change = writeParsedContent(parent, blockIndex, text, grammar);
-	// The blank line this block WAS is what separated it from the block above (`splitSeparator`
-	// leaves a blank half none of its own when a run is already open below).
-	if (wasBlank) restoreSeparatorOnFill(parent, blockIndex);
+	// One blank line served BOTH sides: it separated this block from the one above
+	// (`splitSeparator` leaves a blank half none of its own when a run is already open below)
+	// and stood in as the separator of the block beneath it. Ending it owes each their own.
+	if (wasBlank && !isBlankParagraph(parent.children[blockIndex])) {
+		restoreSeparatorOnFill(parent, blockIndex, sharing);
+		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
+	}
 	return change;
+}
+
+/** Where the filled block's follower ended up: a multi-block reparse pushes it down. */
+function followerIndexAfter(change: StructuralChange, blockIndex: number): number {
+	return change.op === 'replace' ? change.at + change.newCount : blockIndex + 1;
 }
 
 function writeParsedContent(

@@ -10,6 +10,8 @@ vi.mock('$lib/dev-warn', () => ({ devWarn: vi.fn() }));
 
 import { devWarn } from '$lib/dev-warn';
 import type { CstNode } from '$lib/core/nodes';
+import type { SharingState } from '$lib/tree-operations/sharing';
+import { createSharingState } from '$lib/tree-operations/sharing';
 import { createNestedBlockEdit } from '$lib/editor-actions/nested/nested-block-edit';
 import type { NestedActionsDeps } from '$lib/editor-actions/nested/nested-actions';
 import {
@@ -36,9 +38,9 @@ function item(): CstNode {
 function typeInto(node: CstNode, chainDepth: number): void {
 	const containerEdit = makeStubContainerEdit();
 	vi.mocked(containerEdit.withUnsharedSpine).mockImplementation(
-		(_path: number[], run: (chain: CstNode[]) => void) => {
+		(_path: number[], run: (chain: CstNode[], sharing: SharingState) => void) => {
 			const chain = Array.from({ length: chainDepth }, () => node);
-			run(chain);
+			run(chain, createSharingState());
 			return false;
 		}
 	);

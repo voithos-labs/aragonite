@@ -8,7 +8,8 @@ import type { UndoEntryMode } from '../../action-contracts';
 import type { OperationDetailMap } from '../../schema/operations';
 import type { CstNode, Document } from '../../core/nodes';
 import type { PasteCommitCoordinator } from './paste-deps';
-import { nodeAt } from '../node-ops';
+import { nodeAt, restoreSeparatorAfterBlank } from '../node-ops';
+import { isBlankParagraph } from '../../core/parser';
 import { resolveParentScope } from './parent-scope';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import {
@@ -49,6 +50,9 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =
 		oldBlock !== null && replacement.length > 0 && replacement[0].kind === oldBlock.kind;
+	// The slot's blank line was the separator of the block below it as well as its own; both
+	// ends of the splice have to take one back once the replacement consumes it (GH #73).
+	const replacedBlank = oldBlock !== null && isBlankParagraph(oldBlock);
 
 	await controller.commitMultiScope({
 		scopes: [scope],
@@ -61,6 +65,11 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 				? replacePreservingFirst(blockIdx, 1, replacement.length)
 				: { op: 'replace', at: blockIdx, count: 1, newCount: replacement.length };
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
+			if (replacedBlank) {
+				const parent = { children: scopeView.children, ownerKind: scopeView.node.kind };
+				restoreSeparatorAfterBlank(parent, blockIdx, scopeView.sharing);
+				restoreSeparatorAfterBlank(parent, blockIdx + replacement.length, scopeView.sharing);
+			}
 			return [change];
 		},
 		op: {

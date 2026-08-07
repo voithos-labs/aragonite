@@ -80,7 +80,8 @@ export function createBlockEditActions(
 							{ children: view.children, ownerKind: undefined },
 							blockIndex,
 							text,
-							deps.grammar
+							deps.grammar,
+							view.sharing
 						);
 						stampStructuralChange(view.children, change, view.sharing);
 						return change;
@@ -92,8 +93,9 @@ export function createBlockEditActions(
 
 			// Routine typing: an out-of-ceremony in-place write, so copy the node first
 			// when a snapshot shares it. The debounced snapshot above holds the undo seam.
+			// `sharing` also owns the separator settle, which writes a SIBLING's bytes.
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
-			performUpdate(deps.doc, blockIndex, text, deps.grammar);
+			performUpdate(deps.doc, blockIndex, text, deps.grammar, deps.sharing);
 		}
 	};
 }

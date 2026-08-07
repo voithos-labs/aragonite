@@ -161,7 +161,8 @@ export function createNestedBlockEdit(
 							{ children: scope.children, ownerKind: scope.node.kind },
 							innerIndex,
 							text,
-							deps.grammar
+							deps.grammar,
+							scope.sharing
 						);
 						stampStructuralChange(scope.children, change, scope.sharing);
 						return change;
@@ -184,7 +185,7 @@ export function createNestedBlockEdit(
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
-			const reclassified = parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
+			const reclassified = parent.containerEdit.withUnsharedSpine(leafPath, (chain, sharing) => {
 				assertInvariant('unshared-spine-depth', () =>
 					chain.length === leafPath.length
 						? null
@@ -199,7 +200,8 @@ export function createNestedBlockEdit(
 					{ children: ownedContainer.children, ownerKind: ownedContainer.kind },
 					innerIndex,
 					text,
-					deps.grammar
+					deps.grammar,
+					sharing
 				);
 				// taskItem metadata is extracted at parse time from the first stripped
 				// line, so without this it freezes while the serialized source drifts.
