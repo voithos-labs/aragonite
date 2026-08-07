@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, type EditorActionsHarness } from '../harness/editor-actions';
@@ -42,7 +43,7 @@ describe('composition commit through the real actions', () => {
 		// the undo anchor, so one undo restores the pre-composition state.
 		const undo = harness.deps.undoManager.getStacks().undo;
 		expect(undo).toHaveLength(1);
-		expect(undo[0].selection.anchor).toEqual({ path: [0], offset: 11 });
+		expect(rangeSelectionOf(undo[0]).anchor).toEqual({ path: [0], offset: 11 });
 		expect(serialize(undo[0].snapshot)).toBe(SOURCE);
 	});
 

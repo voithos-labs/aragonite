@@ -189,6 +189,19 @@ describe('unbatched entry-path emission counts', () => {
 		expect(notifies).toBe(1);
 	});
 
+	// The preamble is the native sibling of the caret door: both must end every editor-owned
+	// caret claim, or a click leaves a phantom gap painted beside the new caret.
+	it('a pointerdown ends a live gap caret, shift held or not', () => {
+		for (const isShift of [false, true]) {
+			const state = createSelectionState();
+			state.setGapCaret({ parentPath: [], index: 1 });
+
+			resetForPointerDown(state, makeStickyColumn(), isShift);
+
+			expect(state.gapCaret).toBeNull();
+		}
+	});
+
 	it('a keyboard extend past a block edge notifies twice: the seed, then the reach', () => {
 		const h = emissionHarness();
 		h.parkCaretIn(0, 3);

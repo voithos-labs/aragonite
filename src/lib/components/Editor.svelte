@@ -1262,6 +1262,9 @@
 		// writes the attribute, and an intra-table rectangle keeps one path on both
 		// endpoints, so neither the DOM nor getSelection() answers this reliably.
 		isCrossBlockActive: () => selectionState.isCrossBlock,
+		// The gap caret has no public selection shape and no paint yet, so the state is the
+		// only place arrival can be observed.
+		getGapCaret: () => selectionState.gapCaret,
 		// The engine, not the `addSource`-only public registry: the derived per-path
 		// buckets are the only oracle for a stale bucket, since jsdom measures every
 		// range at zero width and no overlay ever paints there.

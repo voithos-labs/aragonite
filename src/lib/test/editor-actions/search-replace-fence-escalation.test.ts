@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { Document } from '$lib/core/nodes';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
@@ -148,8 +149,8 @@ describe('search/replace into a fenced code block', () => {
 		await replace.replaceOne(match, BACKTICKS);
 
 		const entry = deps.undoManager.getStacks().undo[0];
-		expect(entry.selection.anchor.path).toEqual(match.path);
-		expect(entry.selection.anchor.offset).toBe(match.start);
+		expect(rangeSelectionOf(entry).anchor.path).toEqual(match.path);
+		expect(rangeSelectionOf(entry).anchor.offset).toBe(match.start);
 	});
 
 	// The match spans the body into the closer line, so the substitution deletes a terminator

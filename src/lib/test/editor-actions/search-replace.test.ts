@@ -5,6 +5,7 @@ import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kin
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { compileMatcher } from '$lib/search/matcher';
 import { createGrammarView } from '$lib/schema/block-openers';
@@ -129,8 +130,8 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 		await sr.replaceOne(match, 'Y');
 
 		const entry = deps.undoManager.getStacks().undo[0];
-		expect(entry.selection.anchor.path).toEqual(match.path);
-		expect(entry.selection.anchor.offset).toBe(match.start);
+		expect(rangeSelectionOf(entry).anchor.path).toEqual(match.path);
+		expect(rangeSelectionOf(entry).anchor.offset).toBe(match.start);
 	});
 
 	it('preserves the block id of an untouched top-level block', async () => {

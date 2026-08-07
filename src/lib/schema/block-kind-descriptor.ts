@@ -60,6 +60,12 @@ export interface BlockKindDescriptor {
 	 * traversal stops on it, and Backspace/Delete focuses it before a second press deletes.
 	 */
 	blockFocus?: 'whole-block';
+	/**
+	 * Edges whose sibling-paragraph insertion this kind's own editing surface cannot host, so an
+	 * eligible boundary beside it gets a gap caret (`selection/gap-caret.ts`). Absent = the
+	 * surface, or an existing affordance, already covers insertion at both edges.
+	 */
+	gapEdges?: 'before' | 'after' | 'both';
 	isContainer: boolean;
 	/**
 	 * Shape of a container's raw↔children relationship (container kinds only).

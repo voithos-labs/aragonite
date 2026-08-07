@@ -6,6 +6,7 @@ import { nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
+import type { GapCaretPosition } from '$lib/selection/gap-caret';
 import type { EditorSelection } from '$lib/selection/primitives';
 import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
@@ -344,6 +345,8 @@ export function installTestProbes({
 		// turns every `false` assertion into a false pass, and the mirror is document-global
 		// (wrong editor on a two-editor route). Same rule `editor-rects.ts` carries.
 		isCrossBlockActive: (): boolean => editor.__test.isCrossBlockActive(),
+		// The third selection mode, read from the state for the same reason as above.
+		getGapCaret: (): GapCaretPosition | null => editor.__test.getGapCaret(),
 		// Narrower than the mode above: an intra-table rectangle turns that on while both
 		// endpoints keep the table's own path.
 		isCrossBlockSelection: (): boolean => {

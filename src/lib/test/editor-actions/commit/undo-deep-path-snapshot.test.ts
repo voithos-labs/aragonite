@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { makeEditorActionsDeps, mockRef, makeNode } from '$lib/test/harness/editor-actions';
 
 describe('debounced undo snapshot — deep path capture', () => {
@@ -15,10 +16,10 @@ describe('debounced undo snapshot — deep path capture', () => {
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo).toHaveLength(1);
-		expect(undo[0].selection.anchor.path).toEqual([0, 0, 1]);
-		expect(undo[0].selection.anchor.offset).toBe(3);
-		expect(undo[0].selection.focus.path).toEqual([0, 0, 1]);
-		expect(undo[0].selection.focus.offset).toBe(3);
+		expect(rangeSelectionOf(undo[0]).anchor.path).toEqual([0, 0, 1]);
+		expect(rangeSelectionOf(undo[0]).anchor.offset).toBe(3);
+		expect(rangeSelectionOf(undo[0]).focus.path).toEqual([0, 0, 1]);
+		expect(rangeSelectionOf(undo[0]).focus.offset).toBe(3);
 	});
 
 	it('falls back to the passed leaf path when no ref reports a cursor', () => {
@@ -28,8 +29,8 @@ describe('debounced undo snapshot — deep path capture', () => {
 
 		const { undo } = deps.undoManager.getStacks();
 		expect(undo).toHaveLength(1);
-		expect(undo[0].selection.anchor.path).toEqual([0]);
-		expect(undo[0].selection.anchor.offset).toBe(2);
+		expect(rangeSelectionOf(undo[0]).anchor.path).toEqual([0]);
+		expect(rangeSelectionOf(undo[0]).anchor.offset).toBe(2);
 	});
 
 	it('flat top-level prose typing path stays flat (live ref reports [i])', () => {
@@ -40,7 +41,7 @@ describe('debounced undo snapshot — deep path capture', () => {
 		controller.pushUndoSnapshotDebounced([0], 1);
 
 		const { undo } = deps.undoManager.getStacks();
-		expect(undo[0].selection.anchor.path).toEqual([0]);
-		expect(undo[0].selection.anchor.offset).toBe(1);
+		expect(rangeSelectionOf(undo[0]).anchor.path).toEqual([0]);
+		expect(rangeSelectionOf(undo[0]).anchor.offset).toBe(1);
 	});
 });

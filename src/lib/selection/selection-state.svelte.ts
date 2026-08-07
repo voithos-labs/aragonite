@@ -1,11 +1,13 @@
 /**
- * Reactive state for cross-block selection; `anchor`/`focus` are null in single-block
- * mode, where the native browser selection rules. Transitions: `docs/design/editor.md`
- * § Cross-block selection.
+ * Reactive state for the editor-owned selection modes: a cross-block `anchor`/`focus` pair,
+ * and the collapsed `gapCaret` (`gap-caret.ts`). Both are null in single-block mode, where the
+ * native browser selection rules, and the two are mutually exclusive here rather than at any
+ * call site. Transitions: `docs/design/editor.md` § Cross-block selection.
  */
 
 import type { DocumentView } from '../core/node-views';
 import { nodeAt } from '../tree-operations/node-ops';
+import type { GapCaretPosition } from './gap-caret';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';
 import { isWholeBlockEndpoint, normalize } from './primitives';
 import {
@@ -51,11 +53,16 @@ export interface SelectionState {
 	readonly start: SelectionPoint | null;
 	readonly end: SelectionPoint | null;
 	readonly selectAllCount: number;
+	/** The third mode: a collapsed caret in a between-blocks boundary (`gap-caret.ts`). */
+	readonly gapCaret: GapCaretPosition | null;
 
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void;
 	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
+	setGapCaret(pos: GapCaretPosition): void;
+	/** Silent when no gap is live, so a bare caret placement stays a zero-emission no-op. */
+	clearGapCaret(): void;
 	incrementSelectAllCount(): void;
 	resetSelectAllCount(): void;
 
@@ -85,6 +92,7 @@ export interface SelectionState {
 class SelectionStateImpl implements SelectionState {
 	#anchor: SelectionPoint | null = $state(null);
 	#focus: SelectionPoint | null = $state(null);
+	#gapCaret: GapCaretPosition | null = $state(null);
 	#selectAllCount: number = $state(0);
 	#onChange?: () => void;
 	#getDoc?: () => DocumentView;
@@ -123,6 +131,10 @@ class SelectionStateImpl implements SelectionState {
 
 	get focus(): SelectionPoint | null {
 		return this.#focus;
+	}
+
+	get gapCaret(): GapCaretPosition | null {
+		return this.#gapCaret;
 	}
 
 	get isCrossBlock(): boolean {
@@ -165,6 +177,7 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
+		this.#gapCaret = null;
 		const a = this.#normalizePoint(anchor, focus.path);
 		const f = this.#normalizePoint(focus, anchor.path);
 		// A same-path prose pair is a single-block range the browser owns; storing it mints an
@@ -186,6 +199,7 @@ class SelectionStateImpl implements SelectionState {
 		if (!this.#anchor) {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
+		this.#gapCaret = null;
 		const f = this.#normalizePoint(point, this.#anchor.path);
 		// A focus back on the anchor's prose leaf contracts to a single-block range. No
 		// `offset !== offset` guard, unlike #isSamePathProseRange: extendFocus never seeds, so
@@ -242,13 +256,30 @@ class SelectionStateImpl implements SelectionState {
 	collapse(): void {
 		this.#anchor = null;
 		this.#focus = null;
+		this.#gapCaret = null;
 		this.#notify();
 	}
 
 	clear(): void {
 		this.#anchor = null;
 		this.#focus = null;
+		this.#gapCaret = null;
 		this.#selectAllCount = 0;
+		this.#notify();
+	}
+
+	// The mutual exclusion's other half: a gap and a range are never live together, and the
+	// copy is what keeps a caller's own position object from writing through.
+	setGapCaret(pos: GapCaretPosition): void {
+		this.#anchor = null;
+		this.#focus = null;
+		this.#gapCaret = { parentPath: pos.parentPath.slice(), index: pos.index };
+		this.#notify();
+	}
+
+	clearGapCaret(): void {
+		if (this.#gapCaret === null) return;
+		this.#gapCaret = null;
 		this.#notify();
 	}
 

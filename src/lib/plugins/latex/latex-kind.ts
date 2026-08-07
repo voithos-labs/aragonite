@@ -140,6 +140,9 @@ export function registerMathBlock(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// The revealed source takes Enter as a literal newline and never splits, so neither
+		// edge can grow a sibling.
+		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
 		closure: simpleLeafClosure({
 			focus: {
@@ -213,6 +216,7 @@ export function registerMathFence(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		gapEdges: 'both',
 		conformanceFixture: '```math\nx^2\n```\n',
 		closure: simpleLeafClosure({
 			focus: {
