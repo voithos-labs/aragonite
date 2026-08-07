@@ -25,6 +25,7 @@ import {
 	type NestedActionsInput,
 	type NestedActionsOverrideFactory
 } from '$lib/editor-actions/nested/nested-actions';
+import type { PresentationMode } from '$lib/presentation-mode';
 import type { GrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
 import type { EditorEvents } from '$lib/editor-events';
@@ -38,6 +39,7 @@ import {
 import { createUndoManager } from '$lib/undo/manager';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import type { GapStopScope } from '$lib/selection/gap-caret';
 import { createEditorEvents } from '$lib/editor-events';
 
 // ── CST node factory ─────────────────────────────────────────────────────────
@@ -57,6 +59,12 @@ export function mockRef(overrides: Partial<BlockComponent> = {}): BlockComponent
 		focusable: true,
 		...overrides
 	} as BlockComponent;
+}
+
+/** An inert gap scope over an empty document, for the walks that assert non-gap landings. */
+export function makeEmptyGapScope(): GapStopScope {
+	const doc = parse('');
+	return { getDoc: () => doc, selection: createSelectionState() };
 }
 
 export function makeStickyColumn(x: number | null = null): StickyColumnState {
@@ -111,7 +119,7 @@ export function makeStubBlockEdit(): BlockEditActions {
 // revealPath resolves null: these consumers assert on moveFocus, not on the
 // resolved component, and don't model render-window mounting.
 export function makeStubFocus(): FocusActions {
-	return { moveFocus: vi.fn(), revealPath: async () => null };
+	return { moveFocus: vi.fn(), revealPath: async () => null, tryGapStop: () => false };
 }
 
 export function makeStubContainerEdit(): ContainerEditActions {
@@ -155,7 +163,7 @@ export interface EditorActionsHarness {
 // install one afterwards.
 export function makeEditorActionsDeps(
 	docChildren: CstNode[],
-	options: { onSelectionChange?: () => void } = {}
+	options: { onSelectionChange?: () => void; presentationMode?: PresentationMode } = {}
 ): EditorActionsHarness {
 	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
@@ -197,7 +205,8 @@ export function makeEditorActionsDeps(
 			if (path.length === 1) return ref;
 			return ref.getBlockComponentByPath?.(path.slice(1)) ?? null;
 		},
-		events
+		events,
+		getPresentationMode: options.presentationMode ? () => options.presentationMode! : undefined
 	};
 	return {
 		deps,

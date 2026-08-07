@@ -1,4 +1,5 @@
 import { type Page } from '@playwright/test';
+import type { GapCaretPosition } from '../selection/gap-caret';
 import type { EditorSelection } from '../selection/primitives';
 
 export class EditorBridge {
@@ -85,6 +86,31 @@ export class EditorBridge {
 	// selection is already cross-block — the exact direction most specs assert.
 	async isCrossBlockActive(): Promise<boolean> {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockActive());
+	}
+
+	// The third selection mode, same state-not-DOM rule as above: the gap's own surface
+	// mounts a render later than the state write.
+	async getGapCaret(): Promise<GapCaretPosition | null> {
+		return this.page.evaluate(() => (window as any).__test.getGapCaret());
+	}
+
+	/** Settles on the gap an arrival gesture parks; `null` waits for one to end. */
+	async waitForGapCaret(expected: GapCaretPosition | null, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			(want) => {
+				const probe = (window as any).__test?.getGapCaret;
+				if (!probe) return false;
+				const gap = probe() as { parentPath: number[]; index: number } | null;
+				if (!want) return gap === null;
+				return (
+					!!gap &&
+					gap.index === want.index &&
+					JSON.stringify(gap.parentPath) === JSON.stringify(want.parentPath)
+				);
+			},
+			expected,
+			{ timeout, polling: 16 }
+		);
 	}
 
 	async getSelectionPaths(): Promise<{

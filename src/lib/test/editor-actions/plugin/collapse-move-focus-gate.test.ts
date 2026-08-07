@@ -5,7 +5,8 @@ import type { FocusActions } from '$lib/action-contracts';
 function stubParentFocus() {
 	return {
 		moveFocus: vi.fn(),
-		revealPath: vi.fn(async () => null)
+		revealPath: vi.fn(async () => null),
+		tryGapStop: () => false
 	} satisfies FocusActions;
 }
 

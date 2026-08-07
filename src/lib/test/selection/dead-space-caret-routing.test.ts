@@ -8,6 +8,7 @@ import type { BlockComponent } from '$lib/block-component';
 import { CURSOR_END } from '$lib/block-component';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { createDeadSpaceCaret } from '$lib/selection/dead-space-caret';
+import { makeEmptyGapScope } from '../harness/editor-actions';
 
 registerBuiltInBlocks();
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -74,7 +75,8 @@ describe('createDeadSpaceCaret routing', () => {
 	function clickAt(clientX: number, clientY: number): boolean {
 		const caret = createDeadSpaceCaret({
 			getBlockComponent: () => component,
-			resetSelectionForClick
+			resetSelectionForClick,
+			gapScope: makeEmptyGapScope()
 		});
 		const press = { target: root, button: 0 } as unknown as MouseEvent;
 		caret.notePress(root, press);

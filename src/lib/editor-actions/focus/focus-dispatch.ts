@@ -16,7 +16,8 @@ import { consumeStickyLanding } from './focus-landing';
 /**
  * Move focus within a container, or delegate upward when out of range. `childCount`
  * overrides `refs.length` for the upper bound: the two diverge for one render cycle
- * after a structural op, and without it the cursor escapes the container.
+ * after a structural op, and without it the cursor escapes the container. `gapStop` is
+ * pre-bound to this scope's own boundaries (`selection/gap-caret.ts`).
  */
 export async function dispatchMoveFocus(
 	refs: (BlockComponent | undefined)[],
@@ -25,13 +26,21 @@ export async function dispatchMoveFocus(
 	stickyColumn: StickyColumnState,
 	parent: { focus: FocusActions; index: number },
 	childCount?: number,
-	options?: MoveFocusOptions
+	options?: MoveFocusOptions,
+	gapStop?: (boundaryIndex: number) => boolean
 ): Promise<void> {
 	// Omit the options arg when unset so the common path stays a two-arg call.
 	const delegate = (targetIndex: number) =>
 		options
 			? parent.focus.moveFocus(targetIndex, position, options)
 			: parent.focus.moveFocus(targetIndex, position);
+	const step = traversalStep(position);
+	// Ahead of every ref read, so the CST alone decides the boundary and a windowed-out
+	// child cannot change the answer. The two scope edges are boundaries like any other:
+	// this is also what stops the delegate arms from leaving the container.
+	if (gapStop && step !== 0 && !options?.skipGapStop) {
+		if (gapStop(step > 0 ? innerIndex : innerIndex + 1)) return;
+	}
 	if (innerIndex < 0) {
 		await delegate(parent.index - 1);
 		return;
@@ -46,7 +55,6 @@ export async function dispatchMoveFocus(
 	if (!block?.focusable) {
 		// A refless or non-focusable child must not dead-end the move — continue in
 		// its direction (editor.md § Focus Traversal).
-		const step = traversalStep(position);
 		if (step !== 0) {
 			await dispatchMoveFocus(
 				refs,
@@ -55,14 +63,15 @@ export async function dispatchMoveFocus(
 				stickyColumn,
 				parent,
 				childCount,
-				options
+				options,
+				gapStop
 			);
 		}
 		return;
 	}
 
 	await consumeStickyLanding(block, innerIndex, position, stickyColumn, (i) =>
-		dispatchMoveFocus(refs, i, position, stickyColumn, parent, childCount, options)
+		dispatchMoveFocus(refs, i, position, stickyColumn, parent, childCount, options, gapStop)
 	);
 }
 
