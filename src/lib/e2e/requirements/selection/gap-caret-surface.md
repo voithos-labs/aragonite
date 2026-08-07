@@ -15,6 +15,9 @@ Arrival is `gap-caret-arrival.md`; minting and undo are `gap-caret-editing.md`.
   selection.
 - A shift-click into a block while a gap is live lands the caret like a plain click.
 - Focus leaving the editor root entirely clears the gap.
+- Once an arrival settles, a `selectionChange` subscriber has been told the caret left: the
+  last emission is null and `getSelection()` reports null. The gap is outside the public
+  `SelectionPoint` union, so null is how it appears to a consumer.
 
 ## Edge cases
 
@@ -42,6 +45,11 @@ Arrival is `gap-caret-arrival.md`; minting and undo are `gap-caret-editing.md`.
   choke point in `Editor.svelte`'s mode-flip effect is the load-bearing half; the component
   guard is the belt.
 - Window blur (a `relatedTarget` of `null`) KEEPS the gap, matching a native caret.
+- **An arrival emits `selectionChange` more than once.** The state write fires while DOM
+  focus is still in the source block, so it reports that block; the proxy's own range
+  settles the stream to null a moment later. Suppressing the second emission was tried and
+  reverted — it leaves subscribers reading the stale block position. The settled value is
+  the contract; the burst shape is not.
 
 ## Miss analysis
 

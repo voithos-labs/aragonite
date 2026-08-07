@@ -57,6 +57,25 @@ test.describe('the gap caret paints a line at the boundary', () => {
 		expect(painted.spansColumn).toBe(true);
 	});
 
+	// The gap is deliberately outside the public `SelectionPoint` union, so a subscriber must
+	// be told the caret LEFT the block it was in. The state write alone cannot say so — it
+	// fires while DOM focus is still in the source block, so the settling emission is the
+	// proxy's own range moving, and a filter over that would strand the stale position.
+	test('a subscriber is left reading no selection once the gap settles', async () => {
+		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
+		await editor.page.evaluate(() => (window as any).__test.startSelectionChangeCapture());
+
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
+		await editor.waitForRenderFlush();
+
+		const emissions: { anchor: unknown }[] = await editor.page.evaluate(() =>
+			(window as any).__test.stopSelectionChangeCapture()
+		);
+		expect(emissions.at(-1)).toEqual({ anchor: null, focus: null });
+		expect(await editor.bridge.getSelection()).toBeNull();
+	});
+
 	// Zero-height flow: the boundary keeps the layout it had without the caret in it.
 	test('the line adds no layout of its own', async () => {
 		const before = await editor.page
