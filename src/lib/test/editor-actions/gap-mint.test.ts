@@ -4,6 +4,7 @@ import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { EditEvent } from '$lib/editor-events';
 
 // The gap caret's mint, byte-oracled: a paragraph minted at a boundary must serialize to the
@@ -49,6 +50,18 @@ describe('a paragraph minted at a boundary round-trips', () => {
 		expect(serialize(h.doc)).toBe(`para\n\n${TABLE}\n\n${FENCE}\ntail\n`);
 		expect(serialize(parse(serialize(h.doc)))).toBe(serialize(h.doc));
 		expect(h.doc.children).toHaveLength(5);
+	});
+
+	// GH #73: the head's own fill correctly declines a separator at bodyStart, so the block the
+	// mint displaced is the one owed the line — in SOURCE only, which no byte round-trip sees.
+	it('hands the displaced head its own separator once the mint is typed into', async () => {
+		const h = makeTop(`${TABLE}\n${FENCE}`);
+
+		await h.actions.insertParagraph(0, '');
+		await h.actions.updateBlockContent(0, 'q\n');
+
+		expect(serialize(h.doc)).toBe(`q\n\n${TABLE}\n${FENCE}`);
+		expectParseConverged(h.doc);
 	});
 
 	// The head slot owns no separator, so the mint takes the old head's and hands one back.

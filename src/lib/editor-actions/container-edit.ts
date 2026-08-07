@@ -5,6 +5,7 @@
 
 import type { ContainerEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
+import type { SharingState } from '../tree-operations/sharing';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import type { EditorActionsDeps, UndoController } from './deps';
 
@@ -24,9 +25,12 @@ export function createContainerEditActions(
 			deps.doc.children = [...deps.doc.children];
 		},
 
-		withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): boolean {
+		withUnsharedSpine(
+			absPath: number[],
+			write: (chain: CstNode[], sharing: SharingState) => void
+		): boolean {
 			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
-			write(chain);
+			write(chain, deps.sharing);
 			const replacements = rebuildUnsharedChain(deps.doc, chain, deps.sharing, deps.grammar);
 			return replacements.length > 0;
 		},

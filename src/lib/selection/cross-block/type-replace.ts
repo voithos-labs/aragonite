@@ -110,7 +110,8 @@ export async function handleCrossBlockTypeReplace(
 				{ children: scopeView.children, ownerKind: scopeView.node.kind },
 				leafIndex,
 				newText,
-				ctx.grammar
+				ctx.grammar,
+				sharing
 			);
 			stampStructuralChange(scopeView.children, change, sharing);
 			return [change];

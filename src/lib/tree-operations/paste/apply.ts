@@ -59,7 +59,8 @@ async function commitInlineJoin(
 				{ children: view.children, ownerKind: view.node.kind },
 				leafIndex,
 				result.newRaw,
-				ctx.grammar
+				ctx.grammar,
+				view.sharing
 			);
 			stampStructuralChange(view.children, change, view.sharing);
 			return [change];

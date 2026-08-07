@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { splitNode, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode, Document } from '$lib/core/nodes';
 
 // The typing ≡ loading spine at tree level: the simulation compares source BYTES across the
@@ -82,7 +83,7 @@ describe('typing into the blank line an Enter opened', () => {
 		expect(serialize(doc)).toBe('Hello world\n\nx\n');
 	});
 
-	it('mints none below a blank predecessor, which is the separating line', () => {
+	it('mints none below a blank predecessor, and hands the follower its own', () => {
 		const doc = parse('a\n\n\n\nb\n');
 		expect(layout(doc.children)).toEqual([
 			['paragraph', '', 'a\n'],
@@ -93,7 +94,63 @@ describe('typing into the blank line an Enter opened', () => {
 
 		updateNodeContent(doc, 2, 'x\n');
 
-		expect(serialize(doc)).toBe('a\n\n\nx\nb\n');
+		expect(serialize(doc)).toBe('a\n\n\nx\n\nb\n');
+		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
+	});
+
+	// The split shape puts the separator on the FOLLOWER, so a blank block below the fill already
+	// carries its line; a second one there reloads as one more empty paragraph.
+	it('leaves a follower that already carries the separator alone', () => {
+		const doc = parse('Hello\n\nSecond\n');
+		splitNode(doc, 0, 5);
+		splitNode(doc, 1, 0);
+
+		updateNodeContent(doc, 1, 'x\n');
+
+		expect(serialize(doc)).toBe('Hello\n\nx\n\n\nSecond\n');
+		expectParseConverged(doc);
+	});
+});
+
+// A blank line a LOAD minted carries the separator on its own trivia and leaves the follower
+// none, so the fill's mint has to land on the follower instead — the shape every reload
+// produces, and the one arm `restoreSeparatorOnFill` alone cannot reach.
+// Miss-analysis: every case above drives the split-produced shape, where the follower already
+// carries the separator; none typed into a blank block the parser had minted.
+describe('typing into a blank line the load minted', () => {
+	it('hands the separator to the follower the blank line was standing in for', () => {
+		const doc = parse('alpha\n\n\ndelta\n');
+		expect(layout(doc.children)).toEqual([
+			['paragraph', '', 'alpha\n'],
+			['paragraph', '\n', '\n'],
+			['paragraph', '', 'delta\n']
+		]);
+
+		updateNodeContent(doc, 1, 'x\n');
+
+		expect(serialize(doc)).toBe('alpha\n\nx\n\ndelta\n');
+		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
+	});
+
+	// A multi-block fill pushes the follower down, so the settle reads its index off the change.
+	it('finds the follower past the blocks a multi-block fill minted', () => {
+		const doc = parse('alpha\n\n\ndelta\n');
+
+		updateNodeContent(doc, 1, 'p\n\nq\n');
+
+		expect(serialize(doc)).toBe('alpha\n\np\n\nq\n\ndelta\n');
+		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
+	});
+
+	// The follower is itself a blank block: it takes the line too, and its own follower holds
+	// none, so no doubling arises.
+	it('hands a blank follower the separator without doubling the line', () => {
+		const doc = parse('a\n\n\n\nb\n');
+
+		updateNodeContent(doc, 1, 'x\n');
+
+		expect(serialize(doc)).toBe('a\n\nx\n\n\nb\n');
+		expect(layout(parse(serialize(doc)).children)).toEqual(layout(doc.children));
 	});
 });
 
