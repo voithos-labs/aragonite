@@ -43,6 +43,21 @@ describe('SelectionState — the gap caret as a third mode', () => {
 		expect(s.gapCaret).toEqual({ parentPath: [0], index: 1 });
 	});
 
+	// The read side owes the same copy as the write side, or a consumer that edits what it
+	// read back writes state with nobody notified.
+	it('copies on read, so mutating the result cannot reach in either', () => {
+		const h = stateWithEmissions();
+		h.selection.setGapCaret(GAP);
+		h.resetEmissions();
+
+		const read = h.selection.gapCaret!;
+		read.parentPath.push(9);
+		read.index = 7;
+
+		expect(h.selection.gapCaret).toEqual(GAP);
+		expect(h.emissions).toBe(0);
+	});
+
 	it.each([
 		[
 			'enterCrossBlock',

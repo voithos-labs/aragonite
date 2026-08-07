@@ -37,6 +37,7 @@ export function stubBlockEdit(): BlockEditActions {
 	return {
 		splitBlock: () => {},
 		descendToBody: () => {},
+		insertParagraph: () => {},
 		mergeWithPrevious: () => {},
 		mergeWithNext: () => {},
 		deleteBlock: () => {},

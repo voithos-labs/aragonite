@@ -296,3 +296,17 @@ export function resolveGlobalBinding(
 	if (decision !== undefined) return decision;
 	return builtinGlobalBinding(chord);
 }
+
+/**
+ * Run whatever `chord` resolves to at global scope. The surfaces with no focused block for a
+ * kind tier to apply to — the editor root's windowed-out caret, the gap caret's proxy — share
+ * this, so a consumer's global override reaches both or neither.
+ */
+export function runGlobalChord(
+	chord: string,
+	overrides: KeybindingOverrideMap | undefined,
+	context: GlobalCommandContext
+): void {
+	const binding = resolveGlobalBinding(chord, overrides);
+	if (binding) getCommand(binding.command)?.(context);
+}

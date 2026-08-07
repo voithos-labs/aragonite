@@ -49,6 +49,12 @@ export interface BlockEditActions {
 	 * it is the last child. An off-window next block leaves the caret put, key consumed.
 	 */
 	descendToBody(blockIndex: number): void | Promise<void>;
+	/**
+	 * @internal Mint a paragraph carrying `text` at a BOUNDARY of this scope, caret after
+	 * the text. `boundaryIndex === children.length` appends. The between-blocks caret's
+	 * insertion door (`selection/gap-caret.ts`).
+	 */
+	insertParagraph(boundaryIndex: number, text: string): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;

@@ -133,8 +133,11 @@ class SelectionStateImpl implements SelectionState {
 		return this.#focus;
 	}
 
+	// Copied out, as `setGapCaret` copies in: a consumer that mutates what it reads back
+	// would otherwise write state without notifying anyone.
 	get gapCaret(): GapCaretPosition | null {
-		return this.#gapCaret;
+		const gap = this.#gapCaret;
+		return gap && { parentPath: gap.parentPath.slice(), index: gap.index };
 	}
 
 	get isCrossBlock(): boolean {

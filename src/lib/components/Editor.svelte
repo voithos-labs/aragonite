@@ -743,6 +743,9 @@
 		if (mode === lastEffectiveMode) return;
 		lastEffectiveMode = mode;
 		if (mode === 'reading') {
+			// The gap is an editor-owned caret no DOM blur can reach, so it folds here beside
+			// the blur rather than at each arrival path (#88).
+			selectionState.clearGapCaret();
 			// Header chrome keeps its focus, or a mode toggle blurs a title field mid-edit.
 			const active = document.activeElement;
 			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active))

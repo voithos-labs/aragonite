@@ -24,12 +24,8 @@ export interface GapCaretPosition {
  * move-past-end append (`editor-actions/focus/focus.ts`) already owns it.
  */
 export function gapEligibleAt(doc: DocumentView, parentPath: number[], index: number): boolean {
-	const parent = nodeAt(doc, parentPath);
-	if (!parent) return false;
-	if (isBlockNode(parent) && !tryGetBlockKindDescriptor(parent.kind)?.isContainer) return false;
-
-	const children = parent.children;
-	if (!children || children.length === 0) return false;
+	const children = gapScopeChildren(doc, parentPath);
+	if (!children) return false;
 	if (index < 0 || index > children.length) return false;
 
 	if (index === 0) return declaresEdge(children[0], 'before');
@@ -37,6 +33,22 @@ export function gapEligibleAt(doc: DocumentView, parentPath: number[], index: nu
 		return parentPath.length > 0 && declaresEdge(children[index - 1], 'after');
 	}
 	return declaresEdge(children[index - 1], 'after') && declaresEdge(children[index], 'before');
+}
+
+/**
+ * The children a gap could live between at `parentPath`, or null when that path names no
+ * scope a BlockList renders. Shared with the undo restore road, so a drifted path cannot
+ * park a caret somewhere nothing would paint it.
+ */
+export function gapScopeChildren(
+	doc: DocumentView,
+	parentPath: number[]
+): readonly NodeView[] | null {
+	const parent = nodeAt(doc, parentPath);
+	if (!parent) return null;
+	if (isBlockNode(parent) && !tryGetBlockKindDescriptor(parent.kind)?.isContainer) return null;
+	const children = parent.children;
+	return children && children.length > 0 ? children : null;
 }
 
 function declaresEdge(node: NodeView, edge: 'before' | 'after'): boolean {

@@ -10,7 +10,7 @@ import type { BlockComponent } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { EditorSelection } from '../../selection/primitives';
-import type { UndoEntry } from '../../undo/types';
+import type { GapCaretSelection, UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { readCurrentSelection } from '../../selection/native-bridge';
@@ -121,14 +121,23 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		setUndoGauge(liveBytes, undo.length);
 	}
 
+	/**
+	 * What an entry records as "where the caret was". The gap outranks the caller's declared
+	 * coordinate and not the live caret: it IS a live caret, but no block ref can report it,
+	 * so it would otherwise fall through to a fallback naming a block it isn't in.
+	 */
+	function entrySelection(fallback: () => EditorSelection): EditorSelection | GapCaretSelection {
+		const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
+		if (live) return live;
+		const gap = deps.selectionState.gapCaret;
+		return gap ? { gapCaret: gap } : fallback();
+	}
+
 	function pushUndoSnapshotPath(fallbackPath: number[], offset: number): void {
-		const selection =
-			readCurrentSelection(deps.selectionState, deps.blockRefs) ??
-			collapsedSelectionAtPath(fallbackPath, offset);
 		deps.undoManager.push({
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
-			selection
+			selection: entrySelection(() => collapsedSelectionAtPath(fallbackPath, offset))
 		});
 		recordSnapshotPerf();
 	}
@@ -590,12 +599,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── State capture / checkpoint control ──────────────────────────────────
 
 	function captureCurrentState(): UndoEntry {
-		const selection = readCurrentSelection(deps.selectionState, deps.blockRefs);
-		// Fallback for unfocused-at-capture (headless harness, programmatic capture).
+		// Same three-tier read as the snapshot pushers — this is the entry a history swap
+		// pushes onto the opposite stack, so a gap live at the swap must survive the return.
 		return {
 			...shareSnapshot(),
 			blockIds: [...deps.blockIds],
-			selection: selection ?? collapsedSelectionAt(0, 0)
+			// Fallback for unfocused-at-capture (headless harness, programmatic capture).
+			selection: entrySelection(() => collapsedSelectionAt(0, 0))
 		};
 	}
 

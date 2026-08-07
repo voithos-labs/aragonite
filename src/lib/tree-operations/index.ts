@@ -11,6 +11,9 @@ export {
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
 	emptyParagraph,
+	paragraphNode,
+	restoreSeparatorOnFill,
+	dropDoubledSeparator,
 	nodeAt
 } from './node-ops';
 
