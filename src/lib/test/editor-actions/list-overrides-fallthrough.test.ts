@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
+import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { makeNestedHarness } from '../harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
@@ -19,7 +20,7 @@ describe('list item replace falls through to the shared core', () => {
 
 		const entry = h.deps.undoManager.getStacks().undo.at(-1);
 		expect(entry).toBeDefined();
-		expect(entry!.selection.focus.offset).toBe(4);
+		expect(rangeSelectionOf(entry!).focus.offset).toBe(4);
 	});
 
 	it('replace backfills an empty editable-container replacement with a placeholder', async () => {

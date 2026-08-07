@@ -92,6 +92,21 @@ describe('placeCaret — the safe caret door', () => {
 		el.remove();
 	});
 
+	// The gap is the other editor-owned caret claim: a mint that left it standing would paint
+	// two carets at once.
+	it('ends a live gap caret and lands the caret, in one emission', () => {
+		const h = liveRange();
+		h.selection.clear();
+		h.selection.setGapCaret({ parentPath: [], index: 1 });
+		h.emissions.length = 0;
+
+		placeCaret(h.selection, h.park)(7);
+
+		expect(h.selection.gapCaret).toBeNull();
+		expect(h.landed).toBe(7);
+		expect(h.emissions.length).toBe(1);
+	});
+
 	it('nests inside a caller-owned batch without emitting early', () => {
 		const h = liveRange();
 

@@ -105,6 +105,9 @@ export function registerMermaidKind(): void {
 		// ThematicBreak's focus-then-delete model: arrows stop on it, and a caret-adjacent
 		// Backspace focuses before a second press deletes.
 		blockFocus: 'whole-block',
+		// Leading edge only, for the same reason as thematicBreak: its focused Enter already
+		// inserts a paragraph below.
+		gapEdges: 'before',
 		container: {
 			// Raw is rebuilt from metadata alone, so it is exempt from the strip byte-check
 			// and guarded by the reparse + determinism probes instead.

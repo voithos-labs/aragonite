@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
@@ -164,7 +165,7 @@ describe('reorder action — blockquote', () => {
 		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
 		await h.reorder.moveReorderUnit([0, 0], 2);
 		const { undo } = h.deps.undoManager.getStacks();
-		expect(undo.at(-1)?.selection.focus.path).toEqual([0, 0]);
+		expect(rangeSelectionOf(undo.at(-1)!).focus.path).toEqual([0, 0]);
 	});
 });
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { nodeAt } from '$lib/tree-operations/node-ops';
+import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
@@ -80,8 +81,8 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
 
 		const entry = lastUndoEntry(deps);
-		expect(entry.selection.focus.path).toEqual([1, 0]);
-		expect(nodeAt(entry.snapshot, entry.selection.focus.path)).toBeTruthy();
+		expect(rangeSelectionOf(entry).focus.path).toEqual([1, 0]);
+		expect(nodeAt(entry.snapshot, rangeSelectionOf(entry).focus.path)).toBeTruthy();
 	});
 
 	it('container delete stores the deleted item path', async () => {
@@ -91,8 +92,8 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		await h.bundle.blockEdit.deleteBlock(1);
 
 		const entry = lastUndoEntry(h.deps);
-		expect(entry.selection.focus.path).toEqual([0, 1]);
-		expect(nodeAt(entry.snapshot, entry.selection.focus.path)).toBeTruthy();
+		expect(rangeSelectionOf(entry).focus.path).toEqual([0, 1]);
+		expect(nodeAt(entry.snapshot, rangeSelectionOf(entry).focus.path)).toBeTruthy();
 	});
 
 	it('a 2-deep nested metadata update stores the leaf path', async () => {
@@ -123,7 +124,7 @@ describe('no-caret container commits snapshot a resolving deep restore path', ()
 		await listBundle.blockEdit.updateBlockMetadata(0, { taskChecked: true });
 
 		const entry = lastUndoEntry(deps);
-		expect(entry.selection.focus.path).toEqual([1, 0, 0]);
-		expect(nodeAt(entry.snapshot, entry.selection.focus.path)).toBeTruthy();
+		expect(rangeSelectionOf(entry).focus.path).toEqual([1, 0, 0]);
+		expect(nodeAt(entry.snapshot, rangeSelectionOf(entry).focus.path)).toBeTruthy();
 	});
 });

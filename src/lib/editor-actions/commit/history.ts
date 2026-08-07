@@ -7,7 +7,7 @@
 
 import { tick } from 'svelte';
 import type { HistoryActions } from '../../action-contracts';
-import type { UndoEntry } from '../../undo/types';
+import { isGapSelection, type UndoEntry } from '../../undo/types';
 import { assertInvariant } from '../../invariants/assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { restoreSelection } from '../../selection/selection-restore';
@@ -28,14 +28,18 @@ export function createHistoryActions(
 		// The tick belongs to the doc swap above, not to the restore: the new tree
 		// must render before the shared seam can reveal or address anything in it.
 		await tick();
-		const outcome = await restoreSelection(entry.selection, {
-			getDoc: () => deps.doc,
-			selectionState: deps.selectionState,
-			getBlockElByPath: deps.getBlockElByPath,
-			// Mount, not scroll into view: a history swap must not move the viewport for
-			// a target already on screen.
-			revealTarget: async (path) => (await deps.revealPath(path)) !== null
-		});
+		// A gap-carrying entry has no anchor/focus to resolve, so it takes the same route as an
+		// entry naming a slot that no longer exists.
+		const outcome = isGapSelection(entry.selection)
+			? 'unresolvable'
+			: await restoreSelection(entry.selection, {
+					getDoc: () => deps.doc,
+					selectionState: deps.selectionState,
+					getBlockElByPath: deps.getBlockElByPath,
+					// Mount, not scroll into view: a history swap must not move the viewport for
+					// a target already on screen.
+					revealTarget: async (path) => (await deps.revealPath(path)) !== null
+				});
 		// An entry can name a slot that never existed in its own snapshot (the
 		// append-past-end op declares the one-past-the-end coordinate as its restore
 		// fallback). The seam declines without side effects, so clearing is this

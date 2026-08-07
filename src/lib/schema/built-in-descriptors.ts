@@ -195,6 +195,8 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// Enter inside the fence writes a code newline, so neither edge can grow a sibling.
+		gapEdges: 'both',
 		normalizeRawWrite: normalizeFencedRaw,
 		keymap: [
 			{ chord: 'Enter', command: 'code.newline' },
@@ -231,6 +233,8 @@ export function registerBuiltInDescriptors(): void {
 		editable: false,
 		supportsInline: false,
 		blockFocus: 'whole-block',
+		// Leading edge only: its focused Enter already inserts a paragraph below.
+		gapEdges: 'before',
 		keymap: [
 			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
@@ -288,6 +292,8 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// Enter inside a cell stays in the grid, so neither edge can grow a sibling.
+		gapEdges: 'both',
 		container: { contract: 'grid', rebuildRaw: rebuildTableRaw },
 		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
 		closure: {

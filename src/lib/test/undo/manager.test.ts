@@ -3,6 +3,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { assignIds } from '../../block-id';
 import { createUndoManager } from '../../undo/manager';
+import { rangeSelectionOf } from '../support/undo-entry';
 import type { UndoEntry } from '../../undo/types';
 
 function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
@@ -91,10 +92,10 @@ describe('UndoManager', () => {
 		const manager = createUndoManager();
 		manager.push(makeEntry('Hello\n', 2, 15));
 		const restored = manager.undo(CURRENT);
-		expect(restored!.selection.anchor.path).toEqual([2]);
-		expect(restored!.selection.anchor.offset).toBe(15);
-		expect(restored!.selection.focus.path).toEqual([2]);
-		expect(restored!.selection.focus.offset).toBe(15);
+		expect(rangeSelectionOf(restored!).anchor.path).toEqual([2]);
+		expect(rangeSelectionOf(restored!).anchor.offset).toBe(15);
+		expect(rangeSelectionOf(restored!).focus.path).toEqual([2]);
+		expect(rangeSelectionOf(restored!).focus.offset).toBe(15);
 	});
 
 	it('evicts the oldest entry once the stack exceeds MAX_UNDO (FIFO)', () => {
