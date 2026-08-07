@@ -21,9 +21,7 @@ function dispatch(
 		position,
 		makeStickyColumn(),
 		{ focus: parentFocus, index: 3 },
-		2,
-		options,
-		gapStop
+		{ childCount: 2, options, gapStop }
 	);
 	return { done, parentFocus, child, gapStop };
 }

@@ -118,10 +118,9 @@ export interface FocusActions {
 	/** Mount an off-window top-level block before placing a caret in it; see EditorActionsDeps.revealPath. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
 	/**
-	 * @internal Park the caret at a between-blocks boundary when that boundary is eligible,
-	 * reporting whether it did. Owned by the root, which holds the doc and selection reads;
-	 * every nested scope forwards this one, as it forwards `revealPath`. Required, not
-	 * optional: a dropped forward would make every gap arrival below it silently vanish.
+	 * @internal Park the caret at an eligible between-blocks boundary, reporting whether it
+	 * did. Required, not optional: a dropped forward makes every gap arrival below it
+	 * silently vanish.
 	 */
 	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
 }

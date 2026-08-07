@@ -54,7 +54,7 @@ A note on reading the ledger: it is deliberately a memory, not a scoreboard. `se
 
 ## Fixing bugs
 
-Root-cause first, never a patch around an edge case. Add the regression test **red first** (it fails on the pre-fix code, for the right reason), then fix. Record a one-line miss-analysis, what test should have caught this and why none did, in the regression test's requirement file.
+Root-cause first, never a patch around an edge case. Add the regression test **red first** (it fails on the pre-fix code, for the right reason), then fix. Record a one-line miss-analysis, what test should have caught this and why none did, in the regression test's requirement file (e2e) or as the regression test's own header line (unit).
 
 ## Licensing
 

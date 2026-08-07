@@ -190,6 +190,8 @@ async function handleCrossBlockActive(
 	return false;
 }
 
+/** The first-press arm; `handleCrossBlockActive` carries the identical chord set for the
+ *  already-cross-block case, so a chord added here is owed there too. */
 async function handleCrossBlockEntry(
 	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent

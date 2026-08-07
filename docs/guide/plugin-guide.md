@@ -430,6 +430,8 @@ Content that is _itself editable_ comes in four tiers, each backed by a tree gua
 
 The chrome leaf is deliberately narrow: it is always present, single-line and unsplittable (paste flattens to inline), and it is cleared — never deleted — by a destructive range, staying the same kind through every edit. The contract guarantees the empty leaf's presence, not its look: an empty-state affordance (placeholder text over an untitled title, say) is yours to build with CSS on the leaf's block class.
 
+**Declare `gapEdges` when your surface traps the caret at its edges.** A grid, a fence or an opaque embed leaves the boundary it shares with a neighbour unreachable: no caret can sit there, so no paragraph can be typed between two of them. `gapEdges: 'before' | 'after' | 'both'` on the kind opens the edges you name to a between-blocks caret, where typing or Enter mints a paragraph. Omit it and your kind behaves exactly as it does without the field.
+
 Nested-editor interiors — a second editor's state serialized as a blob — are **rejected permanently**. They break byte-lossless round-trip.
 
 ### The editable leaf

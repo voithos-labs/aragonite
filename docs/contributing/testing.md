@@ -125,6 +125,8 @@ The filesystem is the authoritative list of what's covered. A spec with no requi
 
 **Per-block subfolder rule.** A block area earns a subfolder under `tests/blocks/` and a `test:e2e:blocks:<block>` script at 3 spec files. Below that, specs stay flat under the parent category.
 
+**A bug fix's miss-analysis lives here too**: one line saying what test should have caught it and why none did, in the requirement file the regression spec pairs with. A unit-level regression has no requirement file, so its miss-analysis is the test file's own header line instead.
+
 ### Writing a new E2E spec
 
 ```typescript

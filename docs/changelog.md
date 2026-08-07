@@ -31,6 +31,18 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   the click on its territory, the editor decides where the caret goes. The landing is the editor's
   own dead-space walk, shared rather than reimplemented, so the two cannot disagree about a point.
 
+- **A caret can now sit between two blocks that leave no room for one.** A table followed by a
+  code fence, a fence followed by a table, a document opening with either: those boundaries had
+  no position to type into, so getting a paragraph between them meant editing the Markdown
+  somewhere else and letting it reflow. An arrow crossing such a boundary now stops on it,
+  Backspace at the start of the block below and Delete at the end of the block above land on it,
+  and a click in the strip above a leading table finds it. It paints as a line across the column;
+  typing or Enter turns it into a real paragraph in one undoable step, and one undo puts the
+  caret back on the boundary with the paragraph gone. Reading mode has no caret there, as it has
+  none anywhere. Kinds opt in: a plugin block whose surface traps the caret at its edges declares
+  `gapEdges` on its kind (the bundled math block, math fence and mermaid diagram do), and the
+  insert reaches the event seam as a new `insertBlock` op.
+
 - **The editor now answers which keyboard chords it consumes.** `editor.reservedChords()` returns
   the modifier chords this instance claims and `editor.claimsChord(event)` answers for one
   keystroke, using the editor's own normalization — so an app registering accelerators no longer

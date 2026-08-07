@@ -197,6 +197,8 @@ Beside the probe sits its inverse, the expand door: `expandPatch` returns the me
 
 Context-dependent kinds (no standalone recognizer — kept through edits); an opaque container contract (raw is authoritative, not a strip decomposition); and whole-block focus (`blockFocus: 'whole-block'`, opting an opaque childless block into the focus-then-delete model — arrow traversal stops on it, a caret-adjacent Backspace focuses it before a second press deletes, and the merge-fallback twins focus rather than dead-end). All invariant-guarded.
 
+`gapEdges` (`'before' | 'after' | 'both'`) is the optional gap-caret declaration: a kind whose surface traps the caret at one or both of its edges says so, and the boundary it shares with a sibling declaring the facing edge becomes a place a caret can park and a paragraph can be minted (`editor.md` § The gap caret). Additive by construction: an undeclared kind behaves exactly as it did before the field existed, which is why the v1 set is deliberately narrow and later declarations cost no restructure.
+
 `estimateHeight(node, { width })` is the optional height-oracle hook for windowing: an O(1) per-kind pixel estimate the oracle consults after the collapse probe and before its built-in default, so a kind that renders at a stable size (a Mermaid diagram at its skeleton height) scrolls right before it mounts. The measured cache still supersedes it, and a collapsed container still estimates at one chrome row (`docs/design/virtual-rendering.md`).
 
 ### Presentation-mode reads

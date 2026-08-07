@@ -30,13 +30,14 @@ export type RangeInterruptGesture =
 	| 'search-round-trip'
 	| 'inline-reveal-click'
 	| 'block-reveal-click'
-	| 'toc-entry-click';
+	| 'toc-entry-click'
+	| 'gap-caret-click';
 
 /**
  * What the one printable key is predicted to consume. The two reveal rungs differ only in
  * what commits the ephemeral buffer: a caret escape for inline, a blur for a block.
  */
-type Consumes = 'range' | 'caret' | 'block' | 'reveal-escape' | 'reveal-blur';
+type Consumes = 'range' | 'caret' | 'block' | 'reveal-escape' | 'reveal-blur' | 'gap-mint';
 
 interface GestureSpec {
 	consumes: Consumes;
@@ -77,7 +78,10 @@ const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	},
 	// Navigation lands at the target heading's offset 0, which demotes it, so the document
 	// owes a blank line there. That constraint is written at the fixture that owes it.
-	'toc-entry-click': { consumes: 'caret', build: 'select-all', act: clickTocEntry }
+	'toc-entry-click': { consumes: 'caret', build: 'select-all', act: clickTocEntry },
+	// The one landing outside the selection union: the key MINTS a block rather than
+	// entering one, so the boundary is read off the gap probe, not `getSelectionPaths`.
+	'gap-caret-click': { consumes: 'gap-mint', build: 'select-all', act: clickAboveLeadingBlock }
 };
 
 /**
@@ -116,6 +120,8 @@ export async function rangeInterrupt(
 		landing && landing.focus.path.length > 1
 			? await nestedCaretOffset(ctx, landing.focus)
 			: undefined;
+	const gapBoundary =
+		spec.consumes === 'gap-mint' ? await requireGapLanding(ctx, gesture, spans.length) : undefined;
 	const predicted = predict({
 		ctx,
 		gesture,
@@ -126,7 +132,8 @@ export async function rangeInterrupt(
 		spans,
 		landing,
 		nestedCaret,
-		consumedBlock
+		consumedBlock,
+		gapBoundary
 	});
 
 	await ctx.editor.typeSlowly(char);
@@ -383,6 +390,21 @@ async function clickTocEntry(ctx: SimContext): Promise<undefined> {
 	return undefined;
 }
 
+/**
+ * The editor's leading padding above a gap-declaring first block. Root bands tile flush, so
+ * that strip is the only band-less y a pointer can reach, which makes the document's start
+ * the one gap boundary this family can arrive at by click.
+ */
+async function clickAboveLeadingBlock(ctx: SimContext): Promise<undefined> {
+	const point = await ctx.page.evaluate(() => {
+		const root = document.querySelector('.editor')!.getBoundingClientRect();
+		const first = document.querySelector("[data-block-path='[0]']")!.getBoundingClientRect();
+		return { x: first.left + 8, y: (root.top + first.top) / 2 };
+	});
+	await ctx.page.mouse.click(point.x, point.y);
+	return undefined;
+}
+
 // ── Oracles ─────────────────────────────────────────────────────────────────
 
 /**
@@ -414,6 +436,26 @@ async function assertRangeContract(
 				`NOW:   ${JSON.stringify(await ctx.editor.bridge.getSelectionPaths())}`
 		);
 	}
+}
+
+/**
+ * The gap's own probe, because `getSelectionPaths` reports null while a gap is live. Anything
+ * but a top-level boundary inside the span table means the click entered a block instead, and
+ * the prediction below would name a boundary nothing is parked at.
+ */
+async function requireGapLanding(
+	ctx: SimContext,
+	gesture: RangeInterruptGesture,
+	spanCount: number
+): Promise<number> {
+	const gap = await ctx.editor.bridge.getGapCaret();
+	if (!gap || gap.parentPath.length > 0 || gap.index >= spanCount) {
+		throw new Error(
+			`[${ctx.label}] ${gesture} was expected to park a top-level gap caret the span table ` +
+				`covers, got ${JSON.stringify(gap)} over ${spanCount} blocks.`
+		);
+	}
+	return gap.index;
 }
 
 async function assertRevealEphemeral(
@@ -475,11 +517,24 @@ interface PredictArgs {
 	 *  leaf's bytes are not contiguous in its ancestors', undefined for a top-level one. */
 	nestedCaret: number | null | undefined;
 	consumedBlock: number | undefined;
+	/** Top-level boundary index a gap landing parked at, for `consumes: 'gap-mint'`. */
+	gapBoundary: number | undefined;
 }
 
 function predict(args: PredictArgs): string {
-	const { ctx, gesture, spec, before, char, range, spans, landing, nestedCaret, consumedBlock } =
-		args;
+	const {
+		ctx,
+		gesture,
+		spec,
+		before,
+		char,
+		range,
+		spans,
+		landing,
+		nestedCaret,
+		consumedBlock,
+		gapBoundary
+	} = args;
 	switch (spec.consumes) {
 		case 'range': {
 			const a = absolute(spans, range.anchor);
@@ -516,6 +571,16 @@ function predict(args: PredictArgs): string {
 			}
 			const at = nestedCaret ?? absolute(spans, landing.focus);
 			return splice(before, at, at, char);
+		}
+		// A minted paragraph, not an insertion into one: the key's own line plus the blank
+		// line GFM owes between two blocks, at the first byte of the block the gap precedes.
+		// LF is the fixture's line ending, and G4.20 mints the neighbour's.
+		case 'gap-mint': {
+			if (gapBoundary === undefined) {
+				throw new Error(`[${ctx.label}] ${gesture} named no gap boundary to mint at`);
+			}
+			const at = spans[gapBoundary].start;
+			return splice(before, at, at, `${char}\n\n`);
 		}
 	}
 }
