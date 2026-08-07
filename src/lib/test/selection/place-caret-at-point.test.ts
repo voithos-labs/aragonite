@@ -10,6 +10,7 @@ import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { createDeadSpaceCaret } from '$lib/selection/dead-space-caret';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createStickyColumnState } from '$lib/cursor/sticky-column';
+import { makeEmptyGapScope } from '../harness/editor-actions';
 import { resetForPointerDown } from '$lib/selection/cross-block/pointer';
 
 registerBuiltInBlocks();
@@ -72,7 +73,8 @@ describe('placeCaretAtPoint landing walk', () => {
 	function placeAt(x: number, y: number, reset: () => void = resetSelectionForClick): boolean {
 		const caret = createDeadSpaceCaret({
 			getBlockComponent: () => component,
-			resetSelectionForClick: reset
+			resetSelectionForClick: reset,
+			gapScope: makeEmptyGapScope()
 		});
 		return caret.placeAtPoint(root, x, y);
 	}

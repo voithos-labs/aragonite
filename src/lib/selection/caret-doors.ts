@@ -6,6 +6,7 @@
  * type-replaces. The door a caller reaches for by default is the safe one.
  */
 
+import type { GapCaretPosition } from './gap-caret';
 import { clearNativeSelection } from './native-bridge';
 import type { SelectionState } from './selection-state.svelte';
 
@@ -22,6 +23,19 @@ export function placeCaret(
 			endLiveCaretClaim(selection);
 			parkCaret(offset);
 		});
+}
+
+/**
+ * The gap's own door: every arrival path writes gap state through here and nowhere else. The
+ * native clear is inside the batch because no native caret may outlive the landing — the gap
+ * owns the caret from here until something else claims it.
+ */
+export function placeGapCaret(selection: SelectionState, pos: GapCaretPosition): void {
+	selection.batch(() => {
+		endLiveCaretClaim(selection);
+		selection.setGapCaret(pos);
+		clearNativeSelection();
+	});
 }
 
 /**

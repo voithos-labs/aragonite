@@ -60,7 +60,9 @@ export function recordingFocus(): RecordingFocus {
 			moveFocusCalls.push(args);
 		},
 		// The focus-bubble consumers assert on moveFocus, never on a resolved component.
-		revealPath: async () => null
+		revealPath: async () => null,
+		// Headless: no rendered boundary to park a gap caret at.
+		tryGapStop: () => false
 	};
 }
 

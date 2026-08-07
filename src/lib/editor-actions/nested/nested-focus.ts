@@ -14,8 +14,10 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 	const { stickyColumn, parent } = deps;
 	return {
 		// A nested scope's reveal IS the editor's recursive revealPath descending
-		// through this container, so this scope doesn't own it.
+		// through this container, so this scope doesn't own it. The gap stop is forwarded
+		// for the same reason: the root holds the doc and selection reads.
 		revealPath: parent.focus.revealPath,
+		tryGapStop: parent.focus.tryGapStop,
 		// Sync, and does not reveal an off-window inner target, unlike the root
 		// `moveFocus`. The adjacent-only precondition is the caller's — VR-12
 		// (docs/design/virtual-rendering.md).
@@ -36,7 +38,10 @@ export function createNestedFocus(state: BlockListState, deps: NestedActionsDeps
 					index: deps.index
 				},
 				deps.node.children?.length,
-				options
+				options,
+				// The boundaries this scope owns are its own children's, so the container's
+				// doc-absolute path is their parent. Read live: `path` moves under edits.
+				(boundaryIndex) => parent.focus.tryGapStop(deps.path, boundaryIndex)
 			);
 		}
 	};

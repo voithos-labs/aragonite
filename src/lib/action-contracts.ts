@@ -98,6 +98,9 @@ export interface MoveFocusOptions {
 	 * are unaffected. Defaults to true (Enter/split rely on the append).
 	 */
 	append?: boolean;
+	/** @internal Set by a move that LEAVES a gap caret, so the boundary it just left
+	 *  cannot re-capture it. */
+	skipGapStop?: boolean;
 }
 
 export interface FocusActions {
@@ -108,6 +111,13 @@ export interface FocusActions {
 	): void | Promise<void>;
 	/** Mount an off-window top-level block before placing a caret in it; see EditorActionsDeps.revealPath. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
+	/**
+	 * @internal Park the caret at a between-blocks boundary when that boundary is eligible,
+	 * reporting whether it did. Owned by the root, which holds the doc and selection reads;
+	 * every nested scope forwards this one, as it forwards `revealPath`. Required, not
+	 * optional: a dropped forward would make every gap arrival below it silently vanish.
+	 */
+	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
 }
 
 export interface HistoryActions {

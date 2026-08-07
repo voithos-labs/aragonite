@@ -11,18 +11,34 @@ import { trailingLineEnding } from '../../core/lines';
 import { traversalStep } from './focus-dispatch';
 import { consumeStickyLanding } from './focus-landing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
+import { tryGapStop, type GapStopScope } from '../../selection/gap-caret';
 
 export function createFocusActions(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): FocusActions {
+	const gapScope: GapStopScope = {
+		getDoc: () => deps.doc,
+		selection: deps.selectionState,
+		getPresentationMode: deps.getPresentationMode
+	};
+	const gapStopAt = (parentPath: number[], boundaryIndex: number) =>
+		tryGapStop(gapScope, parentPath, boundaryIndex);
+
 	return {
 		revealPath: deps.revealPath,
+		tryGapStop: gapStopAt,
 		async moveFocus(
 			blockIndex: number,
 			position: FocusPosition,
 			options?: MoveFocusOptions
 		): Promise<void> {
+			const step = traversalStep(position);
+			const stopsAtGaps = step !== 0 && !options?.skipGapStop;
+			// The boundary a directional move crosses is the greater of the two adjacent
+			// indices. Out-of-range boundaries and the root's trailing one decline in
+			// `gapEligibleAt`, so the arms below keep their behavior unguarded.
+			if (stopsAtGaps && gapStopAt([], step > 0 ? blockIndex : blockIndex + 1)) return;
 			if (blockIndex < 0) return;
 			if (blockIndex >= deps.doc.children.length) {
 				if (options?.append === false) return;
@@ -55,7 +71,6 @@ export function createFocusActions(
 			if (!block?.focusable) {
 				// A refless or non-focusable block must not dead-end the move — skip it in
 				// the move's direction (editor.md § Focus Traversal).
-				const step = traversalStep(position);
 				if (step !== 0) await this.moveFocus(blockIndex + step, position, options);
 				return;
 			}

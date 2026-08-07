@@ -31,6 +31,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Mod-click link activation and the Mod-held `data-mod-active` affordance — no keystroke is consumed.'
 	},
 	{
+		file: 'components/GapCaret.svelte',
+		chords: [],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backspace', 'Delete', 'Escape'],
+		note: 'The gap caret proxy claims only unmodified exits; any modifier yields to the global table.'
+	},
+	{
 		file: 'components/SearchBar.svelte',
 		chords: ['Shift+Enter'],
 		keys: ['Enter', 'Escape'],

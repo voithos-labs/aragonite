@@ -1,15 +1,18 @@
 /**
  * Caret placement from a viewport point: the dead-space click (the root's or a block list's own
  * padding beside a block, and the area below the last one) and the public `placeCaretAtPoint`,
- * which shares the walk under the gesture guards. The rule is one sentence: clamp the point into
- * the nearest block's box and let `blockAtPoint` resolve the leaf under it, so nothing here knows
- * a block kind. "Below the last block" means the last MOUNTED one, since the bands come from the
- * live DOM, which under virtual rendering is the window rather than the document.
+ * which shares the walk under the gesture guards. A y belonging to no band may name an eligible
+ * gap boundary; otherwise clamp the point into the nearest block's box and let `blockAtPoint`
+ * resolve the leaf under it, so nothing here knows a block kind. "Below the last block" means the
+ * last MOUNTED one, since the bands come from the live DOM, which under VR is the window.
  */
 
 import type { BlockComponent } from '../block-component';
 import { blockAtPoint, type BlockHit } from './block-hit-test';
+import { placeGapCaret } from './caret-doors';
+import { canGapStop, type GapStopScope } from './gap-caret';
 import { offsetFromViewportPoint } from './native-bridge';
+import { readBlockPath } from './path-lookup';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -55,6 +58,8 @@ export interface DeadSpaceCaretDeps {
 	 * a dead-space click must end a live cross-block range exactly as a click on a block does.
 	 */
 	resetSelectionForClick(): void;
+	/** The gap-caret arrival's reads; a point landing between two root bands parks there. */
+	gapScope: GapStopScope;
 }
 
 export interface DeadSpaceCaret {
@@ -76,6 +81,14 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	let pressedOnDeadSpace = false;
 
 	function placeAtPoint(root: HTMLElement, x: number, y: number): boolean {
+		const boundary = rootBoundaryOutsideBands(root, y);
+		if (boundary !== null && canGapStop(deps.gapScope, [], boundary)) {
+			// The preamble first, as on the block landing below — it clears the gap, so
+			// nothing may run between it and the door. The door ends a live range (G2.12).
+			deps.resetSelectionForClick();
+			placeGapCaret(deps.gapScope.selection, { parentPath: [], index: boundary });
+			return true;
+		}
 		const rects = [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) =>
 			el.getBoundingClientRect()
 		);
@@ -139,6 +152,32 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+/**
+ * The root-level boundary a `y` belonging to NO band names: the editor's leading padding,
+ * and the space between two adjacent bands where a layout leaves one. Below the last band
+ * is excluded — that y is the end-of-document gesture, and under windowing the last MOUNTED
+ * band is not the last block. Indices come off the path attribute for the same reason.
+ */
+function rootBoundaryOutsideBands(root: HTMLElement, y: number): number | null {
+	const bands: { index: number; top: number; bottom: number }[] = [];
+	for (const el of root.querySelectorAll<HTMLElement>('[data-block-path]')) {
+		const path = readBlockPath(el);
+		if (path?.length !== 1) continue;
+		const rect = el.getBoundingClientRect();
+		bands.push({ index: path[0], top: rect.top, bottom: rect.bottom });
+	}
+	if (bands.length === 0) return null;
+	// Only when the document's own first block is mounted: above a windowed-out slice the
+	// blocks the point sits over are not the ones the boundary would name.
+	if (y < bands[0].top) return bands[0].index === 0 ? 0 : null;
+	for (let i = 1; i < bands.length; i++) {
+		const above = bands[i - 1];
+		const below = bands[i];
+		if (above.index + 1 === below.index && y > above.bottom && y < below.top) return below.index;
+	}
+	return null;
+}
 
 /** The component the landing addresses: this one on a character surface, else the leaf a
  *  coordinate-addressed kind's internal path names. */

@@ -1,7 +1,7 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
-import type { BlockElLookup } from '../editor-keys';
+import type { BlockElLookup, PresentationModeGetter } from '../editor-keys';
 import type { EditorSelection } from '../selection/primitives';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
@@ -42,6 +42,9 @@ export interface EditorActionsDeps {
 	/** The instance's block grammar, so a disabled kind's opener stays skipped when
 	 *  the editor re-parses an edited block. Absent = the global grammar. */
 	grammar?: GrammarView;
+	/** Live EFFECTIVE mode, for the seams that must not act in reading mode. Absent in
+	 *  harnesses, which `isReadingMode` reads as not-reading. */
+	getPresentationMode?: PresentationModeGetter;
 }
 
 /**

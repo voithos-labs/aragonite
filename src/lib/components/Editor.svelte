@@ -361,7 +361,12 @@
 	// doing nothing. `getBlockComponent` is hoisted; the reset closure defers its reads.
 	const deadSpaceCaret = createDeadSpaceCaret({
 		getBlockComponent,
-		resetSelectionForClick: () => resetForPointerDown(selectionState, stickyColumn, false)
+		resetSelectionForClick: () => resetForPointerDown(selectionState, stickyColumn, false),
+		gapScope: {
+			getDoc: () => doc,
+			selection: selectionState,
+			getPresentationMode: () => effectiveMode
+		}
 	});
 
 	$effect(() => {
@@ -543,7 +548,8 @@
 		getBlockElByPath,
 		revealPath,
 		events,
-		grammar: registryView.grammar
+		grammar: registryView.grammar,
+		getPresentationMode: () => effectiveMode
 	};
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);

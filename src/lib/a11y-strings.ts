@@ -11,6 +11,7 @@ import type { TableAlignment } from './core/nodes';
 export const EDITOR_LABEL = 'Markdown editor';
 export const DRAG_HANDLE_TITLE = 'Drag to reorder — or Alt+↑ / Alt+↓';
 export const FAILED_BLOCK_LABEL = 'Block failed to render';
+export const GAP_CARET_LABEL = 'Insertion point between blocks';
 export const IMAGE_PROPERTIES_LABEL = 'Image properties';
 
 // ── Search bar ───────────────────────────────────────────────────────────────

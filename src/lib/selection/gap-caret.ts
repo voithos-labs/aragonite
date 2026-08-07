@@ -1,12 +1,16 @@
 /**
  * Where a caret can live BETWEEN two sibling blocks: the boundaries no block's own editing
- * surface can reach, read off the kinds' `gapEdges` declarations. Pure — doc in, boolean out.
+ * surface can reach, read off the kinds' `gapEdges` declarations. Eligibility is pure — doc
+ * in, boolean out; `tryGapStop` is the one seam that turns it into an arrival.
  * The gap is deliberately not a `SelectionPoint`: it is never a cross-block endpoint.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { isReadingMode, type PresentationMode } from '../presentation-mode';
+import { placeGapCaret } from './caret-doors';
+import type { SelectionState } from './selection-state.svelte';
 
 /** The boundary before child `index` of the container at `parentPath`; root is `[]`. */
 export interface GapCaretPosition {
@@ -38,4 +42,39 @@ export function gapEligibleAt(doc: DocumentView, parentPath: number[], index: nu
 function declaresEdge(node: NodeView, edge: 'before' | 'after'): boolean {
 	const edges = tryGetBlockKindDescriptor(node.kind)?.gapEdges;
 	return edges === edge || edges === 'both';
+}
+
+// ── Arrival ─────────────────────────────────────────────────────────────────
+
+/** What an arrival needs beyond the boundary itself. Getters, so a bound stop reads live. */
+export interface GapStopScope {
+	getDoc: () => DocumentView;
+	selection: SelectionState;
+	getPresentationMode?: () => PresentationMode;
+}
+
+/**
+ * Whether an arriving gesture may park here. Reading mode never may: it has no caret at
+ * all, so the gesture keeps its old landing. A caller that must act BETWEEN the decision
+ * and the landing asks this, then goes through the door itself.
+ */
+export function canGapStop(
+	scope: GapStopScope,
+	parentPath: number[],
+	boundaryIndex: number
+): boolean {
+	if (isReadingMode(scope.getPresentationMode)) return false;
+	return gapEligibleAt(scope.getDoc(), parentPath, boundaryIndex);
+}
+
+/** Park the caret at an eligible `boundaryIndex`, reporting whether it did — so a
+ *  traversal can stop instead of entering its target. */
+export function tryGapStop(
+	scope: GapStopScope,
+	parentPath: number[],
+	boundaryIndex: number
+): boolean {
+	if (!canGapStop(scope, parentPath, boundaryIndex)) return false;
+	placeGapCaret(scope.selection, { parentPath, index: boundaryIndex });
+	return true;
 }
