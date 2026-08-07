@@ -383,7 +383,7 @@ Chord strings compose the modifiers in fixed order (`Mod`, `Alt`, `Shift`) with 
 
 This table is for a reader. An app deriving an accelerator map should read `editor.reservedChords()` instead — it is composed from the live keymaps and covers the chords claimed outside them (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)).
 
-**Selection chords sit outside this table.** Shift+Arrow, Ctrl+Shift+Home / Ctrl+Shift+End and the repeated `Mod+A` escalation extend the selection through the cross-block dispatcher rather than the keymap, so they are not rebindable and are reported by `reservedChords()` rather than listed here.
+**Selection chords sit outside this table.** Shift+Arrow, `Mod+Shift+Home` / `Mod+Shift+End` and the repeated `Mod+A` escalation extend the selection through the cross-block dispatcher rather than the keymap, so they are not rebindable and are reported by `reservedChords()` rather than listed here.
 
 **What the `keybindings` prop can rebind.** The prop rebinds — or disables, with a `null` command — chords that route through the keymap: the **Editing**, **Block reorder** and **Tables** families below, and any chord a plugin kind contributes. An override's `kind` scope also takes a plugin kind; name it through the plugin's exported kind constant (the branded string — a raw literal won't typecheck).
 

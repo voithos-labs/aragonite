@@ -47,6 +47,8 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   the modifier chords this instance claims and `editor.claimsChord(event)` answers for one
   keystroke, using the editor's own normalization — so an app registering accelerators no longer
   hand-copies a shortcut list that drifts every release, nor re-implements the Ctrl/Cmd fold.
+  That fold now reaches the doc-edge selection chords themselves: `Mod+Shift+Home` and
+  `Mod+Shift+End` extend to a document boundary under Cmd, not Ctrl alone.
   The set is composed live from the kind keymaps, the command tables, installed plugins, the
   `keybindings` overrides and the search option, and it covers the chords claimed outside the
   keymaps too. Bare keys stay out of contract: a focused document owns them regardless.
