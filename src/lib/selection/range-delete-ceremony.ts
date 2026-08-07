@@ -9,7 +9,7 @@ import type { GrammarView } from '../schema/block-openers';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
-import { parse } from '../core/parser';
+import { isBlankParagraph, parse } from '../core/parser';
 import { trailingLineEnding } from '../core/lines';
 import { walkBetween } from './primitives';
 import {
@@ -26,8 +26,11 @@ import {
 	clearRedundantSeparator,
 	dropDoubledSeparator,
 	emptyParagraph,
+	isBlockNode,
 	nodeAt,
-	normalizeOwnRaw
+	normalizeOwnRaw,
+	restoreSeparatorAfterBlank,
+	type BodyParentArg
 } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
@@ -66,13 +69,27 @@ export function deleteSubtreesIdentityGated(
 		.sort((a, b) => comparePaths(deletionPaths[b], deletionPaths[a]));
 	for (const i of reverseSortedIndices) {
 		const path = deletionPaths[i];
-		if (nodeAt(doc, path) === targetNodes[i]) {
+		const target = targetNodes[i];
+		if (nodeAt(doc, path) === target) {
+			// A blank block IS the separating line of the block below it, and `deleteAtPath` is a
+			// bare splice — nothing hands that line down the way `deleteNode` does.
+			const deletedBlank = target !== null && isBlockNode(target) && isBlankParagraph(target);
 			deleteAtPath(doc, path);
+			const index = path[path.length - 1];
 			const parent = nodeAt(doc, path.slice(0, -1));
-			if (parent) clearRedundantSeparator(parent, path[path.length - 1], sharing);
+			if (parent) {
+				// Guards are exclusive: one frees a separator, the other mints one.
+				clearRedundantSeparator(parent, index, sharing);
+				if (deletedBlank) restoreSeparatorAfterBlank(bodyParentOf(parent), index, sharing);
+			}
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
 	}
+}
+
+/** The byte-writing view of a splice parent: the document root imposes no body grammar. */
+function bodyParentOf(parent: CstNode | Document): BodyParentArg {
+	return isBlockNode(parent) ? { children: parent.children ?? [], ownerKind: parent.kind } : parent;
 }
 
 /**

@@ -123,7 +123,10 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   it, took the line away and left the block below butting against the new content. The session
   showed both blocks and the next load showed one, with the bytes unchanged either way. A blank
   line that stops being blank now hands a separator to its own slot and to its follower,
-  whichever end of the pair was holding the line, and declines where one is already there.
+  whichever end of the pair was holding the line, and declines where one is already there. A
+  selection dragged across a blank line took the same line away by deleting it, and now hands it
+  down the same way — so a table or a callout below the selection survives as its own block
+  instead of folding into the paragraph the delete left behind.
 
 - **Pasting into a table cell no longer splits the table when the text carries blank edge
   lines.** A copy that picked up an empty line above or below its text (a selection dragged past
