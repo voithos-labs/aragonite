@@ -118,8 +118,10 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
-	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
+	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'End')
+		return handleDocEdgeExtend(ctx, e, 'end');
+	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Home')
+		return handleDocEdgeExtend(ctx, e, 'start');
 
 	// Intra-table rectangle: Shift+Arrow grows the rect cell-by-cell and exits at the vertical
 	// edge. Must precede the generic extend, which snaps the focus back to cellIdx 0.
@@ -200,8 +202,10 @@ async function handleCrossBlockEntry(
 	if (!el) return false;
 	const { selection, getDoc } = ctx;
 
-	if (e.ctrlKey && e.shiftKey && e.key === 'End') return handleDocEdgeExtend(ctx, e, 'end');
-	if (e.ctrlKey && e.shiftKey && e.key === 'Home') return handleDocEdgeExtend(ctx, e, 'start');
+	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'End')
+		return handleDocEdgeExtend(ctx, e, 'end');
+	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Home')
+		return handleDocEdgeExtend(ctx, e, 'start');
 
 	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
 		e.preventDefault();

@@ -172,7 +172,7 @@ export function extendFocusToPreviousBlock(
 }
 
 /**
- * Extend focus to the document edge (Ctrl+Shift+Home / Ctrl+Shift+End). A transparent edge
+ * Extend focus to the document edge (Mod+Shift+Home / Mod+Shift+End). A transparent edge
  * leaf is bypassed for the nearest text-bearing one, matching the cross-block extension path.
  */
 export function extendFocusToDocEdge(
