@@ -7,7 +7,7 @@ import { serialize } from '../../core/serializer';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createHistoryActions } from '../../editor-actions/commit/history';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
 
 function makeHarness(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -91,5 +91,19 @@ describe('structural-sharing snapshots', () => {
 			expect.stringContaining('undo: snapshot digest mismatch'),
 			'snapshot-integrity'
 		);
+	});
+	// GH #73: the nested door hands the follower the same separator, and the spine unshare copies
+	// the CONTAINER, so the snapshot's digest never sees a write to a still-shared grandchild.
+	// Miss-analysis: the oracle only descends the doc root, so no nested sharing case could fire it.
+	it('a blank fill inside a container unshares the follower it hands the separator to', async () => {
+		const h = makeNestedHarness('> alpha\n>\n>\n> delta\n', { index: 0 });
+		h.controller.pushUndoSnapshot(0, 0);
+		const shared = h.deps.undoManager.getStacks().undo[0].snapshot.children[0].children![2];
+		expect(shared.leadingTrivia).toBe('');
+
+		await h.bundle.blockEdit.updateBlockContent(1, 'x\n', 1);
+
+		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n> x\n>\n> delta\n');
+		expect(shared.leadingTrivia).toBe('');
 	});
 });

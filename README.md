@@ -299,7 +299,7 @@ One last snarky remark to make... All these - all four styles, follow one render
 
 # License
 
-Copyright (c) 2026 voithos-labs. aragonite is free software, released under [GPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under GPL-compatible terms. An editor built to keep your notes yours shouldn't end up locked inside someone's proprietary app.
+Copyright (c) 2026 voithos-labs. aragonite is free software, released under [GPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under GPL-compatible terms.
 
 # Footnote
 

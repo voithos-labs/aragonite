@@ -49,11 +49,18 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      behind: every production reveal caller supplies `isInWindow`, so the waiter registry has
      no production reader today; with `RefSlots` public, either require the option and delete
      the wait path, or keep the registry as the documented fallback and say so at the type.
-     The collision policy's consumer-facing half stays ledgered as #70.
+     The collision policy's consumer-facing half stays ledgered as #70. Also for the re-audit:
+     the separator-settle pattern now has five seams calling the restore/drop door pair by
+     hand (the #73 class); the probe-based `settleSeparator` funnel that would close the class
+     structurally was priced out of the keystroke path — re-price it at the audit.
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
-     land as pre-freeze refinements; a structural finding moves the cut.
+     land as pre-freeze refinements; a structural finding moves the cut. Decoupled from
+     publishing (owner, 2026-08-02): a 0.9.x/0.10 package ships to npm explicitly unstable
+     BEFORE the freeze, the gate runs against that published package, and 1.0 cuts when the
+     gate passes — gated by the importants column and contract completeness, never by the
+     minor tail or an empty ledger.
    - **1.3 dry-run** — the beyond-GFM reference plugins shipped pre-freeze rather than as paper
      probes: footnotes, the riskiest, on the 0.9.33 inline precedence ladder (build-probed 0.9.30,
      then promoted whole), and emoji on the 0.9.34 bare-`:` rung, so this check rests on shipped
@@ -62,7 +69,11 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    - **Contributor-experience pass** — the minimal CONTRIBUTING front door shipped in 0.9.17;
      at release it becomes an actual on-ramp, not a deposition. Progressive disclosure:
      quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
-     a weekend contributor meets the rules before the scar tissue); a CODE_OF_CONDUCT; the PR
+     a weekend contributor meets the rules before the scar tissue); a CODE_OF_CONDUCT (shipped
+     2026-08-07); the behavior-to-seam codebase map (pre-freeze, with a reference-existence
+     lint so staleness fails CI; the 2026-08-07 cold-start probes' friction logs are its
+     checklist, and the interactive-tutorial direction resolved to demo-embedded material
+     only); an anatomy-of-a-change case study traced from the gap-caret arc; the PR
      flow and external-contributor setup; dev-loop friction retired or documented (the SSR
      registrar-poison class was structurally fixed in 0.9.27 — dev re-registration replaces
      instead of throwing; only the chorded plugin-global-command residual remains); a first pass of curated entry-level issues. The bar stays
@@ -111,7 +122,10 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      CSS construct-reveal over the existing marker spans, not marker islands). The caret-affinity
      contract shipped with 0.9.26 and dissolved to raw offsets + inclusive reveal edges — no
      stored-marks machinery; the litmus reads satisfied-by-construction at the cut, with the
-     reading-gate parity residual tracked as issue #38.
+     reading-gate parity residual tracked as issue #38. A fifth rung is already sketched
+     (§ Fully live mode), so the litmus also verifies the union can GROW in a minor: no frozen
+     surface may demand exhaustiveness over `PresentationMode`, and non-exhaustive handling is
+     the documented consumer contract.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
@@ -119,6 +133,11 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      (shipped 0.9.29) extends the program: no frozen deps field whose contract is a liveness
      rule remains value-shaped — every live read on the public surface is a thunk. Re-verified
      by the re-audit's enforcement pass, not assumed.
+   - **Freeze litmus (gap caret)**: the between-blocks caret ships with its position outside
+     the public `SelectionPoint` union — `getSelection()` reads null while a gap is live, and
+     the settled-emission contract is pinned. Verify no frozen surface precludes publishing a
+     gap representation later as an additive read-side shape rather than a union member every
+     consumer must switch over.
    - **Freeze litmus (history seam)**: no frozen surface binds the snapshot shape of undo — no
      public type exposes the undo stack or its entries, and the `edit` event's `undo`/`redo`
      variants stay representation-agnostic — so the overridable history seam (§ Downstream
@@ -315,6 +334,17 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
 - **The math render seam still carries no theme term** — the mermaid renderer took one pre-1.0 (a theme in its render context, a theme-keyed memo, a redraw on flip); the injected `MathRenderer` did not, and its memo key has no theme term either. Latent rather than live: the shipped KaTeX adapter emits CSS-styled markup that inherits the editor's colors, where a drawn diagram carries its own. An injected engine emitting color literals would repeat the mermaid case exactly. Direction: when a second engine asks, the math seam takes the shape the mermaid one already has rather than a second design.
 - **Per-rung editing policy for a borrowed built-in kind** — a rung that mints a built-in kind can re-serialize its own bytes (`rewriteImage`) but cannot give its own instances an editing behavior distinct from the built-in's. The caret-edge dispatch resolves policy by kind, so an Obsidian-style `![[embed]]` minted as an `image` necessarily edits like a GFM image: same edge policy, same delete granularity, same selected-key handling. The only lever today is `augmentInlineWidgetKind('image', …)`, which changes behavior for **every** image in the document, including ones the plugin never claimed. Direction: a claim-keyed policy lookup layered over the kind-keyed one (consult the node's syntax claim first, fall back to the kind), which preserves both key spaces instead of merging them, and is additive rather than breaking. Deliberately not taken pre-1.0: no consumer has asked, the layering is straightforward whenever one does, and the merged-facet alternative would break the built-in widget kinds (which carry policies and have no rung at all) to reach the same place.
+
+### Fully live mode (unscheduled; owner, 2026-08-07)
+
+A fifth presentation rung: fully rendered while editable — markers never visible, even in
+the focused construct (the Google-Docs feel). The single render path carries it the way it
+carried the other four (marker visibility over the same spans, never a second pipeline), but
+it reopens the class the inline-granular rung dissolved by revealing at the caret: with every
+marker hidden, a caret at a construct boundary has no visible anchor for which side of the
+hidden syntax a keystroke lands on — the caret-affinity problem returns in full. Decide
+against preview-inline's real-use data, not on paper; the presentation-mode freeze litmus's
+union-growth clause is what lets the rung ship in a minor.
 
 ### 1.3 — Beyond-GFM (as plugins)
 
