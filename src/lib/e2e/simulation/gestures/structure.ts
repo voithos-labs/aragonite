@@ -200,9 +200,9 @@ export async function toggleTask(ctx: SimContext, listItemPath: number[]): Promi
 /**
  * The one insert that starts from no block at all: Backspace at `boundaryIndex`'s offset 0
  * parks the between-blocks caret, and the next key mints a paragraph there (empty `text` =
- * Enter). Both halves are asserted, because an arrival that entered the block instead would
- * record an ordinary edit as gap coverage. Preconditions are the fixture's: `boundaryIndex`
- * names a character-addressed block whose leading boundary both neighbours declare.
+ * Enter). Both halves are asserted, or an arrival that entered the block would record an
+ * ordinary edit as gap coverage. `boundaryIndex` must name a block whose leading boundary
+ * both neighbours declare, and the mint leaves the caret mid-document — a note's LAST gesture.
  */
 export async function mintAtGap(
 	ctx: SimContext,

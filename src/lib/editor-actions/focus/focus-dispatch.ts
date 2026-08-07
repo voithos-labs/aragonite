@@ -14,7 +14,7 @@ import type { StickyColumnState } from '../../cursor/sticky-column';
 import { consumeStickyLanding } from './focus-landing';
 
 /** What the calling scope contributes to a move beyond the target itself. */
-export interface MoveFocusDispatch {
+export interface MoveFocusScope {
 	/** Overrides `refs.length` for the upper bound: the two diverge for one render cycle
 	 *  after a structural op, and without it the cursor escapes the container. */
 	childCount?: number;
@@ -31,9 +31,9 @@ export async function dispatchMoveFocus(
 	position: FocusPosition,
 	stickyColumn: StickyColumnState,
 	parent: { focus: FocusActions; index: number },
-	dispatch: MoveFocusDispatch = {}
+	scope: MoveFocusScope = {}
 ): Promise<void> {
-	const { childCount, options, gapStop } = dispatch;
+	const { childCount, options, gapStop } = scope;
 	// Omit the options arg when unset so the common path stays a two-arg call.
 	const delegate = (targetIndex: number) =>
 		options
@@ -61,13 +61,13 @@ export async function dispatchMoveFocus(
 		// A refless or non-focusable child must not dead-end the move — continue in
 		// its direction (editor.md § Focus Traversal).
 		if (step !== 0) {
-			await dispatchMoveFocus(refs, innerIndex + step, position, stickyColumn, parent, dispatch);
+			await dispatchMoveFocus(refs, innerIndex + step, position, stickyColumn, parent, scope);
 		}
 		return;
 	}
 
 	await consumeStickyLanding(block, innerIndex, position, stickyColumn, (i) =>
-		dispatchMoveFocus(refs, i, position, stickyColumn, parent, dispatch)
+		dispatchMoveFocus(refs, i, position, stickyColumn, parent, scope)
 	);
 }
 

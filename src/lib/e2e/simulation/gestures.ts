@@ -296,7 +296,7 @@ export class Gestures {
 	/**
 	 * Mint a paragraph at the between-blocks caret before `boundaryIndex`: the insert whose
 	 * commit path no other gesture reaches, since the boundary belongs to no block's surface.
-	 * Empty `text` presses Enter instead.
+	 * Empty `text` presses Enter. Leaves the caret mid-document — a note's LAST gesture.
 	 */
 	mintAtGap(boundaryIndex: number, text: string): Promise<void> {
 		return mintAtGap(this.ctx, boundaryIndex, text);
