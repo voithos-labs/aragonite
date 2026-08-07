@@ -15,7 +15,10 @@ import {
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
 	rebuildUnsharedChain,
-	emptyParagraph
+	restoreSeparatorOnFill,
+	dropDoubledSeparator,
+	emptyParagraph,
+	paragraphNode
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
@@ -31,6 +34,7 @@ import { mergedElseFocusPrevious } from './merge-fallback';
 export interface BlockEditCore {
 	split(i: number, offset: number): Promise<void>;
 	descendToBody(i: number): Promise<void>;
+	insertParagraph(i: number, text: string): Promise<void>;
 	mergeWithPreviousInterior(i: number): Promise<void>;
 	mergeWithNextInterior(i: number): Promise<void>;
 	deleteInterior(i: number): Promise<void>;
@@ -94,6 +98,37 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return change;
 				},
 				afterTick: () => scope.refAt(i + 1)?.focus(0)
+			});
+		},
+
+		/**
+		 * The between-blocks caret's mint (`selection/gap-caret.ts`). `i` is a BOUNDARY index,
+		 * so `children.length` appends; the caret lands after the text the paragraph carries.
+		 */
+		async insertParagraph(i, text) {
+			const children = scope.children();
+			// Both the separator and the paragraph's own bytes ARE line endings, so both take a
+			// real neighbour's (G4.20); a boundary always has one on at least one side.
+			const lineEnding = trailingLineEnding((children[i - 1] ?? children[i])?.raw ?? '\n');
+			await scope.commit({
+				snapshot: { index: i, offset: 0 },
+				eventTarget: i,
+				op: { kind: 'insertBlock' },
+				mutate: (view) => {
+					// Only the scope's head block owns no separator; anywhere else the mint owes
+					// its predecessor a blank line, whatever the displaced sibling carried.
+					const trivia = i > 0 ? lineEnding : (view.children[0]?.leadingTrivia ?? '');
+					view.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
+					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
+					stampStructuralChange(view.children, change, view.sharing);
+					// The displaced sibling is a body block now, not the head, so it owes its own
+					// separator; an EMPTY mint is a blank line itself and shares the follower's.
+					const parent = { children: view.children, ownerKind: view.ownerKind };
+					restoreSeparatorOnFill(parent, i + 1, view.sharing);
+					dropDoubledSeparator(parent, i, view.sharing);
+					return change;
+				},
+				afterTick: () => scope.refAt(i)?.focus(displayLength(text))
 			});
 		},
 

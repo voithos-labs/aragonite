@@ -35,6 +35,8 @@ export interface OperationDetailMap {
 				outerPath?: number[];
 		  };
 	appendBlock: { itemIndex?: number } | undefined;
+	/** Insert at an interior index; `appendBlock`'s sibling for a block minted BETWEEN two. */
+	insertBlock: undefined;
 	metadataUpdate: { fields: string[] };
 	undo: undefined;
 	redo: undefined;

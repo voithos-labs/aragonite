@@ -57,6 +57,11 @@ export function createNestedBlockEdit(
 			await core.descendToBody(innerIndex);
 		},
 
+		async insertParagraph(boundaryIndex, text) {
+			if (!deps.node.children) return;
+			await core.insertParagraph(boundaryIndex, text);
+		},
+
 		async mergeWithPrevious(innerIndex) {
 			if (!deps.node.children) return;
 

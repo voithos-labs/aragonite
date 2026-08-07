@@ -219,21 +219,6 @@ test.describe('gap caret keys', () => {
 			await editor.bridge.waitForSourceContains(exit.typed);
 		});
 	}
-
-	// Minting is the editing wave's. Until then the proxy refuses every input at
-	// `beforeinput`, so nothing reaches a DOM no serializer reads.
-	for (const entry of ['a printable key', 'Enter']) {
-		test(`${entry} changes nothing and keeps the gap`, async () => {
-			await arriveAtBoundary();
-
-			if (entry === 'Enter') await editor.page.keyboard.press('Enter');
-			else await editor.typeText('x');
-			await editor.waitForNoSourceMutation();
-
-			expect(await editor.bridge.getSource()).toBe(TABLE_THEN_FENCE);
-			expect(await editor.bridge.getGapCaret()).toEqual(AT_BOUNDARY);
-		});
-	}
 });
 
 test.describe('gap caret in reading mode', () => {
@@ -254,38 +239,5 @@ test.describe('gap caret in reading mode', () => {
 		await editor.waitForRenderFlush();
 
 		expect(await editor.bridge.getGapCaret()).toBeNull();
-	});
-});
-
-// The unit harness cannot see a windowing flush, so the only proof that the gap renders
-// inside a live slice is a document long enough to window.
-test.describe('gap caret under virtual rendering', () => {
-	const filler = (count: number, from: number) =>
-		Array.from({ length: count }, (_, i) => `para ${from + i}\n`).join('\n');
-	const WINDOWED = `${filler(100, 0)}\n${TABLE}\n${FENCE}\n${filler(100, 100)}`;
-
-	test('a mid-document boundary parks the caret once revealed', async ({ page }) => {
-		const editor = new EditorPage(page);
-		await editor.goto();
-		await editor.loadContent(WINDOWED);
-		expect(await editor.bridge.getBlockKind(100)).toBe('table');
-		expect(await editor.bridge.getBlockKind(101)).toBe('fencedCode');
-		// A CST read passes with windowing off; the mounted-host count is what proves a slice.
-		const mountedRootHosts = await page.evaluate(
-			() =>
-				[...document.querySelectorAll('[data-block-path]')].filter(
-					(el) => JSON.parse(el.getAttribute('data-block-path')!).length === 1
-				).length
-		);
-		expect(mountedRootHosts).toBeLessThan(60);
-
-		await page.evaluate(() => (window as any).__test.rects.scrollTo([100], { block: 'center' }));
-		await page.locator('[role="cell"]').nth(LAST_CELL).click();
-		await editor.page.keyboard.press('ArrowDown');
-
-		await editor.bridge.waitForGapCaret({ parentPath: [], index: 101 });
-		await expect
-			.poll(() => page.evaluate(() => !!document.activeElement?.closest('[data-gap-caret]')))
-			.toBe(true);
 	});
 });

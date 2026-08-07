@@ -15,10 +15,9 @@ import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 import type { CommandErrorSink } from '../schema/block-commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
 import {
-	getCommand,
 	isEditorGlobalChord,
 	isReservedUiChord,
-	resolveGlobalBinding,
+	runGlobalChord,
 	type GlobalCommandContext
 } from '../schema/commands';
 import { eventToChord } from '../schema/keybindings';
@@ -97,7 +96,9 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 	/**
 	 * Undo/redo, plugin-global chords and cross-block motion fire only when no block
 	 * holds focus. Unlike the search chords, these collide with a focused outside
-	 * element's native behavior (a text input owns Mod+Z), so they yield to it.
+	 * element's native behavior (a text input owns Mod+Z), so they yield to it. The gap
+	 * caret's proxy is focused DOM of its own, so it resolves its chords at the target
+	 * (`GapCaret.svelte`) through the same `runGlobalChord`; this arm stays out of its way.
 	 */
 	function ownsWindowedOutCaret(root: HTMLElement, active: Element | null): boolean {
 		const noElementFocused = active === null || active === root.ownerDocument.body;
@@ -119,19 +120,17 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			if (handleSearchChords(event, root, chord, active)) return;
 			if (!ownsWindowedOutCaret(root, active)) return;
 
-			// No block is focused here, so resolve at global scope. This branch runs
-			// getCommand directly rather than dispatchKeyCommand, so it carries the
-			// reading-mode gate itself — sibling: ThematicBreakBlock.
+			// No block is focused here, so resolve at global scope. This branch bypasses
+			// dispatchKeyCommand, so it carries the reading-mode gate itself — sibling:
+			// ThematicBreakBlock.
 			if (chord && isEditorGlobalChord(chord)) {
 				event.preventDefault();
 				if (deps.mode === 'reading') return;
-				const binding = resolveGlobalBinding(chord, deps.keybindingOverrides);
-				if (binding)
-					getCommand(binding.command)?.({
-						history: deps.history,
-						pluginEditor: deps.pluginEditor,
-						onCommandError: deps.onCommandError
-					});
+				runGlobalChord(chord, deps.keybindingOverrides, {
+					history: deps.history,
+					pluginEditor: deps.pluginEditor,
+					onCommandError: deps.onCommandError
+				});
 				return;
 			}
 

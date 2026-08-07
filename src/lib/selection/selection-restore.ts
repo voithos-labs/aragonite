@@ -1,8 +1,9 @@
 /**
- * The one road from an `EditorSelection` snapshot back onto the live editor: resolve both
- * endpoints against the current tree, reveal what the caret will be parked at, then hand the
- * pair to the DOM applier. Both entry paths (undo/redo swap, the consumer's `setSelection`)
- * funnel through here, so the resolve/clamp/reveal rules can't be carried by only one.
+ * The one road from a stored selection back onto the live editor: resolve against the current
+ * tree, reveal what the caret will be parked at, then land it. Both entry paths (undo/redo
+ * swap, the consumer's `setSelection`) funnel through here, so the resolve/clamp/reveal rules
+ * can't be carried by only one. A gap caret takes {@link restoreGapCaret}, the same road minus
+ * the endpoint pair.
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -10,6 +11,8 @@ import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { BlockElLookup } from '../editor-keys';
 import type { EditorSelection, SelectionPoint } from './primitives';
 import { applySelectionToDom } from './native-bridge';
+import { placeGapCaret } from './caret-doors';
+import { gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { tableCellCount } from './table-endpoint-snap';
 import type { SelectionState } from './selection-state.svelte';
 
@@ -48,6 +51,27 @@ export async function restoreSelection(
 	const revealed = await deps.revealTarget(deps.selectionState.cellDeepPath(focus) ?? focus.path);
 	const placed = applySelectionToDom({ anchor, focus }, deps.selectionState, deps.getBlockElByPath);
 	return revealed && placed ? 'applied' : 'unplaced';
+}
+
+/**
+ * Restore a gap caret. The scope check is `gapEligibleAt`'s, not a full eligibility gate:
+ * the tree being restored is the one the gap was minted against, so `gapEdges` cannot have
+ * changed under it, but the PATH can now name something no BlockList renders.
+ */
+export async function restoreGapCaret(
+	pos: GapCaretPosition,
+	deps: SelectionRestoreDeps
+): Promise<SelectionRestoreOutcome> {
+	const children = gapScopeChildren(deps.getDoc(), pos.parentPath);
+	if (!children) return 'unresolvable';
+
+	const index = Math.min(Math.max(pos.index, 0), children.length);
+	// The boundary itself mounts nothing; what must be on screen is the block it sits
+	// against, so the gap's own BlockList is inside a live window when it renders.
+	const neighbour = index < children.length ? index : index - 1;
+	const revealed = await deps.revealTarget([...pos.parentPath, neighbour]);
+	placeGapCaret(deps.selectionState, { parentPath: pos.parentPath, index });
+	return revealed ? 'applied' : 'unplaced';
 }
 
 /**

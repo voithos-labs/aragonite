@@ -24,6 +24,7 @@ export function createBlockEditActions(
 
 		splitBlock: (blockIndex, offset) => core.split(blockIndex, offset),
 		descendToBody: (blockIndex) => core.descendToBody(blockIndex),
+		insertParagraph: (boundaryIndex, text) => core.insertParagraph(boundaryIndex, text),
 
 		async mergeWithPrevious(blockIndex) {
 			deps.stickyColumn.reset();

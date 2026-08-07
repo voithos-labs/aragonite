@@ -93,14 +93,18 @@ export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | u
 // ── Node minting ──
 
 /**
- * The empty-paragraph placeholder keeping an emptied document or container
- * caret-addressable. Both arguments are required: the placeholder IS a line ending, so a
- * mint site must answer which document it lands in (G4.20) rather than strand a lone LF
- * in a CRLF file. Returns a fresh node every call — a shared instance would alias across
+ * The paragraph mint. Every argument is required: a paragraph's raw ENDS in a line ending,
+ * so a mint site must answer which document it lands in (G4.20) rather than strand a lone
+ * LF in a CRLF file. Returns a fresh node every call — a shared instance would alias across
  * tree positions and corrupt the snapshot/unshare model (G1.9).
  */
+export function paragraphNode(leadingTrivia: string, text: string, lineEnding: string): CstNode {
+	return { kind: 'paragraph', leadingTrivia, raw: text + lineEnding };
+}
+
+/** The empty-paragraph placeholder keeping an emptied document or container caret-addressable. */
 export function emptyParagraph(leadingTrivia: string, lineEnding: string): CstNode {
-	return { kind: 'paragraph', leadingTrivia, raw: lineEnding };
+	return paragraphNode(leadingTrivia, '', lineEnding);
 }
 
 // ── Path resolution ──

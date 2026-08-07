@@ -341,6 +341,25 @@ describe('editor-root keydown — body-chord containment', () => {
 	});
 });
 
+// ── Focused-element containment ──────────────────────────────────────────────
+// The arm answers a caret with NO focused element, never "anything focused inside the
+// root". A surface that holds focus — a block, or the gap caret's proxy — owns its own
+// dispatch, and widening this arm would run every such chord twice.
+
+describe('editor-root keydown — a focused surface inside the root owns its chords', () => {
+	it('a global chord resolves nothing while a focusable child holds focus', () => {
+		const h = harness();
+		const surface = document.createElement('div');
+		surface.tabIndex = 0;
+		h.root.append(surface);
+		surface.focus();
+		expect(h.root.ownerDocument.activeElement).toBe(surface);
+
+		h.press('z', MOD_Z);
+		expect(h.undoCount()).toBe(0);
+	});
+});
+
 // ── The isForeignTextEntry arm ───────────────────────────────────────────────
 
 describe('editor-root keydown — foreign text-entry yields Find', () => {

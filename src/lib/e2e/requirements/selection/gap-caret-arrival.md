@@ -5,8 +5,9 @@ code fence leaves nowhere to put a paragraph between them. The gap caret is a th
 selection mode that parks there. A kind declares which of its edges may hold one, so
 eligibility is a descriptor fact, never a kind-name check.
 
-This file covers ARRIVAL and the pure exits. Typing, Enter, paint, and undo are the
-editing wave and get their own requirement.
+This file covers ARRIVAL at ROOT boundaries and the pure exits. Nested and windowed
+arrival is `gap-caret-arrival-scopes.md`; minting and undo are `gap-caret-editing.md`;
+paint and the non-mint ways out are `gap-caret-surface.md`.
 
 ## Happy paths
 
@@ -23,8 +24,6 @@ editing wave and get their own requirement.
   the caret at the document's start boundary.
 - Escape leaves the gap for the block above; the four exit keys leave for the block the
   direction names.
-- A printable key and Enter change nothing and keep the gap: minting belongs to the
-  editing wave, so the proxy refuses every input.
 - At the document's start boundary a backward exit keeps the gap — there is no block above
   to land in — while Escape takes the forward arm into the first block.
 
@@ -36,8 +35,6 @@ editing wave and get their own requirement.
   unchanged: nearest-band landing.
 - Reading mode never parks a gap. The click is what this file pins; reading mode focuses no
   block, so the traversal arm has no gesture to drive and is unit-pinned instead.
-- A boundary mid-document under virtual rendering behaves like any other: revealed and
-  arrived at through the same gesture.
 
 ## User interactions
 
@@ -55,9 +52,6 @@ editing wave and get their own requirement.
   zoom 0.9-1.75), so the only band-less strip a click reaches today is the leading padding.
   A host stylesheet that gives `.block-host` a margin does open the strip, which is what
   the between-two-bands rule is for.
-- A gap live when the presentation mode flips to reading survives the flip: the mode-flip
-  blur takes DOM focus off the proxy and the self-focus effect does not re-arm, so the gap
-  is leavable only by clicking. Ledgered; closed in the editing wave.
 - Entering a container from outside lands its deepest leaf as before and does not visit a
   nested scope-end gap; only a move that starts inside the scope sees it.
 - Container kinds (blockquote, list, details, admonitions) declare no edges, so a

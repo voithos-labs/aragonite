@@ -9,7 +9,12 @@
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
 
-const DISPATCH_TOKENS = ['dispatchKeyCommand(', 'dispatchKindCommand(', 'getCommand('];
+const DISPATCH_TOKENS = [
+	'dispatchKeyCommand(',
+	'dispatchKindCommand(',
+	'getCommand(',
+	'runGlobalChord('
+];
 
 // Dispatcher definitions + the post-gate `getCommand(binding.command)` live here.
 const GATE_OWNER_FILES = new Set([
@@ -21,6 +26,7 @@ const GATE_OWNER_FILES = new Set([
 // getPresentationMode → the regex the guard must keep present.
 const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/blocks/list/ListItemBlock.svelte': /\breadOnly\b/,
+	'src/lib/components/GapCaret.svelte': /\bisReading\b/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
 	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/
 };
@@ -37,7 +43,8 @@ const DISPATCH_SITE_FILES = [
 	'src/lib/editor-actions/container-block-component.ts',
 	'src/lib/selection/cross-block/keydown.ts',
 	'src/lib/components/blocks/list/ListItemBlock.svelte',
-	'src/lib/components/editor-root-keydown.ts'
+	'src/lib/components/editor-root-keydown.ts',
+	'src/lib/components/GapCaret.svelte'
 ];
 
 /** Balanced-paren argument substring of the call whose opening `(` is at `openIdx`. */

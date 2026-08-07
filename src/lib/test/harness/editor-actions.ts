@@ -107,6 +107,7 @@ export function makeStubBlockEdit(): BlockEditActions {
 	return {
 		splitBlock: vi.fn(),
 		descendToBody: vi.fn(),
+		insertParagraph: vi.fn(),
 		mergeWithPrevious: vi.fn(),
 		mergeWithNext: vi.fn(),
 		deleteBlock: vi.fn(),

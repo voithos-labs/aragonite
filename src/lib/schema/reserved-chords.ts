@@ -33,8 +33,17 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/GapCaret.svelte',
 		chords: [],
-		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backspace', 'Delete', 'Escape'],
-		note: 'The gap caret proxy claims only unmodified exits; any modifier yields to the global table.'
+		keys: [
+			'ArrowDown',
+			'ArrowLeft',
+			'ArrowRight',
+			'ArrowUp',
+			'Backspace',
+			'Delete',
+			'Enter',
+			'Escape'
+		],
+		note: 'The gap caret proxy claims the exits plus the Enter that mints; Ctrl/Meta/Alt yields to the global table, and Shift takes the plain arrow arm.'
 	},
 	{
 		file: 'components/SearchBar.svelte',
