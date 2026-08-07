@@ -156,13 +156,13 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
-/** Every mounted block's path and box, in document order, since bands may nest and both
- *  walks below depend on that order. */
+/** One mounted block's path and box. */
 interface MeasuredBlock {
 	path: number[] | null;
 	rect: DOMRect;
 }
 
+// Document order, since bands may nest and both walks below depend on it.
 function measureBlocks(root: HTMLElement): MeasuredBlock[] {
 	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) => ({
 		path: readBlockPath(el),
