@@ -21,7 +21,9 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/ambient/ambient-dom.ts':
 		'ambient span identity — a contenteditable="false" marker keeps its box, so the hidden-run rule excludes it by construction',
 	'src/lib/components/blocks/text/construct-reveal.ts':
-		'preview-inline reveal writer — it stamps the class the classification reads, and asks nothing about hiding'
+		'preview-inline reveal writer — it stamps the class the classification reads, and asks nothing about hiding',
+	'src/lib/core/inline-render.ts':
+		"reads back the marker spans it just minted, in the same call that minted them (renderedText) — the mint's own inverse, and it asks nothing about which MODE paints them"
 };
 
 const MARKER_CLASSES = [

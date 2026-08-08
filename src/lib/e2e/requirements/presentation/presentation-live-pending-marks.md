@@ -29,6 +29,9 @@ contradicted it — the row below is what would have.
   `**hello**X** world**` reads right but renders literal stars (a closing run before a space is
   not left-flanking), so the resolver re-parses its own candidate and steps outside instead —
   the reader sees one plain character and a phrase still entirely bold
+- where a removal steps outside, it uses the construct edge NEARER the caret (ties go to the
+  leading edge). The policy is deliberate and owner-visible: the byte has to leave the construct,
+  and leaving by the closer edge is the smaller jump from where the user was typing
 
 ## Edge cases
 
@@ -43,6 +46,9 @@ contradicted it — the row below is what would have.
   what was asked — an escape that would have to cut a link or a code span open, or a wrap whose
   delimiters would merge with the run beside them — the byte types plain rather than showing a
   delimiter. § 1's "markers are never visible" outranks the toggle taking effect
+- a mark applied inside a URL declines the same way: an autolink is one childless span, so a
+  wrap inside it destroys the link and paints the angle brackets it was hiding. The byte types
+  plain, the link survives, and marking on either side of the URL still works
 
 ## IME commits
 
