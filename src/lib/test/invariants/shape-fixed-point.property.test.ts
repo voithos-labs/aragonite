@@ -18,7 +18,7 @@ const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(424242) } as const;
 // The gestures whose separator handling the blank-line rule governs: Enter, block delete, a
 // content commit, and typing into a blank BLOCK. A deep-leaf merge writes a leaf's raw without
 // reparsing its kind, a separate contract this oracle would report against.
-type Gesture = { op: 'split' | 'delete' | 'update' | 'fill'; at: number; offset: number };
+type Gesture = { op: 'split' | 'delete' | 'update' | 'fill' | 'empty'; at: number; offset: number };
 
 // `fill` is drawn by its own property below rather than joining this list: a fourth arm re-rolls
 // every seed of the three-gesture stream, trading the coverage it has for coverage it hasn't.
@@ -32,6 +32,7 @@ function applyGesture(doc: Document, gesture: Gesture): void {
 	const count = doc.children.length;
 	if (count === 0) return;
 	if (gesture.op === 'fill') return applyFill(doc, gesture.at);
+	if (gesture.op === 'empty') return applyEmpty(doc, gesture.at);
 	const at = gesture.at % count;
 	const node: CstNode = doc.children[at];
 	// Prose leaves only. A container descends to its leaf and a fence takes the newline into
@@ -64,6 +65,22 @@ function applyFill(doc: Document, at: number): void {
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
 	updateNodeContent(doc, target, 'x' + trailingLineEnding(doc.children[target].raw));
+}
+
+/**
+ * The reverse transition: a block that BECOMES the blank line (GH #96), indexed over the prose
+ * leaves so the draw always lands on an editable one. The gesture is what `commitInput` sends
+ * for an emptied block — the line ending alone.
+ */
+function applyEmpty(doc: Document, at: number): void {
+	const leaves = doc.children.flatMap((node, i) =>
+		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true
+			? [i]
+			: []
+	);
+	if (leaves.length === 0) return;
+	const target = leaves[at % leaves.length];
+	updateNodeContent(doc, target, trailingLineEnding(doc.children[target].raw));
 }
 
 /**
@@ -110,6 +127,20 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		fc.assert(
 			fc.property(arbBlankSeparatedGfmDoc, fc.nat({ max: 6 }), (source, at) => {
 				const divergence = divergenceAfterEdit(source, { op: 'fill', at, offset: 0 });
+				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
+			}),
+			PARAMS
+		);
+	});
+
+	// GH #96: the mirror of the fill. Documents holding indented code sit out — indentation alone
+	// delimits it, so blanking a neighbour genuinely re-reads the bytes (GH #61's class) and no
+	// separator settle can hold that.
+	it('emptying a block leaves a tree that reloads to its own shape', () => {
+		fc.assert(
+			fc.property(arbBlankSeparatedGfmDoc, fc.nat({ max: 6 }), (source, at) => {
+				fc.pre(!parse(source).children.some((node) => node.kind === 'indentedCode'));
+				const divergence = divergenceAfterEdit(source, { op: 'empty', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
 			PARAMS

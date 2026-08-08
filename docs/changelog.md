@@ -128,6 +128,15 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   down the same way — so a table or a callout below the selection survives as its own block
   instead of folding into the paragraph the delete left behind.
 
+- **Emptying a paragraph no longer leaves an extra empty paragraph behind on the next load.** The
+  mirror of the two repairs above: a block that becomes a blank line IS the separating line of the
+  block below it, so the line it already carried and the line below it both stood, and the reload
+  read the second one as an empty paragraph nobody typed. Deleting a block's text now settles the
+  whole run of blank lines it joins, keeping one separating line across the run and the block after
+  it wherever in the run that line sits. The same settle covers the opposite sign, where a
+  paragraph emptied directly under a construct that closes itself (a code fence) carried no
+  separating line at all and dropped out of the next load entirely.
+
 - **Enter at the end of a line with a soft break no longer destroys the rest of the block.** A split
   landing exactly on a line ending minted a blank line the user never typed and dropped every
   line after it — the rest of the paragraph, a multi-line setext heading's underline, an HTML

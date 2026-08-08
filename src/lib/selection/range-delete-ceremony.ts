@@ -24,12 +24,12 @@ import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import {
 	clearRedundantSeparator,
-	dropDoubledSeparator,
 	emptyParagraph,
 	isBlockNode,
 	nodeAt,
 	normalizeOwnRaw,
-	restoreSeparatorAfterBlank
+	restoreSeparatorAfterBlank,
+	settleSeparatorOnBlank
 } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
@@ -104,9 +104,9 @@ export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[
 }
 
 /**
- * Install an endpoint's replacement and settle the separator it now shares with its follower: a
- * truncation that leaves a blank block otherwise reloads with one more blank line (G2.13). Every
- * endpoint-install site routes here; `sharing` owns the writes.
+ * Install an endpoint's replacement and settle the blank run it joins when the truncation left it
+ * blank: the run and the block below it hold one separating line, and a second reloads as one more
+ * empty paragraph (G2.13). Every endpoint-install site routes here; `sharing` owns the writes.
  */
 export function installTruncatedEndpoint(
 	doc: Document,
@@ -118,7 +118,7 @@ export function installTruncatedEndpoint(
 	replaceAtPath(doc, path, replacement);
 	const parent = nodeAt(doc, path.slice(0, -1));
 	if (parent) {
-		dropDoubledSeparator(parent, path[path.length - 1] + replacement.length - 1, sharing);
+		settleSeparatorOnBlank(parent, path[path.length - 1] + replacement.length - 1, sharing);
 	}
 }
 

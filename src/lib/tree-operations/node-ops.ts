@@ -461,7 +461,9 @@ export function clearRedundantSeparator(
 /**
  * A blank block IS a blank line, so it and its follower share ONE separator: two of them reload
  * as a second empty paragraph (G2.13). The follower's is the one that stands, so a later fill of
- * this slot (a paste over a cut range) still finds the follower separated.
+ * this slot (a paste over a cut range) still finds the follower separated. The run-level twin
+ * {@link settleSeparatorOnBlank} keeps the FIRST instead, the same bytes the other way round,
+ * because its mint arm has only one legal slot.
  */
 export function dropDoubledSeparator(
 	parent: SeparatorParent,
@@ -507,6 +509,40 @@ export function restoreSeparatorAfterBlank(
 	if (!children || !node || node.leadingTrivia !== '') return;
 	if (isBlankParagraph(node) && (children[index + 1]?.leadingTrivia ?? '') !== '') return;
 	mintSeparator(parent, index, sharing);
+}
+
+/**
+ * The settle a block turning INTO a blank line owes: it joins the blank run around it, and a run
+ * carries exactly the one separating line its reload mints — across every block in it AND its
+ * follower, since a blank block is the follower's line too. Two reload as one more empty
+ * paragraph; none folds the run's head into the block above. The FIRST line stands, which is
+ * where a load puts it and the only place a mint may land (a later block sits under a blank
+ * predecessor, which needs no separator).
+ */
+export function settleSeparatorOnBlank(
+	parent: SeparatorParent,
+	index: number,
+	sharing?: SharingState
+): void {
+	const children = parent.children;
+	if (!children || !isBlankParagraph(children[index])) return;
+	const bodyStart = bodyStartIndex(parent);
+	let start = index;
+	while (start > bodyStart && isBlankParagraph(children[start - 1])) start--;
+	let end = index;
+	while (end + 1 < children.length && isBlankParagraph(children[end + 1])) end++;
+	const standing: number[] = [];
+	for (let i = start; i <= Math.min(end + 1, children.length - 1); i++) {
+		if (children[i].leadingTrivia !== '') standing.push(i);
+	}
+	// A run with no LINE above it (the document head, a container's first body line) separates
+	// from nothing and materializes in full; a reserved chrome line above it is still a line.
+	const wanted = start > 0 ? 1 : 0;
+	if (standing.length < wanted) return mintSeparator(parent, start, sharing);
+	for (const at of standing.slice(wanted)) {
+		const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : children[at];
+		owned.leadingTrivia = '';
+	}
 }
 
 /** A blank line off the node's own bytes (G4.20), where one does structural work at all. */
@@ -586,8 +622,8 @@ export function deleteNode(
  * reparsed block into the slot rather than reassigning `kind` in place, and multi-block
  * text mints every parsed block. Only a same-kind single-block edit writes fields in
  * place, so routine typing keeps the node's object identity; `replacePreservingFirst`
- * carries the id/ref across a mint. `sharing` owns the separator settle's FOLLOWER write —
- * the one byte this op lands on a node the caller's own unshare never covered.
+ * carries the id/ref across a mint. `sharing` owns the separator settle's writes, which land
+ * on the run's OTHER blocks — bytes the caller's own unshare never covered.
  */
 export function updateNodeContent(
 	parent: BodyParentArg,
@@ -604,13 +640,22 @@ export function updateNodeContent(
 	if (wasBlank && !isBlankParagraph(parent.children[blockIndex])) {
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
+		return change;
 	}
+	// The reverse transition: the block IS the separating line now, so the run it joins gives
+	// back the second one (GH #96). The last block minted is the one that meets the follower.
+	if (!wasBlank) settleSeparatorOnBlank(parent, lastMintedIndex(change, blockIndex), sharing);
 	return change;
 }
 
 /** Where the filled block's follower ended up: a multi-block reparse pushes it down. */
 function followerIndexAfter(change: StructuralChange, blockIndex: number): number {
 	return change.op === 'replace' ? change.at + change.newCount : blockIndex + 1;
+}
+
+/** The last block the write left in the slot: a multi-block reparse mints past the first. */
+function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
+	return change.op === 'replace' ? change.at + change.newCount - 1 : blockIndex;
 }
 
 function writeParsedContent(
