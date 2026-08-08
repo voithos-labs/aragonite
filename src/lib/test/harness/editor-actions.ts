@@ -12,6 +12,11 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import type { EdgeAffinityState } from '$lib/cursor/edge-affinity';
+import {
+	createPendingMarksState,
+	type InlineMarkKind,
+	type PendingMarksState
+} from '$lib/cursor/pending-marks';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
@@ -82,6 +87,14 @@ export function makeEdgeAffinity(): EdgeAffinityState {
 	return { get: () => null, reset: vi.fn(), note: vi.fn(), noteTyping: vi.fn() };
 }
 
+/** The real state, armed with `kinds`: a stub would hide the one property every consumer
+ *  depends on, that a set is spent exactly once. */
+export function makePendingMarks(...kinds: InlineMarkKind[]): PendingMarksState {
+	const marks = createPendingMarksState();
+	for (const kind of kinds) marks.toggle(kind);
+	return marks;
+}
+
 // ── BlockListState stub ──────────────────────────────────────────────────────
 
 // Mirrors production createBlockListState minus Svelte reactivity: ids are
@@ -147,6 +160,9 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 		sharing: createSharingState(),
 		pushUndoSnapshot: vi.fn(),
 		pushUndoSnapshotDebounced: vi.fn(),
+		flushDebouncedCheckpoint: vi.fn(),
+		// Runs the write: the batch breaks are the stubbed half, the bytes are not.
+		isolateUndoEntry: vi.fn((write: () => void) => write()),
 		commitStructural: vi.fn(),
 		commitContainerStructural: vi.fn(),
 		commitMultiScope: vi.fn(),

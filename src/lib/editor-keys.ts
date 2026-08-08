@@ -24,6 +24,7 @@ import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { StickyColumnState } from './cursor/sticky-column';
 import type { EdgeAffinityState } from './cursor/edge-affinity';
+import type { PendingMarksState } from './cursor/pending-marks';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
@@ -125,6 +126,9 @@ export interface EditorServices {
 	/** Which side of an adjacent hidden marker run the caret means; the write seams read
 	 *  it and keep their own default when it answers null. */
 	edgeAffinity: EdgeAffinityState;
+	/** The constructs a collapsed-caret toggle promised the next insertion. Invalidated with
+	 *  the affinity, spent by the typing and composition seats. */
+	pendingMarks: PendingMarksState;
 	revealAnchor: RevealAnchorState;
 	widgetSelection: WidgetSelectionState;
 	controller: UndoController;

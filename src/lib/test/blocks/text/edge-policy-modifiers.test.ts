@@ -16,6 +16,7 @@ import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { stampMathWidget } from './math-widget-fixture';
+import { makePendingMarks } from '$lib/test/harness/editor-actions';
 
 /** Mount [prose][atomic island][prose] around `source`'s first widget of `kind` and
  *  wire the dispatch with a recording entry seam. */
@@ -56,7 +57,8 @@ function mount(source: string, kind: string) {
 		isRevealing: () => false,
 		enterWidget: (w, fromTrailingEdge) => entered.push({ start: w.start, fromTrailingEdge }),
 		isReading: () => false,
-		getEdgeAffinity: () => null
+		getEdgeAffinity: () => null,
+		pendingMarks: makePendingMarks()
 	};
 	return { dispatch: createEdgePolicyDispatch(deps), widget, entered, edits };
 }

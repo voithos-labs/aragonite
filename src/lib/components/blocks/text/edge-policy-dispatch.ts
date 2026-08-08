@@ -17,12 +17,14 @@ import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
+import type { PendingMarksState } from '../../../cursor/pending-marks';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 import { revealsNoMarkers } from '../../../cursor/widget-offset';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import { resolveEdgeSeat } from './edge-seat';
+import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 
 /** The subset of the inline-widget vocabulary the internal island policies reuse,
@@ -84,6 +86,9 @@ export interface EdgePolicyDispatchDeps {
 	isReading: () => boolean;
 	/** The arrival side the typing seat consults; null when no arrival claimed one. */
 	getEdgeAffinity: () => EdgeAffinity | null;
+	/** The constructs a collapsed-caret toggle promised the next insertion. Read AND spent
+	 *  here: the first byte after the chord is the one insertion they were pending for. */
+	pendingMarks: PendingMarksState;
 }
 
 export interface EdgePolicyDispatch {
@@ -101,8 +106,23 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return trimTrailingLineEnding(deps.node.raw);
 	}
 
-	/** One display-space splice, one CST commit. `caretBefore` anchors the undo entry, so it
-	 *  is the pre-edit caret — the splice's own start everywhere but the seat, which moved it. */
+	/** One display-space rewrite, one CST commit. `caretBefore` anchors the undo entry, so it
+	 *  is the pre-edit caret — the rewrite's own start everywhere but the seats, which moved it. */
+	function writeDisplay(
+		next: string,
+		caretAfter: number,
+		source: string,
+		caretBefore: number
+	): void {
+		void deps.blockEdit.updateBlockContent(
+			deps.index,
+			next + trailingLineEnding(deps.node.raw),
+			caretBefore,
+			caretAfter
+		);
+		deps.setPendingCursor(caretAfter, source, next);
+	}
+
 	function editDisplay(
 		start: number,
 		end: number,
@@ -111,15 +131,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		caretBefore = start
 	): void {
 		const d = display();
-		const next = d.slice(0, start) + insert + d.slice(end);
-		const caretAfter = start + insert.length;
-		void deps.blockEdit.updateBlockContent(
-			deps.index,
-			next + trailingLineEnding(deps.node.raw),
-			caretBefore,
-			caretAfter
+		writeDisplay(
+			d.slice(0, start) + insert + d.slice(end),
+			start + insert.length,
+			source,
+			caretBefore
 		);
-		deps.setPendingCursor(caretAfter, source, next);
 	}
 
 	// ── CST inline widget ────────────────────────────────────────────────────
@@ -348,6 +365,35 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
+	// ── Pending marks (the toggle seat) ────────────────────────────────────────
+
+	/**
+	 * A printable key while a collapsed-caret toggle has marks pending. The marks are the newer
+	 * instruction about these same bytes, so they outrank the arrival side the seat below reads
+	 * (§ 4.2) and this arm runs first: the byte is written wrapped in the marks the caret's
+	 * chain lacks, and escaped out of the constructs it carries, in one commit.
+	 */
+	function handlePendingMarks(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		if (deps.isReading()) return false;
+		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		// Spend on the preconditions, not on the outcome: one insertion was promised the set,
+		// and this is it whether or not the rewrite below finds anything to do.
+		const marks = deps.pendingMarks.consume();
+		if (!marks) return false;
+		const marked = resolveMarkedInsertion(
+			display(),
+			caretOffset,
+			e.key,
+			marks,
+			inlinesOf(deps.node)
+		);
+		if (!marked) return false;
+		e.preventDefault();
+		deps.setSnapTarget(null);
+		writeDisplay(marked.raw, marked.caret, 'pending-marks', caretOffset);
+		return true;
+	}
+
 	// ── Hidden construct edge (the typing seat) ────────────────────────────────
 
 	/**
@@ -371,6 +417,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	function handleKeydown(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		// First: a pending mark is an explicit instruction about the very next byte, so it
+		// outranks every classification below, which decide by where the caret happens to be.
+		if (handlePendingMarks(e, caretOffset)) return true;
 		if (handleCstWidget(e, caretOffset)) return true;
 		// Islands and the ambient marker are destructive-only view guards, so reading mode
 		// skips both wholesale; the widget branch above still selects, committing nothing.

@@ -11,6 +11,7 @@
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
+	import type { InlineMarkKind } from '../../../cursor/pending-marks';
 	import type { NodeView } from '../../../core/node-views';
 	import { emitCommandError } from '../../../editor-events';
 	import {
@@ -68,7 +69,7 @@
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
-	import { createCompositionSeat } from '../text/edge-seat';
+	import { createCompositionSeat } from '../text/composition-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
@@ -109,6 +110,7 @@
 		pasteCoordinator,
 		stickyColumn,
 		edgeAffinity,
+		pendingMarks,
 		selection,
 		widgetSelection,
 		registryView,
@@ -132,7 +134,8 @@
 		pluginEditor,
 		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const readOnly = $derived(getPresentationMode?.() === 'reading');
+	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const readOnly = $derived(presentationMode === 'reading');
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
 	// A constant fallback keeps an empty island set out of the render key.
@@ -244,7 +247,8 @@
 	const compositionSeat = createCompositionSeat({
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, linkRef),
-		getAffinity: () => edgeAffinity.get()
+		getAffinity: () => edgeAffinity.get(),
+		consumePendingMarks: () => pendingMarks.consume()
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -323,7 +327,8 @@
 				: undefined;
 		},
 		isReading: () => readOnly,
-		getEdgeAffinity: () => edgeAffinity.get()
+		getEdgeAffinity: () => edgeAffinity.get(),
+		pendingMarks
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
@@ -341,21 +346,26 @@
 
 	// Claims the chord even with no caret to act on: declining leaves Mod+B to the browser's
 	// own contenteditable bold, an edit this surface never authored.
-	function toggleFormat(format: 'strong' | 'emphasis'): boolean {
+	function toggleFormat(format: InlineMarkKind): boolean {
 		if (!el) return true;
 		const caret = cursor.getRaw();
 		// A collapsed caret is the empty-pair contract, not a bail — see toggleInlineFormat.
 		const offsets =
 			cursor.getRawSelection() ?? (caret === null ? null : { start: caret, end: caret });
 		if (!offsets) return true;
+		// Same fork as the prose surface: live paints no delimiter, so an abandoned empty pair
+		// would be invisible garbage in the cell's bytes (§ 4.3).
+		if (presentationMode === 'live' && offsets.start === offsets.end) {
+			controller.flushDebouncedCheckpoint();
+			pendingMarks.toggle(format);
+			return true;
+		}
 		const result = toggleInlineFormat(readCellText(), offsets, format);
 		// Anchor undo at the live post-toggle caret: cross-block dispatch arrives with no
 		// preceding onKeyDown, so `preEditOffset` would be stale (mirrors TextEditableBlock).
-		void blockEdit.updateBlockContent(
-			index,
-			result.newDisplay,
-			result.newSelStart,
-			result.newSelStart
+		// A command is not typing, so the toggle's bytes are their own undo step.
+		controller.isolateUndoEntry(() =>
+			blockEdit.updateBlockContent(index, result.newDisplay, result.newSelStart, result.newSelStart)
 		);
 		// The door may have inserted backslashes inside the toggled span, so both selection
 		// edges are read back through the escape.

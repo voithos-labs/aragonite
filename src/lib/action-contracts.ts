@@ -223,6 +223,9 @@ export interface CommitController {
 	/** Flush the pending keystroke batch — emit its `input` event and clear the
 	 *  debounce timer — before a history swap, so the batch's bytes aren't lost. */
 	flushDebouncedCheckpoint(): void;
+	/** Run a command's byte write as its own undo entry. A command is not typing, so the
+	 *  keystroke batch breaks on BOTH sides: one Ctrl+Z takes the command and nothing else. */
+	isolateUndoEntry(write: () => void): void;
 }
 
 export interface ContainerEditActions {

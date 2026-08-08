@@ -16,6 +16,7 @@ import { asRawOffset } from '$lib/cursor/coordinate-spaces';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
 import { stampMathWidget } from './math-widget-fixture';
+import { makePendingMarks } from '$lib/test/harness/editor-actions';
 
 interface Park {
 	offset: number | null;
@@ -45,7 +46,8 @@ function dispatchOver(node: CstNode, el: HTMLElement, hasIslands: boolean) {
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
-		getEdgeAffinity: () => null
+		getEdgeAffinity: () => null,
+		pendingMarks: makePendingMarks()
 	};
 	return { dispatch: createEdgePolicyDispatch(deps), parks };
 }
