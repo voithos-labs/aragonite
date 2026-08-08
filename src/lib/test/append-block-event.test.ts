@@ -11,6 +11,7 @@ describe('moveFocus past the last block', { timeout: 20_000 }, () => {
 		const { createUndoManager } = await import('$lib/undo/manager');
 		const { createSharingState } = await import('$lib/tree-operations/sharing');
 		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
+		const { makeEdgeAffinity } = await import('./harness/editor-actions');
 
 		const events = createEditorEvents();
 		const captured: EditEvent[] = [];
@@ -56,14 +57,7 @@ describe('moveFocus past the last block', { timeout: 20_000 }, () => {
 					return null;
 				}
 			},
-			edgeAffinity: {
-				reset() {},
-				note() {},
-				noteTyping() {},
-				get() {
-					return null;
-				}
-			},
+			edgeAffinity: makeEdgeAffinity(),
 			selectionState: createSelectionState(),
 			getBlockElByPath: () => null,
 			events

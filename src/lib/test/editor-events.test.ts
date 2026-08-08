@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
 import { asDocPath } from '$lib/selection/path-math';
+import { makeEdgeAffinity } from './harness/editor-actions';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
@@ -131,14 +132,7 @@ describe('createEditorEvents', () => {
 					return null;
 				}
 			},
-			edgeAffinity: {
-				reset() {},
-				note() {},
-				noteTyping() {},
-				get() {
-					return null;
-				}
-			},
+			edgeAffinity: makeEdgeAffinity(),
 			selectionState: createSelectionState(),
 			getBlockElByPath: () => null,
 			operationsLog: undefined,
