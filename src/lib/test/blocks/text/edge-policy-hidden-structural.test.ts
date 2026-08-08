@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 //
 // The caret-edge dispatch's hidden-structural branch. A mode that hides a block's own marker
-// prefix/suffix with no reveal puts unpainted bytes beside the caret; the destructive key that
-// would take one is swallowed, so the block cannot reparse to one rendering the leftovers.
+// prefix/suffix with no reveal puts unpainted bytes beside the caret; the guarantee is that a
+// destructive key aimed at one takes nothing, so the no-op is the contract rather than a
+// coincidence of what the engine happens to do beside non-rendered text.
 // Miss-analysis: the edge-policy suites mount bare containers with no presentation root, so
 // the marker-hiding modes had no fixture to fail in.
 import { afterEach, describe, expect, it } from 'vitest';
@@ -53,7 +54,8 @@ function mount(source: string, mode?: string): Harness {
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
-		isReading: () => false
+		isReading: () => false,
+		getEdgeAffinity: () => null
 	};
 	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
 }

@@ -242,11 +242,11 @@ export function isHiddenMarkerRoot(el: Element, container: HTMLElement): boolean
 }
 
 /**
- * Whether the mode leaves the FOCUSED block's own structural markers (`## `, a fence, a
- * setext underline) unpainted. The preview rungs reveal them on the focused block, so only
- * a hiding mode with no reveal moves where that block's caret can go.
+ * Whether the mode paints NO marker in the focused block — neither its own structural prefix
+ * (`## `, a fence, a setext underline) nor an inline construct's delimiters. The preview rungs
+ * reveal both, so only a hiding mode with no reveal moves where that block's caret can go.
  */
-export function hidesBlockOwnMarkers(container: ParentNode): boolean {
+export function revealsNoMarkers(container: ParentNode): boolean {
 	const mode = markerHidingMode(container);
 	return mode !== null && !isPreviewMode(mode);
 }

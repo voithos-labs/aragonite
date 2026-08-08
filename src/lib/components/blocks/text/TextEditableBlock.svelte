@@ -333,7 +333,8 @@
 		isRevealing: () => widgetInteraction.isRevealing(),
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
-		isReading: () => readOnly
+		isReading: () => readOnly,
+		getEdgeAffinity: () => edgeAffinity.get()
 	});
 
 	const textRender = createTextRender({

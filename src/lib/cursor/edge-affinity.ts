@@ -2,12 +2,13 @@
  * Edge affinity: which of the two raw offsets a caret means when it sits beside a hidden
  * marker run, whose interior paints nothing so both offsets land on one pixel. CAPTURE: the
  * arrival that put the caret there, via `note` on the shared keydown door. CONSUME: the
- * write seams, which read `get()` and keep their own default when it answers null.
+ * typing seat, which reads `get()` and keeps its own default when it answers null.
  */
 
 import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
-/** The side of an adjacent hidden run the caret means: the content side, or past the run. */
+/** Which of the two raw offsets a hidden run's one pixel names: the run's near side
+ *  (`inside` — the content the caret approached from) or its far side (`outside`). */
 export type EdgeAffinity = 'inside' | 'outside';
 
 export interface EdgeAffinityState {
@@ -54,10 +55,10 @@ export type EdgeAffinityAction = EdgeAffinity | 'preserve' | 'reset';
 /** The decision {@link EdgeAffinityState.note} enacts. Pure on the key, so the matrix is
  *  testable without a DOM or a state instance. */
 export function classifyArrivalKey(key: string): EdgeAffinityAction {
-	// Stepping and column landings are content navigation: the content side is where they stop.
-	if (key === 'ArrowLeft' || key === 'ArrowRight') return 'inside';
-	if (key === 'ArrowUp' || key === 'ArrowDown') return 'inside';
-	if (key === 'PageUp' || key === 'PageDown') return 'inside';
+	// A step stops on the side of the run it approached from, so one press never changes which
+	// construct the caret is in: forward keys reach the near side, backward keys the far one.
+	if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') return 'inside';
+	if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') return 'outside';
 	// A line extreme means the raw extreme, past every marker in front of it.
 	if (key === 'Home' || key === 'End') return 'outside';
 	// Bare modifiers are read from the chord parser rather than re-listed — a local copy

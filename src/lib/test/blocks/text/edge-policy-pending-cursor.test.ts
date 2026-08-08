@@ -44,7 +44,8 @@ function dispatchOver(node: CstNode, el: HTMLElement, hasIslands: boolean) {
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
-		isReading: () => false
+		isReading: () => false,
+		getEdgeAffinity: () => null
 	};
 	return { dispatch: createEdgePolicyDispatch(deps), parks };
 }

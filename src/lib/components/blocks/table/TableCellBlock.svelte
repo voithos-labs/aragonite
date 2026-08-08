@@ -312,7 +312,8 @@
 				? { ...registered, deleteGranularity: 'atomic' }
 				: undefined;
 		},
-		isReading: () => readOnly
+		isReading: () => readOnly,
+		getEdgeAffinity: () => edgeAffinity.get()
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────

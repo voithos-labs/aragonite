@@ -55,7 +55,8 @@ function mount(source: string, kind: string) {
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: (w, fromTrailingEdge) => entered.push({ start: w.start, fromTrailingEdge }),
-		isReading: () => false
+		isReading: () => false,
+		getEdgeAffinity: () => null
 	};
 	return { dispatch: createEdgePolicyDispatch(deps), widget, entered, edits };
 }

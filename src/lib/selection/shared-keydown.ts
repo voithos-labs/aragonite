@@ -16,7 +16,7 @@ import {
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
-import { hidesBlockOwnMarkers } from '../cursor/widget-offset';
+import { revealsNoMarkers } from '../cursor/widget-offset';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
 import { getContentRange } from '../core/inline';
 import { blockNodeAt } from '../tree-operations/node-ops';
@@ -182,7 +182,7 @@ interface ContentBounds {
  */
 function contentBounds(ctx: SharedKeydownContext, el: HTMLElement): ContentBounds {
 	const textLen = ctx.getTextLen();
-	if (!hidesBlockOwnMarkers(el)) return { start: 0, end: textLen };
+	if (!revealsNoMarkers(el)) return { start: 0, end: textLen };
 	const node = blockNodeAt(ctx.getDoc(), ctx.getMyPath());
 	if (!node) return { start: 0, end: textLen };
 	const range = getContentRange(node);

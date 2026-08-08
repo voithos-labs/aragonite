@@ -6,14 +6,17 @@ import {
 } from '../../cursor/edge-affinity';
 
 // The arrival matrix decides which of two offsets sharing one pixel a caret means. Pure on
-// the key, so the table is the test.
+// the key, so the table is the test. Direction is the whole rule: a step stops on the side of
+// the run it approached from, so one press never changes which construct the caret is in.
+// Miss-analysis: the matrix shipped direction-blind (every arrow `inside`) with no consumer to
+// contradict it — the typing seat is the first, and its e2e rows are what caught the polarity.
 describe('classifyArrivalKey', () => {
 	const MATRIX: Record<string, EdgeAffinityAction> = {
-		ArrowLeft: 'inside',
+		ArrowLeft: 'outside',
 		ArrowRight: 'inside',
-		ArrowUp: 'inside',
+		ArrowUp: 'outside',
 		ArrowDown: 'inside',
-		PageUp: 'inside',
+		PageUp: 'outside',
 		PageDown: 'inside',
 		Home: 'outside',
 		End: 'outside',
@@ -65,7 +68,7 @@ describe('createEdgeAffinityState', () => {
 
 	it('records the side each arrival means', () => {
 		const s = createEdgeAffinityState();
-		s.note(key('ArrowLeft'));
+		s.note(key('ArrowRight'));
 		expect(s.get()).toBe('inside');
 		s.note(key('Home'));
 		expect(s.get()).toBe('outside');

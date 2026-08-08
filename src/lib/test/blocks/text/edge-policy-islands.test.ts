@@ -61,7 +61,8 @@ function islandDeps(
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
-		isReading: () => false
+		isReading: () => false,
+		getEdgeAffinity: () => null
 	};
 }
 
