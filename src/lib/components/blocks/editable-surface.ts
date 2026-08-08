@@ -133,6 +133,13 @@ export interface EditableSurfaceDeps {
 	// ── Input skeleton (per-surface) ──────────────────────────────────────────
 	/** Read the current DOM content as raw text for the input commit. */
 	readText: () => string;
+	/** Live mode's typing seat for a COMPOSITION: an IME inserts at the DOM caret and its
+	 *  beforeinput is not cancelable, so the byte relocation a keystroke takes at keydown is
+	 *  taken on this commit instead. Null keeps the read verbatim. */
+	relocateComposedText?: (
+		after: string,
+		composedAt: number
+	) => { raw: string; caret: number } | null;
 	/**
 	 * Commit the read text to the CST. Returns the caret offset to restore when the
 	 * committed bytes differ from the DOM (a cell escaping a typed `|` to `\|`); void
@@ -286,7 +293,13 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── Input / composition skeleton ──────────────────────────────────────────
 
+	/** The DOM `input` handler. Arity zero on purpose: it is bound straight to the event, so a
+	 *  parameter here would be the InputEvent. */
 	function onInput(): void {
+		commitDomRead(false);
+	}
+
+	function commitDomRead(fromComposition: boolean): void {
 		if (deps.isInputSuppressed?.()) return;
 		deps.inputPrelude?.();
 		deps.stickyColumn.reset();
@@ -295,10 +308,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (deps.getComposing() || !deps.getEl()) return;
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
-		// preEdit anchors the undo snapshot; savedOffset drives focus when a kind change
-		// remounts the block. A commit that rewrites bytes reports the post-rewrite caret.
-		const committedCaret = deps.commitInput(text, deps.getPreEditOffset(), savedOffset);
-		deps.setPendingCursor(committedCaret ?? savedOffset);
+		const seated = fromComposition
+			? (deps.relocateComposedText?.(text, deps.getPreEditOffset()) ?? null)
+			: null;
+		const caret = seated?.caret ?? savedOffset;
+		// preEdit anchors the undo snapshot; caret drives focus when a kind change remounts the
+		// block. A commit that rewrites bytes reports the post-rewrite caret.
+		const committedCaret = deps.commitInput(seated?.raw ?? text, deps.getPreEditOffset(), caret);
+		deps.setPendingCursor(committedCaret ?? caret);
 	}
 
 	function onCompositionStart(): void {
@@ -317,7 +334,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		assertInvariant('composition-window', () => checkCompositionEndPaired(deps.getComposing()));
 		traceCompositionEnd();
 		deps.setComposing(false);
-		onInput();
+		commitDomRead(true);
 	}
 
 	const caret: ClipboardCaretIO = { getEl: deps.getEl, getCursorOffset, focus };

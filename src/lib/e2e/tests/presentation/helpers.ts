@@ -25,3 +25,30 @@ export async function centerOfWord(page: Page, word: string): Promise<{ x: numbe
 	if (!point) throw new Error(`centerOfWord: "${word}" not found`);
 	return point;
 }
+
+// Pixel just inside `word`'s trailing edge — the one gesture that lands a caret at a
+// construct's content edge by CLICK. A hidden delimiter run has no box, so the nearest
+// character boundary to this pixel is the edge itself.
+export async function trailingEdgeOfWord(
+	page: Page,
+	word: string
+): Promise<{ x: number; y: number }> {
+	const point = await page.evaluate((w) => {
+		const root = document.querySelector('.editor')!;
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+		let node: Node | null;
+		while ((node = walker.nextNode())) {
+			const i = node.textContent?.indexOf(w) ?? -1;
+			if (i >= 0) {
+				const range = document.createRange();
+				range.setStart(node, i);
+				range.setEnd(node, i + w.length);
+				const rect = range.getBoundingClientRect();
+				return { x: rect.right - 1, y: rect.top + rect.height / 2 };
+			}
+		}
+		return null;
+	}, word);
+	if (!point) throw new Error(`trailingEdgeOfWord: "${word}" not found`);
+	return point;
+}

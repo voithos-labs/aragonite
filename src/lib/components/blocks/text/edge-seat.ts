@@ -17,8 +17,7 @@ export interface EdgeSeat {
 
 /**
  * Where a byte typed at `caretOffset` belongs, or null when the offset touches no construct
- * marker run, the kind declares no policy, or the seat is already where the caret is — the
- * cases native insertion gets right on its own.
+ * marker run, the kind declares no policy, or the seat is already where the caret is.
  */
 export function resolveEdgeSeat(
 	caretOffset: number,
@@ -29,17 +28,86 @@ export function resolveEdgeSeat(
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
-	// Never-extend means outside the CONSTRUCT, which is the run's near side at a leading run
-	// and its far side at a trailing one. A symmetric pair follows the arrival, defaulting to
-	// the near side — where an unclaimed caret already sits.
+	// Never-extend resolves like a line extreme: past the construct's delimiters, which is the
+	// run's near side at an opener and its far side at a closer. A symmetric pair follows the
+	// arrival, defaulting to the near side — the gdocs click default (§ 4.2).
 	const side: EdgeAffinity =
-		policy.edgeAffinity === 'never-extend'
-			? run.leading
-				? 'inside'
-				: 'outside'
-			: (affinity ?? 'inside');
-	const offset = side === 'inside' ? run.start : run.end;
+		policy.edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
+	const offset = offsetForSide(run, side);
+	// Declining when the seat is already the caret is sound only because a read at a hidden
+	// run's pixel always canonicalizes to the run's near side: the browser has seated the
+	// insertion there, so "seat === caret" means native typing already lands right.
 	return offset === caretOffset ? null : { offset, kind: run.kind };
+}
+
+/**
+ * The bytes a COMPOSITION commit should have written. An IME inserts at the DOM caret and its
+ * `insertCompositionText` beforeinput is not cancelable, so the seat cannot intercept the
+ * keystroke — it relocates the composed run once, here, on the same commit that lands it.
+ * Null leaves the read as-is: no seat, or bytes that are not a plain insertion at `composedAt`
+ * (a composition over a selection is a range op, and the seat claims no range).
+ */
+export function relocateComposedRun(
+	before: string,
+	after: string,
+	composedAt: number,
+	inlines: readonly InlineNode[],
+	affinity: EdgeAffinity | null
+): { raw: string; caret: number } | null {
+	const length = after.length - before.length;
+	if (length <= 0 || composedAt < 0 || composedAt > before.length) return null;
+	if (after.slice(0, composedAt) !== before.slice(0, composedAt)) return null;
+	if (after.slice(composedAt + length) !== before.slice(composedAt)) return null;
+	const seat = resolveEdgeSeat(composedAt, inlines, affinity);
+	if (!seat) return null;
+	const composed = after.slice(composedAt, composedAt + length);
+	return {
+		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
+		caret: seat.offset + length
+	};
+}
+
+// ── Composition seat ─────────────────────────────────────────────────────────
+
+export interface CompositionSeatDeps {
+	/** The block's display bytes — what a commit's read is compared against. */
+	getDisplayText: () => string;
+	getInlines: () => readonly InlineNode[];
+	getAffinity: () => EdgeAffinity | null;
+}
+
+export interface CompositionSeat {
+	/** Capture the arrival and the bytes the composition begins from. Call BEFORE the surface's
+	 *  own `compositionstart`, whose cross-block half clears the affinity, and before the first
+	 *  mid-composition `input`, which re-arms it to the typed side. */
+	noteStart(): void;
+	/** The bytes the commit should write, or null to keep the DOM read verbatim. */
+	relocate(after: string, composedAt: number): { raw: string; caret: number } | null;
+	noteEnd(): void;
+}
+
+/** One composition's worth of seat inputs. The window is compositionstart → the commit that
+ *  compositionend drives, so the state is a single nullable capture rather than a stack. */
+export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSeat {
+	let started: { before: string; affinity: EdgeAffinity | null } | null = null;
+	return {
+		noteStart: () => {
+			started = { before: deps.getDisplayText(), affinity: deps.getAffinity() };
+		},
+		relocate: (after, composedAt) =>
+			started === null
+				? null
+				: relocateComposedRun(
+						started.before,
+						after,
+						composedAt,
+						deps.getInlines(),
+						started.affinity
+					),
+		noteEnd: () => {
+			started = null;
+		}
+	};
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -50,6 +118,12 @@ interface MarkerRun {
 	/** The opener's run; its near side is outside the construct, its far side inside. */
 	leading: boolean;
 	kind: AnyInlineKind;
+}
+
+function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
+	if (side === 'near') return run.start;
+	if (side === 'far') return run.end;
+	return run.leading ? run.start : run.end;
 }
 
 /** The innermost construct marker run either of whose boundaries `offset` names. Innermost

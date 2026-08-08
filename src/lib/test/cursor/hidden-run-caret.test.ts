@@ -8,11 +8,7 @@
 // was only ever exercised in source-mode shape.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
-import {
-	domTextOffsetAtNode,
-	isHiddenMarkerText,
-	snapOutOfHiddenRun
-} from '../../cursor/widget-offset';
+import { domTextOffsetAtNode, isHiddenMarkerText } from '../../cursor/widget-offset';
 import { restoreCaretAtWalkOffset } from '../../cursor/focused-caret';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
@@ -181,37 +177,6 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 		const fx = mount();
 		expect(domTextOffsetAtNode(fx.block, fx.openMarker, 1)).toBe(1);
 		expect(domTextOffsetAtNode(fx.block, fx.body, 0)).toBe(2);
-	});
-});
-
-// The offset-space door: no write site calls it (the landing seam keeps carets out of hidden
-// text on its own), so these are its only pins until affinity consumes it.
-describe('snapOutOfHiddenRun', () => {
-	it('moves a run-interior offset to the requested boundary', () => {
-		const fx = mount({ mode: 'live' });
-		expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(1), 'after')).toBe(2);
-		expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(1), 'before')).toBe(0);
-	});
-
-	it('crosses a whole coalesced run, not just the span the offset sits in', () => {
-		const fx = mount({ mode: 'live', blockPrefix: '## ' });
-		for (const offset of [1, 3, 4]) {
-			expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(offset), 'after'), `at ${offset}`).toBe(
-				5
-			);
-			expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(offset), 'before'), `at ${offset}`).toBe(
-				0
-			);
-		}
-	});
-
-	it('leaves boundaries and visible text untouched', () => {
-		const fx = mount({ mode: 'live' });
-		for (const offset of [0, 2, 3, 6]) {
-			expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(offset), 'after'), `at ${offset}`).toBe(
-				offset
-			);
-		}
 	});
 });
 

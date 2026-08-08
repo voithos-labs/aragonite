@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { centerOfWord, trailingEdgeOfWord } from './helpers';
+import { attachIme } from '../../simulation/ime';
 
 // Which side of a hidden delimiter run a typed byte lands on. The source is the oracle: the
 // caret reports the same offset either way, so only the bytes distinguish the two seats.
@@ -15,13 +16,16 @@ const DOC = [
 	'x \\* y',
 	'',
 	'end  ',
-	'next'
+	'next',
+	'',
+	'**Lead** in'
 ].join('\n');
 
 const BOLD = 0;
 const LINK = 1;
 const ESCAPE = 2;
 const HARD_BREAK = 3;
+const LEAD = 4;
 
 async function enterLive(page: Page): Promise<EditorPage> {
 	const ep = new EditorPage(page);
@@ -122,6 +126,31 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Some X**bold** text');
 	});
+
+	// A line extreme is construct-relative, not directional: `Home` on a line that OPENS with
+	// a pair means before its opener, the opposite walk-order side from `End` after a closer.
+	test('Home on a line opening with bold types before the construct', async ({ page }) => {
+		await clickBlock(ep, LEAD);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		expect(await focusOffset(ep)).toBe(2);
+
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('X**Lead** in');
+	});
+
+	// A click clears the arrival, so the seat's own default IS the click contract: the
+	// construct the caret touches keeps the byte (§ 4.2, the gdocs default).
+	test('a click at bold’s trailing content edge extends it', async ({ page }) => {
+		const point = await trailingEdgeOfWord(page, 'bold');
+		await page.mouse.click(point.x, point.y);
+		await ep.waitForRenderFlush();
+		await settleCaret(ep);
+		expect(await focusOffset(ep)).toBe(11);
+
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('Some **boldX** text');
+	});
 });
 
 test.describe('live mode — a never-extend construct ignores the arrival', () => {
@@ -189,5 +218,53 @@ test.describe('live mode — unstamped marker runs are never typed into', () => 
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('endX  \nnext');
+	});
+});
+
+// The IME half of the same contract: `insertCompositionText` is not cancelable, so the composed
+// run is relocated on the commit compositionend drives — one commit, one undo entry.
+test.describe('live mode — an IME commit takes the same seat as a keystroke', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterLive(page);
+	});
+
+	test('a composition at a link’s trailing content edge commits past the closer', async ({
+		page
+	}) => {
+		await clickWord(ep, page, 'link');
+		await stepTo(ep, page, 'ArrowRight', 7);
+
+		const ime = await attachIme(page);
+		await ime.compose('か');
+		await ime.commit('かん');
+		await ep.bridge.waitForSourceContains('A [link](https://example.com)かん tail');
+	});
+
+	test('a composition at bold’s trailing edge extends it when the arrival was from inside', async ({
+		page
+	}) => {
+		await clickWord(ep, page, 'bold');
+		await stepTo(ep, page, 'ArrowRight', 11);
+
+		const ime = await attachIme(page);
+		await ime.compose('か');
+		await ime.commit('かん');
+		await ep.bridge.waitForSourceContains('Some **boldかん** text');
+	});
+
+	test('a composition at bold’s trailing edge arrived from outside commits past it', async ({
+		page
+	}) => {
+		await clickBlock(ep, BOLD);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+		await stepTo(ep, page, 'ArrowLeft', 11);
+
+		const ime = await attachIme(page);
+		await ime.compose('か');
+		await ime.commit('かん');
+		await ep.bridge.waitForSourceContains('Some **bold**かん text');
 	});
 });
