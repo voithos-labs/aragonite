@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { centerOfWord } from './helpers';
+import { PluginsPage } from '../plugins/helpers';
 
 // Live mode: reading's marker-hiding CSS families over an editable surface, and no
 // reveal at all — the property that separates it from both preview rungs.
@@ -24,8 +25,15 @@ const DOC = [
 	'| --- | --- |',
 	'| 1 | 2 |',
 	'',
-	'Visit [example](https://example.com) here'
+	'Visit [example](https://example.com) here',
+	'',
+	'Also [docs][ref] here',
+	'',
+	'[ref]: https://example.com/docs'
 ].join('\n');
+
+// Directives render only on `/test/plugins`, so the container-chrome arm is driven there.
+const DIRECTIVE_DOC = ':::foo\nBody with **bold** here.\n:::\n';
 
 const AMBIENT_MARKER = ".md-marker[contenteditable='false']";
 
@@ -47,10 +55,12 @@ test.describe('live mode — markers never reveal', () => {
 	});
 
 	test('every marker family hides from paint while its bytes stay in the DOM', async ({ page }) => {
-		const emphasisMarker = ep.getBlock(1).locator('.md-marker').first();
-		await expect(emphasisMarker).toHaveCSS('display', 'none');
+		// toHaveCSS, not toBeHidden: a missing element passes toBeHidden, so a fixture that
+		// stopped producing one of these spans would retire its arm silently.
+		await expect(ep.getBlock(1).locator('.md-marker').first()).toHaveCSS('display', 'none');
+		await expect(page.locator('.md-fence-line').first()).toHaveCSS('display', 'none');
+		await expect(page.locator('.md-ref-label').first()).toHaveCSS('display', 'none');
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeHidden();
-		await expect(page.locator('.md-fence-line').first()).toBeHidden();
 
 		// The coordinate-space contract: hidden, never omitted.
 		expect(await ep.getBlockText(0)).toBe('# Title');
@@ -87,14 +97,18 @@ test.describe('live mode — markers never reveal', () => {
 		expect(painted).toContain('•');
 	});
 
-	test('the header toggle enters and leaves live mode', async ({ page }) => {
+	test('the header toggle round-trips live and leaves the bytes untouched', async ({ page }) => {
+		const baseline = await ep.bridge.getSource();
 		const toggle = page.getByTestId('live-toggle');
+
 		await toggle.click(); // live → source
 		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeVisible();
 
 		await toggle.click();
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+		await ep.waitForNoSourceMutation();
+		expect(await ep.bridge.getSource()).toBe(baseline);
 	});
 });
 
@@ -141,5 +155,27 @@ test.describe('live mode — the surface stays editable', () => {
 		const host = page.locator('.block-host', { hasText: 'Some' }).last();
 		await host.hover();
 		await expect(host.locator('.block-drag-handle').first()).toHaveCSS('opacity', '1');
+	});
+});
+
+// The bridge is live's third entry door (query param and toggle are covered above), and the
+// only one that reaches the plugin harness where directive containers render.
+test.describe('live mode — plugin container chrome', () => {
+	test('directive fences hide and stay hidden with the caret in the body', async ({ page }) => {
+		const ep = new PluginsPage(page);
+		await ep.gotoPlugins();
+		await ep.loadContent(DIRECTIVE_DOC);
+		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		await ep.waitForRenderFlush();
+		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+
+		const directiveMarker = page.locator('.directive-marker').first();
+		await expect(directiveMarker).toHaveCSS('display', 'none');
+
+		// Under preview-block the body's own `**` would reveal here; live reveals neither
+		// the body's markers nor the container's chrome.
+		await page.locator('.directive-block [contenteditable="true"]', { hasText: /bold/ }).click();
+		await expect(page.locator('.directive-block .md-marker').first()).toBeHidden();
+		await expect(directiveMarker).toHaveCSS('display', 'none');
 	});
 });
