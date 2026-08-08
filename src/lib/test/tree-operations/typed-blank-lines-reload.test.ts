@@ -11,7 +11,7 @@ import type { CstNode, Document } from '$lib/core/nodes';
 const layout = (nodes: readonly CstNode[]): [string, string, string][] =>
 	nodes.map((n) => [n.kind, n.leadingTrivia, n.raw]);
 
-/** "1", Enter, Enter, "2" — the 0.9.36 Enter-split byte policy, driven through the ops. */
+/** "1", Enter, Enter, "2" — the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {
 	const doc = parse('1\n');
 	splitNode(doc, 0, 1);

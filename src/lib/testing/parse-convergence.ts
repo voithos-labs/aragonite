@@ -2,8 +2,8 @@
  * The parse-convergence oracle. A byte round-trip after a mutation is a tautology (G2.1
  * makes `serialize∘parse` identity), so this compares the LIVE tree against
  * `parse(serialize(live))` STRUCTURALLY instead: kinds, children shape, and parse-derived
- * metadata. The comparison is exact — since 0.9.36 the parser materializes blank lines as
- * blocks, so an empty paragraph reparses as itself. The reparse uses the ambient grammar,
+ * metadata. The comparison is exact — the parser materializes blank lines as blocks, so an
+ * empty paragraph reparses as itself. The reparse uses the ambient grammar,
  * so an unregistered kind reads as a false divergence.
  */
 

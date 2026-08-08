@@ -240,7 +240,7 @@ test.describe('plugin-container ops simulation', () => {
 		await checkOracles('cross-container-undo');
 
 		// ── Paste a GitHub alert → the native githubAlert grammar ───────────────
-		// Conversion is opt-in since 0.9.34, so the pasted `> [!TIP]` blockquote
+		// Conversion is opt-in, so the pasted `> [!TIP]` blockquote
 		// keeps its bytes and parses as a first-class githubAlert container,
 		// bringing the native alert paste path under the
 		// round-trip/nested-state/no-errors oracles.

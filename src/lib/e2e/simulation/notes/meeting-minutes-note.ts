@@ -70,8 +70,8 @@ export const MEETING_MINUTES_NOTE: NoteFixture = {
 		'Priya wires the feature flag',
 		'Notes archived after the sync'
 	],
-	// Enter separates (0.9.36), so a heading typed on its own line stands one blank line above
-	// what follows it — the note is written the way it is typed, which is what the oracle asks.
+	// Enter separates, so a heading typed on its own line stands one blank line above what
+	// follows it — the note is written the way it is typed, which is what the oracle asks.
 	expectedMarkdown:
 		'# Sprint Sync — June 1\n' +
 		'\n' +

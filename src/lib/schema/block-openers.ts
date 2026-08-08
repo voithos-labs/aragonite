@@ -149,11 +149,8 @@ export const defaultGrammarView: GrammarView = {
 	orderedOpeners: () => getOrderedOpeners()
 };
 
-// TODO(limestone): the filtered read is uncached — getOrderedOpeners(isEnabled)
-// re-sorts+filters every call, so parsing an N-block doc under an ACTIVE filter is
-// N re-sorts vs the cached O(1) default path. Harmless while enablement is
-// harness-only (the default view is cached); memoize per-view with
-// registration-invalidation before the public enablement API ships.
+// TODO(limestone): the filtered read re-sorts per call where the default view is cached.
+// Memoize per-view with registration-invalidation before the public enablement API ships.
 export function createGrammarView(isEnabled: OpenerEnablement): GrammarView {
 	return {
 		orderedOpeners: () => getOrderedOpeners(isEnabled)

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
 
-// The collapsed-caret contract (docs/changelog.md 0.9.36): insert the empty pair and land the
-// caret between its halves, unless it already sits inside such a span or between the halves.
+// The collapsed-caret contract: insert the empty pair and land the caret between its halves,
+// unless it already sits inside such a span or between the halves.
 
 describe('toggleInlineFormat at a collapsed caret', () => {
 	it('inserts the empty pair and lands the caret between the halves', () => {

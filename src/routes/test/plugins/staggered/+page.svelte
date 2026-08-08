@@ -2,8 +2,6 @@
 	import { calloutPlugin } from '../callout/register';
 	import { detailsPlugin } from '$lib/plugins/details';
 
-	// Module scope so each factory runs once per process, not per (SSR) render: re-minting
-	// same-name plugin objects each render trips installPlugins' first-wins dev-warn.
 	// Editor 2 adds detailsPlugin — the staggered late-mount this harness exercises.
 	const callout = calloutPlugin();
 	const editorOnePlugins = [callout];
