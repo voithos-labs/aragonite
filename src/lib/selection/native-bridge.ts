@@ -9,11 +9,7 @@ import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import { asRawOffset, toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
-import {
-	createRangeAtDomTextOffsets,
-	domTextOffsetAtNode,
-	snapOutOfHiddenRun
-} from '../cursor/widget-offset';
+import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
 import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
@@ -54,13 +50,7 @@ export function readNativeCaretInBlock(
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);
 	if (ambient > 0 && point.offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
-	// Forward, like the ambient IO's `setRaw`: a by-path landing on a byte the mode hides
-	// belongs at the first visible position after it, not inside the unpainted run.
-	const target = snapOutOfHiddenRun(
-		blockEl,
-		toDomTextOffset(asRawOffset(point.offset), ambient),
-		'after'
-	);
+	const target = toDomTextOffset(asRawOffset(point.offset), ambient);
 	const range = createRangeAtDomTextOffsets(blockEl, target, target);
 	if (!range) return;
 	const sel = window.getSelection();

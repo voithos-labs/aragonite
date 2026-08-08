@@ -29,8 +29,11 @@ interface Fixture {
 	openSpan: HTMLElement;
 }
 
-/** `**bold**` (optionally behind a list item's ambient `- `) under one presentation mode. */
-function mount(options: { mode?: string; focused?: boolean; ambient?: string } = {}): Fixture {
+/** `**bold**` (optionally behind a block-own prefix or a list item's ambient `- `) under one
+ *  presentation mode. */
+function mount(
+	options: { mode?: string; focused?: boolean; ambient?: string; blockPrefix?: string } = {}
+): Fixture {
 	const root = document.createElement('div');
 	root.className = 'editor';
 	if (options.mode) root.setAttribute('data-presentation', options.mode);
@@ -41,6 +44,7 @@ function mount(options: { mode?: string; focused?: boolean; ambient?: string } =
 	block.setAttribute('contenteditable', 'true');
 	block.tabIndex = 0;
 	if (options.ambient) block.appendChild(buildAmbientSpan(options.ambient));
+	if (options.blockPrefix) block.appendChild(markerSpan(options.blockPrefix));
 	const openSpan = markerSpan('**');
 	const body = document.createTextNode('bold');
 	const closeSpan = markerSpan('**');
@@ -55,6 +59,15 @@ function mount(options: { mode?: string; focused?: boolean; ambient?: string } =
 		body,
 		closeMarker: closeSpan.firstChild as Text
 	};
+}
+
+/** A chrome span of any marker family, appended after the block's content. */
+function appendSpan(block: HTMLElement, className: string, text: string): HTMLElement {
+	const span = document.createElement('span');
+	span.className = className;
+	span.textContent = text;
+	block.appendChild(span);
+	return span;
 }
 
 function markerSpan(text: string): HTMLElement {
@@ -120,6 +133,23 @@ describe('isHiddenMarkerText — the marker-hiding CSS families, read structural
 		const fx = mount({ mode: 'preview-inline', focused: true });
 		expect(isHiddenMarkerText(fx.openMarker, fx.block)).toBe(false);
 	});
+
+	it('answers false for a fence line in a focused preview-inline host', () => {
+		const fx = mount({ mode: 'preview-inline', focused: true });
+		const fence = appendSpan(fx.block, 'md-fence-line', '```\n');
+		expect(isHiddenMarkerText(fence.firstChild!, fx.block)).toBe(false);
+	});
+
+	it('answers true for an UNSTAMPED ref label in a focused preview-inline host', () => {
+		// The stylesheet's unstamped-reveal arm is scoped to `.md-marker`; a ref label reveals
+		// only by class. Reachable: a table cell renders inline with no construct stamps in any
+		// mode, so its `[ref]` label is unstamped and still display:none.
+		const fx = mount({ mode: 'preview-inline', focused: true });
+		const label = appendSpan(fx.block, 'md-ref-label', '[ref]');
+		expect(isHiddenMarkerText(label.firstChild!, fx.block)).toBe(true);
+		label.classList.add('md-construct-reveal');
+		expect(isHiddenMarkerText(label.firstChild!, fx.block)).toBe(false);
+	});
 });
 
 describe('domTextOffsetAtNode — a hidden run has no interior walk positions', () => {
@@ -136,6 +166,17 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 		expect(domTextOffsetAtNode(fx.block, fx.openMarker, 0)).toBe(0);
 	});
 
+	it('canonicalizes element-level positions inside a coalesced run', () => {
+		// `## **bold**`: two adjacent hidden spans are one run [0,5), so an element-level
+		// position between them is as interior as a text one — and feeds the block-exit arms.
+		const fx = mount({ mode: 'live', blockPrefix: '## ' });
+		expect(domTextOffsetAtNode(fx.block, fx.block, 0)).toBe(0);
+		expect(domTextOffsetAtNode(fx.block, fx.block, 1)).toBe(0);
+		expect(domTextOffsetAtNode(fx.block, fx.openSpan, 0)).toBe(0);
+		// The run's far boundary is a real position — the first visible byte.
+		expect(domTextOffsetAtNode(fx.block, fx.block, 2)).toBe(5);
+	});
+
 	it('leaves source mode alone — the walk still counts marker text verbatim', () => {
 		const fx = mount();
 		expect(domTextOffsetAtNode(fx.block, fx.openMarker, 1)).toBe(1);
@@ -143,11 +184,25 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 	});
 });
 
+// The offset-space door: no write site calls it (the landing seam keeps carets out of hidden
+// text on its own), so these are its only pins until affinity consumes it.
 describe('snapOutOfHiddenRun', () => {
 	it('moves a run-interior offset to the requested boundary', () => {
 		const fx = mount({ mode: 'live' });
 		expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(1), 'after')).toBe(2);
 		expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(1), 'before')).toBe(0);
+	});
+
+	it('crosses a whole coalesced run, not just the span the offset sits in', () => {
+		const fx = mount({ mode: 'live', blockPrefix: '## ' });
+		for (const offset of [1, 3, 4]) {
+			expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(offset), 'after'), `at ${offset}`).toBe(
+				5
+			);
+			expect(snapOutOfHiddenRun(fx.block, asDomTextOffset(offset), 'before'), `at ${offset}`).toBe(
+				0
+			);
+		}
 	});
 
 	it('leaves boundaries and visible text untouched', () => {
@@ -160,6 +215,7 @@ describe('snapOutOfHiddenRun', () => {
 	});
 });
 
+// The guard is the landing seam these all share, not a snap carried at each door.
 describe('caret writes never seat a range in hidden marker text', () => {
 	function cursorIO(block: HTMLElement, ambientLength = 0) {
 		return createAmbientCursorIO({ getEl: () => block, getAmbientLength: () => ambientLength });

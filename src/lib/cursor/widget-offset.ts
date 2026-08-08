@@ -41,7 +41,11 @@ export function domTextOffsetAtNode(
 			}
 			return asDomTextOffset(at);
 		}
-		if (boundary && startsAtOrAfter(segNode, boundary)) return asDomTextOffset(seg.start);
+		// An element-level position resolves to a segment's start, which a coalesced run makes
+		// as interior as a text position — it leans backward, so it snaps that way.
+		if (boundary && startsAtOrAfter(segNode, boundary)) {
+			return snapOutOfRun(container, seg.start, 'before', mode);
+		}
 		total = seg.start + seg.len;
 	}
 	return asDomTextOffset(total);
@@ -214,8 +218,9 @@ export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean 
 
 /**
  * `offset` moved off a hidden run's interior to that run's `side` boundary; boundaries and
- * visible text come back unchanged. Caret landings snap before they seat: a run's interior
- * has no paint position, so what a browser does with a range there is its own business.
+ * visible text come back unchanged. Keeping a caret out of hidden text needs no call here —
+ * `findDomTextOffsetTarget` never resolves a position inside a run. This is for a caller that
+ * must move the OFFSET and knows which side it means.
  */
 export function snapOutOfHiddenRun(
 	container: HTMLElement,
@@ -227,10 +232,6 @@ export function snapOutOfHiddenRun(
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-/** The classes the marker-hiding families key on. `contenteditable="false"` markers (the
- *  ambient prefix, directive chrome) keep their box and their own caret rule, so they are
- *  excluded here — `ambient/ambient-cursor.ts` owns those. */
-const HIDDEN_MARKER_CLASSES = ['md-marker', 'md-fence-line', 'md-ref-label'];
 const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
 const FOCUSED_HOST_SELECTOR = '.block-host[data-focused]';
 
@@ -243,18 +244,28 @@ function markerHidingMode(container: ParentNode): PresentationMode | null {
 	return mode !== null && hidesMarkers(mode) ? mode : null;
 }
 
+/**
+ * The `display:none` families. `:not([contenteditable="false"])` scopes to `.md-marker`
+ * exactly as the stylesheet does — that arm is what excludes the ambient prefix (which is
+ * `visibility:hidden`, keeps its box, and belongs to `ambient/ambient-cursor.ts`) and the
+ * `.directive-marker` chrome (which also sits outside every walk container).
+ */
+function isMarkerSpan(el: Element): boolean {
+	const classes = el.classList;
+	if (classes.contains('md-marker')) return el.getAttribute('contenteditable') !== 'false';
+	return classes.contains('md-fence-line') || classes.contains('md-ref-label');
+}
+
 function hidesOwnText(el: Element, mode: PresentationMode): boolean {
-	if (el.getAttribute('contenteditable') === 'false') return false;
-	if (!HIDDEN_MARKER_CLASSES.some((cls) => el.classList.contains(cls))) return false;
+	if (!isMarkerSpan(el)) return false;
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
-	// preview-inline reveals per construct; markers with no construct stamp (block-own
-	// prefixes, fence lines) reveal with block focus as they do under preview-block.
-	return (
-		mode === 'preview-inline' &&
-		el.hasAttribute('data-construct-start') &&
-		!el.classList.contains(CONSTRUCT_REVEAL_CLASS)
-	);
+	if (mode === 'preview-block') return false;
+	// preview-inline's unstamped-reveal arm is scoped to `.md-marker`, so a ref label reveals
+	// by class alone; fence lines are whole-block markers and reveal with block focus.
+	if (el.classList.contains('md-fence-line')) return false;
+	if (el.classList.contains('md-ref-label')) return !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
+	return el.hasAttribute('data-construct-start') && !el.classList.contains(CONSTRUCT_REVEAL_CLASS);
 }
 
 function snapOutOfRun(
