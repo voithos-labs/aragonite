@@ -12,7 +12,10 @@ const FORMATS: InlineMarkKind[] = ['strong', 'emphasis', 'strikethrough', 'inlin
 describe.each(FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (format) => {
 	const markers = markersFor(format);
 	const at = (raw: string, caret: number) =>
-		toggleInlineFormat(raw, whole(raw), { start: caret, end: caret }, format);
+		toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: caret, end: caret } },
+			format
+		);
 
 	it('inserts the empty pair and lands the caret between the halves', () => {
 		const r = at('hello world', 5);
@@ -49,20 +52,29 @@ describe.each(FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (format) 
 
 describe('toggleInlineFormat at a collapsed caret', () => {
 	it('unwraps the innermost matching layer of a nested construct', () => {
-		const r = toggleInlineFormat('***x***', whole('***x***'), { start: 3, end: 3 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: '***x***', content: whole('***x***'), selection: { start: 3, end: 3 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('*x*');
 	});
 
 	it('nests when the caret is inside a span of the other format', () => {
 		const raw = '**bold**';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 4, end: 4 }, 'emphasis');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 4, end: 4 } },
+			'emphasis'
+		);
 		expect(r.newDisplay).toBe('**bo**ld**');
 		expect(r.newSelStart).toBe(5);
 	});
 
 	it('inserts rather than unwrapping when the caret is outside the span', () => {
 		const raw = '**bold**';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 0, end: 0 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 0, end: 0 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('******bold**');
 		expect(r.newSelStart).toBe(2);
 	});

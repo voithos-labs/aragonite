@@ -151,9 +151,12 @@ describe('the seat claims only a live caret typing at an edge', () => {
 		}
 	});
 
+	// Backspace and Delete are absent by design: the same edge is a seat for a typed byte and a
+	// cut for a destructive key, and the destructive arm owns those two
+	// (`edge-policy-construct-delete.test.ts`).
 	it('declines a non-printable key', () => {
 		const h = mount(BOLD, 'live', 'far');
-		for (const name of ['Enter', 'Tab', 'ArrowLeft', 'Backspace']) {
+		for (const name of ['Enter', 'Tab', 'ArrowLeft']) {
 			expect(h.handleKeydown(key(name), at(11))).toBe(false);
 		}
 	});

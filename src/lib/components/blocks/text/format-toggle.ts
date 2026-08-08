@@ -13,7 +13,7 @@ import type { InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
 import { constructContentRange } from './edge-seat';
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// ── Markers ──────────────────────────────────────────────────────────────────
 
 const MARKERS: Record<InlineMarkKind, string> = {
 	strong: '**',
@@ -28,6 +28,18 @@ export function markersFor(format: InlineMarkKind): string {
 	return MARKERS[format];
 }
 
+// ── Public API ───────────────────────────────────────────────────────────────
+
+/** Named fields, because the two ranges and the display are all offsets into the same string:
+ *  a swapped content-and-selection pair type-checks and splices markers into structural bytes. */
+export interface InlineFormatEdit {
+	/** The block's display bytes — its raw without the trailing line ending. */
+	display: string;
+	/** The bytes the block's own kind calls content; every write clamps into them. */
+	content: ContentRange;
+	selection: { start: number; end: number };
+}
+
 export interface ToggleInlineFormatResult {
 	newDisplay: string;
 	newSelStart: number;
@@ -35,11 +47,10 @@ export interface ToggleInlineFormatResult {
 }
 
 export function toggleInlineFormat(
-	display: string,
-	content: ContentRange,
-	selection: { start: number; end: number },
+	edit: InlineFormatEdit,
 	format: InlineMarkKind
 ): ToggleInlineFormatResult {
+	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
 	// The same bounds the block itself parses with, so no construct can straddle the structural
@@ -223,6 +234,8 @@ function longestBacktickRun(text: string): number {
 	}
 	return longest;
 }
+
+// ── Content clamp ────────────────────────────────────────────────────────────
 
 function clampToContent(offset: number, content: ContentRange): number {
 	return Math.min(Math.max(offset, content.start), content.end);

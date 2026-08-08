@@ -18,21 +18,30 @@ describe.each(FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
 
 	it('wraps a bare selection and selects it, markers included', () => {
 		const raw = 'hello world';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 6, end: 11 }, format);
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 6, end: 11 } },
+			format
+		);
 		expect(r.newDisplay).toBe(`hello ${markers}world${markers}`);
 		expect(r.newDisplay.slice(r.newSelStart, r.newSelEnd)).toBe(`${markers}world${markers}`);
 	});
 
 	it('strips the pair back off when the selection includes it', () => {
 		const raw = `x ${markers}word${markers} y`;
-		const r = toggleInlineFormat(raw, whole(raw), { start: 2, end: raw.length - 2 }, format);
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 2, end: raw.length - 2 } },
+			format
+		);
 		expect(r.newDisplay).toBe('x word y');
 	});
 
 	it('strips the flanking pair when the selection covers only the content', () => {
 		const raw = `${markers}word${markers}`;
 		const at = markers.length;
-		const r = toggleInlineFormat(raw, whole(raw), { start: at, end: at + 4 }, format);
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: at, end: at + 4 } },
+			format
+		);
 		expect(r.newDisplay).toBe('word');
 		expect(r.newSelStart).toBe(0);
 		expect(r.newSelEnd).toBe(4);
@@ -41,7 +50,10 @@ describe.each(FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
 
 describe('toggleInlineFormat', () => {
 	it('does not strip flanking markers when only one side is present', () => {
-		const r = toggleInlineFormat('**word', whole('**word'), { start: 2, end: 6 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: '**word', content: whole('**word'), selection: { start: 2, end: 6 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('****word**');
 		expect(r.newSelStart).toBe(2);
 		expect(r.newSelEnd).toBe(10);
@@ -49,7 +61,10 @@ describe('toggleInlineFormat', () => {
 
 	it('does not orphan markers on a multi-span selection (regression)', () => {
 		const raw = '**a** **b**';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 0, end: 11 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 0, end: 11 } },
+			'strong'
+		);
 		// the old strip-the-outer-pair path produced the orphaned `a** **b`
 		expect(r.newDisplay).not.toBe('a** **b');
 		const parsed = parseInline(r.newDisplay, 0, r.newDisplay.length);
@@ -60,7 +75,10 @@ describe('toggleInlineFormat', () => {
 	// must nest, not strip: the old flank check was construct-blind and destroyed the bold.
 	it('nests emphasis inside a strong construct instead of stripping its markers', () => {
 		const raw = '**word**';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 2, end: 6 }, 'emphasis');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 2, end: 6 } },
+			'emphasis'
+		);
 		expect(r.newDisplay).toBe('***word***');
 		// The wrap branch selects the freshly wrapped span including its new markers.
 		expect(r.newSelStart).toBe(2);
@@ -69,25 +87,52 @@ describe('toggleInlineFormat', () => {
 
 	it('nests strong inside an emphasis construct (single-marker flank is not strong)', () => {
 		const raw = '*word*';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 1, end: 5 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 1, end: 5 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('***word***');
 	});
 
 	it('strips the emphasis layer when the selection is genuinely inside one', () => {
 		const raw = '***word***';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 3, end: 7 }, 'emphasis');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 3, end: 7 } },
+			'emphasis'
+		);
 		expect(r.newDisplay).toBe('**word**');
 	});
 
 	it('strips the strong layer of a nested pair from the same selection', () => {
 		const raw = '***word***';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 3, end: 7 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 3, end: 7 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('*word*');
+	});
+
+	// The delimiter run is read off the PARSE, not off this module's canonical pair, so a construct
+	// the author wrote non-canonically strips as itself instead of nesting a second pair inside it.
+	it.each([
+		['emphasis' as const, '_word_', 1],
+		['strikethrough' as const, '~word~', 1]
+	])('strips a non-canonical %s run rather than nesting inside it', (format, raw, mLen) => {
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: mLen, end: mLen + 4 } },
+			format
+		);
+		expect(r.newDisplay).toBe('word');
+		expect(r.newSelStart).toBe(0);
+		expect(r.newSelEnd).toBe(4);
 	});
 
 	it('nests strikethrough around a strong construct', () => {
 		const raw = 'a **b** c';
-		const r = toggleInlineFormat(raw, whole(raw), { start: 2, end: 7 }, 'strikethrough');
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 2, end: 7 } },
+			'strikethrough'
+		);
 		expect(r.newDisplay).toBe('a ~~**b**~~ c');
 	});
 });

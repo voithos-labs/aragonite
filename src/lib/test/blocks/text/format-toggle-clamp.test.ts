@@ -16,24 +16,36 @@ const FORMATS: InlineMarkKind[] = ['strong', 'emphasis', 'strikethrough', 'inlin
 
 describe('toggleInlineFormat clamps to the content range', () => {
 	it.each(FORMATS)('a caret inside a heading prefix writes after it (%s)', (format) => {
-		const r = toggleInlineFormat(HEADING, HEADING_CONTENT, { start: 1, end: 1 }, format);
+		const r = toggleInlineFormat(
+			{ display: HEADING, content: HEADING_CONTENT, selection: { start: 1, end: 1 } },
+			format
+		);
 		expect(r.newDisplay.startsWith('## ')).toBe(true);
 		expect(r.newSelStart).toBeGreaterThanOrEqual(HEADING_CONTENT.start);
 	});
 
 	it('a caret past a setext content end writes before the underline', () => {
-		const r = toggleInlineFormat(SETEXT, SETEXT_CONTENT, { start: 8, end: 8 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: SETEXT, content: SETEXT_CONTENT, selection: { start: 8, end: 8 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('Title****\n=====');
 		expect(r.newSelStart).toBe(7);
 	});
 
 	it('a selection overhanging the prefix wraps only the content it covers', () => {
-		const r = toggleInlineFormat(HEADING, HEADING_CONTENT, { start: 0, end: 7 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: HEADING, content: HEADING_CONTENT, selection: { start: 0, end: 7 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('## **Head**');
 	});
 
 	it('a selection overhanging the setext underline stops at the content end', () => {
-		const r = toggleInlineFormat(SETEXT, SETEXT_CONTENT, { start: 0, end: 11 }, 'strikethrough');
+		const r = toggleInlineFormat(
+			{ display: SETEXT, content: SETEXT_CONTENT, selection: { start: 0, end: 11 } },
+			'strikethrough'
+		);
 		expect(r.newDisplay).toBe('~~Title~~\n=====');
 	});
 
@@ -41,7 +53,10 @@ describe('toggleInlineFormat clamps to the content range', () => {
 	// would let a construct straddle the structural bytes.
 	it('unwraps a span inside the content without touching the underline', () => {
 		const raw = '**Title**\n=====';
-		const r = toggleInlineFormat(raw, { start: 0, end: 9 }, { start: 4, end: 4 }, 'strong');
+		const r = toggleInlineFormat(
+			{ display: raw, content: { start: 0, end: 9 }, selection: { start: 4, end: 4 } },
+			'strong'
+		);
 		expect(r.newDisplay).toBe('Title\n=====');
 	});
 });
