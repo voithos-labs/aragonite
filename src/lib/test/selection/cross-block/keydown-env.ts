@@ -10,6 +10,7 @@ import type { CrossBlockDispatchContext } from '$lib/selection/cross-block/dispa
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { createCrossBlockKeydown } from '$lib/selection/cross-block/keydown';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 import { createStickyColumnState } from '$lib/cursor/sticky-column';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -34,6 +35,7 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 	const controller = createUndoController(harness.deps);
 	const selection = harness.deps.selectionState;
 	const stickyColumn = createStickyColumnState();
+	const edgeAffinity = createEdgeAffinityState();
 
 	// One element per path: the extend walk reads element identity, never geometry.
 	const blockEls = new Map<string, HTMLElement>();
@@ -74,6 +76,7 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		getBlockElByPath,
 		revealPath,
 		stickyColumn,
+		edgeAffinity,
 		controller,
 		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 		pluginEditor: undefined,
@@ -87,6 +90,7 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		...harness,
 		selection,
 		stickyColumn,
+		edgeAffinity,
 		controller,
 		ctx,
 		mutCtx,

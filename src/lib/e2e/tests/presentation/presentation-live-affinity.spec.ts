@@ -120,16 +120,18 @@ test.describe('live mode — the caret never reports from inside a hidden run', 
 	});
 });
 
-test.describe('live mode — destructive keys at a hidden structural edge', () => {
+// The OBSERVABLE outcome of a destructive key at a hidden structural edge. It holds with the
+// swallow arm disabled too — Chromium declines the delete on its own — so what pins the arm is
+// `test/blocks/text/edge-policy-hidden-structural.test.ts`; these rows pin the user-visible
+// contract across engines and against a merge predicate someone widens later.
+test.describe('live mode — a destructive key at a hidden structural edge takes no byte', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		ep = await enterLive(page);
 	});
 
-	// The press is consumed rather than left to the engine, so no byte moves and no merge
-	// fires — the two outcomes a content-start Backspace could otherwise produce.
-	test('Backspace at a heading’s content start changes nothing and does not merge', async ({
+	test('Backspace at a heading’s content start leaves the bytes, kind and caret alone', async ({
 		page
 	}) => {
 		await ep.clickBlock(HEADING);

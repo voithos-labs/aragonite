@@ -852,6 +852,7 @@
 		// mutating: execCommand needs the restored range, paste needs a focused caret.
 		if (action === 'paste') {
 			stickyColumn.reset();
+			edgeAffinity.reset();
 			el.focus();
 			let raw: string;
 			try {
@@ -869,6 +870,7 @@
 		// SelectionState, and the onCopy/onCut rect arms do the rest.
 		if (intraTableRectPayload({ selection, getDoc }) !== null) {
 			stickyColumn.reset();
+			edgeAffinity.reset();
 			el.focus();
 			document.execCommand('copy');
 			if (action === 'cut') await crossBlock.performCrossBlockDeleteFromEvent();
@@ -876,6 +878,7 @@
 		}
 		if (sel.start === sel.end) return;
 		stickyColumn.reset();
+		edgeAffinity.reset();
 		el.focus();
 		setSelection(sel.start, sel.end);
 		document.execCommand('copy');
