@@ -297,8 +297,7 @@
 			aria-label="Mermaid source"
 			onkeydown={onTextareaKeydown}
 			onfocusout={() => commitEdit(false)}
-			onpointerdown={(e) => e.stopPropagation()}
-		></textarea>
+			onpointerdown={(e) => e.stopPropagation()}></textarea>
 	{:else}
 		<div class="mermaid-toolbar" onpointerdown={(e) => e.stopPropagation()}>
 			<button type="button" data-testid="mermaid-edit" onclick={openEdit}>Edit</button>
