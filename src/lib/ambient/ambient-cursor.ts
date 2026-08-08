@@ -11,7 +11,11 @@ import {
 	toDomTextOffset,
 	type RawOffset
 } from '../cursor/coordinate-spaces';
-import { domTextOffsetAtNode, findDomTextOffsetTarget } from '../cursor/widget-offset';
+import {
+	domTextOffsetAtNode,
+	findDomTextOffsetTarget,
+	snapOutOfHiddenRun
+} from '../cursor/widget-offset';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from './ambient-dom';
 
 export interface AmbientCursorDeps {
@@ -87,7 +91,9 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 			setToAmbientBoundary();
 			return;
 		}
-		const target = toDomTextOffset(offset, ambientLength);
+		// Forward: a landing asked for a byte the mode hides resolves to the first position
+		// the user can see, which is where the same keypress lands in preview-inline.
+		const target = snapOutOfHiddenRun(el, toDomTextOffset(offset, ambientLength), 'after');
 		const pos = findDomTextOffsetTarget(el, target);
 		if (!pos) return;
 		// The walker's last-text-node fallback can land inside the marker text, where the

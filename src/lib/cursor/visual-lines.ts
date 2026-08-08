@@ -6,6 +6,7 @@
  */
 
 import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
+import { isHiddenMarkerText } from './widget-offset';
 
 // Fraction of a line height within which the cursor Y counts as the boundary line —
 // sub-line, so sub/superscript or inline-image jitter doesn't read as a different line.
@@ -48,27 +49,13 @@ export function getCharRangeTop(container: Node, offset: number, atEnd: boolean)
 }
 
 /** Skips non-text children (dimmed marker spans) that would otherwise leave the block's
- *  first line unmeasurable. */
-export function findFirstTextNode(node: Node): Text | null {
-	if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-		return node as Text;
-	}
-	for (let i = 0; i < node.childNodes.length; i++) {
-		const found = findFirstTextNode(node.childNodes[i]);
-		if (found) return found;
-	}
-	return null;
+ *  first line unmeasurable, and hidden marker text, which measures to no rect at all. */
+export function findFirstTextNode(root: Node): Text | null {
+	return firstMeasurableText(root, containerOf(root));
 }
 
-export function findLastTextNode(node: Node): Text | null {
-	if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-		return node as Text;
-	}
-	for (let i = node.childNodes.length - 1; i >= 0; i--) {
-		const found = findLastTextNode(node.childNodes[i]);
-		if (found) return found;
-	}
-	return null;
+export function findLastTextNode(root: Node): Text | null {
+	return lastMeasurableText(root, containerOf(root));
 }
 
 /**
@@ -148,4 +135,38 @@ export function isAtLastVisualLine(
 
 	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
 	return Math.abs(cursorTop - endTop) < lineHeight * SAME_LINE_TOLERANCE;
+}
+
+// ── Internal ────────────────────────────────────────────────────────────────
+
+/** Hidden-run classification needs the walk container; a bare text-node root has none. */
+function containerOf(root: Node): HTMLElement | null {
+	return root instanceof HTMLElement ? root : null;
+}
+
+function firstMeasurableText(node: Node, container: HTMLElement | null): Text | null {
+	if (node.nodeType === Node.TEXT_NODE) {
+		return isMeasurableText(node as Text, container) ? (node as Text) : null;
+	}
+	for (let i = 0; i < node.childNodes.length; i++) {
+		const found = firstMeasurableText(node.childNodes[i], container);
+		if (found) return found;
+	}
+	return null;
+}
+
+function lastMeasurableText(node: Node, container: HTMLElement | null): Text | null {
+	if (node.nodeType === Node.TEXT_NODE) {
+		return isMeasurableText(node as Text, container) ? (node as Text) : null;
+	}
+	for (let i = node.childNodes.length - 1; i >= 0; i--) {
+		const found = lastMeasurableText(node.childNodes[i], container);
+		if (found) return found;
+	}
+	return null;
+}
+
+function isMeasurableText(text: Text, container: HTMLElement | null): boolean {
+	if ((text.textContent?.length ?? 0) === 0) return false;
+	return container === null || !isHiddenMarkerText(text, container);
 }
