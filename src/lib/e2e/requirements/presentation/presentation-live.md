@@ -22,6 +22,8 @@ asserted through the same bridge.
 - directive container chrome (`:::foo`) hides too, and stays hidden with the
   caret in the container's body — driven on `/test/plugins`, the harness that
   renders plugin containers, entered through the `window.__test` bridge
+- an angle autolink (`<https://…>`) hides its `<`/`>` and renders the bare url —
+  the brackets are construct syntax, so they are marker spans like any other
 - bullet items hide their `- ` and paint rendered bullet chrome instead; ordered
   ambient numbers stay visible; task checkboxes stay visible
 - table grips still reveal on table hover and drag handles still reveal on block
