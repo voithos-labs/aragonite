@@ -7,9 +7,13 @@
 
 import { BARE_MODIFIER_KEYS } from '../schema/keybindings';
 
-/** Which of the two raw offsets a hidden run's one pixel names: the run's near side
- *  (`inside` — the content the caret approached from) or its far side (`outside`). */
-export type EdgeAffinity = 'inside' | 'outside';
+/**
+ * Which raw offset a hidden run's one pixel names. Two answers are positional — the run's
+ * `near` (earlier) or `far` (later) walk-order side — and one is construct-relative:
+ * `outside` means past the construct's delimiters whichever side that lands on, so it reads
+ * as the run's start at an opener and its end at a closer.
+ */
+export type EdgeAffinity = 'near' | 'far' | 'outside';
 
 export interface EdgeAffinityState {
 	get(): EdgeAffinity | null;
@@ -32,7 +36,7 @@ export function createEdgeAffinityState(): EdgeAffinityState {
 	const state: EdgeAffinityState = {
 		get: () => affinity,
 		noteTyping: () => {
-			affinity = 'inside';
+			affinity = 'near';
 		},
 		reset: () => {
 			affinity = null;
@@ -57,9 +61,11 @@ export type EdgeAffinityAction = EdgeAffinity | 'preserve' | 'reset';
 export function classifyArrivalKey(key: string): EdgeAffinityAction {
 	// A step stops on the side of the run it approached from, so one press never changes which
 	// construct the caret is in: forward keys reach the near side, backward keys the far one.
-	if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') return 'inside';
-	if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') return 'outside';
-	// A line extreme means the raw extreme, past every marker in front of it.
+	if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') return 'near';
+	if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') return 'far';
+	// A line extreme is construct-relative, not directional: `Home` before a line-leading
+	// construct means before its opener, which is the run's EARLIER side — the opposite
+	// walk-order answer from `End` after a line-trailing one.
 	if (key === 'Home' || key === 'End') return 'outside';
 	// Bare modifiers are read from the chord parser rather than re-listed — a local copy
 	// missing AltGraph is how a modifier tap mid-arrow-run drops the side. A printable key

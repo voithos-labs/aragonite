@@ -124,10 +124,12 @@ describe('block-exit arms read the content bounds', () => {
 });
 
 describe('the keydown door notes the arrival', () => {
-	it('an arrow records the content side, Home the far side', async () => {
+	it('a forward arrow records the run’s near side, Home the construct-relative outside', async () => {
 		const { ctx } = makeEnv('Title\n', 2, 'live');
 		await handleSharedKeydown(press('ArrowRight'), ctx);
-		expect(ctx.edgeAffinity.get()).toBe('inside');
+		expect(ctx.edgeAffinity.get()).toBe('near');
+		await handleSharedKeydown(press('ArrowLeft'), ctx);
+		expect(ctx.edgeAffinity.get()).toBe('far');
 		await handleSharedKeydown(press('Home'), ctx);
 		expect(ctx.edgeAffinity.get()).toBe('outside');
 	});

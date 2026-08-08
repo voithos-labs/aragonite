@@ -68,6 +68,8 @@
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { createWidgetInteraction } from '../text/widget-interaction';
 	import { createEdgePolicyDispatch } from '../text/edge-policy-dispatch';
+	import { createCompositionSeat } from '../text/edge-seat';
+	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 
@@ -229,12 +231,20 @@
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
+		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		// `saved` re-focuses if the edit remounts the cell, so it is reported through
 		// the door's escape.
 		commitInput: (text, preEdit, saved) => {
 			void blockEdit.updateBlockContent(index, text, preEdit, saved);
 			return escapedCellOffset(text, saved);
 		}
+	});
+
+	// The same seat the keydown dispatch takes, for the one insertion a keydown cannot reach.
+	const compositionSeat = createCompositionSeat({
+		getDisplayText: () => trimTrailingLineEnding(node.raw),
+		getInlines: () => resolvedInlineContent(node, linkRef),
+		getAffinity: () => edgeAffinity.get()
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -497,8 +507,17 @@
 	// ── Event handlers ─────────────────────────────────────────────────────
 
 	const onInput = editableSurface.onInput;
-	const onCompositionStart = editableSurface.onCompositionStart;
-	const onCompositionEnd = editableSurface.onCompositionEnd;
+	// Captured before the surface's own handler: its cross-block half clears the affinity, and
+	// the first mid-composition `input` re-arms it to the typed side.
+	function onCompositionStart(): void {
+		compositionSeat.noteStart();
+		editableSurface.onCompositionStart();
+	}
+
+	function onCompositionEnd(): void {
+		editableSurface.onCompositionEnd();
+		compositionSeat.noteEnd();
+	}
 
 	// Shared by the live keydown path and the cross-block dispatch entry, which differ
 	// only in where the offset comes from; both guard `el` before calling.

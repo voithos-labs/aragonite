@@ -33,6 +33,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { createCompositionSeat } from './edge-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../invariants/assert';
 	import { widgetElByStart } from './widget-adjacency';
@@ -212,6 +213,7 @@
 		},
 		getTextLen: () => liveDisplayLength(),
 		readText: () => readRawText(),
+		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
 			const committed = text + trailingLineEnding(node.raw);
 			void blockEdit.updateBlockContent(index, committed, preEdit, saved);
@@ -335,6 +337,13 @@
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
 		getEdgeAffinity: () => edgeAffinity.get()
+	});
+
+	// The same seat the keydown dispatch takes, for the one insertion a keydown cannot reach.
+	const compositionSeat = createCompositionSeat({
+		getDisplayText: () => getDisplayText(),
+		getInlines: () => resolvedInlineContent(node, linkRef),
+		getAffinity: () => edgeAffinity.get()
 	});
 
 	const textRender = createTextRender({
@@ -641,8 +650,17 @@
 		return out;
 	}
 
-	const onCompositionStart = editableSurface.onCompositionStart;
-	const onCompositionEnd = editableSurface.onCompositionEnd;
+	// Captured before the surface's own handler: its cross-block half clears the affinity, and
+	// the first mid-composition `input` re-arms it to the typed side.
+	function onCompositionStart(): void {
+		compositionSeat.noteStart();
+		editableSurface.onCompositionStart();
+	}
+
+	function onCompositionEnd(): void {
+		editableSurface.onCompositionEnd();
+		compositionSeat.noteEnd();
+	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
 		if (composing) return;

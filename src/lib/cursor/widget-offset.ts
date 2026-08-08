@@ -217,20 +217,6 @@ export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean 
 }
 
 /**
- * `offset` moved off a hidden run's interior to that run's `side` boundary; boundaries and
- * visible text come back unchanged. Keeping a caret out of hidden text needs no call here —
- * `findDomTextOffsetTarget` never resolves a position inside a run. This is for a caller that
- * must move the OFFSET and knows which side it means.
- */
-export function snapOutOfHiddenRun(
-	container: HTMLElement,
-	offset: DomTextOffset,
-	side: 'before' | 'after'
-): DomTextOffset {
-	return snapOutOfRun(container, offset, side, markerHidingMode(container));
-}
-
-/**
  * Whether `el`'s OWN text is marker text the container's mode paints nothing for — the
  * element-level form of {@link isHiddenMarkerText}, for a walk that treats such a span as
  * opaque instead of descending into it.
