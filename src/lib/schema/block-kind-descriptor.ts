@@ -166,6 +166,12 @@ export interface BlockKindDescriptor {
 	 * a prefix of it. Absent = the default `start=0, end=displayLength`.
 	 */
 	getContentRange?: (node: NodeView) => { start: number; end: number };
+	/**
+	 * `'demote-first'` makes Backspace at the CONTENT start give up this kind's own structural
+	 * bytes before merging — the first press a user can aim at markers they cannot see (§ 4.4).
+	 * Marker-hiding modes only; requires `getContentRange` (G1.32). Absent = the merge cascade.
+	 */
+	contentStartBackspace?: 'demote-first';
 	/** Recompute `raw` from children + metadata; built-ins in `schema/container-rebuilders.ts`. */
 	rebuildRaw?: (node: CstNode) => void;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */

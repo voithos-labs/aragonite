@@ -29,7 +29,14 @@
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import { toggleInlineFormat } from './format-toggle';
 	import type { InlineMarkKind } from '../../../cursor/pending-marks';
-	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
+	import {
+		cycleHeading,
+		demoteToParagraph,
+		insertHardBreak,
+		insertLiteralTab,
+		type TextEditResult
+	} from './text-keydown';
+	import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
@@ -38,13 +45,18 @@
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../invariants/assert';
 	import { widgetElByStart } from './widget-adjacency';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+	import {
+		caretContentBounds,
+		handleSharedKeydown,
+		handleSharedBeforeInput
+	} from '../../../selection/shared-keydown';
 	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
 		domTextOffsetAtNode,
 		rawTextOfNode,
-		createRangeAtDomTextOffsets
+		createRangeAtDomTextOffsets,
+		revealsNoMarkers
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
 	import {
@@ -425,6 +437,21 @@
 		return widgetInteraction.isRevealing() ? readRawText().length : getDisplayText().length;
 	}
 
+	/** The offsets a caret can reach here, from the one home the arrow exits already read: a mode
+	 *  that paints no marker puts the block's own bytes out of reach, so every block-edge gate
+	 *  moves in to the content range rather than testing 0 / length. */
+	function caretBounds(): { start: number; end: number } {
+		return el ? caretContentBounds(sharedCtx, el) : { start: 0, end: liveDisplayLength() };
+	}
+
+	/** The structural bytes this press gives up before any merge — a declared kind's, in a mode
+	 *  that paints none of them. Null everywhere else, and the cascade takes the press. */
+	function demoteBeforeMerge(offset: number): TextEditResult | null {
+		if (!el || !revealsNoMarkers(el)) return null;
+		if (tryGetBlockKindDescriptor(node.kind)?.contentStartBackspace !== 'demote-first') return null;
+		return demoteToParagraph(node.raw, getContentRange(node), offset);
+	}
+
 	/** One arm per command this block owns, split so the reveal fold sits between the
 	 *  halves: `applies` reads only the DOM and survives a fold, `perform` reads `node.raw`
 	 *  and is valid only after one. `offset`/`selected` are closed over: the fold moves them. */
@@ -459,12 +486,21 @@
 				};
 			case 'block.mergePrev':
 				return {
-					applies: () => offset === 0 && !hasSelectionHelper(),
-					perform: () => void blockEdit.mergeWithPrevious(index)
+					applies: () => offset === caretBounds().start && !hasSelectionHelper(),
+					perform: () => {
+						const demoted = demoteBeforeMerge(offset);
+						if (!demoted) return void blockEdit.mergeWithPrevious(index);
+						// A command is not typing: the demote is its own undo step, so one Ctrl+Z puts
+						// the heading back whole rather than unwinding the burst around it.
+						controller.isolateUndoEntry(() =>
+							blockEdit.updateBlockContent(index, demoted.newRaw, offset, demoted.caretOffset)
+						);
+						setPendingCursorOffset(demoted.caretOffset, 'demote');
+					}
 				};
 			case 'block.mergeNext':
 				return {
-					applies: () => offset === liveDisplayLength() && !hasSelectionHelper(),
+					applies: () => offset === caretBounds().end && !hasSelectionHelper(),
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'format.toggleStrong':

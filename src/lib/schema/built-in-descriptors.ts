@@ -217,6 +217,9 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: true,
 		getContentRange: headingContentRange,
+		// Live paints no `## `, so the first Backspace a user can aim at it takes the structure
+		// they CAN see; the second one merges, through the untouched cascade.
+		contentStartBackspace: 'demote-first',
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '# Heading\n',
 		closure: proseLeafClosure({
@@ -230,6 +233,7 @@ export function registerBuiltInDescriptors(): void {
 		editable: true,
 		supportsInline: true,
 		getContentRange: setextHeadingContentRange,
+		contentStartBackspace: 'demote-first',
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: 'Title\n===\n',
 		closure: proseLeafClosure({

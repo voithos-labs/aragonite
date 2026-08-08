@@ -1,14 +1,44 @@
 /**
  * Pure raw/caret transforms for TextEditableBlock keydown branches — heading-level
- * swap, hard-break insertion, literal-tab insertion. The component owns the plumbing;
- * these own the string math.
+ * swap, demotion to prose, hard-break insertion, literal-tab insertion. The component
+ * owns the plumbing; these own the string math.
  */
 
+import type { ContentRange } from '../../../core/inline';
 import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
 
 export interface TextEditResult {
 	newRaw: string;
 	caretOffset: number;
+}
+
+/**
+ * Give up the block's own structural bytes, whichever end the kind keeps them at: a prefix for
+ * ATX, an underline line for setext. Null for a kind whose content IS its whole display, which
+ * has nothing to demote and leaves the press to the merge cascade.
+ */
+export function demoteToParagraph(
+	raw: string,
+	content: ContentRange,
+	preEditOffset: number
+): TextEditResult | null {
+	if (content.start > 0) return cycleHeading(raw, 0, preEditOffset);
+	if (content.end < displayLength(raw))
+		return dropStructuralSuffix(raw, content.end, preEditOffset);
+	return null;
+}
+
+/** Drop everything past `contentEnd` but the block's own trailing line ending — the setext
+ *  underline, which sits after every caret the content range admits. */
+export function dropStructuralSuffix(
+	raw: string,
+	contentEnd: number,
+	preEditOffset: number
+): TextEditResult {
+	return {
+		newRaw: raw.slice(0, contentEnd) + raw.slice(displayLength(raw)),
+		caretOffset: Math.min(preEditOffset, contentEnd)
+	};
 }
 
 /**

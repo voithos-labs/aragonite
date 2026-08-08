@@ -25,15 +25,12 @@ import { isEditorGlobalChord } from '../schema/commands';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export interface SharedKeydownContext {
+export interface SharedKeydownContext extends ContentBoundsContext {
 	getEl(): HTMLElement | null;
 	/** Current caret offset in raw-content coordinates (ambient marker excluded). */
 	getCursorOffset(): number | null;
 	/** Shift-selection focus offset in raw-content coordinates (ambient marker excluded). */
 	getFocusOffset(): number | null;
-	/** textContent length in raw-content coordinates (ambient marker excluded). */
-	getTextLen(): number;
-	getMyPath(): number[];
 	getIndex(): number;
 	crossBlock: CrossBlockHandlers;
 	selection: SelectionState;
@@ -41,7 +38,6 @@ export interface SharedKeydownContext {
 	edgeAffinity: EdgeAffinityState;
 	history: HistoryActions;
 	focus: FocusActions;
-	getDoc: DocumentGetter;
 	getBlockElByPath: BlockElLookup;
 }
 
@@ -88,7 +84,7 @@ export async function handleSharedKeydown(
 	// Lazy: off the arrow path the block's bounds are never asked for, and the resolve
 	// walks the doc path and re-derives the content range.
 	let cachedBounds: ContentBounds | null = null;
-	const bounds = () => (cachedBounds ??= contentBounds(ctx, el));
+	const bounds = () => (cachedBounds ??= caretContentBounds(ctx, el));
 
 	// Read the focus offset (not the anchor) for Shift+Arrow: after a forward extension the
 	// anchor stays mid-block while the focus sits at the boundary.
@@ -170,17 +166,27 @@ export async function handleSharedKeydown(
 
 // ── Block bounds ───────────────────────────────────────────────────────────
 
-interface ContentBounds {
+export interface ContentBounds {
 	start: number;
 	end: number;
+}
+
+/** The three reads the bounds need, so a block-edge gate outside this file can ask without
+ *  standing up the whole keydown context. */
+export interface ContentBoundsContext {
+	/** textContent length in raw-content coordinates (ambient marker excluded). */
+	getTextLen(): number;
+	getMyPath(): number[];
+	getDoc: DocumentGetter;
 }
 
 /**
  * The raw offsets a caret can actually reach in this block. A mode that hides a block's own
  * structural markers with no reveal leaves those bytes unreachable, so the exits move in to
- * the content range; every other mode paints them and keeps the whole raw span.
+ * the content range; every other mode paints them and keeps the whole raw span. Every block-edge
+ * gate reads this rather than 0/length — the arrow exits here, the merge arms in the components.
  */
-function contentBounds(ctx: SharedKeydownContext, el: HTMLElement): ContentBounds {
+export function caretContentBounds(ctx: ContentBoundsContext, el: HTMLElement): ContentBounds {
 	const textLen = ctx.getTextLen();
 	if (!revealsNoMarkers(el)) return { start: 0, end: textLen };
 	const node = blockNodeAt(ctx.getDoc(), ctx.getMyPath());

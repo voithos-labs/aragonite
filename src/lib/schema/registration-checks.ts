@@ -21,8 +21,10 @@ import {
 	checkClosureCoherence,
 	checkLateOpenerRegistration,
 	checkMergeRoleVocabulary,
+	checkContentStartBackspace,
 	checkInlineConstructPolicy,
 	type ClosureCoherenceEntry,
+	type ContentStartBackspaceEntry,
 	type MergeRoleEntry
 } from '../invariants/registry';
 import { listInlineConstructPolicies } from './inline-construct-policy';
@@ -103,6 +105,18 @@ const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
 		return mergeRole === undefined ? [] : [{ kind, mergeRole }];
 	});
 
+const contentStartBackspaceEntries = (
+	kinds: readonly AnyBlockKind[]
+): ContentStartBackspaceEntry[] =>
+	kinds.map((kind) => {
+		const d = tryGetBlockKindDescriptor(kind);
+		return {
+			kind,
+			demotesFirst: d?.contentStartBackspace === 'demote-first',
+			declaresContentRange: d?.getContentRange !== undefined
+		};
+	});
+
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
@@ -134,6 +148,9 @@ export function flushPendingRegistrationChecks(
 	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
 	report('merge-role-vocabulary', () =>
 		checkMergeRoleVocabulary(mergeRoleEntries(kinds), isKnownMergeRole)
+	);
+	report('content-start-backspace', () =>
+		checkContentStartBackspace(contentStartBackspaceEntries(kinds))
 	);
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
