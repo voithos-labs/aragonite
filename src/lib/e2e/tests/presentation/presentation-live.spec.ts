@@ -29,7 +29,10 @@ const DOC = [
 	'',
 	'Also [docs][ref] here',
 	'',
-	'[ref]: https://example.com/docs'
+	'[ref]: https://example.com/docs',
+	'',
+	// Appended, never spliced: the scenarios above address blocks by index.
+	'See <https://commonmark.org> too'
 ].join('\n');
 
 // Directives render only on `/test/plugins`, so the container-chrome arm is driven there.
@@ -65,6 +68,18 @@ test.describe('live mode — markers never reveal', () => {
 		// The coordinate-space contract: hidden, never omitted.
 		expect(await ep.getBlockText(0)).toBe('# Title');
 		expect(await ep.getBlockText(1)).toBe('Some **bold** text');
+	});
+
+	test('an angle autolink hides its brackets and shows the bare url', async () => {
+		const block = ep.getBlocks().filter({ hasText: 'commonmark.org' });
+		const brackets = block.locator('.md-marker');
+
+		await expect(brackets).toHaveCount(2);
+		await expect(brackets.first()).toHaveCSS('display', 'none');
+		await expect(brackets.last()).toHaveCSS('display', 'none');
+		await expect(block.locator('a.md-autolink')).toHaveText('https://commonmark.org');
+
+		expect(await block.textContent()).toBe('See <https://commonmark.org> too');
 	});
 
 	test('the caret inside a block reveals neither the block nor its construct', async ({ page }) => {

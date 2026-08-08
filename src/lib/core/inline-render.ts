@@ -225,6 +225,34 @@ function openLink(
 	};
 }
 
+// ── Autolinks ────────────────────────────────────────────────────────────────
+
+/**
+ * The angle form's `<`/`>` are construct syntax, so they render as markers the mode CSS can hide;
+ * the bare URL/www/email forms are url text throughout. Read off the raw bytes, never `node.url`:
+ * the bare forms synthesize a url (`http://`, `mailto:`) that is not a slice of the source.
+ */
+function appendAutolink(
+	node: InlineNode,
+	raw: string,
+	opts: RenderInlineOptions,
+	container: Node
+): void {
+	const href = resolveHref(opts, node.url);
+	const el = document.createElement(href !== undefined ? 'a' : 'span');
+	el.className = href !== undefined ? 'md-autolink' : 'md-autolink md-link-blocked';
+	if (href !== undefined) el.setAttribute('href', href);
+
+	const isAngleForm = raw[node.start] === '<' && raw[node.end - 1] === '>';
+	const textStart = isAngleForm ? node.start + 1 : node.start;
+	const textEnd = isAngleForm ? node.end - 1 : node.end;
+	el.textContent = raw.slice(textStart, textEnd);
+
+	if (isAngleForm) container.appendChild(markerSpan(raw.slice(node.start, textStart)));
+	container.appendChild(el);
+	if (isAngleForm) container.appendChild(markerSpan(raw.slice(textEnd, node.end)));
+}
+
 // ── Images ───────────────────────────────────────────────────────────────────
 
 /**
@@ -310,15 +338,9 @@ function renderNode(
 			return null;
 		}
 
-		case 'autolink': {
-			const href = resolveHref(opts, node.url);
-			const el = document.createElement(href !== undefined ? 'a' : 'span');
-			el.className = href !== undefined ? 'md-autolink' : 'md-autolink md-link-blocked';
-			if (href !== undefined) el.setAttribute('href', href);
-			el.textContent = raw.slice(node.start, node.end);
-			container.appendChild(el);
+		case 'autolink':
+			appendAutolink(node, raw, opts, container);
 			return null;
-		}
 
 		case 'escape':
 			container.appendChild(markerSpan(raw[node.start]));
