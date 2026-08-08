@@ -50,8 +50,9 @@ export interface EditorProps {
 	theme?: string;
 	/** Read live, like `theme`. `'source'` (default) is styled-source editing; `'reading'`
 	 *  hides markers, renders widgets, and is read-only (selection/copy/navigation stay);
-	 *  `'preview-block'` and `'preview-inline'` are live-editing rungs that reveal source
-	 *  per focused block or per caret-touched construct. */
+	 *  `'preview-block'` and `'preview-inline'` are editing rungs that reveal source
+	 *  per focused block or per caret-touched construct; `'live'` is fully rendered and
+	 *  editable, revealing nothing. */
 	presentationMode?: PresentationMode;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];

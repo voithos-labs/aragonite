@@ -19,7 +19,7 @@
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { isPreviewMode } from '../../../presentation-mode';
+	import { hidesMarkers } from '../../../presentation-mode';
 	import { displayLength } from '../../../core/lines';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
@@ -67,10 +67,10 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
-	// Reading and preview CSS tell bullet/ordered/task markers apart and the ambient
+	// The marker-hiding CSS tells bullet/ordered/task apart through this hook and the ambient
 	// span carries no such class. Absent in source, so that DOM stays byte-identical.
 	const presentationMarkerKind = $derived.by(() => {
-		if (presentationMode !== 'reading' && !isPreviewMode(presentationMode)) return undefined;
+		if (!hidesMarkers(presentationMode)) return undefined;
 		const meta = metadataOf(node, 'listItem');
 		if (meta?.taskItem) return 'task';
 		return /^\d/.test(meta?.marker ?? '-') ? 'ordered' : 'bullet';
