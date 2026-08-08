@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
-// The caret-edge dispatch's hidden-structural branch. A mode that hides a block's own marker
-// prefix/suffix with no reveal puts unpainted bytes beside the caret; the guarantee is that a
-// destructive key aimed at one takes nothing, so the no-op is the contract rather than a
-// coincidence of what the engine happens to do beside non-rendered text.
+// The caret-edge dispatch's hidden-structural branch, which now covers one side only: Delete at a
+// block whose own structure sits AFTER its content. The merge that press would reach concatenates
+// past the suffix and surfaces it, so the dispatch consumes the key. The prefix side left this
+// arm with the demote (`merge-prev-demote.test.ts`) — the last row here is what pins that it did.
 // Miss-analysis: the edge-policy suites mount bare containers with no presentation root, so
 // the marker-hiding modes had no fixture to fail in.
 import { afterEach, describe, expect, it } from 'vitest';
@@ -72,56 +72,6 @@ afterEach(() => {
 	window.getSelection()?.removeAllRanges();
 });
 
-describe('a hidden structural prefix swallows Backspace at content start', () => {
-	it('consumes the press and mutates nothing in live', () => {
-		const h = mount('## Title\n', 'live');
-		const e = key('Backspace');
-		expect(h.handleKeydown(e, at(3))).toBe(true);
-		expect(e.defaultPrevented).toBe(true);
-		expect(h.edits).toHaveLength(0);
-	});
-
-	it('leaves the press alone mid-content', () => {
-		const h = mount('## Title\n', 'live');
-		expect(h.handleKeydown(key('Backspace'), at(4))).toBe(false);
-	});
-
-	// Raw 0 is unreachable in live, but if a stale read reports it the block-merge path
-	// still owns the press — the swallow claims the content edge only.
-	it('leaves raw 0 to the merge path', () => {
-		const h = mount('## Title\n', 'live');
-		expect(h.handleKeydown(key('Backspace'), at(0))).toBe(false);
-	});
-
-	it('leaves a paragraph, which has no structural prefix, to the merge path', () => {
-		const h = mount('Title\n', 'live');
-		expect(h.handleKeydown(key('Backspace'), at(0))).toBe(false);
-	});
-
-	// Source paints the `## `, so Backspace there deletes a byte the user can see.
-	it('declines in source mode', () => {
-		const h = mount('## Title\n', undefined);
-		expect(h.handleKeydown(key('Backspace'), at(3))).toBe(false);
-	});
-
-	// The preview rungs reveal the focused block's own prefix, so its bytes are editable.
-	for (const mode of ['preview-block', 'preview-inline']) {
-		it(`declines in ${mode}`, () => {
-			const h = mount('## Title\n', mode);
-			expect(h.handleKeydown(key('Backspace'), at(3))).toBe(false);
-		});
-	}
-
-	// A chord is a word-scoped platform command; the swallow owns only the plain press.
-	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }])(
-		'declines %o+Backspace',
-		(mods) => {
-			const h = mount('## Title\n', 'live');
-			expect(h.handleKeydown(key('Backspace', mods), at(3))).toBe(false);
-		}
-	);
-});
-
 describe('a hidden structural suffix swallows Delete at content end', () => {
 	// `Title\n===`: the underline is structural, so content ends at 5.
 	it('consumes the press at a setext heading’s content end in live', () => {
@@ -132,10 +82,19 @@ describe('a hidden structural suffix swallows Delete at content end', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
+	// Source paints the underline, so Delete there acts on bytes the user can see.
 	it('declines in source mode', () => {
 		const h = mount('Title\n===\n', undefined);
 		expect(h.handleKeydown(key('Delete'), at(5))).toBe(false);
 	});
+
+	// The preview rungs reveal the focused block's own structure, so its bytes are editable.
+	for (const mode of ['preview-block', 'preview-inline']) {
+		it(`declines in ${mode}`, () => {
+			const h = mount('Title\n===\n', mode);
+			expect(h.handleKeydown(key('Delete'), at(5))).toBe(false);
+		});
+	}
 
 	// A heading's content runs to the block end, so Delete there is an ordinary merge.
 	it('leaves an ATX heading’s end to the merge path', () => {
@@ -143,8 +102,30 @@ describe('a hidden structural suffix swallows Delete at content end', () => {
 		expect(h.handleKeydown(key('Delete'), at(8))).toBe(false);
 	});
 
-	it('leaves Backspace at the same offset alone', () => {
+	it('leaves the press mid-content alone', () => {
 		const h = mount('Title\n===\n', 'live');
-		expect(h.handleKeydown(key('Backspace'), at(5))).toBe(false);
+		expect(h.handleKeydown(key('Delete'), at(3))).toBe(false);
+	});
+
+	// A chord is a word-scoped platform command; the swallow owns only the plain press.
+	it.each([{ ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true }])(
+		'declines %o+Delete',
+		(mods) => {
+			const h = mount('Title\n===\n', 'live');
+			expect(h.handleKeydown(key('Delete', mods), at(5))).toBe(false);
+		}
+	);
+});
+
+describe('the prefix side belongs to the block-edge command, not to this arm', () => {
+	// The press falls through the whole dispatch so `block.mergePrev` can demote the heading; a
+	// swallow here would silently take the gesture back.
+	it.each([
+		['a heading’s content start', '## Title\n', 3],
+		['a setext heading’s content start', 'Title\n===\n', 0]
+	])('declines Backspace at %s', (_case, source, offset) => {
+		const h = mount(source, 'live');
+		expect(h.handleKeydown(key('Backspace'), at(offset))).toBe(false);
+		expect(h.edits).toHaveLength(0);
 	});
 });

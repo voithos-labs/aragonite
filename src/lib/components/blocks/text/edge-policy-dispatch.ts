@@ -342,26 +342,23 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
-	// ── Hidden structural prefix / suffix ──────────────────────────────────────
+	// ── Hidden structural suffix ───────────────────────────────────────────────
 
 	/**
-	 * A block's own markers are unpainted in a mode that never reveals them, so the byte a
-	 * plain destructive key would take at the content edge is one the user cannot see —
-	 * `## Title` reparsed to a paragraph rendering `##`. Chromium declines it (non-rendered
-	 * text offers no visual position to delete toward); consuming the press makes that the
-	 * contract rather than the engine's choice.
+	 * Delete at the content end of a block whose own structure sits AFTER it (a setext
+	 * underline), in a mode that paints none of it. The merge this press would otherwise reach
+	 * concatenates past that suffix — `Title\n===` + `next` reparses to a paragraph showing
+	 * `===next` — so the press is consumed until join-seam hygiene can keep the block's own
+	 * bytes across a merge (§ 4.5). The prefix side needs no such guard: it demotes.
 	 */
-	function handleHiddenStructuralEdge(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		if (e.key !== 'Backspace' && e.key !== 'Delete') return false;
+	function handleHiddenSuffixDelete(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		if (e.key !== 'Delete') return false;
 		if (e.shiftKey || hasModifier(e)) return false;
 		if (caretOffset === null || hasSelectionHelper()) return false;
 		const el = deps.getEl();
 		if (!el || !revealsNoMarkers(el)) return false;
 		const range = getContentRange(deps.node);
-		const atHiddenPrefix = e.key === 'Backspace' && range.start > 0 && caretOffset === range.start;
-		const atHiddenSuffix =
-			e.key === 'Delete' && range.end < display().length && caretOffset === range.end;
-		if (!atHiddenPrefix && !atHiddenSuffix) return false;
+		if (caretOffset !== range.end || range.end >= display().length) return false;
 		e.preventDefault();
 		return true;
 	}
@@ -462,7 +459,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// Last: the more specific construct classes above still own a key aimed at one of
 		// theirs, and these claim only what would otherwise reach native editing or the
 		// block-merge command.
-		if (handleHiddenStructuralEdge(e, caretOffset)) return true;
+		if (handleHiddenSuffixDelete(e, caretOffset)) return true;
 		if (handleConstructEdgeDelete(e, caretOffset)) return true;
 		if (handleConstructSeat(e, caretOffset)) return true;
 		return false;

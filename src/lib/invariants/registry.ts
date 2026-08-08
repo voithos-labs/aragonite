@@ -299,6 +299,31 @@ export function checkInlineConstructPolicy(
 	return null;
 }
 
+export interface ContentStartBackspaceEntry {
+	kind: AnyBlockKind;
+	demotesFirst: boolean;
+	declaresContentRange: boolean;
+}
+
+/**
+ * G1.32 — a kind demoting on Backspace at its content start declares where that content starts.
+ * Without the hook the content range IS the whole display, so the arm never fires and the
+ * declaration reads as behavior the kind does not have — silent, and only at the keystroke.
+ */
+export function checkContentStartBackspace(
+	entries: readonly ContentStartBackspaceEntry[]
+): InvariantViolation | null {
+	for (const { kind, demotesFirst, declaresContentRange } of entries) {
+		if (!demotesFirst || declaresContentRange) continue;
+		return {
+			code: 'content-start-backspace',
+			message: `kind "${kind}" declares contentStartBackspace but no getContentRange — its content starts at raw 0, where the demote arm never fires and the declaration is silently inert`,
+			detail: { kind }
+		};
+	}
+	return null;
+}
+
 export interface MergeRoleEntry {
 	kind: AnyBlockKind;
 	mergeRole: string;
