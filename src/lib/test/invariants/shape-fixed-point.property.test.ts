@@ -36,8 +36,8 @@ function applyGesture(doc: Document, gesture: Gesture): void {
 	const node: CstNode = doc.children[at];
 	// Prose leaves only. A container descends to its leaf and a fence takes the newline into
 	// its own body, so neither reaches splitNode; the raw-text leaves that DO reach it (indented
-	// code, html) split into halves that rejoin on reload however the bytes are cut, which is
-	// GH #61's class rather than the blank-line rule this oracle guards.
+	// code, html) can split into halves that rejoin on reload, which is GH #61's pre-existing
+	// class rather than the blank-line rule this oracle guards.
 	const isProseLeaf =
 		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true;
 	switch (gesture.op) {
@@ -67,11 +67,12 @@ function applyFill(doc: Document, at: number): void {
 }
 
 /**
- * What a split may not touch: every byte it mints is a line ending, and the rest must all still
- * be there. A multiset rather than the string, because the setext rule reorders what survives —
- * the underline moves up to follow the first half.
+ * What a split may not touch: every NON-LINE-ENDING byte must survive. A multiset rather than
+ * the string, because the setext rule reorders what survives — the underline moves up to follow
+ * the first half; the line-count floor below is what watches the endings themselves.
  */
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
+const lineCount = (t: string) => t.split('\n').length;
 
 function divergenceAfterEdit(source: string, gesture: Gesture): string | null {
 	const doc = parse(source);
@@ -84,7 +85,10 @@ function divergenceAfterEdit(source: string, gesture: Gesture): string | null {
 	// GH #95 shipped past both oracles above: the halves it left reload as themselves, and the
 	// lines the drop took with them were simply no longer in the document to disagree.
 	if (gesture.op === 'split' && survivingBytes(bytes) !== survivingBytes(before)) {
-		return `split dropped bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+		return `split dropped non-line-ending bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+	}
+	if (gesture.op === 'split' && lineCount(bytes) < lineCount(before)) {
+		return `split dropped a line ending: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
 	return null;
 }

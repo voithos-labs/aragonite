@@ -128,7 +128,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   down the same way — so a table or a callout below the selection survives as its own block
   instead of folding into the paragraph the delete left behind.
 
-- **Enter at the end of a soft-wrapped line no longer destroys the rest of the block.** A split
+- **Enter at the end of a line with a soft break no longer destroys the rest of the block.** A split
   landing exactly on a line ending minted a blank line the user never typed and dropped every
   line after it — the rest of the paragraph, a multi-line setext heading's underline, an HTML
   block's closing lines — from the tree and the bytes both. The cut now steps past the ending
