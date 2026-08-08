@@ -12,6 +12,7 @@ import type { NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
 import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
 import { domTextOffsetAtNode } from '../../../cursor/widget-offset';
 import {
@@ -21,17 +22,6 @@ import {
 } from '../../../debug/interaction-trace';
 
 export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
-
-/** The marker-bearing inline kinds the reveal covers. Images ride along for their
- *  alt-only rendering; widget-rendered images have no marker spans to flip. */
-const REVEALABLE_KINDS: ReadonlySet<InlineNode['kind']> = new Set([
-	'emphasis',
-	'strong',
-	'strikethrough',
-	'inlineCode',
-	'link',
-	'image'
-]);
 
 // ── Chain math (pure) ────────────────────────────────────────────────────────
 
@@ -48,7 +38,7 @@ export function constructChainAtOffset(nodes: InlineNode[], offset: number): Inl
 function collectChain(nodes: InlineNode[], offset: number, out: InlineNode[]): void {
 	for (const node of nodes) {
 		if (offset < node.start || offset > node.end) continue;
-		if (REVEALABLE_KINDS.has(node.kind)) out.push(node);
+		if (isRevealableInlineKind(node.kind)) out.push(node);
 		if (node.children && node.children.length > 0) collectChain(node.children, offset, out);
 	}
 }

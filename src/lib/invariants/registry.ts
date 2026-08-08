@@ -1,4 +1,4 @@
-import type { AnyBlockKind, BlockKind } from '../core/nodes';
+import type { AnyBlockKind, AnyInlineKind, BlockKind } from '../core/nodes';
 import type { InvariantViolation } from './assert';
 
 /**
@@ -250,6 +250,49 @@ export function checkClosureCoherence(
 				code: 'closure-coherence',
 				message: `kind "${entry.kind}" declares reservedChrome but its closure clipboard is inherit-default — the chrome bytes live in the container's own opener line, so a slice crossing that boundary has no default semantics; name what a copy produces (implemented) or mark it not-supported`,
 				detail: { kind: entry.kind, column: 'clipboard' }
+			};
+		}
+	}
+	return null;
+}
+
+export interface InlineConstructPolicyEntry {
+	kind: AnyInlineKind;
+	revealable: boolean;
+	autoUnwrapOnEmpty: boolean;
+	splitBehavior: 'close-and-reopen' | 'plain';
+}
+
+/**
+ * G1.31 — inline-construct policy coherence: a row names a kind the inline vocabulary holds,
+ * and the marker-rewriting behaviors belong only to kinds whose markers the reveal can address.
+ * A row for a mistyped kind is silent — the construct keeps the absent-row defaults — and a
+ * rewrite on a never-revealed kind edits markers the author has no way to see.
+ */
+export function checkInlineConstructPolicy(
+	entries: readonly InlineConstructPolicyEntry[],
+	isKnownInlineKind: (kind: AnyInlineKind) => boolean
+): InvariantViolation | null {
+	for (const entry of entries) {
+		if (!isKnownInlineKind(entry.kind)) {
+			return {
+				code: 'inline-construct-policy',
+				message: `inline-construct policy registered for "${entry.kind}", which is neither a built-in inline kind nor a declared plugin one — the row is unreachable`,
+				detail: { kind: entry.kind, issue: 'unknown-kind' }
+			};
+		}
+		if (entry.revealable) continue;
+		const column =
+			entry.splitBehavior === 'close-and-reopen'
+				? 'splitBehavior'
+				: entry.autoUnwrapOnEmpty
+					? 'autoUnwrapOnEmpty'
+					: undefined;
+		if (column !== undefined) {
+			return {
+				code: 'inline-construct-policy',
+				message: `kind "${entry.kind}" is not revealable but its ${column} rewrites markers — a never-revealed construct's markers stay hidden, so the rewrite is invisible; mark the kind revealable or make the behavior atomic`,
+				detail: { kind: entry.kind, column }
 			};
 		}
 	}
