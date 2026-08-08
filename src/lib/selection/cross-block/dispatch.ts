@@ -16,6 +16,7 @@ import type {
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
@@ -48,6 +49,7 @@ export interface CrossBlockDispatchContext {
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
+	edgeAffinity: EdgeAffinityState;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;

@@ -16,6 +16,7 @@ export function createContainerEditActions(
 	return {
 		pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void {
 			deps.stickyColumn.reset();
+			deps.edgeAffinity.reset();
 			controller.pushUndoSnapshotDebounced(leafPath, offset, batchKey);
 		},
 

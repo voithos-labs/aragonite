@@ -9,6 +9,7 @@ import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
@@ -31,6 +32,10 @@ export function stubBlockComponent(): BlockComponent {
 
 export function stubStickyColumn(): StickyColumnState {
 	return { get: () => null, reset: () => {}, capture: () => {}, noteKey: () => {} };
+}
+
+export function stubEdgeAffinity(): EdgeAffinityState {
+	return { get: () => null, reset: () => {}, note: () => {}, noteTyping: () => {} };
 }
 
 export function stubBlockEdit(): BlockEditActions {
@@ -117,6 +122,7 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn: stubStickyColumn(),
+		edgeAffinity: stubEdgeAffinity(),
 		selectionState: createSelectionState(),
 		getBlockElByPath: () => null,
 		revealPath: async (path: number[]) => {

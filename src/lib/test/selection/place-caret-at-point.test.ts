@@ -12,6 +12,7 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createStickyColumnState } from '$lib/cursor/sticky-column';
 import { makeEmptyGapScope } from '../harness/editor-actions';
 import { resetForPointerDown } from '$lib/selection/cross-block/pointer';
+import { makeEdgeAffinity } from '../harness/editor-actions';
 
 registerBuiltInBlocks();
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -128,7 +129,7 @@ describe('placeCaretAtPoint landing walk', () => {
 			const stickyColumn = createStickyColumnState();
 			// The real preamble, not a spy: what this arm asserts is the SELECTION's fate, and a
 			// spy would pass on a call that ends nothing.
-			endRange = () => resetForPointerDown(selection, stickyColumn, false);
+			endRange = () => resetForPointerDown(selection, stickyColumn, makeEdgeAffinity(), false);
 			selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 4 });
 		});
 

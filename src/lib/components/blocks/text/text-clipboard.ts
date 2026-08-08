@@ -17,6 +17,7 @@ import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
+import type { EdgeAffinityState } from '../../../cursor/edge-affinity';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -41,6 +42,7 @@ export interface TextClipboardDeps {
 	onPasteImage: PasteImageHook | undefined;
 	selection: SelectionState;
 	stickyColumn: StickyColumnState;
+	edgeAffinity: EdgeAffinityState;
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
 	getDoc: DocumentGetter;
@@ -95,6 +97,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 
 	const handlers = createClipboardHandlers({
 		stickyColumn: deps.stickyColumn,
+		edgeAffinity: deps.edgeAffinity,
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		crossBlock: deps.crossBlock,

@@ -8,7 +8,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { applyCollapsedCaret, applySelectionToDom } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
-import { makeStickyColumn } from '../harness/editor-actions';
+import { makeStickyColumn, makeEdgeAffinity } from '../harness/editor-actions';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
 
@@ -170,7 +170,7 @@ describe('unbatched entry-path emission counts', () => {
 		state.enterCrossBlock(at(0, 0), at(2, 3));
 		notifies = 0;
 
-		resetForPointerDown(state, makeStickyColumn(), false);
+		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
 
 		// The select-all counter reset and the clear are two separate mutations, and
 		// nothing coalesces them — the shape issue #29 files as noise.
@@ -182,7 +182,7 @@ describe('unbatched entry-path emission counts', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 
-		resetForPointerDown(state, makeStickyColumn(), false);
+		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
 
 		// The counter was already 0 and nothing changed. This emission is the noise the
 		// ledger entry is about; the pin exists so removing it is a visible decision.
@@ -198,7 +198,7 @@ describe('unbatched entry-path emission counts', () => {
 			state.setGapCaret({ parentPath: [], index: 1 });
 			notifies = 0;
 
-			resetForPointerDown(state, makeStickyColumn(), isShift);
+			resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), isShift);
 
 			expect(state.gapCaret).toBeNull();
 			expect(notifies).toBe(2);

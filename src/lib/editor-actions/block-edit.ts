@@ -28,12 +28,14 @@ export function createBlockEditActions(
 
 		async mergeWithPrevious(blockIndex) {
 			deps.stickyColumn.reset();
+			deps.edgeAffinity.reset();
 			if (blockIndex <= 0) return;
 			await core.mergeWithPreviousInterior(blockIndex);
 		},
 
 		async mergeWithNext(blockIndex) {
 			deps.stickyColumn.reset();
+			deps.edgeAffinity.reset();
 			if (blockIndex >= deps.doc.children.length - 1) return;
 			await core.mergeWithNextInterior(blockIndex);
 		},
@@ -53,6 +55,7 @@ export function createBlockEditActions(
 			postEditFocusOffset?: number
 		): Promise<void> {
 			deps.stickyColumn.reset();
+			deps.edgeAffinity.reset();
 			// Keyed by block, not by slot: a bare index identifies the position, so a
 			// different block arriving at the same slot would continue its batch.
 			controller.pushUndoSnapshotDebounced(

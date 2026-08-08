@@ -4,7 +4,7 @@ import { handleSharedKeydown, type SharedKeydownContext } from '$lib/selection/s
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import type { FocusActions } from '$lib/action-contracts';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { makeStickyColumn } from '$lib/test/harness/editor-actions';
+import { makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
 import {
 	registerGlobalCommand,
 	__resetPluginGlobalCommandsForTests
@@ -40,6 +40,7 @@ function makeCtx(): SharedKeydownContext {
 		crossBlock: noCross,
 		selection: createSelectionState(),
 		stickyColumn: makeStickyColumn(),
+		edgeAffinity: makeEdgeAffinity(),
 		history: { requestUndo() {}, requestRedo() {} } as unknown as SharedKeydownContext['history'],
 		focus: {} as FocusActions,
 		getDoc: () => ({ kind: 'document', children: [] }) as never,

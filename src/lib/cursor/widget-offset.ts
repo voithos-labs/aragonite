@@ -6,7 +6,7 @@
  * `DomTextOffset` and `ambient/ambient-cursor.ts` owns the ± ambientLength step to raw.
  */
 
-import { hidesMarkers, type PresentationMode } from '../presentation-mode';
+import { hidesMarkers, isPreviewMode, type PresentationMode } from '../presentation-mode';
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
@@ -228,6 +228,27 @@ export function snapOutOfHiddenRun(
 	side: 'before' | 'after'
 ): DomTextOffset {
 	return snapOutOfRun(container, offset, side, markerHidingMode(container));
+}
+
+/**
+ * Whether `el`'s OWN text is marker text the container's mode paints nothing for — the
+ * element-level form of {@link isHiddenMarkerText}, for a walk that treats such a span as
+ * opaque instead of descending into it.
+ */
+export function isHiddenMarkerRoot(el: Element, container: HTMLElement): boolean {
+	if (el === container || !container.contains(el)) return false;
+	const mode = markerHidingMode(container);
+	return mode !== null && hidesOwnText(el, mode);
+}
+
+/**
+ * Whether the mode leaves the FOCUSED block's own structural markers (`## `, a fence, a
+ * setext underline) unpainted. The preview rungs reveal them on the focused block, so only
+ * a hiding mode with no reveal moves where that block's caret can go.
+ */
+export function hidesBlockOwnMarkers(container: ParentNode): boolean {
+	const mode = markerHidingMode(container);
+	return mode !== null && !isPreviewMode(mode);
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────

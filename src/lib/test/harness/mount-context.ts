@@ -29,6 +29,7 @@ import { createHeightOracle } from '$lib/cursor/height-oracle';
 import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
 import {
 	makeStickyColumn,
+	makeEdgeAffinity,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
@@ -62,6 +63,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		selection: createSelectionState(),
 		search: {} as EditorServices['search'],
 		stickyColumn: makeStickyColumn(),
+		edgeAffinity: makeEdgeAffinity(),
 		revealAnchor: createRevealAnchorState(),
 		// Real: every keydown on an editable surface asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),

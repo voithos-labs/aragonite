@@ -43,6 +43,12 @@ function recorder(pasteText = ''): Recorder {
 function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
 	return {
 		stickyColumn: { reset: () => log.push('reset') } as never,
+		edgeAffinity: {
+			reset: () => {},
+			get: () => null,
+			note: () => {},
+			noteTyping: () => {}
+		} as never,
 		selection: { isCrossBlock: false, anchor: null, focus: null } as never,
 		getDoc: () => null as never,
 		crossBlock: {

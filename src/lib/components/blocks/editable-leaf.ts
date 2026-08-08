@@ -204,6 +204,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		controller,
 		pasteCoordinator,
 		stickyColumn,
+		edgeAffinity,
 		reorder,
 		selection,
 		registryView,
@@ -267,6 +268,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getScrollHost,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
+		edgeAffinity,
 		blockEdit,
 		controller,
 		history,
@@ -434,6 +436,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// fold — the render-primary source folds on blur instead.
 	const clipboard = createClipboardHandlers({
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		getDoc,
 		crossBlock,
@@ -503,7 +506,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// The reveal lands a caret, so this owes the shared preamble. NOT through
 		// crossBlock.handlePointerDown: that hit-tests against the SOURCE text, which the
 		// rendered view is not.
-		resetForPointerDown(selection, stickyColumn, e.shiftKey);
+		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
 		void revealKernel.reveal(0);
 	}
 

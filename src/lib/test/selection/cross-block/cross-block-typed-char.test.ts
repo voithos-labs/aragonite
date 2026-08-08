@@ -13,7 +13,7 @@ import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { parse } from '$lib/core/parser';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { mockRef, makeStickyColumn } from '$lib/test/harness/editor-actions';
+import { mockRef, makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
@@ -32,6 +32,7 @@ function makeEnv(source: string) {
 	const events = createEditorEvents();
 	const selectionState = createSelectionState();
 	const stickyColumn = makeStickyColumn();
+	const edgeAffinity = makeEdgeAffinity();
 	const deps = {
 		get doc() {
 			return doc;
@@ -53,6 +54,7 @@ function makeEnv(source: string) {
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn,
+		edgeAffinity,
 		selectionState,
 		getBlockElByPath: () => null,
 		revealPath: async (path: number[]) => (path.length === 1 ? (blockRefs[path[0]] ?? null) : null),
@@ -60,7 +62,7 @@ function makeEnv(source: string) {
 	};
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
-	return { doc, deps, events, selectionState, controller, blockEdit, stickyColumn };
+	return { doc, deps, events, selectionState, controller, blockEdit, stickyColumn, edgeAffinity };
 }
 
 function makeHandlers(
@@ -81,6 +83,7 @@ function makeHandlers(
 		getScrollHost: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn: env.stickyColumn,
+		edgeAffinity: env.edgeAffinity,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },

@@ -48,6 +48,7 @@ export function makeSurface(commitInput?: EditableSurfaceDeps['commitInput']): S
 		setPendingCursor: () => {},
 		selection: { isCrossBlock: false },
 		stickyColumn: { reset: () => {} },
+		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
 		focusActions: { revealPath: async () => null },
 		getDoc: () => null,
 		getBlockElByPath: () => null,
