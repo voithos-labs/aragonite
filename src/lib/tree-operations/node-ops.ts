@@ -160,18 +160,19 @@ export function splitNode(
 	const descriptor = getBlockKindDescriptor(node.kind);
 
 	// A context-dependent kind (tableCell, container chrome) has no standalone recognizer,
-	// so reparseAsNode would destroy both halves; the Enter gesture routes to
+	// so the reparse would destroy both halves; the Enter gesture routes to
 	// chrome.descendToBody instead.
 	if (descriptor.contextDependentKind) return { op: 'noop' };
 
 	const rawText = node.raw;
 	const lineEnding = trailingLineEnding(rawText);
+	const cut = cutPastLineEnding(descriptor, node, offset);
 
-	const suffixSplit = structuralSuffixSplit(descriptor, node, offset);
+	const suffixSplit = structuralSuffixSplit(descriptor, node, cut);
 	// Both halves: each can collide alone — a `</details>` stranded on the second half, or
 	// a first half promoted to a bare terminator once its trailing text is cut away.
-	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, offset));
-	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(offset));
+	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, cut));
+	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(cut));
 
 	if (!firstRaw.endsWith('\n')) {
 		firstRaw += lineEnding;
@@ -187,11 +188,32 @@ export function splitNode(
 		lineEnding,
 		parent.children[blockIndex + 1]
 	);
-	const firstNode = reparseAsNode(firstRaw, node.leadingTrivia);
-	const secondNode = reparseAsNode(secondRaw, separator);
+	const firstNodes = reparseAsNodes(firstRaw, node.leadingTrivia);
+	const secondNodes = reparseAsNodes(secondRaw, separator);
+	if (DEV && firstNodes.length > 1) {
+		// The caret lands on `blockIndex + 1` after every split gesture, and a list-item Enter
+		// takes everything past it as the new item — both read the second half by that index.
+		devWarn('tree-ops', `splitNode: the first half parsed to ${firstNodes.length} blocks`);
+	}
 
-	parent.children.splice(blockIndex, 1, firstNode, secondNode);
-	return replacePreservingFirst(blockIndex, 1, 2);
+	parent.children.splice(blockIndex, 1, ...firstNodes, ...secondNodes);
+	return replacePreservingFirst(blockIndex, 1, firstNodes.length + secondNodes.length);
+}
+
+/**
+ * The cut a split makes, given the caret's `offset`: an ending the offset lands ON terminates
+ * the FIRST half rather than opening the second, which would mint a blank line nobody typed
+ * (GH #95). A CRLF is one boundary, so a cut between its bytes moves past both. Clamped to a
+ * content range's end, past which the offset stops being a content position at all.
+ */
+function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offset: number): number {
+	const raw = node.raw;
+	const ending = raw[offset] === '\n' ? '\n' : raw.startsWith('\r\n', offset) ? '\r\n' : '';
+	if (ending === '') return offset;
+	const contentEnd = descriptor.getContentRange?.(node).end;
+	return contentEnd === undefined
+		? offset + ending.length
+		: Math.min(offset + ending.length, contentEnd);
 }
 
 /**
@@ -293,7 +315,9 @@ function structuralSuffixSplit(
 	const contentEnd = getRange(node).end;
 	if (contentEnd >= displayLength(raw) || offset <= 0 || offset > contentEnd) return null;
 	return {
-		firstRaw: raw.slice(0, offset) + raw.slice(contentEnd),
+		// The retained suffix opens with the ending of the line it follows, so a cut sitting
+		// just past one would double it into a blank line and strand the suffix below (GH #95).
+		firstRaw: trimTrailingLineEnding(raw.slice(0, offset)) + raw.slice(contentEnd),
 		secondRaw: raw.slice(offset, contentEnd)
 	};
 }
@@ -717,24 +741,30 @@ export function focusTargetInReplacement(
 
 // ── Reparse helper (private) ──
 
-function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
+/**
+ * Reparse a half's bytes as the blocks they hold. Plural because a half stands in a position
+ * its bytes never occupied, where a construct boundary can newly materialize — an html closer
+ * below the prose it used to sit inside. Keeping only the first block would drop the rest of
+ * the document's bytes with it (GH #95).
+ */
+function reparseAsNodes(raw: string, leadingTrivia: string): CstNode[] {
 	const doc = parse(raw, { scope: 'fragment' });
-	if (doc.children.length > 0) {
-		if (DEV && doc.children.length > 1) {
-			// Split/merge halves are single-block for every reachable gesture; blocks past the
-			// first are dropped here, so fail loud. `updateNodeContent` is the multi-block path.
-			devWarn(
-				'tree-ops',
-				`reparseAsNode: raw parsed to ${doc.children.length} blocks; all but the first are dropped`
-			);
-		}
-		const node = doc.children[0];
-		node.leadingTrivia = leadingTrivia;
-		ensureEditableContainers(node);
-		return node;
-	}
+	if (doc.children.length === 0) return [{ kind: 'paragraph', leadingTrivia, raw }];
+	doc.children[0].leadingTrivia = leadingTrivia;
+	for (const node of doc.children) ensureEditableContainers(node);
+	return doc.children;
+}
 
-	return { kind: 'paragraph', leadingTrivia, raw };
+/** The merge sinks' single-block twin: concatenated raw joins two lines, so it stays one block. */
+function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
+	const nodes = reparseAsNodes(raw, leadingTrivia);
+	if (DEV && nodes.length > 1) {
+		devWarn(
+			'tree-ops',
+			`reparseAsNode: raw parsed to ${nodes.length} blocks; all but the first are dropped`
+		);
+	}
+	return nodes[0];
 }
 
 // ── Replacement normalization ──
