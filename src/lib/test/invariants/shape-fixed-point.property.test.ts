@@ -34,9 +34,10 @@ function applyGesture(doc: Document, gesture: Gesture): void {
 	if (gesture.op === 'fill') return applyFill(doc, gesture.at);
 	const at = gesture.at % count;
 	const node: CstNode = doc.children[at];
-	// Enter and Backspace split a PROSE leaf: a container descends to its leaf, and a
-	// verbatim block (a fence) takes the newline into its own body. Neither reaches
-	// splitNode, so neither is an editing-reachable tree.
+	// Prose leaves only. A container descends to its leaf and a fence takes the newline into
+	// its own body, so neither reaches splitNode; the raw-text leaves that DO reach it (indented
+	// code, html) split into halves that rejoin on reload however the bytes are cut, which is
+	// GH #61's class rather than the blank-line rule this oracle guards.
 	const isProseLeaf =
 		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true;
 	switch (gesture.op) {
@@ -65,15 +66,27 @@ function applyFill(doc: Document, at: number): void {
 	updateNodeContent(doc, target, 'x' + trailingLineEnding(doc.children[target].raw));
 }
 
+/**
+ * What a split may not touch: every byte it mints is a line ending, and the rest must all still
+ * be there. A multiset rather than the string, because the setext rule reorders what survives —
+ * the underline moves up to follow the first half.
+ */
+const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
+
 function divergenceAfterEdit(source: string, gesture: Gesture): string | null {
 	const doc = parse(source);
+	const before = serialize(doc);
 	applyGesture(doc, gesture);
 	const divergence = describeConvergence(doc);
 	if (divergence) return `${divergence} — after ${gesture.op}@${gesture.at}`;
 	const bytes = serialize(doc);
-	return serialize(parse(bytes)) === bytes
-		? null
-		: `bytes not a round-trip: ${JSON.stringify(bytes)}`;
+	if (serialize(parse(bytes)) !== bytes) return `bytes not a round-trip: ${JSON.stringify(bytes)}`;
+	// GH #95 shipped past both oracles above: the halves it left reload as themselves, and the
+	// lines the drop took with them were simply no longer in the document to disagree.
+	if (gesture.op === 'split' && survivingBytes(bytes) !== survivingBytes(before)) {
+		return `split dropped bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+	}
+	return null;
 }
 
 describe('G2.13 shape fixed point across load → edit → reload', () => {

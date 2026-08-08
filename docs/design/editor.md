@@ -228,7 +228,7 @@ The editor reaches down only for focus, via component refs. After a structural m
 
 All structural operations are CST mutations performed by the editor shell. Blocks never modify the tree.
 
-**Split** — cut `raw` at the cursor offset, produce two nodes, re-parse each to determine its kind. The original keeps its ID; the new block gets a fresh one. Offsets are raw offsets, markers included — the block component translates DOM position to raw offset. The marker is not duplicated; the second half re-parses as its natural kind. A structural suffix — raw past the content range, today only a setext underline — stays with the first half, so the split can't strand it below into a demoting reparse.
+**Split** — cut `raw` at the cursor offset and re-parse each half as the blocks it holds, normally one apiece. The original keeps its ID; every other node gets a fresh one. Offsets are raw offsets, markers included — the block component translates DOM position to raw offset. The marker is not duplicated; the second half re-parses as its natural kind. A cut landing ON a line ending terminates the first half with it rather than opening the second with a blank line the user never typed. A structural suffix — raw past the content range, today only a setext underline — stays with the first half, so the split can't strand it below into a demoting reparse.
 
 **Merge** — concatenate two adjacent nodes' `raw`, replace both with one, re-parse to determine the merged kind. The survivor keeps its ID.
 
