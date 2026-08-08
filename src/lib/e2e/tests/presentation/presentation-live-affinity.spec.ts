@@ -191,7 +191,8 @@ test.describe('live mode — hidden runs a caret must not be able to type into',
 	});
 
 	// `[text][ref]` in a cell: `[`, `]` and the whole `[ref]` label are unpainted, so the
-	// only reachable offsets are inside `text`.
+	// only reachable offsets are inside `text`. A link never extends, so the byte lands past
+	// the label rather than inside the link text — the typing seat, pinned next door.
 	test('a table cell’s reference label is unreachable and untypeable', async ({ page }) => {
 		const cell = page
 			.locator("[role='table'] [contenteditable='true']")
@@ -204,6 +205,6 @@ test.describe('live mode — hidden runs a caret must not be able to type into',
 
 		await press(ep, page, 'End');
 		await page.keyboard.type('Q');
-		await ep.bridge.waitForSourceContains('| [textQ][ref] | y |');
+		await ep.bridge.waitForSourceContains('| [text][ref]Q | y |');
 	});
 });

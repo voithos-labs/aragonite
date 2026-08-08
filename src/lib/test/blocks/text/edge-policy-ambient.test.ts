@@ -67,7 +67,8 @@ function mount(source: string, rawSelection: { start: number; end: number } | nu
 		setSnapTarget: () => {},
 		isRevealing: () => false,
 		enterWidget: () => {},
-		isReading: () => false
+		isReading: () => false,
+		getEdgeAffinity: () => null
 	};
 	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, text, marker, edits };
 }

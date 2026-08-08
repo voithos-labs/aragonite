@@ -38,7 +38,9 @@ Chromium actually left the caret.
 - a caret entering a fenced code block by block exit, by `Home`, or by click sits
   in the code BODY: typed bytes land there and both fence lines survive verbatim
 - a table cell holding `[text][ref]`: `Home` and `End` land on the link text's
-  own bytes, and typing lands inside `text` with the hidden `[ref]` untouched
+  own bytes, and typing at `End` lands PAST the hidden `][ref]`, which survives
+  untouched — a link never extends at its edges, which is the typing seat's
+  contract (`presentation-live-typing-affinity.md`)
 
 ## User interactions
 

@@ -16,11 +16,13 @@ import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
+import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
-import { hidesBlockOwnMarkers } from '../../../cursor/widget-offset';
+import { revealsNoMarkers } from '../../../cursor/widget-offset';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
+import { resolveEdgeSeat } from './edge-seat';
 import { widgetAtCursor } from './widget-adjacency';
 
 /** The subset of the inline-widget vocabulary the internal island policies reuse,
@@ -80,6 +82,8 @@ export interface EdgePolicyDispatchDeps {
 	/** Reading mode: island and ambient handling stand down wholesale, and the
 	 *  widget branch commits nothing (a selected-widget still selects). */
 	isReading: () => boolean;
+	/** The arrival side the typing seat consults; null when no arrival claimed one. */
+	getEdgeAffinity: () => EdgeAffinity | null;
 }
 
 export interface EdgePolicyDispatch {
@@ -95,6 +99,27 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	function display(): string {
 		return trimTrailingLineEnding(deps.node.raw);
+	}
+
+	/** One display-space splice, one CST commit. `caretBefore` anchors the undo entry, so it
+	 *  is the pre-edit caret — the splice's own start everywhere but the seat, which moved it. */
+	function editDisplay(
+		start: number,
+		end: number,
+		insert: string,
+		source = 'island',
+		caretBefore = start
+	): void {
+		const d = display();
+		const next = d.slice(0, start) + insert + d.slice(end);
+		const caretAfter = start + insert.length;
+		void deps.blockEdit.updateBlockContent(
+			deps.index,
+			next + trailingLineEnding(deps.node.raw),
+			caretBefore,
+			caretAfter
+		);
+		deps.setPendingCursor(caretAfter, source, next);
 	}
 
 	// ── CST inline widget ────────────────────────────────────────────────────
@@ -174,19 +199,6 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	function islandPolicy(island: IslandSpan): EdgePolicy {
 		return island.end > island.start ? REPLACE_ISLAND_POLICY : WIDGET_ISLAND_POLICY;
-	}
-
-	function editDisplay(start: number, end: number, insert: string): void {
-		const d = display();
-		const next = d.slice(0, start) + insert + d.slice(end);
-		const caretAfter = start + insert.length;
-		void deps.blockEdit.updateBlockContent(
-			deps.index,
-			next + trailingLineEnding(deps.node.raw),
-			start,
-			caretAfter
-		);
-		deps.setPendingCursor(caretAfter, 'island', next);
 	}
 
 	function selectIslandWhole(el: HTMLElement): void {
@@ -326,13 +338,35 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (e.shiftKey || hasModifier(e)) return false;
 		if (caretOffset === null || hasSelectionHelper()) return false;
 		const el = deps.getEl();
-		if (!el || !hidesBlockOwnMarkers(el)) return false;
+		if (!el || !revealsNoMarkers(el)) return false;
 		const range = getContentRange(deps.node);
 		const atHiddenPrefix = e.key === 'Backspace' && range.start > 0 && caretOffset === range.start;
 		const atHiddenSuffix =
 			e.key === 'Delete' && range.end < display().length && caretOffset === range.end;
 		if (!atHiddenPrefix && !atHiddenSuffix) return false;
 		e.preventDefault();
+		return true;
+	}
+
+	// ── Hidden construct edge (the typing seat) ────────────────────────────────
+
+	/**
+	 * A printable key at an inline construct's unpainted delimiter run. The DOM caret cannot
+	 * carry the answer — Chromium canonicalizes a collapsed caret upstream across a
+	 * non-rendered run, so seating one past the run is normalized away before the insertion —
+	 * so the byte is written through the CST at the offset the policy and arrival name.
+	 */
+	function handleConstructSeat(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		const el = deps.getEl();
+		if (!el || !revealsNoMarkers(el)) return false;
+		const seat = resolveEdgeSeat(caretOffset, inlinesOf(deps.node), deps.getEdgeAffinity());
+		if (!seat) return false;
+		e.preventDefault();
+		deps.setSnapTarget(null);
+		// The kind rides the trace: the seam's whole job is deciding which construct owns the
+		// byte, so a trace line that does not name it cannot be read.
+		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`, caretOffset);
 		return true;
 	}
 
@@ -344,8 +378,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (handleIsland(e, caretOffset)) return true;
 		if (handleAmbient(e)) return true;
 		// Last: the more specific construct classes above still own a key aimed at one of
-		// theirs, and this claims only what would otherwise reach the block-merge command.
+		// theirs, and these claim only what would otherwise reach native editing or the
+		// block-merge command.
 		if (handleHiddenStructuralEdge(e, caretOffset)) return true;
+		if (handleConstructSeat(e, caretOffset)) return true;
 		return false;
 	}
 
