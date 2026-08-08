@@ -137,6 +137,45 @@ test.describe('live mode — a cut at a construct edge hands it over whole', () 
 	});
 });
 
+/**
+ * KNOWN FAILING, owned by the join-seam task (Task 12). The merge that undoes an Enter has no
+ * per-family seam cleanup yet, so the closing and reopening runs land back to back — measured
+ * `Some **bo****ld** text`, gaining a pair on every repeat, and a split link returning as two
+ * anchors on one destination. These rows assert the CORRECT post-merge bytes, so they ship green
+ * as expected failures and turn red the day the join fix lands, which removes the annotation.
+ */
+test.describe('live mode — Enter then Backspace (known failing, owned by the join seam)', () => {
+	test('merging the halves back restores the original bytes', async ({ page }) => {
+		test.fail();
+		const ep = await enterMode(page, 'live');
+		await clickWordSettled(ep, page, 'bold');
+		await stepTo(ep, page, 'ArrowRight', 9);
+
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('Some **bo**');
+		await page.keyboard.press('Backspace');
+		await expect.poll(() => ep.getBlocks().count()).toBe(4);
+
+		expect(await ep.bridge.getSource()).toContain('Some **bold** text');
+		expect(await ep.bridge.getSource()).not.toContain('****');
+	});
+
+	test('merging a split link back leaves one link, not two', async ({ page }) => {
+		test.fail();
+		const ep = await enterMode(page, 'live');
+		await clickWordSettled(ep, page, 'example');
+		await stepTo(ep, page, 'ArrowRight', 11);
+
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('[exam](https://example.com)');
+		await page.keyboard.press('Backspace');
+		await expect.poll(() => ep.getBlocks().count()).toBe(4);
+
+		expect(await ep.bridge.getSource()).toContain('Visit [example](https://example.com) here');
+		expect(await ep.getBlock(LINK).locator('a').count()).toBe(1);
+	});
+});
+
 // Source paints every delimiter, so the byte the caret is against is the byte the user aimed at.
 test.describe('source mode — the same gesture stays byte-literal', () => {
 	test('Enter inside a bold word splits the pair open', async ({ page }) => {

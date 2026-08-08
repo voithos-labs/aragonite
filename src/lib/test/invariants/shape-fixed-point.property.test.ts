@@ -1,13 +1,17 @@
-import { describe, it, expect } from 'vitest';
+// @vitest-environment jsdom
+import { beforeAll, describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { isBlankParagraph, parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '$lib/tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { arbBlankSeparatedGfmDoc, freshOrFixedSeed } from './arbitraries';
+import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { displayLength, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { registerLiveSplitRebalancer } from '$lib/schema/inline-construct-policy';
+import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import type { PresentationMode } from '$lib/presentation-mode';
 
 // G2.13: an edit on a loaded document leaves a tree that reloads to its own block shape —
 // the load → edit → save → load cycle a consumer runs on every remount. Byte round-trip
@@ -28,7 +32,7 @@ const arbGesture: fc.Arbitrary<Gesture> = fc.record({
 	offset: fc.nat({ max: 40 })
 });
 
-function applyGesture(doc: Document, gesture: Gesture): void {
+function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | undefined): void {
 	const count = doc.children.length;
 	if (count === 0) return;
 	if (gesture.op === 'fill') return applyFill(doc, gesture.at);
@@ -43,8 +47,7 @@ function applyGesture(doc: Document, gesture: Gesture): void {
 		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true;
 	switch (gesture.op) {
 		case 'split':
-			if (isProseLeaf)
-				splitNode(doc, at, Math.min(gesture.offset, displayLength(node.raw)), undefined);
+			if (isProseLeaf) splitNode(doc, at, Math.min(gesture.offset, displayLength(node.raw)), mode);
 			return;
 		case 'delete':
 			deleteNode(doc, at);
@@ -115,17 +118,46 @@ function applyEmpty(doc: Document, at: number): void {
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
 const lineCount = (t: string) => t.split('\n').length;
 
-function divergenceAfterEdit(source: string, gesture: Gesture): string | null {
+/**
+ * Every non-line-ending byte of `before` still present in `after` — the live arm's relaxation of
+ * the equality above, since closing and reopening a construct DUPLICATES its delimiter run. A
+ * multiset over code UNITS: a cut between the halves of a surrogate pair is a real hazard, but a
+ * pre-existing and mode-independent one, and code points would report it as a loss here.
+ */
+function keepsEveryByte(before: string, after: string): boolean {
+	const budget = new Map<string, number>();
+	for (const byte of after.replace(/\r?\n/g, '').split('')) {
+		budget.set(byte, (budget.get(byte) ?? 0) + 1);
+	}
+	for (const byte of before.replace(/\r?\n/g, '').split('')) {
+		const left = budget.get(byte) ?? 0;
+		if (left === 0) return false;
+		budget.set(byte, left - 1);
+	}
+	return true;
+}
+
+function divergenceAfterEdit(
+	source: string,
+	gesture: Gesture,
+	mode?: PresentationMode
+): string | null {
 	const doc = parse(source);
 	const before = serialize(doc);
-	applyGesture(doc, gesture);
+	applyGesture(doc, gesture, mode);
 	const divergence = describeConvergence(doc);
 	if (divergence) return `${divergence} — after ${gesture.op}@${gesture.at}`;
 	const bytes = serialize(doc);
 	if (serialize(parse(bytes)) !== bytes) return `bytes not a round-trip: ${JSON.stringify(bytes)}`;
 	// GH #95 shipped past both oracles above: the halves it left reload as themselves, and the
 	// lines the drop took with them were simply no longer in the document to disagree.
-	if (gesture.op === 'split' && survivingBytes(bytes) !== survivingBytes(before)) {
+	// A live split closes and reopens the construct it cut, so a delimiter run is legitimately
+	// DUPLICATED across the halves; losing one stays forbidden in every mode.
+	const keptBytes =
+		mode === 'live'
+			? keepsEveryByte(before, bytes)
+			: survivingBytes(bytes) === survivingBytes(before);
+	if (gesture.op === 'split' && !keptBytes) {
 		return `split dropped non-line-ending bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
 	if (gesture.op === 'split' && lineCount(bytes) < lineCount(before)) {
@@ -169,6 +201,43 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 			}),
 			PARAMS
 		);
+	});
+
+	/**
+	 * DIFFERENTIAL on purpose: the claim the split rewrite owes is that closing and reopening a
+	 * construct diverges nowhere the byte-literal cut already does — not that the split seam is
+	 * defect-free, which it is not. Over the INLINE corpus, where ~22% of draws actually rewrite
+	 * against ~3% of the block-shaped one. What it sees: reload shape, round-trip, and byte loss.
+	 * What it cannot see is a marker SURFACING, which the rewrite's own verification and the unit
+	 * suite own — a mutation inside the rewrite is caught by that verification before this runs.
+	 */
+	describe('with the live split rebalancer registered', () => {
+		beforeAll(() => registerLiveSplitRebalancer(rebalanceLiveSplit));
+
+		const arbInlineDoc = fc
+			.array(arbInlineSource, { minLength: 1, maxLength: 3 })
+			.map((paragraphs) => paragraphs.join('\n\n') + '\n');
+
+		/** The drawn offset wrapped into the target block, so both arms cut at the same place and
+		 *  the draw lands INSIDE the constructs rather than clamping past them. */
+		function interiorSplit(source: string, gesture: Gesture): Gesture {
+			const children = parse(source).children;
+			if (children.length === 0) return { ...gesture, op: 'split' };
+			const raw = children[gesture.at % children.length].raw;
+			return { ...gesture, op: 'split', offset: gesture.offset % (displayLength(raw) + 1) };
+		}
+
+		it('a live split diverges nowhere the byte-literal split already does', () => {
+			fc.assert(
+				fc.property(arbInlineDoc, arbGesture, (source, drawn) => {
+					const gesture = interiorSplit(source, drawn);
+					if (divergenceAfterEdit(source, gesture) !== null) return;
+					const divergence = divergenceAfterEdit(source, gesture, 'live');
+					if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
+				}),
+				PARAMS
+			);
+		});
 	});
 
 	// Non-vacuity: the oracle must actually fire on a shape the parser would fold away, or

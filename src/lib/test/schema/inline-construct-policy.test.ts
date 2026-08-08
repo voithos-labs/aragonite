@@ -14,6 +14,7 @@ import {
 	registerLiveSplitRebalancer,
 	getLiveSplitRebalancer,
 	__resetInlineConstructPoliciesForTests,
+	__resetLiveSplitRebalancerForTests,
 	type InlineConstructPolicy,
 	type LiveSplitRebalancer
 } from '$lib/schema/inline-construct-policy';
@@ -43,6 +44,9 @@ function collector() {
 afterEach(() => {
 	resetEditorEnv();
 	__resetInlineConstructPoliciesForTests();
+	// Separate door: the row reset deliberately leaves the slot alone, so only this suite —
+	// which tests the slot itself — empties it between cases.
+	__resetLiveSplitRebalancerForTests();
 	__clearDeclaredPluginInlineKindsForTests();
 });
 
@@ -152,7 +156,9 @@ describe('registration lifecycle', () => {
 });
 
 describe('live split rebalancer slot', () => {
-	it('ships empty — the value arrives with the live split rewrite', () => {
+	// A parse-only bootstrap loads the descriptors and never the component layer, so the slot
+	// stands empty there and `splitNode` falls back to the byte-literal cut.
+	it('is empty until the editor layer registers into it', () => {
 		expect(getLiveSplitRebalancer()).toBeUndefined();
 	});
 
@@ -173,6 +179,16 @@ describe('live split rebalancer slot', () => {
 		const second = rebalancer();
 		expect(() => registerLiveSplitRebalancer(second)).not.toThrow();
 		expect(getLiveSplitRebalancer()).toBe(second);
+	});
+
+	// The row reset used to drop it too, which silently retired live splits for any suite that
+	// reset between cases: `registerBuiltInBlocks` short-circuits on its idempotence flag, so
+	// nothing puts the value back and nothing warns.
+	it('survives the plugin-row reset, being a built-in registration', () => {
+		const fn = rebalancer();
+		registerLiveSplitRebalancer(fn);
+		__resetInlineConstructPoliciesForTests();
+		expect(getLiveSplitRebalancer()).toBe(fn);
 	});
 });
 

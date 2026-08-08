@@ -29,7 +29,6 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (node, offset, firstRaw, 
 	const chain = splittableChainAt(bytes, offset);
 	if (chain === null || chain.length === 0) return null;
 	const seam = seamParts(bytes, chain, offset);
-	if (seam === null) return null;
 	for (const candidate of [assemble(bytes, seam), assembleSpaceOutside(bytes, seam)]) {
 		if (candidate !== null && parsesBack(bytes, seam, candidate)) return candidate;
 	}
@@ -145,13 +144,10 @@ interface RebalancedHalves {
 /**
  * Innermost first, so a closer run written before its enclosing one nests the halves the way the
  * original did. A side with no content of its own takes the whole construct instead of a pair
- * enclosing nothing — invisible `****` residue is what live mode may never write.
+ * enclosing nothing — invisible `****` residue is what live mode may never write. Every link
+ * either moves a side or writes a run, so a non-empty chain always describes a real rewrite.
  */
-function seamParts(
-	bytes: SplitBytes,
-	chain: readonly ChainLink[],
-	offset: number
-): SeamParts | null {
+function seamParts(bytes: SplitBytes, chain: readonly ChainLink[], offset: number): SeamParts {
 	let leftEnd = offset;
 	let rightStart = bytes.cut;
 	let closers = '';
@@ -170,8 +166,6 @@ function seamParts(
 			reopened.push(link.kind);
 		}
 	}
-	if (leftEnd === offset && rightStart === bytes.cut && closers === '' && openers === '')
-		return null;
 	return {
 		head: bytes.raw.slice(0, leftEnd),
 		closers,
