@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { installPlugins } from '$lib';
 import { parse } from '$lib/core/parser';
+import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
@@ -54,6 +56,19 @@ describe('emptying a block inside a container', () => {
 
 		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n>\n> delta\n');
 		expect(h.getNode().children).toHaveLength(3);
+		expectParseConverged(h.deps.doc);
+	});
+
+	// A body parsed after its container's OPENER line has a line above its head, which the
+	// `innerPrefix` peel takes: the run still owes one, though the head sits at index 0.
+	it('keeps the line a wrapped body head still owes its opener', async () => {
+		installPlugins([admonitionsPlugin()]);
+		const h = makeNestedHarness(parse('> [!NOTE]\n> one\n>\n> two\n').children, { index: 0 });
+
+		await h.bundle.blockEdit.updateBlockContent(0, '\n', 1);
+
+		expect(serialize(h.deps.doc)).toBe('> [!NOTE]\n>\n>\n> two\n');
+		expect(h.getNode().children).toHaveLength(2);
 		expectParseConverged(h.deps.doc);
 	});
 });
