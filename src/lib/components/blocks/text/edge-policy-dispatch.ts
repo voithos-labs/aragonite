@@ -376,6 +376,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	function handlePendingMarks(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
 		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		// Locally sound like the seat below: only a surface that paints no delimiter can be asked
+		// to write one the user never sees. A mode flip clears the marks, so this strands nothing.
+		const el = deps.getEl();
+		if (!el || !revealsNoMarkers(el)) return false;
 		// Spend on the preconditions, not on the outcome: one insertion was promised the set,
 		// and this is it whether or not the rewrite below finds anything to do.
 		const marks = deps.pendingMarks.consume();

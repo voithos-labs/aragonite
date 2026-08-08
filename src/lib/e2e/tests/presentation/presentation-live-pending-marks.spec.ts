@@ -10,10 +10,11 @@ import { attachIme } from '../../simulation/ime';
 // pended mark from an empty pair until bytes exist.
 // Requirements: e2e/requirements/presentation/presentation-live-pending-marks.md.
 
-const DOC = ['plain', '', 'Some **bold** text'].join('\n');
+const DOC = ['plain', '', 'Some **bold** text', '', '**hello world**'].join('\n');
 
 const PLAIN = 0;
 const BOLD = 1;
+const PHRASE = 2;
 
 async function enterLive(page: Page): Promise<EditorPage> {
 	const ep = new EditorPage(page);
@@ -113,6 +114,35 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 		await ep.waitForNoSourceMutation();
 
 		expect(await ep.bridge.getSource()).toBe(before);
+	});
+});
+
+// The shape that made the first cut of this resolver ship literal stars: a bold PHRASE, split
+// at the space. `**hello**X** world**` reads right and renders `helloX** world**`, because a
+// closing run before a space is not left-flanking. The resolver re-parses its own candidate and
+// steps outside the construct instead, so what a first session sees here is the whole point.
+test.describe('live mode — a removal that would show delimiters steps outside instead', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterLive(page);
+	});
+
+	test('un-bolding at the space inside a bold phrase never surfaces a delimiter', async ({
+		page
+	}) => {
+		await clickWord(ep, page, 'hello');
+		await stepTo(ep, page, 'ArrowRight', 7);
+
+		await bold(page);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('X**hello world**');
+
+		// What the reader sees: one plain X, and a phrase that is still entirely bold.
+		const block = ep.getBlock(PHRASE);
+		await expect(block).toHaveText('Xhello world', { useInnerText: true });
+		await expect(block.locator('strong')).toHaveText('hello world', { useInnerText: true });
+		await expect(block.locator('.md-marker').first()).toHaveCSS('display', 'none');
 	});
 });
 

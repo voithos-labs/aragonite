@@ -20,10 +20,15 @@ contradicted it — the row below is what would have.
 - `Mod+B` at a collapsed caret then a keystroke: the byte lands wrapped, `**X**` in the source,
   and the character renders inside a `strong` element
 - `Mod+B` then `Mod+I` then a keystroke: both marks ride the one insertion, `***X***`
-- a mark pended inside existing bold REMOVES it: the byte escapes the construct and the source
-  carries two balanced pairs around a plain character
+- a mark pended inside existing bold REMOVES it: the byte escapes the construct, by splitting it
+  close-and-reopen where that parses back correctly and by stepping outside it where it does not
 - the insertion that spends a mark is its own undo entry: one `Mod+Z` after a burst plus a
   toggle plus a keystroke returns the burst's text, not the empty block
+
+- un-bolding at the space inside a bold PHRASE surfaces no delimiter: the split
+  `**hello**X** world**` reads right but renders literal stars (a closing run before a space is
+  not left-flanking), so the resolver re-parses its own candidate and steps outside instead —
+  the reader sees one plain character and a phrase still entirely bold
 
 ## Edge cases
 
@@ -33,6 +38,11 @@ contradicted it — the row below is what would have.
   made, by the ordinary arrival rule, rather than wrapping a second pair of its own
 - an arrow step clears the mark: the caret moved, so the promise no longer applies to it
 - a click clears the mark, the same way it clears the arrival side
+
+- a mark markdown cannot express at this caret writes NOTHING: where no candidate parses back to
+  what was asked — an escape that would have to cut a link or a code span open, or a wrap whose
+  delimiters would merge with the run beside them — the byte types plain rather than showing a
+  delimiter. § 1's "markers are never visible" outranks the toggle taking effect
 
 ## IME commits
 

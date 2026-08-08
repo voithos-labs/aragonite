@@ -4,9 +4,13 @@ import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark
 import type { InlineMarkKind } from '$lib/cursor/pending-marks';
 import type { InlineNode } from '$lib/core/nodes';
 
-// The bytes a pending toggle turns the next keystroke into. Live mode paints no delimiter, so
-// the source IS the oracle; every case additionally re-parses the result, because a rewrite
-// that reads right and parses wrong is the failure mode delimiter-run arithmetic actually has.
+// The bytes a pending toggle turns the next keystroke into. Live paints no delimiter, so the
+// source IS the oracle, and every case re-parses the result: a rewrite that reads right and
+// parses wrong is the failure mode delimiter arithmetic actually has.
+// Miss-analysis: the first cut used single-WORD fixtures, and every shape the resolver got wrong
+// needed whitespace, a nested pair or a non-markable construct at the split — `**hello world**`
+// split at the space rendered literal stars on a first-session gesture. `visibleText` below is
+// the oracle that would have caught it, written independently of the resolver's own check.
 
 function insert(
 	display: string,
@@ -37,6 +41,21 @@ function kindsAround(raw: string, probe: string): string[] {
 	};
 	visit(parseInline(raw, 0, raw.length));
 	return found;
+}
+
+/** What a reader sees: content bytes with every delimiter dropped. Written from the parse tree
+ *  rather than reusing the resolver's own counter, so this can contradict it. */
+function visibleText(raw: string): string {
+	let out = '';
+	const visit = (nodes: InlineNode[]): void => {
+		for (const node of nodes) {
+			if (node.children && node.children.length > 0) visit(node.children);
+			else if (node.kind === 'inlineCode') out += node.text ?? '';
+			else out += raw.slice(node.start, node.end);
+		}
+	};
+	visit(parseInline(raw, 0, raw.length));
+	return out;
 }
 
 describe('applying a mark the chain does not carry', () => {
@@ -125,5 +144,76 @@ describe('removing a mark the chain carries', () => {
 		const result = insert('**ab**', 4, 'X', ['strong', 'emphasis']);
 		expect(result).toEqual({ raw: '**ab***X*', caret: 8 });
 		expect(kindsAround('**ab***X*', 'X')).toEqual(['emphasis']);
+	});
+});
+
+// Every row here was measured wrong before the resolver verified its own output. The split that
+// reads right — close the pair, insert, reopen — is only legal where CommonMark's flanking rules
+// and rule-of-three read it back that way, and whitespace or a nested pair at the seam is enough
+// to break it. The check is the same three questions each time: the bytes, the construct chain
+// the parser puts around the insertion, and whether a delimiter turned into a visible star.
+describe('a candidate that would not parse back is not written', () => {
+	const spaceCases: [string, number, string][] = [
+		['before the space', 7, 'X**hello world**'],
+		['after the space', 8, '**hello world**X']
+	];
+	for (const [where, caret, expected] of spaceCases) {
+		it(`un-bolding ${where} of "hello world" steps outside instead of splitting`, () => {
+			const result = insert('**hello world**', caret, 'X', ['strong']);
+			// The split candidate would have been `**hello**X** world**`, whose closing run is not
+			// left-flanking before a space: it renders `helloX** world**`, stars and all.
+			expect(result?.raw).toBe(expected);
+			expect(kindsAround(result!.raw, 'X')).toEqual([]);
+			expect(visibleText(result!.raw)).toBe(caret === 7 ? 'Xhello world' : 'hello worldX');
+		});
+	}
+
+	it('un-bolding between nested emphasis leaves the byte emphasized, never more formatted', () => {
+		const result = insert('**a*b*c**', 5, 'X', ['strong']);
+		expect(result?.raw).toBe('**a*b*c***X*');
+		expect(kindsAround(result!.raw, 'X')).toEqual(['emphasis']);
+		expect(visibleText(result!.raw)).toBe('abcX');
+	});
+
+	it('un-emphasizing around a nested strong leaves the byte strong only', () => {
+		const result = insert('*a **b** c*', 6, 'X', ['emphasis']);
+		expect(result?.raw).toBe('*a **b** c***X**');
+		expect(kindsAround(result!.raw, 'X')).toEqual(['strong']);
+		expect(visibleText(result!.raw)).toBe('a b cX');
+	});
+
+	// The escape would have to cut the link open, and a link's delimiters are not a symmetric
+	// pair: splicing `**` inside its text writes bytes the reader sees.
+	it('declines rather than splice a delimiter inside link text', () => {
+		expect(insert('**[ab](u)**', 4, 'X', ['strong'])).toBeNull();
+	});
+
+	// Same rule for a construct whose content is verbatim: a mark applied inside a code span can
+	// only ever be literal.
+	it('declines rather than splice a delimiter inside a code span', () => {
+		expect(insert('a `code` b', 6, 'X', ['strong'])).toBeNull();
+		expect(insert('**a `c` b**', 6, 'X', ['strong'])).toBeNull();
+	});
+
+	// Markdown cannot write two same-kind runs side by side: `*a*` + `*X*` is `*a**X*`, whose
+	// middle run parses as literal text. Declining types the byte plain — the only outcome that
+	// keeps § 1's "markers are never visible".
+	it('declines a wrap whose delimiters would merge with the run beside it', () => {
+		expect(insert('*a*', 3, 'X', ['emphasis'])).toBeNull();
+		expect(insert('**a**', 5, 'X', ['strong'])).toBeNull();
+	});
+
+	it('still wraps beside a run of the other kind, which cannot merge', () => {
+		const result = insert('**a**', 5, 'X', ['emphasis']);
+		expect(result?.raw).toBe('**a***X*');
+		expect(kindsAround(result!.raw, 'X')).toEqual(['emphasis']);
+		expect(visibleText(result!.raw)).toBe('aX');
+	});
+
+	// Non-ASCII content must not change the answer: the seam is delimiter arithmetic, not bytes.
+	it('answers the same for non-ASCII content', () => {
+		const result = insert('**héllo wörld**', 8, 'X', ['strong']);
+		expect(result?.raw).toBe('**héllo wörld**X');
+		expect(visibleText(result!.raw)).toBe('héllo wörldX');
 	});
 });

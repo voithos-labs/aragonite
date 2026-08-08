@@ -3,7 +3,9 @@
  * markers only when they belong to a same-format construct enclosing it, else wraps —
  * so emphasis over `word` in `**word**` nests to `***word***` rather than eating a star.
  * At a COLLAPSED CARET, unwraps the enclosing span, else removes the empty pair the
- * previous press left, else inserts a pair and lands the caret between its halves.
+ * previous press left, else inserts a pair and lands the caret between its halves — a strategy
+ * live mode forks away from before reaching here, since an abandoned pair it paints nothing for
+ * is invisible garbage (pending marks, § 4.3).
  */
 
 import { parseInline } from '../../../core/inline';

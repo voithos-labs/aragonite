@@ -43,15 +43,17 @@ export interface EdgeAffinityDeps {
 export function createEdgeAffinityState(deps: EdgeAffinityDeps = {}): EdgeAffinityState {
 	let affinity: EdgeAffinity | null = null;
 
-	function invalidate(next: EdgeAffinity | null): void {
+	/** Sets the side AND settles everything riding on it — the two are one act, so no caller
+	 *  can do the first without the second. */
+	function settle(next: EdgeAffinity | null): void {
 		affinity = next;
 		deps.onInvalidate?.();
 	}
 
 	const state: EdgeAffinityState = {
 		get: () => affinity,
-		noteTyping: () => invalidate('near'),
-		reset: () => invalidate(null),
+		noteTyping: () => settle('near'),
+		reset: () => settle(null),
 		note: (e) => {
 			// Alt+Arrow is the block-reorder chord, not caret nav.
 			if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
@@ -59,7 +61,7 @@ export function createEdgeAffinityState(deps: EdgeAffinityDeps = {}): EdgeAffini
 			// A preserved key left the caret where it was — the chord that pends a mark and the
 			// byte that spends it are both preserved, so neither may invalidate.
 			if (action === 'preserve') return;
-			invalidate(action === 'reset' ? null : action);
+			settle(action === 'reset' ? null : action);
 		}
 	};
 
