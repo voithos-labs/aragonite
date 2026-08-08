@@ -5,7 +5,12 @@
  * This module and block-openers reference each other, but only inside function bodies, and
  * neither calls the other during evaluation, so no cycle observes uninitialized state.
  */
-import { ALL_BLOCK_KINDS, type AnyBlockKind } from '../core/nodes';
+import {
+	ALL_BLOCK_KINDS,
+	isBuiltinInlineKind,
+	type AnyBlockKind,
+	type AnyInlineKind
+} from '../core/nodes';
 import type { ClosureCell } from './closure';
 import { assertInvariant, type InvariantViolation } from '../invariants/assert';
 import {
@@ -16,9 +21,12 @@ import {
 	checkClosureCoherence,
 	checkLateOpenerRegistration,
 	checkMergeRoleVocabulary,
+	checkInlineConstructPolicy,
 	type ClosureCoherenceEntry,
 	type MergeRoleEntry
 } from '../invariants/registry';
+import { listInlineConstructPolicies } from './inline-construct-policy';
+import { isInlineKindDeclared } from './plugin-kind';
 import {
 	tryGetBlockKindDescriptor,
 	getAllRegisteredKinds,
@@ -130,4 +138,21 @@ export function flushPendingRegistrationChecks(
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
 	}
+}
+
+const isKnownInlineKind = (kind: AnyInlineKind): boolean =>
+	isBuiltinInlineKind(kind) || isInlineKindDeclared(kind);
+
+/**
+ * G1.31, at the EDITOR-MOUNT flush alone. The rows register with the descriptors, but the
+ * policy's function hooks patch in from the component layer, which a parse-only unit test
+ * never loads — running this at the parser's flush would fire on an absence legal there.
+ * Table-wide rather than per-registration, so it does not ride the pending-kinds queue.
+ */
+export function checkInlineConstructPoliciesAtMount(
+	report: RegistrationCheckReport = assertInvariant
+): void {
+	report('inline-construct-policy', () =>
+		checkInlineConstructPolicy(listInlineConstructPolicies(), isKnownInlineKind)
+	);
 }

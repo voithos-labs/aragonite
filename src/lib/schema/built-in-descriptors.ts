@@ -1,5 +1,5 @@
 /**
- * Built-in block-kind descriptor registrations, applied by an EXPLICIT
+ * Built-in block-kind descriptors and inline-construct policies, applied by an EXPLICIT
  * `registerBuiltInDescriptors()` call from the two descriptor-read entry points,
  * `core/inline/index.ts` and `components/built-in-blocks.ts`. A bare side-effect import is NOT
  * enough: the production Rollup build tree-shakes an unused import of a module outside the
@@ -22,6 +22,7 @@ import {
 } from './container-rebuilders';
 import { normalizeCellRaw } from './table-cell-raw';
 import { normalizeFencedRaw } from './fenced-code-raw';
+import { registerInlineConstructPolicy } from './inline-construct-policy';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -142,6 +143,46 @@ function proseLeafClosure(vias: {
 	};
 }
 
+// ── Inline-construct policies ───────────────────────────────────────────────
+
+// Registered beside the block descriptors rather than from the component layer so a headless
+// consumer — and the unit bootstrap, which loads only this module — reads the same rows.
+function registerBuiltInInlinePolicies(): void {
+	for (const kind of ['emphasis', 'strong', 'strikethrough', 'inlineCode'] as const) {
+		registerInlineConstructPolicy(kind, {
+			edgeAffinity: 'symmetric-pair',
+			autoUnwrapOnEmpty: true,
+			splitBehavior: 'close-and-reopen',
+			revealable: true
+		});
+	}
+	// A link's closer is its URL, not a mirror of its opener, so neither edge extends; the
+	// split rebalancer is what duplicates the URL across the halves.
+	registerInlineConstructPolicy('link', {
+		edgeAffinity: 'never-extend',
+		autoUnwrapOnEmpty: true,
+		splitBehavior: 'close-and-reopen',
+		revealable: true
+	});
+	// An image with an empty alt is still an image, and a split inside one moves bytes only.
+	registerInlineConstructPolicy('image', {
+		edgeAffinity: 'never-extend',
+		autoUnwrapOnEmpty: false,
+		splitBehavior: 'plain',
+		revealable: true
+	});
+	// Unstamped marker runs, permanently hidden in live mode: the `\X` pair and the trailing-space
+	// run delete as a unit, so nothing may rewrite their markers around an edit.
+	for (const kind of ['escape', 'hardLineBreak'] as const) {
+		registerInlineConstructPolicy(kind, {
+			edgeAffinity: 'never-extend',
+			autoUnwrapOnEmpty: false,
+			splitBehavior: 'plain',
+			revealable: false
+		});
+	}
+}
+
 // ── Built-in registrations ──────────────────────────────────────────────────
 
 // Idempotence guard, not a registry bypass: both entry points call this, and a
@@ -151,6 +192,8 @@ let registered = false;
 export function registerBuiltInDescriptors(): void {
 	if (registered) return;
 	registered = true;
+
+	registerBuiltInInlinePolicies();
 
 	registerBlockKind('paragraph', {
 		mergeRole: 'prose',

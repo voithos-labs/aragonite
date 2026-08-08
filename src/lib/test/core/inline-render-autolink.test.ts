@@ -5,9 +5,9 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 
-function renderedInto(raw: string): HTMLDivElement {
+function renderedInto(raw: string, tagConstructMarkers = false): HTMLDivElement {
 	const div = document.createElement('div');
-	div.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw));
+	div.appendChild(renderInlineNodes(parseInline(raw, 0, raw.length), raw, { tagConstructMarkers }));
 	return div;
 }
 
@@ -41,6 +41,14 @@ describe('renderInlineNodes — angle autolink brackets', () => {
 		expect(inert?.textContent).toBe('javascript:alert(1)');
 		expect(markerTexts(div)).toEqual(['<', '>']);
 		expect(div.textContent).toBe('<javascript:alert(1)>');
+	});
+
+	// Unstamped ⟺ not revealable: preview-inline reveals unstamped markers on block focus,
+	// so a stamp here without a revealable policy row would hide the brackets for good.
+	it('stays unstamped even when the render tags construct markers', () => {
+		const div = renderedInto('Visit <https://example.com> now', true);
+		expect(markerTexts(div)).toEqual(['<', '>']);
+		expect(div.querySelectorAll('[data-construct-start], [data-construct-end]')).toHaveLength(0);
 	});
 });
 
