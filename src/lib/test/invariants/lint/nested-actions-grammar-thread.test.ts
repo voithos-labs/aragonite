@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments } from './scan-source';
+import { balancedCall, collectEditorSources, stripComments } from './scan-source';
 
 const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
 
@@ -34,22 +34,6 @@ function findGrammarlessCalls(relPath: string, rawText: string): GrammarlessCall
 		if (!/\bgrammar\s*:/.test(call)) hits.push({ relPath, call });
 	}
 	return hits;
-}
-
-/** The text from just after the opening paren to its matching close, parens balanced. */
-function balancedCall(code: string, openParenIndex: number): string | null {
-	let depth = 1;
-	let i = openParenIndex;
-	while (i < code.length) {
-		const ch = code[i];
-		if (ch === '(') depth++;
-		else if (ch === ')') {
-			depth--;
-			if (depth === 0) return code.slice(openParenIndex, i);
-		}
-		i++;
-	}
-	return null;
 }
 
 describe('createStandardNestedActions grammar-thread source-scan', () => {

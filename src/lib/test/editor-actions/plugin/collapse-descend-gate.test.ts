@@ -21,7 +21,12 @@ function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = [
 		collapseEmptyReplaceToDelete: true,
 		async commit(args) {
 			commits.push(args);
-			args.mutate({ children, sharing, unshareChild: (i) => children[i] });
+			args.mutate({
+				children,
+				sharing,
+				getPresentationMode: undefined,
+				unshareChild: (i) => children[i]
+			});
 			await args.afterTick?.();
 		}
 	};

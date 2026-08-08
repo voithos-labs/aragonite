@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments } from './scan-source';
+import { balancedCall, collectEditorSources, lastArgument, stripComments } from './scan-source';
 
 const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
 
@@ -18,34 +18,6 @@ const SEAMS = ['rebuildUnsharedChain', 'rebuildUnsharedAncestry', 'writeOwnRaw']
 interface GlobalGrammarCall {
 	relPath: string;
 	call: string;
-}
-
-/** The text from just after the opening paren to its matching close, parens balanced. */
-function balancedCall(code: string, openParenIndex: number): string | null {
-	let depth = 1;
-	let i = openParenIndex;
-	while (i < code.length) {
-		const ch = code[i];
-		if (ch === '(') depth++;
-		else if (ch === ')') {
-			depth--;
-			if (depth === 0) return code.slice(openParenIndex, i);
-		}
-		i++;
-	}
-	return null;
-}
-
-/** The last top-level argument of a call's argument text — the grammar slot. */
-function lastArgument(args: string): string {
-	let depth = 0;
-	for (let i = args.length - 1; i >= 0; i--) {
-		const ch = args[i];
-		if (ch === ')' || ch === ']' || ch === '}') depth++;
-		else if (ch === '(' || ch === '[' || ch === '{') depth--;
-		else if (ch === ',' && depth === 0) return args.slice(i + 1).trim();
-	}
-	return args.trim();
 }
 
 /** Flag seam call sites whose grammar argument is the literal `undefined`. */

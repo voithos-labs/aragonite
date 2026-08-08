@@ -77,6 +77,7 @@ describe('createStandardNestedActions', () => {
 				path: [7]
 			},
 			stickyColumn: makeStickyColumn(),
+			getPresentationMode: undefined,
 			parent
 		});
 
@@ -103,6 +104,7 @@ describe('createStandardNestedActions', () => {
 						path: [3]
 					},
 					stickyColumn: makeStickyColumn(),
+					getPresentationMode: undefined,
 					parent
 				});
 

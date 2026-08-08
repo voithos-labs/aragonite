@@ -43,7 +43,8 @@ function applyGesture(doc: Document, gesture: Gesture): void {
 		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true;
 	switch (gesture.op) {
 		case 'split':
-			if (isProseLeaf) splitNode(doc, at, Math.min(gesture.offset, displayLength(node.raw)));
+			if (isProseLeaf)
+				splitNode(doc, at, Math.min(gesture.offset, displayLength(node.raw)), undefined);
 			return;
 		case 'delete':
 			deleteNode(doc, at);

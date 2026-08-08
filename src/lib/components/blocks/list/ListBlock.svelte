@@ -10,9 +10,11 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		LIST_CONTEXT_KEY,
+		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { createListContext } from '../../../editor-actions/list-context';
@@ -35,6 +37,9 @@
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const { controller, stickyColumn, selection, registryView } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const getPresentationMode = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.presentationMode;
 
 	const listState = createBlockListState(() => node);
 
@@ -62,6 +67,7 @@
 			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
+			getPresentationMode,
 			parentListContext,
 			parent: {
 				blockEdit: parentBlockEdit,
@@ -80,7 +86,8 @@
 		parentBlockEdit,
 		parentFocus,
 		parentListContext,
-		controller
+		controller,
+		getPresentationMode
 	});
 
 	setContext(LIST_CONTEXT_KEY, listContext);
