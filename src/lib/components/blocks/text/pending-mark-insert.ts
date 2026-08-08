@@ -11,6 +11,7 @@ import { parseInline } from '../../../core/inline';
 import { renderedText } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
+import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 import { constructContentRange } from './edge-seat';
 import { markersFor } from './format-toggle';
 
@@ -109,7 +110,7 @@ function* candidateInsertions(
 	// A link or a widget between the caret and the construct being escaped cannot be cut open: its
 	// closer is not a mirror of its opener the way a mark's is, and splicing inside one writes
 	// literal bytes into content. Only stepping outside is available there.
-	if (escaped.every((node) => node.mark !== null)) {
+	if (escaped.every((node) => isSymmetricPair(node.kind))) {
 		yield splitOpen(display, caretOffset, text, escaped, payload);
 	}
 
@@ -243,6 +244,13 @@ interface ChainNode {
 /** Derived from the nesting order rather than re-listed, so a new format joins in one place. */
 function markOf(kind: AnyInlineKind): InlineMarkKind | null {
 	return NESTING_ORDER.find((mark) => mark === kind) ?? null;
+}
+
+/** Whether a construct's closer mirrors its opener, so a split can close and reopen it. The
+ *  policy table answers, not this module's mark list: the two agree today and the rule is the
+ *  table's to change. */
+function isSymmetricPair(kind: AnyInlineKind): boolean {
+	return getInlineConstructPolicy(kind)?.edgeAffinity === 'symmetric-pair';
 }
 
 /**

@@ -364,9 +364,7 @@
 		// rather than `getContentRange(node)`, whose bytes carry the escapes the door writes.
 		const cellText = readCellText();
 		const result = toggleInlineFormat(
-			cellText,
-			{ start: 0, end: cellText.length },
-			offsets,
+			{ display: cellText, content: { start: 0, end: cellText.length }, selection: offsets },
 			format
 		);
 		// Anchor undo at the live post-toggle caret: cross-block dispatch arrives with no

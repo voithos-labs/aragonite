@@ -785,9 +785,7 @@
 		}
 
 		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
-			getDisplayText(),
-			getContentRange(node),
-			range,
+			{ display: getDisplayText(), content: getContentRange(node), selection: range },
 			format
 		);
 

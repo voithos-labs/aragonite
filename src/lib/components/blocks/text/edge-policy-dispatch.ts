@@ -23,6 +23,7 @@ import { revealsNoMarkers } from '../../../cursor/widget-offset';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
+import { resolveEdgeDeletion } from './construct-edge-delete';
 import { resolveEdgeSeat } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
@@ -365,6 +366,34 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
+	// ── Hidden construct edge (the destructive arm) ────────────────────────────
+
+	/**
+	 * A plain Backspace/Delete against an inline construct's unpainted delimiter run. The byte
+	 * native would take there is one the reader never saw, so the rewrite takes the adjacent
+	 * CONTENT character instead — and the delimiters it leaves enclosing nothing with it, since a
+	 * pair around no content is invisible in a mode that paints neither (§ 4.4).
+	 */
+	function handleConstructEdgeDelete(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		if (e.key !== 'Backspace' && e.key !== 'Delete') return false;
+		if (e.shiftKey || hasModifier(e)) return false;
+		if (caretOffset === null || hasSelectionHelper()) return false;
+		const el = deps.getEl();
+		if (!el || !revealsNoMarkers(el)) return false;
+		const deletion = resolveEdgeDeletion({
+			display: display(),
+			content: getContentRange(deps.node),
+			caret: caretOffset,
+			direction: e.key === 'Backspace' ? 'backward' : 'forward',
+			inlines: inlinesOf(deps.node)
+		});
+		if (!deletion) return false;
+		e.preventDefault();
+		deps.setSnapTarget(null);
+		writeDisplay(deletion.raw, deletion.caret, 'construct-delete', caretOffset);
+		return true;
+	}
+
 	// ── Pending marks (the toggle seat) ────────────────────────────────────────
 
 	/**
@@ -434,6 +463,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// theirs, and these claim only what would otherwise reach native editing or the
 		// block-merge command.
 		if (handleHiddenStructuralEdge(e, caretOffset)) return true;
+		if (handleConstructEdgeDelete(e, caretOffset)) return true;
 		if (handleConstructSeat(e, caretOffset)) return true;
 		return false;
 	}
