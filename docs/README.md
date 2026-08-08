@@ -46,6 +46,7 @@ Because the pack ships flat, a markdown link inside `guide/` may only point at a
 | Doc                                                                        | Scope                                                   |
 | -------------------------------------------------------------------------- | ------------------------------------------------------- |
 | [`contributing/culture.md`](contributing/culture.md)                       | Incident-backed rules — **read before your first edit** |
+| [`contributing/codebase-map.md`](contributing/codebase-map.md)             | Behavior → seam index: where a behavior lives           |
 | [`contributing/testing.md`](contributing/testing.md)                       | Test infrastructure and patterns                        |
 | [`contributing/adding-a-block.md`](contributing/adding-a-block.md)         | Adding a built-in block kind                            |
 | [`contributing/code-style.md`](contributing/code-style.md)                 | Code style conventions                                  |

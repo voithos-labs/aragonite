@@ -164,9 +164,10 @@
 		"conformance:full": "node scripts/run-with-env.mjs CONFORMANCE_FULL=1 -- vitest run src/lib/test/gfm-conformance/full-sweep.test.ts",
 		"test:editor:property:fresh": "node scripts/run-with-env.mjs PROPERTY_FRESH=1 -- vitest run .property.test src/lib/test/core/directive/roundtrip-coverage.test.ts",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && npm run docs:pack:check && npm run lint:eslint",
+		"lint": "prettier --check . && npm run docs:pack:check && npm run docs:map:check && npm run lint:eslint",
 		"lint:eslint": "eslint .",
 		"docs:pack:check": "node scripts/build-docs-pack.mjs",
+		"docs:map:check": "node scripts/check-codebase-map.mjs",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
 		"prepack": "npm run package && node scripts/verify-pack.mjs"
 	},

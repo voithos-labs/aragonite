@@ -160,3 +160,5 @@ kill it:
   nobody edited.
 - Roadmap is forward-only; changelog is past-only; a shipping milestone moves between them in
   the same commit.
+- **A moved seam moves the codebase map in the same commit** (`docs/contributing/codebase-map.md`);
+  `npm run lint` fails on a path or symbol it names that no longer exists, which is the reminder.
