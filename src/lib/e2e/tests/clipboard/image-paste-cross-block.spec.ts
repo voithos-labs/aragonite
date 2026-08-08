@@ -6,7 +6,6 @@ import {
 	PNG,
 	getCalls,
 	gotoWithHook,
-	parseConverged,
 	pasteFiles,
 	releaseImport,
 	setResponses
@@ -50,7 +49,7 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('![[shot.png]]Xthird');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('the whole replacement is one undo entry', async ({ page }) => {
@@ -96,7 +95,7 @@ test.describe('image paste: cross-block replacement', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('second');
 		expect(source.trim()).toBe('AB![[held.png]]third');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	// A focus endpoint hosting no caret (an image-only paragraph) makes the park a no-op, so
@@ -119,7 +118,7 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(source).not.toContain('second');
 		expect(source).not.toContain('sample.png');
 		expect(await getCalls(page)).toHaveLength(1);
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	// The cross-block delete has a table-specific branch, so a cell-anchored selection is its
@@ -147,7 +146,7 @@ test.describe('image paste: cross-block replacement', () => {
 		// The covered body row is gone; the range really was deleted.
 		expect(viaHook).not.toContain('| 1 | 2 |');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 
 		// A fresh NAVIGATION, not a second loadContent: the harness drives `source` as a prop, so
 		// re-assigning the string it already holds is a no-op that would leave the mutated document

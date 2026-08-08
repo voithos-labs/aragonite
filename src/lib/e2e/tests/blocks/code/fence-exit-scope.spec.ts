@@ -5,9 +5,6 @@ import { EditorPage } from '../../../editor-page';
 // delegated outside it: a fence last in a blockquote mints its paragraph INSIDE the quote, and a
 // second Enter on that empty paragraph breaks out (the shared empty-trailing-line exit).
 
-const parseConverged = (editor: EditorPage) =>
-	editor.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
-
 const quoteChildCount = (editor: EditorPage) =>
 	editor.page.evaluate(() => (window as any).__test.getDocument().children[0].children.length);
 
@@ -54,7 +51,7 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		expect(await editor.bridge.getSource()).toBe('> ```\n> code\n> ```\n\nX\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-		expect(await parseConverged(editor)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('closed-fence Enter-twice-from-body-end (exitWithEdit) inside a quote lands in-container', async () => {
@@ -101,7 +98,7 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-		expect(await parseConverged(editor)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('unclosed-fence escape ladder in a quote: auto-close mints inside, next Enter exits', async () => {
@@ -125,6 +122,6 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		expect(source).toContain('> ```\n> code\n> ```'); // closer minted, still quoted
 		expect(source.indexOf('W')).toBeGreaterThan(source.lastIndexOf('```'));
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-		expect(await parseConverged(editor)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 });

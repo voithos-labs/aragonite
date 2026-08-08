@@ -25,7 +25,7 @@ test.describe('text editing — Enter at a soft line break', () => {
 			await editor.waitForBlockHostCount(2);
 
 			await editor.bridge.waitForSourceEquals('aaa\n\nbbb\n');
-			expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+			expect(await editor.parseConverged()).toBe(true);
 
 			const selection = await editor.bridge.getSelectionPaths();
 			expect(selection?.focus).toEqual({ path: [1], offset: 0 });
@@ -39,7 +39,7 @@ test.describe('text editing — Enter at a soft line break', () => {
 		await editor.waitForBlockHostCount(2);
 
 		await editor.bridge.waitForSourceEquals('aaa\n\nbbb\nccc\n');
-		expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('real click + End + Enter — typing lands at the head of the surviving second half', async () => {

@@ -2,7 +2,9 @@
  * Which modifier chords a mounted editor consumes. The keymap tiers enumerate from the
  * registries; chords claimed by hand-written keydown branches do not, so they ride the
  * manifest below — G4.29's source scan fails until a new claiming site joins it. Bare keys
- * stay out of contract: a focused document owns them whatever the manifest says.
+ * stay out of contract: a focused document owns them whatever the manifest says. A manifested
+ * file keeps its literal key comparisons and modifier reads: the scan is structural on both
+ * axes, so factoring either behind a helper fails the gate until the scan learns the helper.
  */
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, pluginGlobalChords, reservedUiChords } from './commands';

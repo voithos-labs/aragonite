@@ -12,7 +12,7 @@ import { isBlankParagraph } from '../../core/parser';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
+import { ensureUnsharedNode, ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { normalizeItemMarkerToList, renumberOrderedList } from '../list/ordered-markers';
 import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
@@ -226,7 +226,7 @@ async function applyContainerMatchingMerge(
 				const sharing = scopeView.sharing;
 				// The merged leaf sits BELOW the scope node — own its full spine.
 				const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
-				const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
+				const ownedLeaf = chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing);
 				writeOwnRaw(
 					ownedLeaf,
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
@@ -264,7 +264,7 @@ async function applyContainerMatchingMerge(
 			const sharing = scopeView.sharing;
 			// The merged leaf sits BELOW the scope node — own its full spine.
 			const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
-			const ownedLeaf = chain[chain.length - 1] ?? targetLeaf;
+			const ownedLeaf = chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing);
 			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
 			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
 			// Both rebuilds run before the splice, so the published children carry correct

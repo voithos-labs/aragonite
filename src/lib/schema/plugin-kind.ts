@@ -11,9 +11,9 @@ import { devReplacesRegistration } from './register-once';
 
 const declaredPluginKinds = new Set<string>();
 
-// Structural sentinels a plugin kind must not shadow. `document` is `Document.kind`, not a
-// BlockKind, so it escapes the BLOCK_KIND_TABLE check below.
-const RESERVED_KIND_NAMES = new Set<string>(['document']);
+// Structural sentinels a plugin kind must not shadow: `document` is `Document.kind` and
+// `global` is the keybinding-override scope, so neither is in BLOCK_KIND_TABLE below.
+const RESERVED_KIND_NAMES = new Set<string>(['document', 'global']);
 
 export function declarePluginKind(name: string): PluginBlockKind {
 	if (!isValidPluginName(name)) {

@@ -10,8 +10,21 @@ import type { KeyBinding } from './keybindings';
 /**
  * Backspace-merge role. Full spec: `docs/design/editor.md` — Merge eligibility: roles, not pairs.
  * Lives here, not `merge-rules.ts`, so the descriptor registry can reference it without a cycle.
+ * The tuple is the one home: G1.30's runtime vocabulary is derived from it, not re-listed.
  */
-export type MergeRole = 'prose' | 'prose-absorber' | 'container' | 'self-merge' | 'not-mergeable';
+export const MERGE_ROLES = [
+	'prose',
+	'prose-absorber',
+	'container',
+	'self-merge',
+	'not-mergeable'
+] as const;
+
+export type MergeRole = (typeof MERGE_ROLES)[number];
+
+/** G1.30's runtime half, for the registrations a `MergeRole` parameter cannot bind (plugin casts). */
+export const isKnownMergeRole = (role: string): boolean =>
+	(MERGE_ROLES as readonly string[]).includes(role);
 
 /**
  * Backspace-at-start behavior for a container's children; strategies live in

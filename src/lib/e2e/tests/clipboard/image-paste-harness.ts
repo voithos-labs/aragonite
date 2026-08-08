@@ -34,9 +34,6 @@ export const getCalls = (page: Page) =>
 			}[]
 	);
 
-export const parseConverged = (page: Page) =>
-	page.evaluate(() => (window as any).__test.parseConverged() as boolean);
-
 /** Open the harness with the host hook installed, responses cleared. */
 export async function gotoWithHook(page: Page): Promise<EditorPage> {
 	const editor = new EditorPage(page);

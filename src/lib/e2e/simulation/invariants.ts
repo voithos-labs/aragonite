@@ -119,7 +119,7 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
  * tree against a reparse of its serialization. Checkpoint cadence, not per keystroke.
  */
 export async function assertParseConvergence(ctx: SimContext): Promise<void> {
-	const converges = await ctx.page.evaluate(() => (window as any).__test.parseConverged());
+	const converges = await ctx.editor.parseConverged();
 	if (!converges) {
 		const [source, tree] = await Promise.all([
 			ctx.editor.bridge.getSource(),
