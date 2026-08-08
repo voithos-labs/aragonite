@@ -8,7 +8,7 @@
  */
 
 /** The constructs a toggle chord can pend. Widened as `format-toggle.ts` grows formats. */
-export type InlineMarkKind = 'strong' | 'emphasis';
+export type InlineMarkKind = 'strong' | 'emphasis' | 'strikethrough' | 'inlineCode';
 
 export interface PendingMarksState {
 	/** Null when nothing is pending; never an empty set, so a read is the whole question. */

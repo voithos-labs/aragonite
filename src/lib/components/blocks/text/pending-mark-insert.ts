@@ -14,8 +14,14 @@ import type { InlineMarkKind } from '../../../cursor/pending-marks';
 import { constructContentRange } from './edge-seat';
 import { markersFor } from './format-toggle';
 
-/** Outermost first, so a set wraps to one byte string whatever order the chords arrived in. */
-const NESTING_ORDER: readonly InlineMarkKind[] = ['strong', 'emphasis'];
+/** Outermost first, so a set wraps to one byte string whatever order the chords arrived in. Code
+ *  is innermost because its content is literal: no other mark can take effect inside it. */
+const NESTING_ORDER: readonly InlineMarkKind[] = [
+	'strong',
+	'emphasis',
+	'strikethrough',
+	'inlineCode'
+];
 
 export interface MarkedInsertion {
 	/** The block's whole display bytes after the insertion. */
@@ -100,9 +106,9 @@ function* candidateInsertions(
 	const outside = chain.slice(0, depth);
 	const payload = marksToWrite(intended, outside);
 
-	// A link, a code span or a widget between the caret and the construct being escaped cannot be
-	// cut open: its delimiters are not a symmetric pair the way a mark's are, and splicing inside
-	// one writes literal bytes into content. Only stepping outside is available there.
+	// A link or a widget between the caret and the construct being escaped cannot be cut open: its
+	// closer is not a mirror of its opener the way a mark's is, and splicing inside one writes
+	// literal bytes into content. Only stepping outside is available there.
 	if (escaped.every((node) => node.mark !== null)) {
 		yield splitOpen(display, caretOffset, text, escaped, payload);
 	}

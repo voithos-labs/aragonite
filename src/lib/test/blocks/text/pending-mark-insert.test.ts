@@ -179,11 +179,18 @@ describe('a candidate that would not parse back is not written', () => {
 		expect(insert('**[ab](u)**', 4, 'X', ['strong'])).toBeNull();
 	});
 
-	// Same rule for a construct whose content is verbatim: a mark applied inside a code span can
-	// only ever be literal.
+	// A code span's content is verbatim, so a mark applied inside one can only ever be literal.
 	it('declines rather than splice a delimiter inside a code span', () => {
 		expect(insert('a `code` b', 6, 'X', ['strong'])).toBeNull();
-		expect(insert('**a `c` b**', 6, 'X', ['strong'])).toBeNull();
+	});
+
+	// The other direction is expressible: escaping the strong steps outside it, and the code span
+	// the caret sat in is reopened around the byte instead of being spent.
+	it('escaping a mark from inside a code span keeps the code', () => {
+		const result = insert('**a `c` b**', 6, 'X', ['strong']);
+		expect(result?.raw).toBe('**a `c` b**`X`');
+		expect(kindsAround(result!.raw, 'X')).toEqual(['inlineCode']);
+		expect(visibleText(result!.raw)).toBe('a c bX');
 	});
 
 	// Markdown cannot write two same-kind runs side by side: `*a*` + `*X*` is `*a**X*`, whose
@@ -233,8 +240,8 @@ describe('a childless construct is in the chain, so nothing may cut it open', ()
 		expect(visibleText(after!.raw)).toBe('see https://example.comX now');
 	});
 
-	// A BARE autolink paints no marker at all, so a wrap inside it is visible only as the link
-	// dying — which is exactly what the render-path oracle sees and a byte census would not.
+	// A BARE autolink paints no marker, so killing it changes nothing on screen and the render
+	// check is blind here; the CHAIN check declines, since `intended` carries the link kind.
 	it('declines a mark applied inside a bare autolink', () => {
 		expect(insert('see https://example.com now', 10, 'X', ['strong'])).toBeNull();
 	});

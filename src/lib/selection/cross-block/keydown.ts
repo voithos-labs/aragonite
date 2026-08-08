@@ -237,8 +237,17 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 		(e.ctrlKey || e.metaKey) &&
 		!e.shiftKey &&
 		!e.altKey &&
-		(e.key === 'b' || e.key === 'B' || e.key === 'i' || e.key === 'I')
+		(e.key === 'b' ||
+			e.key === 'B' ||
+			e.key === 'i' ||
+			e.key === 'I' ||
+			e.key === 'e' ||
+			e.key === 'E')
 	)
+		return true;
+	// Mod+Shift+X takes an arm of its own rather than joining the letters above: that arm's
+	// `!e.shiftKey` is what leaves the unshifted Mod+X to the whole-block cut.
+	if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.key === 'x' || e.key === 'X'))
 		return true;
 	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
 	return false;

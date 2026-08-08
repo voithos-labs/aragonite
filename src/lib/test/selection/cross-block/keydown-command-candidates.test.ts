@@ -81,6 +81,33 @@ describe('cross-block keydown — command candidates', () => {
 		});
 	}
 
+	// Every format toggle is owed the same route, and the two newest split on Shift: Mod+E rides
+	// the unshifted arm, Mod+Shift+X an arm of its own.
+	for (const [chord, key, init, command] of [
+		['Mod+E', 'e', { ctrlKey: true }, 'format.toggleCode'],
+		['Mod+Shift+X', 'x', { ctrlKey: true, shiftKey: true }, 'format.toggleStrikethrough']
+	] as const) {
+		it(`${chord} deletes the range then dispatches ${command}`, async () => {
+			const { env, runCommand } = envWithCommandTarget();
+
+			expect(await env.keydown.handleKeyDown(press(key, init))).toBe(true);
+
+			expect(env.source()).toBe('ata\n\ngamma\n');
+			expect(runCommand).toHaveBeenCalledWith(command, undefined);
+		});
+	}
+
+	// The whole-block cut reads Mod+X off the keydown with its own `!e.shiftKey` guard, so a
+	// candidate arm that took the unshifted form would delete the range out from under it.
+	it('Mod+X is not a candidate — the unshifted chord is the whole-block cut', async () => {
+		const { env, runCommand } = envWithCommandTarget();
+
+		expect(await env.keydown.handleKeyDown(press('x', { ctrlKey: true }))).toBe(false);
+
+		expect(env.source()).toBe(SOURCE);
+		expect(runCommand).not.toHaveBeenCalled();
+	});
+
 	it('Mod+Shift+B is not a candidate — the shifted chord belongs to the block', async () => {
 		const { env, runCommand } = envWithCommandTarget();
 

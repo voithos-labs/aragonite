@@ -360,7 +360,15 @@
 			pendingMarks.toggle(format);
 			return true;
 		}
-		const result = toggleInlineFormat(readCellText(), offsets, format);
+		// A cell has no markers of its own, so the whole read is content — taken from the DOM text
+		// rather than `getContentRange(node)`, whose bytes carry the escapes the door writes.
+		const cellText = readCellText();
+		const result = toggleInlineFormat(
+			cellText,
+			{ start: 0, end: cellText.length },
+			offsets,
+			format
+		);
 		// Anchor undo at the live post-toggle caret: cross-block dispatch arrives with no
 		// preceding onKeyDown, so `preEditOffset` would be stale (mirrors TextEditableBlock).
 		// A command is not typing, so the toggle's bytes are their own undo step.
@@ -382,6 +390,8 @@
 		if (!el) return false;
 		if (id === 'format.toggleStrong') return toggleFormat('strong');
 		if (id === 'format.toggleEmphasis') return toggleFormat('emphasis');
+		if (id === 'format.toggleStrikethrough') return toggleFormat('strikethrough');
+		if (id === 'format.toggleCode') return toggleFormat('inlineCode');
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {
 			void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);

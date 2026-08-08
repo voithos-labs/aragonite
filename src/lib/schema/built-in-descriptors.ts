@@ -67,6 +67,8 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 	{ chord: 'Mod+B', command: 'format.toggleStrong' },
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
+	{ chord: 'Mod+E', command: 'format.toggleCode' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
 	{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 },
@@ -86,6 +88,8 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Shift+Tab', command: 'cell.shiftTab' },
 	{ chord: 'Mod+B', command: 'format.toggleStrong' },
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
+	{ chord: 'Mod+E', command: 'format.toggleCode' },
 	{ chord: 'Mod+Enter', command: 'table.insertRowBelow' },
 	{ chord: 'Mod+Shift+Enter', command: 'table.insertRowAbove' },
 	{ chord: 'Alt+Shift+ArrowRight', command: 'table.insertColumnRight' },
@@ -250,7 +254,9 @@ export function registerBuiltInDescriptors(): void {
 			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 			{ chord: 'Mod+B', command: 'format.toggleStrong' },
-			{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
+			{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+			{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
+			{ chord: 'Mod+E', command: 'format.toggleCode' }
 		],
 		conformanceFixture: '```\ncode\n```\n',
 		closure: {
