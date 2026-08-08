@@ -25,6 +25,11 @@ with real keystrokes and real clicks; the source and the block's kind are the or
   lose the press entirely
 - a heading opening with a construct (`## **B** head`) demotes at the caret `Home` actually
   leaves, which sits past both hidden runs — the reachable start, not the model's content start
+- the same holds for a REFERENCE construct (`## [B][r] head` with the definition present): the
+  bound reads the inline tree the render painted, resolver and signature included, because
+  without them `[B][r]` is plain text and its `[` is content the bound would stop at
+- a paragraph opening with a reference construct still MERGES on that press — the moved bound
+  serves the kinds that declare no demote too
 - `Delete` at a setext heading's content end takes nothing: the merge it would reach concatenates
   past the underline and would surface it, so the press is consumed until the join seams keep a
   block's own structure across a merge

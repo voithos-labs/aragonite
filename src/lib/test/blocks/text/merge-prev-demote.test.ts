@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { parse } from '$lib/core/parser';
+import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { DIRECTIVE_LEAF, registerDirectiveKinds } from '$lib/core/directive/kinds';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -25,12 +26,17 @@ function mountBlock(source: string, mode: PresentationMode, caret: number) {
 	const doc = parse(source);
 	const blockEdit = makeStubBlockEdit();
 
+	// The reference map the editor root builds, so a reference construct is a construct here too.
+	const references = buildLinkReferenceMap(doc.children);
 	const instance = mount(TextEditableBlock, {
 		target: root,
 		props: { node: doc.children[0], index: 0, myPath: [0] },
 		context: editorMountContext({
 			blockEdit,
-			doc: { doc: () => doc },
+			doc: {
+				doc: () => doc,
+				linkRef: { current: references.resolve, signature: references.signature }
+			},
 			policies: { presentationMode: () => mode }
 		})
 	});
@@ -87,6 +93,16 @@ describe('Backspace at content start in live mode', () => {
 		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '**B** head\n', 5, 2);
 	});
 
+	// A REFERENCE construct is only a construct once the document's definitions resolve it: read
+	// without them `[B][r]` is plain text, its `[`s are content, and the bound stays at the `#`s
+	// where no caret ever lands. The bounds read the tree the render painted, resolver included.
+	it('demotes a heading opening with a reference link', () => {
+		mounted = mountBlock('## [B][r] head\n\n[r]: https://example.com\n', 'live', 4);
+
+		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '[B][r] head\n', 4, 1);
+	});
+
 	// The other kind whose content start moved: a directive leaf's `::` is unpainted too, so its
 	// content-start press now reaches the cascade, where `not-mergeable` turns it into a focus
 	// move. Asserted through the declarations the arm reads — the leaf's opener needs the plugin's
@@ -102,6 +118,16 @@ describe('Backspace at content start in live mode', () => {
 		} finally {
 			__resetSchemaRegistriesForTests();
 		}
+	});
+
+	// The command's other half, for the callers that never pass the keydown dispatch (cross-block
+	// dispatch, a plugin chord): a setext heading cannot absorb the block below without pulling
+	// its underline into view, so the arm declines wherever the caret claims to be.
+	it('declines mergeNext on a block whose structure sits past its content', () => {
+		mounted = mountBlock('Title\n===\n', 'live', 7);
+
+		expect(mounted.instance.runCommand('block.mergeNext')).toBe(false);
+		expect(mounted.blockEdit.mergeWithNext).not.toHaveBeenCalled();
 	});
 
 	it('merges a kind that declares no demote, at its own content start', () => {

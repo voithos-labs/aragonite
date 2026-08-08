@@ -13,6 +13,7 @@ vi.mock('../../selection/keyboard-extend', () => ({
 	scrollFocusBlockIntoView: vi.fn()
 }));
 
+import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { handleSharedKeydown, type SharedKeydownContext } from '../../selection/shared-keydown';
 import { extendFocusToPreviousBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
@@ -43,6 +44,8 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,
 			getTextLen: () => textLen,
+			// The read the render paints from, which is what the reachable start walks.
+			getInlines: () => resolvedInlineContent(doc.children[0]),
 			getMyPath: () => [0],
 			getIndex: () => 1,
 			crossBlock: { handleKeyDown: async () => false, handleBeforeInput: async () => false },

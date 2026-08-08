@@ -7,7 +7,6 @@
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
 import type { InlineNode } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from './selection-state.svelte';
@@ -21,7 +20,6 @@ import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
 import { revealsNoMarkers } from '../cursor/widget-offset';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
 import { constructContentRange, getContentRange, type ContentRange } from '../core/inline';
-import { getInlineContent } from '../core/inline/inline-cache';
 import { blockNodeAt } from '../tree-operations/node-ops';
 import { eventToChord } from '../schema/keybindings';
 import { isEditorGlobalChord } from '../schema/commands';
@@ -174,13 +172,16 @@ export interface ContentBounds {
 	end: number;
 }
 
-/** The three reads the bounds need, so a block-edge gate outside this file can ask without
- *  standing up the whole keydown context. */
+/** The reads the bounds need, so a block-edge gate outside this file can ask without standing up
+ *  the whole keydown context. */
 export interface ContentBoundsContext {
 	/** textContent length in raw-content coordinates (ambient marker excluded). */
 	getTextLen(): number;
 	getMyPath(): number[];
 	getDoc: DocumentGetter;
+	/** The inline tree the RENDER painted, resolver and signature included. Parsed without them a
+	 *  reference construct reads as plain text, and the bound would not clear its hidden run. */
+	getInlines(): readonly InlineNode[];
 }
 
 /**
@@ -198,7 +199,7 @@ export function caretContentBounds(ctx: ContentBoundsContext, el: HTMLElement): 
 	// Clamped against the live DOM length: a revealed source holds bytes the CST has not
 	// seen, and a bound past the block's end would trap the caret.
 	return {
-		start: Math.min(reachableStart(node, range), textLen),
+		start: Math.min(reachableStart(ctx.getInlines(), range), textLen),
 		end: Math.min(range.end, textLen)
 	};
 }
@@ -208,7 +209,7 @@ export function caretContentBounds(ctx: ContentBoundsContext, el: HTMLElement): 
  * delimiter run, and a read there reports the first VISIBLE byte, so a gate testing the model's
  * content start matches no caret the user can produce — the gesture becomes a dead key.
  */
-function reachableStart(node: NodeView, range: ContentRange): number {
+function reachableStart(inlines: readonly InlineNode[], range: ContentRange): number {
 	const firstVisible = (nodes: readonly InlineNode[], at: number): number => {
 		for (const child of nodes) {
 			const content = child.start === at ? constructContentRange(child) : null;
@@ -217,7 +218,7 @@ function reachableStart(node: NodeView, range: ContentRange): number {
 		}
 		return at;
 	};
-	return firstVisible(getInlineContent(node), range.start);
+	return firstVisible(inlines, range.start);
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────

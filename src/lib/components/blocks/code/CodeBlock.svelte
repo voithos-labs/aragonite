@@ -142,6 +142,8 @@
 		events: editorEvents,
 		getFocusOffset,
 		getTextLen,
+		// `supportsInline: false`: a fence's bytes are code, so there is no hidden run to clear.
+		getInlines: () => [],
 		readText,
 		// Hands back the caret the RECONCILED bytes want: the write seam can grow the
 		// fence or drop a character, either of which moves the caret off the DOM's.
