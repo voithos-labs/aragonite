@@ -57,20 +57,24 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 	// the deleted SPAN's, not the caret's — the engine deletes from where the byte is, so the last
 	// content character at either end is destructive one press before the edge. With no run beside
 	// the cut the press stays with the engine, which owns grapheme and IME behavior.
-	const cut = expandThroughEmptied(constructs, target);
+	const plain = expandThroughEmptied(constructs, target);
 	const native = nativeCut(caret, direction);
 	const touchesHiddenRun =
 		isDelimiterByte(constructs, target.start - 1) || isDelimiterByte(constructs, target.end);
-	if (!touchesHiddenRun && cut.start === native.start && cut.end === native.end) return null;
+	if (!touchesHiddenRun && plain.start === native.start && plain.end === native.end) return null;
 
-	const raw = display.slice(0, cut.start) + display.slice(cut.end);
+	const before = visibleText(display);
 	const removed = target.atomic
 		? renderedText([target.atomic], display)
 		: display.slice(target.start, target.end);
-	if (!removesExactly(visibleText(display), visibleText(raw), removed)) return { swallow: true };
-	// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
-	// only moves when it swallowed delimiters ahead of it.
-	return { raw, caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start) };
+	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
+		const raw = display.slice(0, cut.start) + display.slice(cut.end);
+		if (!removesExactly(before, visibleText(raw), removed)) continue;
+		// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
+		// only moves when it swallowed delimiters ahead of it.
+		return { raw, caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start) };
+	}
+	return { swallow: true };
 }
 
 // ── The cut ──────────────────────────────────────────────────────────────────
@@ -131,6 +135,19 @@ function isHighSurrogate(display: string, at: number): boolean {
 function isLowSurrogate(display: string, at: number): boolean {
 	const code = display.charCodeAt(at);
 	return code >= 0xdc00 && code <= 0xdfff;
+}
+
+/**
+ * The second reading of a press whose plain cut does not parse back: take the delimiter runs the
+ * cut now sits between with it, which is the "these two constructs become one" a reader sees when
+ * the character between them goes. Verified like any other candidate — the runs are invisible, so
+ * a sound widening changes nothing on screen beyond the character itself.
+ */
+function widenThroughRuns(constructs: readonly PolicyConstruct[], cut: Span): Span {
+	let { start, end } = cut;
+	while (isDelimiterByte(constructs, start - 1)) start--;
+	while (isDelimiterByte(constructs, end)) end++;
+	return { start, end };
 }
 
 /** A pair left around nothing is invisible residue, so a construct the cut empties goes with it —

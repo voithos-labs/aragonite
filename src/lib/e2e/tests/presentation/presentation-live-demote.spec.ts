@@ -17,17 +17,25 @@ const DOC = [
 	'',
 	'## **B** head',
 	'',
+	'## [B][r] head',
+	'',
+	'[B][r] tail',
+	'',
 	'Setext',
 	'======',
 	'',
-	'plain'
+	'plain',
+	'',
+	'[r]: https://example.com'
 ].join('\n');
 
 const HEADING = 0;
 const FOLLOWER = 1;
 const INDENTED = 2;
 const CONSTRUCT_LED = 3;
-const SETEXT = 4;
+const REFERENCE_LED = 4;
+const REFERENCE_PARA = 5;
+const SETEXT = 6;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
@@ -90,6 +98,29 @@ test.describe('live mode — Backspace at a heading’s content start demotes be
 		await ep.bridge.waitForSourceContains('**B** head');
 		await ep.bridge.waitForSourceNotContains('## **B** head');
 		expect(await ep.bridge.getBlockKind(CONSTRUCT_LED)).toBe('paragraph');
+	});
+
+	// A reference construct is only a construct once the document's definitions resolve it: read
+	// without them `[B][r]` is plain text and the bound never clears its hidden `[`.
+	test('a heading opening with a reference link demotes', async ({ page }) => {
+		await clickBlockSettled(ep, REFERENCE_LED);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.press('Backspace');
+		await ep.bridge.waitForSourceContains('\n[B][r] head');
+		await ep.bridge.waitForSourceNotContains('## [B][r] head');
+		expect(await ep.bridge.getBlockKind(REFERENCE_LED)).toBe('paragraph');
+	});
+
+	// The same bound on a kind that declares no demote: the press has to reach the cascade.
+	test('a paragraph opening with a reference link still merges', async ({ page }) => {
+		await clickBlockSettled(ep, REFERENCE_PARA);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.press('Backspace');
+		await ep.bridge.waitForSourceContains('## [B][r] head[B][r] tail');
 	});
 
 	// Setext keeps its structure as a trailing underline, so the same declaration has to reach the

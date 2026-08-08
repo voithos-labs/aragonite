@@ -18,13 +18,16 @@ const DOC = [
 	'first line\\',
 	'second line',
 	'',
-	'**a *b*** z'
+	'**a *b* c**',
+	'',
+	'**a** **b**'
 ].join('\n');
 
 const BOLD = 0;
 const TINY_BOLD = 1;
 const ESCAPE = 2;
 const UNSOUND = 4;
+const TWO_BOLDS = 5;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
@@ -71,7 +74,7 @@ test.describe('live mode — a destructive key at a hidden run takes what the re
 		await page.keyboard.press('Backspace');
 		await ep.bridge.waitForSourceContains('\n tail');
 		await ep.bridge.waitForSourceNotContains('****');
-		await ep.bridge.waitForSourceNotContains('**b**');
+		await ep.bridge.waitForSourceNotContains('**b** tail');
 
 		await ep.undo();
 		await ep.bridge.waitForSourceContains('**b** tail');
@@ -100,23 +103,39 @@ test.describe('live mode — a destructive key at a hidden run takes what the re
 	});
 });
 
-// Markdown cannot express bold with a trailing space, so emptying the emphasis in `**a *b***`
-// has no sound rewrite. Handing the press back is not neutral — native makes it `**a  z`, both
-// constructs destroyed and the stars on screen — so the arm takes the key and writes nothing.
-test.describe('live mode — a press with no sound rewrite takes nothing', () => {
+// Two readings of the same press, and the arm takes whichever one parses back. Deleting the
+// character between two bold words joins them; deleting the one before a nested construct has no
+// reading at all, and handing THAT press to the engine destroys both constructs.
+test.describe('live mode — the widened cut, and the press with no reading at all', () => {
+	test('deleting the space between two bold words joins them', async ({ page }) => {
+		const ep = await enterMode(page, 'live');
+		await clickBlockSettled(ep, TWO_BOLDS);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		await stepTo(ep, page, 'ArrowRight', 3);
+
+		await page.keyboard.press('Delete');
+		await ep.bridge.waitForSourceContains('**ab**');
+		await ep.bridge.waitForSourceNotContains('****');
+
+		const block = ep.getBlock(TWO_BOLDS);
+		await expect(block).toHaveText('ab', { useInnerText: true });
+		await expect(block.locator('strong')).toHaveText('ab', { useInnerText: true });
+	});
+
 	test('Backspace that could only surface delimiters leaves the bytes alone', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await clickBlockSettled(ep, UNSOUND);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
-		await stepTo(ep, page, 'ArrowRight', 6);
+		await stepTo(ep, page, 'ArrowRight', 3);
 		const before = await ep.bridge.getSource();
 
 		await page.keyboard.press('Backspace');
 		await ep.waitForNoSourceMutation();
 
 		expect(await ep.bridge.getSource()).toBe(before);
-		await expect(ep.getBlock(UNSOUND)).toHaveText('a b z', { useInnerText: true });
+		await expect(ep.getBlock(UNSOUND)).toHaveText('a b c', { useInnerText: true });
 	});
 });
 

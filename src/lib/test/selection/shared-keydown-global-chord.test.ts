@@ -34,6 +34,7 @@ function makeCtx(): SharedKeydownContext {
 		getEl: () => el,
 		getCursorOffset: () => 0,
 		getFocusOffset: () => null,
+		getInlines: () => [],
 		getTextLen: () => 0,
 		getMyPath: () => [0],
 		getIndex: () => 0,

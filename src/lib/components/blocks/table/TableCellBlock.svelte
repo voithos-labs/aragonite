@@ -233,6 +233,7 @@
 		events: editorEvents,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
+		getInlines: () => resolvedInlineContent(node, linkRef),
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		// `saved` re-focuses if the edit remounts the cell, so it is reported through

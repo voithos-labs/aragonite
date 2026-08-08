@@ -143,6 +143,19 @@ describe('a rewrite the parser would not read back takes nothing', () => {
 		expect(del('**a *b*** z', 6)).toEqual({ swallow: true });
 	});
 
+	// Deleting the space between two bold words leaves `**a****b**`, which renders `a****b` — but
+	// the press has a second reading the reader would call obvious: the two constructs become one.
+	// Widening the cut through the runs it now sits between is that reading, and it parses back.
+	it('widens the cut through the flanking runs where that reads back', () => {
+		expect(del('**a** **b**', 3, 'forward')).toEqual({ raw: '**ab**', caret: 3 });
+	});
+
+	// The same widening on a shape with no sound reading at all still ends in a swallow: `*b* c**`
+	// surfaces the stars just as `** *b* c**` does.
+	it('swallows when neither the cut nor the widened cut reads back', () => {
+		expect(del('**a *b* c**', 3)).toEqual({ swallow: true });
+	});
+
 	// A swallow is a claim, so it must not spread past the presses this arm owns: with no run
 	// beside the cut the engine is right and the press is not ours to take.
 	it('still declines a press it does not own', () => {

@@ -226,6 +226,7 @@
 			return toClampedRawOffset(content, ambientLength);
 		},
 		getTextLen: () => liveDisplayLength(),
+		getInlines: () => resolvedInlineContent(node, linkRef),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
@@ -444,6 +445,12 @@
 		return el ? caretContentBounds(sharedCtx, el) : { start: 0, end: liveDisplayLength() };
 	}
 
+	/** Whether this block keeps structure past its content that the mode paints nothing for — the
+	 *  setext underline a join would concatenate into view. */
+	function hidesStructuralSuffix(): boolean {
+		return !!el && revealsNoMarkers(el) && getContentRange(node).end < liveDisplayLength();
+	}
+
 	/** The structural bytes this press gives up before any merge — a declared kind's, in a mode
 	 *  that paints none of them. Null everywhere else, and the cascade takes the press. */
 	function demoteBeforeMerge(offset: number): TextEditResult | null {
@@ -502,7 +509,11 @@
 				};
 			case 'block.mergeNext':
 				return {
-					applies: () => offset >= caretBounds().end && !hasSelectionHelper(),
+					// A block whose own structure sits AFTER its content cannot absorb the next one
+					// without surfacing it (§ 4.5). The keydown dispatch consumes that press; this is
+					// the same rule for the callers that never pass through it.
+					applies: () =>
+						offset >= caretBounds().end && !hasSelectionHelper() && !hidesStructuralSuffix(),
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'format.toggleStrong':
