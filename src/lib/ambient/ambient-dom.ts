@@ -4,6 +4,7 @@
  */
 
 import type { AmbientPrefix } from '../block-component';
+import { isHiddenMarkerText } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
@@ -63,9 +64,11 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 	if (!span) return false;
 	const range = document.createRange();
 	// Prefer the first text node after the span so visual-line geometry returns real rects;
-	// setStartAfter yields a collapsed range with no textbox in empty-item state.
+	// setStartAfter yields a collapsed range with no textbox in empty-item state. A hidden
+	// marker run next to the span is not that text node — it paints nothing, and descending
+	// into it would seat raw 0 inside unpainted bytes.
 	const textAfter = firstTextNodeAfter(span);
-	if (textAfter) {
+	if (textAfter && !isHiddenMarkerText(textAfter, blockEl)) {
 		range.setStart(textAfter, 0);
 	} else {
 		range.setStartAfter(span);
