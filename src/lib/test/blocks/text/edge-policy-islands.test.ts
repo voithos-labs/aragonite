@@ -22,6 +22,7 @@ import {
 } from '$lib/perf/instruments';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode, InlineNode } from '$lib/core/nodes';
+import { makePendingMarks } from '$lib/test/harness/editor-actions';
 
 interface Harness {
 	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
@@ -62,7 +63,8 @@ function islandDeps(
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
-		getEdgeAffinity: () => null
+		getEdgeAffinity: () => null,
+		pendingMarks: makePendingMarks()
 	};
 }
 

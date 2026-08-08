@@ -8,6 +8,12 @@
 
 import { parseInline } from '../../../core/inline';
 import type { InlineNode } from '../../../core/nodes';
+import type { InlineMarkKind } from '../../../cursor/pending-marks';
+
+/** The delimiter run that opens and closes a construct of this kind. */
+export function markersFor(format: InlineMarkKind): string {
+	return format === 'strong' ? '**' : '*';
+}
 
 export interface ToggleInlineFormatResult {
 	newDisplay: string;
@@ -17,7 +23,7 @@ export interface ToggleInlineFormatResult {
 
 // Exactly one span covering the whole slice, so the strip branch can't orphan markers
 // on a multi-span selection like `**a** **b**`.
-function isSingleSpanOf(slice: string, format: 'strong' | 'emphasis'): boolean {
+function isSingleSpanOf(slice: string, format: InlineMarkKind): boolean {
 	const nodes = parseInline(slice, 0, slice.length);
 	return (
 		nodes.length === 1 &&
@@ -34,7 +40,7 @@ function formatSpanEncloses(
 	display: string,
 	start: number,
 	end: number,
-	format: 'strong' | 'emphasis',
+	format: InlineMarkKind,
 	mLen: number
 ): boolean {
 	const covers = (nodes: InlineNode[]): boolean =>
@@ -51,7 +57,7 @@ function formatSpanEncloses(
 function innermostFormatSpanAt(
 	display: string,
 	caret: number,
-	format: 'strong' | 'emphasis',
+	format: InlineMarkKind,
 	mLen: number
 ): { start: number; end: number } | null {
 	let found: { start: number; end: number } | null = null;
@@ -70,7 +76,7 @@ function innermostFormatSpanAt(
 function toggleAtCaret(
 	display: string,
 	caret: number,
-	format: 'strong' | 'emphasis',
+	format: InlineMarkKind,
 	markers: string,
 	mLen: number
 ): ToggleInlineFormatResult {
@@ -109,9 +115,9 @@ function toggleAtCaret(
 export function toggleInlineFormat(
 	display: string,
 	selection: { start: number; end: number },
-	format: 'strong' | 'emphasis'
+	format: InlineMarkKind
 ): ToggleInlineFormatResult {
-	const markers = format === 'strong' ? '**' : '*';
+	const markers = markersFor(format);
 	const mLen = markers.length;
 	const { start, end } = selection;
 	if (start === end) return toggleAtCaret(display, start, format, markers, mLen);

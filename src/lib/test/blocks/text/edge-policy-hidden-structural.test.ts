@@ -15,6 +15,7 @@ import { parse } from '$lib/core/parser';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
+import { makePendingMarks } from '$lib/test/harness/editor-actions';
 
 interface Harness {
 	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
@@ -55,7 +56,8 @@ function mount(source: string, mode?: string): Harness {
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => false,
-		getEdgeAffinity: () => null
+		getEdgeAffinity: () => null,
+		pendingMarks: makePendingMarks()
 	};
 	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
 }

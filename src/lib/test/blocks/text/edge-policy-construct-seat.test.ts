@@ -16,6 +16,7 @@ import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import type { BlockEditActions } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
+import { makePendingMarks } from '$lib/test/harness/editor-actions';
 
 interface Harness {
 	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
@@ -62,7 +63,8 @@ function mount(
 		isRevealing: () => false,
 		enterWidget: () => {},
 		isReading: () => isReading,
-		getEdgeAffinity: () => affinity
+		getEdgeAffinity: () => affinity,
+		pendingMarks: makePendingMarks()
 	};
 	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
 }

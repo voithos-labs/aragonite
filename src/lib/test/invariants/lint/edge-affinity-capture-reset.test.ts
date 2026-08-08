@@ -1,9 +1,11 @@
 /**
- * G4.31 — the affinity reaches every seam the sticky column does. Both are ephemeral caret
- * state with the same lifetime: an arrival sets them, a commit invalidates them. The sticky
- * column paid for that rule at N−1 of N sites (G2.10), so the affinity inherits it as a scan
- * rather than at the next audit — a new `stickyColumn.reset()` beside no affinity clear leaks
- * a side across an edit, which the typing seat then spends on the wrong byte.
+ * G4.31 — the affinity reaches every sticky seam, and the pending marks every affinity seam.
+ * All three are ephemeral caret state with one lifetime: an arrival sets them, a commit
+ * invalidates them. The column paid for that parity at N−1 of N sites (G2.10), so the affinity
+ * inherits it as a scan — a `stickyColumn.reset()` beside no affinity clear leaks a side the
+ * typing seat then spends on the wrong byte. The MARKS ride one rung higher: one construction
+ * composes them onto the affinity's invalidation, so the third axis pins that composition and
+ * fails on the first clear written at a seam of their own.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,6 +17,9 @@ const STICKY_NOTE_KEY_RE = /\bstickyColumn\.noteKey\s*\(/g;
 // is the same invalidation the column's reset performs, so it counts as the pair.
 const AFFINITY_CLEAR_RE = /\bedgeAffinity\.(reset|noteTyping)\s*\(/g;
 const AFFINITY_NOTE_RE = /\bedgeAffinity\.note\s*\(/g;
+const MARKS_CLEAR_CALL_RE = /\bpendingMarks\.reset\s*\(/g;
+const MARKS_COMPOSITION_RE = /onInvalidate:\s*pendingMarks\.reset\b/g;
+const MARKS_SPEND_RE = /\bpendingMarks\.consume\s*\(/g;
 
 /**
  * Files where the affinity legitimately runs BEHIND the column, each saying why. Empty by
@@ -86,6 +91,45 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		]);
 	});
 
+	// ── Third axis: the marks ride the affinity, they do not copy it ──────────
+
+	it('exactly one site composes the marks onto the affinity’s invalidation', () => {
+		const composers = sources
+			.filter((f) => count(f.code, MARKS_COMPOSITION_RE) > 0)
+			.map((f) => f.relPath);
+		expect(
+			composers,
+			'the marks clear at every affinity seam because ONE construction composes them there — ' +
+				'a second composer means two lifetimes, none means the marks survive a caret move'
+		).toEqual(['src/lib/components/Editor.svelte']);
+	});
+
+	it('no module clears the marks at a seam of its own', () => {
+		const offenders = sources
+			.filter((f) => count(f.code, MARKS_CLEAR_CALL_RE) > 0)
+			.map((f) => `${f.relPath}: ${count(f.code, MARKS_CLEAR_CALL_RE)} pendingMarks.reset()`);
+		expect(
+			offenders,
+			'a pendingMarks.reset() call site is seam copy N+1 — the composition above already ' +
+				'clears at every affinity seam, so a hand-written clear can only fall out of parity'
+		).toEqual([]);
+	});
+
+	it('the marks are spent at the seats that write bytes, and nowhere else', () => {
+		const spenders = sources
+			.filter((f) => count(f.code, MARKS_SPEND_RE) > 0)
+			.map((f) => f.relPath)
+			.sort();
+		expect(
+			spenders,
+			'a set spent outside a byte-writing seat is a promise dropped with nothing written'
+		).toEqual([
+			'src/lib/components/blocks/table/TableCellBlock.svelte',
+			'src/lib/components/blocks/text/TextEditableBlock.svelte',
+			'src/lib/components/blocks/text/edge-policy-dispatch.ts'
+		]);
+	});
+
 	it('every exception entry names a file that still exists (no dead entry)', () => {
 		const known = new Set(sources.map((f) => f.relPath));
 		for (const relPath of [...Object.keys(CLEAR_EXCEPTIONS), ...Object.keys(CAPTURE_EXCEPTIONS)]) {
@@ -144,5 +188,15 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		expect(count('edgeAffinity.reset();', AFFINITY_CLEAR_RE)).toBe(1);
 		expect(count('edgeAffinity.note(e);', AFFINITY_CLEAR_RE)).toBe(0);
 		expect(count('stickyColumn.capture(x);', STICKY_RESET_RE)).toBe(0);
+	});
+
+	// The composition passes the reset as a VALUE; only a call is the copy-N+1 shape.
+	it('the marks matchers tell the composition from a hand-written clear', () => {
+		const composed = 'createEdgeAffinityState({ onInvalidate: pendingMarks.reset });';
+		expect(count(composed, MARKS_COMPOSITION_RE)).toBe(1);
+		expect(count(composed, MARKS_CLEAR_CALL_RE)).toBe(0);
+		expect(count('pendingMarks.reset();', MARKS_CLEAR_CALL_RE)).toBe(1);
+		expect(count('deps.pendingMarks.consume();', MARKS_SPEND_RE)).toBe(1);
+		expect(count('pendingMarks.toggle(format);', MARKS_SPEND_RE)).toBe(0);
 	});
 });

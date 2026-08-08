@@ -28,12 +28,13 @@
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import { toggleInlineFormat } from './format-toggle';
+	import type { InlineMarkKind } from '../../../cursor/pending-marks';
 	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
-	import { createCompositionSeat } from './edge-seat';
+	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../invariants/assert';
 	import { widgetElByStart } from './widget-adjacency';
@@ -101,6 +102,7 @@
 		pasteCoordinator,
 		stickyColumn,
 		edgeAffinity,
+		pendingMarks,
 		selection,
 		widgetSelection,
 		registryView,
@@ -336,14 +338,16 @@
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
-		getEdgeAffinity: () => edgeAffinity.get()
+		getEdgeAffinity: () => edgeAffinity.get(),
+		pendingMarks
 	});
 
 	// The same seat the keydown dispatch takes, for the one insertion a keydown cannot reach.
 	const compositionSeat = createCompositionSeat({
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, linkRef),
-		getAffinity: () => edgeAffinity.get()
+		getAffinity: () => edgeAffinity.get(),
+		consumePendingMarks: () => pendingMarks.consume()
 	});
 
 	const textRender = createTextRender({
@@ -760,11 +764,19 @@
 	// `range` is what the COMMAND read before it ran, and must not be re-read: a fold on
 	// the way in parks a caret that collapses the live selection, so the chord would find
 	// nothing to toggle. A collapsed range is the caret contract, not a bail.
-	function toggleFormat(
-		format: 'strong' | 'emphasis',
-		range: { start: number; end: number }
-	): void {
+	function toggleFormat(format: InlineMarkKind, range: { start: number; end: number }): void {
 		if (!el) return;
+
+		// Live paints no delimiter, so the byte-pair strategy's abandoned `****` would be
+		// invisible garbage the user can see the effect of but not explain: pend the mark and
+		// let the next insertion carry it instead (§ 4.3). Every other mode shows the pair.
+		if (presentationMode === 'live' && range.start === range.end) {
+			// The insertion that spends the mark starts its own undo entry, so it is never
+			// folded into the burst the chord interrupted.
+			controller.flushDebouncedCheckpoint();
+			pendingMarks.toggle(format);
+			return;
+		}
 
 		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
 			getDisplayText(),
@@ -772,7 +784,10 @@
 			format
 		);
 
-		blockEdit.updateBlockContent(index, newDisplay + trailingLineEnding(node.raw), newSelStart);
+		// A command is not typing: the toggle's bytes are their own undo step in every mode.
+		controller.isolateUndoEntry(() =>
+			blockEdit.updateBlockContent(index, newDisplay + trailingLineEnding(node.raw), newSelStart)
+		);
 
 		tick().then(() => {
 			setSelection(newSelStart, newSelEnd);

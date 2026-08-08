@@ -24,6 +24,7 @@
 	} from '../editor-keys';
 	import { createStickyColumnState } from '../cursor/sticky-column';
 	import { createEdgeAffinityState } from '../cursor/edge-affinity';
+	import { createPendingMarksState } from '../cursor/pending-marks';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
@@ -219,7 +220,10 @@
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const stickyColumn = createStickyColumnState();
-	const edgeAffinity = createEdgeAffinityState();
+	// Composed, not wired seam by seam: the marks are ephemeral caret state with the affinity's
+	// exact lifetime, so every door that invalidates the arrival side drops them by construction.
+	const pendingMarks = createPendingMarksState();
+	const edgeAffinity = createEdgeAffinityState({ onInvalidate: pendingMarks.reset });
 	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
@@ -712,6 +716,7 @@
 		search: searchState,
 		stickyColumn,
 		edgeAffinity,
+		pendingMarks,
 		revealAnchor,
 		widgetSelection,
 		controller,

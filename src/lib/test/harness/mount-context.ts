@@ -30,6 +30,7 @@ import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
 import {
 	makeStickyColumn,
 	makeEdgeAffinity,
+	makePendingMarks,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
@@ -64,10 +65,15 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		search: {} as EditorServices['search'],
 		stickyColumn: makeStickyColumn(),
 		edgeAffinity: makeEdgeAffinity(),
+		pendingMarks: makePendingMarks(),
 		revealAnchor: createRevealAnchorState(),
 		// Real: every keydown on an editable surface asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
-		controller: {} as EditorServices['controller'],
+		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
+		controller: {
+			flushDebouncedCheckpoint: () => {},
+			isolateUndoEntry: (write: () => void) => write()
+		} as EditorServices['controller'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
 		reorder: {} as EditorServices['reorder'],
 		reorderAnnounce: () => {},

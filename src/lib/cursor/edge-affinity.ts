@@ -30,23 +30,36 @@ export interface EdgeAffinityState {
 	reset(): void;
 }
 
-export function createEdgeAffinityState(): EdgeAffinityState {
+export interface EdgeAffinityDeps {
+	/**
+	 * Ephemeral caret state with this same lifetime rides the invalidation (pending marks,
+	 * `cursor/pending-marks.ts`). Composed rather than copied at each seam: a rule carried at
+	 * N call sites is the audit's dominant bug shape, and every seat below already reaches
+	 * exactly one of these three doors.
+	 */
+	onInvalidate?: () => void;
+}
+
+export function createEdgeAffinityState(deps: EdgeAffinityDeps = {}): EdgeAffinityState {
 	let affinity: EdgeAffinity | null = null;
+
+	function invalidate(next: EdgeAffinity | null): void {
+		affinity = next;
+		deps.onInvalidate?.();
+	}
 
 	const state: EdgeAffinityState = {
 		get: () => affinity,
-		noteTyping: () => {
-			affinity = 'near';
-		},
-		reset: () => {
-			affinity = null;
-		},
+		noteTyping: () => invalidate('near'),
+		reset: () => invalidate(null),
 		note: (e) => {
 			// Alt+Arrow is the block-reorder chord, not caret nav.
 			if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
 			const action = classifyArrivalKey(e.key);
+			// A preserved key left the caret where it was — the chord that pends a mark and the
+			// byte that spends it are both preserved, so neither may invalidate.
 			if (action === 'preserve') return;
-			affinity = action === 'reset' ? null : action;
+			invalidate(action === 'reset' ? null : action);
 		}
 	};
 

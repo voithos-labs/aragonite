@@ -621,6 +621,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		getDocScope,
 		captureCurrentState,
 		collapsedSelectionAt,
-		flushDebouncedCheckpoint: textBatch.interrupt
+		flushDebouncedCheckpoint: textBatch.interrupt,
+		isolateUndoEntry: (write) => {
+			// Both sides: the leading break makes the write push its own snapshot instead of
+			// joining the burst before it, the trailing one keeps the next keystroke out of it.
+			textBatch.interrupt();
+			write();
+			textBatch.interrupt();
+		}
 	};
 }
