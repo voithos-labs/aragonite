@@ -128,6 +128,13 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   down the same way — so a table or a callout below the selection survives as its own block
   instead of folding into the paragraph the delete left behind.
 
+- **Enter at the end of a soft-wrapped line no longer destroys the rest of the block.** A split
+  landing exactly on a line ending minted a blank line the user never typed and dropped every
+  line after it — the rest of the paragraph, a multi-line setext heading's underline, an HTML
+  block's closing lines — from the tree and the bytes both. The cut now steps past the ending
+  it lands on, and a split whose halves parse to more than two blocks splices them all in
+  instead of keeping the first and discarding the rest.
+
 - **Pasting into a table cell no longer splits the table when the text carries blank edge
   lines.** A copy that picked up an empty line above or below its text (a selection dragged past
   the paragraph's edges is the usual way) read as several blocks, and a cell holds no blocks, so
