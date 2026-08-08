@@ -35,7 +35,34 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    the natural candidate), port the plain-mode battery onto the real plugin and retire the memo
    fixture; until one does, memo remains plain mode's only consumer. The external-author gate at
    the freeze cut stays a separate box — the run probed discoverability, not external evidence.
-3. **Freeze cut at release** — in order:
+3. **Fully live mode — the fifth presentation rung.** Pulled forward from the post-1.0 sketch
+   (owner, 2026-08-08): the preview-inline beta cohort reports zero defects and asks for fully
+   live, which is the real-use data the entry's own gate demanded. Fully rendered while
+   editable — markers never visible, even in the focused construct. The single render path
+   carries the paint as it carried the other four rungs (marker visibility over the same
+   spans, never a second pipeline), and hidden marker runs join the one DOM↔raw offset walk
+   the way widget and ambient contributions already do. The genuinely new work is the editing
+   semantics the reveal hatch used to make unnecessary: a collapsed-caret formatting affinity
+   (the Mod+B/I toggle — the first stored-marks-shaped state in the editor, kept deliberately
+   minimal), construct-edge caret and unwrap-on-Backspace policy declared per construct family
+   at a choke point, and enrollment in the caret-door simulation families at birth (G2.12:
+   every caret-placing change is a data-loss candidate until proven otherwise). Gap-caret
+   scale: multi-wave, reviewed per wave. Shipping pre-freeze means `PresentationMode` freezes
+   with five rungs; the litmus's union-growth clause then guards the rungs after it.
+4. **Two hardening items from the 2026-08-08 assessment**, both before the freeze because each
+   is a class the session's defect discoveries kept paying into:
+   - **The separator-settle funnel.** Five seams hand-call the restore/drop door pair (the
+     #73/#96 class); a probe-based `settleSeparator` at the splice level closes the class
+     structurally and absorbs the container-match and absorb arms free. It was priced out of
+     the keystroke path once; the build carries the measurement that clears or re-prices that.
+     Validator: the becomes-blank sweep reads zero divergent outside #61's class, and the
+     hand-carried seam count drops to one.
+   - **Gate-visible warnings.** `devWarn` returns early under test and the e2e console watch
+     sees only `[invariant:` fires (#63), so every DEV-only guard is invisible to every gate —
+     the #98 caret-drift warn is the shipped example. Direction: a warn fails the unit run by
+     default behind an expected-warn allowlist, and the collector widens. Validator: #98's
+     warn class reds a gate the day it regresses.
+5. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (a structured review pass, matched to what changed since 2026-07) —
      audits before milestones, not after incidents. Most of the accumulated freeze-review
      pointers from the 2026-07 burn-down landed in the 2026-08 open-source prep (conformance
@@ -50,12 +77,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      no production reader today; with `RefSlots` public, either require the option and delete
      the wait path, or keep the registry as the documented fallback and say so at the type.
      The collision policy's consumer-facing half stays ledgered as #70. Also for the re-audit:
-     the separator-settle pattern now has five seams calling the restore/drop door pair by
-     hand (the #73 class); the probe-based `settleSeparator` funnel that would close the class
-     structurally was priced out of the keystroke path — re-price it at the audit, and unify
-     the family's parent types while there (`SeparatorParent` vs `BodyParentArg` is what forces
-     casts between adjacent calls; `mintSeparator` needs only `bodyStartFor(kind)`, which both
-     answer).
+     the separator family's parent types unified 2026-08-08 (`SeparatorParent` is the one
+     shape), and the `settleSeparator` funnel itself moved up to pre-1.0 item 4 rather than
+     riding here as a pointer.
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
@@ -125,10 +149,10 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      CSS construct-reveal over the existing marker spans, not marker islands). The caret-affinity
      contract shipped with 0.9.26 and dissolved to raw offsets + inclusive reveal edges — no
      stored-marks machinery; the litmus reads satisfied-by-construction at the cut, with the
-     reading-gate parity residual tracked as issue #38. A fifth rung is already sketched
-     (§ Fully live mode), so the litmus also verifies the union can GROW in a minor: no frozen
-     surface may demand exhaustiveness over `PresentationMode`, and non-exhaustive handling is
-     the documented consumer contract.
+     reading-gate parity residual tracked as issue #38. A fifth rung ships pre-freeze (item 3,
+     Fully live mode), so the union freezes at five; the litmus still verifies it can GROW in
+     a minor for any rung after it: no frozen surface may demand exhaustiveness over
+     `PresentationMode`, and non-exhaustive handling is the documented consumer contract.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only
@@ -337,17 +361,6 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 - **Render-primary authoring gaps** — both recorded walls shipped pre-1.0 (whole-block focus at 0.9.18; the command→component channel in the pre-1.0 hardening program). What remains here is second-round refinement against post-1.0 consumer feedback.
 - **The math render seam still carries no theme term** — the mermaid renderer took one pre-1.0 (a theme in its render context, a theme-keyed memo, a redraw on flip); the injected `MathRenderer` did not, and its memo key has no theme term either. Latent rather than live: the shipped KaTeX adapter emits CSS-styled markup that inherits the editor's colors, where a drawn diagram carries its own. An injected engine emitting color literals would repeat the mermaid case exactly. Direction: when a second engine asks, the math seam takes the shape the mermaid one already has rather than a second design.
 - **Per-rung editing policy for a borrowed built-in kind** — a rung that mints a built-in kind can re-serialize its own bytes (`rewriteImage`) but cannot give its own instances an editing behavior distinct from the built-in's. The caret-edge dispatch resolves policy by kind, so an Obsidian-style `![[embed]]` minted as an `image` necessarily edits like a GFM image: same edge policy, same delete granularity, same selected-key handling. The only lever today is `augmentInlineWidgetKind('image', …)`, which changes behavior for **every** image in the document, including ones the plugin never claimed. Direction: a claim-keyed policy lookup layered over the kind-keyed one (consult the node's syntax claim first, fall back to the kind), which preserves both key spaces instead of merging them, and is additive rather than breaking. Deliberately not taken pre-1.0: no consumer has asked, the layering is straightforward whenever one does, and the merged-facet alternative would break the built-in widget kinds (which carry policies and have no rung at all) to reach the same place.
-
-### Fully live mode (unscheduled; owner, 2026-08-07)
-
-A fifth presentation rung: fully rendered while editable — markers never visible, even in
-the focused construct (the Google-Docs feel). The single render path carries it the way it
-carried the other four (marker visibility over the same spans, never a second pipeline), but
-it reopens the class the inline-granular rung dissolved by revealing at the caret: with every
-marker hidden, a caret at a construct boundary has no visible anchor for which side of the
-hidden syntax a keystroke lands on — the caret-affinity problem returns in full. Decide
-against preview-inline's real-use data, not on paper; the presentation-mode freeze litmus's
-union-growth clause is what lets the rung ship in a minor.
 
 ### 1.3 — Beyond-GFM (as plugins)
 
