@@ -13,8 +13,10 @@ import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path
 import { firstLeafAtOrAfter } from './path-lookup';
 import {
 	blockNodeAt,
+	nodeAt,
 	normalizeBodyWrite,
 	normalizeOwnRaw,
+	settleSeparatorOnBlank,
 	writeOwnRaw
 } from '../tree-operations/node-ops';
 import {
@@ -102,6 +104,10 @@ export function rangeDelete(
 		// No reparse on this arm, so the survivor's own grammar answers here: a join can mint
 		// a line the kind reads as its terminator (a fence run in a code body).
 		writeOwnRaw(owned, mergedRaw, grammar);
+		// Ahead of the rebuild, which reads the body's trivia: a selection covering a block's whole
+		// text leaves it blank, and a blank block is the separating line of the one below it.
+		const parent = nodeAt(doc, start.path.slice(0, -1));
+		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
 		rebuildUnsharedChain(doc, chain, sharing, grammar);
 		return {
 			newDoc: doc,

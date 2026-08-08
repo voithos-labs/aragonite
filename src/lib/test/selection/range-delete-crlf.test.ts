@@ -9,17 +9,24 @@ import { createSharingState } from '../../tree-operations/sharing';
 import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
-	return serialize(rangeDelete(parse(source), start, end, createSharingState(), undefined).newDoc);
+	const doc = rangeDelete(parse(source), start, end, createSharingState(), undefined).newDoc;
+	// The minted paragraph is a blank line, so its own separator settles with the rest of the run —
+	// bytes alone would pass on a shape that reloads one empty paragraph wider (GH #96).
+	expectParseConverged(doc);
+	return serialize(doc);
 }
 
 describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => {
+	// The survivor is the document's first line now, and a head run separates from nothing: the
+	// second blank line the delete used to leave reloaded as an empty paragraph of its own.
 	it('generic prose branch', () => {
 		expect(
 			run('aaa\r\n\r\nbbb\r\n\r\nccc\r\n', { path: [0], offset: 0 }, { path: [1], offset: 3 })
-		).toBe('\r\n\r\nccc\r\n');
+		).toBe('\r\nccc\r\n');
 	});
 
 	it('generic prose branch, whole document', () => {

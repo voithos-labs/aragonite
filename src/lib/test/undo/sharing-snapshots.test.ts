@@ -106,4 +106,37 @@ describe('structural-sharing snapshots', () => {
 		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n> x\n>\n> delta\n');
 		expect(shared.leadingTrivia).toBe('');
 	});
+
+	// GH #96: the reverse transition takes a separator BACK, and the run member giving it up can
+	// sit two slots below the block the gesture names — the widest reach any settle has.
+	// Miss-analysis: the #73 cases pinned a write to the immediate follower, so a settle that
+	// walked further would have shipped its bystander writes unshared.
+	it('emptying a block unshares the run member two slots below it', async () => {
+		const { deps, controller } = makeHarness('Hello\n\nSecond\n');
+		const actions = createBlockEditActions(deps, controller);
+		await actions.splitBlock(0, 5);
+		await actions.splitBlock(1, 0);
+		await actions.updateBlockContent(1, 'x\n');
+		controller.pushUndoSnapshot(1, 0);
+		const shared = deps.undoManager.getStacks().undo.at(-1)!.snapshot.children[3];
+		expect(shared.leadingTrivia).toBe('\n');
+
+		await actions.updateBlockContent(1, '\n');
+
+		expect(serialize(deps.doc)).toBe('Hello\n\n\n\nSecond\n');
+		expect(shared.leadingTrivia).toBe('\n');
+		expect(deps.doc.children[3]).not.toBe(shared);
+	});
+
+	it('emptying a block inside a container unshares the follower it settles', async () => {
+		const h = makeNestedHarness('> alpha\n>\n> x\n>\n> delta\n', { index: 0 });
+		h.controller.pushUndoSnapshot(0, 0);
+		const shared = h.deps.undoManager.getStacks().undo[0].snapshot.children[0].children![2];
+		expect(shared.leadingTrivia).toBe('\n');
+
+		await h.bundle.blockEdit.updateBlockContent(1, '\n', 1);
+
+		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n>\n> delta\n');
+		expect(shared.leadingTrivia).toBe('\n');
+	});
 });
