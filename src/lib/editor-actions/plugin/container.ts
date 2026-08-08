@@ -290,6 +290,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const {
 		controller,
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		reorder,
 		events: editorEvents,
@@ -472,10 +473,11 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const moveFocusOut = (e: KeyboardEvent): boolean => {
 		if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false;
-		// Classified through the door before the move (G2.10). A plugin editable exposes no
-		// caret X to measure, so a vertical exit carries the column it arrived with, exactly
-		// as a whole-block pass-through does.
+		// Classified through the doors before the move (G2.10 / G4.31). A plugin editable
+		// exposes no caret X to measure, so a vertical exit carries the column it arrived
+		// with, exactly as a whole-block pass-through does.
 		stickyColumn.noteKey(e);
+		edgeAffinity.note(e);
 		return focusAcrossBlockEdge(e.key, { getIndex: deps.getIndex, focus: parentFocus });
 	};
 
@@ -515,7 +517,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
 			isReading: () => reading,
-			stickyColumn
+			stickyColumn,
+			edgeAffinity
 		});
 	}
 

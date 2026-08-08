@@ -32,6 +32,7 @@
 	const {
 		reorder,
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		events: editorEvents
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -125,7 +126,8 @@
 			blockEdit,
 			focus: focusActions,
 			isReading,
-			stickyColumn
+			stickyColumn,
+			edgeAffinity
 		});
 	}
 </script>
