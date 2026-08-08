@@ -146,6 +146,12 @@ if (deadLinks.length > 0) {
 }
 
 const target = process.argv[2];
+// A dash-leading "target" is a mistyped flag, and writing it mints an invisible
+// directory (`--check/` shipped to main this way — every git command parses it as a flag).
+if (target?.startsWith('-')) {
+	console.error(`docs-pack: refusing target "${target}" — looks like a flag, not a directory`);
+	process.exit(1);
+}
 if (!target) {
 	console.log(`docs-pack: ${packNames.length} docs link-closed (${packNames.join(', ')})`);
 	console.log(`docs-links: ${corpusFiles.length} corpus docs, every relative link resolves`);
