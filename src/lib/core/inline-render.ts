@@ -417,6 +417,8 @@ export function renderInlineNodes(
  * The text a reader SEES for `nodes` — the rendered DOM minus every marker span. Lives here
  * because this file decides which bytes become markers (G4.30): any caller re-deriving that
  * would drift from what actually paints, which is the only thing the answer is worth anything as.
+ * Options change what paints, so an answer is comparable only with another taken under the same
+ * ones — a before/after pair under the defaults, which errs toward declining a rewrite.
  */
 export function renderedText(
 	nodes: InlineNode[],

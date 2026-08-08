@@ -21,7 +21,14 @@ import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(707707) } as const;
 
-const MARK_SUBSETS: InlineMarkKind[][] = [['strong'], ['emphasis'], ['strong', 'emphasis']];
+const MARK_SUBSETS: InlineMarkKind[][] = [
+	['strong'],
+	['emphasis'],
+	['strikethrough'],
+	['inlineCode'],
+	['strong', 'emphasis'],
+	['strikethrough', 'inlineCode']
+];
 
 /**
  * The DOM the block actually paints, read text node by text node with marker subtrees skipped.
@@ -79,6 +86,23 @@ function kindsCovering(raw: string, start: number, end: number): Set<string> {
 	const visit = (nodes: readonly InlineNode[]): void => {
 		for (const node of nodes) {
 			if (node.start > start || end > node.end) continue;
+			if (node.kind !== 'text') kinds.add(node.kind);
+			if (node.children) visit(node.children);
+		}
+	};
+	visit(parseInline(raw, 0, raw.length));
+	return kinds;
+}
+
+/**
+ * Every construct kind anywhere in the block. A flat census, sharing ZERO code with the resolver:
+ * not its chain walk, not the render path its own check reads. That independence is the point — a
+ * rewrite can satisfy both of those and still have eaten a construct somewhere else.
+ */
+function kindsPresent(raw: string): Set<string> {
+	const kinds = new Set<string>();
+	const visit = (nodes: readonly InlineNode[]): void => {
+		for (const node of nodes) {
 			if (node.kind !== 'text') kinds.add(node.kind);
 			if (node.children) visit(node.children);
 		}
@@ -207,6 +231,35 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 					);
 					expect(result.raw.slice(result.caret - 1, result.caret)).toBe('X');
 					expect(result.caret).toBeLessThanOrEqual(result.raw.length);
+				}
+			),
+			PARAMS
+		);
+	});
+
+	it('no construct kind vanishes from the block', () => {
+		fc.assert(
+			fc.property(
+				arbInlineSource,
+				fc.nat(),
+				fc.constantFrom(...MARK_SUBSETS),
+				(display, caretPick, marks) => {
+					const stops = caretPositions(display);
+					const caret = stops[caretPick % stops.length];
+					const result = resolveMarkedInsertion(
+						display,
+						caret,
+						'X',
+						new Set(marks),
+						parseInline(display, 0, display.length)
+					);
+					if (result === null) return;
+
+					// A rewrite splits and reopens constructs; it never spends one. A kind that was in
+					// the block and is not in it afterwards was destroyed by the splice.
+					const after = kindsPresent(result.raw);
+					const lost = [...kindsPresent(display)].filter((kind) => !after.has(kind));
+					expect(lost, `${JSON.stringify(display)} → ${JSON.stringify(result.raw)}`).toEqual([]);
 				}
 			),
 			PARAMS

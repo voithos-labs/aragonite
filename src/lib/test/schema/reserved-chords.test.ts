@@ -37,6 +37,12 @@ describe('collectReservedChords — sources', () => {
 		);
 	});
 
+	// A keymap-declared chord needs no manifest edit — the registry tier reports it. The two
+	// newest toggles are the standing proof that the tier, not a hand-kept list, is the source.
+	it('picks up a chord from the kind keymaps alone', () => {
+		expect([...chords()]).toEqual(expect.arrayContaining(['Mod+Shift+X', 'Mod+E']));
+	});
+
 	it('includes chords claimed outside every keymap', () => {
 		// Whole-block clipboard, document-edge extend, and the table context menu — none of
 		// these resolve through a keymap, so only the manifest can report them.

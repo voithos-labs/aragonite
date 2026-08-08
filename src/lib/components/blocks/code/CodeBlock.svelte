@@ -420,6 +420,8 @@
 		switch (id) {
 			case 'format.toggleStrong':
 			case 'format.toggleEmphasis':
+			case 'format.toggleStrikethrough':
+			case 'format.toggleCode':
 				return true; // code blocks don't format-toggle; swallow to stop the browser default
 			case 'code.newline':
 				return codeNewline();

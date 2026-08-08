@@ -43,12 +43,13 @@ contradicted it — the row below is what would have.
 - a click clears the mark, the same way it clears the arrival side
 
 - a mark markdown cannot express at this caret writes NOTHING: where no candidate parses back to
-  what was asked — an escape that would have to cut a link or a code span open, or a wrap whose
-  delimiters would merge with the run beside them — the byte types plain rather than showing a
-  delimiter. § 1's "markers are never visible" outranks the toggle taking effect
+  what was asked — an escape that would have to cut a link open, or a wrap whose delimiters would
+  merge with the run beside them — the byte types plain rather than showing a delimiter. § 1's
+  "markers are never visible" outranks the toggle taking effect
 - a mark applied inside a URL declines the same way: an autolink is one childless span, so a
   wrap inside it destroys the link and paints the angle brackets it was hiding. The byte types
-  plain, the link survives, and marking on either side of the URL still works
+  plain — the same bytes plain typing would write — and marking on either side of the URL still
+  works
 
 ## IME commits
 

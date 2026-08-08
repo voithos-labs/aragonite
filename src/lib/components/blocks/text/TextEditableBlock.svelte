@@ -20,7 +20,7 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { isProseKind } from '../../../core/inline';
+	import { getContentRange, isProseKind } from '../../../core/inline';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -471,6 +471,12 @@
 				return always(() => toggleFormat('strong', selected ?? { start: offset, end: offset }));
 			case 'format.toggleEmphasis':
 				return always(() => toggleFormat('emphasis', selected ?? { start: offset, end: offset }));
+			case 'format.toggleStrikethrough':
+				return always(() =>
+					toggleFormat('strikethrough', selected ?? { start: offset, end: offset })
+				);
+			case 'format.toggleCode':
+				return always(() => toggleFormat('inlineCode', selected ?? { start: offset, end: offset }));
 			case 'heading.cycle':
 				return always(() => {
 					// `arg` is untrusted `unknown` from the widened keybinding channel: an
@@ -780,6 +786,7 @@
 
 		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
 			getDisplayText(),
+			getContentRange(node),
 			range,
 			format
 		);

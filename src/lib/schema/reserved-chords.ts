@@ -206,17 +206,21 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'B',
 			'Backspace',
 			'Delete',
+			'E',
 			'End',
 			'Enter',
 			'Escape',
 			'Home',
 			'I',
 			'Tab',
+			'X',
 			'a',
 			'b',
-			'i'
+			'e',
+			'i',
+			'x'
 		],
-		note: 'The Mod+B/I and Mod+0-6 tests here only route a chord to the merged command registry, which is where those bindings live.'
+		note: 'The format-toggle and Mod+0-6 tests here only route a chord to the merged command registry, which is where those bindings live. Mod+Shift+X takes an arm of its own: unshifted Mod+X is the whole-block cut.'
 	},
 	{
 		file: 'selection/cross-block/pointer.ts',

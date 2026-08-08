@@ -33,6 +33,8 @@ export const BLOCK_COMMAND_IDS = [
 	'block.moveDown',
 	'format.toggleStrong',
 	'format.toggleEmphasis',
+	'format.toggleStrikethrough',
+	'format.toggleCode',
 	'heading.cycle',
 	'code.newline',
 	'code.indent',
