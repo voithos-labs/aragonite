@@ -7,8 +7,11 @@ inside a construct CLOSES it before the cut and REOPENS it after, so each half s
 balanced construct of the same kind; a split link duplicates its destination into both halves;
 a cut at a construct's edge hands the construct over whole rather than mint an empty pair; and
 one `Mod+Z` puts the original block back. Where markdown cannot express a balanced pair the
-split falls back to the byte-literal cut — sound, and today's behavior. Driven on
-`/test/editor` via `?presentationMode=live` with real Enter keystrokes and a real `Mod+Z`; the
+split falls back to the byte-literal cut — sound, and today's behavior. Two measured shapes take
+that fallback and so still print their markers: a code span whose reopened fence would abut a
+backtick (` ` a`b `` ``), and every reference form (`[text][ref]`), whose definition the split
+seam has no resolver to reach. Driven on
+`/test/editor`via`?presentationMode=live`with real Enter keystrokes and a real`Mod+Z`; the
 SOURCE is the oracle, since a hidden delimiter and an absent one look identical on screen.
 
 ## Happy paths
@@ -31,6 +34,9 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
   that pixel to the construct's OUTER start, so no real gesture reaches the offset where an empty
   pair could be minted — the model-level guard still has to exist, since a plugin can address it
 - Enter outside every construct is unchanged by the mode: the bytes cut where the caret is
+- a cut that would leave a delimiter run against whitespace moves the SPACE outside the run rather
+  than kill the construct: `**a *|ital* b**` gives `**a** ` and `***ital* b**`, which read
+  identically on screen and parse back, where the literal `**a **` would print its stars
 - source mode is unaffected: the same gesture over the same bytes splits byte-literally, because
   there the delimiters are painted and the user aimed at them
 
@@ -41,6 +47,18 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
 - Undo is a real `Mod+Z`, never a programmatic history call
 - No composition interaction exists to test: Enter cancels an IME composition before the split
   command runs, so the rewrite never sees composed bytes
+
+## Known defects
+
+- Enter then Backspace does NOT round-trip: merging the halves back writes the closing and the
+  reopening run adjacent, so `Some **bo|ld** text` comes back as `Some **bo****ld** text` and
+  gains another pair on every repeat; a split link comes back as TWO anchors sharing one
+  destination (`Visit [exam](u)[ple](u) here`). § 4.4 declares that residue unrepresentable in
+  live editing, and the byte-literal split merges back clean, so this is a regression the rewrite
+  introduced. The rewrite is not the wrong half of it: the join seam has no per-family cleanup yet
+  (§ 4.5), so a merge writes whatever the two halves carry. OWNED BY THE JOIN-SEAM TASK (Task 12);
+  pinned here as `test.fail()` rows asserting the CORRECT bytes, which turn red the day that fix
+  lands and force the annotation off
 
 ## Error cases
 

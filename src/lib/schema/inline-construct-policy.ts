@@ -95,10 +95,17 @@ export function getLiveSplitRebalancer(): LiveSplitRebalancer | undefined {
 	return splitRebalancer;
 }
 
-/** Test-only. Drops every plugin-registered row and the rebalancer; built-in rows survive. */
+/** Test-only. Drops every plugin-registered row; built-in rows survive, and so does the
+ *  rebalancer — it is a built-in registration, and dropping it silently retired live splits
+ *  for every suite that reset between cases. */
 export function __resetInlineConstructPoliciesForTests(): void {
 	for (const kind of policies.keys()) {
 		if (!isBuiltinInlineKind(kind)) policies.delete(kind);
 	}
+}
+
+/** Test-only, and separate on purpose: only a suite testing the SLOT wants it emptied, and the
+ *  registry's own reset must not do it as a side effect. */
+export function __resetLiveSplitRebalancerForTests(): void {
 	splitRebalancer = undefined;
 }
