@@ -7,7 +7,7 @@ import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 
 // Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
-// in e2e/requirements/blocks/list/backspace.md.
+// in e2e/requirements/blocks/list/backspace/m1-merge.md.
 
 describe('mergeListItemIntoPrevious', () => {
 	function parseList(src: string): CstNode {

@@ -42,7 +42,7 @@ export interface RegexExecutorOptions {
 // ── Worker ───────────────────────────────────────────────────────────────────
 
 // Self-contained by necessity: a Blob worker has no module graph, so this repeats
-// `execAll`'s loop. `regex-executor-parity.test.ts` fails the day they diverge.
+// `execAll`'s loop. `test/search/regex-worker-parity.test.ts` fails the day they diverge.
 const WORKER_SOURCE = `
 self.onmessage = (event) => {
 	const { texts, pattern, flags, epoch } = event.data;

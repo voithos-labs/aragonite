@@ -15,7 +15,7 @@ import { CONTAINER_PROFILES } from './builtin-container-profiles';
 
 // Built-ins only: a plugin container is absent from this process's registry unless its own
 // suite installed it, and opts into the same kit through `runContainerConformance` (see
-// `test/plugins/container-conformance-plugin.test.ts`).
+// `test/plugins/container-conformance.test.ts`).
 const registeredContainerKinds = getAllRegisteredKinds()
 	.filter(isBuiltinBlockKind)
 	.filter((k) => getBlockKindDescriptor(k).isContainer);

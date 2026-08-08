@@ -111,7 +111,6 @@ export function createStandardNestedActions(
 	};
 }
 
-/** Set the three container sub-interface contexts in one call. */
 export function setNestedActionsContexts(bundle: NestedActionsBundle): void {
 	const keys = [BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY];
 	assertInvariant('container-history-key', () => checkNoContainerHistoryKey(keys, HISTORY_KEY));

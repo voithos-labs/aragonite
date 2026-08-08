@@ -1,9 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The old guard compared a container-local index against the ROOT child count, so a nested code
-// block either appended a spurious paragraph (false guard) or no-op'd past a real next sibling
-// (true guard).
+// The exit guard resolves the next block inside the code block's OWN container scope, never
+// against the root child count. See requirements/blocks/code/forward-delete-exit.md.
 
 // Raw offset of the closer boundary for the body "code\n" (== bodyEnd). Shared by every code block
 // here: the offset is local to the block's own contenteditable, and a quote's `> ` is ambient.

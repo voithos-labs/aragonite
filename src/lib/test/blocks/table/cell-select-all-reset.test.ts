@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 //
 // The 3-stage Ctrl+A inside a cell (cell text → whole table → whole document) counts presses on
-// the shared SelectionState. The counter's only keydown reset lives in the shared prelude, which
-// the cell reaches on its 'native' plan arm alone — so every key the cell claims used to leave
-// the stage counter armed, and a second Ctrl+A after a Tab jumped straight to whole-table.
+// the shared SelectionState. The counter's keydown reset must stay reachable from every arm the
+// cell claims, not from the 'native' plan arm alone, or a key the cell handles leaves the stage
+// armed and the next Ctrl+A skips a stage.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { tick } from 'svelte';
 import { mountCell } from './mount-cell';

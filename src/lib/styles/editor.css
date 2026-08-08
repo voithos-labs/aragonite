@@ -479,11 +479,9 @@
 /* ── Live preview (block + inline granularity) ────────────────────────────────
    `preview-block` renders the focused block as full styled source; `preview-inline`
    reveals only the constructs at the caret. Hiding stays CSS-only, so the caret's DOM
-   anchor survives a reveal and the markers appear around it without moving it.
-   Containment rule: markers hide broadly (above) and un-hide INSIDE the focused host, so
-   only the focused leaf reveals and nesting falls out right — the naive
-   `.block-host:not([data-focused])` would hide a focused leaf's markers through its
-   unfocused container ancestor. */
+   anchor survives a reveal. Markers hide broadly (above) and un-hide INSIDE the focused
+   host: the naive `.block-host:not([data-focused])` would hide a focused leaf's markers
+   through its unfocused container ancestor. */
 
 /* All inline spans, so the reveal restores source layout exactly. */
 :where(.editor)[data-presentation='preview-block']

@@ -24,7 +24,7 @@ function emptyParagraph(): CstNode {
 	return { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
 }
 
-// ── Empty paragraphs converge exactly (0.9.36: the parser mints them too) ────
+// ── Empty paragraphs converge exactly (the parser mints them too) ─────────────
 
 describe('parseConverges on the empty-paragraph shapes the editor reaches', () => {
 	it('an empty list item holding an empty-paragraph placeholder', () => {

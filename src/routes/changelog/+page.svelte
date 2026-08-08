@@ -10,8 +10,6 @@
 	import { mermaidPlugin } from '$lib/plugins/mermaid';
 	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 
-	// Module scope so the factories run once per process — re-minting same-name plugins per
-	// (SSR) render trips installPlugins' first-wins dev-warn.
 	const changelogPlugins = [
 		admonitionsPlugin(),
 		detailsPlugin(),

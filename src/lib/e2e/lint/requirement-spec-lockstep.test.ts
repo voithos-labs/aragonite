@@ -430,9 +430,6 @@ describe('G4.23 requirement↔spec lockstep — classifier self-tests', () => {
 		expect(isInflated(5, 1)).toBe(true);
 	});
 
-	// The defect this audit replaced: a first-match lookup returns the DIRECTORY entry
-	// for a spec under it, so a file entry beneath one read as "no longer diverges"
-	// while diverging. The three conditions are now told apart.
 	it('tells a shadowed allowlist entry from a stale one', () => {
 		const entries = [
 			{ spec: 'simulation/', reason: 'family' },

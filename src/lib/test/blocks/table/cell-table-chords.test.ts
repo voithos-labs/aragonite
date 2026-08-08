@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 //
 // The table's structural keyboard vocabulary end to end: a real keystroke on a real cell, and
-// the document that came out. These chords used to be predicates in `cell-keydown-plan.ts` and
-// were pinned there against a hand-built input; they are `tableCell` keymap bindings now, so the
-// planner can only be asked to DECLINE them (cell-keydown-plan.test.ts) and the behavior has to
-// be pinned where it happens. Editor mount, because every arm commits and replaces the node.
+// the document that came out. These chords are `tableCell` keymap bindings, so the planner can
+// only be asked to DECLINE them (cell-keydown-plan.test.ts) and the behavior has to be pinned
+// where it happens. Editor mount, because every arm commits and replaces the node.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
 

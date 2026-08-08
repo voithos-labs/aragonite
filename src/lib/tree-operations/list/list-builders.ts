@@ -1,4 +1,4 @@
-/** Constructors for list and listItem CST nodes, used by Enter-exit and paste flows. */
+/** Constructors for list and listItem CST nodes. */
 
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';

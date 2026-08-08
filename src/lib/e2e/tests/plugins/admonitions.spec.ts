@@ -6,7 +6,7 @@ import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers'
  * Admonitions dogfood battery. Five directive names resolve to one `admonition` kind that reads its
  * variant from metadata; child 0 is the editable title chrome leaf, and the opener line is rebuilt
  * from children + metadata. The uninstalled-fallback path is unit-covered
- * (admonitions-fallback.test.ts).
+ * (test/plugins/admonitions/fallback.test.ts).
  */
 
 test.describe('plugin admonitions', () => {

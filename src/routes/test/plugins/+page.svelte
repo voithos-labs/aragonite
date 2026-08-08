@@ -21,8 +21,6 @@
 	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import type { EditorPlugin } from '$lib/plugin';
 
-	// Module scope so the factories run once per process, not per (SSR) render: re-minting
-	// same-name plugin objects each render trips installPlugins' first-wins dev-warn.
 	// docStatsPlugin is a bare entry (no options), covering the options-default branch.
 	const basePlugins = [
 		calloutPlugin(),

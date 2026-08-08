@@ -85,9 +85,7 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 			`details collapsed-estimate drift ${JSON.stringify({ estimated, measured, drift, perDetails })}`
 		);
 
-		// The oracle estimates each off-window collapsed details at one chrome row, below its real
-		// rendered chrome, so the load-time height no longer over-counts — it now sits below the
-		// fully-measured height, a residual the scroll-anchor machinery absorbs.
+		// The direction is the assertion: an under-estimate is absorbed, an over-count is not.
 		expect(estimated).toBeLessThan(measured);
 
 		// Correctness holds under the residual drift: no desync, no render throw.
