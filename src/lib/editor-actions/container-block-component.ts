@@ -26,6 +26,7 @@ import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { placeCaret } from '../selection/caret-doors';
 import { devWarn } from '../dev-warn';
@@ -133,6 +134,7 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock'>;
 	isReading: () => boolean;
 	stickyColumn: Pick<StickyColumnState, 'noteKey'>;
+	edgeAffinity: Pick<EdgeAffinityState, 'note'>;
 }
 
 /**
@@ -140,9 +142,11 @@ export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
  * factory, so a new gate lands once instead of at both. Navigation never gates.
  */
 export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps): void {
-	// The classification door, before any branch: skipping it let a column captured
-	// outside survive a horizontal traversal through. No `measureX` — no caret here.
+	// The classification doors, before any branch: skipping them let a column captured
+	// outside survive a horizontal traversal through, and the arrival side the exit lands
+	// with is the same one an arrow means anywhere. No `measureX` — no caret here.
 	deps.stickyColumn.noteKey(e);
+	deps.edgeAffinity.note(e);
 
 	if (e.key === 'Enter') {
 		e.preventDefault();

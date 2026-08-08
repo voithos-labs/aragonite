@@ -6,21 +6,24 @@ import {
 import { displayLength } from '$lib/core/lines';
 import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 
 function makeDeps(isReading = () => false) {
 	const splitBlock = vi.fn();
 	const deleteBlock = vi.fn();
 	const moveFocus = vi.fn();
 	const stickyColumn = createStickyColumnState();
+	const edgeAffinity = createEdgeAffinityState();
 	const deps: WholeBlockKeyDeps = {
 		getIndex: () => 2,
 		getRaw: () => '---\n',
 		blockEdit: { splitBlock, deleteBlock },
 		focus: { moveFocus },
 		isReading,
-		stickyColumn
+		stickyColumn,
+		edgeAffinity
 	};
-	return { deps, splitBlock, deleteBlock, moveFocus, stickyColumn };
+	return { deps, splitBlock, deleteBlock, moveFocus, stickyColumn, edgeAffinity };
 }
 
 function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {

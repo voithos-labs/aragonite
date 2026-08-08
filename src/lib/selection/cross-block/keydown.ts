@@ -53,8 +53,10 @@ async function handleKeyDown(
 
 	// Before the dispatch, not after: every branch below can consume the key and return, and the
 	// collapse/extend arms run no commit, so a reset deferred to the shared prelude never fires.
-	// The dispatcher holds a range, not a caret, so it supplies no measurement.
+	// The dispatcher holds a range, not a caret, so it supplies no measurement — but a collapse
+	// lands one, and the side it means is the arrival's like anywhere else.
 	ctx.stickyColumn.noteKey(e);
+	ctx.edgeAffinity.note(e);
 
 	if (selection.isCrossBlock) {
 		const handled = await handleCrossBlockActive(ctx, mutCtx, e);

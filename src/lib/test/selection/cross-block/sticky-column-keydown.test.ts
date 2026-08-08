@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { asEditorX } from '../../../cursor/coordinate-spaces';
 import { createStickyColumnState } from '../../../cursor/sticky-column';
+import { createEdgeAffinityState } from '../../../cursor/edge-affinity';
 import { createSelectionState } from '../../../selection/selection-state.svelte';
 import { createCrossBlockKeydown } from '../../../selection/cross-block/keydown';
 import type { CrossBlockDispatchContext } from '../../../selection/cross-block/dispatch';
@@ -15,12 +16,14 @@ function harness() {
 	const doc = parse('alpha beta gamma\n\ndelta\n');
 	const selection = createSelectionState({ getDoc: () => doc });
 	const stickyColumn = createStickyColumnState();
+	const edgeAffinity = createEdgeAffinityState();
 
 	const ctx = {
 		getEl: () => document.createElement('div'),
 		getMyPath: () => [0],
 		selection,
 		stickyColumn,
+		edgeAffinity,
 		getDoc: () => doc,
 		getBlockElByPath: () => document.createElement('div'),
 		revealPath: async () => null,
