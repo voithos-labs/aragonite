@@ -29,8 +29,7 @@ import {
 	isBlockNode,
 	nodeAt,
 	normalizeOwnRaw,
-	restoreSeparatorAfterBlank,
-	type BodyParentArg
+	restoreSeparatorAfterBlank
 } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
@@ -80,16 +79,11 @@ export function deleteSubtreesIdentityGated(
 			if (parent) {
 				// Guards are exclusive: one frees a separator, the other mints one.
 				clearRedundantSeparator(parent, index, sharing);
-				if (deletedBlank) restoreSeparatorAfterBlank(bodyParentOf(parent), index, sharing);
+				if (deletedBlank) restoreSeparatorAfterBlank(parent, index, sharing);
 			}
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
 	}
-}
-
-/** The byte-writing view of a splice parent: the document root imposes no body grammar. */
-function bodyParentOf(parent: CstNode | Document): BodyParentArg {
-	return isBlockNode(parent) ? { children: parent.children ?? [], ownerKind: parent.kind } : parent;
 }
 
 /**
