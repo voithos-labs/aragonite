@@ -486,7 +486,9 @@
 				};
 			case 'block.mergePrev':
 				return {
-					applies: () => offset === caretBounds().start && !hasSelectionHelper(),
+					// At-or-before, not equal: a caret door can still park on an offset the walk
+					// canonicalizes forward, and a strict test would make the press a dead key there.
+					applies: () => offset <= caretBounds().start && !hasSelectionHelper(),
 					perform: () => {
 						const demoted = demoteBeforeMerge(offset);
 						if (!demoted) return void blockEdit.mergeWithPrevious(index);
@@ -500,7 +502,7 @@
 				};
 			case 'block.mergeNext':
 				return {
-					applies: () => offset === caretBounds().end && !hasSelectionHelper(),
+					applies: () => offset >= caretBounds().end && !hasSelectionHelper(),
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'format.toggleStrong':

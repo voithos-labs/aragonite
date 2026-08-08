@@ -14,18 +14,34 @@ export interface TextEditResult {
 
 /**
  * Give up the block's own structural bytes, whichever end the kind keeps them at: a prefix for
- * ATX, an underline line for setext. Null for a kind whose content IS its whole display, which
- * has nothing to demote and leaves the press to the merge cascade.
+ * ATX, an underline line for setext. Both sides read the kind's CONTENT RANGE and nothing else —
+ * a prefix rewrite with a syntax of its own disagrees with the gate that let the press through
+ * (`  ## x` is a heading whose `#`s a `^#` regex never reaches, and the demote wrote the block
+ * back unchanged there). Null for a kind whose content IS its whole display: nothing to give up,
+ * and the merge cascade takes the press.
  */
 export function demoteToParagraph(
 	raw: string,
 	content: ContentRange,
 	preEditOffset: number
 ): TextEditResult | null {
-	if (content.start > 0) return cycleHeading(raw, 0, preEditOffset);
+	if (content.start > 0) return dropStructuralPrefix(raw, content.start, preEditOffset);
 	if (content.end < displayLength(raw))
 		return dropStructuralSuffix(raw, content.end, preEditOffset);
 	return null;
+}
+
+/** Drop everything before `contentStart` — a heading's marker prefix and any spaces that precede
+ *  it, which sit before every caret the content range admits. */
+export function dropStructuralPrefix(
+	raw: string,
+	contentStart: number,
+	preEditOffset: number
+): TextEditResult {
+	return {
+		newRaw: raw.slice(contentStart),
+		caretOffset: Math.max(0, preEditOffset - contentStart)
+	};
 }
 
 /** Drop everything past `contentEnd` but the block's own trailing line ending — the setext

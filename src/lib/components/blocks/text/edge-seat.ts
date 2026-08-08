@@ -7,6 +7,7 @@
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
+import { constructContentRange } from '../../../core/inline';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 
 export interface EdgeSeat {
@@ -108,22 +109,4 @@ function markerRunAt(offset: number, inlines: readonly InlineNode[]): MarkerRun 
 	};
 	visit(inlines);
 	return found;
-}
-
-/** The bytes a construct's delimiters do not cover, or null for a kind that has none —
- *  a bare text run, or a pair emptied of content. */
-export function constructContentRange(node: InlineNode): { start: number; end: number } | null {
-	const children = node.children;
-	if (children && children.length > 0) {
-		return { start: children[0].start, end: children[children.length - 1].end };
-	}
-	// A code span carries its content as `text` rather than children, and a matched span's two
-	// backtick runs are equal, so what the content does not cover splits evenly between them.
-	if (node.kind === 'inlineCode' && node.text !== undefined) {
-		const fence = (node.end - node.start - node.text.length) / 2;
-		if (Number.isInteger(fence) && fence > 0) {
-			return { start: node.start + fence, end: node.end - fence };
-		}
-	}
-	return null;
 }

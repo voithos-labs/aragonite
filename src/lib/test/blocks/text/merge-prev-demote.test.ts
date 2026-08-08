@@ -10,6 +10,10 @@ import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
 import { parse } from '$lib/core/parser';
 import type { PresentationMode } from '$lib/presentation-mode';
+import { DIRECTIVE_LEAF, registerDirectiveKinds } from '$lib/core/directive/kinds';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext } from '../../harness/mount-context';
 
@@ -63,14 +67,41 @@ describe('Backspace at content start in live mode', () => {
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
 	});
 
-	// Raw 0 is behind the unpainted prefix: no caret reaches it in live, and the arm answers for
-	// the offsets that exist rather than for the one the other modes call the start.
-	it('declines at raw 0 of a heading, which is not a reachable caret', () => {
+	// Raw 0 is behind the unpainted prefix, so no caret walk reports it — but a caret door can
+	// still park one there, and a gate testing equality would make the press a dead key. The arm
+	// reads at-or-before the reachable start, so the gesture does the visible thing either way.
+	it('still demotes from raw 0, an offset behind the unpainted prefix', () => {
 		mounted = mountBlock('## Title\n', 'live', 0);
 
-		expect(mounted.instance.runCommand('block.mergePrev')).toBe(false);
-		expect(mounted.blockEdit.updateBlockContent).not.toHaveBeenCalled();
+		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Title\n', 0, 0);
 		expect(mounted.blockEdit.mergeWithPrevious).not.toHaveBeenCalled();
+	});
+
+	// A heading opening with a construct hides two runs before its first visible byte, and the
+	// caret walk reports THAT offset — the bound has to be the reachable one or the press dies.
+	it('demotes a heading that opens with a construct, at the caret the walk reports', () => {
+		mounted = mountBlock('## **B** head\n', 'live', 5);
+
+		expect(mounted.instance.runCommand('block.mergePrev')).toBe(true);
+		expect(mounted.blockEdit.updateBlockContent).toHaveBeenCalledWith(0, '**B** head\n', 5, 2);
+	});
+
+	// The other kind whose content start moved: a directive leaf's `::` is unpainted too, so its
+	// content-start press now reaches the cascade, where `not-mergeable` turns it into a focus
+	// move. Asserted through the declarations the arm reads — the leaf's opener needs the plugin's
+	// grammar, which a bare block mount does not stand up, and the paragraph row above already
+	// drives the undeclared path end to end.
+	it('leaves a declared-content kind with no demote to the cascade', () => {
+		registerDirectiveKinds();
+		try {
+			const leaf = getBlockKindDescriptor(declaredPluginKind(DIRECTIVE_LEAF));
+			expect(leaf.getContentRange).toBeDefined();
+			expect(leaf.contentStartBackspace).toBeUndefined();
+			expect(leaf.mergeRole).toBe('not-mergeable');
+		} finally {
+			__resetSchemaRegistriesForTests();
+		}
 	});
 
 	it('merges a kind that declares no demote, at its own content start', () => {

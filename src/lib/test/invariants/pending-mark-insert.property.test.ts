@@ -4,7 +4,7 @@ import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
-import { constructContentRange } from '../../components/blocks/text/edge-seat';
+import { constructContentRange } from '../../core/inline';
 import { resolveMarkedInsertion } from '../../components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '../../cursor/pending-marks';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';

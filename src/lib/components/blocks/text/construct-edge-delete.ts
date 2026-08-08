@@ -1,17 +1,15 @@
 /**
- * What a destructive key takes at an inline construct's unpainted delimiter run. A run the mode
- * paints nothing for gives the reader no byte to aim at, so the cut moves to the adjacent CONTENT
- * character; delimiters it leaves enclosing nothing go in the same commit (§ 4.4
- * `autoUnwrapOnEmpty`), which is what makes the invisible `****` residue unrepresentable. Bytes
- * that read right can parse wrong, so a candidate is written only once a re-parse says the reader
- * lost exactly the one character it was aimed at; anything else declines to native.
+ * What a destructive key takes at an inline construct's unpainted delimiter run: the adjacent
+ * CONTENT character, plus the delimiters the cut leaves enclosing nothing (§ 4.4
+ * `autoUnwrapOnEmpty`), which is what makes invisible `****` residue unrepresentable. Bytes that
+ * read right can parse wrong, so a candidate is written only once a re-parse says the reader lost
+ * exactly what the cut aimed at; a press this arm owns but cannot rewrite soundly takes nothing.
  */
 
-import { parseInline, type ContentRange } from '../../../core/inline';
+import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
 import { renderedText } from '../../../core/inline-render';
 import type { InlineNode } from '../../../core/nodes';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
-import { constructContentRange } from './edge-seat';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -30,16 +28,23 @@ export interface EdgeDeletionQuery {
 	inlines: readonly InlineNode[];
 }
 
-export interface EdgeDeletion {
+export interface EdgeDeletionWrite {
 	/** The block's whole display bytes after the cut. */
 	raw: string;
 	caret: number;
 }
 
+/** The press is this arm's but no rewrite parses back: taking nothing is the only answer that
+ *  keeps the markers off screen, since the engine's version paints them. */
+export interface EdgeDeletionSwallow {
+	swallow: true;
+}
+
+export type EdgeDeletion = EdgeDeletionWrite | EdgeDeletionSwallow;
+
 /**
- * The cut a destructive key makes at `caret`, or null when the press is not this arm's: nothing
- * content-side of the caret, a byte native already deletes correctly, or a rewrite the parser
- * would not read back.
+ * What a destructive key at `caret` does, or null when the press is not this arm's — nothing
+ * content-side of the caret, or a cut with no hidden run beside it, which the engine gets right.
  */
 export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | null {
 	const { display, content, caret, direction } = query;
@@ -47,22 +52,22 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 	const target = deletionTarget(display, constructs, content, caret, direction);
 	if (!target) return null;
 
-	// Native cannot be trusted beside a hidden run: Chromium takes the whole non-rendered span
-	// along with the character (measured — `Some **bold** text` backspaced at `bold`'s end became
-	// `Some **bol text`, the construct destroyed). So a caret touching a run is this arm's even
-	// where the cut looks ordinary; a caret with no run on either side is left to the engine,
-	// which owns grapheme and IME behavior a second implementation would have to re-derive.
+	// Native takes the whole non-rendered span along with the character (measured: `Some **bold**
+	// text` backspaced at `bold`'s end became `Some **bol text`). The adjacency that decides is
+	// the deleted SPAN's, not the caret's — the engine deletes from where the byte is, so the last
+	// content character at either end is destructive one press before the edge. With no run beside
+	// the cut the press stays with the engine, which owns grapheme and IME behavior.
 	const cut = expandThroughEmptied(constructs, target);
 	const native = nativeCut(caret, direction);
 	const touchesHiddenRun =
-		isDelimiterByte(constructs, caret - 1) || isDelimiterByte(constructs, caret);
+		isDelimiterByte(constructs, target.start - 1) || isDelimiterByte(constructs, target.end);
 	if (!touchesHiddenRun && cut.start === native.start && cut.end === native.end) return null;
 
 	const raw = display.slice(0, cut.start) + display.slice(cut.end);
 	const removed = target.atomic
 		? renderedText([target.atomic], display)
 		: display.slice(target.start, target.end);
-	if (!removesExactly(visibleText(display), visibleText(raw), removed)) return null;
+	if (!removesExactly(visibleText(display), visibleText(raw), removed)) return { swallow: true };
 	// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
 	// only moves when it swallowed delimiters ahead of it.
 	return { raw, caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start) };
