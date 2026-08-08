@@ -24,11 +24,19 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 		'preview-inline reveal writer — it stamps the class the classification reads, and asks nothing about hiding'
 };
 
-const MARKER_CLASSES = ['md-marker', 'md-fence-line', 'md-ref-label', 'md-construct-reveal'];
+const MARKER_CLASSES = [
+	'md-marker',
+	'md-fence-line',
+	'md-ref-label',
+	'md-construct-reveal',
+	'directive-marker'
+];
 
 /** Every file naming a marker class in code, and its role. */
 const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/cursor/widget-offset.ts': 'the classification home',
+	'src/lib/components/blocks/directive/DirectiveContainerBlock.svelte':
+		'mints the directive container chrome — contenteditable="false" AND outside every walk container, so the hiding classification excludes it twice over',
 	'src/lib/ambient/ambient-dom.ts': 'mints and identifies the ambient span',
 	'src/lib/core/inline-render.ts': 'mints inline marker and ref-label spans',
 	'src/lib/components/blocks/text/text-render.ts': 'mints the block-own prefix span',
