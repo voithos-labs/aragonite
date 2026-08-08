@@ -6,6 +6,8 @@
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
+import type { InlineNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from './selection-state.svelte';
@@ -18,7 +20,8 @@ import {
 import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
 import { revealsNoMarkers } from '../cursor/widget-offset';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
-import { getContentRange } from '../core/inline';
+import { constructContentRange, getContentRange, type ContentRange } from '../core/inline';
+import { getInlineContent } from '../core/inline/inline-cache';
 import { blockNodeAt } from '../tree-operations/node-ops';
 import { eventToChord } from '../schema/keybindings';
 import { isEditorGlobalChord } from '../schema/commands';
@@ -194,7 +197,27 @@ export function caretContentBounds(ctx: ContentBoundsContext, el: HTMLElement): 
 	const range = getContentRange(node);
 	// Clamped against the live DOM length: a revealed source holds bytes the CST has not
 	// seen, and a bound past the block's end would trap the caret.
-	return { start: Math.min(range.start, textLen), end: Math.min(range.end, textLen) };
+	return {
+		start: Math.min(reachableStart(node, range), textLen),
+		end: Math.min(range.end, textLen)
+	};
+}
+
+/**
+ * The first offset a caret can actually occupy. A construct opening the content hides its own
+ * delimiter run, and a read there reports the first VISIBLE byte, so a gate testing the model's
+ * content start matches no caret the user can produce — the gesture becomes a dead key.
+ */
+function reachableStart(node: NodeView, range: ContentRange): number {
+	const firstVisible = (nodes: readonly InlineNode[], at: number): number => {
+		for (const child of nodes) {
+			const content = child.start === at ? constructContentRange(child) : null;
+			if (!content || content.start <= at) continue;
+			return firstVisible(child.children ?? [], content.start);
+		}
+		return at;
+	};
+	return firstVisible(getInlineContent(node), range.start);
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────

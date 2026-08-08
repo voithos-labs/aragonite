@@ -7,12 +7,11 @@
  * been re-parsed and checked: write bytes, let the parser decide.
  */
 
-import { parseInline } from '../../../core/inline';
+import { constructContentRange, parseInline } from '../../../core/inline';
 import { renderedText } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
-import { constructContentRange } from './edge-seat';
 import { markersFor } from './format-toggle';
 
 /** Outermost first, so a set wraps to one byte string whatever order the chords arrived in. Code

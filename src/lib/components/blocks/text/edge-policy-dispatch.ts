@@ -387,6 +387,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!deletion) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);
+		// A press with no sound rewrite still belongs here: leaving it to the engine paints the
+		// delimiters it was hiding, so the arm takes the key and writes nothing.
+		if ('swallow' in deletion) return true;
 		writeDisplay(deletion.raw, deletion.caret, 'construct-delete', caretOffset);
 		return true;
 	}

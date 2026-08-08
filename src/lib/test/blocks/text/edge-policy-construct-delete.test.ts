@@ -101,6 +101,17 @@ describe('a destructive key past a construct edge takes the content byte', () =>
 		expect(h.edits).toHaveLength(0);
 	});
 
+	// No sound rewrite exists for `**a **` (a closing run after a space is not right-flanking), and
+	// the engine's version of that press destroys both constructs and paints the stars. The arm
+	// takes the key and writes nothing — the same shape as the hidden-suffix guard.
+	it('takes the press and writes nothing where no rewrite parses back', () => {
+		const h = mount('**a *b*** z\n', 'live');
+		const e = key('Backspace');
+		expect(h.handleKeydown(e, at(6))).toBe(true);
+		expect(e.defaultPrevented).toBe(true);
+		expect(h.edits).toHaveLength(0);
+	});
+
 	// The bytes past the content range are the block's own, so this arm writes nothing there
 	// however the block-edge path answers the press.
 	it('writes nothing at a heading’s content start', () => {

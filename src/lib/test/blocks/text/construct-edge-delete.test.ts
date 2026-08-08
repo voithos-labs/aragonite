@@ -46,11 +46,25 @@ describe('a press past a hidden run takes the content character, never a delimit
 
 	// Away from every run the engine is right and owns the press, grapheme and IME behavior
 	// included.
-	it('declines where no hidden run touches the caret', () => {
+	it('declines where no hidden run touches the cut', () => {
 		expect(del(BOLD, 9)).toBeNull();
 		expect(del(BOLD, 9, 'forward')).toBeNull();
 		expect(del('abc', 2)).toBeNull();
 		expect(del('abc', 1, 'forward')).toBeNull();
+	});
+
+	// The engine takes the run adjacent to the BYTE it deletes, not to the caret it started from,
+	// so the last content character at either end is destructive one press before the edge. Six
+	// measured shapes: a pair, a code span and a link, from both sides.
+	it.each([
+		['strong, first content byte', 'Some **bold** text', 8, 'backward', 'Some **old** text', 7],
+		['strong, last content byte', 'Some **bold** text', 10, 'forward', 'Some **bol** text', 10],
+		['code, first content byte', 'a `xy` b', 4, 'backward', 'a `y` b', 3],
+		['code, last content byte', 'a `xy` b', 4, 'forward', 'a `x` b', 4],
+		['link, first content byte', 'zz [text](u) yy', 5, 'backward', 'zz [ext](u) yy', 4],
+		['link, last content byte', 'zz [text](u) yy', 7, 'forward', 'zz [tex](u) yy', 7]
+	])('claims %s', (_case, display, caret, direction, raw, after) => {
+		expect(del(display, caret, direction as DeleteDirection)).toEqual({ raw, caret: after });
 	});
 
 	// A press it does claim beside a run still cuts whole characters: half a surrogate pair is
@@ -93,7 +107,9 @@ describe('emptying a construct drops its delimiters in the same cut', () => {
 	});
 
 	// An image is not a pair around content: an empty alt is still an image, so the cut takes the
-	// character and stops — the marker skip still applies.
+	// character and stops — the marker skip still applies. A pure-function guard on the policy
+	// row, not a reachable gesture: live renders an image as a widget, and the dispatch's widget
+	// arm claims a caret at this offset long before this one is consulted.
 	it('leaves a construct that stays itself when emptied', () => {
 		expect(del('![a](u)', 7)).toEqual({ raw: '![](u)', caret: 2 });
 	});
@@ -119,9 +135,17 @@ describe('an atomic hidden run deletes as one unit', () => {
 // The T7 shape, in reverse: a candidate that READS right can PARSE wrong. `**a *b***` emptied of
 // `b` is `**a **`, whose closing run follows a space and so is not right-flanking — CommonMark
 // renders the stars literally. Markdown cannot express bold with a trailing space, so there is no
-// sound rewrite and the press goes back to the engine.
-describe('a rewrite the parser would not read back declines', () => {
-	it('declines where dropping the pair would surface its delimiters', () => {
-		expect(del('**a *b***', 6)).toBeNull();
+// sound rewrite — and handing the press back to the engine is not neutral: measured, native turns
+// `**a *b*** z` into `**a  z`, destroying both constructs and painting the stars. The press is
+// this arm's, and taking nothing is the only answer that keeps the markers off screen.
+describe('a rewrite the parser would not read back takes nothing', () => {
+	it('swallows where dropping the pair would surface its delimiters', () => {
+		expect(del('**a *b*** z', 6)).toEqual({ swallow: true });
+	});
+
+	// A swallow is a claim, so it must not spread past the presses this arm owns: with no run
+	// beside the cut the engine is right and the press is not ours to take.
+	it('still declines a press it does not own', () => {
+		expect(del('**a *b*** z', 11)).toBeNull();
 	});
 });

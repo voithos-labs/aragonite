@@ -32,6 +32,28 @@ export function isProseKind(kind: CstNode['kind']): boolean {
 }
 
 /**
+ * The bytes an INLINE construct's delimiters do not cover, or null for a kind that has none — a
+ * bare text run, an escape, a pair emptied of content. The inline twin of {@link getContentRange},
+ * here rather than beside one of its callers because the caret bounds, the typing seat, the
+ * destructive arm and the toggles all need the same answer.
+ */
+export function constructContentRange(node: InlineNode): ContentRange | null {
+	const children = node.children;
+	if (children && children.length > 0) {
+		return { start: children[0].start, end: children[children.length - 1].end };
+	}
+	// A code span carries its content as `text` rather than children, and a matched span's two
+	// backtick runs are equal, so what the content does not cover splits evenly between them.
+	if (node.kind === 'inlineCode' && node.text !== undefined) {
+		const fence = (node.end - node.start - node.text.length) / 2;
+		if (Number.isInteger(fence) && fence > 0) {
+			return { start: node.start + fence, end: node.end - fence };
+		}
+	}
+	return null;
+}
+
+/**
  * A prose node's inline tree, pure: no caching, no reactive reads. The render path calls this
  * directly; the caching accessor (inline-cache.ts) calls it on a miss.
  */

@@ -8,10 +8,9 @@
  * range: a marker spliced into a heading's `# ` or a setext underline changes the block's kind.
  */
 
-import { parseInline, type ContentRange } from '../../../core/inline';
+import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
-import { constructContentRange } from './edge-seat';
 
 // ── Markers ──────────────────────────────────────────────────────────────────
 

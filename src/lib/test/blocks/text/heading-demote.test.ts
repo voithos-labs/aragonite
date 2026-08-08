@@ -13,6 +13,16 @@ describe('demoteToParagraph', () => {
 		});
 	});
 
+	// The gate is the kind's content range, which skips up to three leading spaces; a prefix
+	// rewrite that reads the `#`s with its own regex writes the block back unchanged there, and
+	// the press disappears — no demote, and the merge cascade never sees it either.
+	it('drops an indented ATX prefix, which no `#`-anchored regex reaches', () => {
+		expect(demoteToParagraph('  ## Indented\n', { start: 5, end: 13 }, 5)).toEqual({
+			newRaw: 'Indented\n',
+			caretOffset: 0
+		});
+	});
+
 	it('drops a setext underline and leaves the caret alone', () => {
 		expect(demoteToParagraph('Title\n===\n', { start: 0, end: 5 }, 0)).toEqual({
 			newRaw: 'Title\n',
