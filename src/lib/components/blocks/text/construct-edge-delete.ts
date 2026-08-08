@@ -140,8 +140,9 @@ function isLowSurrogate(display: string, at: number): boolean {
 /**
  * The second reading of a press whose plain cut does not parse back: take the delimiter runs the
  * cut now sits between with it, which is the "these two constructs become one" a reader sees when
- * the character between them goes. Verified like any other candidate — the runs are invisible, so
- * a sound widening changes nothing on screen beyond the character itself.
+ * the character between them goes. Verified like any other candidate, and the verification is
+ * about the SCREEN, not the structure: two `<strong>` become one, visually identical and
+ * structurally not, which is what a reader deleting the space between them asked for.
  */
 function widenThroughRuns(constructs: readonly PolicyConstruct[], cut: Span): Span {
 	let { start, end } = cut;
