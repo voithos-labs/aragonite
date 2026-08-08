@@ -134,6 +134,7 @@
 			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
+			getPresentationMode,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,

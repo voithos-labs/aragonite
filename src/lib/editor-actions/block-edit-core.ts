@@ -64,7 +64,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					const change = performSplit(
 						{ children: view.children, ownerKind: view.ownerKind },
 						i,
-						offset
+						offset,
+						view.getPresentationMode?.()
 					);
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;

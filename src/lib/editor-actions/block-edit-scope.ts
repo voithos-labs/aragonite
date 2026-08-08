@@ -13,6 +13,7 @@ import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { GrammarView } from '../schema/block-openers';
+import type { PresentationModeGetter } from '../editor-keys';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { asDocPath } from '../selection/path-math';
@@ -30,6 +31,9 @@ export interface MutationView {
 	ownerKind?: AnyBlockKind;
 	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
 	grammar?: GrammarView;
+	/** Live EFFECTIVE mode, for mutations whose bytes depend on what the mode paints. Nullable
+	 *  rather than optional so each adapter answers; `undefined` reads as not-live. */
+	getPresentationMode: PresentationModeGetter | undefined;
 	/** Copy-out-of-sharing the child at `i` before an in-place write; returns the owned node. */
 	unshareChild(i: number): CstNode;
 }
@@ -93,6 +97,7 @@ export function createTopLevelScope(
 						children,
 						sharing: deps.sharing,
 						grammar: deps.grammar,
+						getPresentationMode: deps.getPresentationMode,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
@@ -126,6 +131,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 						sharing: scope.sharing,
 						ownerKind: scope.node.kind,
 						grammar: deps.grammar,
+						getPresentationMode: deps.getPresentationMode,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
 				op: { ...op, eventPath: extendDocPath(deps.path, eventTarget) },

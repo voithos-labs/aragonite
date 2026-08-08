@@ -8,7 +8,7 @@ describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		const change = splitNode(doc, 0, 5);
+		const change = splitNode(doc, 0, 5, undefined);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } });
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Hello\n');
@@ -21,7 +21,7 @@ describe('splitNode', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
 		const ids = ['original-id'];
-		const change = splitNode(doc, 0, 5);
+		const change = splitNode(doc, 0, 5, undefined);
 		applyStructuralChangeToIdsRefs(change, ids, [undefined]);
 		expect(ids).toHaveLength(2);
 		expect(ids[0]).toBe('original-id');
@@ -31,7 +31,7 @@ describe('splitNode', () => {
 	it('splits at the beginning creates empty first paragraph', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 0);
+		splitNode(doc, 0, 0, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('\n');
@@ -41,7 +41,7 @@ describe('splitNode', () => {
 	it('splits at the end creates empty second paragraph', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 5);
+		splitNode(doc, 0, 5, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Hello\n');
 		expect(doc.children[1].kind).toBe('paragraph');
@@ -51,14 +51,14 @@ describe('splitNode', () => {
 	it('preserves leading trivia on the first block when splitting a non-first block', () => {
 		const source = 'First\n\nSecond\n';
 		const doc = parse(source);
-		splitNode(doc, 1, 3);
+		splitNode(doc, 1, 3, undefined);
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 	});
 
 	it('handles multi-line paragraph split', () => {
 		const source = 'Line one.\nLine two.\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 10);
+		splitNode(doc, 0, 10, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Line one.\n');
 		expect(doc.children[1].raw).toBe('Line two.\n');
@@ -67,7 +67,7 @@ describe('splitNode', () => {
 	it('produces correct serialization after split', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 5);
+		splitNode(doc, 0, 5, undefined);
 		const result = serialize(doc);
 		expect(result).toBe('Hello\n\n World\n');
 	});
@@ -75,7 +75,7 @@ describe('splitNode', () => {
 	it('handles CRLF line endings correctly', () => {
 		const source = 'Hello World\r\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 5);
+		splitNode(doc, 0, 5, undefined);
 		expect(doc.children[0].raw).toBe('Hello\r\n');
 		expect(doc.children[1].raw).toBe(' World\r\n');
 	});
@@ -85,7 +85,7 @@ describe('splitNode edge cases', () => {
 	it('splits the only node in the document', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 5);
+		splitNode(doc, 0, 5, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(serialize(doc)).toBe('Hello\n\n World\n');
 	});
@@ -93,7 +93,7 @@ describe('splitNode edge cases', () => {
 	it('split at offset beyond raw length produces empty second block', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 100);
+		splitNode(doc, 0, 100, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Hello\n');
 		expect(doc.children[1].raw).toBe('\n');
@@ -104,7 +104,7 @@ describe('heading split operations', () => {
 	it('splits a heading into heading + paragraph', () => {
 		const source = '## Hello World\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 8);
+		splitNode(doc, 0, 8, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].raw).toBe('## Hello\n');
@@ -115,7 +115,7 @@ describe('heading split operations', () => {
 	it('splits a heading at start produces empty paragraph + heading', () => {
 		const source = '## Title\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 0);
+		splitNode(doc, 0, 0, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('\n');
@@ -128,7 +128,7 @@ describe('thematic break split', () => {
 	it('splitting at end of thematic break produces break + empty paragraph', () => {
 		const source = '---\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 3);
+		splitNode(doc, 0, 3, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('thematicBreak');
 		expect(doc.children[0].raw).toBe('---\n');
@@ -145,7 +145,7 @@ describe('setext heading split', () => {
 
 		it(`Enter at the title end keeps the ${underline} underline with the heading`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, 5);
+			splitNode(doc, 0, 5, undefined);
 			expect(doc.children).toHaveLength(2);
 			expect(doc.children[0].kind).toBe('setextHeading');
 			expect(doc.children[0].raw).toBe(source);
@@ -155,7 +155,7 @@ describe('setext heading split', () => {
 
 		it(`Enter mid-title keeps the ${underline} underline with the heading half`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, 2);
+			splitNode(doc, 0, 2, undefined);
 			expect(doc.children).toHaveLength(2);
 			expect(doc.children[0].kind).toBe('setextHeading');
 			expect(doc.children[0].raw).toBe(`Ti\n${underline}\n`);
@@ -167,7 +167,7 @@ describe('setext heading split', () => {
 	it('Enter at offset 0 keeps the empty-block-above behavior', () => {
 		const source = 'Title\n=====\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 0);
+		splitNode(doc, 0, 0, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('\n');
@@ -178,7 +178,7 @@ describe('setext heading split', () => {
 	it('splits a CRLF setext heading with the underline preserved on the heading', () => {
 		const source = 'Title\r\n=====\r\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 5);
+		splitNode(doc, 0, 5, undefined);
 		expect(doc.children[0].kind).toBe('setextHeading');
 		expect(doc.children[0].raw).toBe(source);
 		expect(doc.children[1].kind).toBe('paragraph');
@@ -192,7 +192,7 @@ describe('splitNode on arbitrary parent', () => {
 			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }],
 			ownerKind: undefined
 		};
-		splitNode(parent, 0, 5);
+		splitNode(parent, 0, 5, undefined);
 		expect(parent.children).toHaveLength(2);
 		expect(parent.children[0].raw).toBe('Hello\n');
 		expect(parent.children[1].raw).toBe(' World\n');

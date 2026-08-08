@@ -37,6 +37,7 @@ function stubScope(
 			args.mutate({
 				children,
 				sharing,
+				getPresentationMode: undefined,
 				unshareChild: (i) => children[i]
 			});
 			await args.afterTick?.();

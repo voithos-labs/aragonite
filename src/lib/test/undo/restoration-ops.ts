@@ -255,7 +255,8 @@ async function runListOp(
 		parentBlockEdit: makeStubBlockEdit(),
 		parentFocus: makeStubFocus(),
 		parentListContext: undefined,
-		controller: h.controller
+		controller: h.controller,
+		getPresentationMode: undefined
 	});
 
 	if (op.t === 'insertItem') {

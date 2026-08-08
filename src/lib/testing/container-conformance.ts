@@ -201,6 +201,7 @@ export async function checkStripLocalIndexAddressing(
 				path: containerChain.slice(0, depth + 1)
 			},
 			stickyColumn: stubStickyColumn(),
+			getPresentationMode: undefined,
 			parent: {
 				blockEdit: parentBundle?.blockEdit ?? stubBlockEdit(),
 				focus: parentBundle?.focus ?? recordingFocus(),
@@ -385,7 +386,8 @@ async function checkListIndentOneUndo(): Promise<void> {
 		parentBlockEdit: stubBlockEdit(),
 		parentFocus: recordingFocus(),
 		parentListContext: undefined,
-		controller
+		controller,
+		getPresentationMode: undefined
 	});
 
 	const before = deps.undoManager.getStacks().undo.length;
@@ -463,6 +465,7 @@ export async function checkFocusBubbleTermination(
 			},
 			path: [3],
 			stickyColumn: stubStickyColumn(),
+			getPresentationMode: undefined,
 			parent: { blockEdit: stubBlockEdit(), focus: rootFocus, containerEdit: {} as never }
 		}
 	);
@@ -476,6 +479,7 @@ export async function checkFocusBubbleTermination(
 			},
 			path: [0],
 			stickyColumn: stubStickyColumn(),
+			getPresentationMode: undefined,
 			parent: { blockEdit: stubBlockEdit(), focus: outerFocus, containerEdit: {} as never }
 		}
 	);

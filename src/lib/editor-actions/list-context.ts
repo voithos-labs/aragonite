@@ -11,6 +11,7 @@ import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { trailingLineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
+import type { PresentationModeGetter } from '../editor-keys';
 import type { MultiScopeTarget, UndoController } from './deps';
 import {
 	replacePreservingFirst,
@@ -42,6 +43,9 @@ export interface ListContextDeps {
 	parentFocus: FocusActions;
 	parentListContext: ListContext | undefined;
 	controller: UndoController;
+	/** Live EFFECTIVE mode, for the mid-item split's byte rebalance. Nullable rather than
+	 *  optional so the one composing container answers. */
+	getPresentationMode: PresentationModeGetter | undefined;
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
@@ -208,7 +212,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const splitChange = performSplit(
 						{ children: itemChildren, ownerKind: itemScope.node.kind },
 						innerIndex,
-						offset
+						offset,
+						deps.getPresentationMode?.()
 					);
 					stampStructuralChange(itemChildren, splitChange, sharing);
 					const secondHalf = itemChildren.splice(innerIndex + 1);

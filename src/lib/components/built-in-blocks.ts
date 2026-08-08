@@ -15,8 +15,10 @@ import {
 import { augmentBuiltin } from '../schema/block-kind-descriptor';
 import { registerBuiltInDescriptors } from '../schema/built-in-descriptors';
 import { augmentInlineWidgetKind } from '../core/inline/inline-widgets';
+import { registerLiveSplitRebalancer } from '../schema/inline-construct-policy';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
+import { rebalanceLiveSplit } from './blocks/text/live-split-rebalance';
 import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 import CodeBlock from './blocks/code/CodeBlock.svelte';
 import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
@@ -87,4 +89,8 @@ export function registerBuiltInBlocks(): void {
 	// Image resize is editor-layer behavior, so the core image kind stays data-only
 	// and gains its selected-key handler here, where the render layer is reachable.
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
+
+	// The split rebalancer needs the inline parser and the render path, neither of which
+	// `tree-operations` may import, so the policy table holds the slot and this layer fills it.
+	registerLiveSplitRebalancer(rebalanceLiveSplit);
 }

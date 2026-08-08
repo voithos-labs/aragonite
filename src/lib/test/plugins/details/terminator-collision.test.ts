@@ -149,7 +149,7 @@ describe('details terminator escape at the split door', () => {
 
 	it('escapes the second half when the cut strands a trailing tag', () => {
 		const parent = { children: parse('foo</details>\n').children, ...detailsOwner() };
-		splitNode(parent, 0, 3);
+		splitNode(parent, 0, 3, undefined);
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '&lt;/details>\n']);
 	});
@@ -160,14 +160,14 @@ describe('details terminator escape at the split door', () => {
 		const parent = { children: parse('</details>foo\n').children, ...detailsOwner() };
 		expect(parent.children[0].kind).toBe('htmlBlock');
 
-		splitNode(parent, 0, 10);
+		splitNode(parent, 0, 10, undefined);
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['&lt;/details>\n', 'foo\n']);
 	});
 
 	it('leaves both halves alone at the document root, where no container claims them', () => {
 		const parent = { children: parse('foo</details>\n').children, ownerKind: undefined };
-		splitNode(parent, 0, 3);
+		splitNode(parent, 0, 3, undefined);
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '</details>\n']);
 	});

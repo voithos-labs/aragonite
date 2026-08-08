@@ -12,6 +12,8 @@ import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph, isBlankSource, parse } from '../core/parser';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
+import { getLiveSplitRebalancer } from '../schema/inline-construct-policy';
+import type { PresentationMode } from '../presentation-mode';
 import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
@@ -160,12 +162,14 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
  * inherits the original ID and the whole structural suffix (a setext underline), which a
  * plain cut would strand below as junk. The second half opens with a blank separator
  * wherever one does structural work ({@link separatorSplitsOffNextLine}) — without it GFM
- * lazy continuation folds the halves back into one block on reload.
+ * lazy continuation folds the halves back into one block on reload. `presentationMode` is
+ * nullable rather than optional: a caller with no mode is a real answer, skipping it is not.
  */
 export function splitNode(
 	parent: BodyParentArg,
 	blockIndex: number,
-	offset: number
+	offset: number,
+	presentationMode: PresentationMode | undefined
 ): StructuralChange {
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
@@ -193,6 +197,17 @@ export function splitNode(
 
 	if (!secondRaw.endsWith('\n')) {
 		secondRaw += lineEnding;
+	}
+
+	// Live alone rebalances: there the delimiters around the cut are unpainted, so a byte-literal
+	// half would surface runs the reader never saw. The rebalancer verifies its own bytes and
+	// declines when they do not parse back, leaving the literal cut every other mode gets.
+	if (presentationMode === 'live') {
+		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw);
+		if (rebalanced) {
+			firstRaw = rebalanced.firstRaw;
+			secondRaw = rebalanced.secondRaw;
+		}
 	}
 
 	const separator = splitSeparator(

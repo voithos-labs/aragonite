@@ -164,3 +164,33 @@ export function rawAssignments(
 	}
 	return out;
 }
+
+// ── Call arguments ───────────────────────────────────────────────────────────
+
+/** The text from just after a call's opening paren to its matching close, parens balanced. */
+export function balancedCall(code: string, openParenIndex: number): string | null {
+	let depth = 1;
+	let i = openParenIndex;
+	while (i < code.length) {
+		const ch = code[i];
+		if (ch === '(') depth++;
+		else if (ch === ')') {
+			depth--;
+			if (depth === 0) return code.slice(openParenIndex, i);
+		}
+		i++;
+	}
+	return null;
+}
+
+/** The last top-level argument of a call's argument text — the slot the threading scans read. */
+export function lastArgument(args: string): string {
+	let depth = 0;
+	for (let i = args.length - 1; i >= 0; i--) {
+		const ch = args[i];
+		if (ch === ')' || ch === ']' || ch === '}') depth++;
+		else if (ch === '(' || ch === '[' || ch === '{') depth--;
+		else if (ch === ',' && depth === 0) return args.slice(i + 1).trim();
+	}
+	return args.trim();
+}

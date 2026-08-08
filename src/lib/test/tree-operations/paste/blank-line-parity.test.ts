@@ -112,7 +112,7 @@ describe('pasting over a blank line settles the separators it consumed', () => {
 	// same paste strands the replacement head against the block above instead.
 	it('hands the replacement head the line a split-shaped blank slot was holding', async () => {
 		const split = parse('alpha\n\ndelta\n');
-		splitNode(split, 0, 5);
+		splitNode(split, 0, 5, undefined);
 		expect(layout(split)).toEqual([
 			['', 'alpha\n'],
 			['', '\n'],

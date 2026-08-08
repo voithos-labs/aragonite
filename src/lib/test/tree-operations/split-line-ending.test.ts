@@ -20,7 +20,7 @@ import { describeConvergence } from '../harness/parse-converged';
  */
 function splitBytes(source: string, offset: number): string {
 	const doc = parse(source);
-	splitNode(doc, 0, offset);
+	splitNode(doc, 0, offset, undefined);
 	expect(describeConvergence(doc), `${JSON.stringify(source)} @${offset}`).toBeNull();
 	return serialize(doc);
 }
@@ -113,7 +113,7 @@ describe('a split cutting on a line ending', () => {
 	// document holds three. Reds the moment the splice goes singular, and names why.
 	it('a second half of two blocks splices both in', () => {
 		const doc = parse('<div>\nabc\n</div>\n');
-		splitNode(doc, 0, 5);
+		splitNode(doc, 0, 5, undefined);
 		expect(doc.children.length).toBe(3);
 		expect(doc.children.map((c) => c.kind)).toEqual(['htmlBlock', 'paragraph', 'htmlBlock']);
 		expect(serialize(doc)).toBe('<div>\n\nabc\n</div>\n');

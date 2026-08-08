@@ -13,7 +13,13 @@ import type {
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { GrammarView } from '../../schema/block-openers';
-import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
+import {
+	BLOCK_EDIT_KEY,
+	CONTAINER_EDIT_KEY,
+	FOCUS_KEY,
+	HISTORY_KEY,
+	type PresentationModeGetter
+} from '../../editor-keys';
 import { assertInvariant } from '../../invariants/assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
 import type { StickyColumnState } from '../../cursor/sticky-column';
@@ -48,6 +54,9 @@ export interface NestedActionsDeps {
 	/** The instance's block grammar, so a disabled kind's opener stays skipped when a
 	 *  nested block re-parses. Absent = the global grammar. */
 	grammar?: GrammarView;
+	/** Live EFFECTIVE mode, for interior mutations whose bytes depend on what the mode paints
+	 *  (the split rebalance). Nullable rather than optional so each container answers. */
+	getPresentationMode: PresentationModeGetter | undefined;
 	/** Enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {
@@ -91,6 +100,7 @@ export function createStandardNestedActions(
 		},
 		stickyColumn: input.stickyColumn,
 		grammar: input.grammar,
+		getPresentationMode: input.getPresentationMode,
 		parentListContext: input.parentListContext,
 		parent: input.parent
 	};
