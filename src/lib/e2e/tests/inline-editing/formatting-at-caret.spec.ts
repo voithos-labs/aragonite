@@ -57,10 +57,10 @@ test.describe('inline formatting at a collapsed caret', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('Hello world');
 	});
 
-	// The toggle joins the typing checkpoint it opened rather than standing alone —
-	// the ordinary batching rule for a content edit at a caret, pinned so a change to
-	// the checkpoint machinery cannot move it silently.
-	test('text typed inside the pair shares the toggle undo entry', async ({ page }) => {
+	// A command is not typing: the toggle breaks the keystroke batch on both sides, so the typing
+	// it opened unwinds first and the pair survives that press. Pinned so a change to the
+	// checkpoint machinery cannot move it silently.
+	test('text typed inside the pair unwinds before the toggle does', async ({ page }) => {
 		await editor.loadContent('Hello \n');
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Control+b');
@@ -69,6 +69,10 @@ test.describe('inline formatting at a collapsed caret', () => {
 		await editor.bridge.waitForSourceContains('**bold**');
 		// Past the typing checkpoint's debounce, so the undo below is not racing it.
 		await page.waitForTimeout(700);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('bold');
+		expect((await editor.bridge.getSource()).trim()).toBe('Hello ****');
 
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains('*');
