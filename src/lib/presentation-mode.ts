@@ -1,15 +1,21 @@
 /**
  * The presentation-mode contract. `source` is the editing default (always-visible styled
- * source); `reading` hides markers, renders widgets, and makes the surface inert;
- * `preview-block` hides markers on every block but the one holding the caret;
- * `preview-inline` narrows that reveal to the caret-touched construct
- * (`components/blocks/text/construct-reveal.ts`). Every door reports the EFFECTIVE mode.
+ * source); `reading` hides markers and makes the surface inert; `preview-block` reveals the
+ * caret's block and `preview-inline` narrows that reveal to the caret-touched construct
+ * (`components/blocks/text/construct-reveal.ts`); `live` hides markers with no reveal at all,
+ * while staying editable. Every door reports the EFFECTIVE mode.
  */
 
-export type PresentationMode = 'source' | 'reading' | 'preview-block' | 'preview-inline';
+export type PresentationMode = 'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live';
 
-/** The two live-preview rungs share their marker-hiding CSS families and the
- *  focus-tracking `data-focused` attribute. */
+/** Membership for the marker-hiding CSS families and the `data-list-marker` hook that
+ *  feeds them: styled source is the one mode that paints Markdown syntax. */
+export function hidesMarkers(mode: PresentationMode): boolean {
+	return mode !== 'source';
+}
+
+/** The reveal-on-focus rungs, which alone need the `data-focused` attribute — live hides
+ *  markers (see `hidesMarkers`) but never reveals them, so it is deliberately not one. */
 export function isPreviewMode(mode: PresentationMode): boolean {
 	return mode === 'preview-block' || mode === 'preview-inline';
 }

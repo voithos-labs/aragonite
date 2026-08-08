@@ -64,7 +64,7 @@
 
 	// `?presentationMode=…` starts in that mode; the prop reads live, so the header
 	// toggles need no remount (unlike blockDragHandles).
-	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline'];
+	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline', 'live'];
 	let presentationMode = $state<PresentationMode>(
 		(typeof window !== 'undefined' &&
 			(PARAM_MODES.find(
@@ -77,7 +77,8 @@
 	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
 		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
 		{ mode: 'preview-block', testid: 'preview-block-toggle', label: 'Block preview' },
-		{ mode: 'preview-inline', testid: 'preview-inline-toggle', label: 'Inline preview' }
+		{ mode: 'preview-inline', testid: 'preview-inline-toggle', label: 'Inline preview' },
+		{ mode: 'live', testid: 'live-toggle', label: 'Live mode' }
 	];
 
 	// Records to a page-scoped sink instead of opening a window. Wired ONLY in reading
