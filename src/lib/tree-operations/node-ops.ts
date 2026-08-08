@@ -462,8 +462,8 @@ export function clearRedundantSeparator(
  * A blank block IS a blank line, so it and its follower share ONE separator: two of them reload
  * as a second empty paragraph (G2.13). The follower's is the one that stands, so a later fill of
  * this slot (a paste over a cut range) still finds the follower separated. The run-level twin
- * {@link settleSeparatorOnBlank} keeps the FIRST instead, the same bytes the other way round,
- * because its mint arm has only one legal slot.
+ * {@link settleSeparatorOnBlank} keeps the first already-standing line instead, the same bytes
+ * the other way round, because its mint arm has only one legal slot.
  */
 export function dropDoubledSeparator(
 	parent: SeparatorParent,
@@ -515,9 +515,9 @@ export function restoreSeparatorAfterBlank(
  * The settle a block turning INTO a blank line owes: it joins the blank run around it, and a run
  * carries exactly the one separating line its reload mints — across every block in it AND its
  * follower, since a blank block is the follower's line too. Two reload as one more empty
- * paragraph; none folds the run's head into the block above. The FIRST line stands, which is
- * where a load puts it and the only place a mint may land (a later block sits under a blank
- * predecessor, which needs no separator).
+ * paragraph; none folds the run's head into the block above. The first line that already stands
+ * is the one kept, wherever in the run it sits; a mint lands at the run's head, the only slot a
+ * new one may take (a later block sits under a blank predecessor, which needs no separator).
  */
 export function settleSeparatorOnBlank(
 	parent: SeparatorParent,
@@ -525,7 +525,8 @@ export function settleSeparatorOnBlank(
 	sharing?: SharingState
 ): void {
 	const children = parent.children;
-	if (!children || !isBlankParagraph(children[index])) return;
+	const node = children?.[index];
+	if (!children || !node || !isBlankParagraph(node)) return;
 	const bodyStart = bodyStartIndex(parent);
 	let start = index;
 	while (start > bodyStart && isBlankParagraph(children[start - 1])) start--;
@@ -535,9 +536,9 @@ export function settleSeparatorOnBlank(
 	for (let i = start; i <= Math.min(end + 1, children.length - 1); i++) {
 		if (children[i].leadingTrivia !== '') standing.push(i);
 	}
-	// A run with no LINE above it (the document head, a container's first body line) separates
-	// from nothing and materializes in full; a reserved chrome line above it is still a line.
-	const wanted = start > 0 ? 1 : 0;
+	// A run with no LINE above it (the document head, a plain container's body head) separates
+	// from nothing and materializes in full; a chrome or opener line above it is still a line.
+	const wanted = start > 0 || opensAfterALine(parent) ? 1 : 0;
 	if (standing.length < wanted) return mintSeparator(parent, start, sharing);
 	for (const at of standing.slice(wanted)) {
 		const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : children[at];
@@ -558,7 +559,19 @@ function mintSeparator(parent: SeparatorParent, index: number, sharing?: Sharing
 
 /** Reserved chrome is not a body block, so the body window opens past it. */
 function bodyStartIndex(parent: SeparatorParent): number {
-	return bodyStartFor('ownerKind' in parent ? parent.ownerKind : parent.kind);
+	return bodyStartFor(ownerKindNameOf(parent));
+}
+
+/** A body parsed after its container's opener LINE has one above its head (the `innerPrefix` peel). */
+function opensAfterALine(parent: SeparatorParent): boolean {
+	const kind = ownerKindNameOf(parent);
+	if (kind === undefined) return false;
+	return !!tryGetBlockKindDescriptor(kind as AnyBlockKind)?.bodyWrap?.afterOpenerLine;
+}
+
+/** The kind whose body these children are: the sink's answer, or the owner node's own. */
+function ownerKindNameOf(parent: SeparatorParent): string | undefined {
+	return 'ownerKind' in parent ? parent.ownerKind : parent.kind;
 }
 
 function bodyStartFor(kind: string | undefined): number {

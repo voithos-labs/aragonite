@@ -67,20 +67,43 @@ function applyFill(doc: Document, at: number): void {
 	updateNodeContent(doc, target, 'x' + trailingLineEnding(doc.children[target].raw));
 }
 
+/** Indentation alone delimits indented code, at any depth: see the property's own note. */
+function holdsIndentedCode(node: Document | CstNode): boolean {
+	return (node.children ?? []).some(
+		(child) => child.kind === 'indentedCode' || holdsIndentedCode(child)
+	);
+}
+
+/** A prose leaf plus the container holding it and the ancestors whose raw the write rebuilds. */
+type LeafSlot = { holder: Document | CstNode; index: number; chain: CstNode[] };
+
+function proseLeafSlots(node: Document | CstNode, chain: CstNode[] = []): LeafSlot[] {
+	return (node.children ?? []).flatMap((child, index) => {
+		// A list item's body is delimited by the INDENT its marker sets, so blanking a leaf inside
+		// one re-reads the bytes the way it does around indented code (the exclusion below).
+		if (child.kind === 'listItem') return [];
+		if (child.children !== undefined) return proseLeafSlots(child, [...chain, child]);
+		const editable = getBlockKindDescriptor(child.kind).supportsInline === true;
+		return editable ? [{ holder: node, index, chain }] : [];
+	});
+}
+
 /**
  * The reverse transition: a block that BECOMES the blank line (GH #96), indexed over the prose
  * leaves so the draw always lands on an editable one. The gesture is what `commitInput` sends
- * for an emptied block — the line ending alone.
+ * for an emptied block — the line ending alone. Container bodies are in the lane: a body head
+ * answers to its container's own opener line, which no top-level draw can reach (GH #96 rework).
  */
 function applyEmpty(doc: Document, at: number): void {
-	const leaves = doc.children.flatMap((node, i) =>
-		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true
-			? [i]
-			: []
-	);
-	if (leaves.length === 0) return;
-	const target = leaves[at % leaves.length];
-	updateNodeContent(doc, target, trailingLineEnding(doc.children[target].raw));
+	const slots = proseLeafSlots(doc);
+	if (slots.length === 0) return;
+	const { holder, index, chain } = slots[at % slots.length];
+	const children = holder.children!;
+	const parent = holder === doc ? doc : { children, ownerKind: (holder as CstNode).kind };
+	updateNodeContent(parent, index, trailingLineEnding(children[index].raw));
+	for (let i = chain.length - 1; i >= 0; i--) {
+		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
+	}
 }
 
 /**
@@ -139,7 +162,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 	it('emptying a block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
 			fc.property(arbBlankSeparatedGfmDoc, fc.nat({ max: 6 }), (source, at) => {
-				fc.pre(!parse(source).children.some((node) => node.kind === 'indentedCode'));
+				fc.pre(!holdsIndentedCode(parse(source)));
 				const divergence = divergenceAfterEdit(source, { op: 'empty', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
