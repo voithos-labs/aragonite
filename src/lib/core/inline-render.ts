@@ -413,6 +413,21 @@ export function renderInlineNodes(
 	return root.content;
 }
 
+/**
+ * The text a reader SEES for `nodes` — the rendered DOM minus every marker span. Lives here
+ * because this file decides which bytes become markers (G4.30): any caller re-deriving that
+ * would drift from what actually paints, which is the only thing the answer is worth anything as.
+ */
+export function renderedText(
+	nodes: InlineNode[],
+	raw: string,
+	opts: RenderInlineOptions = {}
+): string {
+	const fragment = renderInlineNodes(nodes, raw, opts);
+	for (const marker of fragment.querySelectorAll('.md-marker')) marker.remove();
+	return fragment.textContent ?? '';
+}
+
 // ── Cursor mapping ───────────────────────────────────────────────────────────
 
 export interface OffsetResult {

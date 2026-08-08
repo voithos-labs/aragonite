@@ -1,16 +1,16 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
+import { renderedText } from '$lib/core/inline-render';
 import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '$lib/cursor/pending-marks';
 import type { InlineNode } from '$lib/core/nodes';
 
 // The bytes a pending toggle turns the next keystroke into. Live paints no delimiter, so the
-// source IS the oracle, and every case re-parses the result: a rewrite that reads right and
-// parses wrong is the failure mode delimiter arithmetic actually has.
-// Miss-analysis: the first cut used single-WORD fixtures, and every shape the resolver got wrong
-// needed whitespace, a nested pair or a non-markable construct at the split — `**hello world**`
-// split at the space rendered literal stars on a first-session gesture. `visibleText` below is
-// the oracle that would have caught it, written independently of the resolver's own check.
+// source IS the oracle, and every case re-parses the result.
+// Miss-analysis, twice: the first cut used single-WORD fixtures, so `**hello world**` split at
+// the space shipped literal stars; the second checked visibility with a private walk that called
+// an autolink's `<`/`>` content, so a splice that destroyed the link read as clean.
 
 function insert(
 	display: string,
@@ -43,19 +43,10 @@ function kindsAround(raw: string, probe: string): string[] {
 	return found;
 }
 
-/** What a reader sees: content bytes with every delimiter dropped. Written from the parse tree
- *  rather than reusing the resolver's own counter, so this can contradict it. */
+/** What a reader sees, asked of the renderer. The hand-written walk that stood here counted an
+ *  angle autolink's `<`/`>` as content, so it could not see them surface. */
 function visibleText(raw: string): string {
-	let out = '';
-	const visit = (nodes: InlineNode[]): void => {
-		for (const node of nodes) {
-			if (node.children && node.children.length > 0) visit(node.children);
-			else if (node.kind === 'inlineCode') out += node.text ?? '';
-			else out += raw.slice(node.start, node.end);
-		}
-	};
-	visit(parseInline(raw, 0, raw.length));
-	return out;
+	return renderedText(parseInline(raw, 0, raw.length), raw);
 }
 
 describe('applying a mark the chain does not carry', () => {
@@ -215,5 +206,41 @@ describe('a candidate that would not parse back is not written', () => {
 		const result = insert('**héllo wörld**', 8, 'X', ['strong']);
 		expect(result?.raw).toBe('**héllo wörld**X');
 		expect(visibleText(result!.raw)).toBe('héllo wörldX');
+	});
+});
+
+// A construct with no CHILDREN has no content range, so the chain walk used to skip it and never
+// descend — it was absent from `intended`, and the invisibility check could not see its markers
+// either, because the private walk it used called them content. An autolink is the reachable
+// case: the URL is one childless span whose angle brackets are marker spans.
+describe('a childless construct is in the chain, so nothing may cut it open', () => {
+	const ANGLE = 'see <https://example.com> now';
+
+	it('declines a mark applied inside an angle autolink’s URL', () => {
+		// The wrap would have been `see <https**X**://example.com> now`, which kills the autolink
+		// and paints its `<` and `>`.
+		expect(insert(ANGLE, 10, 'X', ['strong'])).toBeNull();
+	});
+
+	it('still marks normally on either side of it', () => {
+		const before = insert(ANGLE, 4, 'X', ['strong']);
+		expect(before?.raw).toBe('see **X**<https://example.com> now');
+		expect(kindsAround(before!.raw, 'X')).toEqual(['strong']);
+		expect(visibleText(before!.raw)).toBe('see Xhttps://example.com now');
+
+		const after = insert(ANGLE, 25, 'X', ['strong']);
+		expect(after?.raw).toBe('see <https://example.com>**X** now');
+		expect(visibleText(after!.raw)).toBe('see https://example.comX now');
+	});
+
+	// A BARE autolink paints no marker at all, so a wrap inside it is visible only as the link
+	// dying — which is exactly what the render-path oracle sees and a byte census would not.
+	it('declines a mark applied inside a bare autolink', () => {
+		expect(insert('see https://example.com now', 10, 'X', ['strong'])).toBeNull();
+	});
+
+	it('declines inside an escape and inside a hard break’s run', () => {
+		expect(insert('x \\* y', 3, 'X', ['strong'])).toBeNull();
+		expect(insert('end  \nnext', 4, 'X', ['strong'])).toBeNull();
 	});
 });

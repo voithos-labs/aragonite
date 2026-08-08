@@ -1,46 +1,70 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
+import { renderInlineNodes } from '../../core/inline-render';
 import { constructContentRange } from '../../components/blocks/text/edge-seat';
 import { resolveMarkedInsertion } from '../../components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '../../cursor/pending-marks';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
-// A pending mark rewrites bytes the user never sees, so the only honest oracle is the parse of
-// what it wrote: over every generated fixture, at every caret, for every mark subset, the toggle
-// took exactly (or nothing was written), no delimiter became a visible star, and the original
-// bytes survive. Re-derived from independent walks, so these can contradict the resolver's own
-// check — they already did, catching a `_` pair killed by a splice that only ever writes `*`.
-// Miss-analysis: the hand-written suite used single-WORD fixtures; a generator that reaches
-// whitespace, nesting and non-markable seams is what turns "I probed it" into coverage.
+// A pending mark rewrites bytes the user never sees, so the only honest oracle is what the RENDER
+// PATH does with them: at every caret, for every mark subset, the toggle took exactly (or nothing
+// was written), the painted text gained only the typed character with no delimiter beside it, and
+// the original bytes survive.
+
+// Miss-analysis, twice: single-WORD fixtures missed every shape needing whitespace, nesting or a
+// non-markable seam; then this file's own oracle was a walk copied from the resolver's, blind in
+// the same place (an autolink's `<`/`>` read as content), so a shape that killed the link passed
+// both. Asking the painter is what closes it — see `paintedText`.
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(707707) } as const;
 
 const MARK_SUBSETS: InlineMarkKind[][] = [['strong'], ['emphasis'], ['strong', 'emphasis']];
 
-/** What a reader sees: content with every delimiter dropped. Code-span content is verbatim, so
- *  a delimiter spliced inside one is just as visible as one in a text run. */
-function visibleText(raw: string): string {
+/**
+ * The DOM the block actually paints, read text node by text node with marker subtrees skipped.
+ * Deliberately NOT `renderedText`, which the resolver's own check calls: sharing the PAINTER is
+ * the point, sharing the traversal would make this echo the check instead of contesting it.
+ */
+function paintedText(raw: string): string {
+	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
+	const host = document.createElement('div');
+	host.appendChild(fragment);
+	const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
 	let out = '';
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			if (node.children && node.children.length > 0) visit(node.children);
-			else if (node.kind === 'inlineCode') out += node.text ?? '';
-			else out += raw.slice(node.start, node.end);
+	let node: Node | null;
+	while ((node = walker.nextNode())) {
+		if (!(node.parentElement && node.parentElement.closest('.md-marker'))) {
+			out += node.textContent ?? '';
 		}
-	};
-	visit(parseInline(raw, 0, raw.length));
+	}
 	return out;
 }
 
-/** Construct kinds whose CONTENT holds `offset` — the chain a toggle is resolved against. */
+/** Delimiter bytes left on screen once the marker spans are gone. Every marker byte any kind can
+ *  paint, not just the two this resolver writes — a `_` pair it kills surfaces the same way. */
+function delimitersOnScreen(raw: string): number {
+	let count = 0;
+	for (const char of paintedText(raw)) if ('*_~`<>'.includes(char)) count++;
+	return count;
+}
+
+/**
+ * The chain a toggle is resolved against, from the spec's two containment rules: a construct with
+ * children is content-INCLUSIVE (its edges are where continued typing extends it), a childless one
+ * is STRICT-interior (its edges are ordinary insertion points).
+ */
 function chainAt(raw: string, offset: number): Set<string> {
 	const kinds = new Set<string>();
 	const visit = (nodes: readonly InlineNode[]): void => {
 		for (const node of nodes) {
+			if (node.kind === 'text') continue;
 			const content = constructContentRange(node);
-			if (!content || offset < content.start || offset > content.end) continue;
+			if (content) {
+				if (offset < content.start || offset > content.end) continue;
+			} else if (offset <= node.start || offset >= node.end) continue;
 			kinds.add(node.kind);
 			if (node.children) visit(node.children);
 		}
@@ -121,7 +145,7 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 		);
 	});
 
-	it('no delimiter the rewrite touched becomes a visible star', () => {
+	it('the painted text gains only the typed character, and no delimiter with it', () => {
 		fc.assert(
 			fc.property(
 				arbInlineSource,
@@ -139,14 +163,20 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 					);
 					if (result === null) return;
 
-					// Exactly one character appeared on screen, and it is the one that was typed.
-					// Any delimiter that stopped being a delimiter would show up here as extra text.
-					const before = visibleText(display);
-					const after = visibleText(result.raw);
-					expect(after.length, `visible text grew by more than the typed byte`).toBe(
+					// Exactly one character appeared on screen, and it is the one that was typed. A
+					// delimiter that stopped being a delimiter shows up here as extra painted text.
+					const before = paintedText(display);
+					const after = paintedText(result.raw);
+					expect(after.length, `painted text grew by more than the typed byte`).toBe(
 						before.length + 1
 					);
-					expect(after.replace('X', ''), `visible text changed around the insertion`).toBe(before);
+					expect(after.replace('X', ''), `painted text changed around the insertion`).toBe(before);
+					// Independent of the equality above: a rewrite may never put a delimiter on screen
+					// that was not already there, whichever kind painted it.
+					expect(
+						delimitersOnScreen(result.raw),
+						`a delimiter surfaced in ${JSON.stringify(result.raw)}`
+					).toBe(delimitersOnScreen(display));
 				}
 			),
 			PARAMS
@@ -192,7 +222,7 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 function isSubsequence(needle: string, haystack: string): boolean {
 	let i = 0;
 	for (const char of haystack) {
-		if (i < needle.length && haystack.slice(0) && needle.startsWith(char, i)) i += char.length;
+		if (i < needle.length && needle.startsWith(char, i)) i += char.length;
 		if (i >= needle.length) return true;
 	}
 	return i >= needle.length;

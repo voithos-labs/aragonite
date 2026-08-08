@@ -8,6 +8,7 @@
  */
 
 import { parseInline } from '../../../core/inline';
+import { renderedText } from '../../../core/inline-render';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
 import { constructContentRange } from './edge-seat';
@@ -212,22 +213,13 @@ function enclosingKinds(
 }
 
 /**
- * Leaf content with every delimiter run dropped — what a reader sees. NOT a renderer: it only
- * has to be CONSISTENT, because the one thing asked of it is whether two versions of the same
- * block look the same. Counting the delimiter BYTES instead was not enough — this rewrite only
- * ever writes `*`, but it can kill a `_` pair beside it, and that pair's bytes then surface.
+ * What a reader sees, asked of the thing that actually paints it: the render path's own DOM with
+ * every marker span dropped. Deliberately not a private walk over the parse — one of those cannot
+ * know which bytes a kind paints as a marker, and the walk this replaced counted an angle
+ * autolink's `<`/`>` as content, so it could not see them surface when a splice killed the link.
  */
 function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
-	let out = '';
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			if (node.children && node.children.length > 0) visit(node.children);
-			else if (node.kind === 'inlineCode') out += node.text ?? '';
-			else out += raw.slice(node.start, node.end);
-		}
-	};
-	visit(parsed ?? parseInline(raw, 0, raw.length));
-	return out;
+	return renderedText([...(parsed ?? parseInline(raw, 0, raw.length))], raw);
 }
 
 // ── The chain ────────────────────────────────────────────────────────────────
@@ -248,24 +240,28 @@ function markOf(kind: AnyInlineKind): InlineMarkKind | null {
 }
 
 /**
- * EVERY construct whose content holds `offset`, outermost first — not just the markable ones,
- * because a link or a code span between the caret and the construct being escaped decides
- * whether that escape may cut anything. Content-inclusive at both ends: at a trailing content
- * edge continued typing extends the construct, so that is where a toggle-off must escape it.
+ * EVERY construct holding `offset`, outermost first: one missing from the chain is missing from
+ * `intended`, which is what lets a candidate destroy it unnoticed (an autolink, once).
+ * Containment differs by shape — a construct with children is content-INCLUSIVE, a childless one
+ * STRICT-interior, since its edges are ordinary insertion points and calling them inside would
+ * decline every legitimate keystroke beside a URL.
  */
 function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
 	const chain: ChainNode[] = [];
 	const visit = (nodes: readonly InlineNode[]): void => {
 		for (const node of nodes) {
+			if (node.kind === 'text') continue;
 			const content = constructContentRange(node);
-			if (!content || offset < content.start || offset > content.end) continue;
+			if (content) {
+				if (offset < content.start || offset > content.end) continue;
+			} else if (offset <= node.start || offset >= node.end) continue;
 			chain.push({
 				kind: node.kind,
 				mark: markOf(node.kind),
 				start: node.start,
 				end: node.end,
-				contentStart: content.start,
-				contentEnd: content.end
+				contentStart: content?.start ?? node.start,
+				contentEnd: content?.end ?? node.end
 			});
 			if (node.children) visit(node.children);
 		}

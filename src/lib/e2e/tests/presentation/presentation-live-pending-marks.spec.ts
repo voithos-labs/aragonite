@@ -10,11 +10,20 @@ import { attachIme } from '../../simulation/ime';
 // pended mark from an empty pair until bytes exist.
 // Requirements: e2e/requirements/presentation/presentation-live-pending-marks.md.
 
-const DOC = ['plain', '', 'Some **bold** text', '', '**hello world**'].join('\n');
+const DOC = [
+	'plain',
+	'',
+	'Some **bold** text',
+	'',
+	'**hello world**',
+	'',
+	'see <https://example.com> now'
+].join('\n');
 
 const PLAIN = 0;
 const BOLD = 1;
 const PHRASE = 2;
+const AUTOLINK = 3;
 
 async function enterLive(page: Page): Promise<EditorPage> {
 	const ep = new EditorPage(page);
@@ -142,6 +151,36 @@ test.describe('live mode — a removal that would show delimiters steps outside 
 		const block = ep.getBlock(PHRASE);
 		await expect(block).toHaveText('Xhello world', { useInnerText: true });
 		await expect(block.locator('strong')).toHaveText('hello world', { useInnerText: true });
+		await expect(block.locator('.md-marker').first()).toHaveCSS('display', 'none');
+	});
+});
+
+// An autolink is ONE childless span: there is no seam inside it a delimiter can go through, and
+// its angle brackets are marker spans the reader has never seen. A wrap inside the URL destroys
+// the link and paints them, so the mark declines and the byte types plain.
+test.describe('live mode — a mark inside a URL declines rather than destroy the link', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterLive(page);
+	});
+
+	test('Mod+B inside an autolink’s URL types plain and leaves the link intact', async ({
+		page
+	}) => {
+		await clickBlock(ep, AUTOLINK);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		await stepTo(ep, page, 'ArrowRight', 10);
+
+		await bold(page);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('see <httpsX://example.com> now');
+		await ep.bridge.waitForSourceNotContains('**X**');
+
+		const block = ep.getBlock(AUTOLINK);
+		await expect(block).toHaveText('see httpsX://example.com now', { useInnerText: true });
+		await expect(block.locator('.md-autolink')).toHaveCount(1);
 		await expect(block.locator('.md-marker').first()).toHaveCSS('display', 'none');
 	});
 });
