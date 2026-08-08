@@ -25,9 +25,12 @@ Chromium actually left the caret.
   run in ONE press and stops at the construct's content edge (`bold`'s last
   byte), never at an offset inside the run
 - `Backspace` at a heading's content start is SWALLOWED: the block's bytes are
-  unchanged, no merge fires, and the caret stays put — native backspace would eat
-  a hidden `#` or the marker's space and reparse the block into a paragraph
-  rendering the leftovers
+  unchanged, no merge fires, and the caret stays put. The press is consumed, so
+  that outcome is the contract rather than the engine's choice about what a
+  destructive key does beside non-rendered text. The row pins the OBSERVABLE
+  outcome, which today holds with or without the swallow — Chromium declines the
+  delete on its own; what pins the swallow itself is the unit matrix in
+  `test/blocks/text/edge-policy-hidden-structural.test.ts`
 - `Backspace` at a paragraph's start still merges with the previous block: the
   swallow claims only a caret sitting against a hidden structural prefix
 - `ArrowUp` / `ArrowDown` on the first / last visual line still exit the block,

@@ -339,6 +339,7 @@ function handleCompositionStart(
 	mutCtx: CrossBlockMutationContext
 ): boolean {
 	ctx.stickyColumn.reset();
+	ctx.edgeAffinity.reset();
 	if (!ctx.selection.isCrossBlock) return false;
 	if (isReadingMode(ctx.getPresentationMode)) return false;
 	performCrossBlockDeleteSync(mutCtx);

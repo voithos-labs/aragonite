@@ -119,3 +119,18 @@ describe('a cross-block paste whose delete resolves no caret', () => {
 		expect(env.errors[0].context?.path).toEqual([0]);
 	});
 });
+
+// The empty-payload return commits nothing, so no commit ceremony runs to clear the ephemeral
+// caret states behind it — the arm's own resets are the only ones on that path.
+describe('a cross-block paste with an empty payload', () => {
+	it('consumes the event and still clears the sticky column and the edge affinity', async () => {
+		const env = makeEnv();
+		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
+
+		expect(await env.handlers.handlePaste(pasteEvent(''))).toBe(true);
+
+		expect(serialize(env.deps.doc)).toBe(SOURCE);
+		expect(env.stickyColumn.reset).toHaveBeenCalled();
+		expect(env.edgeAffinity.reset).toHaveBeenCalled();
+	});
+});
