@@ -131,6 +131,14 @@ describe('createEditorEvents', () => {
 					return null;
 				}
 			},
+			edgeAffinity: {
+				reset() {},
+				note() {},
+				noteTyping() {},
+				get() {
+					return null;
+				}
+			},
 			selectionState: createSelectionState(),
 			getBlockElByPath: () => null,
 			operationsLog: undefined,

@@ -76,6 +76,7 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
 		stickyColumn: { reset: () => {} },
+		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
 		blockEdit: {
 			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
 				void commits.push({ index, raw, before, after })
@@ -224,6 +225,7 @@ function foldSettleHarness() {
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		stickyColumn: { reset: () => {} },
+		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
 		blockEdit: { updateBlockContent: () => void order.push('seam-commit') },
 		pasteCoordinator: {},
 		getDoc: () => null,

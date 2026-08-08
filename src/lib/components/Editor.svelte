@@ -23,6 +23,7 @@
 		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { createStickyColumnState } from '../cursor/sticky-column';
+	import { createEdgeAffinityState } from '../cursor/edge-affinity';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
@@ -218,6 +219,7 @@
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const stickyColumn = createStickyColumnState();
+	const edgeAffinity = createEdgeAffinityState();
 	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
@@ -311,6 +313,7 @@
 			blockRefs = [];
 			undoManager.clear();
 			stickyColumn.reset();
+			edgeAffinity.reset();
 			selectionState.clear();
 			documentGeneration++;
 			// The resolver refreshes unconditionally — the old one closes over the
@@ -361,7 +364,8 @@
 	// doing nothing. `getBlockComponent` is hoisted; the reset closure defers its reads.
 	const deadSpaceCaret = createDeadSpaceCaret({
 		getBlockComponent,
-		resetSelectionForClick: () => resetForPointerDown(selectionState, stickyColumn, false),
+		resetSelectionForClick: () =>
+			resetForPointerDown(selectionState, stickyColumn, edgeAffinity, false),
 		gapScope: {
 			getDoc: () => doc,
 			selection: selectionState,
@@ -424,6 +428,7 @@
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return;
 			stickyColumn.reset();
+			edgeAffinity.reset();
 		});
 	});
 
@@ -431,7 +436,10 @@
 	// would make it wait for the bind and re-install on every root change.
 	$effect(() =>
 		onRoot(document, 'visibilitychange', () => {
-			if (document.visibilityState === 'hidden') stickyColumn.reset();
+			if (document.visibilityState === 'hidden') {
+				stickyColumn.reset();
+				edgeAffinity.reset();
+			}
 		})
 	);
 
@@ -544,6 +552,7 @@
 		undoManager,
 		sharing,
 		stickyColumn,
+		edgeAffinity,
 		selectionState,
 		getBlockElByPath,
 		revealPath,
@@ -702,6 +711,7 @@
 		selection: selectionState,
 		search: searchState,
 		stickyColumn,
+		edgeAffinity,
 		revealAnchor,
 		widgetSelection,
 		controller,
@@ -742,6 +752,9 @@
 		const mode = effectiveMode;
 		if (mode === lastEffectiveMode) return;
 		lastEffectiveMode = mode;
+		// Which markers paint just changed, so a side recorded against the old geometry
+		// no longer names the offset the user meant.
+		edgeAffinity.reset();
 		if (mode === 'reading') {
 			// The gap is an editor-owned caret no DOM blur can reach, so it folds here beside
 			// the blur rather than at each arrival path (#88).
@@ -857,6 +870,7 @@
 		getScrollHost,
 		getEditorLifetime: () => lifetimeController.signal,
 		stickyColumn,
+		edgeAffinity,
 		blockEdit,
 		controller,
 		history,

@@ -54,6 +54,12 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 	const errors: unknown[] = [];
 	const deps: ClipboardSurfaceDeps = {
 		stickyColumn: { reset: () => {} } as never,
+		edgeAffinity: {
+			reset: () => {},
+			get: () => null,
+			note: () => {},
+			noteTyping: () => {}
+		} as never,
 		selection: { isCrossBlock: false } as never,
 		getDoc: () => null as never,
 		crossBlock: {

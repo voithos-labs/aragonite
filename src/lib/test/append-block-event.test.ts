@@ -56,6 +56,14 @@ describe('moveFocus past the last block', { timeout: 20_000 }, () => {
 					return null;
 				}
 			},
+			edgeAffinity: {
+				reset() {},
+				note() {},
+				noteTyping() {},
+				get() {
+					return null;
+				}
+			},
 			selectionState: createSelectionState(),
 			getBlockElByPath: () => null,
 			events

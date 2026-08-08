@@ -11,6 +11,7 @@ import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
+import type { EdgeAffinityState } from '$lib/cursor/edge-affinity';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
@@ -75,6 +76,10 @@ export function makeEmptyGapScope(): GapStopScope {
 export function makeStickyColumn(x: number | null = null): StickyColumnState {
 	const stickyX = x === null ? null : asEditorX(x);
 	return { get: () => stickyX, reset: vi.fn(), capture: vi.fn(), noteKey: vi.fn() };
+}
+
+export function makeEdgeAffinity(): EdgeAffinityState {
+	return { get: () => null, reset: vi.fn(), note: vi.fn(), noteTyping: vi.fn() };
 }
 
 // ── BlockListState stub ──────────────────────────────────────────────────────
@@ -198,6 +203,7 @@ export function makeEditorActionsDeps(
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn: makeStickyColumn(),
+		edgeAffinity: makeEdgeAffinity(),
 		selectionState: createSelectionState(
 			options.onSelectionChange ? { onChange: options.onSelectionChange } : undefined
 		),

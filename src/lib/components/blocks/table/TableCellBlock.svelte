@@ -106,6 +106,7 @@
 		controller,
 		pasteCoordinator,
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		widgetSelection,
 		registryView,
@@ -214,6 +215,7 @@
 		getScrollHost,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
+		edgeAffinity,
 		blockEdit,
 		controller,
 		history,
@@ -716,7 +718,7 @@
 			columnCount
 		};
 
-		resetForPointerDown(selection, stickyColumn, e.shiftKey);
+		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
 
 		if (e.shiftKey) {
 			const prevCoords = cellCoordsOfElement(document.activeElement, tableEl);
@@ -743,6 +745,7 @@
 	// widget bytes like `<br>` that the browser's rendered-textContent copy drops.
 	const { onCopy, onCut, onPaste } = createClipboardHandlers({
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		getDoc,
 		crossBlock,

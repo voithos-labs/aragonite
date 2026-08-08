@@ -25,6 +25,7 @@ import type { GrammarView } from '../../schema/block-openers';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { placeCaret } from '../../selection/caret-doors';
 import {
@@ -103,6 +104,7 @@ export interface EditableSurfaceDeps {
 	getScrollHost: () => UserScrollport | null;
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
+	edgeAffinity: EdgeAffinityState;
 	blockEdit: BlockEditActions;
 	controller: UndoController;
 	history: HistoryActions;
@@ -187,6 +189,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getScrollHost: deps.getScrollHost,
 		getEditorLifetime: deps.getEditorLifetime,
 		stickyColumn: deps.stickyColumn,
+		edgeAffinity: deps.edgeAffinity,
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		history: deps.history,
@@ -211,6 +214,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		crossBlock,
 		selection: deps.selection,
 		stickyColumn: deps.stickyColumn,
+		edgeAffinity: deps.edgeAffinity,
 		history: deps.history,
 		focus: deps.focusActions,
 		getDoc: deps.getDoc,
@@ -286,6 +290,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (deps.isInputSuppressed?.()) return;
 		deps.inputPrelude?.();
 		deps.stickyColumn.reset();
+		// The committed bytes belong to the content, whatever arrival seated the caret.
+		deps.edgeAffinity.noteTyping();
 		if (deps.getComposing() || !deps.getEl()) return;
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
@@ -345,6 +351,7 @@ export interface RevealFold {
  */
 export interface ClipboardSurfaceDeps {
 	stickyColumn: StickyColumnState;
+	edgeAffinity: EdgeAffinityState;
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
@@ -402,6 +409,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 
 	function onCopy(e: ClipboardEvent): void {
 		deps.stickyColumn.reset();
+		deps.edgeAffinity.reset();
 		if (deps.isReadOnly()) {
 			e.preventDefault();
 			writeVisibleSelection(e);
@@ -419,6 +427,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 
 	async function onCut(e: ClipboardEvent): Promise<void> {
 		deps.stickyColumn.reset();
+		deps.edgeAffinity.reset();
 		e.preventDefault();
 		if (deps.isReadOnly()) {
 			onCopy(e);
@@ -439,11 +448,13 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		await fold?.settled;
 		if (images.length > 0) {
 			deps.stickyColumn.reset();
+			deps.edgeAffinity.reset();
 			await pasteImages(deps, imageArm, e, images, fold?.caret ?? null);
 			return;
 		}
 		if (await deps.crossBlock.handlePaste(e)) return;
 		deps.stickyColumn.reset();
+		deps.edgeAffinity.reset();
 		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
 		if (!pastedText) return;
 		await deps.pasteTail(e, pastedText, fold?.caret ?? null);

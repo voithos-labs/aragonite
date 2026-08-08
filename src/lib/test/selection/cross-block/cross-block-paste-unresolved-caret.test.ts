@@ -10,7 +10,11 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { makeEditorActionsDeps, makeStickyColumn } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeStickyColumn,
+	makeEdgeAffinity
+} from '$lib/test/harness/editor-actions';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { EditorError } from '$lib/editor-events';
@@ -25,6 +29,7 @@ function makeEnv() {
 	const controller = createUndoController(harness.deps);
 	const blockEdit = createBlockEditActions(harness.deps, controller);
 	const stickyColumn = makeStickyColumn();
+	const edgeAffinity = makeEdgeAffinity();
 
 	let release!: () => void;
 	const gate = new Promise<BlockComponent | null>((resolve) => {
@@ -47,6 +52,7 @@ function makeEnv() {
 		getScrollHost: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn,
+		edgeAffinity,
 		blockEdit,
 		controller,
 		history: { requestUndo() {}, requestRedo() {} },
@@ -67,6 +73,7 @@ function makeEnv() {
 		handlers,
 		errors,
 		stickyColumn,
+		edgeAffinity,
 		mutCtx: {
 			selection: harness.deps.selectionState,
 			getDoc: () => harness.deps.doc,

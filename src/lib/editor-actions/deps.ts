@@ -1,6 +1,7 @@
 import type { BlockComponent } from '../block-component';
 import type { Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { BlockElLookup, PresentationModeGetter } from '../editor-keys';
 import type { EditorSelection } from '../selection/primitives';
 import type { SelectionState } from '../selection/selection-state.svelte';
@@ -32,6 +33,7 @@ export interface EditorActionsDeps {
 	undoManager: UndoManager;
 	sharing: SharingState;
 	stickyColumn: StickyColumnState;
+	edgeAffinity: EdgeAffinityState;
 	selectionState: SelectionState;
 	getBlockElByPath: BlockElLookup;
 	/** Scroll an off-window top-level block into the render window and await its

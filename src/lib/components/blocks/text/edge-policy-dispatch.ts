@@ -12,10 +12,12 @@ import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineWidgetEditingPolicy } from '../../../core/inline/inline-widgets';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { getContentRange } from '../../../core/inline';
 import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
+import { hidesBlockOwnMarkers } from '../../../cursor/widget-offset';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
@@ -310,6 +312,30 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
+	// ── Hidden structural prefix / suffix ──────────────────────────────────────
+
+	/**
+	 * A block's own markers are unpainted in a mode that never reveals them, so the byte a
+	 * plain destructive key would take at the content edge is one the user cannot see —
+	 * `## Title` reparsed to a paragraph rendering `##`. Chromium declines it (non-rendered
+	 * text offers no visual position to delete toward); consuming the press makes that the
+	 * contract rather than the engine's choice.
+	 */
+	function handleHiddenStructuralEdge(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		if (e.key !== 'Backspace' && e.key !== 'Delete') return false;
+		if (e.shiftKey || hasModifier(e)) return false;
+		if (caretOffset === null || hasSelectionHelper()) return false;
+		const el = deps.getEl();
+		if (!el || !hidesBlockOwnMarkers(el)) return false;
+		const range = getContentRange(deps.node);
+		const atHiddenPrefix = e.key === 'Backspace' && range.start > 0 && caretOffset === range.start;
+		const atHiddenSuffix =
+			e.key === 'Delete' && range.end < display().length && caretOffset === range.end;
+		if (!atHiddenPrefix && !atHiddenSuffix) return false;
+		e.preventDefault();
+		return true;
+	}
+
 	function handleKeydown(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (handleCstWidget(e, caretOffset)) return true;
 		// Islands and the ambient marker are destructive-only view guards, so reading mode
@@ -317,6 +343,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (deps.isReading()) return false;
 		if (handleIsland(e, caretOffset)) return true;
 		if (handleAmbient(e)) return true;
+		// Last: the more specific construct classes above still own a key aimed at one of
+		// theirs, and this claims only what would otherwise reach the block-merge command.
+		if (handleHiddenStructuralEdge(e, caretOffset)) return true;
 		return false;
 	}
 

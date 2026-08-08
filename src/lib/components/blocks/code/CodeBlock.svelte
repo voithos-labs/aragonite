@@ -72,6 +72,7 @@
 		controller,
 		pasteCoordinator,
 		stickyColumn,
+		edgeAffinity,
 		reorder,
 		selection,
 		registryView,
@@ -128,6 +129,7 @@
 		getScrollHost,
 		getEditorLifetime: () => editorLifetime ?? null,
 		stickyColumn,
+		edgeAffinity,
 		blockEdit,
 		controller,
 		history,
@@ -616,6 +618,7 @@
 	// to the seam's visible-selection default, and cut writes that string before deleting.
 	const { onCopy, onCut, onPaste } = createClipboardHandlers({
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		getDoc,
 		crossBlock,

@@ -1,11 +1,25 @@
 /**
  * Cursor / range / selection helpers for contenteditable text surfaces. Offsets count DOM
  * text characters ambient-inclusively (`Range.toString()` does not skip
- * contenteditable=false islands), so they are `DomTextOffset`. An offset inside an atomic
- * inline widget snaps to that widget's leading or trailing edge.
+ * contenteditable=false islands), so they are `DomTextOffset`. An offset inside a span the
+ * cursor may not enter — an atomic inline widget, or marker text the mode hides — snaps to
+ * that span's leading or trailing edge.
  */
 
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
+import { isHiddenMarkerRoot } from './widget-offset';
+
+/**
+ * Length of a span the cursor may not enter, or null when it is transparent. Atomic widgets
+ * and marker text the mode paints nothing for are both opaque: an offset inside either has
+ * no position to seat, and hiding is classified at its one home, never re-derived here.
+ */
+function opaqueSpanLength(node: Node, container: HTMLElement): number | null {
+	if (node.nodeType !== Node.ELEMENT_NODE) return null;
+	const el = node as Element;
+	if (!el.matches?.('[data-inline-widget]') && !isHiddenMarkerRoot(el, container)) return null;
+	return el.textContent?.length ?? 0;
+}
 
 export function createRangeFromOffsets(
 	container: HTMLElement,
@@ -17,12 +31,9 @@ export function createRangeFromOffsets(
 	let startSet = false;
 
 	function walk(node: Node): boolean {
-		// The cursor never lands inside an atomic widget: snap to the nearer edge.
-		if (
-			node.nodeType === Node.ELEMENT_NODE &&
-			(node as Element).matches?.('[data-inline-widget]')
-		) {
-			const len = (node as Element).textContent?.length ?? 0;
+		// The cursor never lands inside an opaque span: snap to the nearer edge.
+		const len = opaqueSpanLength(node, container);
+		if (len !== null) {
 			if (!startSet && start <= charCount + len) {
 				if (start <= charCount) range.setStartBefore(node);
 				else range.setStartAfter(node);

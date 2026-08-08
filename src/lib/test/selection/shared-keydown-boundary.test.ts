@@ -17,6 +17,7 @@ import {
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import { createStickyColumnState } from '../../cursor/sticky-column';
+import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -37,6 +38,7 @@ function makeCtx(over: {
 		crossBlock: { handleKeyDown: async () => false, handleBeforeInput: async () => false },
 		selection: { resetSelectAllCount: () => {} },
 		stickyColumn: createStickyColumnState(),
+		edgeAffinity: createEdgeAffinityState(),
 		history: {},
 		focus: {},
 		getDoc: () => doc,

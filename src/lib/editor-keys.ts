@@ -23,6 +23,7 @@ import type { SelectionState } from './selection/selection-state.svelte';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { StickyColumnState } from './cursor/sticky-column';
+import type { EdgeAffinityState } from './cursor/edge-affinity';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
@@ -121,6 +122,9 @@ export interface EditorServices {
 	selection: SelectionState;
 	search: SearchState;
 	stickyColumn: StickyColumnState;
+	/** Which side of an adjacent hidden marker run the caret means; the write seams read
+	 *  it and keep their own default when it answers null. */
+	edgeAffinity: EdgeAffinityState;
 	revealAnchor: RevealAnchorState;
 	widgetSelection: WidgetSelectionState;
 	controller: UndoController;

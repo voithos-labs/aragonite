@@ -17,7 +17,7 @@ import { createEditorEvents } from '$lib/editor-events';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { parse } from '$lib/core/parser';
 import { createGrammarView, type GrammarView } from '$lib/schema/block-openers';
-import { mockRef, makeStickyColumn } from '$lib/test/harness/editor-actions';
+import { mockRef, makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 
 function makeEnv(source: string) {
@@ -27,6 +27,7 @@ function makeEnv(source: string) {
 	const events = createEditorEvents();
 	const selectionState = createSelectionState();
 	const stickyColumn = makeStickyColumn();
+	const edgeAffinity = makeEdgeAffinity();
 	const deps = {
 		get doc() {
 			return doc;
@@ -48,6 +49,7 @@ function makeEnv(source: string) {
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn,
+		edgeAffinity,
 		selectionState,
 		getBlockElByPath: () => null,
 		revealPath: async (path: number[]) => (path.length === 1 ? (blockRefs[path[0]] ?? null) : null),
@@ -61,7 +63,8 @@ function makeEnv(source: string) {
 		selectionState,
 		controller,
 		blockEdit,
-		stickyColumn
+		stickyColumn,
+		edgeAffinity
 	};
 }
 
@@ -79,6 +82,7 @@ function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | un
 		getScrollHost: () => null,
 		getEditorLifetime: () => null,
 		stickyColumn: env.stickyColumn,
+		edgeAffinity: env.edgeAffinity,
 		blockEdit: env.blockEdit,
 		controller: env.controller,
 		history: { requestUndo() {}, requestRedo() {} },

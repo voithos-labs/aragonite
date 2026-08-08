@@ -52,6 +52,7 @@ export function createHistoryActions(
 	// its bytes aren't dropped from the edit channel.
 	function beginHistorySwap(): void {
 		deps.stickyColumn.reset();
+		deps.edgeAffinity.reset();
 		controller.flushDebouncedCheckpoint();
 	}
 
