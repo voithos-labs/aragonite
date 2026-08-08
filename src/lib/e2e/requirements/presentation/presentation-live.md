@@ -9,15 +9,19 @@ focused block never shows. The DOM keeps every marker node (offsets survive) and
 reading's read-only chrome is NOT inherited: task checkboxes toggle, table grips
 and drag handles stay, and links place a caret on a plain click instead of
 navigating. Driven on `/test/editor` via `?presentationMode=live` and the header
-"Live mode" toggle (a real click); source is asserted through the `window.__test`
-bridge.
+"Live mode" toggle (a real click), and on `/test/plugins` — the only harness that
+renders directive containers — through the `window.__test` bridge; source is
+asserted through the same bridge.
 
 ## Happy paths
 
 - entering live sets `data-presentation="live"` on the editor root; the header
   toggle enters and leaves it the same way the query param does
-- inline markers (`**`), block-own prefixes (`# `), and code-fence chrome hide
-  from paint (computed `display: none`)
+- inline markers (`**`), block-own prefixes (`# `), code-fence chrome, and
+  reference labels (`[ref]`) hide from paint (computed `display: none`)
+- directive container chrome (`:::foo`) hides too, and stays hidden with the
+  caret in the container's body — driven on `/test/plugins`, the harness that
+  renders plugin containers, entered through the `window.__test` bridge
 - bullet items hide their `- ` and paint rendered bullet chrome instead; ordered
   ambient numbers stay visible; task checkboxes stay visible
 - table grips still reveal on table hover and drag handles still reveal on block
@@ -29,7 +33,8 @@ bridge.
   (preview-block's reveal) nor the caret-touched construct's (preview-inline's)
 - the marker DOM is hidden, never omitted: the hidden marker text still exists in
   the block's textContent (the coordinate-space contract)
-- leaving live restores the markers to paint and the flip itself writes no bytes
+- leaving live restores the markers to paint, and a full toggle round trip leaves
+  the source byte-identical — a mode flip is a view change, never an edit
 
 ## User interactions
 
