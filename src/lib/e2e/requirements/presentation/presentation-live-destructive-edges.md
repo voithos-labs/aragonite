@@ -37,6 +37,12 @@ nothing on screen distinguishes bytes that are hidden from bytes that are gone.
 - source mode is unaffected: the same gesture over the same bytes deletes the one byte the caret
   is against, delimiters included, because there they are painted and the user aimed at them
 
+Where the plain cut IS sound the arm deliberately diverges from the engine rather than matching
+it: native joins whatever spans abut the deletion, so `[a](u) [b](v)` becomes one link and one of
+the two URLs is gone, and a bold beside a code span merges into whichever the engine picks. The
+arm keeps both constructs and takes only the character. The widened cut is the one case where the
+two agree, and it agrees by verification rather than by imitation.
+
 The blast radius of that swallow is a decision, not a corner case: over a 15-fixture corpus of
 the shapes this spec and its unit suite drive (414 presses, both directions at every offset), the
 arm claims 239 presses and swallows 18 of them — down from 28 before the widened cut existed. A

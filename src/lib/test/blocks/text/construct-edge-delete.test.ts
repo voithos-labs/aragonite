@@ -162,3 +162,47 @@ describe('a rewrite the parser would not read back takes nothing', () => {
 		expect(del('**a *b*** z', 11)).toBeNull();
 	});
 });
+
+// The join case is sound today only because THIS parser reads `**a****b**` as one strong. A
+// CommonMark-conformant reading there would make the PLAIN cut verify, and the arm would write a
+// four-star run into the source that nothing on screen explains. The candidate order happens to
+// protect that; this is the rule itself, so the day the ordering stops protecting it, it fails.
+describe('no accepted rewrite grows a delimiter run', () => {
+	const CORPUS = [
+		'Some **bold** text',
+		'**b** tail',
+		'a \\* b',
+		'first line\\\nsecond line',
+		'**a *b* c**',
+		'**a** **b**',
+		'*a* *b*',
+		'~~a~~ ~~b~~',
+		'`a` `b`',
+		'a `xy` b',
+		'zz [text](u) yy',
+		'***x*** y',
+		'x *a* *b* y',
+		'a **b** `c` [d](e) f'
+	];
+
+	const longestRun = (raw: string, char: string): number =>
+		Math.max(0, ...[...raw.matchAll(new RegExp(`\\${char}+`, 'g'))].map((m) => m[0].length));
+
+	it('over every claimed press in the corpus', () => {
+		const grown: string[] = [];
+		for (const display of CORPUS) {
+			for (let caret = 0; caret <= display.length; caret++) {
+				for (const direction of ['backward', 'forward'] as const) {
+					const answer = del(display, caret, direction);
+					if (!answer || 'swallow' in answer) continue;
+					for (const char of ['*', '~', '`']) {
+						if (longestRun(answer.raw, char) > longestRun(display, char)) {
+							grown.push(`${display} @${caret} ${direction} → ${answer.raw}`);
+						}
+					}
+				}
+			}
+		}
+		expect(grown).toEqual([]);
+	});
+});

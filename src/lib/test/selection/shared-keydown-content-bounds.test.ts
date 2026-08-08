@@ -39,6 +39,8 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 	const textLen = source.replace(/\n+$/, '').length;
 	return {
 		moveFocus,
+		// Cast the members this fixture does not stand up, never the whole context: a blanket cast
+		// is what let a new required reader ship unanswered here.
 		ctx: {
 			getEl: () => el,
 			getCursorOffset: () => offset,
@@ -48,15 +50,20 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			getInlines: () => resolvedInlineContent(doc.children[0]),
 			getMyPath: () => [0],
 			getIndex: () => 1,
-			crossBlock: { handleKeyDown: async () => false, handleBeforeInput: async () => false },
-			selection: { resetSelectAllCount: () => {} },
+			crossBlock: {
+				handleKeyDown: async () => false,
+				handleBeforeInput: async () => false
+			} as unknown as SharedKeydownContext['crossBlock'],
+			selection: {
+				resetSelectAllCount: () => {}
+			} as unknown as SharedKeydownContext['selection'],
 			stickyColumn: createStickyColumnState(),
 			edgeAffinity: createEdgeAffinityState(),
-			history: {},
-			focus: { moveFocus },
+			history: {} as SharedKeydownContext['history'],
+			focus: { moveFocus } as unknown as SharedKeydownContext['focus'],
 			getDoc: () => doc,
 			getBlockElByPath: () => null
-		} as unknown as SharedKeydownContext
+		}
 	};
 }
 
