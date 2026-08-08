@@ -5,9 +5,6 @@ import { EditorPage } from '../../../editor-page';
 // trailing blocks back into on reload — the live tree diverges from a reparse of its own bytes. The
 // sole authoring escape is Enter on the empty trailing line (computeFenceExit's unclosed branch).
 
-const parseConverged = (editor: EditorPage) =>
-	editor.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
-
 test.describe('code block — unclosed-fence auto-close on escape', () => {
 	let editor: EditorPage;
 
@@ -29,7 +26,7 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n\nafter\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
-		expect(await parseConverged(editor)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('one undo restores the open fence and removes the created block', async () => {
@@ -61,7 +58,7 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		await editor.typeText('below');
 		await editor.bridge.waitForSourceContains('below');
 
-		expect(await parseConverged(editor)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> ```\n> code\n> ```'); // closer minted, still quoted

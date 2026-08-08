@@ -92,7 +92,7 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 async function assertSoundProse(editor: EditorPage, body: string): Promise<void> {
 	const source = await editor.bridge.getSource();
 	expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
-	expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+	expect(await editor.parseConverged()).toBe(true);
 	expect(source).not.toContain(body);
 	expect(source).not.toContain('```');
 	expect(source).toContain('before');

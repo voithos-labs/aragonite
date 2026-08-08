@@ -3,6 +3,8 @@
  * (`schema/fenced-code-raw.ts`) can read them without pulling `core/parser` into schema.
  */
 
+import { escalateTerminatorRun } from '../terminator-escalation';
+
 /**
  * The fence-open shape, re-exported on `aragonite/plugin` for fence-claiming openers:
  * `info` is the trimmed dispatch string; `indent`/`infoRaw` are the verbatim rebuild bytes.
@@ -45,13 +47,9 @@ export function matchFenceClose(text: string, marker: '`' | '~', minLength: numb
  * not a target: it never shortens an existing fence.
  */
 export function escalatedFenceLength(body: string, marker: '`' | '~', minimum: number): number {
-	let required = minimum;
-	for (const line of body.split('\n')) {
-		// Splitting on `\n` leaves a CRLF body's `\r` on the tail; a closer line's text excludes it.
-		const text = line.endsWith('\r') ? line.slice(0, -1) : line;
-		if (matchFenceClose(text, marker, required)) required = fenceRunLength(text, marker) + 1;
-	}
-	return required;
+	return escalateTerminatorRun(body, minimum, (text, required) =>
+		matchFenceClose(text, marker, required) ? fenceRunLength(text, marker) : null
+	);
 }
 
 function fenceRunLength(text: string, marker: '`' | '~'): number {

@@ -111,6 +111,11 @@ export class EditorPage {
 		return (await this.getBlock(index).textContent()) ?? '';
 	}
 
+	/** The live tree still matches a reparse of its own serialization (see `testing/parse-convergence`). */
+	async parseConverged(): Promise<boolean> {
+		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
+	}
+
 	// 5s to match expect()'s default — a wait is a ceiling, not a measurement,
 	// and 2s under-provisioned saturated parallel-worker runs.
 	async waitForCrossBlock(active: boolean): Promise<void> {

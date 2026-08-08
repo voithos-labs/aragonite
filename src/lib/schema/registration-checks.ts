@@ -22,6 +22,7 @@ import {
 import {
 	tryGetBlockKindDescriptor,
 	getAllRegisteredKinds,
+	isKnownMergeRole,
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import { getBlockComponent } from './block-component-registry';
@@ -123,7 +124,9 @@ export function flushPendingRegistrationChecks(
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
 	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
-	report('merge-role-vocabulary', () => checkMergeRoleVocabulary(mergeRoleEntries(kinds)));
+	report('merge-role-vocabulary', () =>
+		checkMergeRoleVocabulary(mergeRoleEntries(kinds), isKnownMergeRole)
+	);
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
 	}

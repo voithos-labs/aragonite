@@ -120,9 +120,9 @@ The asymmetry is deliberate: installing a unit is a declaration of intent, so re
 
 ### Plugin-kind naming + collision rules
 
-`declarePluginKind(name)` is the single mint point for a `PluginBlockKind`. It enforces the name pattern and rejects collisions with **built-in kinds**, **previously-declared plugin kinds**, and **reserved structural sentinels** — currently `document`, the CST-root discriminant. The brand keeps `BlockKind` switches exhaustive over built-ins while letting the registries key plugin kinds. Plugin-vs-plugin collision detection requires a record of declared plugin kinds — minted names are tracked, so a second `declarePluginKind` with the same name throws.
+`declarePluginKind(name)` is the single mint point for a `PluginBlockKind`. It enforces the name pattern and rejects collisions with **built-in kinds**, **previously-declared plugin kinds**, and **reserved structural sentinels** — currently `document`, the CST-root discriminant, and `global`, the keybinding-override scope. The brand keeps `BlockKind` switches exhaustive over built-ins while letting the registries key plugin kinds. Plugin-vs-plugin collision detection requires a record of declared plugin kinds — minted names are tracked, so a second `declarePluginKind` with the same name throws.
 
-The `document` reservation matters less than it looks: node-vs-document narrowing is structural (`'raw' in node`), so a plugin kind named `document` would not corrupt the tree. Reserving it keeps the contract unsurprising and the sentinel unambiguous.
+The `document` reservation matters less than it looks: node-vs-document narrowing is structural (`'raw' in node`), so a plugin kind named `document` would not corrupt the tree. Reserving it keeps the contract unsurprising and the sentinel unambiguous. `global` is the load-bearing one: override lookup takes a `'global' | AnyBlockKind` scope, so a live kind spelled `global` would resolve the per-kind tier through the global table.
 
 ### Events access seam — `getEvents()` canonical
 

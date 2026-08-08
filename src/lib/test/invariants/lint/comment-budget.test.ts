@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC } from './scan-source';
+import { collectEditorSources, EDITOR_SRC, ROUTES_SRC } from './scan-source';
 
 const HEADER_LIMIT = 7;
 const BLOCK_LIMIT = 6;
@@ -86,11 +86,23 @@ export function findBudgetHits(relPath: string, code: string): BudgetHit[] {
 }
 
 describe('G4.26 comment blocks stay inside the budget', () => {
-	const sources = collectEditorSources(EDITOR_SRC, { includeTests: true });
+	// Stylesheets and the demo harness are in scope because they were the blind spots: the
+	// only drift past these limits landed in the two file classes nothing else scans.
+	const sources = [
+		...collectEditorSources(EDITOR_SRC, { includeTests: true, includeStyles: true }),
+		...collectEditorSources(ROUTES_SRC, { includeTests: true, includeStyles: true })
+	];
 
-	it('no comment block under src/lib runs past its limit', () => {
+	it('no comment block under src/lib or src/routes runs past its limit', () => {
 		const violations = sources.flatMap((f) => findBudgetHits(f.relPath, f.text));
 		expect(violations).toEqual([]);
+	});
+
+	// Losing either widened surface passes the budget assertion silently, which is the state
+	// this scan was extended to end.
+	it('the walk still reaches both of the blind spots', () => {
+		expect(sources.some((f) => f.relPath.endsWith('.css'))).toBe(true);
+		expect(sources.some((f) => f.relPath.startsWith('src/routes/'))).toBe(true);
 	});
 
 	it('every allowlist entry still names an over-budget block', () => {

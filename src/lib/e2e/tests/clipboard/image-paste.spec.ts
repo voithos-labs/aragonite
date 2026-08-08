@@ -7,7 +7,6 @@ import {
 	PNG,
 	getCalls,
 	gotoWithHook,
-	parseConverged,
 	pasteFiles,
 	releaseImport,
 	setResponses
@@ -151,7 +150,7 @@ test.describe('image paste: host hook installed', () => {
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('1![[cell.png]]');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('an image pasted into a code block lands as literal source', async ({ page }) => {
@@ -162,7 +161,7 @@ test.describe('image paste: host hook installed', () => {
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('code![[fenced.png]]');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 });
 

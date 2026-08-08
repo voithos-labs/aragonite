@@ -10,13 +10,15 @@ import path from 'node:path';
 
 export const EDITOR_SRC = path.resolve('src/lib');
 
+/** The demo/dev harness tree. Reachable only with `includeTests` — most of it sits under `test`. */
+export const ROUTES_SRC = path.resolve('src/routes');
+
 /**
  * The roots a repo-wide scan must cover: the library, plus the repo's only first-party
  * stand-ins for an external author (the reference plugins and the consumer example). A
  * rule that holds for `src/lib` and not for them ships a reference implementation that
  * models the violation. A genuinely library-internal lint opts out by passing
- * `EDITOR_SRC` explicitly and saying why. `src/routes` cannot be a root, since the walk
- * skips any directory named `test`.
+ * `EDITOR_SRC` explicitly and saying why.
  */
 export const REPO_WIDE_ROOTS = [
 	EDITOR_SRC,
@@ -68,11 +70,13 @@ export function stripComments(text: string): string {
 /**
  * Recursively collect `.ts`/`.svelte` files under `dir`, excluding test, e2e,
  * and `.d.ts`. With no argument, scans every root in `REPO_WIDE_ROOTS`.
- * `includeTests` is for a rule that binds the whole packaged tree, not just runtime code.
+ * `includeTests` is for a rule that binds the whole packaged tree, not just runtime code;
+ * `includeStyles` adds `.css`, off by default so a code-shape scan never reads stylesheet
+ * text (a `url(//…)` would blank as a comment).
  */
 export function collectEditorSources(
 	dir?: string,
-	options: { includeTests?: boolean } = {}
+	options: { includeTests?: boolean; includeStyles?: boolean } = {}
 ): SourceFile[] {
 	const repoRoot = path.resolve('.');
 	const files: SourceFile[] = [];
@@ -87,7 +91,8 @@ export function collectEditorSources(
 			}
 			const isScannable =
 				(entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) ||
-				entry.name.endsWith('.svelte');
+				entry.name.endsWith('.svelte') ||
+				(options.includeStyles === true && entry.name.endsWith('.css'));
 			if (!isScannable) continue;
 			const text = readFileSync(full, 'utf8');
 			files.push({

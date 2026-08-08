@@ -261,24 +261,17 @@ export interface MergeRoleEntry {
 	mergeRole: string;
 }
 
-const MERGE_ROLES: ReadonlySet<string> = new Set([
-	'prose',
-	'prose-absorber',
-	'container',
-	'self-merge',
-	'not-mergeable'
-]);
-
 /**
  * G1.30 — every registered kind declares a `mergeRole` from the known vocabulary. A
  * per-KIND fact, validated once at registration: an unknown role makes the merge
  * dispatcher fall through silently on every gesture that reaches the kind.
  */
 export function checkMergeRoleVocabulary(
-	entries: readonly MergeRoleEntry[]
+	entries: readonly MergeRoleEntry[],
+	isKnownMergeRole: (role: string) => boolean
 ): InvariantViolation | null {
 	for (const { kind, mergeRole } of entries) {
-		if (!MERGE_ROLES.has(mergeRole)) {
+		if (!isKnownMergeRole(mergeRole)) {
 			return {
 				code: 'merge-role-vocabulary',
 				message: `kind "${kind}" declares unknown mergeRole "${mergeRole}"`,
