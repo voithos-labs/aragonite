@@ -48,6 +48,19 @@ export type BodyParent = NodeParent & { ownerKind: AnyBlockKind | undefined };
  */
 export type BodyParentArg = BodyParent | Document;
 
+/**
+ * What the separator settles accept: anything that can answer where the body starts, whether
+ * it holds the owner's kind directly (the container node, the Document) or the sink's answer
+ * to it ({@link BodyParentArg}, which this absorbs). Wider than the byte sinks because a
+ * settle writes a line ending, not body text — no `bodyWrite` grammar governs it.
+ */
+export type SeparatorParent = {
+	kind?: string;
+	ownerKind?: AnyBlockKind;
+	innerPrefix?: string;
+	children?: CstNode[];
+};
+
 const ownerKindOf = (parent: BodyParentArg): AnyBlockKind | undefined =>
 	'ownerKind' in parent ? parent.ownerKind : undefined;
 
@@ -469,11 +482,11 @@ export function dropDoubledSeparator(
  * whatever its bytes earned (a paragraph under a heading needs none).
  */
 export function restoreSeparatorOnFill(
-	parent: BodyParentArg,
+	parent: SeparatorParent,
 	index: number,
 	sharing?: SharingState
 ): void {
-	const node = parent.children[index];
+	const node = parent.children?.[index];
 	if (!node || node.leadingTrivia !== '' || isBlankParagraph(node)) return;
 	mintSeparator(parent, index, sharing);
 }
@@ -485,30 +498,31 @@ export function restoreSeparatorOnFill(
  * ({@link dropDoubledSeparator}'s rule, declined here rather than undone after).
  */
 export function restoreSeparatorAfterBlank(
-	parent: BodyParentArg,
+	parent: SeparatorParent,
 	index: number,
 	sharing?: SharingState
 ): void {
-	const node = parent.children[index];
-	if (!node || node.leadingTrivia !== '') return;
-	if (isBlankParagraph(node) && (parent.children[index + 1]?.leadingTrivia ?? '') !== '') return;
+	const children = parent.children;
+	const node = children?.[index];
+	if (!children || !node || node.leadingTrivia !== '') return;
+	if (isBlankParagraph(node) && (children[index + 1]?.leadingTrivia ?? '') !== '') return;
 	mintSeparator(parent, index, sharing);
 }
 
 /** A blank line off the node's own bytes (G4.20), where one does structural work at all. */
-function mintSeparator(parent: BodyParentArg, index: number, sharing?: SharingState): void {
-	if (index <= bodyStartFor(ownerKindOf(parent))) return;
-	if (isBlankParagraph(parent.children[index - 1])) return;
-	const owned = sharing ? ensureUnsharedChild(parent, index, sharing) : parent.children[index];
+function mintSeparator(parent: SeparatorParent, index: number, sharing?: SharingState): void {
+	const children = parent.children;
+	if (!children || index <= bodyStartIndex(parent)) return;
+	if (isBlankParagraph(children[index - 1])) return;
+	const owned = sharing
+		? ensureUnsharedChild(parent as NodeParent, index, sharing)
+		: children[index];
 	owned.leadingTrivia = trailingLineEnding(owned.raw);
 }
 
-/** A container's children plus the two fields the settle reads; the Document has neither. */
-type SeparatorParent = { kind?: string; innerPrefix?: string; children?: CstNode[] };
-
 /** Reserved chrome is not a body block, so the body window opens past it. */
 function bodyStartIndex(parent: SeparatorParent): number {
-	return bodyStartFor(parent.kind);
+	return bodyStartFor('ownerKind' in parent ? parent.ownerKind : parent.kind);
 }
 
 function bodyStartFor(kind: string | undefined): number {
