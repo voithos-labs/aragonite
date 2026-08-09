@@ -411,6 +411,7 @@ Tables also carry pointer affordances: hovering a row or column reveals a grip y
 | Italic (toggle emphasis)            | `Mod+I`                                             |
 | Strikethrough                       | `Mod+Shift+X`                                       |
 | Inline code                         | `Mod+E`                                             |
+| Edit a link's URL (live mode)       | `Mod+K` (caret inside a link; opens the link card)  |
 | Cycle heading level                 | `Mod+0`–`Mod+6` (0 clears, 1–6 set `#`–`######`)    |
 | Split a block                       | `Enter` (in a code block, inserts a newline)        |
 | Hard line break                     | `Shift+Enter`                                       |

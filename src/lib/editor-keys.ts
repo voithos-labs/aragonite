@@ -28,6 +28,7 @@ import type { PendingMarksState } from './cursor/pending-marks';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
+import type { LinkCardState } from './components/link-card/link-card-state.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
@@ -131,6 +132,8 @@ export interface EditorServices {
 	pendingMarks: PendingMarksState;
 	revealAnchor: RevealAnchorState;
 	widgetSelection: WidgetSelectionState;
+	/** The live-mode link card's target slot; `link.openCard` enters it from a kind's keymap. */
+	linkCard: LinkCardState;
 	controller: UndoController;
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;

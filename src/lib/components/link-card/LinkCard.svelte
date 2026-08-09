@@ -9,16 +9,23 @@
 
 	// Anchored chrome over one link construct. Enter commits and the trap keeps Tab inside once
 	// focus is here; Escape is the host's, since it must also close a card the document still has
-	// the caret for. Mod+K is the reserved slot for opening this from the keyboard, and stays
-	// unbound until link creation ships.
+	// the caret for. `Mod+K` enters it from the keyboard.
+	//
+	// `role="dialog"` WITHOUT `aria-modal`: a click leaves the card beside a live caret, and the
+	// document behind stays the user's to type in — which is exactly what aria-modal would tell a
+	// screen reader is false. The trap engages on ENTRY (Mod+K, or focus reaching the field), where
+	// the claim is true, and Escape returns the caret it borrowed.
 	let {
 		url,
 		canWrite,
+		focusEpoch,
 		onCommit,
 		onOpenLink,
 		onRemove
 	}: {
 		url: string;
+		/** Bumped by each keyboard entry; the field takes focus when it changes. */
+		focusEpoch: number;
 		/** False when the write seam declines this construct outright — a rung-claimed link, which
 		 *  no url makes writable. Enter then does nothing rather than silently dropping the edit. */
 		canWrite: boolean;
@@ -30,6 +37,17 @@
 	let draft = $state(untrack(() => url));
 	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();
+	let urlInput: HTMLInputElement | undefined = $state();
+	// Starts at the click's zero rather than at the prop: a card MOUNTED by the chord has a
+	// non-zero epoch already, and seeding from the prop would read that as "nothing to do".
+	let focusedEpoch = 0;
+
+	$effect(() => {
+		if (focusEpoch === focusedEpoch) return;
+		focusedEpoch = focusEpoch;
+		urlInput?.focus();
+		urlInput?.select();
+	});
 
 	// The card follows the document while it is open: an undo — or any write landing from outside
 	// this gesture — moves the destination past the draft, and Enter would put the old bytes back.
@@ -81,7 +99,13 @@
 >
 	<label>
 		<span>URL</span>
-		<input bind:value={draft} type="text" aria-label={LINK_CARD_URL} onkeydown={handleUrlKeyDown} />
+		<input
+			bind:this={urlInput}
+			bind:value={draft}
+			type="text"
+			aria-label={LINK_CARD_URL}
+			onkeydown={handleUrlKeyDown}
+		/>
 	</label>
 	<div class="md-link-card-actions">
 		<button type="button" onclick={(e) => onOpenLink(draft, e)}>{LINK_CARD_OPEN}</button>

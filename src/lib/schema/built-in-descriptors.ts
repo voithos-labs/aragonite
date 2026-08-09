@@ -69,6 +69,9 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
 	{ chord: 'Mod+E', command: 'format.toggleCode' },
+	// Entry to the live-mode link card. Creation-on-selection arrives later; the chord no-ops
+	// on a caret outside every link rather than claim a gesture it cannot yet perform.
+	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
 	{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 },
@@ -90,6 +93,7 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
 	{ chord: 'Mod+E', command: 'format.toggleCode' },
+	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+Enter', command: 'table.insertRowBelow' },
 	{ chord: 'Mod+Shift+Enter', command: 'table.insertRowAbove' },
 	{ chord: 'Alt+Shift+ArrowRight', command: 'table.insertColumnRight' },

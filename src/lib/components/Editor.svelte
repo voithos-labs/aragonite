@@ -400,10 +400,12 @@
 		}
 	});
 
-	const linkCard = createLinkCardState();
+	// The caret snapshot rides the STATE, not the callers: click entry and `link.openCard` both
+	// borrow the screen from a live caret, and entry path N+1 would otherwise forget to save it.
+	const linkCard = createLinkCardState({ onOpen: () => linkCardCaret.saveCurrent() });
 
 	/** Open the card on the link `el` renders, or report that nothing there is one. The caret has
-	 *  already landed from mousedown; it is saved here so Escape can put it back. */
+	 *  already landed from mousedown, which is the one the state snapshots. */
 	function openLinkCard(el: Element): boolean {
 		const path = findCellPathForElement(el) ?? findBlockPathForElement(el);
 		if (!path) return false;
@@ -413,7 +415,6 @@
 		if (!contentEl) return false;
 		const hit = resolveLinkAtPoint({ contentEl, block, path, linkRef: linkRefView });
 		if (!hit) return false;
-		linkCardCaret.saveCurrent();
 		linkCard.open(hit.target);
 		return true;
 	}
@@ -765,6 +766,7 @@
 		pendingMarks,
 		revealAnchor,
 		widgetSelection,
+		linkCard,
 		controller,
 		pasteCoordinator,
 		reorder,

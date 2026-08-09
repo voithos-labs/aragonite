@@ -35,6 +35,7 @@ export const BLOCK_COMMAND_IDS = [
 	'format.toggleEmphasis',
 	'format.toggleStrikethrough',
 	'format.toggleCode',
+	'link.openCard',
 	'heading.cycle',
 	'code.newline',
 	'code.indent',

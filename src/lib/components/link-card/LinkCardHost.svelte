@@ -120,6 +120,7 @@
 			{#key `${target.path.join(',')}@${target.sourceStart}`}
 				<LinkCard
 					url={resolved.url}
+					focusEpoch={card.getFocusEpoch()}
 					canWrite={linkCard.buildBytes(target, resolved.url) !== null}
 					onCommit={commit}
 					onOpenLink={activateLink}
