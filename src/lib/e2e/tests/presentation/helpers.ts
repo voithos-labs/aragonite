@@ -63,6 +63,14 @@ export async function stepTo(
 	throw new Error(`stepTo: ${key} never reached offset ${target} (at ${await focusOffset(ep)})`);
 }
 
+/** Arrow-step from wherever a click landed to `target` — a word-center click resolves mid-glyph,
+ *  so which boundary it lands on is font-metric luck; the walk makes the offset deterministic. */
+export async function landAt(ep: EditorPage, page: Page, target: number): Promise<void> {
+	const at = await focusOffset(ep);
+	if (at === target) return;
+	await stepTo(ep, page, at < target ? 'ArrowRight' : 'ArrowLeft', target);
+}
+
 /** Shift-extend with `key` until the FOCUS reports `path`/`offset` — the selection twin of
  *  {@link stepTo}, and a real gesture for the same reason: a programmatic range would skip the
  *  native input event the live seam's interception claims. */
