@@ -27,7 +27,7 @@ Chromium actually left the caret.
 - `Backspace` at a paragraph's start still merges with the previous block: its
   content starts at raw 0, so moving the bound changed nothing here. The kinds
   whose start DID move give up their own structure on that press instead, and
-  those rows live in `presentation-live-editing.md`
+  those rows live in `presentation-live-demote.md`
 - `ArrowUp` / `ArrowDown` on the first / last visual line still exit the block,
   landing in the neighbour at a reachable offset
 - a caret entering a fenced code block by block exit, by `Home`, or by click sits
