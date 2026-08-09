@@ -70,14 +70,10 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 		expect(await ep.bridge.getSource()).toContain('**bold**Z');
 	});
 
-	// KNOWN-FAIL, not a gap: the arrival seats at raw 0, one construct-opener short of the
-	// landable start, and the byte typed there lands INSIDE the pair. The clamp that fixes the
-	// END sentinel cannot reach it — a `'start'` arrival and a live split's continuation both
-	// spell the seat `focus(0)`, and `presentation-live-split.spec.ts:66` pins that the split's
-	// caret stays at raw 0 and keeps typing inside. Distinguishing them needs a start sentinel
-	// through `FocusPosition`; the row runs so the day that lands turns it red.
+	// The mirror of the two rows above, and the reason the seat takes a START sentinel rather
+	// than a literal 0: a live split's continuation also seats at 0 and must STAY there
+	// (`presentation-live-split.spec.ts:66`), so only an arrival's sentinel moves in.
 	test('entering a block that opens with bold lands at its content start', async ({ page }) => {
-		test.fail();
 		await arriveFrom(ep, page, BOLD_TAIL, 'ArrowRight');
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([BOLD_LEAD]);
 		expect(await focusOffset(ep)).toBe(2);

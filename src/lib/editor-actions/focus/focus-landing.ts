@@ -3,7 +3,12 @@
  * lives here, so `focusAtColumn` receivers always get a finite x.
  */
 
-import { CURSOR_END, type BlockComponent, type FocusPosition } from '../../block-component';
+import {
+	CURSOR_END,
+	CURSOR_START,
+	type BlockComponent,
+	type FocusPosition
+} from '../../block-component';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 
 export async function consumeStickyLanding(
@@ -35,11 +40,13 @@ export async function consumeStickyLanding(
 			block.focusAtColumn(x, from);
 			return;
 		}
-		block.focus(from === 'above' ? 0 : CURSOR_END);
+		block.focus(from === 'above' ? CURSOR_START : CURSOR_END);
 		return;
 	}
 
+	// An ARRIVAL says "the start"/"the end" and the door seats it on a landable offset; a numeric
+	// position is a caller who knows its byte (a split's continuation) and is passed through.
 	if (typeof position === 'number') block.focus(position);
-	else if (position === 'start') block.focus(0);
+	else if (position === 'start') block.focus(CURSOR_START);
 	else block.focus(CURSOR_END);
 }

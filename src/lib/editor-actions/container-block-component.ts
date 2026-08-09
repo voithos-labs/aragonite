@@ -2,6 +2,7 @@
 
 import {
 	CURSOR_END,
+	CURSOR_START,
 	FOCUS_LAST_START,
 	type BlockComponent,
 	type ContainerBlockComponent,
@@ -233,10 +234,11 @@ export function createContainerBlockComponent(
 		// Collapsed: only the chrome row is mounted, so a walk-in from below clamps to
 		// it rather than no-oping on the unmounted last child.
 		const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
-		const child = offset === 0 ? deps.innerBlockRefs[0] : deps.innerBlockRefs[last];
+		const entersFirst = offset === 0 || offset === CURSOR_START;
+		const child = entersFirst ? deps.innerBlockRefs[0] : deps.innerBlockRefs[last];
 		if (!child) return;
 		if (offset === FOCUS_LAST_START) land(child, FOCUS_LAST_START);
-		else if (offset === 0) land(child, 0);
+		else if (entersFirst) land(child, offset);
 		else land(child, CURSOR_END);
 	}
 

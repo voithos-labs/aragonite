@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { consumeStickyLanding } from '../../../editor-actions/focus/focus-landing';
-import { CURSOR_END } from '../../../block-component';
+import { CURSOR_END, CURSOR_START } from '../../../block-component';
 import { asEditorX } from '../../../cursor/coordinate-spaces';
 import { createStickyColumnState, type StickyColumnState } from '../../../cursor/sticky-column';
 import { mockRef } from '../../harness/editor-actions';
@@ -44,7 +44,7 @@ describe('consumeStickyLanding', () => {
 		const retryAt = vi.fn();
 		await consumeStickyLanding(block, 0, 'start', createStickyColumnState(), retryAt);
 		expect(retryAt).not.toHaveBeenCalled();
-		expect(block.focus).toHaveBeenCalledWith(0);
+		expect(block.focus).toHaveBeenCalledWith(CURSOR_START);
 	});
 
 	for (const side of ['start', 'end'] as const) {
@@ -75,7 +75,7 @@ describe('consumeStickyLanding', () => {
 		expect(block.focus).not.toHaveBeenCalled();
 	});
 
-	it('sticky move with no captured x falls back to focus(0) from above', async () => {
+	it('sticky move with no captured x falls back to focus(CURSOR_START) from above', async () => {
 		const block = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await consumeStickyLanding(
 			block,
@@ -85,7 +85,7 @@ describe('consumeStickyLanding', () => {
 			vi.fn()
 		);
 		expect(block.focusAtColumn).not.toHaveBeenCalled();
-		expect(block.focus).toHaveBeenCalledWith(0);
+		expect(block.focus).toHaveBeenCalledWith(CURSOR_START);
 	});
 
 	it('sticky move with no captured x falls back to focus(CURSOR_END) from below', async () => {
@@ -112,10 +112,12 @@ describe('consumeStickyLanding', () => {
 		expect(block.focus).toHaveBeenCalledWith(CURSOR_END);
 	});
 
-	it('lands numeric / start / end positions at the requested offset', async () => {
+	// A numeric position is a knowing caller and passes through; 'start'/'end' are ARRIVALS,
+	// and each seats through its sentinel so the door may clamp it onto a landable offset.
+	it('lands numeric positions literally and the edges through their sentinels', async () => {
 		const cases: Array<{ position: number | 'start' | 'end'; offset: number }> = [
 			{ position: 7, offset: 7 },
-			{ position: 'start', offset: 0 },
+			{ position: 'start', offset: CURSOR_START },
 			{ position: 'end', offset: CURSOR_END }
 		];
 		for (const { position, offset } of cases) {
