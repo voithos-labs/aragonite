@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeAll, describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { isBlankParagraph, parse } from '$lib/core/parser';
@@ -9,7 +9,10 @@ import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { displayLength, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { registerLiveSplitRebalancer } from '$lib/schema/inline-construct-policy';
+import {
+	registerLiveSplitRebalancer,
+	__resetLiveSplitRebalancerForTests
+} from '$lib/schema/inline-construct-policy';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import type { PresentationMode } from '$lib/presentation-mode';
 
@@ -167,9 +170,12 @@ function divergenceAfterEdit(
 }
 
 describe('G2.13 shape fixed point across load → edit → reload', () => {
+	// The `empty` arm's precondition, here for the same reason: indentation alone delimits indented
+	// code, so an edit beside it genuinely re-reads the bytes (GH #61's class, not this rule's).
 	it('every gesture leaves a tree that reloads to its own shape', () => {
 		fc.assert(
 			fc.property(arbBlankSeparatedGfmDoc, arbGesture, (source, gesture) => {
+				fc.pre(!holdsIndentedCode(parse(source)));
 				const divergence = divergenceAfterEdit(source, gesture);
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
@@ -212,7 +218,10 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 	 * suite own — a mutation inside the rewrite is caught by that verification before this runs.
 	 */
 	describe('with the live split rebalancer registered', () => {
+		// The slot is register-once, so the arm hands it back rather than leaving the production
+		// value installed for whatever file the runner loads into this worker next.
 		beforeAll(() => registerLiveSplitRebalancer(rebalanceLiveSplit));
+		afterAll(() => __resetLiveSplitRebalancerForTests());
 
 		const arbInlineDoc = fc
 			.array(arbInlineSource, { minLength: 1, maxLength: 3 })

@@ -41,6 +41,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { resolveSelectionEdit } from './live-selection-edit';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../invariants/assert';
@@ -305,6 +306,7 @@
 		isReadOnly: () => readOnly,
 		foldRevealBeforeMutation: () => widgetInteraction.foldRevealBeforeMutation(),
 		isRevealing: () => widgetInteraction.isRevealing(),
+		getPresentationMode: () => presentationMode,
 		readRevealedText: () => readRawText(),
 		get linkRef() {
 			return linkRef;
@@ -773,8 +775,36 @@
 		}
 	}
 
+	/** The native inputs that replace a live selection with something else — the one destructive
+	 *  family that reaches the bytes with no seam offsets of its own (report C § 5). */
+	const SELECTION_REPLACING_INPUTS = new Set([
+		'insertText',
+		'deleteContentBackward',
+		'deleteContentForward'
+	]);
+
+	/**
+	 * A selection edit inside ONE block, in a mode that paints no delimiter: the engine would write
+	 * the runs the range crossed literally, so the edit goes through the join seam instead. Declines
+	 * wherever that seam has nothing to clean, leaving the engine its grapheme and IME behavior.
+	 */
+	function handleLiveSelectionEdit(e: InputEvent): boolean {
+		if (presentationMode !== 'live' || widgetInteraction.isRevealing()) return false;
+		if (!SELECTION_REPLACING_INPUTS.has(e.inputType)) return false;
+		const range = cursor.getRawSelection();
+		if (!range) return false;
+		const typed = e.inputType === 'insertText' ? (e.data ?? '') : '';
+		const edit = resolveSelectionEdit(node, range, typed, presentationMode);
+		if (!edit) return false;
+		e.preventDefault();
+		void blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
+		setPendingCursorOffset(edit.caret, 'live-selection-edit');
+		return true;
+	}
+
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+		if (handleLiveSelectionEdit(e)) return;
 		// Soft-keyboard/IME insertLineBreak slipped past onKeyDown — swallow; Shift+Enter there owns hard breaks.
 		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();

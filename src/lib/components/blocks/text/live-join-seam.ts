@@ -73,6 +73,7 @@ interface Side {
 	raw: string;
 	content: Span;
 	cut: number;
+	inlines: readonly InlineNode[];
 	/** Constructs the cut left open — opener kept without its closer, or the reverse. Outermost
 	 *  first, so the two sides' sequences compare position by position. */
 	dangling: SideConstruct[];
@@ -93,40 +94,59 @@ function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after'): Side | null
 	const content = getContentRange(node);
 	if (offset < content.start || offset > content.end) return null;
 
-	const constructs = policyConstructs(parseInline(node.raw, content.start, content.end));
-	if (constructs === null) return null;
-	const dangling = constructs.filter((c) => c.content.start < offset && offset < c.content.end);
+	const inlines = parseInline(node.raw, content.start, content.end);
+	const { ranged, atomic } = classifyConstructs(inlines);
+	// A run whose bytes mean nothing apart — an image, an escape, an autolink — has no halves to
+	// keep, and a cut through the middle of a delimiter run leaves half of one behind. Neither is
+	// a thing any reading of the seam can repair. Live's caret cannot land there; a plugin's can.
+	if (atomic.some((span) => offset > span.start && offset < span.end)) return null;
+	if (ranged.some((c) => splitsARun(c, offset))) return null;
+	// Dangling is about the PARTNER: this side keeps one run of the pair and the cut took the
+	// other. Content-range containment is not the test — a cut at a construct's content start
+	// leaves its opener behind just as surely as one in the middle does.
+	const dangling = ranged.filter((c) =>
+		keep === 'before'
+			? c.content.start <= offset && offset < c.node.end
+			: c.node.start < offset && offset <= c.content.end
+	);
 	if (dangling.some((c) => !isRejoinable(c.kind))) return null;
 
 	return {
 		raw: node.raw,
 		content,
 		cut: offset,
+		inlines,
 		dangling,
-		touching: touchingChain(constructs, offset, keep)
+		touching: touchingChain(ranged, offset, keep)
 	};
 }
 
-/** Every construct with a content range, outermost first — or null when one straddling the seam
- *  has none, which is a decline the caller reads as "leave the bytes alone". */
-function policyConstructs(inlines: readonly InlineNode[]): SideConstruct[] | null {
-	const found: SideConstruct[] = [];
-	let opaque = false;
+/** Constructs with a content range (outermost first) apart from those without one, whose bytes
+ *  the seam can only step around. */
+function classifyConstructs(inlines: readonly InlineNode[]): {
+	ranged: SideConstruct[];
+	atomic: Span[];
+} {
+	const ranged: SideConstruct[] = [];
+	const atomic: Span[] = [];
 	const visit = (nodes: readonly InlineNode[]): void => {
 		for (const node of nodes) {
 			if (node.kind === 'text') continue;
 			const content = constructContentRange(node);
 			if (!content) {
-				opaque = true;
+				atomic.push({ start: node.start, end: node.end });
 				continue;
 			}
-			found.push({ kind: node.kind, node: { start: node.start, end: node.end }, content });
+			ranged.push({ kind: node.kind, node: { start: node.start, end: node.end }, content });
 			if (node.children) visit(node.children);
 		}
 	};
 	visit(inlines);
-	return opaque ? null : found;
+	return { ranged, atomic };
 }
+
+const splitsARun = (c: SideConstruct, at: number): boolean =>
+	(at > c.node.start && at < c.content.start) || (at > c.content.end && at < c.node.end);
 
 /** Whether the family declares its delimiters cuttable and rejoinable at all (§ 4.4). */
 function isRejoinable(kind: AnyInlineKind): boolean {
@@ -250,28 +270,53 @@ function withoutSpans(raw: string, spans: readonly Span[]): string {
 // ── Verification ─────────────────────────────────────────────────────────────
 
 /**
- * What the reader is owed: each side's surviving content as it painted, with every stranded run
- * gone. A run whose partner the cut took prints LITERALLY, so it is not something the reader saw
- * and not something the join may keep — which is exactly the claim § 4.5 makes for the seam.
+ * What the reader is owed: what each side ALREADY SHOWED of the bytes that survive. Read off the
+ * pre-join parse, never off the joined halves — a half read alone prints the runs whose partner
+ * the cut took, and a cleaned half can lose a construct the drop made intraword, so either would
+ * bake the very defect this checks for into its own expectation.
  */
-function shownAfterJoin(left: Side, right: Side): string {
-	const leftText = withoutSpans(
-		left.raw.slice(left.content.start, left.cut),
-		left.dangling.map((c) => shift(openerRun(c), -left.content.start))
-	);
-	const rightText = withoutSpans(
-		right.raw.slice(right.cut, right.content.end),
-		right.dangling.map((c) => shift(closerRun(c), -right.cut))
-	);
-	return visibleText(leftText) + visibleText(rightText);
+const shownAfterJoin = (left: Side, right: Side): string =>
+	visibleSide(left, 'before') + visibleSide(right, 'after');
+
+/**
+ * What a reader sees, asked of the thing that paints it: the render path's own DOM with every
+ * marker span dropped. The clip decides only WHERE the bytes stop; a construct the cut crosses
+ * contributes its content, since its delimiter runs paint nothing either way.
+ */
+function visibleSide(side: Side, keep: 'before' | 'after'): string {
+	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw);
 }
 
-const shift = (span: Span, by: number): Span => ({ start: span.start + by, end: span.end + by });
-
-/** What a reader sees, asked of the thing that paints it: the render path's own DOM with every
- *  marker span dropped. A private walk cannot know which bytes a kind hides. */
-function visibleText(raw: string): string {
-	return renderedText(parseInline(raw, 0, raw.length), raw);
+function clipNodes(
+	level: readonly InlineNode[],
+	cut: number,
+	keep: 'before' | 'after'
+): InlineNode[] {
+	const before = keep === 'before';
+	const out: InlineNode[] = [];
+	for (const node of level) {
+		if (before ? node.end <= cut : node.start >= cut) {
+			out.push(node);
+			continue;
+		}
+		if (before ? node.start >= cut : node.end <= cut) continue;
+		if (node.kind === 'text') {
+			out.push({ ...node, ...(before ? { end: cut } : { start: cut }) });
+			continue;
+		}
+		const content = constructContentRange(node);
+		if (!content) continue;
+		if (node.children && node.children.length > 0) {
+			out.push(...clipNodes(node.children, cut, keep));
+			continue;
+		}
+		// A code span carries its content as bytes rather than children, so the surviving part of
+		// it is that byte range read as text — which is exactly what the span paints.
+		const start = before ? content.start : Math.max(content.start, cut);
+		const end = before ? Math.min(content.end, cut) : content.end;
+		if (end > start) out.push({ kind: 'text', start, end });
+	}
+	return out;
 }
 
 /** The candidate read back as a block: a join produces ONE, and a candidate that parses to two
