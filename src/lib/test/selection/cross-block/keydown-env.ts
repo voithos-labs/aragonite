@@ -63,7 +63,8 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined
 	};
 
 	const onCommandError = vi.fn();

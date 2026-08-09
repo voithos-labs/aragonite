@@ -25,6 +25,7 @@ describe('rangeDelete — survivor caret when both endpoint tables are consumed'
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 3 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -40,6 +41,7 @@ describe('rangeDelete — survivor caret when both endpoint tables are consumed'
 			{ path: [1, 1], offset: 0 },
 			{ path: [1, 2], offset: 3 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 

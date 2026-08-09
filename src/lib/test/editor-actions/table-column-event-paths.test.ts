@@ -100,7 +100,8 @@ function makeColumnCoverageEnv() {
 		revealPath: deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined
 	};
 	return { deps, table, ctx, edits };
 }

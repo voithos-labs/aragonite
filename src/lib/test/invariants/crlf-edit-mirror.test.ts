@@ -113,6 +113,7 @@ const GESTURES: EditGesture[] = [
 					{ path: [0], offset: 0 },
 					{ path: [1], offset: displayLength(doc.children[1].raw) },
 					createSharingState(),
+					undefined,
 					undefined
 				).newDoc
 			)
@@ -127,6 +128,7 @@ const GESTURES: EditGesture[] = [
 					{ path: [0, 0], offset: 0 },
 					{ path: [1], offset: displayLength(doc.children[1].raw) },
 					createSharingState(),
+					undefined,
 					undefined
 				).newDoc
 			)
@@ -141,6 +143,7 @@ const GESTURES: EditGesture[] = [
 					{ path: [0], offset: 0, cellCoordinate: true },
 					{ path: [1], offset: displayLength(doc.children[1].raw) },
 					createSharingState(),
+					undefined,
 					undefined
 				).newDoc
 			)
@@ -157,6 +160,7 @@ const GESTURES: EditGesture[] = [
 					{ path: [0], offset: 0, cellCoordinate: true },
 					{ path: [1], offset: 1, cellCoordinate: true },
 					createSharingState(),
+					undefined,
 					undefined
 				).newDoc
 			)

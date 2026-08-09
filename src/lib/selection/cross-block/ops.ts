@@ -9,6 +9,7 @@
 import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
 import type { GrammarView } from '../../schema/block-openers';
+import type { PresentationModeGetter } from '../../editor-keys';
 import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
@@ -36,6 +37,9 @@ export interface CrossBlockMutationContext {
 	/** Block grammar for the delete's ancestry rebuild. Required-nullable so a new construction
 	 *  site can't silently skip the thread; `undefined` = global. */
 	grammar: GrammarView | undefined;
+	/** The effective mode the delete's join seam answers to (§ 4.5). Required-nullable for the
+	 *  same reason as `grammar`; `undefined` reads as not-live, so the join stays byte-literal. */
+	getPresentationMode: PresentationModeGetter | undefined;
 }
 
 /** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
@@ -173,7 +177,14 @@ async function commitPureTopLevelDelete(
 				suffix: ''
 			};
 			const beforeLen = topLevelChildren.length;
-			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing, ctx.grammar);
+			const result = rangeDelete(
+				proxyDoc,
+				start,
+				end,
+				ctx.controller.sharing,
+				ctx.grammar,
+				ctx.getPresentationMode?.()
+			);
 			collapsedCaret = result.collapsedCaret;
 			const afterLen = topLevelChildren.length;
 			ctx.selection.collapse();
@@ -236,7 +247,14 @@ async function commitCrossContainerDelete(
 			// scope views stay valid because splices happen in place.
 			const beforeLens = scopeViews.map((v) => v.children.length);
 
-			const result = rangeDelete(doc, start, end, sharing, ctx.grammar);
+			const result = rangeDelete(
+				doc,
+				start,
+				end,
+				sharing,
+				ctx.grammar,
+				ctx.getPresentationMode?.()
+			);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 

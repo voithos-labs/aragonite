@@ -16,6 +16,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [0], offset: 3 },
 			{ path: [1], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -37,6 +38,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -56,6 +58,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [0], offset: 3 },
 			{ path: [1], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -74,6 +77,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -94,6 +98,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -113,6 +118,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -134,6 +140,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -154,6 +161,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -173,6 +181,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [0], offset: 0 },
 			{ path: [2], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -191,6 +200,7 @@ describe('rangeDelete — across two top-level tables (char-addressable caret)',
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 

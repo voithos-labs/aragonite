@@ -21,7 +21,7 @@ const TABLE = '| h1 | h2 |\n| --- | --- |\n| a | b |\n';
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint): Document {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), undefined);
+	rangeDelete(doc, start, end, createSharingState(), undefined, undefined);
 	return doc;
 }
 

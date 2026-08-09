@@ -5,6 +5,7 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
+import type { PresentationMode } from '../presentation-mode';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
@@ -13,6 +14,7 @@ import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path
 import { firstLeafAtOrAfter } from './path-lookup';
 import {
 	blockNodeAt,
+	cleanJoinedRaw,
 	nodeAt,
 	normalizeBodyWrite,
 	normalizeOwnRaw,
@@ -63,7 +65,8 @@ export function rangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView | undefined,
+	presentationMode: PresentationMode | undefined
 ): RangeDeleteResult {
 	const startBlock = blockNodeAt(doc, start.path);
 	const endBlock = blockNodeAt(doc, end.path);
@@ -71,6 +74,8 @@ export function rangeDelete(
 		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
+	// Neither branch takes the mode because neither JOINS: both truncate their endpoints in place
+	// (the wall rule, cell-index offsets), so no seam exists for a cleanup to stand at.
 	if (involvesTable(startBlock, endBlock)) {
 		return tableAwareRangeDelete(doc, start, end, sharing, grammar);
 	}
@@ -94,6 +99,17 @@ export function rangeDelete(
 		blockNodeAt(doc, start.path.slice(0, -1))?.kind,
 		startRaw.slice(0, startOffset) + (sameBlock ? endTail : normalizeOwnRaw(endBlock, endTail))
 	);
+	// After both normalizers and ahead of both consumers: in live the runs the truncation left
+	// unpaired, and the pair a join brings back to back, are bytes the reader never saw (§ 4.5).
+	const joinedRaw = cleanJoinedRaw(
+		{
+			mergedRaw,
+			seam: startOffset,
+			start: { node: startBlock, offset: startOffset },
+			end: { node: endBlock, offset: endOffset }
+		},
+		presentationMode
+	);
 
 	if (sameBlock) {
 		// May be nested in a blockquote/list/listItem whose raw depends on this leaf.
@@ -103,7 +119,7 @@ export function rangeDelete(
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		// No reparse on this arm, so the survivor's own grammar answers here: a join can mint
 		// a line the kind reads as its terminator (a fence run in a code body).
-		writeOwnRaw(owned, mergedRaw, grammar);
+		writeOwnRaw(owned, joinedRaw, grammar);
 		// Ahead of the rebuild, which reads the body's trivia: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
@@ -117,7 +133,7 @@ export function rangeDelete(
 
 	// Start's slot, start's rule: the survivor answers to it BEFORE the reparse re-derives
 	// metadata, and inherits the slot's separator a fragment reparse would mint empty (#60).
-	const replacement = reparseTruncatedEndpoint(startBlock, mergedRaw);
+	const replacement = reparseTruncatedEndpoint(startBlock, joinedRaw);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
 	// subtrees fully inside (start, end). Cascade-cleanup handles ancestors emptied afterwards.

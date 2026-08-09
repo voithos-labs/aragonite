@@ -96,7 +96,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		controller: ctx.controller,
 		pushUndoSnapshot: () =>
 			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
-		grammar: ctx.grammar
+		grammar: ctx.grammar,
+		getPresentationMode: ctx.getPresentationMode
 	};
 
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);

@@ -28,7 +28,7 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), undefined);
+	const result = rangeDelete(doc, start, end, createSharingState(), undefined, undefined);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -85,7 +85,7 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 		const snapshotTitle = doc.children[1].children![0];
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing, undefined);
+		rangeDelete(doc, point([0], 2), point([1, 1], 1), sharing, undefined, undefined);
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});
 });
@@ -112,7 +112,14 @@ describe('chrome wall × table branch — table endpoint outside the container',
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		const { newDoc } = rangeDelete(doc, point([0], 2), point([1, 0], 3), sharing, undefined);
+		const { newDoc } = rangeDelete(
+			doc,
+			point([0], 2),
+			point([1, 0], 3),
+			sharing,
+			undefined,
+			undefined
+		);
 
 		expect(newDoc.children[1].children![0].raw).toBe('le\n');
 		expect(snapshotTitle.raw).toBe('Title\n');
@@ -148,6 +155,7 @@ describe('chrome wall × table branch — consumed container unit-deletes', () =
 			point([0], 2),
 			point([1, 1], 4),
 			createSharingState(),
+			undefined,
 			undefined
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
@@ -166,6 +174,7 @@ describe('chrome wall × table branch — consumed container unit-deletes', () =
 			point([0], 2),
 			point([1, 1], 3),
 			createSharingState(),
+			undefined,
 			undefined
 		);
 		expect(serialize(result.newDoc)).toBe('| a | b |\n| --- | --- |\n\nBelow\n');

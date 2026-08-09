@@ -10,7 +10,7 @@ function run(
 	end: { path: number[]; offset: number }
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), undefined);
+	const result = rangeDelete(doc, start, end, createSharingState(), undefined, undefined);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 

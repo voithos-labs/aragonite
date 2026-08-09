@@ -27,6 +27,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 8 },
 			sharing(),
+			undefined,
 			undefined
 		);
 
@@ -42,7 +43,14 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('drops it past a foreign-marker open line in the surviving body', () => {
 		const doc = parse('para\n\n```js\n~~~\nbody\n```\n\ntail\n');
 
-		rangeDelete(doc, { path: [0], offset: 2 }, { path: [1], offset: 6 }, sharing(), undefined);
+		rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [1], offset: 6 },
+			sharing(),
+			undefined,
+			undefined
+		);
 
 		expect(serialize(doc)).toBe('pa~~~\nbody\n\ntail\n');
 		expectParseConverged(doc);
@@ -53,7 +61,14 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('drops a stranded closer longer than the deleted opener’s run', () => {
 		const doc = parse('para\n\n~~~js\nbody\n~~~~~\n\ntail\n');
 
-		rangeDelete(doc, { path: [0], offset: 2 }, { path: [1], offset: 8 }, sharing(), undefined);
+		rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [1], offset: 8 },
+			sharing(),
+			undefined,
+			undefined
+		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
 		expectParseConverged(doc);
@@ -62,7 +77,14 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('rejoins the survivor on the block’s own line ending (G4.20)', () => {
 		const doc = parse('para\r\n\r\n```js\r\nbody\r\n```\r\n\r\ntail\r\n');
 
-		rangeDelete(doc, { path: [0], offset: 2 }, { path: [1], offset: 9 }, sharing(), undefined);
+		rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [1], offset: 9 },
+			sharing(),
+			undefined,
+			undefined
+		);
 
 		expect(serialize(doc)).toBe('pady\r\n\r\ntail\r\n');
 		expectParseConverged(doc);
@@ -71,7 +93,14 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('drops it when the code block sits inside a blockquote', () => {
 		const doc = parse('para\n\n> ```js\n> body\n> ```\n\ntail\n');
 
-		rangeDelete(doc, { path: [0], offset: 2 }, { path: [1, 0], offset: 8 }, sharing(), undefined);
+		rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [1, 0], offset: 8 },
+			sharing(),
+			undefined,
+			undefined
+		);
 
 		expect(serialize(doc)).toBe('pady\n\ntail\n');
 		expectParseConverged(doc);
@@ -82,7 +111,14 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('leaves a range that took both fence lines with nothing to reconcile', () => {
 		const doc = parse('para\n\n```js\nbody\n```\n\ntail\n');
 
-		rangeDelete(doc, { path: [0], offset: 2 }, { path: [1], offset: 14 }, sharing(), undefined);
+		rangeDelete(
+			doc,
+			{ path: [0], offset: 2 },
+			{ path: [1], offset: 14 },
+			sharing(),
+			undefined,
+			undefined
+		);
 
 		expect(serialize(doc)).toBe('pa\n\ntail\n');
 		expectParseConverged(doc);
@@ -94,7 +130,14 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('drops it on a range confined to the code block, freeing the sibling', () => {
 		const doc = parse('```js\nbody\n```\n\ntail\n');
 
-		rangeDelete(doc, { path: [0], offset: 0 }, { path: [0], offset: 8 }, sharing(), undefined);
+		rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [0], offset: 8 },
+			sharing(),
+			undefined,
+			undefined
+		);
 
 		expect(serialize(doc)).toBe('dy\n\ntail\n');
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
@@ -103,7 +146,14 @@ describe('range delete that consumes a fenced code opener', () => {
 	it('drops it when the range starts in a table', () => {
 		const doc = parse('| a | b |\n| --- | --- |\n| c | d |\n\n```js\nbody\n```\n\ntail\n');
 
-		rangeDelete(doc, { path: [0], offset: 0 }, { path: [1], offset: 8 }, sharing(), undefined);
+		rangeDelete(
+			doc,
+			{ path: [0], offset: 0 },
+			{ path: [1], offset: 8 },
+			sharing(),
+			undefined,
+			undefined
+		);
 
 		expect(kindsOf(doc)).toEqual(['paragraph', 'paragraph']);
 		expectParseConverged(doc);
@@ -121,7 +171,14 @@ describe('range delete that consumes a fenced code opener', () => {
 		it('drops it on the end truncation, which takes the opener and not the closer', () => {
 			const doc = parse(':::callout Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');
 
-			rangeDelete(doc, { path: [0, 0], offset: 2 }, { path: [1], offset: 8 }, sharing(), undefined);
+			rangeDelete(
+				doc,
+				{ path: [0, 0], offset: 2 },
+				{ path: [1], offset: 8 },
+				sharing(),
+				undefined,
+				undefined
+			);
 
 			expect(kindsOf(doc)).toEqual(['callout', 'paragraph', 'paragraph']);
 			expect(doc.children[1].raw).toBe('dy\n');
@@ -138,6 +195,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				{ path: [0, 0], offset: 2 },
 				{ path: [1], offset: 11 },
 				sharing(),
+				undefined,
 				undefined
 			);
 

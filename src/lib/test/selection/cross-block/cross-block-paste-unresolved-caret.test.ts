@@ -81,7 +81,8 @@ function makeEnv() {
 			revealPath: () => gate,
 			controller,
 			pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-			grammar: undefined
+			grammar: undefined,
+			getPresentationMode: undefined
 		},
 		releaseReveal: () => {
 			gateArmed = false;
