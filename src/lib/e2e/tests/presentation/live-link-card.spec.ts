@@ -41,6 +41,21 @@ async function openCardOn(ep: EditorPage, page: Page, word: string): Promise<voi
 	await expect(page.locator(CARD)).toBeVisible();
 }
 
+/** Walk the caret to the start of an EARLIER block with arrows alone: a click there would dismiss
+ *  the card before the edit could land. */
+async function stepToBlockStart(ep: EditorPage, page: Page, index: number): Promise<void> {
+	for (let i = 0; i < 12; i++) {
+		const focus = (await ep.bridge.getSelectionPaths())?.focus;
+		if (focus?.path.join() === String(index)) {
+			await page.keyboard.press('Home');
+			return;
+		}
+		await page.keyboard.press('ArrowUp');
+		await ep.waitForRenderFlush();
+	}
+	throw new Error(`stepToBlockStart: never reached block ${index}`);
+}
+
 /** Step into the card's field the way a user does — the caret stays in the document until then. */
 async function editUrl(page: Page, url: string): Promise<void> {
 	await page.locator(URL_FIELD).click();
@@ -107,6 +122,14 @@ test.describe('live-mode link card', () => {
 		await expect(page.locator(CARD)).toHaveCount(0);
 		expect(await ep.bridge.getSource()).toContain('Visit [example](https://elsewhere.test/x) now');
 
+		// The caret comes back to the construct, not to the block's start: `Visit ` is 6 bytes.
+		await expect
+			.poll(async () => (await ep.bridge.getSelectionPaths())?.focus)
+			.toEqual({
+				path: [0],
+				offset: 6
+			});
+
 		await ep.undo();
 		await ep.bridge.waitForSourceContains('[example](https://example.com)');
 	});
@@ -168,26 +191,11 @@ test.describe('live-mode link card', () => {
 		await openCardOn(ep, page, 'docs');
 		const beforeBox = (await page.locator(CARD).boundingBox())!;
 
-		// An external source change is the one edit that lands while the card is open — a press in
-		// the document dismisses it. The block STRUCTURE is unchanged, so the card's target still
-		// names the same link; only the geometry under it moved.
-		await page.evaluate(() => {
-			const win = window as unknown as { __test: { setSource(md: string): void } };
-			win.__test.setSource(
-				[
-					'Visit [example](https://example.com) now. ' + 'padding words '.repeat(60),
-					'',
-					'Click [danger](javascript:alert(1)) here',
-					'',
-					'See <https://commonmark.org> too',
-					'',
-					'Read [docs][ref] later',
-					'',
-					'[ref]: https://example.com/docs',
-					''
-				].join('\n')
-			);
-		});
+		// The caret is the document's while the card is open, so a block ABOVE the link is reachable
+		// by keyboard alone — no press, which is what would dismiss the card. Typing there grows the
+		// block and moves the link down under an open card.
+		await stepToBlockStart(ep, page, 0);
+		await ep.typeText('padding words '.repeat(60));
 		await ep.waitForRenderFlush();
 
 		await expect(page.locator(CARD)).toBeVisible();

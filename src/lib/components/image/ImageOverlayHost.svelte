@@ -3,6 +3,7 @@
 	import type { Document } from '../../core/nodes';
 	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
+	import type { GrammarView } from '../../schema/block-openers';
 	import { EDITOR_DOC_KEY, type EditorDoc } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
@@ -22,6 +23,7 @@
 		getEditorEl,
 		getSelectionIsCustomRendered,
 		getPresentationMode,
+		grammar,
 		lifetime
 	}: {
 		widgetSelection: WidgetSelectionState;
@@ -31,6 +33,7 @@
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
 		getPresentationMode: () => PresentationMode;
+		grammar?: GrammarView;
 		lifetime: AbortSignal;
 	} = $props();
 
@@ -47,7 +50,8 @@
 		widgetSelection,
 		controller,
 		events,
-		linkRef
+		linkRef,
+		grammar
 	});
 
 	$effect(() => {

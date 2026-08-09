@@ -7,6 +7,7 @@
 import type { Document } from '../../core/nodes';
 import type { InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
+import { untrack } from 'svelte';
 import { wireOverlayRemeasure } from '../../cursor/overlay-remeasure';
 import type { UndoController } from '../../editor-actions/deps';
 import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
@@ -33,8 +34,8 @@ export interface LinkCardCommitterDeps {
 	events: EditorEvents;
 	/** Rect measure for a raw range in a mounted block — the anchoring geometry. */
 	measureRange: (path: number[], start: number, end: number) => DOMRect[];
-	/** Reveal + land the caret in the block, so the next keystroke addresses the document. */
-	landCaret: (path: number[]) => Promise<boolean>;
+	/** Reveal + land the caret at a raw offset, so the next keystroke addresses the document. */
+	landCaret: (path: number[], offset: number) => Promise<boolean>;
 	linkRef?: LinkReferenceResolverRef;
 	grammar?: GrammarView;
 }
@@ -112,7 +113,10 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 
 	async function write(target: LinkTarget, link: InlineNode, bytes: string): Promise<void> {
 		await inlineRange.commitInlineRange(target.path, link.start, link.end, bytes, link.start);
-		await deps.landCaret(target.path);
+		// The construct's outer start, which is also the offset the undo entry records: the caret
+		// before an undo and the caret after it then agree, and a remove-link lands where the
+		// unwrapped text now begins.
+		await deps.landCaret(target.path, link.start);
 	}
 
 	function syncCardToLink(getCard: () => HTMLElement | null): () => void {
@@ -136,12 +140,12 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			cardEl.style.left = `${rect.left - editorRect.left - borderLeft + editorEl.scrollLeft}px`;
 		};
 
-		const unwireScroll = wireOverlayRemeasure({
-			el: cardEl,
-			editorRoot: editorEl,
-			blockRef: undefined,
-			measure
-		});
+		// Untracked: the setup measure reads the document, and letting that register would make the
+		// caller's $effect tear down and re-wire these listeners on every keystroke. The `edit`
+		// subscription below is the one document trigger.
+		const unwireScroll = untrack(() =>
+			wireOverlayRemeasure({ el: cardEl, editorRoot: editorEl, blockRef: undefined, measure })
+		);
 		// An edit anywhere above the link shifts its y without touching the link itself.
 		const unsubscribe = deps.events.on('edit', measure);
 		window.addEventListener('resize', measure);
