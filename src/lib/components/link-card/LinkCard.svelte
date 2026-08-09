@@ -21,7 +21,8 @@
 		focusEpoch,
 		onCommit,
 		onOpenLink,
-		onRemove
+		onRemove,
+		resolveHref
 	}: {
 		url: string;
 		/** Bumped by each keyboard entry; the field takes focus when it changes. */
@@ -32,9 +33,16 @@
 		onCommit: (url: string) => void;
 		onOpenLink: (url: string, event: MouseEvent) => void;
 		onRemove: () => void;
+		/** The render path's own href funnel — a consumer rewrite, then the scheme allowlist.
+		 *  Undefined is a blocked scheme, and Open is the sink that must not receive one. */
+		resolveHref: (url: string) => string | undefined;
 	} = $props();
 
 	let draft = $state(untrack(() => url));
+	// The card deliberately OPENS on a blocked link so the URL can be repaired; what it may not do
+	// is hand that URL onward. A consumer's `onLinkActivate` reaches a shell's own opener, and this
+	// is the only door into it whose URL the user typed a moment ago rather than the document's.
+	const openable = $derived(resolveHref(draft));
 	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();
 	let urlInput: HTMLInputElement | undefined = $state();
@@ -115,7 +123,11 @@
 		/>
 	</label>
 	<div class="md-link-card-actions">
-		<button type="button" onclick={(e) => onOpenLink(draft, e)}>{LINK_CARD_OPEN}</button>
+		<button
+			type="button"
+			disabled={openable === undefined}
+			onclick={(e) => openable !== undefined && onOpenLink(openable, e)}>{LINK_CARD_OPEN}</button
+		>
 		<button type="button" onclick={onRemove}>{LINK_CARD_REMOVE}</button>
 	</div>
 </div>

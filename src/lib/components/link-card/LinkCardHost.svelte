@@ -5,6 +5,7 @@
 	import type { LinkReferenceResolverRef } from '../../editor-keys';
 	import type { GrammarView } from '../../schema/block-openers';
 	import type { CaretRestore } from '../../selection/caret-restore';
+	import { resolveHref } from '../../core/inline-render';
 	import LinkCard from './LinkCard.svelte';
 	import { createLinkCardCommitter } from './link-card-commit';
 	import type { LinkCardState } from './link-card-state.svelte';
@@ -20,6 +21,7 @@
 		measureRange,
 		landCaret,
 		activateLink,
+		resolveLinkUrl,
 		caretRestore,
 		linkRef,
 		grammar
@@ -32,6 +34,8 @@
 		measureRange: (path: number[], start: number, end: number) => DOMRect[];
 		landCaret: (path: number[], offset: number) => Promise<boolean>;
 		activateLink: (url: string, event: MouseEvent) => void;
+		/** The consumer's href rewrite, the render path's first funnel stage. */
+		resolveLinkUrl: (rawUrl: string) => string;
 		caretRestore: CaretRestore;
 		linkRef?: LinkReferenceResolverRef;
 		grammar?: GrammarView;
@@ -125,6 +129,7 @@
 					onCommit={commit}
 					onOpenLink={activateLink}
 					onRemove={remove}
+					resolveHref={(url) => resolveHref({ resolveLinkUrl }, url)}
 				/>
 			{/key}
 		</div>
