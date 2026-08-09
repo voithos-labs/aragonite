@@ -1,14 +1,21 @@
-import { describe, it, expect } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { CstNode } from '../../../core/nodes';
+import type { PresentationMode } from '../../../presentation-mode';
 import {
 	escapedCellOffset,
 	normalizeWhitespace,
 	tableCellInlinePaste
 } from '../../../components/blocks/table/table-cell-paste';
-import type { PasteRange } from '../../../tree-operations/paste-surfaces';
+import type { PasteRange, PasteSeam } from '../../../tree-operations/paste-surfaces';
 import { updateNodeContent } from '../../../tree-operations/node-ops';
 import { rebuildTableRowRaw } from '../../../schema/container-rebuilders';
 import { parse } from '../../../core/parser';
+import { cleanLiveJoinSeam } from '../../../components/blocks/text/live-join-seam';
+import {
+	registerLiveJoinSeamCleaner,
+	__resetLiveJoinSeamCleanerForTests
+} from '../../../schema/inline-construct-policy';
 
 function makeCell(raw: string): CstNode {
 	return { kind: 'tableCell', leadingTrivia: '', raw };
@@ -16,8 +23,14 @@ function makeCell(raw: string): CstNode {
 
 /** A paste into cell 0 of a two-cell row, carried the way the editor carries it: the hook returns
  *  spliced text, the sink applies the kind's rule, and the row is read back through a parse. */
-function pasteIntoRow(cellRaw: string, offset: number, text: string, preDelete?: PasteRange) {
-	const result = tableCellInlinePaste(makeCell(cellRaw), offset, text, preDelete);
+function pasteIntoRow(
+	cellRaw: string,
+	offset: number,
+	text: string,
+	preDelete?: PasteRange,
+	seam?: PasteSeam
+) {
+	const result = tableCellInlinePaste(makeCell(cellRaw), offset, text, preDelete, seam);
 	const row: CstNode = {
 		kind: 'tableRow',
 		leadingTrivia: '',
@@ -106,5 +119,45 @@ describe('tableCellInlinePaste', () => {
 
 	it('re-escapes a pipe a preDelete frees', () => {
 		expect(pasteIntoRow('a\\|b', 2, 'X', { start: 0, end: 2 }).cells).toEqual(['X\\|b', 'keep']);
+	});
+
+	// The delete half is a join, and a cell's stranded runs are as unpainted as a paragraph's.
+	// The seam runs BEFORE the escaping stage, which is why the sink still sees the final bytes.
+	describe('the delete half crosses the live join seam', () => {
+		beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
+		afterAll(() => __resetLiveJoinSeamCleanerForTests());
+
+		const CUT = { start: 8, end: 18 };
+		const seamIn = (presentationMode: PresentationMode) => ({ presentationMode, linkRef: undefined });
+
+		it('live: the run the cut stranded goes with it', () => {
+			const result = tableCellInlinePaste(
+				makeCell('Some **bold** text'),
+				8,
+				'X',
+				CUT,
+				seamIn('live')
+			);
+			expect(result.newRaw).toBe('Some bX');
+		});
+
+		it('the escaping stage still runs over what the seam wrote', () => {
+			const { cells } = pasteIntoRow('a\\|b **z** c', 7, 'X', { start: 7, end: 10 }, seamIn('live'));
+			// The stranded `**` went with the cut and the cell's own `\|` survived the round.
+			expect(cells).toEqual(['a\\|b X c', 'keep']);
+		});
+
+		it('every other mode keeps the literal cut', () => {
+			for (const mode of ['source', 'reading', 'preview-block', 'preview-inline'] as const) {
+				const result = tableCellInlinePaste(
+					makeCell('Some **bold** text'),
+					8,
+					'X',
+					CUT,
+					seamIn(mode)
+				);
+				expect(result.newRaw).toBe('Some **bX');
+			}
+		});
 	});
 });

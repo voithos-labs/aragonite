@@ -8,13 +8,14 @@
 import { CURSOR_END } from '../../../block-component';
 import { normalizeCellRaw } from '../../../schema/table-cell-raw';
 import type { CstNode } from '../../../core/nodes';
-import { blockNodeAt } from '../../../tree-operations/node-ops';
+import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
 	PasteRange,
+	PasteSeam,
 	PasteSurface,
 	ScopedStructuralPasteInput
 } from '../../../tree-operations/paste-surfaces';
@@ -37,16 +38,22 @@ export function tableCellInlinePaste(
 	node: CstNode,
 	offset: number,
 	text: string,
-	preDelete?: PasteRange
+	preDelete?: PasteRange,
+	seam?: PasteSeam
 ): InlinePasteResult {
 	const cleaned = normalizeWhitespace(text);
 
-	let raw = node.raw;
-	let effectiveOffset = offset;
-	if (preDelete && preDelete.start < preDelete.end) {
-		raw = raw.slice(0, preDelete.start) + raw.slice(preDelete.end);
-		effectiveOffset = preDelete.start;
-	}
+	// The delete half crosses the join seam BEFORE the escaping stage: the seam reads and writes
+	// the cell's own display bytes, and `normalizeCellRaw` still runs at the sink over whatever
+	// they end up being. Skipping it pasted a stranded `**` into view, the leak the prose leaves
+	// stopped writing (§ 4.5).
+	const { display: raw, offset: effectiveOffset } = cutRangeFromDisplay(
+		node,
+		node.raw,
+		preDelete ?? { start: offset, end: offset },
+		seam?.presentationMode,
+		seam?.linkRef
+	);
 
 	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);
 	// Escaped space, because the sink escapes the whole spliced raw and not just the

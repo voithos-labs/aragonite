@@ -226,7 +226,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'i',
 			'x'
 		],
-		note: 'The format-toggle and Mod+0-6 tests here only route a chord to the merged command registry, which is where those bindings live. Mod+Shift+X takes an arm of its own: unshifted Mod+X is the whole-block cut.'
+		note: 'Mod+0-6 routes to the merged command registry, where that binding lives. The four format toggles are CONSUMED instead over a cross-block range: no single block can host the rewrite, and falling through read the chord as text (#107). Mod+Shift+X takes an arm of its own: unshifted Mod+X is the whole-block cut.'
 	},
 	{
 		file: 'selection/cross-block/pointer.ts',

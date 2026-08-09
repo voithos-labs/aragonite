@@ -26,13 +26,12 @@ const SLOT_READER = 'src/lib/tree-operations/node-ops.ts';
 
 /**
  * The joins that do NOT cross `cleanJoinedRaw`, each stated rather than hidden. The default paste
- * hooks — every prose leaf without a bespoke surface — used to be here; they now forward the
- * range to the seam's own home (`cutRangeFromDisplay`), which is why neither reads its endpoints
- * any more. The two that remain splice for reasons unrelated to prose constructs.
+ * hooks and the table cell both used to be here, and both leaked the same run onto the screen;
+ * they now forward the range to the seam's own home (`cutRangeFromDisplay`), which is why neither
+ * reads its endpoints any more. The cell's escaping was no obstacle — it runs at the write sink,
+ * AFTER the cut, so the seam fits in front of it. What remains has no such leak to permit.
  */
 const JOIN_OUTSIDE_THE_SEAM: Record<string, string> = {
-	'src/lib/components/blocks/table/table-cell-paste.ts':
-		'the table cell surface, which escapes its own spliced raw and so cannot share the leaf splice',
 	'src/lib/components/blocks/code/code-paste-surface.ts':
 		'the fenced-code surface, whose body has no inline constructs for a seam to clean anyway'
 };
@@ -52,9 +51,13 @@ const stripsMarkerSpans = (file: SourceFile): boolean =>
 	/['"][^'"]*\.md-(marker|ref-label)/.test(stripComments(file.text));
 
 /** A surface that reads a pre-delete range's endpoints is splicing around them — the join shape
- *  that skipped the seam. Forwarding the object is not: it decides no bytes. */
-const readsPreDeleteEndpoints = (file: SourceFile): boolean =>
-	/preDelete\??\.(start|end)/.test(stripComments(file.text));
+ *  that skipped the seam. Forwarding the object is not: it decides no bytes. Both SPELLINGS of a
+ *  read count: a member access and a destructuring, which reaches the same bytes and would
+ *  otherwise reintroduce the leak past a matcher that only knows the dots. */
+const readsPreDeleteEndpoints = (file: SourceFile): boolean => {
+	const code = stripComments(file.text);
+	return /preDelete\??\.(start|end)/.test(code) || /\{[^}]*\}\s*=\s*preDelete\b/.test(code);
+};
 
 describe('live-rewrite verification source-scan', () => {
 	const sources = collectEditorSources();
@@ -103,7 +106,13 @@ describe('live-rewrite verification source-scan', () => {
 		const probe = (text: string) => readsPreDeleteEndpoints({ relPath: 'x', text, code: '' });
 		expect(probe('raw.slice(0, preDelete.start) + raw.slice(preDelete.end)')).toBe(true);
 		expect(probe('const start = preDelete?.start ?? offset;')).toBe(true);
+		// The spelling that reached the same bytes past the dotted matcher.
+		expect(probe('const { start, end } = preDelete;')).toBe(true);
+		expect(probe('const { start: from } = preDelete ?? { start: offset };')).toBe(true);
 		expect(probe('{ preDelete: sel.start !== sel.end ? { start: sel.start } : undefined }')).toBe(
+			false
+		);
+		expect(probe('const cut = applyPreDelete(node, display, preDelete, offset, seam);')).toBe(
 			false
 		);
 	});

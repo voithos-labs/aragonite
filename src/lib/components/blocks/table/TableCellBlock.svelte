@@ -882,7 +882,14 @@
 				offset: sel.start,
 				preDelete: sel.start !== sel.end ? { start: sel.start, end: sel.end } : undefined
 			},
-			{ doc: getDoc(), blockEdit, controller: pasteCoordinator }
+			{
+				doc: getDoc(),
+				blockEdit,
+				controller: pasteCoordinator,
+				// The delete half is a join like any other, and a cell's is no more literal than a
+				// paragraph's: without the seam a live cut pastes the runs it stranded into view.
+				seam: { presentationMode, linkRef }
+			}
 		);
 		// Already escaped: the cell's paste surface reports its caret in escaped space.
 		if (result.inlineCaretOffset !== undefined) parkCursor(result.inlineCaretOffset);

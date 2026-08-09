@@ -76,3 +76,34 @@ test.describe('single-block paste over a construct edge', () => {
 		expect(await ep.bridge.getSource()).toContain('Some **bX');
 	});
 });
+
+// The same seam one level down. A cell splices its own bytes and escapes them at the sink, so it
+// was the last surface pasting stranded runs into view — the escaping runs AFTER the cut, which
+// is why the seam fits in front of it.
+const CELL_DOC = '| Some **bold** text | y |\n| --- | --- |\n| a | b |\n\nX\n';
+
+test.describe('table-cell paste over a construct edge', () => {
+	test('live: the cell drops the run its cut stranded', async ({ page }) => {
+		const ep = new EditorPage(page);
+		await ep.goto('?presentationMode=live');
+		await ep.loadContent(CELL_DOC);
+		await ep.waitForRenderFlush();
+
+		await copyPayload(ep, page);
+
+		// Walk to the same seat the prose row uses — inside `**bold**`, then out past its closer.
+		await page.getByRole('cell').first().click();
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
+		for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.press('ControlOrMeta+v');
+		await ep.bridge.waitForSourceNotContains('**bold**');
+		await ep.waitForRenderFlush();
+
+		expect(await visibleText(page, 0)).not.toContain('*');
+		expect(await ep.bridge.getSource()).toContain('| Some bXxt |');
+	});
+});
