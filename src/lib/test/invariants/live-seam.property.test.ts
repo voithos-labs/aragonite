@@ -19,15 +19,12 @@ import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import type { PresentationMode } from '$lib/presentation-mode';
 
 /**
- * § 4.5's join seam under random range deletes over formatted fixtures. DIFFERENTIAL, like the
- * split arm: the seam sits on top of a range delete with divergences of its own, and inheriting
- * them would report the cleanup for defects it did not cause.
- *
- * What it sees: reload shape, round-trip, empty pairs, and that the rewrite only ever REMOVES
- * bytes from the join it was handed. What it does not see is a delimiter surfacing — measured and
- * deliberate: the byte-literal join can re-form a construct ACROSS the seam and hide glyphs the
- * two sides showed separately, so it is not an upper bound the cleanup owes anything to. That
- * claim belongs to the cleanup's own render-path oracle, the unit suite and the e2e rows.
+ * § 4.5's join seam under random range deletes. DIFFERENTIAL like the split arm: the seam sits on
+ * a range delete with divergences of its own. It sees reload shape, round-trip, empty pairs, and
+ * that the rewrite only ever REMOVES bytes from the join it was handed. It does not see a
+ * delimiter surfacing — measured: the literal join can re-form a construct ACROSS the seam and
+ * hide glyphs the two sides showed apart, so it is no upper bound. That claim belongs to the
+ * cleanup's own render-path oracle, the unit suite and the e2e rows.
  */
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(515151) } as const;

@@ -1,4 +1,4 @@
-import { getInlineContent } from '../../core/inline/inline-cache';
+import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { CstNode, Document, ImageFields, InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
@@ -72,7 +72,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function findImageInParagraph(para: NodeView, sourceStart: number): InlineNode | null {
 		// Resolver-aware so a reference-style image resolves as the render path saw it,
 		// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
-		const inlines = getInlineContent(para, deps.linkRef?.current, deps.linkRef?.signature ?? '');
+		const inlines = resolvedInlineContent(para, deps.linkRef);
 		for (const widget of flattenInlineWidgets(inlines, para.raw)) {
 			if (widget.kind === 'image' && widget.start === sourceStart) return widget;
 		}
