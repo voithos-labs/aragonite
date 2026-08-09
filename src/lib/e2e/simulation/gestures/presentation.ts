@@ -6,12 +6,13 @@ import type { SimContext } from '../invariants';
  * `waitForSourceEquals` asserts. Reading mode drops the text caret, so the return trip
  * re-clicks a block to hand the following gestures an editable surface.
  */
-type FlipMode = 'reading' | 'preview-block' | 'preview-inline';
+type FlipMode = 'reading' | 'preview-block' | 'preview-inline' | 'live';
 
 const TOGGLE_TESTID: Record<FlipMode, string> = {
 	reading: 'presentation-toggle',
 	'preview-block': 'preview-block-toggle',
-	'preview-inline': 'preview-inline-toggle'
+	'preview-inline': 'preview-inline-toggle',
+	live: 'live-toggle'
 };
 
 export async function flipPresentationMode(ctx: SimContext, mode: FlipMode): Promise<void> {

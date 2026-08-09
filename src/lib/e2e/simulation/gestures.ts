@@ -75,6 +75,14 @@ import {
 import { lateCorrection } from './gestures/correction';
 import { flipPresentationMode } from './gestures/presentation';
 import {
+	liveDemoteHeading,
+	liveEdgeBackspace,
+	liveLinkCardEdit,
+	liveSplitInsideConstruct,
+	liveToggleFormat,
+	type LiveFormat
+} from './gestures/live-editing';
+import {
 	cutSelection,
 	deleteSelection,
 	extendSelectionAcross,
@@ -578,8 +586,41 @@ export class Gestures {
 	 * Auto-behavior, so it settles on the mode attribute and resyncs — the byte-stability
 	 * oracle the loaded-ops battery otherwise never sees.
 	 */
-	flipPresentationMode(mode: 'reading' | 'preview-block' | 'preview-inline'): Promise<void> {
+	flipPresentationMode(
+		mode: 'reading' | 'preview-block' | 'preview-inline' | 'live'
+	): Promise<void> {
 		return flipPresentationMode(this.ctx, mode);
+	}
+
+	// ── Live-mode editing ───────────────────────────────────────────────────────
+	// Each enters live through the toggle, drives one live-only rule, and closes with the
+	// single undo that rule is contracted to cost — so all five net to identity.
+
+	/** Toggle a mark over a selected word; `strikethrough` and `inlineCode` are live's two new
+	 *  chords, and all three write bytes immediately at a RANGE. */
+	liveToggleFormat(blockIndex: number, word: string, format: LiveFormat): Promise<void> {
+		return liveToggleFormat(this.ctx, blockIndex, word, format);
+	}
+
+	/** Backspace at a construct's trailing content edge takes the visible character, not the
+	 *  delimiter native editing would have reached. */
+	liveEdgeBackspace(blockIndex: number, content: string): Promise<void> {
+		return liveEdgeBackspace(this.ctx, blockIndex, content);
+	}
+
+	/** Backspace at a heading's content start demotes it before any merge. */
+	liveDemoteHeading(blockIndex: number): Promise<void> {
+		return liveDemoteHeading(this.ctx, blockIndex);
+	}
+
+	/** Enter inside a construct closes and reopens it, leaving both halves balanced. */
+	liveSplitInsideConstruct(blockIndex: number, content: string): Promise<void> {
+		return liveSplitInsideConstruct(this.ctx, blockIndex, content);
+	}
+
+	/** Click a rendered link, rewrite its destination in the card, Enter to commit. */
+	liveLinkCardEdit(linkText: string, url: string): Promise<void> {
+		return liveLinkCardEdit(this.ctx, linkText, url);
 	}
 
 	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────
