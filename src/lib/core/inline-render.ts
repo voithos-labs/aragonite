@@ -204,7 +204,9 @@ function openLink(
 	linkEl.className = href !== undefined ? 'md-link-content' : 'md-link-content md-link-blocked';
 	if (href !== undefined) {
 		linkEl.setAttribute('href', href);
-		if (node.title !== undefined) linkEl.setAttribute('title', node.title);
+		// The author's title, else the resolved destination: live mode hides the URL, and hover
+		// is the one affordance disclosing where an untitled link actually goes.
+		linkEl.setAttribute('title', node.title ?? href);
 	}
 
 	const trailing: Node[] = [];
