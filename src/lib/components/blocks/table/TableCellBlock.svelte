@@ -557,7 +557,10 @@
 	// Shared by the live keydown path and the cross-block dispatch entry, which differ
 	// only in where the offset comes from; both guard `el` before calling.
 	function cellPlanState(offset: number): CellKeyState {
-		// Zero-ambient cell: the walk offsets ARE the raw offsets the plan compares.
+		// Zero-ambient cell: the walk offsets ARE the raw offsets the plan compares. Deliberately
+		// unguarded by mode, unlike the prose bounds: a cell's hop follows what is ON SCREEN, so a
+		// run the mode hides is unlandable and one it reveals is landable — in preview-inline that
+		// makes the bound follow the proximity reveal, which is the point.
 		const bounds = landableDomTextBounds(el!);
 		return {
 			rowIdx,

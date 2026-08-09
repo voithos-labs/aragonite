@@ -142,6 +142,21 @@ test.describe('live mode — a table cell hops at ITS landable bound', () => {
 	});
 });
 
+// The cell's bounds are deliberately mode-unguarded: they follow what the screen shows. In
+// preview-inline a ref label is hidden until the caret's proximity reveals it, so the same hop
+// fires there — the dead key was never live-only.
+test.describe('preview-inline — a cell hops at whatever is hidden right now', () => {
+	test('a cell ending in an unrevealed ref label hops to the next cell', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'preview-inline', DOC);
+		await clickCell(ep, page, 'text');
+		// The offset End reaches depends on what the caret's proximity revealed, which is the
+		// dependence being pinned; the hop is the contract, and at raw 11 it fired already.
+		expect(await press(ep, page, 'End')).toBeLessThan(11);
+		await press(ep, page, 'ArrowRight');
+		expect(await focusPath(ep)).toEqual([TABLE, 1, 1]);
+	});
+});
+
 test.describe('source mode — every marker is painted, so nothing moves in', () => {
 	test('the same presses step inside the block', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
