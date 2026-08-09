@@ -91,6 +91,16 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
+	// Ahead of the command candidates, because a toggle is NOT a type-replace: deleting the
+	// range and dispatching at the collapsed caret is what turned a document into `****` (#107).
+	// Consumed like every claimed chord, so it never falls through to the browser. Wrapping each
+	// block in the range is a feature with its own design — which blocks participate, how nesting
+	// resolves — and a deliberate non-goal here.
+	if (isFormatToggleChord(e)) {
+		e.preventDefault();
+		return true;
+	}
+
 	if (isCommandCandidateKey(e)) {
 		e.preventDefault();
 		if (isReadingMode(ctx.getPresentationMode)) return true;
@@ -233,24 +243,28 @@ async function handleCrossBlockEntry(
 function isCommandCandidateKey(e: KeyboardEvent): boolean {
 	if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
 	if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) return true;
-	if (
-		(e.ctrlKey || e.metaKey) &&
-		!e.shiftKey &&
-		!e.altKey &&
-		(e.key === 'b' ||
-			e.key === 'B' ||
-			e.key === 'i' ||
-			e.key === 'I' ||
-			e.key === 'e' ||
-			e.key === 'E')
-	)
-		return true;
-	// Mod+Shift+X takes an arm of its own rather than joining the letters above: that arm's
-	// `!e.shiftKey` is what leaves the unshifted Mod+X to the whole-block cut.
-	if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && (e.key === 'x' || e.key === 'X'))
-		return true;
 	if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && /^[0-6]$/.test(e.key)) return true;
 	return false;
+}
+
+/**
+ * The four inline-format toggles, by chord rather than by command id: the range is consumed
+ * here, before any surface resolves a command, so no id exists yet. Mod+Shift+X takes an arm of
+ * its own rather than joining the letters — the unshifted Mod+X is the whole-block cut.
+ */
+function isFormatToggleChord(e: KeyboardEvent): boolean {
+	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
+	// Literal comparisons, not a character class: the G4.29 manifest scan reads the keys a file
+	// compares, and a regex would hide this file's claim on Mod+B/I/E from it.
+	if (e.shiftKey) return e.key === 'x' || e.key === 'X';
+	return (
+		e.key === 'b' ||
+		e.key === 'B' ||
+		e.key === 'i' ||
+		e.key === 'I' ||
+		e.key === 'e' ||
+		e.key === 'E'
+	);
 }
 
 /** Deepest resolvable node's kind; an empty/unresolvable path reads the document root's own kind. */
