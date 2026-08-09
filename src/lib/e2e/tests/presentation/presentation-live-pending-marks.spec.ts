@@ -284,3 +284,48 @@ test.describe('live mode — an IME commit spends a mark like a keystroke', () =
 		await ep.bridge.waitForSourceContains('plain**かん**');
 	});
 });
+
+// The dispatcher runs `handlePendingMarks` BEFORE `handleCstWidget`, so a plain key beside an
+// atomic widget is claimed by the marks arm and the widget arm never sees it. That ordering was
+// unverified; these rows pin what the verified path does with it — the rewrite is checked against
+// the render path, so a splice that would change painted text is declined and the widget survives
+// whole on either side of it.
+test.describe('live mode — a pending mark beside an inline widget', () => {
+	const WIDGET_DOC = 'see &amp; now\n';
+
+	test('the byte lands before the widget, wrapped, and the entity survives', async ({ page }) => {
+		const ep = new EditorPage(page);
+		await ep.goto('?presentationMode=live');
+		await ep.loadContent(WIDGET_DOC);
+		await ep.waitForRenderFlush();
+
+		await ep.focusBlock(0, 4);
+		await page.keyboard.press(`${primaryModifier}+b`);
+		await ep.waitForRenderFlush();
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+
+		expect(await ep.bridge.getSource()).toBe('see **Z**&amp; now\n');
+	});
+
+	test('the byte lands after the widget the same way', async ({ page }) => {
+		const ep = new EditorPage(page);
+		await ep.goto('?presentationMode=live');
+		await ep.loadContent(WIDGET_DOC);
+		await ep.waitForRenderFlush();
+
+		// Stepped rather than seated: the widget is one atomic stop, so five presses from the
+		// line start clear it — and a DOM-offset seat cannot address the far side of an island.
+		await ep.clickBlock(0);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+		await ep.waitForRenderFlush();
+		await page.keyboard.press(`${primaryModifier}+b`);
+		await ep.waitForRenderFlush();
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+
+		expect(await ep.bridge.getSource()).toBe('see &amp;**Z** now\n');
+	});
+});

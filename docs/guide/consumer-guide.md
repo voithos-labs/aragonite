@@ -159,6 +159,10 @@ Optional props customize URL and image handling and the editor's affordances.
 
   **Reading a link's destination.** No mode-independent affordance shows a URL here, so the link card is it: `Mod+K` with the caret inside a link opens it with focus in the URL field, and a click on a link opens the same card beside a caret that stays the document's. Editing the URL commits one undoable step.
 
+  **Copy yields the source bytes.** A copy out of live mode writes the Markdown — `**bold**`, not `bold` — because the document under the mode is the source document and the caret's offsets are its bytes. Reading mode is the one rung that copies the RENDERED text, since it has no caret and nothing to paste back into.
+
+  **Search matches the source bytes too.** A query is matched against the Markdown, so one spanning a construct boundary misses what the screen appears to show: `beta gamma` finds nothing in `**beta** gamma`, where the bytes between the words are `** `. Matches inside a construct's own text work normally.
+
   Bytes only change where a rule above says so. A gesture that strands nothing writes exactly what source mode writes.
 
 The effective mode is reflected as `data-presentation` on the editor root — **absent** in source mode, so default-mode DOM is unchanged — and announced to subscribers as a `presentationModeChange` event on `getEvents()`.

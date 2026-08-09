@@ -63,7 +63,7 @@ test.describe('live mode — markers never reveal', () => {
 		await expect(ep.getBlock(1).locator('.md-marker').first()).toHaveCSS('display', 'none');
 		await expect(page.locator('.md-fence-line').first()).toHaveCSS('display', 'none');
 		await expect(page.locator('.md-ref-label').first()).toHaveCSS('display', 'none');
-		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeHidden();
+		await expect(ep.getBlock(0).locator('.md-marker').first()).toHaveCSS('display', 'none');
 
 		// The coordinate-space contract: hidden, never omitted.
 		expect(await ep.getBlockText(0)).toBe('# Title');
@@ -93,9 +93,9 @@ test.describe('live mode — markers never reveal', () => {
 
 		// preview-block would show both emphasis markers here, preview-inline the pair
 		// the caret sits between. Live shows neither, and the heading stays folded too.
-		await expect(emphasisMarkers.first()).toBeHidden();
-		await expect(emphasisMarkers.nth(1)).toBeHidden();
-		await expect(headingMarker).toBeHidden();
+		await expect(emphasisMarkers.first()).toHaveCSS('display', 'none');
+		await expect(emphasisMarkers.nth(1)).toHaveCSS('display', 'none');
+		await expect(headingMarker).toHaveCSS('display', 'none');
 	});
 
 	test('list markers: bullet paints chrome, ordered stays visible, task keeps its checkbox', async ({
@@ -107,7 +107,7 @@ test.describe('live mode — markers never reveal', () => {
 		await expect(page.locator(`[data-list-marker='task'] .task-checkbox`).first()).toBeVisible();
 
 		const bulletAmbient = page.locator(`[data-list-marker='bullet'] ${AMBIENT_MARKER}`).first();
-		await expect(bulletAmbient).toBeHidden();
+		await expect(bulletAmbient).toHaveCSS('display', 'none');
 		const painted = await bulletAmbient.evaluate((el) => getComputedStyle(el, '::before').content);
 		expect(painted).toContain('•');
 	});
@@ -190,7 +190,7 @@ test.describe('live mode — plugin container chrome', () => {
 		// Under preview-block the body's own `**` would reveal here; live reveals neither
 		// the body's markers nor the container's chrome.
 		await page.locator('.directive-block [contenteditable="true"]', { hasText: /bold/ }).click();
-		await expect(page.locator('.directive-block .md-marker').first()).toBeHidden();
+		await expect(page.locator('.directive-block .md-marker').first()).toHaveCSS('display', 'none');
 		await expect(directiveMarker).toHaveCSS('display', 'none');
 	});
 });
