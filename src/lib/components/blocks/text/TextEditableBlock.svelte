@@ -41,6 +41,7 @@
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { hidesStructuralSuffix } from './hidden-suffix';
 	import { resolveSelectionEdit } from './live-selection-edit';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
@@ -447,12 +448,6 @@
 		return el ? caretContentBounds(sharedCtx, el) : { start: 0, end: liveDisplayLength() };
 	}
 
-	/** Whether this block keeps structure past its content that the mode paints nothing for — the
-	 *  setext underline a join would concatenate into view. */
-	function hidesStructuralSuffix(): boolean {
-		return !!el && revealsNoMarkers(el) && getContentRange(node).end < liveDisplayLength();
-	}
-
 	/** The structural bytes this press gives up before any merge — a declared kind's, in a mode
 	 *  that paints none of them. Null everywhere else, and the cascade takes the press. */
 	function demoteBeforeMerge(offset: number): TextEditResult | null {
@@ -515,7 +510,9 @@
 					// without surfacing it (§ 4.5). The keydown dispatch consumes that press; this is
 					// the same rule for the callers that never pass through it.
 					applies: () =>
-						offset >= caretBounds().end && !hasSelectionHelper() && !hidesStructuralSuffix(),
+						offset >= caretBounds().end &&
+						!hasSelectionHelper() &&
+						!hidesStructuralSuffix(el ?? null, node, liveDisplayLength()),
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
 			case 'format.toggleStrong':
