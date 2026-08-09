@@ -25,15 +25,12 @@ const SLOT_HOME = 'src/lib/schema/inline-construct-policy.ts';
 const SLOT_READER = 'src/lib/tree-operations/node-ops.ts';
 
 /**
- * The joins that do NOT cross `cleanJoinedRaw`, each stated rather than hidden. A paste over a
- * single-block selection deletes through the paste surfaces' own `preDelete`, and there are THREE
- * of them, none carrying a mode. Threading the seam through `PasteDeps` is its own task; until
- * then a live paste over a construct edge writes the literal join — sound, and able to surface a
- * delimiter the cross-block paste would have dropped.
+ * The joins that do NOT cross `cleanJoinedRaw`, each stated rather than hidden. The default paste
+ * hooks — every prose leaf without a bespoke surface — used to be here; they now forward the
+ * range to the seam's own home (`cutRangeFromDisplay`), which is why neither reads its endpoints
+ * any more. The two that remain splice for reasons unrelated to prose constructs.
  */
 const JOIN_OUTSIDE_THE_SEAM: Record<string, string> = {
-	'src/lib/tree-operations/paste/hooks.ts':
-		'the default inline and structural hooks — every prose leaf without a bespoke surface',
 	'src/lib/components/blocks/table/table-cell-paste.ts':
 		'the table cell surface, which escapes its own spliced raw and so cannot share the leaf splice',
 	'src/lib/components/blocks/code/code-paste-surface.ts':

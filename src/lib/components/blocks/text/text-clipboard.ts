@@ -207,7 +207,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				{
 					doc: deps.getDoc(),
 					blockEdit: deps.blockEdit,
-					controller: deps.pasteCoordinator
+					controller: deps.pasteCoordinator,
+					seam: { presentationMode: deps.getPresentationMode(), linkRef: deps.linkRef }
 				}
 			);
 
