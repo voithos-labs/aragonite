@@ -58,6 +58,14 @@
 		return linkCard.syncCardToLink(() => cardEl ?? null);
 	});
 
+	// A target that stops resolving unrenders the card but leaves the state set, so its
+	// document-capture listeners live on and the next write that makes it resolve again
+	// resurrects it holding a draft from before. Closing is the only honest answer.
+	$effect(() => {
+		const target = card.getTarget();
+		if (target && !linkCard.resolve(target)) card.close();
+	});
+
 	// An outside press is a non-destructive dismiss and leaves the caret where it just landed —
 	// the search bar's blur policy, and TableActionMenu's split between Escape and a click away.
 	// Escape is document-level because the opening click leaves the caret in the DOCUMENT: the

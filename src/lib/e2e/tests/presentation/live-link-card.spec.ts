@@ -111,6 +111,32 @@ test.describe('live-mode link card', () => {
 		await ep.bridge.waitForSourceContains('[example](https://example.com)');
 	});
 
+	// The 0.9.36 stale-draft class, on the surface that inherited its seeding shape: an open card
+	// holds a copy of the destination, and the document can move past it while it is open.
+	test('an undo taken while the card is open re-seeds it, so Enter commits nothing stale', async ({
+		page
+	}) => {
+		await openCardOn(ep, page, 'example');
+		await editUrl(page, 'https://committed.test/1');
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('https://committed.test/1');
+
+		// Reopen on the SAME link: same path and construct start, so nothing keys a remount.
+		await openCardOn(ep, page, 'example');
+		await expect(page.locator(URL_FIELD)).toHaveValue('https://committed.test/1');
+
+		// The caret is still the document's while the card is open, so this undo is a real one.
+		await ep.undo();
+		await ep.bridge.waitForSourceContains('[example](https://example.com)');
+		await expect(page.locator(URL_FIELD)).toHaveValue('https://example.com');
+
+		// Enter over the re-seeded draft must not put the undone bytes back.
+		await page.locator(URL_FIELD).click();
+		await page.keyboard.press('Enter');
+		await ep.waitForNoSourceMutation();
+		expect(await ep.bridge.getSource()).toContain('[example](https://example.com)');
+	});
+
 	test('Escape writes nothing and puts the caret back where the click seated it', async ({
 		page
 	}) => {

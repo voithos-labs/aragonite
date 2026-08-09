@@ -26,7 +26,22 @@
 	let titleTouched = $state(false);
 	let popoverEl: HTMLDivElement | undefined = $state();
 
-	const initialBytes = untrack(() => buildBytes(target, fields));
+	// The seed is the BYTES, not the fields object: a rebuild mints a fresh one per render, so
+	// identity says nothing about whether the image moved.
+	let seedBytes = $state(untrack(() => buildBytes(target, fields)));
+
+	// The popover follows the document while it is open: an undo — or any write landing from
+	// outside this gesture — moves the image past the draft, and the dismiss commit would put the
+	// old bytes back. The in-flight draft is discarded rather than a committed change reverted.
+	$effect(() => {
+		const live = buildBytes(target, fields);
+		if (live === seedBytes) return;
+		seedBytes = live;
+		url = fields.url;
+		alt = fields.alt;
+		titleInput = fields.title ?? '';
+		titleTouched = false;
+	});
 
 	// The commit runs in $effect cleanup so dismiss, image-switch (key change) and
 	// programmatic clear all commit through one seam.
@@ -65,7 +80,7 @@
 			...(fields.height !== undefined ? { height: fields.height } : {})
 		};
 		const newBytes = buildBytes(target, next);
-		if (newBytes === initialBytes) return;
+		if (newBytes === seedBytes) return;
 		onCommit(target, next);
 	}
 

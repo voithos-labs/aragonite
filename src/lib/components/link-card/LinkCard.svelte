@@ -28,7 +28,17 @@
 	} = $props();
 
 	let draft = $state(untrack(() => url));
+	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();
+
+	// The card follows the document while it is open: an undo — or any write landing from outside
+	// this gesture — moves the destination past the draft, and Enter would put the old bytes back.
+	// The in-flight draft is discarded rather than a committed change reverted.
+	$effect(() => {
+		if (url === seed) return;
+		seed = url;
+		draft = url;
+	});
 
 	function focusStops(): HTMLElement[] {
 		return cardEl
