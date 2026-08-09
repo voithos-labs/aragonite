@@ -75,6 +75,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/components/image/ImageProperties.svelte':
 		'document-capture dismiss-on-outside-press for the properties popover',
 	'src/lib/components/image/ImageResizeHandles.svelte': 'starts a resize drag',
+	'src/lib/components/link-card/LinkCardHost.svelte':
+		'document-capture dismiss-on-outside-press for the link card; the press that dismisses places its own caret through the ordinary door',
 	'src/lib/editor-actions/reorder-drag.ts': 'starts a block reorder drag off the handle',
 	'src/lib/plugins/details/DetailsBlock.svelte':
 		'preventDefault on the summary so the disclosure toggle takes no focus',
