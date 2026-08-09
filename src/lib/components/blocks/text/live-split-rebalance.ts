@@ -253,12 +253,14 @@ interface HalfRead {
 }
 
 /**
- * Three questions, and a candidate answers all of them or it is not written. Is each half one
+ * Four questions, and a candidate answers all of them or it is not written. Is each half one
  * prose block the reload KEEPS — the shape the caller's caret math and its multi-block dev warn
- * both assume? Did the constructs the seam closed and reopened survive? And does the render path
- * report the same characters as before, the one line ending the split itself consumed aside?
+ * both assume? Did the constructs the seam closed and reopened survive? Are the bytes it declares
+ * DROPPED ones the screen never showed? And does the render path report the same characters as
+ * before, the one line ending the split itself consumed aside? Exported for the verification
+ * test, which has to reach it with a candidate no producer here would build.
  */
-function parsesBack(
+export function parsesBack(
 	bytes: SplitBytes,
 	seam: SeamParts,
 	candidate: RebalancedHalves,
@@ -276,6 +278,11 @@ function parsesBack(
 	if (isWhitespaceOnly(first.visible) || isWhitespaceOnly(second.visible)) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;
+	// A candidate may drop only bytes the SCREEN never showed, and this is the one place the
+	// oracle cannot answer: it counts characters, while CSS collapses a block's terminal run to
+	// nothing. So the rule the drop rides on is READ HERE rather than trusted from the producer —
+	// a declaration is a claim, and the check below would otherwise accept any bytes at all.
+	if (candidate.droppedTail !== undefined && candidate.droppedTail.trim() !== '') return false;
 	const whole = renderedText(
 		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver),
 		bytes.raw
