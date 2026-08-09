@@ -28,8 +28,7 @@ import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths, isStrictAncestorOf } from './path-math';
 import { cellEndpointDeepPath } from './table-endpoint-snap';
 import { displayLength } from '../core/lines';
-import { landableDomTextBounds, revealsNoMarkers } from '../cursor/widget-offset';
-import { toClampedRawOffset } from '../cursor/coordinate-spaces';
+import { clampToLandableRaw } from '../cursor/widget-offset';
 import { ambientLengthOf } from '../ambient/ambient-dom';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
@@ -91,13 +90,8 @@ export async function collapseCrossBlock(
  * content edge, while the typing seat reads it as inside the construct.
  */
 function landableCaretPoint(blockEl: HTMLElement | null, point: SelectionPoint): SelectionPoint {
-	if (!blockEl || !revealsNoMarkers(blockEl)) return point;
-	const bounds = landableDomTextBounds(blockEl);
-	const ambientLength = ambientLengthOf(blockEl);
-	const offset = Math.min(
-		Math.max(point.offset, toClampedRawOffset(bounds.start, ambientLength)),
-		toClampedRawOffset(bounds.end, ambientLength)
-	);
+	if (!blockEl) return point;
+	const offset = clampToLandableRaw(blockEl, point.offset, ambientLengthOf(blockEl));
 	return offset === point.offset ? point : { ...point, offset };
 }
 

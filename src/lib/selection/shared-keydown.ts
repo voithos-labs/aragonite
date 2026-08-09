@@ -16,8 +16,7 @@ import {
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
-import { landableDomTextBounds, revealsNoMarkers } from '../cursor/widget-offset';
-import { toClampedRawOffset } from '../cursor/coordinate-spaces';
+import { landableRawBounds } from '../cursor/widget-offset';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
 import { eventToChord } from '../schema/keybindings';
 import { isEditorGlobalChord } from '../schema/commands';
@@ -188,13 +187,7 @@ export interface LandableBoundsContext {
  * open or close with a run nothing paints. Every block-edge gate reads this, not 0/length.
  */
 export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
-	if (!revealsNoMarkers(el)) return { start: 0, end: ctx.getTextLen() };
-	const ambientLength = ctx.getAmbientLength();
-	const landable = landableDomTextBounds(el);
-	return {
-		start: toClampedRawOffset(landable.start, ambientLength),
-		end: toClampedRawOffset(landable.end, ambientLength)
-	};
+	return landableRawBounds(el, ctx.getAmbientLength()) ?? { start: 0, end: ctx.getTextLen() };
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────

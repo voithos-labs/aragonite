@@ -9,7 +9,7 @@
 
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
-import type { StickyColumnDirection } from '../../block-component';
+import { CURSOR_END, type StickyColumnDirection } from '../../block-component';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type {
 	BlockElLookup,
@@ -45,6 +45,7 @@ import {
 } from '../../selection/cross-block/dispatch';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
+import { clampToLandableRaw } from '../../cursor/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
@@ -235,11 +236,22 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	// ── BlockComponent surface ────────────────────────────────────────────────
 
+	/**
+	 * Every caret door lands here, so the END SENTINEL is resolved here: "the end" is the last
+	 * offset a caret can occupy, and a mode that paints no marker puts the raw end past it —
+	 * seating there hands the typing seat a position no arrow walk produces, where the next byte
+	 * extends a construct the arrival was outside of (§ 4.2). A NUMERIC offset is a caller who
+	 * knows where it wants the caret (a split's continuation, a restore) and is left alone.
+	 */
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus();
-		deps.backend.setRaw(asRawOffset(Math.max(0, offset)));
+		const seat =
+			offset === CURSOR_END
+				? clampToLandableRaw(el, offset, deps.getAmbientLength())
+				: Math.max(0, offset);
+		deps.backend.setRaw(asRawOffset(seat));
 	}
 
 	const focus = placeCaret(deps.selection, parkCaret);
