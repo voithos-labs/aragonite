@@ -426,7 +426,8 @@
 			case 'format.toggleEmphasis':
 			case 'format.toggleStrikethrough':
 			case 'format.toggleCode':
-				return true; // code blocks don't format-toggle; swallow to stop the browser default
+			case 'link.openCard':
+				return true; // code blocks carry no inline constructs; swallow to stop the browser default
 			case 'code.newline':
 				return codeNewline();
 			case 'code.indent':

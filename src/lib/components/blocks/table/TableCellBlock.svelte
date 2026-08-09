@@ -394,8 +394,10 @@
 		if (id === 'format.toggleEmphasis') return toggleFormat('emphasis');
 		if (id === 'format.toggleStrikethrough') return toggleFormat('strikethrough');
 		if (id === 'format.toggleCode') return toggleFormat('inlineCode');
+		// Consumed whether or not it enters, the prose surface's rule on this surface too:
+		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {
-			return enterLinkCardAtCaret({
+			enterLinkCardAtCaret({
 				contentEl: el,
 				block: node,
 				path: myPath,
@@ -403,6 +405,7 @@
 				card: linkCard,
 				mode: presentationMode
 			});
+			return true;
 		}
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {

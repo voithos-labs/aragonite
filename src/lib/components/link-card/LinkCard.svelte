@@ -77,6 +77,13 @@
 		if (e.key === 'Tab') {
 			e.preventDefault();
 			stepTrap(e.shiftKey);
+			return;
+		}
+		// The entry chord re-asserts the card the focus is already inside, so it is a no-op here —
+		// but a consumed one: no surface the editor owns hands `Mod+K` back to the browser.
+		// CapsLock uppercases the key without a Shift modifier, which is still the plain chord.
+		if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
+			e.preventDefault();
 		}
 	}
 
