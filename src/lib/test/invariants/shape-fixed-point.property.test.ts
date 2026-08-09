@@ -151,7 +151,15 @@ function keepsEveryByte(before: string, after: string): boolean {
 	}
 	for (const byte of before.replace(/\r?\n/g, '').split('')) {
 		const left = budget.get(byte) ?? 0;
-		if (left === 0) return false;
+		// The DECLARED-DROP exception, re-derived from the byte rather than read off the
+		// declaration: a candidate may drop what the screen never painted, and the verifier admits
+		// that only for a whitespace-only `droppedTail` (#106). The rebalancer strips the
+		// declaration before returning its halves, so this side cannot see it — reading the KIND
+		// off the byte matches the verifier exactly and is weaker only in POSITION.
+		if (left === 0) {
+			if (byte.trim() === '') continue;
+			return false;
+		}
 		budget.set(byte, left - 1);
 	}
 	return true;
@@ -172,7 +180,8 @@ function divergenceAfterEdit(
 	// GH #95 shipped past both oracles above: the halves it left reload as themselves, and the
 	// lines the drop took with them were simply no longer in the document to disagree.
 	// A live split closes and reopens the construct it cut, so a delimiter run is legitimately
-	// DUPLICATED across the halves; losing one stays forbidden in every mode.
+	// DUPLICATED across the halves; losing one stays forbidden in every mode — or terminal
+	// whitespace the screen never painted, declared by the candidate and checked by the verifier.
 	const keptBytes =
 		mode === 'live'
 			? keepsEveryByte(before, bytes)
@@ -253,6 +262,22 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 			const raw = children[gesture.at % children.length].raw;
 			return { ...gesture, op: 'split', offset: gesture.offset % (displayLength(raw) + 1) };
 		}
+
+		// The collision the two rules make, pinned deterministically rather than left for a seed to
+		// draw: the rebalancer drops a block's TERMINAL whitespace (#106) because the screen never
+		// painted it, and the byte oracle below forbids losing a byte. The exception is the
+		// verifier's own, so the two agree — and it is WHITESPACE-ONLY, which is what keeps a
+		// dropped `<`/`>` pair a loss.
+		it('a split may drop terminal whitespace the screen never painted (#106)', () => {
+			expect(
+				divergenceAfterEdit('~~foo~~  \n', { op: 'split', at: 0, offset: 5 }, 'live')
+			).toBeNull();
+		});
+
+		it('a non-whitespace drop is still a loss, so the exception cannot widen', () => {
+			expect(keepsEveryByte('~~foo~~  ', '~~foo~~')).toBe(true);
+			expect(keepsEveryByte('<https://example.com> t', 'https://example.com t')).toBe(false);
+		});
 
 		it('a live split diverges nowhere the byte-literal split already does', () => {
 			fc.assert(
