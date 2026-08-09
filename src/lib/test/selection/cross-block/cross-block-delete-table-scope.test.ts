@@ -35,7 +35,8 @@ function makeEnv(source: string) {
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 		grammar: undefined,
-		getPresentationMode: undefined
+		getPresentationMode: undefined,
+		linkRef: undefined
 	};
 	return {
 		...harness,

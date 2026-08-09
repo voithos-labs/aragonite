@@ -25,7 +25,7 @@ function deleteRange(
 	mode: PresentationMode | undefined
 ): string {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, createSharingState(), undefined, mode);
+	rangeDelete(doc, start, end, createSharingState(), undefined, mode, undefined);
 	return serialize(doc);
 }
 

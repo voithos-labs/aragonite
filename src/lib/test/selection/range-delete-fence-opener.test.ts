@@ -28,6 +28,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [1], offset: 8 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -49,6 +50,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [1], offset: 6 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -67,6 +69,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [1], offset: 8 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -83,6 +86,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [1], offset: 9 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -98,6 +102,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1, 0], offset: 8 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -116,6 +121,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 14 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -136,6 +142,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 8 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -151,6 +158,7 @@ describe('range delete that consumes a fenced code opener', () => {
 			{ path: [0], offset: 0 },
 			{ path: [1], offset: 8 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -177,6 +185,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				{ path: [1], offset: 8 },
 				sharing(),
 				undefined,
+				undefined,
 				undefined
 			);
 
@@ -195,6 +204,7 @@ describe('range delete that consumes a fenced code opener', () => {
 				{ path: [0, 0], offset: 2 },
 				{ path: [1], offset: 11 },
 				sharing(),
+				undefined,
 				undefined,
 				undefined
 			);

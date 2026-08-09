@@ -106,7 +106,7 @@ describe('splitNode — contextDependentKind is unsplittable', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
 
-		const change = splitNode(parent as never, 0, 3, undefined);
+		const change = splitNode(parent as never, 0, 3, undefined, undefined);
 
 		expect(change).toEqual({ op: 'noop' });
 		expect(parent.children).toHaveLength(1);
@@ -118,7 +118,7 @@ describe('splitNode — contextDependentKind is unsplittable', () => {
 		const parent = {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hello world\n' }] as CstNode[]
 		};
-		const change = splitNode(parent as never, 0, 5, undefined);
+		const change = splitNode(parent as never, 0, 5, undefined, undefined);
 		expect(change).toMatchObject({ op: 'replace', newCount: 2 });
 		expect(parent.children).toHaveLength(2);
 	});

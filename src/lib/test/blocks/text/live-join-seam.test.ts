@@ -19,7 +19,8 @@ function merge(first: string, second: string): string | null {
 			mergedRaw: start.raw.slice(0, seam) + end.raw,
 			seam,
 			start: { node: start, offset: seam },
-			end: { node: end, offset: 0 }
+			end: { node: end, offset: 0 },
+			linkRef: undefined
 		})?.raw ?? null
 	);
 }
@@ -38,7 +39,8 @@ function deleteBetween(
 			mergedRaw: start.raw.slice(0, startOffset) + end.raw.slice(endOffset),
 			seam: startOffset,
 			start: { node: start, offset: startOffset },
-			end: { node: end, offset: endOffset }
+			end: { node: end, offset: endOffset },
+			linkRef: undefined
 		})?.raw ?? null
 	);
 }
@@ -133,7 +135,8 @@ describe('what the cleanup refuses to be asked', () => {
 				mergedRaw: '## ld\n',
 				seam: 1,
 				start: { node: heading, offset: 1 },
-				end: { node: heading, offset: 3 }
+				end: { node: heading, offset: 3 },
+				linkRef: undefined
 			})
 		).toBeNull();
 	});
@@ -147,7 +150,8 @@ describe('what the cleanup refuses to be asked', () => {
 				mergedRaw: '> Some **bo****ld** text\n',
 				seam: displayLength(start.raw),
 				start: { node: start, offset: displayLength(start.raw) },
-				end: { node: end, offset: 0 }
+				end: { node: end, offset: 0 },
+				linkRef: undefined
 			})
 		).toBeNull();
 	});
@@ -160,7 +164,8 @@ describe('what the cleanup refuses to be asked', () => {
 				mergedRaw: fence.raw.slice(0, 3) + para.raw,
 				seam: 3,
 				start: { node: fence, offset: 3 },
-				end: { node: para, offset: 0 }
+				end: { node: para, offset: 0 },
+				linkRef: undefined
 			})
 		).toBeNull();
 	});

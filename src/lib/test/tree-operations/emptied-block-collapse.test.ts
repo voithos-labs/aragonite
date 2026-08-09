@@ -45,7 +45,7 @@ describe('an emptied middle block takes its own blank line with it', () => {
 
 	describe.each(TAILS)('above / blank / %s', (_name, tail) => {
 		it('merges into the block above, leaving one separator', () => {
-			const doc = collapsed(tail, (d) => mergeWithPrevious(d, 1, undefined));
+			const doc = collapsed(tail, (d) => mergeWithPrevious(d, 1, undefined, undefined));
 
 			expect(serialize(doc)).toBe(`above\n\n${tail}`);
 			expect(doc.children).toHaveLength(2);
@@ -53,7 +53,7 @@ describe('an emptied middle block takes its own blank line with it', () => {
 		});
 
 		it('deletes to the same shape the merge reaches', () => {
-			const merged = collapsed(tail, (d) => mergeWithPrevious(d, 1, undefined));
+			const merged = collapsed(tail, (d) => mergeWithPrevious(d, 1, undefined, undefined));
 			const deleted = collapsed(tail, (d) => deleteNode(d, 1));
 
 			expect(serialize(deleted)).toBe(serialize(merged));

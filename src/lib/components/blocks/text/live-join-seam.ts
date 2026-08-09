@@ -14,6 +14,7 @@ import {
 	parseInline
 } from '../../../core/inline';
 import { renderedText } from '../../../core/inline-render';
+import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import { parse } from '../../../core/parser';
 import {
@@ -25,8 +26,9 @@ import {
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
 export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
-	const left = readSide(join.start, 'before');
-	const right = readSide(join.end, 'after');
+	const resolver = join.linkRef?.current;
+	const left = readSide(join.start, 'before', resolver);
+	const right = readSide(join.end, 'after', resolver);
 	if (left === null || right === null) return null;
 	// Nothing stands on the seam, so the literal join is already the answer — and the ordinary
 	// Backspace between two plain paragraphs pays no parse for it.
@@ -40,7 +42,7 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 	for (const dangling of [unpairedSpans(join, left, right), everyDanglingSpan(join, left, right)]) {
 		const spans = [...dangling, ...pairs];
 		const candidate = withoutSpans(join.mergedRaw, spans);
-		if (visibleBlockText(candidate) !== shown) continue;
+		if (visibleBlockText(candidate, resolver) !== shown) continue;
 		// A candidate that changed nothing IS the literal join: declining says so, and keeps the
 		// caller off a rewrite path it does not need.
 		if (candidate === join.mergedRaw) return null;
@@ -88,13 +90,17 @@ interface Side {
  * or a cut through a construct whose family declares no close-and-reopen (an image, an escape,
  * an autolink) — those bytes mean nothing apart, so no run of theirs is the join's to drop.
  */
-function readSide(endpoint: JoinEndpoint, keep: 'before' | 'after'): Side | null {
+function readSide(
+	endpoint: JoinEndpoint,
+	keep: 'before' | 'after',
+	resolver: LinkReferenceResolver | undefined
+): Side | null {
 	const { node, offset } = endpoint;
 	if (!isProseKind(node.kind)) return null;
 	const content = getContentRange(node);
 	if (offset < content.start || offset > content.end) return null;
 
-	const inlines = parseInline(node.raw, content.start, content.end);
+	const inlines = parseInline(node.raw, content.start, content.end, resolver);
 	const { ranged, atomic } = classifyConstructs(inlines);
 	// A run whose bytes mean nothing apart — an image, an escape, an autolink — has no halves to
 	// keep, and a cut through the middle of a delimiter run leaves half of one behind. Neither is
@@ -321,10 +327,10 @@ function clipNodes(
 
 /** The candidate read back as a block: a join produces ONE, and a candidate that parses to two
  *  (or to a kind with no inline content) is not the thing the caller is about to install. */
-function visibleBlockText(raw: string): string | null {
+function visibleBlockText(raw: string, resolver: LinkReferenceResolver | undefined): string | null {
 	const blocks = parse(raw, { scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
 	const range = getContentRange(block);
-	return renderedText(parseInline(block.raw, range.start, range.end), block.raw);
+	return renderedText(parseInline(block.raw, range.start, range.end, resolver), block.raw);
 }

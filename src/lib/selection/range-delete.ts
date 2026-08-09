@@ -6,6 +6,7 @@
 
 import type { GrammarView } from '../schema/block-openers';
 import type { PresentationMode } from '../presentation-mode';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
@@ -66,7 +67,8 @@ export function rangeDelete(
 	end: SelectionPoint,
 	sharing: SharingState,
 	grammar: GrammarView | undefined,
-	presentationMode: PresentationMode | undefined
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): RangeDeleteResult {
 	const startBlock = blockNodeAt(doc, start.path);
 	const endBlock = blockNodeAt(doc, end.path);
@@ -106,7 +108,8 @@ export function rangeDelete(
 			mergedRaw,
 			seam: startOffset,
 			start: { node: startBlock, offset: startOffset },
-			end: { node: endBlock, offset: endOffset }
+			end: { node: endBlock, offset: endOffset },
+			linkRef
 		},
 		presentationMode
 	);

@@ -8,6 +8,7 @@
 
 import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
+import type { LinkReferenceResolver } from '../core/inline/link-reference-resolver';
 import { registerOnce } from './register-once';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
@@ -70,6 +71,14 @@ export function listInlineConstructPolicies(): readonly (InlineConstructPolicy &
 // ── Split rebalancer ────────────────────────────────────────────────────────
 
 /**
+ * The link-reference resolver a rewrite parses with, structurally rather than by naming
+ * `editor-keys`' type — that would cycle the editor's context module onto every layer this table
+ * serves, the reason `inline-cache` states for the same shape. Registration is process-global and
+ * the resolver is per-instance, so it rides the CALL, never the registration.
+ */
+export type InlineResolverRef = { current?: LinkReferenceResolver; signature?: string };
+
+/**
  * The one live-mode split rewrite, consulting each construct's own `splitBehavior`, so
  * `splitNode` needs neither `parseInline` nor a per-kind dispatch. Null declines the rewrite.
  */
@@ -77,7 +86,8 @@ export type LiveSplitRebalancer = (
 	node: NodeView,
 	offset: number,
 	firstRaw: string,
-	secondRaw: string
+	secondRaw: string,
+	linkRef: InlineResolverRef | undefined
 ) => { firstRaw: string; secondRaw: string } | null;
 
 let splitRebalancer: LiveSplitRebalancer | undefined;
@@ -110,6 +120,9 @@ export interface JoinSeam {
 	seam: number;
 	start: JoinEndpoint;
 	end: JoinEndpoint;
+	/** Per-instance, so it rides the call: a reference form parsed without it reads as brackets,
+	 *  and the seam would step around a construct the reader saw as a link. */
+	linkRef: InlineResolverRef | undefined;
 }
 
 /** The bytes a cleanup wrote and where the two sides now meet in them: dropping a run on the

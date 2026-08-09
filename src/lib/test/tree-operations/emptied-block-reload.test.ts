@@ -50,8 +50,8 @@ describe('emptying a block settles the run it joins', () => {
 	// the block being emptied: a settle reaching only `index + 1` finds a blank block with none.
 	it('reaches past a blank follower to the separator a split left below it', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined);
-		splitNode(doc, 1, 0, undefined);
+		splitNode(doc, 0, 5, undefined, undefined);
+		splitNode(doc, 1, 0, undefined, undefined);
 		updateNodeContent(doc, 1, 'x\n');
 		expect(layout(doc.children)).toEqual([
 			['paragraph', '', 'Hello\n'],

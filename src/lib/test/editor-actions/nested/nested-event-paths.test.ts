@@ -62,7 +62,8 @@ function makeNestedList() {
 		parentFocus: quoteBundle.focus,
 		parentListContext: undefined,
 		controller,
-		getPresentationMode: undefined
+		getPresentationMode: undefined,
+		linkRef: undefined
 	});
 
 	const edits: EditEvent[] = [];

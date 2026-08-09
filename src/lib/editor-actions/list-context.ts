@@ -12,6 +12,7 @@ import { metadataOf } from '../core/nodes';
 import { trailingLineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { PresentationModeGetter } from '../editor-keys';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { MultiScopeTarget, UndoController } from './deps';
 import {
 	replacePreservingFirst,
@@ -46,6 +47,8 @@ export interface ListContextDeps {
 	/** Live EFFECTIVE mode, for the mid-item split's byte rebalance. Nullable rather than
 	 *  optional so the one composing container answers. */
 	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, required-nullable beside the mode. */
+	linkRef: InlineResolverRef | undefined;
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
@@ -213,7 +216,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						{ children: itemChildren, ownerKind: itemScope.node.kind },
 						innerIndex,
 						offset,
-						deps.getPresentationMode?.()
+						deps.getPresentationMode?.(),
+						deps.linkRef
 					);
 					stampStructuralChange(itemChildren, splitChange, sharing);
 					const secondHalf = itemChildren.splice(innerIndex + 1);

@@ -8,6 +8,7 @@
 
 import type { NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
+import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
 import { cleanJoinedRaw } from '../../../tree-operations/node-ops';
 
 export interface SelectionEdit {
@@ -25,7 +26,8 @@ export function resolveSelectionEdit(
 	node: NodeView,
 	selection: { start: number; end: number },
 	typed: string,
-	presentationMode: PresentationMode | undefined
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): SelectionEdit | null {
 	if (selection.start >= selection.end) return null;
 	const mergedRaw = node.raw.slice(0, selection.start) + node.raw.slice(selection.end);
@@ -34,7 +36,8 @@ export function resolveSelectionEdit(
 			mergedRaw,
 			seam: selection.start,
 			start: { node, offset: selection.start },
-			end: { node, offset: selection.end }
+			end: { node, offset: selection.end },
+			linkRef
 		},
 		presentationMode
 	);

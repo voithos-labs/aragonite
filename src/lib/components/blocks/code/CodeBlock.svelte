@@ -89,7 +89,8 @@
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
-		pluginEditor
+		pluginEditor,
+		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 	const readOnly = $derived(getPresentationMode?.() === 'reading');
@@ -105,6 +106,7 @@
 	);
 
 	const editableSurface = createEditableSurface({
+		linkRef,
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
 		backend,

@@ -414,11 +414,11 @@ export function renderInlineNodes(
 }
 
 /**
- * The text a reader SEES for `nodes` — the rendered DOM minus every marker span. Lives here
- * because this file decides which bytes become markers (G4.30): any caller re-deriving that
- * would drift from what actually paints, which is the only thing the answer is worth anything as.
- * Options change what paints, so an answer is comparable only with another taken under the same
- * ones — a before/after pair under the defaults, which errs toward declining a rewrite.
+ * The text a reader SEES for `nodes` — the rendered DOM minus every span the marker-hiding modes
+ * drop. Lives here because this file decides which bytes become which span (G4.30): a caller
+ * re-deriving that drifts from what actually paints, which is the only thing the answer is worth
+ * anything as. The reference label is in the list because the same CSS hides it; leaving it in
+ * made a resolved reference read as extra characters and declined every rewrite that crossed one.
  */
 export function renderedText(
 	nodes: InlineNode[],
@@ -426,7 +426,7 @@ export function renderedText(
 	opts: RenderInlineOptions = {}
 ): string {
 	const fragment = renderInlineNodes(nodes, raw, opts);
-	for (const marker of fragment.querySelectorAll('.md-marker')) marker.remove();
+	for (const span of fragment.querySelectorAll('.md-marker, .md-ref-label')) span.remove();
 	return fragment.textContent ?? '';
 }
 

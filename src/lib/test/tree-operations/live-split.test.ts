@@ -27,7 +27,7 @@ afterEach(() => {
 
 const rawsAfterSplit = (source: string, offset: number, mode: 'live' | 'source' | undefined) => {
 	const doc = parse(source);
-	splitNode(doc, 0, offset, mode);
+	splitNode(doc, 0, offset, mode, undefined);
 	return doc.children.map((child) => child.raw);
 };
 
@@ -109,15 +109,15 @@ describe('a rebalanced split always produces exactly two blocks', () => {
 describe('Backspace merging the halves back', () => {
 	it('restores the original bytes with no residue between the runs', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, 'live');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live');
+		splitNode(doc, 0, 9, 'live', undefined);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', undefined);
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
 	it('a merged split link is one link again', () => {
 		const doc = parse('Visit [example](https://example.com) here\n');
-		splitNode(doc, 0, 11, 'live');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live');
+		splitNode(doc, 0, 11, 'live', undefined);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', undefined);
 		expect(doc.children[0].raw).toBe('Visit [example](https://example.com) here\n');
 	});
 
@@ -126,8 +126,8 @@ describe('Backspace merging the halves back', () => {
 	// is where the cleaning belongs.
 	it('is not a defect of the byte-literal split, which round-trips', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, undefined);
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
+		splitNode(doc, 0, 9, undefined, undefined);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, undefined);
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
@@ -135,8 +135,8 @@ describe('Backspace merging the halves back', () => {
 	// were painted and the user could see what the two halves carried.
 	it('a modeless merge keeps the halves byte-literal', () => {
 		const doc = parse('Some **bold** text\n');
-		splitNode(doc, 0, 9, 'live');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
+		splitNode(doc, 0, 9, 'live', undefined);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined, undefined);
 		expect(doc.children[0].raw).toBe('Some **bo****ld** text\n');
 	});
 });

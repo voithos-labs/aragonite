@@ -19,6 +19,7 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint): string
 		end,
 		createSharingState(),
 		undefined,
+		undefined,
 		undefined
 	).newDoc;
 	// The minted paragraph is a blank line, so its own separator settles with the rest of the run —

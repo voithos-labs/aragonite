@@ -88,6 +88,7 @@ function makeHandlers(env: ReturnType<typeof makeEnv>, grammar: GrammarView | un
 		history: { requestUndo() {}, requestRedo() {} },
 		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
+		linkRef: undefined,
 		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),

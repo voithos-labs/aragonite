@@ -27,6 +27,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 9 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -43,6 +44,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 9 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -57,6 +59,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 8 },
 			{ path: [0], offset: 9 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -75,6 +78,7 @@ describe('range delete inside a fenced code block', () => {
 			{ path: [0], offset: 2 },
 			{ path: [0], offset: 3 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -99,6 +103,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 14 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -114,6 +119,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 8 },
 			{ path: [1], offset: 2 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -134,6 +140,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [1], offset: 1 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -150,6 +157,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 20 },
 			sharing(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -165,6 +173,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 9 },
 			{ path: [0], offset: 16 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -183,6 +192,7 @@ describe('range delete that consumes a fenced code closer', () => {
 			{ path: [0], offset: 9 },
 			{ path: [1], offset: 4 },
 			sharing(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -208,6 +218,7 @@ describe('range delete that consumes a fenced code closer', () => {
 				{ path: [0], offset: 8 },
 				{ path: [1, 0], offset: 3 },
 				sharing(),
+				undefined,
 				undefined,
 				undefined
 			);

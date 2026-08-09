@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 
 // The bytes a live-mode Enter writes into each half. Every case states the plain byte-literal cut
 // the rewrite is offered — that is what a decline leaves behind — so a null return is as pinned as
@@ -16,7 +17,8 @@ function split(source: string, offset: number) {
 		node,
 		offset,
 		first.endsWith('\n') ? first : first + '\n',
-		second.endsWith('\n') ? second : second + '\n'
+		second.endsWith('\n') ? second : second + '\n',
+		undefined
 	);
 }
 
@@ -57,7 +59,7 @@ describe('a cut inside a symmetric pair closes it and reopens it', () => {
 	// halves still close. `splitNode` moved the cut past the ending before offering the halves.
 	it('closes across a soft break the cut consumes', () => {
 		const node = parse('**bo\nld**\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n')).toEqual({
+		expect(rebalanceLiveSplit(node, 4, '**bo\n', 'ld**\n', undefined)).toEqual({
 			firstRaw: '**bo**\n',
 			secondRaw: '**ld**\n'
 		});
@@ -149,7 +151,7 @@ describe('constructs that declare no rewrite decline the whole cut', () => {
 
 	it('a non-prose block is never rebalanced', () => {
 		const fence = parse('```\n**a**\n```\n', { scope: 'fragment' }).children[0];
-		expect(rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n')).toBeNull();
+		expect(rebalanceLiveSplit(fence, 6, '```\n**a\n', '**\n```\n', undefined)).toBeNull();
 	});
 });
 
@@ -196,5 +198,37 @@ describe('the first half never parses to more than one block', () => {
 	it('rewrites most of the adversarial set, so the rule above is not vacuous', () => {
 		const rewritten = adversarial.filter(([source, offset]) => split(source, offset) !== null);
 		expect(rewritten.length).toBeGreaterThanOrEqual(6);
+	});
+});
+
+// The resolver rides the CALL, never the registration: it is per-instance while the slot is
+// process-global. Without it a reference form reads as brackets and the cut declines, which is
+// sound and still a marker leak — the whole reason the axis exists.
+describe('a reference form rebalances only when the resolver reaches the seam', () => {
+	const DOC = 'Visit [example][site] here\n\n[site]: https://example.com\n';
+
+	function splitWithResolver(offset: number, withResolver: boolean) {
+		const doc = parse(DOC);
+		const node = doc.children[0];
+		const raw = node.raw;
+		const map = buildLinkReferenceMap(doc.children);
+		return rebalanceLiveSplit(
+			node,
+			offset,
+			raw.slice(0, offset) + '\n',
+			raw.slice(offset),
+			withResolver ? { current: map.resolve, signature: map.signature } : undefined
+		);
+	}
+
+	it('the halves each carry the reference', () => {
+		expect(splitWithResolver(10, true)).toEqual({
+			firstRaw: 'Visit [exa][site]\n',
+			secondRaw: '[mple][site] here\n'
+		});
+	});
+
+	it('declines with no resolver, because the brackets read as text', () => {
+		expect(splitWithResolver(10, false)).toBeNull();
 	});
 });

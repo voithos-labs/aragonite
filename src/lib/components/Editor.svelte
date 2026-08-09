@@ -16,6 +16,7 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorDoc,
+		type LinkReferenceResolverRef,
 		type EditorPolicies,
 		type EditorServices,
 		type PluginEditorLookup,
@@ -210,6 +211,19 @@
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
 	let signatureEpoch = $state<number>(0);
+	/** One ref for every reader — the block components through context and the action bundles
+	 *  through their deps — so a post-commit rebuild reaches both without re-binding either. */
+	const linkRefView: LinkReferenceResolverRef = {
+		get current(): LinkReferenceResolver {
+			return currentResolver;
+		},
+		get signature(): string {
+			return currentSignature;
+		},
+		get epoch(): number {
+			return signatureEpoch;
+		}
+	};
 	// Plain array: $state's mutation guards revert writes from a BlockHost publish
 	// that fires during the post-undo reactive flush.
 	let blockRefs: (BlockComponent | undefined)[] = [];
@@ -562,7 +576,10 @@
 		revealPath,
 		events,
 		grammar: registryView.grammar,
-		getPresentationMode: () => effectiveMode
+		getPresentationMode: () => effectiveMode,
+		get linkRef() {
+			return linkRefView;
+		}
 	};
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);
@@ -881,6 +898,7 @@
 		history,
 		pluginEditor: pluginEditorLookup,
 		getPresentationMode: () => effectiveMode,
+		linkRef: linkRefView,
 		onCommandError: commandErrorSink,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
@@ -1107,17 +1125,7 @@
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
 		contentVersion,
-		linkRef: {
-			get current(): LinkReferenceResolver {
-				return currentResolver;
-			},
-			get signature(): string {
-				return currentSignature;
-			},
-			get epoch(): number {
-				return signatureEpoch;
-			}
-		},
+		linkRef: linkRefView,
 		pluginEditor: pluginEditorLookup,
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,

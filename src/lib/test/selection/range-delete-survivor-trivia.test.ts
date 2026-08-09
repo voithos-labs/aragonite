@@ -19,7 +19,7 @@ const sharing = () => createSharingState();
 
 function del(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	rangeDelete(doc, start, end, sharing(), undefined, undefined);
+	rangeDelete(doc, start, end, sharing(), undefined, undefined, undefined);
 	return doc;
 }
 

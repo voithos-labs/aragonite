@@ -256,7 +256,8 @@ async function runListOp(
 		parentFocus: makeStubFocus(),
 		parentListContext: undefined,
 		controller: h.controller,
-		getPresentationMode: undefined
+		getPresentationMode: undefined,
+		linkRef: undefined
 	});
 
 	if (op.t === 'insertItem') {
@@ -405,7 +406,8 @@ async function runRangeDelete(
 		controller: h.controller,
 		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
 		grammar: undefined,
-		getPresentationMode: undefined
+		getPresentationMode: undefined,
+		linkRef: undefined
 	});
 }
 
