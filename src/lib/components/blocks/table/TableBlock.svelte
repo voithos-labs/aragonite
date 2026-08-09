@@ -10,6 +10,7 @@
 	} from '../../../action-contracts';
 	import {
 		CURSOR_END,
+		CURSOR_START,
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../../block-component';
@@ -501,7 +502,7 @@
 	// `focusByPath`.
 	export const focus = placeCaret(selection, (offset: number) => {
 		if (rowCount === 0) return;
-		if (offset === 0) {
+		if (offset === 0 || offset === CURSOR_START) {
 			focusCell(0, 0, 'start');
 			return;
 		}
@@ -510,10 +511,10 @@
 
 	export function parkCaret(offset: number): void {
 		if (rowCount === 0) return;
-		const atStart = offset === 0;
+		const atStart = offset === 0 || offset === CURSOR_START;
 		const rowIdx = atStart ? 0 : rowCount - 1;
 		const colIdx = atStart ? 0 : columnCount - 1;
-		cellRefAt(rowIdx, colIdx)?.parkCaret?.(atStart ? 0 : CURSOR_END);
+		cellRefAt(rowIdx, colIdx)?.parkCaret?.(atStart ? CURSOR_START : CURSOR_END);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
