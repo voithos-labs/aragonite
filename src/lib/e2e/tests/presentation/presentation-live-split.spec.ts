@@ -6,6 +6,7 @@ import {
 	clickWordSettled,
 	enterPresentationMode,
 	focusOffset,
+	landAt,
 	stepTo
 } from './helpers';
 
@@ -200,6 +201,7 @@ test.describe('live mode — a cut through a childless construct', () => {
 	test('splits byte-literally, brackets and all', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', '<https://example.com> tail\n');
 		await clickWordSettled(ep, page, 'example');
+		await landAt(ep, page, 13);
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('\n\n');
 

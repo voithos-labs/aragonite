@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
-import { centerOfWord, clickWordSettled, enterPresentationMode } from './helpers';
+import { centerOfWord, clickWordSettled, enterPresentationMode, landAt } from './helpers';
 import { findInput } from '../search/helpers';
 
 // The anchored chrome that replaces the destination live mode hides.
@@ -102,8 +102,9 @@ test.describe('live-mode link card', () => {
 		await openCardOn(ep, page, 'example');
 
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([0]);
+		await landAt(ep, page, 11);
 		await page.keyboard.type('!');
-		await ep.bridge.waitForSourceMatches(/\[exam!?ple!?\]/);
+		await ep.bridge.waitForSourceMatches(/\[exam!ple\]/);
 	});
 
 	test('Enter rewrites only the destination, as ONE undo entry', async ({ page }) => {
