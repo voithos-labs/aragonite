@@ -237,6 +237,34 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 	return mode !== null && !isPreviewMode(mode);
 }
 
+/**
+ * The extreme walk offsets a caret can occupy in `container`: a hidden marker run or an inert
+ * island at either end holds no landable position, so the bound moves past it, and a container
+ * with no landable text at all collapses both onto its far end. Block-edge gates read these
+ * rather than 0 / walk length, which a mode painting no marker makes unreachable — a gate
+ * testing an offset no keystroke can produce is a dead key.
+ */
+export function landableDomTextBounds(container: ParentNode): {
+	start: DomTextOffset;
+	end: DomTextOffset;
+} {
+	let start = 0;
+	let end = 0;
+	let landed = false;
+	for (const seg of landingSegments(container, markerHidingMode(container))) {
+		if (seg.len === 0) continue;
+		const stop = seg.start + seg.len;
+		// A widget is opaque but not unreachable: both of its boundaries are landable.
+		if (seg.kind === 'text' ? inInertIsland(seg.node, container) : seg.hidden) {
+			if (!landed) start = stop;
+			continue;
+		}
+		landed = true;
+		end = stop;
+	}
+	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
+}
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
@@ -261,6 +289,15 @@ function isMarkerSpan(el: Element): boolean {
 	const classes = el.classList;
 	if (classes.contains('md-marker')) return el.getAttribute('contenteditable') !== 'false';
 	return classes.contains('md-fence-line') || classes.contains('md-ref-label');
+}
+
+/** The caret cannot enter a `contenteditable="false"` island — the ambient marker prefix, a
+ *  decoration's replacement text — so its text holds no landable position either. */
+function inInertIsland(node: Node, root: ParentNode): boolean {
+	for (let el = node.parentElement; el && el !== root; el = el.parentElement) {
+		if (el.getAttribute('contenteditable') === 'false') return true;
+	}
+	return false;
 }
 
 function hidesOwnText(el: Element, mode: PresentationMode): boolean {

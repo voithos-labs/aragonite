@@ -1,22 +1,24 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// A mode that hides a block's own structural markers with no reveal makes raw 0 unreachable,
-// so the block-exit arms must fire at the CONTENT bounds instead. Spy on the extenders and on
+// A mode that hides a block's own structural markers with no reveal makes raw 0 unreachable, so
+// the block-exit arms must fire at the LANDABLE bounds instead. Spy on the extenders and on
 // moveFocus to observe the decision without DOM geometry.
-// Miss-analysis: every shared-keydown test built a detached element with no presentation root
-// and a paragraph fixture, where the content range IS [0, textLen] — the marker-bearing kinds
-// the arms actually break on had no fixture.
+// Miss-analysis: the bounds used to come from the kind's declared content range, which a
+// paragraph and a fenced code block both declare as the whole raw — so a fixture that never
+// rendered could answer for them, and the two kinds whose runs are unstamped went untested.
 vi.mock('../../selection/keyboard-extend', () => ({
 	extendFocusToNextBlock: vi.fn(),
 	extendFocusToPreviousBlock: vi.fn(),
 	scrollFocusBlockIntoView: vi.fn()
 }));
 
-import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { handleSharedKeydown, type SharedKeydownContext } from '../../selection/shared-keydown';
 import { extendFocusToPreviousBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
+import type { CstNode } from '../../core/nodes';
+import { createTextRender, type TextRenderDeps } from '../../components/blocks/text/text-render';
+import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
 import { createStickyColumnState } from '../../cursor/sticky-column';
 import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 
@@ -27,7 +29,49 @@ interface Env {
 	moveFocus: ReturnType<typeof vi.fn>;
 }
 
-/** `source` renders into a block element under an optional presentation root. */
+/** The block's OWN renderer paints the fixture: the bounds read the DOM, so a hand-built tree
+ *  would answer for a document that never rendered. */
+function render(node: CstNode, el: HTMLElement): void {
+	if (node.kind === 'fencedCode') {
+		el.replaceChildren(renderCodeBlock(node));
+		return;
+	}
+	createTextRender({
+		get el() {
+			return el;
+		},
+		get node() {
+			return node;
+		},
+		get ambientPrefix() {
+			return '';
+		},
+		get ambientPrefixText() {
+			return '';
+		},
+		getDisplayText: () => node.raw,
+		resolveImageUrl: (u: string) => u,
+		resolveLinkUrl: (u: string) => u,
+		get imageLoadPolicy() {
+			return 'auto' as const;
+		},
+		get presentationMode() {
+			return 'live' as const;
+		},
+		get linkResolver() {
+			return undefined;
+		},
+		get linkStamp() {
+			return '0';
+		},
+		get islands() {
+			return [];
+		},
+		getDocument: () => undefined,
+		brokenUrlCache: new Set<string>()
+	} as unknown as TextRenderDeps).render();
+}
+
 function makeEnv(source: string, offset: number | null, mode?: string): Env {
 	const doc = parse(source);
 	const root = document.createElement('div');
@@ -35,8 +79,8 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 	const el = document.createElement('div');
 	root.appendChild(el);
 	document.body.replaceChildren(root);
+	render(doc.children[0], el);
 	const moveFocus = vi.fn();
-	const textLen = source.replace(/\n+$/, '').length;
 	return {
 		moveFocus,
 		// Cast the members this fixture does not stand up, never the whole context: a blanket cast
@@ -45,9 +89,8 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 			getEl: () => el,
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,
-			getTextLen: () => textLen,
-			// The read the render paints from, which is what the reachable start walks.
-			getInlines: () => resolvedInlineContent(doc.children[0]),
+			getTextLen: () => source.replace(/\n+$/, '').length,
+			getAmbientLength: () => 0,
 			getMyPath: () => [0],
 			getIndex: () => 1,
 			crossBlock: {
@@ -70,11 +113,13 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 const press = (key: string, shiftKey = false) =>
 	new KeyboardEvent('keydown', { key, shiftKey, cancelable: true });
 
+const FENCE = '```js\nconst x = 1;\n```\n';
+
 beforeEach(() => toPrev.mockReset());
 
-describe('block-exit arms read the content bounds', () => {
-	// `## Title`: content [3, 8). The `## ` is unpainted in live, so 3 is the first offset a
-	// caret can occupy and ArrowLeft there is the block exit.
+describe('block-exit arms read the landable bounds', () => {
+	// `## Title`: the `## ` is unpainted in live, so 3 is the first offset a caret can occupy
+	// and ArrowLeft there is the block exit.
 	it('ArrowLeft exits at a heading’s content start in live', async () => {
 		const { ctx, moveFocus } = makeEnv('## Title\n', 3, 'live');
 		const e = press('ArrowLeft');
@@ -109,6 +154,33 @@ describe('block-exit arms read the content bounds', () => {
 		const { ctx, moveFocus } = makeEnv('Title\n', 0, 'live');
 		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(true);
 		expect(moveFocus).toHaveBeenCalledWith(0, 'end');
+	});
+
+	// The kinds that declare no content range: a paragraph opening with a construct, and a
+	// fenced code block, whose fence lines are the run nothing paints.
+	it('ArrowLeft exits past a paragraph’s opening construct in live', async () => {
+		const { ctx, moveFocus } = makeEnv('**Lead** in\n', 2, 'live');
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(0, 'end');
+	});
+
+	it('ArrowLeft exits at a fenced code block’s body start in live', async () => {
+		const { ctx, moveFocus } = makeEnv(FENCE, 6, 'live');
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(0, 'end');
+	});
+
+	it('ArrowRight exits at a fenced code block’s body end in live', async () => {
+		const { ctx, moveFocus } = makeEnv(FENCE, 18, 'live');
+		expect(await handleSharedKeydown(press('ArrowRight'), ctx)).toBe(true);
+		expect(moveFocus).toHaveBeenCalledWith(2, 'start');
+	});
+
+	it('the fence’s bounds are the whole raw in source mode', async () => {
+		const { ctx } = makeEnv(FENCE, 6, undefined);
+		expect(await handleSharedKeydown(press('ArrowLeft'), ctx)).toBe(false);
+		const atEnd = makeEnv(FENCE, 18, undefined);
+		expect(await handleSharedKeydown(press('ArrowRight'), atEnd.ctx)).toBe(false);
 	});
 
 	// A setext underline is a structural SUFFIX: in live the last reachable offset is the

@@ -45,7 +45,6 @@ import {
 } from '../../selection/cross-block/dispatch';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
-import type { InlineNode } from '../../core/nodes';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
@@ -133,10 +132,6 @@ export interface EditableSurfaceDeps {
 	/** Selection focus endpoint in raw space — surfaces convert or door-mint their DOM read. */
 	getFocusOffset: () => RawOffset | null;
 	getTextLen: () => number;
-	/** The inline tree the RENDER painted — resolver and signature included, so a reference
-	 *  construct is the construct the caret bounds see. Empty for a surface with no inline
-	 *  content, which has no hidden run for a bound to clear. */
-	getInlines: () => readonly InlineNode[];
 
 	// ── Input skeleton (per-surface) ──────────────────────────────────────────
 	/** Read the current DOM content as raw text for the input commit. */
@@ -225,7 +220,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getCursorOffset: () => deps.backend.getRaw(),
 		getFocusOffset: deps.getFocusOffset,
 		getTextLen: deps.getTextLen,
-		getInlines: deps.getInlines,
+		getAmbientLength: deps.getAmbientLength,
 		getMyPath: deps.getMyPath,
 		getIndex: deps.getIndex,
 		crossBlock,

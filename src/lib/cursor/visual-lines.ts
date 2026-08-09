@@ -63,19 +63,23 @@ export function findLastTextNode(root: Node): Text | null {
  * return true. `fallbackOffset` (the snapped caret intent from `ambient-cursor.getRaw`)
  * resolves the case where there is no live range — Chromium drops the caret range next to
  * atomic contenteditable=false islands across event-loop yields, and a hard-false would
- * strand every later boundary read at false.
+ * strand every later boundary read at false. It is compared against the block's first
+ * LANDABLE offset, which a leading hidden run moves off raw 0.
  */
-export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): boolean {
+export function isAtFirstVisualLine(
+	el: HTMLElement,
+	fallbackOffset: number,
+	contentStart: number
+): boolean {
 	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return fallbackOffset === 0;
+	if (!sel || sel.rangeCount === 0) return fallbackOffset <= contentStart;
 	if ((el.textContent ?? '').length === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
 	const cursorTop = getRangeTop(cursorRange);
 
 	if (cursorTop === null && cursorRange.collapsed) {
-		if (fallbackOffset === 0) return true;
-		return false;
+		return fallbackOffset <= contentStart;
 	}
 	if (cursorTop === null) return true;
 
@@ -91,7 +95,7 @@ export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): bo
 		startTop = getRangeTop(startRange);
 	}
 	if (startTop === null) {
-		return fallbackOffset === 0;
+		return fallbackOffset <= contentStart;
 	}
 
 	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
@@ -101,19 +105,18 @@ export function isAtFirstVisualLine(el: HTMLElement, fallbackOffset: number): bo
 export function isAtLastVisualLine(
 	el: HTMLElement,
 	fallbackOffset: number,
-	textLen: number
+	contentEnd: number
 ): boolean {
 	const sel = window.getSelection();
 	// See isAtFirstVisualLine — a dropped range resolves via the snapped fallback.
-	if (!sel || sel.rangeCount === 0) return fallbackOffset === textLen;
-	if (textLen === 0) return true;
+	if (!sel || sel.rangeCount === 0) return fallbackOffset >= contentEnd;
+	if (contentEnd === 0) return true;
 
 	const cursorRange = sel.getRangeAt(0);
 	const cursorTop = getRangeTop(cursorRange);
 
 	if (cursorTop === null && cursorRange.collapsed) {
-		if (fallbackOffset === textLen) return true;
-		return false;
+		return fallbackOffset >= contentEnd;
 	}
 	if (cursorTop === null) return true;
 
@@ -130,7 +133,7 @@ export function isAtLastVisualLine(
 		endTop = getRangeTop(endRange);
 	}
 	if (endTop === null) {
-		return fallbackOffset === textLen;
+		return fallbackOffset >= contentEnd;
 	}
 
 	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;

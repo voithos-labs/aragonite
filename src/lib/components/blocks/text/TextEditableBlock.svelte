@@ -49,7 +49,7 @@
 	import { assertInvariant } from '../../../invariants/assert';
 	import { widgetElByStart } from './widget-adjacency';
 	import {
-		caretContentBounds,
+		caretLandableBounds,
 		handleSharedKeydown,
 		handleSharedBeforeInput
 	} from '../../../selection/shared-keydown';
@@ -243,7 +243,6 @@
 			return toClampedRawOffset(content, ambientLength);
 		},
 		getTextLen: () => liveDisplayLength(),
-		getInlines: () => resolvedInlineContent(node, linkRef),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
@@ -458,9 +457,9 @@
 
 	/** The offsets a caret can reach here, from the one home the arrow exits already read: a mode
 	 *  that paints no marker puts the block's own bytes out of reach, so every block-edge gate
-	 *  moves in to the content range rather than testing 0 / length. */
+	 *  moves in to what the DOM can land rather than testing 0 / length. */
 	function caretBounds(): { start: number; end: number } {
-		return el ? caretContentBounds(sharedCtx, el) : { start: 0, end: liveDisplayLength() };
+		return el ? caretLandableBounds(sharedCtx, el) : { start: 0, end: liveDisplayLength() };
 	}
 
 	/** The structural bytes this press gives up before any merge — a declared kind's, in a mode

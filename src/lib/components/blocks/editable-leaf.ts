@@ -283,8 +283,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		events: editorEvents,
 		getFocusOffset,
 		getTextLen,
-		// Raw-editable chrome: `supportsInline: false`, so no construct hides a run here.
-		getInlines: () => [],
 		readText,
 		commitInput: (text, preEdit, saved) => {
 			// !isReading: the leaf is the seam — even if a plain-mode component keeps

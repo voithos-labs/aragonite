@@ -199,8 +199,8 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		// Chromium drops the caret range adjacent to atomic contenteditable=false islands under load,
 		// and a hard-false there strands the caret forever; trust the snapped fallback offset instead.
 		window.getSelection()?.removeAllRanges();
-		expect(isAtFirstVisualLine(block, 0)).toBe(true);
-		expect(isAtFirstVisualLine(block, 5)).toBe(false);
+		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
+		expect(isAtFirstVisualLine(block, 5, 0)).toBe(false);
 		expect(isAtLastVisualLine(block, 11, 11)).toBe(true);
 		expect(isAtLastVisualLine(block, 5, 11)).toBe(false);
 	});
@@ -215,7 +215,7 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		const sel = window.getSelection()!;
 		sel.removeAllRanges();
 		sel.addRange(range);
-		expect(isAtFirstVisualLine(empty, 0)).toBe(true);
+		expect(isAtFirstVisualLine(empty, 0, 0)).toBe(true);
 		expect(isAtLastVisualLine(empty, 0, 0)).toBe(true);
 		empty.remove();
 	});
@@ -223,9 +223,9 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 	it('isAtFirstVisualLine: true on the first line, false once the cursor drops a line', () => {
 		placeCursor(2);
 		cursorTop = 0; // same line as the first-text-node probe (top 0)
-		expect(isAtFirstVisualLine(block, 2)).toBe(true);
+		expect(isAtFirstVisualLine(block, 2, 0)).toBe(true);
 		cursorTop = 40; // a full line below the first line
-		expect(isAtFirstVisualLine(block, 2)).toBe(false);
+		expect(isAtFirstVisualLine(block, 2, 0)).toBe(false);
 	});
 
 	it('isAtLastVisualLine: true on the last line, false when the cursor sits a line above it', () => {
@@ -236,7 +236,7 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		expect(isAtLastVisualLine(block, 8, 11)).toBe(false);
 	});
 
-	it('isAtFirstVisualLine: falls back to offset 0 when the cursor rect is unmeasurable', () => {
+	it('isAtFirstVisualLine: falls back to the landable start when the rect is unmeasurable', () => {
 		placeCursor(0);
 		Range.prototype.getClientRects = function (this: Range): DOMRectList {
 			return this.collapsed ? rectListOf(null) : rectListOf(rectAt(0));
@@ -244,11 +244,14 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		Range.prototype.getBoundingClientRect = function (this: Range): DOMRect {
 			return this.collapsed ? rectAt(0, 0) : rectAt(0);
 		};
-		expect(isAtFirstVisualLine(block, 0)).toBe(true);
-		expect(isAtFirstVisualLine(block, 5)).toBe(false);
+		expect(isAtFirstVisualLine(block, 0, 0)).toBe(true);
+		expect(isAtFirstVisualLine(block, 5, 0)).toBe(false);
+		// A leading hidden run puts the block's first landable offset past raw 0, and the
+		// fallback answers for the caret the user can actually produce there.
+		expect(isAtFirstVisualLine(block, 3, 3)).toBe(true);
 	});
 
-	it('isAtLastVisualLine: falls back to textLen when the cursor rect is unmeasurable', () => {
+	it('isAtLastVisualLine: falls back to the landable end when the rect is unmeasurable', () => {
 		placeCursor(11);
 		Range.prototype.getClientRects = function (this: Range): DOMRectList {
 			return this.collapsed ? rectListOf(null) : rectListOf(rectAt(40));
@@ -258,5 +261,7 @@ describe('isAtFirstVisualLine / isAtLastVisualLine', () => {
 		};
 		expect(isAtLastVisualLine(block, 11, 11)).toBe(true);
 		expect(isAtLastVisualLine(block, 5, 11)).toBe(false);
+		// The mirror of the first-line case: a trailing hidden run moves the bound in.
+		expect(isAtLastVisualLine(block, 8, 8)).toBe(true);
 	});
 });
