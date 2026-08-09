@@ -17,6 +17,11 @@ just the source, because the source is legitimately allowed to differ per mode.
   gone from the source rather than pasted into view
 - source: the same paste is byte-literal — every marker is painted there, so the
   cut is the user's own bytes and nothing may be dropped
+- a TABLE CELL pastes the same way: the cell splices its own bytes and escapes
+  them at the write sink, and the seam fits in front of that stage — the run its
+  cut strands goes with the cut instead of onto the screen, and the cell's own
+  `\|` still comes back escaped (the escaping runs after the seam, over whatever
+  bytes it wrote)
 
 ## Edge cases
 
