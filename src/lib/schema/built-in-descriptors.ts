@@ -180,6 +180,15 @@ function registerBuiltInInlinePolicies(): void {
 		splitBehavior: 'plain',
 		revealable: true
 	});
+	// An autolink's `<`/`>` are a link's delimiters by another spelling: the destination IS the
+	// text, so a byte landing between the brackets rewrites where the link goes. Never-extend, for
+	// the same reason the bracket form is (§ 4.2), and plain: two halves of a URL are not two URLs.
+	registerInlineConstructPolicy('autolink', {
+		edgeAffinity: 'never-extend',
+		autoUnwrapOnEmpty: false,
+		splitBehavior: 'plain',
+		revealable: false
+	});
 	// Unstamped marker runs, permanently hidden in live mode: the `\X` pair and the trailing-space
 	// run delete as a unit, so nothing may rewrite their markers around an edit.
 	for (const kind of ['escape', 'hardLineBreak'] as const) {
