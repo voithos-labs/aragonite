@@ -9,9 +9,9 @@ a cut at a construct's edge hands the construct over whole rather than mint an e
 one `Mod+Z` puts the original block back. Where markdown cannot express a balanced pair the
 split falls back to the byte-literal cut — sound, and today's behavior. Two measured shapes take
 that fallback and so still print their markers: a code span whose reopened fence would abut a
-backtick (` ` a`b `` ``), and every reference form (`[text][ref]`), whose definition the split
+backtick (``a`b``), and every reference form (`[text][ref]`), whose definition the split
 seam has no resolver to reach. Driven on
-`/test/editor`via`?presentationMode=live`with real Enter keystrokes and a real`Mod+Z`; the
+`/test/editor` via `?presentationMode=live` with real Enter keystrokes and a real `Mod+Z`; the
 SOURCE is the oracle, since a hidden delimiter and an absent one look identical on screen.
 
 ## Happy paths
