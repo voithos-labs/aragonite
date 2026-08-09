@@ -12,7 +12,7 @@ import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-ops';
-import { getPasteSurface, type PasteRange } from '../paste-surfaces';
+import { getPasteSurface, type PasteRange, type PasteSeam } from '../paste-surfaces';
 import { isReservedChromeChild } from '../../schema/reserved-chrome';
 import { applyInlineResult, applyStructuralResult } from './apply';
 import { applyContainerMatchingPaste, findContainerMatchingUnwrap } from './container-match';
@@ -46,6 +46,8 @@ export interface PasteDispatchContext {
 	undoEntry?: UndoEntryMode;
 	/** The instance's grammar for the join branch's same-slot reparse; absent = global. */
 	grammar?: GrammarView;
+	/** What the paste's DELETE half needs to cross the join seam; absent leaves it byte-literal. */
+	seam?: PasteSeam;
 }
 
 export interface PasteDispatchResult {
@@ -86,7 +88,7 @@ export async function pasteDispatch(
 	) {
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, flattened, input.preDelete);
+		const result = hook(targetNode, input.offset, flattened, input.preDelete, ctx.seam);
 		await applyInlineResult(input.targetPath, result, ctx);
 		return { inlineCaretOffset: result.caretOffset };
 	}
@@ -149,13 +151,13 @@ export async function pasteDispatch(
 
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
-		const result = hook(targetNode, input.offset, pastedText, input.preDelete);
+		const result = hook(targetNode, input.offset, pastedText, input.preDelete, ctx.seam);
 		await applyInlineResult(input.targetPath, result, ctx);
 		return { inlineCaretOffset: result.caretOffset };
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
-	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete);
+	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, ctx.seam);
 	await applyStructuralResult(input.targetPath, result, ctx);
 	return {};
 }

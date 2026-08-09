@@ -5,9 +5,9 @@
 
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
-import type { NodeView } from '../../core/node-views';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { buildPastedReplacement } from '../paste-replacement';
+import { cutRangeFromDisplay } from '../node-ops';
 import { focusIndexBeforeResidue } from './focus-target';
 import {
 	getAllRegisteredKinds,
@@ -17,6 +17,7 @@ import {
 	registerPasteSurface,
 	type PasteSurface,
 	type PasteRange,
+	type PasteSeam,
 	type InlinePasteResult,
 	type StructuralPasteResult
 } from '../paste-surfaces';
@@ -25,26 +26,39 @@ import {
 // correctness doesn't hinge on module load order.
 const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 
-/** Splice a pre-delete selection range out of a leaf's display text. */
-function cutPreDelete(display: string, preDelete: PasteRange): string {
-	return display.slice(0, preDelete.start) + display.slice(preDelete.end);
+/**
+ * The leaf's bytes and caret after the paste's DELETE half — through the one join seam, so a cut
+ * that stranded a delimiter run the reader never saw drops it here rather than pasting it into
+ * view (§ 4.5). The range is forwarded whole: the endpoints are the seam's to read.
+ */
+function applyPreDelete(
+	node: CstNode,
+	display: string,
+	preDelete: PasteRange | undefined,
+	offset: number,
+	seam: PasteSeam | undefined
+): { display: string; offset: number } {
+	if (!preDelete) return { display, offset };
+	return cutRangeFromDisplay(node, display, preDelete, seam?.presentationMode, seam?.linkRef);
 }
 
 export function defaultInlineHook(
 	node: CstNode,
 	offset: number,
 	text: string,
-	preDelete?: PasteRange
+	preDelete?: PasteRange,
+	seam?: PasteSeam
 ): InlinePasteResult {
 	const display = trimTrailingLineEnding(node.raw);
 	const lineEnding = trailingLineEnding(node.raw);
 
-	let effectiveDisplay = display;
-	let effectiveOffset = offset;
-	if (preDelete && preDelete.start < preDelete.end) {
-		effectiveDisplay = cutPreDelete(display, preDelete);
-		effectiveOffset = preDelete.start;
-	}
+	const { display: effectiveDisplay, offset: effectiveOffset } = applyPreDelete(
+		node,
+		display,
+		preDelete,
+		offset,
+		seam
+	);
 
 	const newDisplay =
 		effectiveDisplay.slice(0, effectiveOffset) + text + effectiveDisplay.slice(effectiveOffset);
@@ -59,21 +73,20 @@ export function defaultStructuralHook(
 	node: CstNode,
 	offset: number,
 	blocks: CstNode[],
-	preDelete?: PasteRange
+	preDelete?: PasteRange,
+	seam?: PasteSeam
 ): StructuralPasteResult {
-	let synthLeaf = node;
-	let effectiveOffset = offset;
-	if (preDelete && preDelete.start < preDelete.end) {
-		const display = trimTrailingLineEnding(node.raw);
-		const lineEnding = trailingLineEnding(node.raw);
-		synthLeaf = { ...node, raw: cutPreDelete(display, preDelete) + lineEnding };
-		effectiveOffset = preDelete.start;
-	}
+	const display = trimTrailingLineEnding(node.raw);
+	const cut = applyPreDelete(node, display, preDelete, offset, seam);
+	// Compare the BYTES rather than the range: a cleanup can drop more than the selection did,
+	// and an empty range leaves them equal, which is exactly when the original node stands.
+	const synthLeaf =
+		cut.display === display ? node : { ...node, raw: cut.display + trailingLineEnding(node.raw) };
 
-	const replacement = buildPastedReplacement(synthLeaf, effectiveOffset, blocks);
+	const replacement = buildPastedReplacement(synthLeaf, cut.offset, blocks);
 	return {
 		replacement,
-		focusReplacementIndex: pastedContentFocusIndex(node, offset, preDelete, replacement.length),
+		focusReplacementIndex: pastedContentFocusIndex(cut.display, cut.offset, replacement.length),
 		focusOffset: CURSOR_END
 	};
 }
@@ -81,20 +94,15 @@ export function defaultStructuralHook(
 /**
  * Caret target for a structural paste: the end of the PASTED content, not the trailing
  * residue. A mid-block caret leaves the post-caret slice as the replacement's last node,
- * so the pasted content ends one node earlier.
+ * so the pasted content ends one node earlier. Takes the display and offset the delete half
+ * already resolved — a seam cleanup moves both, and re-deriving them here would disagree.
  */
 export function pastedContentFocusIndex(
-	node: NodeView,
+	display: string,
 	offset: number,
-	preDelete: PasteRange | undefined,
 	replacementLength: number
 ): number {
-	const display = trimTrailingLineEnding(node.raw);
-	const cut = preDelete && preDelete.start < preDelete.end;
-	const effectiveDisplay = cut ? cutPreDelete(display, preDelete) : display;
-	const effectiveOffset = cut ? preDelete.start : offset;
-	const hasTrailingResidue = effectiveOffset < effectiveDisplay.length;
-	return focusIndexBeforeResidue(replacementLength, hasTrailingResidue);
+	return focusIndexBeforeResidue(replacementLength, offset < display.length);
 }
 
 // Built-in kinds are all registered by the time this top level runs; a plugin kind

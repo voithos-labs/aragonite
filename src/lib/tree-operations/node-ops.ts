@@ -374,6 +374,33 @@ export function cleanJoinedRaw(
 	return getLiveJoinSeamCleaner()?.(join) ?? literal;
 }
 
+/**
+ * The bytes a single-block edit leaves when it deletes `range` out of `display`. A delete-then-
+ * insert is a join like any other — the paste's delete half is the one that used to splice its
+ * own bytes — so it crosses the same cleanup, and the returned offset is where the two sides now
+ * meet (a cleanup that drops a run on the first side moves it).
+ */
+export function cutRangeFromDisplay(
+	node: NodeView,
+	display: string,
+	range: { start: number; end: number },
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
+): { display: string; offset: number } {
+	if (range.start >= range.end) return { display, offset: range.start };
+	const cleaned = cleanJoinedRaw(
+		{
+			mergedRaw: display.slice(0, range.start) + display.slice(range.end),
+			seam: range.start,
+			start: { node, offset: range.start },
+			end: { node, offset: range.end },
+			linkRef
+		},
+		presentationMode
+	);
+	return { display: cleaned.raw, offset: cleaned.seam };
+}
+
 /** The bytes two adjacent blocks make when one absorbs the other, seam cleanup included. */
 function joinRaw(
 	prev: NodeView,
