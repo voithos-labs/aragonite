@@ -45,7 +45,7 @@ import {
 } from '../../selection/cross-block/dispatch';
 import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-block/clipboard';
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
-import { clampToLandableRaw } from '../../cursor/widget-offset';
+import { clampToLandableRaw, revealsNoMarkers } from '../../cursor/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
@@ -327,12 +327,16 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		deps.stickyColumn.reset();
 		// The committed bytes belong to the content, whatever arrival seated the caret.
 		deps.edgeAffinity.noteTyping();
-		if (deps.getComposing() || !deps.getEl()) return;
+		const el = deps.getEl();
+		if (deps.getComposing() || !el) return;
 		const text = deps.readText();
 		const savedOffset = deps.backend.getRaw() ?? 0;
-		const seated = fromComposition
-			? (deps.relocateComposedText?.(text, deps.getPreEditOffset()) ?? null)
-			: null;
+		// Same mode gate as the keydown seat's dispatch arms: a surface painting its delimiters
+		// keeps the read verbatim — the caret sat beside a byte the user could see.
+		const seated =
+			fromComposition && revealsNoMarkers(el)
+				? (deps.relocateComposedText?.(text, deps.getPreEditOffset()) ?? null)
+				: null;
 		const caret = seated?.caret ?? savedOffset;
 		// preEdit anchors the undo snapshot; caret drives focus when a kind change remounts the
 		// block. A commit that rewrites bytes reports the post-rewrite caret.

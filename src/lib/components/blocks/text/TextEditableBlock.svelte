@@ -377,7 +377,14 @@
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, linkRef),
 		getAffinity: () => edgeAffinity.get(),
-		consumePendingMarks: () => pendingMarks.consume()
+		consumePendingMarks: () => pendingMarks.consume(),
+		getRawSelection: () => cursor.getRawSelection(),
+		// The same join seam `handleLiveSelectionEdit` takes, in the display bytes the seat's
+		// contract returns (commitInput re-appends the trailing line ending).
+		resolveRangeEdit: (range, typed) => {
+			const edit = resolveSelectionEdit(node, range, typed, presentationMode, linkRef);
+			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
+		}
 	});
 
 	const textRender = createTextRender({

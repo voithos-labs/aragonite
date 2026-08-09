@@ -21,7 +21,10 @@ export interface SurfaceHarness {
  * has none. Only the two context reads the composition path touches are real —
  * the rest is constructed but never invoked.
  */
-export function makeSurface(commitInput?: EditableSurfaceDeps['commitInput']): SurfaceHarness {
+export function makeSurface(
+	commitInput?: EditableSurfaceDeps['commitInput'],
+	relocateComposedText?: EditableSurfaceDeps['relocateComposedText']
+): SurfaceHarness {
 	const el = document.createElement('div');
 	el.setAttribute('contenteditable', 'true');
 	document.body.appendChild(el);
@@ -67,6 +70,7 @@ export function makeSurface(commitInput?: EditableSurfaceDeps['commitInput']): S
 		getFocusOffset: () => null,
 		getTextLen: () => (el.textContent ?? '').length,
 		readText: () => el.textContent ?? '',
+		relocateComposedText,
 		commitInput:
 			commitInput ??
 			((text: string, preEdit: number, saved: number) => {

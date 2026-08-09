@@ -20,6 +20,15 @@ export interface CompositionSeatDeps {
 	getAffinity: () => EdgeAffinity | null;
 	/** Spend the pending marks: a composition is the one insertion they were promised to. */
 	consumePendingMarks: () => ReadonlySet<InlineMarkKind> | null;
+	/** The block's live selection, read at compositionstart: composing over one is a range op no
+	 *  plain-insertion arm claims, so it routes to `resolveRangeEdit`. Omit to keep ranges verbatim. */
+	getRawSelection?: () => { start: number; end: number } | null;
+	/** The surface's join-seam resolution for a range replace, in display bytes; null keeps the
+	 *  engine's own edit — the same decline contract as the keydown selection-edit arm. */
+	resolveRangeEdit?: (
+		range: { start: number; end: number },
+		typed: string
+	) => { raw: string; caret: number } | null;
 }
 
 export interface CompositionSeat {
@@ -36,6 +45,7 @@ interface CompositionWindow {
 	before: string;
 	affinity: EdgeAffinity | null;
 	marks: ReadonlySet<InlineMarkKind> | null;
+	range: { start: number; end: number } | null;
 }
 
 export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSeat {
@@ -48,11 +58,19 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 			started = {
 				before: deps.getDisplayText(),
 				affinity: deps.getAffinity(),
-				marks: deps.consumePendingMarks()
+				marks: deps.consumePendingMarks(),
+				range: deps.getRawSelection?.() ?? null
 			};
 		},
 		relocate: (after, composedAt) => {
 			if (started === null) return null;
+			// A selection at the window's open makes this a range replace: the plain arms below
+			// cannot claim it, and the engine's literal replace strands the runs the range crossed.
+			if (started.range && started.range.start < started.range.end) {
+				const typed = replacedRangeInsertion(started.before, after, started.range);
+				if (typed === null) return null;
+				return deps.resolveRangeEdit?.(started.range, typed) ?? null;
+			}
 			// Marks beat the arrival side (§ 4.2): a toggle is the newer instruction about the
 			// same bytes, so the affinity only answers when nothing was pending.
 			if (started.marks) {
@@ -81,4 +99,18 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 			started = null;
 		}
 	};
+}
+
+/** The run the commit's read put over `range`, or null when the read is not a replacement of
+ *  exactly that span — then nothing here knows what the engine did, and verbatim is honest. */
+function replacedRangeInsertion(
+	before: string,
+	after: string,
+	range: { start: number; end: number }
+): string | null {
+	const length = after.length - before.length + (range.end - range.start);
+	if (length < 0 || range.end > before.length) return null;
+	if (after.slice(0, range.start) !== before.slice(0, range.start)) return null;
+	if (after.slice(range.start + length) !== before.slice(range.end)) return null;
+	return after.slice(range.start, range.start + length);
 }
