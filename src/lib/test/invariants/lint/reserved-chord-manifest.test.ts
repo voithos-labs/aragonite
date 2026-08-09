@@ -6,7 +6,8 @@
  * claim fails the gate until the manifest names it.
  */
 import { describe, it, expect } from 'vitest';
-import { HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
+import { collectReservedChords, HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
+import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { isChordWellFormed } from '$lib/schema/keybindings';
 import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
 
@@ -99,6 +100,17 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(found).toContain('components/blocks/table/TableBlock.svelte');
 		// A .svelte file must survive collection, or every component site goes unscanned.
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
+	});
+
+	// The link card's ENTRY chord is not manifested and must not be: it rides a kind keymap, so
+	// `collectReservedChords` enumerates it from the registry. A card host that started reading a
+	// modifier flag would be a second, unenumerated claim on the same chord.
+	it('Mod+K reaches reservedChords from the keymaps, not from a hand-written branch', () => {
+		registerBuiltInDescriptors();
+		expect(collectReservedChords({ searchBar: true }).has('Mod+K')).toBe(true);
+		const cardHost = byPath.get('components/link-card/LinkCardHost.svelte');
+		expect(cardHost, 'LinkCardHost.svelte not found').toBeDefined();
+		expect(MODIFIER_READ.test(cardHost!.code)).toBe(false);
 	});
 
 	it('rejects a file that reads no modifier flag', () => {

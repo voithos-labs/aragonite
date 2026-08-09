@@ -63,7 +63,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/link-card/LinkCard.svelte',
 		chords: ['Shift+Tab'],
 		keys: ['Enter', 'Tab'],
-		note: "Backwards step of the open card's focus trap; Escape lives on the host, which must also close a card the document still holds the caret for. Mod+K is the reserved slot for opening the card from the keyboard and stays unbound until link creation ships."
+		note: "Backwards step of the open card's focus trap. Escape lives on the host, which must also close a card the document still holds the caret for, and the Mod+K entry chord rides the kind keymaps, so both reach `reservedChords` without a manifest entry."
 	},
 	{
 		file: 'components/blocks/table/TableActionMenu.svelte',

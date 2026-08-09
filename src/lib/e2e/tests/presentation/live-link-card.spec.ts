@@ -246,6 +246,63 @@ test.describe('live-mode link card', () => {
 		expect(popupFired).toBe(false);
 	});
 
+	test('Mod+K with the caret inside a link enters the card, field focused', async ({ page }) => {
+		// A click seats the caret in the link's text; the chord is what ENTERS the card.
+		await clickLink(ep, page, 'example');
+		await page.keyboard.press('Escape');
+		await expect(page.locator(CARD)).toHaveCount(0);
+
+		await page.keyboard.press('ControlOrMeta+k');
+
+		await expect(page.locator(CARD)).toBeVisible();
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await expect(page.locator(URL_FIELD)).toHaveValue('https://example.com');
+	});
+
+	test('an entered card commits on Enter and hands the caret back', async ({ page }) => {
+		await clickLink(ep, page, 'example');
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('ControlOrMeta+k');
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.type('https://chord.test/x');
+		await page.keyboard.press('Enter');
+
+		await ep.bridge.waitForSourceContains('[example](https://chord.test/x)');
+		await expect(page.locator(CARD)).toHaveCount(0);
+		await expect
+			.poll(async () => (await ep.bridge.getSelectionPaths())?.focus)
+			.toEqual({
+				path: [0],
+				offset: 6
+			});
+	});
+
+	test('Escape from an entered card puts the caret back where it was', async ({ page }) => {
+		await clickLink(ep, page, 'example');
+		await page.keyboard.press('Escape');
+		const seated = (await ep.bridge.getSelectionPaths())!.focus;
+		await page.keyboard.press('ControlOrMeta+k');
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+
+		await page.keyboard.press('Escape');
+
+		await expect(page.locator(CARD)).toHaveCount(0);
+		await expect.poll(async () => (await ep.bridge.getSelectionPaths())?.focus).toEqual(seated);
+	});
+
+	test('Mod+K outside every link is a no-op: creation is not this chord yet', async ({ page }) => {
+		const before = await ep.bridge.getSource();
+		await ep.clickBlock(2);
+
+		await page.keyboard.press('ControlOrMeta+k');
+
+		await expect(page.locator(CARD)).toHaveCount(0);
+		await ep.waitForNoSourceMutation();
+		expect(await ep.bridge.getSource()).toBe(before);
+	});
+
 	test('Tab is trapped once focus is inside the open card', async ({ page }) => {
 		await openCardOn(ep, page, 'example');
 		await page.locator(URL_FIELD).click();

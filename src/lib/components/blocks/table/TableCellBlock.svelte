@@ -73,6 +73,7 @@
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
+	import { enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -113,6 +114,7 @@
 		pendingMarks,
 		selection,
 		widgetSelection,
+		linkCard,
 		registryView,
 		reorder,
 		events: editorEvents,
@@ -392,6 +394,16 @@
 		if (id === 'format.toggleEmphasis') return toggleFormat('emphasis');
 		if (id === 'format.toggleStrikethrough') return toggleFormat('strikethrough');
 		if (id === 'format.toggleCode') return toggleFormat('inlineCode');
+		if (id === 'link.openCard') {
+			return enterLinkCardAtCaret({
+				contentEl: el,
+				block: node,
+				path: myPath,
+				linkRef,
+				card: linkCard,
+				mode: presentationMode
+			});
+		}
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {
 			void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);

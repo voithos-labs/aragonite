@@ -6,6 +6,7 @@
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { emitCommandError } from '../../../editor-events';
+	import { enterLinkCardAtCaret, linkCardEntryTarget } from '../../link-card/link-card-entry';
 	import {
 		BLOCK_EDIT_KEY,
 		EDITOR_DOC_KEY,
@@ -119,6 +120,7 @@
 		pendingMarks,
 		selection,
 		widgetSelection,
+		linkCard,
 		registryView,
 		events: editorEvents,
 		decorations: decorationEngine
@@ -146,6 +148,17 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+
+	const linkCardQuery = () => ({
+		contentEl: el!,
+		block: node,
+		path: myPath,
+		linkRef,
+		card: linkCard,
+		mode: presentationMode
+	});
+	const canEnterLinkCard = () => !!el && linkCardEntryTarget(linkCardQuery()) !== null;
+	const enterLinkCard = () => !!el && enterLinkCardAtCaret(linkCardQuery());
 	// A constant fallback keeps an empty island set out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
@@ -526,6 +539,13 @@
 				);
 			case 'format.toggleCode':
 				return always(() => toggleFormat('inlineCode', selected ?? { start: offset, end: offset }));
+			case 'link.openCard':
+				// `applies` is the whole decision: outside live mode, or with no link under the
+				// caret, the chord is not this block's to consume.
+				return {
+					applies: () => canEnterLinkCard(),
+					perform: () => void enterLinkCard()
+				};
 			case 'heading.cycle':
 				return always(() => {
 					// `arg` is untrusted `unknown` from the widened keybinding channel: an

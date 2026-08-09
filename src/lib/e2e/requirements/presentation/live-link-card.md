@@ -25,8 +25,13 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 - clicking a rendered link opens the card, anchored under the link's own rects rather than at a
   page corner, with the URL field carrying the destination the reader never saw
 - the opening click leaves the caret in the link's text, so typing keeps editing the document; the
-  card takes focus only once the user clicks into its field, and Escape from there puts back exactly
-  the caret the click seated
+  card takes focus only once the user steps into it, and Escape from there puts back exactly the
+  caret the click seated
+- `Mod+K` with a collapsed caret inside a link ENTERS the card — opened with the URL field focused,
+  so the trap and Escape's caret restore engage without a mouse; it also enters a card the click
+  already opened, which is the case with no remount to key the focus on
+- `Mod+K` with the caret outside every link does nothing at all and writes nothing: link CREATION
+  is a later wave, and the chord declines rather than claim a gesture it cannot yet perform
 - typing a new URL and pressing Enter rewrites only the destination bytes; the link's text and
   everything around it stay byte-identical
 - one `Mod+Z` after that edit puts the original destination back — the whole rewrite is a single
@@ -56,6 +61,9 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 - Undo is a real `Mod+Z`, never a programmatic history call
 - Tab is trapped once focus is inside the card, so the field, open-link and remove-link cycle and
   the document behind never takes the focus mid-edit
+- the card is `role="dialog"` WITHOUT `aria-modal`: after a click it sits beside a live caret and
+  the document behind is still the user's to type in, which is exactly what `aria-modal` would
+  wrongly deny; the trap engages on entry, where the claim is true
 
 ## Error cases
 

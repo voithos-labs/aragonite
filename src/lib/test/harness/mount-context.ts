@@ -21,6 +21,7 @@ import type { Document } from '$lib/core/nodes';
 import type { DocumentView } from '$lib/core/node-views';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { defaultRegistryView } from '$lib/schema/registry-view';
 import { createEditorEvents } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
@@ -69,6 +70,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		revealAnchor: createRevealAnchorState(),
 		// Real: every keydown on an editable surface asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
+		// Real: a `link.openCard` press asks it to seat a target, and the entry rule reads it back.
+		linkCard: createLinkCardState({ onOpen: () => {} }),
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},
