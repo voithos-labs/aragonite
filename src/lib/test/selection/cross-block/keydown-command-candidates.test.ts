@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 //
-// Command-candidate keys (Enter, Tab, Mod+B/I, Mod+0-6) are owned by the block at the caret, so
-// over a cross-block range they delete then dispatch. Dispatching first would run against stale
-// indices; deleting without dispatching would swallow the keystroke. The reveal target is the
-// authoritative post-delete caret, not the pre-delete start path — they differ for a table end.
+// Command-candidate keys (Enter, Tab, Mod+0-6) are owned by the block at the caret, so over a
+// cross-block range they delete then dispatch. Dispatching first would run against stale indices;
+// deleting without dispatching would swallow the keystroke. The reveal target is the authoritative
+// post-delete caret, not the pre-delete start path — they differ for a table end. The format
+// toggles are NOT candidates: they decline the range instead of type-replacing it (#107).
 import { describe, it, expect, vi } from 'vitest';
 import { mockRef } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -44,9 +45,9 @@ describe('cross-block keydown — command candidates', () => {
 		const env = makeKeydownEnv('# head\n\npara\n', { revealTo: mockRef({ runCommand }) });
 		env.selection.enterCrossBlock({ path: [0], offset: 6 }, { path: [1], offset: 4 });
 
-		await env.keydown.handleKeyDown(press('b', { ctrlKey: true }));
+		await env.keydown.handleKeyDown(press('1', { ctrlKey: true }));
 
-		expect(runCommand).toHaveBeenCalledWith('format.toggleStrong', undefined);
+		expect(runCommand).toHaveBeenCalledWith('heading.cycle', 1);
 	});
 
 	// Reading mode: consumed (the range must not reach a per-block handler) but neither
@@ -81,19 +82,24 @@ describe('cross-block keydown — command candidates', () => {
 		});
 	}
 
-	// Every format toggle is owed the same route, and the two newest split on Shift: Mod+E rides
-	// the unshifted arm, Mod+Shift+X an arm of its own.
-	for (const [chord, key, init, command] of [
-		['Mod+E', 'e', { ctrlKey: true }, 'format.toggleCode'],
-		['Mod+Shift+X', 'x', { ctrlKey: true, shiftKey: true }, 'format.toggleStrikethrough']
+	// Every format toggle DECLINES over a range: consumed so the chord never reaches the browser,
+	// but no delete and no dispatch — the arm that deleted first turned a document into `****`
+	// (#107). Wrapping each block in the range is a feature of its own, not this path's job.
+	for (const [chord, key, init] of [
+		['Mod+B', 'b', { ctrlKey: true }],
+		['Mod+I', 'i', { ctrlKey: true }],
+		['Mod+E', 'e', { ctrlKey: true }],
+		['Mod+Shift+X', 'x', { ctrlKey: true, shiftKey: true }]
 	] as const) {
-		it(`${chord} deletes the range then dispatches ${command}`, async () => {
+		it(`${chord} is consumed, deletes nothing and dispatches nothing`, async () => {
 			const { env, runCommand } = envWithCommandTarget();
 
-			expect(await env.keydown.handleKeyDown(press(key, init))).toBe(true);
+			const event = press(key, init);
+			expect(await env.keydown.handleKeyDown(event)).toBe(true);
 
-			expect(env.source()).toBe('ata\n\ngamma\n');
-			expect(runCommand).toHaveBeenCalledWith(command, undefined);
+			expect(event.defaultPrevented).toBe(true);
+			expect(env.source()).toBe(SOURCE);
+			expect(runCommand).not.toHaveBeenCalled();
 		});
 	}
 
