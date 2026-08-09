@@ -234,7 +234,7 @@
 		"table-heavy-1MB-amplification": 1.96
 	},
 	"e2e": {
-		"note": "Dev server with DEV invariant assertions active — conservative upper bounds. Re-blessed 2026-07-16 from the overnight perf:e2e run — the first re-measure after the 0.9.26/0.9.27 milestones, which the 2026-06 baseline predated. Keystroke p50 stays O(viewport), ~2.5-4.4ms for every shape at every size; single-giant-paragraph remains the one non-viewport-bounded keystroke axis (intra-block span rebuild, ~117ms @ 1MB, ~1.2s @ 10MB), recorded-not-gated. Load is O(node-count) reactive-tree materialization (script-bound; mount VR-bounded), sub-second at realistic sizes, ~4.5s at the 392k-block 10MB many-small-blocks extreme (22s in the 2026-06 baseline). History: the 2026-06-21 re-bless removed a harness artifact (the per-keystroke settle summed docLengthInPage over the whole $state-proxy children array), which is why flat 10MB rows were once excluded from the gate. The perf gate enforces every renderable shape at <=1MB and at 10MB. 10MB rows: 15 keystrokes; others 30.",
+		"note": "Dev server with DEV invariant assertions active — conservative upper bounds. Re-blessed 2026-07-16 from the overnight perf:e2e run — the first re-measure after the 0.9.26/0.9.27 milestones, which the 2026-06 baseline predated. Keystroke p50 stays O(viewport), ~2.5-4.4ms for every shape at every size; single-giant-paragraph remains the one non-viewport-bounded keystroke axis (intra-block span rebuild, ~117ms @ 1MB, ~1.2s @ 10MB), recorded-not-gated. Load is O(node-count) reactive-tree materialization (script-bound; mount VR-bounded), sub-second at realistic sizes, ~4.5s at the 392k-block 10MB many-small-blocks extreme (22s in the 2026-06 baseline). History: the 2026-06-21 re-bless removed a harness artifact (the per-keystroke settle summed docLengthInPage over the whole $state-proxy children array), which is why flat 10MB rows were once excluded from the gate. The perf gate enforces every renderable shape at <=1MB and at 10MB. 10MB rows: 15 keystrokes; others 30. The two `-live` rows carry live mode's own keystroke gate. They were measured on a different host from every other row here (three runs each, quiet): flat-prose-1MB p50 7.1ms live vs 8.2ms source, nested-containers-1MB 6.5ms live vs 7.1ms source — live is at or under its source twin, marker hiding being CSS over the same render path. Recording that host's absolute numbers would put two rows on a ~2.3x-slower scale than the rest of the file and leave the live gate dead on this machine, so each live row carries its source twin's recorded value through the measured live/source ratio. Re-measure both on the recorded machine at the next re-bless.",
 		"flat-prose-100KB": {
 			"loadMs": 54.3,
 			"keystrokeP50Ms": 3.8,
@@ -379,6 +379,16 @@
 			"loadMs": 218.9,
 			"keystrokeP50Ms": 29.1,
 			"keystrokeP95Ms": 31.3
+		},
+		"flat-prose-1MB-live": {
+			"loadMs": 95.9,
+			"keystrokeP50Ms": 3.0,
+			"keystrokeP95Ms": 3.5
+		},
+		"nested-containers-1MB-live": {
+			"loadMs": 246.6,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 4.2
 		}
 	}
 }
