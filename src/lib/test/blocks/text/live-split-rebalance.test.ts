@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
+import { parsesBack, rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { getContentRange, parseInline } from '$lib/core/inline';
 import { renderedText } from '$lib/core/inline-render';
@@ -175,6 +175,42 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 	// ordinary rewrite keeps every byte.
 	it('a cut inside the same content still rewrites', () => {
 		expect(split('~~foo~~  \n', 4)).toEqual({ firstRaw: '~~fo~~\n', secondRaw: '~~o~~  \n' });
+	});
+
+	// A declaration is a CLAIM, so the verifier reads the rule itself: with the producer's guard
+	// bypassed — the candidate built here by hand — a drop of visible bytes is refused. Without
+	// this the gate waved `~~foo~~\tbar` through, deleting `bar` off the screen.
+	it('the verifier refuses a drop of bytes the screen showed', () => {
+		const raw = '~~foo~~\tbar\n';
+		const bytes = {
+			raw,
+			contentStart: 0,
+			contentEnd: 11,
+			cut: 5,
+			firstResidue: '\n',
+			secondResidue: '\n'
+		};
+		const seam = {
+			head: '~~foo',
+			closers: '~~',
+			openers: '',
+			tail: '\tbar',
+			closed: ['strikethrough' as const],
+			reopened: []
+		};
+		const dropsVisible = { firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\tbar' };
+		expect(parsesBack(bytes, seam, dropsVisible, undefined)).toBe(false);
+
+		// The same candidate over an invisible tail is the one the rewrite writes.
+		const invisible = { ...bytes, raw: '~~foo~~\t\n', contentEnd: 8 };
+		expect(
+			parsesBack(
+				invisible,
+				{ ...seam, tail: '\t' },
+				{ firstRaw: '~~foo~~\n', secondRaw: '\n', droppedTail: '\t' },
+				undefined
+			)
+		).toBe(true);
 	});
 });
 

@@ -15,8 +15,11 @@ const STICKY_RESET_RE = /\bstickyColumn\.reset\s*\(/g;
 const STICKY_NOTE_KEY_RE = /\bstickyColumn\.noteKey\s*\(/g;
 // `noteTyping` is the commit-side clear: it overwrites the arrival with the typed side, which
 // is the same invalidation the column's reset performs, so it counts as the pair.
-const AFFINITY_CLEAR_RE = /\bedgeAffinity\.(reset|noteTyping)\s*\(/g;
-const AFFINITY_NOTE_RE = /\bedgeAffinity\.note\s*\(/g;
+// `noteExtreme` counts on BOTH axes and is spelled out on both: it classifies an arrival (a
+// collapse seating at the range's own edge) and settles it, which invalidates the marks riding
+// the affinity. A `note` pattern ending in `\(` matches neither of the longer doors.
+const AFFINITY_CLEAR_RE = /\bedgeAffinity\.(reset|noteTyping|noteExtreme)\s*\(/g;
+const AFFINITY_NOTE_RE = /\bedgeAffinity\.(note|noteExtreme)\s*\(/g;
 const MARKS_CLEAR_CALL_RE = /\bpendingMarks\.reset\s*\(/g;
 const MARKS_COMPOSITION_RE = /onInvalidate:\s*pendingMarks\.reset\b/g;
 const MARKS_SPEND_RE = /\bpendingMarks\.consume\s*\(/g;
@@ -188,6 +191,23 @@ describe('G4.31 affinity-reaches-every-sticky-seam guard', () => {
 		expect(count('edgeAffinity.reset();', AFFINITY_CLEAR_RE)).toBe(1);
 		expect(count('edgeAffinity.note(e);', AFFINITY_CLEAR_RE)).toBe(0);
 		expect(count('stickyColumn.capture(x);', STICKY_RESET_RE)).toBe(0);
+	});
+
+	// The third door had to be spelled out in both patterns; a `note\(`-anchored one reads it as
+	// neither a capture nor a clear, and a file paired only by it scanned as unpaired on both axes.
+	it('the third capture door counts on both axes', () => {
+		expect(count('ctx.edgeAffinity.noteExtreme();', AFFINITY_NOTE_RE)).toBe(1);
+		expect(count('ctx.edgeAffinity.noteExtreme();', AFFINITY_CLEAR_RE)).toBe(1);
+	});
+
+	it('a door paired only by noteExtreme is not an offence on either axis', () => {
+		const collapse: SourceFile = {
+			relPath: 'src/lib/rogue-collapse.ts',
+			text: '',
+			code: 'stickyColumn.noteKey(e); stickyColumn.reset(); edgeAffinity.noteExtreme();'
+		};
+		expect(unpaired([collapse], STICKY_NOTE_KEY_RE, AFFINITY_NOTE_RE)).toEqual([]);
+		expect(unpaired([collapse], STICKY_RESET_RE, AFFINITY_CLEAR_RE)).toEqual([]);
 	});
 
 	// The composition passes the reset as a VALUE; only a call is the copy-N+1 shape.
