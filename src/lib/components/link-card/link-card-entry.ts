@@ -18,20 +18,19 @@ export interface LinkCardEntryQuery extends LinkPointQuery {
 }
 
 /**
- * The construct the chord would enter, or null when it is not this surface's to consume: outside
- * live mode every other mode paints the destination already, and a non-collapsed selection is the
- * CREATION gesture, which arrives with its own wave.
+ * The construct the chord would enter, or null when there is none: outside live mode every other
+ * mode paints the destination already, and a non-collapsed selection is the CREATION gesture,
+ * which arrives with its own wave.
  */
-export function linkCardEntryTarget(query: LinkCardEntryQuery): LinkTarget | null {
+function linkCardEntryTarget(query: LinkCardEntryQuery): LinkTarget | null {
 	if (query.mode !== 'live') return null;
 	if (window.getSelection()?.isCollapsed === false) return null;
 	return resolveLinkAtPoint(query)?.target ?? null;
 }
 
-/** Enter the card on the construct under the caret. True when the chord was consumed. */
-export function enterLinkCardAtCaret(query: LinkCardEntryQuery): boolean {
+/** Enter the card on the construct under the caret, or no-op when the rule above declines. The
+ *  chord is consumed either way, by the keymap arm that calls this. */
+export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	const target = linkCardEntryTarget(query);
-	if (!target) return false;
-	query.card.enter(target);
-	return true;
+	if (target) query.card.enter(target);
 }

@@ -69,8 +69,9 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
 	{ chord: 'Mod+E', command: 'format.toggleCode' },
-	// Entry to the live-mode link card. Creation-on-selection arrives later; the chord no-ops
-	// on a caret outside every link rather than claim a gesture it cannot yet perform.
+	// Entry to the live-mode link card. Creation-on-selection arrives later, so a caret outside
+	// every link no-ops — but the press is still consumed, since `reservedChords()` reports the
+	// chord as claimed and the browser's own Mod+K would otherwise run.
 	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
@@ -264,7 +265,8 @@ export function registerBuiltInDescriptors(): void {
 			{ chord: 'Mod+B', command: 'format.toggleStrong' },
 			{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 			{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
-			{ chord: 'Mod+E', command: 'format.toggleCode' }
+			{ chord: 'Mod+E', command: 'format.toggleCode' },
+			{ chord: 'Mod+K', command: 'link.openCard' }
 		],
 		conformanceFixture: '```\ncode\n```\n',
 		closure: {

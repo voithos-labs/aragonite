@@ -221,6 +221,8 @@ The set is composed on each call, not baked at build time, so it already reflect
 
 **Modifier chords only, by design.** Bare keys — `Enter`, `Tab`, `Escape`, the arrows, `Backspace` — never appear, and that is the contract rather than an omission. A focused document owns them whatever the set says, so an app shortcut bound to one is lost while the caret is in a block regardless. The same reasoning is why the set is the right input for an accelerator table and the wrong input for a "what can the user press here" help sheet: for that, use the [shortcut table](#keyboard-shortcuts).
 
+**Consumed means consumed, including where the chord has nothing to do.** A chord in the set is swallowed on every surface the editor owns, not only where it acts: `Mod+K` with the caret outside a link opens no card and still takes the press, because a chord the editor reported as claimed must never fall through to the browser's own default. Reading mode is the standing exception: it dead-keys the whole command vocabulary, so nothing routed through the keymap is consumed there.
+
 Two things the answer cannot cover. It describes the chords the editor _consumes_, not the ones that _reach it_ — a shell that resolves its accelerator first takes the chord before any handler runs, which is the measurement this section opens with. And a chord the editor does not claim is not thereby free: the browser's own editing chords still apply inside a contenteditable.
 
 ### Clipboard in a webview

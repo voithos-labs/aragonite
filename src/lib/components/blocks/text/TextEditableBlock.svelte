@@ -6,7 +6,7 @@
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { emitCommandError } from '../../../editor-events';
-	import { enterLinkCardAtCaret, linkCardEntryTarget } from '../../link-card/link-card-entry';
+	import { enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 	import {
 		BLOCK_EDIT_KEY,
 		EDITOR_DOC_KEY,
@@ -157,8 +157,9 @@
 		card: linkCard,
 		mode: presentationMode
 	});
-	const canEnterLinkCard = () => !!el && linkCardEntryTarget(linkCardQuery()) !== null;
-	const enterLinkCard = () => !!el && enterLinkCardAtCaret(linkCardQuery());
+	const enterLinkCard = () => {
+		if (el) enterLinkCardAtCaret(linkCardQuery());
+	};
 	// A constant fallback keeps an empty island set out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
@@ -540,12 +541,10 @@
 			case 'format.toggleCode':
 				return always(() => toggleFormat('inlineCode', selected ?? { start: offset, end: offset }));
 			case 'link.openCard':
-				// `applies` is the whole decision: outside live mode, or with no link under the
-				// caret, the chord is not this block's to consume.
-				return {
-					applies: () => canEnterLinkCard(),
-					perform: () => void enterLinkCard()
-				};
+				// Consumed wherever the keymap binds it, entry or not: `reservedChords()` reports
+				// Mod+K as the editor's, and handing an unentered press back fires the browser
+				// default the host was told not to expect (Ctrl+K kills to end of line here).
+				return always(enterLinkCard);
 			case 'heading.cycle':
 				return always(() => {
 					// `arg` is untrusted `unknown` from the widened keybinding channel: an

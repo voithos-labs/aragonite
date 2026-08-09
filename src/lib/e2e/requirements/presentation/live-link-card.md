@@ -30,8 +30,10 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 - `Mod+K` with a collapsed caret inside a link ENTERS the card — opened with the URL field focused,
   so the trap and Escape's caret restore engage without a mouse; it also enters a card the click
   already opened, which is the case with no remount to key the focus on
-- `Mod+K` with the caret outside every link does nothing at all and writes nothing: link CREATION
-  is a later wave, and the chord declines rather than claim a gesture it cannot yet perform
+- `Mod+K` with the caret outside every link opens no card and writes nothing, and the press is
+  still CONSUMED: link creation is a later wave, but `reservedChords()` reports the chord as one
+  this editor takes, so declining it would hand a host-forbidden chord back to the browser's own
+  `Mod+K` — and on macOS the `Mod` fold makes that the native kill-to-end-of-line
 - typing a new URL and pressing Enter rewrites only the destination bytes; the link's text and
   everything around it stay byte-identical
 - one `Mod+Z` after that edit puts the original destination back — the whole rewrite is a single
@@ -52,6 +54,9 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 - pressing Enter with the URL unchanged writes nothing and adds no undo entry
 - an edit landing elsewhere in the document while the card is open re-anchors it rather than
   stranding it: the card addresses its link by path plus construct start, never by element
+- the same `Mod+K` press is consumed in source mode, inside a fenced code block, and with focus
+  in the card's own URL field. The chord is claimed wherever the keymaps bind it; the field
+  swallows it as re-asserting the entry the focus is already in
 - leaving live mode closes the card, since every other mode paints the destination already
 
 ## User interactions

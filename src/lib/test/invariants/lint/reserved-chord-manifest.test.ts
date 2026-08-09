@@ -102,9 +102,9 @@ describe('G4.29 scan non-vacuity', () => {
 		expect(found.some((path) => path.endsWith('.svelte'))).toBe(true);
 	});
 
-	// The link card's ENTRY chord is not manifested and must not be: it rides a kind keymap, so
-	// `collectReservedChords` enumerates it from the registry. A card host that started reading a
-	// modifier flag would be a second, unenumerated claim on the same chord.
+	// The link card's ENTRY chord rides the kind keymaps, so `collectReservedChords` enumerates it
+	// from the registry. A card HOST that started reading a modifier flag would be a second,
+	// unenumerated claim on the same chord; the card's own field swallow is manifested instead.
 	it('Mod+K reaches reservedChords from the keymaps, not from a hand-written branch', () => {
 		registerBuiltInDescriptors();
 		expect(collectReservedChords({ searchBar: true }).has('Mod+K')).toBe(true);
