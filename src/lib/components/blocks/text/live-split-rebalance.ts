@@ -224,9 +224,9 @@ interface HalfRead {
 
 /**
  * Three questions, and a candidate answers all of them or it is not written. Is each half one
- * prose block — the shape the caller's caret math and its multi-block dev warn both assume? Did
- * the constructs the seam closed and reopened survive? And does the render path report the same
- * characters as before, the one line ending the split itself consumed aside?
+ * prose block the reload KEEPS — the shape the caller's caret math and its multi-block dev warn
+ * both assume? Did the constructs the seam closed and reopened survive? And does the render path
+ * report the same characters as before, the one line ending the split itself consumed aside?
  */
 function parsesBack(
 	bytes: SplitBytes,
@@ -237,6 +237,13 @@ function parsesBack(
 	const first = soleProseBlock(candidate.firstRaw, resolver);
 	const second = soleProseBlock(candidate.secondRaw, resolver);
 	if (first === null || second === null) return false;
+	// Each half must be a block the RELOAD keeps. An EMPTY half is one — that is the ordinary
+	// handover, and an empty block is what Enter at a content edge produces anyway — but a half
+	// carrying only WHITESPACE is not: the document reads those bytes as blank trivia, so the
+	// pair comes back a different shape than it was written in (#106, where the relocated space
+	// landed as hard-break residue). The byte-literal cut converges there, and declining is what
+	// leaves it standing.
+	if (isWhitespaceOnly(first.visible) || isWhitespaceOnly(second.visible)) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;
 	const whole = renderedText(
@@ -250,6 +257,8 @@ function parsesBack(
 		rest === second.visible || rest === '\n' + second.visible || rest === '\r\n' + second.visible
 	);
 }
+
+const isWhitespaceOnly = (visible: string): boolean => visible !== '' && visible.trim() === '';
 
 function soleProseBlock(raw: string, resolver: LinkReferenceResolver | undefined): HalfRead | null {
 	const blocks = parse(raw, { scope: 'fragment' }).children;
