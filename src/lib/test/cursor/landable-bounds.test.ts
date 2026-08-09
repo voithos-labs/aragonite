@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 //
 // The walk's landable extremes: where a caret can actually sit in a block, which is what every
-// block-edge gate compares against. A hidden marker run and a contenteditable="false" island
-// both hold no caret position, so a bound at either end moves past them.
+// block-edge gate compares against. A hidden marker run holds no caret position at all, and the
+// ambient island's far side IS raw 0, so a bound at either end moves past them; every other
+// opaque island keeps both of its boundaries.
 // Miss-analysis: the exits used to read the kind's declared content range, so no test could
 // observe a block whose unreachable bytes the CST calls content — a fence, a cell's `[ref]`.
 import { describe, it, expect, afterEach } from 'vitest';
@@ -34,6 +35,15 @@ function widget(raw: string): HTMLElement {
 	el.setAttribute('contenteditable', 'false');
 	el.setAttribute('data-source-start', '0');
 	el.setAttribute('data-source-end', String(raw.length));
+	return el;
+}
+
+/** A replace decoration's inert island: contenteditable="false" TEXT, unlike a widget. */
+function island(text: string): HTMLElement {
+	const el = document.createElement('span');
+	el.setAttribute('data-decoration-island', '');
+	el.setAttribute('contenteditable', 'false');
+	el.textContent = text;
 	return el;
 }
 
@@ -79,7 +89,7 @@ describe('landableDomTextBounds — hidden runs move the bound in', () => {
 });
 
 describe('landableDomTextBounds — islands the caret cannot enter', () => {
-	it('steps past the ambient marker in every mode', () => {
+	it('steps past the AMBIENT marker in every mode', () => {
 		// `- **lead**`: the ambient prefix is inert and the `**` behind it unpainted, so the
 		// first landable walk offset clears both.
 		const live = mount('live', buildAmbientSpan('- '), span('md-marker', '**'), text('lead'));
@@ -93,5 +103,15 @@ describe('landableDomTextBounds — islands the caret cannot enter', () => {
 		// A widget is opaque, not unreachable: a caret sits before and after it.
 		const block = mount('live', widget('$x$'), text('after'));
 		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 8 });
+	});
+
+	it('leaves both boundaries of a decoration island landable', () => {
+		// The step-over island is the ambient span's opposite: its far side is a raw offset of
+		// its own, so a bound that moved in front of it would turn the step-over into a block exit.
+		const block = mount('live', text('lead '), island('HIDDEN'), text(' tail'));
+		expect(landableDomTextBounds(block)).toEqual({ start: 0, end: 16 });
+
+		const trailing = mount('live', text('lead '), island('HIDDEN'));
+		expect(landableDomTextBounds(trailing)).toEqual({ start: 0, end: 11 });
 	});
 });

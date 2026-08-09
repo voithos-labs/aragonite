@@ -238,11 +238,11 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 }
 
 /**
- * The extreme walk offsets a caret can occupy in `container`: a hidden marker run or an inert
- * island at either end holds no landable position, so the bound moves past it, and a container
- * with no landable text at all collapses both onto its far end. Block-edge gates read these
- * rather than 0 / walk length, which a mode painting no marker makes unreachable — a gate
- * testing an offset no keystroke can produce is a dead key.
+ * The extreme walk offsets a caret can occupy in `container`: a hidden marker run or the leading
+ * ambient island holds no landable position, so the bound moves past it, and a container with no
+ * landable text at all collapses both onto its far end. Block-edge gates read these rather than
+ * 0 / walk length, which a mode painting no marker makes unreachable — a gate testing an offset
+ * no keystroke can produce is a dead key.
  */
 export function landableDomTextBounds(container: ParentNode): {
 	start: DomTextOffset;
@@ -254,8 +254,9 @@ export function landableDomTextBounds(container: ParentNode): {
 	for (const seg of landingSegments(container, markerHidingMode(container))) {
 		if (seg.len === 0) continue;
 		const stop = seg.start + seg.len;
-		// A widget is opaque but not unreachable: both of its boundaries are landable.
-		if (seg.kind === 'text' ? inInertIsland(seg.node, container) : seg.hidden) {
+		// An atomic widget and a decoration island are opaque, not unreachable: the caret may not
+		// enter either, but both of their boundaries are positions of their own.
+		if (seg.kind === 'opaque' ? seg.hidden : inAmbientIsland(seg.node, container)) {
 			if (!landed) start = stop;
 			continue;
 		}
@@ -291,11 +292,16 @@ function isMarkerSpan(el: Element): boolean {
 	return classes.contains('md-fence-line') || classes.contains('md-ref-label');
 }
 
-/** The caret cannot enter a `contenteditable="false"` island — the ambient marker prefix, a
- *  decoration's replacement text — so its text holds no landable position either. */
-function inInertIsland(node: Node, root: ParentNode): boolean {
+/**
+ * Whether `node` is inside the leading ambient marker island — a container's `- ` / `1. ` prefix,
+ * the one inert island whose far side IS raw 0. Every other opaque island (a widget, a
+ * decoration) has a real raw offset on each side, so only this one joins the unreachable prefix.
+ */
+function inAmbientIsland(node: Node, root: ParentNode): boolean {
 	for (let el = node.parentElement; el && el !== root; el = el.parentElement) {
-		if (el.getAttribute('contenteditable') === 'false') return true;
+		if (el.classList.contains('md-marker') && el.getAttribute('contenteditable') === 'false') {
+			return true;
+		}
 	}
 	return false;
 }
