@@ -257,11 +257,6 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		it('a live split diverges nowhere the byte-literal split already does', () => {
 			fc.assert(
 				fc.property(arbInlineDoc, arbGesture, (source, drawn) => {
-					// GH #106, shape-exact: a hard-break run at a line's end meets the rewrite's
-					// boundary-space candidate and the halves reload as one block more than they were.
-					// Filed and scheduled, so it is excluded here rather than masked wholesale — the day
-					// it lands this line comes off and the arm is strictly wider.
-					fc.pre(!/ {2,}\r?\n/.test(source));
 					const gesture = interiorSplit(source, drawn);
 					if (divergenceAfterEdit(source, gesture) !== null) return;
 					const divergence = divergenceAfterEdit(source, gesture, 'live');

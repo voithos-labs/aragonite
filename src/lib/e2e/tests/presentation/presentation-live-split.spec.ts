@@ -39,6 +39,24 @@ const BLOCKS = DOC.split('\n\n').length;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
+/** What a block SHOWS: its content text minus every span a marker-hiding mode paints nothing
+ *  for. Read off the page object's own block-content element, never the host — the chrome
+ *  between the wrapper's children contributes whitespace text nodes of its own. */
+async function visibleText(ep: EditorPage, block: number): Promise<string> {
+	return ep.getBlock(block).evaluate((el) => {
+		const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+		let out = '';
+		let node: Node | null;
+		while ((node = walker.nextNode())) {
+			if (!node.parentElement?.closest('.md-marker, .md-ref-label, .md-fence-line')) {
+				out += node.textContent ?? '';
+			}
+		}
+		return out;
+	});
+}
+
+
 test.describe('live mode — Enter inside a construct closes and reopens it', () => {
 	let ep: EditorPage;
 
@@ -142,6 +160,34 @@ test.describe('live mode — a cut at a construct edge hands it over whole', () 
 
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('plain\n\n words here');
+	});
+});
+
+// A block's TERMINAL whitespace paints nothing (a hard break with no line after it), so a cut
+// that would strand it drops it: carrying it made the pair reload as a different shape (#106),
+// and declining to the byte-literal cut printed the delimiters the reader never saw.
+test.describe('live mode — a cut that would strand terminal whitespace', () => {
+	const TRAILING = ['~~foo~~  ', '', 'tail'].join('\n');
+
+	test('leaves no delimiter on screen, and the reload agrees', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', TRAILING);
+		await clickWordSettled(ep, page, 'foo');
+		await stepTo(ep, page, 'ArrowRight', 5);
+
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('~~foo~~\n\n');
+
+		// The screen is what licensed the drop, so the screen is what it answers to.
+		expect(await visibleText(ep, 0)).toBe('foo');
+		expect(await visibleText(ep, 1)).toBe('');
+		expect(await ep.bridge.getSource()).not.toContain('~~foo\n');
+
+		// Reload convergence: the bytes the split wrote come back as the same screen.
+		const written = await ep.bridge.getSource();
+		await ep.loadContent(written);
+		await ep.waitForRenderFlush();
+		expect(await ep.bridge.getSource()).toBe(written);
+		expect(await visibleText(ep, 0)).toBe('foo');
 	});
 });
 

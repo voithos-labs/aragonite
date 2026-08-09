@@ -39,6 +39,10 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
   that pixel to the construct's OUTER start, so no real gesture reaches the offset where an empty
   pair could be minted — the model-level guard still has to exist, since a plugin can address it
 - Enter outside every construct is unchanged by the mode: the bytes cut where the caret is
+- a cut that would strand a block's TERMINAL whitespace drops those bytes instead of carrying
+  them: they are a hard break with no line after them, so they paint nothing — carried along the
+  pair reloads as a different shape (#106), and declining to the byte-literal cut prints the
+  delimiters the reader never saw. The post-split screen and the reload's screen both show none
 - a cut that would leave a delimiter run against whitespace moves the SPACE outside the run rather
   than kill the construct: `**a *|ital* b**` gives `**a** ` and `***ital* b**`, which read
   identically on screen and parse back, where the literal `**a **` would print its stars
