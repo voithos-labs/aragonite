@@ -25,7 +25,9 @@ const READER_SITES: Record<string, string> = {
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',
 	'src/lib/selection/range-delete.ts': 'the same-block merge writes raw with no reparse',
 	'src/lib/selection/cross-block/type-replace.ts': 'the degraded arm splices raw',
-	'src/lib/tree-operations/paste/container-match.ts': 'splices clipboard text into the target leaf'
+	'src/lib/tree-operations/paste/container-match.ts': 'splices clipboard text into the target leaf',
+	'src/lib/editor-actions/inline-range-commit.ts':
+		'the anchored inline editors splice a construct range with no reparse'
 };
 
 /**
@@ -36,7 +38,9 @@ const PRE_REPARSE_SITES: Record<string, string> = {
 	[SINK]: 'the reader itself',
 	'src/lib/selection/range-delete.ts': 'the cross-block merge normalizes the end slice',
 	'src/lib/selection/range-delete-ceremony.ts':
-		'the endpoint-survivor reparse, shared by all three branches'
+		'the endpoint-survivor reparse, shared by all three branches',
+	'src/lib/editor-actions/inline-range-commit.ts':
+		'reads the rule ahead of the write to decide whether the splice changes a byte at all'
 };
 
 /**
@@ -182,10 +186,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	'src/lib/tree-operations/paste/container-match.ts': {
 		count: 1,
 		why: "the last pasted item's leaf, gated to a paragraph by `hasSingleParagraphChild` — the merged target beside it routes through the reader, so the pair is asymmetric"
-	},
-	'src/lib/components/image/image-edit-commit.ts': {
-		count: 1,
-		why: 'rewrites the image link in its host paragraph; no kind declaring a rule renders image widgets (`fencedCode` carries no inline, `tableCell` no widgets)'
 	},
 	'src/lib/testing/container-conformance.ts': {
 		count: 3,

@@ -1,5 +1,5 @@
 /**
- * Every live-mode byte rewrite answers to the same oracle and the same seam. Four modules build
+ * Every live-mode byte rewrite answers to the same oracle and the same seam. Five modules build
  * candidate bytes for a mode that paints no delimiter, and each is only sound because it asks the
  * RENDER PATH what the reader sees rather than walking the parse itself — the walk that once
  * counted an angle autolink's brackets as content, and the selector that once counted a resolved
@@ -10,9 +10,10 @@
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
 
-/** The live byte-rewrite modules, by set equality: a fifth one is a decision, not a drift. */
+/** The live byte-rewrite modules, by set equality: a sixth one is a decision, not a drift. */
 const REWRITE_MODULES = [
 	'src/lib/components/blocks/text/construct-edge-delete.ts',
+	'src/lib/components/blocks/text/link-source-bytes.ts',
 	'src/lib/components/blocks/text/live-join-seam.ts',
 	'src/lib/components/blocks/text/live-split-rebalance.ts',
 	'src/lib/components/blocks/text/pending-mark-insert.ts'
