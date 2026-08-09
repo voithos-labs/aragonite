@@ -6,7 +6,6 @@
 
 import type { FocusActions, HistoryActions } from '../action-contracts';
 import type { BlockElLookup, DocumentGetter } from '../editor-keys';
-import type { InlineNode } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from './selection-state.svelte';
@@ -17,22 +16,23 @@ import {
 	scrollFocusBlockIntoView
 } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
-import { revealsNoMarkers } from '../cursor/widget-offset';
+import { landableDomTextBounds, revealsNoMarkers } from '../cursor/widget-offset';
+import { toClampedRawOffset } from '../cursor/coordinate-spaces';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
-import { constructContentRange, getContentRange, type ContentRange } from '../core/inline';
-import { blockNodeAt } from '../tree-operations/node-ops';
 import { eventToChord } from '../schema/keybindings';
 import { isEditorGlobalChord } from '../schema/commands';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export interface SharedKeydownContext extends ContentBoundsContext {
+export interface SharedKeydownContext extends LandableBoundsContext {
 	getEl(): HTMLElement | null;
 	/** Current caret offset in raw-content coordinates (ambient marker excluded). */
 	getCursorOffset(): number | null;
 	/** Shift-selection focus offset in raw-content coordinates (ambient marker excluded). */
 	getFocusOffset(): number | null;
 	getIndex(): number;
+	getMyPath(): number[];
+	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
 	selection: SelectionState;
 	stickyColumn: StickyColumnState;
@@ -83,9 +83,9 @@ export async function handleSharedKeydown(
 	const index = ctx.getIndex();
 	const myPath = ctx.getMyPath();
 	// Lazy: off the arrow path the block's bounds are never asked for, and the resolve
-	// walks the doc path and re-derives the content range.
-	let cachedBounds: ContentBounds | null = null;
-	const bounds = () => (cachedBounds ??= caretContentBounds(ctx, el));
+	// walks the block's DOM.
+	let cachedBounds: LandableBounds | null = null;
+	const bounds = () => (cachedBounds ??= caretLandableBounds(ctx, el));
 
 	// Read the focus offset (not the anchor) for Shift+Arrow: after a forward extension the
 	// anchor stays mid-block while the focus sits at the boundary.
@@ -93,7 +93,7 @@ export async function handleSharedKeydown(
 
 	if (e.key === 'ArrowUp') {
 		const offset = shiftOffset ?? ctx.getCursorOffset() ?? 0;
-		if (isAtFirstVisualLine(el, offset)) {
+		if (isAtFirstVisualLine(el, offset, bounds().start)) {
 			// Cross the boundary only when focus is already at the block's first reachable
 			// offset, so native Shift+ArrowUp extension has nowhere left to go within it.
 			if (e.shiftKey && offset <= bounds().start) {
@@ -167,58 +167,34 @@ export async function handleSharedKeydown(
 
 // ── Block bounds ───────────────────────────────────────────────────────────
 
-export interface ContentBounds {
+export interface LandableBounds {
 	start: number;
 	end: number;
 }
 
 /** The reads the bounds need, so a block-edge gate outside this file can ask without standing up
  *  the whole keydown context. */
-export interface ContentBoundsContext {
+export interface LandableBoundsContext {
 	/** textContent length in raw-content coordinates (ambient marker excluded). */
 	getTextLen(): number;
-	getMyPath(): number[];
-	getDoc: DocumentGetter;
-	/** The inline tree the RENDER painted, resolver and signature included. Parsed without them a
-	 *  reference construct reads as plain text, and the bound would not clear its hidden run. */
-	getInlines(): readonly InlineNode[];
+	getAmbientLength(): number;
 }
 
 /**
- * The raw offsets a caret can actually reach in this block. A mode that hides a block's own
- * structural markers with no reveal leaves those bytes unreachable, so the exits move in to
- * the content range; every other mode paints them and keeps the whole raw span. Every block-edge
- * gate reads this rather than 0/length — the arrow exits here, the merge arms in the components.
+ * The raw offsets a caret can actually reach in this block, from the walk that decides where a
+ * caret lands. A mode that hides a block's own markers with no reveal puts those bytes out of
+ * reach, so the exits move in to what the DOM can land — the kind's declared content range is
+ * not that bound: paragraph, fenced code and table cell each declare the whole raw and still
+ * open or close with a run nothing paints. Every block-edge gate reads this, not 0/length.
  */
-export function caretContentBounds(ctx: ContentBoundsContext, el: HTMLElement): ContentBounds {
-	const textLen = ctx.getTextLen();
-	if (!revealsNoMarkers(el)) return { start: 0, end: textLen };
-	const node = blockNodeAt(ctx.getDoc(), ctx.getMyPath());
-	if (!node) return { start: 0, end: textLen };
-	const range = getContentRange(node);
-	// Clamped against the live DOM length: a revealed source holds bytes the CST has not
-	// seen, and a bound past the block's end would trap the caret.
+export function caretLandableBounds(ctx: LandableBoundsContext, el: HTMLElement): LandableBounds {
+	if (!revealsNoMarkers(el)) return { start: 0, end: ctx.getTextLen() };
+	const ambientLength = ctx.getAmbientLength();
+	const landable = landableDomTextBounds(el);
 	return {
-		start: Math.min(reachableStart(ctx.getInlines(), range), textLen),
-		end: Math.min(range.end, textLen)
+		start: toClampedRawOffset(landable.start, ambientLength),
+		end: toClampedRawOffset(landable.end, ambientLength)
 	};
-}
-
-/**
- * The first offset a caret can actually occupy. A construct opening the content hides its own
- * delimiter run, and a read there reports the first VISIBLE byte, so a gate testing the model's
- * content start matches no caret the user can produce — the gesture becomes a dead key.
- */
-function reachableStart(inlines: readonly InlineNode[], range: ContentRange): number {
-	const firstVisible = (nodes: readonly InlineNode[], at: number): number => {
-		for (const child of nodes) {
-			const content = child.start === at ? constructContentRange(child) : null;
-			if (!content || content.start <= at) continue;
-			return firstVisible(child.children ?? [], content.start);
-		}
-		return at;
-	};
-	return firstVisible(inlines, range.start);
 }
 
 // ── Shared beforeinput prelude ─────────────────────────────────────────────

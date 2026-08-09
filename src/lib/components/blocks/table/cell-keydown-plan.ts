@@ -20,7 +20,10 @@ export interface CellKeyState {
 	columnCount: number;
 	rowCount: number;
 	offset: number;
-	textLen: number;
+	/** The cell's landable extremes. A mode that paints no marker puts a leading or trailing
+	 *  run out of the caret's reach, and a hop testing raw 0 / raw length never fires. */
+	contentStart: number;
+	contentEnd: number;
 	collapsed: boolean;
 	selectAllCount: number;
 }
@@ -53,10 +56,10 @@ export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 			step: s.selectAllCount === 0 ? 'native' : s.selectAllCount === 1 ? 'table' : 'document'
 		};
 	}
-	if (e.key === 'ArrowLeft' && !e.shiftKey && s.offset === 0 && s.collapsed) {
+	if (e.key === 'ArrowLeft' && !e.shiftKey && s.offset <= s.contentStart && s.collapsed) {
 		return horizontalMove(prevCell(pos, s.columnCount), 'end', 'up');
 	}
-	if (e.key === 'ArrowRight' && !e.shiftKey && s.offset === s.textLen && s.collapsed) {
+	if (e.key === 'ArrowRight' && !e.shiftKey && s.offset >= s.contentEnd && s.collapsed) {
 		return horizontalMove(nextCell(pos, s.columnCount, s.rowCount), 'start', 'down');
 	}
 	if (e.key === 'ArrowUp' && !e.shiftKey) return verticalMove(cellAbove(pos), 'up');
@@ -75,10 +78,10 @@ export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 			? { kind: 'focus-cell', rowIdx: move.rowIdx, colIdx: move.colIdx, position: 'start' }
 			: { kind: 'insert-row-below' };
 	}
-	if (e.key === 'Backspace' && s.offset === 0 && s.collapsed) {
+	if (e.key === 'Backspace' && s.offset <= s.contentStart && s.collapsed) {
 		return horizontalMove(prevCell(pos, s.columnCount), 'end', 'up');
 	}
-	if (e.key === 'Delete' && s.offset === s.textLen && s.collapsed) {
+	if (e.key === 'Delete' && s.offset >= s.contentEnd && s.collapsed) {
 		return horizontalMove(nextCell(pos, s.columnCount, s.rowCount), 'start', 'down');
 	}
 	return { kind: 'native' };

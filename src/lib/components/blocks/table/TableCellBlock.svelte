@@ -35,6 +35,7 @@
 		domTextOffsetAtNode,
 		rawTextOfNode,
 		containerDomTextLength,
+		landableDomTextBounds,
 		createRangeAtDomTextOffsets
 	} from '../../../cursor/widget-offset';
 	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
@@ -236,7 +237,6 @@
 		events: editorEvents,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
-		getInlines: () => resolvedInlineContent(node, linkRef),
 		readText: () => readCellText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		// `saved` re-focuses if the edit remounts the cell, so it is reported through
@@ -557,13 +557,16 @@
 	// Shared by the live keydown path and the cross-block dispatch entry, which differ
 	// only in where the offset comes from; both guard `el` before calling.
 	function cellPlanState(offset: number): CellKeyState {
+		// Zero-ambient cell: the walk offsets ARE the raw offsets the plan compares.
+		const bounds = landableDomTextBounds(el!);
 		return {
 			rowIdx,
 			colIdx,
 			columnCount,
 			rowCount,
 			offset,
-			textLen: containerDomTextLength(el!),
+			contentStart: bounds.start,
+			contentEnd: bounds.end,
 			collapsed: !hasSelectionHelper(),
 			selectAllCount: selection.selectAllCount
 		};
@@ -689,10 +692,11 @@
 	// extends its own text first (prose parity). Returns false to fall through.
 	function startIntraTableRect(key: 'ArrowUp' | 'ArrowDown', offset: number): boolean {
 		if (!el) return false;
+		const bounds = landableDomTextBounds(el);
 		const atEdge =
 			key === 'ArrowDown'
-				? isAtLastVisualLine(el, offset, containerDomTextLength(el))
-				: isAtFirstVisualLine(el, offset);
+				? isAtLastVisualLine(el, offset, bounds.end)
+				: isAtFirstVisualLine(el, offset, bounds.start);
 		if (!atEdge) return false;
 
 		const tablePath = myPath.slice(0, -2);

@@ -34,9 +34,8 @@ function makeCtx(over: {
 		getEl: () => document.createElement('div'),
 		getCursorOffset: () => over.cursorOffset,
 		getFocusOffset: () => over.focusOffset,
-		// A detached element reads as no presentation root, so the bounds never walk this — an
-		// empty tree is the honest answer rather than a parse the fixture does not model.
-		getInlines: () => [],
+		// A detached element reads as no presentation root, so the bounds never walk it.
+		getAmbientLength: () => 0,
 		getTextLen: () => over.textLen,
 		getMyPath: () => [1],
 		getIndex: () => 1,
