@@ -30,7 +30,11 @@ session's round-trip and nested-state oracles run over every step.
 ## Edge cases
 
 - every gesture's undo is asserted as exactly ONE press: a rule that spent two
-  entries fails the gesture rather than silently costing the user two Ctrl+Z
+  entries fails the gesture rather than silently costing the user two Ctrl+Z.
+  Only the note weave (`biology-note`) can red on the OVER-spending half: this
+  spec's stack never exceeds one entry, so a second undo there has nothing to
+  overshoot into — the deep stack a session builds is what makes the press count
+  load-bearing
 - the caret is seated by a real click and then walked onto its exact offset with
   arrows — in live a hidden run has no box, so a click's pixel→offset mapping is
   approximate while the arrow walk is the caret contract itself
