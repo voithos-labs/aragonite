@@ -12,7 +12,7 @@ import {
 	makeStubBlockEdit,
 	makeStubFocus
 } from '../harness/editor-actions';
-import type { BlockComponent } from '$lib/block-component';
+import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
 // The delete's afterTick must clamp against the LIVE post-commit children: a node
@@ -72,7 +72,7 @@ describe('list-overrides deleteBlock — focus after deleting the last item', ()
 		await bundle.blockEdit.deleteBlock(2);
 
 		expect(liveList().children).toHaveLength(2);
-		expect(refs[1].focus).toHaveBeenCalledWith(0);
+		expect(refs[1].focus).toHaveBeenCalledWith(CURSOR_START);
 		expect(refs[2].focus).not.toHaveBeenCalled();
 	});
 });

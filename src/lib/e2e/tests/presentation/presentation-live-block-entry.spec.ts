@@ -84,6 +84,22 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 		expect(await ep.bridge.getSource()).toContain('Z**bold** opens this');
 	});
 
+	// An arrow walk is not the only door that says "the block's start": a structural edit lands
+	// the caret on a block it did not create, and a literal 0 seats it BEFORE a heading's hidden
+	// marker run, where the next byte dissolves the construct into a paragraph.
+	test('a reorder landing seats at the content start', async ({ page }) => {
+		await ep.loadContent('Alpha\n\n## Beta\n');
+		await ep.waitForRenderFlush();
+		await clickBlockSettled(ep, 1);
+		await page.keyboard.press('Alt+ArrowUp');
+		await ep.bridge.waitForSourceMatches(/^## Beta/);
+		expect(await focusOffset(ep)).toBe(3);
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		expect(await ep.bridge.getSource()).toContain('## ZBeta');
+	});
+
 	// The vertical arrival lands by pixel column rather than by sentinel, so it already stopped
 	// on a landable offset; pinned so the two arrivals cannot drift apart.
 	test('the vertical arrival lands on the same offset', async ({ page }) => {

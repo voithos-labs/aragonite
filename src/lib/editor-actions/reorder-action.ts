@@ -6,6 +6,7 @@
  * stays with the slot, see `reorderChildrenWithTrivia`) and marker renumbering.
  */
 
+import { CURSOR_START } from '../block-component';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
 import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
@@ -39,7 +40,7 @@ export function createReorderAction(
 					eventPath: docPathFrom([unit.index])
 				},
 				mutate: (children) => reorderChildrenWithTrivia(children, unit.index, to, deps.sharing),
-				afterTick: () => deps.blockRefs[to]?.focus(0)
+				afterTick: () => deps.blockRefs[to]?.focus(CURSOR_START)
 			});
 			return;
 		}
@@ -67,7 +68,7 @@ export function createReorderAction(
 				}
 				return change;
 			},
-			afterTick: () => state.innerBlockRefs[to]?.focus(0)
+			afterTick: () => state.innerBlockRefs[to]?.focus(CURSOR_START)
 		});
 	}
 
