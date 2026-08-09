@@ -26,6 +26,13 @@ selection bridge and the bytes from the source bridge.
   than a literal 0 — a live split's continuation seats at 0 too and must STAY
   there (`presentation-live-split.md`), so only an arrival's sentinel moves in
 
+- an arrow walk is not the only door that says "the block's start": a STRUCTURAL
+  landing (`Alt+ArrowUp` reorder, and its siblings — an interior delete, a
+  descent into a container body, an unwrap, a promotion) seats the caret on a
+  block it did not create, so it takes the same sentinel. On a heading whose
+  `## ` is hidden, a literal 0 puts the next byte in front of the marker run and
+  dissolves the construct into a paragraph
+
 ## Edge cases
 
 - the vertical arrival (`ArrowUp` / `ArrowDown`, which lands by pixel column

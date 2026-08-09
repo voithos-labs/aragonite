@@ -4,7 +4,7 @@
  * dispatcher.
  */
 
-import { CURSOR_END } from '../block-component';
+import { CURSOR_END, CURSOR_START } from '../block-component';
 import type { UnwrapRole } from '../schema/block-kind-descriptor';
 import {
 	deleteNode as performDelete,
@@ -69,7 +69,7 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 			},
 			op: { kind: 'delete', eventPath: extendDocPath(deps.path, 0) },
 			afterTick: () => {
-				state.innerBlockRefs[0]?.focus(0);
+				state.innerBlockRefs[0]?.focus(CURSOR_START);
 			}
 		});
 	} else if (firstChildEmpty && node.children.length === 1) {

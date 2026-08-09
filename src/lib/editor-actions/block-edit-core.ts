@@ -4,7 +4,7 @@
  * no upward delegation, no unwrap dispatch; the factories add those.
  */
 
-import { CURSOR_END } from '../block-component';
+import { CURSOR_END, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import { displayLength, trailingLineEnding } from '../core/lines';
 import {
@@ -83,7 +83,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			// A body child already exists: pure focus move, no undo entry. An absent ref
 			// (windowed-out, or a collapsed body) leaves the caret put — load-bearing.
 			if (i + 1 < children.length) {
-				scope.refAt(i + 1)?.focus(0);
+				scope.refAt(i + 1)?.focus(CURSOR_START);
 				return;
 			}
 			await scope.commit({
@@ -153,7 +153,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						eventTarget: i - 1,
 						op: { kind: 'delete' },
 						mutate: (view) => performDelete({ children: view.children }, i - 1, view.sharing),
-						afterTick: () => scope.refAt(i - 1)?.focus(0),
+						afterTick: () => scope.refAt(i - 1)?.focus(CURSOR_START),
 						discardIfNoop: true
 					});
 				} else {
@@ -212,7 +212,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						discardIfNoop: true
 					});
 				} else {
-					scope.refAt(i + 1)?.focus(0);
+					scope.refAt(i + 1)?.focus(CURSOR_START);
 				}
 				return;
 			}
@@ -248,7 +248,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				mutate: (view) => performDelete({ children: view.children }, i, view.sharing),
 				afterTick: () => {
 					const focusIdx = Math.min(i, scope.children().length - 1);
-					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(0);
+					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(CURSOR_START);
 				},
 				discardIfNoop: true
 			});

@@ -3,7 +3,7 @@ import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import type { CstNode } from '$lib/core/nodes';
-import type { BlockComponent } from '$lib/block-component';
+import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
@@ -286,7 +286,8 @@ describe('block-edit core — chrome.descendToBody', () => {
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(commits).toHaveLength(0);
 		expect(children).toHaveLength(2);
-		expect(body.calls).toEqual([0]);
+		// An arrival on a block it did not create, so the door — not this caller — picks the byte.
+		expect(body.calls).toEqual([CURSOR_START]);
 	});
 
 	it('mints and focuses an empty body paragraph when the chrome has no body child', async () => {
