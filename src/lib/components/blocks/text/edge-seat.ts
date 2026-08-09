@@ -90,19 +90,36 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 	return run.leading ? run.start : run.end;
 }
 
-/** The innermost construct marker run either of whose boundaries `offset` names. Innermost
- *  wins: children are visited after their parent, so a nested pair claims its own edge. */
+/**
+ * The innermost construct marker run `offset` sits in, its own boundaries included. Innermost
+ * wins: children are visited after their parent, so a nested pair claims its own edge. INSIDE
+ * counts, not just the two ends — a doubled code fence and a hidden `\` are runs a caret can be
+ * handed the middle of, and a seat that matched only the ends left the byte between delimiters.
+ */
 function markerRunAt(offset: number, inlines: readonly InlineNode[]): MarkerRun | null {
 	let found: MarkerRun | null = null;
 	const visit = (nodes: readonly InlineNode[]): void => {
 		for (const node of nodes) {
 			const content = constructContentRange(node);
 			if (content) {
-				if (node.start < content.start && (offset === node.start || offset === content.start)) {
+				if (node.start < content.start && offset >= node.start && offset <= content.start) {
 					found = { start: node.start, end: content.start, leading: true, kind: node.kind };
-				} else if (content.end < node.end && (offset === content.end || offset === node.end)) {
+				} else if (content.end < node.end && offset >= content.end && offset <= node.end) {
 					found = { start: content.end, end: node.end, leading: false, kind: node.kind };
 				}
+			} else if (node.kind !== 'text' && offset > node.start && offset < node.end) {
+				// A CHILDLESS construct — an escape, an angle autolink, a hard break — has no
+				// content range to split on, so the whole node is one run and the nearer end is
+				// what "outside" means. STRICTLY inside: its own boundaries are ordinary seams
+				// between siblings, and claiming them would take the neighbour's closing run with
+				// them. Its policy row still decides whether it extends at all; a kind with no row
+				// declines in `resolveEdgeSeat` as it always did.
+				found = {
+					start: node.start,
+					end: node.end,
+					leading: offset - node.start <= node.end - offset,
+					kind: node.kind
+				};
 			}
 			if (node.children) visit(node.children);
 		}

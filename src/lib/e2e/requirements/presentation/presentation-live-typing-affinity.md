@@ -25,6 +25,15 @@ the assertion is always the SOURCE, since the byte position is the whole contrac
 - a CLICK at bold's trailing content edge extends the construct: a click clears the
   arrival, and the seat's default is the construct the caret touches (the gdocs default)
 
+- a CHILDLESS construct is all delimiters, and the seat reaches it: a line-leading escape or an
+  angle autolink has no content range to split on, so a byte typed at the landable floor inside
+  one used to land between delimiters the reader never saw (`\Z*Lead`, `< https://…>`). The whole
+  node is one run there, and "outside" is its nearer end
+- the angle autolink obeys the same never-extend rule as the bracket form: `End` after a trailing
+  one types past the closing bracket rather than rewriting the destination
+- the bold control types identically through every one of those gestures, which is what says the
+  fix moved the childless class and nothing else
+
 ## Edge cases
 
 - `Home` on a line that OPENS with a construct types BEFORE it: a line extreme is

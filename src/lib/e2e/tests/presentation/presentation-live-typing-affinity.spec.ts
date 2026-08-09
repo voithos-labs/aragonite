@@ -221,6 +221,84 @@ test.describe('live mode — unstamped marker runs are never typed into', () => 
 	});
 });
 
+// A construct with no CHILDREN — a line-leading escape, an angle autolink — has no content range
+// for the seat to split on, so the seat used to decline and the byte landed between delimiters the
+// reader never saw. The landable floor puts the caret there legitimately: a click at a line's left
+// edge clears the leading hidden run, which is INSIDE a construct that is all delimiters.
+const CHILDLESS_DOC = [
+	'\\*Lead in',
+	'',
+	'<https://example.com> tail',
+	'',
+	'tail then <https://example.com>',
+	'',
+	'**Bold** in'
+].join('\n');
+
+const ESCAPE_LEAD = 0;
+const AUTOLINK_LEAD = 1;
+const AUTOLINK_TAIL = 2;
+const BOLD_LEAD = 3;
+
+test.describe('live mode — a childless construct is all delimiters', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = new EditorPage(page);
+		await ep.goto('?presentationMode=live');
+		await ep.loadContent(CHILDLESS_DOC);
+		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+	});
+
+	test('a click at the left edge of an escaped line types before the backslash', async ({
+		page
+	}) => {
+		await clickBlock(ep, ESCAPE_LEAD);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		// Not `\Z*Lead`, which puts the backslash on screen.
+		expect(await ep.bridge.getSource()).toContain('Z\\*Lead in');
+	});
+
+	test('Home on a line opening with an autolink types before its bracket', async ({ page }) => {
+		await clickBlock(ep, AUTOLINK_LEAD);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		expect(await ep.bridge.getSource()).toContain('Z<https://example.com> tail');
+	});
+
+	// The softer sibling: the caret seats at the landable end, which is INSIDE the closing
+	// bracket, and a byte there rewrites where the link goes. A link never extends at either
+	// edge (§ 4.2), and the angle form is a link.
+	test('End after a trailing autolink types past its closing bracket', async ({ page }) => {
+		await clickBlock(ep, AUTOLINK_TAIL);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		expect(await ep.bridge.getSource()).toContain('<https://example.com>Z');
+	});
+
+	// The discriminating twin: the bold control was correct throughout, so a fix that moved the
+	// symmetric pair too would show up here.
+	test('the bold control is unchanged by the same gesture', async ({ page }) => {
+		await clickBlock(ep, BOLD_LEAD);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		expect(await ep.bridge.getSource()).toContain('Z**Bold** in');
+	});
+});
+
 // The IME half of the same contract: `insertCompositionText` is not cancelable, so the composed
 // run is relocated on the commit compositionend drives — one commit, one undo entry.
 test.describe('live mode — an IME commit takes the same seat as a keystroke', () => {

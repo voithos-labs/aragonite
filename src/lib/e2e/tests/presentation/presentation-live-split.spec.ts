@@ -190,6 +190,24 @@ test.describe('live mode — a cut that would strand terminal whitespace', () =>
 	});
 });
 
+// KNOWN GAP, pinned rather than left silent: a cut through a childless construct writes its
+// delimiters onto the screen. Two halves of a URL are not two URLs, so close-and-reopen cannot
+// apply, and the reading that would keep the screen (drop the `<`/`>` pair) is refused by a
+// stronger rule — a live split may lose no byte but a line ending (`shape-fixed-point` ::
+// `keepsEveryByte`). Changing that contract is a decision, not a fix; this row states the
+// current bytes so the day it changes is deliberate.
+test.describe('live mode — a cut through a childless construct', () => {
+	test('splits byte-literally, brackets and all', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', '<https://example.com> tail\n');
+		await clickWordSettled(ep, page, 'example');
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('\n\n');
+
+		expect(await ep.bridge.getSource()).toBe('<https://exam\n\nple.com> tail\n');
+		expect(await visibleText(ep, 0)).toBe('<https://exam');
+	});
+});
+
 // The split's inverse. Without seam cleanup the closing and reopening runs landed back to back —
 // `Some **bo****ld** text`, gaining a pair on every repeat, and a split link returning as two
 // anchors on one destination.
