@@ -25,6 +25,8 @@ import {
 	middleChildUnwrapStrategies
 } from '../editor-actions/unwrap-strategies';
 import type { EditEvent } from '../editor-events';
+import { isDirectiveKind } from '../core/directive/registry';
+import { isBlockOpenerRegistered } from '../schema/block-openers';
 import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
@@ -603,9 +605,16 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 		);
 	}
 	const node = parse(fixture).children.find((child) => child.kind === kind);
-	// A kind that never parses at the top level (listItem) has no node of its own to rebuild
-	// and reparse, and the parser hands it no innerPrefix to peel.
-	if (!node) return;
+	if (!node) {
+		// Only a kind with no recognizer (listItem, tableRow) legitimately never parses at the
+		// top level; openers alone misread directive kinds, whose recognizer is the shared `:::`.
+		if (!isBlockOpenerRegistered(kind) && !isDirectiveKind(kind)) return;
+		fail(
+			`${kind} conformanceFixture must open a "${kind}" at the top level — the bodyWrap ` +
+				`probe rebuilds and reparses that node, and a nested fixture would skip it silently ` +
+				`while the declarations cell reads asserted`
+		);
+	}
 	assert(
 		node.children?.length,
 		`${kind} conformanceFixture opens a "${kind}" with no body child, leaving its ` +
