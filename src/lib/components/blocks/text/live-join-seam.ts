@@ -39,8 +39,11 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 	const pairs = abuttingPairSpans(join, left, right);
 	// Keeping the runs the two sides can still pair across the seam is the least destructive
 	// reading, so it leads; dropping every stranded run answers where markdown cannot rejoin them.
-	for (const dangling of [unpairedSpans(join, left, right), everyDanglingSpan(join, left, right)]) {
-		const spans = [...dangling, ...pairs];
+	// The two readings coincide whenever nothing paired across the seam, which is the common case;
+	// rendering the identical bytes twice buys nothing.
+	const readings = [unpairedSpans(join, left, right), everyDanglingSpan(join, left, right)];
+	const candidates = readings.map((dangling) => [...dangling, ...pairs]);
+	for (const spans of sameSpans(candidates[0], candidates[1]) ? [candidates[0]] : candidates) {
 		const candidate = withoutSpans(join.mergedRaw, spans);
 		if (visibleBlockText(candidate, resolver) !== shown) continue;
 		// A candidate that changed nothing IS the literal join: declining says so, and keeps the
@@ -56,6 +59,9 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 };
 
 const standsOnSeam = (side: Side): boolean => side.dangling.length > 0 || side.touching.length > 0;
+
+const sameSpans = (a: readonly Span[], b: readonly Span[]): boolean =>
+	a.length === b.length && a.every((span, i) => span.start === b[i].start && span.end === b[i].end);
 
 // ── The two sides ────────────────────────────────────────────────────────────
 
