@@ -177,6 +177,17 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 		);
 	});
 
+	// Miss-analysis (#78): the broken-container suite probed every fail() branch of the bodyWrap
+	// probe but never its carve-out return, so the silent skip of a nested fixture had no red.
+	// Callout is the adversarial pick: its recognizer is the shared ::: opener, not its own.
+	it('fails declaration sanity when the conformanceFixture nests the kind', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: '> :::callout T\n> body\n> :::\n' });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout conformanceFixture must open a "callout" at the top level/
+		);
+	});
+
 	it('refuses an exempt cell whose reason is not substantive', async () => {
 		await expect(
 			runContainerConformance(CALLOUT_KIND(), {
