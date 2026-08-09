@@ -78,6 +78,14 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		// The checkbox's nearest pathed ancestor is the item's paragraph, not the
 		// list item — only the list and the item-paragraphs carry data-block-path.
 		await g.toggleTask([7, 0, 0]);
+
+		// Live mode's own rules over the intro paragraph, which carries every construct they
+		// need. Each gesture enters live, drives one rule and undoes it in one press, so the
+		// note's canonical end state is what it was before them.
+		await g.liveToggleFormat(1, 'notes', 'strikethrough');
+		await g.liveEdgeBackspace(1, 'cell division');
+		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
+		await g.checkpoint('live-rules', 'live-editing');
 	},
 	landmarks: [
 		'Cell Division and Photosynthesis',

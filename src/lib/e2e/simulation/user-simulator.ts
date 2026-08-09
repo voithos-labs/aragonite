@@ -161,10 +161,12 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 	if (rng.chance(0.5)) await g.pause();
 
 	// Byte-stability across a presentation-mode flip. The seed picks which rung so the
-	// multi-seed runner spreads reading / preview-block / preview-inline across seeds —
-	// the flip must not perturb the clean built source under any live gesture state.
+	// multi-seed runner spreads every mode across seeds — the flip must not perturb the
+	// clean built source under any live gesture state.
 	if (rng.chance(0.7)) {
-		await g.flipPresentationMode(rng.pick(['reading', 'preview-block', 'preview-inline'] as const));
+		await g.flipPresentationMode(
+			rng.pick(['reading', 'preview-block', 'preview-inline', 'live'] as const)
+		);
 	}
 
 	// The two most dangerous surfaces, appended so the existing seed→detour mapping is
