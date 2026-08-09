@@ -569,9 +569,9 @@
 			slots: blockRefSlots,
 			childCount: doc.children.length,
 			revealChild: topWindowing.revealChild,
-			// The windowed each-block's conditional cleanup can strand a detached ref in
-			// its slot, which would silently no-op the reveal; `isStale` drops it so the
-			// scroll and a fresh mount run.
+			// An off-window child's slot only empties when its teardown flushes; until then
+			// the detached ref would silently no-op the reveal, so `isStale` drops it and
+			// the scroll and a fresh mount run.
 			isStale: (i) => !topWindowing.isInWindow(i),
 			isInWindow: topWindowing.isInWindow
 		});

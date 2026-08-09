@@ -1,4 +1,4 @@
-import { tick } from 'svelte';
+import { tick, untrack } from 'svelte';
 
 /**
  * A scope's ref-slot array, reached only through the accessors its owner mints. Object
@@ -32,11 +32,13 @@ export function publishRefSlot<T>(
 	ref: T | undefined
 ): () => void {
 	const capturedIndex = index;
-	const capturedRef = ref;
-	slots.set(capturedIndex, capturedRef);
-	if (capturedRef !== undefined) resolveMountWaiters(slots, capturedIndex);
+	slots.set(capturedIndex, ref);
+	// Re-read for canonical identity — a $state slot proxies the write, so the raw ref never
+	// equals the read; untracked, since publishers run inside effects and would self-invalidate.
+	const publishedRef = untrack(() => slots.get(capturedIndex));
+	if (publishedRef !== undefined) resolveMountWaiters(slots, capturedIndex);
 	return () => {
-		if (slots.get(capturedIndex) === capturedRef) {
+		if (slots.get(capturedIndex) === publishedRef) {
 			slots.set(capturedIndex, undefined);
 		}
 	};
@@ -51,10 +53,10 @@ export interface RevealChildOptions<T> {
 	readonly childCount: number;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	readonly revealChild: (index: number) => Promise<void>;
-	/** True when the published ref at `index` is stale — its child scrolled off-window and
-	 *  the windowed each-block's conditional cleanup left a detached ref. Slot truthiness
-	 *  alone is a cache, not a mount oracle; a stale slot is dropped so the mount-wait
-	 *  resolves on the FRESH child. Omitted where cleanup always clears the slot. */
+	/** True when the published ref at `index` is stale — its child scrolled off-window but
+	 *  the teardown that empties the slot lands a flush later, so slot truthiness is a
+	 *  cache, not a mount oracle. A stale slot is dropped so the mount-wait resolves on
+	 *  the FRESH child. Omitted for non-windowing scopes, where nothing detaches a ref. */
 	readonly isStale?: (index: number) => boolean;
 	/** True iff `index` is inside the scope's CURRENT mounted window, read AFTER
 	 *  `revealChild` resolved. The termination guarantee (VR-5): without proving membership

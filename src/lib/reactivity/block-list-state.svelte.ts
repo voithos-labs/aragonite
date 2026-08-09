@@ -59,8 +59,8 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		registerBlockListState(node, state);
 
 		// A parent-scope replace can reuse this instance with a node prop that has fewer
-		// children than before. Index-keyed ref-setting never clears the stale trailing
-		// slots the longer prior node left, so reconcile the length here.
+		// children than before. Publish cleanup empties departing slots but never shrinks
+		// the array, and refs length must track children exactly, so reconcile it here.
 		const childCount = node.children?.length ?? 0;
 		untrack(() => {
 			if (innerBlockRefs.length > childCount) {
