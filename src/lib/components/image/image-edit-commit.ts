@@ -6,6 +6,7 @@ import type { LinkReferenceResolverRef } from '../../editor-keys';
 import type { UndoController } from '../../editor-actions/deps';
 import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
+import type { GrammarView } from '../../schema/block-openers';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
 import { buildImageEditBytes } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
@@ -19,6 +20,8 @@ export interface ImageEditCommitterDeps {
 	controller: UndoController;
 	events: EditorEvents;
 	linkRef?: LinkReferenceResolverRef;
+	/** The instance's grammar, for the leaf's own raw-write rule. Absent = the global grammar. */
+	grammar?: GrammarView;
 }
 
 export interface SelectedImageFields {
@@ -48,7 +51,7 @@ export interface ImageEditCommitter {
 
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
 	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
-	const inlineRange = createInlineRangeCommit({ getDoc, controller });
+	const inlineRange = createInlineRangeCommit({ getDoc, controller, grammar: deps.grammar });
 
 	function resolvePathToParagraph(path: number[]): {
 		paragraph: NodeView;

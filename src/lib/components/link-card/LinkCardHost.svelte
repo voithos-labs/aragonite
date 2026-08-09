@@ -30,7 +30,7 @@
 		getDoc: () => Document;
 		getEditorEl: () => HTMLElement | null;
 		measureRange: (path: number[], start: number, end: number) => DOMRect[];
-		landCaret: (path: number[]) => Promise<boolean>;
+		landCaret: (path: number[], offset: number) => Promise<boolean>;
 		activateLink: (url: string, event: MouseEvent) => void;
 		caretRestore: CaretRestore;
 		linkRef?: LinkReferenceResolverRef;

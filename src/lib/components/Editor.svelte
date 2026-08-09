@@ -413,7 +413,7 @@
 		if (!contentEl) return false;
 		const hit = resolveLinkAtPoint({ contentEl, block, path, linkRef: linkRefView });
 		if (!hit) return false;
-		caretRestore.saveCurrent();
+		linkCardCaret.saveCurrent();
 		linkCard.open(hit.target);
 		return true;
 	}
@@ -706,9 +706,11 @@
 
 	const pasteCoordinator = createPasteCoordinator(controller, revealPath);
 
-	// The document caret while chrome holds focus. Search opened this closure; the link card is its
-	// second door (selection/caret-restore.ts).
-	const caretRestore = createCaretRestore(() => editorEl ?? null);
+	// The document caret while chrome holds focus (selection/caret-restore.ts). One instance PER
+	// consumer: a card opened over an open search bar would otherwise overwrite the pre-search
+	// caret with its own, and closing the bar would land the user at the link.
+	const searchCaret = createCaretRestore(() => editorEl ?? null);
+	const linkCardCaret = createCaretRestore(() => editorEl ?? null);
 
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	// Find stays live in reading mode; replace is an edit and no-ops at this seam.
@@ -727,7 +729,7 @@
 		// default, which is what search wants), so the band's async image-decode churn
 		// can't clamp the reveal off the match.
 		reveal: (p) => rects.scrollTo(p),
-		onClose: caretRestore.restore
+		onClose: searchCaret.restore
 	});
 	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share one
 	// source of truth.
@@ -960,7 +962,7 @@
 		onCommandError: commandErrorSink,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
-		saveSearchRange: caretRestore.save,
+		saveSearchRange: searchCaret.save,
 		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
 	});
 
@@ -1209,8 +1211,14 @@
 		});
 	}
 
-	function caretAt(path: number[]): EditorSelection {
-		return { anchor: { path, offset: 0 }, focus: { path, offset: 0 } };
+	function caretAt(path: number[], offset = 0): EditorSelection {
+		return { anchor: { path, offset }, focus: { path, offset } };
+	}
+
+	/** Land the caret at a raw offset through the shared restore road — the link card's return
+	 *  door after a commit, so the next keystroke (Ctrl+Z included) addresses the document. */
+	async function landCaretAtOffset(path: number[], offset: number): Promise<boolean> {
+		return (await restoreThroughRevealRoad(caretAt(path, offset), true)) === 'applied';
 	}
 
 	/**
@@ -1393,6 +1401,7 @@
 		getEditorEl={() => editorEl ?? null}
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
 		getPresentationMode={() => effectiveMode}
+		grammar={registryView.grammar}
 		lifetime={lifetimeController.signal}
 	/>
 	<LinkCardHost
@@ -1402,9 +1411,9 @@
 		{getDoc}
 		getEditorEl={() => editorEl ?? null}
 		measureRange={rects.rangeRects}
-		landCaret={rects.navigateTo}
+		landCaret={landCaretAtOffset}
 		{activateLink}
-		{caretRestore}
+		caretRestore={linkCardCaret}
 		linkRef={linkRefView}
 		grammar={registryView.grammar}
 	/>
