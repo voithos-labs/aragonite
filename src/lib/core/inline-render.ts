@@ -69,7 +69,16 @@ function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanE
 
 // The one url-policy choke point for both href sinks. Undefined means absent or blocked, which
 // the caller reads as "render an inert span".
-function resolveHref(opts: RenderInlineOptions, url: string | undefined): string | undefined {
+/**
+ * The one href funnel: a consumer's rewrite, then the scheme allowlist. Exported because the link
+ * card's Open button is a SINK of the same kind — it hands a URL to `onLinkActivate` — and the
+ * draft it opens is user-typed rather than a rendered node's, which is the only unfiltered path
+ * that ever reached that hook.
+ */
+export function resolveHref(
+	opts: RenderInlineOptions,
+	url: string | undefined
+): string | undefined {
 	if (url === undefined) return undefined;
 	const resolved = (opts.resolveLinkUrl ?? ((u) => u))(url);
 	// A type-violating resolver returning null/undefined degrades to an inert span, never a throw.

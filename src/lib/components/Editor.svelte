@@ -1415,6 +1415,7 @@
 		measureRange={rects.rangeRects}
 		landCaret={landCaretAtOffset}
 		{activateLink}
+		resolveLinkUrl={resolveLinkUrlImpl}
 		caretRestore={linkCardCaret}
 		linkRef={linkRefView}
 		grammar={registryView.grammar}
