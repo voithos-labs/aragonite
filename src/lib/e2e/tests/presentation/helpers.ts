@@ -63,6 +63,28 @@ export async function stepTo(
 	throw new Error(`stepTo: ${key} never reached offset ${target} (at ${await focusOffset(ep)})`);
 }
 
+/** Shift-extend with `key` until the FOCUS reports `path`/`offset` — the selection twin of
+ *  {@link stepTo}, and a real gesture for the same reason: a programmatic range would skip the
+ *  native input event the live seam's interception claims. */
+export async function extendTo(
+	ep: EditorPage,
+	page: Page,
+	key: string,
+	path: number[],
+	offset: number
+): Promise<void> {
+	for (let i = 0; i < 40; i++) {
+		const focus = (await ep.bridge.getSelectionPaths())?.focus;
+		if (focus && focus.path.join() === path.join() && focus.offset === offset) return;
+		await page.keyboard.press(`Shift+${key}`);
+		await ep.waitForRenderFlush();
+	}
+	const focus = (await ep.bridge.getSelectionPaths())?.focus;
+	throw new Error(
+		`extendTo: Shift+${key} never reached [${path}]@${offset} (at [${focus?.path}]@${focus?.offset})`
+	);
+}
+
 // Center pixel of the first visible text node containing `word` — clicks a
 // marker-adjacent word without relying on raw-offset geometry (hidden markers
 // have no layout box, so a raw-offset walk mis-measures them).

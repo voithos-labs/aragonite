@@ -28,6 +28,8 @@ import {
 	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+import { resolveSelectionEdit } from './live-selection-edit';
+import type { PresentationMode } from '../../../presentation-mode';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -56,6 +58,8 @@ export interface TextClipboardDeps {
 	foldRevealBeforeMutation: () => RevealFold | null;
 	/** True while an inline-widget source reveal is active on this block. */
 	isRevealing: () => boolean;
+	/** The effective mode the cut's join seam answers to (§ 4.5); `undefined` reads as not-live. */
+	getPresentationMode: () => PresentationMode | undefined;
 	/** The block's live DOM as raw text, so a copy over a revealed (uncommitted) edit
 	 *  yields what the user sees rather than the stale raw slice. */
 	readRevealedText: () => string;
@@ -152,17 +156,18 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			e.clipboardData?.setData('text/plain', selectedText);
 
 			const selOffsets = deps.cursor.getRawSelection();
-			if (selOffsets) {
-				const displayText = trimTrailingLineEnding(deps.node.raw);
-				const newDisplay =
-					displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
-				void deps.blockEdit.updateBlockContent(
-					deps.index,
-					newDisplay + trailingLineEnding(deps.node.raw),
-					selOffsets.start
-				);
-				deps.setPendingCursor(selOffsets.start);
-			}
+			if (!selOffsets) return;
+			// A cut is a delete, so it crosses the same join seam: in live the range can span
+			// delimiter runs the reader never saw, and a raw splice would print them.
+			const cleaned = resolveSelectionEdit(deps.node, selOffsets, '', deps.getPresentationMode());
+			const displayText = trimTrailingLineEnding(deps.node.raw);
+			const newRaw =
+				cleaned?.raw ??
+				displayText.slice(0, selOffsets.start) +
+					displayText.slice(selOffsets.end) +
+					trailingLineEnding(deps.node.raw);
+			void deps.blockEdit.updateBlockContent(deps.index, newRaw, selOffsets.start);
+			deps.setPendingCursor(cleaned?.caret ?? selOffsets.start);
 		},
 
 		pasteTail: async (e, pastedText, foldedCaret) => {
