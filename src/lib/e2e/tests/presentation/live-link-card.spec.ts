@@ -2,7 +2,13 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
-import { centerOfWord, clickWordSettled, enterPresentationMode, landAt } from './helpers';
+import {
+	centerOfWord,
+	clickWordSettled,
+	enterPresentationMode,
+	landAt,
+	trailingEdgeOfWord
+} from './helpers';
 import { findInput } from '../search/helpers';
 
 // The anchored chrome that replaces the destination live mode hides.
@@ -80,6 +86,19 @@ test.describe('live-mode link card', () => {
 		const cardBox = (await card.boundingBox())!;
 		expect(cardBox.y).toBeGreaterThanOrEqual(linkBox.y);
 		expect(Math.abs(cardBox.x - linkBox.x)).toBeLessThan(60);
+	});
+
+	test('a drag-select inside the link keeps the selection and opens no card', async ({ page }) => {
+		const from = await centerOfWord(page, 'example');
+		const to = await trailingEdgeOfWord(page, 'example');
+		await page.mouse.move(from.x, from.y);
+		await page.mouse.down();
+		await page.mouse.move(to.x, to.y, { steps: 4 });
+		await page.mouse.up();
+		await ep.waitForRenderFlush();
+
+		await expect(page.locator(CARD)).toHaveCount(0);
+		expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
 	});
 
 	test('a blocked-scheme link renders as a span and still opens the card', async ({ page }) => {

@@ -45,6 +45,9 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 
 ## Edge cases
 
+- a drag-select that starts and ends inside a link's text keeps the selection and opens no card:
+  the click fires on the link element, but a live selection is a gesture the card must not
+  interrupt — every entry declines at the state's own guard, the chord included
 - a blocked-scheme link (`javascript:`) renders as `span.md-link-blocked` with no `href` and still
   opens the card: the card is how its URL gets fixed
 - an autolink opens no card at all — there is no hidden destination to edit
@@ -89,3 +92,6 @@ makes a destination unreachable, and the wave that hid it is the wave that owes 
 The forward-looking hole this file closes is the anchored-chrome one the image popover already had
 and nothing pinned — a commit rebuilds the inline DOM, so any overlay holding an element reference
 strands itself on the first edit.
+
+Drag-select regression: every pointer row clicked; none dragged, so the click entry's missing
+selection guard (which the chord entry carried) was never exercised.

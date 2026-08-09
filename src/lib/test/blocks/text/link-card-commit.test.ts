@@ -54,6 +54,17 @@ describe('link card commit — which fields survive a url edit', () => {
 		await settle();
 		expect(card.raw()).toBe('Visit [x](old) now\n');
 	});
+
+	// Miss: the unchanged-url pin above used a destination the serializer reproduces
+	// byte-identically, so the rebuild-and-rewrite it actually performed looked like a no-op.
+	it('an unchanged url never respells author bytes the serializer would normalize', async () => {
+		const card = makeCard('Visit [x](<a b>) now\n');
+		// What the field shows for the angle form, committed back untouched.
+		expect(card.committer.resolve(card.target)?.url).toBe('a%20b');
+		card.committer.commitUrl(card.target, 'a%20b');
+		await settle();
+		expect(card.raw()).toBe('Visit [x](<a b>) now\n');
+	});
 });
 
 describe('link card commit — reference forms', () => {

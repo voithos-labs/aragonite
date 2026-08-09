@@ -42,7 +42,8 @@
 	// The card deliberately OPENS on a blocked link so the URL can be repaired; what it may not do
 	// is hand that URL onward. A consumer's `onLinkActivate` reaches a shell's own opener, and this
 	// is the only door into it whose URL the user typed a moment ago rather than the document's.
-	const openable = $derived(resolveHref(draft));
+	// An empty draft resolves as a relative URL — a live Open with nowhere to go — so it declines.
+	const openable = $derived(draft.trim() === '' ? undefined : resolveHref(draft));
 	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();
 	let urlInput: HTMLInputElement | undefined = $state();
@@ -82,6 +83,9 @@
 	}
 
 	function handleKeyDown(e: KeyboardEvent): void {
+		// An IME's confirm/step keystrokes arrive as ordinary keydowns mid-composition; they are
+		// the composition's, never the card's.
+		if (e.isComposing) return;
 		if (e.key === 'Tab') {
 			e.preventDefault();
 			stepTrap(e.shiftKey);
@@ -96,6 +100,7 @@
 	}
 
 	function handleUrlKeyDown(e: KeyboardEvent): void {
+		if (e.isComposing) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			if (canWrite) onCommit(draft);

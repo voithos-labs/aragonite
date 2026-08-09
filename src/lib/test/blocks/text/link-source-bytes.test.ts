@@ -79,6 +79,13 @@ describe('link edit bytes — adversarial destinations', () => {
 		expect(editUrl('[t](old)', 'u\\)')).toBe('[t](u%5C%29)');
 	});
 
+	// Miss: the hostile alphabet carried no line breaks, so a multi-line paste built bytes the
+	// verifier refused and the whole edit died silently instead of encoding.
+	it('encodes line breaks, which otherwise break the construct and decline the edit', () => {
+		expect(editUrl('[t](old)', 'a\nb')).toBe('[t](a%0Ab)');
+		expect(editUrl('[t](old)', 'a\r\nb')).toBe('[t](a%0D%0Ab)');
+	});
+
 	it('an already-encoded destination is idempotent', () => {
 		expect(editUrl('[t](old)', 'u%60%29')).toBe('[t](u%60%29)');
 	});

@@ -400,9 +400,13 @@
 		}
 	});
 
-	// The caret snapshot rides the STATE, not the callers: click entry and `link.openCard` both
-	// borrow the screen from a live caret, and entry path N+1 would otherwise forget to save it.
-	const linkCard = createLinkCardState({ onOpen: () => linkCardCaret.saveCurrent() });
+	// The caret snapshot and the selection guard ride the STATE, not the callers: click entry and
+	// `link.openCard` both borrow the screen from a live caret, and entry path N+1 would otherwise
+	// forget one. The native collapse check alone misses a cross-block range's parked caret.
+	const linkCard = createLinkCardState({
+		onOpen: () => linkCardCaret.saveCurrent(),
+		canOpen: () => !selectionState.isCrossBlock && window.getSelection()?.isCollapsed !== false
+	});
 
 	/** Open the card on the link `el` renders, or report that nothing there is one. The caret has
 	 *  already landed from mousedown, which is the one the state snapshots. */
@@ -415,8 +419,7 @@
 		if (!contentEl) return false;
 		const hit = resolveLinkAtPoint({ contentEl, block, path, linkRef: linkRefView });
 		if (!hit) return false;
-		linkCard.open(hit.target);
-		return true;
+		return linkCard.open(hit.target);
 	}
 
 	// The card belongs to live mode alone; any other mode paints the destination bytes already.
