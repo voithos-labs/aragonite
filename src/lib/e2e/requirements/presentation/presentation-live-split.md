@@ -25,6 +25,10 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
 - Enter inside the italic of a bold-wrapping-italic yields two blocks that are both bold and
   both italic, the runs nesting outermost-first exactly as the original did
 - one `Mod+Z` restores the single original block, bytes identical, with the caret back inside it
+- Enter then Backspace round-trips: the join drops the closing and reopening runs it finds meeting
+  at the seam, so `Some **bo|ld** text` comes back byte-identical and a split link comes back as
+  ONE anchor on one destination — the residue a byte-literal merge would have left is what § 4.4
+  declares unrepresentable in live editing
 
 ## Edge cases
 
@@ -47,18 +51,6 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
 - Undo is a real `Mod+Z`, never a programmatic history call
 - No composition interaction exists to test: Enter cancels an IME composition before the split
   command runs, so the rewrite never sees composed bytes
-
-## Known defects
-
-- Enter then Backspace does NOT round-trip: merging the halves back writes the closing and the
-  reopening run adjacent, so `Some **bo|ld** text` comes back as `Some **bo****ld** text` and
-  gains another pair on every repeat; a split link comes back as TWO anchors sharing one
-  destination (`Visit [exam](u)[ple](u) here`). § 4.4 declares that residue unrepresentable in
-  live editing, and the byte-literal split merges back clean, so this is a regression the rewrite
-  introduced. The rewrite is not the wrong half of it: the join seam has no per-family cleanup yet
-  (§ 4.5), so a merge writes whatever the two halves carry. OWNED BY THE JOIN-SEAM TASK (Task 12);
-  pinned here as `test.fail()` rows asserting the CORRECT bytes, which turn red the day that fix
-  lands and force the annotation off
 
 ## Error cases
 

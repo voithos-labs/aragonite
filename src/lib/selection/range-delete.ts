@@ -101,7 +101,7 @@ export function rangeDelete(
 	);
 	// After both normalizers and ahead of both consumers: in live the runs the truncation left
 	// unpaired, and the pair a join brings back to back, are bytes the reader never saw (§ 4.5).
-	const joinedRaw = cleanJoinedRaw(
+	const joined = cleanJoinedRaw(
 		{
 			mergedRaw,
 			seam: startOffset,
@@ -119,7 +119,7 @@ export function rangeDelete(
 		const owned = chain[chain.length - 1] ?? ensureUnsharedNode(startBlock, sharing);
 		// No reparse on this arm, so the survivor's own grammar answers here: a join can mint
 		// a line the kind reads as its terminator (a fence run in a code body).
-		writeOwnRaw(owned, joinedRaw, grammar);
+		writeOwnRaw(owned, joined.raw, grammar);
 		// Ahead of the rebuild, which reads the body's trivia: a selection covering a block's whole
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
@@ -127,13 +127,13 @@ export function rangeDelete(
 		rebuildUnsharedChain(doc, chain, sharing, grammar);
 		return {
 			newDoc: doc,
-			collapsedCaret: { path: start.path.slice(), offset: startOffset }
+			collapsedCaret: { path: start.path.slice(), offset: joined.seam }
 		};
 	}
 
 	// Start's slot, start's rule: the survivor answers to it BEFORE the reparse re-derives
 	// metadata, and inherits the slot's separator a fragment reparse would mint empty (#60).
-	const replacement = reparseTruncatedEndpoint(startBlock, joinedRaw);
+	const replacement = reparseTruncatedEndpoint(startBlock, joined.raw);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to
 	// subtrees fully inside (start, end). Cascade-cleanup handles ancestors emptied afterwards.
@@ -166,7 +166,7 @@ export function rangeDelete(
 	const collapsedCaret: SelectionPoint =
 		leafPath && leafPath.length > start.path.length
 			? { path: leafPath, offset: 0 }
-			: { path: start.path.slice(), offset: startOffset };
+			: { path: start.path.slice(), offset: joined.seam };
 
 	return { newDoc: doc, collapsedCaret };
 }

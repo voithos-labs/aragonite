@@ -112,11 +112,18 @@ export interface JoinSeam {
 	end: JoinEndpoint;
 }
 
+/** The bytes a cleanup wrote and where the two sides now meet in them: dropping a run on the
+ *  first side's half moves the seam the caret lands on. */
+export interface CleanedJoin {
+	raw: string;
+	seam: number;
+}
+
 /**
  * The one live-mode join rewrite, consulting each construct's own policy row, so the merge
  * primitives need neither `parseInline` nor a per-kind dispatch. Null declines the rewrite.
  */
-export type LiveJoinSeamCleaner = (join: JoinSeam) => string | null;
+export type LiveJoinSeamCleaner = (join: JoinSeam) => CleanedJoin | null;
 
 let joinSeamCleaner: LiveJoinSeamCleaner | undefined;
 

@@ -17,7 +17,7 @@ describe('mergeWithPrevious', () => {
 		const source = 'Hello\n\nWorld\n';
 		const doc = parse(source);
 		const ids = ['keep-me', 'remove-me'];
-		const change = mergeWithPrevious(doc, 1, undefined);
+		const { change } = mergeWithPrevious(doc, 1, undefined);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
 		applyStructuralChangeToIdsRefs(change, ids, [undefined, undefined]);
 		expect(ids).toEqual(['keep-me']);
@@ -33,7 +33,7 @@ describe('mergeWithPrevious', () => {
 	it('returns noop when blockIndex is 0', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const change = mergeWithPrevious(doc, 0, undefined);
+		const { change } = mergeWithPrevious(doc, 0, undefined);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(1);
 	});
@@ -55,7 +55,7 @@ describe('mergeWithPrevious edge cases', () => {
 	it('returns noop when blockIndex is out of bounds', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const change = mergeWithPrevious(doc, 5, undefined);
+		const { change } = mergeWithPrevious(doc, 5, undefined);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(2);
 	});
@@ -92,7 +92,7 @@ describe('mergeWithNext', () => {
 		const source = 'Hello\n\nWorld\n';
 		const doc = parse(source);
 		const ids = ['keep-me', 'remove-me'];
-		const change = mergeWithNext(doc, 0, undefined);
+		const { change } = mergeWithNext(doc, 0, undefined);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
 		applyStructuralChangeToIdsRefs(change, ids, [undefined, undefined]);
 		expect(ids).toEqual(['keep-me']);
@@ -108,7 +108,7 @@ describe('mergeWithNext', () => {
 	it('returns noop when blockIndex is the last block', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const change = mergeWithNext(doc, 0, undefined);
+		const { change } = mergeWithNext(doc, 0, undefined);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(1);
 	});
@@ -130,7 +130,7 @@ describe('mergeWithNext edge cases', () => {
 	it('returns noop when blockIndex is out of bounds', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const change = mergeWithNext(doc, 5, undefined);
+		const { change } = mergeWithNext(doc, 5, undefined);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(2);
 	});
@@ -138,7 +138,7 @@ describe('mergeWithNext edge cases', () => {
 	it('returns noop when blockIndex is negative', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const change = mergeWithNext(doc, -1, undefined);
+		const { change } = mergeWithNext(doc, -1, undefined);
 		expect(change).toEqual({ op: 'noop' });
 		expect(doc.children).toHaveLength(2);
 	});

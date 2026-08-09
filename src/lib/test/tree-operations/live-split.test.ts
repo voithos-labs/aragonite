@@ -2,9 +2,12 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { splitNode, mergeIntoPrevDeepLeaf } from '$lib/tree-operations';
+import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import {
+	registerLiveJoinSeamCleaner,
 	registerLiveSplitRebalancer,
+	__resetLiveJoinSeamCleanerForTests,
 	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
 
@@ -14,10 +17,12 @@ import {
 
 beforeEach(() => {
 	registerLiveSplitRebalancer(rebalanceLiveSplit);
+	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
 });
 
 afterEach(() => {
 	__resetLiveSplitRebalancerForTests();
+	__resetLiveJoinSeamCleanerForTests();
 });
 
 const rawsAfterSplit = (source: string, offset: number, mode: 'live' | 'source' | undefined) => {
@@ -98,37 +103,41 @@ describe('a rebalanced split always produces exactly two blocks', () => {
 	});
 });
 
-/**
- * KNOWN FAILING, owned by the join-seam task (Task 12). Backspace at the second half's start
- * merges the halves with `trimTrailingLineEnding(prev.raw) + curr.raw` and no seam cleanup, so
- * the closing and reopening runs land back to back: `Some **bo****ld** text`, growing by a pair
- * on every repeat, and a split link comes back as two anchors sharing one destination. § 4.4
- * declares that residue unrepresentable in live editing. These rows assert the CORRECT bytes, so
- * the day the join cleanup lands they pass and `it.fails` turns red — that is the removal trigger.
- */
-describe('Backspace merging the halves back (known failing until the join seam cleans up)', () => {
-	it.fails('restores the original bytes with no residue between the runs', () => {
+// The split's inverse: the closing and reopening runs meet at the seam enclosing nothing, and the
+// join drops them (§ 4.5). Without the cleanup these wrote `Some **bo****ld** text`, gaining a
+// pair on every repeat, and returned a split link as two anchors sharing one destination.
+describe('Backspace merging the halves back', () => {
+	it('restores the original bytes with no residue between the runs', () => {
 		const doc = parse('Some **bold** text\n');
 		splitNode(doc, 0, 9, 'live');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live');
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
-	it.fails('a merged split link is one link again', () => {
+	it('a merged split link is one link again', () => {
 		const doc = parse('Visit [example](https://example.com) here\n');
 		splitNode(doc, 0, 11, 'live');
-		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live');
 		expect(doc.children[0].raw).toBe('Visit [example](https://example.com) here\n');
 	});
 
-	// The byte-literal halves DO merge back identically, which is what makes the shape above a
-	// regression rather than a pre-existing hole: the rewrite is what gives the join something to
-	// clean, and the join is where the cleaning belongs (§ 4.5).
+	// The byte-literal split merges back identically in every mode, which is what made the residue
+	// a regression of the rewrite rather than a pre-existing hole — and the join, not the split,
+	// is where the cleaning belongs.
 	it('is not a defect of the byte-literal split, which round-trips', () => {
 		const doc = parse('Some **bold** text\n');
 		splitNode(doc, 0, 9, undefined);
 		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
+	});
+
+	// A merge with no mode is every other mode: the residue stays, because there the delimiters
+	// were painted and the user could see what the two halves carried.
+	it('a modeless merge keeps the halves byte-literal', () => {
+		const doc = parse('Some **bold** text\n');
+		splitNode(doc, 0, 9, 'live');
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
+		expect(doc.children[0].raw).toBe('Some **bo****ld** text\n');
 	});
 });
 

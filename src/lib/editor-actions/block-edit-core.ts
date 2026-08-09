@@ -215,19 +215,22 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				return;
 			}
 
-			const mergeOffset = displayLength(children[i].raw);
+			// The landing is the primitive's answer, not `displayLength` read ahead of it: a live
+			// seam cleanup drops runs on the first block's side and moves where the two met.
+			let mergeOffset = displayLength(children[i].raw);
 			await scope.commit({
 				snapshot: { index: i, offset: CURSOR_END },
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				mutate: (view) => {
-					const change = performMergeNext(
+					const merged = performMergeNext(
 						{ children: view.children },
 						i,
 						view.getPresentationMode?.()
 					);
-					stampStructuralChange(view.children, change, view.sharing);
-					return change;
+					mergeOffset = merged.joinOffset;
+					stampStructuralChange(view.children, merged.change, view.sharing);
+					return merged.change;
 				},
 				afterTick: () => scope.refAt(i)?.focus(mergeOffset),
 				discardIfNoop: true
