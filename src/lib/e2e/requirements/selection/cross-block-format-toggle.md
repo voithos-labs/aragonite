@@ -31,3 +31,9 @@ same range, must stay exactly as destructive as it was.
   document load
 - zero `[invariant:…]` console fires across every scenario (automatic via the
   shared e2e fixture)
+
+## Miss-analysis
+
+- The unit suite pinned the destructive route as the CONTRACT ("deletes the range
+  then dispatches") behind a mocked command target, and no e2e ever pressed a
+  format chord over a cross-block range, so the `****` document showed nowhere (#107).

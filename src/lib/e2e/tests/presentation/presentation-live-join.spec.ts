@@ -43,13 +43,17 @@ test.describe('live mode — a selection out of one construct and into another',
 		await expect(ep.getBlock(MIXED)).toHaveText('Some boalic words', { useInnerText: true });
 	});
 
-	test('Mod+X leaves the same bytes and still copies what was on screen', async ({ page }) => {
+	test('Mod+X leaves the same bytes and copies the source slice the selection covered', async ({
+		page
+	}) => {
 		const ep = await enterMode(page, 'live');
 		await selectBoldIntoItalic(ep, page);
 
 		await page.keyboard.press('ControlOrMeta+x');
 		await ep.bridge.waitForSourceContains('Some boalic words');
 		expect(await ep.bridge.getSource()).not.toContain('**bo');
+		// Live copy writes SOURCE bytes (raw 9-21), not the visible text — the consumer guide's contract.
+		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('ld** and *it');
 	});
 
 	test('typing over the selection lands the character at the cleaned seam', async ({ page }) => {
