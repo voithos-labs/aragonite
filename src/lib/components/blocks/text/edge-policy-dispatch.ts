@@ -439,7 +439,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
 		const el = deps.getEl();
 		if (!el || !revealsNoMarkers(el)) return false;
-		const seat = resolveEdgeSeat(caretOffset, inlinesOf(deps.node), deps.getEdgeAffinity());
+		const seat = resolveEdgeSeat(
+			caretOffset,
+			inlinesOf(deps.node),
+			deps.getEdgeAffinity(),
+			deps.node.raw
+		);
 		if (!seat) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);

@@ -233,7 +233,12 @@ test.describe('live-mode link card', () => {
 		});
 		await openCardOn(ep, page, 'danger');
 
-		await page.getByRole('button', { name: 'Open link' }).click();
+		// The button is DISABLED rather than inert on click: the draft rides the render path's own
+		// href funnel now, and a blocked scheme resolves to nothing to hand onward. The card still
+		// opens on the link, which is how its URL gets repaired.
+		const open = page.getByRole('button', { name: 'Open link' });
+		await expect(open).toBeDisabled();
+		await open.click({ force: true });
 
 		// 200ms — verifying the ABSENCE of a popup, which has no observable state to predicate on.
 		await page.waitForTimeout(200);

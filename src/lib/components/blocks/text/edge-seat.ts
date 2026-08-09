@@ -8,6 +8,8 @@
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import { constructContentRange } from '../../../core/inline';
+import { renderedText } from '../../../core/inline-render';
+import type { ContentRange } from '../../../core/inline';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 
 export interface EdgeSeat {
@@ -23,9 +25,10 @@ export interface EdgeSeat {
 export function resolveEdgeSeat(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
-	affinity: EdgeAffinity | null
+	affinity: EdgeAffinity | null,
+	raw?: string
 ): EdgeSeat | null {
-	const run = markerRunAt(caretOffset, inlines);
+	const run = markerRunAt(caretOffset, inlines, raw);
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
@@ -56,7 +59,7 @@ export function relocateComposedRun(
 ): { raw: string; caret: number } | null {
 	const composed = plainInsertionAt(before, after, composedAt);
 	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity);
+	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before);
 	if (!seat) return null;
 	return {
 		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
@@ -93,37 +96,44 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 /**
  * The innermost construct marker run `offset` sits in, its own boundaries included. Innermost
  * wins: children are visited after their parent, so a nested pair claims its own edge. INSIDE
- * counts, not just the two ends — a doubled code fence and a hidden `\` are runs a caret can be
- * handed the middle of, and a seat that matched only the ends left the byte between delimiters.
+ * counts, not just the two ends — a doubled code fence is a run a caret can be handed the middle
+ * of, and a seat matching only the ends left the byte between delimiters.
  */
-function markerRunAt(offset: number, inlines: readonly InlineNode[]): MarkerRun | null {
+function markerRunAt(
+	offset: number,
+	inlines: readonly InlineNode[],
+	raw: string | undefined
+): MarkerRun | null {
 	let found: MarkerRun | null = null;
 	const visit = (nodes: readonly InlineNode[]): void => {
 		for (const node of nodes) {
-			const content = constructContentRange(node);
+			const content = constructContentRange(node) ?? paintedRange(node, raw);
 			if (content) {
 				if (node.start < content.start && offset >= node.start && offset <= content.start) {
 					found = { start: node.start, end: content.start, leading: true, kind: node.kind };
 				} else if (content.end < node.end && offset >= content.end && offset <= node.end) {
 					found = { start: content.end, end: node.end, leading: false, kind: node.kind };
 				}
-			} else if (node.kind !== 'text' && offset > node.start && offset < node.end) {
-				// A CHILDLESS construct — an escape, an angle autolink, a hard break — has no
-				// content range to split on, so the whole node is one run and the nearer end is
-				// what "outside" means. STRICTLY inside: its own boundaries are ordinary seams
-				// between siblings, and claiming them would take the neighbour's closing run with
-				// them. Its policy row still decides whether it extends at all; a kind with no row
-				// declines in `resolveEdgeSeat` as it always did.
-				found = {
-					start: node.start,
-					end: node.end,
-					leading: offset - node.start <= node.end - offset,
-					kind: node.kind
-				};
 			}
 			if (node.children) visit(node.children);
 		}
 	};
 	visit(inlines);
 	return found;
+}
+
+/**
+ * What a CHILDLESS construct paints, as a range in the block's own bytes — an angle autolink's
+ * URL between its brackets, an escape's escaped character after its backslash. Asked of the
+ * render path rather than derived per kind: which bytes a construct shows is the one question
+ * only the painter answers (G4.33), and without it the seat treated every byte of these as
+ * content and let a typed one land between the delimiters.
+ */
+function paintedRange(node: InlineNode, raw: string | undefined): ContentRange | null {
+	if (raw === undefined || node.kind === 'text') return null;
+	const painted = renderedText([node], raw);
+	if (painted === '') return null;
+	const at = raw.slice(node.start, node.end).indexOf(painted);
+	if (at === -1) return null;
+	return { start: node.start + at, end: node.start + at + painted.length };
 }
