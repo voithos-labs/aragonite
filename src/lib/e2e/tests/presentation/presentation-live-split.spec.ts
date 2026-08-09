@@ -56,7 +56,6 @@ async function visibleText(ep: EditorPage, block: number): Promise<string> {
 	});
 }
 
-
 test.describe('live mode — Enter inside a construct closes and reopens it', () => {
 	let ep: EditorPage;
 

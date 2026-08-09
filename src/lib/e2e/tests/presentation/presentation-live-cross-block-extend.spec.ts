@@ -207,4 +207,3 @@ test.describe('source mode — the endpoints are the raw ones', () => {
 		expect(await focusOffset(ep)).toBe(RAW_END);
 	});
 });
-

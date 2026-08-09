@@ -128,7 +128,10 @@ describe('tableCellInlinePaste', () => {
 		afterAll(() => __resetLiveJoinSeamCleanerForTests());
 
 		const CUT = { start: 8, end: 18 };
-		const seamIn = (presentationMode: PresentationMode) => ({ presentationMode, linkRef: undefined });
+		const seamIn = (presentationMode: PresentationMode) => ({
+			presentationMode,
+			linkRef: undefined
+		});
 
 		it('live: the run the cut stranded goes with it', () => {
 			const result = tableCellInlinePaste(
@@ -142,7 +145,13 @@ describe('tableCellInlinePaste', () => {
 		});
 
 		it('the escaping stage still runs over what the seam wrote', () => {
-			const { cells } = pasteIntoRow('a\\|b **z** c', 7, 'X', { start: 7, end: 10 }, seamIn('live'));
+			const { cells } = pasteIntoRow(
+				'a\\|b **z** c',
+				7,
+				'X',
+				{ start: 7, end: 10 },
+				seamIn('live')
+			);
 			// The stranded `**` went with the cut and the cell's own `\|` survived the round.
 			expect(cells).toEqual(['a\\|b X c', 'keep']);
 		});
