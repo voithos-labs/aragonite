@@ -97,6 +97,13 @@ describe('a childless construct is all delimiters', () => {
 		expect(seatIn('end  \nnext', 4, 'far')).toEqual({ offset: 3, kind: 'hardLineBreak' });
 	});
 
+	// `\\` paints `\` — a painted string that ALSO occurs at the construct's own start. The
+	// anchor must take the last match, or the leading backslash reads as content and the seat
+	// sends a byte typed at offset 1 to the pair's end instead of its start.
+	it('seats a byte at an escaped backslash on the near side, not past the pair', () => {
+		expect(seatIn('\\\\x y', 1, 'far')).toEqual({ offset: 0, kind: 'escape' });
+	});
+
 	// `<https://e.com>`: the URL is what paints, so the brackets are the two runs. A byte at
 	// either one goes outside the construct — the destination is not text to extend.
 	it('seats a byte against an angle autolink outside its brackets', () => {

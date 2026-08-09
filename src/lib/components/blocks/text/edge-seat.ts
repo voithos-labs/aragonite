@@ -133,7 +133,10 @@ function paintedRange(node: InlineNode, raw: string | undefined): ContentRange |
 	if (raw === undefined || node.kind === 'text') return null;
 	const painted = renderedText([node], raw);
 	if (painted === '') return null;
-	const at = raw.slice(node.start, node.end).indexOf(painted);
+	// lastIndexOf, not indexOf: a self-similar shape (`\\` paints `\`) matches at its own
+	// LEADING marker too, and reading that as content seats a typed byte on the wrong side.
+	// Every childless kind paints a suffix-or-whole slice, so the last match is the content.
+	const at = raw.slice(node.start, node.end).lastIndexOf(painted);
 	if (at === -1) return null;
 	return { start: node.start + at, end: node.start + at + painted.length };
 }

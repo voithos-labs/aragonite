@@ -145,19 +145,22 @@ const lineCount = (t: string) => t.split('\n').length;
  * pre-existing and mode-independent one, and code points would report it as a loss here.
  */
 function keepsEveryByte(before: string, after: string): boolean {
+	// The declared-drop exception (#106), re-derived: the rebalancer strips `droppedTail` before
+	// returning its halves, so the forgiveness is bounded by the line-terminal whitespace
+	// `before` holds instead — a terminal run can absorb an equal COUNT of mid-line whitespace,
+	// but exact position would make this net an echo of the verifier, not an independent oracle.
+	let droppable = (before.match(/[ \t]+(?=\r?\n|$)/g) ?? []).join('').length;
 	const budget = new Map<string, number>();
 	for (const byte of after.replace(/\r?\n/g, '').split('')) {
 		budget.set(byte, (budget.get(byte) ?? 0) + 1);
 	}
 	for (const byte of before.replace(/\r?\n/g, '').split('')) {
 		const left = budget.get(byte) ?? 0;
-		// The DECLARED-DROP exception, re-derived from the byte rather than read off the
-		// declaration: a candidate may drop what the screen never painted, and the verifier admits
-		// that only for a whitespace-only `droppedTail` (#106). The rebalancer strips the
-		// declaration before returning its halves, so this side cannot see it — reading the KIND
-		// off the byte matches the verifier exactly and is weaker only in POSITION.
 		if (left === 0) {
-			if (byte.trim() === '') continue;
+			if (byte.trim() === '' && droppable > 0) {
+				droppable--;
+				continue;
+			}
 			return false;
 		}
 		budget.set(byte, left - 1);
@@ -277,6 +280,10 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		it('a non-whitespace drop is still a loss, so the exception cannot widen', () => {
 			expect(keepsEveryByte('~~foo~~  ', '~~foo~~')).toBe(true);
 			expect(keepsEveryByte('<https://example.com> t', 'https://example.com t')).toBe(false);
+		});
+
+		it('a mid-line space lost with no terminal run to blame is a loss too', () => {
+			expect(keepsEveryByte('a b\n', 'ab\n')).toBe(false);
 		});
 
 		it('a live split diverges nowhere the byte-literal split already does', () => {
