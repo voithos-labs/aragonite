@@ -26,6 +26,7 @@ import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
+import type { InlineResolverRef } from '../../schema/inline-construct-policy';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -57,6 +58,8 @@ export interface NestedActionsDeps {
 	/** Live EFFECTIVE mode, for interior mutations whose bytes depend on what the mode paints
 	 *  (the split rebalance). Nullable rather than optional so each container answers. */
 	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, required-nullable beside the mode. */
+	linkRef: InlineResolverRef | undefined;
 	/** Enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {
@@ -101,6 +104,7 @@ export function createStandardNestedActions(
 		stickyColumn: input.stickyColumn,
 		grammar: input.grammar,
 		getPresentationMode: input.getPresentationMode,
+		linkRef: input.linkRef,
 		parentListContext: input.parentListContext,
 		parent: input.parent
 	};

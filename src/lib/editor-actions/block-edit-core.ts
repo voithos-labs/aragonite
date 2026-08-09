@@ -65,7 +65,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						{ children: view.children, ownerKind: view.ownerKind },
 						i,
 						offset,
-						view.getPresentationMode?.()
+						view.getPresentationMode?.(),
+						view.linkRef
 					);
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
@@ -171,7 +172,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						{ children: view.children },
 						i,
 						view.sharing,
-						view.getPresentationMode?.()
+						view.getPresentationMode?.(),
+						view.linkRef
 					);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
@@ -226,7 +228,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					const merged = performMergeNext(
 						{ children: view.children },
 						i,
-						view.getPresentationMode?.()
+						view.getPresentationMode?.(),
+						view.linkRef
 					);
 					mergeOffset = merged.joinOffset;
 					stampStructuralChange(view.children, merged.change, view.sharing);

@@ -10,10 +10,12 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		PARENT_SCOPE_SINK_KEY,
+		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices,
 		type ParentScopeSink
@@ -63,6 +65,7 @@
 	const getPresentationMode = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.presentationMode;
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
 	const cellsState = createBlockListState(() => node);
 
@@ -118,6 +121,7 @@
 		stickyColumn,
 		grammar: registryView.grammar,
 		getPresentationMode,
+		linkRef,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,

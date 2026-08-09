@@ -16,6 +16,7 @@ import {
 	getLiveJoinSeamCleaner,
 	getLiveSplitRebalancer,
 	type CleanedJoin,
+	type InlineResolverRef,
 	type JoinSeam
 } from '../schema/inline-construct-policy';
 import type { PresentationMode } from '../presentation-mode';
@@ -174,7 +175,8 @@ export function splitNode(
 	parent: BodyParentArg,
 	blockIndex: number,
 	offset: number,
-	presentationMode: PresentationMode | undefined
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): StructuralChange {
 	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
@@ -208,7 +210,7 @@ export function splitNode(
 	// half would surface runs the reader never saw. The rebalancer verifies its own bytes and
 	// declines when they do not parse back, leaving the literal cut every other mode gets.
 	if (presentationMode === 'live') {
-		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw);
+		const rebalanced = getLiveSplitRebalancer()?.(node, offset, firstRaw, secondRaw, linkRef);
 		if (rebalanced) {
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
@@ -376,7 +378,8 @@ export function cleanJoinedRaw(
 function joinRaw(
 	prev: NodeView,
 	curr: NodeView,
-	presentationMode: PresentationMode | undefined
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): CleanedJoin {
 	const seam = displayLength(prev.raw);
 	return cleanJoinedRaw(
@@ -384,7 +387,8 @@ function joinRaw(
 			mergedRaw: prev.raw.slice(0, seam) + curr.raw,
 			seam,
 			start: { node: prev, offset: seam },
-			end: { node: curr, offset: 0 }
+			end: { node: curr, offset: 0 },
+			linkRef
 		},
 		presentationMode
 	);
@@ -405,7 +409,8 @@ export interface MergeResult {
 export function mergeWithPrevious(
 	parent: NodeParent,
 	blockIndex: number,
-	presentationMode: PresentationMode | undefined
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): MergeResult {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) {
 		return { change: { op: 'noop' }, joinOffset: 0 };
@@ -414,7 +419,7 @@ export function mergeWithPrevious(
 	const prev = parent.children[blockIndex - 1];
 	const curr = parent.children[blockIndex];
 
-	const { raw: mergedRaw, seam } = joinRaw(prev, curr, presentationMode);
+	const { raw: mergedRaw, seam } = joinRaw(prev, curr, presentationMode, linkRef);
 	// A merge of two blank blocks collapses the run, so prev's separator no longer describes
 	// where the survivor sits; re-derive it.
 	const trivia = isBlankSource(mergedRaw)
@@ -453,7 +458,8 @@ export function mergeIntoPrevDeepLeaf(
 	parent: NodeParent,
 	blockIndex: number,
 	sharing: SharingState | undefined,
-	presentationMode: PresentationMode | undefined
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
 
@@ -471,7 +477,7 @@ export function mergeIntoPrevDeepLeaf(
 	const curr = parent.children[blockIndex];
 
 	const lineEnding = trailingLineEnding(target.raw ?? '');
-	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode);
+	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
 
 	target.raw = trimTrailingLineEnding(mergedRaw) + lineEnding;
 	if (mergeTarget.path.length > 0) {
@@ -489,7 +495,8 @@ export function mergeIntoPrevDeepLeaf(
 export function mergeWithNext(
 	parent: NodeParent,
 	blockIndex: number,
-	presentationMode: PresentationMode | undefined
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): MergeResult {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) {
 		return { change: { op: 'noop' }, joinOffset: 0 };
@@ -498,7 +505,7 @@ export function mergeWithNext(
 	const curr = parent.children[blockIndex];
 	const next = parent.children[blockIndex + 1];
 
-	const { raw: mergedRaw, seam } = joinRaw(curr, next, presentationMode);
+	const { raw: mergedRaw, seam } = joinRaw(curr, next, presentationMode, linkRef);
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
 	parent.children.splice(blockIndex, 2, mergedNode);
 	return { change: replacePreservingFirst(blockIndex, 2, 1), joinOffset: seam };

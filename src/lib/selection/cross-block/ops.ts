@@ -9,7 +9,7 @@
 import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
 import type { GrammarView } from '../../schema/block-openers';
-import type { PresentationModeGetter } from '../../editor-keys';
+import type { LinkReferenceResolverRef, PresentationModeGetter } from '../../editor-keys';
 import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
@@ -40,6 +40,9 @@ export interface CrossBlockMutationContext {
 	/** The effective mode the delete's join seam answers to (§ 4.5). Required-nullable for the
 	 *  same reason as `grammar`; `undefined` reads as not-live, so the join stays byte-literal. */
 	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, so the seam parses the reference forms the render
+	 *  path drew. Required-nullable beside the mode. */
+	linkRef: LinkReferenceResolverRef | undefined;
 }
 
 /** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
@@ -183,7 +186,8 @@ async function commitPureTopLevelDelete(
 				end,
 				ctx.controller.sharing,
 				ctx.grammar,
-				ctx.getPresentationMode?.()
+				ctx.getPresentationMode?.(),
+				ctx.linkRef
 			);
 			collapsedCaret = result.collapsedCaret;
 			const afterLen = topLevelChildren.length;
@@ -253,7 +257,8 @@ async function commitCrossContainerDelete(
 				end,
 				sharing,
 				ctx.grammar,
-				ctx.getPresentationMode?.()
+				ctx.getPresentationMode?.(),
+				ctx.linkRef
 			);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();

@@ -10,6 +10,7 @@ import type { BlockComponent } from '../../block-component';
 import type {
 	BlockElLookup,
 	DocumentGetter,
+	LinkReferenceResolverRef,
 	PluginEditorLookup,
 	PresentationModeGetter
 } from '../../editor-keys';
@@ -58,6 +59,9 @@ export interface CrossBlockDispatchContext {
 	pluginEditor: PluginEditorLookup | undefined;
 	/** The effective presentation mode; the destructive-branch reading gate keys off this. */
 	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, forwarded to the delete's join seam. Required-
+	 *  nullable like `pluginEditor`, so a new construction site can't silently skip the thread. */
+	linkRef: LinkReferenceResolverRef | undefined;
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -97,7 +101,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		pushUndoSnapshot: () =>
 			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
 		grammar: ctx.grammar,
-		getPresentationMode: ctx.getPresentationMode
+		getPresentationMode: ctx.getPresentationMode,
+		linkRef: ctx.linkRef
 	};
 
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);

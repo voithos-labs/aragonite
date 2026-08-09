@@ -24,6 +24,7 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 			{ path: [2], offset: 1 },
 			createSharingState(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -43,6 +44,7 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 			{ path: [0], offset: 0 },
 			{ path: [2], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -64,6 +66,7 @@ describe('rangeDelete table branch — covered containers die whole', () => {
 			{ path: [0], offset: 0 },
 			{ path: [2], offset: 1 },
 			createSharingState(),
+			undefined,
 			undefined,
 			undefined
 		);

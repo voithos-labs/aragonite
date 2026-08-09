@@ -11,10 +11,12 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		LIST_CONTEXT_KEY,
+		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
@@ -59,6 +61,7 @@
 		blockDragHandles: getDragHandles,
 		presentationMode: getPresentationMode
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
@@ -135,6 +138,7 @@
 			stickyColumn,
 			grammar: registryView.grammar,
 			getPresentationMode,
+			linkRef,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,

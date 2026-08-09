@@ -58,6 +58,7 @@ function makeEnv() {
 		history: { requestUndo() {}, requestRedo() {} },
 		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
+		linkRef: undefined,
 		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(controller, harness.deps.revealPath),
@@ -82,7 +83,8 @@ function makeEnv() {
 			controller,
 			pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
 			grammar: undefined,
-			getPresentationMode: undefined
+			getPresentationMode: undefined,
+			linkRef: undefined
 		},
 		releaseReveal: () => {
 			gateArmed = false;

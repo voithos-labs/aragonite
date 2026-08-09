@@ -28,6 +28,7 @@ function harness() {
 		getBlockElByPath: () => document.createElement('div'),
 		revealPath: async () => null,
 		getPresentationMode: undefined,
+		linkRef: undefined,
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;
 

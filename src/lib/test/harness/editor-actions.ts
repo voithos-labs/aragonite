@@ -290,7 +290,8 @@ export function makeListContextAt(
 		parentFocus: opts.parentFocus ?? makeStubFocus(),
 		parentListContext: opts.parentListContext,
 		controller,
-		getPresentationMode: deps.getPresentationMode
+		getPresentationMode: deps.getPresentationMode,
+		linkRef: deps.linkRef
 	});
 	return { listContext, state, getNode, controller };
 }
@@ -305,6 +306,7 @@ export interface NestedActionsDepsInput {
 	stickyColumn?: StickyColumnState;
 	grammar?: GrammarView;
 	getPresentationMode?: NestedActionsDeps['getPresentationMode'];
+	linkRef?: NestedActionsDeps['linkRef'];
 }
 
 // Every call site routes its input through here so the live-getter scope shape is
@@ -322,6 +324,7 @@ export function makeNestedActionsDeps(input: NestedActionsDepsInput): NestedActi
 		// Optional field: omit when absent rather than set undefined (exactOptionalPropertyTypes-safe).
 		...(input.grammar ? { grammar: input.grammar } : {}),
 		getPresentationMode: input.getPresentationMode,
+		linkRef: input.linkRef,
 		parent: input.parent
 	};
 }

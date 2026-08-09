@@ -13,6 +13,7 @@ import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { GrammarView } from '../schema/block-openers';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { PresentationModeGetter } from '../editor-keys';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
@@ -34,6 +35,9 @@ export interface MutationView {
 	/** Live EFFECTIVE mode, for mutations whose bytes depend on what the mode paints. Nullable
 	 *  rather than optional so each adapter answers; `undefined` reads as not-live. */
 	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, so a rewrite parses the reference forms the render
+	 *  path drew. Nullable for the same reason as the mode; `undefined` reads them as brackets. */
+	linkRef: InlineResolverRef | undefined;
 	/** Copy-out-of-sharing the child at `i` before an in-place write; returns the owned node. */
 	unshareChild(i: number): CstNode;
 }
@@ -98,6 +102,7 @@ export function createTopLevelScope(
 						sharing: deps.sharing,
 						grammar: deps.grammar,
 						getPresentationMode: deps.getPresentationMode,
+						linkRef: deps.linkRef,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
@@ -132,6 +137,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 						ownerKind: scope.node.kind,
 						grammar: deps.grammar,
 						getPresentationMode: deps.getPresentationMode,
+						linkRef: deps.linkRef,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
 				op: { ...op, eventPath: extendDocPath(deps.path, eventTarget) },

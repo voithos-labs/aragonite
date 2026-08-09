@@ -21,13 +21,21 @@ const DOC = [
 	'',
 	'**a *ital* b**',
 	'',
-	'plain words here'
+	'plain words here',
+	'',
+	'Ref [refexample][site] here',
+	'',
+	'[site]: https://example.com'
 ].join('\n');
 
 const BOLD = 0;
 const LINK = 1;
 const NESTED = 2;
 const PLAIN = 3;
+const REF = 4;
+/** The fixture's block count, so a merge row asserts "back to where it started" rather than a
+ *  literal that a new fixture block silently invalidates. */
+const BLOCKS = DOC.split('\n\n').length;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
@@ -149,7 +157,7 @@ test.describe('live mode — Enter then Backspace round-trips', () => {
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('Some **bo**');
 		await page.keyboard.press('Backspace');
-		await expect.poll(() => ep.getBlocks().count()).toBe(4);
+		await expect.poll(() => ep.getBlocks().count()).toBe(BLOCKS);
 
 		expect(await ep.bridge.getSource()).toContain('Some **bold** text');
 		expect(await ep.bridge.getSource()).not.toContain('****');
@@ -163,10 +171,25 @@ test.describe('live mode — Enter then Backspace round-trips', () => {
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('[exam](https://example.com)');
 		await page.keyboard.press('Backspace');
-		await expect.poll(() => ep.getBlocks().count()).toBe(4);
+		await expect.poll(() => ep.getBlocks().count()).toBe(BLOCKS);
 
 		expect(await ep.bridge.getSource()).toContain('Visit [example](https://example.com) here');
 		expect(await ep.getBlock(LINK).locator('a').count()).toBe(1);
+	});
+});
+
+// The resolver rides the split call, so the seam sees a reference form as the LINK the render path
+// drew rather than as brackets — the decline that used to leak them.
+test.describe('live mode — a reference form splits like any other link', () => {
+	test('both halves carry the reference label', async ({ page }) => {
+		const ep = await enterMode(page, 'live');
+		await clickWordSettled(ep, page, 'refexample');
+		await stepTo(ep, page, 'ArrowRight', 10);
+
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForSourceContains('Ref [refex][site]\n\n[ample][site] here');
+		await expect(ep.getBlock(REF).locator('a')).toHaveText('refex', { useInnerText: true });
+		await expect(ep.getBlock(REF + 1).locator('a')).toHaveText('ample', { useInnerText: true });
 	});
 });
 

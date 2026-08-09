@@ -24,6 +24,7 @@ function emptyBlock(doc: Document, index: number): void {
 		{ path: [index], offset: end },
 		createSharingState(),
 		undefined,
+		undefined,
 		undefined
 	);
 }
@@ -31,8 +32,8 @@ function emptyBlock(doc: Document, index: number): void {
 /** [Hello, x('\n'), blank(''), Second('\n')] — the split shape, whose run line sits two below. */
 function splitShape(): Document {
 	const doc = parse('Hello\n\nSecond\n');
-	splitNode(doc, 0, 5, undefined);
-	splitNode(doc, 1, 0, undefined);
+	splitNode(doc, 0, 5, undefined, undefined);
+	splitNode(doc, 1, 0, undefined, undefined);
 	updateNodeContent(doc, 1, 'x\n');
 	return doc;
 }
@@ -76,6 +77,7 @@ describe('a delete that empties a block settles the run it joins', () => {
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 0 },
 			createSharingState(),
+			undefined,
 			undefined,
 			undefined
 		);

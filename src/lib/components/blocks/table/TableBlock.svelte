@@ -84,6 +84,7 @@
 	const getPresentationMode = getContext<EditorPolicies | undefined>(
 		EDITOR_POLICIES_KEY
 	)?.presentationMode;
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 	// Every menu item mutates the table, so reading mode declines to open it and the
 	// native context menu (with Copy) shows instead.
 	const readOnly = $derived(getPresentationMode?.() === 'reading');
@@ -122,6 +123,7 @@
 		stickyColumn: editorStickyColumn,
 		grammar: registryView.grammar,
 		getPresentationMode,
+		linkRef,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: focusActions,

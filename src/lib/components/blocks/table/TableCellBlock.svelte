@@ -192,6 +192,7 @@
 	});
 
 	const editableSurface = createEditableSurface({
+		linkRef,
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
 		isInputSuppressed: () => revealing,

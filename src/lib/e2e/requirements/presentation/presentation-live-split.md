@@ -7,10 +7,9 @@ inside a construct CLOSES it before the cut and REOPENS it after, so each half s
 balanced construct of the same kind; a split link duplicates its destination into both halves;
 a cut at a construct's edge hands the construct over whole rather than mint an empty pair; and
 one `Mod+Z` puts the original block back. Where markdown cannot express a balanced pair the
-split falls back to the byte-literal cut — sound, and today's behavior. Two measured shapes take
-that fallback and so still print their markers: a code span whose reopened fence would abut a
-backtick (``a`b``), and every reference form (`[text][ref]`), whose definition the split
-seam has no resolver to reach. Driven on
+split falls back to the byte-literal cut — sound, and today's behavior. One measured shape takes
+that fallback and so still prints its markers: a code span whose reopened fence would abut a
+backtick (``a`b``). Driven on
 `/test/editor` via `?presentationMode=live` with real Enter keystrokes and a real `Mod+Z`; the
 SOURCE is the oracle, since a hidden delimiter and an absent one look identical on screen.
 
@@ -24,6 +23,8 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
   the URL the reader never saw is duplicated rather than lost with the closing half
 - Enter inside the italic of a bold-wrapping-italic yields two blocks that are both bold and
   both italic, the runs nesting outermost-first exactly as the original did
+- Enter inside a REFERENCE link's text yields two links on the same label: the resolver rides the
+  split call, so the seam reads the construct the render path drew instead of a pair of brackets
 - one `Mod+Z` restores the single original block, bytes identical, with the caret back inside it
 - Enter then Backspace round-trips: the join drops the closing and reopening runs it finds meeting
   at the seam, so `Some **bo|ld** text` comes back byte-identical and a split link comes back as

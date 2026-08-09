@@ -60,6 +60,7 @@ export function makeSurface(commitInput?: EditableSurfaceDeps['commitInput']): S
 		history: {},
 		pluginEditor: undefined,
 		getPresentationMode: () => 'source' as const,
+		linkRef: undefined,
 		onCommandError: undefined,
 		getKeybindingOverrides: () => ({}),
 		pasteCoordinator: {},

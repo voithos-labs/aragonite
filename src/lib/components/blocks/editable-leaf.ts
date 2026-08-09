@@ -222,7 +222,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
-		pluginEditor
+		pluginEditor,
+		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
@@ -240,6 +241,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	);
 
 	const editableSurface = createEditableSurface({
+		linkRef,
 		getEl: () => deps.getEl(),
 		getAmbientLength: () => 0,
 		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.

@@ -177,6 +177,7 @@
 	});
 
 	const editableSurface = createEditableSurface({
+		linkRef,
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
 		isInputSuppressed: () => revealing,
@@ -791,7 +792,7 @@
 		const range = cursor.getRawSelection();
 		if (!range) return false;
 		const typed = e.inputType === 'insertText' ? (e.data ?? '') : '';
-		const edit = resolveSelectionEdit(node, range, typed, presentationMode);
+		const edit = resolveSelectionEdit(node, range, typed, presentationMode, linkRef);
 		if (!edit) return false;
 		e.preventDefault();
 		void blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);

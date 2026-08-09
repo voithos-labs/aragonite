@@ -26,6 +26,7 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			{ path: [1], offset: 3 },
 			createSharingState(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -42,6 +43,7 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			{ path: [1], offset: 0 },
 			createSharingState(),
 			undefined,
+			undefined,
 			undefined
 		);
 
@@ -57,6 +59,7 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			{ path: [0], offset: 3 },
 			{ path: [1], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined,
 			undefined
 		);
@@ -78,6 +81,7 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 			{ path: [0], offset: 2 },
 			{ path: [1], offset: 0 },
 			createSharingState(),
+			undefined,
 			undefined,
 			undefined
 		);

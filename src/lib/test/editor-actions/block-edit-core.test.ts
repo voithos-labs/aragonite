@@ -38,6 +38,7 @@ function stubScope(
 				children,
 				sharing,
 				getPresentationMode: undefined,
+				linkRef: undefined,
 				unshareChild: (i) => children[i]
 			});
 			await args.afterTick?.();

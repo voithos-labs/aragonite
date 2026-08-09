@@ -13,6 +13,7 @@ import {
 	parseInline
 } from '../../../core/inline';
 import { renderedText } from '../../../core/inline-render';
+import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import { parse } from '../../../core/parser';
@@ -23,14 +24,21 @@ import {
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
-export const rebalanceLiveSplit: LiveSplitRebalancer = (node, offset, firstRaw, secondRaw) => {
+export const rebalanceLiveSplit: LiveSplitRebalancer = (
+	node,
+	offset,
+	firstRaw,
+	secondRaw,
+	linkRef
+) => {
 	const bytes = readSplitBytes(node, offset, firstRaw, secondRaw);
 	if (bytes === null) return null;
-	const chain = splittableChainAt(bytes, offset);
+	const resolver = linkRef?.current;
+	const chain = splittableChainAt(bytes, offset, resolver);
 	if (chain === null || chain.length === 0) return null;
 	const seam = seamParts(bytes, chain, offset);
 	for (const candidate of [assemble(bytes, seam), assembleSpaceOutside(bytes, seam)]) {
-		if (candidate !== null && parsesBack(bytes, seam, candidate)) return candidate;
+		if (candidate !== null && parsesBack(bytes, seam, candidate, resolver)) return candidate;
 	}
 	return null;
 };
@@ -95,7 +103,11 @@ interface ChainLink {
  * with no policy row, one whose split behavior is plain, and one whose content bounds are unknown
  * all cannot be cut open, and cutting the constructs inside it would strand its pair.
  */
-function splittableChainAt(bytes: SplitBytes, offset: number): ChainLink[] | null {
+function splittableChainAt(
+	bytes: SplitBytes,
+	offset: number,
+	resolver: LinkReferenceResolver | undefined
+): ChainLink[] | null {
 	const chain: ChainLink[] = [];
 	const visit = (nodes: readonly InlineNode[]): boolean => {
 		for (const node of nodes) {
@@ -120,7 +132,9 @@ function splittableChainAt(bytes: SplitBytes, offset: number): ChainLink[] | nul
 		}
 		return true;
 	};
-	return visit(parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd)) ? chain : null;
+	return visit(parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver))
+		? chain
+		: null;
 }
 
 // ── Candidates ───────────────────────────────────────────────────────────────
@@ -214,14 +228,19 @@ interface HalfRead {
  * the constructs the seam closed and reopened survive? And does the render path report the same
  * characters as before, the one line ending the split itself consumed aside?
  */
-function parsesBack(bytes: SplitBytes, seam: SeamParts, candidate: RebalancedHalves): boolean {
-	const first = soleProseBlock(candidate.firstRaw);
-	const second = soleProseBlock(candidate.secondRaw);
+function parsesBack(
+	bytes: SplitBytes,
+	seam: SeamParts,
+	candidate: RebalancedHalves,
+	resolver: LinkReferenceResolver | undefined
+): boolean {
+	const first = soleProseBlock(candidate.firstRaw, resolver);
+	const second = soleProseBlock(candidate.secondRaw, resolver);
 	if (first === null || second === null) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;
 	const whole = renderedText(
-		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd),
+		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver),
 		bytes.raw
 	);
 	if (!whole.startsWith(first.visible)) return false;
@@ -232,12 +251,12 @@ function parsesBack(bytes: SplitBytes, seam: SeamParts, candidate: RebalancedHal
 	);
 }
 
-function soleProseBlock(raw: string): HalfRead | null {
+function soleProseBlock(raw: string, resolver: LinkReferenceResolver | undefined): HalfRead | null {
 	const blocks = parse(raw, { scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
 	const range = getContentRange(block);
-	const nodes = parseInline(block.raw, range.start, range.end);
+	const nodes = parseInline(block.raw, range.start, range.end, resolver);
 	return { visible: renderedText(nodes, block.raw), kinds: constructKinds(nodes) };
 }
 

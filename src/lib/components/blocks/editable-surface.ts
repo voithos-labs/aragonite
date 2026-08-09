@@ -16,6 +16,7 @@ import type {
 	DocumentGetter,
 	PasteImageHook,
 	PluginEditorLookup,
+	LinkReferenceResolverRef,
 	PresentationModeGetter
 } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
@@ -116,6 +117,8 @@ export interface EditableSurfaceDeps {
 	/** The effective presentation mode, threaded to the cross-block reading gate — a
 	 *  sibling to `pluginEditor`, never smuggled through it. */
 	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, forwarded to the cross-block join seam. */
+	linkRef: LinkReferenceResolverRef | undefined;
 	onCommandError: CommandErrorSink | undefined;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -207,6 +210,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		history: deps.history,
 		pluginEditor: deps.pluginEditor,
 		getPresentationMode: deps.getPresentationMode,
+		linkRef: deps.linkRef,
 		onCommandError: deps.onCommandError,
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,

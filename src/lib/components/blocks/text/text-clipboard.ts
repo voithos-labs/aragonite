@@ -159,7 +159,13 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (!selOffsets) return;
 			// A cut is a delete, so it crosses the same join seam: in live the range can span
 			// delimiter runs the reader never saw, and a raw splice would print them.
-			const cleaned = resolveSelectionEdit(deps.node, selOffsets, '', deps.getPresentationMode());
+			const cleaned = resolveSelectionEdit(
+				deps.node,
+				selOffsets,
+				'',
+				deps.getPresentationMode(),
+				deps.linkRef
+			);
 			const displayText = trimTrailingLineEnding(deps.node.raw);
 			const newRaw =
 				cleaned?.raw ??

@@ -301,7 +301,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		presentationMode: getPresentationMode,
 		theme: getTheme
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
+	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
+	const pluginEditor = editorDoc?.pluginEditor;
+	const linkRef = editorDoc?.linkRef;
 
 	const listState = createBlockListState(deps.getNode);
 
@@ -349,6 +351,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			stickyColumn,
 			grammar: registryView.grammar,
 			getPresentationMode,
+			linkRef,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,

@@ -10,6 +10,7 @@ import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
 import type { CommitController } from '../action-contracts';
 import type { GrammarView } from '../schema/block-openers';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
 export type {
 	CommitController,
@@ -47,6 +48,9 @@ export interface EditorActionsDeps {
 	/** Live EFFECTIVE mode, for the seams that must not act in reading mode. Absent in
 	 *  harnesses, which `isReadingMode` reads as not-reading. */
 	getPresentationMode?: PresentationModeGetter;
+	/** The instance's link-reference resolver, for the byte rewrites that must parse the reference
+	 *  forms the render path drew. Absent in harnesses, which have no definitions to resolve. */
+	linkRef?: InlineResolverRef;
 }
 
 /**
