@@ -35,7 +35,13 @@ export function stubStickyColumn(): StickyColumnState {
 }
 
 export function stubEdgeAffinity(): EdgeAffinityState {
-	return { get: () => null, reset: () => {}, note: () => {}, noteTyping: () => {} };
+	return {
+		get: () => null,
+		reset: () => {},
+		note: () => {},
+		noteTyping: () => {},
+		noteExtreme: () => {}
+	};
 }
 
 export function stubBlockEdit(): BlockEditActions {

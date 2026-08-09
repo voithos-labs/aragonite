@@ -147,6 +147,54 @@ test.describe('live mode — extending across a construct-ending block', () => {
 	});
 });
 
+// A table endpoint collapses through the CELL, which used to seat by itself — the one arrival
+// in this file the prose seat never reached. Its trap is the block-entry trap one level down:
+// the cell's own opening run.
+const CELL_DOC = [
+	'| h1 | h2 |',
+	'| --- | --- |',
+	'| **bold** cell | plain |',
+	'',
+	'After table'
+].join('\n');
+
+test.describe('live mode — collapsing onto a leading construct', () => {
+	// The prose twin, measured red beside the cell one: a collapse is not a step, so the arrow's
+	// direction is the wrong side to read — the caret jumped to the range's edge.
+	test('the prose arrival types outside the construct the block opens with', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', '**bold** para\n\nAfter para\n');
+		await clickBlockSettled(ep, 0);
+		await page.keyboard.press('Home');
+		await extendTo(ep, page, 'ArrowDown', [1], 0);
+
+		await page.keyboard.press('ArrowLeft');
+		await ep.waitForCrossBlock(false);
+		await ep.waitForRenderFlush();
+		expect(await focusOffset(ep)).toBe(2);
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		expect(await ep.bridge.getSource()).toContain('Z**bold** para');
+	});
+
+	test('the cell arrival types outside the construct it opens with', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'live', CELL_DOC);
+		await clickBlockSettled(ep, 1);
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Shift+ArrowLeft');
+		await ep.waitForCrossBlock(true);
+
+		// Collapse to the START, which is the table endpoint (row-snapped to its first cell).
+		await page.keyboard.press('ArrowLeft');
+		await ep.waitForCrossBlock(false);
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		expect(await ep.bridge.getSource()).toContain('| Z**bold** cell |');
+	});
+});
+
 test.describe('source mode — the endpoints are the raw ones', () => {
 	test('the collapse lands where the extension stopped', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'source', DOC);
@@ -159,3 +207,4 @@ test.describe('source mode — the endpoints are the raw ones', () => {
 		expect(await focusOffset(ep)).toBe(RAW_END);
 	});
 });
+

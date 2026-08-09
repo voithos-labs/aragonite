@@ -4,7 +4,6 @@ import { parse } from '../../core/parser';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { collapseCrossBlock } from '../../selection/keyboard-extend';
 import type { BlockComponent } from '../../block-component';
-import { CURSOR_END } from '../../block-component';
 
 // [0] 2-column table (header + 2 body rows = 6 cells), [1] paragraph.
 const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\ntail\n');
@@ -13,8 +12,18 @@ function harness() {
 	const selection = createSelectionState({ getDoc: () => doc });
 	const cellRef = { focus: vi.fn() } as unknown as BlockComponent;
 	const revealPath = vi.fn(async () => cellRef);
-	const getBlockElByPath = vi.fn(() => document.createElement('div'));
+	// Mounted with text, so the seat's DOM range resolves and its offset is readable.
+	const getBlockElByPath = vi.fn(() => {
+		const el = document.createElement('div');
+		el.append(document.createTextNode('abcdef'));
+		document.body.append(el);
+		return el;
+	});
 	return { selection, cellRef, revealPath, getBlockElByPath };
+}
+
+function caretOffset(): number {
+	return window.getSelection()?.anchorOffset ?? -1;
 }
 
 // An intra-table rectangle carries a FLAGGED anchor and an UNFLAGGED focus (cross-block/keydown.ts
@@ -32,7 +41,10 @@ describe('collapseCrossBlock over an intra-table rectangle', () => {
 
 		// Cell 4 of a 2-column table = row 2, col 0.
 		expect(revealPath).toHaveBeenCalledWith([0, 2, 0]);
-		expect(cellRef.focus).toHaveBeenCalledWith(CURSOR_END);
+		expect(getBlockElByPath).toHaveBeenCalledWith([0, 2, 0]);
+		// The cell's own edge, seated natively — its focus door would skip the collapse ceremony.
+		expect(caretOffset()).toBeGreaterThan(0);
+		expect(cellRef.focus).not.toHaveBeenCalled();
 	});
 
 	it('resolves the deep cell path for a backward rectangle collapsed to start', async () => {
@@ -45,7 +57,9 @@ describe('collapseCrossBlock over an intra-table rectangle', () => {
 		await collapseCrossBlock(selection, 'start', doc, getBlockElByPath, revealPath);
 
 		expect(revealPath).toHaveBeenCalledWith([0, 1, 0]);
-		expect(cellRef.focus).toHaveBeenCalledWith(0);
+		expect(getBlockElByPath).toHaveBeenCalledWith([0, 1, 0]);
+		expect(caretOffset()).toBe(0);
+		expect(cellRef.focus).not.toHaveBeenCalled();
 	});
 
 	it('leaves a prose endpoint on its own path', async () => {

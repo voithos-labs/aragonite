@@ -27,6 +27,13 @@ export interface EdgeAffinityState {
 	/** A committed keystroke belongs to the content whatever arrival preceded it. */
 	noteTyping(): void;
 
+	/**
+	 * A caret seated at an EXTREME rather than stepped there — a range collapsing onto its own
+	 * edge. The key that triggered it is directional, but the caret took no step, so the side it
+	 * means is construct-relative, the same answer a line extreme gives.
+	 */
+	noteExtreme(): void;
+
 	reset(): void;
 }
 
@@ -53,6 +60,7 @@ export function createEdgeAffinityState(deps: EdgeAffinityDeps = {}): EdgeAffini
 	const state: EdgeAffinityState = {
 		get: () => affinity,
 		noteTyping: () => settle('near'),
+		noteExtreme: () => settle('outside'),
 		reset: () => settle(null),
 		note: (e) => {
 			// Alt+Arrow is the block-reorder chord, not caret nav.

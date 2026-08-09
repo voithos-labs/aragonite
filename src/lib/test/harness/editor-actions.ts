@@ -84,7 +84,7 @@ export function makeStickyColumn(x: number | null = null): StickyColumnState {
 }
 
 export function makeEdgeAffinity(): EdgeAffinityState {
-	return { get: () => null, reset: vi.fn(), note: vi.fn(), noteTyping: vi.fn() };
+	return { get: () => null, reset: vi.fn(), note: vi.fn(), noteTyping: vi.fn(), noteExtreme: vi.fn() };
 }
 
 /** The real state, armed with `kinds`: a stub would hide the one property every consumer

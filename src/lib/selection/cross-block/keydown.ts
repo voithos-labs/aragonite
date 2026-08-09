@@ -5,6 +5,7 @@
 
 import type { CrossBlockMutationContext } from './ops';
 import type { CrossBlockDispatchContext } from './dispatch';
+import type { BlockElLookup } from '../../editor-keys';
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { performCrossBlockDelete, performCrossBlockDeleteSync } from './ops';
 import { isBlockNode } from '../../tree-operations/node-ops';
@@ -180,18 +181,18 @@ async function handleCrossBlockActive(
 
 	if (e.key === 'Escape' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
-		await collapseCrossBlock(selection, 'start', doc, getBlockElByPath, ctx.revealPath);
+		await collapseTo(ctx, 'start', doc, getBlockElByPath);
 		return true;
 	}
 
 	if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
 		e.preventDefault();
-		await collapseCrossBlock(selection, 'start', doc, getBlockElByPath, ctx.revealPath);
+		await collapseTo(ctx, 'start', doc, getBlockElByPath);
 		return true;
 	}
 	if (!e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
 		e.preventDefault();
-		await collapseCrossBlock(selection, 'end', doc, getBlockElByPath, ctx.revealPath);
+		await collapseTo(ctx, 'end', doc, getBlockElByPath);
 		return true;
 	}
 
@@ -265,6 +266,22 @@ function isFormatToggleChord(e: KeyboardEvent): boolean {
 		e.key === 'e' ||
 		e.key === 'E'
 	);
+}
+
+/**
+ * Collapse, and correct the side the arrow already classified: the key is directional but the
+ * caret took no step — it jumped to the range's own edge, where the answer is construct-relative
+ * (§ 4.2). Without this the seat reads the arrow's side and the first byte joins the construct
+ * the collapse landed in front of.
+ */
+async function collapseTo(
+	ctx: CrossBlockDispatchContext,
+	to: 'start' | 'end',
+	doc: Document,
+	getBlockElByPath: BlockElLookup
+): Promise<void> {
+	ctx.edgeAffinity.noteExtreme();
+	await collapseCrossBlock(ctx.selection, to, doc, getBlockElByPath, ctx.revealPath);
 }
 
 /** Deepest resolvable node's kind; an empty/unresolvable path reads the document root's own kind. */
