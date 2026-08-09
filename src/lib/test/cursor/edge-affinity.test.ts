@@ -75,6 +75,15 @@ describe('createEdgeAffinityState', () => {
 		expect(s.get()).toBe('outside');
 	});
 
+	// A collapse rides the same directional key as a step, so the seat needs the two told apart.
+	it('an extreme overrides the arrow side the same keydown recorded', () => {
+		const s = createEdgeAffinityState();
+		s.note(key('ArrowLeft'));
+		expect(s.get()).toBe('far');
+		s.noteExtreme();
+		expect(s.get()).toBe('outside');
+	});
+
 	// A printable key must not blank the arrival its own write seat is about to read.
 	it('a printable key preserves the arrival, and the commit pins it inside', () => {
 		const s = primed('Home');

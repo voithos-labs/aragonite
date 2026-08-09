@@ -5,7 +5,6 @@ import type { SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
-import { CURSOR_END } from '../block-component';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
@@ -72,15 +71,18 @@ export async function collapseCrossBlock(
 	selection.collapse();
 	clearNativeSelection();
 
+	// A cell endpoint's offset is a cell INDEX, so its caret point is the cell's own edge; from
+	// there it takes the SAME seat as a prose leaf. Seating through the cell's own focus door
+	// instead would skip the collapse ceremony, and the byte typed at the arrival would join the
+	// construct the cell opens with rather than land in front of it.
 	const deepPath = cellEndpointDeepPath(doc, target);
-	if (deepPath) {
-		const cellRef = await revealPath(deepPath);
-		cellRef?.focus(to === 'end' ? CURSOR_END : 0);
-		return;
-	}
+	const path = deepPath ?? target.path;
+	const point: SelectionPoint = deepPath
+		? { path: deepPath, offset: to === 'end' ? leafOffsetEnd(doc, deepPath) : 0 }
+		: target;
 
-	await revealPath(target.path);
-	focusCollapsedCaret(getBlockElByPath, landableCaretPoint(getBlockElByPath(target.path), target));
+	await revealPath(path);
+	focusCollapsedCaret(getBlockElByPath, landableCaretPoint(getBlockElByPath(path), point));
 }
 
 /**

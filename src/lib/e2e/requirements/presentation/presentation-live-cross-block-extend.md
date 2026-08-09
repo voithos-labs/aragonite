@@ -20,6 +20,12 @@ and the paint from the overlay's own rects.
 - collapsing the extension leftward puts the caret at the anchor; collapsing it
   rightward puts it at a landable offset in the block the focus reached
 
+- collapsing onto a block or a table CELL that BEGINS with a construct types in front of
+  it, not inside: a collapse is not a step, so the arrow's direction is the wrong side to
+  read — the caret jumped to the range's own edge, where the answer is construct-relative
+- the cell endpoint takes the same seat as a prose leaf; seating through the cell's own
+  focus door instead skipped the collapse ceremony and typed inside the construct
+
 ## Edge cases
 
 - a block that BEGINS with a construct is the mirror case: extending backward
