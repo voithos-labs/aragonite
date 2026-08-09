@@ -112,7 +112,7 @@ Optional props customize URL and image handling and the editor's affordances.
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
-| `presentationMode` | `'source'` (default), `'reading'`, or a `preview-*` rung (see [Presentation modes](#presentation-modes))                                  |
+| `presentationMode` | `'source'` (default), `'reading'`, a `preview-*` rung, or `'live'` (see [Presentation modes](#presentation-modes))                        |
 | `keybindings`      | Per-instance keymap overrides — rebind or disable a chord (see [Keyboard shortcuts](#keyboard-shortcuts))                                 |
 | `plugins`          | Plugin units installed once at mount, in array order, before the first parse (see [Plugins](#plugins))                                    |
 
@@ -146,6 +146,20 @@ Optional props customize URL and image handling and the editor's affordances.
 - **`'preview-inline'`** — inline-granular live preview, the Obsidian-style default: **the element under the cursor shows its syntax**. Unfocused blocks look exactly like `preview-block`; inside the focused block, each inline construct (bold, italic, strikethrough, inline code, links, image alt syntax) keeps its markers hidden until the caret enters it — arrowing or clicking into `**bold**` reveals the `**`s around the caret, and leaving folds them back. Nested constructs reveal their whole enclosing chain, so the syntax you are editing is always fully visible. A revealed construct is ordinary source text: typing, undo, and round-trip behave exactly as in source mode. Whole-block syntax (a heading's `## `, code fences) shows whenever its block is focused, as in `preview-block`; tables reveal per focused table rather than per construct.
 
   **Caret behavior (affinity).** The caret is a raw offset and a revealed construct's source is visible, so typing always lands exactly where the caret shows — there is no hidden-cursor affinity to reason about. Where two constructs meet at one boundary (`**a***b*`) both reveal and a keystroke inserts between them; a leftward walk into a construct's opening markers reaches them (`Home` lands at the first _visible_ position, just inside). Two edges to know: a focused list item keeps its bullet or number as rendered chrome here (`preview-block` instead shows it as source), and escapes (`\`) and hard line breaks reveal whenever their block is focused rather than by caret proximity.
+
+- **`'live'`** — fully live: **no marker is ever visible, and the document stays directly editable**. Where `preview-inline` reveals the construct under the caret, live reveals nothing — `**bold**` renders as bold whether the caret is inside it or not, a heading never shows its `## `, and a link shows its text with the destination out of sight. Everything a source-mode caret can do still works: typing, selection, `Enter`, `Backspace`, undo, search and replace, tables, drag handles, plugins. Like every other rung it is CSS over the one render path, so the bytes, the coordinate space and the round-trip are the source document's throughout.
+
+  **Editing semantics.** Hiding every marker makes one screen position name two raw offsets wherever a construct's delimiters sit, so the mode answers that ambiguity with five rules — each applied at one seam, so it holds for every gesture that reaches it:
+
+  - **A byte typed at a hidden edge is construct-relative.** Which side of the delimiters it lands on follows how the caret got there: arriving from outside a construct types outside it, and walking into it types inside. A construct that never extends at its edges (a link) always takes the outside.
+  - **A caret seated at an extreme lands outside.** `Home`, `End`, and collapsing a selection put the caret past the delimiters rather than between them — a seat is not a step, so the direction of the key that produced it does not decide the side.
+  - **`Enter` inside a construct closes it and reopens it.** Splitting `**bold**` down the middle leaves two balanced constructs rather than one delimiter stranded in each half, and a split link carries its destination into both halves.
+  - **A join cleans its seam.** `Backspace`, `Delete`, a range delete, typing over a selection and a paste all cut through the same seam: a delimiter run the cut orphaned goes with the cut instead of appearing on screen, and a closer meeting an opener around nothing is dropped. Every candidate is verified against what the two sides showed, and the byte-literal join stands when it cannot be.
+  - **The format toggles work at a collapsed caret.** `Mod+B`, `Mod+I`, `Mod+Shift+X` and `Mod+E` over a selection wrap or unwrap it as always; at a caret they arm the format for the next insertion, which is what a mode with no visible delimiters to type between needs.
+
+  **Reading a link's destination.** No mode-independent affordance shows a URL here, so the link card is it: `Mod+K` with the caret inside a link opens it with focus in the URL field, and a click on a link opens the same card beside a caret that stays the document's. Editing the URL commits one undoable step.
+
+  Bytes only change where a rule above says so. A gesture that strands nothing writes exactly what source mode writes.
 
 The effective mode is reflected as `data-presentation` on the editor root — **absent** in source mode, so default-mode DOM is unchanged — and announced to subscribers as a `presentationModeChange` event on `getEvents()`.
 
