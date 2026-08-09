@@ -24,5 +24,8 @@ asserting `assertNone` throws.
 - invariant violation is caught: a `[invariant:…]`-marked dev warning is
   recorded and `assertNone` throws (the commit/bootstrap invariant seam routes
   through this marker)
+- ref-slot proxy warnings are caught: a `state_proxy_equality_mismatch` or
+  `[state-registry]` warning trips `assertNone` — the raw-vs-proxy ref-slot
+  class reds the gate the day it returns
 - benign warnings are ignored: a plain `console.warn` without the marker does
   not trip the collector (so real sessions stay green on expected dev warnings)

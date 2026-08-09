@@ -43,6 +43,25 @@ test.describe('simulation error collector', () => {
 		await assertThrows(errors);
 	});
 
+	// The ref-slot proxy class: the mismatch warn and the false double-claim it feeds.
+	for (const mark of ['state_proxy_equality_mismatch', '[state-registry]']) {
+		test(`catches a ${mark} warning`, async ({ page }) => {
+			const errors = attachErrorCollector(page);
+			await errors.start();
+			await page.evaluate((m) => console.warn(`${m} injected ref-slot fault`), mark);
+			await expect
+				.poll(async () => {
+					try {
+						await errors.assertNone();
+						return 'silent';
+					} catch {
+						return 'threw';
+					}
+				})
+				.toBe('threw');
+		});
+	}
+
 	test('ignores a benign warning without the invariant marker', async ({ page }) => {
 		const errors = attachErrorCollector(page);
 		await errors.start();

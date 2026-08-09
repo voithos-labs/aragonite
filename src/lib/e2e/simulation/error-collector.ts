@@ -7,9 +7,13 @@ export interface ErrorCollector {
 	assertNone(): Promise<void>;
 }
 
+// Warnings that red the gate: invariant fires, plus the raw-vs-proxy ref-slot class
+// (a proxy-equality mismatch or its downstream false double-claim report).
+const FAILING_WARNINGS = ['[invariant:', 'state_proxy_equality_mismatch', '[state-registry]'];
+
 /**
  * Three channels a long session must stay clean on: console errors + pageerrors,
- * `[invariant:…]` dev warnings, and the editor's structured `error` event (failures the
+ * gate-failing dev warnings, and the editor's structured `error` event (failures the
  * editor CONTAINS rather than throws). `fixtures.ts` also fails on an invariant fire, but
  * only at spec teardown — `assertNone` runs at checkpoints, so a fire surfaces mid-session.
  */
@@ -19,8 +23,8 @@ export function attachErrorCollector(page: Page): ErrorCollector {
 	page.on('console', (m) => {
 		const type = m.type();
 		if (type === 'error') errors.push(`console.error: ${m.text()}`);
-		else if (type === 'warning' && m.text().includes('[invariant:'))
-			errors.push(`invariant violation: ${m.text()}`);
+		else if (type === 'warning' && FAILING_WARNINGS.some((mark) => m.text().includes(mark)))
+			errors.push(`failing warning: ${m.text()}`);
 	});
 	return {
 		async start() {
