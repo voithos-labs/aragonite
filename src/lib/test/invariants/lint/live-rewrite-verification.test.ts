@@ -26,15 +26,23 @@ const SLOT_HOME = 'src/lib/schema/inline-construct-policy.ts';
 const SLOT_READER = 'src/lib/tree-operations/node-ops.ts';
 
 /**
- * The joins that do NOT cross `cleanJoinedRaw`, each stated rather than hidden. The default paste
- * hooks and the table cell both used to be here, and both leaked the same run onto the screen;
- * they now forward the range to the seam's own home (`cutRangeFromDisplay`), which is why neither
- * reads its endpoints any more. The cell's escaping was no obstacle — it runs at the write sink,
- * AFTER the cut, so the seam fits in front of it. What remains has no such leak to permit.
+ * Every file permitted to NAME `preDelete` at all: the contract and door that carry the field,
+ * the surfaces that mint a range from their own selection and forward it, the two crossings
+ * into `cutRangeFromDisplay` — and the one splicer, stated with its reason. Name-level set
+ * equality closes the alias/bracket/helper-forward holes the endpoint-spelling matcher it
+ * replaced left open (#114).
  */
-const JOIN_OUTSIDE_THE_SEAM: Record<string, string> = {
+const PRE_DELETE_NAMERS: Record<string, string> = {
+	'src/lib/tree-operations/paste-surfaces.ts': 'the surface contract declaring the parameter',
+	'src/lib/tree-operations/paste/dispatch.ts': 'the request door carrying the field to the hooks',
+	'src/lib/tree-operations/paste/hooks.ts': 'the prose crossing into cutRangeFromDisplay',
+	'src/lib/components/blocks/table/table-cell-paste.ts':
+		'the cell crossing into cutRangeFromDisplay, ahead of the escaping sink',
+	'src/lib/components/blocks/text/text-clipboard.ts': 'mints the range from its selection',
+	'src/lib/components/blocks/code/CodeBlock.svelte': 'mints the range from its selection',
+	'src/lib/components/blocks/table/TableCellBlock.svelte': 'mints the range from its selection',
 	'src/lib/components/blocks/code/code-paste-surface.ts':
-		'the fenced-code surface, whose body has no inline constructs for a seam to clean anyway'
+		'the one splicer: a fenced body has no inline constructs for a seam to clean'
 };
 
 const namesRenderedText = (file: SourceFile): boolean =>
@@ -51,16 +59,10 @@ const stripsMarkerSpans = (file: SourceFile): boolean =>
 	!file.relPath.endsWith('.svelte') &&
 	/['"][^'"]*\.md-(marker|ref-label)/.test(stripComments(file.text));
 
-/** A surface that reads a pre-delete range's endpoints is splicing around them — the join shape
- *  that skipped the seam; forwarding the object is not. Both SPELLINGS count, member access and
- *  destructuring, the second having reached the same bytes past a dotted-only matcher. Still a
- *  SPELLING PROXY: an alias, a bracket index or a helper forward slips past it, so the e2e row
- *  per surface is what holds the line. Inverting to an allowlist is the real fix, and its own
- *  change. */
-const readsPreDeleteEndpoints = (file: SourceFile): boolean => {
-	const code = stripComments(file.text);
-	return /preDelete\??\.(start|end)/.test(code) || /\{[^}]*\}\s*=\s*preDelete\b/.test(code);
-};
+/** Naming the range at all is the tripwire: an alias, a bracket index and a helper forward all
+ *  still spell the name once. Comment mentions are out of scope through the shared strip. */
+const namesPreDelete = (file: SourceFile): boolean =>
+	/(?<![\w.'"])preDelete\b/.test(stripComments(file.text));
 
 describe('live-rewrite verification source-scan', () => {
 	const sources = collectEditorSources();
@@ -88,12 +90,10 @@ describe('live-rewrite verification source-scan', () => {
 		expect(sources.filter(readsSlot).map((file) => file.relPath)).toEqual([SLOT_READER]);
 	});
 
-	it('the joins outside the seam are the declared ones', () => {
-		// Reading the range's ENDPOINTS is what a surface does to splice around them; a caller that
-		// only forwards the object (`preDelete: { start: sel.start … }`) is not deciding bytes. Set
-		// equality, so a fourth surface in any splice style is a decision rather than a drift.
-		const splicers = sources.filter(readsPreDeleteEndpoints).map((file) => file.relPath);
-		expect(splicers.sort()).toEqual(Object.keys(JOIN_OUTSIDE_THE_SEAM).sort());
+	it('the files naming preDelete are the declared ones', () => {
+		// Set equality over the NAME, so a new reader is a lint conversation whatever its spelling.
+		const namers = sources.filter(namesPreDelete).map((file) => file.relPath);
+		expect(namers.sort()).toEqual(Object.keys(PRE_DELETE_NAMERS).sort());
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
@@ -105,19 +105,26 @@ describe('live-rewrite verification source-scan', () => {
 		).toBe(false);
 	});
 
-	it('the preDelete matcher separates a splice from a forwarded range', () => {
-		const probe = (text: string) => readsPreDeleteEndpoints({ relPath: 'x', text, code: '' });
+	it('the preDelete matcher sees every spelling and skips prose', () => {
+		const probe = (text: string) => namesPreDelete({ relPath: 'x', text, code: '' });
 		expect(probe('raw.slice(0, preDelete.start) + raw.slice(preDelete.end)')).toBe(true);
-		expect(probe('const start = preDelete?.start ?? offset;')).toBe(true);
-		// The spelling that reached the same bytes past the dotted matcher.
 		expect(probe('const { start, end } = preDelete;')).toBe(true);
-		expect(probe('const { start: from } = preDelete ?? { start: offset };')).toBe(true);
-		expect(probe('{ preDelete: sel.start !== sel.end ? { start: sel.start } : undefined }')).toBe(
-			false
-		);
-		expect(probe('const cut = applyPreDelete(node, display, preDelete, offset, seam);')).toBe(
-			false
-		);
+		// The spellings the endpoint matcher could not see (#114).
+		expect(probe('const pd = preDelete; use(pd.start);')).toBe(true);
+		expect(probe("const s = preDelete['start'];")).toBe(true);
+		expect(probe('const cut = applyPreDelete(node, display, preDelete, offset, seam);')).toBe(true);
+		expect(probe('// preDelete is the range the paste deletes first')).toBe(false);
+		expect(probe('const myPreDelete = ranges;')).toBe(false);
+	});
+
+	it('an undeclared file naming preDelete fails the set equality', () => {
+		const rogue: SourceFile = {
+			relPath: 'src/lib/components/blocks/text/rogue.ts',
+			text: 'const pd = preDelete;',
+			code: ''
+		};
+		const namers = [...sources, rogue].filter(namesPreDelete).map((file) => file.relPath);
+		expect(namers.sort()).not.toEqual(Object.keys(PRE_DELETE_NAMERS).sort());
 	});
 
 	it('the span matcher sees a private strip of either class', () => {

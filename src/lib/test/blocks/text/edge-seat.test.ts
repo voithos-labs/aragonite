@@ -72,8 +72,6 @@ describe('a never-extend construct ignores the arrival', () => {
 		}
 	});
 
-	// `[](url)`: no content range, so the WHOLE node is the run — an offset inside it seats at
-	// the nearer end, and its own boundaries stay ordinary seams between siblings.
 	// `[](url)`: it paints nothing at all, so there is no content edge for a seat to resolve.
 	it('declines a pair emptied of content', () => {
 		expect(seatIn('a [](http://e.com) b', 3, 'far')).toBeNull();

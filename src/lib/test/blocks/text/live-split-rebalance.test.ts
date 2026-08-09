@@ -143,6 +143,8 @@ describe('a cut at a construct edge hands the construct over whole', () => {
 // came back a different shape (`~~foo~~\n\n  \n\n` is three children), and declining to the
 // byte-literal cut converged but printed the delimiters the reader never saw. A block's TERMINAL
 // whitespace is a hard break with no following line — it paints nothing — so the cut drops it.
+// Miss: shape-fixed-point's differential arm owns this divergence, but the gate's fixed seed
+// never drew the shape — only a PROPERTY_FRESH run did.
 describe('a cut that would strand terminal whitespace drops it instead', () => {
 	it('hands the construct over whole and leaves the spaces behind', () => {
 		expect(split('~~foo~~  \n', 5)).toEqual({ firstRaw: '~~foo~~\n', secondRaw: '\n' });

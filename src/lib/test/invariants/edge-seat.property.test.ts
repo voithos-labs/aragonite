@@ -97,6 +97,21 @@ function seatCarets(raw: string): number[] {
 	);
 }
 
+/** Caret stops the net skips, per offset rather than per fixture (#117): the span of a construct
+ *  that paints NOTHING (`[](url)` re-parses away under a byte anywhere in it), and a 3+ asterisk
+ *  run ±1 — a run SHARED between a nested pair, so either side rebinds which delimiters pair
+ *  with which: the pre-existing seat weakness tracked as #116, not this class. */
+function excludedIntervals(display: string): [number, number][] {
+	const intervals: [number, number][] = [];
+	for (const node of parseInline(display, 0, display.length)) {
+		if (display.slice(node.start, node.end).includes('[]')) intervals.push([node.start, node.end]);
+	}
+	for (const match of display.matchAll(/\*{3,}/g)) {
+		intervals.push([match.index - 1, match.index + match[0].length + 1]);
+	}
+	return intervals;
+}
+
 /** What the seat writes: the byte at the offset it answers, or at the caret when it declines. */
 function typeThroughSeat(
 	display: string,
@@ -120,13 +135,10 @@ describe('the typing seat over generated inline fixtures', () => {
 				fc.nat(),
 				fc.constantFrom(...AFFINITIES),
 				(display, caretPick, affinity) => {
-					// Two fixture classes are excluded, and both are stated rather than silently
-					// filtered. A construct that paints NOTHING (`[](url)`) re-parses away under any
-					// byte, anywhere in it. A run of three or more asterisks is SHARED between a
-					// nested pair, so either side of it rebinds which delimiters pair with which —
-					// a real seat weakness, pre-existing and its own problem, not this class.
-					if (display.includes('[]') || /\*{3,}/.test(display)) return;
-					const stops = seatCarets(display);
+					const intervals = excludedIntervals(display);
+					const stops = seatCarets(display).filter(
+						(stop) => !intervals.some(([lo, hi]) => stop >= lo && stop <= hi)
+					);
 					if (stops.length === 0) return;
 					const caret = stops[caretPick % stops.length];
 					const before = delimitersOnScreen(display);

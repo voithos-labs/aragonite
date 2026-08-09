@@ -52,3 +52,9 @@ selection bridge is the oracle for which block and offset the caret reached.
 
 - zero `[invariant:…]` console fires across every scenario (automatic via the
   shared e2e fixture)
+
+## Miss-analysis
+
+- Every navigation row ran with every marker painted, where the raw edge is always
+  reachable, so the gates' declared-range comparison was indistinguishable from the
+  landable bound; nothing arrowed at a live block edge until this file (#103).

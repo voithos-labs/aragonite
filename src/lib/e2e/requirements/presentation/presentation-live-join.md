@@ -14,8 +14,8 @@ oracle, since a hidden delimiter and an absent one look identical on screen.
 
 - a selection from inside bold to inside italic, deleted with Backspace, leaves the joined text
   with neither `**` nor `*` in the source
-- the same selection cut with `Mod+X` leaves the same bytes, and the clipboard still carries what
-  was on screen
+- the same selection cut with `Mod+X` leaves the same bytes, and the clipboard carries the SOURCE
+  slice the selection covered — live copy yields source bytes, not the visible text
 - the same selection typed over inserts the character at the seam the cleanup left, with no
   delimiter around it
 - a selection from inside a construct in one paragraph into the next joins the two on the same
