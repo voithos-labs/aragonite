@@ -33,6 +33,11 @@ contradicted it — the row below is what would have.
   leading edge). The policy is deliberate and owner-visible: the byte has to leave the construct,
   and leaving by the closer edge is the smaller jump from where the user was typing
 
+- a mark pending beside an atomic inline WIDGET writes the wrapped byte on the side the caret
+  is on and leaves the widget whole: the dispatcher claims a plain key for the marks arm before
+  the widget arm sees it, and the rewrite is verified against the render path, so a splice that
+  would change painted text is declined
+
 ## Edge cases
 
 - `Mod+B` then click away: the source is byte-identical to before the chord — the empty pair the

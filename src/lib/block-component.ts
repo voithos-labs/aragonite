@@ -102,9 +102,13 @@ export interface BlockComponentProps {
 
 export interface BlockComponent {
 	/**
-	 * Place the caret at `offset`, focusing the surface, and end any live cross-block
-	 * range — the safe default door. `CURSOR_END` and `FOCUS_LAST_START` (`-1`) arrive
-	 * through this same `number`; an out-of-range offset must clamp, never throw.
+	 * Place the caret at `offset`, focusing the surface, and end any live cross-block range — the
+	 * safe default door. THREE sentinels arrive through this same `number`: `CURSOR_END`,
+	 * `FOCUS_LAST_START` (`-1`), and `CURSOR_START` (`-2`), which an ARRIVAL sends to mean "the
+	 * block's start" as against a caller's literal 0. An out-of-range offset must clamp, never
+	 * throw, so an implementation that clamps to `[0, length]` reads `CURSOR_START` as 0 and
+	 * behaves exactly as it did before the sentinel existed. None is exported from `plugin.ts`:
+	 * the values are the platform's to send, not a plugin's to originate.
 	 * Implement by minting `selection/caret-doors.ts`' `placeCaret` over {@link parkCaret},
 	 * never by hand: the range-ending has to be batched with the landing.
 	 */
