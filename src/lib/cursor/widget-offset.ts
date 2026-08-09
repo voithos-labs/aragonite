@@ -7,7 +7,7 @@
  */
 
 import { hidesMarkers, isPreviewMode, type PresentationMode } from '../presentation-mode';
-import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
+import { asDomTextOffset, toClampedRawOffset, type DomTextOffset } from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
@@ -239,10 +239,11 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 
 /**
  * The extreme walk offsets a caret can occupy in `container`: a hidden marker run or the leading
- * ambient island holds no landable position, so the bound moves past it, and a container with no
- * landable text at all collapses both onto its far end. Block-edge gates read these rather than
- * 0 / walk length, which a mode painting no marker makes unreachable — a gate testing an offset
- * no keystroke can produce is a dead key.
+ * ambient island holds no landable position, so the bound moves past it. Block-edge gates read
+ * these rather than 0 / walk length, which a mode painting no marker makes unreachable — a gate
+ * testing an offset no keystroke can produce is a dead key. An ALL-hidden container (an empty
+ * fence) has no landable offset at all and answers `{len, len}`, which makes every `offset <=
+ * start` gate true inside it; a mergeable all-hidden kind would have to declare its own floor.
  */
 export function landableDomTextBounds(container: ParentNode): {
 	start: DomTextOffset;
@@ -264,6 +265,31 @@ export function landableDomTextBounds(container: ParentNode): {
 		end = stop;
 	}
 	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
+}
+
+/**
+ * {@link landableDomTextBounds} in the caret's own raw space, or null where the mode paints its
+ * markers and the whole raw span is reachable. The one home every caret gate and caret DOOR
+ * reads: the arrow exits, the cross-block collapse, and the block-entry seat all ask the same
+ * question and must not answer it three ways.
+ */
+export function landableRawBounds(
+	el: HTMLElement,
+	ambientLength: number
+): { start: number; end: number } | null {
+	if (!revealsNoMarkers(el)) return null;
+	const bounds = landableDomTextBounds(el);
+	return {
+		start: toClampedRawOffset(bounds.start, ambientLength),
+		end: toClampedRawOffset(bounds.end, ambientLength)
+	};
+}
+
+/** Clamp a caret offset into `el`'s landable range — identity wherever the markers paint. */
+export function clampToLandableRaw(el: HTMLElement, offset: number, ambientLength: number): number {
+	const bounds = landableRawBounds(el, ambientLength);
+	if (!bounds) return offset;
+	return Math.min(Math.max(offset, bounds.start), bounds.end);
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
