@@ -22,6 +22,8 @@ just the source, because the source is legitimately allowed to differ per mode.
   cut strands goes with the cut instead of onto the screen, and the cell's own
   `\|` still comes back escaped (the escaping runs after the seam, over whatever
   bytes it wrote)
+- source: the same cell paste is byte-literal too — the walk crosses the painted
+  delimiters one character at a time and the halves it leaves stand as cut
 
 ## Edge cases
 
