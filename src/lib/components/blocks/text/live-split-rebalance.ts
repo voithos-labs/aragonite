@@ -37,8 +37,17 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	const chain = splittableChainAt(bytes, offset, resolver);
 	if (chain === null || chain.length === 0) return null;
 	const seam = seamParts(bytes, chain, offset);
-	for (const candidate of [assemble(bytes, seam), assembleSpaceOutside(bytes, seam)]) {
-		if (candidate !== null && parsesBack(bytes, seam, candidate, resolver)) return candidate;
+	const candidates = [
+		assemble(bytes, seam),
+		assembleSpaceOutside(bytes, seam),
+		assembleDroppingTerminalTrivia(bytes, seam)
+	];
+	for (const candidate of candidates) {
+		// The dropped bytes are the verification's business, not the caller's: what it gets back
+		// is the two halves, whatever the candidate had to state to earn them.
+		if (candidate !== null && parsesBack(bytes, seam, candidate, resolver)) {
+			return { firstRaw: candidate.firstRaw, secondRaw: candidate.secondRaw };
+		}
 	}
 	return null;
 };
@@ -153,6 +162,8 @@ interface SeamParts {
 interface RebalancedHalves {
 	firstRaw: string;
 	secondRaw: string;
+	/** Bytes this candidate left out, which the conservation check then expects to be missing. */
+	droppedTail?: string;
 }
 
 /**
@@ -215,6 +226,25 @@ function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHal
 	};
 }
 
+/**
+ * The seam with a whitespace-only tail dropped rather than handed to either half. A block's
+ * TERMINAL whitespace is a hard break with no following line, so it paints nothing: the reader
+ * never saw it, and § 4.5 licenses live to drop what it never showed. The alternatives here are
+ * both wrong — carried along, the reload reads it as blank trivia and the pair comes back a
+ * different shape (#106); declined, the byte-literal cut prints the delimiters instead.
+ */
+function assembleDroppingTerminalTrivia(
+	bytes: SplitBytes,
+	seam: SeamParts
+): RebalancedHalves | null {
+	if (seam.openers !== '' || seam.tail === '' || seam.tail.trim() !== '') return null;
+	return {
+		firstRaw: seam.head + seam.closers + bytes.firstResidue,
+		secondRaw: bytes.secondResidue,
+		droppedTail: seam.tail
+	};
+}
+
 // ── Verification ─────────────────────────────────────────────────────────────
 
 interface HalfRead {
@@ -251,11 +281,12 @@ function parsesBack(
 		bytes.raw
 	);
 	if (!whole.startsWith(first.visible)) return false;
-	// The one character a split legitimately consumes is the line ending its cut landed on.
+	// The one character a split legitimately consumes is the line ending its cut landed on; a
+	// dropped tail is the second thing the whole may hold that no half does, and the candidate
+	// states which bytes those are rather than the check inferring them.
 	const rest = whole.slice(first.visible.length);
-	return (
-		rest === second.visible || rest === '\n' + second.visible || rest === '\r\n' + second.visible
-	);
+	const tail = second.visible + (candidate.droppedTail ?? '');
+	return rest === tail || rest === '\n' + tail || rest === '\r\n' + tail;
 }
 
 const isWhitespaceOnly = (visible: string): boolean => visible !== '' && visible.trim() === '';

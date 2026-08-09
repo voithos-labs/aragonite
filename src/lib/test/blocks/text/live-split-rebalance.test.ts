@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
+import { getContentRange, parseInline } from '$lib/core/inline';
+import { renderedText } from '$lib/core/inline-render';
 
 // The bytes a live-mode Enter writes into each half. Every case states the plain byte-literal cut
 // the rewrite is offered — that is what a decline leaves behind — so a null return is as pinned as
@@ -20,6 +22,14 @@ function split(source: string, offset: number) {
 		second.endsWith('\n') ? second : second + '\n',
 		undefined
 	);
+}
+
+/** Every block's rendered characters after the halves are written back and read again. */
+function visibleAfterReload(raw: string): string[] {
+	return parse(raw, { scope: 'fragment' }).children.map((block) => {
+		const range = getContentRange(block);
+		return renderedText(parseInline(block.raw, range.start, range.end, undefined), block.raw);
+	});
 }
 
 describe('a cut inside a symmetric pair closes it and reopens it', () => {
@@ -129,13 +139,30 @@ describe('a cut at a construct edge hands the construct over whole', () => {
 	});
 });
 
-// #106: the relocated space landed where the RELOAD reads it as hard-break residue, so the pair
-// did not reload to its own shape — `~~foo~~\n\n  \n\n` parses back as three children. The
-// candidate is verified against the reload, so this one is refused and the byte-literal cut
-// stands (which converges).
-describe('a relocated space that would reload as hard-break residue is refused', () => {
-	it('declines the cut that stranded two trailing spaces', () => {
-		expect(split('~~foo~~  \n', 5)).toBeNull();
+// #106: relocating the space put it where the RELOAD reads it as hard-break residue, so the pair
+// came back a different shape (`~~foo~~\n\n  \n\n` is three children), and declining to the
+// byte-literal cut converged but printed the delimiters the reader never saw. A block's TERMINAL
+// whitespace is a hard break with no following line — it paints nothing — so the cut drops it.
+describe('a cut that would strand terminal whitespace drops it instead', () => {
+	it('hands the construct over whole and leaves the spaces behind', () => {
+		expect(split('~~foo~~  \n', 5)).toEqual({ firstRaw: '~~foo~~\n', secondRaw: '\n' });
+	});
+
+	// The sibling shapes: any terminal run the block paints nothing for, one or two characters,
+	// spaces or tabs, under either symmetric pair.
+	it('every terminal whitespace run is dropped the same way', () => {
+		expect(split('**foo**  \n', 5)).toEqual({ firstRaw: '**foo**\n', secondRaw: '\n' });
+		expect(split('~~foo~~ \t\n', 5)).toEqual({ firstRaw: '~~foo~~\n', secondRaw: '\n' });
+		expect(split('**foo**\t\n', 5)).toEqual({ firstRaw: '**foo**\n', secondRaw: '\n' });
+		expect(split('~~foo~~ \n', 5)).toEqual({ firstRaw: '~~foo~~\n', secondRaw: '\n' });
+	});
+
+	// The screen is what the drop is licensed by, so the reload's own screen is the oracle: no
+	// delimiter appears where the reader saw none.
+	it('the halves reload to a screen with no delimiter on it', () => {
+		const halves = split('~~foo~~  \n', 5);
+		expect(halves).not.toBeNull();
+		expect(visibleAfterReload(halves!.firstRaw + halves!.secondRaw)).toEqual(['foo']);
 	});
 
 	// An EMPTY half is still the ordinary handover (pinned above); only a whitespace-carrying one
@@ -144,6 +171,8 @@ describe('a relocated space that would reload as hard-break residue is refused',
 		expect(split('_a_\n', 2)).toEqual({ firstRaw: '_a_\n', secondRaw: '\n' });
 	});
 
+	// The whitespace is not terminal here — the second half carries content past it — so the
+	// ordinary rewrite keeps every byte.
 	it('a cut inside the same content still rewrites', () => {
 		expect(split('~~foo~~  \n', 4)).toEqual({ firstRaw: '~~fo~~\n', secondRaw: '~~o~~  \n' });
 	});
