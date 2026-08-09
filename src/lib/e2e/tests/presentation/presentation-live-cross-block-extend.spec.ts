@@ -158,6 +158,93 @@ const CELL_DOC = [
 	'After table'
 ].join('\n');
 
+// The discriminator is TWO axes, not one gesture: 'near'/'far' are walk-order positional, so the
+// same key means opposite sides at an opener and at a closer. Five of the ten arms were wrong and
+// five were right by coincidence, which is why the matrix is pinned rather than one row.
+const MATRIX_DOC = [
+	'Lead **bold**',
+	'',
+	'Middle plain',
+	'',
+	'**bold** tail',
+	'',
+	'Ends with **bold**'
+].join('\n');
+
+const CLOSER_FIRST = 0;
+const MIDDLE = 1;
+const OPENER = 2;
+
+interface CollapseArm {
+	edge: 'opener' | 'closer';
+	key: 'ArrowLeft' | 'ArrowRight' | 'Escape';
+	/** Build a cross-block range whose collapse target is the arm's edge. */
+	extend: (ep: EditorPage, page: Page) => Promise<void>;
+	/** The bytes a caret OUTSIDE the construct writes. */
+	expected: string;
+}
+
+/** Collapse to the range's START: the arm's edge has to be the earlier endpoint. */
+async function fromOpenerStart(ep: EditorPage, page: Page): Promise<void> {
+	await clickBlockSettled(ep, OPENER);
+	await page.keyboard.press('Home');
+	await extendTo(ep, page, 'ArrowDown', [OPENER + 1], 0);
+}
+
+async function fromCloserStart(ep: EditorPage, page: Page): Promise<void> {
+	await clickBlockSettled(ep, MIDDLE);
+	await page.keyboard.press('Home');
+	await extendTo(ep, page, 'ArrowLeft', [CLOSER_FIRST], RAW_END_OF_LEAD);
+}
+
+const COLLAPSE_ARMS: CollapseArm[] = [
+	{ edge: 'opener', key: 'ArrowLeft', extend: fromOpenerStart, expected: 'Z**bold** tail' },
+	{ edge: 'opener', key: 'Escape', extend: fromOpenerStart, expected: 'Z**bold** tail' },
+	{
+		edge: 'opener',
+		key: 'ArrowRight',
+		extend: async (ep, page) => {
+			await clickBlockSettled(ep, MIDDLE);
+			await page.keyboard.press('End');
+			await extendTo(ep, page, 'ArrowDown', [OPENER], 0);
+		},
+		expected: 'Z**bold** tail'
+	},
+	{ edge: 'closer', key: 'ArrowLeft', extend: fromCloserStart, expected: 'Lead **bold**Z' },
+	{ edge: 'closer', key: 'Escape', extend: fromCloserStart, expected: 'Lead **bold**Z' },
+	{
+		edge: 'closer',
+		key: 'ArrowRight',
+		extend: async (ep, page) => {
+			await clickBlockSettled(ep, MIDDLE);
+			await page.keyboard.press('End');
+			await page.keyboard.press('ControlOrMeta+Shift+End');
+			await ep.waitForCrossBlock(true);
+		},
+		expected: 'Ends with **bold**Z'
+	}
+];
+
+/** `Lead **bold**`: 13 raw bytes, the far side of the closing run. */
+const RAW_END_OF_LEAD = 13;
+
+test.describe('live mode — a collapse seats outside, on both axes', () => {
+	for (const arm of COLLAPSE_ARMS) {
+		test(`${arm.edge} + ${arm.key}: the byte lands outside the construct`, async ({ page }) => {
+			const ep = await enterPresentationMode(page, 'live', MATRIX_DOC);
+			await arm.extend(ep, page);
+
+			await page.keyboard.press(arm.key);
+			await ep.waitForCrossBlock(false);
+			await ep.waitForRenderFlush();
+
+			await page.keyboard.type('Z');
+			await ep.bridge.waitForSourceContains('Z');
+			expect(await ep.bridge.getSource()).toContain(arm.expected);
+		});
+	}
+});
+
 test.describe('live mode — collapsing onto a leading construct', () => {
 	// The prose twin, measured red beside the cell one: a collapse is not a step, so the arrow's
 	// direction is the wrong side to read — the caret jumped to the range's edge.
