@@ -20,9 +20,14 @@ and the paint from the overlay's own rects.
 - collapsing the extension leftward puts the caret at the anchor; collapsing it
   rightward puts it at a landable offset in the block the focus reached
 
-- collapsing onto a block or a table CELL that BEGINS with a construct types in front of
-  it, not inside: a collapse is not a step, so the arrow's direction is the wrong side to
-  read — the caret jumped to the range's own edge, where the answer is construct-relative
+- a collapse seats OUTSIDE the construct it lands against, on both axes: the edge kind
+  (opener or closer) and the collapse direction (`ArrowLeft`/`Escape` to the range's start,
+  `ArrowRight` to its end). The two are one discriminator, not two independent facts — the
+  positional sides are walk-order, so one key means opposite things at an opener and at a
+  closer, which is how five of the ten arms were wrong while five were right by coincidence.
+  A collapse takes no step: it jumps to the range's own edge, where the answer is
+  construct-relative. `ArrowUp`/`ArrowDown` are the vertical spellings of the same two arms
+  and reach the same door
 - the cell endpoint takes the same seat as a prose leaf; seating through the cell's own
   focus door instead skipped the collapse ceremony and typed inside the construct
 
