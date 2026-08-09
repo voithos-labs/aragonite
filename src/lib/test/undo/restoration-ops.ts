@@ -404,7 +404,8 @@ async function runRangeDelete(
 		revealPath: h.deps.revealPath,
 		controller: h.controller,
 		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined
 	});
 }
 

@@ -110,14 +110,14 @@ describe('Backspace merging the halves back (known failing until the join seam c
 	it.fails('restores the original bytes with no residue between the runs', () => {
 		const doc = parse('Some **bold** text\n');
 		splitNode(doc, 0, 9, 'live');
-		mergeIntoPrevDeepLeaf(doc, 1);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 
 	it.fails('a merged split link is one link again', () => {
 		const doc = parse('Visit [example](https://example.com) here\n');
 		splitNode(doc, 0, 11, 'live');
-		mergeIntoPrevDeepLeaf(doc, 1);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
 		expect(doc.children[0].raw).toBe('Visit [example](https://example.com) here\n');
 	});
 
@@ -127,7 +127,7 @@ describe('Backspace merging the halves back (known failing until the join seam c
 	it('is not a defect of the byte-literal split, which round-trips', () => {
 		const doc = parse('Some **bold** text\n');
 		splitNode(doc, 0, 9, undefined);
-		mergeIntoPrevDeepLeaf(doc, 1);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, undefined);
 		expect(doc.children[0].raw).toBe('Some **bold** text\n');
 	});
 });

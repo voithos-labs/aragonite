@@ -26,6 +26,7 @@ describe('intra-list cross-item paste pipeline', () => {
 			{ path: [0, 0, 0], offset: 0 },
 			{ path: [0, 1, 0], offset: 3 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 		expect(serialize(doc)).toBe('1. \n');
@@ -39,6 +40,7 @@ describe('intra-list cross-item paste pipeline', () => {
 			{ path: [0, 0, 0], offset: 0 },
 			{ path: [0, 1, 0], offset: 3 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 		const pasted = 'HELLO';

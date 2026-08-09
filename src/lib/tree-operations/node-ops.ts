@@ -12,7 +12,11 @@ import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph, isBlankSource, parse } from '../core/parser';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
-import { getLiveSplitRebalancer } from '../schema/inline-construct-policy';
+import {
+	getLiveJoinSeamCleaner,
+	getLiveSplitRebalancer,
+	type JoinSeam
+} from '../schema/inline-construct-policy';
 import type { PresentationMode } from '../presentation-mode';
 import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { devWarn } from '../dev-warn';
@@ -353,16 +357,53 @@ function structuralSuffixSplit(
 // ── Merge ──
 
 /**
- * Merge the node at `blockIndex` into its predecessor; combined raw is re-parsed and the
- * merged block inherits prev's ID. Noop at index 0.
+ * `join.mergedRaw` with the delimiter runs the join orphaned at its seam dropped — live only,
+ * where those runs are unpainted and a literal concatenation surfaces bytes the reader never saw
+ * (§ 4.5). The one registered cleaner verifies its own bytes and otherwise declines, leaving the
+ * literal join every other mode gets. Exported for `selection/range-delete`, the fourth seam.
  */
-export function mergeWithPrevious(parent: NodeParent, blockIndex: number): StructuralChange {
+export function cleanJoinedRaw(
+	join: JoinSeam,
+	presentationMode: PresentationMode | undefined
+): string {
+	if (presentationMode !== 'live') return join.mergedRaw;
+	return getLiveJoinSeamCleaner()?.(join) ?? join.mergedRaw;
+}
+
+/** The bytes two adjacent blocks make when one absorbs the other, seam cleanup included. */
+function joinRaw(
+	prev: NodeView,
+	curr: NodeView,
+	presentationMode: PresentationMode | undefined
+): string {
+	const seam = displayLength(prev.raw);
+	return cleanJoinedRaw(
+		{
+			mergedRaw: prev.raw.slice(0, seam) + curr.raw,
+			seam,
+			start: { node: prev, offset: seam },
+			end: { node: curr, offset: 0 }
+		},
+		presentationMode
+	);
+}
+
+/**
+ * Merge the node at `blockIndex` into its predecessor; combined raw is re-parsed and the
+ * merged block inherits prev's ID. Noop at index 0. `presentationMode` is nullable rather than
+ * optional for the reason {@link splitNode}'s is: skipping the question is a compile error.
+ */
+export function mergeWithPrevious(
+	parent: NodeParent,
+	blockIndex: number,
+	presentationMode: PresentationMode | undefined
+): StructuralChange {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return { op: 'noop' };
 
 	const prev = parent.children[blockIndex - 1];
 	const curr = parent.children[blockIndex];
 
-	const mergedRaw = trimTrailingLineEnding(prev.raw) + curr.raw;
+	const mergedRaw = joinRaw(prev, curr, presentationMode);
 	// A merge of two blank blocks collapses the run, so prev's separator no longer describes
 	// where the survivor sits; re-derive it.
 	const trivia = isBlankSource(mergedRaw)
@@ -400,7 +441,8 @@ export interface MergeIntoPrevResult {
 export function mergeIntoPrevDeepLeaf(
 	parent: NodeParent,
 	blockIndex: number,
-	sharing?: SharingState
+	sharing: SharingState | undefined,
+	presentationMode: PresentationMode | undefined
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
 
@@ -418,13 +460,11 @@ export function mergeIntoPrevDeepLeaf(
 	const curr = parent.children[blockIndex];
 
 	const targetRaw = target.raw ?? '';
-	const currRaw = curr.raw ?? '';
 	const lineEnding = trailingLineEnding(targetRaw);
 	const targetText = trimTrailingLineEnding(targetRaw);
-	const currText = trimTrailingLineEnding(currRaw);
 	const joinOffset = targetText.length;
 
-	target.raw = targetText + currText + lineEnding;
+	target.raw = trimTrailingLineEnding(joinRaw(target, curr, presentationMode)) + lineEnding;
 	if (mergeTarget.path.length > 0) {
 		rebuildAncestryRaw(prev, mergeTarget.path);
 	}
@@ -437,13 +477,17 @@ export function mergeIntoPrevDeepLeaf(
  * Merge the node at `blockIndex` with its successor; combined raw is re-parsed and the
  * merged block inherits the current block's ID. Noop at the tail.
  */
-export function mergeWithNext(parent: NodeParent, blockIndex: number): StructuralChange {
+export function mergeWithNext(
+	parent: NodeParent,
+	blockIndex: number,
+	presentationMode: PresentationMode | undefined
+): StructuralChange {
 	if (blockIndex < 0 || blockIndex >= parent.children.length - 1) return { op: 'noop' };
 
 	const curr = parent.children[blockIndex];
 	const next = parent.children[blockIndex + 1];
 
-	const mergedRaw = trimTrailingLineEnding(curr.raw) + next.raw;
+	const mergedRaw = joinRaw(curr, next, presentationMode);
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
 	parent.children.splice(blockIndex, 2, mergedNode);
 	return replacePreservingFirst(blockIndex, 2, 1);

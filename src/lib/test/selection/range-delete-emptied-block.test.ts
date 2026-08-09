@@ -23,6 +23,7 @@ function emptyBlock(doc: Document, index: number): void {
 		{ path: [index], offset: 0 },
 		{ path: [index], offset: end },
 		createSharingState(),
+		undefined,
 		undefined
 	);
 }
@@ -75,6 +76,7 @@ describe('a delete that empties a block settles the run it joins', () => {
 			{ path: [1], offset: 0 },
 			{ path: [2], offset: 0 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 

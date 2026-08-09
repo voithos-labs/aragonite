@@ -20,7 +20,7 @@ function point(path: number[], offset: number): SelectionPoint {
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), undefined);
+	const result = rangeDelete(doc, start, end, createSharingState(), undefined, undefined);
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -122,6 +122,7 @@ describe('chrome wall — rangeDelete post-states', () => {
 			point([0], 5),
 			point([1, 2], 5),
 			createSharingState(),
+			undefined,
 			undefined
 		);
 		expect(serialize(result.newDoc)).toBe('Above\n\nBelow\n');
@@ -156,7 +157,7 @@ describe('chrome wall — rangeDelete post-states', () => {
 
 		const sharing = createSharingState();
 		sharing.markSnapshotTaken();
-		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing, undefined);
+		rangeDelete(doc, point([0], 2), point([1, 1], 2), sharing, undefined, undefined);
 
 		expect(snapshotTitle.raw).toBe('Title\n');
 	});

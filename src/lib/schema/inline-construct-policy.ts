@@ -95,6 +95,44 @@ export function getLiveSplitRebalancer(): LiveSplitRebalancer | undefined {
 	return splitRebalancer;
 }
 
+// ── Join-seam cleaner ───────────────────────────────────────────────────────
+
+/** One side of a join: the block bytes it contributed and the offset they were cut at — a whole
+ *  block's content end for a merge, the selection endpoint for a range delete. */
+export interface JoinEndpoint {
+	node: NodeView;
+	offset: number;
+}
+
+/** The bytes a join produced, plus where the second side's contribution starts in them. */
+export interface JoinSeam {
+	mergedRaw: string;
+	seam: number;
+	start: JoinEndpoint;
+	end: JoinEndpoint;
+}
+
+/**
+ * The one live-mode join rewrite, consulting each construct's own policy row, so the merge
+ * primitives need neither `parseInline` nor a per-kind dispatch. Null declines the rewrite.
+ */
+export type LiveJoinSeamCleaner = (join: JoinSeam) => string | null;
+
+let joinSeamCleaner: LiveJoinSeamCleaner | undefined;
+
+export function registerLiveJoinSeamCleaner(cleaner: LiveJoinSeamCleaner): void {
+	registerOnce(
+		joinSeamCleaner !== undefined,
+		() => (joinSeamCleaner = cleaner),
+		`registerLiveJoinSeamCleaner: a cleaner is already registered. The slot holds one ` +
+			`function for every construct — extend that one rather than registering a second.`
+	);
+}
+
+export function getLiveJoinSeamCleaner(): LiveJoinSeamCleaner | undefined {
+	return joinSeamCleaner;
+}
+
 /** Test-only. Drops every plugin-registered row; built-in rows survive, and so does the
  *  rebalancer — it is a built-in registration, and dropping it silently retired live splits
  *  for every suite that reset between cases. */
@@ -108,4 +146,9 @@ export function __resetInlineConstructPoliciesForTests(): void {
  *  registry's own reset must not do it as a side effect. */
 export function __resetLiveSplitRebalancerForTests(): void {
 	splitRebalancer = undefined;
+}
+
+/** Test-only, {@link __resetLiveSplitRebalancerForTests}'s twin for the join slot. */
+export function __resetLiveJoinSeamCleanerForTests(): void {
+	joinSeamCleaner = undefined;
 }

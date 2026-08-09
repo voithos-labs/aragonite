@@ -90,7 +90,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
 				const beforeLens = views.map((v) => v.children.length);
-				rangeDelete(deps.doc, start, end, views[0].sharing, undefined);
+				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined);
 				return views.map((v, i) =>
 					__computeScopeDescriptorForTests(
 						paths[i],
@@ -127,7 +127,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
 				const beforeLens = views.map((v) => v.children.length);
-				rangeDelete(deps.doc, start, end, views[0].sharing, undefined);
+				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined);
 				return views.map((v, i) =>
 					__computeScopeDescriptorForTests(
 						paths[i],

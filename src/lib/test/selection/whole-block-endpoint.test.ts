@@ -32,7 +32,9 @@ function copySelected(doc: Document, s: ReturnType<typeof stateOver>): string {
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string {
-	return serialize(rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined).newDoc);
+	return serialize(
+		rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined, undefined).newDoc
+	);
 }
 
 afterEach(() => resetPluginPlatformForTests());

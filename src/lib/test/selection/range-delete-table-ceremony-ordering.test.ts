@@ -22,6 +22,7 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 			{ path: [0], offset: 2 },
 			{ path: [2], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -46,6 +47,7 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 			{ path: [0], offset: 3 },
 			{ path: [2], offset: 5 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -70,6 +72,7 @@ describe('cross-block delete ceremony — per-case ordering survives the shared 
 			{ path: [0], offset: 0 },
 			{ path: [3], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 

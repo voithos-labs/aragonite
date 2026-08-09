@@ -167,7 +167,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'prev' } },
 				mutate: (view) => {
-					mergeResult = mergeIntoPrevDeepLeaf({ children: view.children }, i, view.sharing);
+					mergeResult = mergeIntoPrevDeepLeaf(
+						{ children: view.children },
+						i,
+						view.sharing,
+						view.getPresentationMode?.()
+					);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
 				afterTick: () => {
@@ -216,7 +221,11 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				mutate: (view) => {
-					const change = performMergeNext({ children: view.children }, i);
+					const change = performMergeNext(
+						{ children: view.children },
+						i,
+						view.getPresentationMode?.()
+					);
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
 				},

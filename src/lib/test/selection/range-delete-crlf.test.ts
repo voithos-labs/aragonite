@@ -13,7 +13,14 @@ import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
 
 function run(source: string, start: SelectionPoint, end: SelectionPoint): string {
-	const doc = rangeDelete(parse(source), start, end, createSharingState(), undefined).newDoc;
+	const doc = rangeDelete(
+		parse(source),
+		start,
+		end,
+		createSharingState(),
+		undefined,
+		undefined
+	).newDoc;
 	// The minted paragraph is a blank line, so its own separator settles with the rest of the run —
 	// bytes alone would pass on a shape that reloads one empty paragraph wider (GH #96).
 	expectParseConverged(doc);

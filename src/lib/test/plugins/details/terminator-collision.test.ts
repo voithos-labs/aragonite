@@ -191,6 +191,7 @@ describe('details terminator escape at the cross-block doors', () => {
 			{ path: [0, 1], offset: 6 },
 			{ path: [0, 2], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
@@ -206,6 +207,7 @@ describe('details terminator escape at the cross-block doors', () => {
 			{ path: [0, 1], offset: 0 },
 			{ path: [0, 1], offset: 2 },
 			createSharingState(),
+			undefined,
 			undefined
 		);
 
