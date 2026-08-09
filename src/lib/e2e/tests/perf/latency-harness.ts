@@ -7,6 +7,7 @@
 
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import type { PresentationMode } from '../../../presentation-mode';
 import {
 	generateFixture,
 	generateDeepNested,
@@ -147,16 +148,19 @@ export async function measureTypingIntoDocument(
 }
 
 /**
- * Load a generated fixture on the standard editor route and time typing into it.
+ * Load a generated fixture on the standard editor route and time typing into it. `mode` is the
+ * presentation rung the route starts in — the axis, not a second measurement: a rung that made
+ * a keystroke cost more must show up on the same samples the source rows are read from.
  */
 export async function measureTypingLatency(
 	page: Page,
 	editor: EditorPage,
 	shape: FixtureShape,
 	bytes: number,
-	keystrokes: number
+	keystrokes: number,
+	mode: PresentationMode = 'source'
 ): Promise<LatencyMeasurement> {
-	await editor.goto();
+	await editor.goto(mode === 'source' ? '' : `?presentationMode=${mode}`);
 	const fixture = NEEDS_PROSE_TARGET.has(shape)
 		? PROSE_TARGET + '\n' + generateFixture(shape, bytes)
 		: generateFixture(shape, bytes);

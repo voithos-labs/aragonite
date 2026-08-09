@@ -24,7 +24,11 @@ const RUNNER_SCALE = Number(process.env.PERF_RUNNER_SCALE ?? '1');
 const SIZE_BYTES: Record<string, number> = { '1MB': 1_000_000, '10MB': 10_000_000 };
 const SIZE_KEYSTROKES: Record<string, number> = { '1MB': 30, '10MB': 15 };
 
-const GATED_ROWS: Array<[shape: FixtureShape, size: string]> = [
+// The mode is a row axis, not a second harness: a `live` row measures the same keystroke the
+// source row above it does, on a route that starts in that rung. Marker hiding is CSS over the
+// one render path, so a live row landing outside its source twin's band means per-keystroke
+// work entered with the hidden-run walk.
+const GATED_ROWS: Array<[shape: FixtureShape, size: string, mode?: 'live']> = [
 	['flat-prose', '1MB'],
 	['nested-containers', '1MB'],
 	['reference-heavy', '1MB'],
@@ -35,7 +39,9 @@ const GATED_ROWS: Array<[shape: FixtureShape, size: string]> = [
 	['giant-single-table', '10MB'],
 	['flat-prose', '10MB'],
 	['many-small-blocks', '10MB'],
-	['reference-heavy', '10MB']
+	['reference-heavy', '10MB'],
+	['flat-prose', '1MB', 'live'],
+	['nested-containers', '1MB', 'live']
 ];
 
 interface E2eBaselineRow {
@@ -48,9 +54,10 @@ const baseline: { e2e: Record<string, E2eBaselineRow> } = JSON.parse(
 );
 
 test.describe('perf gate — keystroke p50 within budget', () => {
-	for (const [shape, size] of GATED_ROWS) {
-		test(`${shape} ${size}`, async ({ page }) => {
-			const row = baseline.e2e[`${shape}-${size}`];
+	for (const [shape, size, mode] of GATED_ROWS) {
+		const key = mode ? `${shape}-${size}-${mode}` : `${shape}-${size}`;
+		test(key.replace(/-/g, ' '), async ({ page }) => {
+			const row = baseline.e2e[key];
 			const ceiling = (row.keystrokeP50Ms * TOLERANCE + FLOOR_MS) * RUNNER_SCALE;
 
 			const editor = new EditorPage(page);
@@ -59,16 +66,16 @@ test.describe('perf gate — keystroke p50 within budget', () => {
 				editor,
 				shape,
 				SIZE_BYTES[size],
-				SIZE_KEYSTROKES[size]
+				SIZE_KEYSTROKES[size],
+				mode ?? 'source'
 			);
 
 			console.log(
-				`PERF-GATE ${shape}-${size} p50=${m.p50Ms.toFixed(1)}ms ` +
-					`ceiling=${ceiling.toFixed(1)}ms (baseline ${row.keystrokeP50Ms}ms) p95=${m.p95Ms.toFixed(1)}ms`
+				`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms ` +
+					`ceiling=${ceiling.toFixed(1)}ms (baseline ${row.keystrokeP50Ms}ms) ` +
+					`p95=${m.p95Ms.toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
 			);
-			expect(m.p50Ms, `${shape}-${size} p50 regressed past baseline+budget`).toBeLessThanOrEqual(
-				ceiling
-			);
+			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceiling);
 		});
 	}
 });
