@@ -21,13 +21,10 @@ selection bridge and the bytes from the source bridge.
   end, and a typed byte lands after the closing delimiter (arrow arrival from
   outside)
 - `ArrowRight` at the end of a block, entering the next one which BEGINS with
-  `**bold**`: the caret should land at the construct's content start and a typed
-  byte BEFORE the construct — pinned KNOWN-FAIL. It seats at raw 0 today and the
-  byte lands inside the pair. The END sentinel's clamp cannot reach it: a
-  `'start'` arrival and a live split's continuation both spell the seat
-  `focus(0)`, and `presentation-live-split.md` pins that the split's caret stays
-  at raw 0 and keeps typing inside, so telling them apart needs a start sentinel
-  carried through `FocusPosition` rather than a door-level clamp
+  `**bold**`: the caret lands at the construct's content start, and a typed byte
+  lands BEFORE the construct. This is why the door takes a START sentinel rather
+  than a literal 0 — a live split's continuation seats at 0 too and must STAY
+  there (`presentation-live-split.md`), so only an arrival's sentinel moves in
 
 ## Edge cases
 

@@ -17,6 +17,10 @@ declare const cursorEndBrand: unique symbol;
 /** Branded `number`: a focus offset meaning "end of content", not a position. */
 export type CursorEnd = number & { readonly [cursorEndBrand]: true };
 
+declare const cursorStartBrand: unique symbol;
+/** Branded `number`: a focus offset meaning "start of content", not a position. */
+export type CursorStart = number & { readonly [cursorStartBrand]: true };
+
 declare const selectionEndBrand: unique symbol;
 /** Branded `number`: a measurePartialRects endOffset meaning "end of range". */
 export type SelectionEnd = number & { readonly [selectionEndBrand]: true };
@@ -27,6 +31,14 @@ export type SelectionEnd = number & { readonly [selectionEndBrand]: true };
  * there — a finite sentinel lands mid-block once content outgrows it.
  */
 export const CURSOR_END = Number.MAX_SAFE_INTEGER as CursorEnd;
+
+/**
+ * "Place cursor at start of content" — {@link CURSOR_END}'s twin, and NOT a synonym for 0. A
+ * mode that paints no marker puts raw 0 out of the caret's reach behind a leading construct, so
+ * an ARRIVAL says this and the door seats it on the first landable offset; a caller passing 0
+ * means byte 0 and keeps it (a split's continuation is the reason that distinction exists).
+ */
+export const CURSOR_START = -2 as CursorStart;
 
 /** Cascade focus to the last descendant and place the cursor at its start. */
 export const FOCUS_LAST_START = -1;

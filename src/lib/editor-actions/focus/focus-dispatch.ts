@@ -6,6 +6,7 @@
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
 import {
 	CURSOR_END,
+	CURSOR_START,
 	type BlockComponent,
 	type FocusPosition,
 	type StickyColumnDirection
@@ -134,7 +135,7 @@ export function dispatchFocusAtColumn(
 		if (!ref?.focusable) continue;
 		if (ref.isVerticallyTransparent?.()) continue;
 		if (ref.focusAtColumn) ref.focusAtColumn(x, from);
-		else ref.focus(from === 'above' ? 0 : CURSOR_END);
+		else ref.focus(from === 'above' ? CURSOR_START : CURSOR_END);
 		return;
 	}
 }
