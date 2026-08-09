@@ -476,7 +476,7 @@ export function mergeIntoPrevDeepLeaf(
 	const prev = parent.children[blockIndex - 1];
 	const curr = parent.children[blockIndex];
 
-	const lineEnding = trailingLineEnding(target.raw ?? '');
+	const lineEnding = trailingLineEnding(target.raw);
 	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
 
 	target.raw = trimTrailingLineEnding(mergedRaw) + lineEnding;

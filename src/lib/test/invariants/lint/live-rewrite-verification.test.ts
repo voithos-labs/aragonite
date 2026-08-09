@@ -24,13 +24,20 @@ const SLOT_HOME = 'src/lib/schema/inline-construct-policy.ts';
 const SLOT_READER = 'src/lib/tree-operations/node-ops.ts';
 
 /**
- * The one join that does NOT cross `cleanJoinedRaw`, stated rather than hidden: a paste over a
- * single-block selection deletes through the paste surfaces' own `preDelete`, three of them
- * (inline, table cell, code) each with their own splice and no mode on the way in. Threading the
- * seam there is its own task; until then a live paste over a construct edge writes the literal
- * join, which is sound and can surface a delimiter the cross-block paste would have dropped.
+ * The joins that do NOT cross `cleanJoinedRaw`, each stated rather than hidden. A paste over a
+ * single-block selection deletes through the paste surfaces' own `preDelete`, and there are THREE
+ * of them, none carrying a mode. Threading the seam through `PasteDeps` is its own task; until
+ * then a live paste over a construct edge writes the literal join — sound, and able to surface a
+ * delimiter the cross-block paste would have dropped.
  */
-const JOIN_OUTSIDE_THE_SEAM = ['src/lib/tree-operations/paste/hooks.ts'];
+const JOIN_OUTSIDE_THE_SEAM: Record<string, string> = {
+	'src/lib/tree-operations/paste/hooks.ts':
+		'the default inline and structural hooks — every prose leaf without a bespoke surface',
+	'src/lib/components/blocks/table/table-cell-paste.ts':
+		'the table cell surface, which escapes its own spliced raw and so cannot share the leaf splice',
+	'src/lib/components/blocks/code/code-paste-surface.ts':
+		'the fenced-code surface, whose body has no inline constructs for a seam to clean anyway'
+};
 
 const namesRenderedText = (file: SourceFile): boolean =>
 	/(?<![\w.])renderedText\s*\(/.test(stripComments(file.text));
@@ -45,6 +52,11 @@ const readsSlot = (file: SourceFile): boolean =>
 const stripsMarkerSpans = (file: SourceFile): boolean =>
 	!file.relPath.endsWith('.svelte') &&
 	/['"][^'"]*\.md-(marker|ref-label)/.test(stripComments(file.text));
+
+/** A surface that reads a pre-delete range's endpoints is splicing around them — the join shape
+ *  that skipped the seam. Forwarding the object is not: it decides no bytes. */
+const readsPreDeleteEndpoints = (file: SourceFile): boolean =>
+	/preDelete\??\.(start|end)/.test(stripComments(file.text));
 
 describe('live-rewrite verification source-scan', () => {
 	const sources = collectEditorSources();
@@ -73,14 +85,11 @@ describe('live-rewrite verification source-scan', () => {
 	});
 
 	it('the joins outside the seam are the declared ones', () => {
-		// A raw splice around a caller-supplied delete range is the shape of a join that skipped
-		// `cleanJoinedRaw`; the paste surfaces are the stated hole above.
-		const splicers = sources
-			.filter((file) => /preDelete\.start\s*\)\s*\+/.test(stripComments(file.text)))
-			.map((file) => file.relPath);
-		expect(splicers.filter((path) => !JOIN_OUTSIDE_THE_SEAM.includes(path))).toEqual([
-			'src/lib/components/blocks/table/table-cell-paste.ts'
-		]);
+		// Reading the range's ENDPOINTS is what a surface does to splice around them; a caller that
+		// only forwards the object (`preDelete: { start: sel.start … }`) is not deciding bytes. Set
+		// equality, so a fourth surface in any splice style is a decision rather than a drift.
+		const splicers = sources.filter(readsPreDeleteEndpoints).map((file) => file.relPath);
+		expect(splicers.sort()).toEqual(Object.keys(JOIN_OUTSIDE_THE_SEAM).sort());
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
@@ -90,6 +99,15 @@ describe('live-rewrite verification source-scan', () => {
 		expect(
 			/(?<![\w.])renderedText\s*\(/.test(stripComments('// renderedText(x) is the door'))
 		).toBe(false);
+	});
+
+	it('the preDelete matcher separates a splice from a forwarded range', () => {
+		const probe = (text: string) => readsPreDeleteEndpoints({ relPath: 'x', text, code: '' });
+		expect(probe('raw.slice(0, preDelete.start) + raw.slice(preDelete.end)')).toBe(true);
+		expect(probe('const start = preDelete?.start ?? offset;')).toBe(true);
+		expect(probe('{ preDelete: sel.start !== sel.end ? { start: sel.start } : undefined }')).toBe(
+			false
+		);
 	});
 
 	it('the span matcher sees a private strip of either class', () => {

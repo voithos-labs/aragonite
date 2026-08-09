@@ -426,6 +426,10 @@ export function renderedText(
 	opts: RenderInlineOptions = {}
 ): string {
 	const fragment = renderInlineNodes(nodes, raw, opts);
+	// The CSS qualifies its hide with `:not([contenteditable='false'])`; the strip does not need to,
+	// because nothing here mints a marker span with that attribute — ambient and widget chrome does,
+	// and neither carries a marker class. A marker span that ever gains it owes this line the same
+	// qualifier.
 	for (const span of fragment.querySelectorAll('.md-marker, .md-ref-label')) span.remove();
 	return fragment.textContent ?? '';
 }
