@@ -35,7 +35,13 @@
 	import { createDebugPanelFeed } from './debug-panel/panel-feed.svelte';
 
 	// Live-changeable props — the toggles flip these in place, no remount.
-	const MODES: PresentationMode[] = ['source', 'reading', 'preview-block', 'preview-inline'];
+	const MODES: PresentationMode[] = [
+		'source',
+		'reading',
+		'preview-block',
+		'preview-inline',
+		'live'
+	];
 	let presentationMode = $state<PresentationMode>('source');
 	let theme = $state<'dark' | 'light'>('dark');
 
@@ -54,8 +60,9 @@
 		dragHandles = !dragHandles;
 	}
 
-	// The editor gates handles off in reading mode, so an enabled toggle there would paint an
-	// active state it cannot produce — and pay a remount for nothing.
+	// Reading mode ONLY: the editor gates handles off there, so an enabled toggle would paint an
+	// active state it cannot produce — and pay a remount for nothing. Live is not gated: it is an
+	// editing mode, and every editing affordance stays exactly as available as in source.
 	const handlesGated = $derived(presentationMode === 'reading');
 
 	// Owned here rather than inside the panel, so the header affordance and the panel's own

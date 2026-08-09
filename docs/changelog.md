@@ -4,6 +4,26 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **Fully live mode.** `presentationMode="live"` hides every Markdown marker and leaves the
+  document directly editable — `**bold**` reads as bold with the caret inside it, a heading never
+  shows its `## `, a link shows its text alone — with typing, selection, Enter, Backspace, undo,
+  search, tables and plugins all working as they do in styled source. Hiding the delimiters makes
+  one screen position name two byte positions, so the mode answers that where it arises: a byte
+  typed at a construct's edge lands on the side the caret arrived from, `Home`/`End`/collapsing a
+  selection seat it outside the delimiters, Enter inside a construct closes and reopens it instead
+  of stranding half a pair, and every join — Backspace, Delete, range delete, type-over, paste —
+  drops the runs its cut orphaned rather than surfacing bytes the reader never saw. A rewrite that
+  cannot be verified against what the two sides showed falls back to the literal bytes, so the
+  round-trip is never traded for the effect. The format toggles (`Mod+B`, `Mod+I`, `Mod+Shift+X`,
+  `Mod+E`) arm at a collapsed caret and apply to the next insertion, and `Mod+K` with the caret in
+  a link opens the **link card** — the only way to read or rewrite a destination the mode paints
+  nowhere; a click on a link opens the same card beside a caret that stays the document's. The
+  demo's mode switcher gains the rung.
+
+- **An angle autolink copies without its brackets in reading mode.** `<https://example.com>`
+  renders as the URL alone, so a copy out of a rendered document now yields what the reader saw
+  rather than the source form's `<` and `>`.
+
 - **The demo app is now the pitch.** The `/` showcase document reads as a tour — every block
   kind and all eight bundled plugins in service of a narrative, with a `[[toc]]` outline for
   navigation — under a restrained header that gains a theme toggle (the `theme` prop's first
