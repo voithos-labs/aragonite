@@ -13,6 +13,10 @@ export const DRAG_HANDLE_TITLE = 'Drag to reorder — or Alt+↑ / Alt+↓';
 export const FAILED_BLOCK_LABEL = 'Block failed to render';
 export const GAP_CARET_LABEL = 'Insertion point between blocks';
 export const IMAGE_PROPERTIES_LABEL = 'Image properties';
+export const LINK_CARD_LABEL = 'Link properties';
+export const LINK_CARD_URL = 'Link URL';
+export const LINK_CARD_OPEN = 'Open link';
+export const LINK_CARD_REMOVE = 'Remove link';
 
 // ── Search bar ───────────────────────────────────────────────────────────────
 // A _TITLE/_LABEL pair is a tooltip that reads shorter than its accessible name.

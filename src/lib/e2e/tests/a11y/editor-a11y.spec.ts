@@ -74,6 +74,21 @@ test.describe('editor accessibility (axe baseline-ratchet)', () => {
 		await expectNoNewA11yViolations(page, 'blocked-link');
 	});
 
+	test('the live-mode link card has no new violations while open', async ({ page }) => {
+		// Anchored chrome INSIDE `.editor`, so axe's `include('.editor')` scans it unchanged: a
+		// role=dialog with a name, a labelled text field, and two named buttons over the editor's
+		// own token palette.
+		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+		await editor.loadContent('Visit [example](https://example.com) now.\n');
+		await editor.waitForRenderFlush();
+		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+
+		await page.locator('a.md-link-content').first().click();
+		await expect(page.locator('[data-link-card]')).toBeVisible();
+
+		await expectNoNewA11yViolations(page, 'link-card');
+	});
+
 	test('keyboard reorder announces via live region and has no new violations', async ({ page }) => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
 		await editor.clickBlock(0);

@@ -47,6 +47,7 @@
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
+	import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
@@ -78,7 +79,12 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
-	import { readBlockPath } from '../selection/path-lookup';
+	import {
+		findBlockPathForElement,
+		findCellPathForElement,
+		readBlockPath
+	} from '../selection/path-lookup';
+	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
@@ -99,6 +105,9 @@
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
+	import LinkCardHost from './link-card/LinkCardHost.svelte';
+	import { createLinkCardState } from './link-card/link-card-state.svelte';
+	import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { registerBuiltInBlocks } from './built-in-blocks';
 	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
@@ -391,11 +400,43 @@
 		}
 	});
 
+	const linkCard = createLinkCardState();
+
+	/** Open the card on the link `el` renders, or report that nothing there is one. The caret has
+	 *  already landed from mousedown; it is saved here so Escape can put it back. */
+	function openLinkCard(el: Element): boolean {
+		const path = findCellPathForElement(el) ?? findBlockPathForElement(el);
+		if (!path) return false;
+		const block = nodeAt(doc, path);
+		if (block === null || !isBlockNode(block)) return false;
+		const contentEl = getBlockElByPath(path);
+		if (!contentEl) return false;
+		const hit = resolveLinkAtPoint({ contentEl, block, path, linkRef: linkRefView });
+		if (!hit) return false;
+		caretRestore.saveCurrent();
+		linkCard.open(hit.target);
+		return true;
+	}
+
+	// The card belongs to live mode alone; any other mode paints the destination bytes already.
+	$effect(() => {
+		if (effectiveMode !== 'live') linkCard.close();
+	});
+
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
+			// Ahead of the anchor arm: a blocked-scheme link renders as a SPAN, and it is exactly
+			// the link a user opens the card to fix. Mod-click still activates, below.
+			if (effectiveMode === 'live' && !e.ctrlKey && !e.metaKey) {
+				const linkEl = target?.closest(LINK_ELEMENT_SELECTOR);
+				if (linkEl && !isHostChrome(linkEl) && openLinkCard(linkEl)) {
+					e.preventDefault();
+					return;
+				}
+			}
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			// The helper claims only clicks whose target IS the root, so nothing the
 			// editor renders is touched.
@@ -665,9 +706,9 @@
 
 	const pasteCoordinator = createPasteCoordinator(controller, revealPath);
 
-	// Pre-search caret, snapshotted on open and restored on close. Plain `let`, like
-	// focusedPath: only read and written from imperative handlers.
-	let savedRange: Range | null = null;
+	// The document caret while chrome holds focus. Search opened this closure; the link card is its
+	// second door (selection/caret-restore.ts).
+	const caretRestore = createCaretRestore(() => editorEl ?? null);
 
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	// Find stays live in reading mode; replace is an edit and no-ops at this seam.
@@ -686,21 +727,7 @@
 		// default, which is what search wants), so the band's async image-decode churn
 		// can't clamp the reveal off the match.
 		reveal: (p) => rects.scrollTo(p),
-		onClose: () => {
-			// Restore the native caret when its container is still in the DOM; otherwise
-			// focus the root so cross-block keyboard routing survives.
-			if (savedRange && editorEl?.contains(savedRange.startContainer)) {
-				const node = savedRange.startContainer;
-				const host = node instanceof Element ? node : node.parentElement;
-				host?.closest<HTMLElement>('[contenteditable]')?.focus();
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				sel?.addRange(savedRange);
-			} else {
-				editorEl?.focus();
-			}
-			savedRange = null;
-		}
+		onClose: caretRestore.restore
 	});
 	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share one
 	// source of truth.
@@ -933,7 +960,7 @@
 		onCommandError: commandErrorSink,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
-		saveSearchRange: (range) => (savedRange = range),
+		saveSearchRange: caretRestore.save,
 		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
 	});
 
@@ -1367,6 +1394,19 @@
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
 		getPresentationMode={() => effectiveMode}
 		lifetime={lifetimeController.signal}
+	/>
+	<LinkCardHost
+		card={linkCard}
+		{controller}
+		{events}
+		{getDoc}
+		getEditorEl={() => editorEl ?? null}
+		measureRange={rects.rangeRects}
+		landCaret={rects.navigateTo}
+		{activateLink}
+		{caretRestore}
+		linkRef={linkRefView}
+		grammar={registryView.grammar}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
 	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
