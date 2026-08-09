@@ -51,9 +51,11 @@ const stripsMarkerSpans = (file: SourceFile): boolean =>
 	/['"][^'"]*\.md-(marker|ref-label)/.test(stripComments(file.text));
 
 /** A surface that reads a pre-delete range's endpoints is splicing around them — the join shape
- *  that skipped the seam. Forwarding the object is not: it decides no bytes. Both SPELLINGS of a
- *  read count: a member access and a destructuring, which reaches the same bytes and would
- *  otherwise reintroduce the leak past a matcher that only knows the dots. */
+ *  that skipped the seam; forwarding the object is not. Both SPELLINGS count, member access and
+ *  destructuring, the second having reached the same bytes past a dotted-only matcher. Still a
+ *  SPELLING PROXY: an alias, a bracket index or a helper forward slips past it, so the e2e row
+ *  per surface is what holds the line. Inverting to an allowlist is the real fix, and its own
+ *  change. */
 const readsPreDeleteEndpoints = (file: SourceFile): boolean => {
 	const code = stripComments(file.text);
 	return /preDelete\??\.(start|end)/.test(code) || /\{[^}]*\}\s*=\s*preDelete\b/.test(code);

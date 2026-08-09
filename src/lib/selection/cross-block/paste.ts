@@ -75,6 +75,9 @@ export async function handleCrossBlockPaste(
 		return true;
 	}
 
+	// No `preDelete`: the range is already gone. `performCrossBlockDelete` above took it through
+	// `rangeDelete`, which crosses the join seam itself, so this dispatch inserts at a caret the
+	// cleanup already seated — handing it a range would delete a second time.
 	const result = await pasteDispatch(
 		{
 			pastedText: pasted,

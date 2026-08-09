@@ -42,7 +42,9 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
 - a cut that would strand a block's TERMINAL whitespace drops those bytes instead of carrying
   them: they are a hard break with no line after them, so they paint nothing — carried along the
   pair reloads as a different shape (#106), and declining to the byte-literal cut prints the
-  delimiters the reader never saw. The post-split screen and the reload's screen both show none
+  delimiters the reader never saw. The post-split screen and the reload's screen both show none.
+  This is the SPLIT seam's half of that class only: the join/delete seam still reds the
+  fresh-seed property lane on the same signature, open as #113 and not claimed here
 - a cut that would leave a delimiter run against whitespace moves the SPACE outside the run rather
   than kill the construct: `**a *|ital* b**` gives `**a** ` and `***ital* b**`, which read
   identically on screen and parse back, where the literal `**a **` would print its stars
