@@ -7,7 +7,6 @@
 import type { Document } from '../../core/nodes';
 import type { InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
-import { untrack } from 'svelte';
 import { wireOverlayRemeasure } from '../../cursor/overlay-remeasure';
 import type { UndoController } from '../../editor-actions/deps';
 import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
@@ -140,12 +139,16 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			cardEl.style.left = `${rect.left - editorRect.left - borderLeft + editorEl.scrollLeft}px`;
 		};
 
-		// Untracked: the setup measure reads the document, and letting that register would make the
-		// caller's $effect tear down and re-wire these listeners on every keystroke. The `edit`
-		// subscription below is the one document trigger.
-		const unwireScroll = untrack(() =>
-			wireOverlayRemeasure({ el: cardEl, editorRoot: editorEl, blockRef: undefined, measure })
-		);
+		// The setup measure reads the document, and letting that register would make the caller's
+		// $effect tear down and re-wire these listeners on every keystroke. The `edit` subscription
+		// below is the one document trigger.
+		const unwireScroll = wireOverlayRemeasure({
+			el: cardEl,
+			editorRoot: editorEl,
+			blockRef: undefined,
+			measure,
+			untrackSetupMeasure: true
+		});
 		// An edit anywhere above the link shifts its y without touching the link itself.
 		const unsubscribe = deps.events.on('edit', measure);
 		window.addEventListener('resize', measure);

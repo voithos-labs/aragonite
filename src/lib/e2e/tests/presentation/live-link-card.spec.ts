@@ -1,7 +1,9 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { primaryModifier } from '../../platform';
 import { centerOfWord, clickWordSettled, enterPresentationMode } from './helpers';
+import { findInput } from '../search/helpers';
 
 // The anchored chrome that replaces the destination live mode hides.
 // Requirements: e2e/requirements/presentation/live-link-card.md.
@@ -293,6 +295,50 @@ test.describe('live-mode link card', () => {
 		await expect(page.locator(CARD)).toHaveCount(0);
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
+	});
+
+	// A card whose target stops resolving unrenders, and a target left SET would resurrect it the
+	// moment an undo made the construct resolve again — holding the draft from before.
+	test('a card closed by a shifted construct start stays closed through the undo', async ({
+		page
+	}) => {
+		await openCardOn(ep, page, 'example');
+
+		// Typing at the block's START moves the link's `sourceStart`, which is half the card's
+		// target identity: the card addresses a construct that is no longer there.
+		await page.keyboard.press('Home');
+		await ep.typeText('Z');
+		await ep.bridge.waitForSourceContains('ZVisit [example]');
+		await expect(page.locator(CARD)).toHaveCount(0);
+
+		await ep.undo();
+
+		await ep.bridge.waitForSourceNotContains('ZVisit');
+		await expect(page.locator(CARD)).toHaveCount(0);
+	});
+
+	// One caret slot per consumer: a card opened over an open search bar must not overwrite the
+	// pre-search caret, or closing the bar lands the user at the link instead.
+	test('a card opened over the search bar leaves the pre-search caret alone', async ({ page }) => {
+		await ep.clickBlock(2);
+		await page.keyboard.press('Home');
+		const preSearch = (await ep.bridge.getSelectionPaths())!.focus;
+
+		await page.keyboard.press(`${primaryModifier}+f`);
+		await expect(findInput(page)).toBeFocused();
+		await page.keyboard.type('later');
+
+		await openCardOn(ep, page, 'example');
+		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([0]);
+
+		// One Escape: the card closes without claiming the key (it holds no focus), and the bar's
+		// close restores the caret it saved.
+		await page.keyboard.press('Escape');
+		await expect(findInput(page)).toHaveCount(0);
+
+		await expect.poll(async () => (await ep.bridge.getSelectionPaths())?.focus).toEqual(preSearch);
+		await ep.typeText('Z');
+		await ep.bridge.waitForSourceContains('ZSee <https://commonmark.org> too');
 	});
 
 	test('Tab is trapped once focus is inside the open card', async ({ page }) => {
