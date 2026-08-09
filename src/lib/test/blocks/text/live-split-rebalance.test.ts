@@ -129,6 +129,26 @@ describe('a cut at a construct edge hands the construct over whole', () => {
 	});
 });
 
+// #106: the relocated space landed where the RELOAD reads it as hard-break residue, so the pair
+// did not reload to its own shape — `~~foo~~\n\n  \n\n` parses back as three children. The
+// candidate is verified against the reload, so this one is refused and the byte-literal cut
+// stands (which converges).
+describe('a relocated space that would reload as hard-break residue is refused', () => {
+	it('declines the cut that stranded two trailing spaces', () => {
+		expect(split('~~foo~~  \n', 5)).toBeNull();
+	});
+
+	// An EMPTY half is still the ordinary handover (pinned above); only a whitespace-carrying one
+	// is trivia to the reload.
+	it('the empty-half handover is unaffected', () => {
+		expect(split('_a_\n', 2)).toEqual({ firstRaw: '_a_\n', secondRaw: '\n' });
+	});
+
+	it('a cut inside the same content still rewrites', () => {
+		expect(split('~~foo~~  \n', 4)).toEqual({ firstRaw: '~~fo~~\n', secondRaw: '~~o~~  \n' });
+	});
+});
+
 describe('constructs that declare no rewrite decline the whole cut', () => {
 	it('an image splits byte-literally', () => {
 		expect(split('![alpha](u)\n', 4)).toBeNull();
