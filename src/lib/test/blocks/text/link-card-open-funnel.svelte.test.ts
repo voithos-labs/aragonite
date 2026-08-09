@@ -73,6 +73,14 @@ describe('the link card’s Open button rides the render path’s URL funnel', (
 		void destroy();
 	});
 
+	// Miss: every funnel row carried a non-empty draft; nothing pinned the empty field, whose
+	// '' resolves as a relative URL and kept Open live on a link with nowhere to go.
+	it('an empty draft disables Open', () => {
+		const { button, destroy } = openCard('');
+		expect(button.disabled).toBe(true);
+		void destroy();
+	});
+
 	// A rewrite that maps INTO a blocked scheme is blocked too: the allowlist runs last.
 	it('a rewrite into a blocked scheme is still refused', () => {
 		const { onOpenLink, button, destroy } = openCard('note://x', () => 'javascript:alert(1)');

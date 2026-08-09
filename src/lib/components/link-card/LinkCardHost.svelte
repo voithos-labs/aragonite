@@ -82,7 +82,8 @@
 			card.close();
 		};
 		const onKeyDown = (e: KeyboardEvent) => {
-			if (e.key !== 'Escape') return;
+			// A composing Escape cancels the IME's conversion, not the card.
+			if (e.key !== 'Escape' || e.isComposing) return;
 			const inCard = cardEl?.contains(document.activeElement) ?? false;
 			// Only a card that HOLDS the focus consumes the key and owes the caret back; beside a
 			// live caret it just closes, leaving Escape to whatever else was listening.

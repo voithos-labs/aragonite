@@ -57,12 +57,13 @@ export interface MountContextOverrides {
  *  stub that answers only the members reached today drifts the moment a
  *  component reaches one more. The rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
+	const selection = createSelectionState();
 	return {
 		events: createEditorEvents(),
 		// Real, not a cast: BlockHost and its overlays call four engine members
 		// during mount, and a source-less engine answers all of them honestly.
 		decorations: createDecorationEngine({ getDoc }),
-		selection: createSelectionState(),
+		selection,
 		search: {} as EditorServices['search'],
 		stickyColumn: makeStickyColumn(),
 		edgeAffinity: makeEdgeAffinity(),
@@ -71,7 +72,11 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Real: every keydown on an editable surface asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
 		// Real: a `link.openCard` press asks it to seat a target, and the entry rule reads it back.
-		linkCard: createLinkCardState({ onOpen: () => {} }),
+		// The guard mirrors production so a component test exercises the entry gate it ships with.
+		linkCard: createLinkCardState({
+			onOpen: () => {},
+			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false
+		}),
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
 			flushDebouncedCheckpoint: () => {},

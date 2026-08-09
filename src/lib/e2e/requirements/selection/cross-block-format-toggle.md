@@ -14,6 +14,10 @@ same range, must stay exactly as destructive as it was.
   byte-identical, in every mode a marker-hiding mode changes nothing about
 - `Mod+Shift+X` (strikethrough) declines the same way — the shifted chord reaches
   the same door
+- `Mod+K` with a painted cross-block range whose anchor sits inside a link opens
+  no card and edits no bytes, and the range survives: the cross-block entry parks
+  a COLLAPSED native caret at the anchor, so a native-collapse check alone reads
+  the range as an ordinary caret
 - plain typing over the same cross-block range still replaces it, and one undo
   restores the document, so the decline narrowed the toggle and nothing else
 
@@ -37,3 +41,6 @@ same range, must stay exactly as destructive as it was.
 - The unit suite pinned the destructive route as the CONTRACT ("deletes the range
   then dispatches") behind a mocked command target, and no e2e ever pressed a
   format chord over a cross-block range, so the `****` document showed nowhere (#107).
+- The #107 sweep enumerated the format chords by hand and stopped at the four;
+  `Mod+K` binds at the same keymaps but joined no consumed set and no spec pressed
+  it over a range, so the card opened over a painted selection.

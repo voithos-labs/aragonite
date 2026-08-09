@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { primaryModifier } from '../../platform';
+import { clickWordSettled, landAt } from '../presentation/helpers';
 
 // #107: a format toggle over a cross-block range fell through to the type-replace arm, which
 // deleted the range and then materialized an empty pair at the collapsed caret — the document
@@ -73,6 +74,40 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 		});
 	});
 }
+
+test.describe('the sibling chord the sweep missed — Mod+K over a cross-block range', () => {
+	// The cross-block entry parks a COLLAPSED native caret at the anchor, so the link-card
+	// entry's native-collapse check alone reads a painted range as an ordinary caret.
+	const LINKED = 'Visit [example](https://example.com) now\n\nSecond block here\n';
+
+	test('opens no card and edits no bytes while the range is painted', async ({ page }) => {
+		const ep = new EditorPage(page);
+		await ep.goto('?presentationMode=live');
+		await ep.loadContent(LINKED);
+		await ep.waitForRenderFlush();
+		const before = await ep.bridge.getSource();
+
+		// Arrow-walk the caret into the link text — a click there would open the card.
+		await clickWordSettled(ep, page, 'Visit');
+		await landAt(ep, page, 9);
+		// The first press may extend natively inside the block; keep going until the range is
+		// the editor's. The anchor — where the collapsed native caret parks — stays in the link.
+		for (let i = 0; i < 3; i++) {
+			await page.keyboard.press('Shift+ArrowDown');
+			await ep.waitForRenderFlush();
+			if ((await page.locator('[data-cross-block]').count()) > 0) break;
+		}
+		await ep.waitForCrossBlock(true);
+
+		await page.keyboard.press(`${primaryModifier}+k`);
+		await ep.waitForRenderFlush();
+
+		await expect(page.locator('[data-link-card]')).toHaveCount(0);
+		await ep.waitForNoSourceMutation();
+		expect(await ep.bridge.getSource()).toBe(before);
+		await ep.waitForCrossBlock(true);
+	});
+});
 
 test.describe('the sibling that stays live — cross-block type-replace', () => {
 	test('plain typing over the range still replaces it in ONE undo entry', async ({ page }) => {

@@ -9,7 +9,7 @@
 // encoded URL has no literal stop-char left.
 export function encodeDestination(url: string): string {
 	return url.replace(
-		/[ \t()"'\\]/g,
+		/[ \t\r\n()"'\\]/g,
 		(c) => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')
 	);
 }

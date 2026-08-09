@@ -97,6 +97,10 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 	}
 
 	function commitUrl(target: LinkTarget, url: string): void {
+		// An unchanged url is a close, not a write: the rebuild would respell author bytes the
+		// serializer normalizes (`(<a b>)` → `(a%20b)`) and mint an undo entry for nothing.
+		const resolved = resolve(target);
+		if (!resolved || url === resolved.url) return;
 		const edit = editBytes(target, url);
 		if (!edit) return;
 		void write(target, edit.link, edit.bytes);
