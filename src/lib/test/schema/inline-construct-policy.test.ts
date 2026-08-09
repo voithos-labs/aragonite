@@ -106,8 +106,11 @@ describe('revealable membership', () => {
 
 	// Task 2 left the angle brackets unstamped so block focus reveals them; a row
 	// marking autolink revealable would make them permanently invisible instead.
-	it('excludes autolink, which carries no policy row at all', () => {
-		expect(getInlineConstructPolicy('autolink')).toBeUndefined();
+	// The autolink carries a row without being revealable: its brackets hide with the block
+	// rather than by caret proximity, and the row is what the typing seat reads to keep a byte
+	// out from between them.
+	it('excludes autolink, which is rowed but not revealable', () => {
+		expect(getInlineConstructPolicy('autolink')?.edgeAffinity).toBe('never-extend');
 		expect(isRevealableInlineKind('autolink')).toBe(false);
 	});
 });

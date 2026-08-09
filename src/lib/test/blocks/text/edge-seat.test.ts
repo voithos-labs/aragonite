@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // The typing seat's resolution table: construct edge × policy × arrival → the raw offset a
 // typed byte belongs at. Pure over the inline tree, so no DOM and no dispatch here — the
 // dispatch arm that consumes it is pinned in `edge-policy-construct-seat.test.ts`.
@@ -7,7 +8,7 @@ import { parseInline } from '$lib/core/inline';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 
 function seatIn(source: string, offset: number, affinity: EdgeAffinity | null) {
-	return resolveEdgeSeat(offset, parseInline(source, 0, source.length), affinity);
+	return resolveEdgeSeat(offset, parseInline(source, 0, source.length), affinity, source);
 }
 
 // `Some **bold** text`: strong [5,13), `bold` [7,11). The leading run is [5,7), the trailing
@@ -71,22 +72,41 @@ describe('a never-extend construct ignores the arrival', () => {
 		}
 	});
 
-	// `[](url)`: no content means no content edge, so there is no seat to resolve.
+	// `[](url)`: no content range, so the WHOLE node is the run — an offset inside it seats at
+	// the nearer end, and its own boundaries stay ordinary seams between siblings.
+	// `[](url)`: it paints nothing at all, so there is no content edge for a seat to resolve.
 	it('declines a pair emptied of content', () => {
 		expect(seatIn('a [](http://e.com) b', 3, 'far')).toBeNull();
 	});
 });
 
-// An escape and a hard break are never-extend too, but neither declares a content range: the
-// backslash pair and the trailing-space run have no bytes the delimiters do not cover, so the
-// canonical read already keeps a caret out of them and the seat stands down.
-describe('unstamped marker runs declare no content edge', () => {
-	it('declines every offset around an escape', () => {
-		for (const offset of [2, 3, 4]) expect(seatIn('x \\* y', offset, 'far')).toBeNull();
+// An escape, a hard break and an angle autolink are never-extend with NO content range: every
+// byte they hold is a delimiter. A seat that stood down there let the byte land between them —
+// the caret gets there legitimately, because the landable floor clears the leading hidden run.
+describe('a childless construct is all delimiters', () => {
+	// `x \* y`: the escape paints `*`, so its backslash is the leading run and offset 3 is that
+	// run's end — never-extend puts the byte outside it.
+	it('seats a byte against an escape outside the pair', () => {
+		expect(seatIn('x \\* y', 3, 'far')).toEqual({ offset: 2, kind: 'escape' });
+		// Already outside it: the seat has nothing to move.
+		expect(seatIn('x \\* y', 2, 'far')).toBeNull();
 	});
 
-	it('declines every offset around a hard break', () => {
-		for (const offset of [3, 4, 5]) expect(seatIn('end  \nnext', offset, 'far')).toBeNull();
+	// `end  \nnext`: the two spaces are the run, the break's `\n` is what paints.
+	it('seats a byte against a hard break before its spaces', () => {
+		expect(seatIn('end  \nnext', 4, 'far')).toEqual({ offset: 3, kind: 'hardLineBreak' });
+	});
+
+	// `<https://e.com>`: the URL is what paints, so the brackets are the two runs. A byte at
+	// either one goes outside the construct — the destination is not text to extend.
+	it('seats a byte against an angle autolink outside its brackets', () => {
+		expect(seatIn('<https://e.com> x', 1, 'outside')).toEqual({ offset: 0, kind: 'autolink' });
+		expect(seatIn('<https://e.com> x', 14, 'outside')).toEqual({ offset: 15, kind: 'autolink' });
+	});
+
+	// ...and a byte inside the URL is ordinary editing: the destination IS the text there.
+	it('declines inside the painted URL', () => {
+		expect(seatIn('<https://e.com> x', 6, 'outside')).toBeNull();
 	});
 });
 
