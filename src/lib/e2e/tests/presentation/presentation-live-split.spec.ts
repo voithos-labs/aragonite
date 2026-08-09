@@ -137,16 +137,11 @@ test.describe('live mode — a cut at a construct edge hands it over whole', () 
 	});
 });
 
-/**
- * KNOWN FAILING, owned by the join-seam task (Task 12). The merge that undoes an Enter has no
- * per-family seam cleanup yet, so the closing and reopening runs land back to back — measured
- * `Some **bo****ld** text`, gaining a pair on every repeat, and a split link returning as two
- * anchors on one destination. These rows assert the CORRECT post-merge bytes, so they ship green
- * as expected failures and turn red the day the join fix lands, which removes the annotation.
- */
-test.describe('live mode — Enter then Backspace (known failing, owned by the join seam)', () => {
+// The split's inverse. Without seam cleanup the closing and reopening runs landed back to back —
+// `Some **bo****ld** text`, gaining a pair on every repeat, and a split link returning as two
+// anchors on one destination.
+test.describe('live mode — Enter then Backspace round-trips', () => {
 	test('merging the halves back restores the original bytes', async ({ page }) => {
-		test.fail();
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowRight', 9);
@@ -161,7 +156,6 @@ test.describe('live mode — Enter then Backspace (known failing, owned by the j
 	});
 
 	test('merging a split link back leaves one link, not two', async ({ page }) => {
-		test.fail();
 		const ep = await enterMode(page, 'live');
 		await clickWordSettled(ep, page, 'example');
 		await stepTo(ep, page, 'ArrowRight', 11);
