@@ -122,7 +122,7 @@ test.describe('live mode — the caret never reports from inside a hidden run', 
 
 // Where the block's own start IS raw 0 the bound is the ordinary one, and the press is the merge
 // it has always been. The kinds whose start moved — the ones that demote instead — are pinned in
-// `presentation-live-editing.spec.ts`.
+// `presentation-live-demote.spec.ts`.
 test.describe('live mode — a destructive key reads the block’s content bounds', () => {
 	let ep: EditorPage;
 
