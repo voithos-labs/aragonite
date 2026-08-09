@@ -54,6 +54,12 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 - pressing Enter with the URL unchanged writes nothing and adds no undo entry
 - an edit landing elsewhere in the document while the card is open re-anchors it rather than
   stranding it: the card addresses its link by path plus construct start, never by element
+- an edit that moves the card's OWN construct start closes it, and it stays closed through the
+  `Mod+Z` that puts those bytes back: a card left holding a target it no longer renders would
+  resurrect with the draft it had before
+- a card opened while the search bar is open does not disturb the pre-search caret — each
+  chrome surface holds its own slot, so closing the bar lands the caret where the user left it
+  rather than at the link
 - the same `Mod+K` press is consumed in source mode, inside a fenced code block, and with focus
   in the card's own URL field. The chord is claimed wherever the keymaps bind it; the field
   swallows it as re-asserting the entry the focus is already in
