@@ -48,6 +48,31 @@ test.describe('image popover commit', () => {
 		await editor.bridge.waitForSourceContains('?v=nested');
 	});
 
+	// The 0.9.36 stale-draft class: an open surface holds a copy of bytes the document can move
+	// past, and its dismiss commit puts them back over the change.
+	test('an undo taken while the popover is open re-seeds it, so the dismiss commits nothing stale', async ({
+		page
+	}) => {
+		await editor.loadContent('outside paragraph.\n\n![cat](/test-fixtures/sample.png)\n');
+		const widget = page.locator('[data-image-widget]').first();
+		const urlInput = page.locator('.md-image-properties input').nth(0);
+
+		await widget.click();
+		await urlInput.fill('/test-fixtures/sample.png?v=1');
+		await page.locator('.paragraph-block').first().click();
+		await editor.bridge.waitForSourceContains('?v=1');
+
+		await widget.click();
+		await expect(urlInput).toHaveValue('/test-fixtures/sample.png?v=1');
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('?v=1');
+		await expect(urlInput).toHaveValue('/test-fixtures/sample.png');
+
+		await page.locator('.paragraph-block').first().click();
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).not.toContain('?v=1');
+	});
+
 	// The popover was reused across selection changes, so image 1's local state (`url`, `alt`,
 	// closure-captured `initialBytes`) committed against image 2 and overwrote its source bytes.
 	test('popover commit targets the image it opened on, not the live selection', async ({
