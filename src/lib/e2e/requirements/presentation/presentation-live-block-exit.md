@@ -32,6 +32,12 @@ selection bridge is the oracle for which block and offset the caret reached.
   the item's start still exits to the previous block rather than stalling
 - `Shift+ArrowLeft` at a paragraph's landable start extends into the previous
   block instead of collapsing in place
+- a table cell's bounds are mode-UNGUARDED on purpose, unlike a prose block's:
+  they follow what the screen shows, so a run the mode hides is unlandable and
+  one it reveals is landable. In preview-inline that makes them reveal-state
+  dependent — an unrevealed `[ref]` tail hops the same way live's does, and the
+  same cell reveals its `**` pair by caret proximity and keeps hopping at the raw
+  edge. The dead key this fixes was never live-only
 - a block whose exit is already at raw 0 (`Some **bold** text`) is unchanged:
   `Home` reports 0 and `ArrowLeft` exits from there
 
