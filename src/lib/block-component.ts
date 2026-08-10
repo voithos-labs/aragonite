@@ -21,6 +21,10 @@ declare const cursorStartBrand: unique symbol;
 /** Branded `number`: a focus offset meaning "start of content", not a position. */
 export type CursorStart = number & { readonly [cursorStartBrand]: true };
 
+declare const cursorExactStartBrand: unique symbol;
+/** Branded `number`: a focus offset meaning "raw byte 0 exactly, unclamped". */
+export type CursorExactStart = number & { readonly [cursorExactStartBrand]: true };
+
 declare const selectionEndBrand: unique symbol;
 /** Branded `number`: a measurePartialRects endOffset meaning "end of range". */
 export type SelectionEnd = number & { readonly [selectionEndBrand]: true };
@@ -35,10 +39,16 @@ export const CURSOR_END = Number.MAX_SAFE_INTEGER as CursorEnd;
 /**
  * "Place cursor at start of content" — {@link CURSOR_END}'s twin, and NOT a synonym for 0. A
  * mode that paints no marker puts raw 0 out of the caret's reach behind a leading construct, so
- * an ARRIVAL says this and the door seats it on the first landable offset; a caller passing 0
- * means byte 0 and keeps it (a split's continuation is the reason that distinction exists).
+ * an ARRIVAL says this and the door seats it on the first landable offset.
  */
 export const CURSOR_START = -2 as CursorStart;
+
+/**
+ * "Raw byte 0 exactly" — the ONE seat the park door does not clamp. A live split's continuation
+ * reopens a construct at byte 0 and typing must continue inside it (live-mode.md § 4.4), which
+ * the landable clamp would move outside; every other caller wants the clamp (G2.12).
+ */
+export const CURSOR_EXACT_START = -3 as CursorExactStart;
 
 /** Cascade focus to the last descendant and place the cursor at its start. */
 export const FOCUS_LAST_START = -1;
@@ -104,10 +114,10 @@ export interface BlockComponent {
 	/**
 	 * Place the caret at `offset`, focusing the surface, and end any live cross-block range — the
 	 * safe default door, minted from `selection/caret-doors.ts`' `placeCaret` over
-	 * {@link parkCaret}, since the range-ending batches with the landing. THREE sentinels ride
-	 * this same `number`: `CURSOR_END`, `FOCUS_LAST_START` (`-1`) and `CURSOR_START` (`-2`, an
-	 * arrival's "block start" as against a literal 0). Clamping is required (never throw), and it
-	 * reads the last as 0 — what every implementation already did. None is on `plugin.ts`.
+	 * {@link parkCaret}, since the range-ending batches with the landing. FOUR sentinels ride
+	 * this same `number`: `CURSOR_END`, `FOCUS_LAST_START` (`-1`), `CURSOR_START` (`-2`, an
+	 * arrival's "block start") and `CURSOR_EXACT_START` (`-3`, the split continuation's
+	 * unclamped byte 0). Clamping is required (never throw). None is on `plugin.ts`.
 	 */
 	focus(offset: number): void;
 	/**
