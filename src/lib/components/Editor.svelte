@@ -109,6 +109,8 @@
 	import { createLinkCardState } from './link-card/link-card-state.svelte';
 	import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 	import { runStartupInvariantChecks } from '../invariants/install';
+	import { assertInvariant } from '../invariants/assert';
+	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { registerBuiltInBlocks } from './built-in-blocks';
 	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
 
@@ -428,6 +430,15 @@
 	// The card belongs to live mode alone; any other mode paints the destination bytes already.
 	$effect(() => {
 		if (effectiveMode !== 'live') linkCard.close();
+	});
+
+	// Once per mode change, the probe pays the getComputedStyle the per-keystroke hidden-run
+	// predicate cannot afford, so the two class vocabularies cannot drift silently.
+	$effect(() => {
+		void effectiveMode;
+		if (!editorEl) return;
+		const root = editorEl;
+		assertInvariant('marker-css-parity', () => checkMarkerCssParity(root));
 	});
 
 	$effect(() => {
