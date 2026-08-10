@@ -28,8 +28,8 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
 - one `Mod+Z` restores the single original block, bytes identical, with the caret back inside it
 - Enter then Backspace round-trips: the join drops the closing and reopening runs it finds meeting
   at the seam, so `Some **bo|ld** text` comes back byte-identical and a split link comes back as
-  ONE anchor on one destination — the residue a byte-literal merge would have left is what § 4.4
-  declares unrepresentable in live editing
+  ONE anchor on one destination — the residue a byte-literal merge would have left is what
+  live-mode.md § 4.4 declares unrepresentable in live editing
 
 ## Edge cases
 
@@ -48,8 +48,9 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
   them: they are a hard break with no line after them, so they paint nothing — carried along the
   pair reloads as a different shape (#106), and declining to the byte-literal cut prints the
   delimiters the reader never saw. The post-split screen and the reload's screen both show none.
-  This is the SPLIT seam's half of that class only: the join/delete seam still reds the
-  fresh-seed property lane on the same signature, open as #113 and not claimed here
+  The join/delete seam carries the same rule (#113, unit-pinned in its own suite); the fresh-seed
+  property lane can still red on that signature through #129, the suffix-materialization hole,
+  which is mode-independent and no seam's to close
 - a cut that would leave a delimiter run against whitespace moves the SPACE outside the run rather
   than kill the construct: `**a *|ital* b**` gives `**a** ` and `***ital* b**`, which read
   identically on screen and parse back, where the literal `**a **` would print its stars

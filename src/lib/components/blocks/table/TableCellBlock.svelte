@@ -29,6 +29,8 @@
 	import type { TableAlignment } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
+	import { resolveSelectionEditFromInput } from '../text/live-selection-edit';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
@@ -146,11 +148,11 @@
 
 	// ── The cell's write door ───────────────────────────────────────────────
 	//
-	// Every write of this cell's raw goes through `blockEdit`. The delimiter escape is the
-	// kind's (`normalizeRawWrite`, applied at the write sink); what remains here is the
-	// caret half no seam can carry — a caller's offset addresses the text it wrote, and
-	// the sink's inserted backslashes move it. `parkCursor` is the second door, and the
-	// trailing ending is stripped because the prose-shaped factories append one.
+	// Every write of this cell's raw goes through `blockEdit`; the escape is the kind's
+	// (`normalizeRawWrite`, at the write sink). The caret half stays here: `caretAfter`
+	// addresses the text the caller wrote, so the sink's backslashes move it; `caretBefore`
+	// addresses the already-escaped pre-write bytes and stays unmapped (#104). `parkCursor`
+	// is the second door; the trailing ending is stripped, the prose factories append one.
 	const blockEdit: BlockEditActions = {
 		...parentBlockEdit,
 		updateBlockContent(i, text, caretBefore, caretAfter) {
@@ -358,7 +360,7 @@
 			cursor.getRawSelection() ?? (caret === null ? null : { start: caret, end: caret });
 		if (!offsets) return true;
 		// Same fork as the prose surface: live paints no delimiter, so an abandoned empty pair
-		// would be invisible garbage in the cell's bytes (§ 4.3).
+		// would be invisible garbage in the cell's bytes (live-mode.md § 4.3).
 		if (presentationMode === 'live' && offsets.start === offsets.end) {
 			controller.flushDebouncedCheckpoint();
 			pendingMarks.toggle(format);
@@ -735,8 +737,23 @@
 		else tableContext.exitDownward(x);
 	}
 
+	// The cell's copy of the prose surface's live selection-edit arm: a native replace of a
+	// selection spanning hidden delimiters is the one destructive input with no seam of its own.
+	function handleLiveSelectionEdit(e: InputEvent): boolean {
+		if (presentationMode !== 'live' || widgetInteraction.isRevealing()) return false;
+		const range = cursor.getRawSelection();
+		if (!range) return false;
+		const edit = resolveSelectionEditFromInput(e, node, range, presentationMode, linkRef);
+		if (!edit) return false;
+		e.preventDefault();
+		void blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
+		parkCursor(edit.caret, edit.raw);
+		return true;
+	}
+
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+		if (handleLiveSelectionEdit(e)) return;
 		if (e.inputType === 'insertLineBreak') {
 			// GFM cells can't carry raw newlines, so a line break is a literal `<br>`,
 			// which the inline-HTML pipeline renders as a live widget.
@@ -864,11 +881,13 @@
 
 	// ── Shared mutation primitives (event handlers + right-click menu) ───────
 
+	// The truncation is a join like the paste's delete half: in live the runs it strands are
+	// bytes the reader never saw, so it crosses the same seam ahead of the escaping sink (§ 4.5).
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
-		const newDisplay = display.slice(0, start) + display.slice(end);
-		void blockEdit.updateBlockContent(index, newDisplay, start, start);
-		parkCursor(start, newDisplay);
+		const cut = cutRangeFromDisplay(node, display, { start, end }, presentationMode, linkRef);
+		void blockEdit.updateBlockContent(index, cut.display, start, cut.offset);
+		parkCursor(cut.offset, cut.display);
 	}
 
 	async function applyCellPaste(

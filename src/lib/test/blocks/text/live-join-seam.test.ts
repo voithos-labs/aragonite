@@ -127,6 +127,38 @@ describe('a truncation that strands a delimiter run', () => {
 	});
 });
 
+describe('a join whose survivors are only terminal hard-break trivia', () => {
+	// Miss-analysis (#113): the split half's terminal-trivia rule (#106) had deterministic unit
+	// twins; the join half was covered only by the fresh-seed property lane, so the class flaked
+	// at ~1 run in 6 instead of failing a named row.
+	it('drops the trivia with the stranded run, not the run alone', () => {
+		// `  \n` alone would reload as blank trivia — a different shape than the block written.
+		expect(sameBlock('~~foo~~  \n', 0, 5)).toBe('\n');
+	});
+
+	it('closes the fresh-seed flake signature, CRLF ending included', () => {
+		expect(sameBlock('foo*42*_lorem_  \r\n', 0, 13)).toBe('\r\n');
+		expect(sameBlock('a[**bold**](u)  \n', 0, 10)).toBe('\n');
+	});
+
+	it('lands the caret at the emptied block start', () => {
+		const node = blockOf('~~foo~~  \n');
+		expect(
+			cleanLiveJoinSeam({
+				mergedRaw: node.raw.slice(5),
+				seam: 0,
+				start: { node, offset: 0 },
+				end: { node, offset: 5 },
+				linkRef: undefined
+			})
+		).toEqual({ raw: '\n', seam: 0 });
+	});
+
+	it('keeps trailing spaces while any content still stands', () => {
+		expect(sameBlock('foo ~~ba~~  \n', 4, 8)).toBe('foo   \n');
+	});
+});
+
 describe('what the cleanup refuses to be asked', () => {
 	it('declines an offset outside the block content', () => {
 		const heading = blockOf('## bo\n');

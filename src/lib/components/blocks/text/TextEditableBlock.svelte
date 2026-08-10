@@ -43,7 +43,7 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { hidesStructuralSuffix } from './hidden-suffix';
-	import { resolveSelectionEdit } from './live-selection-edit';
+	import { resolveSelectionEdit, resolveSelectionEditFromInput } from './live-selection-edit';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../invariants/assert';
@@ -798,26 +798,16 @@
 		}
 	}
 
-	/** The native inputs that replace a live selection with something else — the one destructive
-	 *  family that reaches the bytes with no seam offsets of its own (report C § 5). */
-	const SELECTION_REPLACING_INPUTS = new Set([
-		'insertText',
-		'deleteContentBackward',
-		'deleteContentForward'
-	]);
-
 	/**
 	 * A selection edit inside ONE block, in a mode that paints no delimiter: the engine would write
 	 * the runs the range crossed literally, so the edit goes through the join seam instead. Declines
 	 * wherever that seam has nothing to clean, leaving the engine its grapheme and IME behavior.
 	 */
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
-		if (presentationMode !== 'live' || widgetInteraction.isRevealing()) return false;
-		if (!SELECTION_REPLACING_INPUTS.has(e.inputType)) return false;
+		if (widgetInteraction.isRevealing()) return false;
 		const range = cursor.getRawSelection();
 		if (!range) return false;
-		const typed = e.inputType === 'insertText' ? (e.data ?? '') : '';
-		const edit = resolveSelectionEdit(node, range, typed, presentationMode, linkRef);
+		const edit = resolveSelectionEditFromInput(e, node, range, presentationMode, linkRef);
 		if (!edit) return false;
 		e.preventDefault();
 		void blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
