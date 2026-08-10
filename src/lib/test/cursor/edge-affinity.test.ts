@@ -30,6 +30,9 @@ describe('classifyArrivalKey', () => {
 		a: 'preserve',
 		' ': 'preserve',
 		é: 'preserve',
+		// Astral-plane keys arrive as one code point in two UTF-16 units (GH #122).
+		'😀': 'preserve',
+		'𝄞': 'preserve',
 		Enter: 'reset',
 		Tab: 'reset',
 		Escape: 'reset',
@@ -44,6 +47,18 @@ describe('classifyArrivalKey', () => {
 			expect(classifyArrivalKey(key)).toBe(action);
 		});
 	}
+
+	// macOS line extremes: the caret jumps to the line's edge, a seat rather than a step, so the
+	// answer is Home/End's — construct-relative — not the arrow's direction (GH #124).
+	it('meta+ArrowLeft/Right classify as line extremes, not steps', () => {
+		expect(classifyArrivalKey('ArrowLeft', true)).toBe('outside');
+		expect(classifyArrivalKey('ArrowRight', true)).toBe('outside');
+	});
+
+	it('meta leaves the vertical arrows and plain arrows directional', () => {
+		expect(classifyArrivalKey('ArrowUp', true)).toBe('far');
+		expect(classifyArrivalKey('ArrowLeft', false)).toBe('far');
+	});
 });
 
 describe('createEdgeAffinityState', () => {
@@ -97,6 +112,13 @@ describe('createEdgeAffinityState', () => {
 		const s = primed('ArrowRight');
 		s.note(key('Shift'));
 		expect(s.get()).toBe('near');
+	});
+
+	// The door forwards the meta flag, or the matrix's #124 arm is unreachable from a keydown.
+	it('meta+ArrowRight through the door settles outside', () => {
+		const s = createEdgeAffinityState();
+		s.note({ key: 'ArrowRight', altKey: false, metaKey: true });
+		expect(s.get()).toBe('outside');
 	});
 
 	// Alt+Arrow is the block-reorder chord; the reorder's own commit does the clearing.

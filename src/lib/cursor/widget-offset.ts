@@ -431,6 +431,9 @@ function* landingSegments(
 ): Generator<LandingSegment> {
 	let run: Extract<LandingSegment, { kind: 'opaque' }> | null = null;
 	for (const seg of walkSegments(root, mode)) {
+		// A zero-contribution node cannot end a run: Chromium leaves empty text nodes between
+		// spans, and splitting the run there would mint a landable seam nothing paints (GH #126).
+		if (run && seg.len === 0) continue;
 		if (seg.kind === 'text' && seg.hiddenRoot !== null) {
 			if (run) {
 				run.len += seg.len;
