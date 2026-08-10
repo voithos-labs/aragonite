@@ -67,14 +67,8 @@ function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanE
 	return span;
 }
 
-// The one url-policy choke point for both href sinks. Undefined means absent or blocked, which
-// the caller reads as "render an inert span".
-/**
- * The one href funnel: a consumer's rewrite, then the scheme allowlist. Exported because the link
- * card's Open button is a SINK of the same kind — it hands a URL to `onLinkActivate` — and the
- * draft it opens is user-typed rather than a rendered node's, which is the only unfiltered path
- * that ever reached that hook.
- */
+/** The one href funnel for every sink — a consumer's rewrite, then the scheme allowlist; undefined
+ *  reads as "render inert". Exported: the link card's Open button hands over a user-typed URL. */
 export function resolveHref(
 	opts: RenderInlineOptions,
 	url: string | undefined
@@ -428,8 +422,7 @@ export function renderInlineNodes(
  * The text a reader SEES for `nodes` — the rendered DOM minus every span the marker-hiding modes
  * drop. Lives here because this file decides which bytes become which span (G4.30): a caller
  * re-deriving that drifts from what actually paints, which is the only thing the answer is worth
- * anything as. The reference label is in the list because the same CSS hides it; leaving it in
- * made a resolved reference read as extra characters and declined every rewrite that crossed one.
+ * anything as. The reference label is in the list because the same CSS hides it.
  */
 export function renderedText(
 	nodes: InlineNode[],

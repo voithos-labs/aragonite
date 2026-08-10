@@ -1,6 +1,6 @@
 /**
  * What a destructive key takes at an inline construct's unpainted delimiter run: the adjacent
- * CONTENT character, plus the delimiters the cut leaves enclosing nothing (§ 4.4
+ * CONTENT character, plus the delimiters the cut leaves enclosing nothing (live-mode.md § 4.4
  * `autoUnwrapOnEmpty`), which is what makes invisible `****` residue unrepresentable. Bytes that
  * read right can parse wrong, so a candidate is written only once a re-parse says the reader lost
  * exactly what the cut aimed at; a press this arm owns but cannot rewrite soundly takes nothing.
@@ -52,11 +52,10 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 	const target = deletionTarget(display, constructs, content, caret, direction);
 	if (!target) return null;
 
-	// Native takes the whole non-rendered span along with the character (measured: `Some **bold**
-	// text` backspaced at `bold`'s end became `Some **bol text`). The adjacency that decides is
-	// the deleted SPAN's, not the caret's — the engine deletes from where the byte is, so the last
-	// content character at either end is destructive one press before the edge. With no run beside
-	// the cut the press stays with the engine, which owns grapheme and IME behavior.
+	// The adjacency that decides is the deleted SPAN's, not the caret's — the engine deletes from
+	// where the byte is, so the last content character at either end is destructive one press
+	// before the edge. With no run beside the cut the press stays with the engine, which owns
+	// grapheme and IME behavior.
 	const plain = expandThroughEmptied(constructs, target);
 	const native = nativeCut(caret, direction);
 	const touchesHiddenRun =

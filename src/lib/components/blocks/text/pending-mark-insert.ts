@@ -1,10 +1,10 @@
 /**
  * The bytes an insertion produces while marks are pending, and the proof that they mean it. A
- * mark is resolved against the caret's construct chain (§ 4.3): a kind the chain lacks WRAPS the
- * insertion, a kind it carries escapes it — by splitting the construct close-and-reopen, or by
- * stepping outside it. Flanking rules and rule-of-three mean a splice that READS right can PARSE
- * wrong (`**hello**X** world**` renders literal stars), so no candidate is returned until it has
- * been re-parsed and checked: write bytes, let the parser decide.
+ * mark is resolved against the caret's construct chain (live-mode.md § 4.3): a kind the chain
+ * lacks WRAPS the insertion, a kind it carries escapes it — by splitting the construct
+ * close-and-reopen, or by stepping outside it. Flanking rules and rule-of-three mean a splice
+ * that READS right can PARSE wrong (`**hello**X** world**` renders literal stars), so no
+ * candidate is returned until it has been re-parsed and checked: write bytes, let the parser decide.
  */
 
 import { constructContentRange, parseInline } from '../../../core/inline';
@@ -218,12 +218,8 @@ function enclosingKinds(
 	return kinds;
 }
 
-/**
- * What a reader sees, asked of the thing that actually paints it: the render path's own DOM with
- * every marker span dropped. Deliberately not a private walk over the parse — one of those cannot
- * know which bytes a kind paints as a marker, and the walk this replaced counted an angle
- * autolink's `<`/`>` as content, so it could not see them surface when a splice killed the link.
- */
+/** What a reader sees, asked of the thing that actually paints it: only the render path knows
+ *  which bytes a kind paints as markers (G4.33), so no private walk over the parse. */
 function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
 	return renderedText([...(parsed ?? parseInline(raw, 0, raw.length))], raw);
 }
@@ -254,10 +250,10 @@ function isSymmetricPair(kind: AnyInlineKind): boolean {
 
 /**
  * EVERY construct holding `offset`, outermost first: one missing from the chain is missing from
- * `intended`, which is what lets a candidate destroy it unnoticed (an autolink, once).
- * Containment differs by shape — a construct with children is content-INCLUSIVE, a childless one
- * STRICT-interior, since its edges are ordinary insertion points and calling them inside would
- * decline every legitimate keystroke beside a URL.
+ * `intended`, which is what lets a candidate destroy it unnoticed. Containment differs by
+ * shape — a construct with children is content-INCLUSIVE, a childless one STRICT-interior, since
+ * its edges are ordinary insertion points and calling them inside would decline every legitimate
+ * keystroke beside a URL.
  */
 function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
 	const chain: ChainNode[] = [];

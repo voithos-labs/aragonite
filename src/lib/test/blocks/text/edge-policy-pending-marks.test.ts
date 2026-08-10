@@ -118,7 +118,7 @@ describe('the first byte after a chord carries the mark', () => {
 
 describe('a pending mark outranks every arrival rule', () => {
 	// Offset 11 is bold's trailing content edge with the far side on record — the typing seat
-	// would write past the closer. The mark says otherwise, and wins (§ 4.2).
+	// would write past the closer. The mark says otherwise, and wins (live-mode.md § 4.2).
 	it('beats the typing seat at a construct edge', () => {
 		const h = mount('Some **bold** text\n', ['emphasis'], { affinity: 'far' });
 		expect(h.handleKeydown(key('X'), at(11))).toBe(true);

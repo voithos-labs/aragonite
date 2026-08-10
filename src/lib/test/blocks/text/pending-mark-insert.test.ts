@@ -216,10 +216,9 @@ describe('a candidate that would not parse back is not written', () => {
 	});
 });
 
-// A construct with no CHILDREN has no content range, so the chain walk used to skip it and never
-// descend — it was absent from `intended`, and the invisibility check could not see its markers
-// either, because the private walk it used called them content. An autolink is the reachable
-// case: the URL is one childless span whose angle brackets are marker spans.
+// A construct with no CHILDREN has no content range, so the chain walk must hold it by node
+// bounds or a candidate destroys it unnoticed. An autolink is the reachable case: the URL is one
+// childless span whose angle brackets are marker spans.
 describe('a childless construct is in the chain, so nothing may cut it open', () => {
 	const ANGLE = 'see <https://example.com> now';
 

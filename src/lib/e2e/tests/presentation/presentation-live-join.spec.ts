@@ -97,8 +97,8 @@ test.describe('live mode — the join across a block boundary', () => {
 		expect(await ep.bridge.getSource()).not.toContain('Alpha **be');
 	});
 
-	// The open question report C left: a paste landing exactly where a cleanup dropped runs. The
-	// cleanup runs in the delete half and the post-insert re-parse settles the rest.
+	// A paste landing exactly where a cleanup dropped runs: the cleanup runs in the delete half
+	// and the post-insert re-parse settles the rest.
 	test('a paste at the cleaned seam lands its text there', async ({ page }) => {
 		const ep = await enterMode(page, 'live');
 		await selectAcrossBlocks(ep, page);

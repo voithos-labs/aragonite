@@ -35,21 +35,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    the natural candidate), port the plain-mode battery onto the real plugin and retire the memo
    fixture; until one does, memo remains plain mode's only consumer. The external-author gate at
    the freeze cut stays a separate box — the run probed discoverability, not external evidence.
-3. **Fully live mode — the fifth presentation rung.** Pulled forward from the post-1.0 sketch
-   (owner, 2026-08-08): the preview-inline beta cohort reports zero defects and asks for fully
-   live, which is the real-use data the entry's own gate demanded. Fully rendered while
-   editable — markers never visible, even in the focused construct. The single render path
-   carries the paint as it carried the other four rungs (marker visibility over the same
-   spans, never a second pipeline), and hidden marker runs join the one DOM↔raw offset walk
-   the way widget and ambient contributions already do. The genuinely new work is the editing
-   semantics the reveal hatch used to make unnecessary: a collapsed-caret formatting affinity
-   (the Mod+B/I toggle — the first stored-marks-shaped state in the editor, kept deliberately
-   minimal), construct-edge caret and unwrap-on-Backspace policy declared per construct family
-   at a choke point, and enrollment in the caret-door simulation families at birth (G2.12:
-   every caret-placing change is a data-loss candidate until proven otherwise). Gap-caret
-   scale: multi-wave, reviewed per wave. Shipping pre-freeze means `PresentationMode` freezes
-   with five rungs; the litmus's union-growth clause then guards the rungs after it.
-4. **Two hardening items from the 2026-08-08 assessment**, both before the freeze because each
+3. **Two hardening items from the 2026-08-08 assessment**, both before the freeze because each
    is a class the session's defect discoveries kept paying into:
    - **The separator-settle funnel.** Five seams hand-call the restore/drop door pair (the
      #73/#96 class); a probe-based `settleSeparator` at the splice level closes the class
@@ -62,7 +48,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      the #98 caret-drift warn is the shipped example. Direction: a warn fails the unit run by
      default behind an expected-warn allowlist, and the collector widens. Validator: #98's
      warn class reds a gate the day it regresses.
-5. **Freeze cut at release** — in order:
+4. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (a structured review pass, matched to what changed since 2026-07) —
      audits before milestones, not after incidents. Most of the accumulated freeze-review
      pointers from the 2026-07 burn-down landed in the 2026-08 open-source prep (conformance
@@ -78,7 +64,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      the wait path, or keep the registry as the documented fallback and say so at the type.
      The collision policy's consumer-facing half stays ledgered as #70. Also for the re-audit:
      the separator family's parent types unified 2026-08-08 (`SeparatorParent` is the one
-     shape), and the `settleSeparator` funnel itself moved up to pre-1.0 item 4 rather than
+     shape), and the `settleSeparator` funnel itself moved up to pre-1.0 item 3 rather than
      riding here as a pointer.
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
@@ -149,10 +135,11 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      CSS construct-reveal over the existing marker spans, not marker islands). The caret-affinity
      contract shipped with 0.9.26 and dissolved to raw offsets + inclusive reveal edges — no
      stored-marks machinery; the litmus reads satisfied-by-construction at the cut, with the
-     reading-gate parity residual tracked as issue #38. A fifth rung ships pre-freeze (item 3,
-     Fully live mode), so the union freezes at five; the litmus still verifies it can GROW in
-     a minor for any rung after it: no frozen surface may demand exhaustiveness over
-     `PresentationMode`, and non-exhaustive handling is the documented consumer contract.
+     reading-gate parity residual tracked as issue #38. The fifth rung, fully live, shipped
+     pre-freeze (0.9.36, `docs/design/live-mode.md`), so the union freezes at five; the litmus
+     still verifies it can GROW in a minor for any rung after it: no frozen surface may demand
+     exhaustiveness over `PresentationMode`, and non-exhaustive handling is the documented
+     consumer contract.
    - **Freeze litmus (enforcement hardening)**: the 0.9.24 program shipped whole — registration's closure
      block is required-complete (a required field added post-1.0 is a breaking change), public
      plugin-surface document/node types are readonly views, and coordinate brands are minted only

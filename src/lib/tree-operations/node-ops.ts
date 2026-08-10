@@ -388,7 +388,7 @@ function structuralSuffixSplit(
 /**
  * `join.mergedRaw` with the delimiter runs the join orphaned at its seam dropped — live only,
  * where those runs are unpainted and a literal concatenation surfaces bytes the reader never saw
- * (§ 4.5). The one registered cleaner verifies its own bytes and otherwise declines, leaving the
+ * (live-mode.md § 4.5). The one registered cleaner verifies its own bytes and otherwise declines, leaving the
  * literal join every other mode gets. Exported for `selection/range-delete`, the fourth seam.
  */
 export function cleanJoinedRaw(

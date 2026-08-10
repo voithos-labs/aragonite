@@ -369,7 +369,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	 * A plain Backspace/Delete against an inline construct's unpainted delimiter run. The byte
 	 * native would take there is one the reader never saw, so the rewrite takes the adjacent
 	 * CONTENT character instead — and the delimiters it leaves enclosing nothing with it, since a
-	 * pair around no content is invisible in a mode that paints neither (§ 4.4).
+	 * pair around no content is invisible in a mode that paints neither (live-mode.md § 4.4).
 	 */
 	function handleConstructEdgeDelete(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (e.key !== 'Backspace' && e.key !== 'Delete') return false;
@@ -399,7 +399,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/**
 	 * A printable key while a collapsed-caret toggle has marks pending. The marks are the newer
 	 * instruction about these same bytes, so they outrank the arrival side the seat below reads
-	 * (§ 4.2) and this arm runs first: the byte is written wrapped in the marks the caret's
+	 * (live-mode.md § 4.2) and this arm runs first: the byte is written wrapped in the marks the caret's
 	 * chain lacks, and escaped out of the constructs it carries, in one commit.
 	 */
 	function handlePendingMarks(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {

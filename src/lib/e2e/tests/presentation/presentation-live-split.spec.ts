@@ -243,8 +243,8 @@ test.describe('live mode — Enter then Backspace round-trips', () => {
 	});
 });
 
-// The resolver rides the split call, so the seam sees a reference form as the LINK the render path
-// drew rather than as brackets — the decline that used to leak them.
+// The resolver rides the split call, so the seam sees a reference form as the LINK the render
+// path drew rather than as a pair of brackets.
 test.describe('live mode — a reference form splits like any other link', () => {
 	test('both halves carry the reference label', async ({ page }) => {
 		const ep = await enterMode(page, 'live');

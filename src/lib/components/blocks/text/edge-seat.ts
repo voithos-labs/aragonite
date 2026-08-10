@@ -34,7 +34,7 @@ export function resolveEdgeSeat(
 	if (!policy) return null;
 	// Never-extend resolves like a line extreme: past the construct's delimiters, which is the
 	// run's near side at an opener and its far side at a closer. A symmetric pair follows the
-	// arrival, defaulting to the near side — the gdocs click default (§ 4.2).
+	// arrival, defaulting to the near side — the gdocs click default (live-mode.md § 4.2).
 	const side: EdgeAffinity =
 		policy.edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const offset = offsetForSide(run, side);
@@ -96,8 +96,8 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 /**
  * The innermost construct marker run `offset` sits in, its own boundaries included. Innermost
  * wins: children are visited after their parent, so a nested pair claims its own edge. INSIDE
- * counts, not just the two ends — a doubled code fence is a run a caret can be handed the middle
- * of, and a seat matching only the ends left the byte between delimiters.
+ * counts, not just the two ends — a doubled code fence is a run a caret can be handed the
+ * middle of.
  */
 function markerRunAt(
 	offset: number,
@@ -126,8 +126,7 @@ function markerRunAt(
  * What a CHILDLESS construct paints, as a range in the block's own bytes — an angle autolink's
  * URL between its brackets, an escape's escaped character after its backslash. Asked of the
  * render path rather than derived per kind: which bytes a construct shows is the one question
- * only the painter answers (G4.33), and without it the seat treated every byte of these as
- * content and let a typed one land between the delimiters.
+ * only the painter answers (G4.33).
  */
 function paintedRange(node: InlineNode, raw: string | undefined): ContentRange | null {
 	if (raw === undefined || node.kind === 'text') return null;

@@ -1,10 +1,10 @@
 /**
- * Every live-mode byte rewrite answers to the same oracle and the same seam. Six modules build
- * candidate bytes for a mode that paints no delimiter, and each is only sound because it asks the
- * RENDER PATH what the reader sees rather than walking the parse itself — the walk that once
- * counted an angle autolink's brackets as content, and the selector that once counted a resolved
- * reference's label. The joins add a second rule: they all cross `cleanJoinedRaw`, the one reader
- * of the registered cleaner, so a new destructive path cannot quietly write its own concatenation.
+ * Every live-mode byte rewrite answers to the same oracle and the same seam. Five modules build
+ * candidate bytes for a mode that paints no delimiter, and the edge seat asks which bytes a
+ * childless construct shows; each is only sound because it asks the RENDER PATH what the reader
+ * sees rather than walking the parse itself (G4.33). The joins add a second rule: they all cross
+ * `cleanJoinedRaw`, the one reader of the registered cleaner, so a new destructive path cannot
+ * quietly write its own concatenation.
  */
 
 import { describe, it, expect } from 'vitest';

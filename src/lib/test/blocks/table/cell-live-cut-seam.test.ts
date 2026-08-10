@@ -2,7 +2,8 @@
 //
 // Miss-analysis: the cell's destructive edits had unit pins for the escape half only and the e2e
 // cell rows drove paste alone, so every non-paste cut stayed byte-literal in live mode unseen.
-// The seam contract: a live cut through hidden delimiter runs drops what it strands (§ 4.5), on
+// The seam contract: a live cut through hidden delimiter runs drops what it strands
+// (live-mode.md § 4.5), on
 // every destructive path — event cut, menu cut, and the native type-over/delete of a selection.
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';

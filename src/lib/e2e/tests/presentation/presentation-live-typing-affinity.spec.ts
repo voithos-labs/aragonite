@@ -140,7 +140,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	});
 
 	// A click clears the arrival, so the seat's own default IS the click contract: the
-	// construct the caret touches keeps the byte (§ 4.2, the gdocs default).
+	// construct the caret touches keeps the byte (live-mode.md § 4.2, the gdocs default).
 	test('a click at bold’s trailing content edge extends it', async ({ page }) => {
 		const point = await trailingEdgeOfWord(page, 'bold');
 		await page.mouse.click(point.x, point.y);
@@ -222,9 +222,9 @@ test.describe('live mode — unstamped marker runs are never typed into', () => 
 });
 
 // A construct with no CHILDREN — a line-leading escape, an angle autolink — has no content range
-// for the seat to split on, so the seat used to decline and the byte landed between delimiters the
-// reader never saw. The landable floor puts the caret there legitimately: a click at a line's left
-// edge clears the leading hidden run, which is INSIDE a construct that is all delimiters.
+// for the seat to split on, yet the landable floor puts the caret against its run legitimately:
+// a click at a line's left edge clears the leading hidden run, which is INSIDE a construct that
+// is all delimiters, so the seat must still answer there.
 const CHILDLESS_DOC = [
 	'\\*Lead in',
 	'',
@@ -275,7 +275,7 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 
 	// The softer sibling: the caret seats at the landable end, which is INSIDE the closing
 	// bracket, and a byte there rewrites where the link goes. A link never extends at either
-	// edge (§ 4.2), and the angle form is a link.
+	// edge (live-mode.md § 4.2), and the angle form is a link.
 	test('End after a trailing autolink types past its closing bracket', async ({ page }) => {
 		await clickBlock(ep, AUTOLINK_TAIL);
 		await page.keyboard.press('End');

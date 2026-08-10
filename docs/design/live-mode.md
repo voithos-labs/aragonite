@@ -1,0 +1,61 @@
+# Live Mode
+
+The fifth presentation rung: `presentationMode="live"` hides every Markdown marker with no reveal, and the document stays directly editable. Like every rung it is CSS over the one render path (`editor.md` § 4), so the bytes, the coordinate space, and the round-trip are the source document's throughout. The paint is nothing new; the editing semantics are, and this document is their catalog. A `live-mode.md § 4.x` citation in source or tests resolves to § 4 below.
+
+The consumer-facing statement of the same rules is `docs/guide/consumer-guide.md` § Presentation modes. The behavioral pins are the `presentation-live-*` requirement files under `src/lib/e2e/requirements/presentation/`, and the seams appear by behavior in `docs/contributing/codebase-map.md`.
+
+## 1. The problem
+
+A hidden marker run paints at zero width, so one screen position names two raw offsets wherever a construct's delimiters sit, and delimiter bytes can be typed against, cut through, or emptied while invisible. Every rule in § 4 answers one instance of that ambiguity. Each is applied at one seam, so it holds for every gesture that reaches the seam instead of being carried per entry path.
+
+## 2. The discipline: candidates, verified by the painter
+
+No live rewrite trusts its own reading of the bytes. A rewrite produces a candidate byte string and verifies it through the render path's own `renderedText`, the one module that knows which bytes become marker spans (G4.30, G4.33): the screen after the write must show exactly what the gesture claimed, and live may drop only bytes the reader never saw. A candidate that fails is not written; the byte-literal edit stands instead. Every seam therefore has a sound fallback, never a best guess, and the fallback may paint markers (the childless-construct split is the known case) rather than trade the round-trip for the effect.
+
+## 3. Policy is data
+
+How a construct behaves at its hidden edges is its declared row in the inline-construct policy table (`schema/inline-construct-policy.ts`): which side a typed byte seats on (`edgeAffinity`), whether emptying it unwraps it (`autoUnwrapOnEmpty`), how a split treats it (`splitBehavior`), and whether preview-inline may reveal it (`revealable`). Seams read rows, never kind lists. The same table holds the two registered rewrite slots, the split rebalancer and the join-seam cleaner; each slot has exactly one reader, in `tree-operations/node-ops.ts`.
+
+## 4. The editing rules
+
+### 4.1 What live never writes
+
+Two prohibitions every rule below applies. No invisible residue: a delimiter pair enclosing nothing paints as nothing, so live never writes one and removes one wherever an edit would create it. No unverified drop: bytes leave the document only when the painter confirms the reader never saw them (§ 2).
+
+### 4.2 Typing at a hidden edge
+
+A byte typed where a marker run sits is seated by the edge seat (`components/blocks/text/edge-seat.ts`), which reads the kind's policy first and the arrival second:
+
+- A `never-extend` kind (link, autolink, image, escape, hard break) seats the byte outside its delimiters, whichever side that lands on. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
+- A `symmetric-pair` kind follows how the caret arrived (`cursor/edge-affinity.ts`): stepping in from outside types outside, walking out from inside types inside. A click clears the arrival, and the seat's default is the near side, so the construct the caret touches keeps the byte (the gdocs click default).
+- A caret seated at an extreme rather than stepped there (Home, End, a selection collapsing onto its own edge, a structural landing's start/end sentinel) is construct-relative: it means outside the delimiters whatever key produced it. A seat is not a step, so the key's direction is not read.
+- Pending marks (§ 4.3) outrank the arrival side: a toggle is the newer instruction about the same bytes.
+- An IME run cannot be intercepted per keystroke, so the composed text is relocated once at commit, against the affinity and marks captured at `compositionstart` (`composition-seat.ts`).
+
+### 4.3 Format toggles at a collapsed caret: pending marks
+
+A collapsed-caret toggle in a mode that paints no delimiter cannot write an empty pair (§ 4.1), so it pends the mark instead (`cursor/pending-marks.ts`): the promise is held outside the document and spent by exactly one insertion. Resolution is against the caret's construct chain (`pending-mark-insert.ts`): a kind the chain lacks wraps the insertion, a kind it carries escapes it, by close-and-reopen split or by stepping outside the construct. The marks ride the edge affinity's invalidation (G4.31), so every seam that drops an arrival side drops them, and a mode flip clears them. Table cells fork to the same seat.
+
+### 4.4 Cutting a construct open: splits and destructive presses
+
+What happens to delimiters an edit cuts through or empties:
+
+- Enter inside a `close-and-reopen` construct closes it before the cut and reopens it after, innermost first, so neither half strands a run and a split link carries its destination into both halves (`live-split-rebalance.ts`). A `plain` kind declines, and the byte-literal cut stands. Each half must re-parse to one prose block the reload keeps: whitespace-only halves are refused, a boundary space may move outside the runs, and only terminal whitespace the screen never painted may drop.
+- A side left with no content takes the whole construct rather than a pair enclosing nothing.
+- A destructive key at a hidden run takes the adjacent content character, never an invisible delimiter byte, plus every delimiter the cut leaves enclosing nothing (`autoUnwrapOnEmpty`, `construct-edge-delete.ts`). A press this arm owns but cannot rewrite soundly takes nothing, since the engine's version would paint the markers.
+- A block's own hidden structure gets the same first claim: `contentStartBackspace: 'demote-first'` makes Backspace at a heading's content start give up the `## ` or underline before any merge, the first press a user can aim at markers they cannot see.
+
+### 4.5 Joins clean their seam
+
+Every destructive join crosses one seam: `cleanJoinedRaw` in `tree-operations/node-ops.ts`, the sole reader of the registered cleaner (`live-join-seam.ts`). Backspace merges, Delete, range deletes, typing over a selection, cut, and the paste's delete half all arrive there; a native single-block selection replace is re-expressed as a join of what survives on either side, so it crosses the same seam (`live-selection-edit.ts`). The cleanup drops two things: delimiter runs the truncation left unpaired, their partner having gone with the cut, and the closer/opener chain a join brings back to back around nothing, the split's inverse. The license is § 2's: live may drop only what it never showed, verified against what the two sides showed, and otherwise the literal join stands. The same rule keeps hidden bytes from surfacing through a join: a block holding hidden structure past its content (a setext underline) declines the merge that would concatenate it into view (`hidden-suffix.ts`).
+
+### 4.6 The link card
+
+Live paints no destination, so the card is the only way to read or rewrite one. The focus model: a click on a link opens the card beside a caret that stays the document's; keyboard entry (Mod+K with the caret inside a link) opens it with focus trapped in the URL field. An edit commits one undoable step through the link byte-write seam (G4.34); the card addresses its link by path plus construct start and re-resolves after every commit, since a commit rebuilds the inline DOM. Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
+
+## 5. What does not change
+
+- Copy yields the source bytes; reading mode is the one rung that copies rendered text.
+- Search matches the source bytes, so a query crossing a construct boundary misses what the screen appears to show.
+- The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are its landable bounds, not its raw ends (`cursor/widget-offset.ts`).
+- Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, and keystroke latency is a gated perf axis with live rows beside their source twins (`performance.md`).

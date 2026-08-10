@@ -884,7 +884,8 @@
 	// ── Shared mutation primitives (event handlers + right-click menu) ───────
 
 	// The truncation is a join like the paste's delete half: in live the runs it strands are
-	// bytes the reader never saw, so it crosses the same seam ahead of the escaping sink (§ 4.5).
+	// bytes the reader never saw, so it crosses the same seam ahead of the escaping sink
+	// (live-mode.md § 4.5).
 	function deleteCellRange(start: number, end: number): void {
 		const display = trimTrailingLineEnding(node.raw);
 		const cut = cutRangeFromDisplay(node, display, { start, end }, presentationMode, linkRef);

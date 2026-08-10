@@ -210,7 +210,7 @@ Context-dependent kinds (no standalone recognizer — kept through edits); an op
 3. `EditorContext.presentationMode` (live getter) plus the `presentationModeChange` event;
 4. the leaf and widget tiers — `EditableLeaf.getPresentationMode()`, the live `getPresentationMode` getter mounted beside an inline-widget component's frozen snapshot, and `InlineWidgetEditingContext.presentationMode`.
 
-**Mode litmus: handle non-exhaustively.** The union is five values today and has grown twice; a plugin that switches exhaustively over it is wrong by construction, because the next rung is an addition to the union rather than an API break. Read the one property the rendering actually depends on — most often "does this mode paint markers" or "does it write bytes" — and default the rest. The platform's own read sites are written that way, which is why the live rung activated with zero plugin-facing change.
+**Mode litmus: handle non-exhaustively.** The union is five values today and has grown once already; a plugin that switches exhaustively over it is wrong by construction, because the next rung is an addition to the union rather than an API break. Read the one property the rendering actually depends on — most often "does this mode paint markers" or "does it write bytes" — and default the rest. The platform's own read sites are written that way, which is why the live rung activated with zero plugin-facing change.
 
 The editor's THEME travels the same four doors (`EditorContext.theme` plus a `themeChange` event, the container and leaf factories' `getTheme()`, the inline-widget `getTheme` prop). It exists for the one thing CSS cannot reach: content whose colors a rendering engine paints into its own markup, which must be redrawn rather than restyled.
 

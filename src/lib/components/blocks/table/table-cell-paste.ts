@@ -46,7 +46,7 @@ export function tableCellInlinePaste(
 	// The delete half crosses the join seam BEFORE the escaping stage: the seam reads and writes
 	// the cell's own display bytes, and `normalizeCellRaw` still runs at the sink over whatever
 	// they end up being. Skipping it pasted a stranded `**` into view, the leak the prose leaves
-	// stopped writing (§ 4.5).
+	// stopped writing (live-mode.md § 4.5).
 	const { display: raw, offset: effectiveOffset } = cutRangeFromDisplay(
 		node,
 		node.raw,

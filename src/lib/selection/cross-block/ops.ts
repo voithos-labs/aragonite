@@ -37,7 +37,7 @@ export interface CrossBlockMutationContext {
 	/** Block grammar for the delete's ancestry rebuild. Required-nullable so a new construction
 	 *  site can't silently skip the thread; `undefined` = global. */
 	grammar: GrammarView | undefined;
-	/** The effective mode the delete's join seam answers to (§ 4.5). Required-nullable for the
+	/** The effective mode the delete's join seam answers to (live-mode.md § 4.5). Required-nullable for the
 	 *  same reason as `grammar`; `undefined` reads as not-live, so the join stays byte-literal. */
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** The instance's link-reference resolver, so the seam parses the reference forms the render

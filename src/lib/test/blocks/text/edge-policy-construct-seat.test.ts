@@ -103,7 +103,7 @@ describe('a symmetric pair extends or not by the arrival on record', () => {
 		expect(h.edits).toEqual([[0, 'Some **Xbold** text\n', 5, 8]]);
 	});
 
-	// A click resets the affinity, so the default IS the click contract (§ 4.2).
+	// A click resets the affinity, so the default IS the click contract (live-mode.md § 4.2).
 	it('declines with no arrival on record — a click keeps the construct’s near side', () => {
 		const h = mount(BOLD, 'live', null);
 		expect(h.handleKeydown(key('X'), at(11))).toBe(false);

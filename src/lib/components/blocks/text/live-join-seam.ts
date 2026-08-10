@@ -50,9 +50,9 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 		// A candidate that changed nothing IS the literal join: declining says so, and keeps the
 		// caller off a rewrite path it does not need.
 		if (candidate === join.mergedRaw) return null;
-		// The split half's terminal-trivia rule (#106), on the join (#113): a survivor that is only
-		// hard-break whitespace reloads as blank trivia — a different shape than the block written —
-		// and a terminal run paints nothing, so the declared drop is read here, not trusted: only
+		// The split half's terminal-trivia rule, on the join: a survivor that is only hard-break
+		// whitespace reloads as blank trivia — a different shape than the block written — and a
+		// terminal run paints nothing, so the declared drop is read here, not trusted: only
 		// whitespace may go, and the emptied block's caret has one seat.
 		const display = trimTrailingLineEnding(candidate);
 		if (display !== '' && display.trim() === '') {

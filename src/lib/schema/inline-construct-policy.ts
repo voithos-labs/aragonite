@@ -29,32 +29,13 @@ export function registerInlineConstructPolicy(
 	registerOnce(
 		policies.has(kind),
 		() => policies.set(kind, policy),
-		`registerInlineConstructPolicy: "${kind}" is already registered. Policies are ` +
-			`register-once — use augmentInlineConstructPolicy to merge fields into an existing row.`
+		`registerInlineConstructPolicy: "${kind}" is already registered. Policies are register-once.`
 	);
 }
 
 /** Undefined for a kind with no row: absent means "no live-mode construct behavior at all". */
 export function getInlineConstructPolicy(kind: AnyInlineKind): InlineConstructPolicy | undefined {
 	return policies.get(kind);
-}
-
-/**
- * Layer fields onto an already-registered row. The editor-layer wire-up patches behavior it
- * would otherwise take a component import to declare. Throws for an unregistered kind.
- */
-export function augmentInlineConstructPolicy(
-	kind: AnyInlineKind,
-	patch: Partial<InlineConstructPolicy>
-): void {
-	const policy = policies.get(kind);
-	if (!policy) {
-		throw new Error(
-			`augmentInlineConstructPolicy: "${kind}" is not registered — register the policy row ` +
-				`before augmenting it.`
-		);
-	}
-	policies.set(kind, { ...policy, ...patch });
 }
 
 /** Whether preview-inline's construct reveal may flip this kind's marker spans. */
@@ -153,9 +134,8 @@ export function getLiveJoinSeamCleaner(): LiveJoinSeamCleaner | undefined {
 	return joinSeamCleaner;
 }
 
-/** Test-only. Drops every plugin-registered row; built-in rows survive, and so does the
- *  rebalancer — it is a built-in registration, and dropping it silently retired live splits
- *  for every suite that reset between cases. */
+/** Test-only. Drops every plugin-registered row; built-in rows and the rebalancer survive,
+ *  being built-in registrations. */
 export function __resetInlineConstructPoliciesForTests(): void {
 	for (const kind of policies.keys()) {
 		if (!isBuiltinInlineKind(kind)) policies.delete(kind);

@@ -9,7 +9,6 @@ import {
 import {
 	registerInlineConstructPolicy,
 	getInlineConstructPolicy,
-	augmentInlineConstructPolicy,
 	isRevealableInlineKind,
 	registerLiveSplitRebalancer,
 	getLiveSplitRebalancer,
@@ -104,11 +103,9 @@ describe('revealable membership', () => {
 		]);
 	});
 
-	// Task 2 left the angle brackets unstamped so block focus reveals them; a row
-	// marking autolink revealable would make them permanently invisible instead.
-	// The autolink carries a row without being revealable: its brackets hide with the block
-	// rather than by caret proximity, and the row is what the typing seat reads to keep a byte
-	// out from between them.
+	// The autolink is rowed but not revealable: its brackets hide with the block rather than by
+	// caret proximity (a revealable row would make them permanently invisible), and the row is
+	// what the typing seat reads to keep a byte out from between them.
 	it('excludes autolink, which is rowed but not revealable', () => {
 		expect(getInlineConstructPolicy('autolink')?.edgeAffinity).toBe('never-extend');
 		expect(isRevealableInlineKind('autolink')).toBe(false);
@@ -121,24 +118,6 @@ describe('registration lifecycle', () => {
 		registerInlineConstructPolicy(kind, atomic);
 		expect(getInlineConstructPolicy(kind)).toEqual(atomic);
 		expect(getInlineConstructPolicy(declarePluginInlineKind('policy-absent'))).toBeUndefined();
-	});
-
-	it('augment merges the patch and leaves the untouched fields alone', () => {
-		const kind = declarePluginInlineKind('policy-augment');
-		registerInlineConstructPolicy(kind, atomic);
-		augmentInlineConstructPolicy(kind, { revealable: true, splitBehavior: 'close-and-reopen' });
-		expect(getInlineConstructPolicy(kind)).toEqual({
-			...atomic,
-			revealable: true,
-			splitBehavior: 'close-and-reopen'
-		});
-	});
-
-	it('augment refuses to mint a row for an unregistered kind', () => {
-		const kind = declarePluginInlineKind('policy-unregistered');
-		expect(() => augmentInlineConstructPolicy(kind, { revealable: true })).toThrow(
-			/not registered/i
-		);
 	});
 
 	it('throws on a duplicate registration under test', () => {
@@ -184,9 +163,8 @@ describe('live split rebalancer slot', () => {
 		expect(getLiveSplitRebalancer()).toBe(second);
 	});
 
-	// The row reset used to drop it too, which silently retired live splits for any suite that
-	// reset between cases: `registerBuiltInBlocks` short-circuits on its idempotence flag, so
-	// nothing puts the value back and nothing warns.
+	// Miss-analysis: a reset that drops the slot retires live splits silently, since
+	// `registerBuiltInBlocks` short-circuits on its idempotence flag and nothing re-registers.
 	it('survives the plugin-row reset, being a built-in registration', () => {
 		const fn = rebalancer();
 		registerLiveSplitRebalancer(fn);

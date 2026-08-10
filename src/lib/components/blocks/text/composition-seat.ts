@@ -71,7 +71,7 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				if (typed === null) return null;
 				return deps.resolveRangeEdit?.(started.range, typed) ?? null;
 			}
-			// Marks beat the arrival side (§ 4.2): a toggle is the newer instruction about the
+			// Marks beat the arrival side (live-mode.md § 4.2): a toggle is the newer instruction about the
 			// same bytes, so the affinity only answers when nothing was pending.
 			if (started.marks) {
 				const composed = plainInsertionAt(started.before, after, composedAt);

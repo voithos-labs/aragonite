@@ -93,7 +93,7 @@ async function handleCrossBlockActive(
 	}
 
 	// Ahead of the command candidates, because a toggle is NOT a type-replace: deleting the
-	// range and dispatching at the collapsed caret is what turned a document into `****` (#107).
+	// range and dispatching at the collapsed caret leaves empty pairs where the document stood.
 	// Consumed like every claimed chord, so it never falls through to the browser. Wrapping each
 	// block in the range is a feature with its own design — which blocks participate, how nesting
 	// resolves — and a deliberate non-goal here.
@@ -271,8 +271,8 @@ function isFormatToggleChord(e: KeyboardEvent): boolean {
 /**
  * Collapse, and correct the side the arrow already classified: the key is directional but the
  * caret took no step — it jumped to the range's own edge, where the answer is construct-relative
- * (§ 4.2). Without this the seat reads the arrow's side and the first byte joins the construct
- * the collapse landed in front of.
+ * (live-mode.md § 4.2). Without this the seat reads the arrow's side and the first byte joins
+ * the construct the collapse landed in front of.
  */
 async function collapseTo(
 	ctx: CrossBlockDispatchContext,

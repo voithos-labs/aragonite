@@ -3,7 +3,7 @@
  * the setext underline. A merge past it concatenates it into view (`Title\n===` + `next` reparses
  * to a paragraph showing `===next`), so the keydown dispatch consumes the press and the command
  * arm declines it. One home because the two asked the same question from two coordinate sources,
- * and a rule answered twice diverges the day either one moves (§ 4.5).
+ * and a rule answered twice diverges the day either one moves (live-mode.md § 4.5).
  */
 
 import { getContentRange } from '../../../core/inline';

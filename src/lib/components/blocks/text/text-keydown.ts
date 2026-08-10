@@ -16,9 +16,8 @@ export interface TextEditResult {
  * Give up the block's own structural bytes, whichever end the kind keeps them at: a prefix for
  * ATX, an underline line for setext. Both sides read the kind's CONTENT RANGE and nothing else —
  * a prefix rewrite with a syntax of its own disagrees with the gate that let the press through
- * (`  ## x` is a heading whose `#`s a `^#` regex never reaches, and the demote wrote the block
- * back unchanged there). Null for a kind whose content IS its whole display: nothing to give up,
- * and the merge cascade takes the press.
+ * (`  ## x` is a heading whose `#`s a `^#` regex never reaches). Null for a kind whose content
+ * IS its whole display: nothing to give up, and the merge cascade takes the press.
  */
 export function demoteToParagraph(
 	raw: string,
