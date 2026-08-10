@@ -63,7 +63,11 @@ describe('IME keystrokes never operate the card', () => {
 // ── The host's document-level Escape ────────────────────────────────────────
 
 function mountHost() {
-	const card = createLinkCardState({ onOpen: () => {}, canOpen: () => true });
+	const card = createLinkCardState({
+		onOpen: () => {},
+		canOpen: () => true,
+		canOpenCreate: () => true
+	});
 	const restore = vi.fn();
 	const target = document.createElement('div');
 	document.body.appendChild(target);

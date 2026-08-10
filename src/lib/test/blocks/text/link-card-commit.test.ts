@@ -14,18 +14,25 @@ function makeCard(source: string) {
 	const harness = makeEditorActionsDeps(parse(source).children);
 	const map = buildLinkReferenceMap(harness.doc.children);
 	const controller = createUndoController(harness.deps);
+	const landCaret = vi.fn().mockResolvedValue(true);
 	const committer = createLinkCardCommitter({
 		getDoc: () => harness.doc,
 		getEditorEl: () => null,
 		getTarget: () => null,
+		getCreateTarget: () => null,
 		controller,
 		events: harness.events,
 		measureRange: () => [],
-		landCaret: vi.fn().mockResolvedValue(true),
+		landCaret,
 		linkRef: { current: map.resolve, signature: map.signature }
 	});
 	const raw = () => harness.doc.children[0].raw;
-	return { committer, raw, target: { path: [0], sourceStart: raw().indexOf('[') } as LinkTarget };
+	return {
+		committer,
+		raw,
+		landCaret,
+		target: { path: [0], sourceStart: raw().indexOf('[') } as LinkTarget
+	};
 }
 
 async function settle(): Promise<void> {
@@ -64,6 +71,25 @@ describe('link card commit — which fields survive a url edit', () => {
 		card.committer.commitUrl(card.target, 'a%20b');
 		await settle();
 		expect(card.raw()).toBe('Visit [x](<a b>) now\n');
+	});
+});
+
+describe('link card commit — the create half', () => {
+	it('mints the wrap over the range and lands the caret at the construct start', async () => {
+		const card = makeCard('Alpha bravo charlie\n');
+		card.committer.commitCreate({ path: [0], start: 6, end: 11 }, 'https://n.test/x');
+		await settle();
+		await settle();
+		expect(card.raw()).toBe('Alpha [bravo](https://n.test/x) charlie\n');
+		expect(card.landCaret).toHaveBeenCalledWith([0], 6);
+	});
+
+	it('a range the seam declines writes nothing', async () => {
+		const card = makeCard('Visit [x](old) now\n');
+		card.committer.commitCreate({ path: [0], start: 2, end: 9 }, 'https://n.test/x');
+		await settle();
+		expect(card.raw()).toBe('Visit [x](old) now\n');
+		expect(card.landCaret).not.toHaveBeenCalled();
 	});
 });
 

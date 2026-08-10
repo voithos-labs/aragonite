@@ -37,7 +37,7 @@ export function buildLinkEditBytes(
 	resolver?: LinkReferenceResolver
 ): string | null {
 	if (declineClaimed(link, 'edit')) return null;
-	return verified(buildLinkSourceBytes(fields), link, display, resolver);
+	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, resolver);
 }
 
 /** Bytes that unwrap `link` to the text the reader already sees — remove-link. An autolink has no
@@ -50,7 +50,47 @@ export function buildLinkUnwrapBytes(
 	if (declineClaimed(link, 'remove')) return null;
 	const [textStart, textEnd] = textRange(link, display);
 	const plain = display.slice(textStart, textEnd);
-	return verified(escapeRelinkingText(plain, link, display, resolver), link, display, resolver);
+	return verified(
+		escapeRelinkingText(plain, link, display, resolver),
+		link.start,
+		link.end,
+		display,
+		resolver
+	);
+}
+
+/** Bytes that mint `[text](url)` over `[start, end)` — the card's create half. Declines an empty
+ *  destination, a range crossing another construct's bytes, and any candidate the render check
+ *  refuses (a neighbouring `!` would turn the wrap into an image). */
+export function buildLinkWrapBytes(
+	display: string,
+	start: number,
+	end: number,
+	url: string,
+	resolver?: LinkReferenceResolver
+): string | null {
+	if (url.trim() === '' || !canWrapRangeAsLink(display, start, end, resolver)) return null;
+	// A bare bracket would close the construct early; an existing `\x` pair passes through whole.
+	const text = display
+		.slice(start, end)
+		.replace(/\\[\s\S]|[[\]]/g, (m) => (m.length === 2 ? m : '\\' + m));
+	return verified(`[${text}](${encodeDestination(url)})`, start, end, display, resolver);
+}
+
+const WRAP_SAFE_KINDS: ReadonlySet<string> = new Set(['text', 'escape', 'entityReference']);
+
+/** True when `[start, end)` holds only bytes safe to become link text. Wrapping inside or across
+ *  another construct is a policy question create does not answer — it declines. */
+export function canWrapRangeAsLink(
+	display: string,
+	start: number,
+	end: number,
+	resolver?: LinkReferenceResolver
+): boolean {
+	if (start >= end || end > display.length) return false;
+	return flattenInline(parseInline(display, 0, display.length, resolver)).every(
+		(n) => WRAP_SAFE_KINDS.has(n.kind) || n.end <= start || n.start >= end
+	);
 }
 
 /** The fields the card edits, read off the source bytes: `url`/`title` are decoded on the node,
@@ -92,22 +132,23 @@ function visibleText(raw: string, resolver?: LinkReferenceResolver): string {
 	return renderedText(parseInline(raw, 0, raw.length, resolver), raw);
 }
 
-/** A candidate is bytes only if splicing it leaves the reader's text untouched — the edit rewrites
- *  a destination nobody saw, so any visible change is the construct having broken. */
+/** A candidate is bytes only if splicing it over `[start, end)` leaves the reader's text
+ *  untouched — the write moves bytes nobody saw, so any visible change is the construct broken. */
 function verified(
 	candidate: string | null,
-	link: InlineNode,
+	start: number,
+	end: number,
 	display: string,
 	resolver?: LinkReferenceResolver
 ): string | null {
 	if (candidate === null) return null;
 	const before = visibleText(display, resolver);
-	const after = visibleText(spliced(candidate, link, display), resolver);
+	const after = visibleText(spliced(candidate, start, end, display), resolver);
 	return before === after ? candidate : null;
 }
 
-function spliced(candidate: string, link: InlineNode, display: string): string {
-	return display.slice(0, link.start) + candidate + display.slice(link.end);
+function spliced(candidate: string, start: number, end: number, display: string): string {
+	return display.slice(0, start) + candidate + display.slice(end);
 }
 
 // ── Text ranges and the re-link escape ──────────────────────────────────────
@@ -163,7 +204,7 @@ function relinkedRange(
 	display: string,
 	resolver?: LinkReferenceResolver
 ): [number, number] | null {
-	const raw = spliced(candidate, link, display);
+	const raw = spliced(candidate, link.start, link.end, display);
 	const end = link.start + candidate.length;
 	const found = flattenInline(parseInline(raw, 0, raw.length, resolver)).find(
 		(n) => (n.kind === 'link' || n.kind === 'autolink') && n.start < end && n.end > link.start

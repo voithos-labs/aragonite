@@ -155,7 +155,8 @@
 		path: myPath,
 		linkRef,
 		card: linkCard,
-		mode: presentationMode
+		mode: presentationMode,
+		selection: cursor.getRawSelection()
 	});
 	const enterLinkCard = () => {
 		if (el) enterLinkCardAtCaret(linkCardQuery());

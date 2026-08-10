@@ -405,7 +405,9 @@
 				path: myPath,
 				linkRef,
 				card: linkCard,
-				mode: presentationMode
+				mode: presentationMode,
+				// Null declines create here: cell raw carries pipe escapes, its own wrap policy.
+				selection: null
 			});
 			return true;
 		}

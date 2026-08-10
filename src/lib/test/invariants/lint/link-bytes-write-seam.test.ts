@@ -11,7 +11,7 @@ import { collectEditorSources, stripComments } from './scan-source';
 const SEAM = 'src/lib/components/blocks/text/link-source-bytes.ts';
 
 const GFM_SERIALIZER = /\bbuildLinkSourceBytes\b/;
-const SEAM_CALL = /\bbuildLink(?:Edit|Unwrap)Bytes\b/;
+const SEAM_CALL = /\bbuildLink(?:Edit|Unwrap|Wrap)Bytes\b/;
 
 /**
  * Every file naming the seam in code, and why. A new name is a new link write path: add it with
@@ -19,7 +19,8 @@ const SEAM_CALL = /\bbuildLink(?:Edit|Unwrap)Bytes\b/;
  */
 const SEAM_SITES: Record<string, string> = {
 	[SEAM]: 'the seam itself',
-	'src/lib/components/link-card/link-card-commit.ts': 'the card’s url commit and its remove-link'
+	'src/lib/components/link-card/link-card-commit.ts':
+		'the card’s url commit, its remove-link, and the create wrap'
 };
 
 function namesInCode(sources: { relPath: string; code: string }[], re: RegExp): string[] {
@@ -60,9 +61,10 @@ describe('every link byte write routes through the claim-aware seam', () => {
 		expect(GFM_SERIALIZER.test(stripComments('// buildLinkSourceBytes(fields)\n'))).toBe(false);
 	});
 
-	it('the seam matcher catches both doors, not just the edit', () => {
+	it('the seam matcher catches all three doors, not just the edit', () => {
 		expect(SEAM_CALL.test('buildLinkEditBytes(link, display, fields)')).toBe(true);
 		expect(SEAM_CALL.test('buildLinkUnwrapBytes(link, display)')).toBe(true);
+		expect(SEAM_CALL.test('buildLinkWrapBytes(display, start, end, url)')).toBe(true);
 		expect(SEAM_CALL.test('buildImageEditBytes(image, raw, fields)')).toBe(false);
 	});
 });

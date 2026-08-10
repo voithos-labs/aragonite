@@ -72,10 +72,11 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Real: every keydown on an editable surface asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
 		// Real: a `link.openCard` press asks it to seat a target, and the entry rule reads it back.
-		// The guard mirrors production so a component test exercises the entry gate it ships with.
+		// The guards mirror production so a component test exercises the entry gates it ships with.
 		linkCard: createLinkCardState({
 			onOpen: () => {},
-			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false
+			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false,
+			canOpenCreate: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed === false
 		}),
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
 		controller: {
