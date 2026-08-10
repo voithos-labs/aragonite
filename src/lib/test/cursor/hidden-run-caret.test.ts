@@ -8,7 +8,11 @@
 // was only ever exercised in source-mode shape.
 import { describe, it, expect, afterEach } from 'vitest';
 import { asDomTextOffset, asRawOffset } from '../../cursor/coordinate-spaces';
-import { domTextOffsetAtNode, isHiddenMarkerText } from '../../cursor/widget-offset';
+import {
+	domTextOffsetAtNode,
+	findDomTextOffsetTarget,
+	isHiddenMarkerText
+} from '../../cursor/widget-offset';
 import { restoreCaretAtWalkOffset } from '../../cursor/focused-caret';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
@@ -177,6 +181,29 @@ describe('domTextOffsetAtNode — a hidden run has no interior walk positions', 
 		const fx = mount();
 		expect(domTextOffsetAtNode(fx.block, fx.openMarker, 1)).toBe(1);
 		expect(domTextOffsetAtNode(fx.block, fx.body, 0)).toBe(2);
+	});
+
+	// Miss-analysis (GH #126): every coalescing fixture used ADJACENT spans, so the empty text
+	// node Chromium leaves between spans — zero contribution, but a segment boundary — was
+	// never in any walk a test observed, and it split the run into two.
+	describe('a zero-length text node between hidden spans does not split the run', () => {
+		function mountWithEmptyBetween() {
+			const fx = mount({ mode: 'live', blockPrefix: '## ' });
+			fx.block.insertBefore(document.createTextNode(''), fx.openSpan);
+			return fx;
+		}
+
+		it('a landing at the seam resolves past the whole run, not between its halves', () => {
+			const fx = mountWithEmptyBetween();
+			const pos = findDomTextOffsetTarget(fx.block, asDomTextOffset(3));
+			expect(pos?.node).toBe(fx.body);
+			expect(pos?.offset).toBe(0);
+		});
+
+		it('a read at the second span still snaps out of the whole run', () => {
+			const fx = mountWithEmptyBetween();
+			expect(domTextOffsetAtNode(fx.block, fx.openMarker, 0)).toBe(0);
+		});
 	});
 });
 

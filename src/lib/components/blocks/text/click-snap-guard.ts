@@ -1,5 +1,6 @@
 /** Native-vs-synthetic caret and plain-key guards shared across the text surface. */
 
+import { isCharacterKey } from '../../../schema/keybindings';
 import { isHiddenMarkerText } from '../../../cursor/widget-offset';
 
 /** Caret in a real text node the reader can see: the native caret renders there, so the
@@ -15,7 +16,7 @@ export function hasModifier(e: KeyboardEvent): boolean {
 	return e.ctrlKey || e.metaKey || e.altKey;
 }
 
-/** A typed byte: no modifier chord, exactly one character. A chord is a command instead. */
+/** A typed character: no modifier chord, one code point. A chord is a command instead. */
 export function isPlainTypingKey(e: KeyboardEvent): boolean {
-	return !hasModifier(e) && e.key.length === 1;
+	return !hasModifier(e) && isCharacterKey(e.key);
 }

@@ -103,4 +103,10 @@ describe('isPlainTypingKey', () => {
 			expect(isPlainTypingKey(key({ key: k }))).toBe(false);
 		}
 	});
+
+	// An astral glyph is one typed character in two UTF-16 units (GH #122).
+	it('accepts an astral-plane character', () => {
+		expect(isPlainTypingKey(key({ key: '😀' }))).toBe(true);
+		expect(isPlainTypingKey(key({ key: '𝓐' }))).toBe(true);
+	});
 });
