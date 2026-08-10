@@ -102,7 +102,8 @@ export function rangeDelete(
 		startRaw.slice(0, startOffset) + (sameBlock ? endTail : normalizeOwnRaw(endBlock, endTail))
 	);
 	// After both normalizers and ahead of both consumers: in live the runs the truncation left
-	// unpaired, and the pair a join brings back to back, are bytes the reader never saw (§ 4.5).
+	// unpaired, and the pair a join brings back to back, are bytes the reader never saw
+	// (live-mode.md § 4.5).
 	const joined = cleanJoinedRaw(
 		{
 			mergedRaw,

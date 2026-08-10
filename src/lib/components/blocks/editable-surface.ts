@@ -240,9 +240,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	 * Every caret door lands here, so the two SENTINELS are resolved here: "the start" and "the
 	 * end" are the extreme offsets a caret can occupy, and a mode that paints no marker puts the
 	 * raw extremes past them — seating there hands the typing seat a position no arrow walk
-	 * produces, where the next byte joins a construct the arrival was outside of (§ 4.2). A
-	 * NUMERIC offset is a caller who knows the byte it wants (a split's continuation, a restore)
-	 * and is left alone.
+	 * produces, where the next byte joins a construct the arrival was outside of
+	 * (live-mode.md § 4.2). A NUMERIC offset is a caller who knows the byte it wants (a split's
+	 * continuation, a restore) and is left alone.
 	 */
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();

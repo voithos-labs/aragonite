@@ -58,7 +58,8 @@ export interface TextClipboardDeps {
 	foldRevealBeforeMutation: () => RevealFold | null;
 	/** True while an inline-widget source reveal is active on this block. */
 	isRevealing: () => boolean;
-	/** The effective mode the cut's join seam answers to (§ 4.5); `undefined` reads as not-live. */
+	/** The effective mode the cut's join seam answers to (live-mode.md § 4.5); `undefined` reads
+	 *  as not-live. */
 	getPresentationMode: () => PresentationMode | undefined;
 	/** The block's live DOM as raw text, so a copy over a revealed (uncommitted) edit
 	 *  yields what the user sees rather than the stale raw slice. */

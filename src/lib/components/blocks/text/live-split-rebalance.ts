@@ -1,5 +1,5 @@
 /**
- * The live-mode split rewrite (§ 4.4 close-and-reopen): Enter inside a construct closes it
+ * The live-mode split rewrite (live-mode.md § 4.4 close-and-reopen): Enter inside a construct closes it
  * before the cut and reopens it after, so neither half strands a delimiter run the reader never
  * saw, and a split link carries its destination to both. Bytes stay candidates until the parser
  * agrees — each half must re-parse to ONE prose block that still carries its constructs and
@@ -229,9 +229,9 @@ function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHal
 /**
  * The seam with a whitespace-only tail dropped rather than handed to either half. A block's
  * TERMINAL whitespace is a hard break with no following line, so it paints nothing: the reader
- * never saw it, and § 4.5 licenses live to drop what it never showed. The alternatives here are
- * both wrong — carried along, the reload reads it as blank trivia and the pair comes back a
- * different shape (#106); declined, the byte-literal cut prints the delimiters instead.
+ * never saw it, and live-mode.md § 4.5 licenses live to drop what it never showed. The
+ * alternatives here are both wrong — carried along, the reload reads it as blank trivia and the
+ * pair comes back a different shape; declined, the byte-literal cut prints the delimiters instead.
  */
 function assembleDroppingTerminalTrivia(
 	bytes: SplitBytes,
@@ -272,9 +272,8 @@ export function parsesBack(
 	// Each half must be a block the RELOAD keeps. An EMPTY half is one — that is the ordinary
 	// handover, and an empty block is what Enter at a content edge produces anyway — but a half
 	// carrying only WHITESPACE is not: the document reads those bytes as blank trivia, so the
-	// pair comes back a different shape than it was written in (#106, where the relocated space
-	// landed as hard-break residue). The byte-literal cut converges there, and declining is what
-	// leaves it standing.
+	// pair comes back a different shape than it was written in. The byte-literal cut converges
+	// there, and declining is what leaves it standing.
 	if (isWhitespaceOnly(first.visible) || isWhitespaceOnly(second.visible)) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;

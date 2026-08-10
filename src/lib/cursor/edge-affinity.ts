@@ -40,9 +40,8 @@ export interface EdgeAffinityState {
 export interface EdgeAffinityDeps {
 	/**
 	 * Ephemeral caret state with this same lifetime rides the invalidation (pending marks,
-	 * `cursor/pending-marks.ts`). Composed rather than copied at each seam: a rule carried at
-	 * N call sites is the audit's dominant bug shape, and every seat below already reaches
-	 * exactly one of these three doors.
+	 * `cursor/pending-marks.ts`). Composed rather than copied at each seam: every seat below
+	 * already reaches exactly one of these three doors.
 	 */
 	onInvalidate?: () => void;
 }

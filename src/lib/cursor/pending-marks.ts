@@ -4,7 +4,7 @@
  * absent is an application. Live mode paints no delimiter, so materializing an empty pair in
  * the bytes would leave invisible `****` behind on an abandoned toggle; the promise is held
  * here instead and spent when bytes arrive. SET by the toggle command, CONSUMED by the typing
- * seat and the composition seat, INVALIDATED by the edge affinity's own seams (§ 4.3).
+ * seat and the composition seat, INVALIDATED by the edge affinity's own seams (live-mode.md § 4.3).
  */
 
 /** The constructs a toggle chord can pend. Widened as `format-toggle.ts` grows formats. */

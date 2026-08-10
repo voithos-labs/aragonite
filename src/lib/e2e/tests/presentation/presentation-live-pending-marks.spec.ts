@@ -246,8 +246,8 @@ test.describe('live mode — the insertion that spends a mark owns its undo entr
 		ep = await enterLive(page);
 	});
 
-	// A toggle mid-burst used to coalesce into the surrounding keystroke batch, so one Ctrl+Z
-	// took the formatting AND the words that preceded it.
+	// The toggle flushes the keystroke batch, so the insertion that spends it owns its own undo
+	// entry rather than coalescing with the words typed before it.
 	test('one Mod+Z after a burst, a toggle and a keystroke returns the burst', async ({ page }) => {
 		await clickBlock(ep, PLAIN);
 		await page.keyboard.press('End');

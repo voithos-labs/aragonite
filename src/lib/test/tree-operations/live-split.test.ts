@@ -104,8 +104,8 @@ describe('a rebalanced split always produces exactly two blocks', () => {
 });
 
 // The split's inverse: the closing and reopening runs meet at the seam enclosing nothing, and the
-// join drops them (§ 4.5). Without the cleanup these wrote `Some **bo****ld** text`, gaining a
-// pair on every repeat, and returned a split link as two anchors sharing one destination.
+// join drops them (live-mode.md § 4.5). Without the cleanup these write `Some **bo****ld** text`,
+// gaining a pair on every repeat, and return a split link as two anchors sharing one destination.
 describe('Backspace merging the halves back', () => {
 	it('restores the original bytes with no residue between the runs', () => {
 		const doc = parse('Some **bold** text\n');

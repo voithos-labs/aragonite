@@ -19,15 +19,16 @@ Everything else hangs off those four. `CONTRIBUTING.md` gets you set up and thro
 
 The system's shape and its load-bearing contracts. `editor.md` is the orientation point; read the rest only when your task touches that subsystem.
 
-| Doc                                                          | Scope                                             |
-| ------------------------------------------------------------ | ------------------------------------------------- |
-| [`design/editor.md`](design/editor.md)                       | The editor design spec — **start here**           |
-| [`design/syntax-tree.md`](design/syntax-tree.md)             | CST node model, parser design, GFM block coverage |
-| [`design/inline-parsing.md`](design/inline-parsing.md)       | Inline parser pipeline, ambient prefix, rendering |
-| [`design/virtual-rendering.md`](design/virtual-rendering.md) | Windowing for large documents                     |
-| [`design/invariants.md`](design/invariants.md)               | The invariant catalog and how each is enforced    |
-| [`design/plugin-contract.md`](design/plugin-contract.md)     | The plugin API and what freezes at 1.0            |
-| [`design/performance.md`](design/performance.md)             | Performance claims, the gate, key decisions       |
+| Doc                                                          | Scope                                                    |
+| ------------------------------------------------------------ | -------------------------------------------------------- |
+| [`design/editor.md`](design/editor.md)                       | The editor design spec — **start here**                  |
+| [`design/syntax-tree.md`](design/syntax-tree.md)             | CST node model, parser design, GFM block coverage        |
+| [`design/inline-parsing.md`](design/inline-parsing.md)       | Inline parser pipeline, ambient prefix, rendering        |
+| [`design/virtual-rendering.md`](design/virtual-rendering.md) | Windowing for large documents                            |
+| [`design/live-mode.md`](design/live-mode.md)                 | Fully live mode: editing semantics behind hidden markers |
+| [`design/invariants.md`](design/invariants.md)               | The invariant catalog and how each is enforced           |
+| [`design/plugin-contract.md`](design/plugin-contract.md)     | The plugin API and what freezes at 1.0                   |
+| [`design/performance.md`](design/performance.md)             | Performance claims, the gate, key decisions              |
 
 ## `guide/` — using aragonite
 

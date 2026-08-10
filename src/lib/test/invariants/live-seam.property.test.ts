@@ -19,7 +19,7 @@ import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import type { PresentationMode } from '$lib/presentation-mode';
 
 /**
- * § 4.5's join seam under random range deletes. DIFFERENTIAL like the split arm: the seam sits on
+ * live-mode.md § 4.5's join seam under random range deletes. DIFFERENTIAL like the split arm: the seam sits on
  * a range delete with divergences of its own. It sees reload shape, round-trip, empty pairs, and
  * that the rewrite only ever REMOVES bytes from the join it was handed. It does not see a
  * delimiter surfacing — measured: the literal join can re-form a construct ACROSS the seam and
@@ -30,7 +30,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(515151) } as const;
 
 /**
- * The residue § 4.4 names: a symmetric emphasis pair with nothing between it. Two shapes are
+ * The residue live-mode.md § 4.4 names: a symmetric emphasis pair with nothing between it. Two shapes are
  * deliberately NOT counted, both measured: `[]()`, because a link emptied of its text is
  * `autoUnwrapOnEmpty`'s business and the literal join reaches it just as often spelt `[**]()`;
  * and a backtick run, because the two arms spell the same residue at different lengths

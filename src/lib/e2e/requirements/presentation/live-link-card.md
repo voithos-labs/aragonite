@@ -14,7 +14,7 @@ construction: their destination IS the text on screen, so the document edits it 
 `/test/editor` via `?presentationMode=live` with real clicks, real typing and a real `Mod+Z`; the
 SOURCE is the oracle, since a hidden destination and a wrong one look identical on screen.
 
-**Standing decision (§ 4.4 `autoUnwrapOnEmpty`, reaffirmed with the card).** Deleting a link's last
+**Standing decision (live-mode.md § 4.4 `autoUnwrapOnEmpty`, reaffirmed with the card).** Deleting a link's last
 text character still removes the whole construct, destination included. The card does not change
 that: an empty `[](url)` is a link with nothing to click, and leaving one behind would put an
 invisible destination in the document with no rendered anchor to open the card on. Recovery is the

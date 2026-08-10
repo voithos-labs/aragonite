@@ -36,7 +36,7 @@ interface SeatHarness {
 function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHarness {
 	const node = parse(`${source}\n`, { scope: 'fragment' }).children[0];
 	let rawSelection: { start: number; end: number } | null = null;
-	let surface: SurfaceHarness;
+	// The deps read `surface` lazily, so the const below is initialized before any of them run.
 	const seat = createCompositionSeat({
 		getDisplayText: () => surface.el.textContent ?? '',
 		getInlines: () => parseInline(source, 0, source.length),
@@ -48,7 +48,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
-	surface = makeSurface(undefined, (after, composedAt) => seat.relocate(after, composedAt));
+	const surface = makeSurface(undefined, (after, composedAt) => seat.relocate(after, composedAt));
 	surface.el.textContent = source;
 
 	// Browser order as the block wires it: seat capture, then the surface's own start half.

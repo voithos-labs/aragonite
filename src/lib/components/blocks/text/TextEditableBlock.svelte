@@ -529,7 +529,7 @@
 			case 'block.mergeNext':
 				return {
 					// A block whose own structure sits AFTER its content cannot absorb the next one
-					// without surfacing it (§ 4.5). The keydown dispatch consumes that press; this is
+					// without surfacing it (live-mode.md § 4.5). The keydown dispatch consumes that press; this is
 					// the same rule for the callers that never pass through it.
 					applies: () =>
 						offset >= caretBounds().end &&
@@ -868,7 +868,7 @@
 
 		// Live paints no delimiter, so the byte-pair strategy's abandoned `****` would be
 		// invisible garbage the user can see the effect of but not explain: pend the mark and
-		// let the next insertion carry it instead (§ 4.3). Every other mode shows the pair.
+		// let the next insertion carry it instead (live-mode.md § 4.3). Every other mode shows the pair.
 		if (presentationMode === 'live' && range.start === range.end) {
 			// The insertion that spends the mark starts its own undo entry, so it is never
 			// folded into the burst the chord interrupted.

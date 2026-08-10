@@ -29,7 +29,7 @@ const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
 /**
  * The leaf's bytes and caret after the paste's DELETE half — through the one join seam, so a cut
  * that stranded a delimiter run the reader never saw drops it here rather than pasting it into
- * view (§ 4.5). The range is forwarded whole: the endpoints are the seam's to read.
+ * view (live-mode.md § 4.5). The range is forwarded whole: the endpoints are the seam's to read.
  */
 function applyPreDelete(
 	node: CstNode,

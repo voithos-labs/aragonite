@@ -69,9 +69,9 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
 	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
 	{ chord: 'Mod+E', command: 'format.toggleCode' },
-	// Entry to the live-mode link card. Creation-on-selection arrives later, so a caret outside
-	// every link no-ops — but the press is still consumed, since `reservedChords()` reports the
-	// chord as claimed and the browser's own Mod+K would otherwise run.
+	// The live-mode link card. Consumed even when no card opens (a caret outside every link
+	// no-ops): `reservedChords()` reports the chord as claimed, and a fall-through would run the
+	// browser's own Mod+K.
 	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
@@ -182,7 +182,8 @@ function registerBuiltInInlinePolicies(): void {
 	});
 	// An autolink's `<`/`>` are a link's delimiters by another spelling: the destination IS the
 	// text, so a byte landing between the brackets rewrites where the link goes. Never-extend, for
-	// the same reason the bracket form is (§ 4.2), and plain: two halves of a URL are not two URLs.
+	// the same reason the bracket form is (live-mode.md § 4.2), and plain: two halves of a URL
+	// are not two URLs.
 	registerInlineConstructPolicy('autolink', {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: false,

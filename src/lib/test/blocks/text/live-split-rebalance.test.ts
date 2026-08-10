@@ -180,8 +180,7 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 	});
 
 	// A declaration is a CLAIM, so the verifier reads the rule itself: with the producer's guard
-	// bypassed — the candidate built here by hand — a drop of visible bytes is refused. Without
-	// this the gate waved `~~foo~~\tbar` through, deleting `bar` off the screen.
+	// bypassed (the candidate built here by hand), a drop of visible bytes is refused.
 	it('the verifier refuses a drop of bytes the screen showed', () => {
 		const raw = '~~foo~~\tbar\n';
 		const bytes = {
