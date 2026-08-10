@@ -2,7 +2,7 @@
 	import { DEV } from 'esm-env';
 	import { getContext, tick, untrack } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
-	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
+	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
 	import { emitCommandError } from '../../../editor-events';
@@ -775,11 +775,11 @@
 		// contenteditable from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
-		// Native Home lands at DOM 0, before the marker span; the user wants raw offset 0,
-		// immediately after the ambient span.
+		// Native Home lands at DOM 0, before the marker span; the user wants the block's start.
+		// Through the sentinel door, not a raw-0 DOM write: the landable clamp applies (GH #110).
 		if (e.key === 'Home' && !e.shiftKey && ambientLength > 0 && el) {
 			e.preventDefault();
-			cursor.setToAmbientBoundary();
+			focus(CURSOR_START);
 			return;
 		}
 

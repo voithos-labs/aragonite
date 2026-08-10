@@ -27,8 +27,6 @@ import { nodeAt } from '../tree-operations/node-ops';
 import { comparePaths, isStrictAncestorOf } from './path-math';
 import { cellEndpointDeepPath } from './table-endpoint-snap';
 import { displayLength } from '../core/lines';
-import { clampToLandableRaw } from '../cursor/widget-offset';
-import { ambientLengthOf } from '../ambient/ambient-dom';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
 
@@ -81,20 +79,9 @@ export async function collapseCrossBlock(
 		? { path: deepPath, offset: to === 'end' ? leafOffsetEnd(doc, deepPath) : 0 }
 		: target;
 
+	// The landable clamp (a caret may not sit past a hidden run) lives in applyCollapsedCaret.
 	await revealPath(path);
-	focusCollapsedCaret(getBlockElByPath, landableCaretPoint(getBlockElByPath(path), point));
-}
-
-/**
- * A collapse seats a CARET where a selection endpoint stood. A selection may cover a run the
- * mode paints nothing for — a delete that took the content and left the delimiters would strand
- * them — but a caret may not sit past one: nothing on screen distinguishes that offset from the
- * content edge, while the typing seat reads it as inside the construct.
- */
-function landableCaretPoint(blockEl: HTMLElement | null, point: SelectionPoint): SelectionPoint {
-	if (!blockEl) return point;
-	const offset = clampToLandableRaw(blockEl, point.offset, ambientLengthOf(blockEl));
-	return offset === point.offset ? point : { ...point, offset };
+	focusCollapsedCaret(getBlockElByPath, point);
 }
 
 /**

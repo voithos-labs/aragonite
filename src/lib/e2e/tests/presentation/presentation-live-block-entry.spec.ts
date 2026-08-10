@@ -100,6 +100,23 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 		expect(await ep.bridge.getSource()).toContain('## ZBeta');
 	});
 
+	// The one arrival that seated its caret by direct DOM write instead of the sentinel door
+	// (GH #110): raw 0 sits behind the hidden opener, and the next byte joined the construct.
+	test('Home in a list item opening with a construct types outside it', async ({ page }) => {
+		await ep.loadContent('- **bold** tail\n');
+		await ep.waitForRenderFlush();
+		await clickBlockSettled(ep, 0);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		expect(await focusOffset(ep)).toBe(2);
+
+		await page.keyboard.type('Z');
+		await ep.bridge.waitForSourceContains('Z');
+		expect(await ep.bridge.getSource()).toContain('- Z**bold** tail');
+	});
+
 	// The vertical arrival lands by pixel column rather than by sentinel, so it already stopped
 	// on a landable offset; pinned so the two arrivals cannot drift apart.
 	test('the vertical arrival lands on the same offset', async ({ page }) => {

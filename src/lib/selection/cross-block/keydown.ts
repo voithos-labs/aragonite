@@ -3,6 +3,7 @@
  * composer that wires this together with the pointer half.
  */
 
+import { CURSOR_START } from '../../block-component';
 import type { CrossBlockMutationContext } from './ops';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { BlockElLookup } from '../../editor-keys';
@@ -337,7 +338,7 @@ async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<voi
 		// A null ref means the cell never mounted; fall through to scroll the (mounted) table
 		// so a failed reveal still keeps the endpoint in view.
 		if (cellRef) {
-			cellRef.parkCaret?.(0);
+			cellRef.parkCaret?.(CURSOR_START);
 			return;
 		}
 	}

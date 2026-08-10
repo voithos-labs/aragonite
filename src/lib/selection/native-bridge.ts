@@ -9,7 +9,11 @@ import type { SelectionPoint, EditorSelection } from './primitives';
 import type { SelectionState } from './selection-state.svelte';
 import type { BlockComponent } from '../block-component';
 import { asRawOffset, toClampedRawOffset, toDomTextOffset } from '../cursor/coordinate-spaces';
-import { createRangeAtDomTextOffsets, domTextOffsetAtNode } from '../cursor/widget-offset';
+import {
+	clampToLandableRaw,
+	createRangeAtDomTextOffsets,
+	domTextOffsetAtNode
+} from '../cursor/widget-offset';
 import { ambientLengthOf, placeCaretAfterAmbientSpan } from '../ambient/ambient-dom';
 
 // ── Read native → SelectionPoint ────────────────────────────────────────────
@@ -43,14 +47,17 @@ export function readNativeCaretInBlock(
 
 /**
  * Place a collapsed native caret at a raw-semantic SelectionPoint, translating through the
- * block's ambient length. Raw offset 0 under an ambient marker goes to the boundary AFTER the
- * marker span: the offset walk would land inside its contenteditable="false" text node, which
- * Chromium bounces out of scope. Same landing as the ambient cursor IO's `setToAmbientBoundary`.
+ * block's ambient length. The park door's twin, so the same landable clamp applies: a caret may
+ * not sit past a hidden marker run, whatever offset the caller derived (a selection may COVER
+ * such a run, so only collapsed carets clamp — `applySingleBlockRange` does not). Raw offset 0
+ * under an ambient marker goes to the boundary AFTER the marker span: the offset walk would land
+ * inside its contenteditable="false" text node, which Chromium bounces out of scope.
  */
 export function applyCollapsedCaret(blockEl: HTMLElement, point: SelectionPoint): void {
 	const ambient = ambientLengthOf(blockEl);
-	if (ambient > 0 && point.offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
-	const target = toDomTextOffset(asRawOffset(point.offset), ambient);
+	const offset = clampToLandableRaw(blockEl, point.offset, ambient);
+	if (ambient > 0 && offset <= 0 && placeCaretAfterAmbientSpan(blockEl)) return;
+	const target = toDomTextOffset(asRawOffset(offset), ambient);
 	const range = createRangeAtDomTextOffsets(blockEl, target, target);
 	if (!range) return;
 	const sel = window.getSelection();

@@ -22,9 +22,14 @@ selection bridge and the bytes from the source bridge.
   outside)
 - `ArrowRight` at the end of a block, entering the next one which BEGINS with
   `**bold**`: the caret lands at the construct's content start, and a typed byte
-  lands BEFORE the construct. This is why the door takes a START sentinel rather
-  than a literal 0 — a live split's continuation seats at 0 too and must STAY
-  there (`presentation-live-split.md`), so only an arrival's sentinel moves in
+  lands BEFORE the construct. Every offset clamps at the park door; only a live
+  split's continuation keeps byte 0, through its own sentinel
+  (`presentation-live-split.md`)
+- `Home` in a list item whose content OPENS with a construct: the ambient Home
+  arm seats through the sentinel door, so the caret lands at the construct's
+  content start and a typed byte stays OUTSIDE the construct. Miss-analysis
+  (GH #110): the ambient arm seated raw 0 by direct DOM write, bypassing the
+  sentinel door, and no spec typed after a Home in an ambient-prefixed block
 
 - an arrow walk is not the only door that says "the block's start": a STRUCTURAL
   landing (`Alt+ArrowUp` reorder, and its siblings — an interior delete, a
