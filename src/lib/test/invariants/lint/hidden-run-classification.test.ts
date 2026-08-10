@@ -43,7 +43,9 @@ const MARKER_CLASS_FILES: Record<string, string> = {
 	'src/lib/core/inline-render.ts': 'mints inline marker and ref-label spans',
 	'src/lib/components/blocks/text/text-render.ts': 'mints the block-own prefix span',
 	'src/lib/components/blocks/code/code-renderer.ts': 'mints fence marker and fence-line spans',
-	'src/lib/components/blocks/text/construct-reveal.ts': 'flips the reveal class'
+	'src/lib/components/blocks/text/construct-reveal.ts': 'flips the reveal class',
+	'src/lib/invariants/marker-css-parity.ts':
+		'the DEV probe comparing the classification home against the stylesheet, one span per family'
 };
 
 /** A component's own CSS is the stylesheet half of this contract, not a second reader. */
