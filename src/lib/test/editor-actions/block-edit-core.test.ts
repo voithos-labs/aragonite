@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -8,6 +8,8 @@ import { parse } from '$lib/core/parser';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { testClosure } from '$lib/test/support/closure';
 
 function leaf(raw: string): CstNode {
@@ -24,7 +26,8 @@ function focusSpy() {
 function stubScope(
 	children: CstNode[],
 	collapseEmptyReplaceToDelete = true,
-	refs: (BlockComponent | undefined)[] = []
+	refs: (BlockComponent | undefined)[] = [],
+	owner?: CstNode
 ) {
 	const commits: ScopeCommitArgs[] = [];
 	const sharing = createSharingState();
@@ -37,7 +40,8 @@ function stubScope(
 			args.mutate({
 				children,
 				sharing,
-				owner: undefined,
+				ownerKind: owner?.kind,
+				owner,
 				getPresentationMode: undefined,
 				linkRef: undefined,
 				unshareChild: (i) => children[i]
@@ -292,6 +296,30 @@ describe('block-edit core — thematicBreak focus-then-delete', () => {
 		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
 		expect(focus.calls).toEqual([0]);
+	});
+});
+
+// Miss-analysis: the wrap-settle pins called the tree op with the container node directly;
+// the core's sinks hand the commit view's shape, whose owner no pin ever asserted.
+describe('block-edit core — wrap-owner threading', () => {
+	beforeEach(() => {
+		// registerChromeLeaf registers a paste surface, so the schema reset alone would leave
+		// it orphaned and a re-register would collide.
+		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
+		registerCalloutKind();
+	});
+	afterEach(__resetSchemaRegistriesForTests);
+
+	it('deleteInterior hands the owner to the settle, so the wrap absorbs the freed line', async () => {
+		const doc = parse(':::callout\nA\n\nB\n:::\n');
+		const callout = doc.children[0];
+		const { scope, children } = stubScope(callout.children!, true, [], callout);
+
+		await createBlockEditCore(scope).deleteInterior(1);
+
+		expect(children.map((c) => c.leadingTrivia + c.raw).join('')).not.toContain('A');
+		expect(callout.innerPrefix).toBe('\n');
 	});
 });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { splitNode } from '../../tree-operations';
+import { splitNode, updateNodeContent } from '../../tree-operations';
 
 // GH #97: a fragment parse peels a half's trailing blank line into `doc.suffix`, and the
 // reparse funnel dropped it. The line stands between the halves, so it is the second half's
@@ -42,5 +42,25 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		splitNode(doc, 0, 9, undefined, undefined);
 
 		expect(serialize(doc)).toBe('    a\n\n\n\n    b\n');
+	});
+});
+
+// Miss-analysis: the multi-block update pins all ended flush at a block's last byte, so the
+// fragment parse never peeled a suffix out of a committed text.
+describe('a multi-block content write ending in a blank line keeps it (GH #97)', () => {
+	it('keeps the peeled line in the last minted block', () => {
+		const doc = parse('x\n');
+
+		updateNodeContent(doc, 0, '# h\na\n\n');
+
+		expect(serialize(doc)).toBe('# h\na\n\n');
+	});
+
+	it('the CRLF twin keeps its CRLF line', () => {
+		const doc = parse('x\r\n');
+
+		updateNodeContent(doc, 0, '# h\r\na\r\n\r\n');
+
+		expect(serialize(doc)).toBe('# h\r\na\r\n\r\n');
 	});
 });

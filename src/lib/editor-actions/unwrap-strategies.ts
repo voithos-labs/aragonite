@@ -63,7 +63,11 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 			state,
 			snapshot: { path: extendDocPath(deps.path, 0), offset: 0 },
 			mutate: (scope) => {
-				const change = performDelete({ children: scope.children }, 0, scope.sharing);
+				const change = performDelete(
+					{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
+					0,
+					scope.sharing
+				);
 				renumberOrderedList(scope.node, 0, scope.sharing);
 				return change;
 			},
@@ -103,7 +107,11 @@ async function listItemCascadeMiddle(
 			state,
 			snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
 			mutate: (scope) => {
-				const change = performDelete({ children: scope.children }, itemIndex, scope.sharing);
+				const change = performDelete(
+					{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
+					itemIndex,
+					scope.sharing
+				);
 				renumberOrderedList(scope.node, itemIndex, scope.sharing);
 				return change;
 			},

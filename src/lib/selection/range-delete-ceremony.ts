@@ -103,6 +103,8 @@ export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[
 	}
 	const cloned = reparsed.children.slice();
 	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
+	// The peeled trailing blank line has no follower slot here, so it stays in raw (GH #97).
+	cloned[cloned.length - 1].raw += reparsed.suffix;
 	return cloned;
 }
 
