@@ -17,13 +17,18 @@ import type { CstNode } from '$lib/core/nodes';
 // the body head vanished on reload — and with reserved chrome at index 0, the settle read the
 // chrome leaf as a body predecessor and declined instead.
 
+/** The sinks' answer bundle for a container's own children — the shape every caller hands. */
+function bodyParentOf(container: CstNode) {
+	return { children: container.children!, ownerKind: container.kind, owner: container };
+}
+
 /** Delete a body child the way a caller does: splice, then re-derive the ancestry's raw. */
 function deleteBodyChild(
 	source: string,
 	at: number
 ): { doc: ReturnType<typeof parse>; raw: string } {
 	const doc = parse(source);
-	deleteNode(doc.children[0] as unknown as { children: CstNode[] }, at);
+	deleteNode(bodyParentOf(doc.children[0]), at);
 	rebuildAncestryRaw(doc.children[0], []);
 	return { doc, raw: serialize(doc) };
 }
@@ -60,7 +65,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		const doc = parse(':::callout Title\n\nA\n\nB\n:::\n');
 		expect(doc.children[0].children?.[0].kind).toBe('callout-title');
 
-		deleteNode(doc.children[0] as unknown as { children: CstNode[] }, 1);
+		deleteNode(bodyParentOf(doc.children[0]), 1);
 		rebuildAncestryRaw(doc.children[0], []);
 
 		expect(doc.children[0].children?.[1].leadingTrivia).toBe('');
@@ -72,7 +77,7 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'B\n', 'C\n']);
 
 		// Drop B, leaving the blank head and C, whose separator is then the only spare line.
-		deleteNode(doc.children[0] as unknown as { children: CstNode[] }, 2);
+		deleteNode(bodyParentOf(doc.children[0]), 2);
 		rebuildAncestryRaw(doc.children[0], []);
 
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'C\n']);
@@ -175,7 +180,7 @@ describe('separator settle inside a strip container', () => {
 	it('drops the freed separator — a blockquote peels nothing', () => {
 		const doc = parse('> a\n>\n>\n> b\n');
 
-		deleteNode(doc.children[0] as unknown as { children: CstNode[] }, 2);
+		deleteNode(bodyParentOf(doc.children[0]), 2);
 		rebuildAncestryRaw(doc.children[0], []);
 
 		expect(doc.children[0].innerPrefix).toBe('');

@@ -508,7 +508,7 @@ export interface MergeIntoPrevResult {
  * no mergeable leaf exists, so the caller can fall back to move-focus.
  */
 export function mergeIntoPrevDeepLeaf(
-	parent: NodeParent,
+	parent: BodyParentArg,
 	blockIndex: number,
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
@@ -752,23 +752,26 @@ function absorbWrapPrefix(
 	index: number,
 	freed: string
 ): void {
-	if (parent.kind === undefined || (parent.innerPrefix ?? '') !== '') return;
-	if (!tryGetBlockKindDescriptor(parent.kind as AnyBlockKind)?.bodyWrap?.afterOpenerLine) return;
+	const slots = wrapSlotsOf(parent);
+	if (!slots || (slots.innerPrefix ?? '') !== '') return;
+	if (!bodyWrapOf(parent)?.afterOpenerLine) return;
 	const head = parent.children?.[bodyStart];
 	if (!head || head.leadingTrivia !== '') return;
 	if (index !== bodyStart && !isBlankParagraph(head)) return;
-	parent.innerPrefix = trailingLineEnding(freed);
+	slots.innerPrefix = trailingLineEnding(freed);
 }
 
 // ── Delete ──
 
 /**
  * Remove the node at `blockIndex`, leaving the next sibling separated from its new
- * predecessor and no more. Pass `sharing` to unshare the nodes written — the successor's
- * trivia is the op's only in-place write.
+ * predecessor and no more. Takes {@link BodyParentArg}: the settle can hand a freed line
+ * to the owner's wrap slots, so every caller answers who owns these children. Pass
+ * `sharing` to unshare the nodes written — the successor's trivia is the op's only
+ * in-place write.
  */
 export function deleteNode(
-	parent: NodeParent,
+	parent: BodyParentArg,
 	blockIndex: number,
 	sharing?: SharingState
 ): StructuralChange {
@@ -857,7 +860,8 @@ function writeParsedContent(
 	// The instance grammar reaches the routine content-commit reparse; absent (paste,
 	// split/merge reparse) defaults to the global grammar. Fragment scope: this is one
 	// block's bytes, whatever its position, so a position-scoped kind must not mint here.
-	const parsed = parse(newText, { grammar, scope: 'fragment' }).children;
+	const reparsed = parse(newText, { grammar, scope: 'fragment' });
+	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];
 	// A container whose empty body will be backfilled: a marker-consuming container (a
 	// GitHub alert) needs its raw rebuilt from that body, or G1.1 stale-raw fires.
@@ -872,6 +876,8 @@ function writeParsedContent(
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
 		if (firstBackfilled) reconcileBackfilledRaw(first);
+		// The peeled line has no follower inside the splice, so it stays in raw (GH #97).
+		rest[rest.length - 1].raw += reparsed.suffix;
 		parent.children.splice(blockIndex, 1, first, ...rest);
 		return replacePreservingFirst(blockIndex, 1, parsed.length);
 	}

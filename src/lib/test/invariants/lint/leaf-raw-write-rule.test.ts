@@ -123,7 +123,7 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
  */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	[SINK]: {
-		count: 8,
+		count: 9,
 		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97). The deep-leaf merge target is gated by `mergeRole`, which `fencedCode` declines'
 	},
 	'src/lib/schema/container-rebuilders.ts': {
@@ -160,8 +160,8 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the rollback restores raws the tree already held; nothing new is minted'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
-		count: 1,
-		why: 'the chrome-clear: a reserved-chrome slot, which no leaf kind declaring a rule can occupy'
+		count: 2,
+		why: 'the chrome-clear, a reserved-chrome slot no leaf kind declaring a rule can occupy; and the endpoint reparse re-attaching the blank line that parse peeled off (GH #97)'
 	},
 	'src/lib/selection/range-delete-chrome.ts': {
 		count: 2,

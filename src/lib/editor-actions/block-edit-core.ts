@@ -28,8 +28,15 @@ import {
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
-import type { CommitScope } from './block-edit-scope';
+import type { CommitScope, MutationView } from './block-edit-scope';
 import { mergedElseFocusPrevious } from './merge-fallback';
+
+/** The byte/settle sinks' owner answer, read live off the commit's owned view. */
+const bodyParentOf = (view: MutationView) => ({
+	children: view.children,
+	ownerKind: view.ownerKind,
+	owner: view.owner
+});
 
 export interface BlockEditCore {
 	split(i: number, offset: number): Promise<void>;
@@ -65,7 +72,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
 					const split = performSplit(
-						{ children: view.children, ownerKind: view.ownerKind, owner: view.owner },
+						bodyParentOf(view),
 						i,
 						offset,
 						view.getPresentationMode?.(),
@@ -129,7 +136,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					stampStructuralChange(view.children, change, view.sharing);
 					// The displaced sibling is a body block now, not the head, so it owes its own
 					// separator; an EMPTY mint is a blank line itself and shares the follower's.
-					const parent = { children: view.children, ownerKind: view.ownerKind, owner: view.owner };
+					const parent = bodyParentOf(view);
 					restoreSeparatorOnFill(parent, i + 1, view.sharing);
 					dropDoubledSeparator(parent, i, view.sharing);
 					return change;
@@ -156,7 +163,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						snapshot: { index: i, offset: 0 },
 						eventTarget: i - 1,
 						op: { kind: 'delete' },
-						mutate: (view) => performDelete({ children: view.children }, i - 1, view.sharing),
+						mutate: (view) => performDelete(bodyParentOf(view), i - 1, view.sharing),
 						afterTick: () => scope.refAt(i - 1)?.focus(CURSOR_START),
 						discardIfNoop: true
 					});
@@ -173,7 +180,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				op: { kind: 'merge', detail: { direction: 'prev' } },
 				mutate: (view) => {
 					mergeResult = mergeIntoPrevDeepLeaf(
-						{ children: view.children },
+						bodyParentOf(view),
 						i,
 						view.sharing,
 						view.getPresentationMode?.(),
@@ -211,7 +218,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						snapshot: { index: i, offset: CURSOR_END },
 						eventTarget: i + 1,
 						op: { kind: 'delete' },
-						mutate: (view) => performDelete({ children: view.children }, i + 1, view.sharing),
+						mutate: (view) => performDelete(bodyParentOf(view), i + 1, view.sharing),
 						afterTick: () => scope.refAt(i)?.focus(CURSOR_END),
 						discardIfNoop: true
 					});
@@ -249,7 +256,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
-				mutate: (view) => performDelete({ children: view.children }, i, view.sharing),
+				mutate: (view) => performDelete(bodyParentOf(view), i, view.sharing),
 				afterTick: () => {
 					const focusIdx = Math.min(i, scope.children().length - 1);
 					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(CURSOR_START);

@@ -124,7 +124,11 @@ async function commitFullTableDelete(
 			// Read before the delete: with the table gone no block is left to take an ending
 			// from, and the filler below IS a line ending (G4.20).
 			const lineEnding = trailingLineEnding(children[tableIdx]?.raw ?? '\n');
-			const change = deleteNode({ children }, tableIdx, ctx.controller.sharing);
+			const change = deleteNode(
+				{ children, ownerKind: undefined, owner: undefined },
+				tableIdx,
+				ctx.controller.sharing
+			);
 			ctx.selection.collapse();
 			// A sole-table doc empties to zero blocks, stranding the caret on <body>. Materialize
 			// a filler in the same commit so undo restores the table in one step.
