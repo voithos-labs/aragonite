@@ -56,7 +56,7 @@ async function commitInlineJoin(
 			// its raw in place (G1.9).
 			ensureUnsharedChild(view, leafIndex, view.sharing);
 			const change = updateNodeContent(
-				{ children: view.children, ownerKind: view.node.kind },
+				{ children: view.children, ownerKind: view.node.kind, owner: view.node },
 				leafIndex,
 				result.newRaw,
 				ctx.grammar,

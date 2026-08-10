@@ -158,7 +158,7 @@ export function createNestedBlockEdit(
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
 						change = performUpdate(
-							{ children: scope.children, ownerKind: scope.node.kind },
+							{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
 							innerIndex,
 							text,
 							deps.grammar,
@@ -197,7 +197,11 @@ export function createNestedBlockEdit(
 				const ownedContainer = chain[leafPath.length - 2];
 				if (!ownedContainer?.children) return;
 				performUpdate(
-					{ children: ownedContainer.children, ownerKind: ownedContainer.kind },
+					{
+						children: ownedContainer.children,
+						ownerKind: ownedContainer.kind,
+						owner: ownedContainer
+					},
 					innerIndex,
 					text,
 					deps.grammar,

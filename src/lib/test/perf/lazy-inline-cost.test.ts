@@ -33,7 +33,8 @@ describe('lazy inline: common keystroke computes once', () => {
 	it('updateNodeContent parses no inline; the render compute is the only one', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
-			ownerKind: undefined
+			ownerKind: undefined,
+			owner: undefined
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
@@ -48,7 +49,8 @@ describe('lazy inline: common keystroke computes once', () => {
 	it('an off-render accessor read computes on demand, not eagerly', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
-			ownerKind: undefined
+			ownerKind: undefined,
+			owner: undefined
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n');

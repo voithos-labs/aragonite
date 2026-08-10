@@ -8,8 +8,9 @@ describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
-		const change = splitNode(doc, 0, 5, undefined, undefined);
+		const { change, secondHalfIndex } = splitNode(doc, 0, 5, undefined, undefined);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 2, idMap: { 0: 0 } });
+		expect(secondHalfIndex).toBe(1);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].raw).toBe('Hello\n');
 		expect(doc.children[1].raw).toBe(' World\n');
@@ -21,7 +22,7 @@ describe('splitNode', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
 		const ids = ['original-id'];
-		const change = splitNode(doc, 0, 5, undefined, undefined);
+		const { change } = splitNode(doc, 0, 5, undefined, undefined);
 		applyStructuralChangeToIdsRefs(change, ids, [undefined]);
 		expect(ids).toHaveLength(2);
 		expect(ids[0]).toBe('original-id');
@@ -82,6 +83,15 @@ describe('splitNode', () => {
 });
 
 describe('splitNode edge cases', () => {
+	// GH #98: the caret contract is the returned index, not `blockIndex + 1` — a first half
+	// whose bytes reparse plural (blank lines inside indented code) pushes the second half down.
+	it('reports the second half index past a plural first half', () => {
+		const doc = parse('    a\n\n\n    b\n');
+		const { secondHalfIndex } = splitNode(doc, 0, 7, undefined, undefined);
+		expect(secondHalfIndex).toBe(2);
+		expect(doc.children[secondHalfIndex].raw).toBe('    b\n');
+	});
+
 	it('splits the only node in the document', () => {
 		const source = 'Hello World\n';
 		const doc = parse(source);
@@ -137,60 +147,15 @@ describe('thematic break split', () => {
 	});
 });
 
-// The setext underline sits AFTER the title, so a plain raw cut strands it in the second
-// half, where `=====` reparses as a junk paragraph and `-----` demotes the heading.
-describe('setext heading split', () => {
-	for (const underline of ['=====', '-----']) {
-		const source = `Title\n${underline}\n`;
-
-		it(`Enter at the title end keeps the ${underline} underline with the heading`, () => {
-			const doc = parse(source);
-			splitNode(doc, 0, 5, undefined, undefined);
-			expect(doc.children).toHaveLength(2);
-			expect(doc.children[0].kind).toBe('setextHeading');
-			expect(doc.children[0].raw).toBe(source);
-			expect(doc.children[1].kind).toBe('paragraph');
-			expect(doc.children[1].raw).toBe('\n');
-		});
-
-		it(`Enter mid-title keeps the ${underline} underline with the heading half`, () => {
-			const doc = parse(source);
-			splitNode(doc, 0, 2, undefined, undefined);
-			expect(doc.children).toHaveLength(2);
-			expect(doc.children[0].kind).toBe('setextHeading');
-			expect(doc.children[0].raw).toBe(`Ti\n${underline}\n`);
-			expect(doc.children[1].kind).toBe('paragraph');
-			expect(doc.children[1].raw).toBe('tle\n');
-		});
-	}
-
-	it('Enter at offset 0 keeps the empty-block-above behavior', () => {
-		const source = 'Title\n=====\n';
-		const doc = parse(source);
-		splitNode(doc, 0, 0, undefined, undefined);
-		expect(doc.children).toHaveLength(2);
-		expect(doc.children[0].kind).toBe('paragraph');
-		expect(doc.children[0].raw).toBe('\n');
-		expect(doc.children[1].kind).toBe('setextHeading');
-		expect(doc.children[1].raw).toBe(source);
-	});
-
-	it('splits a CRLF setext heading with the underline preserved on the heading', () => {
-		const source = 'Title\r\n=====\r\n';
-		const doc = parse(source);
-		splitNode(doc, 0, 5, undefined, undefined);
-		expect(doc.children[0].kind).toBe('setextHeading');
-		expect(doc.children[0].raw).toBe(source);
-		expect(doc.children[1].kind).toBe('paragraph');
-		expect(doc.children[1].raw).toBe('\r\n');
-	});
-});
+// The setext-suffix split (underline retention, trailing-whitespace cuts) lives in
+// setext-split.test.ts.
 
 describe('splitNode on arbitrary parent', () => {
 	it('splitNode works on a container children array', () => {
 		const parent = {
 			children: [{ kind: 'paragraph' as const, leadingTrivia: '', raw: 'Hello World\n' }],
-			ownerKind: undefined
+			ownerKind: undefined,
+			owner: undefined
 		};
 		splitNode(parent, 0, 5, undefined, undefined);
 		expect(parent.children).toHaveLength(2);

@@ -145,7 +145,7 @@ describe('details terminator collision through the real commit path', () => {
 // the sink escapes both: the anchored recognizer spares a tag line with text on
 // either side, and the cut is what strands it alone.
 describe('details terminator escape at the split door', () => {
-	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS) });
+	const detailsOwner = () => ({ ownerKind: declaredPluginKind(DETAILS), owner: undefined });
 
 	it('escapes the second half when the cut strands a trailing tag', () => {
 		const parent = { children: parse('foo</details>\n').children, ...detailsOwner() };
@@ -166,7 +166,11 @@ describe('details terminator escape at the split door', () => {
 	});
 
 	it('leaves both halves alone at the document root, where no container claims them', () => {
-		const parent = { children: parse('foo</details>\n').children, ownerKind: undefined };
+		const parent = {
+			children: parse('foo</details>\n').children,
+			ownerKind: undefined,
+			owner: undefined
+		};
 		splitNode(parent, 0, 3, undefined, undefined);
 
 		expect(parent.children.map((c) => c.raw)).toEqual(['foo\n', '</details>\n']);

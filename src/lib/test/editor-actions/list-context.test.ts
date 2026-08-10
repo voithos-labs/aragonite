@@ -81,6 +81,32 @@ describe('list-context — splitItemAtOffset', () => {
 		expect(listState.innerBlockIds).toHaveLength(2);
 	});
 
+	// Miss-analysis (GH #98): every split pin here used a single-block first half, so
+	// `innerIndex + 1` always WAS the second half and the splice boundary went unobserved.
+	it('a plural first half stays whole; only the second half moves to the new item', async () => {
+		// Enter at the end of the blank line inside the item's indented code: the first half
+		// reparses to [code, blank], and the new item must start at the second half.
+		const doc = parse('- x\n\n      a\n\n\n      b\n');
+		const list = doc.children[0];
+		const item = list.children![0];
+		expect(item.children!.map((c) => c.kind)).toEqual(['paragraph', 'indentedCode']);
+
+		const deps = makeDeps([list]);
+		const liveItem = () => deps.doc.children[0].children![0];
+		const itemState = makeBlockListState(liveItem, ['para-0', 'code-1']);
+		registerBlockListState(item, itemState as any);
+
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
+
+		await listContext.splitItemAtOffset(0, 1, 7);
+
+		expect(liveItem().children!.map((c) => c.raw)).toEqual(['x\n', '    a\n', '\n']);
+		expect(itemState.innerBlockIds).toHaveLength(3);
+
+		const newItem = liveList().children![1];
+		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
+	});
+
 	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {
 		const doc = parse('- [ ] foobar\n');
 		const list = doc.children[0];

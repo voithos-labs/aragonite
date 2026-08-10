@@ -10,7 +10,7 @@
 import { DEV } from 'esm-env';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { isBlankParagraph, isBlankSource, parse } from '../core/parser';
+import { isBlankParagraph, isBlankSource, parse, type ContainerBodyWrap } from '../core/parser';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import {
 	getLiveJoinSeamCleaner,
@@ -44,11 +44,15 @@ export type NodeParent = { children: CstNode[] };
 
 /**
  * A {@link NodeParent} that has answered which container owns it. The sinks that WRITE
- * BYTES need that answer: the bytes must satisfy the owner's `bodyWrite` grammar.
- * Nullable rather than optional so every byte-writing site must answer — `undefined` is a
- * real answer (the document root), but skipping the question is a compile error.
+ * BYTES need that answer: the bytes must satisfy the owner's `bodyWrite` grammar, and a
+ * separator settle hands a chrome-bounded line to the owner NODE's wrap slots (GH #101).
+ * Both nullable rather than optional so every byte-writing site must answer — `undefined`
+ * is a real answer (the document root), but skipping the question is a compile error.
  */
-export type BodyParent = NodeParent & { ownerKind: AnyBlockKind | undefined };
+export type BodyParent = NodeParent & {
+	ownerKind: AnyBlockKind | undefined;
+	owner: CstNode | undefined;
+};
 
 /**
  * What the byte sinks accept. A whole `Document` is admitted because it IS the answer
@@ -66,7 +70,9 @@ export type SeparatorParent = {
 	kind?: string;
 	ownerKind?: AnyBlockKind;
 	innerPrefix?: string;
+	innerSuffix?: string;
 	children?: CstNode[];
+	owner?: CstNode;
 };
 
 const ownerKindOf = (parent: BodyParentArg): AnyBlockKind | undefined =>
@@ -163,6 +169,13 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
 
 // ── Split ──
 
+/** What a split leaves the caret: the structural splice, plus where the second half's head
+ *  landed — past `blockIndex + 1` when the first half reparsed to several blocks (GH #98). */
+export interface SplitResult {
+	change: StructuralChange;
+	secondHalfIndex: number;
+}
+
 /**
  * Split the node at `blockIndex` at raw `offset` (display-relative). The first half
  * inherits the original ID and the whole structural suffix (a setext underline), which a
@@ -177,8 +190,9 @@ export function splitNode(
 	offset: number,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
-): StructuralChange {
-	if (blockIndex < 0 || blockIndex >= parent.children.length) return { op: 'noop' };
+): SplitResult {
+	const noop: SplitResult = { change: { op: 'noop' }, secondHalfIndex: blockIndex + 1 };
+	if (blockIndex < 0 || blockIndex >= parent.children.length) return noop;
 
 	const node = parent.children[blockIndex];
 	const descriptor = getBlockKindDescriptor(node.kind);
@@ -186,7 +200,7 @@ export function splitNode(
 	// A context-dependent kind (tableCell, container chrome) has no standalone recognizer,
 	// so the reparse would destroy both halves; the Enter gesture routes to
 	// chrome.descendToBody instead.
-	if (descriptor.contextDependentKind) return { op: 'noop' };
+	if (descriptor.contextDependentKind) return noop;
 
 	const rawText = node.raw;
 	const lineEnding = trailingLineEnding(rawText);
@@ -223,16 +237,23 @@ export function splitNode(
 		lineEnding,
 		parent.children[blockIndex + 1]
 	);
-	const firstNodes = reparseAsNodes(firstRaw, node.leadingTrivia);
-	const secondNodes = reparseAsNodes(secondRaw, separator);
-	if (DEV && firstNodes.length > 1) {
-		// The caret lands on `blockIndex + 1` after every split gesture, and a list-item Enter
-		// takes everything past it as the new item — both read the second half by that index.
-		devWarn('tree-ops', `splitNode: the first half parsed to ${firstNodes.length} blocks`);
+	const first = reparseAsNodes(firstRaw, node.leadingTrivia);
+	// The first half's peeled line stands between the halves, so it is the second half's
+	// separator (GH #97); `separator` answers no when the bytes already end in a blank line.
+	const second = reparseAsNodes(secondRaw, first.suffix + separator);
+	if (DEV && first.nodes.length > 1) {
+		// Legal — the landing index rides the result (GH #98) — but rare enough to keep visible.
+		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
 	}
 
-	parent.children.splice(blockIndex, 1, ...firstNodes, ...secondNodes);
-	return replacePreservingFirst(blockIndex, 1, firstNodes.length + secondNodes.length);
+	const nodes = [...first.nodes, ...second.nodes];
+	// The second half's peeled line has no follower inside the splice, so it stays in raw.
+	nodes[nodes.length - 1].raw += second.suffix;
+	parent.children.splice(blockIndex, 1, ...nodes);
+	return {
+		change: replacePreservingFirst(blockIndex, 1, nodes.length),
+		secondHalfIndex: blockIndex + first.nodes.length
+	};
 }
 
 /**
@@ -349,11 +370,16 @@ function structuralSuffixSplit(
 	const raw = node.raw;
 	const contentEnd = getRange(node).end;
 	if (contentEnd >= displayLength(raw) || offset <= 0 || offset > contentEnd) return null;
+	// A remainder opening with a whitespace-only line reloads as blank (GH #99): the cut
+	// consumes that whitespace into the first half, as it does a bare line ending.
+	const wsLine = /^[ \t]+\r?\n/.exec(raw.slice(offset, contentEnd))?.[0] ?? '';
 	return {
 		// The retained suffix opens with the ending of the line it follows, so a cut sitting
 		// just past one would double it into a blank line and strand the suffix below (GH #95).
-		firstRaw: trimTrailingLineEnding(raw.slice(0, offset)) + raw.slice(contentEnd),
-		secondRaw: raw.slice(offset, contentEnd)
+		firstRaw:
+			trimTrailingLineEnding(raw.slice(0, offset) + trimTrailingLineEnding(wsLine)) +
+			raw.slice(contentEnd),
+		secondRaw: raw.slice(offset + wsLine.length, contentEnd)
 	};
 }
 
@@ -640,9 +666,36 @@ export function settleSeparatorOnBlank(
 	for (let i = start; i <= Math.min(end + 1, children.length - 1); i++) {
 		if (children[i].leadingTrivia !== '') standing.push(i);
 	}
-	// A run with no LINE above it (the document head, a plain container's body head) separates
-	// from nothing and materializes in full; a chrome or opener line above it is still a line.
-	const wanted = start > 0 || opensAfterALine(parent) ? 1 : 0;
+	// A chrome line bounding the run beside PROSE eats one line as the wrap's peel
+	// (`innerPrefix`/`innerSuffix`), which the run must hand over on top of its own
+	// count (GH #101). An all-blank body peels only what it can spare, so it owes none.
+	const wrap = bodyWrapOf(parent);
+	const slots = wrapSlotsOf(parent);
+	const tailBelowProse = start > bodyStart && end === children.length - 1;
+	if (slots && wrap?.beforeCloserLine && tailBelowProse && !slots.innerSuffix) {
+		slots.innerSuffix = trailingLineEnding(children[end].raw);
+	}
+	// The reverse: a deletion can leave a lone blank as the WHOLE body, where the closer
+	// peel no longer engages beside the opener's — the run gives the extra line back.
+	const loneBlankBody = start === bodyStart && end === children.length - 1 && start === end;
+	if (slots && loneBlankBody && slots.innerSuffix && (slots.innerPrefix || standing.length > 0)) {
+		slots.innerSuffix = '';
+	}
+	const headUnderWrap =
+		!!slots && wrap?.afterOpenerLine === true && start === bodyStart && end < children.length - 1;
+	if (headUnderWrap && slots && !slots.innerPrefix && standing.length === 0) {
+		slots.innerPrefix = trailingLineEnding(children[start].raw);
+	}
+	// Under the wrap the run keeps exactly the one peel line — in `innerPrefix` or still
+	// standing; elsewhere a run with no LINE above it (the document head, a plain container's
+	// body head) separates from nothing and materializes in full.
+	const wanted = headUnderWrap
+		? slots?.innerPrefix
+			? 0
+			: 1
+		: start > 0 || wrap?.afterOpenerLine
+			? 1
+			: 0;
 	if (standing.length < wanted) return mintSeparator(parent, start, sharing);
 	for (const at of standing.slice(wanted)) {
 		const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : children[at];
@@ -666,11 +719,16 @@ function bodyStartIndex(parent: SeparatorParent): number {
 	return bodyStartFor(ownerKindNameOf(parent));
 }
 
-/** A body parsed after its container's opener LINE has one above its head (the `innerPrefix` peel). */
-function opensAfterALine(parent: SeparatorParent): boolean {
+/** The container's declared body wrap, whichever shape names the owner. */
+function bodyWrapOf(parent: SeparatorParent): ContainerBodyWrap | undefined {
 	const kind = ownerKindNameOf(parent);
-	if (kind === undefined) return false;
-	return !!tryGetBlockKindDescriptor(kind as AnyBlockKind)?.bodyWrap?.afterOpenerLine;
+	if (kind === undefined) return undefined;
+	return tryGetBlockKindDescriptor(kind as AnyBlockKind)?.bodyWrap;
+}
+
+/** The node carrying the wrap's peel slots: the sink's answer, or the parent when it IS the node. */
+function wrapSlotsOf(parent: SeparatorParent): CstNode | undefined {
+	return parent.owner ?? ('raw' in parent ? (parent as CstNode) : undefined);
 }
 
 /** The kind whose body these children are: the sink's answer, or the owner node's own. */
@@ -918,28 +976,32 @@ export function focusTargetInReplacement(
 // ── Reparse helper (private) ──
 
 /**
- * Reparse a half's bytes as the blocks they hold. Plural because a half stands in a position
- * its bytes never occupied, where a construct boundary can newly materialize — an html closer
- * below the prose it used to sit inside. Keeping only the first block would drop the rest of
- * the document's bytes with it (GH #95).
+ * Reparse a half's bytes as the blocks they hold, plus the trailing blank line the fragment
+ * parse peels into `doc.suffix` — every sink answers for it, or the bytes are lost (GH #97).
+ * Plural because a half stands in a position its bytes never occupied, where a construct
+ * boundary can newly materialize; keeping only the first block would drop the rest (GH #95).
  */
-function reparseAsNodes(raw: string, leadingTrivia: string): CstNode[] {
+function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[]; suffix: string } {
 	const doc = parse(raw, { scope: 'fragment' });
-	if (doc.children.length === 0) return [{ kind: 'paragraph', leadingTrivia, raw }];
+	if (doc.children.length === 0) {
+		return { nodes: [{ kind: 'paragraph', leadingTrivia, raw }], suffix: doc.suffix };
+	}
 	doc.children[0].leadingTrivia = leadingTrivia;
 	for (const node of doc.children) ensureEditableContainers(node);
-	return doc.children;
+	return { nodes: doc.children, suffix: doc.suffix };
 }
 
 /** The merge sinks' single-block twin: concatenated raw joins two lines, so it stays one block. */
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
-	const nodes = reparseAsNodes(raw, leadingTrivia);
+	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia);
 	if (DEV && nodes.length > 1) {
 		devWarn(
 			'tree-ops',
 			`reparseAsNode: raw parsed to ${nodes.length} blocks; all but the first are dropped`
 		);
 	}
+	// A single-block sink has no follower slot, so the peeled line stays in the block's bytes.
+	nodes[0].raw += suffix;
 	return nodes[0];
 }
 

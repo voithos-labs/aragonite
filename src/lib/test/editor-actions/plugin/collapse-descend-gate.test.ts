@@ -24,6 +24,7 @@ function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = [
 			args.mutate({
 				children,
 				sharing,
+				owner: undefined,
 				getPresentationMode: undefined,
 				linkRef: undefined,
 				unshareChild: (i) => children[i]

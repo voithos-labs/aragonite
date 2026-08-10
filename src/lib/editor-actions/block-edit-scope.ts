@@ -30,6 +30,9 @@ export interface MutationView {
 	/** The container these children belong to, for mutations whose bytes must satisfy
 	 *  its grammar (`bodyWrite`). Absent at the document root. */
 	ownerKind?: AnyBlockKind;
+	/** The container NODE itself, for settles that write its wrap slots (GH #101). Nullable
+	 *  rather than optional so each adapter answers; `undefined` is the document root. */
+	owner: CstNode | undefined;
 	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
 	grammar?: GrammarView;
 	/** Live EFFECTIVE mode, for mutations whose bytes depend on what the mode paints. Nullable
@@ -100,6 +103,7 @@ export function createTopLevelScope(
 					mutate({
 						children,
 						sharing: deps.sharing,
+						owner: undefined,
 						grammar: deps.grammar,
 						getPresentationMode: deps.getPresentationMode,
 						linkRef: deps.linkRef,
@@ -135,6 +139,7 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 						children: scope.children,
 						sharing: scope.sharing,
 						ownerKind: scope.node.kind,
+						owner: scope.node,
 						grammar: deps.grammar,
 						getPresentationMode: deps.getPresentationMode,
 						linkRef: deps.linkRef,
