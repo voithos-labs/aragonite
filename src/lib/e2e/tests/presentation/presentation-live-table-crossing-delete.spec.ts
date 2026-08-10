@@ -18,9 +18,7 @@ test('Backspace over a selection from inside bold into the table leaves no stran
 	await page.keyboard.press('Shift+ArrowDown');
 	await ep.waitForRenderFlush();
 	await page.keyboard.press('Shift+ArrowDown');
-	await expect
-		.poll(async () => (await ep.bridge.getSelectionPaths())?.focus.path)
-		.toEqual([1]);
+	await expect.poll(async () => (await ep.bridge.getSelectionPaths())?.focus.path).toEqual([1]);
 	await page.keyboard.press('Backspace');
 	await ep.bridge.waitForSourceContains('Some bo');
 
