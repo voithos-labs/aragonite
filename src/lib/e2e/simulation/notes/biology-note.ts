@@ -85,6 +85,9 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.liveToggleFormat(1, 'notes', 'strikethrough');
 		await g.liveEdgeBackspace(1, 'cell division');
 		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
+		// The re-routed caret doors (G2.12): a merge landing's seat, and the list item's Home.
+		await g.liveMergeLanding(1, 'Photosynthesis', 'These');
+		await g.liveListHomeSeat('Prophase condenses the chromosomes');
 		await g.checkpoint('live-rules', 'live-editing');
 	},
 	landmarks: [

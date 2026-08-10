@@ -168,6 +168,108 @@ export async function liveSplitInsideConstruct(
 	});
 }
 
+/** A merge landing rides the caret funnel: Backspace at a block's start joins it into its
+ *  predecessor, the door seats the join offset, and the next byte lands at the seam (G2.12).
+ *  `seamBefore`/`seamAfter` are the bytes the caller knows stand on either side of it. */
+export async function liveMergeLanding(
+	ctx: SimContext,
+	blockIndex: number,
+	seamBefore: string,
+	seamAfter: string
+): Promise<void> {
+	await inLiveMode(ctx, async () => {
+		const { page, editor } = ctx;
+		const before = await editor.bridge.getSource();
+		await seatCaret(ctx, blockIndex, 0);
+		const hostsBefore = await page.evaluate(() => document.querySelectorAll('.block-host').length);
+		await page.keyboard.press('Backspace');
+		await editor.waitForBlockHostCount(hostsBefore - 1);
+		const merged = await editor.bridge.getSource();
+
+		await editor.typeSlowly('Q');
+		const probe = `${seamBefore}Q${seamAfter}`;
+		await editor.bridge.waitForSourceContains(probe);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(merged, 3000);
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before, 3000);
+	});
+}
+
+/** Home in a list item routes through the sentinel door — the ambient arm's raw-0 DOM write
+ *  was the bypass (GH #110) — so the caret seats at the item's landable start and the next
+ *  byte opens the line. `itemText` must start the item's content. */
+export async function liveListHomeSeat(ctx: SimContext, itemText: string): Promise<void> {
+	await inLiveMode(ctx, async () => {
+		const { page, editor } = ctx;
+		const before = await editor.bridge.getSource();
+		await clickText(ctx, itemText.split(' ')[0]);
+		await page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		await page.keyboard.press('Home');
+		await editor.waitForRenderFlush();
+		const at = await caretOffset(ctx);
+		if (at !== 0) {
+			throw new Error(`[${ctx.label}] Home in the list item seated at ${at}, not the start`);
+		}
+
+		await editor.typeSlowly('Q');
+		await editor.bridge.waitForSourceContains(`Q${itemText}`);
+		await undoOnceTo(ctx, before, 'live list-item Home seat');
+	});
+}
+
+/** The cross-block extend's cell arm: extending into a table reveals the endpoint cell and
+ *  parks the START sentinel in it (G2.12). Byte-free — the extend and its collapse move
+ *  nothing, which is itself the assertion. */
+export async function liveExtendIntoTablePark(ctx: SimContext): Promise<void> {
+	await inLiveMode(ctx, async () => {
+		const { page, editor } = ctx;
+		const before = await editor.bridge.getSource();
+		const { proseIndex, tableIndex } = await proseAboveTable(ctx);
+		await editor.clickBlock(proseIndex);
+		await page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+
+		let entered = false;
+		for (let i = 0; i < 3 && !entered; i++) {
+			await page.keyboard.press('Shift+ArrowDown');
+			await editor.waitForRenderFlush();
+			entered = (await editor.bridge.getSelectionPaths())?.focus.path[0] === tableIndex;
+		}
+		if (!entered || !(await editor.bridge.isCrossBlockActive())) {
+			throw new Error(`[${ctx.label}] the extend never reached the table's cell endpoint`);
+		}
+
+		await page.keyboard.press('Escape');
+		await editor.waitForRenderFlush();
+		const after = await editor.bridge.getSource();
+		if (after !== before) {
+			throw new Error(
+				`[${ctx.label}] the extend-and-collapse moved bytes.\n` +
+					`BEFORE: ${JSON.stringify(before)}\nAFTER:  ${JSON.stringify(after)}`
+			);
+		}
+	});
+}
+
+/** The first table block and the prose leaf directly above it, or a loud miss. */
+async function proseAboveTable(
+	ctx: SimContext
+): Promise<{ proseIndex: number; tableIndex: number }> {
+	const found = await ctx.page.evaluate(() => {
+		const children = (window as any).__test.getDocument().children as { kind: string }[];
+		const tableIndex = children.findIndex((c) => c.kind === 'table');
+		const above = children[tableIndex - 1]?.kind;
+		return { tableIndex, above };
+	});
+	if (found.tableIndex < 1 || !['paragraph', 'heading'].includes(found.above ?? '')) {
+		throw new Error(`[${ctx.label}] no prose leaf directly above a table to extend from`);
+	}
+	return { proseIndex: found.tableIndex - 1, tableIndex: found.tableIndex };
+}
+
 /** A click on a rendered link opens the card — the only surface live gives a destination — and
  *  Enter in its field rewrites those bytes as one entry. */
 export async function liveLinkCardEdit(
