@@ -28,9 +28,9 @@ export function previewContentReparse(
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
 	});
-	// The owner rides along or the probe answers about different bytes than the commit
-	// writes, and the branch picked here is not re-decided later.
-	return updateNodeContent({ children: [probe], ownerKind }, 0, text, grammar);
+	// The owner KIND rides along or the probe answers about different bytes than the commit
+	// writes; the owner node stays out — a probe must not write real wrap slots.
+	return updateNodeContent({ children: [probe], ownerKind, owner: undefined }, 0, text, grammar);
 }
 
 // ── Post-replacement focus ───────────────────────────────────────────────────

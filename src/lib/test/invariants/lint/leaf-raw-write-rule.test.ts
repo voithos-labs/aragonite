@@ -123,8 +123,8 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
  */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	[SINK]: {
-		count: 6,
-		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse or restores bytes the slot already held. The deep-leaf merge target is gated by `mergeRole`, which `fencedCode` declines'
+		count: 8,
+		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97). The deep-leaf merge target is gated by `mergeRole`, which `fencedCode` declines'
 	},
 	'src/lib/schema/container-rebuilders.ts': {
 		count: 5,

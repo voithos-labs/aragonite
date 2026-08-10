@@ -56,22 +56,26 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		async split(i, offset) {
 			// Offset 0 is not special: empty block above, content below, caret on the
 			// content. A trivia-bump short-circuit here made Enter at block start a no-op.
+			// The landing is the primitive's answer, not `i + 1`: a plural first half
+			// pushes the second half further down (GH #98).
+			let secondHalfIndex = i + 1;
 			await scope.commit({
 				snapshot: { index: i, offset },
 				eventTarget: i,
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
-					const change = performSplit(
-						{ children: view.children, ownerKind: view.ownerKind },
+					const split = performSplit(
+						{ children: view.children, ownerKind: view.ownerKind, owner: view.owner },
 						i,
 						offset,
 						view.getPresentationMode?.(),
 						view.linkRef
 					);
-					stampStructuralChange(view.children, change, view.sharing);
-					return change;
+					secondHalfIndex = split.secondHalfIndex;
+					stampStructuralChange(view.children, split.change, view.sharing);
+					return split.change;
 				},
-				afterTick: () => scope.refAt(i + 1)?.focus(0),
+				afterTick: () => scope.refAt(secondHalfIndex)?.focus(0),
 				// A single-line/chrome block splits to nothing, so discard rather than
 				// mint a dead entry on a rebound Enter.
 				discardIfNoop: true
@@ -125,7 +129,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					stampStructuralChange(view.children, change, view.sharing);
 					// The displaced sibling is a body block now, not the head, so it owes its own
 					// separator; an EMPTY mint is a blank line itself and shares the follower's.
-					const parent = { children: view.children, ownerKind: view.ownerKind };
+					const parent = { children: view.children, ownerKind: view.ownerKind, owner: view.owner };
 					restoreSeparatorOnFill(parent, i + 1, view.sharing);
 					dropDoubledSeparator(parent, i, view.sharing);
 					return change;

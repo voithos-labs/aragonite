@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { deleteNode } from '$lib/tree-operations/node-ops';
+import { deleteNode, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { trailingLineEnding } from '$lib/core/lines';
 import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
@@ -75,6 +76,93 @@ describe('separator settle inside a chrome-wrapped container', () => {
 		rebuildAncestryRaw(doc.children[0], []);
 
 		expect(doc.children[0].children?.map((c) => c.raw)).toEqual(['\n', '\n', 'C\n']);
+		expectParseConverged(doc);
+	});
+});
+
+// GH #101: a body block emptied against a chrome line owes TWO lines — one the wrap's parse
+// peels into `innerPrefix`/`innerSuffix`, one to materialize as a block — and the settle
+// counted at most one. Miss-analysis: every emptied-block case ran at the document top or in a
+// strip container, where no chrome line bounds the run and one line is always enough.
+describe('emptying a body block against the wrap’s chrome lines', () => {
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		__resetPasteSurfacesForTests();
+		registerCalloutKind();
+	});
+	afterEach(__resetSchemaRegistriesForTests);
+
+	/** The emptied-block gesture through the container sink: commitInput sends the ending alone. */
+	function emptyBodyChild(container: CstNode, at: number): void {
+		updateNodeContent(
+			{ children: container.children!, ownerKind: container.kind, owner: container },
+			at,
+			trailingLineEnding(container.children![at].raw)
+		);
+		rebuildAncestryRaw(container, []);
+	}
+
+	it('keeps an emptied LAST body block by handing the closer line to innerSuffix', () => {
+		const doc = parse(':::callout Title\nBody1\n\nBody2\n:::\n');
+		const callout = doc.children[0];
+		expect(callout.innerSuffix ?? '').toBe('');
+
+		emptyBodyChild(callout, 2);
+
+		expect(callout.innerSuffix).toBe('\n');
+		expectParseConverged(doc);
+	});
+
+	it('keeps an emptied FIRST body block by handing the opener line to innerPrefix', () => {
+		const doc = parse(':::callout Title\n```\nc\n```\nBody2\n:::\n');
+		const callout = doc.children[0];
+		expect(callout.children!.map((c) => c.kind)).toEqual([
+			'callout-title',
+			'fencedCode',
+			'paragraph'
+		]);
+
+		emptyBodyChild(callout, 1);
+
+		expect(callout.innerPrefix).toBe('\n');
+		expectParseConverged(doc);
+	});
+
+	// The standing line already IS the peel line on reload — the settle keeps the first line
+	// that stands rather than rewriting byte-equivalent shapes (§ Blank lines).
+	it('leaves a standing follower separator as the peel line, minting nothing', () => {
+		const doc = parse(':::callout Title\n```\nc\n```\n\nBody2\n:::\n');
+		const callout = doc.children[0];
+		expect(callout.children![2].leadingTrivia).toBe('\n');
+
+		emptyBodyChild(callout, 1);
+
+		expect(callout.innerPrefix).toBe('');
+		expect(callout.children![2].leadingTrivia).toBe('\n');
+		expectParseConverged(doc);
+	});
+
+	// An all-blank single-line body sits under both peel guards (each needs two lines to
+	// engage), so the lean one-line form already reloads as the block.
+	it('an emptied ONLY body block needs no wrap line at all', () => {
+		const doc = parse(':::callout Title\nBody\n:::\n');
+		const callout = doc.children[0];
+
+		emptyBodyChild(callout, 1);
+
+		expect(callout.innerPrefix).toBe('');
+		expect(callout.innerSuffix ?? '').toBe('');
+		expect(serialize(doc)).toBe(':::callout Title\n\n:::\n');
+		expectParseConverged(doc);
+	});
+
+	it('the CRLF twin hands over CRLF lines', () => {
+		const doc = parse(':::callout Title\r\nBody1\r\n\r\nBody2\r\n:::\r\n');
+		const callout = doc.children[0];
+
+		emptyBodyChild(callout, 2);
+
+		expect(callout.innerSuffix).toBe('\r\n');
 		expectParseConverged(doc);
 	});
 });

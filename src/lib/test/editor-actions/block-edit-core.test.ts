@@ -37,6 +37,7 @@ function stubScope(
 			args.mutate({
 				children,
 				sharing,
+				owner: undefined,
 				getPresentationMode: undefined,
 				linkRef: undefined,
 				unshareChild: (i) => children[i]
@@ -71,6 +72,24 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(commits[0].op.kind).toBe('split');
 		expect(commits[0].op.detail).toEqual({ at: 0 });
 		expect(content.calls).toEqual([0]);
+	});
+
+	// Miss-analysis (GH #98): the split pins asserted block layout, never where the caret
+	// landed; the one focus assertion used a single-block first half, where i + 1 is right.
+	it('a split whose first half reparses plural seats the caret on the second half', async () => {
+		// Enter at the end of a blank line inside indented code: the first half parses to
+		// [code, blank], so the second half sits at i + 2.
+		const secondHalf = focusSpy();
+		const firstHalfTail = focusSpy();
+		const { scope, children } = stubScope([leaf('    a\n\n\n    b\n')], true, [
+			undefined,
+			firstHalfTail.ref,
+			secondHalf.ref
+		]);
+		await createBlockEditCore(scope).split(0, 7);
+		expect(children.map((c) => c.raw)).toEqual(['    a\n', '\n', '    b\n']);
+		expect(secondHalf.calls).toEqual([0]);
+		expect(firstHalfTail.calls).toEqual([]);
 	});
 
 	it('merge-prev of two paragraphs is eligible and concatenates', async () => {

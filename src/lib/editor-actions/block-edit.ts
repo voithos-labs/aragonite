@@ -80,7 +80,7 @@ export function createBlockEditActions(
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
 						change = performUpdate(
-							{ children: view.children, ownerKind: undefined },
+							{ children: view.children, ownerKind: undefined, owner: undefined },
 							blockIndex,
 							text,
 							deps.grammar,

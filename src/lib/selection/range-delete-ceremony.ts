@@ -80,6 +80,9 @@ export function deleteSubtreesIdentityGated(
 				// Guards are exclusive: one frees a separator, the other mints one.
 				clearRedundantSeparator(parent, index, sharing);
 				if (deletedBlank) restoreSeparatorAfterBlank(parent, index, sharing);
+				// The deletion can leave a blank against lines it no longer stands beside
+				// (a wrap's chrome, the run head) — re-judge its run (GH #101).
+				else settleSeparatorOnBlank(parent, index, sharing);
 			}
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}

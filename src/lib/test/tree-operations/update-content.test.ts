@@ -86,7 +86,11 @@ describe('updateNodeContent', () => {
 
 	it('tableCell update writes raw only and returns noop', () => {
 		const cell: CstNode = { kind: 'tableCell', leadingTrivia: '', raw: 'a' };
-		const change = updateNodeContent({ children: [cell], ownerKind: undefined }, 0, 'ab');
+		const change = updateNodeContent(
+			{ children: [cell], ownerKind: undefined, owner: undefined },
+			0,
+			'ab'
+		);
 		expect(change).toEqual({ op: 'noop' });
 		expect(cell.raw).toBe('ab');
 		expect(cell.kind).toBe('tableCell');

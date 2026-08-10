@@ -212,15 +212,17 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// not just the child that was split.
 					const preSpliceLen = itemChildren.length;
 
-					const splitChange = performSplit(
-						{ children: itemChildren, ownerKind: itemScope.node.kind },
+					const split = performSplit(
+						{ children: itemChildren, ownerKind: itemScope.node.kind, owner: itemScope.node },
 						innerIndex,
 						offset,
 						deps.getPresentationMode?.(),
 						deps.linkRef
 					);
-					stampStructuralChange(itemChildren, splitChange, sharing);
-					const secondHalf = itemChildren.splice(innerIndex + 1);
+					stampStructuralChange(itemChildren, split.change, sharing);
+					// The primitive's landing index, not `innerIndex + 1`: a plural first half
+					// stays with this item (GH #98).
+					const secondHalf = itemChildren.splice(split.secondHalfIndex);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
 					}
@@ -241,11 +243,15 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					outerScope.children.splice(itemIndex + 1, 0, newItem);
 					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);
 
-					// Net item change: [innerIndex .. preSpliceLen) replaced by the single
-					// first-half leaf.
+					// Net item change: [innerIndex .. preSpliceLen) replaced by the first half's
+					// blocks — plural when the cut bytes reparse to more than one (GH #98).
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
-						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, 1)
+						replacePreservingFirst(
+							innerIndex,
+							preSpliceLen - innerIndex,
+							split.secondHalfIndex - innerIndex
+						)
 					];
 				},
 				op: {

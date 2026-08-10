@@ -107,7 +107,7 @@ export async function handleCrossBlockTypeReplace(
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
 			const change = updateNodeContent(
-				{ children: scopeView.children, ownerKind: scopeView.node.kind },
+				{ children: scopeView.children, ownerKind: scopeView.node.kind, owner: scopeView.node },
 				leafIndex,
 				newText,
 				ctx.grammar,

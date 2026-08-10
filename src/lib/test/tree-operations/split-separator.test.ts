@@ -44,7 +44,7 @@ describe('split separator — the half that absorbs gets one', () => {
 		const doc = parse('> Risk noted,\n');
 		const quote = doc.children[0];
 		splitNode(
-			{ children: quote.children!, ownerKind: quote.kind },
+			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
 			0,
 			'Risk noted,'.length,
 			undefined,

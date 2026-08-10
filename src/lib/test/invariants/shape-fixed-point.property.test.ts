@@ -123,7 +123,10 @@ function applyEmpty(doc: Document, at: number): void {
 	if (slots.length === 0) return;
 	const { holder, index, chain } = slots[at % slots.length];
 	const children = holder.children!;
-	const parent = holder === doc ? doc : { children, ownerKind: (holder as CstNode).kind };
+	const parent =
+		holder === doc
+			? doc
+			: { children, ownerKind: (holder as CstNode).kind, owner: holder as CstNode };
 	updateNodeContent(parent, index, trailingLineEnding(children[index].raw));
 	for (let i = chain.length - 1; i >= 0; i--) {
 		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
