@@ -154,6 +154,9 @@ kill it:
 - **The GitHub issue tracker is the defect ledger.** An issue carries one `severity:` label and
   one `area:` label, and a body holding the defect and nothing else — what is wrong, the repro,
   the files, the fix direction, and why it is deferred. No provenance, no process notes.
+- **Labels come from the existing set** (`gh label list` — the described ones are canonical).
+  A label that seems missing is usually a duplicate spelling of one that exists; only mint a
+  genuinely new label with a description matching the set's voice.
 - **Close an issue by naming the shipping commit** in the closing comment.
 - **Reconcile an issue against the commits that resolve it, never against its own prose.** A
   premise expires without a word of the issue changing, so work landed elsewhere closes issues
