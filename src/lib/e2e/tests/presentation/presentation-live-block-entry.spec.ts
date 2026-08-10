@@ -70,9 +70,9 @@ test.describe('live mode — an arrival seats where the walk could have stopped'
 		expect(await ep.bridge.getSource()).toContain('**bold**Z');
 	});
 
-	// The mirror of the two rows above, and the reason the seat takes a START sentinel rather
-	// than a literal 0: a live split's continuation also seats at 0 and must STAY there
-	// (`presentation-live-split.spec.ts:66`), so only an arrival's sentinel moves in.
+	// The mirror of the two rows above. Every offset clamps at the park door; the split
+	// continuation alone keeps byte 0, through CURSOR_EXACT_START
+	// (`presentation-live-split.spec.ts` "typing continues inside the reopened construct").
 	test('entering a block that opens with bold lands at its content start', async ({ page }) => {
 		await arriveFrom(ep, page, BOLD_TAIL, 'ArrowRight');
 		expect((await ep.bridge.getSelectionPaths())?.focus.path).toEqual([BOLD_LEAD]);

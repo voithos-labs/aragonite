@@ -4,7 +4,7 @@
  * no upward delegation, no unwrap dispatch; the factories add those.
  */
 
-import { CURSOR_END, CURSOR_START } from '../block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import { displayLength, trailingLineEnding } from '../core/lines';
 import {
@@ -82,7 +82,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					stampStructuralChange(view.children, split.change, view.sharing);
 					return split.change;
 				},
-				afterTick: () => scope.refAt(secondHalfIndex)?.focus(0),
+				afterTick: () => scope.refAt(secondHalfIndex)?.focus(CURSOR_EXACT_START),
 				// A single-line/chrome block splits to nothing, so discard rather than
 				// mint a dead entry on a rebound Enter.
 				discardIfNoop: true

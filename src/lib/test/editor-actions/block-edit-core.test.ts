@@ -3,7 +3,7 @@ import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import type { CstNode } from '$lib/core/nodes';
-import { CURSOR_START, type BlockComponent } from '$lib/block-component';
+import { CURSOR_EXACT_START, CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
@@ -75,7 +75,7 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(children[1].raw).toBe('hello\n');
 		expect(commits[0].op.kind).toBe('split');
 		expect(commits[0].op.detail).toEqual({ at: 0 });
-		expect(content.calls).toEqual([0]);
+		expect(content.calls).toEqual([CURSOR_EXACT_START]);
 	});
 
 	// Miss-analysis (GH #98): the split pins asserted block layout, never where the caret
@@ -92,7 +92,7 @@ describe('block-edit core — shared structural decisions', () => {
 		]);
 		await createBlockEditCore(scope).split(0, 7);
 		expect(children.map((c) => c.raw)).toEqual(['    a\n', '\n', '    b\n']);
-		expect(secondHalf.calls).toEqual([0]);
+		expect(secondHalf.calls).toEqual([CURSOR_EXACT_START]);
 		expect(firstHalfTail.calls).toEqual([]);
 	});
 

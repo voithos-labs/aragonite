@@ -9,7 +9,11 @@
 
 import { tick } from 'svelte';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
-import { CURSOR_END, CURSOR_START, type StickyColumnDirection } from '../../block-component';
+import {
+	CURSOR_EXACT_START,
+	CURSOR_START,
+	type StickyColumnDirection
+} from '../../block-component';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type {
 	BlockElLookup,
@@ -237,23 +241,22 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// ── BlockComponent surface ────────────────────────────────────────────────
 
 	/**
-	 * Every caret door lands here, so the two SENTINELS are resolved here: "the start" and "the
-	 * end" are the extreme offsets a caret can occupy, and a mode that paints no marker puts the
-	 * raw extremes past them — seating there hands the typing seat a position no arrow walk
-	 * produces, where the next byte joins a construct the arrival was outside of
-	 * (live-mode.md § 4.2). A NUMERIC offset is a caller who knows the byte it wants (a split's
-	 * continuation, a restore) and is left alone.
+	 * Every caret door lands here, so every offset — sentinel or numeric — clamps into the
+	 * landable range: a seat behind a hidden marker run hands the typing seat a position no
+	 * arrow walk produces, where the next byte joins a construct the arrival was outside of
+	 * (live-mode.md § 4.2). Where the markers paint, the clamp is identity. The one exception
+	 * is CURSOR_EXACT_START, whose own contract says why.
 	 */
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus();
-		const isSentinel = offset === CURSOR_START || offset === CURSOR_END;
+		if (offset === CURSOR_EXACT_START) {
+			deps.backend.setRaw(asRawOffset(0));
+			return;
+		}
 		const requested = offset === CURSOR_START ? 0 : Math.max(0, offset);
-		const seat = isSentinel
-			? clampToLandableRaw(el, requested, deps.getAmbientLength())
-			: requested;
-		deps.backend.setRaw(asRawOffset(seat));
+		deps.backend.setRaw(asRawOffset(clampToLandableRaw(el, requested, deps.getAmbientLength())));
 	}
 
 	const focus = placeCaret(deps.selection, parkCaret);

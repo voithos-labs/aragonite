@@ -5,7 +5,7 @@
  */
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
-import { CURSOR_START, FOCUS_LAST_START } from '../block-component';
+import { CURSOR_EXACT_START, CURSOR_START, FOCUS_LAST_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
@@ -260,7 +260,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					eventPath: docPathFrom(deps.scope.path)
 				},
 				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
+					deps.state.innerBlockRefs[itemIndex + 1]?.focus(CURSOR_EXACT_START);
 				}
 			});
 		},
