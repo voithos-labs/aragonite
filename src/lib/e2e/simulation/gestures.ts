@@ -77,7 +77,10 @@ import { flipPresentationMode } from './gestures/presentation';
 import {
 	liveDemoteHeading,
 	liveEdgeBackspace,
+	liveExtendIntoTablePark,
 	liveLinkCardEdit,
+	liveListHomeSeat,
+	liveMergeLanding,
 	liveSplitInsideConstruct,
 	liveToggleFormat,
 	type LiveFormat
@@ -621,6 +624,22 @@ export class Gestures {
 	/** Click a rendered link, rewrite its destination in the card, Enter to commit. */
 	liveLinkCardEdit(linkText: string, url: string): Promise<void> {
 		return liveLinkCardEdit(this.ctx, linkText, url);
+	}
+
+	/** Backspace-merge a block into its predecessor, then type ONE byte at the seam the
+	 *  landing door seated (two entries, two undos). */
+	liveMergeLanding(blockIndex: number, seamBefore: string, seamAfter: string): Promise<void> {
+		return liveMergeLanding(this.ctx, blockIndex, seamBefore, seamAfter);
+	}
+
+	/** Home in a list item seats through the sentinel door; one byte opens the line. */
+	liveListHomeSeat(itemText: string): Promise<void> {
+		return liveListHomeSeat(this.ctx, itemText);
+	}
+
+	/** Extend into a table (the cell arm parks the START sentinel) and collapse — byte-free. */
+	liveExtendIntoTablePark(): Promise<void> {
+		return liveExtendIntoTablePark(this.ctx);
 	}
 
 	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────
