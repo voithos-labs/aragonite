@@ -76,10 +76,11 @@ export function rangeDelete(
 		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
-	// Neither branch takes the mode because neither JOINS: both truncate their endpoints in place
-	// (the wall rule, cell-index offsets), so no seam exists for a cleanup to stand at.
+	// The table branch joins nothing, but a truncation still strands the runs whose partner went
+	// with the cut, so its prose endpoints cross the cleaner's unpaired-run half. The chrome
+	// branch keeps its wall-rule raw writes byte-literal.
 	if (involvesTable(startBlock, endBlock)) {
-		return tableAwareRangeDelete(doc, start, end, sharing, grammar);
+		return tableAwareRangeDelete(doc, start, end, sharing, grammar, presentationMode, linkRef);
 	}
 	if (involvesReservedChrome(doc, start, end)) {
 		return chromeAwareRangeDelete(doc, start, end, sharing, grammar);
@@ -165,7 +166,8 @@ export function rangeDelete(
 
 	// The re-parse may change kind, including leaf → CONTAINER (a list marker joined to its item
 	// text). Caret restore walks the block element at its path, and a container path drops focus
-	// on a non-editable wrapper, so descend to the leaf; a descended caret starts at 0.
+	// on a non-editable wrapper, so descend to the leaf. The offset stays a byte coordinate (the
+	// paste and type-replace splice at it); the restore door's landable clamp owns the caret seat.
 	const leafPath = firstLeafAtOrAfter(doc, start.path);
 	const collapsedCaret: SelectionPoint =
 		leafPath && leafPath.length > start.path.length

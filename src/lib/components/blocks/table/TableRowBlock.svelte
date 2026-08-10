@@ -5,7 +5,7 @@
 		ContainerEditActions,
 		FocusActions
 	} from '../../../action-contracts';
-	import type { BlockComponent } from '../../../block-component';
+	import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
@@ -136,12 +136,23 @@
 	export const editable = true;
 	export const focusable = true;
 
-	export function focus(_offset: number): void {
-		cellsState.innerBlockRefs[0]?.focus(0);
+	// The TableBlock twin's rule: a start arrival enters the first cell, anything else the
+	// last, and the sentinel rides into the cell so its door clamps and classifies.
+	function rowLanding(offset: number): { colIdx: number; at: number } {
+		const atStart = offset === 0 || offset === CURSOR_START;
+		return atStart
+			? { colIdx: 0, at: CURSOR_START }
+			: { colIdx: columnCount - 1, at: CURSOR_END };
 	}
 
-	export function parkCaret(_offset: number): void {
-		cellsState.innerBlockRefs[0]?.parkCaret?.(0);
+	export function focus(offset: number): void {
+		const { colIdx, at } = rowLanding(offset);
+		cellsState.innerBlockRefs[colIdx]?.focus(at);
+	}
+
+	export function parkCaret(offset: number): void {
+		const { colIdx, at } = rowLanding(offset);
+		cellsState.innerBlockRefs[colIdx]?.parkCaret?.(at);
 	}
 
 	export function getCursorOffset(): number | null {

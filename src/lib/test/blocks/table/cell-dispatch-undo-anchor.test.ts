@@ -10,6 +10,8 @@ import { tick } from 'svelte';
 import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
 import { installTableLayoutStubs } from './mount-table';
 import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
+import type { UndoEntry } from '$lib/undo/types';
+import { rangeSelectionOf } from '../../support/undo-entry';
 
 let restoreLayout: () => void;
 beforeAll(() => {
@@ -75,6 +77,12 @@ describe('a cell dispatch write anchors undo at the exact pre-edit caret', () =>
 		await mounted.settle();
 		// The construct-edge arm fired: the content character went, the pair survived.
 		expect(mounted.source()).toBe('| a\\|b **bol** | B |\n| --- | --- |\n| 1 | 2 |\n');
+		// The stored anchor is the byte-exact pre-edit caret — the #104 contract. Asserted on
+		// the ENTRY, since the restored readback below is the door's clamped seat, not the anchor.
+		const { undo } = (
+			mounted.instance as unknown as { __test: { getUndoStack(): { undo: UndoEntry[] } } }
+		).__test.getUndoStack();
+		expect(rangeSelectionOf(undo[undo.length - 1]).anchor).toEqual({ path: [0, 0, 0], offset: 13 });
 
 		el.dispatchEvent(
 			new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true })
@@ -83,6 +91,8 @@ describe('a cell dispatch write anchors undo at the exact pre-edit caret', () =>
 		await tick();
 
 		expect(mounted.source()).toBe(GRID);
-		expect(caretRawOffset(cell(0, 0))).toBe(13);
+		// 11, not the anchor's 13: the park door clamps the restore to the landable end — 13 sits
+		// past the hidden closer, and the typing seat resolves both offsets to the same write.
+		expect(caretRawOffset(cell(0, 0))).toBe(11);
 	});
 });

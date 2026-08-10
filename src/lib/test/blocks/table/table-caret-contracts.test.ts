@@ -7,6 +7,7 @@
 // park callers, so a container's inner door choice is invisible to it); and a path-addressed
 // landing carries its offset down to the cell, which is how undo restores the exact spot.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
 
@@ -69,5 +70,18 @@ describe('the table lands a caret through the door and at the offset it was aske
 		mounted.block.focusByPath!([2, 1], 1);
 
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
+	});
+
+	// Miss-analysis (GH #111): the row's doors forwarded literal 0 whatever they received, and
+	// no test addressed a ROW-level landing — every pin went through the table or a full path.
+	it('a row-level door forwards the received sentinel, not literal 0', () => {
+		mounted = mountTable(GRID);
+		const row = mounted.block.getBlockComponentByPath!([2])!;
+
+		row.focus(CURSOR_END);
+		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
+
+		row.parkCaret!(CURSOR_START);
+		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 0], offset: 0 });
 	});
 });

@@ -6,7 +6,7 @@
 // because what must NOT happen (a fallback to the range-ending `focus`, or a throw) is invisible
 // to every extend spec.
 import { describe, it, expect, vi } from 'vitest';
-import type { BlockComponent } from '$lib/block-component';
+import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
@@ -45,6 +45,24 @@ describe('revealActiveEndpoint parks in a revealed off-window endpoint', () => {
 		expect(ref.focus).not.toHaveBeenCalled();
 		expect(env.selection.isCrossBlock).toBe(true);
 		expect(env.selection.focus?.path).toEqual(ENDPOINT);
+	});
+
+	// Miss-analysis (GH #111): the cell arm parked a literal 0, and this suite pinned only the
+	// prose arm's offset — a start sentinel discarded at the cell door was invisible.
+	it('the cell arm parks the START sentinel, so the cell door clamps and classifies', async () => {
+		const ref = endpointRef(true);
+		const env = makeKeydownEnv('alpha\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n', {
+			revealTo: ref
+		});
+		env.selection.enterCrossBlock({ path: [0], offset: 1 }, { path: [1], offset: 0 });
+		vi.spyOn(Element.prototype, 'scrollIntoView');
+
+		expect(await env.keydown.handleKeyDown(press('End', { ctrlKey: true, shiftKey: true }))).toBe(
+			true
+		);
+
+		expect(env.revealed.some((path) => path.length === 3)).toBe(true);
+		expect(ref.parkCaret).toHaveBeenCalledWith(CURSOR_START);
 	});
 
 	// The documented degradation. The range surviving is the half that matters: parking

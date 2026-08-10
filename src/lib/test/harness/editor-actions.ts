@@ -226,9 +226,12 @@ export function makeEditorActionsDeps(
 		sharing: createSharingState(),
 		stickyColumn: makeStickyColumn(),
 		edgeAffinity: makeEdgeAffinity(),
-		selectionState: createSelectionState(
-			options.onSelectionChange ? { onChange: options.onSelectionChange } : undefined
-		),
+		// The doc getter arms the production endpoint normalization — without it a deep table
+		// path stores raw and every dispatch-layer test sees endpoints production never mints.
+		selectionState: createSelectionState({
+			getDoc: () => doc,
+			...(options.onSelectionChange ? { onChange: options.onSelectionChange } : {})
+		}),
 		getBlockElByPath: () => null,
 		// No render window in unit tests: every block is "mounted", so reveal is the
 		// production fast path — resolve from the live ref slots, descend if nested.

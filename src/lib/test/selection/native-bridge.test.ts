@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
-import { readCurrentSelection, applySelectionToDom } from '../../selection/native-bridge';
+import { describe, it, expect, afterEach } from 'vitest';
+import {
+	applyCollapsedCaret,
+	readCurrentSelection,
+	applySelectionToDom
+} from '../../selection/native-bridge';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
 import { mockRef } from '../harness/editor-actions';
@@ -61,6 +65,45 @@ describe('undo selection snapshots — cellCoordinate round-trip', () => {
 		// The whole-row snap keys on the flag: the end endpoint snaps to the
 		// row's last cell. A dropped flag skips the snap and leaves offset 2.
 		expect(restored.end?.offset).toBe(3);
+	});
+});
+
+// Miss-analysis (GH #111): the clamp lived at ONE caller (the collapse road), so a restore
+// arriving through any other caller — a range delete's descended-leaf caret at literal 0 —
+// seated the native caret behind the hidden run and no test observed the door itself.
+describe('applyCollapsedCaret — the landable clamp lives in the door', () => {
+	afterEach(() => document.body.replaceChildren());
+
+	function mountBlock(mode?: string): { block: HTMLElement; marker: HTMLElement; content: Text } {
+		const root = document.createElement('div');
+		if (mode) root.setAttribute('data-presentation', mode);
+		const block = document.createElement('div');
+		block.setAttribute('contenteditable', 'true');
+		const marker = document.createElement('span');
+		marker.className = 'md-marker';
+		marker.textContent = '**';
+		const content = document.createTextNode('bold tail');
+		block.append(marker, content);
+		root.appendChild(block);
+		document.body.appendChild(root);
+		return { block, marker, content };
+	}
+
+	it('a collapsed caret at raw 0 lands beside a hidden leading run, never behind it', () => {
+		const { block, content } = mountBlock('live');
+		applyCollapsedCaret(block, { path: [0], offset: 0 });
+
+		const sel = window.getSelection()!;
+		expect(sel.anchorNode).toBe(content);
+		expect(sel.anchorOffset).toBe(0);
+	});
+
+	it('source mode is identity: the same offset stays on the painted marker', () => {
+		const { marker } = mountBlock(undefined);
+		applyCollapsedCaret(marker.parentElement as HTMLElement, { path: [0], offset: 0 });
+
+		expect(window.getSelection()!.anchorNode).toBe(marker.firstChild);
+		expect(window.getSelection()!.anchorOffset).toBe(0);
 	});
 });
 
