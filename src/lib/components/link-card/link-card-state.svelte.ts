@@ -3,8 +3,18 @@
 
 import type { LinkTarget } from '../blocks/text/link-at-point';
 
+/** The create gesture's target: the raw range a commit would wrap. A range, not a construct —
+ *  the document holds nothing until Enter mints it, which is what lets Escape owe no cleanup. */
+export interface CreateLinkTarget {
+	path: number[];
+	start: number;
+	end: number;
+}
+
 export interface LinkCardState {
 	getTarget(): LinkTarget | null;
+	/** Set and `getTarget()` are mutually exclusive: one card, one target. */
+	getCreateTarget(): CreateLinkTarget | null;
 	/**
 	 * Zero for a click, a fresh positive number for each keyboard entry. The card focuses its field
 	 * when this differs from the zero it starts at, which separates the two gestures without a mode
@@ -16,6 +26,8 @@ export interface LinkCardState {
 	open(target: LinkTarget): boolean;
 	/** Opened AND focused, so the trap and Escape's caret restore engage. The chord gesture. */
 	enter(target: LinkTarget): boolean;
+	/** Entered over the range a commit would wrap. False when `canOpenCreate` declined. */
+	enterCreate(target: CreateLinkTarget): boolean;
 	close(): void;
 }
 
@@ -26,15 +38,21 @@ export interface LinkCardOptions {
 	/** Gates every entry the same way, for the same reason: a live selection — native or the
 	 *  editor's cross-block range — is a gesture the card must not interrupt or write over. */
 	canOpen: () => boolean;
+	/** The create door: gates on the very selection `canOpen` forbids, since the range IS the
+	 *  gesture's target. Separate and required so each entry states which gesture it carries;
+	 *  a cross-block range declines at both. */
+	canOpenCreate: () => boolean;
 }
 
 export function createLinkCardState(options: LinkCardOptions): LinkCardState {
 	let target = $state<LinkTarget | null>(null);
+	let createTarget = $state<CreateLinkTarget | null>(null);
 	let focusEpoch = $state(0);
 	let entries = 0;
 
 	function seat(next: LinkTarget): boolean {
 		if (!options.canOpen()) return false;
+		createTarget = null;
 		target = { path: [...next.path], sourceStart: next.sourceStart };
 		options.onOpen();
 		return true;
@@ -42,6 +60,7 @@ export function createLinkCardState(options: LinkCardOptions): LinkCardState {
 
 	return {
 		getTarget: () => target,
+		getCreateTarget: () => createTarget,
 		getFocusEpoch: () => focusEpoch,
 		open: (next) => {
 			if (!seat(next)) return false;
@@ -53,8 +72,17 @@ export function createLinkCardState(options: LinkCardOptions): LinkCardState {
 			focusEpoch = ++entries;
 			return true;
 		},
+		enterCreate: (next) => {
+			if (!options.canOpenCreate()) return false;
+			target = null;
+			createTarget = { path: [...next.path], start: next.start, end: next.end };
+			options.onOpen();
+			focusEpoch = ++entries;
+			return true;
+		},
 		close: () => {
 			target = null;
+			createTarget = null;
 		}
 	};
 }

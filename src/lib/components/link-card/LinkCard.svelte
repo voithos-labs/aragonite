@@ -32,7 +32,8 @@
 		canWrite: boolean;
 		onCommit: (url: string) => void;
 		onOpenLink: (url: string, event: MouseEvent) => void;
-		onRemove: () => void;
+		/** Absent in create mode: there is no construct to remove until Enter mints one. */
+		onRemove?: () => void;
 		/** The render path's own href funnel — a consumer rewrite, then the scheme allowlist.
 		 *  Undefined is a blocked scheme, and Open is the sink that must not receive one. */
 		resolveHref: (url: string) => string | undefined;
@@ -133,7 +134,9 @@
 			disabled={openable === undefined}
 			onclick={(e) => openable !== undefined && onOpenLink(openable, e)}>{LINK_CARD_OPEN}</button
 		>
-		<button type="button" onclick={onRemove}>{LINK_CARD_REMOVE}</button>
+		{#if onRemove}
+			<button type="button" onclick={onRemove}>{LINK_CARD_REMOVE}</button>
+		{/if}
 	</div>
 </div>
 

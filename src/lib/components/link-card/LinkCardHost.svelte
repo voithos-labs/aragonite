@@ -49,6 +49,7 @@
 		getDoc,
 		getEditorEl,
 		getTarget: card.getTarget,
+		getCreateTarget: card.getCreateTarget,
 		controller,
 		events,
 		measureRange,
@@ -59,6 +60,7 @@
 
 	$effect(() => {
 		card.getTarget(); // re-run + re-anchor when the card moves to another link
+		card.getCreateTarget();
 		return linkCard.syncCardToLink(() => cardEl ?? null);
 	});
 
@@ -70,12 +72,22 @@
 		if (target && !linkCard.resolve(target)) card.close();
 	});
 
+	// A create target addresses bytes by range alone, so a write landing from outside the gesture
+	// moves them under it. The commit path closes before it writes, and the handler re-reads the
+	// target, so only an outside edit closes the card here.
+	$effect(() => {
+		if (!card.getCreateTarget()) return;
+		return events.on('edit', () => {
+			if (card.getCreateTarget()) card.close();
+		});
+	});
+
 	// An outside press is a non-destructive dismiss and leaves the caret where it just landed —
 	// the search bar's blur policy, and TableActionMenu's split between Escape and a click away.
 	// Escape is document-level because the opening click leaves the caret in the DOCUMENT: the
 	// card is chrome beside a live caret until the user steps into it, and both states close.
 	$effect(() => {
-		if (!card.getTarget()) return;
+		if (!card.getTarget() && !card.getCreateTarget()) return;
 		const onPointerDown = (e: PointerEvent) => {
 			const el = e.target as Element | null;
 			if (el?.closest('[data-link-card]')) return;
@@ -109,6 +121,15 @@
 		linkCard.commitUrl(target, url);
 	}
 
+	function commitCreate(url: string): void {
+		const target = card.getCreateTarget();
+		// An empty draft has nothing to mint; Enter stays inert rather than closing having done
+		// nothing, which would drop the focus the card holds.
+		if (!target || url.trim() === '') return;
+		card.close();
+		linkCard.commitCreate(target, url);
+	}
+
 	function remove(): void {
 		const target = card.getTarget();
 		if (!target) return;
@@ -135,6 +156,20 @@
 			{/key}
 		</div>
 	{/if}
+{:else if card.getCreateTarget()}
+	{@const create = card.getCreateTarget()!}
+	<div bind:this={cardEl} class="md-link-card-anchor">
+		{#key `${create.path.join(',')}@${create.start}-${create.end}`}
+			<LinkCard
+				url=""
+				focusEpoch={card.getFocusEpoch()}
+				canWrite={true}
+				onCommit={commitCreate}
+				onOpenLink={activateLink}
+				resolveHref={(url) => resolveHref({ resolveLinkUrl }, url)}
+			/>
+		{/key}
+	</div>
 {/if}
 
 <style>

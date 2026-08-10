@@ -30,10 +30,20 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 - `Mod+K` with a collapsed caret inside a link ENTERS the card — opened with the URL field focused,
   so the trap and Escape's caret restore engage without a mouse; it also enters a card the click
   already opened, which is the case with no remount to key the focus on
-- `Mod+K` with the caret outside every link opens no card and writes nothing, and the press is
-  still CONSUMED: link creation is a later wave, but `reservedChords()` reports the chord as one
-  this editor takes, so declining it would hand a host-forbidden chord back to the browser's own
-  `Mod+K` — and on macOS the `Mod` fold makes that the native kill-to-end-of-line
+- `Mod+K` at a collapsed caret outside every link opens no card and writes nothing, and the press
+  is still CONSUMED: `reservedChords()` reports the chord as one this editor takes, so declining
+  it would hand a host-forbidden chord back to the browser's own `Mod+K` — and on macOS the `Mod`
+  fold makes that the native kill-to-end-of-line. Narrowed from "outside every link" when the
+  create half shipped (#119): a selection now creates; minting an empty `[](url)` at a bare caret
+  is a separate UX decision this pin deliberately does not take
+- `Mod+K` over a plain-text selection in a text block opens the card in CREATE mode: URL field
+  empty and focused, the document byte-identical — the construct is minted only on commit, so an
+  Escape needs no cleanup pass and no second undo entry (a wrap-then-edit two-step would strand an
+  empty-destination construct or cost two undos)
+- Enter with a non-empty URL mints `[selected text](url)` over the range through the same
+  one-commit write seam every card write uses; the caret lands at the construct's start, and one
+  `Mod+Z` removes the whole mint
+- Escape from a create card writes nothing and restores the SELECTION live, not a collapsed caret
 - typing a new URL and pressing Enter rewrites only the destination bytes; the link's text and
   everything around it stay byte-identical
 - one `Mod+Z` after that edit puts the original destination back — the whole rewrite is a single
@@ -67,6 +77,18 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
   in the card's own URL field. The chord is claimed wherever the keymaps bind it; the field
   swallows it as re-asserting the entry the focus is already in
 - leaving live mode closes the card, since every other mode paints the destination already
+- the selection survives the create card borrowing the screen. Design choice: focusing the URL
+  field moves the native selection into the field, so "stays painted" is not a contract any
+  browser keeps — instead the range rides the caret-restore slot (the mechanism built for chrome
+  that borrows focus), Escape restores it live, and commit is the only path that collapses it, at
+  the construct
+- a selection overlapping any other inline construct's bytes declines create — wrapping inside
+  `**bold**` or across an existing link is a policy question the card does not answer; no card
+  opens and not a byte moves
+- a selection inside a table cell declines create: cell raw carries pipe escapes, a wrap policy of
+  its own; the chord stays consumed
+- Enter over an empty URL in create mode is inert — the card stays open holding its focus rather
+  than closing having minted nothing, and Open stays disabled on the same empty draft
 
 ## User interactions
 

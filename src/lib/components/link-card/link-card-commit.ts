@@ -18,9 +18,11 @@ import { linkConstructAt, type LinkTarget } from '../blocks/text/link-at-point';
 import {
 	buildLinkEditBytes,
 	buildLinkUnwrapBytes,
+	buildLinkWrapBytes,
 	linkFieldsFromInline,
 	type LinkFields
 } from '../blocks/text/link-source-bytes';
+import type { CreateLinkTarget } from './link-card-state.svelte';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -29,6 +31,8 @@ export interface LinkCardCommitterDeps {
 	getEditorEl: () => HTMLElement | null;
 	/** The open card's target, read live: the anchor re-measures against whatever it names now. */
 	getTarget: () => LinkTarget | null;
+	/** The create gesture's range, the anchor when no construct exists yet. */
+	getCreateTarget: () => CreateLinkTarget | null;
 	controller: UndoController;
 	events: EditorEvents;
 	/** Rect measure for a raw range in a mounted block — the anchoring geometry. */
@@ -53,6 +57,8 @@ export interface LinkCardCommitter {
 	 *  check compares against these rather than deciding bytes itself. */
 	buildBytes(target: LinkTarget, url: string): string | null;
 	commitUrl(target: LinkTarget, url: string): void;
+	/** Mint `[selected text](url)` over the create range — the one write of the create gesture. */
+	commitCreate(target: CreateLinkTarget, url: string): void;
 	removeLink(target: LinkTarget): void;
 	/** Position `getCard()` under the link and keep it there across edits and scrolls. */
 	syncCardToLink(getCard: () => HTMLElement | null): () => void;
@@ -103,7 +109,21 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		if (!resolved || url === resolved.url) return;
 		const edit = editBytes(target, url);
 		if (!edit) return;
-		void write(target, edit.link, edit.bytes);
+		void write(target.path, edit.link.start, edit.link.end, edit.bytes);
+	}
+
+	function commitCreate(target: CreateLinkTarget, url: string): void {
+		const block = nodeAt(deps.getDoc() as DocumentView, target.path);
+		if (block === null || !isBlockNode(block)) return;
+		const bytes = buildLinkWrapBytes(
+			block.raw,
+			target.start,
+			target.end,
+			url,
+			deps.linkRef?.current
+		);
+		if (bytes === null) return;
+		void write(target.path, target.start, target.end, bytes);
 	}
 
 	function removeLink(target: LinkTarget): void {
@@ -111,15 +131,27 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		if (!resolved) return;
 		const bytes = buildLinkUnwrapBytes(resolved.link, resolved.block.raw, deps.linkRef?.current);
 		if (bytes === null) return;
-		void write(target, resolved.link, bytes);
+		void write(target.path, resolved.link.start, resolved.link.end, bytes);
 	}
 
-	async function write(target: LinkTarget, link: InlineNode, bytes: string): Promise<void> {
-		await inlineRange.commitInlineRange(target.path, link.start, link.end, bytes, link.start);
+	async function write(path: number[], start: number, end: number, bytes: string): Promise<void> {
+		await inlineRange.commitInlineRange(path, start, end, bytes, start);
 		// The construct's outer start, which is also the offset the undo entry records: the caret
 		// before an undo and the caret after it then agree, and a remove-link lands where the
 		// unwrapped text now begins.
-		await deps.landCaret(target.path, link.start);
+		await deps.landCaret(path, start);
+	}
+
+	/** The raw range the card anchors under: the resolved construct, or the create range as-is. */
+	function anchoredRange(): { path: number[]; start: number; end: number } | null {
+		const target = deps.getTarget();
+		if (target) {
+			const resolved = resolve(target);
+			return resolved
+				? { path: target.path, start: resolved.link.start, end: resolved.link.end }
+				: null;
+		}
+		return deps.getCreateTarget();
 	}
 
 	function syncCardToLink(getCard: () => HTMLElement | null): () => void {
@@ -130,10 +162,9 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		// Measured through the rects API off RAW offsets, so the anchor survives the DOM rebuild
 		// every commit does — there is no element reference here to go stale.
 		const measure = () => {
-			const target = deps.getTarget();
-			const resolved = target && resolve(target);
-			if (!target || !resolved) return;
-			const rect = deps.measureRange(target.path, resolved.link.start, resolved.link.end)[0];
+			const range = anchoredRange();
+			if (!range) return;
+			const rect = deps.measureRange(range.path, range.start, range.end)[0];
 			if (!rect) return;
 			const editorRect = editorEl.getBoundingClientRect();
 			const style = getComputedStyle(editorEl);
@@ -163,5 +194,5 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 		};
 	}
 
-	return { resolve, buildBytes, commitUrl, removeLink, syncCardToLink };
+	return { resolve, buildBytes, commitUrl, commitCreate, removeLink, syncCardToLink };
 }

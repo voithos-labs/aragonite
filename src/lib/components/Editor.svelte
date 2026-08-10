@@ -400,12 +400,15 @@
 		}
 	});
 
-	// The caret snapshot and the selection guard ride the STATE, not the callers: click entry and
-	// `link.openCard` both borrow the screen from a live caret, and entry path N+1 would otherwise
-	// forget one. The native collapse check alone misses a cross-block range's parked caret.
+	// The caret snapshot and the entry guards ride the STATE, not the callers, so entry path N+1
+	// cannot forget them. Both doors decline a cross-block range absolutely — its parked caret
+	// defeats a native-collapse check alone; canOpen wants a collapsed caret, canOpenCreate the
+	// live selection the create gesture wraps.
 	const linkCard = createLinkCardState({
 		onOpen: () => linkCardCaret.saveCurrent(),
-		canOpen: () => !selectionState.isCrossBlock && window.getSelection()?.isCollapsed !== false
+		canOpen: () => !selectionState.isCrossBlock && window.getSelection()?.isCollapsed !== false,
+		canOpenCreate: () =>
+			!selectionState.isCrossBlock && window.getSelection()?.isCollapsed === false
 	});
 
 	/** Open the card on the link `el` renders, or report that nothing there is one. The caret has

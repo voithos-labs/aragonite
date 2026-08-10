@@ -17,8 +17,37 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   round-trip is never traded for the effect. The format toggles (`Mod+B`, `Mod+I`, `Mod+Shift+X`,
   `Mod+E`) arm at a collapsed caret and apply to the next insertion, and `Mod+K` with the caret in
   a link opens the **link card** — the only way to read or rewrite a destination the mode paints
-  nowhere; a click on a link opens the same card beside a caret that stays the document's. The
-  demo's mode switcher gains the rung.
+  nowhere; a click on a link opens the same card beside a caret that stays the document's. Over a
+  plain-text selection, `Mod+K` creates instead: the card opens empty over the range, Enter mints
+  `[selection](url)` as a single undo step, and Escape leaves the document byte-identical with the
+  selection restored. The demo's mode switcher gains the rung.
+
+- **Arriving at a table's start enters the first cell.** The start sentinel used to fall through
+  the table's caret doors to their far branch, so a landing aimed at the table's head (a
+  structural operation's focus, a live-mode arrival) came up in the last cell instead. Both
+  doors now read the sentinel and carry it into the first cell, which resolves its own
+  landable start.
+
+- **An untitled link shows its destination on hover.** Live mode paints no URL, so a link
+  written without a title now discloses its resolved destination as its hover title; a link
+  with an author-written title keeps it.
+
+- **The link card stays out of the IME's way and off live selections.** Enter, Tab and Escape
+  in the card ignore an IME's confirm keys, so composing in the URL field never commits or
+  closes the card mid-composition; every entry (the click, `Mod+K`, a drag-select's release)
+  declines while a selection is live rather than collapsing it; Enter on an unchanged URL
+  closes without a rewrite, a destination carrying CR/LF encodes it, and Open disables on an
+  empty draft.
+
+- **IME composition follows the mode, and composing over a selection joins cleanly.** The
+  composition seat now stands down wherever the surface paints its markers, so a composed run
+  in source or preview modes commits verbatim; in live mode, composing over a selection routes
+  the replace through the same join seam every other destructive edit crosses, instead of
+  stranding the delimiter runs the range hid.
+
+- **A container's block refs now clear when it unmounts.** Stale slots survived teardown and
+  flooded the console with state-proxy warnings the next time the container's children moved;
+  the cleanup now keys on the same read the publish did, so the slots actually clear.
 
 - **An angle autolink copies without its brackets in reading mode.** `<https://example.com>`
   renders as the URL alone, so a copy out of a rendered document now yields what the reader saw

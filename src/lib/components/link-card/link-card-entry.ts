@@ -1,35 +1,36 @@
 /**
  * `link.openCard` — the keyboard entry to the link card, shared by every kind whose keymap binds
  * it. The chord ENTERS the card (focus in the URL field), unlike a click, which opens it beside a
- * caret that stays the document's.
+ * caret that stays the document's. Live mode only: every other mode paints the destination.
  */
 
 import type { PresentationMode } from '../../presentation-mode';
-import {
-	resolveLinkAtPoint,
-	type LinkPointQuery,
-	type LinkTarget
-} from '../blocks/text/link-at-point';
+import { canWrapRangeAsLink } from '../blocks/text/link-source-bytes';
+import { resolveLinkAtPoint, type LinkPointQuery } from '../blocks/text/link-at-point';
 import type { LinkCardState } from './link-card-state.svelte';
 
 export interface LinkCardEntryQuery extends LinkPointQuery {
 	card: LinkCardState;
 	mode: PresentationMode;
+	/** The block-local raw selection, or null at a collapsed caret. Required, never defaulted:
+	 *  every keymap arm states its create policy, so a surface that must not mint links says so. */
+	selection: { start: number; end: number } | null;
 }
 
 /**
- * The construct the chord would enter, or null when there is none: outside live mode every other
- * mode paints the destination already. A live selection declines at the state's own `canOpen`
- * seam, shared with the click entry; a non-collapsed one is the CREATION gesture's, a later wave.
+ * Enter the card for the chord: over a selection, CREATE mode on the range — declined when it
+ * crosses another construct's bytes, since wrapping inside or across one is a policy question;
+ * at a collapsed caret, the construct under it or nothing. The chord is consumed either way,
+ * by the keymap arm that calls this.
  */
-function linkCardEntryTarget(query: LinkCardEntryQuery): LinkTarget | null {
-	if (query.mode !== 'live') return null;
-	return resolveLinkAtPoint(query)?.target ?? null;
-}
-
-/** Enter the card on the construct under the caret, or no-op when the rules decline. The chord
- *  is consumed either way, by the keymap arm that calls this. */
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
-	const target = linkCardEntryTarget(query);
+	if (query.mode !== 'live') return;
+	const range = query.selection;
+	if (range !== null && range.start < range.end) {
+		if (canWrapRangeAsLink(query.block.raw, range.start, range.end, query.linkRef?.current))
+			query.card.enterCreate({ path: query.path, start: range.start, end: range.end });
+		return;
+	}
+	const target = resolveLinkAtPoint(query)?.target ?? null;
 	if (target) query.card.enter(target);
 }

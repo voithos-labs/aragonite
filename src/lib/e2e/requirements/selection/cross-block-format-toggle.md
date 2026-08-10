@@ -17,7 +17,8 @@ same range, must stay exactly as destructive as it was.
 - `Mod+K` with a painted cross-block range whose anchor sits inside a link opens
   no card and edits no bytes, and the range survives: the cross-block entry parks
   a COLLAPSED native caret at the anchor, so a native-collapse check alone reads
-  the range as an ordinary caret
+  the range as an ordinary caret. The chord's create half (#119) declines the
+  same range at its own `canOpenCreate` door — cross-block is absolute for both
 - plain typing over the same cross-block range still replaces it, and one undo
   restores the document, so the decline narrowed the toggle and nothing else
 
