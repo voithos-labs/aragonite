@@ -1,7 +1,7 @@
 /**
  * What a native single-block selection edit writes in live mode. The range the user replaced can
  * span delimiter runs they never saw, and contenteditable takes those literally — the one
- * destructive path with no seam offsets of its own (§ 4.5). Re-expressed as a JOIN of what
+ * destructive path with no seam offsets of its own (live-mode.md § 4.5). Re-expressed as a JOIN of what
  * survives on either side, it crosses the same seam every other one does, and the typed bytes
  * land where the two sides now meet.
  */
@@ -15,6 +15,28 @@ export interface SelectionEdit {
 	/** The block's whole bytes after the edit, trailing line ending included. */
 	raw: string;
 	caret: number;
+}
+
+/** The native inputs that replace a live selection with something else — the one destructive
+ *  family that reaches the bytes with no seam offsets of its own (live-mode.md § 4.5). */
+export const SELECTION_REPLACING_INPUTS: ReadonlySet<string> = new Set([
+	'insertText',
+	'deleteContentBackward',
+	'deleteContentForward'
+]);
+
+/** {@link resolveSelectionEdit} keyed off the input event, for the surfaces' beforeinput arms:
+ *  null wherever the event is not a selection replacement or the seam has nothing to clean. */
+export function resolveSelectionEditFromInput(
+	e: InputEvent,
+	node: NodeView,
+	selection: { start: number; end: number },
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
+): SelectionEdit | null {
+	if (presentationMode !== 'live' || !SELECTION_REPLACING_INPUTS.has(e.inputType)) return null;
+	const typed = e.inputType === 'insertText' ? (e.data ?? '') : '';
+	return resolveSelectionEdit(node, selection, typed, presentationMode, linkRef);
 }
 
 /**

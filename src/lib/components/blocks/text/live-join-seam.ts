@@ -1,5 +1,5 @@
 /**
- * The live-mode join rewrite (§ 4.5): a destructive join cuts bytes the reader cannot see, so a
+ * The live-mode join rewrite (live-mode.md § 4.5): a destructive join cuts bytes the reader cannot see, so a
  * literal concatenation surfaces two things — the delimiter runs a truncation left unpaired, and
  * the closer/opener pair a split's inverse brings back to back around nothing. Both are dropped,
  * at the seam and nowhere else. Bytes stay candidates until the parser agrees: the joined block
@@ -14,6 +14,7 @@ import {
 	parseInline
 } from '../../../core/inline';
 import { renderedText } from '../../../core/inline-render';
+import { trimTrailingLineEnding } from '../../../core/lines';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import { parse } from '../../../core/parser';
@@ -49,6 +50,14 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 		// A candidate that changed nothing IS the literal join: declining says so, and keeps the
 		// caller off a rewrite path it does not need.
 		if (candidate === join.mergedRaw) return null;
+		// The split half's terminal-trivia rule (#106), on the join (#113): a survivor that is only
+		// hard-break whitespace reloads as blank trivia — a different shape than the block written —
+		// and a terminal run paints nothing, so the declared drop is read here, not trusted: only
+		// whitespace may go, and the emptied block's caret has one seat.
+		const display = trimTrailingLineEnding(candidate);
+		if (display !== '' && display.trim() === '') {
+			return { raw: candidate.slice(display.length), seam: 0 };
+		}
 		// Every byte dropped ahead of the seam moves the caret's landing with it.
 		const droppedBefore = spans
 			.filter((span) => span.end <= join.seam)
@@ -160,7 +169,7 @@ function classifyConstructs(inlines: readonly InlineNode[]): {
 const splitsARun = (c: SideConstruct, at: number): boolean =>
 	(at > c.node.start && at < c.content.start) || (at > c.content.end && at < c.node.end);
 
-/** Whether the family declares its delimiters cuttable and rejoinable at all (§ 4.4). */
+/** Whether the family declares its delimiters cuttable and rejoinable at all (live-mode.md § 4.4). */
 function isRejoinable(kind: AnyInlineKind): boolean {
 	return getInlineConstructPolicy(kind)?.splitBehavior === 'close-and-reopen';
 }
