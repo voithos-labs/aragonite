@@ -121,10 +121,11 @@ test.describe('toc outline: click-to-navigate', () => {
 		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
 		// Reading mode turns contenteditable off, so no block can hold the caret as activeElement —
 		// the native range is the observable that the selection landed, and it is what makes the
-		// navigation's write the same write in both modes.
+		// navigation's write the same write in both modes. Offset 4 is the landable start past the
+		// hidden `### ` run: the caret door clamps every landing (G4.36), reading mode included.
 		expect(await editor.bridge.getSelection()).toEqual({
-			anchor: { path: [target], offset: 0 },
-			focus: { path: [target], offset: 0 }
+			anchor: { path: [target], offset: 4 },
+			focus: { path: [target], offset: 4 }
 		});
 	});
 
