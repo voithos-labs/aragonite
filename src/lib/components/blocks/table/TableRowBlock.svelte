@@ -140,9 +140,7 @@
 	// last, and the sentinel rides into the cell so its door clamps and classifies.
 	function rowLanding(offset: number): { colIdx: number; at: number } {
 		const atStart = offset === 0 || offset === CURSOR_START;
-		return atStart
-			? { colIdx: 0, at: CURSOR_START }
-			: { colIdx: columnCount - 1, at: CURSOR_END };
+		return atStart ? { colIdx: 0, at: CURSOR_START } : { colIdx: columnCount - 1, at: CURSOR_END };
 	}
 
 	export function focus(offset: number): void {

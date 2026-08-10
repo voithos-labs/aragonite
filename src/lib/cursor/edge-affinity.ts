@@ -22,7 +22,7 @@ export interface EdgeAffinityState {
 	 * The only door a keydown handler may use; `reset()` stays public for the lifecycle,
 	 * commit, undo and pointer callers, whose unconditional clear has no key to classify.
 	 */
-	note(e: Pick<KeyboardEvent, 'key' | 'altKey' | 'metaKey'>): void;
+	note(e: Pick<KeyboardEvent, 'key' | 'altKey'> & Partial<Pick<KeyboardEvent, 'metaKey'>>): void;
 
 	/** A committed keystroke belongs to the content whatever arrival preceded it. */
 	noteTyping(): void;

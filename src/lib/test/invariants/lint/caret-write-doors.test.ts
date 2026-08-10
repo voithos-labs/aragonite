@@ -14,8 +14,7 @@ const SET_RAW_NAMERS: Record<string, string> = {
 	'src/lib/ambient/ambient-cursor.ts': 'defines the raw write: the offset walk + ambient landing',
 	'src/lib/components/blocks/editable-surface.ts':
 		'the park and column doors — the landable clamp lives here',
-	'src/lib/components/blocks/plain-text-backend.ts':
-		'the plugin-leaf backend over content offsets',
+	'src/lib/components/blocks/plain-text-backend.ts': 'the plugin-leaf backend over content offsets',
 	'src/lib/components/blocks/code/CodeBlock.svelte':
 		'its backend forward, plus the fence-line clamp correction after a column landing',
 	'src/lib/components/blocks/table/TableCellBlock.svelte':
