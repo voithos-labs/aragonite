@@ -4,7 +4,7 @@
  */
 
 import type { AmbientPrefix } from '../block-component';
-import { isHiddenMarkerText } from '../cursor/widget-offset';
+import { isAtomicInlineWidget, isHiddenMarkerText } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
@@ -85,6 +85,8 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 function firstTextNodeAfter(node: Node): Text | null {
 	let sibling = node.nextSibling;
 	while (sibling) {
+		// An atomic widget stands for raw bytes, so text past it is not raw 0 (GH #115).
+		if (isAtomicInlineWidget(sibling)) return null;
 		const text = firstTextDescendant(sibling);
 		if (text) return text;
 		sibling = sibling.nextSibling;

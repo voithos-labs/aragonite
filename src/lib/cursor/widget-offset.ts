@@ -292,6 +292,29 @@ export function clampToLandableRaw(el: HTMLElement, offset: number, ambientLengt
 	return Math.min(Math.max(offset, bounds.start), bounds.end);
 }
 
+/**
+ * Whether the first landable position abuts an opaque island (an atomic widget, a decoration
+ * island) instead of sitting in text: no text node holds it, so the engine's Home seats the
+ * caret past the island and the block's start needs an owned door (GH #115).
+ */
+export function landableStartAbutsIsland(container: ParentNode): boolean {
+	for (const seg of landingSegments(container, markerHidingMode(container))) {
+		if (seg.len === 0) continue;
+		if (seg.kind === 'opaque') {
+			if (seg.hidden) continue;
+			return true;
+		}
+		if (inAmbientIsland(seg.node, container)) continue;
+		return false;
+	}
+	return false;
+}
+
+/** Whether `node` is an atomic inline widget's element — the island every walk treats as opaque. */
+export function isAtomicInlineWidget(node: Node): boolean {
+	return node.nodeType === Node.ELEMENT_NODE && !!(node as Element).matches?.(WIDGET_SELECTOR);
+}
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
