@@ -17,9 +17,9 @@ const prodServer = {
 	timeout: 180_000
 };
 
-// Each dir gets its own `e2e-<dir>` project, and e2e-top ignores all of them so its specs
-// never double-run. The clipboard, simulation, and perf/vr projects carry custom config,
-// so they stay hand-written below and their dirs join e2e-top's ignore by hand.
+// Each dir gets its own `e2e-<dir>` project, and e2e-top ignores all of them so its specs never
+// double-run. The projects carrying custom config stay hand-written below, their dirs ignored
+// by hand.
 const PROJECT_DIRS = [
 	'blocks',
 	'decorations',
@@ -33,17 +33,16 @@ const PROJECT_DIRS = [
 
 export default defineConfig({
 	testDir: './src/lib/e2e/tests',
-	// A hang guard, not a budget: a first navigation onto a heavy route blows 30s under
-	// many-worker contention on slower hosts (#81), and a real hang still fails at 60.
+	// A hang guard, not a budget: a first navigation onto a heavy route can outrun 30s under
+	// many-worker contention on slower hosts, and a real hang still fails at 60.
 	timeout: 60_000,
 	retries: 0,
 	use: {
 		baseURL: 'http://localhost:1420',
 		headless: true,
 		permissions: ['clipboard-read', 'clipboard-write'],
-		// Pinned, not inherited: specs across several projects assert near-absolute geometry
-		// and would turn red the day Playwright's implicit default moves. This is that
-		// default made explicit, so pinning changes no measurement; projects may override.
+		// Pinned, not inherited: specs across several projects assert near-absolute geometry and
+		// would turn red the day Playwright's implicit default moves. Projects may override.
 		viewport: { width: 1280, height: 720 }
 	},
 	webServer: PROD ? [devServer, prodServer] : devServer,
@@ -62,9 +61,8 @@ export default defineConfig({
 			name: 'e2e-simulation',
 			testMatch: 'simulation/**/*.spec.ts',
 			timeout: 180_000,
-			// Each session is independent (own page, own seeded rng, no shared state) and the
-			// asserted artifact is the timing-independent source, so parallel scheduling can't
-			// change an assertion. Capped: each worker drives a full browser on one dev server.
+			// Each session is independent and the asserted artifact is the timing-independent
+			// source, so scheduling cannot change an assertion. Capped: one browser per worker.
 			fullyParallel: true,
 			workers: 4,
 			// The editor scrolls internally, so a short viewport clips a long note's trailing

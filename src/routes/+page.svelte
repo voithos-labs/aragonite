@@ -11,7 +11,7 @@
 	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 
 	// The consumer shape: each bundled plugin from its own subpath, engine adapters injected.
-	// Module scope so the factories run once per process — re-minting same-name plugins per
+	// Module scope so the factories run once per process; re-minting same-name plugins per
 	// (SSR) render trips installPlugins' first-wins dev-warn.
 	const showcasePlugins = [
 		admonitionsPlugin(),
@@ -61,8 +61,7 @@
 	}
 
 	// Reading mode ONLY: the editor gates handles off there, so an enabled toggle would paint an
-	// active state it cannot produce — and pay a remount for nothing. Live is not gated: it is an
-	// editing mode, and every editing affordance stays exactly as available as in source.
+	// active state it cannot produce. Live is an editing mode, so it keeps every affordance.
 	const handlesGated = $derived(presentationMode === 'reading');
 
 	// Owned here rather than inside the panel, so the header affordance and the panel's own

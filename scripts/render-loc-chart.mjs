@@ -69,7 +69,6 @@ for (const d of data) console.log(`  ${String(d.loc).padStart(6)}  ${d.label}`);
 
 // ── Render ───────────────────────────────────────────────────────────────────
 
-// Base palette + this chart's bar color.
 const THEMES = {
 	light: { ...BASE_THEMES.light, bar: '#2a78d6' },
 	dark: { ...BASE_THEMES.dark, bar: '#3987e5' }

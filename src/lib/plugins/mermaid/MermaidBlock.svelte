@@ -52,9 +52,8 @@
 	const code = $derived(getPluginMetadata<MermaidMetadata>(node)?.code ?? '');
 	const displayCode = $derived(trimTrailingLineEnding(code));
 
-	// An empty diagram has no picture to draw and nothing worth reporting — the engine
-	// rejects empty input — so its natural view is the edit surface, and reading mode, which
-	// writes no bytes, gets a placeholder.
+	// An empty diagram has no picture to draw and the engine rejects it, so its natural view is
+	// the edit surface; reading mode, which writes no bytes, gets a placeholder instead.
 	const isEmpty = $derived(displayCode.trim() === '');
 	const isReading = $derived(getPresentationMode() === 'reading');
 

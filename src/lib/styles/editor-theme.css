@@ -1,10 +1,9 @@
 /**
  * Editor default theme. Tokens are declared on `.editor` and on the opt-in
- * `.aragonite-editor-theme` class, never on `:root` — an extracted module must not inject
- * ~50 custom properties into a consumer's global scope. `:where()` keeps specificity at 0
- * so an override at `.editor { --x: … }` wins; `:root` does NOT, being shadowed by these
- * direct defaults. Light keys on `data-editor-theme='light'`; dark is the base. Every
- * component read also keeps an inline fallback (G4.6b).
+ * `.aragonite-editor-theme` class, never on `:root`: an extracted module must not inject its
+ * custom properties into a consumer's global scope, and a `:root` override would lose to
+ * these direct defaults anyway. `:where()` keeps specificity at 0 so `.editor { --x: … }`
+ * wins. Light keys on `data-editor-theme='light'`; dark is the base.
  */
 
 :where(.editor, .aragonite-editor-theme) {
@@ -30,9 +29,9 @@
 	   --color-bg-secondary, which is measured against the base bg. */
 	--color-ui-faint: rgba(255, 255, 255, 0.07);
 
-	/* Markdown syntax override points. Defaults are deliberately neutral, so the default
-	   rendering carries no extra palette; override any of them to colorize.
-	   Mode-independent — the chrome tokens they chain to carry the light/dark split. */
+	/* Markdown syntax override points, deliberately neutral so the default rendering carries no
+	   extra palette. Mode-independent: the chrome tokens they chain to carry the light/dark
+	   split. */
 	--syntax-heading: currentColor;
 	--syntax-emphasis: currentColor;
 	--syntax-link: var(--color-accent, #567b67);
@@ -79,9 +78,8 @@
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
 	--md-reorder-indicator: #6496ff;
-	/* Wash on the container being reordered within during a nested drag. Tinted with the
-	   reorder accent, not neutral grey, so the shift stays perceptible for low-contrast
-	   vision. */
+	/* Wash on the container being reordered within during a nested drag. Tinted with the reorder
+	   accent, not neutral grey, so the shift stays perceptible for low-contrast vision. */
 	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
 	--syntax-marker-dim: 0.65;
 

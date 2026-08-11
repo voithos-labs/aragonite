@@ -47,8 +47,8 @@ function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar'
 	return true;
 }
 
-/** cmark-gfm ends lazy continuation on any line that starts a block at the outer level — the
- *  paragraph-interrupt exceptions do not apply there. An LRD is carved out of a paragraph at
+/** cmark-gfm ends lazy continuation on any line that starts a block at the outer level, the
+ *  paragraph-interrupt exceptions not applying there. An LRD is carved out of a paragraph at
  *  finalize, never a block start, so its claim is transparent. */
 function startsSiblingBlock(ctx: OpenContext, index: number): boolean {
 	const line = ctx.lines[index];
@@ -160,8 +160,8 @@ export function registerFootnoteDefinition(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		// Kit fixtures must be rebuildRaw fixed points, so the continuation is indented —
-		// the lazy form canonicalizes; its extent rows live in lazy-continuation.test.ts.
+		// Kit fixtures must be rebuildRaw fixed points, so the continuation is indented: the
+		// lazy form canonicalizes.
 		conformanceFixture: '[^1]: A footnote definition.\n    with an indented continuation.\n',
 		// Unlike a listItem, whose leaf resolves to the item under the list, the body
 		// blocks reorder within; the marker is position-independent, so rebuildRaw re-emits it.

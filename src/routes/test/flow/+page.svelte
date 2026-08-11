@@ -143,10 +143,10 @@
 	.entry {
 		margin: 1rem;
 	}
-	/* The rounded-card wrapper matches the "scrolls or clips" predicate but does NEITHER
-	   (auto height, no scroll), so a resolver stopping at the innermost match would
-	   autoscroll an element that cannot move. The padding is load-bearing: host mode drops
-	   the editor's own, and the hover drag handle sits at left:-0.85rem. */
+	/* The rounded-card wrapper matches the "scrolls or clips" predicate but does NEITHER, so a
+	   resolver stopping at the innermost match would autoscroll an element that cannot move.
+	   The padding is load-bearing: host mode drops the editor's own, and the drag handle
+	   overhangs to the left. */
 	.card {
 		overflow: hidden;
 		border-radius: 8px;

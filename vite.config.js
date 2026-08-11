@@ -22,7 +22,6 @@ const silenceBrokenImageFixture = {
 	}
 };
 
-// https://vite.dev/config/
 export default defineConfig({
 	plugins: [silenceBrokenImageFixture, sveltekit()],
 	server: {

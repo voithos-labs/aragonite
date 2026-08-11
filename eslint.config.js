@@ -49,9 +49,9 @@ export default tseslint.config(
 		languageOptions: { globals: globals.node }
 	},
 
-	// Type-aware rules, scoped to src/**/*.ts (the only tree the app tsconfig covers);
-	// .svelte and root/scripts config files stay on the untyped net. The editor's
-	// promise-bearing logic lives in extracted `.ts` factories, so this covers it.
+	// Type-aware rules, scoped to src/**/*.ts (the only tree the app tsconfig covers); .svelte
+	// and root/scripts config files stay on the untyped net. The editor's promise-bearing logic
+	// lives in extracted `.ts` factories, so this covers it.
 	{
 		files: ['src/**/*.ts'],
 		languageOptions: {

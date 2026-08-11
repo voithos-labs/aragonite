@@ -47,10 +47,9 @@ export function hasMermaidRenderer(): boolean {
 }
 
 /**
- * Theme belongs in the memo key rather than in a cache reset, so flipping back is a
- * hit; unlike the math renderer's DOM node, an SVG string needs no per-caller clone.
- * A parse failure resolves to an `error` and caches like a success. `theme` is
- * required, not defaulted, so a caller cannot forget the render input and compile.
+ * Theme belongs in the memo key rather than in a cache reset, so flipping back is a hit; an
+ * SVG string needs no per-caller clone. A parse failure resolves to an `error` and caches
+ * like a success. `theme` is required, so a caller cannot forget it and still compile.
  */
 export function renderMermaid(code: string, theme: string): Promise<MermaidRenderResult> {
 	// NUL-joined so no (theme, code) pair can concatenate into another's key.

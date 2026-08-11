@@ -1,5 +1,5 @@
-// Static SPA build (no Node server). adapter-static with an index.html fallback
-// puts the demo app in SPA mode. See https://svelte.dev/docs/kit/single-page-apps
+// Static SPA build: no Node server, so the demo app ships as adapter-static plus an
+// index.html fallback.
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 

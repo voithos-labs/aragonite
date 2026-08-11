@@ -55,8 +55,8 @@
 		'fold-table': [foldPlugin],
 		badge: [blockBadgePlugin],
 		// `?seed=sim` puts standing decoration sources under the corruption oracle; the sims
-		// loadContent their own document over the (absent) seed. The island source is keyed
-		// on sentinels only the decoration-ops document carries, so it is inert elsewhere.
+		// loadContent their own document over the absent seed, and the island source is keyed
+		// on sentinels only that document carries.
 		sim: [simMarkPlugin, simIslandPlugin]
 	};
 </script>
@@ -188,8 +188,8 @@
 	].join('\n');
 
 	// `?seed=<name>` swaps in another plugin's document; callout is the default. The seed
-	// arrives via load data so server and client render the same document, and it is a
-	// one-time snapshot — the harness never re-navigates, and the probes then own `source`.
+	// arrives via load data so server and client render the same document, once: the harness
+	// never re-navigates, and the probes then own `source`.
 	const SEEDS: Record<string, string> = {
 		details: DETAILS_SEED,
 		admonitions: ADMONITIONS_SEED,

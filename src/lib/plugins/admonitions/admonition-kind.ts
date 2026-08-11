@@ -1,7 +1,6 @@
 /**
- * The reference `:::name` directive container: dispatch, descriptor, kind-cycle
- * command, title chrome leaf. Reuses the shared directive grammar rather than a
- * hand-written opener, so the fence bytes stay the round-trip truth.
+ * The reference `:::name` directive container. Reuses the shared directive grammar rather
+ * than a hand-written opener, so the fence bytes stay the round-trip truth.
  */
 import {
 	activateDirectives,

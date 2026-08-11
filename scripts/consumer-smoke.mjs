@@ -9,9 +9,8 @@ const run = (cmd, opts = {}) => execSync(cmd, { stdio: 'inherit', ...opts });
 const withDeps = process.platform === 'linux' ? '--with-deps ' : '';
 
 run('npm run package');
-// The tarball name embeds the version, so install the file `npm pack` reports rather than
-// a static pin. `--no-save` keeps the tracked `file:../..` pin (a fresh clone's source of
-// truth) from churning to the packed tarball name.
+// The tarball name embeds the version, so install the file `npm pack` reports rather than a
+// static pin. `--no-save` keeps the tracked `file:../..` pin from churning to that name.
 const packOutput = execSync('npm pack', { encoding: 'utf8' });
 const tarball = packOutput.trim().split(/\r?\n/).pop();
 run('node scripts/verify-pack.mjs'); // published paths present AND no test files ship

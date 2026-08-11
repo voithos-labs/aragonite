@@ -45,7 +45,6 @@ function series(metric, exceptionShape) {
 
 // ── Theme tokens (dataviz reference palette) ─────────────────────────────────
 
-// Base palette + this chart's series colors (band/median + the exception line).
 const THEMES = {
 	light: { ...BASE_THEMES.light, axis: '#c3c2b7', bundle: '#2a78d6', accent: '#eb6834' },
 	dark: { ...BASE_THEMES.dark, axis: '#383835', bundle: '#3987e5', accent: '#d95926' }

@@ -35,9 +35,9 @@ const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
 /**
- * Materialized once per block, not searched per consultation: a paragraph of shell
- * prose (`$HOME $PATH $USER …`) declines at every `$`, each costing a full block scan.
- * Bounded rather than weak-keyed because a string cannot key a WeakMap.
+ * Materialized once per block, not searched per consultation: a paragraph of shell prose
+ * (`$HOME $PATH $USER …`) would otherwise cost a full block scan at every `$`. Bounded
+ * rather than weak-keyed because a string cannot key a WeakMap.
  */
 const closerIndex = createBoundedMemo<string, Int32Array>({ cap: 2 });
 
@@ -235,8 +235,8 @@ export function registerMathFence(): void {
 				mode: 'implemented',
 				via: 'render-primary reveal→edit→blur cycle commits as one undo entry'
 			},
-			// No note-taking simulation drives a ```math fence; the interactive path is
-			// pinned by the latex-math-fence e2e, a plugins battery rather than the oracle.
+			// No note-taking simulation drives a ```math fence; its interactive path is pinned
+			// by the plugins e2e battery instead.
 			simOracle: { mode: 'inherit-default' }
 		})
 	});

@@ -16,8 +16,7 @@
 	let editor = $state<ReturnType<typeof Editor>>();
 
 	// `?dragHandles=false` starts with the hover drag handle disabled. blockDragHandles is
-	// set-once-at-mount, so the header checkbox remounts the editor via {#key}, carrying
-	// the live content across so edits survive.
+	// set-once-at-mount, so the header checkbox remounts via {#key}, carrying the content across.
 	let dragHandlesOn = $state(
 		typeof window === 'undefined' ||
 			new URLSearchParams(window.location.search).get('dragHandles') !== 'false'
@@ -36,25 +35,22 @@
 			? harnessPasteImage
 			: undefined;
 
-	// `?header=on` mounts a host header inside the editor's scroll container. Off by
-	// default: a preamble shifts every block's geometry, which specs across the suite
-	// measure. Its toggle lives in the page header, OUTSIDE the scroll container, because
-	// clicking a control inside it would scroll the very position under test.
+	// `?header=on` mounts a host header inside the editor's scroll container, off by default
+	// because a preamble shifts the block geometry specs across the suite measure. Its toggle
+	// sits OUTSIDE that container, so clicking it cannot scroll the position under test.
 	const headerOn =
 		typeof window !== 'undefined' &&
 		new URLSearchParams(window.location.search).get('header') === 'on';
 	let headerTall = $state(false);
 
-	// `?paddedList=on` reproduces the documented host layout that widens and pads the block
-	// list itself, so the visible side gutter reports the LIST as the click target rather
-	// than the editor root.
+	// `?paddedList=on` reproduces the documented host layout that pads the block list itself, so
+	// the visible side gutter reports the LIST as the click target rather than the editor root.
 	const paddedListOn =
 		typeof window !== 'undefined' &&
 		new URLSearchParams(window.location.search).get('paddedList') === 'on';
 
-	// `?searchAnchor=on` mounts a fixed pane OUTSIDE `.aragonite-editor-theme` and hands it to
-	// the editor as the find/replace bar's home. Off by default: the pane and its controls
-	// would overlay geometry the rest of the suite measures.
+	// `?searchAnchor=on` mounts a fixed pane OUTSIDE `.aragonite-editor-theme` as the find/replace
+	// bar's home. Off by default: it would overlay geometry the rest of the suite measures.
 	const searchAnchorOn =
 		typeof window !== 'undefined' &&
 		new URLSearchParams(window.location.search).get('searchAnchor') === 'on';
@@ -81,9 +77,8 @@
 		{ mode: 'live', testid: 'live-toggle', label: 'Live mode' }
 	];
 
-	// Records to a page-scoped sink instead of opening a window. Wired ONLY in reading
-	// mode: onLinkActivate REPLACES the default open-in-tab, so wiring it in source mode
-	// would swallow the native activation the link-clickability specs assert.
+	// Records to a page-scoped sink instead of opening a window. Wired ONLY in reading mode:
+	// onLinkActivate REPLACES the default open-in-tab, which source mode's specs assert on.
 	function recordLinkActivation(url: string) {
 		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
 	}
