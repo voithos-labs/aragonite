@@ -201,6 +201,27 @@ export function composeExpandDoor(deps: {
 	};
 }
 
+/**
+ * The `updateOwnMetadata` gate: reading mode writes no bytes (plugin-contract.md), so the
+ * commit declines as a no-op and DEV names the kind that knocked.
+ */
+export function composeMetadataDoor(deps: {
+	getNode: () => NodeView;
+	getPresentationMode: () => PresentationMode;
+	commit: (patch: Record<string, unknown>, afterTick?: CommitAfterTick) => void | Promise<void>;
+}): ContainerBlock['updateOwnMetadata'] {
+	return (patch, afterTick) => {
+		if (isReadingMode(deps.getPresentationMode)) {
+			devWarn(
+				'plugin-container',
+				`updateOwnMetadata declined: reading mode writes no bytes (kind "${deps.getNode().kind}")`
+			);
+			return;
+		}
+		return deps.commit(patch, afterTick);
+	};
+}
+
 /** While collapsed the body is unmounted, so `descendToBody` would mint an invisible one. */
 export function gateDescendOnCollapse(
 	isCollapsed: (() => boolean) | undefined,
@@ -435,8 +456,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		}
 	};
 
-	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
-		parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
+	const updateOwnMetadata = composeMetadataDoor({
+		getNode: deps.getNode,
+		getPresentationMode,
+		commit: (patch, afterTick) =>
+			parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick })
+	});
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
 
