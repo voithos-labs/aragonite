@@ -146,6 +146,19 @@ test.describe('mermaid whole-block focus', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
+	test('a typed character while focused mints a paragraph below carrying it', async ({ page }) => {
+		await editor.viewport.click();
+		await expect(editor.viewport).toBeFocused();
+		await page.keyboard.press('x');
+
+		await waitForDoc(page, (s) => s.rootCount === 4);
+		const doc = await readDoc(page);
+		expect(doc.kinds).toEqual(['paragraph', 'mermaid', 'paragraph', 'paragraph']);
+		expect(doc.texts[2]).toBe('x');
+		expect(await activeBlockPath(page)).toEqual([2]);
+		expect(await roundTripStable(page)).toBe(true);
+	});
+
 	test('Alt+ArrowDown reorders the block down; Alt+ArrowUp moves it back', async ({ page }) => {
 		await editor.viewport.click();
 		await expect(editor.viewport).toBeFocused();
