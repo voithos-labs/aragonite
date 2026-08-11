@@ -66,6 +66,22 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'replace', at: 0, count: 5, newCount: 1, idMap: { 0: 0 } });
 	});
 
+	// A structured container's children do not standalone-reparse to themselves: two items'
+	// joined bytes read as a nested LIST, which is the parent's kind, not a sibling's.
+	// Miss-analysis: the seam pins only drove document-level children, so no window ever held
+	// a structured container's children whose joined bytes parse to the parent's own kind.
+	it('a list-scope delete never absorbs items into a nested list', () => {
+		const doc = parse('1. First\n2. Second\n3. Third\n');
+		const list = doc.children[0];
+		const parent = { children: list.children!, ownerKind: list.kind, owner: list };
+
+		const change = deleteNode(parent as never, 1);
+
+		expect(list.children!.map((c) => c.kind)).toEqual(['listItem', 'listItem']);
+		expect(list.children!.map((c) => c.raw)).toEqual(['1. First\n', '3. Third\n']);
+		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
+	});
+
 	it('a delete between separated paragraphs stays a plain delete', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 
