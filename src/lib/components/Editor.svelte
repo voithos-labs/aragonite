@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { setContext, tick, onMount } from 'svelte';
+	import { setContext, tick, onMount, untrack } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
 	import type { Document } from '../core/nodes';
@@ -96,8 +96,12 @@
 		registerEditor,
 		unregisterEditor,
 		markEditorInteracted,
-		releaseInteractedEditor
+		releaseInteractedEditor,
+		isTextEntrySurface
 	} from '../active-editor';
+	import { ambientLengthOf } from '../ambient/ambient-dom';
+	import { toClampedRawOffset } from '../cursor/coordinate-spaces';
+	import { domTextOffsetAtNode } from '../cursor/widget-offset';
 	import type { CommandErrorSink } from '../schema/block-commands';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
@@ -813,6 +817,41 @@
 
 	// ── Root DOM effects ────────────────────────────────────────────────
 
+	/** The focused leaf's caret as (path, raw offset): the per-backend road while a leaf holds
+	 *  focus, else the native range a toggle click leaves behind while chrome takes focus. */
+	function captureFlipCaret(): { path: number[]; offset: number } | null {
+		if (selectionState.isCrossBlock || selectionState.gapCaret) return null;
+		const focused = readCurrentSelection(selectionState, blockRefs)?.focus;
+		if (focused) return { path: focused.path, offset: focused.offset };
+		const sel = window.getSelection();
+		if (!sel?.focusNode || !editorEl?.contains(sel.focusNode) || isHostChrome(sel.focusNode))
+			return null;
+		const node = sel.focusNode;
+		const el = node instanceof Element ? node : node.parentElement;
+		const path = findCellPathForElement(el) ?? findBlockPathForElement(el);
+		if (!path) return null;
+		const contentEl = getBlockElByPath(path);
+		if (!contentEl?.contains(node)) return null;
+		const offset = toClampedRawOffset(
+			domTextOffsetAtNode(contentEl, node, sel.focusOffset),
+			ambientLengthOf(contentEl)
+		);
+		return { path, offset };
+	}
+
+	// Captured in the PRE phase, where the outgoing mode still owns the DOM (#109). Reading
+	// keeps its entry snapshot — it has no caret of its own to recapture on the way out.
+	let flipCaret: { path: number[]; offset: number } | null = null;
+	// svelte-ignore state_referenced_locally
+	let flipCaretSeenMode = effectiveMode;
+	$effect.pre(() => {
+		const mode = effectiveMode;
+		if (mode === flipCaretSeenMode) return;
+		const from = flipCaretSeenMode;
+		flipCaretSeenMode = mode;
+		if (from !== 'reading') flipCaret = untrack(captureFlipCaret);
+	});
+
 	// Mode flips are blur-class events: a live reveal or composition must fold through
 	// the existing blur choke points before the surface goes inert, so blur the active
 	// element rather than invent a new fold path.
@@ -833,6 +872,18 @@
 			const active = document.activeElement;
 			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active))
 				active.blur();
+		} else if (flipCaret) {
+			const caret = flipCaret;
+			flipCaret = null;
+			void (async () => {
+				// A post-tick focus like every structural op's; the road clamps the saved offset
+				// into the destination mode's landable range at the door. Yielding to a focused
+				// text-entry surface keeps the restore from stealing a search-bar or host-field
+				// mid-typing — a toggle button holding focus does not block it.
+				await tick();
+				if (effectiveMode !== mode || isTextEntrySurface(document.activeElement)) return;
+				await restoreThroughRevealRoad(caretAt(caret.path, caret.offset), true);
+			})();
 		}
 		events.emit('presentationModeChange', mode);
 	});

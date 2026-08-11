@@ -23,10 +23,8 @@ of a seeded detour; this file pins the deterministic rungs.
 - a document whose blocks are all marker-bearing (heading, fence, table, list,
   reference link) is the fixture, so a flip that dropped or duplicated a marker
   span shows up as a byte difference rather than a paint difference
-- the flip is pinned on BYTES only: the caret does not survive a mode change on
-  any rung (issue #109), so nothing here may be read as "a flip is fully safe" —
-  the pending-mark row below is the closest the caret contract gets, and it pins
-  that no bytes are stranded rather than that the caret is kept
+- this file pins BYTES only: the caret's survival across the same flips is its
+  own contract, `presentation-mode-flip-caret.md` beside this file
 
 ## User interactions
 
