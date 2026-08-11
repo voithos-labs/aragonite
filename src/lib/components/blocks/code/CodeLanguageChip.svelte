@@ -2,8 +2,8 @@
 	import { tick } from 'svelte';
 	import { CODE_LANGUAGE_FIELD, codeLanguageLabel } from '../../../a11y-strings';
 
-	// The fence-info door for the modes that paint no fence (issue #142). Ephemeral DOM until
-	// Enter, the reveal discipline: the draft lives here and only a commit reaches the tree.
+	// The fence-info door for the modes that paint no fence. The draft lives here and only a
+	// commit reaches the tree.
 	let {
 		info,
 		editable,

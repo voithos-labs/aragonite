@@ -24,6 +24,8 @@ never sees it and the render effect's `replaceChildren` cannot destroy it.
 - A content-empty block (an empty fence) paints its own chrome and gets no chip: the info
   string is already reachable by caret there, which is how a fence is authored.
 - Reveal is hover on the block OR focus inside it; the field being open keeps it revealed.
+- The hover is the block's OWN, not its container's: a fence nested in a blockquote or a list
+  item stays unrevealed while the pointer sits elsewhere inside that container.
 - Reading mode shows the same chip, inert: a click opens no field, since the mode writes
   no bytes.
 
@@ -35,9 +37,11 @@ never sees it and the render effect's `replaceChildren` cannot destroy it.
   the fence write rule runs over it like every other gesture, and it lands as ONE undo
   entry — isolated on both sides, so neither a typing burst before it nor one after it
   joins the entry.
-- An unchanged info string is a close, not a write: no undo entry, no `edit` event. This is
-  also what keeps the seed's trimming (`meta.info` is trimmed) from respelling author bytes
-  on a no-op commit.
+- An unchanged info string is a close, not a write: no undo entry, no `edit` event. The test
+  is the SEED, not the written bytes, because `meta.info` is trimmed — on a padded opener
+  (trailing spaces after `js`, or spaces before it) a byte test would let a bare Enter respell
+  the author's own spacing and mint an undo entry for it. A CHANGED info string on a padded
+  line still writes, canonicalizing that spacing along with it.
 - A commit and an Escape both return the caret to the block, at the first body offset. A
   BLUR does not: focus is already where the user just put it, and yanking it back is worse
   than leaving it (`MermaidBlock`'s rule for the same shape). The landing is pinned by typing
@@ -101,6 +105,9 @@ routes already share (`fence-content-validity.md`), so all three arms behave ali
 
 - source mode renders no chip at all
 - a content-empty fence renders no chip in live
+- a bare Enter on a padded fence line leaves the source byte-identical, and the one Mod+Z after
+  it reverts the edit made before the chip was opened
+- a container's hover leaves its nested block's chip hidden; hovering that block reveals it
 - Escape after typing into the field leaves the source byte-identical
 - clicking away after typing into the field leaves the source byte-identical
 - reading mode: a click on the chip opens no field
@@ -115,6 +122,9 @@ routes already share (`fence-content-validity.md`), so all three arms behave ali
 
 ## Miss-analysis
 
+- The no-op commit: every commit scenario typed a NEW language onto an unpadded fence, so the
+  byte test passed on the only shape the suite loaded and the gesture that changes nothing was
+  never made. A door's do-nothing path is a scenario, not an absence of one.
 - Nothing could have caught this: the affordance did not exist. The class the suite missed
   is the one issue #142 names — a mode that hides a construct's syntax owes a door back to
   it, and only the link card had one. The presentation batteries assert what a mode HIDES
