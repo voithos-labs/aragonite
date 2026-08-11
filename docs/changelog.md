@@ -11,9 +11,10 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   now hides only while it stands over content: an empty heading, an empty fence and a paragraph
   holding nothing but a link with no text show their markers dimmed, exactly as source mode shows
   them, so the caret has somewhere to land and the next character lands after the marker rather
-  than in front of it. Destructive keys still follow the mode, not the paint — Backspace at the
-  very start of a painted `# ` drops the construct where source mode does nothing. The first
-  content character folds the chrome away again. Table cells follow the same rule; the preview
+  than in front of it. A destructive key at the block's own structure still follows the mode, not
+  the paint — Backspace at the very start of a painted `# ` drops the construct where source mode
+  does nothing — while one beside a painted link takes a single byte, as source mode does. The
+  first content character folds the chrome away again. Table cells follow the same rule; the preview
   rungs take it too, and reading mode is unchanged.
 
 - **Footnote definitions continue lazily, as on GitHub.** An unindented non-blank line after a
