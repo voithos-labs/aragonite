@@ -1,9 +1,8 @@
 /**
- * Per-level adapter for the shared block-edit core: commit ceremony, child
- * addressing, refs, and unshare, for a top-level edit vs a container one. Both
- * factories are the SINGLE mint point for the commit args' doc-absolute paths
- * (snapshot restore + event target), minted as `DocPath` — the core hands over local
- * indices only. G1.16 stays the runtime belt for the JS callers types don't bind.
+ * Per-level adapter for the shared block-edit core: commit ceremony, child addressing, refs and
+ * unshare, for a top-level edit vs a container one. Both factories are the SINGLE mint point for
+ * the commit args' doc-absolute paths, as `DocPath` — the core hands over local indices only.
+ * G1.16 stays the runtime belt for the JS callers types don't bind.
  */
 
 import type { OpDescriptor } from '../schema/operations';

@@ -1,9 +1,7 @@
 /**
- * A block's content element is the first child of its `data-block-path` wrapper that
- * is not chrome BlockHost wraps around it. Wrapper child order: badge(s), content,
- * selection overlay, decoration overlay(s), drag handle. One definition, shared by
- * the runtime (Editor.getBlockElByPath) and the e2e page-object — keep in step with
- * BlockHost if the wrapper structure changes.
+ * A block's content element is the first child of its `data-block-path` wrapper that is not chrome
+ * BlockHost wraps around it (child order: badges, content, selection overlay, decoration overlays,
+ * drag handle). One definition, shared by the runtime and the e2e page-object.
  */
 
 /** For `querySelector`, which returns the FIRST match only, so what must be excluded

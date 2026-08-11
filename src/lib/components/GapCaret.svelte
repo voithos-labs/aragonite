@@ -1,10 +1,9 @@
 <script lang="ts">
 	/**
-	 * The between-blocks caret's own surface: a zero-height proxy that takes DOM focus while
-	 * the gap is live, so the caret has somewhere to be after the source block gives it up.
-	 * It lives in the BlockList, outside every block's surface, so it contributes nothing to
-	 * any block's textContent walk. Text and Enter mint a paragraph at the boundary; every
-	 * other input — paste, drop — is refused at `beforeinput`.
+	 * The between-blocks caret's own surface: a zero-height proxy that takes DOM focus while the
+	 * gap is live. It lives in the BlockList, outside every block's surface, so it contributes
+	 * nothing to any block's textContent walk. Text and Enter mint a paragraph at the boundary;
+	 * every other input is refused at `beforeinput`.
 	 */
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../action-contracts';

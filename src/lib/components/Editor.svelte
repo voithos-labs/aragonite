@@ -361,10 +361,9 @@
 
 	// ── Listener ritual ─────────────────────────────────────────────────
 	//
-	// Every root listener installs on an $effect and removes on its teardown. Retyping
-	// that pair per site is how a cleanup drifts, so these two capture the target and
-	// the handler once. Typed off `Event`, not the per-target event maps: those names
-	// are type-only, and this file runs on ESLint's untyped net.
+	// Every root listener installs on an $effect and removes on its teardown; these two capture
+	// that pair once rather than per site. Typed off `Event`, not the per-target event maps: those
+	// names are type-only, and this file runs on ESLint's untyped net.
 
 	function onRoot<E extends Event>(
 		target: EventTarget,
@@ -975,10 +974,9 @@
 
 	// ── Editor-root keydown routing ──────────────────────────────────────
 	//
-	// When the caret's block windows out, focus drops to <body> and the per-block
-	// keydown handlers go silent, so this editor-scope handler reuses the same
-	// cross-block composer with the root and the focus path standing in for `getEl`
-	// (a mount guard) and `getMyPath` (a fallback).
+	// When the caret's block windows out, focus drops to <body> and the per-block keydown handlers
+	// go silent, so this editor-scope handler reuses the same cross-block composer with the root
+	// and the focus path standing in for `getEl` and `getMyPath`.
 	const editorCrossBlock = createCrossBlockHandlers({
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
@@ -1046,11 +1044,9 @@
 
 	// ── Editor-root clipboard routing ────────────────────────────────────
 	//
-	// The keydown sibling's counterpart: a Ctrl+C/X/V that Chromium retargeted to <body>
-	// because the selection found no text position to park a caret in — a cross-block
-	// endpoint, or a selected inline widget. Same containment — the arms claim only
-	// events landing on THIS root, or on the body with this instance holding the
-	// body-chord claim.
+	// The keydown sibling's counterpart: a Ctrl+C/X/V that Chromium retargeted to <body> because
+	// the selection found no text position to park a caret in. Same containment — the arms claim
+	// only events landing on THIS root, or on the body with this instance holding the chord claim.
 	const rootClipboard = createEditorRootClipboard({
 		selection: selectionState,
 		getDoc,
@@ -1144,11 +1140,10 @@
 		return () => observer.disconnect();
 	});
 
-	// The header slot's height lives outside the height model and `overflow-anchor` is
-	// off (VR-2), so a growing header would slide the document under the reader.
-	// Compensate from the SLOT's own resize, never a scroll or model change, so this
-	// composes with `correctAnchor` instead of double-correcting; a reveal already
-	// holding the scroll outranks it and is asked, not re-placed.
+	// The header slot's height lives outside the height model and `overflow-anchor` is off (VR-2),
+	// so a growing header would slide the document under the reader. Compensating from the SLOT's
+	// own resize is what composes with `correctAnchor` instead of double-correcting; a reveal
+	// already holding the scroll outranks it.
 	$effect(() => {
 		const el = headerEl;
 		const scrollEl = editorEl;
@@ -1263,11 +1258,10 @@
 	}
 
 	/**
-	 * The one restore road: resolve + clamp, reveal through the SCROLLING primitive,
-	 * place — the mount primitive can't promise a focus block IN VIEW, since overscan
-	 * keeps blocks mounted past the fold. `hold` decides whether the reveal's pin
-	 * outlives the call: a navigation holds, a consumer restore hands the viewport back
-	 * so a kept pin can't override the scroll the host writes next.
+	 * The one restore road: resolve + clamp, reveal through the SCROLLING primitive, place — the
+	 * mount primitive can't promise a focus block IN VIEW, since overscan keeps blocks mounted past
+	 * the fold. `hold` decides whether the reveal's pin outlives the call: a navigation holds, a
+	 * consumer restore hands the viewport back so a kept pin can't override the host's next scroll.
 	 */
 	function restoreThroughRevealRoad(
 		selection: EditorSelection,
@@ -1528,11 +1522,10 @@
 		position: relative;
 	}
 
-	/* Embedded flow mode: an ancestor owns the scroll, so the root drops its scrollport
-	   and the standalone-widget chrome that would box every entry of a journal. Native
-	   anchoring returns with the scrollport — the VR-2 opt-out exists for hand-corrected
-	   windowing, which never activates here, and `none` would exclude the subtree from
-	   the HOST's anchor candidates entirely. */
+	/* Embedded flow mode: an ancestor owns the scroll, so the root drops its scrollport and the
+	   standalone-widget chrome that would box every entry of a journal. Native anchoring returns
+	   with the scrollport, since VR-2's opt-out is for hand-corrected windowing (inactive here) and
+	   `none` would exclude the subtree from the HOST's anchor candidates. */
 	.editor[data-scroll-mode='host'] {
 		overflow-y: visible;
 		overflow-anchor: auto;

@@ -1,10 +1,8 @@
 /**
- * The bytes an insertion produces while marks are pending, and the proof that they mean it. A
- * mark is resolved against the caret's construct chain (live-mode.md § 4.3): a kind the chain
- * lacks WRAPS the insertion, a kind it carries escapes it — by splitting the construct
- * close-and-reopen, or by stepping outside it. Flanking rules and rule-of-three mean a splice
- * that READS right can PARSE wrong (`**hello**X** world**` renders literal stars), so no
- * candidate is returned until it has been re-parsed and checked: write bytes, let the parser decide.
+ * The bytes an insertion produces while marks are pending. A mark resolves against the caret's
+ * construct chain (live-mode.md § 4.3): a kind the chain lacks WRAPS the insertion, a kind it
+ * carries escapes it. Flanking rules mean a splice that READS right can PARSE wrong
+ * (`**hello**X** world**` renders literal stars), so every candidate is re-parsed and checked.
  */
 
 import { constructContentRange, parseInline } from '../../../core/inline';
@@ -241,19 +239,16 @@ function markOf(kind: AnyInlineKind): InlineMarkKind | null {
 	return NESTING_ORDER.find((mark) => mark === kind) ?? null;
 }
 
-/** Whether a construct's closer mirrors its opener, so a split can close and reopen it. The
- *  policy table answers, not this module's mark list: the two agree today and the rule is the
- *  table's to change. */
+/** Whether a construct's closer mirrors its opener, so a split can close and reopen it. The policy
+ *  table answers, not this module's mark list: the rule is the table's to change. */
 function isSymmetricPair(kind: AnyInlineKind): boolean {
 	return getInlineConstructPolicy(kind)?.edgeAffinity === 'symmetric-pair';
 }
 
 /**
  * EVERY construct holding `offset`, outermost first: one missing from the chain is missing from
- * `intended`, which is what lets a candidate destroy it unnoticed. Containment differs by
- * shape — a construct with children is content-INCLUSIVE, a childless one STRICT-interior, since
- * its edges are ordinary insertion points and calling them inside would decline every legitimate
- * keystroke beside a URL.
+ * `intended`, which is what lets a candidate destroy it unnoticed. A construct with children is
+ * content-INCLUSIVE, a childless one STRICT-interior, its edges being ordinary insertion points.
  */
 function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
 	const chain: ChainNode[] = [];

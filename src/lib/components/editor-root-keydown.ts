@@ -94,11 +94,10 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 	}
 
 	/**
-	 * Undo/redo, plugin-global chords and cross-block motion fire only when no block
-	 * holds focus. Unlike the search chords, these collide with a focused outside
-	 * element's native behavior (a text input owns Mod+Z), so they yield to it. The gap
-	 * caret's proxy is focused DOM of its own, so it resolves its chords at the target
-	 * (`GapCaret.svelte`) through the same `runGlobalChord`; this arm stays out of its way.
+	 * Undo/redo, plugin-global chords and cross-block motion fire only when no block holds focus:
+	 * unlike the search chords, these collide with a focused outside element's native behavior (a
+	 * text input owns Mod+Z). The gap caret's proxy is focused DOM of its own and resolves the same
+	 * chords at the target (`GapCaret.svelte`), so this arm stays out of its way.
 	 */
 	function ownsWindowedOutCaret(root: HTMLElement, active: Element | null): boolean {
 		const noElementFocused = active === null || active === root.ownerDocument.body;

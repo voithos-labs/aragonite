@@ -1,8 +1,7 @@
 /**
- * Which side of a construct's unpainted marker run a typed byte belongs to. A mode that
- * reveals no marker paints the run at zero width, so one screen position names two raw
- * offsets; the kind's `edgeAffinity` policy answers first (a link never extends), the
- * arrival affinity second. Pure over the inline tree: offsets in, one offset out.
+ * Which side of a construct's unpainted marker run a typed byte belongs to: a run painted at zero
+ * width leaves one screen position naming two raw offsets. The kind's `edgeAffinity` policy
+ * answers first (a link never extends), the arrival affinity second.
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
@@ -38,17 +37,15 @@ export function resolveEdgeSeat(
 	const side: EdgeAffinity =
 		policy.edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const offset = offsetForSide(run, side);
-	// Declining when the seat is already the caret is sound because the walk's read and
-	// Chromium's insertion canonicalize the SAME way: `seat === caret` therefore means native
-	// typing already lands where the seat wants it.
+	// The walk's read and Chromium's insertion canonicalize the same way, so `seat === caret`
+	// means native typing already lands where the seat wants it.
 	return offset === caretOffset ? null : { offset, kind: run.kind };
 }
 
 /**
- * The bytes a COMPOSITION commit should have written. An IME inserts at the DOM caret and its
- * `insertCompositionText` beforeinput is not cancelable, so the seat cannot intercept the
- * keystroke — it relocates the composed run once, on the same commit that lands it. Null
- * leaves the read as-is: no seat, or bytes that are not a plain insertion at `composedAt`.
+ * The bytes a COMPOSITION commit should have written. `insertCompositionText` beforeinput is not
+ * cancelable, so the seat cannot intercept the keystroke and relocates the composed run once, on
+ * the commit that lands it. Null leaves the read as-is.
  */
 export function relocateComposedRun(
 	before: string,
@@ -94,10 +91,8 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 }
 
 /**
- * The innermost construct marker run `offset` sits in, its own boundaries included. Innermost
- * wins: children are visited after their parent, so a nested pair claims its own edge. INSIDE
- * counts, not just the two ends — a doubled code fence is a run a caret can be handed the
- * middle of.
+ * The innermost construct marker run `offset` sits in, its own boundaries included. INSIDE counts,
+ * not just the two ends — a doubled code fence is a run a caret can be handed the middle of.
  */
 function markerRunAt(
 	offset: number,
@@ -123,18 +118,15 @@ function markerRunAt(
 }
 
 /**
- * What a CHILDLESS construct paints, as a range in the block's own bytes — an angle autolink's
- * URL between its brackets, an escape's escaped character after its backslash. Asked of the
- * render path rather than derived per kind: which bytes a construct shows is the one question
- * only the painter answers (G4.33).
+ * What a CHILDLESS construct paints, as a range in the block's own bytes. Asked of the render path
+ * rather than derived per kind: which bytes a construct shows only the painter answers (G4.33).
  */
 function paintedRange(node: InlineNode, raw: string | undefined): ContentRange | null {
 	if (raw === undefined || node.kind === 'text') return null;
 	const painted = renderedText([node], raw);
 	if (painted === '') return null;
-	// lastIndexOf, not indexOf: a self-similar shape (`\\` paints `\`) matches at its own
-	// LEADING marker too, and reading that as content seats a typed byte on the wrong side.
-	// Every childless kind paints a suffix-or-whole slice, so the last match is the content.
+	// lastIndexOf, not indexOf: a self-similar shape (`\\` paints `\`) matches at its own leading
+	// marker too, and every childless kind paints a suffix-or-whole slice.
 	const at = raw.slice(node.start, node.end).lastIndexOf(painted);
 	if (at === -1) return null;
 	return { start: node.start + at, end: node.start + at + painted.length };

@@ -1,10 +1,8 @@
 /**
- * Editor-root clipboard routing: copy/cut/paste for an event that reached no block
- * surface. A selection whose block hosts no text position leaves the native selection
- * empty, so Chromium dispatches at `document.body`, where no per-block binding sees it —
- * true of a cross-block endpoint and of a selected inline widget alike. Sibling of
- * `editor-root-keydown.ts`; reading-mode gates live at the arms each route calls into
- * (the cross-block composer, the owning block's own handlers), not here.
+ * Editor-root clipboard routing: copy/cut/paste for an event that reached no block surface. A
+ * selection whose block hosts no text position leaves the native selection empty, so Chromium
+ * dispatches at `document.body`, where no per-block binding sees it. Reading-mode gates live at
+ * the arms each route calls into, not here.
  */
 
 import { claimsBodyChord } from '../active-editor';
@@ -66,12 +64,10 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 	}
 
 	/**
-	 * Who owns an event that reached no block surface. `defaultPrevented` is the block
-	 * surfaces' receipt: every arm of their shared clipboard skeleton prevents before it
-	 * writes. The one arm that declines to the native default is a collapsed cell caret,
-	 * which is neither of the states below. Exactly one arm ever matches: the editor wires
-	 * widget selection and cross-block selection to clear each other, so the order here
-	 * decides nothing.
+	 * Who owns an event that reached no block surface. `defaultPrevented` is the block surfaces'
+	 * receipt: every arm of their shared clipboard skeleton prevents before it writes, and the one
+	 * arm that declines to native is a collapsed cell caret, which is neither state below. Order
+	 * decides nothing — widget selection and cross-block selection clear each other.
 	 */
 	function targetOf(event: ClipboardEvent, root: HTMLElement): RootClipboardTarget | null {
 		if (event.defaultPrevented) return null;

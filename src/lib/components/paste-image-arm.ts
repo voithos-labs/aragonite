@@ -1,11 +1,9 @@
 /**
- * The host image-import arm of a paste, shared by the editable-surface clipboard
- * skeleton and the editor-root fallback. It ends at "here is the markdown nobody
- * claimed"; each caller owns what happens next.
- *
- * Two ordering rules: files are read before the first await (`clipboardData` is not
- * dependably live afterwards), and the multi-block selection reaches the delete only
- * after the hook answers, so a failed import destroys nothing.
+ * The host image-import arm of a paste, shared by the editable-surface clipboard skeleton and the
+ * editor-root fallback. It ends at "here is the markdown nobody claimed"; each caller owns what
+ * happens next. Two ordering rules: files are read before the first await (`clipboardData` is not
+ * dependably live afterwards), and a multi-block selection reaches the delete only after the hook
+ * answers, so a failed import destroys nothing.
  */
 
 import type { PasteImageHook } from '../editor-keys';

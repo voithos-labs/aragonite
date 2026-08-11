@@ -1,11 +1,9 @@
 /**
  * Toggle an inline format inside a prose block. Over a SELECTION, strips flanking markers only
- * when they belong to a same-format construct enclosing it, else wraps — emphasis over `word` in
- * `**word**` nests to `***word***` rather than eating a star. At a COLLAPSED CARET, unwraps the
- * enclosing span, else removes the empty pair the previous press left, else inserts a pair and
- * lands the caret between its halves — a strategy live mode forks away from first, since a pair
- * it paints nothing for is invisible garbage (pending marks, live-mode.md § 4.3). Every write
- * clamps to the CONTENT range: a marker spliced into `# ` or a setext underline changes the kind.
+ * when they belong to a same-format construct enclosing it, else wraps. At a COLLAPSED CARET,
+ * unwraps the enclosing span, else removes the empty pair the previous press left, else inserts a
+ * pair — a strategy live mode forks away from first (pending marks, live-mode.md § 4.3). Every
+ * write clamps to the CONTENT range: a marker in `# ` or a setext underline changes the kind.
  */
 
 import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
@@ -157,10 +155,9 @@ function spanOf(node: InlineNode): FormatSpan | null {
 }
 
 /**
- * The innermost construct of this kind whose CONTENT covers `[start, end]`. Innermost, so
- * `***x***` toggled to strong drops the strong layer and leaves emphasis standing; and needs the
- * FULL-context parse, since `*word*` carved from `**word**` and from `***word***` read
- * identically in isolation but only the latter sits inside an emphasis span.
+ * The innermost construct of this kind whose CONTENT covers `[start, end]`, off the FULL-context
+ * parse: `*word*` carved from `**word**` and from `***word***` read identically in isolation, but
+ * only the latter sits inside an emphasis span.
  */
 function enclosingSpanOf(
 	inlines: readonly InlineNode[],

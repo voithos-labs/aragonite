@@ -7,14 +7,13 @@
 		LINK_CARD_URL
 	} from '../../a11y-strings';
 
-	// Anchored chrome over one link construct. Enter commits and the trap keeps Tab inside once
-	// focus is here; Escape is the host's, since it must also close a card the document still has
-	// the caret for. `Mod+K` enters it from the keyboard.
+	// Anchored chrome over one link construct. Enter commits; Escape is the host's, since it must
+	// also close a card the document still has the caret for.
 	//
-	// `role="dialog"` WITHOUT `aria-modal`: a click leaves the card beside a live caret, and the
-	// document behind stays the user's to type in — which is exactly what aria-modal would tell a
-	// screen reader is false. The trap engages on ENTRY (Mod+K, or focus reaching the field), where
-	// the claim is true, and Escape returns the caret it borrowed.
+	// `role="dialog"` WITHOUT `aria-modal`: a click leaves the card beside a live caret and the
+	// document behind stays the user's to type in, which is what aria-modal would tell a screen
+	// reader is false. The trap engages on ENTRY (Mod+K, or focus reaching the field), where the
+	// claim is true, and Escape returns the caret it borrowed.
 	let {
 		url,
 		canWrite,
@@ -40,10 +39,10 @@
 	} = $props();
 
 	let draft = $state(untrack(() => url));
-	// The card deliberately OPENS on a blocked link so the URL can be repaired; what it may not do
-	// is hand that URL onward. A consumer's `onLinkActivate` reaches a shell's own opener, and this
-	// is the only door into it whose URL the user typed a moment ago rather than the document's.
-	// An empty draft resolves as a relative URL — a live Open with nowhere to go — so it declines.
+	// The card OPENS on a blocked link so the URL can be repaired, but may not hand that URL
+	// onward: `onLinkActivate` reaches a shell's own opener, and this is the only door into it
+	// carrying a URL the user typed rather than the document's. An empty draft resolves as a
+	// relative URL, so it declines too.
 	const openable = $derived(draft.trim() === '' ? undefined : resolveHref(draft));
 	let seed = $state(untrack(() => url));
 	let cardEl: HTMLDivElement | undefined = $state();

@@ -61,10 +61,9 @@ export interface BlockEditCore {
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	return {
 		async split(i, offset) {
-			// Offset 0 is not special: empty block above, content below, caret on the
-			// content. A trivia-bump short-circuit here made Enter at block start a no-op.
-			// The landing is the primitive's answer, not `i + 1`: a plural first half
-			// pushes the second half further down (GH #98).
+			// Offset 0 is not special: empty block above, content below, caret on the content. The
+			// landing is the primitive's answer, not `i + 1` — a plural first half pushes the
+			// second half further down (GH #98).
 			let secondHalfIndex = i + 1;
 			await scope.commit({
 				snapshot: { index: i, offset },

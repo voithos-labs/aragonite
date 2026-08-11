@@ -111,11 +111,9 @@ export function createBlockEditActions(
 				return;
 			}
 
-			// Routine typing: an out-of-ceremony in-place write, so copy the node first
-			// when a snapshot shares it. The debounced snapshot above holds the undo seam.
-			// `sharing` also owns the separator settle, which writes a SIBLING's bytes.
-			// Slotless parent on purpose: the preview already routed every suffix
-			// materialization into the ceremony, and no slot means none can happen here.
+			// Routine typing: an out-of-ceremony in-place write, so copy the node first when a
+			// snapshot shares it. Slotless parent on purpose — the preview already routed every
+			// suffix materialization into the ceremony, so none can happen here.
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
 			performUpdate(
 				{ children: deps.doc.children, ownerKind: undefined, owner: undefined },

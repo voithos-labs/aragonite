@@ -1,9 +1,8 @@
 /**
- * The single caret-edge dispatch (G4.12): one plain Backspace/Delete or printable key
- * at a caret edge in a prose block is classified into a construct class and resolved
- * against that class's declarative edge policy, never native contenteditable mutation,
- * which would silently corrupt the atomic bytes it stands for. Classes are tried CST
- * widget → decoration island → ambient marker, observable at a caret against two.
+ * The single caret-edge dispatch (G4.12): a plain Backspace/Delete or printable key at a caret
+ * edge in a prose block resolves against its construct class's declarative edge policy, never
+ * native contenteditable mutation, which would corrupt the atomic bytes it stands for. Classes are
+ * tried CST widget → decoration island → ambient marker, observable at a caret against two.
  */
 
 import type { BlockEditActions } from '../../../action-contracts';
@@ -366,10 +365,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// ── Hidden construct edge (the destructive arm) ────────────────────────────
 
 	/**
-	 * A plain Backspace/Delete against an inline construct's unpainted delimiter run. The byte
-	 * native would take there is one the reader never saw, so the rewrite takes the adjacent
-	 * CONTENT character instead — and the delimiters it leaves enclosing nothing with it, since a
-	 * pair around no content is invisible in a mode that paints neither (live-mode.md § 4.4).
+	 * A plain Backspace/Delete against an inline construct's unpainted delimiter run: the rewrite
+	 * takes the adjacent CONTENT character instead of a byte the reader never saw, plus the
+	 * delimiters that leaves enclosing nothing (live-mode.md § 4.4).
 	 */
 	function handleConstructEdgeDelete(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (e.key !== 'Backspace' && e.key !== 'Delete') return false;
@@ -404,10 +402,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// ── Pending marks (the toggle seat) ────────────────────────────────────────
 
 	/**
-	 * A printable key while a collapsed-caret toggle has marks pending. The marks are the newer
-	 * instruction about these same bytes, so they outrank the arrival side the seat below reads
-	 * (live-mode.md § 4.2) and this arm runs first: the byte is written wrapped in the marks the caret's
-	 * chain lacks, and escaped out of the constructs it carries, in one commit.
+	 * A printable key while a collapsed-caret toggle has marks pending. Marks are the newer
+	 * instruction about the same bytes, so they outrank the arrival side the seat below reads
+	 * (live-mode.md § 4.2) and this arm runs first.
 	 */
 	function handlePendingMarks(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (deps.isReading()) return false;
@@ -437,10 +434,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	// ── Hidden construct edge (the typing seat) ────────────────────────────────
 
 	/**
-	 * A printable key at an inline construct's unpainted delimiter run. The DOM caret cannot
-	 * carry the answer — Chromium canonicalizes a collapsed caret upstream across a
-	 * non-rendered run, so seating one past the run is normalized away before the insertion —
-	 * so the byte is written through the CST at the offset the policy and arrival name.
+	 * A printable key at an inline construct's unpainted delimiter run. Chromium canonicalizes a
+	 * collapsed caret upstream across a non-rendered run, so the DOM caret cannot carry the answer
+	 * and the byte is written through the CST at the offset the policy and arrival name.
 	 */
 	function handleConstructSeat(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;

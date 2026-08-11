@@ -1,10 +1,9 @@
 /**
- * Shared editable-surface plumbing for the core contenteditable blocks
- * (TextEditableBlock, CodeBlock, TableCellBlock) and the `editable-leaf` seam. Owns the
- * cross-block wiring, the SharedKeydownContext, the BlockComponent surface methods, and
- * the input/composition + clipboard skeletons. Each consumer supplies a CursorBackend
- * for its own coordinate system plus the input commit; mutable block state crosses the
- * seam as live thunks, never as snapshots.
+ * Shared editable-surface plumbing for the core contenteditable blocks (TextEditableBlock,
+ * CodeBlock, TableCellBlock) and the `editable-leaf` seam: cross-block wiring, the
+ * SharedKeydownContext, the BlockComponent surface methods, the input/composition + clipboard
+ * skeletons. Each consumer supplies a CursorBackend for its own coordinate system plus the input
+ * commit; mutable block state crosses the seam as live thunks, never as snapshots.
  */
 
 import { tick } from 'svelte';
@@ -241,11 +240,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	// ── BlockComponent surface ────────────────────────────────────────────────
 
 	/**
-	 * Every caret door lands here, so every offset — sentinel or numeric — clamps into the
-	 * landable range: a seat behind a hidden marker run hands the typing seat a position no
-	 * arrow walk produces, where the next byte joins a construct the arrival was outside of
-	 * (live-mode.md § 4.2). Where the markers paint, the clamp is identity. The one exception
-	 * is CURSOR_EXACT_START, whose own contract says why.
+	 * Every caret door lands here, so every offset — sentinel or numeric — clamps into the landable
+	 * range: a seat behind a hidden marker run is a position no arrow walk produces, where the next
+	 * byte joins a construct the arrival was outside of (live-mode.md § 4.2). Where the markers
+	 * paint, the clamp is identity; CURSOR_EXACT_START is the one exception.
 	 */
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
@@ -261,9 +259,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	const focus = placeCaret(deps.selection, parkCaret);
 
-	// The vertical door: it resolves by PIXEL and reaches `setRaw` on its own path, so it does
-	// NOT inherit parkCaret's sentinel rule — a column landing already stops on a painted glyph,
-	// and a future rewrite that routes it through an offset must clamp it here itself.
+	// The vertical door resolves by PIXEL and reaches `setRaw` on its own path, so it does NOT
+	// inherit parkCaret's sentinel rule: a column landing already stops on a painted glyph.
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		const el = deps.getEl();
 		if (!el) return;
@@ -388,11 +385,10 @@ export interface RevealFold {
 // ── Clipboard skeleton ──────────────────────────────────────────────────────
 
 /**
- * The ordered copy / cut / paste skeleton shared by the four editable surfaces, owning
- * the arms that must stay in lockstep (reading gate, cross-block write, reveal fold,
- * image arm) so no surface can skip or resequence one. Paste must prevent before its
- * first await, or native paste fires while the fold settles and injects DOM the CST
- * never sees. Reads and writes use the event's synchronous `clipboardData`;
+ * The ordered copy / cut / paste skeleton shared by the four editable surfaces, owning the arms
+ * that must stay in lockstep (reading gate, cross-block write, reveal fold, image arm) so no
+ * surface can skip or resequence one. Paste prevents before its first await, or native paste fires
+ * while the fold settles. Reads and writes go through the event's synchronous `clipboardData`;
  * `navigator.clipboard` is permission-gated and unreliable in Tauri's wry webview.
  */
 export interface ClipboardSurfaceDeps {

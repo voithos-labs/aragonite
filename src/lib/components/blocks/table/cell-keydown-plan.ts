@@ -1,9 +1,8 @@
 /**
- * Pure keydown → plan for a table cell's caret-dependent navigation: cell hop at a text
- * boundary, row hop, table exit, the row-appending end of Tab/Enter. Chords are keymap
- * bindings the command dispatcher claims first, so the branches below ignore Alt and
- * Mod: an unclaimed modified arrow must still navigate, and answering `native` hands it
- * to the prose prelude, which moves among siblings by index — the wrong axis for a cell.
+ * Pure keydown → plan for a table cell's caret-dependent navigation: cell hop at a text boundary,
+ * row hop, table exit, the row-appending end of Tab/Enter. The branches ignore Alt and Mod, which
+ * the command dispatcher claims first: an unclaimed modified arrow must still navigate, and
+ * `native` hands it to the prose prelude, which moves among siblings by index.
  */
 import { cellAbove, cellBelow, nextCell, prevCell, type CellMove } from './table-navigation';
 

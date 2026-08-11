@@ -1,9 +1,7 @@
 /**
- * Pure decisions that keep an edit off the fence lines of a fenced code block.
- * The fences are structure, not content: rewriting either leaves an unclosed fence
- * that absorbs the rest of the document at the next parse. Editable content is the
- * body plus the opener's info string. Display-text coordinates throughout (raw
- * without its trailing line ending); mirrors `code-fence-exit.ts`.
+ * Pure decisions that keep an edit off the fence lines of a fenced code block: rewriting either
+ * fence leaves an unclosed one that absorbs the rest of the document at the next parse. Editable
+ * content is the body plus the opener's info string. Display-text coordinates throughout.
  */
 
 import type { NodeView } from '../../../core/node-views';
@@ -65,11 +63,9 @@ export function clampEnterOffsetToBody(node: NodeView, offset: number): number {
 }
 
 /**
- * Clamp a whole range onto the body, unconditionally — for gestures that rewrite
- * entire LINES (Tab indent, Shift+Tab dedent). A tab on the closer pushes it past
- * GFM's 3-space limit so it stops closing; a tab on the opener demotes the block to
- * indented code. Gestures rewriting an arbitrary RANGE use `fenceEditSpan` instead,
- * which clamps only what crosses.
+ * Clamp a whole range onto the body, unconditionally — for gestures that rewrite entire LINES (Tab
+ * indent, Shift+Tab dedent), where a tab on the closer pushes it past GFM's 3-space limit and one
+ * on the opener demotes the block. Arbitrary RANGE gestures use `fenceEditSpan` instead.
  */
 export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
 	const { start: lo, end: hi } = bodyWindow(node);
@@ -78,11 +74,10 @@ export function clampRangeToBody(node: NodeView, range: CodeRange): CodeRange {
 }
 
 /**
- * Does a pending edit reach out of the editable content — the body, plus the opener's
- * info string? Every other offset on the two fence lines is one keystroke from
- * swallowing all following blocks into the code node at the next parse. An UNCLOSED
- * fence is the exception: with no closer to orphan, its marker run is content too, so
- * demoting the block is how a just-typed ` ``` ` gets undone.
+ * Does a pending edit reach out of the editable content — the body, plus the opener's info string?
+ * Every other offset on the fence lines is one keystroke from swallowing the following blocks into
+ * the code node. An UNCLOSED fence is the exception: with no closer to orphan, its run is content
+ * too, so demoting the block is how a just-typed ` ``` ` gets undone.
  */
 export function crossesFenceBoundary(node: NodeView, range: CodeRange): boolean {
 	const { openerContent, body } = fenceRegions(node);
@@ -113,10 +108,9 @@ export function clampCaretToBody(node: NodeView, offset: number): number {
 }
 
 /**
- * The refusal rule shared by every mutating gesture here: a range that reached
- * structure and kept no body after the clamp is declined, not re-sited to a body edge
- * the user never pointed at. Paste consults it directly (it splices through the paste
- * tree-op, not `computeFenceRangedEdit`), so the rule stays one predicate.
+ * The refusal rule shared by every mutating gesture here: a range that reached structure and kept
+ * no body after the clamp is declined, not re-sited to a body edge the user never pointed at.
+ * Paste consults it directly, since it splices through the paste tree-op.
  */
 export function isStructureOnlyRange(node: NodeView, range: CodeRange): boolean {
 	const ordered = orderedRange(range);
@@ -185,10 +179,9 @@ function fenceRegions(node: NodeView): FenceRegions {
 }
 
 /**
- * Past the opener's indentation and marker run — where the info string starts. The
- * run's LENGTH is measured rather than read from `fenceLength`, so an opener a paste
- * bumped to four markers measures as four. Past GFM's 3-space indent limit there is
- * no info string, and every offset on the line falls on the structure side.
+ * Past the opener's indentation and marker run — where the info string starts. The run's LENGTH is
+ * measured rather than read from `fenceLength`, so an opener a paste bumped to four markers
+ * measures as four. Past GFM's 3-space indent limit there is no info string at all.
  */
 function markerRunEnd(openerLine: string, marker: string): number {
 	const MAX_INDENT = 3;

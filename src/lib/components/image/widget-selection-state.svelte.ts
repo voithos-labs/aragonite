@@ -2,10 +2,9 @@
 // selection; `select` fires `onSelect` so the editor shell can clear the others.
 
 export interface WidgetTarget {
-	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a
-	// popover commit must target the image it opened on. Safe to hold because widget
-	// selection is cleared on every structural edit and navigation, so it can never
-	// outlive a shift of its own path.
+	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a popover commit
+	// must target the image it opened on. Safe to hold because widget selection clears on every
+	// structural edit and navigation, so it cannot outlive a shift of its own path.
 	paragraphPath: number[];
 	sourceStart: number;
 	// The caret's raw offset just before widget selection took over; drives the undo

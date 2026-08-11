@@ -1,9 +1,8 @@
 /**
- * preview-inline's construct-reveal trigger: an inline construct's markers stay
- * CSS-hidden until the caret enters its INCLUSIVE `[start, end]`, revealing the whole
- * chain of enclosing constructs. Reveal is a class flip on `data-construct-*` spans —
- * the DOM text never changes, so raw offsets survive it, and the affinity contract is
- * "raw offset + inclusive edges" (spec: the preview-inline-affinity e2e requirement).
+ * preview-inline's construct-reveal trigger: an inline construct's markers stay CSS-hidden until
+ * the caret enters its INCLUSIVE `[start, end]`, revealing the whole enclosing chain. Reveal is a
+ * class flip on `data-construct-*` spans, so the DOM text never changes and raw offsets survive it
+ * (spec: the preview-inline-affinity e2e requirement).
  */
 
 import { tick } from 'svelte';

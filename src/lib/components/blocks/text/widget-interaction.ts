@@ -123,11 +123,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	// ── Reveal-source editing ──────────────────────────────────────────────────
-	// A reveal-source widget swaps its rendered island for editable source. The edit is
-	// ephemeral DOM (`onInput` stays suppressed) and re-renders on commit rather than per
-	// keystroke, so the whole edit lands as ONE undo entry. The lifecycle is one record —
-	// null = idle — and every exit funnels its state-clear through `resetReveal`, so a new
-	// exit only decides how the widget is restored, never which fields to hand-clear.
+	// A reveal-source widget swaps its rendered island for editable source. The edit is ephemeral
+	// DOM (`onInput` stays suppressed) and re-renders on commit, so it lands as ONE undo entry.
+	// Every exit funnels its state-clear through `resetReveal`, so a new exit decides only how the
+	// widget is restored.
 	interface RevealState {
 		kernel: SourceReveal;
 		/** Trailing-edge fallback for the commit caret when the source node is gone. */

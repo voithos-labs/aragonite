@@ -191,10 +191,9 @@
 	}
 
 	/**
-	 * The block's ONE display-commit door: no gesture calls `updateBlockContent`
-	 * directly (pinned by `lint/code-commit-funnel`). The write seam sits inside rather
-	 * than at each caller, so a gesture written tomorrow gets fence reconciliation by
-	 * construction. Returns where `caret` lands in the committed bytes.
+	 * The block's ONE display-commit door: no gesture calls `updateBlockContent` directly (pinned
+	 * by `lint/code-commit-funnel`). The write seam sits inside rather than at each caller, so
+	 * every gesture gets fence reconciliation by construction.
 	 */
 	function commitDisplay(display: string, undoAnchor: number, caret: number): number {
 		const written = reconcileFenceWrite({
@@ -369,10 +368,10 @@
 	}
 
 	/**
-	 * The text each claimed input type writes over its span. The posture, not a list:
-	 * only a payload readable off the event or mintable here is re-sited; every other
-	 * type is REFUSED (null: prevented, nothing committed). Text riding a `dataTransfer`
-	 * would otherwise reach `parse()` without the sanctioned paste transforms (G4.11).
+	 * The text each claimed input type writes over its span: only a payload readable off the event
+	 * or mintable here is re-sited, every other type is REFUSED (null: prevented, nothing
+	 * committed). Text riding a `dataTransfer` would reach `parse()` without the paste transforms
+	 * (G4.11).
 	 */
 	function rangedEditInsertion(e: InputEvent, span: CodeRange): string | null {
 		if (e.inputType.startsWith('delete')) return '';
@@ -546,9 +545,8 @@
 		else focusActions.moveFocus(index + 1, 'start');
 	}
 
-	// Leaving an unclosed fence downward mints its closer, so save→reload no longer
-	// lazy-absorbs the trailing blocks into the open fence. Closer and fresh paragraph
-	// land as ONE replaceBlock commit, so a single undo restores both.
+	// Leaving an unclosed fence downward mints its closer, keeping save→reload from lazy-absorbing
+	// the trailing blocks into it. Closer and fresh paragraph land as ONE replaceBlock commit.
 	function closeUnclosedFenceAndDescend(closedDisplay: string): void {
 		const meta = metadataOf(node, 'fencedCode');
 		const lineEnding = trailingLineEnding(node.raw);

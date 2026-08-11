@@ -1,9 +1,8 @@
 /**
- * What a native single-block selection edit writes in live mode. The range the user replaced can
- * span delimiter runs they never saw, and contenteditable takes those literally — the one
- * destructive path with no seam offsets of its own (live-mode.md § 4.5). Re-expressed as a JOIN of what
- * survives on either side, it crosses the same seam every other one does, and the typed bytes
- * land where the two sides now meet.
+ * What a native single-block selection edit writes in live mode. The replaced range can span
+ * delimiter runs the user never saw and contenteditable takes those literally, so the edit is
+ * re-expressed as a JOIN of what survives on either side and crosses the shared seam
+ * (live-mode.md § 4.5).
  */
 
 import type { NodeView } from '../../../core/node-views';

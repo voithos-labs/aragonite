@@ -149,10 +149,9 @@
 	// ── The cell's write door ───────────────────────────────────────────────
 	//
 	// Every write of this cell's raw goes through `blockEdit`; the escape is the kind's
-	// (`normalizeRawWrite`, at the write sink). The caret half stays here: `caretAfter`
-	// addresses the text the caller wrote, so the sink's backslashes move it; `caretBefore`
-	// addresses the already-escaped pre-write bytes and stays unmapped (#104). `parkCursor`
-	// is the second door; the trailing ending is stripped, the prose factories append one.
+	// (`normalizeRawWrite`, at the write sink). The caret half stays here: `caretAfter` addresses
+	// the text the caller wrote, so the sink's backslashes move it; `caretBefore` addresses the
+	// already-escaped pre-write bytes and stays unmapped (#104).
 	const blockEdit: BlockEditActions = {
 		...parentBlockEdit,
 		updateBlockContent(i, text, caretBefore, caretAfter) {
@@ -562,9 +561,8 @@
 	// only in where the offset comes from; both guard `el` before calling.
 	function cellPlanState(offset: number): CellKeyState {
 		// Zero-ambient cell: the walk offsets ARE the raw offsets the plan compares. Deliberately
-		// unguarded by mode, unlike the prose bounds: a cell's hop follows what is ON SCREEN, so a
-		// run the mode hides is unlandable and one it reveals is landable — in preview-inline that
-		// makes the bound follow the proximity reveal, which is the point.
+		// unguarded by mode, unlike the prose bounds — a cell's hop follows what is ON SCREEN, so
+		// the bound tracks preview-inline's proximity reveal.
 		const bounds = landableDomTextBounds(el!);
 		return {
 			rowIdx,
@@ -919,11 +917,10 @@
 
 	// ── Right-click menu clipboard (no ClipboardEvent) ──────────────────────
 	//
-	// Copy/Cut reuse the native copy path — restoring the range and firing
-	// `execCommand('copy')` keeps the clipboard write synchronous, which
-	// `navigator.clipboard.writeText` isn't (and Tauri needs). `execCommand('cut')` can't
-	// be reused because onCut's write trails an await, so Cut copies then deletes. Paste
-	// has no sync equivalent and reads through `navigator.clipboard`.
+	// Copy/Cut restore the range and fire `execCommand('copy')`, keeping the clipboard write
+	// synchronous the way Tauri needs and `navigator.clipboard.writeText` isn't. `execCommand('cut')`
+	// is unusable because onCut's write trails an await, so Cut copies then deletes; paste has no
+	// sync equivalent at all.
 
 	function getSelectionOffsets(): { start: number; end: number } | null {
 		const range = cursor.getRawSelection();

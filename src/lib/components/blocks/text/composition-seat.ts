@@ -1,10 +1,7 @@
 /**
- * One composition's worth of seat inputs. An IME's `insertCompositionText` beforeinput is not
- * cancelable, so a composed run cannot be intercepted at the keystroke the way a typed byte
- * is: it is relocated once, on the commit `compositionend` drives. Both inputs the relocation
- * needs — the arrival side and the pending marks — belong to the caret the composition OPENED
- * at, and the commit's own affinity re-arm has spent them by the time the run arrives, so the
- * window is captured here at `compositionstart`.
+ * One composition's worth of seat inputs, captured at `compositionstart`. Both inputs the commit's
+ * relocation needs — the arrival side and the pending marks — belong to the caret the composition
+ * OPENED at, and the affinity re-arm has spent them by the time the composed run arrives.
  */
 
 import type { InlineNode } from '../../../core/nodes';

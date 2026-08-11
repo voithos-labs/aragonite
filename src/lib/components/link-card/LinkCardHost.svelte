@@ -82,8 +82,7 @@
 		});
 	});
 
-	// An outside press is a non-destructive dismiss and leaves the caret where it just landed —
-	// the search bar's blur policy, and TableActionMenu's split between Escape and a click away.
+	// An outside press is a non-destructive dismiss and leaves the caret where it just landed.
 	// Escape is document-level because the opening click leaves the caret in the DOCUMENT: the
 	// card is chrome beside a live caret until the user steps into it, and both states close.
 	$effect(() => {
