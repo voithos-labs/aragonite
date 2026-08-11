@@ -89,7 +89,7 @@ export function chromeAwareRangeDelete(
 			// The wall keeps its bytes literal: a chrome end truncates by raw write.
 			endBlock.raw = endBlock.raw.slice(endOffset) || trailingLineEnding(endBlock.raw);
 		} else {
-			// A prose tail crosses the unpaired-run cleanup (GH #133).
+			// A prose tail crosses the unpaired-run cleanup.
 			const endTail = cleanTruncatedProse(endBlock, 'tail', endOffset, live).raw;
 			installTruncatedEndpoint(doc, end.path, reparseTruncatedEndpoint(endBlock, endTail), sharing);
 		}
@@ -99,7 +99,7 @@ export function chromeAwareRangeDelete(
 
 	// Start truncates in place; every deletion sits after it in doc order, so start.path is
 	// still live. The chrome wall keeps its bytes literal; a prose head crosses the
-	// unpaired-run cleanup (GH #133).
+	// unpaired-run cleanup.
 	const startBlock = startChain[startChain.length - 1];
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
 	const head = startIsChrome

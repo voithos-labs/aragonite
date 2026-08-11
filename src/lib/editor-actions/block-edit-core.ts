@@ -63,7 +63,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		async split(i, offset) {
 			// Offset 0 is not special: empty block above, content below, caret on the content. The
 			// landing is the primitive's answer, not `i + 1` — a plural first half pushes the
-			// second half further down (GH #98).
+			// second half further down.
 			let secondHalfIndex = i + 1;
 			await scope.commit({
 				snapshot: { index: i, offset },

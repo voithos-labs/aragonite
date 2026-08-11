@@ -377,7 +377,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!el || !revealsNoMarkers(el)) return false;
 		// The landable start is visual column 0, where Backspace is a block gesture (merge or
 		// inert): an atomic run straddling the start would otherwise take the first visible
-		// glyph forward (GH #108).
+		// glyph forward.
 		if (e.key === 'Backspace') {
 			const bounds = landableRawBounds(el, deps.getAmbientLength());
 			if (bounds && caretOffset <= bounds.start) return false;

@@ -151,7 +151,7 @@
 	// Every write of this cell's raw goes through `blockEdit`; the escape is the kind's
 	// (`normalizeRawWrite`, at the write sink). The caret half stays here: `caretAfter` addresses
 	// the text the caller wrote, so the sink's backslashes move it; `caretBefore` addresses the
-	// already-escaped pre-write bytes and stays unmapped (#104).
+	// already-escaped pre-write bytes and stays unmapped.
 	const blockEdit: BlockEditActions = {
 		...parentBlockEdit,
 		updateBlockContent(i, text, caretBefore, caretAfter) {

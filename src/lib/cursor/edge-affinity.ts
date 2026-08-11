@@ -82,7 +82,7 @@ export type EdgeAffinityAction = EdgeAffinity | 'preserve' | 'reset';
  *  testable without a DOM or a state instance. */
 export function classifyArrivalKey(key: string, metaKey = false): EdgeAffinityAction {
 	// macOS Cmd+Arrow is the line extreme — a seat, not a step, so it takes Home/End's
-	// construct-relative answer. Windows/Linux never deliver meta+arrow to the page (GH #124).
+	// construct-relative answer. Windows/Linux never deliver meta+arrow to the page.
 	if (metaKey && (key === 'ArrowLeft' || key === 'ArrowRight')) return 'outside';
 	// A step stops on the side of the run it approached from, so one press never changes which
 	// construct the caret is in: forward keys reach the near side, backward keys the far one.

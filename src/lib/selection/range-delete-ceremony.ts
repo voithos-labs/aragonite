@@ -84,7 +84,7 @@ export function deleteSubtreesIdentityGated(
 				clearRedundantSeparator(parent, index, sharing);
 				if (deletedBlank) restoreSeparatorAfterBlank(parent, index, sharing);
 				// The deletion can leave a blank against lines it no longer stands beside
-				// (a wrap's chrome, the run head) — re-judge its run (GH #101).
+				// (a wrap's chrome, the run head) — re-judge its run.
 				else settleSeparatorOnBlank(parent, index, sharing);
 			}
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
@@ -141,7 +141,7 @@ export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[
 	}
 	const cloned = reparsed.children.slice();
 	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
-	// The peeled trailing blank line has no follower slot here, so it stays in raw (GH #97).
+	// The peeled trailing blank line has no follower slot here, so it stays in raw.
 	cloned[cloned.length - 1].raw += reparsed.suffix;
 	return cloned;
 }

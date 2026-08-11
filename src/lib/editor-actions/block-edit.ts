@@ -83,7 +83,7 @@ export function createBlockEditActions(
 					op: { kind: 'updateContent', detail: { length: text.length } },
 					// ownerKind undefined is the ANSWER, not an omission: the document root
 					// imposes no body grammar. The suffix rides as accessors so the tail
-					// settle folds against the live document (GH #129).
+					// settle folds against the live document.
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
 						change = performUpdate(

@@ -85,7 +85,7 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 function firstTextNodeAfter(node: Node): Text | null {
 	let sibling = node.nextSibling;
 	while (sibling) {
-		// An atomic widget stands for raw bytes, so text past it is not raw 0 (GH #115).
+		// An atomic widget stands for raw bytes, so text past it is not raw 0.
 		if (isAtomicInlineWidget(sibling)) return null;
 		const text = firstTextDescendant(sibling);
 		if (text) return text;

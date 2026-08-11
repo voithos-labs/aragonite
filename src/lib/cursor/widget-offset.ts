@@ -294,7 +294,7 @@ export function clampToLandableRaw(el: HTMLElement, offset: number, ambientLengt
 /**
  * Whether the first landable position abuts an opaque island (an atomic widget, a decoration
  * island) instead of sitting in text: no text node holds it, so the engine's Home seats the
- * caret past the island and the block's start needs an owned door (GH #115).
+ * caret past the island and the block's start needs an owned door.
  */
 export function landableStartAbutsIsland(container: ParentNode): boolean {
 	for (const seg of landingSegments(container, markerHidingMode(container))) {
@@ -453,7 +453,7 @@ function* landingSegments(
 	let run: Extract<LandingSegment, { kind: 'opaque' }> | null = null;
 	for (const seg of walkSegments(root, mode)) {
 		// A zero-contribution node cannot end a run: Chromium leaves empty text nodes between
-		// spans, and splitting the run there would mint a landable seam nothing paints (GH #126).
+		// spans, and splitting the run there would mint a landable seam nothing paints.
 		if (run && seg.len === 0) continue;
 		if (seg.kind === 'text' && seg.hiddenRoot !== null) {
 			if (run) {

@@ -21,7 +21,7 @@ const REPETITIONS = 16;
 export interface ScanGrowth {
 	/** Best-of wall time at [N, 4N], milliseconds. */
 	times: [number, number];
-	/** time(4N) / time(N) — near 4 when bounded, near 16 when quadratic. */
+	/** time(4N) / time(N). */
 	ratio: number;
 }
 
