@@ -1,10 +1,9 @@
 /**
- * Caret placement from a viewport point: the dead-space click (the root's or a block list's own
- * padding beside a block, and the area below the last one) and the public `placeCaretAtPoint`,
- * which shares the walk under the gesture guards. A y belonging to no band may name an eligible
- * gap boundary; otherwise clamp the point into the nearest block's box and let `blockAtPoint`
- * resolve the leaf under it, so nothing here knows a block kind. "Below the last block" means the
- * last MOUNTED one, since the bands come from the live DOM, which under VR is the window.
+ * Caret placement from a viewport point: the dead-space click (padding beside a block, the area
+ * below the last one) and the public `placeCaretAtPoint`, which shares the walk under the gesture
+ * guards. A y belonging to no band may name an eligible gap boundary; otherwise clamp into the
+ * nearest block's box and let `blockAtPoint` resolve the leaf, so nothing here knows a block kind.
+ * "Below the last block" means the last MOUNTED one — the bands come from the live DOM.
  */
 
 import type { BlockComponent } from '../block-component';

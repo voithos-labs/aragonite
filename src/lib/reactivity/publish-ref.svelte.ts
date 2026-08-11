@@ -69,12 +69,11 @@ export interface RevealChildOptions<T> {
 const MAX_MOUNT_REWAITS = 64;
 
 /**
- * Bring child `index` into its window before a caller reads its ref: drop a stale
- * off-window ref, scroll it in, and await its mount. Shared by the canonical container
- * reveal and TableBlock's hand-rolled one, so the "is this slot a live mount" gate has one
- * home. Termination (VR-5): only a mount at this index in THIS scope wakes the wait, so a
- * windowing caller proves membership first and a non-windowing one races each wait against
- * a tick; both degrade to operating on path state rather than parking forever.
+ * Bring child `index` into its window before a caller reads its ref: drop a stale off-window ref,
+ * scroll it in, and await its mount. Shared by the canonical container reveal and TableBlock's
+ * hand-rolled one, so the "is this slot a live mount" gate has one home. Termination (VR-5): only
+ * a mount at this index in THIS scope wakes the wait, so a windowing caller proves membership
+ * first and a non-windowing one races each wait against a tick, rather than parking forever.
  */
 export async function revealChildOrWait<T>(
 	index: number,

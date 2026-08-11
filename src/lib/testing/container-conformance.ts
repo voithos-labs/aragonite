@@ -1,10 +1,9 @@
 /**
- * G4.3 — the container conformance kit, published at `aragonite/testing`. Register your
- * kind, then point the kit at it with fixtures plus a coverage matrix declaring per
- * invariant whether it asserts or is excused (never a silent skip; a thin reason fails the
- * run). Which answer a container owes each cell is in the plugin guide's
- * "Conformance-testing a container". Asserted checks drive the real per-kind action path,
- * but stop at the default nested-action bundle and at anything needing a DOM.
+ * G4.3 — container conformance kit, published at `aragonite/testing`. Register your kind, then
+ * point the kit at it with fixtures plus a coverage matrix declaring per invariant whether it
+ * asserts or is excused (never a silent skip; a thin reason fails the run). Which answer a
+ * container owes each cell is in the plugin guide's "Conformance-testing a container". Asserted
+ * checks drive the real per-kind action path, stopping at the nested-action default and at a DOM.
  */
 
 import type { ContainerEditActions } from '../action-contracts';

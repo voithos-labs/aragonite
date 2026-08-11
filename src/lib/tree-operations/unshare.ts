@@ -166,12 +166,11 @@ export interface ContainerReclassification {
 }
 
 /**
- * Rebuild raws along an owned spine chain innermost-first, re-deriving each container's
- * kind; chain- rather than path-based so it survives sibling-index shifts. Re-derivation
- * costs a whole-container parse, so it is gated on the opener line changing AND
- * `lineOpensAs` no longer naming the current kind — a positive identification, so a
- * declining opener parses rather than eliding a real kind change
- * (`test/tree-operations/opener-verdict-agreement`).
+ * Rebuild raws along an owned spine chain innermost-first, re-deriving each container's kind;
+ * chain- rather than path-based so it survives sibling-index shifts. Re-derivation costs a
+ * whole-container parse, so it is gated on the opener line changing AND `lineOpensAs` not naming
+ * the current kind — a positive identification, so a declining opener parses rather than eliding
+ * a real kind change (`test/tree-operations/opener-verdict-agreement`).
  */
 export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,

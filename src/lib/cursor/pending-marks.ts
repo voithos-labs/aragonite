@@ -1,10 +1,9 @@
 /**
  * Pending marks: the inline constructs a collapsed-caret toggle promises the NEXT insertion,
- * relative to the caret's construct chain — a kind already in the chain is a removal, one
- * absent is an application. Live mode paints no delimiter, so materializing an empty pair in
- * the bytes would leave invisible `****` behind on an abandoned toggle; the promise is held
- * here instead and spent when bytes arrive. SET by the toggle command, CONSUMED by the typing
- * seat and the composition seat, INVALIDATED by the edge affinity's own seams (live-mode.md § 4.3).
+ * relative to the caret's construct chain — a kind already in the chain is a removal, one absent
+ * is an application. Live mode paints no delimiter, so materializing an empty pair in the bytes
+ * would leave invisible `****` behind on an abandoned toggle. SET by the toggle command, CONSUMED
+ * by the typing and composition seats, INVALIDATED by the edge affinity (live-mode.md § 4.3).
  */
 
 /** The constructs a toggle chord can pend. Widened as `format-toggle.ts` grows formats. */

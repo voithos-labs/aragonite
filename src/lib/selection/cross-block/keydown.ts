@@ -55,8 +55,7 @@ async function handleKeyDown(
 
 	// Before the dispatch, not after: every branch below can consume the key and return, and the
 	// collapse/extend arms run no commit, so a reset deferred to the shared prelude never fires.
-	// The dispatcher holds a range, not a caret, so it supplies no measurement — but a collapse
-	// lands one, and the side it means is the arrival's like anywhere else.
+	// The dispatcher holds a range, not a caret, so it supplies no measurement; a collapse lands one.
 	ctx.stickyColumn.noteKey(e);
 	ctx.edgeAffinity.note(e);
 
@@ -82,8 +81,7 @@ async function handleCrossBlockActive(
 
 	// Ctrl+C / Ctrl+X intentionally pass through: the copy/cut event writes synchronously via
 	// e.clipboardData.setData, since Tauri's wry webview refuses navigator.clipboard.writeText.
-	// Without a caret at the endpoint Chromium retargets to <body>, caught by
-	// components/editor-root-clipboard.ts.
+	// Without a caret at the endpoint Chromium retargets to <body>, caught by editor-root-clipboard.
 
 	// Extend/collapse/copy stay live in reading mode; these two branches delete.
 	if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -93,11 +91,8 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Ahead of the command candidates, because a toggle is NOT a type-replace: deleting the
-	// range and dispatching at the collapsed caret leaves empty pairs where the document stood.
-	// Consumed like every claimed chord, so it never falls through to the browser. Wrapping each
-	// block in the range is a feature with its own design — which blocks participate, how nesting
-	// resolves — and a deliberate non-goal here.
+	// Ahead of the command candidates, because a toggle is NOT a type-replace: deleting the range
+	// and dispatching at the collapsed caret leaves empty pairs where the document stood.
 	if (isFormatToggleChord(e)) {
 		e.preventDefault();
 		return true;

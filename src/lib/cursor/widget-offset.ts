@@ -242,8 +242,7 @@ export function revealsNoMarkers(container: ParentNode): boolean {
  * ambient island holds no landable position, so the bound moves past it. Block-edge gates read
  * these rather than 0 / walk length, which a mode painting no marker makes unreachable — a gate
  * testing an offset no keystroke can produce is a dead key. An ALL-hidden container (an empty
- * fence) has no landable offset at all and answers `{len, len}`, which makes every `offset <=
- * start` gate true inside it; a mergeable all-hidden kind would have to declare its own floor.
+ * fence) has no landable offset and answers `{len, len}`, making every `offset <= start` gate true.
  */
 export function landableDomTextBounds(container: ParentNode): {
 	start: DomTextOffset;
@@ -401,12 +400,11 @@ type WalkSegment =
 	| { kind: 'widget'; el: Element; start: number; len: number };
 
 /**
- * The classification every walk-space consumer shares: a text node contributes its
- * textContent length, an atomic widget its raw source length (never descended), any other
- * element is transparent. Hidden marker text counts exactly like visible text — hiding is
- * CSS-only so the coordinate space survives it — and carries the span that hides it.
- * Offsets stay plain numbers: consumers mint the `DomTextOffset` brand at the same sites
- * the walks always did.
+ * The classification every walk-space consumer shares: a text node contributes its textContent
+ * length, an atomic widget its raw source length (never descended), any other element is
+ * transparent. Hidden marker text counts exactly like visible text — hiding is CSS-only so the
+ * coordinate space survives it — and carries the span that hides it. Offsets stay plain numbers;
+ * consumers mint the `DomTextOffset` brand.
  */
 function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generator<WalkSegment> {
 	let count = 0;
