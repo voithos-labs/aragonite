@@ -29,7 +29,7 @@
 	import type { TableAlignment } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
+	import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 	import { resolveSelectionEditFromInput } from '../text/live-selection-edit';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
@@ -299,6 +299,9 @@
 		},
 		get index() {
 			return index;
+		},
+		get containerParent() {
+			return blockNodeAt(getDoc(), myPath.slice(0, -1));
 		},
 		get linkRef() {
 			return linkRef;

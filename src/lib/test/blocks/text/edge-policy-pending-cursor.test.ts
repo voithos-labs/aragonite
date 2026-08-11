@@ -33,6 +33,9 @@ function dispatchOver(node: CstNode, el: HTMLElement, hasIslands: boolean) {
 		get index() {
 			return 0;
 		},
+		get containerParent() {
+			return null;
+		},
 		get linkRef() {
 			return undefined;
 		},

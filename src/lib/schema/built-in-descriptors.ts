@@ -489,6 +489,7 @@ export function registerBuiltInDescriptors(): void {
 				middleChildBackspace: 'default-merge',
 				quoteShaped: true
 			},
+			contentStartSpace: 'complete-marker',
 			reorderChildren: {}
 		},
 		conformanceFixture: '> quoted\n',

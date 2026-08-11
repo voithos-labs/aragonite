@@ -119,8 +119,8 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/blocks/text/edge-policy-dispatch.ts',
 		chords: [],
-		keys: ['ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'],
-		note: 'The caret-edge policy runs on plain keys; the modifier read is its gate.'
+		keys: [' ', 'ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'],
+		note: 'The caret-edge policy runs on plain keys; the modifier read is its gate. The bare space is container marker completion, consumed rather than claimed as a chord.'
 	},
 	{
 		file: 'components/blocks/text/widget-interaction.ts',

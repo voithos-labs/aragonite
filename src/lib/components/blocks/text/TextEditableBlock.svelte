@@ -38,6 +38,7 @@
 		type TextEditResult
 	} from './text-keydown';
 	import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
+	import { blockNodeAt } from '../../../tree-operations/node-ops';
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
@@ -352,6 +353,9 @@
 		},
 		get index() {
 			return index;
+		},
+		get containerParent() {
+			return blockNodeAt(getDoc(), myPath.slice(0, -1));
 		},
 		get linkRef() {
 			return linkRef;

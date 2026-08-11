@@ -286,6 +286,10 @@ The four cases, named for the e2e requirements that pin them (`src/lib/e2e/requi
 - **M1 — list, non-empty non-first item.** The item merges into the deepest visible text above it; its remaining children are placed by preserve-absolute-indent. Ordered markers renumber.
 - **Nested first item** (any list with a parent list). The item is promoted to the parent list level — the Shift+Tab equivalent.
 
+### Marker completion
+
+An opener firing on the bare marker byte mints its container before the space that finishes the marker arrives, so that space lands in the container's empty child as content — a permanent leading space once text follows. A container declaring `contentStartSpace` consumes it instead: no byte moves and no undo entry is pushed, because its `rebuildRaw` re-emits the marker's own space the moment content does arrive. Blockquote is the shipped declarer, in every presentation mode; the list needs none, since `-` alone stays a paragraph and the flip to a list mints `- ` whole. Nesting composes by the nearest ancestor: an inner quote completes at its own depth.
+
 ### Focus traversal
 
 Arrow navigation at block boundaries uses geometry, not offsets: the cursor rect is compared against the rect of the block's first/last visual line.
