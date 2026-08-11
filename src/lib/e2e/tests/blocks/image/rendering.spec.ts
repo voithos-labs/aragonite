@@ -53,9 +53,7 @@ test.describe('image rendering', () => {
 		await expect(widget).toHaveClass(/md-image-broken/, { timeout: 5000 });
 	});
 
-	// A response with no intrinsic size resolves as `load`, not `error` (a zero-dimension SVG loads
-	// with naturalWidth 0), so the class must land off the load alone: an error-arm-only probe
-	// leaves such an image 0×0 with no placeholder until an unrelated rebuild.
+	// A zero-dimension SVG resolves as `load`, not `error`, so the class must land off the load.
 	test('an image that loads with no intrinsic size gets the placeholder with no other edit', async ({
 		page
 	}) => {
@@ -67,8 +65,6 @@ test.describe('image rendering', () => {
 		expect(box?.height ?? 0).toBeGreaterThan(0);
 	});
 
-	// The inline-DOM rebuild on every keystroke mints a fresh <img>; waiting on its async `error`
-	// to re-add `md-image-broken` costs one flicker of unstyled widget per keystroke.
 	test('keystroke-rebuilt widget keeps md-image-broken without an async re-add', async ({
 		page
 	}) => {
@@ -117,8 +113,6 @@ test.describe('image rendering', () => {
 		}
 	});
 
-	// `.md-image-broken` must not override `.md-image-widget`'s display:block with inline-block:
-	// that breaks the always-block-level rule and flows trailing text on the same baseline.
 	test('broken image preserves block-level layout (trailing text wraps below)', async ({
 		page
 	}) => {

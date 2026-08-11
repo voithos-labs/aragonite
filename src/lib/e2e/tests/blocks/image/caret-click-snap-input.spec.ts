@@ -44,8 +44,7 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src.startsWith('Lorem')).toBe(true);
 	});
 
-	// `pendingCursorOffset` must be restored after the intercept's CST update: without it the
-	// caret falls back to element-level offset 0 and the second char lands before the image.
+	// Two chars, because an unrestored `pendingCursorOffset` only shows on the second one.
 	test('typing twice after click-snap appends to the same position (no caret jump)', async ({
 		page
 	}) => {
@@ -137,8 +136,6 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src).not.toMatch(/^- \\\n {2}!/m);
 	});
 
-	// Every caller must reach raw offsets through the snap-aware getRaw: a bare
-	// `cursor.getRaw() ?? 0` reads null on an element-level snap caret and pastes at offset 0.
 	test('paste in click-snap state lands at snap target, not offset 0', async ({ page }) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);

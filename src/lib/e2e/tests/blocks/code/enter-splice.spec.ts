@@ -1,8 +1,8 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// A splice inside the opener makes sliceFencedCode render a phantom fence; one inside the closer
-// breaks the fence outright. Requirements: enter-splice.md.
+// A splice inside the opener renders a phantom fence; one inside the closer breaks the fence
+// outright. Requirements: enter-splice.md.
 
 test.describe('code block — Enter on the opener fence line', () => {
 	let editor: EditorPage;
