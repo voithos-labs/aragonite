@@ -48,6 +48,9 @@ function mount(source: string, rawSelection: { start: number; end: number } | nu
 		get index() {
 			return 0;
 		},
+		get containerParent() {
+			return null;
+		},
 		get linkRef() {
 			return undefined;
 		},

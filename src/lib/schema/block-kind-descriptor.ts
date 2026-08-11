@@ -154,6 +154,13 @@ export interface BlockKindDescriptor {
 	};
 	/** Backspace-at-start unwrap strategies for this container's children. Absent = default dispatch. */
 	unwrapRole?: UnwrapRole;
+	/**
+	 * `'complete-marker'` consumes a space typed at the content start of an EMPTY child: the
+	 * opener already minted the container, so that space finishes the marker rather than the
+	 * content. Declare it only where `rebuildRaw` canonicalizes the marker's trailing space,
+	 * or the keystroke is eaten instead of deferred.
+	 */
+	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent = not reorder-within. */
 	reorderChildren?: ReorderChildrenRole;
 	/** Chord -> command map, consulted before the global table so a kind can shadow a global. */
@@ -209,6 +216,7 @@ export interface ContainerDescriptorGroup {
 	reservedChrome?: BlockKindDescriptor['reservedChrome'];
 	containerPaste?: BlockKindDescriptor['containerPaste'];
 	unwrapRole?: UnwrapRole;
+	contentStartSpace?: BlockKindDescriptor['contentStartSpace'];
 	reorderChildren?: ReorderChildrenRole;
 	bodyWrite?: BlockKindDescriptor['bodyWrite'];
 }
@@ -223,6 +231,7 @@ const CONTAINER_ONLY_KEYS = [
 	'reservedChrome',
 	'containerPaste',
 	'unwrapRole',
+	'contentStartSpace',
 	'reorderChildren',
 	'bodyWrite'
 ] as const;

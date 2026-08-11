@@ -48,6 +48,9 @@ function mount(
 		get index() {
 			return 0;
 		},
+		get containerParent() {
+			return null;
+		},
 		get linkRef() {
 			return undefined;
 		},

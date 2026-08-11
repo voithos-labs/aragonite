@@ -41,6 +41,9 @@ function mount(source: string, mode?: string): Harness {
 		get index() {
 			return 0;
 		},
+		get containerParent() {
+			return null;
+		},
 		get linkRef() {
 			return undefined;
 		},

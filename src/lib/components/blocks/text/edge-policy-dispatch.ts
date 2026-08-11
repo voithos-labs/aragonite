@@ -1,8 +1,8 @@
 /**
  * The single caret-edge dispatch (G4.12): a plain Backspace/Delete or printable key at a caret
- * edge in a prose block resolves against its construct class's declarative edge policy, never
- * native contenteditable mutation, which would corrupt the atomic bytes it stands for. Classes are
- * tried CST widget → decoration island → ambient marker, observable at a caret against two.
+ * edge in a prose block resolves against a declarative policy — the construct class's for an
+ * inline neighbour, the ancestor container's for a content-start key — never native
+ * contenteditable mutation, which would corrupt the atomic bytes those stand for.
  */
 
 import type { BlockEditActions } from '../../../action-contracts';
@@ -22,6 +22,7 @@ import { landableRawBounds, revealsNoMarkers } from '../../../cursor/widget-offs
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
+import { completesContainerMarker } from './marker-completion';
 import { resolveEdgeDeletion } from './construct-edge-delete';
 import { hidesStructuralSuffix } from './hidden-suffix';
 import { resolveEdgeSeat } from './edge-seat';
@@ -49,6 +50,9 @@ interface IslandSpan {
 export interface EdgePolicyDispatchDeps {
 	get node(): NodeView;
 	get index(): number;
+	/** The nearest ancestor container, or null at the document root — the declaration a
+	 *  content-start key resolves against. */
+	get containerParent(): NodeView | null;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	getEl: () => HTMLElement | null;
 	getAmbientLength: () => number;
@@ -431,6 +435,21 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
+	// ── Container marker completion ────────────────────────────────────────────
+
+	/**
+	 * A bare space at the content start of an empty child whose container declares
+	 * `contentStartSpace`. Consumed, not written: the container's `rebuildRaw` re-emits it the
+	 * moment content arrives, so inserting it here would double the marker's own space.
+	 */
+	function handleMarkerCompletion(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		const bareSpace = e.key === ' ' && !e.shiftKey && !hasModifier(e);
+		if (!bareSpace || caretOffset === null || hasSelectionHelper()) return false;
+		if (!completesContainerMarker(deps.node, deps.containerParent, caretOffset)) return false;
+		e.preventDefault();
+		return true;
+	}
+
 	// ── Hidden construct edge (the typing seat) ────────────────────────────────
 
 	/**
@@ -472,6 +491,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// block-merge command.
 		if (handleHiddenSuffixDelete(e, caretOffset)) return true;
 		if (handleConstructEdgeDelete(e, caretOffset)) return true;
+		if (handleMarkerCompletion(e, caretOffset)) return true;
 		if (handleConstructSeat(e, caretOffset)) return true;
 		return false;
 	}
