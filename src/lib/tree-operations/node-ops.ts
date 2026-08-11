@@ -839,6 +839,10 @@ function absorbSeamReading(
 		const reparsed = parse(joined, { scope: 'fragment' });
 		const blocks = reparsed.children;
 		if (blocks.length === 0 || blocks.length >= window.length) break;
+		// A legitimate fold EXTENDS the window's head block, so its kind survives its own
+		// reparse. A structured container's children fail this by construction — two items'
+		// joined bytes read as a nested LIST — and the seam is not askable there.
+		if (blocks[0].kind !== window[0].kind) break;
 		// Byte-honest over the fragment peel, the single-slot sink's rule (GH #97).
 		blocks[blocks.length - 1].raw += reparsed.suffix;
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
