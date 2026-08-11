@@ -12,9 +12,9 @@ import { collectEditorSources, type SourceFile } from './scan-source';
 const CLASSIFICATION_HOME = 'src/lib/cursor/widget-offset.ts';
 
 /** A DOM read that resolves marker-hiding state: the mode root, the block-focus stamp, the
- *  construct stamp, or a marker class tested by selector. */
+ *  construct stamp, the content-empty stamp, or a marker class tested by selector. */
 const CLASSIFICATION_RE =
-	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused)/;
+	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused|data-content-empty)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused|content-empty)/;
 
 /** Files reading that vocabulary for a DIFFERENT question, each saying which. */
 const NON_CLASSIFYING_READERS: Record<string, string> = {
@@ -107,6 +107,13 @@ describe('G4.30 hidden-run classification', () => {
 		]) {
 			expect(CLASSIFICATION_RE.test(shape), shape).toBe(true);
 		}
+	});
+
+	// The stamp travels as a constant, so no file spells it literally today — but a consumer-side
+	// branch on painted-ness would, and that is the shape this class must never grow again.
+	it('the classification matcher flags a literal read of the content-empty stamp', () => {
+		expect(CLASSIFICATION_RE.test("el.closest('[data-content-empty]')")).toBe(true);
+		expect(CLASSIFICATION_RE.test("block.hasAttribute('data-content-empty')")).toBe(true);
 	});
 
 	it('the classification matcher ignores unrelated DOM reads and stylesheet selectors', () => {

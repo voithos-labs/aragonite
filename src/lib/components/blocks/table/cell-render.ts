@@ -15,6 +15,7 @@ import {
 	captureFocusedCaretWalkOffset,
 	restoreCaretAtWalkOffset
 } from '../../../cursor/focused-caret';
+import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
 import type { IndexedDecoration } from '../../../decorations/buckets';
 import { applyIslandDecorations, islandRenderKeyPart } from '../../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
@@ -119,6 +120,10 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 			);
 			if (!hasAnchorBr) el.appendChild(document.createElement('br'));
 		}
+
+		// A cell whose whole content is an empty construct (`****`) would otherwise paint
+		// nothing; the stamp precedes the restore, which lands through the same walk.
+		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 
 		if (caretWalkOffset !== null) restoreCaretAtWalkOffset(el, caretWalkOffset);
 	}
