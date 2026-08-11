@@ -83,6 +83,8 @@ import {
 	liveMergeLanding,
 	liveSplitInsideConstruct,
 	liveToggleFormat,
+	liveTypeFenceOpener,
+	liveTypeHeadingOpener,
 	type LiveFormat
 } from './gestures/live-editing';
 import {
@@ -600,8 +602,8 @@ export class Gestures {
 	}
 
 	// ── Live-mode editing ───────────────────────────────────────────────────────
-	// Each enters live through the toggle, drives one live-only rule, and closes with the
-	// single undo that rule is contracted to cost — so all five net to identity.
+	// Each enters live through the toggle, drives one live-only rule, and undoes what it spent —
+	// so every one nets to identity and a note fixture can fire it mid-session.
 
 	/** Toggle a mark over a selected word; `strikethrough` and `inlineCode` are live's two new
 	 *  chords, and all three write bytes immediately at a RANGE. */
@@ -644,6 +646,17 @@ export class Gestures {
 	/** Extend into a table (the cell arm parks the START sentinel) and collapse — byte-free. */
 	liveExtendIntoTablePark(): Promise<void> {
 		return liveExtendIntoTablePark(this.ctx);
+	}
+
+	/** Type `#` onto a fresh line below `blockIndex`, then its text: the mint resyncs, the text
+	 *  predicts. */
+	liveTypeHeadingOpener(blockIndex: number, text: string): Promise<void> {
+		return liveTypeHeadingOpener(this.ctx, blockIndex, text);
+	}
+
+	/** The same on a fence: three backticks mint the block, the info string settles on its line. */
+	liveTypeFenceOpener(blockIndex: number, info: string): Promise<void> {
+		return liveTypeFenceOpener(this.ctx, blockIndex, info);
 	}
 
 	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────

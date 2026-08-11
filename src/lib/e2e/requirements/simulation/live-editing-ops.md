@@ -6,9 +6,9 @@ no reveal, so each rule rewrites bytes the reader cannot see — which makes the
 SOURCE the only
 oracle for them, and makes a silent divergence invisible on screen by
 construction. Every gesture enters live through the header toggle (a real
-click), drives one rule with real keys, and closes with the single undo that
-rule is contracted to cost, so the whole family nets to identity and the
-session's round-trip and nested-state oracles run over every step.
+click), drives one rule with real keys, and undoes what it spent, so the whole
+family nets to identity and the session's round-trip and nested-state oracles
+run over every step.
 
 ## Happy paths
 
@@ -27,11 +27,18 @@ session's round-trip and nested-state oracles run over every step.
   and reopens the construct instead of cutting the pair open
 - a click on a rendered link opens the link card; `Enter` in its field rewrites
   the destination as one undo entry
+- a `#` typed onto a fresh line mints a heading whose chrome stands over nothing,
+  and the space and word behind it are predicted keystroke by keystroke
+- three backticks typed the same way mint a fenced block, and its info string
+  lands on the fence line rather than in front of it
 
 ## Edge cases
 
-- every gesture's undo is asserted as exactly ONE press: a rule that spent two
-  entries fails the gesture rather than silently costing the user two Ctrl+Z.
+- the two typed openers are the exception to the one-press rule below: a typed
+  run batches on wall-clock time, so they unwind by the entries the stack
+  actually gained and the envelope's byte equality is what holds them to it
+- every other gesture's undo is asserted as exactly ONE press: a rule that spent
+  two entries fails the gesture rather than silently costing the user two Ctrl+Z.
   Only the note weave (`biology-note`) can red on the OVER-spending half: this
   spec's stack never exceeds one entry, so a second undo there has nothing to
   overshoot into — the deep stack a session builds is what makes the press count
@@ -55,3 +62,10 @@ session's round-trip and nested-state oracles run over every step.
 - no console, page, or structured editor error fires across the session
 - the live serializer round-trips the current CST after every gesture
 - the nested-state audit finds no desync after any gesture
+
+## Miss-analysis
+
+- The simulation only ever met a block opener as bytes a fixture LOADED, so the
+  keystroke path that mints one — the kind flip, and the seat the next byte takes
+  after it — was never driven under the corruption oracles. A feature class
+  reachable only by typing needs a gesture that types it.

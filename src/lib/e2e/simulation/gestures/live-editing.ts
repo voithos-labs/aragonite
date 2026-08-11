@@ -1,11 +1,11 @@
 import { primaryModifier } from '../../platform';
-import { type SimContext } from '../invariants';
+import { settleTypedSource, undoStackDepth, type SimContext } from '../invariants';
 
 /**
- * Live-mode editing gestures. Each enters live through the header toggle, drives one
- * live-only rule with real keys, undoes it in ONE press, and leaves — net-identity by
- * construction, so a note fixture can fire them mid-session and still reach its canonical
- * end state. The source is the oracle throughout: live paints no delimiter, so the bytes are
+ * Live-mode editing gestures. Each enters live through the header toggle, drives one live-only
+ * rule with real keys, and undoes it — in the single press the rule is contracted to cost, or by
+ * the entries a typed run spent — so each is net-identity and a note fixture can fire it
+ * mid-session. The source is the oracle throughout: live paints no delimiter, so the bytes are
  * the only witness that the rule fired on runs the reader never saw.
  */
 
@@ -168,6 +168,44 @@ export async function liveSplitInsideConstruct(
 	});
 }
 
+/**
+ * A heading opener typed onto a fresh line: the `#` mints chrome standing over nothing, which
+ * flips the block's kind, so that keystroke resyncs — and everything behind it is a plain append
+ * the tracker predicts byte for byte, marker paint or none.
+ */
+export async function liveTypeHeadingOpener(
+	ctx: SimContext,
+	blockIndex: number,
+	text: string
+): Promise<void> {
+	await typedOpener(ctx, blockIndex, async () => {
+		await mintOpener(ctx, '#', 'heading');
+		for (const ch of ` ${text}`) {
+			await ctx.editor.typeSlowly(ch);
+			await settleTypedSource(ctx, ctx.tracker.appendChar(ch));
+		}
+	});
+}
+
+/**
+ * A fence opener typed onto a fresh line, with its info string. The mint seats the caret on the
+ * fence line ahead of the closer it opens, which the tracker's document-end model cannot predict,
+ * so the info string settles on the line it forms and resyncs.
+ */
+export async function liveTypeFenceOpener(
+	ctx: SimContext,
+	blockIndex: number,
+	info: string
+): Promise<void> {
+	await typedOpener(ctx, blockIndex, async () => {
+		await mintOpener(ctx, '```', 'fencedCode');
+		await ctx.editor.typeSlowly(info);
+		await ctx.editor.bridge.waitForSourceContains('```' + info);
+		await ctx.editor.waitForRenderFlush();
+		ctx.tracker.resync(await ctx.editor.bridge.getSource());
+	});
+}
+
 /** A merge landing rides the caret funnel: Backspace at a block's start joins it into its
  *  predecessor, the door seats the join offset, and the next byte lands at the seam (G2.12).
  *  `seamBefore`/`seamAfter` are the bytes the caller knows stand on either side of it. */
@@ -295,6 +333,55 @@ export async function liveLinkCardEdit(
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+/**
+ * The envelope both typed openers share: a fresh empty line below `blockIndex` to type onto, and
+ * an unwind by the entries the run actually spent — a typed run batches on wall-clock time, so
+ * the press count is measured rather than assumed, and `inLiveMode` asserts the bytes came back.
+ */
+async function typedOpener(
+	ctx: SimContext,
+	blockIndex: number,
+	run: () => Promise<void>
+): Promise<void> {
+	await inLiveMode(ctx, async () => {
+		const { page, editor, tracker } = ctx;
+		const depth = await undoStackDepth(ctx);
+		await editor.clickBlock(blockIndex);
+		await page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		const hosts = await page.evaluate(() => document.querySelectorAll('.block-host').length);
+		await page.keyboard.press('Enter');
+		await editor.waitForBlockHostCount(hosts + 1);
+		tracker.resync(await editor.bridge.getSource());
+
+		await run();
+
+		for (let spent = (await undoStackDepth(ctx)) - depth; spent > 0; spent--) {
+			await editor.undo();
+			await editor.waitForRenderFlush();
+		}
+	});
+}
+
+/** The keystrokes that mint a block's own chrome. The kind flip is auto-behavior, so this settles
+ *  on the delta and resyncs instead of predicting — and asserts the flip it just paid for. */
+async function mintOpener(ctx: SimContext, opener: string, kind: string): Promise<void> {
+	const { editor, tracker } = ctx;
+	const before = await editor.bridge.getSource();
+	await editor.typeSlowly(opener);
+	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	await editor.waitForRenderFlush();
+	const at = (await editor.bridge.getSelectionPaths())?.focus.path[0] ?? -1;
+	const minted = at < 0 ? null : await editor.bridge.getBlockKind(at);
+	if (minted !== kind) {
+		throw new Error(
+			`[${ctx.label}] typing ${JSON.stringify(opener)} minted ${minted}, not ${kind}.\n` +
+				`SOURCE: ${JSON.stringify(await editor.bridge.getSource())}`
+		);
+	}
+	tracker.resync(await editor.bridge.getSource());
+}
 
 /** The § 5 contract every gesture here closes on: the rule wrote ONE undo entry, so one press
  *  is both the assertion and the return to identity. */
