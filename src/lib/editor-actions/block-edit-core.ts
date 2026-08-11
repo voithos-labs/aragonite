@@ -184,7 +184,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						i,
 						view.sharing,
 						view.getPresentationMode?.(),
-						view.linkRef
+						view.linkRef,
+						view.grammar
 					);
 					return mergeResult?.change ?? { op: 'noop' };
 				},

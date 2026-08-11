@@ -120,7 +120,9 @@ export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | u
 	node.raw = legal;
 	// A context-dependent kind's raw does not reparse to itself, so its metadata was never
 	// parse-derived and a fragment parse would only mis-read it.
-	if (legal === raw || descriptor?.contextDependentKind) return;
+	if (descriptor?.contextDependentKind) return;
+	// In place means no reparse replaces the node, so parse-owned metadata re-derives here —
+	// for the rule's own rewrite AND bytes the caller's edit already changed (GH #54).
 	const reparsed = parse(legal, { grammar, scope: 'fragment' }).children;
 	if (reparsed.length === 1 && reparsed[0].kind === node.kind) node.metadata = reparsed[0].metadata;
 }
@@ -529,7 +531,8 @@ export function mergeIntoPrevDeepLeaf(
 	blockIndex: number,
 	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef | undefined,
+	grammar?: GrammarView
 ): MergeIntoPrevResult | null {
 	if (blockIndex <= 0 || blockIndex >= parent.children.length) return null;
 
@@ -538,24 +541,66 @@ export function mergeIntoPrevDeepLeaf(
 
 	// The merge writes the deep leaf's raw plus every spine ancestor's rebuilt raw, so
 	// unshare the whole spine and resolve through the owned copies.
-	let target = mergeTarget.target;
-	if (sharing) {
-		const chain = ensureUnsharedPath(parent, [blockIndex - 1, ...mergeTarget.path], sharing);
-		target = chain[chain.length - 1];
-	}
-	const prev = parent.children[blockIndex - 1];
+	const leafPath = [blockIndex - 1, ...mergeTarget.path];
+	if (sharing) ensureUnsharedPath(parent, leafPath, sharing);
+	// Write-then-re-read (tree-operations/unshare.ts header), down to the leaf's own slot
+	// so a kind change can mint into it.
+	let holderChildren: CstNode[] = parent.children;
+	for (const index of leafPath.slice(0, -1)) holderChildren = holderChildren[index].children!;
+	const slot = leafPath[leafPath.length - 1];
+	const target = holderChildren[slot];
 	const curr = parent.children[blockIndex];
 
 	const lineEnding = trailingLineEnding(target.raw);
 	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
 
-	target.raw = trimTrailingLineEnding(mergedRaw) + lineEnding;
+	writeMergedLeaf(holderChildren, slot, trimTrailingLineEnding(mergedRaw) + lineEnding, {
+		sharing,
+		grammar
+	});
 	if (mergeTarget.path.length > 0) {
-		rebuildAncestryRaw(prev, mergeTarget.path);
+		rebuildAncestryRaw(parent.children[blockIndex - 1], mergeTarget.path);
 	}
 
 	const change = deleteNode(parent, blockIndex, sharing);
 	return { targetPath: mergeTarget.path, joinOffset, change };
+}
+
+/**
+ * The deep-leaf merge's write, on the in-place discipline's terms (GH #54): the absorbed
+ * bytes cross the kind's own rule and a fragment reparse — same kind refreshes the
+ * parse-owned fields in place, a kind change mints the reparse into the leaf's slot, and a
+ * multi-block read keeps the single-leaf write (the merge contract has one slot).
+ */
+function writeMergedLeaf(
+	holderChildren: CstNode[],
+	slot: number,
+	raw: string,
+	context: { sharing: SharingState | undefined; grammar: GrammarView | undefined }
+): void {
+	const target = holderChildren[slot];
+	const written = normalizeOwnRaw(target, raw);
+	const parsed = tryGetBlockKindDescriptor(target.kind)?.contextDependentKind
+		? []
+		: parse(written, { grammar: context.grammar, scope: 'fragment' }).children;
+	const single = parsed.length === 1 ? parsed[0] : undefined;
+	if (single && single.kind !== target.kind) {
+		// Byte-honest over the fragment peel, the single-slot sink's rule (GH #97).
+		single.raw = written;
+		single.leadingTrivia = target.leadingTrivia;
+		ensureEditableContainers(single);
+		if (context.sharing) context.sharing.stamp(single);
+		assignChildIdsDeep(single);
+		holderChildren[slot] = single;
+		return;
+	}
+	target.raw = written;
+	if (!single) return;
+	target.metadata = single.metadata;
+	target.children = single.children;
+	resyncChildIds(target);
+	target.innerPrefix = single.innerPrefix;
+	target.innerSuffix = single.innerSuffix;
 }
 
 /**
