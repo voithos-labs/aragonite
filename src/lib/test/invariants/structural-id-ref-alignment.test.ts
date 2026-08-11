@@ -37,8 +37,10 @@ interface TopHarness {
 }
 
 function makeTop(raws: string[]): TopHarness {
+	// Blank-separated like a parsed document: a tight paragraph pair is a lazy continuation,
+	// which the seam settle now absorbs the way a reload would (GH #61).
 	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(
-		raws.map((r) => makeNode('paragraph', r))
+		raws.map((r, i) => ({ ...makeNode('paragraph', r), leadingTrivia: i > 0 ? '\n' : '' }))
 	);
 	const controller = createUndoController(deps);
 	const actions = createBlockEditActions(deps, controller);
@@ -122,9 +124,6 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 
 	it('round-trip stays byte-stable across a sequence of ops', async () => {
 		const h = makeTop(['one\n', 'two\n', 'three\n']);
-		// Byte round-trip only: makeTop's separator-less paragraphs serialize to a lazy
-		// continuation, non-convergent by construction. The convergence oracle bites in
-		// the container test below, whose fixture is a real parsed blockquote.
 		const stable = () => {
 			const live = serialize(h.doc);
 			expect(serialize(parse(live))).toBe(live);
