@@ -183,10 +183,6 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 1,
 		why: "appends the list's own line ending to the deepest leaf; an ending terminates a line rather than restructuring one"
 	},
-	'src/lib/tree-operations/paste/container-match.ts': {
-		count: 1,
-		why: "the last pasted item's leaf, gated to a paragraph by `hasSingleParagraphChild` — the merged target beside it routes through the reader, so the pair is asymmetric"
-	},
 	'src/lib/testing/container-conformance.ts': {
 		count: 3,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"
