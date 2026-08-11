@@ -109,6 +109,19 @@ describe('split separator — the halves that close get none', () => {
 	});
 });
 
+describe('split separator — the promoted first half', () => {
+	// Miss: the fresh property lane carves widened-delimiter-row docs out (#61's exclusion) and
+	// this suite only cut halves that keep their kind, so nothing pinned a promote absorbing
+	// the real head line where the prose stand-in survives.
+	it('a half promoted to a table separates off the head its rows would absorb (#100)', () => {
+		const doc = parse('| H0 | H1 |\n| --- | --- | --- |\n\n---\n');
+		splitNode(doc, 0, 21, undefined, undefined);
+
+		expect(doc.children[1].leadingTrivia).toBe('\n');
+		expect(describeConvergence(doc)).toBeNull();
+	});
+});
+
 // The probe stands in for whatever the user types next, so it must be the line NO opener
 // claims. Openers are arbitrary code, so a consumer's globally-registered plugin is the
 // reachable way to break that, and unit files reset the platform.
