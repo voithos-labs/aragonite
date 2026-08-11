@@ -10,6 +10,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests,
 	__resetLiveSplitRebalancerForTests
 } from '$lib/schema/inline-construct-policy';
+import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
 // `splitNode`'s mode arm: live consults the one registered rebalancer, every other mode keeps the
 // byte-literal cut. The registration is the production one — a stub here would pin the wiring and
@@ -146,5 +147,20 @@ describe('no rebalancer registered', () => {
 	it('leaves live splits byte-literal rather than throwing', () => {
 		__resetLiveSplitRebalancerForTests();
 		expect(rawsAfterSplit('**bold**\n', 4, 'live')).toEqual(['**bo\n', 'ld**\n']);
+	});
+});
+
+// The rebalancer verifies its halves standalone, where a missing final line ending is legal —
+// but at the seam the halves then share a line and the reload folds them (GH #61).
+// Miss-analysis: every rebalance pin asserted half BYTES, so none could catch an ending the
+// seam needed; only the fresh-seed differential lane tripped it.
+describe('rebalanced halves keep their line endings', () => {
+	it('a half the rewrite left unterminated takes the block ending back', () => {
+		const doc = parse('\\\n[**bold**](u`)`)  \n&notreal;\\\n[text](u`x`)foo\n\n\\*\n');
+
+		splitNode(doc, 0, 32, 'live', undefined);
+
+		for (const child of doc.children) expect(child.raw.endsWith('\n')).toBe(true);
+		expectParseConverged(doc);
 	});
 });

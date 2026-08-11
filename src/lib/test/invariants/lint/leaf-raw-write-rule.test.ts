@@ -123,8 +123,8 @@ describe('the kind’s own raw-write rule runs at every byte sink', () => {
  */
 const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> = {
 	[SINK]: {
-		count: 10,
-		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97). Both deep-leaf merge arms land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54)'
+		count: 11,
+		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97). Both deep-leaf merge arms land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54); the seam absorb restores the exact joined bytes over its own reparse (GH #61)'
 	},
 	'src/lib/schema/container-rebuilders.ts': {
 		count: 5,

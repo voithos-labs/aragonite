@@ -238,6 +238,10 @@ export function splitNode(
 		if (rebalanced) {
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
+			// The rewrite verifies its halves STANDALONE, where a missing final ending is
+			// legal; at the seam the halves would share a line and rejoin on reload (GH #61).
+			if (!firstRaw.endsWith('\n')) firstRaw += lineEnding;
+			if (!secondRaw.endsWith('\n')) secondRaw += lineEnding;
 		}
 	}
 
@@ -262,10 +266,15 @@ export function splitNode(
 	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
 	// A blank second half at the tail exposes the document's folded line (GH #129); the
-	// tail guard keeps the mint adjacent to this splice's window.
+	// tail guard keeps the mint adjacent to this splice's window. Off the tail, the new
+	// last-node/successor seam re-reads instead (GH #61) — the two arms are exclusive.
 	const minted = splitTail ? materializeTailSuffix(parent) : 0;
+	// Floor at the seam itself: a wider window would reach back into the spliced set and
+	// break the one-window accounting below.
+	const seamLeft = blockIndex + nodes.length - 1;
+	const eaten = splitTail ? 0 : absorbSeamReading(parent, seamLeft, seamLeft).eaten;
 	return {
-		change: replacePreservingFirst(blockIndex, 1, nodes.length + minted),
+		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length + minted),
 		secondHalfIndex: blockIndex + first.nodes.length
 	};
 }
@@ -788,6 +797,63 @@ function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState):
 	return 1;
 }
 
+/** What a seam settle absorbed: post-splice window position and size, and blocks eaten. */
+interface SeamAbsorption {
+	at: number;
+	span: number;
+	eaten: number;
+}
+
+/**
+ * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload — a
+ * list standing above indented code absorbs it, and no separator line can hold indentation
+ * apart (GH #61). Absorb while the window's own bytes parse to fewer blocks, which is the
+ * reload's reading; byte-identical by construction. A blank run is transparent to a
+ * container's continuation, so the window anchors at the nearest non-blank block above the
+ * seam (never below `floor`), and cascades one sibling at a time while readings fold.
+ */
+function absorbSeamReading(
+	parent: NodeParent,
+	seamLeft: number,
+	floor: number,
+	sharing?: SharingState
+): SeamAbsorption {
+	const children = parent.children;
+	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0 };
+	let left = seamLeft;
+	while (left > floor && isBlankParagraph(children[left])) left--;
+	const at = left;
+	let span = seamLeft - at + 1;
+	let eaten = 0;
+	for (;;) {
+		// The candidate edge crosses a blank run too: the absorbed content sits on the
+		// run's far side (a list continues into indented code across any number of blanks).
+		let right = at + span;
+		while (right < children.length && isBlankParagraph(children[right])) right++;
+		const window = children.slice(at, Math.min(right + 1, children.length));
+		if (window.length <= span || window.length < 2) break;
+		// A context-dependent kind has no standalone reading, so its seam is not askable.
+		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
+		let joined = window[0].raw;
+		for (let i = 1; i < window.length; i++) joined += window[i].leadingTrivia + window[i].raw;
+		const reparsed = parse(joined, { scope: 'fragment' });
+		const blocks = reparsed.children;
+		if (blocks.length === 0 || blocks.length >= window.length) break;
+		// Byte-honest over the fragment peel, the single-slot sink's rule (GH #97).
+		blocks[blocks.length - 1].raw += reparsed.suffix;
+		blocks[0].leadingTrivia = window[0].leadingTrivia;
+		for (const block of blocks) {
+			ensureEditableContainers(block);
+			if (sharing) sharing.stamp(block);
+			assignChildIdsDeep(block);
+		}
+		children.splice(at, window.length, ...blocks);
+		eaten += window.length - blocks.length;
+		span = blocks.length;
+	}
+	return { at, span, eaten };
+}
+
 /** The materialized tail (GH #129) reported inside the sink's one contiguous window.
  *  Exported for the cross-block commit, whose descriptors derive from length diffs. */
 export function widenForTailMint(
@@ -893,6 +959,20 @@ export function deleteNode(
 
 	parent.children.splice(blockIndex, 1);
 	clearRedundantSeparator(parent, blockIndex, sharing);
+	// The delete puts two blocks beside each other for the first time, and their adjacent
+	// bytes can re-read as fewer (GH #61) — this and the tail mint below are exclusive,
+	// since one needs a successor at the slot and the other needs the slot past the tail.
+	const seam = absorbSeamReading(parent, blockIndex - 1, 0, sharing);
+	if (seam.eaten > 0) {
+		// One contiguous window: the absorbed span plus the deleted block inside it.
+		return {
+			op: 'replace',
+			at: seam.at,
+			count: seam.span + seam.eaten + 1,
+			newCount: seam.span,
+			idMap: { 0: 0 }
+		};
+	}
 	// Removing the tail can leave a blank one beside the document's folded line (GH #129);
 	// the delete-then-mint pair is one window, so it reports as a replace. A mid delete
 	// never changes the tail, so the guard also keeps the mint adjacent.
