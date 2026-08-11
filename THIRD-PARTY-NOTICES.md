@@ -68,3 +68,7 @@ SOFTWARE.
 `src/lib/core/inline/html-entities.ts` vendors the named-character-reference table from <https://html.spec.whatwg.org/entities.json>.
 
 "HTML Standard" by WHATWG (<https://whatwg.org/>), used under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>). The table is reproduced as data; the surrounding module is aragonite's own work.
+
+## Aragonite specimen photograph (CC BY-SA 2.0)
+
+`docs/assets/header.png` and `static/og.jpg` are derivatives of "Aragonite CaCO3, Tazouta, Morocco" by Jan Helebrant (<https://commons.wikimedia.org/wiki/File:Aragonite_CaCO3,_Tazouta,_Morocco_(50656622957).jpg>), used under CC BY-SA 2.0 (<https://creativecommons.org/licenses/by-sa/2.0/>). Modifications: background removal, crop, and recomposition on a solid background with the project wordmark.
