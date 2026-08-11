@@ -7,7 +7,7 @@
 import { CURSOR_END } from '../../block-component';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import { nodeAt, restoreSeparatorAfterBlank, writeOwnRaw } from '../node-ops';
+import { nodeAt, restoreSeparatorAfterBlank, updateNodeContent, writeOwnRaw } from '../node-ops';
 import { isBlankParagraph } from '../../core/parser';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
@@ -266,7 +266,14 @@ async function applyContainerMatchingMerge(
 			const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
 			const ownedLeaf = chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing);
 			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
-			lastLeaf.raw = lastDisplay + displayAfter + lastLineEnding;
+			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
+			// so it reattaches through the reparse funnel, never a bare write (GH #56).
+			updateNodeContent(
+				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
+				0,
+				lastDisplay + displayAfter + lastLineEnding,
+				ctx.grammar
+			);
 			// Both rebuilds run before the splice, so the published children carry correct
 			// raws in one reactive flush.
 			rebuildUnsharedChain(ctx.doc, chain, sharing, ctx.grammar);
