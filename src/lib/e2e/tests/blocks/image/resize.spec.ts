@@ -105,8 +105,6 @@ test.describe('image resize', () => {
 		await expect(page.locator('.md-resize-handle')).toHaveCount(0);
 	});
 
-	// A full-editor-width widget span (`display: block`, no `width: fit-content`) puts the right
-	// handle at the editor's edge instead of the image's.
 	test('right handle is positioned at the image edge, not the editor edge', async ({ page }) => {
 		await editor.loadContent('![cat|200](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();

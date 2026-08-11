@@ -36,7 +36,7 @@ test.describe('code block — forward-Delete at closer exit', () => {
 	});
 
 	// The root single-block no-op is already covered by editing-block-exit.spec.ts; only the
-	// cross-boundary arrangements a root-count guard cannot read belong here.
+	// cross-boundary arrangements belong here.
 
 	test('nested code block, paragraph follows at root: the gap traps the exit, then it delegates', async () => {
 		await editor.loadContent('> ```\n> code\n> ```\n\nafter\n');

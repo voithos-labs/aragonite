@@ -60,8 +60,6 @@ test.describe('image backspace/delete + type-replace', () => {
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 
-	// Entering widget selection from the LEFT (ArrowRight/Delete at widget.start) must anchor the
-	// undo snapshot at widget.start; a hardcoded widget.end restores the caret on the far side.
 	test('undo after Delete from widget.start restores caret at widget.start', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)trail\n');
 		await editor.focusBlockStart(0);

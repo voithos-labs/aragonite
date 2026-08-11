@@ -50,8 +50,7 @@ test.describe('image cross-block selection', () => {
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 
-	// A drag that STARTS on the image must reach the block's cross-block machinery: a widget
-	// swallowing its own pointerdown lets no drag originate from an image.
+	// The widget must not swallow its own pointerdown, or no drag can originate from an image.
 	test('drag starting on an image widget into the next block enters cross-block', async ({
 		page
 	}) => {
