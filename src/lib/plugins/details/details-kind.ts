@@ -58,9 +58,8 @@ const canonicalTagLine = (text: string): TagVerdict =>
 const passthroughTagLine = htmlBlockTagLineMatcher('details');
 
 /**
- * A `</details>` inside a fenced code block is content on both sides of the round
- * trip, so neither the recognizer nor the escape may count it. Stateful across a run
- * of lines, because the fence is.
+ * A `</details>` inside a fenced code block is content on both sides of the round trip, so
+ * neither the recognizer nor the escape may count it. Stateful, because the fence is.
  */
 function createTagScanner(tagLine: (text: string) => TagVerdict) {
 	let fence: { marker: '`' | '~'; length: number } | null = null;
@@ -98,10 +97,9 @@ function unpairedTagLines(
 }
 
 /**
- * Two accountings, because the recognizer and a browser disagree about what a tag line
- * is; a pair balanced under one and split under the other only surfaces after the first
- * pass escapes a member, so only the fixpoint leaves neither renderer holding a stray.
- * Terminates because every round escapes a line and escaping never mints a tag.
+ * Two accountings, because the recognizer and a browser disagree about what a tag line is,
+ * and only the fixpoint leaves neither renderer holding a stray. Terminates because every
+ * round escapes a line and escaping never mints a tag.
  */
 function strayTagLines(lines: readonly string[]): Set<number> {
 	const escaped = new Set<number>();
@@ -225,8 +223,8 @@ export function registerDetailsKind(): void {
 	registerBlockOpener(details, {
 		// Slots into the gap just below htmlBlock, which else claims `<details>` as a type-6 block.
 		priority: OPENER_PRIORITIES.htmlBlock - 5,
-		// Defensive: htmlBlock's type-6 interrupt already covers the canonical opener and
-		// details wins the re-dispatch, so this only guards a future priority regression.
+		// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
+		// so the opener's paragraph behavior does not depend on that priority ordering.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);

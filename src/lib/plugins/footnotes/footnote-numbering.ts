@@ -68,9 +68,9 @@ const numberingByDocument = new WeakMap<
 >();
 
 /**
- * One numbering per flush; without it the walk ran once per widget. `contentVersion`
- * must be in the key: the `$state` document is mutated in place, so an identity-keyed
- * memo would hit forever and return a stale map.
+ * One numbering per flush rather than one per widget. `contentVersion` must be in the key:
+ * the `$state` document is mutated in place, so an identity-keyed memo would hit forever and
+ * return a stale map.
  */
 export function footnoteNumbersFor(
 	document: DocumentView,

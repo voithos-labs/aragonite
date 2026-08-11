@@ -54,8 +54,8 @@ export function registerTocBlock(): void {
 	});
 
 	registerBlockOpener(toc, {
-		// Gap placement below the only bracket-consuming built-in, which already declines
-		// `[[toc]]`; the slot keeps it winning were that matcher ever widened.
+		// Gap placement below the only bracket-consuming built-in, so `[[toc]]` resolves here
+		// whatever that matcher claims.
 		priority: OPENER_PRIORITIES.linkReferenceDefinition - 5,
 		interruptsParagraph: (text) => text === TOC_LINE,
 		tryOpen(ctx) {
@@ -78,9 +78,8 @@ export interface TocOptions {
 }
 
 export function tocPlugin(options?: TocOptions): EditorPlugin {
-	// A definition-time constant extraProp, so a single install fixes the depth
-	// process-wide (first-wins install semantics). Per-instance depth would need the
-	// EditorContext options channel, which this plugin deliberately skips.
+	// A definition-time constant extraProp, so a single install fixes the depth process-wide
+	// (first-wins install semantics); per-instance depth would need the options channel.
 	const maxDepth = options?.maxDepth ?? 6;
 	return definePlugin({
 		name: 'toc',

@@ -5,16 +5,15 @@
  */
 
 import katex from 'katex';
-// Rides this module so a consumer wiring the adapter cannot forget it: `htmlAndMathml`
-// emits a `.katex-mathml` a11y tree this CSS clips to 1px, and unloaded every equation
-// paints twice. The package's `sideEffects` listing keeps a bundler from dropping it.
+// Rides this module so a consumer wiring the adapter cannot forget it: `htmlAndMathml` emits
+// a `.katex-mathml` a11y tree this CSS clips to 1px, and unloaded every equation paints twice.
 import 'katex/dist/katex.min.css';
 import type { MathRenderer } from './math-renderer';
 
 /**
- * `throwOnError: false` keeps a malformed formula from crashing the editor, but its
- * fallback renders the source verbatim, a bare raw-source strip that A5 forbids —
- * hence detecting `.katex-error` and swapping in a legible message.
+ * `throwOnError: false` keeps a malformed formula from crashing the editor, but its fallback
+ * renders the source verbatim, a bare raw-source strip A5 forbids: hence the `.katex-error`
+ * detection and the legible message swapped in for it.
  */
 export const katexRenderer: MathRenderer = (source, { display }) => {
 	const container = document.createElement('span');

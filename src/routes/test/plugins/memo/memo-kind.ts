@@ -17,9 +17,8 @@ export const MEMO_BLOCK = 'memo';
 export function registerMemoBlock(): void {
 	const memo = declarePluginKind(MEMO_BLOCK);
 
-	// Harness-only commands over the editable-leaf tier's minted-command dispatch:
-	// `memo.tag` commits metadata through the sanctioned route, `memo.boom` throws so the
-	// seam's containment and 'command' error routing surface end-to-end.
+	// Harness-only commands over the editable-leaf tier's minted-command dispatch: `memo.tag`
+	// commits through the sanctioned route, `memo.boom` throws so containment surfaces.
 	const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
 		ctx.updateMetadata({ memoTagged: true });
 		return true;

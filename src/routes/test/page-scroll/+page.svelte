@@ -5,8 +5,8 @@
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	// The second host-scroll shape: `scrollMode="host"` with NOTHING scrollable between the
-	// editor and the document, so the window's viewport is the scrollport and the PAGE
-	// scrolls. `/test/flow` covers the other one, an ancestor scroller pinned to 100vh.
+	// editor and the document, so the window's viewport is the scrollport and the PAGE scrolls.
+	// `/test/flow` covers the other one, an ancestor scroller pinned to 100vh.
 
 	// No bytes to fetch, so the decode is fast and the intrinsic size is exact.
 	const LATE_IMAGE_SRC = `data:image/svg+xml,${encodeURIComponent(
@@ -14,8 +14,8 @@
 	)}`;
 
 	// The image-decode stall as DOCUMENT content: mounted under `imageLoadPolicy="placeholder"`
-	// (widget built, `src` unset, zero height) until the spec flips the policy. Late-sizing
-	// content INSIDE the editor's subtree, the case the anchoring opt-out decides.
+	// until the spec flips the policy, so the late sizing happens INSIDE the editor's subtree,
+	// the case the anchoring opt-out decides.
 	const IMAGE_BLOCK_INDEX = 6;
 	const ENTRY =
 		Array.from({ length: 160 }, (_, i) =>

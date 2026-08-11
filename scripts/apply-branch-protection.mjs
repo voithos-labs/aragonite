@@ -27,8 +27,8 @@ const protection = {
 		required_approving_review_count: 1,
 		bypass_pull_request_allowances: { users: ['DanielZFLiu'], teams: [], apps: [] }
 	},
-	// Null is "anyone with write may push"; a list here would be a second, narrower gate on
-	// top of the reviews. Set one once more maintainers hold write.
+	// Null is "anyone with write may push"; a list here would be a second, narrower gate on top
+	// of the reviews.
 	restrictions: null,
 	allow_force_pushes: false,
 	allow_deletions: false,

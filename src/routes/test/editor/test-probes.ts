@@ -39,9 +39,8 @@ import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
 
-// These kinds only trip BlockHost fallback paths, never a real editing surface, so
-// every cross-cutting system is honestly not-supported; mergeBackspace stays
-// non-inherit to satisfy the not-mergeable coherence rule.
+// These kinds only trip BlockHost fallback paths, never a real editing surface, so every
+// cross-cutting system is honestly not-supported.
 const HARNESS_PROBE_CLOSURE: ClosureBlock = {
 	roundTrip: { mode: 'inherit-default' },
 	focus: {
@@ -104,9 +103,9 @@ function firstTextLeafToken(node: CstNode): string | null {
 	return node.raw.match(/[A-Za-z0-9]+/)?.[0] ?? null;
 }
 
-// One row per kind that declares a conformanceFixture, parsed in the ROUTE's registry: a
-// fixture another plugin's opener claims parses to the wrong kind and yields a null token,
-// so the sweep records that reachability gap rather than the bridge hiding it.
+// One row per kind declaring a conformanceFixture, parsed in the ROUTE's registry: a fixture
+// another plugin's opener claims yields a null token, so the sweep records that reachability
+// gap rather than the bridge hiding it.
 function collectConformanceEntries(): ConformanceSweepEntry[] {
 	const entries: ConformanceSweepEntry[] = [];
 	for (const kind of getAllRegisteredKinds()) {
@@ -273,15 +272,12 @@ export function installTestProbes({
 		setPresentationMode: (mode: PresentationMode) => {
 			setPresentationMode(mode);
 		},
-		// getBlockCount / getBlockKind / dumpTree read the LIVE CST, not parse(getSource()):
-		// a reparse can't see a live-kind-vs-raw desync or a transient block the serializer
-		// trims. (dumpInlineTree stays on the reparse — inline structure, not liveness.)
+		// getBlockCount / getBlockKind / dumpTree read the LIVE CST, not parse(getSource()): a
+		// reparse can't see a live-kind-vs-raw desync or a transient block the serializer trims.
 		getBlockCount: () => editor.__test.getDocument().children.length,
-		// Fires a nested container scope's windowing rebuild WITHOUT moving the scroll (the
-		// VR-2 above-fold anchor-remap path), unlike setSource or undo. Root paths are
-		// rejected: root ids live in a separate `blockIds` array this helper can't reach.
-		// Ancestor raw stays STALE, so assert through getDocument() or parseConverged(),
-		// never getSource()/roundTripStable().
+		// Fires a nested container scope's windowing rebuild WITHOUT moving the scroll, unlike
+		// setSource or undo; root paths are rejected because root ids live in a separate array.
+		// Ancestor raw stays STALE, so assert through getDocument() or parseConverged().
 		spliceContainerChildren: (
 			path: number[],
 			at: number,
@@ -297,9 +293,9 @@ export function installTestProbes({
 		},
 		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
 		getConformanceEntries: (): ConformanceSweepEntry[] => collectConformanceEntries(),
-		// A descriptor with NO registered component reaches BlockHost's no-component branch
-		// and its visible-raw fallback. The kind stays outside ALL_BLOCK_KINDS so the
-		// startup registry-completeness check is unperturbed.
+		// A descriptor with NO registered component reaches BlockHost's no-component branch and
+		// its visible-raw fallback. Outside ALL_BLOCK_KINDS, so the startup completeness check
+		// stays unperturbed.
 		makeBlockOrphan: (index: number): void => {
 			const kind = 'orphanTest' as BlockKind;
 			if (!tryGetBlockKindDescriptor(kind)) {
@@ -373,10 +369,9 @@ export function installTestProbes({
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
 		},
-		// The live-tree convergence oracle. roundTripStable above is a tautology as a
-		// mutation oracle (serialize(parse(s)) === s holds for all valid GFM); this compares
-		// the LIVE CST against a reparse of its own serialization, so a tree left diverging
-		// from its raw (stale kind, stale grid, split-separator drift) is caught.
+		// The live-tree convergence oracle, unlike roundTripStable above, which is a tautology
+		// for all valid GFM: this compares the LIVE CST against a reparse of its own
+		// serialization, catching a tree left diverging from its raw.
 		parseConverged: (): boolean => parseConverges(editor.__test.getDocument()),
 		// The bar shows a match count instead of "N replaced" whenever matches survive a
 		// replace (skipped container matches), so specs read the replaced count here.
@@ -517,9 +512,9 @@ export function installTestProbes({
 		// ── BlockComponent surface probe ─────────────────────────────────
 		/**
 		 * The public `BlockComponent` caret doors a plugin-authored container calls
-		 * directly, unreachable from gesture-level specs (every built-in caret placement
-		 * goes through a pointer or keyboard path first). `parkCaret` is optional on the
-		 * contract, so its probe reports false rather than falling back to the clearing verb.
+		 * directly, unreachable from gesture-level specs (every built-in caret placement goes
+		 * through a pointer or keyboard path first). `parkCaret` is optional on the contract, so
+		 * its probe reports false rather than falling back to the clearing verb.
 		 */
 		focusBlockComponent: (path: number[], offset: number): boolean => {
 			const block = editor.__test.getBlockComponent(path);
@@ -553,11 +548,10 @@ export function installTestProbes({
 		},
 		// ── BlockListState consistency probe ─────────────────────────────
 		/**
-		 * Walks the LIVE CST, not a re-parse, for containers whose registered
-		 * BlockListState has drifted in length from node.children. Throws rather than
-		 * reporting `[]` when containers exist but none resolved a state: call sites
-		 * assert `toEqual([])`, so a registration regression would turn every one of them
-		 * vacuously green. Same loud-on-absent shape as `e2e/container-parity.ts`.
+		 * Walks the LIVE CST for containers whose registered BlockListState has drifted in
+		 * length from node.children. Throws rather than reporting `[]` when containers exist but
+		 * none resolved a state: call sites assert `toEqual([])`, which a registration
+		 * regression would otherwise turn vacuously green.
 		 */
 		auditBlockListStateConsistency: (): Array<{
 			path: number[];

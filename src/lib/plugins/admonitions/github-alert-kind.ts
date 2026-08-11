@@ -38,9 +38,9 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const alertType = matchAlertMarker(ctx.line.text);
 	if (!alertType) return null;
 
-	// The built-in extent scan, not the marker regex, is the authority on whether this
-	// line opens a blockquote: declining when it claims nothing keeps a marker-rule
-	// drift from reaching the parse loop as a non-advancing return.
+	// The built-in extent scan, not the marker regex, is the authority on whether this line
+	// opens a blockquote: declining on a zero-line claim keeps a marker-rule drift from
+	// reaching the parse loop as a non-advancing return.
 	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end);
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;

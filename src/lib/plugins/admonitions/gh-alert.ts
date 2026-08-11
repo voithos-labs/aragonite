@@ -1,9 +1,8 @@
 /**
- * The single home for `> [!TYPE]` recognition, reused by the native `githubAlert`
- * opener (github-alert-kind.ts). Both converters run the parser's own extent authority
- * so CommonMark §5.1 lazy continuation lands identically, pinned by
- * `test/plugins/admonitions/converter-parity.test.ts`. On a whole document prefer the
- * wrapper in `convert-document.ts`: the stream scanner here is not fence-safe.
+ * The single home for `> [!TYPE]` recognition, reused by the native `githubAlert` opener.
+ * Both converters run the parser's own extent authority so CommonMark §5.1 lazy
+ * continuation lands identically. On a whole document prefer the wrapper in
+ * `convert-document.ts`: the stream scanner here is not fence-safe.
  */
 import { blockquoteExtent, escalatedColonCount, splitLines, type ParsedLine } from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';

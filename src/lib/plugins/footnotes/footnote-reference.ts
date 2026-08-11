@@ -21,8 +21,8 @@ import { FOOTNOTE_REF_KIND } from './constants';
 const isWhitespace = (ch: string) => /\s/.test(ch);
 
 /**
- * Materialized once per block, not searched per consultation: an unterminated `[^`
- * declines by reaching the end, so a paragraph full of them paid a block scan each.
+ * Materialized once per block, not searched per consultation: an unterminated `[^` declines
+ * only by reaching the end, so a paragraph full of them would cost a block scan each.
  * Bounded rather than weak-keyed because a string cannot key a WeakMap.
  */
 const terminatorIndex = createBoundedMemo<string, Int32Array>({ cap: 2 });
@@ -48,9 +48,8 @@ function firstTerminatorFrom(raw: string, from: number): number {
 }
 
 /**
- * Every decline falls through to the built-in bracket handler byte-identically. A
- * trailing `(...)` is never consumed: the reference is atomic, so the following bytes
- * rescan as ordinary inline content rather than becoming a link destination.
+ * Every decline falls through to the built-in bracket handler byte-identically. The reference
+ * is atomic, so a trailing `(...)` rescans as ordinary inline content, never a destination.
  */
 function recognizeFootnoteReference(
 	raw: string,

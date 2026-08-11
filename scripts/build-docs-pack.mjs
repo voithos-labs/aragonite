@@ -24,10 +24,9 @@ if (packNames.length === 0) {
 	process.exit(1);
 }
 
-// A pointer resolves iff it names another packed .md basename; anything else is dead once
-// the doc leaves the repo. Targets are normalized first, so a padded, bracketed, or
-// anchored form can't smuggle one past. Deliberately regex-level: dependency-free, and a
-// link inside a fenced example counts, which keeps the gate conservative.
+// A pointer resolves iff it names another packed .md basename; anything else is dead once the
+// doc leaves the repo. Targets are normalized first, so a padded, bracketed, or anchored form
+// can't smuggle one past. Regex-level on purpose: dependency-free and conservative.
 const INLINE_TARGET = /\]\(([^)]+)\)/g; // `[text](t)` and `![alt](t)` (the latter contains `](t)`)
 const REFERENCE_TARGET = /^[ \t]*\[[^\]]+\]:[ \t]*(\S+)/gm; // `[label]: t` link definitions
 
@@ -91,9 +90,8 @@ function corpusMarkdownFiles(path, out) {
 	return out;
 }
 
-// A markdown link written inside code documents syntax: it renders as literal text and
-// never navigates, so blank fenced and inline code before scanning. Inline spans are
-// stripped per line, so one unbalanced backtick can't desync the rest of the file.
+// A markdown link written inside code never navigates, so blank fenced and inline code before
+// scanning. Inline spans go per line, so one unbalanced backtick can't desync the rest.
 const INLINE_CODE = /(`+)(?:(?!\1).)*?\1/g;
 function stripCode(text) {
 	let fence = null;
@@ -146,8 +144,8 @@ if (deadLinks.length > 0) {
 }
 
 const target = process.argv[2];
-// A dash-leading "target" is a mistyped flag, and writing it mints an invisible
-// directory (`--check/` shipped to main this way — every git command parses it as a flag).
+// A dash-leading "target" is a mistyped flag; writing it mints a directory every git command
+// then parses as a flag.
 if (target?.startsWith('-')) {
 	console.error(`docs-pack: refusing target "${target}" — looks like a flag, not a directory`);
 	process.exit(1);
@@ -160,10 +158,9 @@ if (!target) {
 
 // ── Pack write ──────────────────────────────────────────────────────────
 
-// The clear must not be able to take a tree with it on a mistyped argument. Two refusals
-// bound what is clearable: the pack's own source (all-.md, so the shape test alone would
-// let the clear eat it), and any directory holding an entry the pack never writes. With
-// those held, clearing is a flat unlink of .md files.
+// The clear must not be able to take a tree with it on a mistyped argument, so two refusals
+// bound what is clearable: the pack's own source, which is all-.md and would pass a shape test
+// alone, and any directory holding an entry the pack never writes.
 function refusalReason(dir) {
 	if (dir === resolve(SOURCE_DIR)) return 'it is the pack source directory';
 	if (!existsSync(dir)) return null;

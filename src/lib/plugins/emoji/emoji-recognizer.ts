@@ -32,9 +32,9 @@ function isShortcodeChar(code: number): boolean {
 }
 
 /**
- * Claims only on a table hit, carrying the glyph on `decoded` (the decoded-entity
- * mold). Allocation-free on the decline paths that matter: the name is sliced only
- * once a closing colon has bounded a non-empty run.
+ * Claims only on a table hit, carrying the glyph on `decoded` (the decoded-entity mold).
+ * The name is sliced only once a closing colon has bounded a non-empty run, so the common
+ * decline paths allocate nothing.
  */
 export function recognizeEmoji(
 	raw: string,
@@ -68,9 +68,8 @@ export function registerEmoji(): void {
 	if (isInlineKindDeclared(EMOJI_KIND)) return;
 	const kind = declarePluginInlineKind(EMOJI_KIND);
 	registerInlineSyntax(':', (raw, pos, end) => recognizeEmoji(raw, pos, end, kind), {
-		// The register-once grain forbids a second `:` registration at the plugin rung, so
-		// the +10 is what lets emoji share the trigger with the directive text tier; their
-		// grammars are disjoint, so the order only decides first refusal.
+		// The register-once grain forbids a second `:` registration at the plugin rung, so the
+		// +10 is what lets emoji share the trigger with the directive text tier.
 		priority: INLINE_PRIORITIES.plugin + 10
 	});
 	registerInlineWidgetKind(kind, {

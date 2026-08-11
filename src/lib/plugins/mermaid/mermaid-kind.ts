@@ -22,10 +22,9 @@ import {
 export const MERMAID = 'mermaid';
 
 /**
- * Everything `rebuildMermaidRaw` needs to re-emit the exact bytes, all primitives
- * because the undo clone shallow-copies metadata. `infoRaw` and `closerRaw` are
- * verbatim slices, trailing spaces and line ending included; `closerRaw` is `''`
- * when the fence is unterminated.
+ * Everything `rebuildMermaidRaw` needs to re-emit the exact bytes, all primitives because the
+ * undo clone shallow-copies metadata. The `*Raw` fields are verbatim slices, trailing spaces
+ * and line ending included.
  */
 export interface MermaidMetadata {
 	code: string;

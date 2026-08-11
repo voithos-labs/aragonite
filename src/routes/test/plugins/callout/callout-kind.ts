@@ -1,12 +1,9 @@
 /**
- * `:::callout` fenced-div callout: a plugin container kind on the public registration
- * seams, dispatched through the shared `:::name` directive primitive. Dev/e2e only.
- * The title lives in the opener line yet is a real CST child at index 0, so
- * `strip(raw) !== serialize(children)` — hence the `'opaque'` container contract, where
- * `raw` is authoritative and exempt from `checkStaleRaw`'s byte-level guard.
- *
- * Its directive names are claimed by no other plugin: a contended name resolves by install
- * order, which differs between an SSR process and a fresh browser realm.
+ * `:::callout` fenced-div callout: a plugin container kind on the public registration seams,
+ * dispatched through the shared `:::name` directive primitive. Dev/e2e only. The title lives
+ * in the opener line yet is a real CST child at index 0, so `strip(raw) !== serialize(children)`
+ * and the container contract is `'opaque'`. Its directive names are claimed by no other
+ * plugin: a contended name resolves by install order, which SSR and the browser disagree on.
  */
 
 import {
@@ -83,9 +80,8 @@ export function registerCalloutKind(): void {
 	const callout = declarePluginKind(CALLOUT);
 	const calloutTitle = declarePluginKind(CALLOUT_TITLE);
 
-	// A chord bubbling from an inner leaf to the container resolves here and commits
-	// through the container's own metadata seam. The partial patch merges over the fence
-	// bytes, so colonCount/closer fields survive the rebuild; `arg` arrives as `unknown`.
+	// A chord bubbling from an inner leaf resolves here and commits through the container's own
+	// metadata seam; the partial patch merges over the fence bytes, so the closer survives.
 	const setKind = registerBlockCommand(callout, 'callout.setKind', (ctx) => {
 		if (typeof ctx.arg !== 'string') return false;
 		ctx.updateMetadata({ calloutType: ctx.arg });

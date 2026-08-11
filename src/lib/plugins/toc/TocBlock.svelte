@@ -42,14 +42,12 @@
 		}
 	});
 
-	// The walk reads heading bytes through the prop, subscribing to the CST's $state
-	// proxy, so an edit above re-runs it; it stays uncached to keep the derived
-	// reactive-safe.
+	// The walk reads heading bytes through the prop, subscribing to the CST's $state proxy, so
+	// an edit above re-runs it; it stays uncached to keep the derived reactive-safe.
 	const headings = $derived(collectHeadings(document, maxDepth));
 
-	// Serialized per block (see `navigation-queue.ts` for why). `navigateTo` lands the
-	// caret as well as scrolling, so the entry button does not keep focus where the
-	// editor's chords cannot reach it. Without a rect surface, entries are inert.
+	// Serialized per block (see `navigation-queue.ts` for why). `navigateTo` lands the caret as
+	// well as scrolling, so focus never stays where the editor's chords cannot reach it.
 	const navigation = createNavigationQueue({
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve()
 	});

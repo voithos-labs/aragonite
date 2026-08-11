@@ -39,9 +39,8 @@ function recognizeEmbed(raw: string, pos: number, end: number): InlineNode | nul
 	};
 }
 
-// An embed names only a target and a width, so a title, a label, or an alt edited away
-// from the target has no form here and declines rather than escaping into GFM. Ignoring
-// the alt case instead would return byte-identical bytes the commit's guard drops silently.
+// An embed names only a target and a width, so a title, a label, or an alt edited away from
+// the target has no form here and declines rather than escaping into GFM.
 function rewriteImage(source: string, fields: ImageFields): string | null {
 	if (!source.startsWith('![[')) return null;
 	if (fields.title !== undefined || fields.label !== undefined) return null;

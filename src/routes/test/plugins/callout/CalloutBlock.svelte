@@ -1,7 +1,6 @@
 <script lang="ts">
-	// A plugin container on the public `aragonite/plugin` seam: `createContainerBlock`
-	// hides every editor internal the built-in blockquote reaches for, so this component
-	// supplies only its own chrome around the returned BlockList props.
+	// A plugin container on the public `aragonite/plugin` seam: `createContainerBlock` hides
+	// every editor internal, so this component supplies only chrome around the BlockList props.
 	import { BlockList, createContainerBlock, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();

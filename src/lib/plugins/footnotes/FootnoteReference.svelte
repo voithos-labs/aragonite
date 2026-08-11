@@ -8,10 +8,9 @@
 	// svelte-ignore state_referenced_locally
 	const label = source.slice(2, -1);
 
-	// Reactive, not baked: the pool keys on the source, so this instance survives a
-	// renumber driven by a reference added elsewhere. Reading the version inside the
-	// derived is what preserves that once the walk is shared, since the same version is
-	// the memo key that holds the walk to one per flush.
+	// Reactive, not baked: the pool keys on the source, so this instance survives a renumber
+	// driven by a reference added elsewhere. The version is read inside the derived, so the
+	// shared walk stays subscribed rather than snapshotted.
 	const display = $derived.by(() => {
 		const doc = getDocument?.();
 		if (!doc) return label;
