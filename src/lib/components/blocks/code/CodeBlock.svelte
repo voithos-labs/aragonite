@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, tick } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
@@ -41,7 +41,13 @@
 	import { indentLines, dedentLines, type IndentResult } from './code-indent';
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
-	import { fenceShapeOf, reconcileFenceWrite } from '../../../schema/fenced-code-raw';
+	import {
+		fenceShapeOf,
+		reconcileFenceWrite,
+		writeFenceInfo
+	} from '../../../schema/fenced-code-raw';
+	import { hidesMarkers } from '../../../presentation-mode';
+	import CodeLanguageChip from './CodeLanguageChip.svelte';
 	import { computeFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
@@ -94,9 +100,13 @@
 		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	const readOnly = $derived(getPresentationMode?.() === 'reading');
+	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const readOnly = $derived(presentationMode === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
+	// The walk container's own stamp, kept as state rather than re-derived: it is what
+	// decides whether this block paints its fence chrome, and so whether it needs a chip.
+	let contentEmpty = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
@@ -218,7 +228,9 @@
 
 		el.replaceChildren(renderCodeBlock(node));
 		anchorTrailingNewline(el);
-		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
+		const chromeOnly = holdsOnlyMarkerChrome(el);
+		el.toggleAttribute(CONTENT_EMPTY_ATTR, chromeOnly);
+		contentEmpty = chromeOnly;
 		lastRenderedRaw = node.raw;
 
 		// Restore only while this block still holds focus: an edit reparsing to multiple
@@ -252,6 +264,32 @@
 		const blockEl = el;
 		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
 	});
+
+	// ── The language chip ─────────────────────────────────────────────────────
+
+	// The chip stands in for fence chrome the mode paints nothing for, so it shows exactly
+	// where that chrome is missing: never in source, never on a block painting its own.
+	const showChip = $derived(hidesMarkers(presentationMode) && !contentEmpty);
+	const infoString = $derived(metadataOf(node, 'fencedCode').info);
+
+	// The chip's write: the opener's info span, through the display funnel so the fence rule
+	// runs over it, isolated so no typing burst on either side joins its undo entry.
+	function commitLanguage(info: string): void {
+		const display = getDisplayText();
+		const written = writeFenceInfo(display, info, fenceShapeOf(node));
+		const bodyStart = clampCaretToBody(node, 0);
+		// Unchanged or refused bytes are a close, not a write — no entry, no edit event.
+		if (written !== null && written !== display) {
+			controller.isolateUndoEntry(() => commitDisplay(written, bodyStart, bodyStart));
+		}
+		returnCaretToBody();
+	}
+
+	// This block's own door, not `moveFocus`: the chip is chrome over one block, and a
+	// traversal to it stops at the gap above instead. The seat waits for the commit's render.
+	function returnCaretToBody(): void {
+		void tick().then(() => focus(0));
+	}
 
 	// ── Event handlers ────────────────────────────────────────────────────────
 
@@ -688,6 +726,16 @@
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
+<!-- Beside the walk container, never inside it: the render effect replaces that element's
+	children on every commit, and the offset walk counts everything that survives there. -->
+{#if showChip}
+	<CodeLanguageChip
+		info={infoString}
+		editable={!readOnly}
+		onCommit={commitLanguage}
+		onCancel={(returnCaret) => returnCaret && returnCaretToBody()}
+	/>
+{/if}
 
 <style>
 	.code-block {

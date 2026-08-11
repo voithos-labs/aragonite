@@ -165,6 +165,8 @@ Optional props customize URL and image handling and the editor's affordances.
 
   Bytes only change where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, with one exception — the painted markers above: `Backspace` at the very start of a `# ` that has no heading text drops the construct, where source mode does nothing.
 
+Wherever a mode hides a fenced code block's fence, a small **language chip** appears at the code box's top-right on hover or with the caret inside — it reads the block's language, and outside reading mode a click turns it into a field where Enter commits a new one as a single undoable edit. It is the only way to reach an info string those modes paint nowhere; source mode shows the fence itself and gets no chip.
+
 The effective mode is reflected as `data-presentation` on the editor root — **absent** in source mode, so default-mode DOM is unchanged — and announced to subscribers as a `presentationModeChange` event on `getEvents()`.
 
 One reading-mode limitation to know: blocks are not `contenteditable` there, so there is no within-block text caret — navigation is block-level (mouse selection and copy work natively on the static content). This is the same contract as other reading views (Obsidian's reading mode has no caret either).
