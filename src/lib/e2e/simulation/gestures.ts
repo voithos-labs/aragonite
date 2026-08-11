@@ -85,6 +85,7 @@ import {
 	liveToggleFormat,
 	liveTypeFenceOpener,
 	liveTypeHeadingOpener,
+	liveTypeTableOpener,
 	type LiveFormat
 } from './gestures/live-editing';
 import {
@@ -657,6 +658,11 @@ export class Gestures {
 	/** The same on a fence: three backticks mint the block, the info string settles on its line. */
 	liveTypeFenceOpener(blockIndex: number, info: string): Promise<void> {
 		return liveTypeFenceOpener(this.ctx, blockIndex, info);
+	}
+
+	/** The adjacent-line member: the header row predicts byte for byte, Enter mints the grid. */
+	liveTypeTableOpener(blockIndex: number, cells: string[]): Promise<void> {
+		return liveTypeTableOpener(this.ctx, blockIndex, cells);
 	}
 
 	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────

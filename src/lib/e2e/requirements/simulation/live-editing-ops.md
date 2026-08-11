@@ -31,10 +31,12 @@ run over every step.
   and the space and word behind it are predicted keystroke by keystroke
 - three backticks typed the same way mint a fenced block, and its info string
   lands on the fence line rather than in front of it
+- a table header row typed the same way mints nothing while it is being typed, so
+  every byte is predicted; the `Enter` that completes it into a grid is the mint
 
 ## Edge cases
 
-- the two typed openers are the exception to the one-press rule below: a typed
+- the typed openers are the exception to the one-press rule below: a typed
   run batches on wall-clock time, so they unwind by the entries the stack
   actually gained and the envelope's byte equality is what holds them to it
 - every other gesture's undo is asserted as exactly ONE press: a rule that spent

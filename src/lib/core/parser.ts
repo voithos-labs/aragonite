@@ -16,8 +16,12 @@ import {
 import { assertInvariant } from '../invariants/assert';
 import { parseParagraph } from './parsers/paragraph';
 import { registerBuiltInOpeners } from './parsers/built-in-openers';
+import { registerTableCompleter } from './parsers/table-completion';
 
 registerBuiltInOpeners();
+// The Enter completer is the typed-entry twin of the table grammar, so it loads here rather
+// than behind a side-effect import the production build tree-shakes away.
+registerTableCompleter();
 
 /**
  * Container-nesting cap: past it the remaining prefix parses as paragraph content instead of

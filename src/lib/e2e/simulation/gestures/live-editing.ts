@@ -206,6 +206,27 @@ export async function liveTypeFenceOpener(
 	});
 }
 
+/**
+ * A table header row typed onto a fresh line, completed by Enter. No keystroke in the row mints
+ * anything, so the tracker predicts every byte of it; the Enter is the mint, and the only resync.
+ */
+export async function liveTypeTableOpener(
+	ctx: SimContext,
+	blockIndex: number,
+	cells: string[]
+): Promise<void> {
+	await typedOpener(ctx, blockIndex, async () => {
+		for (const ch of `| ${cells.join(' | ')} |`) {
+			await ctx.editor.typeSlowly(ch);
+			await settleTypedSource(ctx, ctx.tracker.appendChar(ch));
+		}
+		const before = await ctx.editor.bridge.getSource();
+		await ctx.page.keyboard.press('Enter');
+		await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+		await settleMint(ctx, 'table', 'completing a header row');
+	});
+}
+
 /** A merge landing rides the caret funnel: Backspace at a block's start joins it into its
  *  predecessor, the door seats the join offset, and the next byte lands at the seam (G2.12).
  *  `seamBefore`/`seamAfter` are the bytes the caller knows stand on either side of it. */
@@ -364,19 +385,24 @@ async function typedOpener(
 	});
 }
 
-/** The keystrokes that mint a block's own chrome. The kind flip is auto-behavior, so this settles
- *  on the delta and resyncs instead of predicting — and asserts the flip it just paid for. */
+/** The keystrokes that mint a block's own chrome. */
 async function mintOpener(ctx: SimContext, opener: string, kind: string): Promise<void> {
+	const before = await ctx.editor.bridge.getSource();
+	await ctx.editor.typeSlowly(opener);
+	await ctx.editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
+	await settleMint(ctx, kind, `typing ${JSON.stringify(opener)}`);
+}
+
+/** The tail every mint shares: the kind flip is auto-behavior, so this settles on it, asserts the
+ *  flip the keystroke just paid for, and resyncs instead of predicting. */
+async function settleMint(ctx: SimContext, kind: string, what: string): Promise<void> {
 	const { editor, tracker } = ctx;
-	const before = await editor.bridge.getSource();
-	await editor.typeSlowly(opener);
-	await editor.bridge.waitForSourceWith((source, prev) => source !== prev, before);
 	await editor.waitForRenderFlush();
 	const at = (await editor.bridge.getSelectionPaths())?.focus.path[0] ?? -1;
 	const minted = at < 0 ? null : await editor.bridge.getBlockKind(at);
 	if (minted !== kind) {
 		throw new Error(
-			`[${ctx.label}] typing ${JSON.stringify(opener)} minted ${minted}, not ${kind}.\n` +
+			`[${ctx.label}] ${what} minted ${minted}, not ${kind}.\n` +
 				`SOURCE: ${JSON.stringify(await editor.bridge.getSource())}`
 		);
 	}
