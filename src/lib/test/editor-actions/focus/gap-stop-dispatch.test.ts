@@ -1,5 +1,5 @@
 // Container-scope parity for the gap stop: the dispatcher asks the same question at its
-// own boundaries, including the two it used to answer only by delegating upward.
+// own boundaries instead of delegating them upward.
 import { describe, it, expect, vi } from 'vitest';
 import { dispatchMoveFocus } from '../../../editor-actions/focus/focus-dispatch';
 import { mockRef, makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';

@@ -57,8 +57,8 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		expect(commit).toHaveBeenCalledWith('![[cat.png|320]]\n', 0, 16);
 	});
 
-	// The defect this suite exists for: the bytes used to come back
-	// `![cat.png|320](cat.png)`, silently replacing the consumer's grammar.
+	// A GFM fallback here would come back `![cat.png|320](cat.png)`, silently
+	// replacing the consumer's grammar.
 	it('commits nothing when the rung registered no hook', () => {
 		registerWikiRung();
 		const { consumed, commit } = keyboardResize('![[cat.png|300]]\n');

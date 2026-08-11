@@ -88,8 +88,8 @@ describe('details terminator collision through the real commit path', () => {
 		expect(checkOpaqueStaleRaw(h.deps.doc.children[0])).toBeNull();
 	});
 
-	// Byte round-trip is NOT the property at risk here, and saying so keeps the
-	// next reader from mistaking this for a serializer bug.
+	// Byte round-trip is NOT the property at risk here: a red row points at the
+	// escape, not the serializer.
 	it('keeps the byte round-trip intact throughout', async () => {
 		const h = mountDetails(OPEN_DETAILS);
 		await h.bundle.blockEdit.updateBlockContent(1, '</details>\n', 0);

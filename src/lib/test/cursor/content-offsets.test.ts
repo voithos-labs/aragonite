@@ -103,7 +103,7 @@ describe('content-offsets', () => {
 			expect(getSelectionOffsets(container)).toBeNull();
 		});
 
-		// An endpoint outside the container is not this container's to measure: the old 0 fallback
+		// An endpoint outside the container is not this container's to measure: a 0 fallback would
 		// read as a real offset. Surfaces treat null as "not mine" and decline.
 		it('returns null when the selection reaches outside the container', () => {
 			container.textContent = 'abcdef';

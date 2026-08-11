@@ -109,8 +109,8 @@ describe('createHeightOracle', () => {
 			metadata: { ordered: false },
 			children: [{}, {}, {}, {}, {}] as CstNode[]
 		};
-		// Identical raw, more children => taller. The old blob-only estimate gave
-		// both the same (~1 line) height — the central undercount this arm fixes.
+		// Identical raw, more children => taller: a raw-only estimate gives both the
+		// same ~1-line height.
 		expect(o.estimate(many, 800)).toBeGreaterThan(o.estimate(few, 800));
 		expect(o.estimate(many, 800)).toBe(5 * (24 + 16)); // 5 children, >= one line + chrome each
 	});
