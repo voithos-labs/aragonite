@@ -20,8 +20,12 @@ source share both the defect and the fix.
 
 ## Edge cases
 
-- The empty child an Enter makes at the end of a quote completes the same way: the space
-  is consumed there too, so the following character lands as `> x` rather than `>  x`
+- Any empty child completes the same way wherever it sits (first, middle or last, made by
+  an Enter or loaded with the document): the space is consumed there too, so the following
+  character lands as `> x` rather than `>  x`
+- Repeated presses at that seat are all consumed: the child is still empty, so press 2 and
+  every one after it leave the source byte-identical as well. The middle seat and the
+  repeat pin at the dispatch (`test/blocks/text/edge-policy-marker-completion.test.ts`)
 - A space at offset 0 of a NON-empty quote child is ordinary content: `> abc` becomes
   `>  abc`
 

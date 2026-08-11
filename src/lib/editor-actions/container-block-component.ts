@@ -172,9 +172,7 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	}
 
 	// A typed character has nowhere to land on a block that IS its own focus target, so it mints
-	// the paragraph below carrying it — the gap caret's printable mint (`selection/gap-caret.ts`),
-	// one commit and one caret landing. Shift is untouched: it is how capitals arrive, while a
-	// mid-composition keydown carries an intermediate byte the IME has not committed yet.
+	// the paragraph below carrying it (`editor-actions/block-edit-core.ts :: insertParagraph`).
 	if (isCharacterKey(e.key) && !e.isComposing && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
 		if (!deps.isReading()) void deps.blockEdit.insertParagraph(deps.getIndex() + 1, e.key);

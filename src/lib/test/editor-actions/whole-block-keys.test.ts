@@ -129,9 +129,20 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
-	it('leaves a chorded character to the caller', () => {
+	it.each([{ ctrlKey: true }, { metaKey: true }, { altKey: true }])(
+		'leaves a chorded character (%o) to the caller',
+		(mods) => {
+			const { deps, insertParagraph } = makeDeps();
+			const e = press('b', mods);
+			handleWholeBlockKeys(e, deps);
+			expect(insertParagraph).not.toHaveBeenCalled();
+			expect(e.preventDefault).not.toHaveBeenCalled();
+		}
+	);
+
+	it.each(['Tab', 'Escape', 'Dead'])('leaves the non-printable %s to the caller', (key) => {
 		const { deps, insertParagraph } = makeDeps();
-		const e = press('b', { altKey: true });
+		const e = press(key);
 		handleWholeBlockKeys(e, deps);
 		expect(insertParagraph).not.toHaveBeenCalled();
 		expect(e.preventDefault).not.toHaveBeenCalled();

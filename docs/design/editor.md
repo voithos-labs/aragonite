@@ -288,7 +288,7 @@ The four cases, named for the e2e requirements that pin them (`src/lib/e2e/requi
 
 ### Marker completion
 
-An opener firing on the bare marker byte mints its container before the space that finishes the marker arrives, so that space lands in the container's empty child as content — a permanent leading space once text follows. A container declaring `contentStartSpace` consumes it instead: no byte moves and no undo entry is pushed, because its `rebuildRaw` re-emits the marker's own space the moment content does arrive. Blockquote is the shipped declarer, in every presentation mode; the list needs none, since `-` alone stays a paragraph and the flip to a list mints `- ` whole. Nesting composes by the nearest ancestor: an inner quote completes at its own depth.
+An opener firing on the bare marker byte mints its container before the space that finishes the marker arrives, so that space lands in the container's empty child as content — a permanent leading space once text follows. A container declaring `contentStartSpace` consumes it instead: every space at an empty child's content start is taken, at any child index and on repeated presses, moving no byte and pushing no undo entry. A `rebuildRaw` that canonicalizes the marker's trailing space is what makes the first press byte-honest, since the space it took reappears the moment content arrives. Blockquote is the shipped declarer, in every presentation mode; the list needs none, since `-` alone stays a paragraph and the flip to a list mints `- ` whole. Nesting composes by the nearest ancestor: an inner quote completes at its own depth.
 
 ### Focus traversal
 
