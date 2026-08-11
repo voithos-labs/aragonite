@@ -1,7 +1,7 @@
 /**
  * HTML5 named-entity table per CommonMark §2.5, vendored from
  * https://html.spec.whatwg.org/entities.json (WHATWG HTML Standard, CC BY 4.0; see
- * LICENSE-THIRD-PARTY.md). To regenerate: keep only entries whose key ends with `;`
+ * THIRD-PARTY-NOTICES.md). To regenerate: keep only entries whose key ends with `;`
  * (CommonMark requires it), then map key-without-`&`/`;` to the whole `characters` field,
  * which is multi-codepoint for some entries.
  */

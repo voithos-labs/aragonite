@@ -4,6 +4,11 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **The third-party notices file is now `THIRD-PARTY-NOTICES.md`.** The old
+  `LICENSE-THIRD-PARTY.md` name matched GitHub's license detection, so the repo reported two
+  licenses; the notices themselves (the commonmark.js emphasis port, the gemoji table, the WHATWG
+  entities table) are unchanged and still ship in the npm tarball.
+
 - **Fully live mode.** `presentationMode="live"` hides every Markdown marker and leaves the
   document directly editable — `**bold**` reads as bold with the caret inside it, a heading never
   shows its `## `, a link shows its text alone — with typing, selection, Enter, Backspace, undo,
