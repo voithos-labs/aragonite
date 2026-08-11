@@ -184,7 +184,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: "appends the list's own line ending to the deepest leaf; an ending terminates a line rather than restructuring one"
 	},
 	'src/lib/testing/container-conformance.ts': {
-		count: 3,
+		count: 4,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"
 	}
 };
