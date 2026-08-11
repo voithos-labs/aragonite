@@ -57,6 +57,7 @@
 	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import {
 		domTextOffsetAtNode,
+		landableStartAbutsIsland,
 		rawTextOfNode,
 		createRangeAtDomTextOffsets,
 		revealsNoMarkers
@@ -775,9 +776,15 @@
 		// contenteditable from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
-		// Native Home lands at DOM 0, before the marker span; the user wants the block's start.
-		// Through the sentinel door, not a raw-0 DOM write: the landable clamp applies (GH #110).
-		if (e.key === 'Home' && !e.shiftKey && ambientLength > 0 && el) {
+		// Native Home lands at DOM 0, before the marker span — or past a leading island no text
+		// node fronts (GH #115); the user wants the block's start. Through the sentinel door,
+		// not a raw-0 DOM write: the landable clamp applies (GH #110).
+		if (
+			e.key === 'Home' &&
+			!e.shiftKey &&
+			el &&
+			(ambientLength > 0 || landableStartAbutsIsland(el))
+		) {
 			e.preventDefault();
 			focus(CURSOR_START);
 			return;

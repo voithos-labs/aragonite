@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { buildAmbientSpan } from '../../ambient/ambient-dom';
+import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 
 describe('buildAmbientSpan', () => {
 	it('string input produces a single text-only span', () => {
@@ -63,5 +63,41 @@ describe('buildAmbientSpan', () => {
 		expect((span.childNodes[1] as HTMLElement).tagName).toBe('SPAN');
 		expect(span.childNodes[1].textContent).toBe('X');
 		expect(span.childNodes[2].textContent).toBe('cd');
+	});
+});
+
+// Miss-analysis (GH #115): the raw-0 landing preferred the first text node after the span with
+// no walk pin, so a leading widget's raw bytes were silently skipped and raw 0 read as the
+// widget's end.
+describe('placeCaretAfterAmbientSpan', () => {
+	function mountListBlock(...afterSpan: Node[]): HTMLElement {
+		const block = document.createElement('div');
+		block.setAttribute('contenteditable', 'true');
+		block.append(buildAmbientSpan('- '), ...afterSpan);
+		document.body.appendChild(block);
+		return block;
+	}
+
+	function widget(): HTMLElement {
+		const el = document.createElement('span');
+		el.setAttribute('data-inline-widget', '');
+		el.setAttribute('contenteditable', 'false');
+		return el;
+	}
+
+	it('seats in the first text node when text opens the content', () => {
+		const block = mountListBlock(document.createTextNode('tail'));
+		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+		const range = window.getSelection()!.getRangeAt(0);
+		expect(range.startContainer.textContent).toBe('tail');
+		expect(range.startOffset).toBe(0);
+	});
+
+	it('seats at the span boundary when a widget opens the content — its raw is not skippable', () => {
+		const block = mountListBlock(widget(), document.createTextNode(' tail'));
+		expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+		const range = window.getSelection()!.getRangeAt(0);
+		expect(range.startContainer).toBe(block);
+		expect(range.startOffset).toBe(1);
 	});
 });
