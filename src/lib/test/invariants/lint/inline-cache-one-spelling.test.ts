@@ -1,10 +1,9 @@
 /**
  * One spelling for the inline cache. The accessor takes a resolver and a signature, and a caller
  * that drops either reads a DIFFERENT sub-entry from the one the render path filled — a
- * bracket-bearing block then answers with brackets on screen where the render showed a link. That
- * is the class the bounds seam shipped once. `resolvedInlineContent` is the one door that passes
- * both from a `linkRef`, so every non-render consumer goes through it and the raw accessor stays
- * inside its own module.
+ * bracket-bearing block then answers with brackets on screen where the render showed a link.
+ * `resolvedInlineContent` is the one door that passes both from a `linkRef`, so every non-render
+ * consumer goes through it and the raw accessor stays inside its own module.
  */
 
 import { describe, it, expect } from 'vitest';

@@ -108,7 +108,7 @@ describe('host-seam walks', () => {
 	it('answers the window when the page viewport is what scrolls and bounds', () => {
 		const leaf = nest([{}, {}]);
 		// Total, not null: a page-scrolled embedding is a real autoscroll answer, and
-		// every caller spelled the old null as "nothing to scroll".
+		// callers read a null as "nothing to scroll".
 		expect(userScrollportFor(leaf)).toBe(window);
 		expect(clippingAncestors(leaf)).toEqual([]);
 	});
