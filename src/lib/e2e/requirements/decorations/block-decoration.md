@@ -18,3 +18,13 @@ fully functional editing surface — decorations are view-only chrome, never con
 - Disposing the source removes its class, attrs, and badge
 - A decorated block still edits normally: typing lands in the source, and Enter splits the
   block — the badge (first host child) must not capture focus or caret placement
+- An attribute spelling one of the editor's own `data-` names is refused (the host is an
+  ancestor of every walk container, so it would answer lookups the walk and CSS make); the
+  same decoration's other attributes still land
+- A content-empty stamp reaching the host anyway paints no marker under live: the CSS
+  override is scoped to the walk container the JS twin reads
+
+## Miss-analysis
+
+- The attrs write had no validation and no scenario named the hazard, so the CSS↔JS
+  divergence it opens was invisible to the parity probe that exists to catch exactly it
