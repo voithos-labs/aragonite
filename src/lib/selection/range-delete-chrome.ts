@@ -6,6 +6,8 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
+import type { PresentationMode } from '../presentation-mode';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
@@ -14,6 +16,7 @@ import { displayLength, terminateLine, trailingLineEnding } from '../core/lines'
 import { charOffsetOf } from './primitives';
 import { comparePaths, pathsEqual } from './path-math';
 import {
+	cleanTruncatedProse,
 	resolveEndWall,
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
@@ -55,12 +58,15 @@ export function chromeAwareRangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView | undefined,
+	presentationMode?: PresentationMode,
+	linkRef?: InlineResolverRef
 ): RangeDeleteResult {
 	const startOffset = charOffsetOf(start, 'chromeAwareRangeDelete:start');
 	const endOffset = charOffsetOf(end, 'chromeAwareRangeDelete:end');
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
+	const live = { presentationMode, linkRef };
 
 	// Own every written spine BEFORE identities are captured (G1.9): chains stay valid across
 	// splices, paths don't.
@@ -79,10 +85,12 @@ export function chromeAwareRangeDelete(
 	// into start. Skipped when its container dies whole.
 	if (!endConsumed) {
 		const endBlock = endChain[endChain.length - 1];
-		const endTail = endBlock.raw.slice(endOffset);
 		if (endC && isChromeChild(endC, end.path)) {
-			endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
+			// The wall keeps its bytes literal: a chrome end truncates by raw write.
+			endBlock.raw = endBlock.raw.slice(endOffset) || trailingLineEnding(endBlock.raw);
 		} else {
+			// A prose tail crosses the unpaired-run cleanup (GH #133).
+			const endTail = cleanTruncatedProse(endBlock, 'tail', endOffset, live).raw;
 			installTruncatedEndpoint(doc, end.path, reparseTruncatedEndpoint(endBlock, endTail), sharing);
 		}
 	}
@@ -90,16 +98,20 @@ export function chromeAwareRangeDelete(
 	applyPlannedDeletion(doc, plan, lcaPath);
 
 	// Start truncates in place; every deletion sits after it in doc order, so start.path is
-	// still live.
+	// still live. The chrome wall keeps its bytes literal; a prose head crosses the
+	// unpaired-run cleanup (GH #133).
 	const startBlock = startChain[startChain.length - 1];
-	const startHead = startBlock.raw.slice(0, startOffset);
-	if (startC && isChromeChild(startC, start.path)) {
-		startBlock.raw = terminateLine(startHead, startBlock.raw);
+	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
+	const head = startIsChrome
+		? { raw: startBlock.raw.slice(0, startOffset), seam: startOffset }
+		: cleanTruncatedProse(startBlock, 'head', startOffset, live);
+	if (startIsChrome) {
+		startBlock.raw = terminateLine(head.raw, startBlock.raw);
 	} else {
 		installTruncatedEndpoint(
 			doc,
 			start.path,
-			reparseTruncatedEndpoint(startBlock, terminateLine(startHead, startBlock.raw)),
+			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, startBlock.raw)),
 			sharing
 		);
 	}
@@ -111,7 +123,7 @@ export function chromeAwareRangeDelete(
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: startOffset }
+		collapsedCaret: { path: start.path.slice(), offset: head.seam }
 	};
 }
 

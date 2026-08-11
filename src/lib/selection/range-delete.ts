@@ -76,14 +76,14 @@ export function rangeDelete(
 		throw new Error('rangeDelete: start or end path does not resolve to a block node');
 	}
 
-	// The table branch joins nothing, but a truncation still strands the runs whose partner went
-	// with the cut, so its prose endpoints cross the cleaner's unpaired-run half. The chrome
-	// branch keeps its wall-rule raw writes byte-literal.
+	// The wall branches join nothing, but a truncation still strands the runs whose partner went
+	// with the cut, so their prose endpoints cross the cleaner's unpaired-run half; only the
+	// chrome child's own raw writes stay byte-literal.
 	if (involvesTable(startBlock, endBlock)) {
 		return tableAwareRangeDelete(doc, start, end, sharing, grammar, presentationMode, linkRef);
 	}
 	if (involvesReservedChrome(doc, start, end)) {
-		return chromeAwareRangeDelete(doc, start, end, sharing, grammar);
+		return chromeAwareRangeDelete(doc, start, end, sharing, grammar, presentationMode, linkRef);
 	}
 
 	const sameBlock = comparePaths(start.path, end.path) === 0;
