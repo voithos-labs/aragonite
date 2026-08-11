@@ -8,7 +8,7 @@ import { EditorPage } from '../../editor-page';
 // attribute, which is the same fact from the other side.
 export async function enterPresentationMode(
 	page: Page,
-	mode: 'live' | 'preview-block' | 'preview-inline' | 'reading' | 'source',
+	mode: 'live' | 'preview-inline' | 'reading' | 'source',
 	doc: string
 ): Promise<EditorPage> {
 	const ep = new EditorPage(page);
