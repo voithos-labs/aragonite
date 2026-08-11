@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { CODE_LANGUAGE_FIELD, codeLanguage } from '../../../a11y-strings';
+	import { CODE_LANGUAGE_FIELD, codeLanguageLabel } from '../../../a11y-strings';
 
 	// The fence-info door for the modes that paint no fence (issue #142). Ephemeral DOM until
 	// Enter, the reveal discipline: the draft lives here and only a commit reaches the tree.
@@ -73,7 +73,8 @@
 			onfocusout={onFieldBlur}
 		/>
 	{:else}
-		<button type="button" aria-label={codeLanguage(language)} onclick={open}>{language}</button>
+		<button type="button" aria-label={codeLanguageLabel(language)} onclick={open}>{language}</button
+		>
 	{/if}
 </span>
 

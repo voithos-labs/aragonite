@@ -72,30 +72,32 @@ export function normalizeFencedRaw(raw: string, node: NodeView): string {
 /**
  * The bytes with `info` written onto the opening fence line. Only that span moves, so the
  * indent, both marker runs, the body and the closer come through byte-identical. Null when
- * line 0 is not this block's opener, or when the info would stop it reading as one.
+ * line 0 does not read as this block's opener at all.
  */
 export function writeFenceInfo(display: string, info: string, fence: FenceShape): string | null {
 	const lineEnd = firstLineEnd(display);
 	const line = display.slice(0, lineEnd);
 	const opener = splitOpener(line, fence);
-	const written = opener && legalInfo(info, fence);
-	if (!opener || written === null) return null;
+	if (!opener) return null;
 	// A CRLF separator's `\r` sits inside the line; the info span ends before it.
 	const infoEnd = lineEnd - (line.endsWith('\r') ? 1 : 0);
-	return display.slice(0, opener.runEnd) + written + display.slice(infoEnd);
+	return display.slice(0, opener.runEnd) + legalInfo(info, fence) + display.slice(infoEnd);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
 /**
- * What the info span may hold: one line, and no backtick under a backtick fence (CommonMark
- * §4.5). Null for a leading run of the fence's own marker, which lengthens the fence instead —
- * `~~~` + `~x` reparses as a four-tilde run its own closer no longer closes.
+ * What the info span may hold: one line, no backtick under a backtick fence (CommonMark §4.5),
+ * and no leading run of the fence's own marker, which lengthens the fence instead — `~~~` + `~x`
+ * reparses as a four-tilde run its own closer no longer closes. Dropped rather than declined,
+ * the rule the typed and pasted routes already share.
  */
-function legalInfo(info: string, fence: FenceShape): string | null {
+function legalInfo(info: string, fence: FenceShape): string {
 	const oneLine = info.replace(/[\r\n]/g, '');
 	const kept = fence.marker === '`' ? oneLine.replaceAll('`', '') : oneLine;
-	return kept.startsWith(fence.marker) ? null : kept;
+	let start = 0;
+	while (kept[start] === fence.marker) start++;
+	return kept.slice(start);
 }
 
 interface OpenerParts {

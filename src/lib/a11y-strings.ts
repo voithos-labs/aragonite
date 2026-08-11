@@ -18,7 +18,8 @@ export const LINK_CARD_OPEN = 'Open link';
 export const LINK_CARD_REMOVE = 'Remove link';
 export const CODE_LANGUAGE_FIELD = 'Code block language';
 
-export function codeLanguage(language: string): string {
+/** Chrome, not an announcement: the language chip's accessible name. */
+export function codeLanguageLabel(language: string): string {
 	return `Code language: ${language}`;
 }
 

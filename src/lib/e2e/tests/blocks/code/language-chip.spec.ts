@@ -12,15 +12,20 @@ const chip = (page: Page) => page.locator('.code-lang-chip');
 const chipButton = (page: Page) => page.locator('.code-lang-chip button');
 const chipInput = (page: Page) => page.locator('.code-lang-chip input');
 
-async function loadLive(page: Page, doc = SOURCE): Promise<EditorPage> {
+/** The editable rungs that hide a fence — the chip's whole audience, minus reading. */
+const WRITING_MODES = ['live', 'preview-inline', 'preview-block'] as const;
+
+async function loadIn(page: Page, mode: string, doc = SOURCE): Promise<EditorPage> {
 	const editor = new EditorPage(page);
-	await editor.goto('?presentationMode=live');
+	await editor.goto(`?presentationMode=${mode}`);
 	await editor.loadContent(doc);
 	// An unrecognized query param falls back to source, where the fence paints and no
 	// scenario below means what it says.
-	await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+	await expect(editor.editorContainer).toHaveAttribute('data-presentation', mode);
 	return editor;
 }
+
+const loadLive = (page: Page, doc = SOURCE) => loadIn(page, 'live', doc);
 
 /** Hover the block, then open the field — the pointer gesture the chip is revealed by. */
 async function openChip(editor: EditorPage): Promise<void> {
@@ -39,14 +44,16 @@ test.describe('code language chip — when it shows', () => {
 		await expect(chip(page)).toHaveCount(0);
 	});
 
-	test('live mode reveals it on hover, reading the info string’s first token', async ({ page }) => {
-		const editor = await loadLive(page);
+	for (const mode of WRITING_MODES) {
+		test(`${mode} reveals it on hover, reading the info string’s first token`, async ({ page }) => {
+			const editor = await loadIn(page, mode);
 
-		await expect(chip(page)).toHaveCSS('opacity', '0');
-		await editor.getBlock(0).hover();
-		await expect(chipButton(page)).toHaveText('js');
-		await expect(chip(page)).toHaveCSS('opacity', '1');
-	});
+			await expect(chip(page)).toHaveCSS('opacity', '0');
+			await editor.getBlock(0).hover();
+			await expect(chipButton(page)).toHaveText('js');
+			await expect(chip(page)).toHaveCSS('opacity', '1');
+		});
+	}
 
 	test('live mode reveals it for a caret inside the block, pointer away', async ({ page }) => {
 		const editor = await loadLive(page);
@@ -84,17 +91,21 @@ test.describe('code language chip — when it shows', () => {
 });
 
 test.describe('code language chip — the commit', () => {
-	test('Enter rewrites the info string and nothing else', async ({ page }) => {
-		const editor = await loadLive(page);
-		await openChip(editor);
-		await page.keyboard.type('ts');
-		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('```ts');
+	// Every writing rung, because a preview one REVEALS the fence while the field holds focus
+	// (the block reads as focused), so the chip commits over chrome that is on screen again.
+	for (const mode of WRITING_MODES) {
+		test(`${mode}: Enter rewrites the info string and nothing else`, async ({ page }) => {
+			const editor = await loadIn(page, mode);
+			await openChip(editor);
+			await page.keyboard.type('ts');
+			await page.keyboard.press('Enter');
+			await editor.bridge.waitForSourceContains('```ts');
 
-		expect(await editor.bridge.getSource()).toBe('```ts\nconst x = 1\n```\n\n# Heading\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		expect(await editor.bridge.getBlockCount()).toBe(2);
-	});
+			expect(await editor.bridge.getSource()).toBe('```ts\nconst x = 1\n```\n\n# Heading\n');
+			expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+			expect(await editor.bridge.getBlockCount()).toBe(2);
+		});
+	}
 
 	test('committing an emptied field clears the info string', async ({ page }) => {
 		const editor = await loadLive(page);
@@ -128,6 +139,17 @@ test.describe('code language chip — the commit', () => {
 
 		expect(await editor.bridge.getSource()).toBe('```ab\nconst x = 1\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
+	});
+
+	test('a leading fence marker is dropped rather than lengthening the fence', async ({ page }) => {
+		const editor = await loadLive(page, '~~~js\nconst x = 1\n~~~\n\n# Heading\n');
+		await openChip(editor);
+		await page.keyboard.type('~~ts');
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('~~~ts');
+
+		expect(await editor.bridge.getSource()).toBe('~~~ts\nconst x = 1\n~~~\n\n# Heading\n');
+		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 });
 
