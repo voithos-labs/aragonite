@@ -2,21 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import type { BlockComponent } from '$lib/block-component';
-import {
-	makeEditorActionsDeps,
-	makeNestedActionsDeps,
-	makeNestedHarness,
-	makeStubFocus
-} from '../harness/editor-actions';
+import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
 
 // The split command's one completion arm: which presses reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
@@ -75,8 +68,8 @@ describe('Enter completion — which presses reach a completer', () => {
 		expect(planEnterCompletion(paragraph, paragraph.raw.length - 1)).toBeNull();
 	});
 
-	// A kind whose raw carries its own markers must never have them read as typed content:
-	// indented code trims to a pipe row, and a heading's `# ` would ride into a header cell.
+	// The firing gates are the prose merge role and the whole-raw content range; together they
+	// keep a kind's own markers (an indent, a `# `) from ever reaching a completer as typed text.
 	it.each([
 		['    | a | b |\n', 'indentedCode'],
 		['# | a | b |\n', 'heading'],
@@ -160,9 +153,8 @@ describe('Enter completion — the document it leaves behind', () => {
 		expect(parse(serialize(deps.doc)).children).toHaveLength(2);
 	});
 
-	// In-container policy: complete in place. Both shipped containers rebuild the three lines
-	// into bytes that reparse as the same container holding a table, so the mint needs no
-	// top-level restriction. The list runs a level deeper, hence the item's own bundle.
+	// In-container policy: complete in place; the blockquote rebuild reparses the mint as a
+	// quoted table. The list item's split override routes around the seam entirely (#146).
 	it('completes inside a blockquote and reparses as a quoted table', async () => {
 		const h = makeNestedHarness('> | a | b |\n');
 		await h.bundle.blockEdit.splitBlock(0, 9);
@@ -171,32 +163,5 @@ describe('Enter completion — the document it leaves behind', () => {
 		const source = serialize(h.deps.doc);
 		expect(source).toBe('> | a | b |\n> | --- | --- |\n> |  |  |\n');
 		expect(parse(source).children[0].children!.map((c) => c.kind)).toEqual(['table']);
-	});
-
-	it('completes inside a list item and reparses as a table in that item', async () => {
-		const h = makeNestedHarness('- | a | b |\n');
-		const getItem = () => h.getNode().children![0];
-		const bundle = createStandardNestedActions(
-			createBlockListState(getItem),
-			makeNestedActionsDeps({
-				index: 0,
-				getNode: getItem,
-				path: [0, 0],
-				parent: {
-					blockEdit: h.bundle.blockEdit,
-					focus: makeStubFocus(),
-					containerEdit: h.containerEdit
-				}
-			})
-		);
-
-		await bundle.blockEdit.splitBlock(0, 9);
-
-		expect(getItem().children!.map((c) => c.kind)).toEqual(['table']);
-		const source = serialize(h.deps.doc);
-		// The delimiter and body rows carry the item's continuation indent, which is what makes
-		// the mint survive a save and reload rather than falling out of the item.
-		expect(source).toBe('- | a | b |\n  | --- | --- |\n  |  |  |\n');
-		expect(parse(source).children[0].children![0].children!.map((c) => c.kind)).toEqual(['table']);
 	});
 });
