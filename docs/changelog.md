@@ -27,6 +27,13 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   `[selection](url)` as a single undo step, and Escape leaves the document byte-identical with the
   selection restored. The demo's mode switcher gains the rung.
 
+- **The caret survives a presentation-mode flip.** Flipping rungs used to drop the caret
+  entirely, on every rung, forcing a re-click before typing. The editor now captures the
+  focused leaf's path and raw offset before the repaint and re-seats it after, clamped to
+  what the destination mode can land on. Reading mode banks the snapshot — it has no caret —
+  and spends it on the flip back to an editable rung; a restore yields to any text field
+  holding focus rather than stealing it.
+
 - **A split whose first half promotes to a table keeps its second half separate.** The probe
   deciding whether Enter's second half needs a blank-line separator asked with a stand-in
   prose line, which a freshly promoted table does not absorb — while absorbing the

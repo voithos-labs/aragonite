@@ -51,7 +51,8 @@ export function isForeignTextEntry(active: Element | null): boolean {
 	return true;
 }
 
-function isTextEntrySurface(el: Element | null): boolean {
+/** True when `el` takes text input — the surfaces a programmatic focus move must yield to. */
+export function isTextEntrySurface(el: Element | null): boolean {
 	if (el instanceof HTMLTextAreaElement) return true;
 	if (el instanceof HTMLInputElement) return TEXT_ENTRY_INPUT_TYPES.has(el.type);
 	return el?.matches('[contenteditable]:not([contenteditable="false"])') ?? false;
