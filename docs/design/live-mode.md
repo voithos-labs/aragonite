@@ -55,6 +55,10 @@ Every destructive join crosses one seam: `cleanJoinedRaw` in `tree-operations/no
 
 Live paints no destination, so the card is the only way to read or rewrite one. The focus model: a click on a link opens the card beside a caret that stays the document's; keyboard entry (Mod+K with the caret inside a link) opens it with focus trapped in the URL field. An edit commits one undoable step through the link byte-write seam (G4.34); the card addresses its link by path plus construct start and re-resolves after every commit, since a commit rebuilds the inline DOM. Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
 
+### 4.7 The language chip
+
+The card's second client, over the one hidden run a caret cannot reach at all: a fence line is unlandable once the block has content, so the chip is the door to its info string. It sits at the code box's top-right, outside the walk container, transient on hover or caret-inside, and shows the language as a label in reading mode; Enter writes the info span alone through the block's display funnel (G4.24), as one isolated undo entry. Scenarios: `src/lib/e2e/requirements/blocks/code/language-chip.md`.
+
 ## 5. What does not change
 
 - Copy yields the source bytes; reading mode is the one rung that copies rendered text.

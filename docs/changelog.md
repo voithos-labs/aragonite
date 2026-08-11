@@ -4,6 +4,16 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **A code block's language is reachable in the modes that hide its fence.** Once a fenced block
+  had a line of body, `reading`, the `preview-*` rungs and `live` painted no fence and no caret
+  could land on one, so the info string could be neither read nor changed without leaving the
+  mode. A **language chip** now sits at the code box's top-right — showing the language, or `text`
+  where there is none — revealed while the pointer is over the block or the caret inside it, as
+  the drag handle is. A click turns it into a field seeded with the full info string: Enter
+  rewrites that span and nothing else, as one undoable edit, and returns the caret to the block;
+  Escape and clicking away leave the bytes untouched. Reading mode shows the same chip as a label.
+  A block whose fence is already painted (an empty one) gets no chip, and neither does source mode.
+
 - **A construct with nothing behind its markers shows them.** Typing `#` in live mode used to
   produce an empty invisible line, and the next character landed in front of the marker instead
   of after it (`a#` for a typed `#` then `a`); three backticks made an empty invisible box no

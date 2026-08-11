@@ -16,6 +16,11 @@ export const LINK_CARD_LABEL = 'Link properties';
 export const LINK_CARD_URL = 'Link URL';
 export const LINK_CARD_OPEN = 'Open link';
 export const LINK_CARD_REMOVE = 'Remove link';
+export const CODE_LANGUAGE_FIELD = 'Code block language';
+
+export function codeLanguage(language: string): string {
+	return `Code language: ${language}`;
+}
 
 // ── Search bar ───────────────────────────────────────────────────────────────
 // A _TITLE/_LABEL pair is a tooltip that reads shorter than its accessible name.
