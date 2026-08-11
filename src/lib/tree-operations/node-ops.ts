@@ -44,7 +44,7 @@ export type NodeParent = { children: CstNode[] };
 /**
  * A {@link NodeParent} that has answered which container owns it. The sinks that WRITE
  * BYTES need that answer: the bytes must satisfy the owner's `bodyWrite` grammar, and a
- * separator settle hands a chrome-bounded line to the owner NODE's wrap slots (GH #101).
+ * separator settle hands a chrome-bounded line to the owner NODE's wrap slots.
  * Both nullable rather than optional so every byte-writing site must answer — `undefined`
  * is a real answer (the document root), but skipping the question is a compile error.
  */
@@ -52,7 +52,7 @@ export type BodyParent = NodeParent & {
 	ownerKind: AnyBlockKind | undefined;
 	owner: CstNode | undefined;
 	/**
-	 * The document root's foldable trailing line (GH #129), when these children are its.
+	 * The document root's foldable trailing line, when these children are its.
 	 * Optional, not nullable: only a ceremony-backed site may carry it, because the settle
 	 * that consumes it appends a block — the out-of-ceremony write paths stay slotless so a
 	 * structural materialization is unrepresentable there.
@@ -121,7 +121,7 @@ export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | u
 	// parse-derived and a fragment parse would only mis-read it.
 	if (descriptor?.contextDependentKind) return;
 	// In place means no reparse replaces the node, so parse-owned metadata re-derives here —
-	// for the rule's own rewrite AND bytes the caller's edit already changed (GH #54).
+	// for the rule's own rewrite AND bytes the caller's edit already changed.
 	const reparsed = parse(legal, { grammar, scope: 'fragment' }).children;
 	if (reparsed.length === 1 && reparsed[0].kind === node.kind) node.metadata = reparsed[0].metadata;
 }
@@ -179,7 +179,7 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
 // ── Split ──
 
 /** What a split leaves the caret: the structural splice, plus where the second half's head
- *  landed — past `blockIndex + 1` when the first half reparsed to several blocks (GH #98). */
+ *  landed — past `blockIndex + 1` when the first half reparsed to several blocks. */
 export interface SplitResult {
 	change: StructuralChange;
 	secondHalfIndex: number;
@@ -190,7 +190,7 @@ export interface SplitResult {
  * original ID and the whole structural suffix (a setext underline), which a plain cut would strand
  * below as junk. The second half opens with a blank separator wherever one does structural work
  * ({@link separatorSplitsOffNextLine}) — without it GFM lazy continuation folds the halves back
- * into one block on reload. `presentationMode`: no mode is a real answer, omitting it is not.
+ * into one block on reload. `presentationMode` is nullable rather than optional.
  */
 export function splitNode(
 	parent: BodyParentArg,
@@ -237,7 +237,7 @@ export function splitNode(
 			firstRaw = rebalanced.firstRaw;
 			secondRaw = rebalanced.secondRaw;
 			// The rewrite verifies its halves STANDALONE, where a missing final ending is
-			// legal; at the seam the halves would share a line and rejoin on reload (GH #61).
+			// legal; at the seam the halves would share a line and rejoin on reload.
 			if (!firstRaw.endsWith('\n')) firstRaw += lineEnding;
 			if (!secondRaw.endsWith('\n')) secondRaw += lineEnding;
 		}
@@ -251,10 +251,10 @@ export function splitNode(
 	);
 	const first = reparseAsNodes(firstRaw, node.leadingTrivia);
 	// The first half's peeled line stands between the halves, so it is the second half's
-	// separator (GH #97); `separator` answers no when the bytes already end in a blank line.
+	// separator; `separator` answers no when the bytes already end in a blank line.
 	const second = reparseAsNodes(secondRaw, first.suffix + separator);
 	if (DEV && first.nodes.length > 1) {
-		// Legal — the landing index rides the result (GH #98) — but rare enough to keep visible.
+		// Legal — the landing index rides the result — but rare enough to keep visible.
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
 	}
 
@@ -263,9 +263,9 @@ export function splitNode(
 	nodes[nodes.length - 1].raw += second.suffix;
 	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
-	// A blank second half at the tail exposes the document's folded line (GH #129); the
+	// A blank second half at the tail exposes the document's folded line; the
 	// tail guard keeps the mint adjacent to this splice's window. Off the tail, the new
-	// last-node/successor seam re-reads instead (GH #61) — the two arms are exclusive.
+	// last-node/successor seam re-reads instead — the two arms are exclusive.
 	const minted = splitTail ? materializeTailSuffix(parent) : 0;
 	// Floor at the seam itself: a wider window would reach back into the spliced set and
 	// break the one-window accounting below.
@@ -279,9 +279,9 @@ export function splitNode(
 
 /**
  * The cut a split makes, given the caret's `offset`: an ending the offset lands ON terminates
- * the FIRST half rather than opening the second, which would mint a blank line nobody typed
- * (GH #95). A CRLF is one boundary, so a cut between its bytes moves past both. Clamped to a
- * content range's end, past which the offset stops being a content position at all.
+ * the FIRST half rather than opening the second, which would mint a blank line nobody typed.
+ * A CRLF is one boundary, so a cut between its bytes moves past both. Clamped to a content
+ * range's end, past which the offset stops being a content position at all.
  */
 function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offset: number): number {
 	const raw = node.raw;
@@ -369,7 +369,7 @@ function separatorSplitsOffNextLine(raw: string, secondRaw: string, lineEnding: 
 	}
 	// Both lines that will ever sit under `raw`: the second half's actual head, and the prose
 	// stand-in for whatever a later edit puts there — a promoted table absorbs a pipe-bearing
-	// head the stand-in survives (GH #100).
+	// head the stand-in survives.
 	const probes = [secondRaw.slice(0, secondRaw.indexOf('\n') + 1), NEXT_PROSE_LINE + lineEnding];
 	return probes.some(
 		(probe) => contentBlockCount(raw + lineEnding + probe) > contentBlockCount(raw + probe)
@@ -396,12 +396,12 @@ function structuralSuffixSplit(
 	const raw = node.raw;
 	const contentEnd = getRange(node).end;
 	if (contentEnd >= displayLength(raw) || offset <= 0 || offset > contentEnd) return null;
-	// A remainder opening with a whitespace-only line reloads as blank (GH #99): the cut
+	// A remainder opening with a whitespace-only line reloads as blank: the cut
 	// consumes that whitespace into the first half, as it does a bare line ending.
 	const wsLine = /^[ \t]+\r?\n/.exec(raw.slice(offset, contentEnd))?.[0] ?? '';
 	return {
 		// The retained suffix opens with the ending of the line it follows, so a cut sitting
-		// just past one would double it into a blank line and strand the suffix below (GH #95).
+		// just past one would double it into a blank line and strand the suffix below.
 		firstRaw:
 			trimTrailingLineEnding(raw.slice(0, offset) + trimTrailingLineEnding(wsLine)) +
 			raw.slice(contentEnd),
@@ -574,7 +574,7 @@ export function mergeIntoPrevDeepLeaf(
 }
 
 /**
- * The deep-leaf merge's write, on the in-place discipline's terms (GH #54): the absorbed
+ * The deep-leaf merge's write, on the in-place discipline's terms: the absorbed
  * bytes cross the kind's own rule and a fragment reparse — same kind refreshes the
  * parse-owned fields in place, a kind change mints the reparse into the leaf's slot, and a
  * multi-block read keeps the single-leaf write (the merge contract has one slot).
@@ -592,7 +592,7 @@ function writeMergedLeaf(
 		: parse(written, { grammar: context.grammar, scope: 'fragment' }).children;
 	const single = parsed.length === 1 ? parsed[0] : undefined;
 	if (single && single.kind !== target.kind) {
-		// Byte-honest over the fragment peel, the single-slot sink's rule (GH #97).
+		// Byte-honest over the fragment peel, the single-slot sink's rule.
 		single.raw = written;
 		single.leadingTrivia = target.leadingTrivia;
 		ensureEditableContainers(single);
@@ -736,7 +736,7 @@ export function settleSeparatorOnBlank(
 	}
 	// A chrome line bounding the run beside PROSE eats one line as the wrap's peel
 	// (`innerPrefix`/`innerSuffix`), which the run must hand over on top of its own
-	// count (GH #101). An all-blank body peels only what it can spare, so it owes none.
+	// count. An all-blank body peels only what it can spare, so it owes none.
 	const wrap = bodyWrapOf(parent);
 	const slots = wrapSlotsOf(parent);
 	const tailBelowProse = start > bodyStart && end === children.length - 1;
@@ -778,7 +778,7 @@ export function settleSeparatorOnBlank(
 /**
  * The parse folds the document's one trailing blank line into `suffix` only while the tail
  * block is non-blank (`parseBlocks`' separator-spent rule); once the tail turns blank the
- * reload reads that line as its own empty paragraph, so the settle materializes it (GH #129).
+ * reload reads that line as its own empty paragraph, so the settle materializes it.
  * Document-level slot only — a container's `innerSuffix` twin stays with the wrap arms.
  * Returns the blocks appended, for the sinks that report a structural window.
  */
@@ -803,7 +803,7 @@ interface SeamAbsorption {
 
 /**
  * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload — a list
- * standing above indented code absorbs it, and no separator can hold indentation apart (GH #61).
+ * standing above indented code absorbs it, and no separator can hold indentation apart.
  * Absorb while the window's own bytes parse to fewer blocks, which is the reload's reading;
  * byte-identical by construction. A blank run is transparent to a container's continuation, so the
  * window anchors at the nearest non-blank block above the seam, never below `floor`, and cascades.
@@ -839,7 +839,7 @@ function absorbSeamReading(
 		// reparse. A structured container's children fail this by construction — two items'
 		// joined bytes read as a nested LIST — and the seam is not askable there.
 		if (blocks[0].kind !== window[0].kind) break;
-		// Byte-honest over the fragment peel, the single-slot sink's rule (GH #97).
+		// Byte-honest over the fragment peel, the single-slot sink's rule.
 		blocks[blocks.length - 1].raw += reparsed.suffix;
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
 		for (const block of blocks) {
@@ -854,7 +854,7 @@ function absorbSeamReading(
 	return { at, span, eaten };
 }
 
-/** The materialized tail (GH #129) reported inside the sink's one contiguous window.
+/** The materialized tail reported inside the sink's one contiguous window.
  *  Exported for the cross-block commit, whose descriptors derive from length diffs. */
 export function widenForTailMint(
 	change: StructuralChange,
@@ -960,7 +960,7 @@ export function deleteNode(
 	parent.children.splice(blockIndex, 1);
 	clearRedundantSeparator(parent, blockIndex, sharing);
 	// The delete puts two blocks beside each other for the first time, and their adjacent
-	// bytes can re-read as fewer (GH #61) — this and the tail mint below are exclusive,
+	// bytes can re-read as fewer — this and the tail mint below are exclusive,
 	// since one needs a successor at the slot and the other needs the slot past the tail.
 	const seam = absorbSeamReading(parent, blockIndex - 1, 0, sharing);
 	if (seam.eaten > 0) {
@@ -973,7 +973,7 @@ export function deleteNode(
 			idMap: { 0: 0 }
 		};
 	}
-	// Removing the tail can leave a blank one beside the document's folded line (GH #129);
+	// Removing the tail can leave a blank one beside the document's folded line;
 	// the delete-then-mint pair is one window, so it reports as a replace. A mid delete
 	// never changes the tail, so the guard also keeps the mint adjacent.
 	if (blockIndex === parent.children.length && materializeTailSuffix(parent, sharing)) {
@@ -1009,7 +1009,7 @@ export function updateNodeContent(
 		return change;
 	}
 	// The reverse transition: the block IS the separating line now, so the run it joins gives
-	// back the second one (GH #96). The last block minted is the one that meets the follower.
+	// back the second one. The last block minted is the one that meets the follower.
 	if (!wasBlank) {
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastMintedIndex(change, blockIndex), sharing);
@@ -1068,7 +1068,7 @@ function writeParsedContent(
 		first.raw = first.leadingTrivia + first.raw;
 		first.leadingTrivia = node.leadingTrivia;
 		if (firstBackfilled) reconcileBackfilledRaw(first);
-		// The peeled line has no follower inside the splice, so it stays in raw (GH #97).
+		// The peeled line has no follower inside the splice, so it stays in raw.
 		rest[rest.length - 1].raw += reparsed.suffix;
 		parent.children.splice(blockIndex, 1, first, ...rest);
 		return replacePreservingFirst(blockIndex, 1, parsed.length);
@@ -1175,9 +1175,9 @@ export function focusTargetInReplacement(
 
 /**
  * Reparse a half's bytes as the blocks they hold, plus the trailing blank line the fragment
- * parse peels into `doc.suffix` — every sink answers for it, or the bytes are lost (GH #97).
+ * parse peels into `doc.suffix` — every sink answers for it, or the bytes are lost.
  * Plural because a half stands in a position its bytes never occupied, where a construct
- * boundary can newly materialize; keeping only the first block would drop the rest (GH #95).
+ * boundary can newly materialize; keeping only the first block would drop the rest.
  */
 function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[]; suffix: string } {
 	const doc = parse(raw, { scope: 'fragment' });

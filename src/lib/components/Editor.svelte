@@ -838,7 +838,7 @@
 		return { path, offset };
 	}
 
-	// Captured in the PRE phase, where the outgoing mode still owns the DOM (#109). Reading
+	// Captured in the PRE phase, where the outgoing mode still owns the DOM. Reading
 	// keeps its entry snapshot — it has no caret of its own to recapture on the way out.
 	let flipCaret: { path: number[]; offset: number } | null = null;
 	// svelte-ignore state_referenced_locally
@@ -865,7 +865,7 @@
 		edgeAffinity.reset();
 		if (mode === 'reading') {
 			// The gap is an editor-owned caret no DOM blur can reach, so it folds here beside
-			// the blur rather than at each arrival path (#88).
+			// the blur rather than at each arrival path.
 			selectionState.clearGapCaret();
 			// Header chrome keeps its focus, or a mode toggle blurs a title field mid-edit.
 			const active = document.activeElement;

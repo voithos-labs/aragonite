@@ -1,5 +1,5 @@
 /**
- * The paste family's `bodyWrite` moment (GH #40): paste builds nodes upstream of every
+ * The paste family's `bodyWrite` moment: paste builds nodes upstream of every
  * node-ops byte sink, so a container's escape lands here instead — on the clipboard text
  * ahead of the strategy-picking parse, and on the built replacement at the splice.
  */

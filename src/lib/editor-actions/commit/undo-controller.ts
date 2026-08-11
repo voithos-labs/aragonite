@@ -225,7 +225,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
 		// The container branch mutates the live tree in place; the document branch
 		// publishes children only on success, but its tail settle can spend the live
-		// document's suffix (GH #129), so that register restores in both branches.
+		// document's suffix, so that register restores in both branches.
 		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
 		const savedDocSuffix = deps.doc.suffix;
 		return {

@@ -15,8 +15,8 @@ import type { CommitScope } from './block-edit-scope';
 /**
  * Preview the content update on a throwaway single-node probe to pick between the structural
  * commit and the routine typing path; the live tree is untouched. `tailSuffix` is the document's
- * folded trailing line when `node` is the tail block, else `''`: blanking the tail materializes it
- * (GH #129), which is structural and must route into the ceremony.
+ * folded trailing line when `node` is the tail block, else `''`: blanking the tail materializes
+ * it, which is structural and must route into the ceremony.
  */
 export function previewContentReparse(
 	node: NodeView,

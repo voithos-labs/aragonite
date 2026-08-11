@@ -108,7 +108,7 @@ function reconcileFenceLines(display: string, fence: FenceShape, blockEnding: st
 /**
  * Line 0 read as the block's OWN opener: its exact run, and info that is not a longer run. A
  * write's only line reading as this fence's CLOSER is not it — an opener never doubles as one,
- * and no metadata claims a block to size a fence to (issue #58).
+ * and no metadata claims a block to size a fence to.
  */
 function ownOpener(lines: string[], fence: FenceShape): OpenerParts | null {
 	const opener = splitOpener(lines[0], fence);
@@ -134,7 +134,7 @@ function restoredCloser(
 /**
  * The closer a write left behind after taking the block's own opener — machinery no metadata
  * claims, removed rather than kept, since as text it re-opens a fence over the live siblings
- * below (issue #58). Null when there is none, or when an opener above could CLOSE on the run:
+ * below. Null when there is none, or when an opener above could CLOSE on the run:
  * same marker, run no longer than the closer's — a foreign-marker or longer-run open line is
  * body text the run never terminated.
  */

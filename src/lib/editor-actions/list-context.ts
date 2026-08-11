@@ -221,7 +221,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's landing index, not `innerIndex + 1`: a plural first half
-					// stays with this item (GH #98).
+					// stays with this item.
 					const secondHalf = itemChildren.splice(split.secondHalfIndex);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
@@ -244,7 +244,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);
 
 					// Net item change: [innerIndex .. preSpliceLen) replaced by the first half's
-					// blocks — plural when the cut bytes reparse to more than one (GH #98).
+					// blocks — plural when the cut bytes reparse to more than one.
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
 						replacePreservingFirst(

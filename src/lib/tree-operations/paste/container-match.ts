@@ -143,7 +143,7 @@ export async function applyContainerMatchingPaste(
 	normalizePastedListMarkers(unwrap.items, outer);
 	renumberPastedOrderedMarkers(unwrap.items, outer, unwrap.spliceIndex);
 	// A blank target IS the separating line of the body block below it, so the splice consuming
-	// it leaves both ends owed one (GH #73). An emptied post-delete stub separated nothing.
+	// it leaves both ends owed one. An emptied post-delete stub separated nothing.
 	const replaced = outer.children?.[unwrap.spliceIndex];
 	const replacedBlank = replaced !== undefined && isBlankParagraph(replaced);
 
@@ -267,7 +267,7 @@ async function applyContainerMatchingMerge(
 			const ownedLeaf = chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing);
 			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
-			// so it reattaches through the reparse funnel, never a bare write (GH #56).
+			// so it reattaches through the reparse funnel, never a bare write.
 			updateNodeContent(
 				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
 				0,

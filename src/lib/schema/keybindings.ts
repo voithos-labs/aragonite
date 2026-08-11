@@ -33,7 +33,7 @@ export const BARE_MODIFIER_KEYS: readonly string[] = [
 const BARE_MODIFIERS = new Set<string>(BARE_MODIFIER_KEYS);
 
 /** A `key` value that is one typed character: one code point, so an astral glyph's two
- *  UTF-16 units still count as a single keystroke (GH #122). */
+ *  UTF-16 units still count as a single keystroke. */
 export function isCharacterKey(key: string): boolean {
 	return [...key].length === 1;
 }

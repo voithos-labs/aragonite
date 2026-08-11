@@ -174,7 +174,7 @@ async function commitPureTopLevelDelete(
 		snapshot,
 		mutate: (topLevelChildren) => {
 			// Prefix stays inert; the suffix rides the live document as accessors, so the
-			// tail settle can materialize the folded trailing line (GH #129).
+			// tail settle can materialize the folded trailing line.
 			const proxyDoc: Document = {
 				kind: 'document',
 				prefix: '',
@@ -281,7 +281,7 @@ async function commitCrossContainerDelete(
 			// actually performed, matched on the owned node, never from re-derived snap math.
 			const rowSplices = result.tableRowSplices ?? [];
 			// This path hands rangeDelete the live document, so the tail settle can spend the
-			// folded trailing line into a minted blank (GH #129) — a growth the doc scope's
+			// folded trailing line into a minted blank — a growth the doc scope's
 			// length-diff descriptor must see, or a net-zero splice keeps stale ids.
 			const minted = doc.suffix === suffixBefore ? 0 : 1;
 			return containerPaths.map((p, i): StructuralChange => {

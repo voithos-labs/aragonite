@@ -43,7 +43,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 	if (!scope) return;
 
 	// A replacement is minted before any byte sink sees it, so the owner's bodyWrite escape
-	// lands here — on the clipboard blocks AND the target's split halves alike (GH #40).
+	// lands here — on the clipboard blocks AND the target's split halves alike.
 	const ownerKind = blockPath.length > 1 ? (scope.node.kind as AnyBlockKind) : undefined;
 	const { replacement, mapIndex } = normalizeReplacementForBody(
 		ownerKind,
@@ -56,7 +56,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 	const sameKindFirst =
 		oldBlock !== null && replacement.length > 0 && replacement[0].kind === oldBlock.kind;
 	// The slot's blank line was the separator of the block below it as well as its own; both
-	// ends of the splice have to take one back once the replacement consumes it (GH #73).
+	// ends of the splice have to take one back once the replacement consumes it.
 	const replacedBlank = oldBlock !== null && isBlankParagraph(oldBlock);
 
 	await controller.commitMultiScope({

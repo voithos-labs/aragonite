@@ -137,7 +137,7 @@ export function rangeDelete(
 	}
 
 	// Start's slot, start's rule: the survivor answers to it BEFORE the reparse re-derives
-	// metadata, and inherits the slot's separator a fragment reparse would mint empty (#60).
+	// metadata, and inherits the slot's separator a fragment reparse would mint empty.
 	const replacement = reparseTruncatedEndpoint(startBlock, joined.raw);
 
 	// walkBetween includes ancestors of `end` whose subtrees extend past it, so filter to

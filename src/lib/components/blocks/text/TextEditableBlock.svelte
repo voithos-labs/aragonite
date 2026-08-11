@@ -777,8 +777,8 @@
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
 		// Native Home lands at DOM 0, before the marker span — or past a leading island no text
-		// node fronts (GH #115); the user wants the block's start. Through the sentinel door,
-		// not a raw-0 DOM write: the landable clamp applies (GH #110).
+		// node fronts; the user wants the block's start. Through the sentinel door,
+		// not a raw-0 DOM write: the landable clamp applies.
 		if (
 			e.key === 'Home' &&
 			!e.shiftKey &&

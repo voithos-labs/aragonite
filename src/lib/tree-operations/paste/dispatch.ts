@@ -73,7 +73,7 @@ export async function pasteDispatch(
 	if (!transformed) return {};
 
 	// Ahead of the fragment parse, so the strategy pick and every landed kind follow the
-	// bytes a bodyWrite-declaring ancestor will actually accept (GH #40).
+	// bytes a bodyWrite-declaring ancestor will actually accept.
 	const pastedText = normalizeClipboardForBody(ctx.doc, input.targetPath, transformed);
 
 	const parsed = parse(pastedText, { scope: 'fragment' });

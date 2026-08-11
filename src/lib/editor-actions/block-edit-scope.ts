@@ -29,7 +29,7 @@ export interface MutationView {
 	/** The container these children belong to, for mutations whose bytes must satisfy
 	 *  its grammar (`bodyWrite`). Absent at the document root. */
 	ownerKind?: AnyBlockKind;
-	/** The container NODE itself, for settles that write its wrap slots (GH #101). Nullable
+	/** The container NODE itself, for settles that write its wrap slots. Nullable
 	 *  rather than optional so each adapter answers; `undefined` is the document root. */
 	owner: CstNode | undefined;
 	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
