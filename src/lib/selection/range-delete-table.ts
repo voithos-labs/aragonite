@@ -18,15 +18,17 @@ import { displayLength, terminateLine, trailingLineEnding } from '../core/lines'
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import { charOffsetOf, cellIndexOf } from './primitives';
 import {
+	cleanTruncatedProse,
 	resolveEndWall,
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
 	installTruncatedEndpoint,
 	rebuildSharedAncestries,
-	reparseTruncatedEndpoint
+	reparseTruncatedEndpoint,
+	type LiveSeamContext
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
-import { blockNodeAt, cleanJoinedRaw, emptyParagraph } from '../tree-operations/node-ops';
+import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedNode,
 	ensureUnsharedPath,
@@ -76,40 +78,6 @@ export function tableAwareRangeDelete(
 		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing, grammar, live);
 	}
 	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, live);
-}
-
-/** The live-seam reads a prose truncation needs; both undefined outside live. */
-interface LiveSeamContext {
-	presentationMode: PresentationMode | undefined;
-	linkRef: InlineResolverRef | undefined;
-}
-
-/**
- * A table-crossing truncation is half a join: the runs it strands, their partner gone with the
- * cut, are bytes the reader never saw, so the kept side crosses the registered cleaner
- * (live-mode.md § 4.5), expressed as a join with the block's own edge. Identity outside live.
- */
-function cleanTruncatedProse(
-	node: CstNode,
-	kept: 'head' | 'tail',
-	cut: number,
-	live: LiveSeamContext
-): { raw: string; seam: number } {
-	const join =
-		kept === 'head'
-			? {
-					mergedRaw: node.raw.slice(0, cut),
-					seam: cut,
-					start: { node, offset: cut },
-					end: { node, offset: displayLength(node.raw) }
-				}
-			: {
-					mergedRaw: node.raw.slice(cut),
-					seam: 0,
-					start: { node, offset: 0 },
-					end: { node, offset: cut }
-				};
-	return cleanJoinedRaw({ ...join, linkRef: live.linkRef }, live.presentationMode);
 }
 
 /**

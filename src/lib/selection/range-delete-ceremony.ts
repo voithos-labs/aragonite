@@ -6,11 +6,13 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
+import type { PresentationMode } from '../presentation-mode';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { isBlankParagraph, parse } from '../core/parser';
-import { trailingLineEnding } from '../core/lines';
+import { displayLength, trailingLineEnding } from '../core/lines';
 import { walkBetween } from './primitives';
 import {
 	comparePaths,
@@ -23,6 +25,7 @@ import {
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import {
+	cleanJoinedRaw,
 	clearRedundantSeparator,
 	emptyParagraph,
 	isBlockNode,
@@ -87,6 +90,41 @@ export function deleteSubtreesIdentityGated(
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
 	}
+}
+
+/** The live-seam reads a prose truncation needs; both undefined outside live. */
+export interface LiveSeamContext {
+	presentationMode: PresentationMode | undefined;
+	linkRef: InlineResolverRef | undefined;
+}
+
+/**
+ * A wall-branch truncation is half a join: the runs it strands, their partner gone with the
+ * cut, are bytes the reader never saw, so a kept prose side crosses the registered cleaner
+ * (live-mode.md § 4.5), expressed as a join with the block's own edge. Identity outside live;
+ * a chrome child's raw write never routes here — the wall stays byte-literal.
+ */
+export function cleanTruncatedProse(
+	node: CstNode,
+	kept: 'head' | 'tail',
+	cut: number,
+	live: LiveSeamContext
+): { raw: string; seam: number } {
+	const join =
+		kept === 'head'
+			? {
+					mergedRaw: node.raw.slice(0, cut),
+					seam: cut,
+					start: { node, offset: cut },
+					end: { node, offset: displayLength(node.raw) }
+				}
+			: {
+					mergedRaw: node.raw.slice(cut),
+					seam: 0,
+					start: { node, offset: 0 },
+					end: { node, offset: cut }
+				};
+	return cleanJoinedRaw({ ...join, linkRef: live.linkRef }, live.presentationMode);
 }
 
 /**
