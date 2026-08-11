@@ -35,21 +35,63 @@ const MARKER_STRIP = /^ {0,3}\[\^[^\]\s]+\]: ?/;
 const CONTINUATION_INDENT = /^(\t| {4})/;
 const CONTINUATION_MARKER = '    ';
 
+/** Per-line approximation of the body's open-paragraph state, as in the core blockquote/list
+ *  lazy models: laziness reaches only the body's own top-level paragraph. */
+function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar']): boolean {
+	if (isBlankLine(strippedText)) return false;
+	if (OPENER.test(strippedText)) return false;
+	for (const opener of grammar.orderedOpeners()) {
+		const interrupts = opener.interruptsParagraph;
+		if (interrupts !== false && interrupts(strippedText)) return false;
+	}
+	return true;
+}
+
+/** cmark-gfm ends lazy continuation on any line that starts a block at the outer level — the
+ *  paragraph-interrupt exceptions do not apply there. An LRD is carved out of a paragraph at
+ *  finalize, never a block start, so its claim is transparent. */
+function startsSiblingBlock(ctx: OpenContext, index: number): boolean {
+	const line = ctx.lines[index];
+	const probe: OpenContext = {
+		lines: [line],
+		index: 0,
+		end: 1,
+		line,
+		leadingTrivia: '',
+		isDocumentParse: false,
+		depth: ctx.depth,
+		grammar: ctx.grammar
+	};
+	for (const opener of ctx.grammar.orderedOpeners()) {
+		const claim = opener.tryOpen(probe);
+		if (claim) return claim.node.kind !== 'linkReferenceDefinition';
+	}
+	return false;
+}
+
 /**
- * Blank lines are absorbed only when a later indented line still follows, since GFM
- * allows blank-separated blocks inside a definition; a trailing blank run belongs to
- * the document, so the scan stops at the last confirmed content line.
+ * Blank lines are absorbed only while a later indented line still follows — a trailing blank
+ * run belongs to the document. An unindented non-blank line continues the definition only as
+ * a lazy continuation of an open body paragraph (CommonMark §5.1, as cmark-gfm applies it).
  */
 function scanDefinitionEnd(ctx: OpenContext): number {
 	let lastContent = ctx.index;
+	let paragraphOpen = keepsParagraphOpen(ctx.line.text.replace(MARKER_STRIP, ''), ctx.grammar);
 	let i = ctx.index + 1;
 	while (i < ctx.end) {
 		const text = ctx.lines[i].text;
 		if (isBlankLine(text)) {
+			paragraphOpen = false;
 			i++;
 			continue;
 		}
 		if (CONTINUATION_INDENT.test(text)) {
+			paragraphOpen = keepsParagraphOpen(text.replace(CONTINUATION_INDENT, ''), ctx.grammar);
+			lastContent = i;
+			i++;
+			continue;
+		}
+		if (paragraphOpen && !startsSiblingBlock(ctx, i)) {
 			lastContent = i;
 			i++;
 			continue;
@@ -118,7 +160,9 @@ export function registerFootnoteDefinition(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		conformanceFixture: '[^1]: A footnote definition.\n',
+		// Kit fixtures must be rebuildRaw fixed points, so the continuation is indented —
+		// the lazy form canonicalizes; its extent rows live in lazy-continuation.test.ts.
+		conformanceFixture: '[^1]: A footnote definition.\n    with an indented continuation.\n',
 		// Unlike a listItem, whose leaf resolves to the item under the list, the body
 		// blocks reorder within; the marker is position-independent, so rebuildRaw re-emits it.
 		container: { contract: 'strip', rebuildRaw: rebuildFootnoteDefRaw, reorderChildren: {} },

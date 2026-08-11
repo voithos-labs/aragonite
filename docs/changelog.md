@@ -4,6 +4,12 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **Footnote definitions continue lazily, as on GitHub.** An unindented non-blank line after a
+  definition now stays in its open body paragraph — matching cmark-gfm's lazy continuation — where
+  it used to escape as a sibling paragraph, so a GitHub-authored document keeps its structure. The
+  definition still ends where GitHub ends it: at a blank line with nothing indented after it, or at
+  any line that opens a block, a sibling `[^label]:` included.
+
 - **The third-party notices file is now `THIRD-PARTY-NOTICES.md`.** The old
   `LICENSE-THIRD-PARTY.md` name matched GitHub's license detection, so the repo reported two
   licenses; the notices themselves (the commonmark.js emphasis port, the gemoji table, the WHATWG
