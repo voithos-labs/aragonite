@@ -171,14 +171,14 @@ Let's start by establishing the right context: most editors ship as a toolkit, a
 
 (And it drags almost nothing behind it. Two hard runtime dependencies: highlight.js, for code-block syntax colors, and esm-env, a few bytes of bundler-agnostic dev-flag resolution that svelte itself already depends on. Svelte is a peer you already have and compiles away rather than shipping a framework runtime; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
 
-For all of that surface area the code stays relatively compact: about 56k lines of typescript and svelte for the shipped library, roughly 5.6k of which is the eight bundled plugins [^13]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
+For all of that surface area the code stays relatively compact: about 62k lines of typescript and svelte for the shipped library, roughly 6k of which is the eight bundled plugins [^13]. Since this README is meant to be an honest report of what we tried to pull off, here is where those lines actually went:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loc-dark.svg">
   <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, selection, and the bundled plugins; the schema registry, invariants, public API, decorations, and windowing each take progressively smaller slices." src="docs/assets/loc-light.svg">
 </picture>
 
-I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with two hard dependencies behind it. The test suite, meanwhile, is roughly twice the size of the library (~120k lines), which says more about my paranoia than the leanness.
+I guess the number itself is nothing special, but the ratio turns out to be quite compact. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, four presentation modes, and a plugin platform) fits in a codebase one person can still read end to end, with two hard dependencies behind it. The test suite, meanwhile, is roughly twice the size of the library (~144k lines), which says more about my paranoia than the leanness.
 
 # Fast
 
@@ -327,7 +327,7 @@ Copyright (c) 2026 voithos-labs. aragonite is free software, released under [GPL
 
 [^12]: ProseMirror friends: yes, this means no `StateField`. The forward-mapping problem it solves is downstream of positions being integers into a flat sequence. Ours aren't.
 
-[^13]: counted from the tracked `src/lib` source, excluding the ~120k lines of tests. Give or take a refactor; it is a description, not a promise.
+[^13]: counted from the tracked `src/lib` source, excluding the ~144k lines of tests. Give or take a refactor; it is a description, not a promise.
 
 [^14]: before anyone suggests it: CSS `content-visibility` is not this. It skips paint and layout but leaves the components mounted, and the cost that matters here is script, not layout.
 
