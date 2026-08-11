@@ -97,6 +97,12 @@ describe('painted chrome leaves the press to the engine', () => {
 		expect(del('[](u)', 0, 'forward', true)).toBeNull();
 	});
 
+	// The block's own prefix paints beside the construct's, so the container is content-empty while
+	// nothing about the inline nodes says so — the fact is the container's and can only be passed in.
+	it('declines where a block prefix paints beside the construct', () => {
+		expect(del('# [](u)', 7, 'backward', true, { start: 2, end: 7 })).toBeNull();
+	});
+
 	// The same presses while the chrome hides stay the arm's: the fact is what separates them.
 	it('still claims them where the block holds content behind its chrome', () => {
 		expect(del('[](u)', 5)).toEqual({ raw: '', caret: 0 });
