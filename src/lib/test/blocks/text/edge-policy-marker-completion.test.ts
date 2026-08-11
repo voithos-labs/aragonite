@@ -91,6 +91,21 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
 	});
 
+	it('completes at a MIDDLE empty child, not only the one an Enter just made', () => {
+		const h = mount('> a\n>\n>\n> b\n', [0, 1]);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
+		expect(h.edits).toHaveLength(0);
+	});
+
+	// The consumed space writes nothing, so the child is still empty when press 2 arrives and
+	// the arm answers the same way.
+	it('consumes a second consecutive space at the same seat', () => {
+		const h = mount('>\n', [0, 0]);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
+		expect(h.edits).toHaveLength(0);
+	});
+
 	it('declines in an equally empty child of a container that declares nothing', () => {
 		const h = mount('- \n', [0, 0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(false);

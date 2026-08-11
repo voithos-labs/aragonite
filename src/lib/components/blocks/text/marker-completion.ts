@@ -12,7 +12,7 @@ import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor
 
 /**
  * `parent` is the block's NEAREST ancestor container — a nested quote completes at its own
- * depth — or null at the document root. Byte shapes only, so the answer is stateless.
+ * depth — or null at the document root.
  */
 export function completesContainerMarker(
 	node: NodeView,

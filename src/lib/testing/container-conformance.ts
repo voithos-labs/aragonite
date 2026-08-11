@@ -8,7 +8,7 @@
 
 import type { ContainerEditActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import { trailingLineEnding } from '../core/lines';
+import { splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
 import { createContainerEditActions } from '../editor-actions/container-edit';
 import { createUndoController } from '../editor-actions/commit/undo-controller';
@@ -586,6 +586,47 @@ export function checkDeclarationSanity(
 	assert(node, `deepNesting fixture contains a "${kind}" node`);
 	assertRebuildIsParseCanonical(descriptor, node, kind);
 	assertBodyWrapMatchesParse(kind, descriptor);
+	assertContentStartSpaceIsRebuilt(kind, descriptor);
+}
+
+/** The content a probe writes into a body child; distinctive enough that no fixture line ends
+ *  in it by accident. */
+const CONTENT_START_PROBE = 'probe';
+
+/**
+ * `container.contentStartSpace` consumes the user's space, so it is byte-honest only where the
+ * rebuild mints that space back on a content line. A declarer whose rebuild does not eats the
+ * keystroke instead of deferring it.
+ */
+function assertContentStartSpaceIsRebuilt(
+	kind: AnyBlockKind,
+	descriptor: BlockKindDescriptor
+): void {
+	if (descriptor.contentStartSpace !== 'complete-marker') return;
+	const fixture = descriptor.conformanceFixture;
+	if (fixture === undefined) {
+		fail(`${kind} declares container.contentStartSpace but carries no conformanceFixture to probe`);
+	}
+	const node = parse(fixture).children.find((child) => child.kind === kind);
+	assert(node?.children?.length, `${kind} conformanceFixture opens a "${kind}" with a body child`);
+
+	// The LAST child, so a reserved-chrome head (a title, a summary) stays in place: its own line
+	// already carries the opener's space, and rebuilding over it would answer for the wrong line.
+	const last = node.children[node.children.length - 1];
+	last.raw = CONTENT_START_PROBE + (trailingLineEnding(last.raw) || '\n');
+	descriptor.rebuildRaw!(node);
+
+	const lines = splitLines(node.raw)
+		.map((line) => line.text)
+		.filter((text) => text.endsWith(CONTENT_START_PROBE));
+	assertIs(lines.length, 1, `${kind} rebuild emits exactly one line for the probed body child`);
+	const line = lines[0];
+	assert(
+		line.endsWith(` ${CONTENT_START_PROBE}`) && line.length > CONTENT_START_PROBE.length + 1,
+		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for a body ` +
+			`child holding "${CONTENT_START_PROBE}" — the consumed space is only deferred where the ` +
+			`rebuild re-emits the marker's own trailing space on a content line`
+	);
 }
 
 /**

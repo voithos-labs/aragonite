@@ -155,10 +155,10 @@ export interface BlockKindDescriptor {
 	/** Backspace-at-start unwrap strategies for this container's children. Absent = default dispatch. */
 	unwrapRole?: UnwrapRole;
 	/**
-	 * `'complete-marker'` consumes a space typed at the content start of an EMPTY child: the
-	 * opener already minted the container, so that space finishes the marker rather than the
-	 * content. Declare it only where `rebuildRaw` canonicalizes the marker's trailing space,
-	 * or the keystroke is eaten instead of deferred.
+	 * `'complete-marker'` consumes EVERY space typed at the content start of an empty child, at
+	 * any child index, repeated presses included. A `rebuildRaw` that canonicalizes the marker's
+	 * trailing space is what makes the first press byte-honest: the space it took reappears the
+	 * moment content arrives. Without one, every press is simply eaten.
 	 */
 	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent = not reorder-within. */

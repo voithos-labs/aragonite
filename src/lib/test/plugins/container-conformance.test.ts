@@ -188,6 +188,16 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 		);
 	});
 
+	// A fence container re-emits its body lines verbatim, so consuming the user's space would
+	// swallow a byte no rebuild gives back — the declaration is the lie, not the rebuild.
+	it('fails declaration sanity when contentStartSpace ships on a rebuild that mints no marker space', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { container: { contentStartSpace: 'complete-marker' } });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout declares container\.contentStartSpace/
+		);
+	});
+
 	it('refuses an exempt cell whose reason is not substantive', async () => {
 		await expect(
 			runContainerConformance(CALLOUT_KIND(), {
