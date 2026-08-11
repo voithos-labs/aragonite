@@ -215,7 +215,7 @@ export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean 
 	if (node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return false;
 	const mode = markerHidingMode(container);
 	if (mode === null) return false;
-	const chromePaints = chromeStandsAlone(container, mode);
+	const chromePaints = chromeStandsAloneUnder(container, mode);
 	for (let el = node.parentElement; el && el !== container; el = el.parentElement) {
 		if (hidesOwnText(el, mode, chromePaints)) return true;
 	}
@@ -230,7 +230,7 @@ export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean 
 export function isHiddenMarkerRoot(el: Element, container: HTMLElement): boolean {
 	if (el === container || !container.contains(el)) return false;
 	const mode = markerHidingMode(container);
-	return mode !== null && hidesOwnText(el, mode, chromeStandsAlone(container, mode));
+	return mode !== null && hidesOwnText(el, mode, chromeStandsAloneUnder(container, mode));
 }
 
 /**
@@ -241,6 +241,15 @@ export function isHiddenMarkerRoot(el: Element, container: HTMLElement): boolean
 export function revealsNoMarkers(container: ParentNode): boolean {
 	const mode = markerHidingMode(container);
 	return mode !== null && !isPreviewMode(mode);
+}
+
+/**
+ * Whether this block's marker chrome stands over no content and therefore PAINTS (live-mode.md
+ * § 4.1). The reader sees those bytes, so a seam holding a license over unseen ones has nothing
+ * to claim here.
+ */
+export function chromeStandsAlone(container: ParentNode): boolean {
+	return chromeStandsAloneUnder(container, markerHidingMode(container));
 }
 
 /**
@@ -402,7 +411,7 @@ function markerRootOf(node: Node, root: ParentNode): Element | null {
 /** Whether `root` carries the content-empty stamp under a mode that paints it. Reading is
  *  excluded: it takes no keystrokes, so a construct with nothing behind its chrome is allowed
  *  to paint nothing there. */
-function chromeStandsAlone(root: ParentNode, mode: PresentationMode | null): boolean {
+function chromeStandsAloneUnder(root: ParentNode, mode: PresentationMode | null): boolean {
 	if (mode === null || mode === 'reading' || !(root instanceof Element)) return false;
 	return root.hasAttribute(CONTENT_EMPTY_ATTR);
 }
@@ -479,7 +488,7 @@ type WalkSegment =
 function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generator<WalkSegment> {
 	let count = 0;
 	// One read per walk, not one `closest` per element: every caller passes the walk container.
-	const chromePaints = chromeStandsAlone(root, mode);
+	const chromePaints = chromeStandsAloneUnder(root, mode);
 	function* visit(node: Node, hiddenRoot: Element | null): Generator<WalkSegment> {
 		if (node.nodeType === Node.TEXT_NODE) {
 			const len = node.textContent?.length ?? 0;
