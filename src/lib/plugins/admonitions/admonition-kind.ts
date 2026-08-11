@@ -96,6 +96,8 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
+		// Opaque tier rule: no textual escape hatch at either edge, so both take the gap caret.
+		gapEdges: 'both',
 		container: {
 			// The title lives in the opener line, so raw is not a strip of the children.
 			contract: 'opaque',

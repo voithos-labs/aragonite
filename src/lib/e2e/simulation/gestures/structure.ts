@@ -198,26 +198,29 @@ export async function toggleTask(ctx: SimContext, listItemPath: number[]): Promi
 }
 
 /**
- * The one insert that starts from no block at all: Backspace at `boundaryIndex`'s offset 0
- * parks the between-blocks caret, and the next key mints a paragraph there (empty `text` =
- * Enter). Both halves are asserted, or an arrival that entered the block would record an
- * ordinary edit as gap coverage. `boundaryIndex` must name a block whose leading boundary
- * both neighbours declare, and the mint leaves the caret mid-document — a note's LAST gesture.
+ * The one insert that starts from no block at all: an edge key at `boundaryIndex`'s first
+ * position parks the between-blocks caret, and the next key mints a paragraph there (empty
+ * `text` = Enter). Both halves are asserted, or an arrival that entered the block would record
+ * an ordinary edit as gap coverage; the mint leaves the caret mid-document — a note's LAST
+ * gesture. Arrival 'arrow-up' serves the chrome containers, whose first-leaf Backspace is a
+ * deliberate no-op; the default keeps the Backspace-at-edge fallback under sim coverage.
  */
 export async function mintAtGap(
 	ctx: SimContext,
 	boundaryIndex: number,
-	text: string
+	text: string,
+	options?: { arrival?: 'backspace' | 'arrow-up' }
 ): Promise<void> {
 	await ctx.editor.clickBlockAtPath([boundaryIndex], 0);
-	await ctx.page.keyboard.press('Backspace');
+	await ctx.page.keyboard.press(options?.arrival === 'arrow-up' ? 'ArrowUp' : 'Backspace');
 	try {
 		await ctx.editor.bridge.waitForGapCaret({ parentPath: [], index: boundaryIndex });
 	} catch {
 		throw new Error(
-			`[${ctx.label}] mintAtGap: Backspace at block ${boundaryIndex} parked no gap caret ` +
-				`there, got ${JSON.stringify(await ctx.editor.bridge.getGapCaret())}; both ` +
-				`neighbours must declare the facing edge.`
+			`[${ctx.label}] mintAtGap: ${options?.arrival ?? 'backspace'} at block ${boundaryIndex} ` +
+				`parked no gap caret there, got ` +
+				`${JSON.stringify(await ctx.editor.bridge.getGapCaret())}; both neighbours must ` +
+				`declare the facing edge, and the arrival must fit the block's surface.`
 		);
 	}
 	await actThenResync(ctx, async () => {

@@ -180,6 +180,8 @@ export function registerDetailsKind(): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
+		// Opaque tier rule: no textual escape hatch at either edge, so both take the gap caret.
+		gapEdges: 'both',
 		container: {
 			contract: 'opaque',
 			rebuildRaw: rebuildDetailsRaw,

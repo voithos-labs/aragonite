@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 import type { SimContext } from '../../simulation/invariants';
 import { assertStructuralIntegrity } from '../../simulation/invariants';
 import { mintAtGap } from '../../simulation/gestures/structure';
@@ -60,5 +61,39 @@ test.describe('sim gesture reachability: gap mint', () => {
 		await expect(mintAtGap(await makeCtx(page, editor), 1, 'Q')).rejects.toThrow(
 			/parked no gap caret/
 		);
+	});
+});
+
+// The opaque-container tier (#93): the boundary needs the arrow-up arrival, because a chrome
+// container's first-leaf Backspace is a deliberate no-op rather than an edge fallback.
+test.describe('sim gesture reachability: gap mint between opaque containers', () => {
+	const CALLOUT_A = ':::note Alpha\nalpha\n:::\n';
+	const CALLOUT_B = ':::tip Beta\nbeta\n:::\n';
+	/** admonition, admonition, paragraph: the eligible boundary is 1. */
+	const TWO_CALLOUTS = `${CALLOUT_A}\n${CALLOUT_B}\ntail\n`;
+
+	let editor: PluginsPage;
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins();
+		await editor.loadContent(TWO_CALLOUTS);
+	});
+
+	test('the arrow-up arrival mints a paragraph between the two callouts', async ({ page }) => {
+		const ctx = await makeSimContext(page, editor, 'reach-opaque');
+
+		await mintAtGap(ctx, 1, 'Q', { arrival: 'arrow-up' });
+
+		expect(await editor.bridge.getSource()).toBe(`${CALLOUT_A}\nQ\n\n${CALLOUT_B}\ntail\n`);
+		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+		await assertStructuralIntegrity(ctx);
+	});
+
+	// Backspace at the callout's title no-ops by design, so the default arrival must fail
+	// loud here rather than record chrome coverage as a mint.
+	test('the backspace arrival fails loudly at a chrome-container boundary', async ({ page }) => {
+		await expect(
+			mintAtGap(await makeSimContext(page, editor, 'reach-opaque'), 1, 'Q')
+		).rejects.toThrow(/parked no gap caret/);
 	});
 });
