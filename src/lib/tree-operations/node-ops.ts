@@ -322,7 +322,7 @@ function splitSeparator(
 		// itself and gains nothing, so ask the bytes rather than assume.
 		return trivia !== '' && blankHalfBecomesBlock(firstRaw, secondRaw, lineEnding) ? trivia : '';
 	}
-	return separatorSplitsOffNextLine(firstRaw, lineEnding) ? lineEnding : '';
+	return separatorSplitsOffNextLine(firstRaw, secondRaw, lineEnding) ? lineEnding : '';
 }
 
 function blankHalfBecomesBlock(firstRaw: string, secondRaw: string, lineEnding: string): boolean {
@@ -339,15 +339,20 @@ function blankHalfBecomesBlock(firstRaw: string, secondRaw: string, lineEnding: 
  * own, so the separator never lands inside a body. Blank blocks are discounted on both
  * sides — the separator materializes as one, and counting it would answer yes for every raw.
  */
-function separatorSplitsOffNextLine(raw: string, lineEnding: string): boolean {
+function separatorSplitsOffNextLine(raw: string, secondRaw: string, lineEnding: string): boolean {
 	if (DEV && !probeLineOpensAsProse()) {
 		devWarn(
 			'tree-ops',
 			`a registered opener claims ${JSON.stringify(NEXT_PROSE_LINE)}, so the split-separator probe no longer stands in for prose`
 		);
 	}
-	const probe = NEXT_PROSE_LINE + lineEnding;
-	return contentBlockCount(raw + lineEnding + probe) > contentBlockCount(raw + probe);
+	// Both lines that will ever sit under `raw`: the second half's actual head, and the prose
+	// stand-in for whatever a later edit puts there — a promoted table absorbs a pipe-bearing
+	// head the stand-in survives (GH #100).
+	const probes = [secondRaw.slice(0, secondRaw.indexOf('\n') + 1), NEXT_PROSE_LINE + lineEnding];
+	return probes.some(
+		(probe) => contentBlockCount(raw + lineEnding + probe) > contentBlockCount(raw + probe)
+	);
 }
 
 function contentBlockCount(source: string): number {

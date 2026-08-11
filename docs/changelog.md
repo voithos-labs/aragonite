@@ -27,6 +27,12 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   `[selection](url)` as a single undo step, and Escape leaves the document byte-identical with the
   selection restored. The demo's mode switcher gains the rung.
 
+- **A split whose first half promotes to a table keeps its second half separate.** The probe
+  deciding whether Enter's second half needs a blank-line separator asked with a stand-in
+  prose line, which a freshly promoted table does not absorb — while absorbing the
+  pipe-bearing line actually left below it as a row on reload. The probe now asks with the
+  actual head line too.
+
 - **Arriving at a table's start enters the first cell.** The start sentinel used to fall through
   the table's caret doors to their far branch, so a landing aimed at the table's head (a
   structural operation's focus, a live-mode arrival) came up in the last cell instead. Both
