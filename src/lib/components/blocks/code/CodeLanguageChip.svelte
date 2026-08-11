@@ -93,11 +93,10 @@
 		pointer-events: none;
 	}
 
-	/* Transient, like the drag handle: the pointer over the block or the caret inside it, and
-	   the open field, which outlives both. Global on the hover side because the host is
-	   BlockHost's element, and on the focus side because scoping would not reach a sibling
-	   the chip's own component does not render. */
-	:global(.block-host:hover) .code-lang-chip,
+	/* Transient, like the drag handle: the pointer over the block or the caret inside it, plus
+	   the open field, which outlives both. Child and sibling combinators, so an outer container's
+	   hover never reveals a nested block's chip. */
+	:global(.block-host:hover) > .code-lang-chip,
 	:global(.code-block:focus) ~ .code-lang-chip,
 	.code-lang-chip:focus-within {
 		opacity: 1;
