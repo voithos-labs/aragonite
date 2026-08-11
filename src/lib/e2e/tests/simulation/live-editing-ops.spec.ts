@@ -83,6 +83,9 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		await g.liveTypeFenceOpener(PROSE, 'js');
 		await assertCoreOracles(ctx, 'after-fence-opener');
 
+		await g.liveTypeTableOpener(PROSE, ['phase', 'result']);
+		await assertCoreOracles(ctx, 'after-table-opener');
+
 		expect(await editor.bridge.getSource()).toBe(canonical);
 	});
 });

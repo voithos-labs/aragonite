@@ -30,6 +30,7 @@ import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
 import type { CommitScope, MutationView } from './block-edit-scope';
 import { mergedElseFocusPrevious } from './merge-fallback';
+import { planEnterCompletion } from './enter-completion';
 
 /** The byte/settle sinks' owner answer, read live off the commit's owned view. */
 const bodyParentOf = (view: MutationView) => ({
@@ -53,14 +54,27 @@ export interface BlockEditCore {
 	replaceBlock(
 		i: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number },
-		options?: { undoEntry?: UndoEntryMode }
+		focus?: { replacementIndex: number; offset: number; path?: number[] },
+		options?: { undoEntry?: UndoEntryMode; snapshotOffset?: number }
 	): Promise<void>;
 }
 
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
-	return {
+	const core: BlockEditCore = {
 		async split(i, offset) {
+			// The one Enter-completion arm (`schema/block-completions.ts`): a claimed lone line
+			// becomes the structure it opens, and the press is spent on that instead of a split.
+			const completion = planEnterCompletion(scope.children()[i], offset);
+			if (completion) {
+				await core.replaceBlock(
+					i,
+					completion.replacement,
+					{ replacementIndex: 0, ...completion.caret },
+					{ snapshotOffset: offset }
+				);
+				return;
+			}
+
 			// Offset 0 is not special: empty block above, content below, caret on the content. The
 			// landing is the primitive's answer, not `i + 1` — a plural first half pushes the
 			// second half further down.
@@ -302,8 +316,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		async replaceBlock(i, replacement, focus, options) {
 			const children = scope.children();
 			if (i < 0 || i >= children.length) return;
+			// `snapshotOffset` is where the caret WAS, which undo restores; `focus.offset` is where
+			// it lands. They part company when the replacement seats it inside a new structure.
 			const snapshot =
-				options?.undoEntry === 'join' ? 'skip' : { index: i, offset: focus?.offset ?? 0 };
+				options?.undoEntry === 'join'
+					? 'skip'
+					: { index: i, offset: options?.snapshotOffset ?? focus?.offset ?? 0 };
 			await scope.commit({
 				snapshot,
 				eventTarget: i,
@@ -328,10 +346,14 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return change;
 				},
 				afterTick: () => {
-					if (focus && replacement.length > 0)
-						scope.refAt(i + focus.replacementIndex)?.focus(focus.offset);
+					if (!focus || replacement.length === 0) return;
+					const ref = scope.refAt(i + focus.replacementIndex);
+					if (focus.path?.length) ref?.focusByPath?.(focus.path, focus.offset);
+					else ref?.focus(focus.offset);
 				}
 			});
 		}
 	};
+
+	return core;
 }

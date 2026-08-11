@@ -87,13 +87,15 @@ export interface BlockEditActions {
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.
-	 * `replacement.length === 0` is equivalent to deleteBlock.
+	 * `replacement.length === 0` is equivalent to deleteBlock. `focus.path` addresses a caret
+	 * landing inside the replacement's own structure; `snapshotOffset` is where the caret was,
+	 * for the undo entry, and defaults to where it lands.
 	 */
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number },
-		options?: { undoEntry?: UndoEntryMode }
+		focus?: { replacementIndex: number; offset: number; path?: number[] },
+		options?: { undoEntry?: UndoEntryMode; snapshotOffset?: number }
 	): void | Promise<void>;
 }
 

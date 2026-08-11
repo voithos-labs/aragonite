@@ -29,6 +29,16 @@ export function splitRowCells(rowText: string): string[] {
 	return cells;
 }
 
+/**
+ * The cells a line offers as a table header row, or null when it offers none — the one home for
+ * the shape, so a row the continuation scan accepts and the Enter completer refuses cannot exist.
+ * Arity against the delimiter is the caller's check.
+ */
+export function tableHeaderCells(text: string): string[] | null {
+	if (!text.includes('|')) return null;
+	return splitRowCells(text);
+}
+
 function isEscaped(s: string, index: number): boolean {
 	let backslashes = 0;
 	let j = index - 1;
