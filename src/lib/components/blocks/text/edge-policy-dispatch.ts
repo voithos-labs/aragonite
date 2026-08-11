@@ -19,7 +19,7 @@ import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarksState } from '../../../cursor/pending-marks';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
-import { revealsNoMarkers } from '../../../cursor/widget-offset';
+import { landableRawBounds, revealsNoMarkers } from '../../../cursor/widget-offset';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
@@ -377,6 +377,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (caretOffset === null || hasSelectionHelper()) return false;
 		const el = deps.getEl();
 		if (!el || !revealsNoMarkers(el)) return false;
+		// The landable start is visual column 0, where Backspace is a block gesture (merge or
+		// inert): an atomic run straddling the start would otherwise take the first visible
+		// glyph forward (GH #108).
+		if (e.key === 'Backspace') {
+			const bounds = landableRawBounds(el, deps.getAmbientLength());
+			if (bounds && caretOffset <= bounds.start) return false;
+		}
 		const deletion = resolveEdgeDeletion({
 			display: display(),
 			content: getContentRange(deps.node),

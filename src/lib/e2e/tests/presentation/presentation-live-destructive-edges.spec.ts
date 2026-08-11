@@ -1,7 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickBlockSettled, clickWordSettled, enterPresentationMode, stepTo } from './helpers';
+import {
+	clickBlockSettled,
+	clickWordSettled,
+	enterPresentationMode,
+	focusOffset,
+	stepTo
+} from './helpers';
 
 // What a destructive key takes in live mode, where no delimiter is painted: the adjacent CONTENT
 // character, the pair that character emptied, or an atomic run whole. The source is the oracle —
@@ -20,7 +26,11 @@ const DOC = [
 	'',
 	'**a *b* c**',
 	'',
-	'**a** **b**'
+	'**a** **b**',
+	'',
+	'merge target',
+	'',
+	'\\*c\\*'
 ].join('\n');
 
 const BOLD = 0;
@@ -28,6 +38,8 @@ const TINY_BOLD = 1;
 const ESCAPE = 2;
 const UNSOUND = 4;
 const TWO_BOLDS = 5;
+const MERGE_TARGET = 6;
+const LEADING_ESCAPE = 7;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
@@ -89,6 +101,23 @@ test.describe('live mode — a destructive key at a hidden run takes what the re
 		await page.keyboard.press('Backspace');
 		await ep.bridge.waitForSourceContains('a  b');
 		await ep.bridge.waitForSourceNotContains('a \\');
+	});
+
+	// The landable start is visual column 0: the press is the block's merge, and the escape's
+	// first visible glyph must survive it (GH #108 turned this press into a forward delete).
+	test('Backspace at the landable start inside a leading escape merges the blocks', async ({
+		page
+	}) => {
+		await clickBlockSettled(ep, LEADING_ESCAPE);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		expect(await focusOffset(ep)).toBe(1);
+
+		await page.keyboard.press('Backspace');
+		await ep.bridge.waitForSourceContains('merge target\\*c\\*');
+		await expect(ep.getBlock(MERGE_TARGET)).toHaveText('merge target*c*', {
+			useInnerText: true
+		});
 	});
 
 	// A hard break's marker run and its line ending are one thing on screen: the line ends.
