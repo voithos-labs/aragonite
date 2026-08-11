@@ -407,9 +407,11 @@
 /* Chrome with nothing behind it has nowhere to hide: a construct whose only bytes are its own
    markers would paint as an empty line with no caret position, so an editable rung shows them
    dimmed exactly as source does. Mirrored in `cursor/widget-offset.ts` (same two modes, same
-   two families); reading takes no keystrokes and keeps its silence. */
+   two families); reading takes no keystrokes and keeps its silence. The `[contenteditable]`
+   qualifier scopes the stamp to the walk containers its JS twin reads, which is what a block
+   decoration spelling `data-content-empty` onto the block host cannot reach. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
-	[data-content-empty]
+	[contenteditable][data-content-empty]
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
 }

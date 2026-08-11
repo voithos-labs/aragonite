@@ -8,6 +8,7 @@
 	} from '../block-component';
 	import type { NodeView } from '../core/node-views';
 	import type { BlockDecoration } from '../decorations/types';
+	import { acceptedBlockAttrs } from '../decorations/reserved-attrs';
 	import { mountDecorationWidget } from '../decorations/widget-dom';
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import DecorationOverlay from './DecorationOverlay.svelte';
@@ -186,7 +187,7 @@
 		if (!el || decs.length === 0) return;
 		const appliedKeys: string[] = [];
 		for (const dec of decs) {
-			for (const [key, value] of Object.entries(dec.attrs ?? {})) {
+			for (const [key, value] of acceptedBlockAttrs(dec.attrs, myPath)) {
 				el.setAttribute(key, value);
 				appliedKeys.push(key);
 			}
