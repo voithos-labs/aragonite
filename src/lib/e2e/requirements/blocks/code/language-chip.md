@@ -38,19 +38,26 @@ never sees it and the render effect's `replaceChildren` cannot destroy it.
 - An unchanged info string is a close, not a write: no undo entry, no `edit` event. This is
   also what keeps the seed's trimming (`meta.info` is trimmed) from respelling author bytes
   on a no-op commit.
-- After a commit or a cancel, focus returns to the block with the caret at the first body
-  offset. Pinned by typing a character, not by asking who has focus: a caret nowhere usable
-  reports focus just as well as one that works.
+- A commit and an Escape both return the caret to the block, at the first body offset. A
+  BLUR does not: focus is already where the user just put it, and yanking it back is worse
+  than leaving it (`MermaidBlock`'s rule for the same shape). The landing is pinned by typing
+  a character, not by asking who has focus: a caret nowhere usable reports focus just as well
+  as one that works.
+- The traversal seam is not the door here. `moveFocus` to the block's own index stops at the
+  gap boundary above it, so the caret is seated through the block's own `focus`.
 
 ## Bytes the info string cannot hold
 
-The helper refuses what would stop the line reading as this block's opener, at the choke
-point rather than at the caller:
+The helper drops what would stop the line reading as this block's opener, at the choke point
+rather than at the caller. Dropping rather than declining is the rule the typed and pasted
+routes already share (`fence-content-validity.md`), so all three arms behave alike:
 
 - A backtick in a BACKTICK fence's info string is dropped (CommonMark §4.5), including on
   an unclosed fence, where the display funnel's own sanitize pass stands down.
-- An info string starting with the fence's own marker is refused outright: it would grow
-  the run instead, re-reading `~~~` + `~~~x` as a six-tilde fence.
+- A LEADING run of the fence's own marker is dropped: it would grow the run instead,
+  re-reading `~~~` + `~~x` as a five-tilde fence its own closer no longer closes. The same
+  marker later in the string is ordinary info text and survives.
+- A line ending is flattened away, an info string being one line by construction.
 - A tilde fence's info string may hold backticks, so nothing is dropped there.
 
 ## Known gaps
@@ -63,19 +70,30 @@ point rather than at the caller:
   chip. Following the stated visibility rule literally rather than special-casing reading;
   an empty code block in a reading view has nothing to say.
 - **A focused preview block shows both.** The preview rungs reveal the fence on the focused
-  block, and the chip also shows there (the caret is inside). Redundant, harmless, and
-  cheaper than teaching the chip to read the focus stamp.
+  block, and the chip also shows there (the caret is inside, and an open field counts as
+  inside). Redundant, harmless, and cheaper than teaching the chip to read the focus stamp.
+- **The reading-mode chip is an enabled button that declines.** No `disabled`, no
+  `aria-disabled`: the mode is inert everywhere, the label is the useful half, and a disabled
+  control is unreachable to the gesture that proves it does nothing. The `aria-label` still
+  names the language, which is what a reader wants from it.
+- **The undo scenarios do not discriminate the isolation.** `isolateUndoEntry` is the correct
+  seam and free, but a Playwright click between the typing and the commit already outruns the
+  250ms batch window, so both undo scenarios would pass without it. What they do pin is the
+  outcome: one Mod+Z takes the info string or the character, never both.
 - **Plugin fence kinds do not inherit.** Mermaid and the math fence have their own surfaces;
   the chip is the built-in `fencedCode` component's alone, with no descriptor field and no
   plugin surface behind it.
 
 ## Happy paths
 
-- live mode, pointer over the block: the chip reveals and reads `js`
+- each writing rung (`live`, `preview-inline`, `preview-block`), pointer over the block: the
+  chip reveals and reads `js`
 - live mode, caret inside the block and the pointer away: the chip reveals
 - an empty info string reads `text`
-- click, type a new language, Enter: the source shows the new info string with the fence
-  runs, body and closer unchanged, and the block is still `fencedCode`
+- each writing rung: click, type a new language, Enter — the source shows the new info string
+  with the fence runs, body and closer unchanged, and the block is still `fencedCode`. The
+  preview rungs are the interesting ones: the open field makes the block read as focused, so
+  they REVEAL the fence while the chip is committing over it
 - clearing the field and committing empties the info string
 - typing a character after a commit lands it at the first body offset
 
@@ -88,6 +106,8 @@ point rather than at the caller:
 - reading mode: a click on the chip opens no field
 - a backtick committed into an UNCLOSED backtick fence's info string lands without it, and
   the block stays `fencedCode`
+- a leading tilde run committed into a tilde fence's info string lands without it, and the
+  heading below stays a sibling
 - one Mod+Z after a body character then a chip commit reverts the info string and keeps the
   character
 - one Mod+Z after a chip commit then a typed character reverts the character and keeps the

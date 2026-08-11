@@ -86,8 +86,12 @@ describe('writeFenceInfo refuses what the info span cannot hold', () => {
 		expect(writeFenceInfo('~~~js\nx\n~~~', 'a`b', tilde())).toBe('~~~a`b\nx\n~~~');
 	});
 
-	it('refuses info opening on the fence’s own marker', () => {
-		expect(writeFenceInfo('~~~js\nx\n~~~', '~x', tilde())).toBeNull();
+	it('drops a leading run of the fence’s own marker, which would lengthen the fence', () => {
+		expect(writeFenceInfo('~~~js\nx\n~~~', '~~x', tilde())).toBe('~~~x\nx\n~~~');
+	});
+
+	it('keeps the fence’s marker where it is not leading', () => {
+		expect(writeFenceInfo('~~~js\nx\n~~~', 'x~y', tilde())).toBe('~~~x~y\nx\n~~~');
 	});
 
 	it('flattens a newline the field could never show', () => {
