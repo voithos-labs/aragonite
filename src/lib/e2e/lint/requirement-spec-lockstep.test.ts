@@ -31,6 +31,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'seeded gesture family: one seeded session drives every gesture, so the requirement enumerates gesture coverage and oracle checkpoints, not tests'
 	},
 	{
+		spec: 'plugins/details-terminator-paste.spec.ts',
+		reason:
+			'four of six scenarios are pinned at the unit sink (terminator-collision-paste.test.ts); e2e carries the two browser-visible rows'
+	},
+	{
 		spec: 'selection/gap-caret-arrival-scopes.spec.ts',
 		reason:
 			'three of the six bullets are v1 narrowings — the click route, container entry, and the measured-unreachable windowed seam — and a fourth is the interaction note, none of them scenarios the two gestures could drive'
