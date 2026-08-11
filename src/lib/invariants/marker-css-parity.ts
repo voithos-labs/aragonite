@@ -7,7 +7,7 @@
  */
 
 import type { InvariantViolation } from './assert';
-import { isHiddenMarkerRoot } from '../cursor/widget-offset';
+import { CONTENT_EMPTY_ATTR, isHiddenMarkerRoot } from '../cursor/widget-offset';
 
 interface ProbeCase {
 	name: string;
@@ -15,12 +15,15 @@ interface ProbeCase {
 	focusedHost: boolean;
 	attrs?: Record<string, string>;
 	reveal?: boolean;
+	/** The block holds only chrome, so two of the three families paint (a ref label does not). */
+	contentEmpty?: boolean;
 }
 
 /** One case per stylesheet arm the predicate mirrors, both host-focus states. */
 const CASES: ProbeCase[] = ['md-marker', 'md-fence-line', 'md-ref-label'].flatMap((family) => [
 	{ name: family, family, focusedHost: false },
 	{ name: `${family} (focused host)`, family, focusedHost: true },
+	{ name: `${family} (content-empty block)`, family, focusedHost: false, contentEmpty: true },
 	...(family === 'md-marker'
 		? [
 				{
@@ -75,6 +78,7 @@ function mountProbe(
 	host.style.left = '-9999px';
 	const block = document.createElement('div');
 	block.setAttribute('contenteditable', 'true');
+	if (probe.contentEmpty) block.setAttribute(CONTENT_EMPTY_ATTR, '');
 	const span = document.createElement('span');
 	span.className = probe.reveal ? `${probe.family} md-construct-reveal` : probe.family;
 	for (const [name, value] of Object.entries(probe.attrs ?? {})) span.setAttribute(name, value);

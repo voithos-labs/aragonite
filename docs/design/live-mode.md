@@ -22,6 +22,8 @@ How a construct behaves at its hidden edges is its declared row in the inline-co
 
 Two prohibitions every rule below applies. No invisible residue: a delimiter pair enclosing nothing paints as nothing, so live never writes one and removes one wherever an edit would create it. No unverified drop: bytes leave the document only when the painter confirms the reader never saw them (§ 2).
 
+Where a document already holds such residue (a typed `#` before its heading has a word, a fence before its first body line, a loaded `[](url)`), the prohibition falls on the paint instead of the bytes: chrome may hide only while it stands over content, so a construct with none shows its markers dimmed, exactly as source mode shows them, and every edit against them behaves as source mode's does. Each block surface stamps that condition on its walk container every render, and the two consumers of the hiding rule (the stylesheet and `cursor/widget-offset.ts`) read the stamp under the same modes and over the same marker families. The preview rungs take the same rule; reading does not, since it takes no keystrokes. Without it such a block has no landable caret position at all, which G1.33 refuses at the park door.
+
 ### 4.2 Typing at a hidden edge
 
 A byte typed where a marker run sits is seated by the edge seat (`components/blocks/text/edge-seat.ts`), which reads the kind's policy first and the arrival second:

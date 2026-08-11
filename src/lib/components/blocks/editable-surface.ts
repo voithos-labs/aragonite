@@ -53,6 +53,7 @@ import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
 import { assertInvariant } from '../../invariants/assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
+import { checkLandableCaret } from '../../invariants/landable-caret';
 
 /**
  * Per-surface cursor I/O in raw-content coordinates (ambient marker excluded).
@@ -249,6 +250,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const el = deps.getEl();
 		if (!el) return;
 		el.focus();
+		assertInvariant('landable-caret', () =>
+			checkLandableCaret(el, deps.getPresentationMode?.() ?? 'source', deps.getMyPath())
+		);
 		if (offset === CURSOR_EXACT_START) {
 			deps.backend.setRaw(asRawOffset(0));
 			return;

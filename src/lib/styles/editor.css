@@ -404,6 +404,16 @@
 	display: none;
 }
 
+/* Chrome with nothing behind it has nowhere to hide: a construct whose only bytes are its own
+   markers would paint as an empty line with no caret position, so an editable rung shows them
+   dimmed exactly as source does. Mirrored in `cursor/widget-offset.ts` (same two modes, same
+   two families); reading takes no keystrokes and keeps its silence. */
+:where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
+	[data-content-empty]
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
+	display: inline;
+}
+
 /* Resolution metadata, not content: a rendered document shows only the link text. */
 :where(.editor):is(
 		[data-presentation='reading'],

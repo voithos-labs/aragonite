@@ -4,6 +4,15 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **A construct with nothing behind its markers shows them.** Typing `#` in live mode used to
+  produce an empty invisible line, and the next character landed in front of the marker instead
+  of after it (`a#` for a typed `#` then `a`); three backticks made an empty invisible box no
+  language could be typed into, and a document loaded with either painted a ghost block. Chrome
+  now hides only while it stands over content: an empty heading, an empty fence and a link with
+  no text show their markers dimmed, exactly as source mode shows them, and every keystroke
+  against them behaves as it does there. The first content character folds the chrome away again.
+  Table cells follow the same rule; the preview rungs take it too, and reading mode is unchanged.
+
 - **Footnote definitions continue lazily, as on GitHub.** An unindented non-blank line after a
   definition now stays in its open body paragraph — matching cmark-gfm's lazy continuation — where
   it used to escape as a sibling paragraph, so a GitHub-authored document keeps its structure. The

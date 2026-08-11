@@ -11,6 +11,10 @@ import { asDomTextOffset, toClampedRawOffset, type DomTextOffset } from './coord
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
+/** The stamp a block surface writes on its walk container while {@link holdsOnlyMarkerChrome}
+ *  holds. Both consumers of the hiding rule — this walk and `styles/editor.css` — read it. */
+export const CONTENT_EMPTY_ATTR = 'data-content-empty';
+
 /**
  * Walk-space offset of a live `(node, offset)` DOM position. A position inside an atomic
  * widget snaps to that widget's own walk boundary (browsers do rebind carets into these
@@ -210,8 +214,9 @@ export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean 
 	if (node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return false;
 	const mode = markerHidingMode(container);
 	if (mode === null) return false;
+	const chromePaints = chromeStandsAlone(container, mode);
 	for (let el = node.parentElement; el && el !== container; el = el.parentElement) {
-		if (hidesOwnText(el, mode)) return true;
+		if (hidesOwnText(el, mode, chromePaints)) return true;
 	}
 	return false;
 }
@@ -224,7 +229,7 @@ export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean 
 export function isHiddenMarkerRoot(el: Element, container: HTMLElement): boolean {
 	if (el === container || !container.contains(el)) return false;
 	const mode = markerHidingMode(container);
-	return mode !== null && hidesOwnText(el, mode);
+	return mode !== null && hidesOwnText(el, mode, chromeStandsAlone(container, mode));
 }
 
 /**
@@ -264,6 +269,44 @@ export function landableDomTextBounds(container: ParentNode): {
 		end = stop;
 	}
 	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
+}
+
+/**
+ * Whether every byte `container` holds is chrome of a family the empty-construct override paints:
+ * at least one such span, and no landable text or widget behind it. The stamp condition the render
+ * path writes as `data-content-empty` and the walk reads back — computed WITHOUT reading the stamp,
+ * or each render would flip the previous one's answer.
+ */
+export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
+	let chrome = false;
+	for (const seg of walkSegments(container, null)) {
+		if (seg.len === 0) continue;
+		if (seg.kind === 'widget') return false;
+		if (markerRootOf(seg.node, container) !== null) {
+			chrome = true;
+			continue;
+		}
+		// The ambient island keeps its box in every mode, so it neither hides the block nor
+		// stands in for content: a `- ` with an empty child is landable and needs no stamp.
+		if (!inAmbientIsland(seg.node, container)) return false;
+	}
+	return chrome;
+}
+
+/**
+ * Whether the mode paints NOTHING landable here: every walk segment is a hidden marker run, so no
+ * caret position has a pixel of its own. `invariants/landable-caret.ts` refuses this shape at the
+ * park door — an empty container (landable at offset 0) and one fronted by the ambient island are
+ * not it.
+ */
+export function paintsNoLandableContent(container: ParentNode): boolean {
+	let hidden = false;
+	for (const seg of landingSegments(container, markerHidingMode(container))) {
+		if (seg.len === 0) continue;
+		if (seg.kind !== 'opaque' || !seg.hidden) return false;
+		hidden = true;
+	}
+	return hidden;
 }
 
 /**
@@ -340,6 +383,29 @@ function isMarkerSpan(el: Element): boolean {
 	return classes.contains('md-fence-line') || classes.contains('md-ref-label');
 }
 
+/** The two families the stamped-container override paints (`styles/editor.css`, same mode
+ *  scoping). A ref label is resolution metadata rather than chrome a caret types against, so
+ *  it stays hidden either way — the JS arm and the CSS arm must name the same two. */
+function paintsWhenChromeStandsAlone(el: Element): boolean {
+	return isMarkerSpan(el) && !el.classList.contains('md-ref-label');
+}
+
+/** Nearest ancestor between `node` and `root` whose own text is paintable chrome. */
+function markerRootOf(node: Node, root: ParentNode): Element | null {
+	for (let el = node.parentElement; el && el !== root; el = el.parentElement) {
+		if (paintsWhenChromeStandsAlone(el)) return el;
+	}
+	return null;
+}
+
+/** Whether `root` carries the content-empty stamp under a mode that paints it. Reading is
+ *  excluded: it takes no keystrokes, so a construct with nothing behind its chrome is allowed
+ *  to paint nothing there. */
+function chromeStandsAlone(root: ParentNode, mode: PresentationMode | null): boolean {
+	if (mode === null || mode === 'reading' || !(root instanceof Element)) return false;
+	return root.hasAttribute(CONTENT_EMPTY_ATTR);
+}
+
 /**
  * Whether `node` is inside the leading ambient marker island — a container's `- ` / `1. ` prefix,
  * the one inert island whose far side IS raw 0. Every other opaque island (a widget, a
@@ -354,8 +420,11 @@ function inAmbientIsland(node: Node, root: ParentNode): boolean {
 	return false;
 }
 
-function hidesOwnText(el: Element, mode: PresentationMode): boolean {
+function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean): boolean {
 	if (!isMarkerSpan(el)) return false;
+	// Chrome with nothing behind it paints, so the caret has a position of its own — the
+	// stylesheet's `[data-content-empty]` override under the same two modes and two families.
+	if (chromePaints && paintsWhenChromeStandsAlone(el)) return false;
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;
@@ -408,6 +477,8 @@ type WalkSegment =
  */
 function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generator<WalkSegment> {
 	let count = 0;
+	// One read per walk, not one `closest` per element: every caller passes the walk container.
+	const chromePaints = chromeStandsAlone(root, mode);
 	function* visit(node: Node, hiddenRoot: Element | null): Generator<WalkSegment> {
 		if (node.nodeType === Node.TEXT_NODE) {
 			const len = node.textContent?.length ?? 0;
@@ -423,7 +494,8 @@ function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generat
 				count += len;
 				return;
 			}
-			const inner = hiddenRoot ?? (mode !== null && hidesOwnText(el, mode) ? el : null);
+			const inner =
+				hiddenRoot ?? (mode !== null && hidesOwnText(el, mode, chromePaints) ? el : null);
 			for (const child of node.childNodes) yield* visit(child, inner);
 		}
 	}
