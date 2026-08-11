@@ -6,10 +6,12 @@
 
 import type { UndoEntryMode } from '../../action-contracts';
 import type { OperationDetailMap } from '../../schema/operations';
-import type { CstNode, Document } from '../../core/nodes';
+import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
+import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { nodeAt, restoreSeparatorAfterBlank } from '../node-ops';
 import { isBlankParagraph } from '../../core/parser';
+import { normalizeReplacementForBody } from './body-write';
 import { resolveParentScope } from './parent-scope';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import {
@@ -29,23 +31,26 @@ export interface ReplaceBlockAtParentArgs {
 	focusReplacementIndex: number;
 	focusOffset: number;
 	source: Extract<OperationDetailMap['replaceBlock'], { source: unknown }>['source'];
+	/** Instance grammar for the escape's kind re-derive; absent = global. */
+	grammar?: GrammarView;
 }
 
 export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<void> {
-	const {
-		doc,
-		blockPath,
-		replacement,
-		controller,
-		undoEntry,
-		focusReplacementIndex,
-		focusOffset,
-		source
-	} = args;
+	const { doc, blockPath, controller, undoEntry, focusOffset, source } = args;
 
 	const blockIdx = blockPath[blockPath.length - 1];
 	const scope = resolveParentScope(doc, blockPath, controller);
 	if (!scope) return;
+
+	// A replacement is minted before any byte sink sees it, so the owner's bodyWrite escape
+	// lands here — on the clipboard blocks AND the target's split halves alike (GH #40).
+	const ownerKind = blockPath.length > 1 ? (scope.node.kind as AnyBlockKind) : undefined;
+	const { replacement, mapIndex } = normalizeReplacementForBody(
+		ownerKind,
+		args.replacement,
+		args.grammar
+	);
+	const focusReplacementIndex = mapIndex(args.focusReplacementIndex);
 
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =

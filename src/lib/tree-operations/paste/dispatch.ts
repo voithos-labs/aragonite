@@ -15,6 +15,7 @@ import { isBlockNode, nodeAt } from '../node-ops';
 import { getPasteSurface, type PasteRange, type PasteSeam } from '../paste-surfaces';
 import { isReservedChromeChild } from '../../schema/reserved-chrome';
 import { applyInlineResult, applyStructuralResult } from './apply';
+import { normalizeClipboardForBody } from './body-write';
 import { applyContainerMatchingPaste, findContainerMatchingUnwrap } from './container-match';
 import { defaultInlineHook, defaultStructuralHook } from './hooks';
 import { applyListAbsorb, findListAbsorb } from './list-absorb';
@@ -68,8 +69,12 @@ export async function pasteDispatch(
 
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
-	const pastedText = applyPasteTransforms(input.pastedText);
-	if (!pastedText) return {};
+	const transformed = applyPasteTransforms(input.pastedText);
+	if (!transformed) return {};
+
+	// Ahead of the fragment parse, so the strategy pick and every landed kind follow the
+	// bytes a bodyWrite-declaring ancestor will actually accept (GH #40).
+	const pastedText = normalizeClipboardForBody(ctx.doc, input.targetPath, transformed);
 
 	const parsed = parse(pastedText, { scope: 'fragment' });
 	if (parsed.children.length === 0) return {};

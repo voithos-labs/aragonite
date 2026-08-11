@@ -86,6 +86,7 @@ export async function applyStructuralResult(
 		undoEntry: ctx.undoEntry ?? 'own',
 		focusReplacementIndex: result.focusReplacementIndex,
 		focusOffset: result.focusOffset,
-		source: 'paste-dispatch'
+		source: 'paste-dispatch',
+		...(ctx.grammar ? { grammar: ctx.grammar } : {})
 	});
 }

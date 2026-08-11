@@ -8,7 +8,7 @@ import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { writeOwnRaw } from '../tree-operations/node-ops';
+import { normalizeBodyWrite, writeOwnRaw } from '../tree-operations/node-ops';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import {
 	replacePreservingFirst,
@@ -49,9 +49,14 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			const rel = ranges[0].path.slice(1);
 			const leaf = descend(child, rel);
 			if (!leaf) continue;
-			// Reparsing a private clone bypasses `updateNodeContent`, so the kind's own raw
-			// rule is applied here rather than inherited from that sink.
-			writeOwnRaw(leaf, applyRangesToText(leaf.raw, ranges, template), deps.grammar);
+			// Reparsing a private clone bypasses `updateNodeContent`, so that sink's two byte
+			// rules — the kind's own raw rule and the owner's bodyWrite escape — apply here.
+			const owner = rel.length > 0 ? descend(child, rel.slice(0, -1)) : null;
+			const substituted = normalizeBodyWrite(
+				owner?.kind,
+				applyRangesToText(leaf.raw, ranges, template)
+			);
+			writeOwnRaw(leaf, substituted, deps.grammar);
 		}
 		// A nested leaf's edit must propagate up the clone's materialized container raw
 		// before the reparse from `child.raw`; a top-level leaf needs none.
