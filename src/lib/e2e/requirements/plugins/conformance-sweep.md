@@ -15,6 +15,7 @@ behavioural suite; the per-kind specs keep owning depth.
 
 - implemented: caret in the paragraph above, ArrowDown enters the kind's block (or, for a container, its child subtree) and continues out to the paragraph below; a marker typed in the landing block appears there — the block is traversable, no caret trap.
 - not-supported (transparent / non-focusable): the walk reaches the paragraph below without the block ever taking focus — skipped, not trapped. (No enrolled kind currently declares this; the branch guards a future kind.)
+- the same walk runs a second time under `live`, the mode that hides markers: the outcome per kind is identical, and the shared fixture's `[invariant:…]` console watch is what the pass adds — a kind whose surface mints marker-only chrome parks a caret and types a byte with G1.33 armed. The mode is asserted from the editor's `data-presentation` attribute before the loop, since an unapplied mode would repeat the source pass under a live-sounding name.
 
 ## Selection paint
 
