@@ -1,10 +1,9 @@
 /**
- * Kind-agnostic CST node mutations: path resolution, split, merge, delete, update.
- * Children-array contract: an op mutating a container's top-level children takes the array
- * as a parameter and mutates that, never `node.children` — the caller owns and republishes
- * it, so a direct splice is overwritten. A descendant found by walking the live tree is the
- * exception: mutate it in place on a caller-unshared spine (`unshare.ts`), and route a
- * STRUCTURAL one through its own container's scope via `commitMultiScope`.
+ * Kind-agnostic CST node mutations: path resolution, split, merge, delete, update. Children-array
+ * contract: an op mutating a container's top-level children takes the array as a parameter and
+ * mutates that, never `node.children` — the caller owns and republishes it, so a direct splice is
+ * overwritten. A descendant found by walking the live tree is the exception: mutate it in place on
+ * a caller-unshared spine (`unshare.ts`), a STRUCTURAL one via `commitMultiScope`.
  */
 
 import { DEV } from 'esm-env';
@@ -187,12 +186,11 @@ export interface SplitResult {
 }
 
 /**
- * Split the node at `blockIndex` at raw `offset` (display-relative). The first half
- * inherits the original ID and the whole structural suffix (a setext underline), which a
- * plain cut would strand below as junk. The second half opens with a blank separator
- * wherever one does structural work ({@link separatorSplitsOffNextLine}) — without it GFM
- * lazy continuation folds the halves back into one block on reload. `presentationMode` is
- * nullable rather than optional: a caller with no mode is a real answer, skipping it is not.
+ * Split the node at `blockIndex` at raw `offset` (display-relative). The first half inherits the
+ * original ID and the whole structural suffix (a setext underline), which a plain cut would strand
+ * below as junk. The second half opens with a blank separator wherever one does structural work
+ * ({@link separatorSplitsOffNextLine}) — without it GFM lazy continuation folds the halves back
+ * into one block on reload. `presentationMode`: no mode is a real answer, omitting it is not.
  */
 export function splitNode(
 	parent: BodyParentArg,
@@ -416,8 +414,9 @@ function structuralSuffixSplit(
 /**
  * `join.mergedRaw` with the delimiter runs the join orphaned at its seam dropped — live only,
  * where those runs are unpainted and a literal concatenation surfaces bytes the reader never saw
- * (live-mode.md § 4.5). The one registered cleaner verifies its own bytes and otherwise declines, leaving the
- * literal join every other mode gets. Exported for `selection/range-delete`, the fourth seam.
+ * (live-mode.md § 4.5). The one registered cleaner verifies its own bytes and otherwise declines,
+ * leaving the literal join every other mode gets. Exported for `selection/range-delete`, the
+ * fourth seam.
  */
 export function cleanJoinedRaw(
 	join: JoinSeam,
@@ -430,9 +429,8 @@ export function cleanJoinedRaw(
 
 /**
  * The bytes a single-block edit leaves when it deletes `range` out of `display`. A delete-then-
- * insert is a join like any other — the paste's delete half is the one that used to splice its
- * own bytes — so it crosses the same cleanup, and the returned offset is where the two sides now
- * meet (a cleanup that drops a run on the first side moves it).
+ * insert is a join like any other, so it crosses the same cleanup, and the returned offset is
+ * where the two sides now meet (a cleanup that drops a run on the first side moves it).
  */
 export function cutRangeFromDisplay(
 	node: NodeView,
@@ -716,9 +714,8 @@ export function restoreSeparatorAfterBlank(
  * The settle a block turning INTO a blank line owes: it joins the blank run around it, and a run
  * carries exactly the one separating line its reload mints — across every block in it AND its
  * follower, since a blank block is the follower's line too. Two reload as one more empty
- * paragraph; none folds the run's head into the block above. The first line that already stands
- * is the one kept, wherever in the run it sits; a mint lands at the run's head, the only slot a
- * new one may take (a later block sits under a blank predecessor, which needs no separator).
+ * paragraph; none folds the run's head into the block above. The line already standing is the one
+ * kept, wherever in the run it sits; a mint lands at the run's head, the only slot one may take.
  */
 export function settleSeparatorOnBlank(
 	parent: SeparatorParent,
@@ -805,12 +802,11 @@ interface SeamAbsorption {
 }
 
 /**
- * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload — a
- * list standing above indented code absorbs it, and no separator line can hold indentation
- * apart (GH #61). Absorb while the window's own bytes parse to fewer blocks, which is the
- * reload's reading; byte-identical by construction. A blank run is transparent to a
- * container's continuation, so the window anchors at the nearest non-blank block above the
- * seam (never below `floor`), and cascades one sibling at a time while readings fold.
+ * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload — a list
+ * standing above indented code absorbs it, and no separator can hold indentation apart (GH #61).
+ * Absorb while the window's own bytes parse to fewer blocks, which is the reload's reading;
+ * byte-identical by construction. A blank run is transparent to a container's continuation, so the
+ * window anchors at the nearest non-blank block above the seam, never below `floor`, and cascades.
  */
 function absorbSeamReading(
 	parent: NodeParent,
@@ -989,12 +985,11 @@ export function deleteNode(
 // ── Update Content ──
 
 /**
- * Update raw and re-parse. The sole re-parse transfer funnel: a kind change mints the
- * reparsed block into the slot rather than reassigning `kind` in place, and multi-block
- * text mints every parsed block. Only a same-kind single-block edit writes fields in
- * place, so routine typing keeps the node's object identity; `replacePreservingFirst`
- * carries the id/ref across a mint. `sharing` owns the separator settle's writes, which land
- * on the run's OTHER blocks — bytes the caller's own unshare never covered.
+ * Update raw and re-parse. The sole re-parse transfer funnel: a kind change mints the reparsed
+ * block into the slot rather than reassigning `kind` in place, and multi-block text mints every
+ * parsed block. Only a same-kind single-block edit writes fields in place, so routine typing keeps
+ * the node's object identity; `replacePreservingFirst` carries the id/ref across a mint. `sharing`
+ * owns the separator settle's writes, which land on the run's OTHER blocks.
  */
 export function updateNodeContent(
 	parent: BodyParentArg,

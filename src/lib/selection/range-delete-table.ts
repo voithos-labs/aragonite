@@ -387,11 +387,10 @@ function deleteAcrossTwoTables(
 	return { newDoc: doc, collapsedCaret, tableRowSplices };
 }
 
-// Every block the caret could land in was removed. Prefer the end of the nearest surviving
-// block before the range, else the start of the first after it, else materialize an empty
-// paragraph. Survivors are sought in the deleted block's OWN container, walking outward when
-// cascade cleanup took that too. `lineEnding` is the deleted start table's, captured before the
-// mutation (G4.20): nothing survives to read one from, so a defaulted LF would flip a CRLF doc.
+// Every block the caret could land in was removed, so survivors are sought in the deleted block's
+// OWN container, walking outward when cascade cleanup took that too. `lineEnding` is the deleted
+// start table's, captured before the mutation (G4.20): nothing survives to read one from, so a
+// defaulted LF would flip a CRLF doc.
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],

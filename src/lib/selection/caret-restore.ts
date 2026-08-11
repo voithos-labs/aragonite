@@ -1,7 +1,7 @@
 /**
  * Hold the document caret while editor-owned chrome borrows focus, and put it back on close.
  * Focusing an overlay's input collapses the native selection, so the range has to live somewhere
- * that outlives the borrow — search opened the shape, the link card is the second door.
+ * that outlives the borrow.
  */
 
 export interface CaretRestore {

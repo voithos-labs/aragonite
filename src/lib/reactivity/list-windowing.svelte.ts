@@ -247,11 +247,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	}
 
 	// Rebuild on any structural child change or an editor WIDTH change, never per keystroke.
-	// Keying on the id SEQUENCE rather than its length is load-bearing: a reorder leaving the
-	// count unchanged would skip the rebuild and strand `modelChildIds` in the old order.
-	// Build inside `untrack` so the effect doesn't subscribe to every child's raw via the
-	// oracle. The reseed is a wholesale offset shift the flush-pass correction can't see, so
-	// anchor-correct it here — by stable id, to survive an insert/delete above the anchor.
+	// Keying on the id SEQUENCE rather than its length is load-bearing: a reorder leaving the count
+	// unchanged would skip the rebuild. `untrack` keeps the effect from subscribing to every child's
+	// raw via the oracle; the reseed's wholesale offset shift anchor-corrects by stable id.
 	$effect(() => {
 		const ids = deps.getChildIds();
 		for (let i = 0; i < ids.length; i++) void ids[i];

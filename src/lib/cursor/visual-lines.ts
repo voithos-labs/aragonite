@@ -59,12 +59,11 @@ export function findLastTextNode(root: Node): Text | null {
 }
 
 /**
- * True if the selection inside `el` sits on the first visual line; empty containers
- * return true. `fallbackOffset` (the snapped caret intent from `ambient-cursor.getRaw`)
- * resolves the case where there is no live range — Chromium drops the caret range next to
- * atomic contenteditable=false islands across event-loop yields, and a hard-false would
- * strand every later boundary read at false. It is compared against the block's first
- * LANDABLE offset, which a leading hidden run moves off raw 0.
+ * True if the selection inside `el` sits on the first visual line; empty containers return true.
+ * `fallbackOffset` (the snapped caret intent from `ambient-cursor.getRaw`) resolves the case
+ * where there is no live range — Chromium drops the caret range next to atomic
+ * contenteditable=false islands across event-loop yields. It is compared against the block's
+ * first LANDABLE offset, which a leading hidden run moves off raw 0.
  */
 export function isAtFirstVisualLine(
 	el: HTMLElement,

@@ -1,11 +1,9 @@
 /**
  * Sticky column: the editor-relative pixel X that survives repeated vertical arrows and
- * intermediate clamping on shorter lines. Two-axis contract for `focusAtColumn` surfaces.
- * CAPTURE: the focused block records X before any cross-block transition, via `noteKey`
- * (custom arrow handling must call it — the G2.10 source-scan guards hold it to that).
- * CONSUME: focus dispatchers route landings through `consumeStickyLanding`
- * (`editor-actions/focus/focus-landing.ts`), which null-checks and falls back, so
- * `focusAtColumn` is a pure receiver whose x is always finite.
+ * intermediate clamping. Two-axis contract for `focusAtColumn` surfaces. CAPTURE: the focused
+ * block records X before any cross-block transition, via `noteKey` (G2.10). CONSUME: landings
+ * route through `consumeStickyLanding` (`editor-actions/focus/focus-landing.ts`), which null-checks
+ * and falls back, so `focusAtColumn` is a pure receiver whose x is always finite.
  */
 
 import type { EditorX } from './coordinate-spaces';

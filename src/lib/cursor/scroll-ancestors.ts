@@ -3,8 +3,7 @@
  * `auto`/`scroll` and stops at the first answer, CLIPPING asks for anything that bounds
  * the visible region and collects the whole chain, since visibility is their intersection.
  * An `overflow: hidden` auto-height card matches a clipping predicate while doing neither.
- * `selection/drag-pointer.ts` keeps its own inner walk — sharing the predicate is a
- * known follow-up, so a change here is not automatically a change to drag-select.
+ * `selection/drag-pointer.ts` keeps its own inner walk, so a change here is not one to it.
  */
 
 // Scrollable through script — `element.scrollTop = n` moves it. `hidden` qualifies.
