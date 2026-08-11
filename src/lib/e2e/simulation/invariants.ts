@@ -255,6 +255,17 @@ export async function undoRedoDifferential(
 	ctx.tracker.resync(after);
 }
 
+/** Entries currently on the undo stack. A gesture whose press count depends on how its
+ *  keystrokes batched unwinds by the DELTA rather than by a guessed number. */
+export async function undoStackDepth(ctx: SimContext): Promise<number> {
+	const dump: string = await ctx.page.evaluate(() => (window as any).__test.dumpUndoStack());
+	const match = /undo-depth=(\d+)/.exec(dump);
+	if (!match) {
+		throw new Error(`[${ctx.label}] could not read the undo depth from the bridge dump.`);
+	}
+	return Number(match[1]);
+}
+
 // ── Internal ────────────────────────────────────────────────────────────────
 
 function pathsEqual(a: number[], b: number[]): boolean {

@@ -17,7 +17,8 @@ import {
 	assertParseConvergence,
 	assertRoundTripStable,
 	assertSelectionValidity,
-	undoRedoDifferential
+	undoRedoDifferential,
+	undoStackDepth
 } from './invariants';
 
 export interface SessionOpts {
@@ -374,14 +375,4 @@ async function runFullSessionUndoUnwind(ctx: SimContext, initialSource: string):
 		);
 	}
 	ctx.tracker.resync(top);
-}
-
-/** Undo-stack depth from the debug bridge dump — the recorder parses it the same way. */
-async function undoStackDepth(ctx: SimContext): Promise<number> {
-	const dump: string = await ctx.page.evaluate(() => (window as any).__test.dumpUndoStack());
-	const match = /undo-depth=(\d+)/.exec(dump);
-	if (!match) {
-		throw new Error(`[${ctx.label}] undo-unwind: could not read undo depth from the bridge dump.`);
-	}
-	return Number(match[1]);
 }

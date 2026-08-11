@@ -63,4 +63,26 @@ test.describe('note-taking simulation: live-mode editing ops', () => {
 		// document it ends on — the one assertion every gesture above is accountable to.
 		expect(await editor.bridge.getSource()).toBe(canonical);
 	});
+
+	// The opener class is the one live rule that MINTS chrome rather than editing behind it, so
+	// the tracker is the oracle here: every byte behind the mint is predicted keystroke by
+	// keystroke, and the mint itself is the only resync the gesture is allowed.
+	test('a typed block opener mints its chrome and predicts the content behind it', async ({
+		page
+	}) => {
+		await editor.loadContent(DOC);
+		await editor.waitForRenderFlush();
+		const canonical = await editor.bridge.getSource();
+
+		const ctx = await makeSimContext(page, editor, 'live-typed-openers');
+		const g = new Gestures(ctx, makeRng(11));
+
+		await g.liveTypeHeadingOpener(PROSE, 'Recap');
+		await assertCoreOracles(ctx, 'after-heading-opener');
+
+		await g.liveTypeFenceOpener(PROSE, 'js');
+		await assertCoreOracles(ctx, 'after-fence-opener');
+
+		expect(await editor.bridge.getSource()).toBe(canonical);
+	});
 });
