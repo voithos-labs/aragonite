@@ -52,6 +52,13 @@ export type NodeParent = { children: CstNode[] };
 export type BodyParent = NodeParent & {
 	ownerKind: AnyBlockKind | undefined;
 	owner: CstNode | undefined;
+	/**
+	 * The document root's foldable trailing line (GH #129), when these children are its.
+	 * Optional, not nullable: only a ceremony-backed site may carry it, because the settle
+	 * that consumes it appends a block — the out-of-ceremony write paths stay slotless so a
+	 * structural materialization is unrepresentable there.
+	 */
+	suffix?: string;
 };
 
 /**
@@ -71,6 +78,7 @@ export type SeparatorParent = {
 	ownerKind?: AnyBlockKind;
 	innerPrefix?: string;
 	innerSuffix?: string;
+	suffix?: string;
 	children?: CstNode[];
 	owner?: CstNode;
 };
@@ -249,9 +257,13 @@ export function splitNode(
 	const nodes = [...first.nodes, ...second.nodes];
 	// The second half's peeled line has no follower inside the splice, so it stays in raw.
 	nodes[nodes.length - 1].raw += second.suffix;
+	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
+	// A blank second half at the tail exposes the document's folded line (GH #129); the
+	// tail guard keeps the mint adjacent to this splice's window.
+	const minted = splitTail ? materializeTailSuffix(parent) : 0;
 	return {
-		change: replacePreservingFirst(blockIndex, 1, nodes.length),
+		change: replacePreservingFirst(blockIndex, 1, nodes.length + minted),
 		secondHalfIndex: blockIndex + first.nodes.length
 	};
 }
@@ -701,11 +713,52 @@ export function settleSeparatorOnBlank(
 		: start > 0 || wrap?.afterOpenerLine
 			? 1
 			: 0;
-	if (standing.length < wanted) return mintSeparator(parent, start, sharing);
-	for (const at of standing.slice(wanted)) {
-		const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : children[at];
-		owned.leadingTrivia = '';
+	if (standing.length < wanted) {
+		mintSeparator(parent, start, sharing);
+	} else {
+		for (const at of standing.slice(wanted)) {
+			const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : children[at];
+			owned.leadingTrivia = '';
+		}
 	}
+	materializeTailSuffix(parent, sharing);
+}
+
+/**
+ * The parse folds the document's one trailing blank line into `suffix` only while the tail
+ * block is non-blank (`parseBlocks`' separator-spent rule); once the tail turns blank the
+ * reload reads that line as its own empty paragraph, so the settle materializes it (GH #129).
+ * Document-level slot only — a container's `innerSuffix` twin stays with the wrap arms.
+ * Returns the blocks appended, for the sinks that report a structural window.
+ */
+function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
+	const children = parent.children;
+	const suffix = parent.suffix;
+	if (!children || children.length === 0 || !suffix) return 0;
+	if (!isBlankParagraph(children[children.length - 1])) return 0;
+	const minted: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: suffix };
+	if (sharing) sharing.stamp(minted);
+	children.push(minted);
+	parent.suffix = '';
+	return 1;
+}
+
+/** The materialized tail (GH #129) reported inside the sink's one contiguous window.
+ *  Exported for the cross-block commit, whose descriptors derive from length diffs. */
+export function widenForTailMint(
+	change: StructuralChange,
+	before: number,
+	after: number
+): StructuralChange {
+	const grown = after - before;
+	if (grown === 0) return change;
+	if (change.op === 'noop') return { op: 'insert', at: before, count: grown };
+	if (change.op === 'replace' && change.at + change.newCount === before) {
+		return { ...change, newCount: change.newCount + grown };
+	}
+	// Needs a pre-divergent tree (a blank tail beside a standing fold), which no parse mints.
+	devWarn('tree-ops', 'a tail suffix materialized outside the reported window');
+	return change;
 }
 
 /** A blank line off the node's own bytes (G4.20), where one does structural work at all. */
@@ -795,6 +848,12 @@ export function deleteNode(
 
 	parent.children.splice(blockIndex, 1);
 	clearRedundantSeparator(parent, blockIndex, sharing);
+	// Removing the tail can leave a blank one beside the document's folded line (GH #129);
+	// the delete-then-mint pair is one window, so it reports as a replace. A mid delete
+	// never changes the tail, so the guard also keeps the mint adjacent.
+	if (blockIndex === parent.children.length && materializeTailSuffix(parent, sharing)) {
+		return { op: 'replace', at: blockIndex, count: 1, newCount: 1 };
+	}
 	return { op: 'delete', at: blockIndex, count: 1 };
 }
 
@@ -827,7 +886,11 @@ export function updateNodeContent(
 	}
 	// The reverse transition: the block IS the separating line now, so the run it joins gives
 	// back the second one (GH #96). The last block minted is the one that meets the follower.
-	if (!wasBlank) settleSeparatorOnBlank(parent, lastMintedIndex(change, blockIndex), sharing);
+	if (!wasBlank) {
+		const settled = parent.children.length;
+		settleSeparatorOnBlank(parent, lastMintedIndex(change, blockIndex), sharing);
+		return widenForTailMint(change, settled, parent.children.length);
+	}
 	return change;
 }
 

@@ -135,11 +135,13 @@ export function createNestedBlockEdit(
 		): Promise<void> {
 			if (!deps.node.children) return;
 
+			// No tail suffix: the document-level fold has no container twin yet (GH #129).
 			const preview = previewContentReparse(
 				deps.node.children[innerIndex],
 				text,
 				deps.grammar,
-				deps.node.kind
+				deps.node.kind,
+				''
 			);
 
 			const leafPath = extendDocPath(deps.path, innerIndex);

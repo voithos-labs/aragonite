@@ -17,7 +17,7 @@ import type { CommitController, MultiScopeTarget } from '../../action-contracts'
 import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
 import type { StructuralChange } from '../../tree-operations/structural-change';
-import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
+import { isBlockNode, nodeAt, widenForTailMint } from '../../tree-operations/node-ops';
 import { pathHasPrefix, pathsEqual } from '../path-math';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
@@ -169,17 +169,25 @@ async function commitPureTopLevelDelete(
 			? ('skip' as const)
 			: { path: docPathFrom(start.path), offset: start.offset };
 
+	const doc = ctx.getDoc();
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (topLevelChildren) => {
-			// Honest literal: rangeDelete only walks children; prefix/suffix are inert here.
+			// Prefix stays inert; the suffix rides the live document as accessors, so the
+			// tail settle can materialize the folded trailing line (GH #129).
 			const proxyDoc: Document = {
 				kind: 'document',
 				prefix: '',
 				children: topLevelChildren,
-				suffix: ''
+				get suffix() {
+					return doc.suffix;
+				},
+				set suffix(value: string) {
+					doc.suffix = value;
+				}
 			};
 			const beforeLen = topLevelChildren.length;
+			const suffixBefore = doc.suffix;
 			const result = rangeDelete(
 				proxyDoc,
 				start,
@@ -190,9 +198,14 @@ async function commitPureTopLevelDelete(
 				ctx.linkRef
 			);
 			collapsedCaret = result.collapsedCaret;
-			const afterLen = topLevelChildren.length;
+			const minted = doc.suffix === suffixBefore ? 0 : 1;
+			const afterLen = topLevelChildren.length - minted;
 			ctx.selection.collapse();
-			return topLevelStructuralChange(start.path, end.path, beforeLen, afterLen);
+			return widenForTailMint(
+				topLevelStructuralChange(start.path, end.path, beforeLen, afterLen),
+				afterLen,
+				topLevelChildren.length
+			);
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
@@ -250,6 +263,7 @@ async function commitCrossContainerDelete(
 			// Read lengths BEFORE mutation: paths go stale as rangeDelete splices, while the owned
 			// scope views stay valid because splices happen in place.
 			const beforeLens = scopeViews.map((v) => v.children.length);
+			const suffixBefore = doc.suffix;
 
 			const result = rangeDelete(
 				doc,
@@ -266,14 +280,18 @@ async function commitCrossContainerDelete(
 			// An endpoint-table scope takes its descriptor from the row splice the table branch
 			// actually performed, matched on the owned node, never from re-derived snap math.
 			const rowSplices = result.tableRowSplices ?? [];
+			// This path hands rangeDelete the live document, so the tail settle can spend the
+			// folded trailing line into a minted blank (GH #129) — a growth the doc scope's
+			// length-diff descriptor must see, or a net-zero splice keeps stale ids.
+			const minted = doc.suffix === suffixBefore ? 0 : 1;
 			return containerPaths.map((p, i): StructuralChange => {
 				const rowSplice = rowSplices.find((s) => s.table === scopeViews[i].node);
 				if (rowSplice) return { op: 'delete', at: rowSplice.at, count: rowSplice.count };
-				return computeScopeDescriptor(
-					p,
-					effStartPath,
-					effEndPath,
-					beforeLens[i],
+				const scopeMinted = p.length === 0 ? minted : 0;
+				const afterLen = scopeViews[i].children.length - scopeMinted;
+				return widenForTailMint(
+					computeScopeDescriptor(p, effStartPath, effEndPath, beforeLens[i], afterLen),
+					afterLen,
 					scopeViews[i].children.length
 				);
 			});

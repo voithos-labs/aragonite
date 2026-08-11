@@ -11,6 +11,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { EditEvent } from '$lib/editor-events';
 
 function makeEnv(source: string) {
@@ -89,5 +90,45 @@ describe('performCrossBlockDeleteSync — commit-primitive convergence', () => {
 		expect(quote.children).toHaveLength(1);
 		expect(quote.childIds).toHaveLength(quote.children!.length);
 		expect(env.getBlockIds()).toHaveLength(env.doc.children.length);
+	});
+});
+
+// GH #129 at the cross-block door: a delete that blanks the tail block exposes the
+// document's folded trailing line, so both commit paths must let the settle materialize
+// it AND report the grown tail to the ids sync.
+describe('cross-block delete beside the folded trailing blank (GH #129)', () => {
+	it('pure top-level: the whole-content delete materializes the fold in step', async () => {
+		const env = makeEnv('alpha\n\nbeta\n\n');
+		env.doc.suffix = parse('alpha\n\nbeta\n\n').suffix;
+		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 4 });
+
+		performCrossBlockDeleteSync(env.mutCtx);
+		await tick();
+
+		expect(env.doc.children).toHaveLength(2);
+		expect(env.doc.suffix).toBe('');
+		expect(env.getBlockIds()).toHaveLength(2);
+		expectParseConverged(env.deps.doc);
+	});
+
+	it('cross-container: the net-zero splice still remints the tail slot id', async () => {
+		const env = makeEnv('alpha\n\n> q\n\n');
+		env.doc.suffix = parse('alpha\n\n> q\n\n').suffix;
+		registerBlockListState(
+			env.doc.children[1],
+			makeBlockListState(() => env.deps.doc.children[1])
+		);
+		const idsBefore = [...env.getBlockIds()];
+		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1, 0], offset: 1 });
+
+		performCrossBlockDeleteSync(env.mutCtx);
+		await tick();
+
+		expect(env.doc.children).toHaveLength(2);
+		expect(env.doc.suffix).toBe('');
+		expect(env.getBlockIds()).toHaveLength(2);
+		// The quote died; its slot now holds the materialized blank, which must not keep its id.
+		expect(env.getBlockIds()[1]).not.toBe(idsBefore[1]);
+		expectParseConverged(env.deps.doc);
 	});
 });

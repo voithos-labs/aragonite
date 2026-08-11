@@ -15,13 +15,16 @@ import type { CommitScope } from './block-edit-scope';
 /**
  * Preview the content update on a throwaway single-node probe to pick between the
  * structural commit and the routine typing path. The live tree is untouched — the
- * chosen branch runs the real mutation.
+ * chosen branch runs the real mutation. `tailSuffix` is the document's folded trailing
+ * line when `node` is the tail block, else `''`: blanking the tail materializes it
+ * (GH #129), which is structural and must route into the ceremony.
  */
 export function previewContentReparse(
 	node: NodeView,
 	text: string,
 	grammar: Parameters<typeof updateNodeContent>[3],
-	ownerKind?: AnyBlockKind
+	ownerKind: AnyBlockKind | undefined,
+	tailSuffix: string
 ): StructuralChange {
 	const probe = makeBlockNode({
 		kind: node.kind,
@@ -29,8 +32,14 @@ export function previewContentReparse(
 		raw: node.raw
 	});
 	// The owner KIND rides along or the probe answers about different bytes than the commit
-	// writes; the owner node stays out — a probe must not write real wrap slots.
-	return updateNodeContent({ children: [probe], ownerKind, owner: undefined }, 0, text, grammar);
+	// writes; the owner node stays out — a probe must not write real wrap slots. The suffix
+	// rides by VALUE for the same reason: the probe's settle may only spend the copy.
+	return updateNodeContent(
+		{ children: [probe], ownerKind, owner: undefined, suffix: tailSuffix },
+		0,
+		text,
+		grammar
+	);
 }
 
 // ── Post-replacement focus ───────────────────────────────────────────────────
