@@ -211,9 +211,25 @@ async function activeMatchEverLandsIn(
 
 // ── Focus walk ────────────────────────────────────────────────────────────────
 
-test('focus walk enters and exits each kind without trapping', async ({ page }) => {
-	const plugins = new PluginsPage(page);
-	await plugins.gotoPlugins();
+interface SweepResult {
+	failures: string[];
+	unreachable: string[];
+}
+
+/** Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar. */
+function expectSweepClean({ failures, unreachable }: SweepResult): void {
+	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
+	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+}
+
+/** The attribute, not the call: an unapplied mode paints every marker and the pass would
+ *  report green without ever running under live. */
+async function enterLiveMode(page: Page, plugins: PluginsPage): Promise<void> {
+	await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
+	await expect(plugins.editorContainer).toHaveAttribute('data-presentation', 'live');
+}
+
+async function sweepFocusWalk(page: Page, plugins: PluginsPage): Promise<SweepResult> {
 	const entries: SweepEntry[] = await page.evaluate(() =>
 		(window as any).__test.getConformanceEntries()
 	);
@@ -268,9 +284,25 @@ test('focus walk enters and exits each kind without trapping', async ({ page }) 
 		}
 	}
 
-	// Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar.
-	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
-	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+	return { failures, unreachable };
+}
+
+test('focus walk enters and exits each kind without trapping', async ({ page }) => {
+	const plugins = new PluginsPage(page);
+	await plugins.gotoPlugins();
+	expectSweepClean(await sweepFocusWalk(page, plugins));
+});
+
+// The same walk under a marker-hiding mode, where a caret park and a typed byte are what G1.33
+// watches: a kind minting marker-only chrome into its own surface fires on the shared fixture's
+// console watch here rather than in a consumer's document.
+test('focus walk under live mode enters and exits each kind, tripping no invariant', async ({
+	page
+}) => {
+	const plugins = new PluginsPage(page);
+	await plugins.gotoPlugins();
+	await enterLiveMode(page, plugins);
+	expectSweepClean(await sweepFocusWalk(page, plugins));
 });
 
 // ── Selection paint ────────────────────────────────────────────────────────────
