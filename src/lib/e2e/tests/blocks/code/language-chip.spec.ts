@@ -7,6 +7,9 @@ import { EditorPage } from '../../../editor-page';
 
 const SOURCE = '```js\nconst x = 1\n```\n\n# Heading\n';
 const EMPTY_FENCE = '```\n```\n\n# Heading\n';
+/** Trailing spaces `meta.info` trims away and the block's bytes keep. */
+const PADDED_FENCE = '```js  \nconst x = 1\n```\n\n# Heading\n';
+const NESTED_FENCE = '> a quote\n>\n> ```js\n> const x = 1\n> ```\n';
 
 const chip = (page: Page) => page.locator('.code-lang-chip');
 const chipButton = (page: Page) => page.locator('.code-lang-chip button');
@@ -41,6 +44,9 @@ test.describe('code language chip — when it shows', () => {
 		await editor.loadContent(SOURCE);
 		await editor.getBlock(0).hover();
 
+		// The fixture is the block the chip belongs to: an absence assertion over a document
+		// that parsed some other way passes for the wrong reason.
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		await expect(chip(page)).toHaveCount(0);
 	});
 
@@ -74,7 +80,21 @@ test.describe('code language chip — when it shows', () => {
 		const editor = await loadLive(page, EMPTY_FENCE);
 		await editor.getBlock(0).hover();
 
+		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 		await expect(chip(page)).toHaveCount(0);
+	});
+
+	// The reveal takes the child combinator: a container's hover is not its nested block's.
+	test('a container’s hover leaves its nested block’s chip alone', async ({ page }) => {
+		const editor = await loadLive(page, NESTED_FENCE);
+		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
+		await expect(chip(page)).toHaveCount(1);
+
+		await page.locator('[data-block-path="[0,0]"]').hover();
+		await expect(chip(page)).toHaveCSS('opacity', '0');
+
+		await page.locator('[data-block-path="[0,1]"]').hover();
+		await expect(chip(page)).toHaveCSS('opacity', '1');
 	});
 
 	test('reading mode shows the chip inert — a click opens no field', async ({ page }) => {
@@ -118,16 +138,37 @@ test.describe('code language chip — the commit', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
+	// A same-length info string would land the caret right whatever the opener's width did to
+	// the offset, so the commit here lengthens the line.
 	test('the caret comes back to the body’s first offset, ready to type', async ({ page }) => {
 		const editor = await loadLive(page);
 		await openChip(editor);
-		await page.keyboard.type('ts');
+		await page.keyboard.type('typescript');
 		await page.keyboard.press('Enter');
-		await editor.bridge.waitForSourceContains('```ts');
+		await editor.bridge.waitForSourceContains('```typescript');
 
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('Xconst');
-		expect(await editor.bridge.getSource()).toBe('```ts\nXconst x = 1\n```\n\n# Heading\n');
+		expect(await editor.bridge.getSource()).toBe('```typescript\nXconst x = 1\n```\n\n# Heading\n');
+	});
+
+	// The undo is the discriminator: a phantom info write would take the trailing spaces back
+	// and leave the typed character standing.
+	test('a bare Enter on a padded fence line writes nothing', async ({ page }) => {
+		const editor = await loadLive(page, PADDED_FENCE);
+		await editor.focusBlock(0, 8);
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('Zconst');
+
+		await openChip(editor);
+		await expect(chipInput(page)).toHaveValue('js');
+		await page.keyboard.press('Enter');
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('```js  \nZconst x = 1\n```\n\n# Heading\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceNotContains('Zconst');
+		expect(await editor.bridge.getSource()).toBe(PADDED_FENCE);
 	});
 
 	test('a backtick cannot reach an unclosed backtick fence’s info string', async ({ page }) => {

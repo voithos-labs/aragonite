@@ -275,10 +275,15 @@
 	// The chip's write: the opener's info span, through the display funnel so the fence rule
 	// runs over it, isolated so no typing burst on either side joins its undo entry.
 	function commitLanguage(info: string): void {
+		// Unchanged or refused bytes are a close, not a write — no entry, no edit event. The seed
+		// is `meta.info`, TRIMMED, so a byte test alone lets a bare Enter respell a padded fence.
+		if (info === infoString) {
+			returnCaretToBody();
+			return;
+		}
 		const display = getDisplayText();
 		const written = writeFenceInfo(display, info, fenceShapeOf(node));
 		const bodyStart = clampCaretToBody(node, 0);
-		// Unchanged or refused bytes are a close, not a write — no entry, no edit event.
 		if (written !== null && written !== display) {
 			controller.isolateUndoEntry(() => commitDisplay(written, bodyStart, bodyStart));
 		}

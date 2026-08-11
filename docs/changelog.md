@@ -11,7 +11,8 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   where there is none — revealed while the pointer is over the block or the caret inside it, as
   the drag handle is. A click turns it into a field seeded with the full info string: Enter
   rewrites that span and nothing else, as one undoable edit, and returns the caret to the block;
-  Escape and clicking away leave the bytes untouched. Reading mode shows the same chip as a label.
+  Escape, clicking away, and an Enter that changed nothing all leave the bytes untouched. Reading
+  mode shows the same chip as a label.
   A block whose fence is already painted (an empty one) gets no chip, and neither does source mode.
 
 - **A construct with nothing behind its markers shows them.** Typing `#` in live mode used to
