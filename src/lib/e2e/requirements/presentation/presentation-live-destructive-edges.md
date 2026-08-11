@@ -27,6 +27,11 @@ nothing on screen distinguishes bytes that are hidden from bytes that are gone.
 
 - `Backspace` at the start of a hard-broken line takes the break as one unit — its marker run and
   its line ending — rather than leaving a literal backslash where the break was
+- `Backspace` at the block's LANDABLE start is a block gesture: in a block opening with an escape
+  (`\*c\*`) the landable start sits inside the escape, and the press merges into the previous
+  block with the escaped glyph intact. Miss-analysis (GH #108): the arm's suites drove presses
+  beside constructs but never at the landable start, so the escape's edge rule ate the first
+  visible glyph forward where every other shape merged
 - a press between two constructs takes the WIDENED cut: deleting the space in `**a** **b**`
   leaves `**a****b**`, which renders `a****b`, so the cut grows through the delimiter runs it now
   sits between and the two words become one bold — the reading a reader would call obvious
