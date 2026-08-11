@@ -3,7 +3,7 @@ import { PluginsPage } from './helpers';
 
 /**
  * Horizontal caret entry against an inline-math widget opens the source reveal (Obsidian model) —
- * the caret never parks in the invisible widget-selected state math used to fall into.
+ * the caret never parks in the invisible widget-selected state.
  * Reveal-vs-select dispatch is unit-pinned (widget-entry-dispatch.test.ts); this drives the real
  * keyboard gestures and verifies caret DIRECTION by typing a marker char. Image contrast:
  * blocks/image/{caret-arrows-horizontal,backspace-delete}.spec.ts — an image selects here.

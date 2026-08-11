@@ -10,8 +10,8 @@ import { registerCalloutKind } from '../../../routes/test/plugins/callout/callou
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// A cross-block copy whose END lands inside a container's reserved chrome (title/summary) used to
-// emit wrapper-less bytes that reparse to a bare paragraph, losing the container kind on paste.
+// A cross-block copy whose END lands inside a container's reserved chrome (title/summary) must
+// keep the wrapper: wrapper-less bytes reparse to a bare paragraph and lose the kind on paste.
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };

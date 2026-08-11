@@ -7,7 +7,7 @@ import { capturePageErrors } from '../../page-probes';
 // VR-4 measure-batching guard. On a fling, many blocks mount in one frame; the
 // per-block measure-then-mutate path must not force one synchronous reflow per
 // mounted block. Read via CDP LayoutCount (real-browser only — jsdom reports zero
-// layout, which is why the bug shipped green in the unit suite).
+// layout, so no unit suite can see this).
 
 // One in-page rAF loop is load-bearing: per-step `scrollEditorTo` double-rAFs between
 // writes and mounts only a handful per frame, which inflates layouts/mount and flakes.

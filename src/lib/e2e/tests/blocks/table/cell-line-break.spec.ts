@@ -24,8 +24,8 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 	});
 
 	// The caret sits right after the widget when Shift+Enter returns, so Backspace here is the
-	// exact gesture that used to move the caret without deleting a byte — and whose second press
-	// then ate a non-adjacent one.
+	// gesture a step-over turns into a caret move that deletes no byte, and whose second press
+	// then eats a non-adjacent one.
 	test('Backspace at the <br> edge removes the whole tag in one press', async ({ page }) => {
 		await editor.loadContent(TABLE_1COL);
 		await page.locator('[role="cell"]').nth(1).click();
@@ -39,7 +39,7 @@ test.describe('table cell Shift+Enter inserts <br>', () => {
 		await page.keyboard.press('Backspace');
 
 		await editor.bridge.waitForSourceContains('| LeftRight |');
-		// The neighbouring characters survive: the old second press deleted one of these.
+		// The neighbouring characters survive: a step-over's second press eats one of these.
 		expect(await editor.bridge.getSource()).toContain('| LeftRight |');
 		await expect(page.locator('[role="cell"]').nth(1).locator('.md-br-widget')).toHaveCount(0);
 	});

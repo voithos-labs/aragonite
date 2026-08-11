@@ -65,7 +65,7 @@ test.describe('live mode — Backspace at a heading’s content start demotes be
 		expect(await ep.bridge.getBlockKind(HEADING)).toBe('heading');
 	});
 
-	// Demote FIRST, merge second: the cascade is untouched, it just no longer sees the first press.
+	// Demote FIRST, merge second: the cascade is untouched, it just never sees the first press.
 	test('the second press merges, through the untouched cascade', async ({ page }) => {
 		await clickBlockSettled(ep, FOLLOWER);
 		await page.keyboard.press('Home');

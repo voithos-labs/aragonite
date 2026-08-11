@@ -23,8 +23,8 @@ test.describe('table block: cell input escapes pipes', () => {
 		const afterType = await editor.bridge.getSource();
 		expect(afterType).toContain('| 1\\| | 2 |');
 
-		// Post-reload equivalence: re-parsing the serialized source must be a fixed point. Pre-fix
-		// the raw held "| 1| | 2 |", which reparses to three cells and truncates "2" away.
+		// Post-reload equivalence: re-parsing the serialized source must be a fixed point. An
+		// unescaped "| 1| | 2 |" reparses to three cells and truncates "2" away.
 		await page.evaluate((src) => (window as any).__test.setSource(src), afterType);
 		await editor.waitForRenderFlush();
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(

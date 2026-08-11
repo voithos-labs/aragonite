@@ -27,7 +27,6 @@ test.describe('table block: rectangular selection', () => {
 		page
 	}) => {
 		// Cell 2 = (row 0, col 2) — top-right; cell 6 = (row 2, col 0) — bottom-left.
-		// Pre-fix returned an empty rect set; this asserts the full 3×3 bounding rect.
 		await dragBetweenCells(page, 2, 6);
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();

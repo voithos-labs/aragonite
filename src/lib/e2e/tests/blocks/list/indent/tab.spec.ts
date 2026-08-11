@@ -72,10 +72,9 @@ test.describe('list Tab', () => {
 		expect(source).not.toMatch(/^\s+1\. B$/m);
 	});
 
-	// indentItem cascades focus(-1) to the leaf paragraph; pre-fix the leaf passed -1 straight to
-	// cursor.setRaw, which threw IndexSizeError and silently no-op'd. It manifests only when the
-	// cascade target has ambient = "" — not the first child of its list-item — so a multi-paragraph
-	// item exposes it.
+	// indentItem cascades focus(-1) to the leaf paragraph, and a leaf passing -1 straight to
+	// cursor.setRaw throws IndexSizeError and silently no-ops. Only a cascade target with
+	// ambient = "" — not the first child of its list-item — reaches it, hence the extra paragraph.
 	test('Tab cascades cursor to start of moved item continuation paragraph', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n\n  continuation\n');
 		// Item 2 is the second listItem at path [0, 1]; its first paragraph is the "Item 2" line,

@@ -2,9 +2,8 @@ import type { Gestures } from '../gestures';
 import type { NoteFixture } from './types';
 
 /**
- * The nested-blockquote note. The `> >` line sits in the equality spine, so end-state
- * equality guards the nested-quote-exit path — the regression guard the original exit bug
- * shipped without.
+ * The nested-blockquote note. The `> >` line sits in the equality spine, so end-state equality
+ * is what guards the nested-quote-exit path.
  */
 export const READING_NOTES_NOTE: NoteFixture = {
 	name: 'reading-notes-note',

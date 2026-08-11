@@ -351,7 +351,7 @@ test.describe('table block: cell right-click menu', () => {
 			.click({ modifiers: ['Shift'] }); // ("4"), row 2 col 1
 		expect(await page.evaluate(() => (window as any).__test.isCrossBlockActive())).toBe(true);
 
-		// Before the fix, onPointerDown's selection clear ran for any button.
+		// onPointerDown's selection clear must skip the right button, not run for any.
 		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menu')).toBeVisible();
 		expect(await page.evaluate(() => (window as any).__test.isCrossBlockActive())).toBe(true);

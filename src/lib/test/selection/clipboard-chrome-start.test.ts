@@ -15,8 +15,8 @@ import {
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// A cross-block copy whose START lands inside a container's reserved chrome used to emit the
-// chrome tail wrapper-less and the body flat, so the whole selection reparsed as bare paragraphs.
+// A cross-block copy whose START lands inside a container's reserved chrome must keep the chrome
+// tail wrapped and the body nested, or the whole selection reparses as bare paragraphs.
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
@@ -35,7 +35,6 @@ const title = (node: CstNode) => trimTrailingLineEnding(node.children![0].raw);
 describe('cross-block copy starting in reserved chrome', () => {
 	beforeEach(registerPlugins);
 
-	// Pre-fix this yielded "tle\nBody1\n\nBody2\n\nBel".
 	it('re-emits the truncated title as the opener and closes past the container', () => {
 		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(doc, point([0, 0], 2), point([1], 3));
@@ -204,7 +203,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 			container: { contract: 'strip', rebuildRaw: rebuildBlockquoteRaw }
 		});
 
-		// Pre-guard the end arm emitted "ove\n> Tit" — a blockquote wrapper on a note.
+		// An unguarded end arm emits "ove\n> Tit" — a blockquote wrapper on a note.
 		expect(collectCrossBlockText(doc, point([0], 2), point([1, 0], 3))).toBe('ove\nTit');
 		expect(collectCrossBlockText(doc, point([1, 0], 2), point([2], 3))).toBe('tle\nBody\n\nBel');
 	});

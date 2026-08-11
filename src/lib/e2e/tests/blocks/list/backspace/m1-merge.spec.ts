@@ -105,9 +105,9 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		expect(source).toContain('AlphaZBeta');
 	});
 
-	// Live children-vs-childIds parity at every container depth: the M1 helper once mutated an
-	// inner container's `children` without extending `childIds`, so Svelte's keyed each logged
-	// `each_key_duplicate` for the trailing undefined keys.
+	// Live children-vs-childIds parity at every container depth: mutating an inner container's
+	// `children` without extending `childIds` gives the trailing keyed-each entries undefined
+	// keys, which Svelte reports as `each_key_duplicate`.
 	test('M1 keeps children/childIds parity at every depth (rows 3+4 shape)', async ({ page }) => {
 		const consoleErrors: string[] = [];
 		page.on('console', (m) => {

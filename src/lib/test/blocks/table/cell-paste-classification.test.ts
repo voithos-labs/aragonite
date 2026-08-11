@@ -12,8 +12,8 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
 
 // A cell holds text, never blocks, so what a copy wrapped around its text — a blank line at either
-// edge — must not decide the route: those blocks used to be trivia, and reading them as content
-// sent an ordinary text paste down the break-the-table path.
+// edge — must not decide the route: those blocks are trivia, and reading them as content sends
+// an ordinary text paste down the break-the-table path.
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 

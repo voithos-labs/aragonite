@@ -242,9 +242,8 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		await editor.goto();
 	});
 
-	// deleteRow read a stale pre-commit row count and clamped focus against `oldCount - 1`, so
-	// deleting the LAST body row targeted a row index that no longer exists; reading the
-	// post-commit count via `deps.node` keeps focus on a surviving cell.
+	// deleteRow must clamp focus against the POST-commit row count, read live via `deps.node`: a
+	// stale pre-commit count targets a row index the delete just removed.
 	test('deleting the last body row lands focus on a surviving cell', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		await editor.loadContent(TABLE_3ROW);
@@ -264,8 +263,8 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		expect(pageErrors).toEqual([]);
 	});
 
-	// Symmetric for deleteColumn: it read a stale pre-commit column count and clamped focus against
-	// the old width, targeting the deleted last column's index.
+	// Symmetric for deleteColumn: a stale pre-commit column count clamps focus against the
+	// pre-delete width, targeting the column index the delete just removed.
 	test('deleting the last column lands focus on a surviving cell', async ({ page }) => {
 		const pageErrors = capturePageErrors(page);
 		// 2-column table so delete is not a no-op (no-op fires at 1 column).

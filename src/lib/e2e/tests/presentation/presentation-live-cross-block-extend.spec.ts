@@ -147,9 +147,8 @@ test.describe('live mode — extending across a construct-ending block', () => {
 	});
 });
 
-// A table endpoint collapses through the CELL, which used to seat by itself — the one arrival
-// in this file the prose seat never reached. Its trap is the block-entry trap one level down:
-// the cell's own opening run.
+// A table endpoint collapses through the CELL, the one arrival in this file the prose seat does
+// not reach. Its trap is the block-entry trap one level down: the cell's own opening run.
 const CELL_DOC = [
 	'| h1 | h2 |',
 	'| --- | --- |',

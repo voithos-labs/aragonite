@@ -91,8 +91,8 @@ test.describe('table block: cell right-click clipboard', () => {
 		await editor.bridge.waitForSourceContains('| pastedZ | world |');
 	});
 
-	// The intra-table rectangle suppresses the cell's native selection, so pre-fix the
-	// menu read hasSelection=false and greyed out the very Cut/Copy the rect serves.
+	// The intra-table rectangle suppresses the cell's native selection, so a menu reading
+	// hasSelection greys out the very Cut/Copy the rect serves.
 	test('Cut/Copy enable for an intra-table rectangle and Copy writes it', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 		// Drag a 2×2 body rectangle: cell 2 (row1,col0="1") → cell 5 (row2,col1="4").

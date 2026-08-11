@@ -95,7 +95,6 @@ test.describe('keybinding-override prop', () => {
 
 	// Global (kind-less) scope reaches the container bubble too: resolveKindBinding
 	// consults override(global), so a global Tab-disable stops the list indent.
-	// Pre-fix the bubble ignored global overrides and Tab still indented the item.
 	test('global scope: disabling Tab stops the list indent at the bubble', async () => {
 		await editor.loadContent('- one\n- two\n');
 		await setKeybindings(editor, [{ chord: 'Tab', command: null }]);

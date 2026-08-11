@@ -73,8 +73,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.loadContent(TBL_FIXTURE);
 		// Drop in header cell "a": the whole-row snap covers row 0, so the table takes its
 		// table-branch semantics (header removed, "1|2" promoted) while the strictly-between title
-		// must CLEAR in place — the pre-fix table branch node-deleted it and the rebuild hoisted
-		// the table into the opener line.
+		// must CLEAR in place: node-deleting it lets the rebuild hoist the table into the opener.
 		await editor.dragFromTo([0], 2, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
@@ -189,8 +188,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 	}) => {
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
 		// Body cell "1" → the container's last byte (end of "Body"): the whole subtree is covered
-		// from outside, so the container dies as ONE unit — not the pre-fix husk with the title
-		// node-deleted.
+		// from outside, so the container dies as ONE unit — never a husk with the title deleted.
 		await dragPoints(page, await cellCenter(page, 2), await editor.pointForOffset([1, 1], 4));
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');

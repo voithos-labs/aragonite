@@ -147,9 +147,8 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		});
 		await page.keyboard.press('Control+v');
 
-		// The ephemeral source edit takes the text/plain payload, not the HTML markup — pre-fix the
-		// render-primary leaf bound no onpaste, so the native paste dropped live <b> into the
-		// revealed contenteditable.
+		// The ephemeral source edit takes the text/plain payload, not the HTML markup: without the
+		// render-primary leaf's own onpaste the native paste drops live <b> into the reveal.
 		const html = await editor.source.innerHTML();
 		expect(html).not.toContain('<b>');
 		expect(await editor.sourceText()).toContain(' plain');

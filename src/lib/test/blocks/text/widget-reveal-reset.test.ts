@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 //
 // Canonical reset: every reveal exit path funnels through the one resetReveal, so all of them
-// land in the same observable idle state and the machine is reusable afterward. Guards the audit's
-// "a fourth exit path has no teardown to call" finding — a residual a hand-picked subset clear
-// would leave behind (a wedged `settling` flag, a stale record) surfaces as a broken second cycle.
+// land in the same observable idle state and the machine is reusable afterward. Anything an exit
+// path leaves behind (a wedged `settling` flag, a stale record) shows up as a broken second cycle.
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';

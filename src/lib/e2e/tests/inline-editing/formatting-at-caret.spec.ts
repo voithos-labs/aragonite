@@ -2,8 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Mod+B / Mod+I with no selection (requirements/inline-editing/formatting-at-caret.md).
-// The chord used to be swallowed and dropped; it now inserts the empty pair, removes
-// one, or unwraps the span the caret is inside.
+// The chord inserts the empty pair, removes one, or unwraps the span the caret is inside.
 
 test.describe('inline formatting at a collapsed caret', () => {
 	let editor: EditorPage;

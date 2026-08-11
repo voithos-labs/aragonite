@@ -68,7 +68,7 @@ describe('a press past a hidden run takes the content character, never a delimit
 	});
 
 	// A press it does claim beside a run still cuts whole characters: half a surrogate pair is
-	// not one, and the engine is no longer the thing deciding.
+	// not one, and the engine is not the thing deciding.
 	it('takes an astral character whole', () => {
 		expect(del('**b**👍', 5, 'forward')).toEqual({ raw: '**b**', caret: 5 });
 	});

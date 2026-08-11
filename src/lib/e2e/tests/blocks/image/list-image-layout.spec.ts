@@ -83,9 +83,8 @@ test.describe('list/blockquote layout for image-bearing paragraphs', () => {
 		expect(imageBox.x - outerBox.x).toBeGreaterThanOrEqual(12);
 	});
 
-	// The rule that pins the list-item ambient marker bottom-left once targeted every `.md-marker`
-	// direct child, so inline markers inside an image-bearing list-item paragraph stacked on the
-	// ambient `-`.
+	// The rule pinning the list-item ambient marker bottom-left must not reach every `.md-marker`
+	// direct child, or inline markers in an image-bearing item stack on the ambient `-`.
 	test('inline emphasis markers in a list-item image paragraph stay in normal flow', async ({
 		page
 	}) => {
