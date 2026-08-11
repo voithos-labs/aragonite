@@ -1,10 +1,9 @@
 /**
- * The `(kind, id) → handler` block-command registry AND both chord dispatchers — the leaf path
- * (`dispatchKeyCommand`) and the container-bubble path (`dispatchKindCommand`), which resolve a
- * minted handler through one seam (`runMintedCommand`) rather than sibling-path copies.
- * Register-once, throw-on-duplicate (docs/contributing/culture.md "Registries are code, not
- * state"). The dispatchers live here, not `./commands`, else `commands → block-commands →
- * command-id → commands` cycles.
+ * The `(kind, id) → handler` block-command registry and both chord dispatchers: the leaf path
+ * (`dispatchKeyCommand`) and the container-bubble path (`dispatchKindCommand`), which share one
+ * minted-handler seam rather than sibling-path copies. Register-once, throw-on-duplicate
+ * (docs/contributing/culture.md "Registries are code, not state"). The dispatchers live here,
+ * not `./commands`, else `commands → block-commands → command-id → commands` cycles.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';

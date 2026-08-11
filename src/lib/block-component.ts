@@ -1,11 +1,9 @@
 /**
  * The view-layer contract every rendered block satisfies, plus the cursor sentinels and
- * ambient-prefix shape blocks produce. Orchestration reaches a block only through this
+ * ambient-prefix shape blocks produce. Orchestration reaches a block only through this flat
  * interface, so a capability a block lacks is an omitted optional member rather than a kind
- * check upstream. Authoritative for external authors: each member's docstring states its
- * contract. Members stay flat: the caret members' three layers (landing doors, point
- * resolution, boundary policy) are documentation, in docs/design/editor.md § The editing
- * surface, and `ContainerBlockComponent` is the one promoted tier.
+ * check upstream; `ContainerBlockComponent` is the one promoted tier. Authoritative for
+ * external authors: each member's docstring states its own contract.
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
@@ -113,18 +111,15 @@ export interface BlockComponentProps {
 export interface BlockComponent {
 	/**
 	 * Place the caret at `offset`, focusing the surface, and end any live cross-block range — the
-	 * safe default door, minted from `selection/caret-doors.ts`' `placeCaret` over
-	 * {@link parkCaret}, since the range-ending batches with the landing. FOUR sentinels ride
-	 * this same `number`: `CURSOR_END`, `FOCUS_LAST_START` (`-1`), `CURSOR_START` (`-2`, an
-	 * arrival's "block start") and `CURSOR_EXACT_START` (`-3`, the split continuation's
-	 * unclamped byte 0). Clamping is required (never throw). None is on `plugin.ts`.
+	 * safe default door over {@link parkCaret}, since the range-ending batches with the landing.
+	 * Also takes the cursor sentinels above, which stay internal (none is on `aragonite/plugin`).
+	 * Clamping is required; never throw.
 	 */
 	focus(offset: number): void;
 	/**
 	 * `focus` WITHOUT the range-ending: seat the caret and touch nothing else. For
 	 * selection-extend paths only (G2.12 guards the callers), where a `focus` would
-	 * cancel the range still being grown; any other caller wants `focus`. Both doors are
-	 * pinned by `e2e/tests/selection/public-caret-doors.spec.ts`.
+	 * cancel the range still being grown; any other caller wants `focus`.
 	 */
 	parkCaret?(offset: number): void;
 	/**

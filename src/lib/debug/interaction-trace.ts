@@ -1,10 +1,9 @@
 /**
- * Interaction trace — a bounded ring buffer of the inline layer's transient state
- * transitions, joining `debug/operations-log.ts` in the debug panel and in `getDiagnostics()`.
- * Unlike `perf/instruments.ts` it arms from anywhere, production included, so a consumer app
- * can attach it to a bug report. Entries carry cheap primitives ONLY, never node references
- * or raw document text — a trace attached to a bug report must not smuggle the document.
- * Known limitation: the buffer is module-global, so two editors on one page interleave.
+ * Bounded ring buffer of the inline layer's transient state transitions, read through the debug
+ * panel and `getDiagnostics()`. Unlike `perf/instruments.ts` it arms from anywhere, production
+ * included, so a consumer app can attach it to a bug report — which is why entries carry cheap
+ * primitives ONLY, never node references or raw document text. The buffer is module-global, so
+ * two editors on one page interleave.
  */
 
 export interface InteractionTraceEntry {

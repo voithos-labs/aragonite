@@ -105,10 +105,9 @@ export interface BlockKindDescriptor {
 	/**
 	 * Make `raw` legal as this kind's own bytes: escape what the grammar would restructure, and
 	 * restore, drop, escalate or sanitize the block's own syntax around a write that broke it
-	 * (`schema/fenced-code-raw.ts` is the worked rule). Reads `node` for the block's own shape, and
-	 * must be idempotent; a pass that is not prefix-composable owes callers a caret image. Both doors
-	 * in `tree-operations/node-ops` apply it: `writeOwnRaw` in place, re-deriving metadata by
-	 * fragment reparse, and `normalizeOwnRaw` ahead of a replacing sink's reparse.
+	 * (`schema/fenced-code-raw.ts` is the worked rule). Reads `node` for the block's own shape,
+	 * must be idempotent, and owes callers a caret image when it is not prefix-composable. Every
+	 * write sink applies it.
 	 */
 	normalizeRawWrite?: (raw: string, node: NodeView) => string;
 	/**

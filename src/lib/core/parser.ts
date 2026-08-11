@@ -63,13 +63,11 @@ interface ParseBlocksResult {
 }
 
 /**
- * The seam block-incremental parsing re-parses ranges through. Contract, pinned by
- * test/core/parse-blocks-window.test.ts: a block-aligned window parses identically to a full
- * parse of the window's text. A window is a FRAGMENT unless its caller says otherwise, so
- * `parse` alone defaults to document scope.
- *
- * Blank-line rule (`design/syntax-tree.md`): the first blank line of a run separates and folds
- * into trivia; every later one is an empty paragraph carrying its own bytes.
+ * The seam block-incremental parsing re-parses ranges through: a block-aligned window parses
+ * identically to a full parse of the window's text. A window is a FRAGMENT unless its caller
+ * says otherwise, so `parse` alone defaults to document scope. Blank-line rule
+ * (`design/syntax-tree.md`): the first blank line of a run separates and folds into trivia;
+ * every later one is an empty paragraph carrying its own bytes.
  */
 export function parseBlocks(
 	lines: ParsedLine[],
@@ -134,12 +132,11 @@ export interface ContainerBodyWrap {
 }
 
 /**
- * Parse a container body that sits between the container's own chrome lines. A blank line
- * against a chrome line separates exactly as it does between blocks, so it lands in
- * `prefix`/`suffix` while the rest of its run materializes as body content. A blank line with
- * no body on its far side separated nothing and stays content. A container whose body starts
- * at its own first line (blockquote, list item) has no wrap and uses `parse`. `opts.scope` is
- * required for the reason G4.27 exists: a new parse entry cannot recover it.
+ * Parse a container body between the container's own chrome lines; a body starting at the
+ * container's own first line (blockquote, list item) has no wrap and uses `parse`. A blank line
+ * against a chrome line separates as it does between blocks, landing in `prefix`/`suffix` while
+ * the rest of its run materializes as body content; one with no body on its far side separated
+ * nothing and stays content. `opts.scope` is required: a new entry cannot recover it (G4.27).
  */
 export function parseContainerBody(
 	bodyText: string,
