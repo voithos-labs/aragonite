@@ -1,8 +1,7 @@
 /**
  * List parser with CommonMark §5.2 lazy continuation. "Open paragraph" is approximated per
  * line (non-blank, not a paragraph interrupter), as in the blockquote parser. Laziness reaches
- * only the item's own top-level paragraph, never one open inside a nested sub-list
- * (test/core/parsers/list-lazy-continuation.test.ts).
+ * only the item's own top-level paragraph, never one open inside a nested sub-list.
  */
 
 import type { CstNode } from '../nodes';

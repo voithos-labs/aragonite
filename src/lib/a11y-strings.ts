@@ -1,7 +1,6 @@
 /**
  * Accessible names, tooltips, and live-region announcements in one table, so a future
- * locale pass has one seam. Internal (no barrel exports it); every value is
- * byte-identical to the literal it replaced.
+ * locale pass has one seam. Internal — no barrel exports it.
  */
 
 import type { TableAlignment } from './core/nodes';

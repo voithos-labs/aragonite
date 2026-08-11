@@ -30,9 +30,8 @@ export interface EditorRects {
 	 * Reveal (mount) the block at `path`, then scroll the viewport to it. `block` defaults to
 	 * `'nearest'`; `hold` (default true) keeps the reveal's pin afterward, so a later layout
 	 * shift cannot push the target back out. Resolves true only once the position settles; a
-	 * reveal superseded by a later one stops refining and reports honest visibility. The pin
-	 * is the reveal anchor (`cursor/reveal-anchor.ts`), inert in host-scroll mode where
-	 * windowing never activates.
+	 * reveal superseded by a later one stops refining and reports honest visibility. The pin is
+	 * inert in host-scroll mode, where windowing never activates.
 	 */
 	scrollTo(
 		path: readonly number[],

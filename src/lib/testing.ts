@@ -1,11 +1,8 @@
 // The plugin-testing surface, published at the `aragonite/testing` subpath. TEST
 // PROCESSES ONLY, and nothing here may import a test runner — the kits run inside an
-// author's own case, so failures surface as plain `Error`s.
-//
-// MAINTENANCE INVARIANT: the registries are register-once with no unregister
-// (docs/contributing/culture.md), so every registration reachable from the public
-// `aragonite/plugin` surface must wire its reset into the aggregate below.
-// `testing-barrel.test.ts` fails when one is missing.
+// author's own case, so failures surface as plain `Error`s. The registries are
+// register-once with no unregister (docs/contributing/culture.md), so every registration
+// reachable from `aragonite/plugin` must wire its reset into the aggregate below.
 
 import { editorEnv } from './env';
 import { __resetSchemaRegistriesForTests } from './schema/registry-reset';

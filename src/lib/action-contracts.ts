@@ -244,10 +244,9 @@ export interface ContainerEditActions {
 	/**
 	 * Copy-path-on-write wrapper for out-of-ceremony writes (routine typing): unshares the
 	 * spine doc-root → `absPath`, calls `write` with the owned chain (outermost first) and the
-	 * epoch to own anything OFF that spine, then rebuilds innermost-first. The caller still
-	 * pushes its own checkpoint and nudges.
-	 * True means the rebuild re-derived a container's kind (typing the rest of a
-	 * `> [!TIP]` marker), remounting the edited leaf — the caller re-places the caret.
+	 * epoch to own anything OFF that spine, then rebuilds innermost-first. The caller still pushes
+	 * its own checkpoint and nudges. True means the rebuild re-derived a container's kind (typing
+	 * out a `> [!TIP]` marker), remounting the edited leaf — the caller re-places the caret.
 	 */
 	withUnsharedSpine(
 		absPath: number[],
