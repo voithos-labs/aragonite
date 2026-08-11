@@ -466,7 +466,7 @@ Tables also carry pointer affordances: hovering a row or column reveals a grip y
 | Copy / cut a focused block          | `Mod+C` / `Mod+X`                                   |
 | Copy / cut a selected image         | `Mod+C` / `Mod+X`                                   |
 
-**Typing a table into existence.** A table's header and delimiter lines must be adjacent, which Enter alone could never produce, so a paragraph holding just a header row (`| a | b |`) is completed by `Enter` into the finished table — delimiter, one empty body row, caret in the first body cell — as one undoable step. It needs the leading pipe, so a paragraph that merely contains one (`ls | grep foo`) is left alone; one undo restores the row you typed.
+**Typing a table into existence.** A table's header and delimiter lines must be adjacent, which Enter alone could never produce, so a paragraph holding just a header row (`| a | b |`) is completed by `Enter` into the finished table (delimiter, one empty body row, caret in the first body cell) as one undoable step. It needs the leading pipe, so a paragraph that merely contains one (`ls | grep foo`) is left alone; one undo restores the row you typed.
 
 **The Editing rows assume a caret in ordinary block content.** Inside a table cell, `Enter`, `Tab` and `Shift+Tab` mean what the **Tables** rows say instead — the `tableCell` keymap binds them to the cell's own commands, which shadow the prose bindings for as long as the caret is in a cell. `Alt+↑` / `Alt+↓` likewise move the caret's ROW rather than the block; the whole table moves among its siblings on `Mod+Alt+↑` / `Mod+Alt+↓`.
 

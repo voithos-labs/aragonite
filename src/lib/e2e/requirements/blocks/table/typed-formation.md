@@ -16,11 +16,11 @@ header-shaped row, with the caret at its end, is replaced by the finished table 
 
 ## Edge cases
 
-- One Mod+Z restores the paragraph byte-for-byte with the caret back at the end of the typed line —
+- One Mod+Z restores the paragraph byte-for-byte with the caret back at the end of the typed line;
   a character typed after the undo lands after the final `|`, not in front of the row
 - Enter again after that undo completes again. Re-completion on the restored line is intended: the
   user who wanted a literal pipe paragraph undoes once and moves on (escaped `\|` keeps pipes literal)
-- A single-cell row (`|a|`) falls through to the ordinary split — the table scan would not accept it
+- A single-cell row (`|a|`) falls through to the ordinary split, since the table scan would not accept it
   as a two-column header
 - A row without a leading pipe (`a | b`) falls through. The parser's scan alone would take it, so
   the leading pipe is the intent gate that keeps prose carrying a pipe (`ls | grep foo`) from
@@ -31,7 +31,7 @@ header-shaped row, with the caret at its end, is replaced by the finished table 
 ## Presentation modes
 
 - Live mode: the same press mints the same table, the caret reaches a real cell, and a typed
-  character lands in it — no `[invariant:…]` fire (G1.33 rides the shared fixture)
+  character lands in it, with no `[invariant:…]` fire (G1.33 rides the shared fixture)
 - Reading mode: Enter changes nothing; the paragraph's bytes are untouched
 
 ## Miss-analysis

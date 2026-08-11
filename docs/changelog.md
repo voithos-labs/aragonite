@@ -6,7 +6,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 - **A table can be typed into existence.** A table's header and delimiter rows have to be adjacent,
   and Enter always minted a blank-line-separated block, so typing one was impossible in every
-  presentation mode — a table could only arrive by paste or by load. A paragraph holding just a
+  presentation mode; a table could only arrive by paste or by load. A paragraph holding just a
   header row (`| a | b |`) with the caret at its end is now completed by Enter into the finished
   table: the typed header re-padded canonically, a delimiter row, one empty body row, and the caret
   in the first body cell. It is one undoable step, and one undo restores the row exactly as typed
