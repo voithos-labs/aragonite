@@ -9,11 +9,10 @@ import { devWarn } from '../../dev-warn';
 // ── The write seam ──────────────────────────────────────────────────────────
 
 /**
- * Bytes to splice over `image`'s range, or `null` when the edit must be declined.
- * **Every image write path goes through here** (G4.21): a node an inline rung claimed
- * re-serializes through that rung's `rewriteImage` hook, since emitting the built-in
- * grammar over another syntax's bytes destroys them. Plugin-side contract:
- * docs/design/plugin-contract.md § Inline authoring.
+ * Bytes to splice over `image`'s range, or `null` when the edit must be declined. **Every image
+ * write path goes through here** (G4.21): a node an inline rung claimed re-serializes through that
+ * rung's `rewriteImage` hook, since built-in grammar over another syntax's bytes destroys them.
+ * Plugin-side contract: docs/design/plugin-contract.md § Inline authoring.
  */
 export function buildImageEditBytes(
 	image: InlineNode,

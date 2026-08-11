@@ -1,9 +1,8 @@
 /**
- * Pointer drag-to-reorder for table rows and columns: a shared drag session paints a
- * single insertion line (no tree mutation, no reflow) and commits ONE move on release.
- * Both axes share the lifecycle and diverge only in geometry — rows are windowed under
- * a fixed header (absolute indices, autoscroll to mount off-window targets), columns
- * are neither, so an edge index maps straight to a column index.
+ * Pointer drag-to-reorder for table rows and columns: a shared drag session paints a single
+ * insertion line (no tree mutation, no reflow) and commits ONE move on release. The axes diverge
+ * only in geometry — rows are windowed under a fixed header, so their indices are absolute and
+ * off-window targets need autoscroll to mount; columns are neither.
  */
 
 import type { UserScrollport } from '../../../cursor/scroll-ancestors';

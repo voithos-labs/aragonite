@@ -92,10 +92,10 @@ export interface EditorGlobalChordDeps extends Pick<
 }
 
 /**
- * Undo/redo for a block that IS its own focus target: no inner leaf carries the global tier
- * for it, and the editor root declines while focus sits on the block. `true` means the chord
- * was consumed — including in reading mode, or a read-only document gets the browser's native
- * undo. Bypassing `dispatchKeyCommand` is what owes it that gate.
+ * Undo/redo for a block that IS its own focus target: no inner leaf carries the global tier for
+ * it, and the editor root declines while focus sits on the block. `true` means consumed —
+ * including in reading mode, since bypassing `dispatchKeyCommand` would otherwise hand a read-only
+ * document the browser's native undo.
  */
 export function handleEditorGlobalChord(chord: string, deps: EditorGlobalChordDeps): boolean {
 	if (!isEditorGlobalChord(chord)) return false;

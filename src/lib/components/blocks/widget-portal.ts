@@ -1,9 +1,8 @@
 /**
- * The reuse pool that makes `component` inline widgets churn-safe. The editor rebuilds
- * a block's whole inline-DOM on every keystroke; without a pool each rebuild would
- * remount every widget's Svelte component (losing state, paying KaTeX-scale cost per
- * character). Instances key by `${kind} ${source}`. `mount`/`unmount` from 'svelte' are
- * used nowhere else in the repo — kept contained here on purpose.
+ * The reuse pool that makes `component` inline widgets churn-safe. The editor rebuilds a block's
+ * whole inline-DOM on every keystroke; without a pool each rebuild remounts every widget's Svelte
+ * component, losing state and paying KaTeX-scale cost per character. Instances key by
+ * `${kind} ${source}`, and `mount`/`unmount` from 'svelte' stay contained here.
  */
 
 import { mount, unmount } from 'svelte';
@@ -144,11 +143,10 @@ export interface SvelteWidgetPoolDeps {
 }
 
 /**
- * The pool wired to Svelte mounting. A synchronous mount throw is caught, reported, and
- * surfaced as null so the caller falls back to the raw span. The getters ride ALONGSIDE
- * the frozen `{ inline, source }` snapshot as live props: reuse keys on
- * `${kind} ${source}`, so an instance outlives a mode flip or an edit elsewhere, where a
- * frozen value would go stale.
+ * The pool wired to Svelte mounting. A synchronous mount throw is caught, reported and surfaced as
+ * null so the caller falls back to the raw span. The getters ride ALONGSIDE the frozen
+ * `{ inline, source }` snapshot as live props: reuse keys on `${kind} ${source}`, so an instance
+ * outlives a mode flip or an edit elsewhere that a frozen value would not.
  */
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
 	const { reportError, getPresentationMode, getTheme, getDocument, getContentVersion } = deps;

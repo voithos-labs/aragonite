@@ -42,10 +42,9 @@ export function createFocusActions(
 			if (blockIndex < 0) return;
 			if (blockIndex >= deps.doc.children.length) {
 				if (options?.append === false) return;
-				// Past the last block — appended through the commit primitive so it
-				// participates in undo history and edit events. Both the separating blank
-				// line and the paragraph's own ARE line endings, so both take the
-				// document's (G4.20), read off the block being appended after.
+				// Past the last block — appended through the commit primitive so it participates in
+				// undo history and edit events. The separating blank line and the paragraph's own
+				// are both line endings, so both take the document's (G4.20).
 				const lastBlock = deps.doc.children[deps.doc.children.length - 1];
 				const lineEnding = trailingLineEnding(lastBlock?.raw ?? '\n');
 				const newBlock = emptyParagraph(lineEnding, lineEnding);

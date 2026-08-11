@@ -43,10 +43,9 @@
 	let end = $derived(bounds.end);
 	let slice = $derived(children.slice(start, end));
 
-	// Read like BlockHost's, `| undefined` included: a bare-mounted list in a harness
-	// provides none, and a list with no gap in it renders exactly as before. The two action
-	// bundles are read HERE because they are scope-local — this list's own position answers
-	// them, unlike the root facets GapCaret reads for itself.
+	// Read like BlockHost's, `| undefined` included: a bare-mounted list in a harness provides
+	// none. The two action bundles are read HERE because they are scope-local — this list's own
+	// position answers them, unlike the root facets GapCaret reads for itself.
 	const selection = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.selection;
 	const focusActions = getContext<FocusActions | undefined>(FOCUS_KEY);
 	const blockEdit = getContext<BlockEditActions | undefined>(BLOCK_EDIT_KEY);

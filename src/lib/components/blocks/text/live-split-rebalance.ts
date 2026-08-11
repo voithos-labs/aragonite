@@ -1,9 +1,7 @@
 /**
- * The live-mode split rewrite (live-mode.md § 4.4 close-and-reopen): Enter inside a construct closes it
- * before the cut and reopens it after, so neither half strands a delimiter run the reader never
- * saw, and a split link carries its destination to both. Bytes stay candidates until the parser
- * agrees — each half must re-parse to ONE prose block that still carries its constructs and
- * renders the same characters — after which `splitNode` keeps its byte-literal cut instead.
+ * The live-mode split rewrite (live-mode.md § 4.4 close-and-reopen): Enter inside a construct
+ * closes it before the cut and reopens it after, so neither half strands a run the reader never
+ * saw. Bytes stay candidates until the parser agrees; null leaves `splitNode`'s byte-literal cut.
  */
 
 import {
@@ -67,9 +65,8 @@ interface SplitBytes {
 }
 
 /**
- * Read the caller's two halves back against the original. Anchoring on the original bytes is what
- * keeps the rewrite honest about cuts it did not make: a container's body-write rule, a suffix
- * move, or a consumed line ending all show up here as an anchor that no longer matches.
+ * Read the caller's two halves back against the original, so a cut this rewrite did not make (a
+ * container body-write rule, a suffix move, a consumed line ending) surfaces as a failed anchor.
  */
 function readSplitBytes(
 	node: NodeView,
@@ -167,10 +164,9 @@ interface RebalancedHalves {
 }
 
 /**
- * Innermost first, so a closer run written before its enclosing one nests the halves the way the
- * original did. A side with no content of its own takes the whole construct instead of a pair
- * enclosing nothing — invisible `****` residue is what live mode may never write. Every link
- * either moves a side or writes a run, so a non-empty chain always describes a real rewrite.
+ * Innermost first, so a closer written before its enclosing one nests the halves as the original
+ * did. A side with no content takes the whole construct: a pair enclosing nothing is residue live
+ * may never write.
  */
 function seamParts(bytes: SplitBytes, chain: readonly ChainLink[], offset: number): SeamParts {
 	let leftEnd = offset;
@@ -208,9 +204,8 @@ const assemble = (bytes: SplitBytes, seam: SeamParts): RebalancedHalves => ({
 
 /**
  * The same seam with a boundary space handed to the plain text beside it. Markdown opens and
- * closes a run against a word, never against whitespace, so a space left inside would kill the
- * construct outright; a space's formatting is invisible, which makes moving it the only reading
- * that both parses and looks unchanged. Null when neither side has one to move.
+ * closes a run against a word, never whitespace, so a space left inside kills the construct; a
+ * space's formatting is invisible, so moving it is the reading that parses and looks unchanged.
  */
 function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHalves | null {
 	const trailing = seam.closers !== '' && seam.head.endsWith(' ');
@@ -228,10 +223,8 @@ function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHal
 
 /**
  * The seam with a whitespace-only tail dropped rather than handed to either half. A block's
- * TERMINAL whitespace is a hard break with no following line, so it paints nothing: the reader
- * never saw it, and live-mode.md § 4.5 licenses live to drop what it never showed. The
- * alternatives here are both wrong — carried along, the reload reads it as blank trivia and the
- * pair comes back a different shape; declined, the byte-literal cut prints the delimiters instead.
+ * TERMINAL whitespace is a hard break with no following line, so it paints nothing, and
+ * live-mode.md § 4.5 licenses live to drop what it never showed.
  */
 function assembleDroppingTerminalTrivia(
 	bytes: SplitBytes,
@@ -253,11 +246,7 @@ interface HalfRead {
 }
 
 /**
- * Four questions, and a candidate answers all of them or it is not written. Is each half one
- * prose block the reload KEEPS — the shape the caller's caret math and its multi-block dev warn
- * both assume? Did the constructs the seam closed and reopened survive? Are the bytes it declares
- * DROPPED ones the screen never showed? And does the render path report the same characters as
- * before, the one line ending the split itself consumed aside? Exported for the verification
+ * A candidate answers every question below or it is not written. Exported for the verification
  * test, which has to reach it with a candidate no producer here would build.
  */
 export function parsesBack(
@@ -269,27 +258,22 @@ export function parsesBack(
 	const first = soleProseBlock(candidate.firstRaw, resolver);
 	const second = soleProseBlock(candidate.secondRaw, resolver);
 	if (first === null || second === null) return false;
-	// Each half must be a block the RELOAD keeps. An EMPTY half is one — that is the ordinary
-	// handover, and an empty block is what Enter at a content edge produces anyway — but a half
-	// carrying only WHITESPACE is not: the document reads those bytes as blank trivia, so the
-	// pair comes back a different shape than it was written in. The byte-literal cut converges
-	// there, and declining is what leaves it standing.
+	// Each half must be a block the RELOAD keeps. Empty is one; whitespace-only is not, since the
+	// document reads those bytes as blank trivia and the pair comes back a different shape.
 	if (isWhitespaceOnly(first.visible) || isWhitespaceOnly(second.visible)) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;
-	// A candidate may drop only bytes the SCREEN never showed, and this is the one place the
-	// oracle cannot answer: it counts characters, while CSS collapses a block's terminal run to
-	// nothing. So the rule the drop rides on is READ HERE rather than trusted from the producer —
-	// a declaration is a claim, and the check below would otherwise accept any bytes at all.
+	// The render oracle below counts characters while CSS collapses a terminal run to nothing, so
+	// the "screen never showed it" rule is read here rather than trusted from the producer.
 	if (candidate.droppedTail !== undefined && candidate.droppedTail.trim() !== '') return false;
 	const whole = renderedText(
 		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver),
 		bytes.raw
 	);
 	if (!whole.startsWith(first.visible)) return false;
-	// The one character a split legitimately consumes is the line ending its cut landed on; a
-	// dropped tail is the second thing the whole may hold that no half does, and the candidate
-	// states which bytes those are rather than the check inferring them.
+	// The line ending the cut landed on is the one character a split legitimately consumes; a
+	// dropped tail is the only other, and the candidate names those bytes rather than the check
+	// inferring them.
 	const rest = whole.slice(first.visible.length);
 	const tail = second.visible + (candidate.droppedTail ?? '');
 	return rest === tail || rest === '\n' + tail || rest === '\r\n' + tail;

@@ -1,9 +1,9 @@
 /**
- * The editable-leaf seam a plugin block component builds on: a text-editing block
- * surface with native caret/IME/undo/cross-block-selection parity, in one factory so a
- * plugin never touches an editor context key. Two modes — `plain` (always mounted,
- * commits per keystroke) and `render-primary` (reveals its source, commits once on
- * blur). Call synchronously during init. Contract: plugin-guide § The editable leaf.
+ * The editable-leaf seam a plugin block component builds on: a text-editing block surface with
+ * native caret/IME/undo/cross-block-selection parity, in one factory so a plugin never touches an
+ * editor context key. Two modes: `plain` commits per keystroke, `render-primary` reveals its
+ * source and commits on blur. Call synchronously during init. Contract: plugin-guide § The
+ * editable leaf.
  */
 
 import { getContext, tick } from 'svelte';
@@ -79,11 +79,10 @@ export interface EditableLeafDeps {
 }
 
 /**
- * The one-spread source surface: `<div {...leaf.surfaceProps}>` wires every handler and
- * attribute a source contenteditable needs, so a consumer cannot drop one (a forgotten
- * `oncompositionend` breaks IME silently). Symbol-keyed Svelte attachments carry the
- * view-lifecycle contracts: the source populated as a SINGLE text node (so the ambient
- * offset walk stays exact), and the focus-park on unmount.
+ * The one-spread source surface: `<div {...leaf.surfaceProps}>` wires every handler and attribute
+ * a source contenteditable needs, so a consumer cannot drop one (a forgotten `oncompositionend`
+ * breaks IME silently). Symbol-keyed attachments carry the view-lifecycle contracts: a SINGLE text
+ * node, so the ambient offset walk stays exact, and the focus-park on unmount.
  */
 export interface EditableLeafSurfaceProps {
 	tabindex: number;

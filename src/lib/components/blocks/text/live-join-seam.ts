@@ -1,10 +1,8 @@
 /**
- * The live-mode join rewrite (live-mode.md § 4.5): a destructive join cuts bytes the reader cannot see, so a
- * literal concatenation surfaces two things — the delimiter runs a truncation left unpaired, and
- * the closer/opener pair a split's inverse brings back to back around nothing. Both are dropped,
- * at the seam and nowhere else. Bytes stay candidates until the parser agrees: the joined block
- * must re-parse to ONE prose block showing exactly what the two sides showed, or the caller keeps
- * its literal join.
+ * The live-mode join rewrite (live-mode.md § 4.5): a literal concatenation surfaces the runs a
+ * truncation left unpaired and the closer/opener pair a split's inverse abuts around nothing. Both
+ * are dropped here and nowhere else, and only once the joined block re-parses to ONE prose block
+ * showing what the two sides showed.
  */
 
 import {
@@ -38,10 +36,8 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 
 	const shown = shownAfterJoin(left, right);
 	const pairs = abuttingPairSpans(join, left, right);
-	// Keeping the runs the two sides can still pair across the seam is the least destructive
-	// reading, so it leads; dropping every stranded run answers where markdown cannot rejoin them.
-	// The two readings coincide whenever nothing paired across the seam, which is the common case;
-	// rendering the identical bytes twice buys nothing.
+	// Least destructive first: keep the runs the two sides can still pair across the seam, and fall
+	// back to dropping every stranded one. Identical readings render once.
 	const readings = [unpairedSpans(join, left, right), everyDanglingSpan(join, left, right)];
 	const candidates = readings.map((dangling) => [...dangling, ...pairs]);
 	for (const spans of sameSpans(candidates[0], candidates[1]) ? [candidates[0]] : candidates) {
@@ -50,10 +46,8 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 		// A candidate that changed nothing IS the literal join: declining says so, and keeps the
 		// caller off a rewrite path it does not need.
 		if (candidate === join.mergedRaw) return null;
-		// The split half's terminal-trivia rule, on the join: a survivor that is only hard-break
-		// whitespace reloads as blank trivia — a different shape than the block written — and a
-		// terminal run paints nothing, so the declared drop is read here, not trusted: only
-		// whitespace may go, and the emptied block's caret has one seat.
+		// The split half's terminal-trivia rule, on the join: a whitespace-only survivor paints
+		// nothing and reloads as blank trivia, a different shape than the block written.
 		const display = trimTrailingLineEnding(candidate);
 		if (display !== '' && display.trim() === '') {
 			return { raw: candidate.slice(display.length), seam: 0 };
@@ -101,9 +95,8 @@ interface Side {
 
 /**
  * Read one endpoint's surviving bytes and the constructs its cut leaves at the seam. Null where
- * the cleanup has no business running: a non-prose kind, an offset outside the block's content,
- * or a cut through a construct whose family declares no close-and-reopen (an image, an escape,
- * an autolink) — those bytes mean nothing apart, so no run of theirs is the join's to drop.
+ * the cleanup has no business running: a non-prose kind, an offset outside the content, or a cut
+ * through a family that declares no close-and-reopen, whose bytes mean nothing apart.
  */
 function readSide(
 	endpoint: JoinEndpoint,
@@ -117,14 +110,12 @@ function readSide(
 
 	const inlines = parseInline(node.raw, content.start, content.end, resolver);
 	const { ranged, atomic } = classifyConstructs(inlines);
-	// A run whose bytes mean nothing apart — an image, an escape, an autolink — has no halves to
-	// keep, and a cut through the middle of a delimiter run leaves half of one behind. Neither is
-	// a thing any reading of the seam can repair. Live's caret cannot land there; a plugin's can.
+	// Neither an atomic construct's interior nor the middle of a delimiter run leaves halves any
+	// reading of the seam can repair. Live's caret cannot land there; a plugin's can.
 	if (atomic.some((span) => offset > span.start && offset < span.end)) return null;
 	if (ranged.some((c) => splitsARun(c, offset))) return null;
-	// Dangling is about the PARTNER: this side keeps one run of the pair and the cut took the
-	// other. Content-range containment is not the test — a cut at a construct's content start
-	// leaves its opener behind just as surely as one in the middle does.
+	// Dangling is about the PARTNER, so content-range containment is not the test: a cut at a
+	// construct's content start leaves its opener behind just as one in the middle does.
 	const dangling = ranged.filter((c) =>
 		keep === 'before'
 			? c.content.start <= offset && offset < c.node.end
@@ -292,9 +283,8 @@ function withoutSpans(raw: string, spans: readonly Span[]): string {
 
 /**
  * What the reader is owed: what each side ALREADY SHOWED of the bytes that survive. Read off the
- * pre-join parse, never off the joined halves — a half read alone prints the runs whose partner
- * the cut took, and a cleaned half can lose a construct the drop made intraword, so either would
- * bake the very defect this checks for into its own expectation.
+ * pre-join parse, never off the joined halves — either of those bakes the defect this checks for
+ * into its own expectation.
  */
 const shownAfterJoin = (left: Side, right: Side): string =>
 	visibleSide(left, 'before') + visibleSide(right, 'after');

@@ -1,9 +1,8 @@
 /**
- * Sibling-reorder action for the drag-and-drop and keyboard-nudge callers: resolve
- * the unit a path points into, clamp the destination, commit one permutation. A
- * reorder creates no node — each moved block keeps its id and ref through the
- * `reorderChildren` idMap. The only writes are positional separators (`leadingTrivia`
- * stays with the slot, see `reorderChildrenWithTrivia`) and marker renumbering.
+ * Sibling-reorder action for the drag-and-drop and keyboard-nudge callers: resolve the unit a path
+ * points into, clamp the destination, commit one permutation. A reorder creates no node — each
+ * moved block keeps its id and ref through the `reorderChildren` idMap — and the only writes are
+ * positional separators (`reorderChildrenWithTrivia`) and marker renumbering.
  */
 
 import { CURSOR_START } from '../block-component';

@@ -39,10 +39,9 @@ export function createHistoryActions(
 		const outcome = isGapSelection(entry.selection)
 			? await restoreGapCaret(entry.selection.gapCaret, restoreDeps)
 			: await restoreSelection(entry.selection, restoreDeps);
-		// An entry can name a slot that never existed in its own snapshot (the
-		// append-past-end op declares the one-past-the-end coordinate as its restore
-		// fallback). The seam declines without side effects, so clearing is this
-		// caller's policy — the one place that knows the doc was replaced.
+		// An entry can name a slot that never existed in its own snapshot (append-past-end declares
+		// the one-past-the-end coordinate as its restore fallback). The seam declines without side
+		// effects, so clearing is this caller's policy: the one place that knows the doc changed.
 		if (outcome === 'unresolvable') deps.selectionState.clear();
 		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
 	}

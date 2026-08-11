@@ -1,9 +1,8 @@
 /**
- * Whether a block keeps structure PAST its content that the surface paints nothing for — today
- * the setext underline. A merge past it concatenates it into view (`Title\n===` + `next` reparses
- * to a paragraph showing `===next`), so the keydown dispatch consumes the press and the command
- * arm declines it. One home because the two asked the same question from two coordinate sources,
- * and a rule answered twice diverges the day either one moves (live-mode.md § 4.5).
+ * Whether a block keeps structure PAST its content that the surface paints nothing for — today the
+ * setext underline. A merge past it concatenates it into view (`Title\n===` + `next` reparses to a
+ * paragraph showing `===next`), so the keydown dispatch consumes the press and the command arm
+ * declines it — one home, since the two ask from different coordinate sources (live-mode.md § 4.5).
  */
 
 import { getContentRange } from '../../../core/inline';

@@ -1,9 +1,8 @@
 /**
  * What a destructive key takes at an inline construct's unpainted delimiter run: the adjacent
  * CONTENT character, plus the delimiters the cut leaves enclosing nothing (live-mode.md § 4.4
- * `autoUnwrapOnEmpty`), which is what makes invisible `****` residue unrepresentable. Bytes that
- * read right can parse wrong, so a candidate is written only once a re-parse says the reader lost
- * exactly what the cut aimed at; a press this arm owns but cannot rewrite soundly takes nothing.
+ * `autoUnwrapOnEmpty`). Bytes that read right can parse wrong, so a candidate is written only once
+ * a re-parse says the reader lost exactly what the cut aimed at.
  */
 
 import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
@@ -52,9 +51,8 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 	const target = deletionTarget(display, constructs, content, caret, direction);
 	if (!target) return null;
 
-	// The adjacency that decides is the deleted SPAN's, not the caret's — the engine deletes from
-	// where the byte is, so the last content character at either end is destructive one press
-	// before the edge. With no run beside the cut the press stays with the engine, which owns
+	// The adjacency that decides is the deleted SPAN's, not the caret's: the engine deletes from
+	// where the byte is. With no run beside the cut the press stays with the engine, which owns
 	// grapheme and IME behavior.
 	const plain = expandThroughEmptied(constructs, target);
 	const native = nativeCut(caret, direction);
@@ -138,10 +136,8 @@ function isLowSurrogate(display: string, at: number): boolean {
 
 /**
  * The second reading of a press whose plain cut does not parse back: take the delimiter runs the
- * cut now sits between with it, which is the "these two constructs become one" a reader sees when
- * the character between them goes. Verified like any other candidate, and the verification is
- * about the SCREEN, not the structure: two `<strong>` become one, visually identical and
- * structurally not, which is what a reader deleting the space between them asked for.
+ * cut now sits between with it, the "these two constructs become one" a reader sees when the
+ * character between them goes. Verified against the SCREEN, not the structure.
  */
 function widenThroughRuns(constructs: readonly PolicyConstruct[], cut: Span): Span {
 	let { start, end } = cut;
