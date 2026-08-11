@@ -18,7 +18,11 @@ import { type RawOffset } from '../../../cursor/coordinate-spaces';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { PendingMarksState } from '../../../cursor/pending-marks';
 import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
-import { landableRawBounds, revealsNoMarkers } from '../../../cursor/widget-offset';
+import {
+	chromeStandsAlone,
+	landableRawBounds,
+	revealsNoMarkers
+} from '../../../cursor/widget-offset';
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
@@ -391,6 +395,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			content: getContentRange(deps.node),
 			caret: caretOffset,
 			direction: e.key === 'Backspace' ? 'backward' : 'forward',
+			chromePaints: chromeStandsAlone(el),
 			inlines: inlinesOf(deps.node)
 		});
 		if (!deletion) return false;

@@ -14,6 +14,7 @@ function del(
 	display: string,
 	caret: number,
 	direction: DeleteDirection = 'backward',
+	chromePaints = false,
 	content = { start: 0, end: display.length }
 ) {
 	return resolveEdgeDeletion({
@@ -21,6 +22,7 @@ function del(
 		content,
 		caret,
 		direction,
+		chromePaints,
 		inlines: parseInline(display, content.start, content.end)
 	});
 }
@@ -81,7 +83,24 @@ describe('a press past a hidden run takes the content character, never a delimit
 
 	// The structural bytes of the block are not content, so no press may reach them.
 	it('declines past the content range', () => {
-		expect(del('## **b** x', 3, 'backward', { start: 3, end: 10 })).toBeNull();
+		expect(del('## **b** x', 3, 'backward', false, { start: 3, end: 10 })).toBeNull();
+	});
+});
+
+// A block whose chrome stands over nothing paints it (live-mode.md § 4.1), so there is no
+// unpainted run here and every byte the press could take is one the reader saw.
+// Miss-analysis: every case ran against blocks holding content, where the delimiters really are
+// hidden, so the branch reading a construct as one unseen unit was never asked whether it showed.
+describe('painted chrome leaves the press to the engine', () => {
+	it('declines at both ends of a link with no text', () => {
+		expect(del('[](u)', 5, 'backward', true)).toBeNull();
+		expect(del('[](u)', 0, 'forward', true)).toBeNull();
+	});
+
+	// The same presses while the chrome hides stay the arm's: the fact is what separates them.
+	it('still claims them where the block holds content behind its chrome', () => {
+		expect(del('[](u)', 5)).toEqual({ raw: '', caret: 0 });
+		expect(del('[](u)', 0, 'forward')).toEqual({ raw: '', caret: 0 });
 	});
 });
 

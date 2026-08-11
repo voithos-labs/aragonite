@@ -4,9 +4,9 @@ import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
 
 // A block whose only bytes are its own chrome has nothing to stand behind it, so the chrome
-// paints: a caret can land on it and a typed byte seats after it. The destructive keys still
-// follow the mode. The oracles are the source bytes (which side a typed byte landed on) and the
-// marker's computed display.
+// paints: a caret can land on it and a typed byte seats after it. A destructive key at the block's
+// own structure follows the mode; one at an inline construct follows the paint. The oracles are
+// the source bytes (which side a typed byte landed on) and the marker's computed display.
 // Requirements: e2e/requirements/presentation/presentation-live-opener-typing.md.
 
 const OPENER = 0;
@@ -14,6 +14,9 @@ const TYPED = 1;
 
 /** A bare `#` and an empty fence: the load half of the same class, with no typing at all. */
 const LOADED = ['#', '', '```', '```', '', 'para'].join('\n') + '\n';
+
+/** A link with no text: five painted bytes, none of which any rung may treat as unseen. */
+const EMPTY_LINK = '[](u)\n';
 
 /** An empty paragraph below a settled one, minted by the gesture that mints it in use. */
 async function emptyBlockBelow(page: Page, mode: 'live' | 'preview-inline'): Promise<EditorPage> {
@@ -160,3 +163,41 @@ test.describe('loaded openers — the paint half needs no typing', () => {
 		await expect(ep.getBlock(1).locator('.md-fence-line').first()).toHaveCSS('display', 'none');
 	});
 });
+
+// The two rungs run the same three gestures: where every byte is on screen, live owes source
+// parity, and the assertion is the whole source rather than a substring — `[](u` sits inside
+// `[](u)`, so only equality distinguishes one byte gone from none.
+for (const mode of ['live', 'source'] as const) {
+	test.describe(`painted inline chrome — ${mode} takes what the reader aimed at`, () => {
+		let ep: EditorPage;
+
+		test.beforeEach(async ({ page }) => {
+			ep = await enterPresentationMode(page, mode, EMPTY_LINK);
+			await clickBlockSettled(ep, OPENER);
+		});
+
+		test('Backspace at the end takes one byte', async ({ page }) => {
+			await page.keyboard.press('End');
+			await ep.waitForRenderFlush();
+
+			await page.keyboard.press('Backspace');
+			await expect.poll(() => ep.bridge.getSource()).toBe('[](u\n');
+		});
+
+		test('Delete at the start takes one byte', async ({ page }) => {
+			await page.keyboard.press('Home');
+			await ep.waitForRenderFlush();
+
+			await page.keyboard.press('Delete');
+			await expect.poll(() => ep.bridge.getSource()).toBe('](u)\n');
+		});
+
+		test('a letter typed at the end appends', async ({ page }) => {
+			await page.keyboard.press('End');
+			await ep.waitForRenderFlush();
+
+			await page.keyboard.type('a');
+			await expect.poll(() => ep.bridge.getSource()).toBe('[](u)a\n');
+		});
+	});
+}

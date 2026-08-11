@@ -23,6 +23,9 @@ export interface EdgeDeletionQuery {
 	content: ContentRange;
 	caret: number;
 	direction: DeleteDirection;
+	/** Whether the block's chrome stands over no content and therefore paints (live-mode.md
+	 *  § 4.1). Required, so a second caller cannot inherit the hiding assumption by silence. */
+	chromePaints: boolean;
 	/** The inline tree the render painted from, so the runs skipped here are the runs hidden. */
 	inlines: readonly InlineNode[];
 }
@@ -46,6 +49,9 @@ export type EdgeDeletion = EdgeDeletionWrite | EdgeDeletionSwallow;
  * content-side of the caret, or a cut with no hidden run beside it, which the engine gets right.
  */
 export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | null {
+	// Painted delimiters are bytes the reader saw, so no run here is this arm's to protect and the
+	// license to drop one (live-mode.md § 2) does not reach: the press is the engine's.
+	if (query.chromePaints) return null;
 	const { display, content, caret, direction } = query;
 	const constructs = policyConstructs(query.inlines);
 	const target = deletionTarget(display, constructs, content, caret, direction);
