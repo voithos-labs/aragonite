@@ -60,4 +60,4 @@ Live paints no destination, so the card is the only way to read or rewrite one. 
 - Copy yields the source bytes; reading mode is the one rung that copies rendered text.
 - Search matches the source bytes, so a query crossing a construct boundary misses what the screen appears to show.
 - The caret lands only where the DOM walk can land it: hidden runs are unreachable, so a block's extremes are its landable bounds, not its raw ends (`cursor/widget-offset.ts`).
-- Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, and keystroke latency is a gated perf axis with live rows beside their source twins (`performance.md`).
+- Bytes change only where a rule above says so. A gesture that strands nothing writes exactly what source mode writes — outside § 4.1's painted content-empty chrome, where the destructive gates follow the mode and the two rungs diverge. Keystroke latency is a gated perf axis with live rows beside their source twins (`performance.md`).

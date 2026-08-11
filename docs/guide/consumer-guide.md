@@ -163,7 +163,7 @@ Optional props customize URL and image handling and the editor's affordances.
 
   **Search matches the source bytes too.** A query is matched against the Markdown, so one spanning a construct boundary misses what the screen appears to show: `beta gamma` finds nothing in `**beta** gamma`, where the bytes between the words are `** `. Matches inside a construct's own text work normally.
 
-  Bytes only change where a rule above says so. A gesture that strands nothing writes exactly what source mode writes.
+  Bytes only change where a rule above says so. A gesture that strands nothing writes exactly what source mode writes, with one exception — the painted markers above: `Backspace` at the very start of a `# ` that has no heading text drops the construct, where source mode does nothing.
 
 The effective mode is reflected as `data-presentation` on the editor root — **absent** in source mode, so default-mode DOM is unchanged — and announced to subscribers as a `presentationModeChange` event on `getEvents()`.
 
