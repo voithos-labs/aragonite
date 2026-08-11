@@ -1,8 +1,8 @@
 # Feature: live-mode caret edges (byte-honesty against hidden markers)
 
-Live hides every Markdown marker and reveals none, so a focused block's own
-structural prefix (`## `, a code fence) and its inline construct markers (`**`,
-`[ref]`) sit beside the caret unpainted. The contract: the caret is a raw offset,
+Live hides every Markdown marker standing over content and reveals none, so a
+focused block's own structural prefix (`## `, a code fence) and its inline
+construct markers (`**`, `[ref]`) sit beside the caret unpainted. The contract: the caret is a raw offset,
 no caret ever reports from inside a hidden run, and a block's exits and its
 destructive keys read the block's CONTENT bounds rather than raw 0 / raw length.
 Driven on `/test/editor` via `?presentationMode=live`; offsets are read back

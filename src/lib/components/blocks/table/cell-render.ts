@@ -121,7 +121,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 			if (!hasAnchorBr) el.appendChild(document.createElement('br'));
 		}
 
-		// A cell whose whole content is an empty construct (`****`) would otherwise paint
+		// A cell whose whole content is an empty construct (`[](u)`) would otherwise paint
 		// nothing; the stamp precedes the restore, which lands through the same walk.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 

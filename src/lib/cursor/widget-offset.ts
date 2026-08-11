@@ -12,7 +12,8 @@ import { asDomTextOffset, toClampedRawOffset, type DomTextOffset } from './coord
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
 /** The stamp a block surface writes on its walk container while {@link holdsOnlyMarkerChrome}
- *  holds. Both consumers of the hiding rule — this walk and `styles/editor.css` — read it. */
+ *  holds. Both consumers of the hiding rule — this walk and `styles/editor.css` — read it.
+ *  Written in every mode on purpose: it is a content fact, so a flip never finds it stale. */
 export const CONTENT_EMPTY_ATTR = 'data-content-empty';
 
 /**

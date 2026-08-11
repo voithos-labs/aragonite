@@ -1,6 +1,6 @@
 # Live Mode
 
-The fifth presentation rung: `presentationMode="live"` hides every Markdown marker with no reveal, and the document stays directly editable. Like every rung it is CSS over the one render path (`editor.md` § 4), so the bytes, the coordinate space, and the round-trip are the source document's throughout. The paint is nothing new; the editing semantics are, and this document is their catalog. A `live-mode.md § 4.x` citation in source or tests resolves to § 4 below.
+The fifth presentation rung: `presentationMode="live"` hides every Markdown marker standing over content, with no reveal, and the document stays directly editable. Like every rung it is CSS over the one render path (`editor.md` § 4), so the bytes, the coordinate space, and the round-trip are the source document's throughout. The paint is nothing new; the editing semantics are, and this document is their catalog. A `live-mode.md § 4.x` citation in source or tests resolves to § 4 below.
 
 The consumer-facing statement of the same rules is `docs/guide/consumer-guide.md` § Presentation modes. The behavioral pins are the `presentation-live-*` requirement files under `src/lib/e2e/requirements/presentation/`, and the seams appear by behavior in `docs/contributing/codebase-map.md`.
 
