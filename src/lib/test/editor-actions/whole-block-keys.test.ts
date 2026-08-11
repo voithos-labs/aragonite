@@ -11,19 +11,28 @@ import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 function makeDeps(isReading = () => false) {
 	const splitBlock = vi.fn();
 	const deleteBlock = vi.fn();
+	const insertParagraph = vi.fn();
 	const moveFocus = vi.fn();
 	const stickyColumn = createStickyColumnState();
 	const edgeAffinity = createEdgeAffinityState();
 	const deps: WholeBlockKeyDeps = {
 		getIndex: () => 2,
 		getRaw: () => '---\n',
-		blockEdit: { splitBlock, deleteBlock },
+		blockEdit: { splitBlock, deleteBlock, insertParagraph },
 		focus: { moveFocus },
 		isReading,
 		stickyColumn,
 		edgeAffinity
 	};
-	return { deps, splitBlock, deleteBlock, moveFocus, stickyColumn, edgeAffinity };
+	return {
+		deps,
+		splitBlock,
+		deleteBlock,
+		insertParagraph,
+		moveFocus,
+		stickyColumn,
+		edgeAffinity
+	};
 }
 
 function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
@@ -92,13 +101,31 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
-	it('ignores a printable key', () => {
-		const { deps, splitBlock, deleteBlock, moveFocus } = makeDeps();
+	// Miss-analysis: this file's own printable case asserted the drop it should have questioned —
+	// every branch was pinned except the key class with no branch at all.
+	it.each(['a', 'A', ' ', 'é'])('the printable %o mints a paragraph below carrying it', (key) => {
+		const { deps, insertParagraph, splitBlock, moveFocus } = makeDeps();
+		const e = press(key, { shiftKey: key === 'A' });
+		handleWholeBlockKeys(e, deps);
+		expect(insertParagraph).toHaveBeenCalledWith(3, key);
+		expect(splitBlock).not.toHaveBeenCalled();
+		expect(moveFocus).not.toHaveBeenCalled();
+		expect(e.preventDefault).toHaveBeenCalled();
+	});
+
+	it('the printable mint gates on reading mode but still consumes the key', () => {
+		const { deps, insertParagraph } = makeDeps(() => true);
 		const e = press('a');
 		handleWholeBlockKeys(e, deps);
-		expect(splitBlock).not.toHaveBeenCalled();
-		expect(deleteBlock).not.toHaveBeenCalled();
-		expect(moveFocus).not.toHaveBeenCalled();
+		expect(insertParagraph).not.toHaveBeenCalled();
+		expect(e.preventDefault).toHaveBeenCalled();
+	});
+
+	it('leaves a chorded character to the caller', () => {
+		const { deps, insertParagraph } = makeDeps();
+		const e = press('b', { altKey: true });
+		handleWholeBlockKeys(e, deps);
+		expect(insertParagraph).not.toHaveBeenCalled();
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 });

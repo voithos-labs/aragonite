@@ -25,6 +25,7 @@ import {
 	type GlobalCommandContext
 } from '../schema/commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
+import { isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { StickyColumnState } from '../cursor/sticky-column';
@@ -133,7 +134,7 @@ export function focusAcrossBlockEdge(key: string, deps: BlockEdgeExitDeps): bool
 
 export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	getRaw: () => string;
-	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock'>;
+	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock' | 'insertParagraph'>;
 	isReading: () => boolean;
 	stickyColumn: Pick<StickyColumnState, 'noteKey'>;
 	edgeAffinity: Pick<EdgeAffinityState, 'note'>;
@@ -167,6 +168,15 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 	if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'x')) {
 		e.preventDefault();
 		void copyFocusedWholeBlock(deps, e.key === 'x');
+		return;
+	}
+
+	// A typed character has nowhere to land on a block that IS its own focus target, so it mints
+	// the paragraph below carrying it — the gap caret's printable mint (`selection/gap-caret.ts`),
+	// one commit and one caret landing. Shift is untouched: it is how capitals arrive.
+	if (isCharacterKey(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+		e.preventDefault();
+		if (!deps.isReading()) void deps.blockEdit.insertParagraph(deps.getIndex() + 1, e.key);
 		return;
 	}
 

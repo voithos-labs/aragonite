@@ -20,6 +20,8 @@ paragraph `tail text` — so the block has an editable neighbor on each side.
   `Above text` mirrors
 - Enter while the block is focused inserts an empty paragraph below with the caret in it; the
   diagram's source is unchanged and the document round-trips
+- A typed character while the block is focused mints that same paragraph below carrying the
+  character, caret after it — the container-factory pin for the shared printable-mint tail
 - Alt+ArrowDown reorders the mermaid block below its next sibling; Alt+ArrowUp moves it back
 - Mod+C while the block is focused copies its ` ```mermaid ` markdown; the document is
   unchanged (the container-factory pin for the shared whole-block copy tail)

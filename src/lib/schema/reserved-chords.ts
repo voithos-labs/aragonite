@@ -172,7 +172,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'c',
 			'x'
 		],
-		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here.'
+		note: 'Whole-block copy/cut: a keydown carries no ClipboardEvent, so the chord is read here. The unchorded printable mints a paragraph below, so the same modifier reads gate that branch too.'
 	},
 	{
 		file: 'editor-actions/plugin/container.ts',
