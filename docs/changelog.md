@@ -8,10 +8,13 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   produce an empty invisible line, and the next character landed in front of the marker instead
   of after it (`a#` for a typed `#` then `a`); three backticks made an empty invisible box no
   language could be typed into, and a document loaded with either painted a ghost block. Chrome
-  now hides only while it stands over content: an empty heading, an empty fence and a link with
-  no text show their markers dimmed, exactly as source mode shows them, and every keystroke
-  against them behaves as it does there. The first content character folds the chrome away again.
-  Table cells follow the same rule; the preview rungs take it too, and reading mode is unchanged.
+  now hides only while it stands over content: an empty heading, an empty fence and a paragraph
+  holding nothing but a link with no text show their markers dimmed, exactly as source mode shows
+  them, so the caret has somewhere to land and the next character lands after the marker rather
+  than in front of it. Destructive keys still follow the mode, not the paint — Backspace at the
+  very start of a painted `# ` drops the construct where source mode does nothing. The first
+  content character folds the chrome away again. Table cells follow the same rule; the preview
+  rungs take it too, and reading mode is unchanged.
 
 - **Footnote definitions continue lazily, as on GitHub.** An unindented non-blank line after a
   definition now stays in its open body paragraph — matching cmark-gfm's lazy continuation — where
@@ -24,23 +27,24 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   licenses; the notices themselves (the commonmark.js emphasis port, the gemoji table, the WHATWG
   entities table) are unchanged and still ship in the npm tarball.
 
-- **Fully live mode.** `presentationMode="live"` hides every Markdown marker and leaves the
-  document directly editable — `**bold**` reads as bold with the caret inside it, a heading never
-  shows its `## `, a link shows its text alone — with typing, selection, Enter, Backspace, undo,
-  search, tables and plugins all working as they do in styled source. Hiding the delimiters makes
-  one screen position name two byte positions, so the mode answers that where it arises: a byte
-  typed at a construct's edge lands on the side the caret arrived from, `Home`/`End`/collapsing a
-  selection seat it outside the delimiters, Enter inside a construct closes and reopens it instead
-  of stranding half a pair, and every join — Backspace, Delete, range delete, type-over, paste —
-  drops the runs its cut orphaned rather than surfacing bytes the reader never saw. A rewrite that
-  cannot be verified against what the two sides showed falls back to the literal bytes, so the
-  round-trip is never traded for the effect. The format toggles (`Mod+B`, `Mod+I`, `Mod+Shift+X`,
-  `Mod+E`) arm at a collapsed caret and apply to the next insertion, and `Mod+K` with the caret in
-  a link opens the **link card** — the only way to read or rewrite a destination the mode paints
-  nowhere; a click on a link opens the same card beside a caret that stays the document's. Over a
-  plain-text selection, `Mod+K` creates instead: the card opens empty over the range, Enter mints
-  `[selection](url)` as a single undo step, and Escape leaves the document byte-identical with the
-  selection restored. The demo's mode switcher gains the rung.
+- **Fully live mode.** `presentationMode="live"` hides every Markdown marker standing over content
+  and leaves the document directly editable — `**bold**` reads as bold with the caret inside it, a
+  heading with a word behind it shows no `## `, a link shows its text alone — with typing,
+  selection, Enter, Backspace, undo, search, tables and plugins all working as they do in styled
+  source. Hiding the delimiters makes one screen position name two byte positions, so the mode
+  answers that where it arises: a byte typed at a construct's edge lands on the side the caret
+  arrived from, `Home`/`End`/collapsing a selection seat it outside the delimiters, Enter inside a
+  construct closes and reopens it instead of stranding half a pair, and every join — Backspace,
+  Delete, range delete, type-over, paste — drops the runs its cut orphaned rather than surfacing
+  bytes the reader never saw. A rewrite that cannot be verified against what the two sides showed
+  falls back to the literal bytes, so the round-trip is never traded for the effect. The format
+  toggles (`Mod+B`, `Mod+I`, `Mod+Shift+X`, `Mod+E`) arm at a collapsed caret and apply to the next
+  insertion, and `Mod+K` with the caret in a link opens the **link card** — the only way to read or
+  rewrite a destination the mode paints nowhere; a click on a link opens the same card beside a
+  caret that stays the document's. Over a plain-text selection, `Mod+K` creates instead: the card
+  opens empty over the range, Enter mints `[selection](url)` as a single undo step, and Escape
+  leaves the document byte-identical with the selection restored. The demo's mode switcher gains
+  the rung.
 
 - **The caret survives a presentation-mode flip.** Flipping rungs used to drop the caret
   entirely, on every rung, forcing a re-click before typing. The editor now captures the

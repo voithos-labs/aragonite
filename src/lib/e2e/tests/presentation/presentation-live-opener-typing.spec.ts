@@ -4,8 +4,9 @@ import type { Page } from '@playwright/test';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
 
 // A block whose only bytes are its own chrome has nothing to stand behind it, so the chrome
-// paints and every edit against it behaves as source mode's does. The oracles are the source
-// bytes (which side a typed byte landed on) and the marker's computed display.
+// paints: a caret can land on it and a typed byte seats after it. The destructive keys still
+// follow the mode. The oracles are the source bytes (which side a typed byte landed on) and the
+// marker's computed display.
 // Requirements: e2e/requirements/presentation/presentation-live-opener-typing.md.
 
 const OPENER = 0;
@@ -107,8 +108,9 @@ test.describe('live mode — a typed block opener paints until it has content', 
 		await expect(markerOf(ep, TYPED)).toHaveCSS('display', 'inline');
 	});
 
-	// The other end of the same press: raw 0 is reachable once the chrome paints, and there the
-	// kind's own claim still runs — one press drops the construct rather than merging upward.
+	// The other end of the same press: raw 0 is reachable once the chrome paints, and there one
+	// press drops the construct rather than merging upward — a live-only outcome, since source
+	// mode at raw 0 is a dead key today.
 	test('Backspace at the start of a painted `# ` drops the construct in one press', async ({
 		page
 	}) => {

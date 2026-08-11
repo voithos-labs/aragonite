@@ -2,8 +2,9 @@
 
 A block whose only bytes are its own chrome has nothing to stand behind that chrome, so the chrome
 paints: `live` and both `preview-*` rungs show a content-empty construct's markers dimmed, exactly
-as source mode shows them, and every edit against them behaves as source mode's does. `reading` is
-unchanged — it takes no keystrokes, so an empty construct there is still allowed to paint nothing.
+as source mode shows them, so a caret can land on them and a typed byte seats after them. The
+destructive keys still follow the mode rather than the paint. `reading` is unchanged — it takes no
+keystrokes, so an empty construct there is still allowed to paint nothing.
 
 ## Typed openers (live)
 
@@ -23,7 +24,7 @@ unchanged — it takes no keystrokes, so an empty construct there is still allow
 ## Destructive parity
 
 - Backspace inside a painted `# ` takes the marker byte as source mode would, and does not demote the block: the demote arm reads the walk's landable bound, which now reflects paint.
-- Backspace at the START of a painted `# ` (raw 0, reachable only because the chrome paints) drops the whole construct in one undoable press, the same claim the kind makes at a non-empty heading's content start.
+- Backspace at the START of a painted `# ` (raw 0, reachable only because the chrome paints) drops the whole construct in one undoable press — where source mode at raw 0 is a dead key today, so this press is a live-only outcome the paint made reachable, not source parity.
 
 ## Miss-analysis
 
