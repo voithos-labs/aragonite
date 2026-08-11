@@ -116,6 +116,13 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   `gapEdges` on its kind (the bundled math block, math fence and mermaid diagram do), and the
   insert reaches the event seam as a new `insertBlock` op.
 
+- **A paragraph can now be typed between two adjacent callouts.** The opaque container tier
+  (the callout kinds, `<details>`, and the generic `:::` directive container) declares both of
+  its edges to the between-blocks caret, so the boundary two of them share (callout above
+  callout, details above callout) parks the caret on an arrow crossing or a dead-space click,
+  and typing there mints a paragraph in one undoable step. Blockquotes, lists and GitHub alerts
+  are unchanged: their boundaries already have escape gestures, so no gap opens there.
+
 - **The editor now answers which keyboard chords it consumes.** `editor.reservedChords()` returns
   the modifier chords this instance claims and `editor.claimsChord(event)` answers for one
   keystroke, using the editor's own normalization — so an app registering accelerators no longer

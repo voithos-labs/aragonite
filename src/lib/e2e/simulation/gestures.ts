@@ -309,8 +309,12 @@ export class Gestures {
 	 * commit path no other gesture reaches, since the boundary belongs to no block's surface.
 	 * Empty `text` presses Enter. Leaves the caret mid-document — a note's LAST gesture.
 	 */
-	mintAtGap(boundaryIndex: number, text: string): Promise<void> {
-		return mintAtGap(this.ctx, boundaryIndex, text);
+	mintAtGap(
+		boundaryIndex: number,
+		text: string,
+		options?: { arrival?: 'backspace' | 'arrow-up' }
+	): Promise<void> {
+		return mintAtGap(this.ctx, boundaryIndex, text, options);
 	}
 
 	insertImage(alt: string, url: string): Promise<void> {

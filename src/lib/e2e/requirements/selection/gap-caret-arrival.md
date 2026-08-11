@@ -54,8 +54,10 @@ paint and the non-mint ways out are `gap-caret-surface.md`.
   the between-two-bands rule is for.
 - Entering a container from outside lands its deepest leaf as before and does not visit a
   nested scope-end gap; only a move that starts inside the scope sees it.
-- Container kinds (blockquote, list, details, admonitions) declare no edges, so a
-  container beside a container still has no insertion point.
+- Strip containers (blockquote, list, githubAlert) declare no edges — their unwrap/exit
+  gestures own insertion. Opaque containers (callouts, details, the generic directive)
+  declare both (#93); those boundaries are pinned in
+  `plugins/gap-caret-opaque-containers.md`.
 - The root's trailing boundary is deliberately excluded: the move-past-end append owns it.
 
 ## Miss analysis
