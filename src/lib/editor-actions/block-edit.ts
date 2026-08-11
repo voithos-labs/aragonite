@@ -66,7 +66,13 @@ export function createBlockEditActions(
 
 			// The structural path's live mutation runs inside the ceremony, so a
 			// multi-block splice never touches the live children array out-of-commit.
-			const preview = previewContentReparse(deps.doc.children[blockIndex], text, deps.grammar);
+			const preview = previewContentReparse(
+				deps.doc.children[blockIndex],
+				text,
+				deps.grammar,
+				undefined,
+				blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : ''
+			);
 
 			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
@@ -76,11 +82,22 @@ export function createBlockEditActions(
 					eventTarget: blockIndex,
 					op: { kind: 'updateContent', detail: { length: text.length } },
 					// ownerKind undefined is the ANSWER, not an omission: the document root
-					// imposes no body grammar.
+					// imposes no body grammar. The suffix rides as accessors so the tail
+					// settle folds against the live document (GH #129).
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
 						change = performUpdate(
-							{ children: view.children, ownerKind: undefined, owner: undefined },
+							{
+								children: view.children,
+								ownerKind: undefined,
+								owner: undefined,
+								get suffix() {
+									return deps.doc.suffix;
+								},
+								set suffix(value: string) {
+									deps.doc.suffix = value;
+								}
+							},
 							blockIndex,
 							text,
 							deps.grammar,
@@ -97,8 +114,16 @@ export function createBlockEditActions(
 			// Routine typing: an out-of-ceremony in-place write, so copy the node first
 			// when a snapshot shares it. The debounced snapshot above holds the undo seam.
 			// `sharing` also owns the separator settle, which writes a SIBLING's bytes.
+			// Slotless parent on purpose: the preview already routed every suffix
+			// materialization into the ceremony, and no slot means none can happen here.
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
-			performUpdate(deps.doc, blockIndex, text, deps.grammar, deps.sharing);
+			performUpdate(
+				{ children: deps.doc.children, ownerKind: undefined, owner: undefined },
+				blockIndex,
+				text,
+				deps.grammar,
+				deps.sharing
+			);
 		}
 	};
 }

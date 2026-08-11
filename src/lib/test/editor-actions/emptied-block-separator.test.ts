@@ -72,3 +72,20 @@ describe('emptying a block inside a container', () => {
 		expectParseConverged(h.deps.doc);
 	});
 });
+
+// GH #129 at the bundle: blanking the tail must materialize the parse-folded suffix line,
+// which is structural, so the routine-typing preview has to promote it into the ceremony
+// and blockIds must grow with the tree.
+describe('emptying the tail block of a suffix-folded document', () => {
+	it('materializes the folded line structurally and keeps blockIds in step', async () => {
+		const h = makeTop('alpha\n\n');
+		h.doc.suffix = parse('alpha\n\n').suffix;
+
+		await h.actions.updateBlockContent(0, '\n');
+
+		expect(serialize(h.deps.doc)).toBe('\n\n');
+		expect(h.deps.doc.children).toHaveLength(2);
+		expect(h.getBlockIds()).toHaveLength(2);
+		expectParseConverged(h.deps.doc);
+	});
+});

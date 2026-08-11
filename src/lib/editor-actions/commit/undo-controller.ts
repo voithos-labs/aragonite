@@ -224,14 +224,17 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		// Wholesale restore, not a pop: the push may evict the oldest at cap.
 		const savedStacks = args.snapshot !== 'skip' ? deps.undoManager.getStacks() : null;
 		// The container branch mutates the live tree in place; the document branch
-		// publishes only on success, so it has nothing to restore.
+		// publishes children only on success, but its tail settle can spend the live
+		// document's suffix (GH #129), so that register restores in both branches.
 		const savedDocChildren = args.kind === 'container' ? [...deps.doc.children] : null;
+		const savedDocSuffix = deps.doc.suffix;
 		return {
 			restore() {
 				// Top-down: stacks, top-level array, then the thunk for the in-place splices
 				// the array swap can't reach.
 				if (savedStacks) deps.undoManager.restoreStacks(savedStacks);
 				if (savedDocChildren) deps.doc.children = savedDocChildren;
+				deps.doc.suffix = savedDocSuffix;
 				if (args.kind === 'container') args.rollback?.();
 			}
 		};
