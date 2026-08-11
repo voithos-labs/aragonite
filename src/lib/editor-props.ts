@@ -76,10 +76,11 @@ export interface EditorInstance {
 	setSelection(selection: EditorSelection): Promise<boolean>;
 	/**
 	 * Land the caret at a viewport point exactly as a click there would: the point clamps into the
-	 * nearest block's box, the block under it resolves the landing, and a live cross-block range
-	 * ends first. For a shell owning chrome beside the document, which decides whether a click on
-	 * its own territory reaches here at all. False when no focusable landing resolves. Points
-	 * resolve against MOUNTED blocks, so one below the document lands in the last rendered block.
+	 * nearest block's box, the block under it resolves the landing, a live cross-block range ends
+	 * first. For a shell owning chrome beside the document: the shell decides whether a click on
+	 * its own territory comes here, the editor decides where the caret goes. False when no
+	 * focusable landing resolves. Points resolve against MOUNTED blocks, so one below the document
+	 * lands in the last rendered block.
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	getEvents(): EditorEvents;
