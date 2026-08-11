@@ -12,7 +12,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   in the first body cell. It is one undoable step, and one undo restores the row exactly as typed
   with the caret back at its end. The leading pipe is what asks for it, so ordinary prose carrying
   a pipe (`ls | grep foo`) still splits normally, as does a row the table grammar would reject
-  (`|a|`). It works inside blockquotes and list items too, and in every editable mode.
+  (`|a|`). It works inside blockquotes too, and in every editable mode.
 
 - **A code block's language is reachable in the modes that hide its fence.** Once a fenced block
   had a line of body, `reading`, the `preview-*` rungs and `live` painted no fence and no caret
