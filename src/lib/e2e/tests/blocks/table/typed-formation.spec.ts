@@ -102,6 +102,8 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals(COMPLETED);
 	});
 
+	// Both rows leave the shape any tail-block split leaves (`plain\n` + Enter is byte-identical),
+	// so the pair pins "the completion did not fire" rather than a shape of its own.
 	test.describe('rows the completion declines', () => {
 		test('a single-cell row falls through to the ordinary split', async ({ page }) => {
 			await typeRowAndEnter(editor, page, '|a|');
@@ -118,7 +120,26 @@ test.describe('table block: typed formation', () => {
 
 			await editor.bridge.waitForBlockCount(2);
 			await editor.bridge.waitForSourceEquals('a | b\n\n\n');
+			expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 		});
+	});
+
+	// The container scope resolves the caret through its OWN ref array, so the landing is a
+	// different code path from the top-level one every case above rides.
+	test('a row typed inside a blockquote completes and lands the caret in its body cell', async ({
+		page
+	}) => {
+		await editor.loadContent('> \n');
+		await editor.clickBlock(0);
+		await page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		await editor.typeSlowly('| a | b |');
+		await editor.bridge.waitForSourceContains('> | a | b |');
+		await page.keyboard.press('Enter');
+
+		await editor.bridge.waitForSourceEquals('> | a | b |\n> | --- | --- |\n> |  |  |\n');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceEquals('> | a | b |\n> | --- | --- |\n> | Z |  |\n');
 	});
 
 	test('an escaped pipe stays cell content, so the row completes with two columns', async ({
