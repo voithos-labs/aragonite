@@ -88,8 +88,8 @@ test.describe('selected image-widget copy/cut', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('lead\n\nREPLACED\n\ntail');
 	});
 
-	// The contrast that says the body route is what was missing, not the widget arm: with prose
-	// beside the image a caret survives the selection, so the event reaches the block directly.
+	// The contrast that isolates the body route from the widget arm: with prose beside the image
+	// a caret survives the selection, so the event reaches the block directly.
 	test('image beside prose keeps reaching the block’s own handlers', async () => {
 		await open(BESIDE_PROSE);
 		const before = await editor.bridge.getSource();

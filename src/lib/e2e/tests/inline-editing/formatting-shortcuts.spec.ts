@@ -59,7 +59,7 @@ test.describe('inline editing — formatting shortcuts', () => {
 		expect(source).not.toContain('*');
 	});
 
-	// Regression: selecting inner word of `**word**` and pressing Ctrl+B used to double-wrap to `****word****`.
+	// Regression: Ctrl+B on the inner word of `**word**` must strip, not reach `****word****`.
 	test('Ctrl+B on word flanked by markers strips them rather than double-wrapping', async () => {
 		await editor.loadContent('Hello **world** today\n');
 		await editor.focusBlock(0, 8);

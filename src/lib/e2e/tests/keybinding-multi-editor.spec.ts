@@ -51,8 +51,8 @@ test.describe('multi-editor document-chord containment', () => {
 		await expect.poll(() => activeEditorIndex(page)).toBe(0);
 		await page.keyboard.press('Control+f');
 
-		// Exactly one bar opens, and it belongs to the focused (left) editor —
-		// pre-fix the search arm ignored focus, so both editors opened their bars.
+		// Exactly one bar opens, and it belongs to the focused (left) editor: a search arm that
+		// ignores focus opens both.
 		await expect(page.locator('.search-bar')).toHaveCount(1);
 		await expect(left.locator('.search-bar')).toHaveCount(1);
 	});
@@ -122,8 +122,8 @@ test.describe('single-editor document-chord claim', () => {
 		await page.keyboard.press(`${primaryModifier}+f`);
 		await page.waitForTimeout(150); // absence check — no shape to poll for
 
-		// No Find bar opens, and focus stays in the consumer's field (pre-fix the sole
-		// editor claimed unconditionally, opened its bar, and stole focus into it).
+		// No Find bar opens, and focus stays in the consumer's field: a sole editor claiming
+		// unconditionally opens its bar and steals focus into it.
 		await expect(page.locator('.search-bar')).toHaveCount(0);
 		await expect(foreign).toBeFocused();
 	});

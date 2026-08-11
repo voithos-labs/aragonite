@@ -113,9 +113,8 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.keyboard.press('Control+v');
 
 		// The text/plain payload lands verbatim — its newline re-splits the second line off as a
-		// paragraph, so the document carries `a\nb`. Pre-fix the leaf bound no onpaste: the native
-		// paste dropped the HTML markup live into the block and the per-keystroke commit joined the
-		// lines to `ab`.
+		// paragraph, so the document carries `a\nb`. Without the leaf's own onpaste the native
+		// paste drops HTML markup into the block and the per-keystroke commit joins the lines.
 		await editor.bridge.waitForSourceContains('%% memo texta\nb');
 		const html = await page.evaluate(() => document.querySelector('.memo-block')?.innerHTML ?? '');
 		expect(html).not.toContain('<b>');
@@ -133,8 +132,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.keyboard.press('Control+c');
 
 		// The memo (leaf) is the focused anchor: its copy handler must reach the shared cross-block
-		// collector, which reads the memo's own raw. Pre-fix the leaf bound no oncopy, so the
-		// clipboard kept the sentinel.
+		// collector, which reads the memo's own raw. Without one the clipboard keeps the sentinel.
 		await expect.poll(() => readClipboard(page)).toContain('memo text');
 	});
 
@@ -149,9 +147,8 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));
 		await page.keyboard.press('Control+x');
 
-		// The leaf's cut handler writes the cross-block payload and deletes the swept range.
-		// Pre-fix Ctrl+X reached no handler: the clipboard kept the sentinel and nothing was
-		// removed.
+		// The leaf's cut handler writes the cross-block payload and deletes the swept range; with
+		// no handler reached, the clipboard keeps the sentinel and nothing is removed.
 		await expect.poll(() => readClipboard(page)).toContain('memo text');
 		await editor.waitForCrossBlock(false);
 		expect(await roundTripStable(page)).toBe(true);
@@ -168,8 +165,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.keyboard.press('Control+v');
 
 		// The leaf's paste handler routes the swept range through the cross-block delete + paste,
-		// so the selection collapses and the text lands. Pre-fix Ctrl+V never reached that handler,
-		// so the cross-block state stayed stuck.
+		// so the selection collapses and the text lands; unreached, the cross-block state sticks.
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains('INSERTED');
 		expect(await roundTripStable(page)).toBe(true);

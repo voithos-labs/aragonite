@@ -92,8 +92,8 @@ describe('SelectionState.isCustomRendered', () => {
 		expect(s.isCustomRendered).toBe(true);
 	});
 
-	// Deep row/cell paths can no longer be stored: the state normalizes them to the table block
-	// plus a row-major cell index on entry, so a pair addressing one cell collapses.
+	// Deep row/cell paths are unstorable: the state normalizes them to the table block plus a
+	// row-major cell index on entry, so a pair addressing one cell collapses.
 	for (const path of [
 		[0, 0],
 		[0, 0, 0]

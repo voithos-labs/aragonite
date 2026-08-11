@@ -6,9 +6,9 @@ import { DetailsPage, bodyHostCount, capturedErrors } from './details-helpers';
 /**
  * Reveal into a collapsed container expands it (requirements/plugins/details-reveal-expand.md).
  * A collapsed `<details>` clamps its window to the summary row, so a reveal aimed at a body child
- * used to find its target outside the live window and return — a dead toc click. The seam now
- * opens the kind's expand door first and commits it; this gate proves expand → mount → scroll
- * compose on the real path, as one undo entry. Reading-mode floor: details-reveal.spec.ts.
+ * finds its target outside the live window and returns — a dead toc click — unless the seam opens
+ * the kind's expand door first. This gate proves expand → mount → scroll compose on the real path,
+ * as one undo entry. Reading-mode floor: details-reveal.spec.ts.
  */
 
 // Capped viewport → the editor is a real scroll container, so the collapsed section and

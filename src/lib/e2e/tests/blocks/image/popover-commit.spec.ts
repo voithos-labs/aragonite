@@ -48,8 +48,8 @@ test.describe('image popover commit', () => {
 		await editor.bridge.waitForSourceContains('?v=nested');
 	});
 
-	// The 0.9.36 stale-draft class: an open surface holds a copy of bytes the document can move
-	// past, and its dismiss commit puts them back over the change.
+	// The stale-draft class: an open surface holds a copy of bytes the document can move past,
+	// and its dismiss commit would put them back over the change.
 	test('an undo taken while the popover is open re-seeds it, so the dismiss commits nothing stale', async ({
 		page
 	}) => {

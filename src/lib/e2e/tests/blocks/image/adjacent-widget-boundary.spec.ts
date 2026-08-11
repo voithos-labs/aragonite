@@ -4,9 +4,8 @@ import { waitForFirstImageLoaded } from './helpers';
 
 /**
  * Two flush image widgets share a boundary (A.end === B.start) with no text node, so the caret is
- * the synthetic snap-after-A indicator and caret-edge dispatch must resolve it by key direction.
- * Pre-fix the document-order pick always returned A. Direction resolution:
- * widget-adjacency.test.ts.
+ * the synthetic snap-after-A indicator and caret-edge dispatch must resolve it by key direction —
+ * a document-order pick always answers A. Direction resolution: widget-adjacency.test.ts.
  */
 
 const TWO_IMAGES = '![a](/test-fixtures/sample.png)![b](/test-fixtures/sample.png)\n';

@@ -65,14 +65,14 @@ describe('toggleInlineFormat', () => {
 			{ display: raw, content: whole(raw), selection: { start: 0, end: 11 } },
 			'strong'
 		);
-		// the old strip-the-outer-pair path produced the orphaned `a** **b`
+		// Stripping the outer pair alone orphans the markers as `a** **b`.
 		expect(r.newDisplay).not.toBe('a** **b');
 		const parsed = parseInline(r.newDisplay, 0, r.newDisplay.length);
 		expect(leafText(parsed)).toBe('a b');
 	});
 
 	// The flanking single `*` inside `**word**` belong to a STRONG construct, so toggling emphasis
-	// must nest, not strip: the old flank check was construct-blind and destroyed the bold.
+	// must nest, not strip: a construct-blind flank check destroys the bold.
 	it('nests emphasis inside a strong construct instead of stripping its markers', () => {
 		const raw = '**word**';
 		const r = toggleInlineFormat(

@@ -100,8 +100,8 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		'oxygen is released',
 		'chloroplast diagram'
 	],
-	// Enter separates (0.9.36): each heading typed on its own line stands one blank line above
-	// what follows, and the break's own Enter is the blank below it.
+	// Enter separates: each heading typed on its own line stands one blank line above what
+	// follows, and the break's own Enter is the blank below it.
 	expectedMarkdown:
 		'# Cell Division and Photosynthesis\n' +
 		'\n' +

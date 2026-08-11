@@ -133,7 +133,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		expect(source.indexOf('After')).toBeGreaterThan(source.indexOf('First'));
 	});
 
-	// Regression: trailing mismatched-type nested list used to vanish on exit.
+	// Regression: a trailing mismatched-type nested list must survive the exit, not vanish.
 	test('Enter on empty item with mismatched-type nested list lifts the sub-list', async () => {
 		await editor.loadContent('- Item\n  1. NestedOrdered\n');
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Item' }).first();
@@ -150,7 +150,7 @@ test.describe('list Enter — exit list on empty item', () => {
 		expect(source).not.toMatch(/^ {2,}1\. NestedOrdered$/m);
 	});
 
-	// Regression: non-list trailing children in loose items used to be dropped.
+	// Regression: non-list trailing children of a loose item must be lifted, not dropped.
 	test('Enter on emptied loose item lifts trailing paragraph as top-level block', async () => {
 		await editor.loadContent('- First\n\n  second\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'First' });

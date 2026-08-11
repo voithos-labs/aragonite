@@ -31,8 +31,7 @@ test.describe('code block — closed-fence Enter-exit lands in-container', () =>
 		await editor.waitForBlockHostCount(3); // quote + fence + minted paragraph
 
 		// The paragraph landed INSIDE the quote: one top-level block holding [fence, paragraph].
-		// Pre-fix this delegated upward and appended at root (top-level count 2, quote still one
-		// child).
+		// Delegating upward would append at root — top-level count 2, quote still one child.
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await quoteChildCount(editor)).toBe(2);
 	});

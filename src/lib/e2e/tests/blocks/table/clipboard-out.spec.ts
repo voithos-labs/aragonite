@@ -31,7 +31,7 @@ test.describe('table block: clipboard out', () => {
 		await page.locator('[role="cell"]').nth(2).click(); // "a<br>b"
 		await page.keyboard.press('Control+a'); // stage-1 select-all selects the cell content
 		await page.keyboard.press('Control+c');
-		// Before the fix the browser default copied rendered textContent ("ab").
+		// The browser default would copy rendered textContent ("ab"), losing the `<br>` source.
 		await expect.poll(() => readClipboard(page)).toBe('a<br>b');
 	});
 

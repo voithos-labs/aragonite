@@ -36,7 +36,7 @@ test.describe('public caret doors with a cross-block range live', () => {
 	});
 
 	// The caret lands at a path INSIDE the live range, so a pass cannot come from the position
-	// happening to fall outside it — the shape two whole-document deletes shipped through.
+	// happening to fall outside it — the shape a whole-document delete slips through.
 	test('BlockComponent.focus ends the range, so the next keystroke replaces nothing', async () => {
 		const placed = await editor.page.evaluate(() =>
 			(

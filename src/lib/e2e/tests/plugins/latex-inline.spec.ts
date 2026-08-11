@@ -168,7 +168,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
 		// End carries the caret out of the source, which is what folds an edited reveal.
-		// Enter no longer commits — it is the block's split key (latex-inline-reveal-commands).
+		// Enter does not commit — it is the block's split key (latex-inline-reveal-commands).
 		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);

@@ -40,8 +40,8 @@ describe('collectCrossBlockText — sole-child strip-container prefix recovery',
 				{ path: c.leaf, offset: 2 },
 				{ path: [1], offset: 3 }
 			);
-			// Pre-fix (githubAlert, footnote-def): the marker recovery returned null, so the
-			// slice began "pha…" with the wrapper gone.
+			// The wrapper is the load-bearing half: a null marker recovery leaves the slice
+			// starting at "pha…" with nothing in front of it.
 			expect(text.startsWith(c.prefix + 'pha')).toBe(true);
 		});
 	}

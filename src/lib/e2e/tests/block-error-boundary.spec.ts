@@ -49,8 +49,8 @@ test.describe('per-block error boundary', () => {
 		await editor.undo();
 		await editor.waitForRenderFlush();
 
-		// Pre-fix the boundary stayed on the fallback for the life of the instance;
-		// reset-on-heal retries the render now that the bytes round-trip again.
+		// Reset-on-heal retries the render once the bytes round-trip again, rather than holding
+		// the fallback for the life of the instance.
 		await expect(page.locator('[data-failed-block]')).toHaveCount(0);
 		await expect(editor.getBlock(1)).toContainText('beta');
 		await expect(editor.getBlock(1)).toHaveAttribute('contenteditable', 'true');

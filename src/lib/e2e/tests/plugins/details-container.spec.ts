@@ -242,8 +242,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		//
 		// KEEP THE OFFSET. This assertion is the ONLY guard on the commit doors' caret mapping: the
 		// landing goes through `refAt(i)?.focus`, and a unit pin would need jsdom plus mounted
-		// refs. Weakened to a path check it guards nothing — the shipped bug it caught landed the
-		// caret three units inside the word.
+		// refs. Weakened to a path check it guards nothing — a caret three units into the word
+		// passes it.
 		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
 		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);

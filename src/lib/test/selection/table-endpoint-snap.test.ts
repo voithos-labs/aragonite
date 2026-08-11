@@ -34,7 +34,7 @@ describe('cellEndpointDeepPath', () => {
 	});
 
 	// The intra-table rectangle's focus is unflagged by the same-path convention but its offset is
-	// still a cell index; gating on the flag left every forward-extended rectangle resolving no cell.
+	// still a cell index; gating on the flag resolves no cell for a forward-extended rectangle.
 	it('expands an unflagged point on a table path — the intra-table convention', () => {
 		expect(cellEndpointDeepPath(doc, { path: [2], offset: 5 })).toEqual([2, 2, 1]);
 	});
@@ -44,8 +44,8 @@ describe('cellEndpointDeepPath', () => {
 		expect(cellEndpointDeepPath(doc, { path: [2, 1, 0], offset: 0 })).toBeNull();
 	});
 
-	// The decode used to run unchecked: offset 99 on this 2-column table produced [2, 49, 1], a path
-	// to a row that does not exist. Callers read null as "no deep path" and fall back to the table.
+	// An unchecked decode turns offset 99 on this 2-column table into [2, 49, 1], a path to a row
+	// that does not exist. Callers read null as "no deep path" and fall back to the table.
 	it('returns null when the cell index falls outside the grid', () => {
 		// 3 rows x 2 columns: 6 is the first index past the last cell.
 		const outOfGrid = [6, 99, -1].map((offset) =>

@@ -29,8 +29,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint): string
 }
 
 describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => {
-	// The survivor is the document's first line now, and a head run separates from nothing: the
-	// second blank line the delete used to leave reloaded as an empty paragraph of its own.
+	// The survivor is the document's first line now, and a head run separates from nothing: a
+	// second blank line left behind would reload as an empty paragraph of its own.
 	it('generic prose branch', () => {
 		expect(
 			run('aaa\r\n\r\nbbb\r\n\r\nccc\r\n', { path: [0], offset: 0 }, { path: [1], offset: 3 })

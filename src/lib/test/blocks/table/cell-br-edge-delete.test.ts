@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
 // A destructive key at a mid-cell `<br>` edge. The `<br>` is the one widget a cell paints with
-// no reveal source, so the caret-edge dispatch used to send it to the cell's step-over: press #1
-// hopped the caret across it, press #2 deleted a NON-adjacent byte. A cell paints no
-// widget-selection overlay, so the affordance it does have is the one-press atomic delete — and
-// each arm has its navigation twin, because arrows must keep the step-over.
+// no reveal source, so routing it to the cell's step-over hops the caret across on press #1 and
+// deletes a NON-adjacent byte on press #2. A cell paints no widget-selection overlay, so the
+// affordance it does have is the one-press atomic delete — and each arm has its navigation twin,
+// because arrows must keep the step-over.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { tick } from 'svelte';
 import { mountCell } from './mount-cell';

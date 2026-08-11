@@ -3,8 +3,8 @@ import { EditorPage } from '../../editor-page';
 import { waitForFirstImageLoaded } from '../blocks/image/helpers';
 
 // Clicks in the root's own padding and below the last block
-// (requirements/selection/dead-space-click.md). Both used to focus the root and
-// place no caret, so the click did nothing a user could see.
+// (requirements/selection/dead-space-click.md). Both must place a caret: focusing the root
+// alone does nothing a user could see.
 
 interface Box {
 	left: number;

@@ -149,8 +149,8 @@ test.describe('live-mode link card', () => {
 		await ep.bridge.waitForSourceContains('[example](https://example.com)');
 	});
 
-	// The 0.9.36 stale-draft class, on the surface that inherited its seeding shape: an open card
-	// holds a copy of the destination, and the document can move past it while it is open.
+	// The stale-draft class: an open card holds a copy of the destination, and the document can
+	// move past it while it is open.
 	test('an undo taken while the card is open re-seeds it, so Enter commits nothing stale', async ({
 		page
 	}) => {
@@ -312,8 +312,8 @@ test.describe('live-mode link card', () => {
 		await expect.poll(async () => (await ep.bridge.getSelectionPaths())?.focus).toEqual(seated);
 	});
 
-	// Narrowed from "outside every link" when the create half shipped (#119): a SELECTION now
-	// creates; a bare collapsed caret minting an empty `[](url)` stays a separate UX decision.
+	// A SELECTION creates (#119); a bare collapsed caret minting an empty `[](url)` stays a
+	// separate UX decision, so the no-op is the caret's alone.
 	test('Mod+K at a collapsed caret outside every link stays a no-op', async ({ page }) => {
 		const before = await ep.bridge.getSource();
 		await ep.clickBlock(2);

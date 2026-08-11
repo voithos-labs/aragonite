@@ -1,10 +1,9 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// Two regressions: an image nested inside a link (`[![alt][ref]][repo]`) could not be
-// click-selected or keyboard-resized because those paths walked top-level inlines only; and
-// resizing or editing a reference-style image silently rewrote it to the inline form, orphaning its
-// `[ref]:` LRD. Only an explicit url/title change may inline it.
+// An image nested inside a link (`[![alt][ref]][repo]`) is click-selectable and keyboard-resizable
+// only where the paths walk past top-level inlines, and a reference-style image keeps its `[ref]:`
+// LRD through a resize or edit — only an explicit url/title change may inline it.
 test.describe('image inside a link + reference-style images', () => {
 	let editor: EditorPage;
 
