@@ -20,16 +20,27 @@ test.describe('text editing — edge cases', () => {
 		expect(sourceAfter).toBe(sourceBefore);
 	});
 
-	test('Backspace at start of heading after heading — no merge, moves focus', async () => {
-		await editor.loadContent('# Heading A\n\n## Heading B\n');
-		const countBefore = await editor.bridge.getBlockCount();
+	// The caret is the whole outcome of the ineligible arm: source and block count cannot move,
+	// so asserting only those reads the press as dead (the shape issue #138 was filed as).
+	for (const [label, doc, landing] of [
+		['heading above heading', '# Heading A\n\n## Heading B\n', 11],
+		['prose above a prose-absorber', 'lorem\n\n# \n', 5]
+	] as const) {
+		test(`Backspace at a heading's start under ${label} — no merge, caret lands at its end`, async () => {
+			await editor.loadContent(doc);
+			const sourceBefore = await editor.bridge.getSource();
+			const countBefore = await editor.bridge.getBlockCount();
 
-		await editor.focusBlockStart(1);
-		await editor.page.keyboard.press('Backspace');
+			await editor.focusBlockStart(1);
+			await editor.page.keyboard.press('Backspace');
 
-		const countAfter = await editor.bridge.getBlockCount();
-		expect(countAfter).toBe(countBefore);
-	});
+			await expect
+				.poll(async () => await editor.bridge.getSelectionPaths())
+				.toMatchObject({ focus: { path: [0], offset: landing } });
+			expect(await editor.bridge.getBlockCount()).toBe(countBefore);
+			expect(await editor.bridge.getSource()).toBe(sourceBefore);
+		});
+	}
 
 	test('heading absorbs following paragraph on merge', async () => {
 		await editor.loadContent('# Title\n\nBody text\n');
