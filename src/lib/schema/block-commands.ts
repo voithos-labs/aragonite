@@ -176,7 +176,9 @@ function runBlockLocalCommand(
  */
 function commandIsAdmissible(id: AnyCommandId, gates: CommandGates): boolean {
 	if (isReadingMode(gates.getPresentationMode)) return false;
-	return !(SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && gates.isCrossBlockRange?.() === true);
+	// Called directly, not optionally: the field is required so a caller without it throws
+	// rather than skipping the decline, which is the whole reason it stopped being optional.
+	return !(SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && gates.isCrossBlockRange());
 }
 
 /**

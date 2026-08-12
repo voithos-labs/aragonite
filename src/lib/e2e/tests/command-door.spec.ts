@@ -104,6 +104,31 @@ test.describe('runCommand — the semantic command door', () => {
 		await expect(editor.page.locator('[data-link-card]')).toBeVisible();
 	});
 
+	test('a collapsed caret takes the toggle: the pair lands where the caret stood', async () => {
+		await editor.loadContent('Hello world\n');
+		await editor.focusBlock(0, 'Hello '.length);
+
+		expect(await run('format.toggleStrong')).toBe(true);
+		await editor.bridge.waitForSourceContains('Hello ****world');
+	});
+
+	// Live paints no delimiter, so an empty pair would be invisible garbage: the mark pends and
+	// the next insertion spends it (live-mode.md § 4.3). Consumed either way — the door's answer
+	// must not tell a toolbar button the click missed.
+	test('a collapsed caret in live mode pends the mark instead of writing a pair', async () => {
+		await editor.goto('?presentationMode=live');
+		await editor.loadContent('Hello world\n');
+		const before = await editor.bridge.getSource();
+		await editor.focusBlock(0, 'Hello '.length);
+
+		expect(await run('format.toggleStrong')).toBe(true);
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(before);
+
+		await editor.page.keyboard.type('X');
+		await editor.bridge.waitForSourceContains('**X**');
+	});
+
 	test('a table cell takes the door through its published ref slot', async () => {
 		await editor.loadContent('| a | b |\n| --- | --- |\n| 1 | 2 |\n');
 		await editor.page.locator('[role="cell"]').nth(3).click();
@@ -131,6 +156,24 @@ test.describe('runCommand — the semantic command door', () => {
 		// Nothing was pushed, so the undo walks past the decline to the document load.
 		await editor.undo();
 		expect(await editor.bridge.getSource()).toBe(before);
+	});
+
+	// The third selection mode: a gap caret focuses a proxy, not a block, so the door resolves no
+	// surface and every block-local id declines. NESTED, because a root gap's proxy resolves to no
+	// path anyway — only this one sits inside a container host the surface lookup would find.
+	test('a gap caret declines every block-local id and keeps the gap', async () => {
+		const quotedFence = 'para\n\n> quoted\n>\n> ```\n> code\n> ```\n';
+		const atQuoteEnd = { parentPath: [1], index: 2 };
+		await editor.loadContent(quotedFence);
+		await editor.focusBlockAtPath([1, 1], 'code'.length + '```\n'.length);
+		await editor.page.keyboard.press('Delete');
+		await editor.bridge.waitForGapCaret(atQuoteEnd);
+
+		for (const [commandId] of TOGGLES) expect(await run(commandId)).toBe(false);
+
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe(quotedFence);
+		expect(await editor.bridge.getGapCaret()).toEqual(atQuoteEnd);
 	});
 
 	test('an unknown id declines and mutates nothing', async () => {

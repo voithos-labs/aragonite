@@ -29,6 +29,12 @@ same range, must stay exactly as destructive as it was.
   the block handler
 - the range is built the way a user builds it — a caret, then `Mod+A` twice — so
   the cross-block selection is real and not a programmatic construction
+- a consumer `keybindings` override moves the strong toggle onto a chord the
+  keystroke swallow does not know (`Mod+Alt+G`), pressed over the same
+  whole-document range: the press reaches the block's own dispatch and the seam
+  declines it there, so no edit event fires and the source is byte-identical.
+  This is the only gesture that proves the leaf THREADS the live range flag —
+  every default chord is swallowed one layer earlier
 
 ## Error cases
 
@@ -50,3 +56,6 @@ same range, must stay exactly as destructive as it was.
   rebound format chord over a range. The decline now lives at the id-keyed dispatch
   seam every entry path crosses; the chord arm this file exercises is the keystroke
   swallow that keeps the browser's own bold off the range.
+- The seam's flag was pinned only where a hand-built context supplied it, so a leaf
+  handing the seam a constant `false` broke nothing: the rebound-chord gesture above
+  is the one route from a real keypress to the flag the leaf actually threads.
