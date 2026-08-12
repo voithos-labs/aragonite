@@ -30,9 +30,9 @@ const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/GapCaret.svelte': /if \(isReading\) return/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
 	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/,
-	// The runCommand door passes a named context rather than a literal; the mode getter is
-	// inside it.
-	'src/lib/components/Editor.svelte': /getPresentationMode: \(\) => effectiveMode/
+	// The runCommand door passes a named context rather than a literal, so the regex is
+	// anchored on that context: the file carries the same mode getter at four other seams.
+	'src/lib/components/Editor.svelte': /commandDispatchContext[^}]*getPresentationMode/
 };
 
 // Set equality trips the day a new editable surface is born — the dominant future-site
@@ -150,9 +150,15 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 		).toBe(true);
 		expect(
 			LOCAL_GATE_SITES['src/lib/components/Editor.svelte'].test(
-				'getPresentationMode: () => effectiveMode,'
+				'const commandDispatchContext = {\n\thistory,\n\tgetPresentationMode: () => effectiveMode\n};'
 			)
 		).toBe(true);
+		// The same getter at an unrelated seam does not stand in for the door's own.
+		expect(
+			LOCAL_GATE_SITES['src/lib/components/Editor.svelte'].test(
+				'const other = { getPresentationMode: () => effectiveMode };\ncommandDispatchContext;'
+			)
+		).toBe(false);
 		expect(
 			LOCAL_GATE_SITES['src/lib/components/editor-root-keydown.ts'].test(
 				'const mode = readingMode;'

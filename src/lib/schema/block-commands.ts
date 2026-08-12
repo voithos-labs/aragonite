@@ -88,21 +88,18 @@ export function __resetBlockCommandsForTests(): void {
 
 /**
  * Editor state a command's admissibility reads, whatever invoked it. Getters, never values:
- * both change under a live editor between one dispatch and the next.
+ * both change under a live editor between one dispatch and the next. `isCrossBlockRange` is
+ * required, so a new dispatch site cannot silently skip the range decline, which is the
+ * failure that made that decline chord-keyed in the first place.
  */
 export interface CommandGates {
 	getPresentationMode?: GlobalCommandContext['getPresentationMode'];
 	/** True while a cross-block range is painted. */
-	isCrossBlockRange?(): boolean;
+	isCrossBlockRange(): boolean;
 }
 
-/**
- * What leaf dispatch and the `runCommand` door both hand the seam. `isCrossBlockRange` is
- * REQUIRED here so a new dispatch site cannot silently skip the range decline, the failure
- * that made the decline chord-keyed in the first place.
- */
-export type CommandDispatchContext = GlobalCommandContext &
-	Required<Pick<CommandGates, 'isCrossBlockRange'>>;
+/** What leaf dispatch and the `runCommand` door hand the seam: the gates plus the global tier. */
+export type CommandDispatchContext = GlobalCommandContext & CommandGates;
 
 export interface KindCommandTarget {
 	kind: AnyBlockKind;
@@ -225,9 +222,9 @@ export function dispatchKeyCommand(
 export function dispatchKindCommand(
 	chord: string,
 	target: KindCommandTarget,
+	gates: CommandGates,
 	overrides?: KeybindingOverrideMap,
-	onCommandError?: CommandErrorSink,
-	gates: CommandGates = {}
+	onCommandError?: CommandErrorSink
 ): boolean {
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;

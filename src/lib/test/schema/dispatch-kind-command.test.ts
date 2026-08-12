@@ -6,6 +6,9 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode } from '$lib/core/nodes';
 
+// No cross-block range in these cases; the seam's range decline has its own suite.
+const GATES = { isCrossBlockRange: () => false };
+
 const listItemNode = (): CstNode => ({
 	kind: 'listItem',
 	leadingTrivia: '',
@@ -32,6 +35,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand, getCommandContext: () => ({ node, updateMetadata }) },
+			GATES,
 			overrides
 		);
 
@@ -49,8 +53,18 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		]);
 		const runCommand = vi.fn(() => false);
 
-		const first = dispatchKindCommand('Mod+Shift+K', { kind: 'listItem', runCommand }, overrides);
-		const second = dispatchKindCommand('Mod+Shift+K', { kind: 'listItem', runCommand }, overrides);
+		const first = dispatchKindCommand(
+			'Mod+Shift+K',
+			{ kind: 'listItem', runCommand },
+			GATES,
+			overrides
+		);
+		const second = dispatchKindCommand(
+			'Mod+Shift+K',
+			{ kind: 'listItem', runCommand },
+			GATES,
+			overrides
+		);
 
 		expect(first).toBe(false);
 		expect(second).toBe(false);
@@ -62,7 +76,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const runCommand = vi.fn(() => true);
 
 		// The built-in listItem keymap binds Tab → list.indent.
-		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand });
+		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand }, GATES);
 
 		expect(handled).toBe(true);
 		expect(runCommand).toHaveBeenCalledWith('list.indent', undefined);
@@ -70,7 +84,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 
 	it('returns false without warning when no binding resolves', () => {
 		const runCommand = vi.fn(() => false);
-		const handled = dispatchKindCommand('Mod+J', { kind: 'listItem', runCommand });
+		const handled = dispatchKindCommand('Mod+J', { kind: 'listItem', runCommand }, GATES);
 		expect(handled).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
 		expect(takeDevWarns()).toEqual([]);

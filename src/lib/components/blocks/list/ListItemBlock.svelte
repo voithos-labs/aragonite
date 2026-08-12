@@ -246,11 +246,8 @@
 			dispatchKindCommand(
 				chord,
 				{ kind: node.kind, runCommand },
-				keybindingOverrides(),
-				undefined,
-				{
-					isCrossBlockRange: () => selection?.isCrossBlock ?? false
-				}
+				{ isCrossBlockRange: () => selection?.isCrossBlock ?? false },
+				keybindingOverrides()
 			)
 		) {
 			e.preventDefault();

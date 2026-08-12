@@ -482,9 +482,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			dispatchKindCommand(
 				chord,
 				kindTarget,
+				{ getPresentationMode, isCrossBlockRange: () => selection.isCrossBlock },
 				keybindingOverrides(),
-				(report) => emitCommandError(editorEvents, report),
-				{ getPresentationMode, isCrossBlockRange: () => selection.isCrossBlock }
+				(report) => emitCommandError(editorEvents, report)
 			)
 		) {
 			e.preventDefault();
