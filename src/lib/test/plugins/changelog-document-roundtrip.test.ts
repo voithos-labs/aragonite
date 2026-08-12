@@ -11,13 +11,14 @@ import { emojiPlugin } from '$lib/plugins/emoji';
 import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 import { latexPlugin } from '$lib/plugins/latex';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
-import { CHANGELOG_DOCUMENT } from '../../../routes/changelog/changelog-content';
+import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
 
 /**
- * The `/changelog` route serves the repo's own changelog, so every release entry ships to a
- * demo route as untested content and byte-exact round-trip is the route's whole claim. A unit
- * case by necessity: the route exposes no `window.__test` bridge, and the composed document is
- * imported here rather than re-composed, so the prelude cannot drift out from under the guard.
+ * The `/changelog` route serves the repo's own changelog, one release family per document, so
+ * every release entry ships to a demo route as untested content and byte-exact round-trip is the
+ * route's whole claim. A unit case by necessity: the route exposes no `window.__test` bridge, and
+ * the composed documents are imported here rather than re-composed, so neither the prelude nor a
+ * newly added family can drift out from under the guard.
  */
 
 beforeAll(() => {
@@ -37,22 +38,34 @@ beforeAll(() => {
 
 afterAll(() => resetPluginPlatformForTests());
 
-describe('changelog document', () => {
-	// A `?raw` import resolving to nothing would round-trip vacuously, and so would a
-	// prelude the route stopped prepending.
-	it('composes the real changelog behind the route prelude', () => {
-		expect(CHANGELOG_DOCUMENT).toMatch(
-			/^<details>\n<summary>Versions<\/summary>\n\n\[\[toc\]\]\n\n<\/details>\n\n# Changelog\n/
-		);
-		expect(CHANGELOG_DOCUMENT.length).toBeGreaterThan(20_000);
+const PRELUDE = '<details>\n<summary>Versions</summary>\n\n[[toc]]\n\n</details>\n\n';
+
+describe('changelog documents', () => {
+	// A `?raw` glob resolving to nothing would round-trip vacuously, and so would a prelude the
+	// route stopped prepending.
+	it('composes every release family behind the route prelude', () => {
+		expect(CHANGELOG_FAMILIES.length).toBeGreaterThan(1);
+		for (const { id, document } of CHANGELOG_FAMILIES) {
+			expect(document.startsWith(`${PRELUDE}# Changelog ${id}\n`)).toBe(true);
+		}
+		const bytes = CHANGELOG_FAMILIES.reduce((sum, f) => sum + f.document.length, 0);
+		expect(bytes).toBeGreaterThan(20_000);
 	});
 
-	it('round-trips byte-for-byte under the changelog plugin set', () => {
-		expect(serialize(parse(CHANGELOG_DOCUMENT))).toBe(CHANGELOG_DOCUMENT);
+	// The picker orders the families, and the route seeds itself from the first.
+	it('orders the families newest first', () => {
+		const order = CHANGELOG_FAMILIES.map((f) => f.id);
+		expect(order).toEqual([...order].sort((a, b) => b.localeCompare(a, 'en', { numeric: true })));
+	});
+
+	it('round-trips every family byte-for-byte under the changelog plugin set', () => {
+		for (const { id, document } of CHANGELOG_FAMILIES) {
+			expect(serialize(parse(document)), id).toBe(document);
+		}
 	});
 
 	it('resolves the prelude to a collapsed details holding the outline', () => {
-		const [outline] = parse(CHANGELOG_DOCUMENT).children;
+		const [outline] = parse(CHANGELOG_FAMILIES[0].document).children;
 		expect(outline.kind).toBe(DETAILS);
 		// Child 0 is the summary chrome; the `[[toc]]` must have parsed as the plugin leaf
 		// inside the container rather than falling back to prose.
