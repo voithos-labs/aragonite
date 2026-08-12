@@ -94,11 +94,9 @@ const HOST_READ_NO_FALLBACK = /var\(\s*--(?:color|radius)-[a-z0-9-]+\s*\)/;
 
 describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
 	it('no host-token var() read is missing a fallback', () => {
-		const files = [
-			...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
-			{ rel: 'styles/editor.css', text: readEditorCss('styles/editor.css') }
-		];
-		const offenders = files.filter((f) => HOST_READ_NO_FALLBACK.test(f.text)).map((f) => f.rel);
+		const offenders = editorCssSurfaces()
+			.filter((f) => HOST_READ_NO_FALLBACK.test(f.text))
+			.map((f) => f.rel);
 		expect(offenders, `host-token reads missing a fallback in: ${offenders.join(', ')}`).toEqual(
 			[]
 		);
