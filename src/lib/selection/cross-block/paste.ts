@@ -26,7 +26,7 @@ import { emitClipboardError } from '../../editor-events';
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
-	e: ClipboardEvent,
+	e: ClipboardEvent | null,
 	replacement?: string
 ): Promise<boolean> {
 	if (!ctx.selection.isCrossBlock) return false;
@@ -34,13 +34,13 @@ export async function handleCrossBlockPaste(
 	ctx.stickyColumn.reset();
 	ctx.edgeAffinity.reset();
 	ctx.selection.resetSelectAllCount();
-	e.preventDefault();
+	e?.preventDefault();
 	// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
 	// clipboard read, and `??` would make that depend on callers never passing ''.
 	const pasted =
 		replacement !== undefined
 			? replacement
-			: normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+			: normalizeLineEndings(e?.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
 
 	const doc = ctx.getDoc();

@@ -79,11 +79,7 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
-	import {
-		findBlockPathForElement,
-		findCellPathForElement,
-		readBlockPath
-	} from '../selection/path-lookup';
+	import { findSurfacePathForElement, readBlockPath } from '../selection/path-lookup';
 	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { isPreviewMode } from '../presentation-mode';
@@ -419,7 +415,7 @@
 	/** Open the card on the link `el` renders, or report that nothing there is one. The caret has
 	 *  already landed from mousedown, which is the one the state snapshots. */
 	function openLinkCard(el: Element): boolean {
-		const path = findCellPathForElement(el) ?? findBlockPathForElement(el);
+		const path = findSurfacePathForElement(el);
 		if (!path) return false;
 		const block = nodeAt(doc, path);
 		if (block === null || !isBlockNode(block)) return false;
@@ -827,7 +823,7 @@
 			return null;
 		const node = sel.focusNode;
 		const el = node instanceof Element ? node : node.parentElement;
-		const path = findCellPathForElement(el) ?? findBlockPathForElement(el);
+		const path = findSurfacePathForElement(el);
 		if (!path) return null;
 		const contentEl = getBlockElByPath(path);
 		if (!contentEl?.contains(node)) return null;
@@ -1301,6 +1297,20 @@
 		return editorEl ? deadSpaceCaret.placeAtPoint(editorEl, x, y) : false;
 	}
 
+	// Routed to the focused SURFACE, the way a paste event is: everything the pipeline owes
+	// (transforms, delete-first, one undo entry, focus) lives below that seam, not here. See
+	// `editor-props.ts` for the contract.
+	export function insertMarkdown(md: string): boolean {
+		// Stated, not inherited: a root gap's proxy resolves to no block path, but a nested one
+		// sits inside its container's host, which must not receive an insertion aimed at the gap.
+		if (selectionState.gapCaret) return false;
+		const active = document.activeElement;
+		if (!(active instanceof HTMLElement) || !editorEl?.contains(active)) return false;
+		const path = findSurfacePathForElement(active);
+		if (!path) return false;
+		return getBlockComponent(path)?.insertMarkdown?.(md) ?? false;
+	}
+
 	export function getEvents(): EditorEvents {
 		return events;
 	}
@@ -1363,6 +1373,7 @@
 		getSelection,
 		setSelection,
 		placeCaretAtPoint,
+		insertMarkdown,
 		getEvents,
 		getSearch,
 		getDecorations,

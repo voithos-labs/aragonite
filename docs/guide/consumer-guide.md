@@ -24,7 +24,7 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 ## The five things to know
 
 1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It is not two-way bound.
-2. **`bind:this` is the instance surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`, `getDiagnostics()` read; `setSelection()` and `placeCaretAtPoint()` are the two that write.
+2. **`bind:this` is the instance surface** — `getSource()`, `getSelection()`, `getEvents()`, `getSearch()`, `getRects()`, `getDecorations()`, `getDiagnostics()` read; `setSelection()`, `placeCaretAtPoint()` and `insertMarkdown()` write.
 3. **Theming is CSS custom properties** on the editor's own root. Nothing lands on `:root`.
 4. **Plugins are process-global**, installed once at mount. Two editors share one grammar, never any state.
 5. **`editor.__test.*` is not part of the contract.** It is internal and will move.
@@ -78,6 +78,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
   - **`getSelection()`** — a frozen snapshot of the current selection, or `null` when nothing is focused. Path arrays are copies. Each endpoint (`SelectionPoint`) is a discriminated union: `offset` is a character index into the block, unless `cellCoordinate: true` marks it a table cell index — narrow on the flag before reading `offset` as a character offset.
   - **`setSelection(snapshot)`** — put a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)).
   - **`placeCaretAtPoint(x, y)`** — land the caret at a viewport point exactly as a click there would, and report whether one landed. For a shell that owns chrome beside the document: the shell decides whether to answer a click on its own territory, the editor decides where the caret goes — a click below the last entry lands at the document end. `false` means nothing focusable resolved and the click is still yours. Points resolve against the blocks currently rendered, so "below the document" means the last rendered block, not the last parsed one. A point can also land the caret **between** two blocks, at a boundary no block's own surface can reach: above a document that opens with a table, the answer is the document-start boundary rather than a clamp into that first block. Such a landing is real (typing there inserts a paragraph) but sits outside the public selection shape in this version, so the call returns `true` while `getSelection()` reports `null`.
+  - **`insertMarkdown(md)`** — insert Markdown at the caret exactly as pasting it would. Registered paste transforms run first, then the same strategy a paste picks: a table splices structurally, a one-line snippet splices inline at the caret offset, list items absorb into a matching list. A live selection is deleted first, the whole insertion is one undo entry, and focus lands at its end. `false`, and nothing mutates, when this editor holds no caret, in reading mode, or at a between-blocks caret. `true` means the pipeline took the text, not that the commit has flushed — read the result back on the `edit` channel. See [Recipe: an insert toolbar](#recipe-an-insert-toolbar).
   - **`getEvents()`** — the observer surface (see [Events](#events)).
   - **`getSearch()`** — the find/replace controller (see [Search](#search)).
   - **`getRects()`** — viewport-space geometry over the rendered document (see [Decorations and rects](#decorations-and-rects)).
@@ -557,12 +558,30 @@ Float a formatting bar above the user's selection — the standard use of the tw
 
 The demo route's `SelectionToolbar` component (in the repository) follows this recipe; its single-block branch still reads the native Range directly — an equivalent that predates within-block range reporting.
 
+### Recipe: an insert toolbar
+
+`insertMarkdown(md)` and `getRects()` are a toolbar: the door writes, the geometry positions. Bytes are the API, so every construct is a snippet — including one a plugin contributes, with no new call to learn.
+
+1. **Do not let the button take focus.** The door inserts at the caret, and a button that focuses on press has already destroyed it — the call returns `false`. Cancel the press default (`onmousedown={(e) => e.preventDefault()}`) so focus never leaves the document, or stash a `getSelection()` snapshot and `setSelection` it back before inserting.
+2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |
+| --- | --- |
+|  |  |
+'`; a fence button `'```lang
+
+```
+'`. There is no per-construct API, so a new kind needs no new door. (A table is also typeable: a lone header row completed with `Enter` mints the same thing — see [Keyboard shortcuts](#keyboard-shortcuts).)
+3. **Position with `getRects()`.** `caretRect()` anchors a bar to the insertion point, `blockRect(path)` to the block. Both are viewport-space snapshots; re-read on the next `selectionChange`.
+4. **Read the result on the `edit` channel**, not on the line after the call — the commit lands on the editor's own flush.
+
 ## Rewriting a document
 
 Consumers never assemble a mutation ceremony. Edits happen through the component, and every commit surfaces on the `edit` channel. How an edit is applied internally is not part of the consumer contract.
 
 Paste sits on that boundary: pasted text is parsed as authored. A _plugin_ may rewrite that text before it is parsed, through a content-keyed, paste-scoped hook (`registerPasteTransform` — see the plugin guide). Never the load path, never typing.
 
+For inserting at the caret rather than rewriting, the door is `insertMarkdown` above: it is a paste, so it carries the transforms, the undo entry and the caret landing a paste does.
+
 The consumer-side lever for rewriting a whole document — converting legacy syntax, migrating content, applying a bulk fix — is at the document level: read `getSource()`, transform the Markdown, and write the result back through the `source` prop. The replacement is one document swap, so undo history and the caret do not survive it. That is the honest shape for an import-or-convert affordance, and pretending otherwise would only hide the seam.
 
 A transformer working over `parse`'s output can lean on the composition contract: the serialized document is exactly `prefix + Σ(child.leadingTrivia + child.raw) + suffix` over the document's children. A rewrite can therefore replace individual blocks' bytes and reassemble without touching the rest.
+```

@@ -4,6 +4,16 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **A programmatic insertion door.** A consumer building a toolbar had no way to put content into
+  a document short of rewriting the whole source, which loses the caret and the undo history. The
+  editor instance now exposes `insertMarkdown(md)`: the Markdown is inserted at the caret exactly
+  as pasting it would be, minus the clipboard. Registered paste transforms run first, the same
+  strategy pick applies (a table splices structurally, a one-line snippet splices inline, list
+  items absorb into a matching list), a live selection is deleted first, and the whole insertion is
+  one undo entry with focus at its end. It returns `false` and mutates nothing where a paste would
+  do nothing: no caret in that editor, reading mode, or a between-blocks caret. Bytes are the API,
+  so a plugin kind needs no method of its own to be insertable.
+
 - **A table can be typed into existence.** A table's header and delimiter rows have to be adjacent,
   and Enter always minted a blank-line-separated block, so typing one was impossible in every
   presentation mode; a table could only arrive by paste or by load. A paragraph holding just a

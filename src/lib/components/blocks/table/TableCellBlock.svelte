@@ -445,7 +445,8 @@
 		focus,
 		parkCaret,
 		getCursorOffset,
-		focusAtColumn
+		focusAtColumn,
+		insertMarkdown
 	} satisfies BlockComponent);
 
 	$effect(() => {
@@ -825,7 +826,7 @@
 	// Copy/cut/paste through the shared skeleton. The cell's extra arms are the intra-table
 	// rectangle (copied as a GFM sub-table) and the intra-cell raw slice, which preserves
 	// widget bytes like `<br>` that the browser's rendered-textContent copy drops.
-	const { onCopy, onCut, onPaste } = createClipboardHandlers({
+	const clipboard = createClipboardHandlers({
 		stickyColumn,
 		edgeAffinity,
 		selection,
@@ -874,13 +875,18 @@
 			e.clipboardData?.setData('text/plain', display.slice(offsets.start, offsets.end));
 			deleteCellRange(offsets.start, offsets.end);
 		},
-		pasteTail: async (e, pastedText) => {
+		pasteTail: async (pastedText) => {
 			if (!el) return;
 			const selOffsets = cursor.getRawSelection();
 			const start = selOffsets ? selOffsets.start : (cursor.getRaw() ?? 0);
 			await applyCellPaste(pastedText, { start, end: selOffsets ? selOffsets.end : start });
 		}
 	});
+	const { onCopy, onCut, onPaste } = clipboard;
+
+	export function insertMarkdown(md: string): boolean {
+		return clipboard.insertMarkdown(md);
+	}
 
 	// ── Shared mutation primitives (event handlers + right-click menu) ───────
 

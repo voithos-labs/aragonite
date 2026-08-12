@@ -774,6 +774,26 @@ Two habits keep a transform sound:
 
 The admonitions plugin is the worked example. It renders `> [!NOTE]` GitHub alerts as a native container kind with their bytes untouched, so the paste transform is **opt-in** (`admonitionsPlugin({ convertAlertsOnPaste: true })`, default off): when enabled it probes for an alert blockquote and converts only the top-level ones to `:::name` directive source through a parse-scoped converter, so an alert-shaped line inside a pasted fence survives literally. The transform serves pastes; a host button running the same converter over `getSource()` serves already-loaded documents whichever way the transform is set.
 
+## Recipe: a kind created only from consumer UI
+
+Some kinds should not be typeable — a chart card, a survey embed, a citation block whose author picks it from a menu rather than remembering syntax. The move is **not** to register a kind with no grammar, and this is the anti-pattern worth naming: raw Markdown is the source of truth, so a kind whose bytes no opener can recognize survives exactly until the document is saved and reloaded. On the way back in, the parser sees prose. A kind with no grammar cannot round-trip, so it cannot exist.
+
+Own a `:::name` directive instead. The grammar is real, so the bytes reload as your kind, and the syntax is implausible to arrive at by typing: it needs three colons, a name, a body and a `:::` terminator, and nothing along the way paints a half-formed block. That is as close to "not typeable" as a raw-is-truth editor can honestly get, and it costs nothing — the [directive walkthrough](#walkthrough-a-directive-container-end-to-end) is the same registration you would write anyway.
+
+Creation then comes from the host's own UI. The consumer's `editor.insertMarkdown(md)` inserts your kind's canonical bytes at the caret exactly as pasting them would, so a menu entry is:
+
+```ts
+editor.insertMarkdown(':::chart
+type: bar
+:::
+');
+```
+
+Bytes are the whole API, so shipping a new kind adds no method for the host to adopt — the snippet is the integration. Two notes for the recipe:
+
+- **Document your canonical snippet** beside the kind. The host pastes bytes; give it the exact bytes your `rebuildRaw` would produce, so the first insertion is already canonical.
+- **The insertion is a paste**, so it carries the strategy pick, the undo entry and the caret landing a paste carries. A multi-line directive splices structurally, which is what a block kind wants.
+
 ## What a plugin may and may not do
 
 A plugin **may**:

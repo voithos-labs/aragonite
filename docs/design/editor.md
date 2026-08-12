@@ -457,6 +457,8 @@ Clipboard content is always plain Markdown, sourced from the CST. No HTML clipbo
 
 Before anything is parsed, registered **paste transforms** rewrite the clipboard text in install order — a content-keyed plugin seam for pre-parse conversions (GitHub-alert blockquotes → directive syntax, for instance). The rewrite runs wherever clipboard text reaches `parse()`, including the whole-table-selection route that bypasses the dispatcher.
 
+One entry is not a gesture: the instance's `insertMarkdown(md)` enters the surfaces' shared clipboard skeleton below the clipboard unwrap, so a programmatic insertion carries the transforms, the delete-selection-first rule, the single undo entry and the caret landing without a `ClipboardEvent` in sight.
+
 The text is then parsed and routed by a single dispatcher (`tree-operations/paste/dispatch.ts`), which consults gates in this order:
 
 1. **Reserved chrome forced inline.** A paste landing on a container's chrome leaf is flattened to one line and applied inline — ahead of everything below, because a multi-block clipboard must never split a node whose bytes live in its parent's opener line.
