@@ -14,6 +14,11 @@
 	   scales the surface. A themed host sets it on any ancestor instead. */
 	--editor-font-size: 1rem;
 
+	/* Corner radii by role: small controls (buttons, inputs, chips) and elevated surfaces
+	   (overlays, popovers). Chrome whose corner is neither keeps its own literal. */
+	--radius-ui: 3px;
+	--radius-surface: 8px;
+
 	--color-surface: #1b1c21;
 	--color-text-secondary: #d6d9e0;
 	--color-text-primary: #ffffff;

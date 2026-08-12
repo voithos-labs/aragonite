@@ -476,7 +476,7 @@
 		color: var(--color-text-secondary, #d6d9e0);
 		background: transparent;
 		border: 1px solid var(--color-border, #3d4047);
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		cursor: pointer;
 	}
 
@@ -565,7 +565,7 @@
 		flex-direction: column;
 		background: var(--color-bg-elevated, #2a2c33);
 		border: 1px solid var(--color-border, #3d4047);
-		border-radius: 8px;
+		border-radius: var(--radius-surface, 8px);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 		color: var(--color-text-secondary, #d6d9e0);
 		outline: none;

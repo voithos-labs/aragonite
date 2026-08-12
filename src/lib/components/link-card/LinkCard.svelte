@@ -163,7 +163,7 @@
 	input {
 		padding: 4px 6px;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		background: var(--color-surface, #2d3033);
 		color: var(--color-text-secondary, #eee);
 		font-family: inherit;
@@ -177,7 +177,7 @@
 	button {
 		padding: 3px 8px;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		background: transparent;
 		color: var(--color-text-secondary, #eee);
 		font: inherit;
