@@ -36,13 +36,22 @@ test.describe('--editor-font-size', () => {
 		expect(before.paragraph).not.toBe(after.paragraph);
 	});
 
-	test('the editor default shadows a value inherited from a host wrapper', async ({ page }) => {
+	test('the opt-in class default shadows a value inherited from above it', async ({ page }) => {
 		const before = await fontSizes(editor);
-		// Declared on the host's own wrapper, one level above the editor root. The
-		// token's default lives ON `.editor`, and a direct declaration beats an
-		// inherited one whatever its specificity — so this is invisible to the editor.
-		await page.addStyleTag({ content: '.editor-slot { --editor-font-size: 20px; }' });
+		// The default lives on `.aragonite-editor-theme`, which this route carries, and a
+		// direct declaration beats an inherited one whatever its specificity.
+		await page.addStyleTag({ content: 'body { --editor-font-size: 20px; }' });
 		expect(await fontSizes(editor)).toEqual(before);
+	});
+
+	test('a value declared below the theme scope reaches the editor', async ({ page }) => {
+		// The wrapper between the class and the editor root: nothing re-declares the token
+		// below it, so a themed host sizes the editor from its own layout wrapper.
+		await page.addStyleTag({ content: '.editor-slot { --editor-font-size: 20px; }' });
+		const after = await fontSizes(editor);
+
+		expect(after.paragraph).toBe('20px');
+		expect(after.heading).toBe('40px');
 	});
 
 	test('a host bridges an ancestor value through a declaration at .editor scope', async ({
