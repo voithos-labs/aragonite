@@ -122,7 +122,7 @@ export function findCellPathForElement(el: Element | null): number[] | null {
 }
 
 /** The path of the editing SURFACE `el` sits in — the enclosing cell where there is one, else
- *  the enclosing block. The pairing every DOM-resolved surface path owes (see above). */
+ *  the enclosing block. The pairing {@link findCellPathForElement} says every producer owes. */
 export function findSurfacePathForElement(el: Element | null): number[] | null {
 	return findCellPathForElement(el) ?? findBlockPathForElement(el);
 }
