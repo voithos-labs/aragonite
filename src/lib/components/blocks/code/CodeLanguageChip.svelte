@@ -108,7 +108,7 @@
 	input {
 		padding: 2px 6px;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		background: var(--color-bg-elevated, #2a2a2a);
 		color: var(--color-accent, #567b67);
 		font: inherit;

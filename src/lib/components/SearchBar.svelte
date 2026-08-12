@@ -193,7 +193,7 @@
 		color: var(--color-text-secondary, #d6d9e0);
 		background: transparent;
 		border: 1px solid var(--color-border, #44474f);
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		cursor: pointer;
 	}
 	.search-tog {

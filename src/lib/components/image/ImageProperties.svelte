@@ -146,7 +146,7 @@
 		color: var(--color-text-secondary, #eee);
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		padding: 4px 6px;
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		font-family: inherit;
 		font-size: 12px;
 	}

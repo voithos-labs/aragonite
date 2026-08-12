@@ -178,7 +178,7 @@
 		line-height: 1.6;
 		color: inherit;
 		cursor: pointer;
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 	}
 
 	.toc-block-item:hover {

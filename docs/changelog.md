@@ -17,6 +17,14 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   `--color-danger` → `--color-error`. `--editor-font-size` moves with its tier: under the class its
   default still shadows anything above, but a themed host now sizes the editor from any ancestor.
 
+- **Corner radii join the host-chrome contract.** A host with rounded (or square) UI had to
+  override component rules to match, because every radius in the editor's chrome was a literal.
+  Two tokens now carry them by role: `--radius-ui` for controls (buttons, inputs, chips) and
+  `--radius-surface` for elevated surfaces (overlays, popovers). They default behind the opt-in
+  class with the rest of the host tier, so declaring them anywhere in a host cascade is enough.
+  The coverage is deliberately partial — chrome whose corner is neither role, such as a focus
+  hairline, a scrollbar thumb or the inline-code pill, keeps its own literal.
+
 - **Enter leaving a blockquote mints the line it lands on.** Enter on a quote's empty trailing line
   exits the quote, but where a block followed it deleted that line and dropped the caret into the
   block below — Enter acting as downward navigation, and a boundary the gap caret deliberately

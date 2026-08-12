@@ -113,7 +113,7 @@
 	.details-toggle:focus-visible {
 		outline: 2px solid var(--color-accent, #567b67);
 		outline-offset: 1px;
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 	}
 
 	/* The summary leaf is promoted to a title row by CSS alone; it stays a real block

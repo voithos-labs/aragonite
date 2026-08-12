@@ -387,6 +387,7 @@ The role table below is the stable **host-chrome contract** — the tokens the e
 | Role        | Token(s)                                                              |
 | ----------- | --------------------------------------------------------------------- |
 | **Font**    | `--font-editor`, `--editor-font-size` _(mode-independent — one each)_ |
+| **Radius**  | `--radius-ui` _(controls)_, `--radius-surface` _(overlays, popovers)_ |
 | **Surface** | `--color-surface`                                                     |
 | **Text**    | `--color-text-secondary` _(body)_, `--color-text-primary`             |
 | **Muted**   | `--color-ui-muted`, `--color-ui-dulled`                               |
@@ -401,7 +402,9 @@ The editor supplies these host-family surfaces itself, in both modes, because a 
 | **Backgrounds** | `--color-bg-secondary`, `--color-bg-elevated`, `--color-bg-muted` |
 | **Muted**       | `--color-text-muted`, `--color-ui-faint` _(hover veil)_           |
 
-**Both-themes guarantee.** Each `--color-*` token's defaults carry a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. The two font tokens are the exceptions: mode-independent, declared once.
+**Both-themes guarantee.** Each `--color-*` token's defaults carry a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. The font and radius tokens are the exceptions: mode-independent, declared once.
+
+**Radii are partial by design.** The two tokens cover the corners a host theme has an opinion about — its controls and its elevated surfaces. Editor chrome whose corner is neither (a hairline focus ring, a scrollbar thumb, an inline-code pill) keeps a literal, so declaring the tokens rounds the surfaces you would expect a theme to round and leaves the rest alone.
 
 **`--editor-font-size` is the type-scale root.** Headings, code, markers and chrome are all `em`-relative, so overriding this one token scales the whole surface. In a themed host (no opt-in class) set it on any ancestor and it inherits straight in. Under `.aragonite-editor-theme` the class declares `1rem`, which shadows any value from above it: set it at `.editor` or below the class, or bridge it through a property of your own (`.editor { --editor-font-size: var(--my-zoom, 1rem); }`). A live change is supported: virtual rendering re-estimates the document at the new scale, so a zoom control is a first-class use of the token, not a mount-time-only one.
 

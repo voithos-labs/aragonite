@@ -27,7 +27,12 @@ const THEMED_TOKENS = [
 	'--color-error'
 ];
 
-const MODE_INDEPENDENT_TOKENS = ['--font-editor', '--editor-font-size'];
+const MODE_INDEPENDENT_TOKENS = [
+	'--font-editor',
+	'--editor-font-size',
+	'--radius-ui',
+	'--radius-surface'
+];
 
 /** Themed tokens whose light value deliberately repeats the dark one, with the reason. */
 const MODE_BLIND_BY_DESIGN: Record<string, string> = {
