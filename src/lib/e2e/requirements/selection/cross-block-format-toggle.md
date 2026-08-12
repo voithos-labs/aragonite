@@ -45,3 +45,8 @@ same range, must stay exactly as destructive as it was.
 - The #107 sweep enumerated the format chords by hand and stopped at the four;
   `Mod+K` binds at the same keymaps but joined no consumed set and no spec pressed
   it over a range, so the card opened over a painted selection.
+- The decline was keyed on the DEFAULT chords, so a consumer rebind or an id-keyed
+  dispatch walked past it into the single-block arms (#127), and no test drove a
+  rebound format chord over a range. The decline now lives at the id-keyed dispatch
+  seam every entry path crosses; the chord arm this file exercises is the keystroke
+  swallow that keeps the browser's own bold off the range.

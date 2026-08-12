@@ -1,9 +1,9 @@
 /**
- * The `(kind, id) → handler` block-command registry and both chord dispatchers: the leaf path
- * (`dispatchKeyCommand`) and the container-bubble path (`dispatchKindCommand`), which share one
- * minted-handler seam rather than sibling-path copies. Register-once, throw-on-duplicate
- * (docs/contributing/culture.md "Registries are code, not state"). The dispatchers live here,
- * not `./commands`, else `commands → block-commands → command-id → commands` cycles.
+ * The `(kind, id) → handler` block-command registry and every dispatch seam over it. Chord
+ * dispatch (leaf and container-bubble) resolves a chord to an id and enters `runCommandById`,
+ * which the editor's `runCommand` door enters directly, so the rules that hold regardless of
+ * invocation live at one seam. Register-once, throw-on-duplicate (culture.md "Registries are
+ * code, not state"). Here, not `./commands`: `commands → block-commands → command-id` cycles.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
@@ -20,9 +20,9 @@ import {
 	getCommand,
 	warnUnresolvedPluginCommand,
 	isBuiltinCommandId,
+	SINGLE_BLOCK_RANGE_COMMAND_IDS,
 	type GlobalCommandContext
 } from './commands';
-import type { KeyBinding } from './keybindings';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import { currentInstallingPlugin, type EditorContext } from './plugin-install';
 import { isReadingMode } from '../presentation-mode';
@@ -84,7 +84,25 @@ export function __resetBlockCommandsForTests(): void {
 	__resetMintedCommandIdsForTests();
 }
 
-// ── Chord dispatch ───────────────────────────────────────────────────────
+// ── Dispatch ─────────────────────────────────────────────────────────────
+
+/**
+ * Editor state a command's admissibility reads, whatever invoked it. Getters, never values:
+ * both change under a live editor between one dispatch and the next.
+ */
+export interface CommandGates {
+	getPresentationMode?: GlobalCommandContext['getPresentationMode'];
+	/** True while a cross-block range is painted. */
+	isCrossBlockRange?(): boolean;
+}
+
+/**
+ * What leaf dispatch and the `runCommand` door both hand the seam. `isCrossBlockRange` is
+ * REQUIRED here so a new dispatch site cannot silently skip the range decline, the failure
+ * that made the decline chord-keyed in the first place.
+ */
+export type CommandDispatchContext = GlobalCommandContext &
+	Required<Pick<CommandGates, 'isCrossBlockRange'>>;
 
 export interface KindCommandTarget {
 	kind: AnyBlockKind;
@@ -117,78 +135,102 @@ export type CommandErrorSink = (report: CommandErrorReport) => void;
  */
 function runMintedCommand(
 	target: KindCommandTarget,
-	binding: KeyBinding,
+	id: AnyCommandId,
+	arg: unknown,
 	onCommandError?: CommandErrorSink
 ): boolean | 'unresolved' {
-	const handler = getBlockCommand(target.kind, binding.command);
+	const handler = getBlockCommand(target.kind, id);
 	if (!handler) return 'unresolved';
 	const cmdCtx = target.getCommandContext?.();
 	if (!cmdCtx) return 'unresolved';
 	try {
-		return handler({ ...cmdCtx, arg: binding.arg });
+		return handler({ ...cmdCtx, arg });
 	} catch (error) {
-		onCommandError?.({ kind: target.kind, command: binding.command, error });
+		onCommandError?.({ kind: target.kind, command: id, error });
 		return true;
 	}
 }
 
 /**
- * The fall-through tail both dispatchers share once their tier-specific prefix has declined:
- * the minted seam, else a built-in id to the target's `runCommand` — dev-warning a
+ * The block-local tail every dispatcher shares once its tier-specific prefix has declined: the
+ * minted seam, else a built-in id to the target's `runCommand`, dev-warning a
  * bound-but-unreachable plugin id rather than handing it to a `runCommand` that can't resolve it.
  */
-function runResolvedBinding(
+function runBlockLocalCommand(
 	target: KindCommandTarget,
-	binding: KeyBinding,
+	id: AnyCommandId,
+	arg: unknown,
 	onCommandError?: CommandErrorSink
 ): boolean {
-	const minted = runMintedCommand(target, binding, onCommandError);
+	const minted = runMintedCommand(target, id, arg, onCommandError);
 	if (minted !== 'unresolved') return minted;
-	if (!isBuiltinCommandId(binding.command)) {
-		warnUnresolvedPluginCommand(binding.command);
+	if (!isBuiltinCommandId(id)) {
+		warnUnresolvedPluginCommand(id);
 		return false;
 	}
-	return target.runCommand(binding.command, binding.arg);
+	return target.runCommand(id, arg);
 }
 
 /**
- * Leaf-path dispatch (the focused editable/chrome surface), full precedence: global
- * (undo/redo) → minted block command → built-in kind command.
+ * The gates every entry path owes, whatever resolved the id. Reading mode is inert: the whole
+ * vocabulary dead-keys, and navigation never routes through commands, so a reader loses nothing.
+ * A painted cross-block range declines the single-block rewrites: the range has no one host
+ * block, and an arm reached anyway would take the focused block's own offsets.
  */
-export function dispatchKeyCommand(
-	chord: string,
-	target: KindCommandTarget,
-	ctx: GlobalCommandContext,
-	overrides?: KeybindingOverrideMap,
+function commandIsAdmissible(id: AnyCommandId, gates: CommandGates): boolean {
+	if (isReadingMode(gates.getPresentationMode)) return false;
+	return !(SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && gates.isCrossBlockRange?.() === true);
+}
+
+/**
+ * The id-keyed seam: chord dispatch enters with a resolved binding, `EditorInstance.runCommand`
+ * with the id itself, so both meet the same gates and the same arms. Precedence is the leaf
+ * order: global (undo/redo) → minted block command → built-in kind command. A null target means
+ * no focused surface, where the global tier still runs and the block-local tiers decline.
+ */
+export function runCommandById(
+	id: AnyCommandId,
+	arg: unknown,
+	target: KindCommandTarget | null,
+	ctx: CommandDispatchContext,
 	onCommandError?: CommandErrorSink
 ): boolean {
-	// Reading mode is inert: the whole command vocabulary dead-keys at this seam, for every
-	// caller at once. Navigation never routes through the keymap, so a reader loses nothing.
-	if (isReadingMode(ctx.getPresentationMode)) return false;
-	const binding = resolveBinding(chord, target.kind, overrides);
-	if (!binding) return false;
-	const globalRun = getCommand(binding.command);
+	if (!commandIsAdmissible(id, ctx)) return false;
+	const globalRun = getCommand(id);
 	// Inject the sink so a plugin-global handler's contained throw reports through the same
 	// channel as a block command's; the global tier is the only path reaching one.
 	if (globalRun) return globalRun({ ...ctx, onCommandError });
-	return runResolvedBinding(target, binding, onCommandError);
+	if (!target) return false;
+	return runBlockLocalCommand(target, id, arg, onCommandError);
+}
+
+/** Leaf-path chord dispatch (the focused editable/chrome surface). */
+export function dispatchKeyCommand(
+	chord: string,
+	target: KindCommandTarget,
+	ctx: CommandDispatchContext,
+	overrides?: KeybindingOverrideMap,
+	onCommandError?: CommandErrorSink
+): boolean {
+	const binding = resolveBinding(chord, target.kind, overrides);
+	if (!binding) return false;
+	return runCommandById(binding.command, binding.arg, target, ctx, onCommandError);
 }
 
 /**
  * Container-bubble dispatch. Kind-only, no global tier: undo/redo belong to the focused leaf,
  * and a container bubble re-firing them would double-fire (`resolveKindBinding` in `./commands`).
+ * The bubble callers hold no GlobalCommandContext, so they pass the gates directly.
  */
 export function dispatchKindCommand(
 	chord: string,
 	target: KindCommandTarget,
 	overrides?: KeybindingOverrideMap,
 	onCommandError?: CommandErrorSink,
-	getPresentationMode?: GlobalCommandContext['getPresentationMode']
+	gates: CommandGates = {}
 ): boolean {
-	// Sibling of dispatchKeyCommand's reading-mode gate. This path has no GlobalCommandContext,
-	// so the bubble callers pass the mode getter directly.
-	if (isReadingMode(getPresentationMode)) return false;
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;
-	return runResolvedBinding(target, binding, onCommandError);
+	if (!commandIsAdmissible(binding.command, gates)) return false;
+	return runBlockLocalCommand(target, binding.command, binding.arg, onCommandError);
 }

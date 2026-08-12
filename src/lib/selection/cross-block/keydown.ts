@@ -118,7 +118,10 @@ async function handleCrossBlockActive(
 				{
 					history: ctx.history,
 					pluginEditor: ctx.pluginEditor,
-					getPresentationMode: ctx.getPresentationMode
+					getPresentationMode: ctx.getPresentationMode,
+					// The range was just deleted, so this reads false and the seam's decline stands
+					// down; it is threaded because every leaf dispatch site owes the gate.
+					isCrossBlockRange: () => selection.isCrossBlock
 				},
 				ctx.getKeybindingOverrides(),
 				ctx.onCommandError
@@ -245,9 +248,11 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 }
 
 /**
- * The four inline-format toggles, by chord rather than by command id: the range is consumed
- * here, before any surface resolves a command, so no id exists yet. Mod+Shift+X takes an arm of
- * its own rather than joining the letters — the unshifted Mod+X is the whole-block cut.
+ * The keystroke half of the cross-block format decline: swallow the default chords before the
+ * browser's own bold runs and before the delete-and-redispatch arm below sees them. The
+ * SEMANTIC decline is id-keyed at the dispatch seam (`SINGLE_BLOCK_RANGE_COMMAND_IDS`), which
+ * is what a rebound chord or the `runCommand` door meets. Mod+Shift+X takes an arm of its own
+ * rather than joining the letters: the unshifted Mod+X is the whole-block cut.
  */
 function isFormatToggleChord(e: KeyboardEvent): boolean {
 	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;

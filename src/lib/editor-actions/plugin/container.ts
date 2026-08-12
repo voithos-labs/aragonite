@@ -484,7 +484,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 				kindTarget,
 				keybindingOverrides(),
 				(report) => emitCommandError(editorEvents, report),
-				getPresentationMode
+				{ getPresentationMode, isCrossBlockRange: () => selection.isCrossBlock }
 			)
 		) {
 			e.preventDefault();

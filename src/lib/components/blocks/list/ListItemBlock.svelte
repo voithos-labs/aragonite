@@ -242,7 +242,17 @@
 		if (readOnly) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
-		if (dispatchKindCommand(chord, { kind: node.kind, runCommand }, keybindingOverrides())) {
+		if (
+			dispatchKindCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				keybindingOverrides(),
+				undefined,
+				{
+					isCrossBlockRange: () => selection?.isCrossBlock ?? false
+				}
+			)
+		) {
 			e.preventDefault();
 		}
 	}

@@ -450,7 +450,12 @@
 			dispatchKeyCommand(
 				chord,
 				{ kind: node.kind, runCommand },
-				{ history, pluginEditor, getPresentationMode },
+				{
+					history,
+					pluginEditor,
+					getPresentationMode,
+					isCrossBlockRange: () => selection.isCrossBlock
+				},
 				keybindingOverrides(),
 				onCommandError
 			)

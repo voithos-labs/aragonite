@@ -38,7 +38,10 @@ function bindKindChord(
 	};
 }
 
-const history = { history: { requestUndo() {}, requestRedo() {} } };
+const ctx = {
+	history: { requestUndo() {}, requestRedo() {} },
+	isCrossBlockRange: () => false
+};
 
 afterEach(() => {
 	__resetCommandWarningsForTests();
@@ -150,7 +153,7 @@ describe('editable-leaf command context', () => {
 				)
 		};
 
-		const handled = dispatchKeyCommand('Mod+Shift+K', target, history, overrides);
+		const handled = dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides);
 		expect(handled).toBe(true);
 		expect(hooks.openFocusView).toHaveBeenCalledTimes(1);
 	});

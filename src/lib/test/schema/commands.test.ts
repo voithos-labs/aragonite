@@ -24,7 +24,10 @@ describe('global command registry', () => {
 });
 
 describe('dispatchKeyCommand', () => {
-	const ctx = { history: { requestUndo: vi.fn(), requestRedo: vi.fn() } };
+	const ctx = {
+		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
+		isCrossBlockRange: () => false
+	};
 	it('routes a global chord to the global command (no runCommand call)', () => {
 		const runCommand = vi.fn(() => true);
 		expect(dispatchKeyCommand('Mod+Z', { kind: 'paragraph', runCommand }, ctx)).toBe(true);

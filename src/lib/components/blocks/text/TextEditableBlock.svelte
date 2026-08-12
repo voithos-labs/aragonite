@@ -803,7 +803,12 @@
 			dispatchKeyCommand(
 				chord,
 				{ kind: node.kind, runCommand },
-				{ history, pluginEditor, getPresentationMode: () => presentationMode },
+				{
+					history,
+					pluginEditor,
+					getPresentationMode: () => presentationMode,
+					isCrossBlockRange: () => selection.isCrossBlock
+				},
 				keybindingOverrides(),
 				onCommandError
 			)
