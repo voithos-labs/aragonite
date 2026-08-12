@@ -135,6 +135,7 @@
 			...Object.entries(theme.vars).map(([k, v]) => `--${k}: ${v}`),
 			`--color-accent: ${accent}`,
 			`--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace`,
+			`--font-ui: ui-sans-serif, system-ui, sans-serif`,
 			`--page-max-width: 1200px`
 		].join('; ')
 	);
