@@ -98,77 +98,83 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 	});
 
-	test('Backspace against a replace island selects it whole, then deletes it in one undo', async ({
-		page
-	}) => {
-		await editor.loadContent('abHIDDENcd\n');
-		await addReplaceIsland(page, [0], 2, 8);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+	// Each of these deletes the island's hidden range, so the fixture's fixed-offset source
+	// then provides a range the shortened block no longer holds and the engine skips it.
+	test.describe('the two-press delete', () => {
+		test.use({ expectWarns: ['decorations'] });
 
-		await placeCaretAtIsland(page, 2, 'after');
-		await page.keyboard.press('Backspace');
-		await editor.waitForRenderFlush();
-		await expect(page.locator(`${ISLAND}.md-widget-selected`)).toHaveCount(1);
-		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
+		test('Backspace against a replace island selects it whole, then deletes it in one undo', async ({
+			page
+		}) => {
+			await editor.loadContent('abHIDDENcd\n');
+			await addReplaceIsland(page, [0], 2, 8);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('abcd\n');
+			await placeCaretAtIsland(page, 2, 'after');
+			await page.keyboard.press('Backspace');
+			await editor.waitForRenderFlush();
+			await expect(page.locator(`${ISLAND}.md-widget-selected`)).toHaveCount(1);
+			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 
-		await editor.undo();
-		await editor.bridge.waitForSourceContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
-	});
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('abcd\n');
 
-	test('Delete against a replace island leading edge selects then deletes the hidden range', async ({
-		page
-	}) => {
-		await editor.loadContent('abHIDDENcd\n');
-		await addReplaceIsland(page, [0], 2, 8);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+			await editor.undo();
+			await editor.bridge.waitForSourceContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
+		});
 
-		await placeCaretAtIsland(page, 2, 'before');
-		await page.keyboard.press('Delete');
-		await editor.waitForRenderFlush();
-		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
+		test('Delete against a replace island leading edge selects then deletes the hidden range', async ({
+			page
+		}) => {
+			await editor.loadContent('abHIDDENcd\n');
+			await addReplaceIsland(page, [0], 2, 8);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await page.keyboard.press('Delete');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('abcd\n');
-	});
+			await placeCaretAtIsland(page, 2, 'before');
+			await page.keyboard.press('Delete');
+			await editor.waitForRenderFlush();
+			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 
-	test('the two-press delete works on a heading island whose offsets include the marker', async ({
-		page
-	}) => {
-		await editor.loadContent('## abHIDDEN\n');
-		await addReplaceIsland(page, [0], 5, 11);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+			await page.keyboard.press('Delete');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('abcd\n');
+		});
 
-		await editor.focusBlockEnd(0);
-		await page.keyboard.press('Backspace');
-		await editor.waitForRenderFlush();
-		expect(await editor.bridge.getSource()).toBe('## abHIDDEN\n');
+		test('the two-press delete works on a heading island whose offsets include the marker', async ({
+			page
+		}) => {
+			await editor.loadContent('## abHIDDEN\n');
+			await addReplaceIsland(page, [0], 5, 11);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('## ab\n');
-	});
+			await editor.focusBlockEnd(0);
+			await page.keyboard.press('Backspace');
+			await editor.waitForRenderFlush();
+			expect(await editor.bridge.getSource()).toBe('## abHIDDEN\n');
 
-	test('the two-press delete works on an ambient-prefixed list item (offsets exclude the marker)', async ({
-		page
-	}) => {
-		await editor.loadContent('- abHIDDENcd\n');
-		await addReplaceIsland(page, [0, 0, 0], 2, 8);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('## ab\n');
+		});
 
-		await placeCaretAtIsland(page, 2, 'after');
-		await page.keyboard.press('Backspace');
-		await editor.waitForRenderFlush();
-		expect(await editor.bridge.getSource()).toBe('- abHIDDENcd\n');
+		test('the two-press delete works on an ambient-prefixed list item (offsets exclude the marker)', async ({
+			page
+		}) => {
+			await editor.loadContent('- abHIDDENcd\n');
+			await addReplaceIsland(page, [0, 0, 0], 2, 8);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('- abcd\n');
+			await placeCaretAtIsland(page, 2, 'after');
+			await page.keyboard.press('Backspace');
+			await editor.waitForRenderFlush();
+			expect(await editor.bridge.getSource()).toBe('- abHIDDENcd\n');
+
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('- abcd\n');
+		});
 	});
 
 	test('a widget island is transparent to Backspace, deleting the adjacent real byte', async ({
