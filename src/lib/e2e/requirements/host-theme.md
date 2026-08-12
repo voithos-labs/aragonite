@@ -24,6 +24,12 @@ culture.md names, one rung up from a module.
   marker both take the new colour, and both differ from body text
 - picking a theme flips `data-editor-theme` on the editor root and repaints the body text,
   independently of the accent
+- the page chrome's UI font comes from the wrapper, not the app stylesheet's `:root`: the
+  wrapper declares `--font-ui` itself, and its value differs from the `:root` one so an
+  undeclared wrapper cannot pass by inheritance
+  (miss-analysis: the token's reads were never asserted, so dropping the declaration left them
+  silently resolving from `:root` — the same-value-by-inheritance shape a bare equality check
+  would also have missed)
 
 ## Edge cases
 

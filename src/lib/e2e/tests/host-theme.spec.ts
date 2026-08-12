@@ -16,6 +16,12 @@ function accentToken(page: Page, selector = '.editor'): Promise<string> {
 		.evaluate((el: Element) => getComputedStyle(el).getPropertyValue('--color-accent').trim());
 }
 
+function tokenOn(page: Page, selector: string, token: string): Promise<string> {
+	return page
+		.locator(selector)
+		.evaluate((el: Element, name) => getComputedStyle(el).getPropertyValue(name).trim(), token);
+}
+
 function colorOf(page: Page, selector: string): Promise<string> {
 	return page
 		.locator(selector)
@@ -31,6 +37,16 @@ test.describe('/test/host-theme', () => {
 
 	test('the route carries no opt-in theme class anywhere', async ({ page }) => {
 		await expect(page.locator('.aragonite-editor-theme')).toHaveCount(0);
+	});
+
+	test('the wrapper supplies the UI font the page chrome reads', async ({ page }) => {
+		// A wrapper value equal to the app stylesheet's proves nothing: the chrome would read
+		// the same font with the wrapper declaring none.
+		const wrapper = await tokenOn(page, '.host-page', '--font-ui');
+		expect(wrapper).not.toBe(await tokenOn(page, 'html', '--font-ui'));
+		expect(
+			await page.locator('.hero-title').evaluate((el: Element) => getComputedStyle(el).fontFamily)
+		).toBe(wrapper);
 	});
 
 	test('picking an accent moves the token on the editor root to the host wrapper value', async ({
