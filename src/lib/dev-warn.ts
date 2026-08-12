@@ -27,9 +27,11 @@ export function devWarn(tag: string, message: string, details?: unknown): void {
 		sink({ tag, message, details });
 		return;
 	}
+	// The `aragonite:` sentinel is what the e2e watchers key on: a console head no page
+	// script or dependency shares, so a browser-side gate can fail on ours alone.
 	if (details !== undefined) {
-		console.warn(`[${tag}] ${message}`, details);
+		console.warn(`[aragonite:${tag}] ${message}`, details);
 	} else {
-		console.warn(`[${tag}] ${message}`);
+		console.warn(`[aragonite:${tag}] ${message}`);
 	}
 }

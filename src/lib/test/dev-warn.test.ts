@@ -27,14 +27,22 @@ describe('devWarn — console arm', () => {
 	it('warns under test, so the unit gate can see every guard fire', () => {
 		configureEditorEnv({ isDev: true, isTest: true });
 		devWarn('tag', 'message');
-		expect(warnSpy).toHaveBeenCalledWith('[tag] message');
+		expect(warnSpy).toHaveBeenCalledWith('[aragonite:tag] message');
 	});
 
-	it('warns once with the [tag] message shape in dev outside test', () => {
+	it('warns once with the sentinel [aragonite:tag] head in dev outside test', () => {
 		configureEditorEnv({ isDev: true, isTest: false });
 		devWarn('parser', 'unexpected node');
 		expect(warnSpy).toHaveBeenCalledTimes(1);
-		expect(warnSpy).toHaveBeenCalledWith('[parser] unexpected node');
+		expect(warnSpy).toHaveBeenCalledWith('[aragonite:parser] unexpected node');
+	});
+
+	it('carries the sentinel through the invariant relay', () => {
+		configureEditorEnv({ isDev: true, isTest: false });
+		devWarn('invariant:stale-raw', 'a node the commit shared was written through');
+		expect(warnSpy).toHaveBeenCalledWith(
+			'[aragonite:invariant:stale-raw] a node the commit shared was written through'
+		);
 	});
 
 	it('forwards details as the second console.warn argument', () => {
@@ -42,7 +50,7 @@ describe('devWarn — console arm', () => {
 		const details = { offset: 3 };
 		devWarn('cursor', 'bad offset', details);
 		expect(warnSpy).toHaveBeenCalledTimes(1);
-		expect(warnSpy).toHaveBeenCalledWith('[cursor] bad offset', details);
+		expect(warnSpy).toHaveBeenCalledWith('[aragonite:cursor] bad offset', details);
 	});
 
 	it('omits the second argument when details is undefined', () => {

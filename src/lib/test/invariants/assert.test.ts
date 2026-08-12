@@ -11,8 +11,8 @@ describe('assertInvariant — dev-runtime channel', () => {
 		vi.resetModules();
 	});
 
-	// The tag is namespaced `invariant:<tag>` so the e2e simulation's error
-	// collector can match violations via the `[invariant:` console marker.
+	// The tag is namespaced `invariant:<tag>` so the e2e watchers can tell a violation
+	// from a plain dev warning under the shared `[aragonite:…]` console sentinel.
 	it('routes a violation to devWarn under the invariant namespace (non-crashing)', () => {
 		const violation: InvariantViolation = { code: 'stale-raw', message: 'raw drifted' };
 		expect(() => assertInvariant('test', () => violation)).not.toThrow();
