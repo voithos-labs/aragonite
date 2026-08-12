@@ -14,6 +14,9 @@ export default defineConfig({
 	},
 	test: {
 		include: ['src/lib/test/**/*.test.ts', 'src/lib/e2e/lint/**/*.test.ts'],
-		setupFiles: ['./src/lib/test/support/register-built-ins.ts']
+		setupFiles: [
+			'./src/lib/test/support/register-built-ins.ts',
+			'./src/lib/test/support/warn-gate.ts'
+		]
 	}
 });

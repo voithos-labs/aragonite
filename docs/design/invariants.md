@@ -214,4 +214,7 @@ That allowlist is the executable, milestone-tied log of deferred AA work (contra
 
 - `BLOCK_KIND_TABLE` / `ALL_BLOCK_KINDS` — union-derived kind manifest (`core/nodes.ts`).
 - `assertInvariant` — the dev-runtime channel, decoupled from general dev warnings (`invariants/assert.ts`).
+- A fire reds its owning unit test as well as the e2e specs: `devWarn` runs under the unit
+  runner and reaches a structured sink the harness reads. No `invariant:` fire may be waived
+  run-wide; a test that provokes one claims it locally (`docs/contributing/testing.md`).
 - fast-check harness + the `test:editor:invariants` script.

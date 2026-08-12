@@ -70,6 +70,19 @@ The inline-scanner suite (`test/core/inline/scan/`) and the directive suite (`te
 
 A block component reads its wiring from the editor's context tree, so a bare `mount(SomeBlock, …)` needs that context present. `test/harness/mount-context.ts` supplies it: `editorMountContext(overrides?)` returns the Map a block requires — the action triple, history, and the three editor facets (services, policies, document) pre-stubbed. A test states only what it asserts on (`editorMountContext({ blockEdit, doc: { doc: () => parsed } })`) and takes sensible stubs for the rest. A newly required context becomes one harness edit rather than a fix across every block-mount test.
 
+### A dev warning reds its test
+
+Every `devWarn` fire reaches a structured sink the unit setup registers, and any fire a test does
+not claim fails that test. A registered sink takes reporting over, so the console line never
+happens under the unit runner and console spies no longer see dev warnings at all.
+
+Three ways to claim a fire, narrowest first: a test whose subject IS the diagnostic asserts on
+`takeDevWarns()`; a test whose fixture provokes a fire it is not about declares
+`expectDevWarns([tag])` (file-scoped, with the reason on the line above); a benign diagnostic
+too cross-cutting for either joins `src/lib/test/support/warn-allowlist.json`, which waives a
+tag at a site for the whole run and only shrinks. Prefer the first two — an allowlist row blinds
+its site everywhere, which is why no `invariant:` fire may take one.
+
 ## E2E tests (Playwright)
 
 The editor component driven in real Chromium. No backend needed — it's self-contained.
