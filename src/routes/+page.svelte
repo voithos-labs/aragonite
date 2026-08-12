@@ -148,8 +148,8 @@
 		display: flex;
 		flex-direction: column;
 		/* The wrapper carries the theme tokens, so the page chrome flips with the editor. */
-		background: var(--color-bg, #1b1c21);
-		color: var(--color-text, #d6d9e0);
+		background: var(--color-surface, #1b1c21);
+		color: var(--color-text-secondary, #d6d9e0);
 	}
 	.showcase-header {
 		flex: 0 0 auto;

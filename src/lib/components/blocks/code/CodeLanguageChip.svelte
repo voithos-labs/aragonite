@@ -121,7 +121,7 @@
 
 	input {
 		width: 9ch;
-		color: var(--color-text, #eee);
+		color: var(--color-text-secondary, #eee);
 		cursor: text;
 	}
 </style>

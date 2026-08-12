@@ -12,11 +12,11 @@ import path from 'node:path';
 import { readEditorFile, stripComments } from './scan-source';
 
 const THEMED_TOKENS = [
-	'--color-bg',
+	'--color-surface',
 	'--color-bg-secondary',
 	'--color-bg-elevated',
 	'--color-bg-muted',
-	'--color-text',
+	'--color-text-secondary',
 	'--color-text-primary',
 	'--color-text-muted',
 	'--color-ui-muted',
@@ -24,7 +24,7 @@ const THEMED_TOKENS = [
 	'--color-ui-faint',
 	'--color-accent',
 	'--color-border',
-	'--color-danger'
+	'--color-error'
 ];
 
 const MODE_INDEPENDENT_TOKENS = ['--font-editor', '--editor-font-size'];
@@ -36,10 +36,17 @@ const MODE_BLIND_BY_DESIGN: Record<string, string> = {
 
 const LIGHT_SELECTOR = "[data-editor-theme='light']";
 
+/** Base and light are each split across the host-chrome and editor-owned tiers, so rules
+ *  are classified by their own selector rather than by one index split. */
 function themeBlocks(): { base: string; light: string } {
 	const css = stripComments(readEditorFile('styles/editor-theme.css').text);
-	const splitAt = css.indexOf(LIGHT_SELECTOR);
-	return { base: css.slice(0, splitAt), light: css.slice(splitAt) };
+	let base = '';
+	let light = '';
+	for (const [, selector, body] of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+		if (selector.includes(LIGHT_SELECTOR)) light += body;
+		else base += body;
+	}
+	return { base, light };
 }
 
 function declares(block: string, token: string): boolean {
@@ -101,12 +108,14 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 	it('the block split and matcher are non-vacuous', () => {
 		const css = stripComments(readEditorFile('styles/editor-theme.css').text);
 		expect(css.indexOf(LIGHT_SELECTOR)).toBeGreaterThan(0);
-		expect(declares(base, '--color-danger')).toBe(true);
-		expect(declares(light, '--color-danger')).toBe(true);
+		expect(declares(base, '--color-error')).toBe(true);
+		expect(declares(light, '--color-error')).toBe(true);
 		expect(declares(light, '--font-editor')).toBe(false);
 		expect(declares(base, '--not-a-real-token')).toBe(false);
 		// The value reader must distinguish two declarations of the same token.
-		expect(declaredValue(base, '--color-bg')).not.toBe(declaredValue(light, '--color-bg'));
+		expect(declaredValue(base, '--color-surface')).not.toBe(
+			declaredValue(light, '--color-surface')
+		);
 		expect(declaredValue(base, '--not-a-real-token')).toBeNull();
 	});
 });

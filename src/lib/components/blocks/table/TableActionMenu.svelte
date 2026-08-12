@@ -211,7 +211,7 @@
 		padding: 0.25rem;
 		display: flex;
 		flex-direction: column;
-		background: var(--color-bg, #fff);
+		background: var(--color-surface, #fff);
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 6px;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);

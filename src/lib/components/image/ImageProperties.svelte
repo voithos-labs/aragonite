@@ -142,8 +142,8 @@
 		gap: 8px;
 	}
 	input {
-		background: var(--color-bg, #2d3033);
-		color: var(--color-text, #eee);
+		background: var(--color-surface, #2d3033);
+		color: var(--color-text-secondary, #eee);
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		padding: 4px 6px;
 		border-radius: 3px;

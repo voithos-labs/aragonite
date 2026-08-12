@@ -177,7 +177,7 @@
 		left: 0;
 		right: 0;
 		height: 2px;
-		background-color: var(--color-text, #d6d9e0);
+		background-color: var(--color-text-secondary, #d6d9e0);
 		border-radius: 1px;
 		pointer-events: none;
 		animation: gap-caret-blink 1s step-end infinite;

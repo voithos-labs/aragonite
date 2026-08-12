@@ -164,8 +164,8 @@
 		padding: 4px 6px;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 3px;
-		background: var(--color-bg, #2d3033);
-		color: var(--color-text, #eee);
+		background: var(--color-surface, #2d3033);
+		color: var(--color-text-secondary, #eee);
 		font-family: inherit;
 		font-size: 12px;
 	}
@@ -179,7 +179,7 @@
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 3px;
 		background: transparent;
-		color: var(--color-text, #eee);
+		color: var(--color-text-secondary, #eee);
 		font: inherit;
 		font-size: 12px;
 		cursor: pointer;
