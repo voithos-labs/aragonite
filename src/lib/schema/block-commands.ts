@@ -89,8 +89,7 @@ export function __resetBlockCommandsForTests(): void {
 /**
  * Editor state a command's admissibility reads, whatever invoked it. Getters, never values:
  * both change under a live editor between one dispatch and the next. `isCrossBlockRange` is
- * required, so a new dispatch site cannot silently skip the range decline, which is the
- * failure that made that decline chord-keyed in the first place.
+ * required, so a new dispatch site cannot silently skip the range decline.
  */
 export interface CommandGates {
 	getPresentationMode?: GlobalCommandContext['getPresentationMode'];
@@ -176,8 +175,7 @@ function runBlockLocalCommand(
  */
 function commandIsAdmissible(id: AnyCommandId, gates: CommandGates): boolean {
 	if (isReadingMode(gates.getPresentationMode)) return false;
-	// Called directly, not optionally: the field is required so a caller without it throws
-	// rather than skipping the decline, which is the whole reason it stopped being optional.
+	// Called directly, not optionally: a caller without the getter throws rather than skipping the decline.
 	return !(SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && gates.isCrossBlockRange());
 }
 

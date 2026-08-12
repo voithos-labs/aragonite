@@ -51,7 +51,7 @@ describe('G4.39 command-door surface parity', () => {
 		expect(COMMAND_SURFACE_RE.test('if (chord && dispatchKeyCommand(chord, target, ctx))')).toBe(
 			true
 		);
-		// The container bubble is not a focused surface: the door resolves a leaf path.
+		// Containers are door-unreachable by design: no container component publishes runCommand.
 		expect(COMMAND_SURFACE_RE.test('dispatchKindCommand(chord, target, gates)')).toBe(false);
 		expect(COMMAND_SURFACE_RE.test('import type { EditableLeaf } from')).toBe(false);
 	});
