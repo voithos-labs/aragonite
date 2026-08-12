@@ -69,6 +69,20 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 		await editor.bridge.waitForSourceEquals(before);
 	});
 
+	// A widget-only paragraph seats no native selection, so the BROWSER dispatches its clipboard
+	// events at <body> — but the block still holds DOM focus, which is what the door resolves
+	// from, so it must reach the same widget-replace branch the paste tail takes.
+	test('a selected inline widget is replaced, as pasting over it does', async () => {
+		await editor.loadContent('lead\n\n![cat](/test-fixtures/sample.png)\n\ntail\n');
+		await editor.page.locator('[data-image-widget]').click();
+		await expect(editor.page.locator('[data-image-overlay]')).toBeVisible();
+
+		expect(await insert('REPLACED')).toBe(true);
+		await editor.bridge.waitForSourceContains('REPLACED');
+		expect(await editor.bridge.getSource()).not.toContain('sample.png');
+		expect(await editor.bridge.getBlockCount()).toBe(3);
+	});
+
 	test('a registered paste transform rewrites the inserted text', async () => {
 		await editor.page.evaluate(() =>
 			(window as any).__test.registerPasteTransform('e2e-insert-door', '@@STAMP@@', 'stamped')

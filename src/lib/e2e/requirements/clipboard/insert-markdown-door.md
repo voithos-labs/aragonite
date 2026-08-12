@@ -21,5 +21,9 @@ not semantics of its own.
 
 - A live cross-block selection: the range is deleted and the payload lands at the collapsed
   caret, and ONE undo restores both halves of the document.
+- A selected inline widget in a paragraph holding no other text: the widget's bytes are
+  replaced, the same branch a paste over it takes. The state is worth pinning because the
+  browser routes its clipboard events to `<body>` there while the block keeps DOM focus,
+  which is what the door resolves from.
 - A registered paste transform rewrites the inserted text before it is parsed, so the
   door's bytes reach the tree transformed.
