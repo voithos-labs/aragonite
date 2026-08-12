@@ -98,7 +98,7 @@ means such a file asserts on its own mock or asserts nothing.
 
 The editor component driven in real Chromium. No backend needed — it's self-contained.
 
-**Every spec imports `test` and `expect` from `src/lib/e2e/fixtures.ts`, never from `@playwright/test` directly.** This is not a style preference. The shared `test` fails any spec whose page emits an `[invariant:…]` console fire, so a dev-guard violation surfaces at the spec that _caused_ it rather than passing silently and being discovered a release later. A spec that deliberately triggers an invariant opts out with `test.use({ expectInvariants: true })` and asserts the fires itself.
+**Every spec imports `test` and `expect` from `src/lib/e2e/fixtures.ts`, never from `@playwright/test` directly.** This is not a style preference. Every `devWarn` reaches the browser console under the `[aragonite:…]` sentinel, and the shared `test` fails any spec whose page emits one — so a dev-guard violation surfaces at the spec that _caused_ it rather than passing silently and being discovered a release later. A spec that deliberately trips one names its tags: `test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire, `test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning. Both are bidirectional — a named tag that stops firing fails too.
 
 ### Architecture
 

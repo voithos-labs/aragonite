@@ -21,11 +21,18 @@ asserting `assertNone` throws.
   established (`start()`) before a `loadContent`, yet the render-error injected
   after the resync is still caught — proving the editor's events instance is
   stable across a source-prop change
-- invariant violation is caught: a `[invariant:…]`-marked dev warning is
-  recorded and `assertNone` throws (the commit/bootstrap invariant seam routes
-  through this marker)
-- ref-slot proxy warnings are caught: a `state_proxy_equality_mismatch` or
-  `[state-registry]` warning trips `assertNone` — the raw-vs-proxy ref-slot
-  class reds the gate the day it returns
-- benign warnings are ignored: a plain `console.warn` without the marker does
-  not trip the collector (so real sessions stay green on expected dev warnings)
+- invariant violation is caught: a `[aragonite:invariant:…]`-marked dev warning
+  is recorded and `assertNone` throws (the commit/bootstrap invariant seam
+  routes through this marker)
+- every dev warning is caught, not just invariant fires: a plain
+  `[aragonite:…]` warning trips `assertNone`, so a diagnostic the editor emits
+  mid-session cannot ride out a green run
+- ref-slot proxy warnings are caught: a `state_proxy_equality_mismatch`
+  warning trips `assertNone` — the raw-vs-proxy ref-slot class reds the gate
+  the day it returns, and Svelte's runtime warn carries no sentinel to key on
+- warnings from outside the editor are ignored: a `console.warn` with no
+  `[aragonite:…]` head does not trip the collector, so a host page's own
+  diagnostics stay out of the verdict
+- the checkpoint waiver is per-tag: `assertNone(['tag'])` silences that tag's
+  fires and nothing else — an unwaived fire in the same session still throws,
+  and the report names it alone

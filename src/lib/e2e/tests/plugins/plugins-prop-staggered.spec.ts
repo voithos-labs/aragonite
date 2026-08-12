@@ -37,7 +37,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 		invariantFires = [];
 		page.on('console', (m: ConsoleMessage) => {
 			const type = m.type();
-			if ((type === 'warning' || type === 'error') && m.text().includes('[invariant:'))
+			if ((type === 'warning' || type === 'error') && m.text().includes('[aragonite:invariant:'))
 				invariantFires.push(m.text());
 		});
 

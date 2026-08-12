@@ -1,38 +1,48 @@
 import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
 
-// Shared e2e `test`, carrying two teardown guards. 1) The console watch: invariants devWarn
-// on the console, not the structured error event, so a spec watching only
-// `getCapturedErrors()` lets a fire pass. A spec that intentionally trips one names its tags
-// via `test.use({ expectInvariants })`: each named tag must fire and no other may, so an
-// expected fire that stops firing is caught too. 2) The container-parity walk, which the
-// console cannot cover: `each_key_duplicate` is swallowed by BlockHost's boundary with no
-// console line; gated on an editor having registered a document, so editor-less routes skip.
+// Shared e2e `test`, carrying two teardown guards. 1) The console watch: every dev warning
+// reaches the console under the `[aragonite:…]` sentinel and not the structured error event,
+// so a spec watching only `getCapturedErrors()` lets a fire pass. Two classes, one door each:
+// invariant fires name their tags via `test.use({ expectInvariants })`, plain dev warns via
+// `test.use({ expectWarns })`. Both are bidirectional — each named tag must fire and no other
+// may, so an expected fire that stops firing is caught too. 2) The container-parity walk,
+// which the console cannot cover: `each_key_duplicate` is swallowed by BlockHost's boundary
+// with no console line; gated on an editor having registered a document, so editor-less
+// routes skip.
 
-interface InvariantFixtures {
+interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */
 	expectInvariants: string[];
+	/** Plain devWarn tags this spec deliberately triggers, e.g. `['tree-ops']`. */
+	expectWarns: string[];
 }
 
-const INVARIANT_TAG = /\[invariant:([^\]]+)\]/;
+const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
 
-export const test = base.extend<InvariantFixtures>({
+export const test = base.extend<WarnFixtures>({
 	expectInvariants: [[], { option: true }],
-	page: async ({ page, expectInvariants }, use) => {
+	expectWarns: [[], { option: true }],
+	page: async ({ page, expectInvariants, expectWarns }, use) => {
 		const fires: { tag: string; text: string }[] = [];
 		const onConsole = (m: ConsoleMessage) => {
 			const type = m.type();
 			if (type !== 'warning' && type !== 'error') return;
-			const tag = INVARIANT_TAG.exec(m.text())?.[1];
+			const tag = SENTINEL_TAG.exec(m.text())?.[1];
 			if (tag) fires.push({ tag, text: `${type}: ${m.text()}` });
 		};
 		page.on('console', onConsole);
 		await use(page);
 		page.off('console', onConsole);
 
-		const expected = new Set(expectInvariants);
+		// `assertInvariant` relays under the `invariant:` tag prefix, so the two option lists
+		// meet in one namespace and one watch covers both classes.
+		const expected = new Set([
+			...expectInvariants.map((tag) => `invariant:${tag}`),
+			...expectWarns
+		]);
 		const unexpected = fires.filter((f) => !expected.has(f.tag)).map((f) => f.text);
-		expect(unexpected, `unexpected [invariant:…] console fires:\n${unexpected.join('\n')}`).toEqual(
+		expect(unexpected, `unexpected [aragonite:…] console fires:\n${unexpected.join('\n')}`).toEqual(
 			[]
 		);
 
