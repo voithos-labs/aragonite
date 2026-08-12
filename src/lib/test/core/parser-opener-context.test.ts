@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { registerBlockOpener, type OpenContext } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { resetEditorEnv } from '../../env';
 
 // A re-stamped shared OpenContext mutates under an opener that retained the handle, so
 // the contract is a fresh context per block. The probe declines every block, which lets
@@ -11,7 +10,6 @@ import { resetEditorEnv } from '../../env';
 
 describe('parser mints a fresh OpenContext per block', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
-	afterEach(() => resetEditorEnv());
 
 	it('offers each block its own context, never a re-stamped shared handle', () => {
 		const stashed: OpenContext[] = [];

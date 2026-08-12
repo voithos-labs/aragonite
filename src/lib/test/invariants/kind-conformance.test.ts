@@ -1,8 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { ALL_BLOCK_KINDS, isBuiltinBlockKind } from '$lib/core/nodes';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { checkCopyIsRawByteSlice, runKindConformance } from '$lib/testing';
 import { BUILTIN_KIND_PROFILES } from './builtin-kind-profiles';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// The kit drives executors with hand-built endpoints, skipping SelectionState normalization,
+// which is exactly the false-cell shape it exercises.
+afterEach(() =>
+	expectDevWarns(['invariant:cross-block-endpoint-coordinates', 'collectCrossBlockText:startTable'])
+);
 
 // Swept over the descriptor registry, so registering a built-in kind ENROLLS it here —
 // a new kind is auto-covered the moment it registers.

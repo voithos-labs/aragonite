@@ -17,6 +17,7 @@ import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
 import { registerWikiRung, rewriteWikiImage } from './wiki-image-rung';
+import { takeDevWarns } from '../support/warn-gate';
 
 afterEach(() => __resetInlineSyntaxForTests());
 
@@ -66,12 +67,14 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		// The gesture was the widget's; handing the arrow on would move the caret
 		// out of a widget the user is still resizing.
 		expect(consumed).toBe(true);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit']);
 	});
 
 	it('commits nothing when the hook declines the edit', () => {
 		registerWikiRung(() => null);
 		const { commit } = keyboardResize('![[cat.png|300]]\n');
 		expect(commit).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit']);
 	});
 
 	it('leaves a GFM image resizing as GFM while the rung is registered', () => {
@@ -138,6 +141,7 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		committer.commitImageEdit(target, resized);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 
 	// The decline a consumer meets first: an embed names one file, so the popover's Alt row edits a
@@ -150,6 +154,7 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		committer.commitImageEdit(target, renamed);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 
 	// A hook may model only part of its own grammar's edits — the embed syntax has
@@ -162,5 +167,6 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		committer.commitImageEdit(target, titled);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 });

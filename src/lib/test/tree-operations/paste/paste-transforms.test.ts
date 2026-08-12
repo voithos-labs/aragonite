@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	registerPasteTransform,
 	applyPasteTransforms,
@@ -10,7 +10,11 @@ import {
 	installPlugins,
 	__resetInstalledPluginsForTests
 } from '../../../schema/plugin-install';
-import { configureEditorEnv, resetEditorEnv } from '../../../env';
+import { expectDevWarns, takeDevWarns } from '../../support/warn-gate';
+
+// The ordering fixtures append unconditionally, so the dev idempotence probe warns on them;
+// only the containment cases below are about the diagnostic itself.
+afterEach(() => expectDevWarns(['paste-transform']));
 
 function appending(name: string, suffix: string): PasteTransform {
 	return { name, transform: (text) => text + suffix };
@@ -85,26 +89,17 @@ describe('paste-transforms registry', () => {
 });
 
 describe('paste-transforms containment', () => {
-	let warnSpy: ReturnType<typeof vi.spyOn>;
-
 	beforeEach(() => {
 		__resetPasteTransformsForTests();
 		__resetInstalledPluginsForTests();
-		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
-	});
-	afterEach(() => {
-		warnSpy.mockRestore();
-		resetEditorEnv();
 	});
 
 	it('treats a throwing transform as a decline, leaving the text untouched', () => {
 		registerPasteTransform(throwingOnCall('thrower', 1).transform);
 		expect(applyPasteTransforms('seed')).toBe('seed');
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("transform 'thrower' threw in the paste pipeline"),
-			expect.anything()
-		);
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain("transform 'thrower' threw in the paste pipeline");
 	});
 
 	it('runs a later transform on the untouched text after an earlier one throws', () => {
@@ -127,13 +122,11 @@ describe('paste-transforms containment', () => {
 		applyPasteTransforms('seed');
 		// The message names the probe, not a decline: a "declining" message would send the
 		// author debugging a working paste.
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("transform 'probe-thrower' threw in the dev idempotence probe"),
-			expect.anything()
+		const messages = takeDevWarns().map((w) => w.message);
+		expect(messages).toContainEqual(
+			expect.stringContaining("transform 'probe-thrower' threw in the dev idempotence probe")
 		);
-		// The non-idempotent warning takes no details, so a single-argument call is the whole
-		// shape of the message this must not be confused with.
-		expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('not idempotent'));
+		expect(messages).not.toContainEqual(expect.stringContaining('not idempotent'));
 	});
 
 	// Keeps the negative assertion above honest: the non-idempotent message is live, so its
@@ -141,6 +134,8 @@ describe('paste-transforms containment', () => {
 	it('still reports a genuinely non-idempotent rewrite under its own message', () => {
 		registerPasteTransform(appending('grows', '!'));
 		applyPasteTransforms('seed');
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("'grows' is not idempotent"));
+		expect(takeDevWarns().map((w) => w.message)).toContainEqual(
+			expect.stringContaining("'grows' is not idempotent")
+		);
 	});
 });

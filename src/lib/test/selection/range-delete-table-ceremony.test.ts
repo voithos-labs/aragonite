@@ -1,8 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
+// SelectionState would have snapped to cell coordinates first.
+afterEach(() =>
+	expectDevWarns([
+		'deleteFromProseIntoTable:end',
+		'deleteFromTableIntoProse:start',
+		'deleteAcrossTwoTables:start',
+		'deleteAcrossTwoTables:end'
+	])
+);
 
 // The table branch rides the chrome branch's deletion ceremony: a covered container strictly
 // between the endpoints dies as ONE splice with children intact, never a child-by-child emptying,

@@ -1,26 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import {
 	dispatchKeyCommand,
 	registerBlockCommand,
 	__resetBlockCommandsForTests
 } from '$lib/schema/block-commands';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 
-// devWarn is silent under test by default — force dev/non-test so the dead-key
-// warn fires (pattern: src/lib/test/dev-warn.test.ts).
 describe('leaf-path dispatch of an unresolved plugin command', () => {
-	beforeEach(() => configureEditorEnv({ isDev: true, isTest: false }));
 	afterEach(() => {
-		resetEditorEnv();
-		__resetCommandWarningsForTests();
 		__resetBlockCommandsForTests();
 		vi.restoreAllMocks();
 	});
 
 	it('dead-keys and dev-warns exactly once per id, never reaching runCommand', () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		// The leaf path resolves a minted command only against a supplied command context;
 		// this target omits `getCommandContext`, so the command is unreachable.
 		const id = registerBlockCommand('paragraph', 'demo.leafOnly', () => true);
@@ -37,6 +30,6 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		expect(first).toBe(false);
 		expect(second).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
-		expect(warn).toHaveBeenCalledTimes(1);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 });

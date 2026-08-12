@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
@@ -7,6 +7,11 @@ import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surface
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { expectParseConverged } from '../harness/parse-converged';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// rangeDelete is driven with hand-built endpoints, so the table arm sees a char offset
+// SelectionState would have snapped to a cell coordinate.
+afterEach(() => expectDevWarns(['deleteFromProseIntoTable:end']));
 
 // The cross-block delete reaches a code block's bytes through its own sink, not the code
 // surface: the same-block arm writes the merged raw with no reparse behind it, so a join

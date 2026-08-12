@@ -12,6 +12,7 @@ import {
 } from '$lib/schema/commands';
 import { mintCommandId } from '$lib/schema/command-id';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 describe('normalizeKeybindingOverrides', () => {
 	it('compiles a global rebind', () => {
@@ -54,11 +55,13 @@ describe('normalizeKeybindingOverrides', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Ctrl+B', command: 'format.toggleStrong' }]);
 		expect(lookupOverride(map, 'global', 'B')).toBeUndefined();
 		expect(map.global.size).toBe(0);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['keybindings']);
 	});
 
 	it('drops a Cmd-prefixed chord too', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Cmd+B', command: 'format.toggleStrong' }]);
 		expect(map.global.size).toBe(0);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['keybindings']);
 	});
 });
 

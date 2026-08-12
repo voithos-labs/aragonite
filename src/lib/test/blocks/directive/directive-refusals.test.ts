@@ -14,6 +14,10 @@ import {
 	pressOn,
 	type MountedDirective
 } from './mount-directive';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
+afterEach(() => expectDevWarns(['block-host']));
 
 beforeAll(installDirectiveStubs);
 

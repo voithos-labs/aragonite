@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { DEV } from 'esm-env';
 	import { getContext, tick, untrack } from 'svelte';
 	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
@@ -22,6 +21,7 @@
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { getContentRange, isProseKind } from '../../../core/inline';
+	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
@@ -629,9 +629,10 @@
 	}
 
 	$effect(() => {
-		if (DEV && ambientPrefixText && !isProseKind(node.kind)) {
-			console.warn(
-				`[TextEditableBlock] ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix. The ambient marker will not render correctly.`
+		if (ambientPrefixText && !isProseKind(node.kind)) {
+			devWarn(
+				'TextEditableBlock',
+				`ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix, so the ambient marker will not render correctly`
 			);
 		}
 

@@ -14,6 +14,7 @@ import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { describeConvergence } from '../../testing/parse-convergence';
 import { testClosure } from '$lib/test/support/closure';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 describe('split separator — the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
@@ -157,5 +158,6 @@ describe('split separator — the probe line', () => {
 		const doc = parse('Hello world\n');
 		splitNode(doc, 0, 5, undefined, undefined);
 		expect(doc.children[1].leadingTrivia).toBe('');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 	});
 });

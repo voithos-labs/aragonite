@@ -5,6 +5,7 @@ import { parseInline } from '$lib/core/inline';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
 import type { InlineNode } from '$lib/core/nodes';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import {
 	buildLinkEditBytes,
 	buildLinkUnwrapBytes,
@@ -112,6 +113,7 @@ describe('link edit bytes — the seam declines rather than destroy bytes', () =
 	it('declines a link an inline rung claimed: no rewriteLink hook exists', () => {
 		const link = { ...firstLink('[t](old)'), syntaxClaim: { prefix: '[[' } };
 		expect(buildLinkEditBytes(link, '[t](old)', { text: 't', url: 'new' })).toBeNull();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['link-edit']);
 	});
 
 	it('declines a candidate that would change what the reader sees', () => {
@@ -154,5 +156,6 @@ describe('link unwrap bytes — remove link', () => {
 	it('declines a claimed link rather than drop a rung’s syntax', () => {
 		const link = { ...firstLink('[t](u)'), syntaxClaim: { prefix: '[[' } };
 		expect(buildLinkUnwrapBytes(link, '[t](u)')).toBeNull();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['link-edit']);
 	});
 });

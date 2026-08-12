@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { configureEditorEnv, resetEditorEnv } from '../../env';
+import { takeDevWarns } from '../support/warn-gate';
 import type { Decoration, DecorationWidgetSpec } from '../../decorations/types';
 
 const doc = parse('one\n\ntwo\n');
@@ -206,43 +206,33 @@ describe('createDecorationEngine', () => {
 const mixedDoc = parse('para\n\n---\n\n```\ncode\n```\n');
 
 describe('non-prose island dev-warn', () => {
-	let warnSpy: ReturnType<typeof vi.spyOn>;
-	beforeEach(() => {
-		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false }); // let devWarn reach console
-	});
-	afterEach(() => {
-		warnSpy.mockRestore();
-		resetEditorEnv();
-	});
-
 	function makeMixedEngine() {
 		return createDecorationEngine({ getDoc: () => mixedDoc });
 	}
 
 	it('warns naming the source, kind, and path when a widget island targets a non-prose block', () => {
 		makeMixedEngine().addSource({ name: 'w', provide: () => [widget([1], 0)] });
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining(
-				"source 'w' places a widget island on a non-prose thematicBreak block"
-			),
-			{ path: [1] }
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain(
+			"source 'w' places a widget island on a non-prose thematicBreak block"
 		);
+		expect(fires[0].details).toEqual({ path: [1] });
 	});
 
 	it('warns for a replace island on a fenced code block', () => {
 		makeMixedEngine().addSource({ name: 'r', provide: () => [replace([2], 0, 1)] });
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining('places a replace island on a non-prose fencedCode block'),
-			{ path: [2] }
-		);
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain('places a replace island on a non-prose fencedCode block');
+		expect(fires[0].details).toEqual({ path: [2] });
 	});
 
 	it('stays silent for an island on a table cell — the cell surface applies islands', () => {
 		const tableDoc = parse('| a | b |\n| --- | --- |\n| c | d |\n');
 		const engine = createDecorationEngine({ getDoc: () => tableDoc });
 		engine.addSource({ name: 'cell', provide: () => [replace([0, 0, 0], 0, 1)] });
-		expect(warnSpy).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('stays silent for islands on a prose block and for mark/block decorations anywhere', () => {
@@ -255,7 +245,7 @@ describe('non-prose island dev-warn', () => {
 				{ type: 'block', path: [2], class: 'b' }
 			]
 		});
-		expect(warnSpy).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('warns once per source+kind, not per island or per re-run', () => {
@@ -264,9 +254,9 @@ describe('non-prose island dev-warn', () => {
 			name: 'w',
 			provide: () => [widget([1], 0), replace([1], 0, 1)] // two islands, same non-prose kind
 		});
-		expect(warnSpy).toHaveBeenCalledTimes(1);
+		expect(takeDevWarns()).toHaveLength(1);
 		handle.invalidate();
 		engine.notifyEdit();
-		expect(warnSpy).toHaveBeenCalledTimes(1); // subsequent runs stay quiet
+		expect(takeDevWarns(), 'subsequent runs stay quiet').toEqual([]);
 	});
 });

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { configureEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
@@ -35,7 +36,6 @@ const stubOpener = (priority: number): BlockOpener => ({
 const recognizer = (): InlineSyntaxRecognizer => () => null;
 
 afterEach(() => {
-	resetEditorEnv();
 	__resetSchemaRegistriesForTests();
 	__resetInlineSyntaxForTests();
 });
@@ -76,6 +76,7 @@ describe('dev re-registration replaces instead of throwing', () => {
 		asDevNotTest();
 		expect(() => registerBlockKind(kind, registration(false))).not.toThrow();
 		expect(getBlockKindDescriptor(kind).editable).toBe(false);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
 	it('registerBlockComponent replaces the entry', () => {
@@ -86,6 +87,7 @@ describe('dev re-registration replaces instead of throwing', () => {
 		asDevNotTest();
 		expect(() => registerBlockComponent(kind, second)).not.toThrow();
 		expect(getBlockComponent(kind)).toBe(second);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
 	it('registerBlockOpener replaces the opener and re-clears the ordered cache', () => {
@@ -98,6 +100,7 @@ describe('dev re-registration replaces instead of throwing', () => {
 		expect(() => registerBlockOpener(kind, stubOpener(16))).not.toThrow();
 		expect(getOrderedOpeners().some((o) => o.priority === 16)).toBe(true);
 		expect(getOrderedOpeners().some((o) => o.priority === 15)).toBe(false);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
 	it('registerInlineSyntax replaces the recognizer', () => {
@@ -107,6 +110,7 @@ describe('dev re-registration replaces instead of throwing', () => {
 		asDevNotTest();
 		expect(() => registerInlineSyntax('¬', second)).not.toThrow();
 		expect(getInlineRungs('¬')[0].recognizer).toBe(second);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
 	it('declarePluginKind returns the existing brand on re-declaration', () => {

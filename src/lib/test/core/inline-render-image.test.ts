@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { renderInlineNodes, type RenderInlineOptions } from '$lib/core/inline-render';
 import type { InlineNode } from '$lib/core/nodes';
 import { buildImageWidget } from '$lib/components/image/widget-dom';
+import { takeDevWarns } from '../support/warn-gate';
 
 // Core owns no image-widget code; the component injects it along with a per-editor
 // broken-URL cache, mirrored here as one fresh Set per options object.
@@ -62,39 +63,29 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 	});
 
 	it('falls back to raw URL when resolveImageUrl throws', () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		try {
-			const nodes = parseInline(raw, 0, raw.length);
-			const frag = renderInlineNodes(
-				nodes,
-				raw,
-				withWidget({
-					resolveImageUrl: () => {
-						throw new Error('boom');
-					}
-				})
-			);
-			const img = frag.querySelector('img');
-			expect(img?.getAttribute('src')).toBe('https://example.com/cat.png');
-		} finally {
-			warn.mockRestore();
-		}
+		const nodes = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(
+			nodes,
+			raw,
+			withWidget({
+				resolveImageUrl: () => {
+					throw new Error('boom');
+				}
+			})
+		);
+		expect(frag.querySelector('img')?.getAttribute('src')).toBe('https://example.com/cat.png');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-widget']);
 	});
 
 	it('falls back to raw URL when resolveImageUrl returns a non-string', () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		try {
-			const nodes = parseInline(raw, 0, raw.length);
-			const frag = renderInlineNodes(
-				nodes,
-				raw,
-				withWidget({ resolveImageUrl: (() => undefined) as unknown as (u: string) => string })
-			);
-			const img = frag.querySelector('img');
-			expect(img?.getAttribute('src')).toBe('https://example.com/cat.png');
-		} finally {
-			warn.mockRestore();
-		}
+		const nodes = parseInline(raw, 0, raw.length);
+		const frag = renderInlineNodes(
+			nodes,
+			raw,
+			withWidget({ resolveImageUrl: (() => undefined) as unknown as (u: string) => string })
+		);
+		expect(frag.querySelector('img')?.getAttribute('src')).toBe('https://example.com/cat.png');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-widget']);
 	});
 
 	it('widget DOM applies width when |W is present, leaves height unset', () => {

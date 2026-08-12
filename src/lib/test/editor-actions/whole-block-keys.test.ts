@@ -7,6 +7,7 @@ import { displayLength } from '$lib/core/lines';
 import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 function makeDeps(isReading = () => false) {
 	const splitBlock = vi.fn();
@@ -248,6 +249,7 @@ describe('handleWholeBlockKeys — Mod+C / Mod+X clipboard', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(deleteBlock).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['container-block']);
 	});
 
 	it('leaves Mod+Shift+C and Alt+C untouched (not a copy chord)', () => {

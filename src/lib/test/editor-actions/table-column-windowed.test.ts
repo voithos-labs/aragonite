@@ -5,7 +5,7 @@ import { createTableMutationsContext } from '$lib/editor-actions/table-context';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
 
 // A row windowed out of the table's mounted slice has no BlockListState, so scoping
@@ -119,21 +119,12 @@ describe('column ops pair each row scope with its own change', () => {
 	// Identical per-row changes make the pairing invisible in the bytes, so only the
 	// alignment invariant's channel can see it (armed to fire in commit-invariant-wiring).
 	it('the scope-alignment invariant stays silent on a straddling window', async () => {
-		const fires: string[] = [];
-		configureEditorEnv({ isTest: false });
-		vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
-			const head = typeof args[0] === 'string' ? args[0] : '';
-			if (head.includes('[invariant:')) fires.push(head);
-		});
 		const { mutations } = makeWindowedTable([0, 2]);
 
 		await mutations.insertColumnRight(0);
 
-		expect(fires).toEqual([]);
+		expect(takeDevWarns()).toEqual([]);
 	});
 });
 
-afterEach(() => {
-	resetEditorEnv();
-	vi.restoreAllMocks();
-});
+afterEach(() => vi.restoreAllMocks());

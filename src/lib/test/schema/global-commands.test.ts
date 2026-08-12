@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { configureEditorEnv } from '$lib/env';
+import { expectDevWarns, takeDevWarns } from '../support/warn-gate';
 import {
 	registerGlobalCommand,
 	__resetPluginGlobalCommandsForTests
@@ -53,6 +54,7 @@ describe('registerGlobalCommand', () => {
 	it('declines (false) when the dispatch site supplies no pluginEditor', () => {
 		const id = registerGlobalCommand('demo.lone', () => true);
 		expect(getCommand(id)!(ctx({ pluginEditor: undefined }))).toBe(false);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 
 	it('contains a handler throw and reports it through the injected sink', () => {
@@ -106,7 +108,8 @@ describe('registerGlobalCommand', () => {
 // The SSR/HMR registrar-poison class: a re-evaluated registrar's chord collision must not
 // 500 the route. Only a same-command re-bind in dev-not-test softens; the rest still throw.
 describe('chorded global command survives dev re-eval', () => {
-	afterEach(() => resetEditorEnv());
+	// The dev valve announces every replace it performs; these cases are about what throws.
+	afterEach(() => expectDevWarns(['registry']));
 
 	it('re-binding the same command+chord replaces instead of throwing', () => {
 		configureEditorEnv({ isDev: true, isTest: false });

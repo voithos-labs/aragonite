@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	registerBlockCompleter,
 	completeTypedLine,
@@ -8,7 +8,8 @@ import {
 } from '../../schema/block-completions';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { configureEditorEnv, resetEditorEnv } from '../../env';
+import { configureEditorEnv } from '../../env';
+import { takeDevWarns } from '../support/warn-gate';
 
 function claims(marker: string, lines: string[]): BlockCompleter {
 	return {
@@ -25,7 +26,6 @@ describe('block-completion registry', () => {
 		__resetSchemaRegistriesForTests();
 	});
 	afterEach(() => {
-		resetEditorEnv();
 		__resetBlockCompletersForTests();
 	});
 
@@ -65,14 +65,12 @@ describe('block-completion registry', () => {
 	});
 
 	it('replaces with a note instead of throwing on a dev server (registrar re-eval)', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		const kind = declarePluginKind('spec-hmr');
 		registerBlockCompleter(kind, claims('|', ['first']));
 		configureEditorEnv({ isDev: true, isTest: false });
 
 		expect(() => registerBlockCompleter(kind, claims('|', ['second']))).not.toThrow();
 		expect(completeTypedLine('|')?.lines).toEqual(['second']);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/dev re-registration replaces/);
-		warnSpy.mockRestore();
+		expect(takeDevWarns()[0].message).toMatch(/dev re-registration replaces/);
 	});
 });

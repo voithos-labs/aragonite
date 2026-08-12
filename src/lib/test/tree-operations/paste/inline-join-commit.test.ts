@@ -12,6 +12,7 @@ import {
 } from '$lib/test/harness/editor-actions';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { EditEvent } from '$lib/editor-events';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 // A splice outside the commit ceremony updates neither the parent's `childIds` (which
 // never self-heals: `createBlockListState` backfills only an ABSENT id array, never a
@@ -105,6 +106,7 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 		const quote = deps.doc.children[0];
 		expect(quote.children).toHaveLength(2);
 		expect(quote.childIds).toHaveLength(2);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['paste']);
 	});
 
 	it('top-level target syncs the document-scope block ids', async () => {

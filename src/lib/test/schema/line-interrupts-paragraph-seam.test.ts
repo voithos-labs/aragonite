@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { InvariantViolation } from '$lib/invariants/assert';
 import {
 	flushPendingRegistrationChecks,
@@ -13,6 +13,7 @@ import {
 } from '$lib/schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
 
 // lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it carries the
 // same seam duties — sibling-path parity with the dispatch read.
@@ -41,6 +42,10 @@ function collector() {
 }
 
 beforeEach(() => __resetSchemaRegistriesForTests());
+
+// The unit setup registers built-in descriptors, never components, so every flush this file
+// forces reports the completeness gap; the subject here is what else the flush finds.
+afterEach(() => expectDevWarns(['invariant:registry-completeness']));
 
 describe('lineInterruptsParagraph as a grammar-consumption seam', () => {
 	it('drains pending registration checks like getOrderedOpeners', () => {

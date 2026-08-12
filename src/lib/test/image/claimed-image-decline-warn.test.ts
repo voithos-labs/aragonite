@@ -6,34 +6,21 @@
  * equality guard, warning NOTHING, which is why a hook must decline a field it cannot represent.
  */
 
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { parse } from '../../core/parser';
-import { configureEditorEnv, resetEditorEnv } from '../../env';
 import { __resetInlineSyntaxForTests } from '../../core/inline/scan/plugin-syntax';
 import type { UndoController } from '../../editor-actions/deps';
 import type { EditorEvents } from '../../editor-events';
 import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
 import { registerWikiRung, rewriteWikiImage } from './wiki-image-rung';
+import { takeDevWarns } from '../support/warn-gate';
 
 const SOURCE = '![[cat.png|300]]\n';
 const TARGET = { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 };
 const RESIZED = { alt: 'cat.png', url: 'cat.png', width: 320 };
 
-let warnSpy: ReturnType<typeof vi.spyOn>;
-
-beforeEach(() => {
-	warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-	// devWarn is inert under VITEST by design, so the diagnostic can only be
-	// observed by standing in for a dev build.
-	configureEditorEnv({ isDev: true, isTest: false });
-});
-
-afterEach(() => {
-	warnSpy.mockRestore();
-	resetEditorEnv();
-	__resetInlineSyntaxForTests();
-});
+afterEach(() => __resetInlineSyntaxForTests());
 
 function committerFor(raw: string) {
 	const doc = parse(raw);
@@ -57,7 +44,7 @@ function committerFor(raw: string) {
 	return { committer, controller };
 }
 
-const warnings = (): string[] => warnSpy.mock.calls.map((call: unknown[]) => String(call[0]));
+const warnings = (): string[] => takeDevWarns().map((w) => `[${w.tag}] ${w.message}`);
 
 describe('a declined image edit says which rung declined and why', () => {
 	it('names the rung and the missing hook when none was registered', () => {
@@ -65,10 +52,11 @@ describe('a declined image edit says which rung declined and why', () => {
 		const { committer, controller } = committerFor(SOURCE);
 		committer.commitImageEdit(TARGET, RESIZED);
 		expect(controller.commitStructural).not.toHaveBeenCalled();
-		expect(warnings()).toHaveLength(1);
-		expect(warnings()[0]).toContain('[image-edit]');
-		expect(warnings()[0]).toContain('"![["');
-		expect(warnings()[0]).toContain('registered no rewriteImage hook');
+		const fires = warnings();
+		expect(fires).toHaveLength(1);
+		expect(fires[0]).toContain('[image-edit]');
+		expect(fires[0]).toContain('"![["');
+		expect(fires[0]).toContain('registered no rewriteImage hook');
 	});
 
 	// The discriminator matters: "you forgot a hook" and "your hook has no form for
@@ -78,8 +66,9 @@ describe('a declined image edit says which rung declined and why', () => {
 		const { committer, controller } = committerFor(SOURCE);
 		committer.commitImageEdit(TARGET, { ...RESIZED, title: 'Cat' });
 		expect(controller.commitStructural).not.toHaveBeenCalled();
-		expect(warnings()).toHaveLength(1);
-		expect(warnings()[0]).toContain('cannot represent this edit');
+		const fires = warnings();
+		expect(fires).toHaveLength(1);
+		expect(fires[0]).toContain('cannot represent this edit');
 	});
 
 	// The quiet failure a consumer hits first: a hook that ignores the edited field returns the

@@ -1,8 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
 import type { CommitMultiScopeArgs, MultiScopeTarget } from '$lib/editor-actions/deps';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
+// oracle reads them as stale; the ids and refs under test do not care.
+afterEach(() => expectDevWarns(['invariant:stale-raw']));
 
 function makeContainerNode(childRaws: string[]): any {
 	return {

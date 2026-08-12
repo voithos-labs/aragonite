@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { normalizeTableEndpoint, cellEndpointDeepPath } from '../../selection/table-endpoint-snap';
+import { takeDevWarns } from '../support/warn-gate';
 
 // [0] paragraph, [1] blockquote, [2] 2-col table (header + 2 body rows).
 const doc = parse('intro\n\n> quoted\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
@@ -52,5 +53,8 @@ describe('cellEndpointDeepPath', () => {
 			cellEndpointDeepPath(doc, { path: [2], offset, cellCoordinate: true })
 		);
 		expect(outOfGrid).toEqual([null, null, null]);
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(3);
+		expect(fires.every((w) => w.tag === 'table-endpoint-snap')).toBe(true);
 	});
 });

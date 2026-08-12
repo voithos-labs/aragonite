@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
@@ -11,6 +11,11 @@ import { applyIslandDecorations } from '../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';
 import { mountDecorationWidget } from '../../decorations/widget-dom';
 import { arbAltOnlyImage, arbInlineSource, freshOrFixedSeed } from './arbitraries';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// Arbitrary replace spans land inside atomic widgets, and snapping outward is the behaviour under
+// test.
+afterEach(() => expectDevWarns(['decorations']));
 
 // G2.4: the rendered DOM's textContent reproduces the source bytes, so caret <-> offset
 // round-trips. The widget-free corpus excludes images and `<br>`, whose zero contribution

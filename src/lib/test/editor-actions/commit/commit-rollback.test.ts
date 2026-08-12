@@ -1,10 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import { concatChildren, serialize } from '$lib/core/serializer';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { UndoEntry } from '$lib/undo/types';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
+// oracle reads them as stale.
+afterEach(() => expectDevWarns(['invariant:stale-raw']));
 
 function makeContainerNode(childRaws: string[]): any {
 	return {

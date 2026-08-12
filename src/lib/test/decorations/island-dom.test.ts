@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { applyIslandDecorations, type ApplyIslandsOpts } from '$lib/decorations/island-dom';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 import { mountDecorationWidget } from '$lib/decorations/widget-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
@@ -149,16 +149,6 @@ function buildWithAtomicWidget(
 // one snaps outward. Sole guard for that branch — the island property's corpus emits
 // no widgets, so its descending pass never reaches it.
 describe('replace boundary inside an atomic widget snaps outward', () => {
-	let warnSpy: ReturnType<typeof vi.spyOn>;
-	beforeEach(() => {
-		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false }); // let devWarn reach console
-	});
-	afterEach(() => {
-		warnSpy.mockRestore();
-		resetEditorEnv();
-	});
-
 	const raw = 'abIMAGEcd'; // 'ab' + widget over raw[2,7)='IMAGE' + 'cd'
 	const cases = [
 		{ name: 'start boundary snaps to the widget start', span: [4, 9], snapped: [2, 9] },
@@ -173,10 +163,10 @@ describe('replace boundary inside an atomic widget snaps outward', () => {
 			expect(island.getAttribute('data-source-start')).toBe(String(snapped[0]));
 			expect(island.getAttribute('data-source-end')).toBe(String(snapped[1]));
 			expect(walkRawText(frag, raw)).toBe(raw);
-			expect(warnSpy).toHaveBeenCalledWith(
-				expect.stringContaining(
-					`snapped ${span[0]}..${span[1]} outward to ${snapped[0]}..${snapped[1]}`
-				)
+			const fires = takeDevWarns();
+			expect(fires).toHaveLength(1);
+			expect(fires[0].message).toContain(
+				`snapped ${span[0]}..${span[1]} outward to ${snapped[0]}..${snapped[1]}`
 			);
 		});
 	}

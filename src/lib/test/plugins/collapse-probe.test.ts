@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { composeCollapseProbe } from '../../editor-actions/plugin/container';
 import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
-import { configureEditorEnv, resetEditorEnv } from '../../env';
+import { takeDevWarns } from '../support/warn-gate';
 
 // The dogfood details declaration shape without its rendering: a `reservedChrome`
 // collapse probe reading an `open` metadata flag.
@@ -39,7 +39,6 @@ function containerNode(kind: ReturnType<typeof declarePluginKind>, open: boolean
 
 describe('composeCollapseProbe', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
-	afterEach(() => resetEditorEnv());
 
 	it('derives from the descriptor probe when no explicit dep is supplied', () => {
 		const kind = registerCollapsible();
@@ -51,8 +50,6 @@ describe('composeCollapseProbe', () => {
 	});
 
 	it('uses an explicit dep that agrees with the descriptor probe, without warning', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false); // descriptor probe -> collapsed
 
@@ -62,13 +59,10 @@ describe('composeCollapseProbe', () => {
 		); // explicit agrees
 
 		expect(probe()).toBe(true);
-		expect(warnSpy).not.toHaveBeenCalled();
-		warnSpy.mockRestore();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('dev-warns when the explicit dep disagrees with the descriptor probe', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false); // descriptor probe -> collapsed (true)
 
@@ -79,19 +73,17 @@ describe('composeCollapseProbe', () => {
 		); // explicit disagrees
 
 		expect(probe()).toBe(false); // the explicit dep still wins the value
-		expect(warnSpy).toHaveBeenCalledTimes(1);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/plugin-container/);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/disagrees/);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/collapse-probe-container/);
-		warnSpy.mockRestore();
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].tag).toBe('plugin-container');
+		expect(fires[0].message).toMatch(/disagrees/);
+		expect(fires[0].message).toMatch(/collapse-probe-container/);
 	});
 
 	// Reading mode is the ONE place a view/document divergence is legitimate, because a
 	// reader's flip writes no bytes by construction. Without the carve-out the
 	// affordance dev-warns for as long as the reader leaves the section open.
 	it('allows a reading-mode view divergence without warning', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false); // the document says collapsed
 
@@ -102,15 +94,12 @@ describe('composeCollapseProbe', () => {
 		);
 
 		expect(probe()).toBe(false);
-		expect(warnSpy).not.toHaveBeenCalled();
-		warnSpy.mockRestore();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	// Scoped to reading, not "any mode with a getter": a preview mode edits, so a
 	// divergence there is still the half-collapsed hybrid the cross-check catches.
 	it('still warns in a live preview mode', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		const kind = registerCollapsible();
 		const node = containerNode(kind, false);
 
@@ -121,7 +110,6 @@ describe('composeCollapseProbe', () => {
 		);
 
 		expect(probe()).toBe(false);
-		expect(warnSpy).toHaveBeenCalledTimes(1);
-		warnSpy.mockRestore();
+		expect(takeDevWarns()).toHaveLength(1);
 	});
 });

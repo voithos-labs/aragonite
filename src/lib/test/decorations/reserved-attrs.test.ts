@@ -1,40 +1,28 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { acceptedBlockAttrs, RESERVED_BLOCK_ATTRS } from '$lib/decorations/reserved-attrs';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 
 // The block host is an ancestor of every walk container, so a decoration spelling one of the
 // editor's own `data-` names answers an ancestor lookup the walk and the CSS families read.
 // Miss-analysis: the attrs write had no validation at all and no test named the hazard — the
 // class was invisible to both the CSS-parity probe and the runtime guards it exists to protect.
 
-let warnSpy: ReturnType<typeof vi.spyOn>;
-
-beforeEach(() => {
-	warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-	configureEditorEnv({ isDev: true, isTest: false }); // let devWarn reach console
-});
-
-afterEach(() => {
-	warnSpy.mockRestore();
-	resetEditorEnv();
-});
-
 describe('acceptedBlockAttrs', () => {
 	it('drops a reserved attribute and warns, naming it', () => {
 		const accepted = acceptedBlockAttrs({ 'data-content-empty': '' }, [2]);
 
 		expect(accepted).toEqual([]);
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("'data-content-empty' is reserved"),
-			{ path: [2] }
-		);
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain("'data-content-empty' is reserved");
+		expect(fires[0].details).toEqual({ path: [2] });
 	});
 
 	it("lets a decoration author's own attribute through untouched", () => {
 		expect(acceptedBlockAttrs({ 'data-review-state': 'stale' }, [0])).toEqual([
 			['data-review-state', 'stale']
 		]);
-		expect(warnSpy).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	// The skip must not swallow what follows it: a rejected name and an accepted one arrive in
@@ -42,6 +30,9 @@ describe('acceptedBlockAttrs', () => {
 	it('keeps the benign attributes of an object that also carries a reserved one', () => {
 		expect(acceptedBlockAttrs({ 'data-focused': '', title: 'note' }, [1])).toEqual([
 			['title', 'note']
+		]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			expect.stringContaining("'data-focused' is reserved")
 		]);
 	});
 

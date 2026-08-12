@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
 import type { InvariantViolation } from '$lib/invariants/assert';
 import { checkLateOpenerRegistration } from '$lib/invariants/registry';
@@ -19,6 +19,7 @@ import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.sve
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { testClosure } from '$lib/test/support/closure';
+import { expectDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 
@@ -64,6 +65,10 @@ beforeEach(() => {
 	__resetSchemaRegistriesForTests();
 	__resetPasteSurfacesForTests();
 });
+
+// The unit setup registers built-in descriptors, never components, so every flush this file
+// forces reports the completeness gap; the subject here is what else the flush finds.
+afterEach(() => expectDevWarns(['invariant:registry-completeness']));
 
 describe('checkLateOpenerRegistration', () => {
 	it('passes while the grammar is unconsumed', () => {
@@ -150,6 +155,7 @@ describe('flushPendingRegistrationChecks', () => {
 		const { violations, report } = collector();
 		flushPendingRegistrationChecks(report);
 		expect(violations).toEqual([]);
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:late-opener-registration');
 	});
 
 	it('resets both latches and the pending set via the schema reset', () => {
