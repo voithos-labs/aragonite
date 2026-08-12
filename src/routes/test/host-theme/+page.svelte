@@ -10,7 +10,7 @@
 	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 	import { tocPlugin } from '$lib/plugins/toc';
 
-	// The full bundled set, so every plugin's chrome is judged against the host palette too.
+	// The full bundled set, so the host palette is judged with every plugin's chrome installed.
 	const BUNDLED_PLUGINS = [
 		admonitionsPlugin(),
 		detailsPlugin(),
@@ -149,7 +149,9 @@
 
 ## Structure
 
-> A quote takes the muted tint, and the accent belongs to [links](https://example.com) alone.
+> A quote takes the muted tint, and the chrome around it never reaches for the accent.
+
+At rest the accent shows up in three places here: [inline links](https://example.com), the text of a [reference link][ref], and a footnote marker[^accent]. Swap it from the picker and those are what move.
 
 | Theme | Surface | Accent |
 | ----- | ------- | ------ |
@@ -167,6 +169,10 @@ Some inline math $e^{i\\pi} + 1 = 0$ and an emoji :sparkles: for good measure.
 :::note
 An admonition picks its own palette; only the chrome around it is the host's.
 :::
+
+[^accent]: A footnote marker is the accent's only appearance outside a link, so an accent swap stays legible with nothing hovered.
+
+[ref]: https://example.com/reference
 `;
 
 	let source = $state(DOC);
