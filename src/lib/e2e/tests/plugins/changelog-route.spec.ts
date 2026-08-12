@@ -4,11 +4,11 @@ import { primaryModifier } from '../../platform';
 import { findInput } from '../search/helpers';
 import type { Page } from '@playwright/test';
 
-// The `/changelog` dogfood route renders `docs/changelog.md` itself, behind a route-prepended
-// `[[toc]]` inside a collapsed `<details>`, under all eight bundled plugins. No `window.__test`
-// bridge, so this smoke asserts through rendered DOM only. The shared fixture also fails on any
-// `[invariant:…]` console fire, so a green run additionally proves the changelog loads without
-// tripping an invariant under all eight plugins. Requirements:
+// The `/changelog` dogfood route renders the repo's own changelog, one release family per
+// document, behind a route-prepended `[[toc]]` inside a collapsed `<details>`, under all eight
+// bundled plugins. No `window.__test` bridge, so this smoke asserts through rendered DOM only. The
+// shared fixture also fails on any `[invariant:…]` console fire, so a green run additionally
+// proves the changelog loads without tripping an invariant under all eight plugins. Requirements:
 // e2e/requirements/plugins/changelog-route.md.
 
 // The `<details>` opener bytes, read off the live document the route registers for the parity
@@ -31,8 +31,8 @@ test.describe('/changelog route', () => {
 	});
 
 	test("renders the repo's changelog under a collapsed outline", async ({ page }) => {
-		// The document's own title, not a version number: the one landmark a release cannot move.
-		// Reading mode hides the `#` marker with `display: none`, which leaves it in textContent.
+		// The family file's own title, not a version number: the one landmark a release cannot
+		// move. Reading mode hides the `#` marker with `display: none`, so it stays in textContent.
 		await expect(page.locator('[data-block-kind="heading"]').first()).toContainText('Changelog');
 		// A floor well below the mounted window, robust to it shifting.
 		await expect.poll(() => page.locator('.block-host').count()).toBeGreaterThan(5);
@@ -72,6 +72,24 @@ test.describe('/changelog route', () => {
 		await expect(page.locator('.toc-block-item').first()).toBeVisible();
 
 		expect(await outlineRaw(page)).toBe(before);
+	});
+
+	test('the family picker swaps the document to another release family', async ({ page }) => {
+		const heading = page.locator('[data-block-kind="heading"]').first();
+		const active = page.locator('.changelog-family.active');
+		const current = (await active.getAttribute('data-family')) ?? '';
+		await expect(heading).toContainText(`Changelog ${current}`);
+
+		// The oldest family, read at runtime so a new family file cannot stale the spec.
+		const oldest = page.locator('.changelog-family').last();
+		const target = (await oldest.getAttribute('data-family')) ?? '';
+		expect(target).not.toBe(current);
+
+		await oldest.click();
+		await expect(heading).toContainText(`Changelog ${target}`);
+		// The outline serves the document on screen, not the one it was first built for.
+		await page.locator('.details-toggle').click();
+		await expect(page.locator('.toc-block-item').first()).toContainText(target);
 	});
 
 	test('the Find chord opens the search bar over the reading-mode document', async ({ page }) => {
