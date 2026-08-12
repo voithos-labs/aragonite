@@ -4,6 +4,10 @@ import { dispatchKeyCommand, dispatchKindCommand } from '$lib/schema/block-comma
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 
 const modeGetter = (mode: PresentationMode) => () => mode;
+const gates = (mode: PresentationMode) => ({
+	getPresentationMode: modeGetter(mode),
+	isCrossBlockRange: () => false
+});
 
 describe('isReadingMode', () => {
 	it('reads the mode through the getter; absent getter means not reading', () => {
@@ -51,17 +55,9 @@ describe('dispatch gates in reading mode', () => {
 			{ kind: 'paragraph', chord: 'Mod+K', command: 'block.moveUp' }
 		]);
 		const ran: string[] = [];
-		expect(
-			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, {
-				getPresentationMode: modeGetter('reading')
-			})
-		).toBe(false);
+		expect(dispatchKindCommand('Mod+K', target(ran), gates('reading'), overrides)).toBe(false);
 		expect(ran).toEqual([]);
-		expect(
-			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, {
-				getPresentationMode: modeGetter('source')
-			})
-		).toBe(true);
+		expect(dispatchKindCommand('Mod+K', target(ran), gates('source'), overrides)).toBe(true);
 		expect(ran).toEqual(['block.moveUp']);
 	});
 });

@@ -16,6 +16,9 @@ import { buildContainerKindTarget } from '$lib/editor-actions/plugin/container';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
 
+// No cross-block range in these cases; the seam's range decline has its own suite.
+const GATES = { isCrossBlockRange: () => false };
+
 // Declared once at module scope: the reset clears the command registry, not the
 // plugin-kind declarations, so a per-test declare would double-throw.
 const note = declarePluginKind('demoNote');
@@ -58,6 +61,7 @@ describe('plugin container kind-command target', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node }, updateOwnMetadata),
+			GATES,
 			overrides
 		);
 
@@ -80,6 +84,7 @@ describe('plugin container kind-command target', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node, commandHooks: () => hooks }, vi.fn()),
+			GATES,
 			overrides
 		);
 
@@ -97,6 +102,7 @@ describe('plugin container kind-command target', () => {
 		dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget({ getNode: () => node }, vi.fn()),
+			GATES,
 			overrides
 		);
 

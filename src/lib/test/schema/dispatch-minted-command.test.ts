@@ -14,6 +14,9 @@ const ctx = {
 	history: { requestUndo() {}, requestRedo() {} },
 	isCrossBlockRange: () => false
 };
+
+// No cross-block range in these cases; the seam's range decline has its own suite.
+const GATES = { isCrossBlockRange: () => false };
 const nodeOf = (kind: string): CstNode =>
 	({
 		kind: kind as CstNode['kind'],
@@ -101,8 +104,9 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 				runCommand: () => false,
 				getCommandContext: () => ({ node, updateMetadata: () => {} })
 			},
+			GATES,
 			overrides,
-			(r) => reports.push(r)
+			(r: CommandErrorReport) => reports.push(r)
 		);
 
 		expect(handled).toBe(true);
