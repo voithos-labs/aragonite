@@ -83,6 +83,17 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 		expect(await editor.bridge.getBlockCount()).toBe(3);
 	});
 
+	// Miss-analysis: the cell publishes its surface through publishRefSlot, not instance exports,
+	// and no door case drove that channel — the census (G4.38) reads only the export axis.
+	test('a focused table cell takes the door through its published ref slot', async () => {
+		await editor.loadContent(TABLE);
+		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.keyboard.press('End');
+
+		expect(await insert('ZZ')).toBe(true);
+		await editor.bridge.waitForSourceContains('| 2ZZ |');
+	});
+
 	test('a registered paste transform rewrites the inserted text', async () => {
 		await editor.page.evaluate(() =>
 			(window as any).__test.registerPasteTransform('e2e-insert-door', '@@STAMP@@', 'stamped')

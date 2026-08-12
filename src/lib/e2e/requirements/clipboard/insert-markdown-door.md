@@ -27,3 +27,4 @@ not semantics of its own.
   which is what the door resolves from.
 - A registered paste transform rewrites the inserted text before it is parsed, so the
   door's bytes reach the tree transformed.
+- a focused table cell takes the door: the insertion lands in the cell's bytes through the published ref slot, matching a paste there

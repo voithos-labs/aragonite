@@ -783,10 +783,7 @@ Own a `:::name` directive instead. The grammar is real, so the bytes reload as y
 Creation then comes from the host's own UI. The consumer's `editor.insertMarkdown(md)` inserts your kind's canonical bytes at the caret exactly as pasting them would, so a menu entry is:
 
 ```ts
-editor.insertMarkdown(':::chart
-type: bar
-:::
-');
+editor.insertMarkdown(':::chart\ntype: bar\n:::\n');
 ```
 
 Bytes are the whole API, so shipping a new kind adds no method for the host to adopt — the snippet is the integration. Two notes for the recipe:

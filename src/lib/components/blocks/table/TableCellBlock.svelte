@@ -464,7 +464,8 @@
 			runCommand,
 			getSelectionOffsets,
 			applyMenuClipboard,
-			snapCaretToPoint
+			snapCaretToPoint,
+			insertMarkdown
 		};
 		return publishRefSlot(slots, index, self);
 	});

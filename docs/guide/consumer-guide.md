@@ -563,13 +563,7 @@ The demo route's `SelectionToolbar` component (in the repository) follows this r
 `insertMarkdown(md)` and `getRects()` are a toolbar: the door writes, the geometry positions. Bytes are the API, so every construct is a snippet — including one a plugin contributes, with no new call to learn.
 
 1. **Do not let the button take focus.** The door inserts at the caret, and a button that focuses on press has already destroyed it — the call returns `false`. Cancel the press default (`onmousedown={(e) => e.preventDefault()}`) so focus never leaves the document, or stash a `getSelection()` snapshot and `setSelection` it back before inserting.
-2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |
-| --- | --- |
-|  |  |
-'`; a fence button `'```lang
-
-```
-'`. There is no per-construct API, so a new kind needs no new door. (A table is also typeable: a lone header row completed with `Enter` mints the same thing — see [Keyboard shortcuts](#keyboard-shortcuts).)
+2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |\n| --- | --- |\n|  |  |\n'`; a fence button `'```lang\n\n```\n'`. There is no per-construct API, so a new kind needs no new door. (A table is also typeable: a lone header row completed with `Enter` mints the same thing — see [Keyboard shortcuts](#keyboard-shortcuts).)
 3. **Position with `getRects()`.** `caretRect()` anchors a bar to the insertion point, `blockRect(path)` to the block. Both are viewport-space snapshots; re-read on the next `selectionChange`.
 4. **Read the result on the `edit` channel**, not on the line after the call — the commit lands on the editor's own flush.
 
@@ -584,4 +578,3 @@ For inserting at the caret rather than rewriting, the door is `insertMarkdown` a
 The consumer-side lever for rewriting a whole document — converting legacy syntax, migrating content, applying a bulk fix — is at the document level: read `getSource()`, transform the Markdown, and write the result back through the `source` prop. The replacement is one document swap, so undo history and the caret do not survive it. That is the honest shape for an import-or-convert affordance, and pretending otherwise would only hide the seam.
 
 A transformer working over `parse`'s output can lean on the composition contract: the serialized document is exactly `prefix + Σ(child.leadingTrivia + child.raw) + suffix` over the document's children. A rewrite can therefore replace individual blocks' bytes and reassemble without touching the rest.
-```
