@@ -29,11 +29,19 @@ describe('dispatch gates in reading mode', () => {
 		const ran: string[] = [];
 		let undos = 0;
 		const history = { requestUndo: () => void undos++, requestRedo: () => {} };
-		const reading = { history, getPresentationMode: modeGetter('reading') };
+		const reading = {
+			history,
+			getPresentationMode: modeGetter('reading'),
+			isCrossBlockRange: () => false
+		};
 		expect(dispatchKeyCommand('Mod+Z', target(ran), reading)).toBe(false);
 		expect(undos).toBe(0);
 
-		const source = { history, getPresentationMode: modeGetter('source') };
+		const source = {
+			history,
+			getPresentationMode: modeGetter('source'),
+			isCrossBlockRange: () => false
+		};
 		expect(dispatchKeyCommand('Mod+Z', target(ran), source)).toBe(true);
 		expect(undos).toBe(1);
 	});
@@ -44,11 +52,15 @@ describe('dispatch gates in reading mode', () => {
 		]);
 		const ran: string[] = [];
 		expect(
-			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, modeGetter('reading'))
+			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, {
+				getPresentationMode: modeGetter('reading')
+			})
 		).toBe(false);
 		expect(ran).toEqual([]);
 		expect(
-			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, modeGetter('source'))
+			dispatchKindCommand('Mod+K', target(ran), overrides, undefined, {
+				getPresentationMode: modeGetter('source')
+			})
 		).toBe(true);
 		expect(ran).toEqual(['block.moveUp']);
 	});

@@ -10,7 +10,10 @@ import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { CstNode } from '$lib/core/nodes';
 
-const history = { history: { requestUndo() {}, requestRedo() {} } };
+const ctx = {
+	history: { requestUndo() {}, requestRedo() {} },
+	isCrossBlockRange: () => false
+};
 const nodeOf = (kind: string): CstNode =>
 	({
 		kind: kind as CstNode['kind'],
@@ -40,7 +43,7 @@ describe('leaf-path dispatch of a minted block command', () => {
 		const handled = dispatchKeyCommand(
 			'Mod+Shift+K',
 			{ kind: 'paragraph', runCommand, getCommandContext: () => ({ node, updateMetadata }) },
-			history,
+			ctx,
 			overrides
 		);
 
@@ -71,7 +74,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 				runCommand: () => false,
 				getCommandContext: () => ({ node, updateMetadata: () => {} })
 			},
-			history,
+			ctx,
 			overrides,
 			(r) => reports.push(r)
 		);
@@ -123,7 +126,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 					runCommand: () => false,
 					getCommandContext: () => ({ node, updateMetadata: () => {} })
 				},
-				history,
+				ctx,
 				overrides
 			)
 		).not.toThrow();
@@ -135,7 +138,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 		const runCommand = vi.fn(() => {
 			throw new Error('builtin boom');
 		});
-		expect(() => dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, history)).toThrow(
+		expect(() => dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, ctx)).toThrow(
 			'builtin boom'
 		);
 	});

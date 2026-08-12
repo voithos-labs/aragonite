@@ -31,7 +31,11 @@ it('a plugin-global chord dispatches from an ordinary leaf and the sink receives
 	const handled = dispatchKeyCommand(
 		'Mod+Shift+7',
 		{ kind: 'paragraph', runCommand: () => false },
-		{ history: { requestUndo() {}, requestRedo() {} }, pluginEditor: () => editor },
+		{
+			history: { requestUndo() {}, requestRedo() {} },
+			pluginEditor: () => editor,
+			isCrossBlockRange: () => false
+		},
 		undefined,
 		(r) => reports.push(r)
 	);

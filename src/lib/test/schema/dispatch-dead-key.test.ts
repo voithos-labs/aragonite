@@ -22,7 +22,10 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		]);
 		const runCommand = vi.fn(() => false);
 		const target = { kind: 'paragraph' as const, runCommand };
-		const ctx = { history: { requestUndo() {}, requestRedo() {} } };
+		const ctx = {
+			history: { requestUndo() {}, requestRedo() {} },
+			isCrossBlockRange: () => false
+		};
 
 		const first = dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides);
 		const second = dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides);

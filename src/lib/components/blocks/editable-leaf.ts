@@ -480,7 +480,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			dispatchKeyCommand(
 				chord,
 				{ kind: deps.getNode().kind, runCommand, getCommandContext },
-				{ history, pluginEditor, getPresentationMode },
+				{
+					history,
+					pluginEditor,
+					getPresentationMode,
+					isCrossBlockRange: () => selection.isCrossBlock
+				},
 				keybindingOverrides(),
 				onCommandError
 			)

@@ -66,6 +66,32 @@ export type GlobalCommandId = (typeof GLOBAL_COMMAND_IDS)[number];
 export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];
 export type CommandId = GlobalCommandId | BlockCommandId;
 
+/**
+ * Commands whose arms rewrite one block's bytes around that block's own selection. The
+ * dispatch seam declines them while a cross-block range is painted; the cross-block keydown
+ * arm swallows the default chords earlier, but only this set reaches a rebind or the
+ * `runCommand` door.
+ */
+export const SINGLE_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
+	'format.toggleStrong',
+	'format.toggleEmphasis',
+	'format.toggleStrikethrough',
+	'format.toggleCode'
+]);
+
+/**
+ * The command ids a host's selection toolbar invokes through `EditorInstance.runCommand`. The
+ * rest of the vocabulary stays internal until the command registry unifies it.
+ */
+export const TOOLBAR_COMMANDS = {
+	toggleStrong: 'format.toggleStrong',
+	toggleEmphasis: 'format.toggleEmphasis',
+	toggleStrikethrough: 'format.toggleStrikethrough',
+	toggleCode: 'format.toggleCode',
+	/** The link editor Mod+K opens: over a selection it creates, inside a link it edits. */
+	editLink: 'link.openCard'
+} as const satisfies Record<string, CommandId>;
+
 /** Minimal context a global command needs; HistoryActions is structurally compatible. */
 export interface GlobalCommandContext {
 	history: { requestUndo(): void | Promise<void>; requestRedo(): void | Promise<void> };
