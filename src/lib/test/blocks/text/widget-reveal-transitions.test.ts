@@ -5,17 +5,15 @@
 // the reveal kernel — and the legal reveal→commit / reveal→cancel cycles pinned
 // silent, because a false-firing invariant poisons the channel every e2e spec
 // watches.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-vi.mock('../../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../../dev-warn';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { createSourceReveal } from '$lib/cursor/reveal-source';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 
 beforeEach(() => {
-	vi.mocked(devWarn).mockClear();
 	resetInlineState();
 	registerMathInline();
 });
@@ -25,9 +23,7 @@ afterEach(() => {
 	resetInlineState();
 });
 
-function revealFires(): unknown[][] {
-	return vi.mocked(devWarn).mock.calls.filter(([tag]) => tag === 'invariant:reveal-transition');
-}
+const REVEAL_TRANSITION = ['invariant:reveal-transition'];
 
 // A paragraph whose math widget sits at the leading edge, so enterEdgeWidget
 // ('start') — the cross-block edge landing — opens its reveal.
@@ -58,8 +54,9 @@ describe('reveal transitions — settle-window re-entry (G1.26)', () => {
 		interaction.enterEdgeWidget('start');
 		await settle();
 
-		expect(revealFires()).toHaveLength(1);
-		expect(revealFires()[0][2]).toBe('start-during-settle');
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(REVEAL_TRANSITION);
+		expect(fires[0].details).toBe('start-during-settle');
 	});
 
 	it('a full reveal → fold-commit cycle stays silent', async () => {
@@ -71,7 +68,7 @@ describe('reveal transitions — settle-window re-entry (G1.26)', () => {
 		interaction.foldRevealBeforeMutation();
 
 		expect(interaction.isRevealing()).toBe(false);
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('a full reveal → Escape-cancel cycle stays silent', async () => {
@@ -82,7 +79,7 @@ describe('reveal transitions — settle-window re-entry (G1.26)', () => {
 		await interaction.handleRevealingKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
 
 		expect(interaction.isRevealing()).toBe(false);
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });
 
@@ -109,7 +106,8 @@ describe('reveal transitions — kernel source-length precondition (G1.26)', () 
 
 		await reveal.reveal();
 
-		expect(revealFires()).toHaveLength(1);
-		expect(revealFires()[0][2]).toEqual({ sourceLength: 3, sourceStart: 2, sourceEnd: 7 });
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(REVEAL_TRANSITION);
+		expect(fires[0].details).toEqual({ sourceLength: 3, sourceStart: 2, sourceEnd: 7 });
 	});
 });

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 import {
 	composeWholeBlockFocusSurface,
 	createContainerBlockComponent
@@ -24,7 +23,6 @@ function mermaidNode(): CstNode {
 }
 
 beforeEach(() => {
-	vi.mocked(devWarn).mockClear();
 	document.body.innerHTML = '';
 });
 
@@ -38,7 +36,7 @@ describe('composeWholeBlockFocusSurface', () => {
 			() => 'mermaid'
 		);
 		expect(surface()).toBe(declared);
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('falls back to the box when the declared element is null, warning once with the kind', () => {
@@ -50,8 +48,9 @@ describe('composeWholeBlockFocusSurface', () => {
 		);
 		expect(surface()).toBe(boxEl);
 		expect(surface()).toBe(boxEl);
-		expect(devWarn).toHaveBeenCalledTimes(1);
-		expect(vi.mocked(devWarn).mock.calls[0][1]).toContain('mermaid');
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain('mermaid');
 	});
 
 	it('stays null while a plugin-owned editable inside the box holds focus (edit mode)', () => {
@@ -65,7 +64,7 @@ describe('composeWholeBlockFocusSurface', () => {
 			() => 'mermaid'
 		);
 		expect(surface()).toBeNull();
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('returns null when neither the declared element nor the box exists', () => {
@@ -79,6 +78,9 @@ describe('composeWholeBlockFocusSurface', () => {
 });
 
 describe('container shim through a composed fallback surface', () => {
+	// Every shim here composes the fallback the describe above pins; the shim's focus is the subject.
+	afterEach(() => allowDevWarns(['container-block']));
+
 	function shim(boxEl: HTMLElement, declared: HTMLElement | null = null) {
 		return createContainerBlockComponent({
 			selection: createSelectionState(),

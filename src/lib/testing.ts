@@ -55,6 +55,14 @@ export { installEditorDomStubsForTests } from './testing/mount-dom-stubs';
 
 export { applyPasteTransforms } from './tree-operations/paste/paste-transforms';
 
+// ── Dev-warning sink ─────────────────────────────────────────────────────────
+// The channel every editor dev warning reaches, so a suite can build its own
+// fail-on-warn gate: register a sink, drain it per case, red on what nobody claimed.
+// Runner-agnostic by contract, and a registered sink silences the console line.
+
+export { setDevWarnSink } from './dev-warn';
+export type { DevWarnEntry, DevWarnSink } from './dev-warn';
+
 // ── Container conformance kit (G4.3) ─────────────────────────────────────────
 
 export {

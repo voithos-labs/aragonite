@@ -4,9 +4,12 @@
  * for a file's incidental tags) or the site is allowlisted for the whole run. Reads the
  * structured sink, never a console spy, because suites shadow `console.warn`. The claim doors are
  * file-level `afterEach` hooks, so the config pins `sequence.hooks: 'stack'` to order them first.
+ * A per-file `afterAll` closes the two holes a per-test verdict cannot see: a declared tag that
+ * no longer fires, and a fire that outlived every test.
  */
 
-import { afterEach, expect } from 'vitest';
+import { afterAll, afterEach, expect } from 'vitest';
+import { tick } from 'svelte';
 import { setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
 import { resetEditorEnv } from '$lib/env';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
@@ -44,11 +47,11 @@ export function drainDevWarns(): void {
 
 /**
  * Drain, refusing any tag the caller did not declare. For a fixture that provokes a fire the
- * test is not about; nothing asserts the declared tags fired, so declarations rot silently,
- * which is the price of leaving the sharp guards (`invariant:*`, `tree-ops`) out of the
- * run-wide allowlist.
+ * test is not about. Every declared tag must fire somewhere in the file, or the file's
+ * `afterAll` aggregate names it stale.
  */
 export function allowDevWarns(tags: string[]): DevWarnRecord[] {
+	for (const tag of tags) declaredTags.add(tag);
 	const drained = takeDevWarns();
 	const undeclared = drained.filter((record) => !tags.includes(record.tag));
 	expect(undeclared, formatUndeclaredWarnFailure(tags, undeclared)).toEqual([]);
@@ -104,15 +107,19 @@ const RELAYS = new Set(['src/lib/dev-warn.ts', 'src/lib/invariants/assert.ts']);
 
 let recorded: DevWarnRecord[] = [];
 
+// Per file, because Vitest re-runs the setup files for each: the aggregate below reads a
+// declaration against the tags this file actually warmed.
+const declaredTags = new Set<string>();
+const firedTags = new Set<string>();
+
 function listRecords(records: DevWarnRecord[]): string {
 	return records.map((r) => `  [${r.tag}] ${r.site} — ${r.message}`).join('\n');
 }
 
 // ── The gate ─────────────────────────────────────────────────────────────────
 
-// A fire lands on whichever test is open when the sink receives it, so a warn deferred past
-// its own `afterEach` (an `await tick()` inside the guard) reds the NEXT test instead.
 const gateSink: DevWarnSink = (entry) => {
+	firedTags.add(entry.tag);
 	recorded.push({ ...entry, site: siteFromStack(new Error().stack) });
 };
 
@@ -124,7 +131,10 @@ const STOLEN_SINK =
 	'replaced. The gate has re-armed itself for the next test.';
 
 /** The per-test verdict, exported so the gate's own suite can drive it without a nested runner. */
-export function enforceWarnGate(): void {
+export async function enforceWarnGate(): Promise<void> {
+	// A guard may defer its own fire (`reportContestedClaim` awaits a tick before warning);
+	// without this the fire lands on the NEXT test's verdict, or on no test at all.
+	await tick();
 	const unclaimed = findUnallowlistedWarns(takeDevWarns());
 	// The env singleton and the once-per-id warn set are process-global, so a leaked
 	// override or a deduped warn would make the next test's verdict order-dependent.
@@ -135,4 +145,39 @@ export function enforceWarnGate(): void {
 	if (stolen) throw new Error(STOLEN_SINK);
 }
 
+/** The per-file aggregate: stale declarations, plus fires that outlived every test. */
+export function auditWarnDeclarations(
+	declared: Iterable<string>,
+	fired: ReadonlySet<string>,
+	late: DevWarnRecord[]
+): string[] {
+	const problems: string[] = [];
+	const stale = [...declared].filter((tag) => !fired.has(tag));
+	if (stale.length > 0) {
+		problems.push(
+			`allowDevWarns declared [${stale.join(', ')}], which never fired in this file. ` +
+				'A waiver nothing warms is a hole: drop the tag, or fix the fixture that stopped ' +
+				'provoking it.'
+		);
+	}
+	if (late.length > 0) {
+		problems.push(
+			`${late.length} devWarn fire(s) arrived after the last test's verdict:\n${listRecords(late)}\n` +
+				'Nothing could attribute them. A guard that defers past a tick is claimed by the ' +
+				'test that provokes it (`await tick()` before `takeDevWarns()`), not by the file.'
+		);
+	}
+	return problems;
+}
+
 afterEach(enforceWarnGate);
+
+afterAll(async () => {
+	await tick();
+	const problems = auditWarnDeclarations(
+		declaredTags,
+		firedTags,
+		findUnallowlistedWarns(takeDevWarns())
+	);
+	if (problems.length > 0) throw new Error(problems.join('\n\n'));
+});

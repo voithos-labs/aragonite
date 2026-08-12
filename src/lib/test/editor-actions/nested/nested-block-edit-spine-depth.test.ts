@@ -2,13 +2,10 @@
 //
 // G1.20 — unshared-spine depth. A chain shorter than the leaf path makes
 // `chain[leafPath.length - 2]` address a node the caller does NOT own, so the write lands
-// on a snapshot-shared node and corrupts history at a later undo. The invariant is an
-// inline closure, so its fire is observed by mocking `$lib/dev-warn`.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+// on a snapshot-shared node and corrupts history at a later undo.
+import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('$lib/dev-warn', () => ({ devWarn: vi.fn() }));
-
-import { devWarn } from '$lib/dev-warn';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import type { CstNode } from '$lib/core/nodes';
 import type { SharingState } from '$lib/tree-operations/sharing';
 import { createSharingState } from '$lib/tree-operations/sharing';
@@ -61,23 +58,21 @@ function typeInto(node: CstNode, chainDepth: number): void {
 	).updateBlockContent(0, 'typed\n');
 }
 
-const violations = () =>
-	vi.mocked(devWarn).mock.calls.filter(([tag]) => tag === 'invariant:unshared-spine-depth');
-
-beforeEach(() => vi.mocked(devWarn).mockClear());
+const SPINE_DEPTH = ['invariant:unshared-spine-depth'];
 
 describe('G1.20 unshared-spine depth', () => {
 	it('stays silent when the chain is as deep as the leaf path', () => {
 		typeInto(item(), CONTAINER_PATH.length + 1);
 
-		expect(violations()).toHaveLength(0);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('fires when the chain comes back short of the leaf path', () => {
 		typeInto(item(), CONTAINER_PATH.length);
 
-		expect(violations()).toHaveLength(1);
-		expect(violations()[0][1]).toContain(`chain depth ${CONTAINER_PATH.length} != leaf path depth`);
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(SPINE_DEPTH);
+		expect(fires[0].message).toContain(`chain depth ${CONTAINER_PATH.length} != leaf path depth`);
 	});
 
 	// The predicate is an equality, not a lower bound: a `<` written where `!==` belongs
@@ -85,6 +80,6 @@ describe('G1.20 unshared-spine depth', () => {
 	it('fires when the chain comes back deeper than the leaf path', () => {
 		typeInto(item(), CONTAINER_PATH.length + 2);
 
-		expect(violations()).toHaveLength(1);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(SPINE_DEPTH);
 	});
 });
