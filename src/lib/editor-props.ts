@@ -48,11 +48,8 @@ export interface EditorProps {
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
 	 *  own `.editor[data-editor-theme='<name>']` token block. */
 	theme?: string;
-	/** Read live, like `theme`. `'source'` (default) is styled-source editing; `'reading'`
-	 *  hides markers, renders widgets, and is read-only (selection/copy/navigation stay);
-	 *  `'preview-block'` and `'preview-inline'` are editing rungs that reveal source
-	 *  per focused block or per caret-touched construct; `'live'` is fully rendered and
-	 *  editable, revealing nothing. */
+	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
+	 *  guide's Presentation modes section describes what each rung shows and allows. */
 	presentationMode?: PresentationMode;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
@@ -88,8 +85,7 @@ export interface EditorInstance {
 	 * transforms, every container-aware strategy, delete-selection-first, one undo entry, and
 	 * focus at the end of the insertion. True means the pipeline took the text, not that its
 	 * commit has flushed — read the result back through the `edit` event. False, and nothing
-	 * mutates, when this editor holds no caret (a toolbar button that takes focus is the usual
-	 * cause), in reading mode, or at a gap caret.
+	 * mutates, when this editor holds no caret, in reading mode, or at a gap caret.
 	 */
 	insertMarkdown(md: string): boolean;
 	getEvents(): EditorEvents;

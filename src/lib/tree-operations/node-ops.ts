@@ -42,11 +42,10 @@ import { replacePreservingFirst, type StructuralChange } from './structural-chan
 export type NodeParent = { children: CstNode[] };
 
 /**
- * A {@link NodeParent} that has answered which container owns it. The sinks that WRITE
- * BYTES need that answer: the bytes must satisfy the owner's `bodyWrite` grammar, and a
- * separator settle hands a chrome-bounded line to the owner NODE's wrap slots.
- * Both nullable rather than optional so every byte-writing site must answer — `undefined`
- * is a real answer (the document root), but skipping the question is a compile error.
+ * A {@link NodeParent} that has answered which container owns it — the byte sinks need that
+ * answer for the owner's `bodyWrite` grammar and its wrap slots. Both nullable rather than
+ * optional so every byte-writing site answers: `undefined` is a real answer (the document
+ * root), skipping the question is a compile error.
  */
 export type BodyParent = NodeParent & {
 	ownerKind: AnyBlockKind | undefined;
@@ -69,8 +68,8 @@ export type BodyParentArg = BodyParent | Document;
 /**
  * What the separator settles accept: anything that can answer where the body starts, whether
  * it holds the owner's kind directly (the container node, the Document) or the sink's answer
- * to it ({@link BodyParentArg}, which this absorbs). Wider than the byte sinks because a
- * settle writes a line ending, not body text — no `bodyWrite` grammar governs it.
+ * to it ({@link BodyParentArg}, which this absorbs). Wider than the byte sinks: a settle
+ * writes a line ending, not body text.
  */
 export type SeparatorParent = {
 	kind?: string;
@@ -110,8 +109,7 @@ export function normalizeOwnRaw(node: NodeView, raw: string): string {
 /**
  * Write `raw` as `node`'s OWN bytes through its kind's rule — {@link normalizeOwnRaw}'s in-place
  * sink. Every sink writing a leaf's bytes without the kind's surface in front of it owes one of
- * the two (pinned by `lint/leaf-raw-write-rule`). A rewrite can move parse-derived metadata (an
- * escalated fence length), which an in-place sink has no reparse to re-derive, so this door does it.
+ * the two (pinned by `lint/leaf-raw-write-rule`).
  */
 export function writeOwnRaw(node: CstNode, raw: string, grammar: GrammarView | undefined): void {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
@@ -190,7 +188,7 @@ export interface SplitResult {
  * original ID and the whole structural suffix (a setext underline), which a plain cut would strand
  * below as junk. The second half opens with a blank separator wherever one does structural work
  * ({@link separatorSplitsOffNextLine}) — without it GFM lazy continuation folds the halves back
- * into one block on reload. `presentationMode` is nullable rather than optional.
+ * into one block on reload.
  */
 export function splitNode(
 	parent: BodyParentArg,
@@ -206,8 +204,7 @@ export function splitNode(
 	const descriptor = getBlockKindDescriptor(node.kind);
 
 	// A context-dependent kind (tableCell, container chrome) has no standalone recognizer,
-	// so the reparse would destroy both halves; the Enter gesture routes to
-	// chrome.descendToBody instead.
+	// so the reparse would destroy both halves.
 	if (descriptor.contextDependentKind) return noop;
 
 	const rawText = node.raw;
@@ -263,8 +260,7 @@ export function splitNode(
 	nodes[nodes.length - 1].raw += second.suffix;
 	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
-	// A blank second half at the tail exposes the document's folded line; the
-	// tail guard keeps the mint adjacent to this splice's window. Off the tail, the new
+	// A blank second half at the tail exposes the document's folded line; off the tail the new
 	// last-node/successor seam re-reads instead — the two arms are exclusive.
 	const minted = splitTail ? materializeTailSuffix(parent) : 0;
 	// Floor at the seam itself: a wider window would reach back into the spliced set and
@@ -297,7 +293,7 @@ function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offse
  * The stand-in for whatever the user types into the second half: the maximally-continuable
  * line, so the predicate answers for the worst case rather than one construct. Openers are
  * arbitrary code, so no line is unclaimable by construction — {@link probeLineOpensAsProse}
- * is the runtime check, pinned by `split-separator.test.ts`.
+ * is the runtime check.
  */
 export const NEXT_PROSE_LINE = 'x';
 
@@ -354,11 +350,10 @@ function blankHalfBecomesBlock(firstRaw: string, secondRaw: string, lineEnding: 
 }
 
 /**
- * Would a blank line between `raw` and the line after it split off a second block? Asking
- * that directly, rather than whether the tight join merges, is what keeps the predicate
- * free of a kind list: a construct whose body swallows both forms alike answers no on its
- * own, so the separator never lands inside a body. Blank blocks are discounted on both
- * sides — the separator materializes as one, and counting it would answer yes for every raw.
+ * Would a blank line between `raw` and the line after it split off a second block? Asked of the
+ * bytes, never a kind list: a construct whose body swallows both forms alike answers no on its
+ * own, so the separator never lands inside a body. Blank blocks are discounted on both sides —
+ * the separator materializes as one, and counting it would answer yes for every raw.
  */
 function separatorSplitsOffNextLine(raw: string, secondRaw: string, lineEnding: string): boolean {
 	if (DEV && !probeLineOpensAsProse()) {
@@ -367,9 +362,8 @@ function separatorSplitsOffNextLine(raw: string, secondRaw: string, lineEnding: 
 			`a registered opener claims ${JSON.stringify(NEXT_PROSE_LINE)}, so the split-separator probe no longer stands in for prose`
 		);
 	}
-	// Both lines that will ever sit under `raw`: the second half's actual head, and the prose
-	// stand-in for whatever a later edit puts there — a promoted table absorbs a pipe-bearing
-	// head the stand-in survives.
+	// Both lines that will ever sit under `raw`: the second half's actual head (a promoted table
+	// absorbs a pipe-bearing one), and the prose stand-in for whatever a later edit puts there.
 	const probes = [secondRaw.slice(0, secondRaw.indexOf('\n') + 1), NEXT_PROSE_LINE + lineEnding];
 	return probes.some(
 		(probe) => contentBlockCount(raw + lineEnding + probe) > contentBlockCount(raw + probe)
@@ -382,9 +376,9 @@ function contentBlockCount(source: string): number {
 }
 
 /**
- * A split that keeps a kind's structural suffix — raw beyond its content range, today
- * only the setext underline — on the first half. Null when the kind has no suffix, or the
- * offset is at block start or inside the suffix itself; both keep the plain raw cut.
+ * A split that keeps a kind's structural suffix — raw beyond its content range, the setext
+ * underline — on the first half. Null when the kind has no suffix, or the offset is at block
+ * start or inside the suffix itself; both keep the plain raw cut.
  */
 function structuralSuffixSplit(
 	descriptor: BlockKindDescriptor,
@@ -415,8 +409,7 @@ function structuralSuffixSplit(
  * `join.mergedRaw` with the delimiter runs the join orphaned at its seam dropped — live only,
  * where those runs are unpainted and a literal concatenation surfaces bytes the reader never saw
  * (live-mode.md § 4.5). The one registered cleaner verifies its own bytes and otherwise declines,
- * leaving the literal join every other mode gets. Exported for `selection/range-delete`, the
- * fourth seam.
+ * leaving the literal join every other mode gets. Every destructive join crosses this door.
  */
 export function cleanJoinedRaw(
 	join: JoinSeam,
@@ -481,9 +474,9 @@ export interface MergeResult {
 }
 
 /**
- * Merge the node at `blockIndex` into its predecessor; combined raw is re-parsed and the
- * merged block inherits prev's ID. Noop at index 0. `presentationMode` is nullable rather than
- * optional for the reason {@link splitNode}'s is: skipping the question is a compile error.
+ * Merge the node at `blockIndex` into its predecessor; combined raw is re-parsed and the merged
+ * block inherits prev's ID. Noop at index 0. `presentationMode` is nullable rather than optional
+ * here as at every byte sink: skipping the question is a compile error.
  */
 export function mergeWithPrevious(
 	parent: NodeParent,
@@ -509,8 +502,7 @@ export function mergeWithPrevious(
 			)
 		: prev.leadingTrivia;
 	const mergedNode = reparseAsNode(mergedRaw, trivia);
-	// curr's own separator dies with it, so the successor inherits it unless it has one —
-	// the same rule `deleteNode` applies, and for the same reason.
+	// curr's own separator dies with it, so the successor inherits it unless it has one.
 	const successor = parent.children[blockIndex + 1];
 	if (successor) successor.leadingTrivia = successor.leadingTrivia || curr.leadingTrivia;
 	parent.children.splice(blockIndex - 1, 2, mergedNode);
@@ -574,10 +566,9 @@ export function mergeIntoPrevDeepLeaf(
 }
 
 /**
- * The deep-leaf merge's write, on the in-place discipline's terms: the absorbed
- * bytes cross the kind's own rule and a fragment reparse — same kind refreshes the
- * parse-owned fields in place, a kind change mints the reparse into the leaf's slot, and a
- * multi-block read keeps the single-leaf write (the merge contract has one slot).
+ * The deep-leaf merge's write: the absorbed bytes cross the kind's own rule and a fragment
+ * reparse — same kind refreshes the parse-owned fields in place, a kind change mints the reparse
+ * into the leaf's slot, and a multi-block read keeps the single-leaf write (one slot).
  */
 function writeMergedLeaf(
 	holderChildren: CstNode[],
@@ -638,7 +629,8 @@ export function mergeWithNext(
 /**
  * Settle the separator at `index`: nothing above it needs one at the body head or below a blank
  * block, where the parser would read the extra line as one more empty paragraph. Every splice
- * that changes what precedes a block settles it. `sharing` owns the write (G1.9).
+ * that changes what precedes a block settles through this family (syntax-tree.md § Blank lines).
+ * `sharing` owns the write (G1.9).
  */
 export function clearRedundantSeparator(
 	parent: SeparatorParent,
@@ -662,7 +654,7 @@ export function clearRedundantSeparator(
  * as a second empty paragraph (G2.13). The follower's is the one that stands, so a later fill of
  * this slot (a paste over a cut range) still finds the follower separated. The run-level twin
  * {@link settleSeparatorOnBlank} keeps the first already-standing line instead, the same bytes
- * the other way round, because its mint arm has only one legal slot.
+ * the other way round.
  */
 export function dropDoubledSeparator(
 	parent: SeparatorParent,
@@ -712,10 +704,9 @@ export function restoreSeparatorAfterBlank(
 
 /**
  * The settle a block turning INTO a blank line owes: it joins the blank run around it, and a run
- * carries exactly the one separating line its reload mints — across every block in it AND its
- * follower, since a blank block is the follower's line too. Two reload as one more empty
- * paragraph; none folds the run's head into the block above. The line already standing is the one
- * kept, wherever in the run it sits; a mint lands at the run's head, the only slot one may take.
+ * carries exactly ONE separating line — across every block in it AND its follower, since a blank
+ * block is the follower's line too. The line already standing is the one kept, wherever in the
+ * run it sits; a mint lands at the run's head, the only slot one may take.
  */
 export function settleSeparatorOnBlank(
 	parent: SeparatorParent,
@@ -735,8 +726,7 @@ export function settleSeparatorOnBlank(
 		if (children[i].leadingTrivia !== '') standing.push(i);
 	}
 	// A chrome line bounding the run beside PROSE eats one line as the wrap's peel
-	// (`innerPrefix`/`innerSuffix`), which the run must hand over on top of its own
-	// count. An all-blank body peels only what it can spare, so it owes none.
+	// (`innerPrefix`/`innerSuffix`), on top of the run's own count; an all-blank body owes none.
 	const wrap = bodyWrapOf(parent);
 	const slots = wrapSlotsOf(parent);
 	const tailBelowProse = start > bodyStart && end === children.length - 1;
@@ -780,7 +770,7 @@ export function settleSeparatorOnBlank(
  * block is non-blank (`parseBlocks`' separator-spent rule); once the tail turns blank the
  * reload reads that line as its own empty paragraph, so the settle materializes it.
  * Document-level slot only — a container's `innerSuffix` twin stays with the wrap arms.
- * Returns the blocks appended, for the sinks that report a structural window.
+ * Returns the blocks appended.
  */
 function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
 	const children = parent.children;
@@ -854,8 +844,7 @@ function absorbSeamReading(
 	return { at, span, eaten };
 }
 
-/** The materialized tail reported inside the sink's one contiguous window.
- *  Exported for the cross-block commit, whose descriptors derive from length diffs. */
+/** The materialized tail reported inside the sink's one contiguous window. */
 export function widenForTailMint(
 	change: StructuralChange,
 	before: number,
@@ -933,11 +922,10 @@ function absorbWrapPrefix(
 // ── Delete ──
 
 /**
- * Remove the node at `blockIndex`, leaving the next sibling separated from its new
- * predecessor and no more. Takes {@link BodyParentArg}: the settle can hand a freed line
- * to the owner's wrap slots, so every caller answers who owns these children. Pass
- * `sharing` to unshare the nodes written — the successor's trivia is the op's only
- * in-place write.
+ * Remove the node at `blockIndex`, leaving the next sibling separated from its new predecessor
+ * and no more. Takes {@link BodyParentArg} because the settle can hand a freed line to the
+ * owner's wrap slots. Pass `sharing` to unshare the nodes written — the successor's trivia is
+ * the op's only in-place write.
  */
 export function deleteNode(
 	parent: BodyParentArg,
@@ -959,9 +947,8 @@ export function deleteNode(
 
 	parent.children.splice(blockIndex, 1);
 	clearRedundantSeparator(parent, blockIndex, sharing);
-	// The delete puts two blocks beside each other for the first time, and their adjacent
-	// bytes can re-read as fewer — this and the tail mint below are exclusive,
-	// since one needs a successor at the slot and the other needs the slot past the tail.
+	// The delete puts two blocks beside each other for the first time, and their adjacent bytes can
+	// re-read as fewer. Exclusive with the tail mint below: that one needs the slot past the tail.
 	const seam = absorbSeamReading(parent, blockIndex - 1, 0, sharing);
 	if (seam.eaten > 0) {
 		// One contiguous window: the absorbed span plus the deleted block inside it.
@@ -973,9 +960,8 @@ export function deleteNode(
 			idMap: { 0: 0 }
 		};
 	}
-	// Removing the tail can leave a blank one beside the document's folded line;
-	// the delete-then-mint pair is one window, so it reports as a replace. A mid delete
-	// never changes the tail, so the guard also keeps the mint adjacent.
+	// Removing the tail can leave a blank one beside the document's folded line; the
+	// delete-then-mint pair is one window, so it reports as a replace.
 	if (blockIndex === parent.children.length && materializeTailSuffix(parent, sharing)) {
 		return { op: 'replace', at: blockIndex, count: 1, newCount: 1 };
 	}
@@ -1000,9 +986,8 @@ export function updateNodeContent(
 ): StructuralChange {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
 	const change = writeParsedContent(parent, blockIndex, text, grammar);
-	// One blank line served BOTH sides: it separated this block from the one above
-	// (`splitSeparator` leaves a blank half none of its own when a run is already open below)
-	// and stood in as the separator of the block beneath it. Ending it owes each their own.
+	// One blank line served BOTH sides: it separated this block from the one above and stood in
+	// as the separator of the block beneath it. Ending it owes each their own.
 	if (wasBlank && !isBlankParagraph(parent.children[blockIndex])) {
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
@@ -1049,9 +1034,8 @@ function writeParsedContent(
 		return { op: 'noop' };
 	}
 
-	// The instance grammar reaches the routine content-commit reparse; absent (paste,
-	// split/merge reparse) defaults to the global grammar. Fragment scope: this is one
-	// block's bytes, whatever its position, so a position-scoped kind must not mint here.
+	// An absent grammar defaults to the global one. Fragment scope: this is one block's
+	// bytes, whatever its position, so a position-scoped kind must not mint here.
 	const reparsed = parse(newText, { grammar, scope: 'fragment' });
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];
@@ -1102,9 +1086,9 @@ function writeParsedContent(
 // ── Container kind re-derivation ──
 
 /**
- * What the grammar opens `line` as, read in isolation. The opener-significance test
- * {@link reclassifyContainer}'s callers gate on, asked of the opener registry rather than
- * a hand-written prefix rule, so a kind registered later is covered the day it registers.
+ * What the grammar opens `line` as, read in isolation — the opener-significance test, asked of
+ * the opener registry and never a kind list, so a kind registered later is covered the day it
+ * registers.
  */
 export function lineOpensAs(line: string, grammar?: GrammarView): AnyBlockKind {
 	return parse(`${line}\n`, { grammar, scope: 'fragment' }).children[0]?.kind ?? 'paragraph';
@@ -1175,9 +1159,9 @@ export function focusTargetInReplacement(
 
 /**
  * Reparse a half's bytes as the blocks they hold, plus the trailing blank line the fragment
- * parse peels into `doc.suffix` — every sink answers for it, or the bytes are lost.
- * Plural because a half stands in a position its bytes never occupied, where a construct
- * boundary can newly materialize; keeping only the first block would drop the rest.
+ * parse peels into `doc.suffix` — every sink answers for it, or the bytes are lost. Plural
+ * because a half stands in a position its bytes never occupied, where a construct boundary
+ * can newly materialize.
  */
 function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[]; suffix: string } {
 	const doc = parse(raw, { scope: 'fragment' });
@@ -1250,7 +1234,7 @@ export function ensureEditableContainers(node: CstNode): void {
 			// A chrome-declaring container must re-mint its child-0 leaf too, or the
 			// backfilled paragraph would occupy the reserved slot and violate G1.14.
 			if (chromeKind !== undefined) {
-				// Runtime chrome kind — generic-mint cast (the paragraph below is a literal arm).
+				// Runtime chrome kind, so the mint takes the generic cast.
 				node.children.push({ kind: chromeKind, leadingTrivia: '', raw: lineEnding } as CstNode);
 			}
 			node.children.push(emptyParagraph('', lineEnding));
