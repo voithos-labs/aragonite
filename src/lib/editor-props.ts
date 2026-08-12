@@ -83,6 +83,15 @@ export interface EditorInstance {
 	 * lands in the last rendered block.
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
+	/**
+	 * Insert markdown at the caret exactly as pasting it would, minus the clipboard: paste
+	 * transforms, every container-aware strategy, delete-selection-first, one undo entry, and
+	 * focus at the end of the insertion. True means the pipeline took the text, not that its
+	 * commit has flushed — read the result back through the `edit` event. False, and nothing
+	 * mutates, when this editor holds no caret (a toolbar button that takes focus is the usual
+	 * cause), in reading mode, or at a gap caret.
+	 */
+	insertMarkdown(md: string): boolean;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;

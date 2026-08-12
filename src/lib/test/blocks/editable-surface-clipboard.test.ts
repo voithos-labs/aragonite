@@ -66,7 +66,7 @@ function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): Clipboar
 			log.push('cutTail');
 			e.clipboardData?.setData('text/plain', 'CUT');
 		},
-		pasteTail: (_e, text) => void log.push(`pasteTail:${text}`),
+		pasteTail: (text) => void log.push(`pasteTail:${text}`),
 		...over
 	};
 }
@@ -219,5 +219,73 @@ describe('clipboard skeleton — paste order', () => {
 		);
 		expect(log).toEqual(['crossblock-paste', 'reset']);
 		expect(tailRan).toBe(false);
+	});
+});
+
+/** The door returns synchronously and the insertion runs on; drain the pending chain. */
+const settled = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+// The programmatic door is the gesture's sibling entry path, so what it must carry is the
+// gesture's own arm order — not a second sequence written beside it.
+describe('clipboard skeleton — programmatic insertMarkdown', () => {
+	it('runs the same fold → cross-block → reset → tail order a paste does', async () => {
+		const log: string[] = [];
+		const handlers = createClipboardHandlers(
+			deps(log, {
+				foldReveal: () => {
+					log.push('fold');
+					return { caret: 2, settled: Promise.resolve() };
+				}
+			})
+		);
+		expect(handlers.insertMarkdown('HELLO')).toBe(true);
+		await settled();
+		expect(log).toEqual(['fold', 'crossblock-paste', 'reset', 'pasteTail:HELLO']);
+	});
+
+	it('hands the cross-block seam the payload, so a range is replaced rather than re-read', async () => {
+		const log: string[] = [];
+		const seen: Array<string | undefined> = [];
+		const handlers = createClipboardHandlers(
+			deps(log, {
+				crossBlock: {
+					handlePaste: async (_e: ClipboardEvent | null, replacement?: string) => {
+						seen.push(replacement);
+						return true;
+					}
+				} as never
+			})
+		);
+		expect(handlers.insertMarkdown('PAYLOAD')).toBe(true);
+		await settled();
+		expect(seen).toEqual(['PAYLOAD']);
+	});
+
+	it('declines in reading mode without touching an arm', async () => {
+		const log: string[] = [];
+		let tailRan = false;
+		const handlers = createClipboardHandlers(
+			deps(log, { isReadOnly: () => true, pasteTail: () => void (tailRan = true) })
+		);
+		expect(handlers.insertMarkdown('X')).toBe(false);
+		await settled();
+		expect(log).toEqual([]);
+		expect(tailRan).toBe(false);
+	});
+
+	it('declines an empty payload', async () => {
+		const log: string[] = [];
+		const handlers = createClipboardHandlers(deps(log));
+		expect(handlers.insertMarkdown('')).toBe(false);
+		await settled();
+		expect(log).toEqual([]);
+	});
+
+	it('normalizes CRLF the way a pasted payload is normalized', async () => {
+		const log: string[] = [];
+		const handlers = createClipboardHandlers(deps(log));
+		expect(handlers.insertMarkdown('a\r\nb')).toBe(true);
+		await settled();
+		expect(log).toEqual(['crossblock-paste', 'reset', 'pasteTail:a\nb']);
 	});
 });

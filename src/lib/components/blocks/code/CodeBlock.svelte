@@ -617,6 +617,7 @@
 		parkCaret,
 		getCursorOffset,
 		focusAtColumn,
+		insertMarkdown,
 		runCommand
 	} satisfies BlockComponent);
 
@@ -664,7 +665,7 @@
 
 	// Code has no ambient markers, so its DOM-text selection IS its raw slice: copy falls
 	// to the seam's visible-selection default, and cut writes that string before deleting.
-	const { onCopy, onCut, onPaste } = createClipboardHandlers({
+	const clipboard = createClipboardHandlers({
 		stickyColumn,
 		edgeAffinity,
 		selection,
@@ -685,7 +686,7 @@
 			if (!edit) return;
 			pendingCursorOffset = commitDisplay(edit.newText, edit.newCursor, edit.newCursor);
 		},
-		pasteTail: async (e, pastedText) => {
+		pasteTail: async (pastedText) => {
 			if (!el) return;
 			// Paste refuses where typing refuses: a target confined to fence structure has
 			// nothing to paste into. The tree-op owns the splice, so the span goes to it.
@@ -711,6 +712,11 @@
 			}
 		}
 	});
+	const { onCopy, onCut, onPaste } = clipboard;
+
+	export function insertMarkdown(md: string): boolean {
+		return clipboard.insertMarkdown(md);
+	}
 </script>
 
 <div

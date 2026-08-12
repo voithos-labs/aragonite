@@ -426,17 +426,19 @@ export interface ClipboardSurfaceDeps {
 	cutTail: (e: ClipboardEvent) => void | Promise<void>;
 	/** The intra-block paste after normalize: the surface's splice/dispatch, handed
 	 *  the normalized text and the reveal-fold landing caret. */
-	pasteTail: (
-		e: ClipboardEvent,
-		pastedText: string,
-		foldedCaret: number | null
-	) => void | Promise<void>;
+	pasteTail: (pastedText: string, foldedCaret: number | null) => void | Promise<void>;
 }
 
 export interface ClipboardHandlers {
 	onCopy(e: ClipboardEvent): void;
 	onCut(e: ClipboardEvent): Promise<void>;
 	onPaste(e: ClipboardEvent): Promise<void>;
+	/**
+	 * Insert `md` exactly as pasting it here would, minus the clipboard — the surface half of
+	 * `EditorInstance.insertMarkdown`. True means the pipeline took the text, not that its
+	 * commit has flushed; the synchronous declines are reading mode and an empty payload.
+	 */
+	insertMarkdown(md: string): boolean;
 }
 
 export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHandlers {
@@ -490,23 +492,41 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 		if (deps.isReadOnly()) return;
 		// Both reads stay above the fold's settle — see the discipline above.
 		const images = imageArm.filesOf(e.clipboardData);
-		const fold = deps.foldReveal?.() ?? null;
-		await fold?.settled;
-		if (images.length > 0) {
-			deps.stickyColumn.reset();
-			deps.edgeAffinity.reset();
-			await pasteImages(deps, imageArm, e, images, fold?.caret ?? null);
+		if (images.length === 0) {
+			await insertPastedText(normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? ''), e);
 			return;
 		}
-		if (await deps.crossBlock.handlePaste(e)) return;
+		const fold = deps.foldReveal?.() ?? null;
+		await fold?.settled;
 		deps.stickyColumn.reset();
 		deps.edgeAffinity.reset();
-		const pastedText = normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
-		if (!pastedText) return;
-		await deps.pasteTail(e, pastedText, fold?.caret ?? null);
+		await pasteImages(deps, imageArm, e, images, fold?.caret ?? null);
 	}
 
-	return { onCopy, onCut, onPaste };
+	/**
+	 * Everything a paste does once its payload is plain text, so the gesture and the
+	 * programmatic door carry the fold, the cross-block replace and the surface splice from
+	 * one place. `e` is null when there is no gesture to consume.
+	 */
+	async function insertPastedText(text: string, e: ClipboardEvent | null): Promise<void> {
+		const fold = deps.foldReveal?.() ?? null;
+		await fold?.settled;
+		if (await deps.crossBlock.handlePaste(e, text)) return;
+		deps.stickyColumn.reset();
+		deps.edgeAffinity.reset();
+		if (!text) return;
+		await deps.pasteTail(text, fold?.caret ?? null);
+	}
+
+	function insertMarkdown(md: string): boolean {
+		if (deps.isReadOnly()) return false;
+		const text = normalizeLineEndings(md);
+		if (!text) return false;
+		void insertPastedText(text, null);
+		return true;
+	}
+
+	return { onCopy, onCut, onPaste, insertMarkdown };
 }
 
 // ── Image-paste arm ─────────────────────────────────────────────────────────
@@ -539,5 +559,5 @@ async function pasteImages(
 	// every surface tail derives its replaced span from, so seating unconditionally would
 	// make this the one paste route that doesn't replace the selection it landed on.
 	if (deps.caret.getCursorOffset() !== anchor) deps.caret.focus(anchor);
-	await deps.pasteTail(e, text, foldedCaret);
+	await deps.pasteTail(text, foldedCaret);
 }

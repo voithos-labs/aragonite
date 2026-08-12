@@ -18,6 +18,10 @@ import {
 } from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import {
+	isPasteTransformRegistered,
+	registerPasteTransform
+} from '$lib/tree-operations/paste/paste-transforms';
+import {
 	dumpTree,
 	dumpUndoStack,
 	dumpOperationsLog,
@@ -365,6 +369,17 @@ export function installTestProbes({
 		// The real instance door, called the way a shell answering a click on its own chrome
 		// calls it — viewport coordinates the shell read off its own element.
 		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
+		// The programmatic insertion door, called the way a consumer toolbar calls it.
+		insertMarkdown: (md: string): boolean => editor.insertMarkdown(md),
+		// A plugin-shaped paste transform without a plugin. Transforms are register-once and
+		// process-global, so the probe asks before registering rather than catching the throw.
+		registerPasteTransform: (name: string, find: string, replace: string): void => {
+			if (isPasteTransformRegistered(name)) return;
+			registerPasteTransform({
+				name,
+				transform: (text) => (text.includes(find) ? text.split(find).join(replace) : null)
+			});
+		},
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;

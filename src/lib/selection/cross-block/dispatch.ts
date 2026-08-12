@@ -83,8 +83,9 @@ export interface CrossBlockHandlers {
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent): boolean;
 	/** `replacement` stands in for the clipboard's own text, for a caller that already turned the
-	 *  payload into markdown and must not re-read the event past its awaits. */
-	handlePaste(e: ClipboardEvent, replacement?: string): Promise<boolean>;
+	 *  payload into markdown and must not re-read the event past its awaits. A null event is a
+	 *  programmatic insertion: no gesture to consume, so `replacement` carries the payload. */
+	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/** Cross-block range delete for Cut handlers, after they synchronously wrote the clipboard. */
@@ -119,7 +120,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handlePointerDown: pointer.handlePointerDown,
 		handlePaste: async (e, replacement) => {
 			if (reading()) {
-				e.preventDefault();
+				e?.preventDefault();
 				return true;
 			}
 			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);

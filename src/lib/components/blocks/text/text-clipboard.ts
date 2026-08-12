@@ -176,7 +176,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			deps.setPendingCursor(cleaned?.caret ?? selOffsets.start);
 		},
 
-		pasteTail: async (e, pastedText, foldedCaret) => {
+		pasteTail: async (pastedText, foldedCaret) => {
 			const widget = selectedWidgetOnThisBlock();
 			if (widget !== null) {
 				const { inline, preSelectOffset } = widget;

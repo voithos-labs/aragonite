@@ -79,7 +79,7 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 		} as never,
 		onPasteImage: undefined,
 		cutTail: () => {},
-		pasteTail: (_e, text, foldedCaret) => {
+		pasteTail: (text, foldedCaret) => {
 			inserted.push(text);
 			folds.push(foldedCaret);
 		},

@@ -456,6 +456,7 @@
 	}
 
 	export const claimRootClipboard = clipboardHandlers.claimRootClipboard;
+	export const insertMarkdown = clipboardHandlers.insertMarkdown;
 
 	export function snapCaretToPoint(clientX: number, clientY: number): void {
 		widgetInteraction.snapClickToWidgetEdge(clientX, clientY);
@@ -616,6 +617,7 @@
 		isVerticallyTransparent,
 		enterEdgeWidget,
 		claimRootClipboard,
+		insertMarkdown,
 		snapCaretToPoint,
 		runCommand
 	} satisfies BlockComponent);

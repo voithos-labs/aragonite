@@ -153,6 +153,10 @@ export interface EditableLeaf {
 	onRenderPointerDown(e: PointerEvent): void;
 
 	// ── Programmatic edits ─────────────────────────────────────────────────────
+	/** Insert markdown at the caret exactly as pasting it here would, minus the clipboard —
+	 *  publish it as the component's `insertMarkdown` so `editor.insertMarkdown()` reaches
+	 *  this leaf. True means the paste pipeline took the text, not that its commit flushed. */
+	insertMarkdown(md: string): boolean;
 	/** Mount/focus the source with the caret at `offset` (plain mode: focus only). */
 	reveal(offset?: number): Promise<void>;
 	/** Commit edited source as one undo entry; the parse decides update / kind change / structural split. */
@@ -453,7 +457,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(sel.start, sel.end));
 			spliceSourceText(el, sel.start, sel.end, '');
 		},
-		pasteTail: (e, pastedText) => {
+		pasteTail: (pastedText) => {
 			const el = deps.getEl();
 			if (!el) return;
 			const sel = getSelectionOffsets(el);
@@ -593,6 +597,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		onCopy: clipboard.onCopy,
 		onCut: clipboard.onCut,
 		onPaste: clipboard.onPaste,
+		insertMarkdown: clipboard.insertMarkdown,
 		handleKeydown,
 		onPointerDown,
 		onFocusOut: commitReveal,
