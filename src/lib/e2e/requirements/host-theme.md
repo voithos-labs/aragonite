@@ -31,6 +31,13 @@ culture.md names, one rung up from a module.
   silently resolving from `:root` — the same-value-by-inheritance shape a bare equality check
   would also have missed)
 
+- a host-declared `--color-selection` reaches a painted selection overlay: a document-wide
+  selection paints the wash the wrapper's base implies, measured against a probe rather than a
+  hex, and a theme swap to a copper base repaints it
+  (miss-analysis: no test read a painted selection colour at all, so the four presentational
+  washes could ignore any host cascade — the entry-layer blind spot, one rung below the token
+  manifest, which only pins declarations)
+
 ## Edge cases
 
 - accent and theme are independent axes: an accent picked under a dark theme survives the

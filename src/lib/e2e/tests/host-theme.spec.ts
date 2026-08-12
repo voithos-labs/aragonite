@@ -10,17 +10,13 @@ import { waitForEditorHydrated } from '../page-probes';
 
 const editorRoot = (page: Page) => page.locator('.editor');
 
-function accentToken(page: Page, selector = '.editor'): Promise<string> {
-	return page
-		.locator(selector)
-		.evaluate((el: Element) => getComputedStyle(el).getPropertyValue('--color-accent').trim());
-}
-
 function tokenOn(page: Page, selector: string, token: string): Promise<string> {
 	return page
 		.locator(selector)
 		.evaluate((el: Element, name) => getComputedStyle(el).getPropertyValue(name).trim(), token);
 }
+
+const accentToken = (page: Page, selector = '.editor') => tokenOn(page, selector, '--color-accent');
 
 function colorOf(page: Page, selector: string): Promise<string> {
 	return page
@@ -28,6 +24,38 @@ function colorOf(page: Page, selector: string): Promise<string> {
 		.first()
 		.evaluate((el: Element) => getComputedStyle(el).color);
 }
+
+/**
+ * Escalates Mod+A from block text to the whole document, so whole blocks fall inside the
+ * selection and paint a full-bleed `.selection-overlay-middle` rather than an endpoint sliver
+ * whose rect can be empty at a boundary.
+ */
+async function selectWholeDocument(page: Page): Promise<void> {
+	await page.locator('.editor [contenteditable="true"]').first().click();
+	await page.keyboard.press('ControlOrMeta+a');
+	await page.keyboard.press('ControlOrMeta+a');
+	await expect(page.locator('.selection-overlay-middle').first()).toBeVisible();
+}
+
+/** The wash the wrapper's own selection base implies, measured rather than spelled out. */
+function washFromWrapper(page: Page, percent: number): Promise<string> {
+	return page.evaluate((pct) => {
+		const wrapper = document.querySelector('.host-page') as HTMLElement;
+		const base = getComputedStyle(wrapper).getPropertyValue('--color-selection').trim();
+		const probe = document.createElement('div');
+		wrapper.appendChild(probe);
+		probe.style.backgroundColor = `color-mix(in srgb, ${base} ${pct}%, transparent)`;
+		const used = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+		return used;
+	}, percent);
+}
+
+const overlayBackground = (page: Page) =>
+	page
+		.locator('.selection-overlay-middle')
+		.first()
+		.evaluate((el: Element) => getComputedStyle(el).backgroundColor);
 
 test.describe('/test/host-theme', () => {
 	test.beforeEach(async ({ page }) => {
@@ -84,6 +112,20 @@ test.describe('/test/host-theme', () => {
 		expect(after.link).not.toBe(before.link);
 		expect(after.footnote).toBe(after.link);
 		expect(await colorOf(page, '.paragraph-block')).toBe(body);
+	});
+
+	test('a host-declared selection base reaches the painted selection overlay', async ({ page }) => {
+		await selectWholeDocument(page);
+		const slate = await overlayBackground(page);
+		expect(slate).toBe(await washFromWrapper(page, 30));
+
+		// Non-vacuity without naming a hex: an overlay pinned to the editor's own blue would
+		// paint the same colour under a host whose selection base is copper.
+		await page.getByLabel('Theme').selectOption('warm-dark');
+		await selectWholeDocument(page);
+		const warm = await overlayBackground(page);
+		expect(warm).not.toBe(slate);
+		expect(warm).toBe(await washFromWrapper(page, 30));
 	});
 
 	test('accent and theme are independent axes', async ({ page }) => {
