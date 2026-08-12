@@ -154,20 +154,24 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
-	test('paste over a cross-block selection anchored in the memo clears it and lands the text', async ({
-		page
-	}) => {
-		await editor.memo.click();
-		await page.keyboard.press('End');
-		await page.keyboard.press('Shift+ArrowDown');
-		await editor.waitForCrossBlock(true);
-		await page.evaluate(() => navigator.clipboard.writeText('INSERTED'));
-		await page.keyboard.press('Control+v');
+	// memo registers no paste surface, so the dispatch takes the default hooks and says so;
+	// the declaration is what makes the fallthrough an asserted path rather than a shrug.
+	test.describe('paste over a cross-block selection anchored in the memo', () => {
+		test.use({ expectWarns: ['paste-dispatch'] });
 
-		// The leaf's paste handler routes the swept range through the cross-block delete + paste,
-		// so the selection collapses and the text lands; unreached, the cross-block state sticks.
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains('INSERTED');
-		expect(await roundTripStable(page)).toBe(true);
+		test('clears it and lands the text', async ({ page }) => {
+			await editor.memo.click();
+			await page.keyboard.press('End');
+			await page.keyboard.press('Shift+ArrowDown');
+			await editor.waitForCrossBlock(true);
+			await page.evaluate(() => navigator.clipboard.writeText('INSERTED'));
+			await page.keyboard.press('Control+v');
+
+			// The leaf's paste handler routes the swept range through the cross-block delete + paste,
+			// so the selection collapses and the text lands; unreached, the cross-block state sticks.
+			await editor.waitForCrossBlock(false);
+			await editor.bridge.waitForSourceContains('INSERTED');
+			expect(await roundTripStable(page)).toBe(true);
+		});
 	});
 });

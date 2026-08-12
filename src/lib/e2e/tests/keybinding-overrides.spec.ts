@@ -43,13 +43,19 @@ test.describe('keybinding-override prop', () => {
 		await expect.poll(() => source(editor)).not.toContain('helloX');
 	});
 
-	test('malformed chord (Ctrl+B) is dropped and does not bind bare B', async () => {
-		await editor.loadContent('hello\n');
-		await setKeybindings(editor, [{ chord: 'Ctrl+B', command: 'history.undo' }]);
-		await editor.page.locator('.text-editable-block').first().click();
-		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.type('b'); // would trigger the misbound undo if 'B' were bound
-		await expect.poll(() => source(editor)).toContain('hellob');
+	// Dropping the entry silently would leave an author guessing why their chord is inert,
+	// so the parser's report is part of the contract this case pins.
+	test.describe('a malformed chord', () => {
+		test.use({ expectWarns: ['keybindings'] });
+
+		test('(Ctrl+B) is dropped and does not bind bare B', async () => {
+			await editor.loadContent('hello\n');
+			await setKeybindings(editor, [{ chord: 'Ctrl+B', command: 'history.undo' }]);
+			await editor.page.locator('.text-editable-block').first().click();
+			await editor.page.keyboard.press('End');
+			await editor.page.keyboard.type('b'); // would trigger the misbound undo if 'B' were bound
+			await expect.poll(() => source(editor)).toContain('hellob');
+		});
 	});
 
 	// Kind-scoped override over a TextEditableBlock leaf: resolveBinding's kind tier.
