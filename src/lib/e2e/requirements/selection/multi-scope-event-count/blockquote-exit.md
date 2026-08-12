@@ -2,8 +2,8 @@
 
 ## Migrated sites covered
 
-- `blockquote splitBlock exit` (Enter on empty trailing paragraph inside blockquote) — one edit event, and the empty child leaves the quote rather than the document
+- `blockquote splitBlock exit` (Enter on empty trailing paragraph inside blockquote) — one edit event, and the empty child leaves the quote as a minted blank beside it
 
 ## Fixture constraints
 
-- The document needs a block below the quote. With nothing to leave to, the exit appends one, and that append is a second op — a second event for a second op, not a duplicate for this one.
+- The document needs a block below the quote: it pins that the exit is one replaceBlock over the quote's own slot, never a delete plus a landing in the block below.

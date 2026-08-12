@@ -2,8 +2,11 @@ import type { BlockquoteMetadata, CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { cloneMetadata, cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
+import { rebuildContainerRaw } from '../schema/container-raw';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { assignIds } from '../block-id';
+import { emptyParagraph } from './node-ops';
+import { trailingLineEnding } from '../core/lines';
 
 /**
  * Unwrap a quote-shaped container's first child (Rule U2), returning fresh clones without
@@ -47,4 +50,24 @@ export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
 	rebuildBlockquoteRaw(remaining);
 
 	return [lifted, remaining];
+}
+
+/**
+ * The parent-level replacement when Enter exits a quote-shaped container's empty trailing
+ * paragraph: `[trimmedContainer, exitParagraph]`, the caller's focus target at index 1.
+ * Kind-agnostic through the descriptor's `rebuildRaw`; input unmutated. The exit paragraph
+ * carries a separator like the list exit's, or a line typed there lazy-continues the
+ * container on reload.
+ */
+export function buildQuoteExitReplacement(container: NodeView): CstNode[] {
+	if (!container.children || container.children.length <= 1) return [];
+
+	const trimmed = cloneNode(container);
+	trimmed.children = trimmed.children!.slice(0, -1);
+	trimmed.childIds = assignIds(trimmed.children);
+	rebuildContainerRaw(trimmed);
+
+	// Every byte this op mints is a line ending, so it takes the container's (G4.20).
+	const lineEnding = trailingLineEnding(container.raw);
+	return [trimmed, emptyParagraph(lineEnding, lineEnding)];
 }

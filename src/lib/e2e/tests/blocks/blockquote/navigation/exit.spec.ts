@@ -3,6 +3,14 @@ import { EditorPage } from '../../../../editor-page';
 
 // The exited source must collapse the empty continuation marker at every nesting depth: ancestor
 // quotes must rebuild too, or their stale raw leaks a stranded `> >` / `> > >` line.
+
+/** One rung of the exit ladder, settled on the source it rewrites. */
+async function pressEnterUntilSourceChanges(editor: EditorPage): Promise<void> {
+	const before = await editor.bridge.getSource();
+	await editor.page.keyboard.press('Enter');
+	await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
+}
+
 test.describe('blockquote navigation — exit on empty trailing line', () => {
 	let editor: EditorPage;
 
@@ -34,7 +42,8 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 	});
 
 	// Exiting a NESTED quote once rebuilt the inner quote's raw but left the outer's stale,
-	// stranding `> >`.
+	// stranding `> >`. The exit ladders one level per Enter, the list outdent's convention,
+	// so reaching the document takes one press per depth.
 	test('nested quote (depth 2) exit leaves no stranded "> >" line', async () => {
 		await editor.loadContent('> Outer\n> > Inner\n');
 		const inner = editor.page.locator('[contenteditable="true"]', { hasText: /^Inner$/ });
@@ -42,6 +51,7 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(5);
+		await pressEnterUntilSourceChanges(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^[^>]/m);
 
@@ -60,6 +70,8 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(5);
+		await pressEnterUntilSourceChanges(editor);
+		await pressEnterUntilSourceChanges(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^[^>]/m);
 
