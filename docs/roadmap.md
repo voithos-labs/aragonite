@@ -91,7 +91,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      registrar-poison class was structurally fixed in 0.9.27 — dev re-registration replaces
      instead of throwing; only the chorded plugin-global-command residual remains); a first pass of curated entry-level issues. The bar stays
      high — the reading order is what changes.
-   - **Collapse the 0.9.x changelog working notes into one tight 0.9 entry** — the changelog's own
+   - **Collapse `docs/changelog/0.9.md` into one tight 0.9 entry** — the changelog's own
      pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
      `git log`.
    - Final contract reconciliation; **pre-freeze labels come off** — the `(pre-freeze)` section
