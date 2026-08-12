@@ -75,6 +75,38 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 	});
 }
 
+test.describe('the rebound chord — the only gesture that reaches the seam with a range painted', () => {
+	// Every default toggle chord is swallowed a layer earlier, so a leaf handing the seam a
+	// constant `isCrossBlockRange: () => false` would still pass every case above. A chord the
+	// swallow does not know walks the block's own dispatch, where the leaf's live flag is the
+	// only thing between the press and a single-block rewrite of the anchor block.
+	test('Mod+Alt+G bound to the strong toggle writes nothing and commits no edit', async ({
+		page
+	}) => {
+		const ep = new EditorPage(page);
+		await ep.goto();
+		await ep.loadContent(DOC);
+		await ep.waitForRenderFlush();
+		await page.evaluate(() =>
+			(window as any).__test.setKeybindings([
+				{ chord: 'Mod+Alt+G', command: 'format.toggleStrong' }
+			])
+		);
+		const before = await ep.bridge.getSource();
+		await selectWholeDocument(ep, page);
+
+		// The edit counter, not an undo round-trip: undo-then-compare restores the pair a
+		// leaked toggle would have written, so it passes either way.
+		await page.evaluate(() => (window as any).__test.startEditCount());
+		await page.keyboard.press(`${primaryModifier}+Alt+g`);
+		await ep.waitForRenderFlush();
+		await ep.waitForNoSourceMutation();
+
+		expect(await page.evaluate(() => (window as any).__test.stopEditCount())).toBe(0);
+		expect(await ep.bridge.getSource()).toBe(before);
+	});
+});
+
 test.describe('the sibling chord the sweep missed — Mod+K over a cross-block range', () => {
 	// The cross-block entry parks a COLLAPSED native caret at the anchor, so the link-card
 	// entry's native-collapse check alone reads a painted range as an ordinary caret.

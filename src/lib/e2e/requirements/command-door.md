@@ -15,8 +15,8 @@ is its only user.
   source gains `**` around exactly that word, and one undo restores it
 - the same word through the emphasis, strikethrough and inline-code ids: each writes
   its own delimiter pair and nothing else moves
-- the door's bytes match the chord's byte for byte over the same selection, pressed
-  in a second editor load of the same document
+- the door's bytes match the chord's byte for byte: toggle through the door, undo,
+  then press the chord over the same re-selected range
 - the selection survives the toggle, so a second door call on the same range strips
   the pair it just wrote
 
@@ -26,10 +26,15 @@ is its only user.
   the door unchanged: the id still runs, and the rebound chord still runs, so the
   toolbar button is not rewired by a host's keymap
 - the link-edit id opens the link card over a selection, the same card `Mod+K` opens
-- a caret with no selection: the toggle writes an empty pair at the caret, matching
-  the chord's collapsed-caret behavior
+- a caret with no selection, in a mode that paints the delimiters: the toggle writes
+  an empty pair at the caret, matching the chord's collapsed-caret behavior
+- the same caret in `'live'`, which paints no delimiter and so may write no empty
+  pair: the door is consumed (`true`), no bytes move, and the mark pends until the
+  next typed character carries it (live-mode.md § 4.3)
 - a table cell holds the caret: the door reaches the cell's own arm through the
   published ref slot
+- a gap caret holds the selection: no block is focused, so every block-local id
+  declines and nothing mutates — the gap survives the call
 
 ## Error cases
 
@@ -48,3 +53,7 @@ is its only user.
   default chords, so nothing tested it as a rule about COMMANDS. A second dispatch
   surface (this door) would have walked straight into the single-block arms, and the
   suite had no case that reached a format arm by id rather than by keystroke (#127).
+- The door's two selection-shaped edges — a collapsed caret and a gap caret — were
+  scenarios without tests or arms without scenarios: the third selection mode is
+  reachable by gesture but never was one, and the collapsed caret was written as one
+  outcome where the mode decides between two.

@@ -122,6 +122,13 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual(['block.split']);
 	});
 
+	// The JS caller the required field cannot reach: absence must be loud, never a skipped
+	// decline. TS callers are covered by the type; this pins what the runtime does.
+	it('a gates object with no range getter throws rather than admitting the rewrite', () => {
+		const gateless = { history: context().history } as unknown as CommandDispatchContext;
+		expect(() => runCommandById('format.toggleStrong', undefined, target([]), gateless)).toThrow();
+	});
+
 	it('the range decline is id-keyed, so a rebound chord meets it too', () => {
 		const ran: string[] = [];
 		// The chord #107 never sees: a consumer moved the toggle off Mod+B.
