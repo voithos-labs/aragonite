@@ -52,7 +52,8 @@
 				'color-ui-dulled': '#afb1b3',
 				'color-ui-muted': '#a4a4a4',
 				'color-accent': '#567b67',
-				'color-error': '#ff5f57'
+				'color-error': '#ff5f57',
+				'color-selection': '#5a8fd0'
 			}
 		},
 		'warm-dark': {
@@ -67,7 +68,8 @@
 				'color-ui-dulled': '#a3a39d',
 				'color-ui-muted': '#8f8f89',
 				'color-accent': '#567b67',
-				'color-error': '#ff5f57'
+				'color-error': '#ff5f57',
+				'color-selection': '#c58a4a'
 			}
 		},
 		'paper-light': {
@@ -82,7 +84,8 @@
 				'color-ui-dulled': '#5c5f62',
 				'color-ui-muted': '#787a7c',
 				'color-accent': '#567b67',
-				'color-error': '#d03025'
+				'color-error': '#d03025',
+				'color-selection': '#5b7fc7'
 			}
 		},
 		'warm-light': {
@@ -97,7 +100,8 @@
 				'color-ui-dulled': '#71716a',
 				'color-ui-muted': '#83837b',
 				'color-accent': '#567b67',
-				'color-error': '#d03025'
+				'color-error': '#d03025',
+				'color-selection': '#b5793f'
 			}
 		}
 	};

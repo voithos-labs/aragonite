@@ -26,6 +26,9 @@
 	--color-ui-muted: #a4a4a4;
 	--color-ui-dulled: #afb1b3;
 	--color-accent: #567b67;
+	/* Base the selection, search-match and reorder washes derive from, so one declaration
+	   moves all of them; the washes themselves stay editor-owned. */
+	--color-selection: #6496ff;
 	--color-error: #e06c75;
 }
 
@@ -37,6 +40,7 @@
 	--color-ui-muted: #6e7781;
 	--color-ui-dulled: #8c959f;
 	--color-accent: #567b67;
+	--color-selection: #6496ff;
 	--color-error: #cf222e;
 }
 
@@ -91,8 +95,10 @@
 	--code-tok-unknown: inherit;
 
 	/* Presentational tokens (mode-independent). */
-	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
-	--search-match-bg: rgba(120, 150, 255, 0.22);
+	/* Washes over the host-declarable selection base, alpha apart, so a host that names one
+	   base moves the selection, the search matches and the reorder chrome together. */
+	--selection-overlay-bg: color-mix(in srgb, var(--color-selection, #6496ff) 30%, transparent);
+	--search-match-bg: color-mix(in srgb, var(--color-selection, #6496ff) 22%, transparent);
 	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
@@ -101,10 +107,10 @@
 	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
-	--md-reorder-indicator: #6496ff;
+	--md-reorder-indicator: var(--color-selection, #6496ff);
 	/* Wash on the container being reordered within during a nested drag. Tinted with the reorder
 	   accent, not neutral grey, so the shift stays perceptible for low-contrast vision. */
-	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
+	--reorder-scope-bg: color-mix(in srgb, var(--color-selection, #6496ff) 14%, transparent);
 	--syntax-marker-dim: 0.65;
 
 	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the

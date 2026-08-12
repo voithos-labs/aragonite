@@ -384,16 +384,17 @@ Three paths, by scope:
 
 The role table below is the stable **host-chrome contract** — the tokens the editor and its plugins read to blend into your app, named as a host theme system names them. Declare them anywhere in your cascade, or take the defaults through the opt-in class.
 
-| Role        | Token(s)                                                              |
-| ----------- | --------------------------------------------------------------------- |
-| **Font**    | `--font-editor`, `--editor-font-size` _(mode-independent — one each)_ |
-| **Radius**  | `--radius-ui` _(controls)_, `--radius-surface` _(overlays, popovers)_ |
-| **Surface** | `--color-surface`                                                     |
-| **Text**    | `--color-text-secondary` _(body)_, `--color-text-primary`             |
-| **Muted**   | `--color-ui-muted`, `--color-ui-dulled`                               |
-| **Accent**  | `--color-accent`                                                      |
-| **Borders** | `--color-border`                                                      |
-| **Error**   | `--color-error`                                                       |
+| Role          | Token(s)                                                              |
+| ------------- | --------------------------------------------------------------------- |
+| **Font**      | `--font-editor`, `--editor-font-size` _(mode-independent — one each)_ |
+| **Radius**    | `--radius-ui` _(controls)_, `--radius-surface` _(overlays, popovers)_ |
+| **Surface**   | `--color-surface`                                                     |
+| **Text**      | `--color-text-secondary` _(body)_, `--color-text-primary`             |
+| **Muted**     | `--color-ui-muted`, `--color-ui-dulled`                               |
+| **Accent**    | `--color-accent`                                                      |
+| **Selection** | `--color-selection`                                                   |
+| **Borders**   | `--color-border`                                                      |
+| **Error**     | `--color-error`                                                       |
 
 The editor supplies these host-family surfaces itself, in both modes, because a host vocabulary rarely names them — override them at `.editor`, where a `:root` declaration would lose to the default:
 
@@ -404,11 +405,13 @@ The editor supplies these host-family surfaces itself, in both modes, because a 
 
 **Both-themes guarantee.** Each `--color-*` token's defaults carry a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. The font and radius tokens are the exceptions: mode-independent, declared once.
 
+**`--color-selection` is a base, not a wash.** The selection overlay, the search-match tint and the block-reorder chrome are editor-owned tokens derived from it at fixed alphas, so naming the one base moves all three and keeps their relative weights. Declaring an individual wash at `.editor` still wins over the derivation, for a host that wants one of them somewhere else.
+
 **Radii are partial by design.** The two tokens cover the corners a host theme has an opinion about — its controls and its elevated surfaces. Editor chrome whose corner is neither (a hairline focus ring, a scrollbar thumb, an inline-code pill) keeps a literal, so declaring the tokens rounds the surfaces you would expect a theme to round and leaves the rest alone.
 
 **`--editor-font-size` is the type-scale root.** Headings, code, markers and chrome are all `em`-relative, so overriding this one token scales the whole surface. In a themed host (no opt-in class) set it on any ancestor and it inherits straight in. Under `.aragonite-editor-theme` the class declares `1rem`, which shadows any value from above it: set it at `.editor` or below the class, or bridge it through a property of your own (`.editor { --editor-font-size: var(--my-zoom, 1rem); }`). A live change is supported: virtual rendering re-estimates the document at the new scale, so a zoom control is a first-class use of the token, not a mount-time-only one.
 
-Outside that contract sits the editor's own visual language — the syntax and code-token palettes, the Markdown-marker colors, the selection and search overlays, and the reorder/windowing surfaces. Those are dark-based or mode-independent. Read `editor-theme.css` if you mean to retheme them.
+Outside that contract sits the editor's own visual language — the syntax and code-token palettes, the Markdown-marker colors, the selection, search and reorder washes (derived from `--color-selection`, above), and the windowing surfaces. Those are dark-based or mode-independent. Read `editor-theme.css` if you mean to retheme them.
 
 **Plugin fallbacks.** A plugin reading a token keeps an inline fallback (`var(--color-text-muted, #aaaaaa)`) so it renders host-less. The fallback fires only outside `.editor` scope, where no token is declared — so match it to the token's **dark base** value in `editor-theme.css`, never the light one.
 

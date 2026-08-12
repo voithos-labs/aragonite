@@ -81,7 +81,16 @@ test.describe('inline image range-selection highlight', () => {
 		// covers the span's background.
 		expect(overlay!.content).not.toBe('none');
 		expect(overlay!.position).toBe('absolute');
-		// rgba(100, 150, 255, 0.3) — Chromium normalizes spacing.
-		expect(overlay!.background).toMatch(/rgba?\(\s*100,\s*150,\s*255/);
+		// Compared against the token painted on a probe, not a hex: the wash derives from
+		// --color-selection, so a palette edit must not turn this red.
+		const wash = await page.evaluate(() => {
+			const probe = document.createElement('div');
+			document.querySelector('.editor')!.appendChild(probe);
+			probe.style.backgroundColor = 'var(--selection-overlay-bg)';
+			const used = getComputedStyle(probe).backgroundColor;
+			probe.remove();
+			return used;
+		});
+		expect(overlay!.background).toBe(wash);
 	});
 });

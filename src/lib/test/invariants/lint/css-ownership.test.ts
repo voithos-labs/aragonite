@@ -145,6 +145,7 @@ const HOST_CHROME_TOKENS = [
 	'--color-ui-muted',
 	'--color-ui-dulled',
 	'--color-accent',
+	'--color-selection',
 	'--color-error',
 	'--radius-ui',
 	'--radius-surface'
