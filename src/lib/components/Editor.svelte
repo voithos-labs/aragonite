@@ -1307,16 +1307,23 @@
 		return editorEl ? deadSpaceCaret.placeAtPoint(editorEl, x, y) : false;
 	}
 
+	/**
+	 * The block path behind `document.activeElement`, for the public doors that address the
+	 * focused surface. A gap caret declines: its proxy is not a block, and a NESTED gap's proxy
+	 * sits inside its container's host, which must not receive what was aimed at the gap.
+	 */
+	function focusedSurfacePath(): number[] | null {
+		if (selectionState.gapCaret) return null;
+		const active = document.activeElement;
+		if (!(active instanceof HTMLElement) || !editorEl?.contains(active)) return null;
+		return findSurfacePathForElement(active);
+	}
+
 	// Routed to the focused SURFACE, the way a paste event is: everything the pipeline owes
 	// (transforms, delete-first, one undo entry, focus) lives below that seam, not here. See
 	// `editor-props.ts` for the contract.
 	export function insertMarkdown(md: string): boolean {
-		// Stated, not inherited: a root gap's proxy resolves to no block path, but a nested one
-		// sits inside its container's host, which must not receive an insertion aimed at the gap.
-		if (selectionState.gapCaret) return false;
-		const active = document.activeElement;
-		if (!(active instanceof HTMLElement) || !editorEl?.contains(active)) return false;
-		const path = findSurfacePathForElement(active);
+		const path = focusedSurfacePath();
 		if (!path) return false;
 		return getBlockComponent(path)?.insertMarkdown?.(md) ?? false;
 	}
@@ -1331,10 +1338,7 @@
 	// A gap caret focuses a proxy, not a block, so no block-local command has a surface to run
 	// on; global ones still reach the seam, exactly as the gap caret's own chord proxy does.
 	function focusedCommandTarget(): KindCommandTarget | null {
-		if (selectionState.gapCaret) return null;
-		const active = document.activeElement;
-		if (!(active instanceof HTMLElement) || !editorEl?.contains(active)) return null;
-		const path = findSurfacePathForElement(active);
+		const path = focusedSurfacePath();
 		if (!path) return null;
 		const component = getBlockComponent(path);
 		const node = blockNodeAt(doc, path);
