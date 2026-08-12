@@ -63,10 +63,11 @@
 	/** The bar's own height plus a gap, so the buttons never cover the selected line. */
 	const BAR_HEIGHT = 40;
 
-	// Recipe item 5: the id, not a synthesized chord, so a host rebind moves the shortcut and
-	// leaves the button. `false` means the door declined — a cross-block range, say.
+	// The id, not a synthesized chord: a host rebind moves the shortcut and leaves the button. The
+	// answer is read because this bar stays up over cross-block ranges, where a toggle declines.
 	function fire(command: string): void {
-		editor?.runCommand(command);
+		if (!editor) return;
+		if (!editor.runCommand(command) && placement) placement = { ...placement, label: 'declined' };
 	}
 
 	/** The endpoint earlier in document order — path-lexicographic, then offset. */
