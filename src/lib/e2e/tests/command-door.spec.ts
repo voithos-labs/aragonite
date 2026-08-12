@@ -176,14 +176,20 @@ test.describe('runCommand — the semantic command door', () => {
 		expect(await editor.bridge.getGapCaret()).toEqual(atQuoteEnd);
 	});
 
-	test('an unknown id declines and mutates nothing', async () => {
-		await editor.loadContent('Hello world\n');
-		const before = await editor.bridge.getSource();
-		await selectWorld();
+	// A dead key that declines silently is indistinguishable from one that worked, so the
+	// dispatch's report is the other half of the decline.
+	test.describe('an unknown id', () => {
+		test.use({ expectWarns: ['commands'] });
 
-		expect(await run('format.toggleRainbow')).toBe(false);
-		await editor.waitForNoSourceMutation();
-		expect(await editor.bridge.getSource()).toBe(before);
+		test('declines and mutates nothing', async () => {
+			await editor.loadContent('Hello world\n');
+			const before = await editor.bridge.getSource();
+			await selectWorld();
+
+			expect(await run('format.toggleRainbow')).toBe(false);
+			await editor.waitForNoSourceMutation();
+			expect(await editor.bridge.getSource()).toBe(before);
+		});
 	});
 
 	test('reading mode declines every published id', async () => {
