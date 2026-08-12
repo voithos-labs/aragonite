@@ -2,14 +2,12 @@ import { test as base, expect, type ConsoleMessage } from '@playwright/test';
 import { getContainerParityMismatches } from './container-parity';
 
 // Shared e2e `test`, carrying two teardown guards. 1) The console watch: every dev warning
-// reaches the console under the `[aragonite:…]` sentinel and not the structured error event,
-// so a spec watching only `getCapturedErrors()` lets a fire pass. Two classes, one door each:
-// invariant fires name their tags via `test.use({ expectInvariants })`, plain dev warns via
-// `test.use({ expectWarns })`. Both are bidirectional — each named tag must fire and no other
-// may, so an expected fire that stops firing is caught too. 2) The container-parity walk,
-// which the console cannot cover: `each_key_duplicate` is swallowed by BlockHost's boundary
-// with no console line; gated on an editor having registered a document, so editor-less
-// routes skip.
+// reaches the console under the `[aragonite:…]` sentinel rather than the structured error
+// event, so a spec watching only `getCapturedErrors()` lets a fire pass. A spec that trips one
+// declares its tags below, bidirectionally: each named tag must fire and no other may. 2) The
+// container-parity walk, which the console cannot cover: `each_key_duplicate` is swallowed by
+// BlockHost's boundary with no console line; gated on an editor having registered a document,
+// so editor-less routes skip.
 
 interface WarnFixtures {
 	/** Invariant tags this spec deliberately triggers, e.g. `['late-opener-registration']`. */
