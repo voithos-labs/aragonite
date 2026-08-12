@@ -362,6 +362,35 @@ Canvas/spatial view, graph view, dataview-shape queries, executable code blocks,
 environments — platform ambitions that live with consumers and their repos; the editor's role
 is supplying the plugin surfaces they need, shipped as 1.x minors (breaking → 2.0).
 
+### Structural directions — from the live-mode hardening (unscheduled)
+
+Where live mode's complexity actually arrives, and the consolidations that cap it. Minted from
+the 2026-08 arcs; each is a direction, not a promise, and none is freeze-bound (all internal
+machinery).
+
+- **One screen-truth home.** Two modules answer "which bytes does the screen show" — the DOM
+  walk's hiding classifier (`cursor/widget-offset.ts`) and the painter oracle
+  (`core/inline-render.ts` :: `renderedText`) — and the `[](u)` destructive divergence happened
+  when one learned a rule the other did not. Direction: a single visibility model both consume,
+  so a seam asking the question cannot get two answers. The divergence class becomes
+  unrepresentable rather than individually patched.
+- **The policy table finishes its migration.** Several live editing arms are still hand-written
+  seams that read `schema/inline-construct-policy.ts` rather than rows one interpreter executes.
+  Direction: every live gesture rule is a row; a hand-written arm outside the table joins a
+  census lint and states its reason. A new construct then costs a row, not a seam.
+- **A live-mode gesture fuzzer.** The § 4 catalog's edge cases are a searchable space: a seeded
+  generator driving typing and destructive gestures at random hidden-edge positions, checking
+  the § 2 license invariants (the screen shows what the gesture claimed; only unseen bytes drop)
+  continuously. The simulation drives scripted flows; this searches the space between them.
+- **The completion registry completes its story.** The Enter-completion registry is the declared
+  home for adjacent-line formation (blank-line semantics make this a Markdown fact, not an
+  architecture debt). Remaining: the math `$$` registrant, a completer-or-not decision per
+  future multi-line grammar (front matter, footnote definitions), and the seam hoist so every
+  Enter path crosses the consult (#146, freeze-milestoned).
+- **Incremental ancestry rebuild, behind a falsification gate.** The container rebuild is
+  measured-cheap at realistic nesting; an O(child) splice-based rebuild is designed only if the
+  perf gate ever shows the O(container) cost moving. Not before.
+
 ## Downstream boundary
 
 Consumer-owned work (shell integration, sync, collaboration, app features) lives in consumer
