@@ -35,6 +35,8 @@ import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import { resyncChildIds } from './children';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
+import { assertInvariant } from '../invariants/assert';
+import { checkSplitLanding } from '../invariants/split-landing';
 
 // ── Types ──
 
@@ -181,6 +183,15 @@ export function isBlockNode(node: NodeView | DocumentView): boolean {
 export interface SplitResult {
 	change: StructuralChange;
 	secondHalfIndex: number;
+}
+
+/**
+ * The landing a site is about to consume, held to the primitive's answer (G1.34). The
+ * top-level path seats the caret at it and the list path splices at it, so both cross this
+ * on their way to using it; a re-derived `blockIndex + 1` warns instead of shipping.
+ */
+export function assertSplitLanding(split: SplitResult, landing: number): void {
+	assertInvariant('split-landing', () => checkSplitLanding(split.secondHalfIndex, landing));
 }
 
 /**
