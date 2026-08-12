@@ -30,8 +30,9 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   blues no theme could reach. They now derive from a single host-chrome token,
   `--color-selection`, at the alphas they already used, so declaring the one base moves all
   three together and keeps their relative weights. The washes stay editor-owned and can still be
-  overridden one at a time at `.editor`; the default base is the blue they already painted, so a
-  host that declares nothing sees no change.
+  overridden one at a time at `.editor`. The default base is the blue the overlay and the reorder
+  chrome already painted, so those render unchanged to the pixel; the search-match tint, a shade
+  off the others until now, is unified onto the same base.
 
 - **Enter leaving a blockquote mints the line it lands on.** Enter on a quote's empty trailing line
   exits the quote, but where a block followed it deleted that line and dropped the caret into the
