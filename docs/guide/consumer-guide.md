@@ -573,11 +573,10 @@ Float a formatting bar above the user's selection — the standard use of the tw
 2. **Cross-block selections** (anchor and focus in different blocks): normalize the endpoints yourself (compare paths, then offsets), then anchor to `rangeRects(startPath, startOffset, SELECTION_END)` — the start block's rects from the selection to its end. Rect `[0]` is the first visual line; place the bar above its top-left.
 3. **Single-block selections** (anchor and focus in the same block): `getSelection()` reports the range's real endpoints — distinct anchor/focus raw offsets on the shared path — so anchor with `rangeRects(path, startOffset, endOffset)`, the same call as the cross-block case with a real end offset in place of `SELECTION_END`. (Reading the native `window.getSelection()` range works too, since within one block the editor delegates selection to the browser.)
 4. **Re-anchor on the next `selectionChange`, not on scroll.** Rects are viewport-space snapshots; a `position: fixed` bar drifts under scroll until the selection next changes. Wire a scroll listener only if your UX demands live tracking.
-
 5. **Fire the buttons through `runCommand`, not through synthetic keystrokes.** `runCommand(TOOLBAR_COMMANDS.toggleStrong)` says what the button means; a synthesized `Ctrl+B` says which key the button impersonates, and a consumer rebind then silently rewires it. The door also declines what the chord declines: over a selection spanning blocks a format toggle returns `false` and writes nothing, so a bar that stays visible for cross-block selections should read the boolean rather than assume the click landed.
 6. **Keep focus in the document** for the same reason the insert toolbar does: cancel the button's mousedown default, or restore a `getSelection()` snapshot before calling.
 
-The demo route's `SelectionToolbar` component (in the repository) follows this recipe; its single-block branch still reads the native Range directly — an equivalent that predates within-block range reporting.
+The demo route's `SelectionToolbar` component (in the repository) is this recipe end to end: both anchoring branches, the five `TOOLBAR_COMMANDS` buttons, and the mousedown cancel that keeps the caret in the document.
 
 ### Recipe: an insert toolbar
 

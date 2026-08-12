@@ -1,14 +1,24 @@
 <script lang="ts">
 	/**
 	 * Consumer-side rect-API example: no plugin, no internal imports, no native selection
-	 * reads. The bar re-anchors on the next selection change, not on scroll.
+	 * reads. The bar re-anchors on the next selection change, not on scroll, and its buttons
+	 * run command ids rather than synthetic chords.
 	 */
 	import {
 		SELECTION_END,
+		TOOLBAR_COMMANDS,
 		type EditorInstance,
 		type EditorSelection,
 		type SelectionPoint
 	} from '$lib';
+
+	const BUTTONS = [
+		{ label: 'B', title: 'Bold', command: TOOLBAR_COMMANDS.toggleStrong },
+		{ label: 'I', title: 'Italic', command: TOOLBAR_COMMANDS.toggleEmphasis },
+		{ label: 'S', title: 'Strikethrough', command: TOOLBAR_COMMANDS.toggleStrikethrough },
+		{ label: '<>', title: 'Inline code', command: TOOLBAR_COMMANDS.toggleCode },
+		{ label: 'Link', title: 'Edit link', command: TOOLBAR_COMMANDS.editLink }
+	] as const;
 
 	interface Placement {
 		x: number;
@@ -47,7 +57,16 @@
 	}
 
 	function above(rect: DOMRect, label: string): Placement {
-		return { x: rect.left, y: Math.max(4, rect.top - 34), label };
+		return { x: rect.left, y: Math.max(4, rect.top - BAR_HEIGHT), label };
+	}
+
+	/** The bar's own height plus a gap, so the buttons never cover the selected line. */
+	const BAR_HEIGHT = 40;
+
+	// Recipe item 5: the id, not a synthesized chord, so a host rebind moves the shortcut and
+	// leaves the button. `false` means the door declined — a cross-block range, say.
+	function fire(command: string): void {
+		editor?.runCommand(command);
 	}
 
 	/** The endpoint earlier in document order — path-lexicographic, then offset. */
@@ -69,7 +88,19 @@
 		style:left="{placement.x}px"
 		style:top="{placement.y}px"
 	>
-		{placement.label}
+		{#each BUTTONS as button (button.command)}
+			<button
+				type="button"
+				class="toolbar-btn"
+				data-testid="toolbar-{button.command}"
+				title={button.title}
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => fire(button.command)}
+			>
+				{button.label}
+			</button>
+		{/each}
+		<span class="toolbar-label">{placement.label}</span>
 	</div>
 {/if}
 
@@ -77,7 +108,10 @@
 	.selection-toolbar {
 		position: fixed;
 		z-index: 100;
-		padding: 0.25rem 0.6rem;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.2rem 0.4rem;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 0.3rem;
 		background: var(--color-bg-primary, #1e1e1e);
@@ -85,5 +119,19 @@
 		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.75rem;
 		white-space: nowrap;
+	}
+	.toolbar-btn {
+		padding: 0.1rem 0.3rem;
+		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-radius: 3px;
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+		color: inherit;
+		font-family: inherit;
+		font-size: inherit;
+		line-height: 1.2;
+		cursor: pointer;
+	}
+	.toolbar-label {
+		padding-left: 0.2rem;
 	}
 </style>

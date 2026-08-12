@@ -736,6 +736,8 @@ A minted command dispatches on the two tiers that can hand it a `BlockCommandCon
 
 Bind commands to your own plugin kinds. A command bound on a built-in kind's leaf (paragraph, code, table cell) does **not** dispatch — those surfaces supply no context and dead-key it.
 
+The consumer door `editor.runCommand(id)` reaches neither tier: it resolves the focused surface without a command context, so a minted id finds no handler and dev-warns that the command reached no handler on this dispatch path. Bind a chord, or expose an API of your own, for an affordance a host must invoke without a keystroke.
+
 **View state rides `ctx.hooks`.** Because the context is built by the surface that owns the mounted component, it also carries the component's own view-state handles, supplied through the factory's `commandHooks` getter. A view-state command — open an editor, open a focus overlay — therefore drives the component directly, with no node-keyed side map. Hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter (read live at dispatch, so an undo that replaces the node still hits the current handlers). The platform keeps `hooks` opaque (`unknown`): cast it to your own type in the handler, and decline when it is `undefined` — kind registered, no instance mounted.
 
 A handler that throws is contained at the dispatch seam: the gesture no-ops and the failure surfaces on `getEvents()` as an `error` of origin `command`, attributed to the kind, command id, and owning plugin. Never an uncaught error.
