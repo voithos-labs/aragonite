@@ -2,7 +2,7 @@
  * G4.39 — every component holding a focused command surface publishes `runCommand`. G4.38's
  * twin over the semantic door: `BlockComponent` declares the method optional and the last hop is
  * hand-written per component, so surface N+1 would compile clean and decline every
- * `editor.runCommand()` on its blocks. The population is wider than G4.38's by one signal — a
+ * `editor.runCommand()` on its blocks. The population is wider than G4.38's by one signal: a
  * component that dispatches chords itself is a command surface even where no editable-surface
  * factory minted it (the thematic break is `editable = false` and still takes commands).
  */

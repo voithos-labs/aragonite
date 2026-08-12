@@ -113,8 +113,8 @@ test.describe('runCommand — the semantic command door', () => {
 	});
 
 	// Live paints no delimiter, so an empty pair would be invisible garbage: the mark pends and
-	// the next insertion spends it (live-mode.md § 4.3). Consumed either way — the door's answer
-	// must not tell a toolbar button the click missed.
+	// the next insertion spends it (live-mode.md § 4.3). Consumed either way, since the door's
+	// answer must not tell a toolbar button the click missed.
 	test('a collapsed caret in live mode pends the mark instead of writing a pair', async () => {
 		await editor.goto('?presentationMode=live');
 		await editor.loadContent('Hello world\n');
@@ -160,7 +160,7 @@ test.describe('runCommand — the semantic command door', () => {
 
 	// The third selection mode: a gap caret focuses a proxy, not a block, so the door resolves no
 	// surface and every block-local id declines. NESTED, because a root gap's proxy resolves to no
-	// path anyway — only this one sits inside a container host the surface lookup would find.
+	// path anyway; only this one sits inside a container host the surface lookup would find.
 	test('a gap caret declines every block-local id and keeps the gap', async () => {
 		const quotedFence = 'para\n\n> quoted\n>\n> ```\n> code\n> ```\n';
 		const atQuoteEnd = { parentPath: [1], index: 2 };

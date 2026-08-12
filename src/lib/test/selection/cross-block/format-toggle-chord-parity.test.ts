@@ -28,12 +28,14 @@ function formatToggleKeymap(): Array<{ chord: string; command: string }> {
 	return [...rows.values()].sort((a, b) => a.chord.localeCompare(b.chord));
 }
 
-/** The event a browser sends for `chord` — a single letter arrives uppercased under Shift. */
+/** The event a browser sends for `chord`. Only single letters case-fold, as `normalizeKey` does;
+ *  a named key (`Enter`) travels verbatim. */
 function pressChord(chord: string): KeyboardEvent {
 	const parts = chord.split('+');
 	const key = parts.pop()!;
 	const shiftKey = parts.includes('Shift');
-	return press(shiftKey ? key.toUpperCase() : key.toLowerCase(), {
+	const eventKey = key.length === 1 ? (shiftKey ? key.toUpperCase() : key.toLowerCase()) : key;
+	return press(eventKey, {
 		ctrlKey: parts.includes('Mod'),
 		altKey: parts.includes('Alt'),
 		shiftKey
@@ -79,5 +81,6 @@ describe('G4.40 format-toggle set parity', () => {
 			altKey: false
 		});
 		expect(pressChord('Mod+B')).toMatchObject({ key: 'b', ctrlKey: true, shiftKey: false });
+		expect(pressChord('Mod+Shift+Enter')).toMatchObject({ key: 'Enter', shiftKey: true });
 	});
 });
