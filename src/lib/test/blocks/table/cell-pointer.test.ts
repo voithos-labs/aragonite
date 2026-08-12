@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-vi.mock('../../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../../dev-warn';
+import { takeDevWarns } from '../../support/warn-gate';
 import {
 	handleCellShiftClick,
 	cellCoordsOfElement,
@@ -60,7 +59,6 @@ describe('handleCellShiftClick', () => {
 	// Reading a same-table rectangle (start/end normalize + snap short-circuit) must not trip the
 	// coordinate-space warn that force-flagging every same-table read once caused.
 	it('reads the same-table rectangle without a coordinate-space warn', () => {
-		vi.mocked(devWarn).mockClear();
 		const doc = {
 			kind: 'document',
 			prefix: '',
@@ -80,7 +78,7 @@ describe('handleCellShiftClick', () => {
 		void sel.start;
 		void sel.end;
 		void sel.isCustomRendered;
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });
 

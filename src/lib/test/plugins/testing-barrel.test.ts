@@ -9,7 +9,8 @@ import {
 	resetPluginPlatformForTests,
 	runContainerConformance,
 	runKindConformance,
-	checkCopyIsRawByteSlice
+	checkCopyIsRawByteSlice,
+	setDevWarnSink
 } from '$lib/testing';
 import {
 	declarePluginKind,
@@ -31,6 +32,7 @@ import {
 	definePlugin,
 	isPluginInstalled
 } from '$lib/plugin';
+import { devWarn } from '$lib/dev-warn';
 import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { pluginGlobalBinding } from '$lib/schema/commands';
 import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
@@ -127,6 +129,17 @@ describe('aragonite/testing conformance surface', () => {
 	it('publishes the editor-env override door', () => {
 		expect(typeof configureEditorEnv).toBe('function');
 		expect(typeof resetEditorEnv).toBe('function');
+	});
+
+	// An author's own fail-on-warn gate needs the same channel this repo's gate reads.
+	it('publishes the dev-warning sink, which hands back the sink it replaced', () => {
+		const seen: unknown[] = [];
+		const gate = setDevWarnSink((entry) => seen.push(entry));
+		devWarn('probe', 'through the published sink');
+		expect(setDevWarnSink(gate)).not.toBe(gate);
+		expect(seen).toEqual([
+			{ tag: 'probe', message: 'through the published sink', details: undefined }
+		]);
 	});
 });
 

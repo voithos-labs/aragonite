@@ -1,7 +1,6 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { takeDevWarns } from '../support/warn-gate';
 import { parse } from '../../core/parser';
 import { metadataOf } from '../../core/nodes';
 import { createSharingState } from '../../tree-operations/sharing';
@@ -92,36 +91,30 @@ it('rebuildOwnedContainer unshares the children of any grid, not just table', ()
 it('ensureUnsharedChild flags an out-of-range index instead of throwing', () => {
 	const { doc, sharing } = sharedDoc('- a\n');
 	const [list] = ensureUnsharedPath(doc, [0], sharing);
-	vi.mocked(devWarn).mockClear();
 
 	expect(() => ensureUnsharedChild(list, 5, sharing)).not.toThrow();
-	expect(
-		vi.mocked(devWarn).mock.calls.some(([tag]) => tag === 'invariant:unshare-path-in-range')
-	).toBe(true);
+	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 });
 
 it('ensureUnsharedChild treats an out-of-range index the same before and after a snapshot', () => {
 	const unshared = parse('- a\n');
 	const fresh = createSharingState();
 	expect(() => ensureUnsharedChild(unshared.children[0], 5, fresh)).not.toThrow();
+	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 
 	const { doc, sharing } = sharedDoc('- a\n');
 	expect(() => ensureUnsharedChild(doc.children[0], 5, sharing)).not.toThrow();
+	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 });
 
 // G1.22 is the ONE axis separating the two shared-spine walks: the strict path flags an
 // off-the-end index, the tolerant rebuild swallows it (post-delete hands short paths).
 it('fires G1.22 only on the strict unshare path, never on the tolerant rebuild', () => {
-	const firedInRangeAssert = () =>
-		vi.mocked(devWarn).mock.calls.some(([tag]) => tag === 'invariant:unshare-path-in-range');
-
 	const strict = sharedDoc('para\n');
-	vi.mocked(devWarn).mockClear();
 	ensureUnsharedPath(strict.doc, [5], strict.sharing);
-	expect(firedInRangeAssert()).toBe(true);
+	expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:unshare-path-in-range']);
 
 	const tolerant = sharedDoc('para\n');
-	vi.mocked(devWarn).mockClear();
 	rebuildUnsharedAncestry(tolerant.doc, [5], tolerant.sharing, undefined);
-	expect(firedInRangeAssert()).toBe(false);
+	expect(takeDevWarns()).toEqual([]);
 });

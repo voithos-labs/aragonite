@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { takeDevWarns } from '../support/warn-gate';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
@@ -17,8 +16,6 @@ function makeHarness(source: string) {
 }
 
 describe('structural-sharing snapshots', () => {
-	beforeEach(() => vi.mocked(devWarn).mockClear());
-
 	it('a snapshot push shares nodes instead of cloning them', () => {
 		const { deps, controller } = makeHarness('hello\n\nworld\n');
 		controller.pushUndoSnapshot(0, 0);
@@ -61,7 +58,7 @@ describe('structural-sharing snapshots', () => {
 		controller.pushUndoSnapshot(0, 0);
 		expect(deps.undoManager.getStacks().undo[0].integrity).toBeDefined();
 		await history.requestUndo();
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	// GH #73: filling a blank block hands its follower the separator the blank line had been —
@@ -76,7 +73,7 @@ describe('structural-sharing snapshots', () => {
 		await actions.updateBlockContent(1, 'x\n');
 		await history.requestUndo();
 
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 		expect(serialize(deps.doc)).toBe('alpha\n\n\ndelta\n');
 	});
 
@@ -86,11 +83,10 @@ describe('structural-sharing snapshots', () => {
 		// Simulates a missed unshare: a raw write through a node the entry shares.
 		deps.doc.children[0].raw = 'corrupted\n';
 		await history.requestUndo();
-		expect(devWarn).toHaveBeenCalledWith(
-			'invariant:snapshot-integrity',
-			expect.stringContaining('undo: snapshot digest mismatch'),
-			'snapshot-integrity'
-		);
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(['invariant:snapshot-integrity']);
+		expect(fires[0].message).toContain('undo: snapshot digest mismatch');
+		expect(fires[0].details).toBe('snapshot-integrity');
 	});
 	// GH #73: the nested door hands the follower the same separator, and the spine unshare copies
 	// the CONTAINER, so the snapshot's digest never sees a write to a still-shared grandchild.

@@ -4,17 +4,11 @@
 // start → input(s) → end, which funnels to input and reads the DOM back. Pins the composing
 // gate, the exactly-once end commit, the offset pair the commit receives, and G1.27. The
 // commit's downstream effects are pinned in editable-surface-composition-commit.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { takeDevWarns } from '../support/warn-gate';
 import { makeSurface } from '../harness/editable-surface';
 
-function compositionFires(): unknown[][] {
-	return vi.mocked(devWarn).mock.calls.filter(([tag]) => tag === 'invariant:composition-window');
-}
-
-beforeEach(() => vi.mocked(devWarn).mockClear());
 afterEach(() => {
 	document.body.innerHTML = '';
 });
@@ -66,14 +60,15 @@ describe('editable surface — composition window (G1.27)', () => {
 	it('compositionend with no open composition fires', () => {
 		const { surface } = makeSurface();
 		surface.onCompositionEnd();
-		expect(compositionFires()).toHaveLength(1);
-		expect(compositionFires()[0][2]).toBe('end-without-start');
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(['invariant:composition-window']);
+		expect(fires[0].details).toBe('end-without-start');
 	});
 
 	it('a paired start → end cycle stays silent', () => {
 		const { surface } = makeSurface();
 		surface.onCompositionStart();
 		surface.onCompositionEnd();
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

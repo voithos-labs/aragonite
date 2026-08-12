@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { takeDevWarns } from '../support/warn-gate';
 import { parse } from '../../core/parser';
 import { checkCrossBlockEndpointCoordinates } from '../../invariants/selection-endpoints';
 import { createSelectionState } from '../../selection/selection-state.svelte';
@@ -103,46 +102,33 @@ describe('G1.29 fires from the storing seam', () => {
 	it('warns when a length-1 table path is stored with a character offset', () => {
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
-		vi.mocked(devWarn).mockClear();
 
 		selection.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
-		expect(
-			vi
-				.mocked(devWarn)
-				.mock.calls.some(([tag]) => tag === 'invariant:cross-block-endpoint-coordinates')
-		).toBe(true);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([
+			'invariant:cross-block-endpoint-coordinates'
+		]);
 	});
 
 	it('stays silent when the funnel snapped a whole-block endpoint', () => {
 		const tree = breakDoc();
 		const selection = createSelectionState({ getDoc: () => tree });
-		vi.mocked(devWarn).mockClear();
 
 		selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 1 });
 
 		expect(selection.end).toEqual({ path: [1], offset: 3 });
-		expect(
-			vi
-				.mocked(devWarn)
-				.mock.calls.some(([tag]) => tag === 'invariant:cross-block-endpoint-coordinates')
-		).toBe(false);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('stays silent for a normalized cell endpoint', () => {
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
-		vi.mocked(devWarn).mockClear();
 
 		selection.enterCrossBlock(
 			{ path: [0], offset: 1, cellCoordinate: true },
 			{ path: [1], offset: 0 }
 		);
 
-		expect(
-			vi
-				.mocked(devWarn)
-				.mock.calls.some(([tag]) => tag === 'invariant:cross-block-endpoint-coordinates')
-		).toBe(false);
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

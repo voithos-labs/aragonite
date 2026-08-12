@@ -870,6 +870,7 @@ The rest of the subpath, at a glance:
 | `runContainerConformance`, `reversedAncestryLeavesRootStale` | The container harness, and the companion that proves its ancestry cell bites  |
 | `runInlineKindConformance`                                   | The inline-rung battery                                                       |
 | `configureEditorEnv`, `resetEditorEnv`                       | Declare a non-Vitest runner a test environment, and restore the defaults      |
+| `setDevWarnSink`                                             | Route every editor dev warning to a callback of yours instead of the console  |
 
 **Testing a paste transform.** `registerPasteTransform` writes into a registry nothing else on the public surface reads, so `applyPasteTransforms(text)` ships beside the reset. It is the very function every clipboard→parse route runs, which is what makes driving it proof that your transform is _wired_ rather than proof that your pure function works:
 
@@ -898,6 +899,21 @@ flushSync(); // the first render has to land before you can assert on it
 ```
 
 `scrollMode="host"` is the third. The default `'self'` gives the editor its own scrollport, and against a zero-height jsdom viewport windowing unmounts the very block you are asserting on; `'host'` turns windowing off, so every block stays mounted. From there `target.querySelector` reaches your component's own chrome and `editor.getSource()` is a byte-exact assertion surface.
+
+**Failing on a dev warning.** The editor reports contract violations it can contain rather than throw through dev warnings, which reach the console under an `[aragonite:…]` head. A suite that wants those to fail rather than scroll past registers a sink:
+
+```
+import { setDevWarnSink } from 'aragonite/testing';
+
+const fires = [];
+beforeEach(() => setDevWarnSink((entry) => fires.push(entry)));
+afterEach(() => {
+	setDevWarnSink(null);
+	expect(fires.splice(0)).toEqual([]); // a guard fired and nobody claimed it
+});
+```
+
+`setDevWarnSink` returns the sink it replaced, so a nested harness can restore rather than clear. A registered sink takes reporting over: nothing reaches the console while yours is installed, and each entry carries the guard's `tag`, its `message`, and any `details`.
 
 ### The conformance battery — registering a kind enrolls it
 

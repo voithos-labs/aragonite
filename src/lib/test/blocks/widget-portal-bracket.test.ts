@@ -3,10 +3,9 @@
 // G1.25 fired through the real pool: each illegal bracket transition reaches
 // devWarn on the `invariant:pool-bracket` tag, and a legal bracketed pass stays
 // silent (a false-firing invariant poisons the channel every e2e spec watches).
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import {
 	createWidgetPool,
 	type WidgetPool,
@@ -26,30 +25,30 @@ function makePool(): WidgetPool {
 	return createWidgetPool(adapter);
 }
 
-function bracketFires(): unknown[][] {
-	return vi.mocked(devWarn).mock.calls.filter(([tag]) => tag === 'invariant:pool-bracket');
-}
-
-beforeEach(() => vi.mocked(devWarn).mockClear());
+const POOL_BRACKET = ['invariant:pool-bracket'];
 
 describe('widget pool — bracket discipline (G1.25)', () => {
 	it('acquire outside a bracket fires', () => {
 		makePool().acquire(KIND, INLINE, '$x$');
-		expect(bracketFires()).toHaveLength(1);
-		expect(bracketFires()[0][2]).toBe('acquire-outside-bracket');
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(POOL_BRACKET);
+		expect(fires[0].details).toBe('acquire-outside-bracket');
 	});
 
 	it('beginPass over an unswept pass fires', () => {
 		const pool = makePool();
 		pool.beginPass();
 		pool.beginPass();
-		expect(bracketFires()).toHaveLength(1);
-		expect(bracketFires()[0][2]).toBe('begin-unswept');
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(POOL_BRACKET);
+		expect(fires[0].details).toBe('begin-unswept');
 	});
 
 	it('sweep without an open bracket fires', () => {
 		makePool().sweep();
-		expect(bracketFires()[0][2]).toBe('sweep-outside-bracket');
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(POOL_BRACKET);
+		expect(fires[0].details).toBe('sweep-outside-bracket');
 	});
 
 	it('a bracketed pass and a teardown stay silent', () => {
@@ -60,6 +59,6 @@ describe('widget pool — bracket discipline (G1.25)', () => {
 		pool.beginPass();
 		pool.sweep();
 		pool.dispose();
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

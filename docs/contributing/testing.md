@@ -90,15 +90,25 @@ The claim doors sit in file-level `afterEach` hooks that must run before the gat
 why `vitest.config.ts` pins `sequence.hooks: 'stack'`. A file that swaps the sink out and never
 restores it reds itself rather than blinding the rest of the worker, and the gate re-arms.
 
-One standing exemption: a file that `vi.mock`s `$lib/dev-warn` replaces `devWarn` outright, so its
-fires never reach the sink and the gate never sees them. Nothing reports that hole today, which
-means such a file asserts on its own mock or asserts nothing.
+There is no exemption. A file that `vi.mock`s `$lib/dev-warn` replaces `devWarn` outright and a
+file that spies `console.warn` reads a channel the registered sink silences; either way the gate
+goes blind for that whole file, so a source scan (G4.41) fails on both. Two files pin the warning
+channels themselves and are named in its allowlist with the reason.
+
+A guard that defers its own fire past a tick (`reportContestedClaim` is the shipped shape) is
+still attributed to the test that provoked it: the verdict awaits a tick before reading. That
+tick lands after the file's own claim doors, so such a fire is claimed inside its test with
+`await tick()` then `takeDevWarns()`, never by a file-level `allowDevWarns`.
+
+Two per-file aggregates close what a per-test verdict cannot see: every tag a file declared
+through `allowDevWarns` must have fired somewhere in that file, and a fire arriving after the
+last test's verdict fails the file rather than vanishing.
 
 ## E2E tests (Playwright)
 
 The editor component driven in real Chromium. No backend needed — it's self-contained.
 
-**Every spec imports `test` and `expect` from `src/lib/e2e/fixtures.ts`, never from `@playwright/test` directly.** This is not a style preference. Every `devWarn` reaches the browser console under the `[aragonite:…]` sentinel, and the shared `test` fails any spec whose page emits one — so a dev-guard violation surfaces at the spec that _caused_ it rather than passing silently and being discovered a release later. A spec that deliberately trips one names its tags: `test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire, `test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning. Both are bidirectional — a named tag that stops firing fails too.
+**Every spec imports `test` and `expect` from `src/lib/e2e/fixtures.ts`, never from `@playwright/test` directly.** This is not a style preference. Every `devWarn` reaches the browser console under the `[aragonite:…]` sentinel, and the shared `test` fails any spec whose page emits one, so a dev-guard violation surfaces at the spec that _caused_ it rather than passing silently and being discovered a release later. A spec that deliberately trips one names its tags: `test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire, `test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning. Both are bidirectional: a named tag that stops firing fails too.
 
 ### Architecture
 

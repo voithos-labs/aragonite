@@ -1,10 +1,12 @@
 // Miss-analysis: devWarn returned early under Vitest, so the guard channel was unobservable.
 
 import { describe, it, expect } from 'vitest';
+import { tick } from 'svelte';
 import { devWarn, setDevWarnSink } from '$lib/dev-warn';
 import {
 	takeDevWarns,
 	allowDevWarns,
+	auditWarnDeclarations,
 	enforceWarnGate,
 	findUnallowlistedWarns,
 	formatWarnFailure,
@@ -66,8 +68,9 @@ describe('warn-gate declared-fire drain', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('reds the test on a tag the caller did not declare', () => {
+	it('reds the test on a tag the caller did not declare, keeping the declared one', () => {
 		devWarn('probe', 'undeclared');
+		devWarn('other', 'declared');
 		expect(() => allowDevWarns(['other'])).toThrow(/declared \[other\][\s\S]*\[probe\]/);
 	});
 });
@@ -116,18 +119,54 @@ describe('warn-gate sink', () => {
 // An unrestored sink swap blinds the gate for the rest of the worker: later fires reach the
 // console instead, and every later test passes regardless.
 describe('warn-gate sink ownership', () => {
-	it('reds the test that stole the sink, and re-arms itself for the next one', () => {
+	it('reds the test that stole the sink, and re-arms itself for the next one', async () => {
 		const thief: unknown[] = [];
 		setDevWarnSink((entry) => thief.push(entry));
 
-		expect(() => enforceWarnGate()).toThrow(/never restored it/);
+		await expect(enforceWarnGate()).rejects.toThrow(/never restored it/);
 
 		devWarn('probe', 'after the re-arm');
 		expect(thief, 'the thief stopped receiving fires').toEqual([]);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['probe']);
 	});
 
-	it('stays quiet when the gate still owns the sink', () => {
-		expect(() => enforceWarnGate()).not.toThrow();
+	it('stays quiet when the gate still owns the sink', async () => {
+		await expect(enforceWarnGate()).resolves.toBeUndefined();
+	});
+});
+
+// A guard that awaits a tick before warning (`reportContestedClaim`) fires after its own
+// test's claim door has run: the verdict ticks first so the fire lands on its own test.
+describe('warn-gate deferred fires', () => {
+	it('attributes a tick-deferred fire to the test that provoked it', async () => {
+		void tick().then(() => devWarn('probe', 'deferred past the claim door'));
+		await expect(enforceWarnGate()).rejects.toThrow(/\[probe\]/);
+	});
+});
+
+describe('warn-gate per-file aggregate', () => {
+	const late = (tag: string): DevWarnRecord[] => [
+		{ tag, site: 'src/lib/x.ts', message: 'after the last test' }
+	];
+
+	it('passes a declaration every one of whose tags fired', () => {
+		expect(auditWarnDeclarations(['a', 'b'], new Set(['a', 'b', 'c']), [])).toEqual([]);
+	});
+
+	it('names the declared tags that never fired', () => {
+		const [problem] = auditWarnDeclarations(['a', 'stale'], new Set(['a']), []);
+		expect(problem).toContain('[stale]');
+		expect(problem).not.toContain('[a, stale]');
+	});
+
+	it('names a fire that outlived every test, tag and site both', () => {
+		const [problem] = auditWarnDeclarations([], new Set(['late']), late('late'));
+		expect(problem).toContain("after the last test's verdict");
+		expect(problem).toContain('[late]');
+		expect(problem).toContain('src/lib/x.ts');
+	});
+
+	it('reports both holes at once rather than the first', () => {
+		expect(auditWarnDeclarations(['stale'], new Set(['late']), late('late'))).toHaveLength(2);
 	});
 });
