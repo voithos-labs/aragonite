@@ -1,28 +1,7 @@
 <script module lang="ts">
-	import { admonitionsPlugin } from '$lib/plugins/admonitions';
-	import { detailsPlugin } from '$lib/plugins/details';
-	import { tocPlugin } from '$lib/plugins/toc';
-	import { footnotesPlugin } from '$lib/plugins/footnotes';
-	import { emojiPlugin } from '$lib/plugins/emoji';
-	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-	import { latexPlugin } from '$lib/plugins/latex';
-	import { katexRenderer } from '$lib/plugins/latex/renderer';
-	import { mermaidPlugin } from '$lib/plugins/mermaid';
-	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
+	import { DEMO_PLUGINS } from './demo-plugins';
 
-	// The consumer shape: each bundled plugin from its own subpath, engine adapters injected.
-	// Module scope so the factories run once per process; re-minting same-name plugins per
-	// (SSR) render trips installPlugins' first-wins dev-warn.
-	const showcasePlugins = [
-		admonitionsPlugin(),
-		detailsPlugin(),
-		tocPlugin(),
-		footnotesPlugin(),
-		emojiPlugin(),
-		highlightOccurrencesPlugin(),
-		latexPlugin({ renderer: katexRenderer }),
-		mermaidPlugin({ renderer: mermaidRenderer })
-	];
+	const showcasePlugins = DEMO_PLUGINS;
 </script>
 
 <script lang="ts">
