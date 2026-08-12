@@ -47,7 +47,7 @@
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
-	import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+	import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-ops';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';
@@ -98,7 +98,13 @@
 	import { ambientLengthOf } from '../ambient/ambient-dom';
 	import { toClampedRawOffset } from '../cursor/coordinate-spaces';
 	import { domTextOffsetAtNode } from '../cursor/widget-offset';
-	import type { CommandErrorSink } from '../schema/block-commands';
+	import {
+		runCommandById,
+		type CommandDispatchContext,
+		type CommandErrorSink,
+		type KindCommandTarget
+	} from '../schema/block-commands';
+	import type { AnyCommandId } from '../schema/command-id';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
@@ -1315,6 +1321,39 @@
 		return getBlockComponent(path)?.insertMarkdown?.(md) ?? false;
 	}
 
+	const commandDispatchContext: CommandDispatchContext = {
+		history,
+		pluginEditor: pluginEditorLookup,
+		getPresentationMode: () => effectiveMode,
+		isCrossBlockRange: () => selectionState.isCrossBlock
+	};
+
+	// A gap caret focuses a proxy, not a block, so no block-local command has a surface to run
+	// on; global ones still reach the seam, exactly as the gap caret's own chord proxy does.
+	function focusedCommandTarget(): KindCommandTarget | null {
+		if (selectionState.gapCaret) return null;
+		const active = document.activeElement;
+		if (!(active instanceof HTMLElement) || !editorEl?.contains(active)) return null;
+		const path = findSurfacePathForElement(active);
+		if (!path) return null;
+		const component = getBlockComponent(path);
+		const node = blockNodeAt(doc, path);
+		if (!component?.runCommand || !node) return null;
+		return { kind: node.kind, runCommand: (id, arg) => component.runCommand!(id, arg) };
+	}
+
+	// The door only resolves the focused surface; every rule (the reading gate, the cross-block
+	// range decline, the arms themselves) lives below the seam. See `editor-props.ts`.
+	export function runCommand(commandId: string): boolean {
+		return runCommandById(
+			commandId as AnyCommandId,
+			undefined,
+			focusedCommandTarget(),
+			commandDispatchContext,
+			commandErrorSink
+		);
+	}
+
 	export function getEvents(): EditorEvents {
 		return events;
 	}
@@ -1378,6 +1417,7 @@
 		setSelection,
 		placeCaretAtPoint,
 		insertMarkdown,
+		runCommand,
 		getEvents,
 		getSearch,
 		getDecorations,
