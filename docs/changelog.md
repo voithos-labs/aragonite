@@ -2,7 +2,7 @@
 
 Editor version history (CST block editor). **Style:** one tight entry per released version, newest first; the current major lives in this file, and when a major closes its entries roll into `docs/changelog/<era>.md`. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
 
-### 0.9.36 (unreleased)
+### 0.9.40: the host theming contract
 
 - **A themed host needs no bridge stylesheet.** The host-chrome tokens were declared on the
   editor's own root, so a host declaring them at `:root` was shadowed by the editor's defaults and
@@ -34,23 +34,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   chrome already painted, so those render unchanged to the pixel; the search-match tint, a shade
   off the others until now, is unified onto the same base.
 
-- **Enter leaving a blockquote mints the line it lands on.** Enter on a quote's empty trailing line
-  exits the quote, but where a block followed it deleted that line and dropped the caret into the
-  block below — Enter acting as downward navigation, and a boundary the gap caret deliberately
-  leaves to this gesture. It now trims the quote and mints the blank paragraph beside it, as the
-  list exit does, so the caret lands on a new line whatever follows (a table, a code fence, or
-  nothing). A nested quote escapes one level per press, the list outdent's convention, and the
-  whole exit is one undo entry and one edit event.
-
-- **A programmatic insertion door.** A consumer building a toolbar had no way to put content into
-  a document short of rewriting the whole source, which loses the caret and the undo history. The
-  editor instance now exposes `insertMarkdown(md)`: the Markdown is inserted at the caret exactly
-  as pasting it would be, minus the clipboard. Registered paste transforms run first, the same
-  strategy pick applies (a table splices structurally, a one-line snippet splices inline, list
-  items absorb into a matching list), a live selection is deleted first, and the whole insertion is
-  one undo entry with focus at its end. It returns `false` and mutates nothing where a paste would
-  do nothing: no caret in that editor, reading mode, or a between-blocks caret. Bytes are the API,
-  so a plugin kind needs no method of its own to be insertable.
+### 0.9.39: typed tables, `insertMarkdown`, the language chip
 
 - **A table can be typed into existence.** A table's header and delimiter rows have to be adjacent,
   and Enter always minted a blank-line-separated block, so typing one was impossible in every
@@ -62,6 +46,16 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   a pipe (`ls | grep foo`) still splits normally, as does a row the table grammar would reject
   (`|a|`). It works inside blockquotes too, and in every editable mode.
 
+- **A programmatic insertion door.** A consumer building a toolbar had no way to put content into
+  a document short of rewriting the whole source, which loses the caret and the undo history. The
+  editor instance now exposes `insertMarkdown(md)`: the Markdown is inserted at the caret exactly
+  as pasting it would be, minus the clipboard. Registered paste transforms run first, the same
+  strategy pick applies (a table splices structurally, a one-line snippet splices inline, list
+  items absorb into a matching list), a live selection is deleted first, and the whole insertion is
+  one undo entry with focus at its end. It returns `false` and mutates nothing where a paste would
+  do nothing: no caret in that editor, reading mode, or a between-blocks caret. Bytes are the API,
+  so a plugin kind needs no method of its own to be insertable.
+
 - **A code block's language is reachable in the modes that hide its fence.** Once a fenced block
   had a line of body, `reading`, the `preview-*` rungs and `live` painted no fence and no caret
   could land on one, so the info string could be neither read nor changed without leaving the
@@ -72,6 +66,8 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   Escape, clicking away, and an Enter that changed nothing all leave the bytes untouched. Reading
   mode shows the same chip as a label.
   A block whose fence is already painted (an empty one) gets no chip, and neither does source mode.
+
+### 0.9.38: markers that stand over nothing
 
 - **A construct with nothing behind its markers shows them.** Typing `#` in live mode used to
   produce an empty invisible line, and the next character landed in front of the marker instead
@@ -86,16 +82,48 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   first content character folds the chrome away again. Table cells follow the same rule; the preview
   rungs take it too, and reading mode is unchanged.
 
+- **Enter leaving a blockquote mints the line it lands on.** Enter on a quote's empty trailing line
+  exits the quote, but where a block followed it deleted that line and dropped the caret into the
+  block below — Enter acting as downward navigation, and a boundary the gap caret deliberately
+  leaves to this gesture. It now trims the quote and mints the blank paragraph beside it, as the
+  list exit does, so the caret lands on a new line whatever follows (a table, a code fence, or
+  nothing). A nested quote escapes one level per press, the list outdent's convention, and the
+  whole exit is one undo entry and one edit event.
+
+### 0.9.37: mode-flip caret, opaque gaps, reported fixes
+
+- **The caret survives a presentation-mode flip.** Flipping rungs used to drop the caret
+  entirely, on every rung, forcing a re-click before typing. The editor now captures the
+  focused leaf's path and raw offset before the repaint and re-seats it after, clamped to
+  what the destination mode can land on. Reading mode banks the snapshot — it has no caret —
+  and spends it on the flip back to an editable rung; a restore yields to any text field
+  holding focus rather than stealing it.
+
+- **A paragraph can now be typed between two adjacent callouts.** The opaque container tier
+  (the callout kinds, `<details>`, and the generic `:::` directive container) declares both of
+  its edges to the between-blocks caret, so the boundary two of them share (callout above
+  callout, details above callout) parks the caret on an arrow crossing or a dead-space click,
+  and typing there mints a paragraph in one undoable step. Blockquotes, lists and GitHub alerts
+  are unchanged: their boundaries already have escape gestures, so no gap opens there.
+
 - **Footnote definitions continue lazily, as on GitHub.** An unindented non-blank line after a
   definition now stays in its open body paragraph — matching cmark-gfm's lazy continuation — where
   it used to escape as a sibling paragraph, so a GitHub-authored document keeps its structure. The
   definition still ends where GitHub ends it: at a blank line with nothing indented after it, or at
   any line that opens a block, a sibling `[^label]:` included.
 
+- **A split whose first half promotes to a table keeps its second half separate.** The probe
+  deciding whether Enter's second half needs a blank-line separator asked with a stand-in
+  prose line, which a freshly promoted table does not absorb — while absorbing the
+  pipe-bearing line actually left below it as a row on reload. The probe now asks with the
+  actual head line too.
+
 - **The third-party notices file is now `THIRD-PARTY-NOTICES.md`.** The old
   `LICENSE-THIRD-PARTY.md` name matched GitHub's license detection, so the repo reported two
   licenses; the notices themselves (the commonmark.js emphasis port, the gemoji table, the WHATWG
   entities table) are unchanged and still ship in the npm tarball.
+
+### 0.9.36: fully live mode + the caret-placement funnel
 
 - **Fully live mode.** `presentationMode="live"` hides every Markdown marker standing over content
   and leaves the document directly editable — `**bold**` reads as bold with the caret inside it, a
@@ -115,19 +143,6 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   opens empty over the range, Enter mints `[selection](url)` as a single undo step, and Escape
   leaves the document byte-identical with the selection restored. The demo's mode switcher gains
   the rung.
-
-- **The caret survives a presentation-mode flip.** Flipping rungs used to drop the caret
-  entirely, on every rung, forcing a re-click before typing. The editor now captures the
-  focused leaf's path and raw offset before the repaint and re-seats it after, clamped to
-  what the destination mode can land on. Reading mode banks the snapshot — it has no caret —
-  and spends it on the flip back to an editable rung; a restore yields to any text field
-  holding focus rather than stealing it.
-
-- **A split whose first half promotes to a table keeps its second half separate.** The probe
-  deciding whether Enter's second half needs a blank-line separator asked with a stand-in
-  prose line, which a freshly promoted table does not absorb — while absorbing the
-  pipe-bearing line actually left below it as a row on reload. The probe now asks with the
-  actual head line too.
 
 - **Arriving at a table's start enters the first cell.** The start sentinel used to fall through
   the table's caret doors to their far branch, so a landing aimed at the table's head (a
@@ -198,13 +213,6 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
   none anywhere. Kinds opt in: a plugin block whose surface traps the caret at its edges declares
   `gapEdges` on its kind (the bundled math block, math fence and mermaid diagram do), and the
   insert reaches the event seam as a new `insertBlock` op.
-
-- **A paragraph can now be typed between two adjacent callouts.** The opaque container tier
-  (the callout kinds, `<details>`, and the generic `:::` directive container) declares both of
-  its edges to the between-blocks caret, so the boundary two of them share (callout above
-  callout, details above callout) parks the caret on an arrow crossing or a dead-space click,
-  and typing there mints a paragraph in one undoable step. Blockquotes, lists and GitHub alerts
-  are unchanged: their boundaries already have escape gestures, so no gap opens there.
 
 - **The editor now answers which keyboard chords it consumes.** `editor.reservedChords()` returns
   the modifier chords this instance claims and `editor.claimsChord(event)` answers for one
@@ -1658,13 +1666,6 @@ command, overrides)` read over the tiers the resolvers already hold, not a new t
   notices ship as `LICENSE-THIRD-PARTY.md` (the commonmark.js emphasis port, the gemoji
   table, the WHATWG entity data), and `aragonite/package.json` resolves for the tooling that
   probes it.
-
-Ship gates: unit 6284, e2e 1731 (six clean shards; every red traced: a load-flake tail that
-passes isolated, the #66 order dependence, and the #81 wall-clock margin), check 0/0, lint 0.
-The perf gate ran on a non-pinned host this session, which reads red by design
-(`docs/design/performance.md`); an A/B against the parent commit measured identical numbers
-on both trees, so the change set carries no keystroke regression, and CI's scaled perf job
-stands as the arbiter until a pinned-host run.
 
 ### 0.9.35: the navigation API + toc v2
 
