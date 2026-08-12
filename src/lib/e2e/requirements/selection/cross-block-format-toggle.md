@@ -33,8 +33,8 @@ same range, must stay exactly as destructive as it was.
   keystroke swallow does not know (`Mod+Alt+G`), pressed over the same
   whole-document range: the press reaches the block's own dispatch and the seam
   declines it there, so no edit event fires and the source is byte-identical.
-  This is the only gesture that proves the leaf THREADS the live range flag —
-  every default chord is swallowed one layer earlier
+  This is the only gesture that proves the leaf THREADS the live range flag,
+  since every default chord is swallowed one layer earlier
 
 ## Error cases
 

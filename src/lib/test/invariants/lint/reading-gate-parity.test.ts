@@ -101,7 +101,7 @@ function namedObjectLiteral(code: string, name: string): string | null {
 /**
  * True when the site reaches the gate: the getter inline in the argument list, or inside the
  * object literal a bare-identifier argument resolves to. Resolving from the CALL SITE is the
- * point — a door rewired to a context that skips the getter fails, where a file-wide regex for
+ * point: a door rewired to a context that skips the getter fails, where a file-wide regex for
  * the old context's name would still pass.
  */
 function isThreaded(args: string, code: string): boolean {

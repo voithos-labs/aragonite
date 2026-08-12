@@ -56,12 +56,13 @@
 		return rects.length ? above(rects[0], `${hi - lo} chars`) : null;
 	}
 
-	function above(rect: DOMRect, label: string): Placement {
-		return { x: rect.left, y: Math.max(4, rect.top - BAR_HEIGHT), label };
-	}
+	/** How far above the selection the bar sits: its own height plus a gap, so the buttons never
+	 *  cover the line the user selected. */
+	const BAR_CLEARANCE = 40;
 
-	/** The bar's own height plus a gap, so the buttons never cover the selected line. */
-	const BAR_HEIGHT = 40;
+	function above(rect: DOMRect, label: string): Placement {
+		return { x: rect.left, y: Math.max(4, rect.top - BAR_CLEARANCE), label };
+	}
 
 	// The id, not a synthesized chord: a host rebind moves the shortcut and leaves the button. The
 	// answer is read because this bar stays up over cross-block ranges, where a toggle declines.
