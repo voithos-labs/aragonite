@@ -88,6 +88,15 @@ export interface EditorInstance {
 	 * mutates, when this editor holds no caret, in reading mode, or at a gap caret.
 	 */
 	insertMarkdown(md: string): boolean;
+	/**
+	 * Run a command by id at the focused surface, no chord in the path, so a consumer's
+	 * `keybindings` rebind cannot rewire a toolbar button. `TOOLBAR_COMMANDS` names the
+	 * supported ids. Semantics match the same command pressed as a chord: same arm, one undo
+	 * entry, same caret. False, and nothing mutates, on an unknown id, in reading mode, with no
+	 * focused block for a block-local id, and on a format toggle while a cross-block range is
+	 * painted. A minted plugin block command stays chord-only.
+	 */
+	runCommand(commandId: string): boolean;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;

@@ -13,7 +13,8 @@ const DISPATCH_TOKENS = [
 	'dispatchKeyCommand(',
 	'dispatchKindCommand(',
 	'getCommand(',
-	'runGlobalChord('
+	'runGlobalChord(',
+	'runCommandById('
 ];
 
 // Dispatcher definitions + the post-gate `getCommand(binding.command)` live here.
@@ -28,7 +29,10 @@ const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/blocks/list/ListItemBlock.svelte': /\breadOnly\b/,
 	'src/lib/components/GapCaret.svelte': /if \(isReading\) return/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
-	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/
+	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/,
+	// The runCommand door passes a named context rather than a literal; the mode getter is
+	// inside it.
+	'src/lib/components/Editor.svelte': /getPresentationMode: \(\) => effectiveMode/
 };
 
 // Set equality trips the day a new editable surface is born — the dominant future-site
@@ -44,7 +48,8 @@ const DISPATCH_SITE_FILES = [
 	'src/lib/selection/cross-block/keydown.ts',
 	'src/lib/components/blocks/list/ListItemBlock.svelte',
 	'src/lib/components/editor-root-keydown.ts',
-	'src/lib/components/GapCaret.svelte'
+	'src/lib/components/GapCaret.svelte',
+	'src/lib/components/Editor.svelte'
 ];
 
 /** Balanced-paren argument substring of the call whose opening `(` is at `openIdx`. */
@@ -141,6 +146,11 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 		expect(
 			LOCAL_GATE_SITES['src/lib/editor-actions/container-block-component.ts'].test(
 				'if (deps.isReading()) return true;'
+			)
+		).toBe(true);
+		expect(
+			LOCAL_GATE_SITES['src/lib/components/Editor.svelte'].test(
+				'getPresentationMode: () => effectiveMode,'
 			)
 		).toBe(true);
 		expect(

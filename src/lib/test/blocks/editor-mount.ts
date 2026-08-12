@@ -81,6 +81,21 @@ export function placeCaret(el: HTMLElement, rawOffset: number): void {
 	selection?.addRange(range);
 }
 
+/** Select `[start, end)` of `el` as a native range, the way a drag inside one block leaves it. */
+export function selectRange(el: HTMLElement, start: number, end: number): void {
+	el.focus();
+	const ambient = ambientLengthOf(el);
+	const range = createRangeFromOffsets(
+		el,
+		toDomTextOffset(asRawOffset(start), ambient),
+		toDomTextOffset(asRawOffset(end), ambient)
+	);
+	if (!range) throw new Error(`range ${start}..${end} is out of range for this block`);
+	const selection = window.getSelection();
+	selection?.removeAllRanges();
+	selection?.addRange(range);
+}
+
 /** Place the caret and dispatch a keydown from the block at `path`. The returned event's
  *  `defaultPrevented` is only meaningful once this has settled — the leaf prevents async. */
 export async function pressKeyAt(
