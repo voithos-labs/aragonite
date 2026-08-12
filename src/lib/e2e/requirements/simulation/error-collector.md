@@ -28,11 +28,11 @@ asserting `assertNone` throws.
   `[aragonite:…]` warning trips `assertNone`, so a diagnostic the editor emits
   mid-session cannot ride out a green run
 - ref-slot proxy warnings are caught: a `state_proxy_equality_mismatch`
-  warning trips `assertNone` — the raw-vs-proxy ref-slot class reds the gate
+  warning trips `assertNone`, so the raw-vs-proxy ref-slot class reds the gate
   the day it returns, and Svelte's runtime warn carries no sentinel to key on
 - warnings from outside the editor are ignored: a `console.warn` with no
   `[aragonite:…]` head does not trip the collector, so a host page's own
   diagnostics stay out of the verdict
 - the checkpoint waiver is per-tag: `assertNone(['tag'])` silences that tag's
-  fires and nothing else — an unwaived fire in the same session still throws,
+  fires and nothing else: an unwaived fire in the same session still throws,
   and the report names it alone

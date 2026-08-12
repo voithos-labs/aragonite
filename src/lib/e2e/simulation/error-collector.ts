@@ -8,7 +8,7 @@ export interface ErrorCollector {
 	assertNone(waive?: string[]): Promise<void>;
 }
 
-/** Every editor dev warning, invariant fires included — `devWarn` heads them all. */
+/** Every editor dev warning, invariant fires included: `devWarn` heads them all. */
 const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
 
 /** Svelte's own runtime warn for the raw-vs-proxy ref-slot class, so it carries no sentinel. */
