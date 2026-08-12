@@ -87,6 +87,8 @@ const RELAYS = new Set(['src/lib/dev-warn.ts', 'src/lib/invariants/assert.ts']);
 
 let recorded: DevWarnRecord[] = [];
 
+// A fire lands on whichever test is open when the sink receives it, so a warn deferred past
+// its own `afterEach` (an `await tick()` inside the guard) reds the NEXT test instead.
 setDevWarnSink((entry) => {
 	recorded.push({ ...entry, site: siteFromStack(new Error().stack) });
 });
