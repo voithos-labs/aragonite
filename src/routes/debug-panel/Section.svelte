@@ -35,7 +35,7 @@
 		gap: 6px;
 		cursor: pointer;
 		font-weight: 600;
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 	}
 	.debug-section-header:hover {
 		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
@@ -50,7 +50,7 @@
 		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 12px;
 		line-height: 1.4;
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 		/* pre-wrap preserves the dumps' indentation; overflow-wrap breaks the long unbreakable
 		   tokens (hex ids, spaceless raw snippets) that would force a horizontal scrollbar. */
 		white-space: pre-wrap;

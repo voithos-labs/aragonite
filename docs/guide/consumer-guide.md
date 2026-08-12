@@ -215,7 +215,7 @@ By default the bar pins to the editor root's top edge. In self-scroll mode that 
 
 - **The prop reads live.** `null` or `undefined` puts the bar back in the editor root, so an anchor that mounts with a panel and unmounts with it is fine. It has no effect while `searchBar` is `false` — that switch turns the whole feature off, chords included.
 - **Placement inside the anchor is yours.** The editor treats the element as the box and exports no positioning knobs. The bar positions itself absolutely, so give the anchor `position: relative` (or another positioned ancestor) and size it; otherwise the bar resolves against whatever the page's layout offers next.
-- **The bar brings its own theme scope.** Custom properties resolve by DOM ancestry, so an anchor outside the editor would otherwise strip the bar's colors down to its fallbacks. The relocated node carries the `.aragonite-editor-theme` class and the effective `data-editor-theme`, and both track a `theme` change live — you do not need to theme the anchor yourself.
+- **The bar carries the editor's theme scope with it.** Custom properties resolve by DOM ancestry, so an anchor outside the editor resolves whatever the page's cascade offers there. When the editor itself sits under `.aragonite-editor-theme`, the relocated node carries that class and the effective `data-editor-theme` (both tracking a `theme` change live), so the bar keeps the built-in palette. In a themed host with no class, it deliberately carries neither: the anchor inherits your own tokens, which is the palette the bar should wear there.
 
 ## Embedding in a webview shell
 
@@ -360,11 +360,15 @@ A plugin's render engine may carry its own stylesheet (KaTeX's `katex.min.css`, 
 
 ### Scope
 
-Tokens are declared on the editor's own root (`.editor`), never on `:root` — the module does not inject custom properties into your global scope. To give the same palette to non-editor chrome (a surrounding toolbar, a placeholder editor), add the `aragonite-editor-theme` class to a wrapper; it inherits the identical token set with no token declarations of your own.
+Nothing is declared on `:root` — the module does not inject custom properties into your global scope. The token set splits into two tiers.
+
+**Host-chrome tokens** are the _consumer's_ vocabulary: the editor only reads them, and their defaults live behind the opt-in `aragonite-editor-theme` class alone. A host with a theme system of its own declares the same names anywhere in its cascade, `:root` included, omits the class, and the editor blends in with no bridge stylesheet. Standalone, add the class to a wrapper for the built-in palette; non-editor chrome inside the wrapper (a surrounding toolbar, a placeholder editor) inherits it too.
+
+**Editor-owned tokens** — the syntax and code-token palettes, the overlays, and the host-family surfaces a host vocabulary does not carry (listed below) — keep their defaults on `.editor` itself, so they render correctly with or without the class.
 
 ### Light / dark
 
-Mode keys on `data-editor-theme` on the scoped element. Set the `theme` prop on `<Editor>` (`'dark'` default, `'light'`, or any custom name); on an `.aragonite-editor-theme` wrapper, set the attribute directly. **Dark is the base** — `'light'` overrides only the tokens that differ.
+Mode keys on `data-editor-theme` on the scoped element. Set the `theme` prop on `<Editor>` (`'dark'` default, `'light'`, or any custom name); on an `.aragonite-editor-theme` wrapper, set the attribute directly. **Dark is the base** — `'light'` overrides only the tokens that differ. In a themed host the attribute governs the editor-owned tier alone; the host-chrome tier's mode is whatever your own theme applied.
 
 The prop is **live**: changing it rethemes the surface through the cascade, and plugin content whose colors an engine PAINTS rather than CSS styles (a Mermaid diagram's SVG) is redrawn for the new theme — nothing is a mount-time snapshot. A theme change writes no document bytes.
 
@@ -372,27 +376,34 @@ The prop is **live**: changing it rethemes the surface through the cascade, and 
 
 Three paths, by scope:
 
-1. **Override individual tokens** — declare them on `.editor` (or a narrower selector of your own) in a stylesheet loaded after `editor-theme.css`. Custom properties cascade, so `.editor { --syntax-heading: #f90; }` wins. Per-mode: `.editor[data-editor-theme='light'] { … }`.
+1. **Override individual tokens** — host-chrome tokens: declare them anywhere in your cascade (`:root { --color-accent: #f90; }` reaches the editor, as long as no `.aragonite-editor-theme` ancestor sits between shadowing it). Editor-owned tokens: declare them on `.editor` (or a narrower selector of your own) in a stylesheet loaded after `editor-theme.css`, so `.editor { --syntax-heading: #f90; }` wins. Per-mode: `.editor[data-editor-theme='light'] { … }`.
 2. **Add a named theme** — define `.editor[data-editor-theme='solarized'] { … }` and pass `theme="solarized"`. The base block supplies fallbacks for any token the custom theme omits, so a partial theme overrides only what it names.
 3. **Replace wholesale** — skip `editor-theme.css` and ship your own token file scoped to `.editor`.
 
 ### Theme tokens
 
-Every token is editor-owned and declared in `editor-theme.css`. The role table below is the stable **host-chrome contract** — the tokens the editor and its plugins read to blend into your app. Override any of them at `.editor` or a wrapper, never `:root`.
+The role table below is the stable **host-chrome contract** — the tokens the editor and its plugins read to blend into your app, named as a host theme system names them. Declare them anywhere in your cascade, or take the defaults through the opt-in class.
 
-| Role            | Token(s)                                                                          |
-| --------------- | --------------------------------------------------------------------------------- |
-| **Font**        | `--font-editor`, `--editor-font-size` _(mode-independent — one value each)_       |
-| **Text**        | `--color-text`, `--color-text-primary`                                            |
-| **Muted**       | `--color-text-muted`, `--color-ui-muted`, `--color-ui-dulled`, `--color-ui-faint` |
-| **Accent**      | `--color-accent`                                                                  |
-| **Borders**     | `--color-border`                                                                  |
-| **Backgrounds** | `--color-bg`, `--color-bg-secondary`, `--color-bg-elevated`, `--color-bg-muted`   |
-| **Danger**      | `--color-danger`                                                                  |
+| Role        | Token(s)                                                              |
+| ----------- | --------------------------------------------------------------------- |
+| **Font**    | `--font-editor`, `--editor-font-size` _(mode-independent — one each)_ |
+| **Surface** | `--color-surface`                                                     |
+| **Text**    | `--color-text-secondary` _(body)_, `--color-text-primary`             |
+| **Muted**   | `--color-ui-muted`, `--color-ui-dulled`                               |
+| **Accent**  | `--color-accent`                                                      |
+| **Borders** | `--color-border`                                                      |
+| **Error**   | `--color-error`                                                       |
 
-**Both-themes guarantee.** Each `--color-*` token carries a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. The two font tokens are the exceptions: mode-independent, declared once.
+The editor supplies these host-family surfaces itself, in both modes, because a host vocabulary rarely names them — override them at `.editor`, where a `:root` declaration would lose to the default:
 
-**`--editor-font-size` is the type-scale root.** Headings, code, markers and chrome are all `em`-relative, so overriding this one token scales the whole surface. Set it at `.editor` — **not on a wrapper**. The token is declared on the editor's own root, so a value inherited from an ancestor is shadowed by that declaration and does nothing. To drive it from a host value that changes (a zoom control, a user text-size setting), bridge it through a property of your own: `.editor { --editor-font-size: var(--my-zoom, 1rem); }`. A live change is supported: virtual rendering re-estimates the document at the new scale, so a zoom control is a first-class use of the token, not a mount-time-only one.
+| Role            | Token(s)                                                          |
+| --------------- | ----------------------------------------------------------------- |
+| **Backgrounds** | `--color-bg-secondary`, `--color-bg-elevated`, `--color-bg-muted` |
+| **Muted**       | `--color-text-muted`, `--color-ui-faint` _(hover veil)_           |
+
+**Both-themes guarantee.** Each `--color-*` token's defaults carry a light _and_ a dark value — the base block is dark, `data-editor-theme='light'` overrides it — so a read resolves correctly in either mode. The two font tokens are the exceptions: mode-independent, declared once.
+
+**`--editor-font-size` is the type-scale root.** Headings, code, markers and chrome are all `em`-relative, so overriding this one token scales the whole surface. In a themed host (no opt-in class) set it on any ancestor and it inherits straight in. Under `.aragonite-editor-theme` the class declares `1rem`, which shadows any value from above it: set it at `.editor` or below the class, or bridge it through a property of your own (`.editor { --editor-font-size: var(--my-zoom, 1rem); }`). A live change is supported: virtual rendering re-estimates the document at the new scale, so a zoom control is a first-class use of the token, not a mount-time-only one.
 
 Outside that contract sits the editor's own visual language — the syntax and code-token palettes, the Markdown-marker colors, the selection and search overlays, and the reorder/windowing surfaces. Those are dark-based or mode-independent. Read `editor-theme.css` if you mean to retheme them.
 

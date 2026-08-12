@@ -1,30 +1,49 @@
 /**
- * Editor default theme. Tokens are declared on `.editor` and on the opt-in
- * `.aragonite-editor-theme` class, never on `:root`: an extracted module must not inject its
- * custom properties into a consumer's global scope, and a `:root` override would lose to
- * these direct defaults anyway. `:where()` keeps specificity at 0 so `.editor { --x: … }`
- * wins. Light keys on `data-editor-theme='light'`; dark is the base.
+ * Editor default theme, in two tiers (consumer-guide.md § Theming). Host-chrome tokens
+ * default behind the opt-in `.aragonite-editor-theme` class ALONE, so a themed host's own
+ * cascade reaches the editor unbridged (G4.6d); editor-owned tokens — and the host-family
+ * names a host vocabulary does not carry — default on `.editor` too. `:where()` keeps
+ * specificity at 0 so `.editor { --x: … }` wins. Light keys on `data-editor-theme='light'`.
  */
 
-:where(.editor, .aragonite-editor-theme) {
+/* ── Host-chrome tier: the consumer's vocabulary, defaults behind the class ── */
+
+:where(.aragonite-editor-theme) {
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	/* Type-scale root: headings, code and markers are all `em`-relative, so one override
-	   scales the surface. Declared here, so it shadows any value inherited from a wrapper. */
+	   scales the surface. A themed host sets it on any ancestor instead. */
 	--editor-font-size: 1rem;
 
-	/* Host chrome tokens (dark defaults). Consumer-overridable; reads keep inline fallbacks. */
-	--color-bg: #1b1c21;
-	--color-bg-secondary: rgba(128, 128, 128, 0.12);
-	--color-bg-elevated: #2a2c33;
-	--color-bg-muted: #2a2a2a;
-	--color-text: #d6d9e0;
+	--color-surface: #1b1c21;
+	--color-text-secondary: #d6d9e0;
 	--color-text-primary: #ffffff;
-	--color-text-muted: #aaaaaa;
 	--color-border: #3d4047;
 	--color-ui-muted: #a4a4a4;
 	--color-ui-dulled: #afb1b3;
 	--color-accent: #567b67;
-	--color-danger: #e06c75;
+	--color-error: #e06c75;
+}
+
+:where(.aragonite-editor-theme)[data-editor-theme='light'] {
+	--color-surface: #ffffff;
+	--color-text-secondary: #1f2328;
+	--color-text-primary: #000000;
+	--color-border: #d0d7de;
+	--color-ui-muted: #6e7781;
+	--color-ui-dulled: #8c959f;
+	--color-accent: #567b67;
+	--color-error: #cf222e;
+}
+
+/* ── Editor-owned tier: defaults on `.editor`, so they hold with or without the class ── */
+
+:where(.editor, .aragonite-editor-theme) {
+	/* Host-family surfaces a host theme rarely names, so the editor supplies both modes
+	   rather than falling back to a fixed veil over the host's palette. */
+	--color-bg-secondary: rgba(128, 128, 128, 0.12);
+	--color-bg-elevated: #2a2c33;
+	--color-bg-muted: #2a2a2a;
+	--color-text-muted: #aaaaaa;
 	/* Hover veil over an ALREADY-elevated surface, so it cannot reuse
 	   --color-bg-secondary, which is measured against the base bg. */
 	--color-ui-faint: rgba(255, 255, 255, 0.07);
@@ -89,19 +108,10 @@
 }
 
 :where(.editor, .aragonite-editor-theme)[data-editor-theme='light'] {
-	/* Host chrome tokens (light) */
-	--color-bg: #ffffff;
 	--color-bg-secondary: rgba(0, 0, 0, 0.05);
 	--color-bg-elevated: #f5f6f8;
 	--color-bg-muted: #eaeaea;
-	--color-text: #1f2328;
-	--color-text-primary: #000000;
 	--color-text-muted: #57606a;
-	--color-border: #d0d7de;
-	--color-ui-muted: #6e7781;
-	--color-ui-dulled: #8c959f;
-	--color-accent: #567b67;
-	--color-danger: #cf222e;
 	--color-ui-faint: rgba(0, 0, 0, 0.06);
 
 	/* --syntax-* tokens are mode-independent — no light overrides. */

@@ -473,7 +473,7 @@
 		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 11px;
 		padding: 2px 8px;
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 		background: transparent;
 		border: 1px solid var(--color-border, #3d4047);
 		border-radius: 3px;
@@ -547,7 +547,7 @@
 	}
 
 	.mermaid-error {
-		color: var(--color-danger, #e06c75);
+		color: var(--color-error, #e06c75);
 	}
 
 	.mermaid-loading,
@@ -567,7 +567,7 @@
 		border: 1px solid var(--color-border, #3d4047);
 		border-radius: 8px;
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 		outline: none;
 	}
 

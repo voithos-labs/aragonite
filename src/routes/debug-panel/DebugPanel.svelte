@@ -179,7 +179,7 @@
 		right: 0;
 		height: 100vh;
 		background: var(--color-bg-elevated, #2a2c33);
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 		border-left: 1px solid var(--color-border, #3d4047);
 		display: flex;
 		flex-direction: column;
@@ -228,7 +228,7 @@
 		padding: 2px 8px;
 		cursor: pointer;
 		border-radius: 3px;
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 	}
 	.copy-all:hover,
 	.close-btn:hover {

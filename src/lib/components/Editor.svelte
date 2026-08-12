@@ -240,6 +240,10 @@
 	let blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(() => blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
+	// Inside a themed host the editor sits under no opt-in class, and the portaled search
+	// bar must not carry one either: the class's defaults would shadow the host tokens the
+	// anchor already inherits.
+	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
 	let headerEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
@@ -1439,10 +1443,10 @@
 	{#if searchBar}
 		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. Portaled
 		     out, it drops that positioning (the consumer's element is the box) and carries the
-		     theme scope, since custom properties resolve by DOM ancestry. -->
+		     editor's own theme scope, since custom properties resolve by DOM ancestry. -->
 		<div
 			class:search-anchor={!searchBarAnchor}
-			class:aragonite-editor-theme={!!searchBarAnchor}
+			class:aragonite-editor-theme={!!searchBarAnchor && inThemedScope}
 			data-editor-theme={searchBarAnchor ? theme : undefined}
 			{@attach portalInto(searchBarAnchor)}
 		>
