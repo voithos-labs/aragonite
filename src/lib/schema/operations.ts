@@ -8,9 +8,7 @@ export interface OperationDetailMap {
 	split: { at: number; itemIndex?: number; innerIndex?: number };
 	merge: { direction: 'prev' | 'next' };
 	reorder: { from: number; to: number };
-	delete:
-		| { crossBlock?: true; table?: 'whole'; action?: 'blockquoteExit'; innerIndex?: number }
-		| undefined;
+	delete: { crossBlock?: true; table?: 'whole' } | undefined;
 	input: { byteLength: number };
 	updateContent: { length: number };
 	replaceBlock:

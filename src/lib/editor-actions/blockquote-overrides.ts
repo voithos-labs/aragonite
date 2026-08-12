@@ -4,30 +4,25 @@
  * selects strategies in `unwrap-strategies.ts`.
  */
 
-import type { BlockEditActions, FocusActions } from '../action-contracts';
+import type { BlockEditActions } from '../action-contracts';
 import { displayLength } from '../core/lines';
-import { deleteNode as performDelete } from '../tree-operations/node-ops';
-import type { BlockListState } from '../reactivity/block-list-state.svelte';
+import { buildQuoteExitReplacement } from '../tree-operations/blockquote';
 import type { NestedActionsBundle, NodeScope } from './nested/nested-actions';
-import type { UndoController } from './deps';
-import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 
 export interface BlockquoteOverridesDeps {
 	scope: NodeScope;
-	state: BlockListState;
 	parentBlockEdit: BlockEditActions;
-	parentFocus: FocusActions;
-	controller: UndoController;
 }
 
 export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 	return (defaults: NestedActionsBundle) => ({
 		blockEdit: {
-			// Enter on an empty trailing paragraph exits the blockquote instead of
-			// appending another inner line.
+			// Enter on an empty trailing paragraph exits the quote instead of appending another
+			// inner line, and MINTS the blank it lands on: Enter is never down-nav, so a block
+			// below is left alone and a nested quote is escaped one level per press.
 			splitBlock: async (innerIndex: number, offset: number): Promise<void> => {
-				const { state, parentBlockEdit, parentFocus } = deps;
-				const { node, index, path } = deps.scope;
+				const { parentBlockEdit } = deps;
+				const { node, index } = deps.scope;
 				if (!node.children) return;
 				const child = node.children[innerIndex];
 				const isLastChild = innerIndex === node.children.length - 1;
@@ -36,26 +31,9 @@ export function createBlockquoteOverrides(deps: BlockquoteOverridesDeps) {
 					if (node.children.length <= 1) {
 						await parentBlockEdit.splitBlock(index, displayLength(node.raw));
 					} else {
-						// The primitive's spine rebuild refreshes this quote's raw AND its
-						// ancestors' — a nested quote's own rebuild would strand `> >` outside.
-						await deps.controller.commitMultiScope({
-							scopes: [{ node, state, path }],
-							snapshot: { path: extendDocPath(path, innerIndex), offset: 0 },
-							mutate: ([scope]) => [
-								performDelete(
-									{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
-									innerIndex,
-									scope.sharing
-								)
-							],
-							op: {
-								kind: 'delete',
-								detail: { action: 'blockquoteExit', innerIndex },
-								eventPath: docPathFrom(path)
-							},
-							afterTick: () => {
-								void parentFocus.moveFocus(index + 1, 'start');
-							}
+						await parentBlockEdit.replaceBlock(index, buildQuoteExitReplacement(node), {
+							replacementIndex: 1,
+							offset: 0
 						});
 					}
 					return;

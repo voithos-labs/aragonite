@@ -309,7 +309,6 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const {
-		controller,
 		stickyColumn,
 		edgeAffinity,
 		selection,
@@ -344,13 +343,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode, getPresentationMode);
 
-	const blockquoteOverrides = createBlockquoteOverrides({
-		scope,
-		state: listState,
-		parentBlockEdit,
-		parentFocus,
-		controller
-	});
+	const blockquoteOverrides = createBlockquoteOverrides({ scope, parentBlockEdit });
 
 	// All three override the same `defaults`, so they coexist; for a non-collapsing
 	// container the gates are inert.

@@ -4,6 +4,27 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ### 0.9.36 (unreleased)
 
+- **A themed host needs no bridge stylesheet.** The host-chrome tokens were declared on the
+  editor's own root, so a host declaring them at `:root` was shadowed by the editor's defaults and
+  had to re-declare everything at `.editor` to be heard. Their defaults now live behind the opt-in
+  `aragonite-editor-theme` class alone: add the class for the built-in palette, or omit it and the
+  host's own cascade reaches the editor unbridged. Editor-owned tokens, and the host-family
+  surfaces a host vocabulary rarely names (`--color-bg-secondary`, `--color-bg-elevated`,
+  `--color-bg-muted`, `--color-text-muted`, `--color-ui-faint`), keep their defaults on `.editor`
+  and still respond to `data-editor-theme`, so the two tiers can disagree about mode without
+  either rendering wrong. Three tokens take the host vocabulary's names in the move:
+  `--color-bg` → `--color-surface`, `--color-text` → `--color-text-secondary`, and
+  `--color-danger` → `--color-error`. `--editor-font-size` moves with its tier: under the class its
+  default still shadows anything above, but a themed host now sizes the editor from any ancestor.
+
+- **Enter leaving a blockquote mints the line it lands on.** Enter on a quote's empty trailing line
+  exits the quote, but where a block followed it deleted that line and dropped the caret into the
+  block below — Enter acting as downward navigation, and a boundary the gap caret deliberately
+  leaves to this gesture. It now trims the quote and mints the blank paragraph beside it, as the
+  list exit does, so the caret lands on a new line whatever follows (a table, a code fence, or
+  nothing). A nested quote escapes one level per press, the list outdent's convention, and the
+  whole exit is one undo entry and one edit event.
+
 - **A programmatic insertion door.** A consumer building a toolbar had no way to put content into
   a document short of rewriting the whole source, which loses the caret and the undo history. The
   editor instance now exposes `insertMarkdown(md)`: the Markdown is inserted at the caret exactly
