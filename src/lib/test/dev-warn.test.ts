@@ -1,17 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { devWarn } from '../dev-warn';
-import { configureEditorEnv, resetEditorEnv } from '../env';
+import { devWarn, setDevWarnSink, type DevWarnSink } from '../dev-warn';
+import { configureEditorEnv } from '../env';
 
-describe('devWarn', () => {
+// The console arm is what the e2e watchers read, so it is pinned with the unit gate's sink
+// detached — a registered sink takes reporting over and the console line never happens.
+describe('devWarn — console arm', () => {
 	let warnSpy: ReturnType<typeof vi.spyOn>;
+	let gateSink: DevWarnSink | null;
 
 	beforeEach(() => {
+		gateSink = setDevWarnSink(null);
 		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 	});
 
 	afterEach(() => {
 		warnSpy.mockRestore();
-		resetEditorEnv();
+		setDevWarnSink(gateSink);
 	});
 
 	it('stays silent outside dev mode', () => {
@@ -20,10 +24,10 @@ describe('devWarn', () => {
 		expect(warnSpy).not.toHaveBeenCalled();
 	});
 
-	it('stays silent under test, even in dev mode', () => {
+	it('warns under test, so the unit gate can see every guard fire', () => {
 		configureEditorEnv({ isDev: true, isTest: true });
 		devWarn('tag', 'message');
-		expect(warnSpy).not.toHaveBeenCalled();
+		expect(warnSpy).toHaveBeenCalledWith('[tag] message');
 	});
 
 	it('warns once with the [tag] message shape in dev outside test', () => {
@@ -46,5 +50,31 @@ describe('devWarn', () => {
 		devWarn('cursor', 'no details');
 		expect(warnSpy).toHaveBeenCalledTimes(1);
 		expect(warnSpy.mock.calls[0]).toHaveLength(1);
+	});
+});
+
+describe('devWarn — sink arm', () => {
+	it('hands the sink a structured entry and emits no console line', () => {
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const seen: unknown[] = [];
+		const gateSink = setDevWarnSink((entry) => seen.push(entry));
+
+		devWarn('cursor', 'bad offset', { offset: 3 });
+
+		setDevWarnSink(gateSink);
+		warnSpy.mockRestore();
+		expect(seen).toEqual([{ tag: 'cursor', message: 'bad offset', details: { offset: 3 } }]);
+		expect(warnSpy).not.toHaveBeenCalled();
+	});
+
+	it('stays silent outside dev mode even with a sink registered', () => {
+		const seen: unknown[] = [];
+		const gateSink = setDevWarnSink((entry) => seen.push(entry));
+		configureEditorEnv({ isDev: false, isTest: false });
+
+		devWarn('tag', 'message');
+
+		setDevWarnSink(gateSink);
+		expect(seen).toEqual([]);
 	});
 });
