@@ -17,7 +17,7 @@ afterEach(async () => {
 const ENTER = { key: 'Enter' };
 
 describe('blockquote Enter override', () => {
-	it('exits the quote on a second Enter, dropping the empty line it made', async () => {
+	it('exits the quote on a second Enter, the minted blank replacing the empty line', async () => {
 		mounted = mountEditor({ source: '> alpha\n' });
 
 		// Two `>` lines: the split's blank-line separator plus the empty paragraph it made.
