@@ -9,6 +9,8 @@ import type { CstNode } from '../core/nodes';
 import { displayLength, trailingLineEnding } from '../core/lines';
 import {
 	splitNode as performSplit,
+	assertSplitLanding,
+	type SplitResult,
 	mergeWithNext as performMergeNext,
 	mergeIntoPrevDeepLeaf,
 	deleteNode as performDelete,
@@ -77,14 +79,15 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 
 			// Offset 0 is not special: empty block above, content below, caret on the content. The
 			// landing is the primitive's answer, not `i + 1` — a plural first half pushes the
-			// second half further down.
+			// second half further down, and G1.34 holds the seat to it.
 			let secondHalfIndex = i + 1;
+			let split: SplitResult | undefined;
 			await scope.commit({
 				snapshot: { index: i, offset },
 				eventTarget: i,
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
-					const split = performSplit(
+					split = performSplit(
 						bodyParentOf(view),
 						i,
 						offset,
@@ -95,7 +98,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					stampStructuralChange(view.children, split.change, view.sharing);
 					return split.change;
 				},
-				afterTick: () => scope.refAt(secondHalfIndex)?.focus(CURSOR_EXACT_START),
+				afterTick: () => {
+					if (split) assertSplitLanding(split, secondHalfIndex);
+					scope.refAt(secondHalfIndex)?.focus(CURSOR_EXACT_START);
+				},
 				// A single-line/chrome block splits to nothing, so discard rather than
 				// mint a dead entry on a rebound Enter.
 				discardIfNoop: true

@@ -19,7 +19,7 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
+import { splitNode as performSplit, assertSplitLanding, emptyParagraph } from '../tree-operations';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
 import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
@@ -221,8 +221,10 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					);
 					stampStructuralChange(itemChildren, split.change, sharing);
 					// The primitive's landing index, not `innerIndex + 1`: a plural first half
-					// stays with this item.
-					const secondHalf = itemChildren.splice(split.secondHalfIndex);
+					// stays with this item, and G1.34 holds the splice to it.
+					const landing = split.secondHalfIndex;
+					assertSplitLanding(split, landing);
+					const secondHalf = itemChildren.splice(landing);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
 					}
@@ -247,11 +249,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// blocks — plural when the cut bytes reparse to more than one.
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
-						replacePreservingFirst(
-							innerIndex,
-							preSpliceLen - innerIndex,
-							split.secondHalfIndex - innerIndex
-						)
+						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, landing - innerIndex)
 					];
 				},
 				op: {
