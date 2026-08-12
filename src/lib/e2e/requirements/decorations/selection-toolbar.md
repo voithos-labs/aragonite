@@ -6,7 +6,8 @@ lifecycle, and `getRects().rangeRects` for both the cross-block and the
 single-block anchor — the snapshot carries real range offsets, so the public
 API serves extent and geometry alike and the component makes no native
 selection read. A `position: fixed` bar floats above the selection's first
-rect.
+rect, carrying the five `TOOLBAR_COMMANDS` as buttons that call
+`runCommand(id)` rather than synthesizing a chord.
 
 ## Happy paths
 
@@ -18,6 +19,9 @@ rect.
 ## User interactions
 
 - collapsing the selection (click) hides the toolbar
+- clicking the bold button wraps the selected word: the press cancels its own
+  mousedown default, so the caret never leaves the document and the door has a
+  focused surface to run on
 - a selection starting mid-line in a wrapped paragraph anchors the toolbar at
   rect[0]'s left — the first visual line's geometry, not the multi-line union
 

@@ -51,6 +51,19 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator(TOOLBAR)).toBeHidden();
 	});
 
+	// The recipe's focus rule: without the mousedown cancel the press moves focus to the button,
+	// the door resolves no surface, and the click silently does nothing.
+	test('the bold button wraps the selection without stealing the caret', async ({ page }) => {
+		await editor.loadContent('select some of this text\n\nsecond block\n');
+		await editor.focusBlock(0, 7);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+
+		await page.locator('[data-testid="toolbar-format.toggleStrong"]').click();
+
+		await editor.bridge.waitForSourceContains('select **some** of this text');
+	});
+
 	test('a mid-line start in a wrapped paragraph anchors at rect[0], not the union', async ({
 		page
 	}) => {
