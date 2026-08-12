@@ -1,13 +1,13 @@
 /**
  * Fail-on-warn unit gate (Vitest setup). Every `devWarn` fire reds its owning test unless the
- * test claims it (`takeDevWarns` to assert on it, `expectDevWarns` for a fixture's incidental
- * fires) or the site is allowlisted for the whole run. Reads the structured sink, never a
- * console spy: most suites shadow `console.warn` and two call `vi.restoreAllMocks()`. Rows key
- * on tag + site, site being the first `src/lib` stack frame below the emission point.
+ * test claims it (`takeDevWarns` to assert on it, `drainDevWarns` to discard it, `allowDevWarns`
+ * for a file's incidental tags) or the site is allowlisted for the whole run. Reads the
+ * structured sink, never a console spy, because suites shadow `console.warn`. The claim doors are
+ * file-level `afterEach` hooks, so the config pins `sequence.hooks: 'stack'` to order them first.
  */
 
 import { afterEach, expect } from 'vitest';
-import { setDevWarnSink, type DevWarnEntry } from '$lib/dev-warn';
+import { setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '$lib/dev-warn';
 import { resetEditorEnv } from '$lib/env';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import allowlist from './warn-allowlist.json';
@@ -16,6 +16,8 @@ export interface AllowedWarn {
 	tag: string;
 	site: string;
 	reason: string;
+	/** The site builds its tag from a parameter, so freshness only asserts that it still warns. */
+	callerSuppliedTag?: boolean;
 }
 
 export interface DevWarnRecord extends DevWarnEntry {
@@ -35,15 +37,21 @@ export function takeDevWarns(): DevWarnRecord[] {
 	return taken;
 }
 
+/** Discard the fires a fixture provoked, so the test asserts only on what follows them. */
+export function drainDevWarns(): void {
+	takeDevWarns();
+}
+
 /**
  * Drain, refusing any tag the caller did not declare. For a fixture that provokes a fire the
- * test is not about; declarations rot silently, which is the price of leaving the sharp
- * guards (`invariant:*`, `tree-ops`) out of the run-wide allowlist.
+ * test is not about; nothing asserts the declared tags fired, so declarations rot silently,
+ * which is the price of leaving the sharp guards (`invariant:*`, `tree-ops`) out of the
+ * run-wide allowlist.
  */
-export function expectDevWarns(tags: string[]): DevWarnRecord[] {
+export function allowDevWarns(tags: string[]): DevWarnRecord[] {
 	const drained = takeDevWarns();
 	const undeclared = drained.filter((record) => !tags.includes(record.tag));
-	expect(undeclared, formatWarnFailure(undeclared)).toEqual([]);
+	expect(undeclared, formatUndeclaredWarnFailure(tags, undeclared)).toEqual([]);
 	return drained;
 }
 
@@ -56,13 +64,22 @@ export function findUnallowlistedWarns(
 	);
 }
 
+/** For a fire nobody claimed at all: the reader has yet to pick a door. */
 export function formatWarnFailure(records: DevWarnRecord[]): string {
-	const lines = records.map((r) => `  [${r.tag}] ${r.site} — ${r.message}`);
 	return (
-		`${records.length} unclaimed devWarn fire(s) in this test:\n${lines.join('\n')}\n` +
+		`${records.length} unclaimed devWarn fire(s) in this test:\n${listRecords(records)}\n` +
 		'A guard that should never fire has fired: fix it. A test whose subject is the fire ' +
-		'asserts on takeDevWarns(); a fixture that provokes one declares expectDevWarns([tag]); ' +
+		'asserts on takeDevWarns(); a fixture that provokes one declares allowDevWarns([tag]); ' +
 		'a cross-cutting benign diagnostic joins src/lib/test/support/warn-allowlist.json.'
+	);
+}
+
+/** For a file that already declared its tags: name the declared set beside what missed it. */
+export function formatUndeclaredWarnFailure(declared: string[], records: DevWarnRecord[]): string {
+	return (
+		`declared [${declared.join(', ')}]; unclaimed fire(s):\n${listRecords(records)}\n` +
+		'The declaration does not cover these tags: either the guard should not have fired, or ' +
+		'the tag belongs in the allowDevWarns list.'
 	);
 }
 
@@ -87,17 +104,35 @@ const RELAYS = new Set(['src/lib/dev-warn.ts', 'src/lib/invariants/assert.ts']);
 
 let recorded: DevWarnRecord[] = [];
 
+function listRecords(records: DevWarnRecord[]): string {
+	return records.map((r) => `  [${r.tag}] ${r.site} — ${r.message}`).join('\n');
+}
+
+// ── The gate ─────────────────────────────────────────────────────────────────
+
 // A fire lands on whichever test is open when the sink receives it, so a warn deferred past
 // its own `afterEach` (an `await tick()` inside the guard) reds the NEXT test instead.
-setDevWarnSink((entry) => {
+const gateSink: DevWarnSink = (entry) => {
 	recorded.push({ ...entry, site: siteFromStack(new Error().stack) });
-});
+};
 
-afterEach(() => {
+setDevWarnSink(gateSink);
+
+const STOLEN_SINK =
+	'This test replaced the devWarn sink and never restored it, so the fail-on-warn gate was ' +
+	'blind for the rest of it. Restore it in an afterEach; setDevWarnSink returns the sink it ' +
+	'replaced. The gate has re-armed itself for the next test.';
+
+/** The per-test verdict, exported so the gate's own suite can drive it without a nested runner. */
+export function enforceWarnGate(): void {
 	const unclaimed = findUnallowlistedWarns(takeDevWarns());
 	// The env singleton and the once-per-id warn set are process-global, so a leaked
 	// override or a deduped warn would make the next test's verdict order-dependent.
 	resetEditorEnv();
 	__resetCommandWarningsForTests();
+	const stolen = setDevWarnSink(gateSink) !== gateSink;
 	if (unclaimed.length > 0) throw new Error(formatWarnFailure(unclaimed));
-});
+	if (stolen) throw new Error(STOLEN_SINK);
+}
+
+afterEach(enforceWarnGate);

@@ -4,11 +4,11 @@ import { asDocPath } from '$lib/selection/path-math';
 import { makeEdgeAffinity } from './harness/editor-actions';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The container fixture is hand-built, not parser output, so the container-raw oracle reads it as
 // stale.
-afterEach(() => expectDevWarns(['invariant:stale-raw']));
+afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 describe('createEditorEvents', () => {
 	it('subscribes and fires edit events to registered handlers', () => {

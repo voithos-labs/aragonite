@@ -17,6 +17,9 @@ export default defineConfig({
 		setupFiles: [
 			'./src/lib/test/support/register-built-ins.ts',
 			'./src/lib/test/support/warn-gate.ts'
-		]
+		],
+		// The warn gate's claim doors sit in file-level afterEach hooks that must run before the
+		// setup file's verdict hook; 'stack' is what reverses "after" hooks into that order.
+		sequence: { hooks: 'stack' }
 	}
 });

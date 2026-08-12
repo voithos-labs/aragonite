@@ -6,11 +6,11 @@ import {
 import { createSelectionState } from '../../../selection/selection-state.svelte';
 import type { CellSelectionPoint } from '../../../selection/primitives';
 import type { Document } from '../../../core/nodes';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The selections are hand-built, skipping the SelectionState normalization the coordinate guard
 // expects.
-afterEach(() => expectDevWarns(['invariant:cross-block-endpoint-coordinates']));
+afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 // A doc whose block at [0] is a table, so a same-path cross-block selection reads
 // as custom-rendered. `cells` is a row-major grid of cell raws.

@@ -71,6 +71,8 @@ describe('block-completion registry', () => {
 
 		expect(() => registerBlockCompleter(kind, claims('|', ['second']))).not.toThrow();
 		expect(completeTypedLine('|')?.lines).toEqual(['second']);
-		expect(takeDevWarns()[0].message).toMatch(/dev re-registration replaces/);
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toMatch(/dev re-registration replaces/);
 	});
 });

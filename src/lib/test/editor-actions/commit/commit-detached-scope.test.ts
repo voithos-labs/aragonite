@@ -17,7 +17,7 @@ import {
 	makeEditorActionsDeps,
 	makeListContextAt
 } from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 
 describe('multi-scope commits with a scope detached by the mutation', () => {
 	it('unindent of the only nested item fires nothing (nested-list scope dies)', async () => {
@@ -38,7 +38,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 
 		const { listContext } = makeListContextAt(deps, 0);
 
-		takeDevWarns();
+		drainDevWarns();
 		await listContext.promoteNestedItem(0, nestedList, 0);
 
 		expect(serialize(deps.doc)).toBe('- Item 1\n- Nested\n- Item 2\n');
@@ -68,7 +68,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		const start = { path: [0, 0, 0], offset: 0 };
 		const end = { path: [0, 1, 0], offset: 'target two'.length };
 
-		takeDevWarns();
+		drainDevWarns();
 		await controller.commitMultiScope({
 			scopes,
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
@@ -105,7 +105,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		const start = { path: [0], offset: 'head'.length };
 		const end = { path: [1, 0], offset: 'quoted line'.length };
 
-		takeDevWarns();
+		drainDevWarns();
 		await controller.commitMultiScope({
 			scopes,
 			snapshot: { path: asDocPath([0]), offset: 0 },

@@ -8,10 +8,10 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs } from '../editor-mount';
 import { mountItem, pressOn, type MountedItem } from './mount-item';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
-afterEach(() => expectDevWarns(['block-host']));
+afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(installLayoutStubs);
 

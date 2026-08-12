@@ -13,11 +13,11 @@ import {
 	makeEditorActionsDeps,
 	mockRef
 } from '$lib/test/harness/editor-actions';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The container fixtures are hand-built, not parser output, so the container-raw oracle reads
 // them as stale.
-afterEach(() => expectDevWarns(['invariant:stale-raw']));
+afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 function harness() {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);

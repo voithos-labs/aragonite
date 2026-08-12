@@ -10,17 +10,19 @@ import { collectEditorSources, EDITOR_SRC } from './scan-source';
 
 /** A `devWarn(` whose tag argument opens with the literal `tag`, on that line or the next. */
 function warnsWithTag(code: string, tag: string): boolean {
-	return new RegExp(`devWarn\\(\\s*['\`]${escape(tag)}`).test(code);
+	return new RegExp(`devWarn\\(\\s*['\`]${escapeLiteral(tag)}`).test(code);
 }
 
-function escape(literal: string): string {
+function escapeLiteral(literal: string): string {
 	return literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// The caller-supplied-tag sites (`selection/primitives.ts`) key on site alone: their tag is a
-// parameter, so no literal to match. A row for one asserts only that the site still warns.
-function tagIsCallerSupplied(row: AllowedWarn): boolean {
-	return row.site === 'src/lib/selection/primitives.ts';
+/** Why a row went stale against its file's current source, or `''` while it stays honest. */
+function staleReason(row: AllowedWarn, code: string | undefined): string {
+	if (code === undefined) return `allowlisted site no longer exists: ${row.site}`;
+	if (!code.includes('devWarn(')) return `${row.site} no longer calls devWarn`;
+	if (row.callerSuppliedTag || warnsWithTag(code, row.tag)) return '';
+	return `${row.site} no longer warns with tag "${row.tag}"`;
 }
 
 describe('warn-gate allowlist stays honest against the source', () => {
@@ -33,14 +35,7 @@ describe('warn-gate allowlist stays honest against the source', () => {
 
 	it('every row names a live file that still emits its tag', () => {
 		for (const row of ALLOWED_WARNS) {
-			const file = byPath.get(row.site);
-			expect(file, `allowlisted site no longer exists: ${row.site}`).toBeDefined();
-			expect(file!.code, `${row.site} no longer calls devWarn`).toContain('devWarn(');
-			if (tagIsCallerSupplied(row)) continue;
-			expect(
-				warnsWithTag(file!.code, row.tag),
-				`${row.site} no longer warns with tag "${row.tag}"`
-			).toBe(true);
+			expect(staleReason(row, byPath.get(row.site)?.code)).toBe('');
 		}
 	});
 
@@ -50,7 +45,26 @@ describe('warn-gate allowlist stays honest against the source', () => {
 		for (const row of ALLOWED_WARNS) expect(row.reason.length).toBeGreaterThan(20);
 	});
 
-	// ── Matcher self-tests (the manifest is short; these keep the scan non-vacuous) ──
+	// ── Matcher self-tests over synthetic rows (the manifest is short; these keep it non-vacuous) ──
+
+	it('the row verdict catches a moved file, a dropped devWarn and a changed tag', () => {
+		const row: AllowedWarn = { tag: 'probe', site: 'src/lib/probe.ts', reason: 'synthetic row' };
+		expect(staleReason(row, "devWarn('probe', 'x');")).toBe('');
+		expect(staleReason(row, undefined)).toContain('no longer exists');
+		expect(staleReason(row, 'const quiet = 1;')).toContain('no longer calls devWarn');
+		expect(staleReason(row, "devWarn('other', 'x');")).toContain('no longer warns with tag');
+	});
+
+	it('a caller-supplied-tag row asks only that its site still warns', () => {
+		const row: AllowedWarn = {
+			tag: 'anything',
+			site: 'src/lib/probe.ts',
+			reason: 'synthetic row',
+			callerSuppliedTag: true
+		};
+		expect(staleReason(row, 'devWarn(tag, message);')).toBe('');
+		expect(staleReason(row, 'const quiet = 1;')).toContain('no longer calls devWarn');
+	});
 
 	it('the tag matcher reads both the direct and the invariant-relay spellings', () => {
 		expect(warnsWithTag("devWarn('reorder', `out of bounds`);", 'reorder')).toBe(true);

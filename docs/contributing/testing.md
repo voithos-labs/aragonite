@@ -72,16 +72,27 @@ A block component reads its wiring from the editor's context tree, so a bare `mo
 
 ### A dev warning reds its test
 
-Every `devWarn` fire reaches a structured sink the unit setup registers, and any fire a test does
-not claim fails that test. A registered sink takes reporting over, so the console line never
-happens under the unit runner and console spies no longer see dev warnings at all.
+Every `devWarn` fire reaches a structured sink the unit setup registers, and a fire no test claims
+fails that test. A registered sink takes reporting over, so the console line never happens under
+the unit runner and console spies no longer see dev warnings at all. The same per-test hook resets
+`editorEnv`, so a suite that configures the environment configures it per test; a `beforeAll`
+override is gone by the second case.
 
-Three ways to claim a fire, narrowest first: a test whose subject IS the diagnostic asserts on
-`takeDevWarns()`; a test whose fixture provokes a fire it is not about declares
-`expectDevWarns([tag])` (file-scoped, with the reason on the line above); a benign diagnostic
-too cross-cutting for either joins `src/lib/test/support/warn-allowlist.json`, which waives a
-tag at a site for the whole run and only shrinks. Prefer the first two — an allowlist row blinds
-its site everywhere, which is why no `invariant:` fire may take one.
+Four ways to claim a fire, narrowest first: a test whose subject IS the diagnostic asserts on
+`takeDevWarns()`; a test that only needs its fixture's noise out of the way calls
+`drainDevWarns()` before the part it asserts on; a test whose fixture provokes a fire it is not
+about declares `allowDevWarns([tag])` (file-scoped, with the reason on the line above); a benign
+diagnostic too cross-cutting for any of those joins `src/lib/test/support/warn-allowlist.json`,
+which waives a tag at a site for the whole run and only shrinks. Prefer the first three: an
+allowlist row blinds its site everywhere, which is why no `invariant:` fire may take one.
+
+The claim doors sit in file-level `afterEach` hooks that must run before the gate's own, which is
+why `vitest.config.ts` pins `sequence.hooks: 'stack'`. A file that swaps the sink out and never
+restores it reds itself rather than blinding the rest of the worker, and the gate re-arms.
+
+One standing exemption: a file that `vi.mock`s `$lib/dev-warn` replaces `devWarn` outright, so its
+fires never reach the sink and the gate never sees them. Nothing reports that hole today, which
+means such a file asserts on its own mock or asserts nothing.
 
 ## E2E tests (Playwright)
 

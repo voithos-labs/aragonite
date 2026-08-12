@@ -4,11 +4,11 @@ import { parse } from '../../core/parser';
 import { blockNodeAt, nodeAt } from '../../tree-operations/node-ops';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { Document } from '../../core/nodes';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
 // SelectionState would have snapped to cell coordinates first.
-afterEach(() => expectDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
+afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
 
 // Two 2×2 tables followed by a blockquote, and the same pair nested inside a blockquote holding a
 // paragraph. Selecting across both tables empties them, forcing the survivor caret path.

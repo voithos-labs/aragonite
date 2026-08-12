@@ -11,7 +11,7 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import type { CstNode } from '$lib/core/nodes';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 
 function firesStaleRaw(): boolean {
 	return takeDevWarns().some((fire) => fire.tag === 'invariant:stale-raw');
@@ -37,7 +37,7 @@ describe('commit ceremony fires the node invariants over its touched nodes', () 
 			{ node: outer(), state: makeBlockListState(outer), path: [0] }
 		];
 
-		takeDevWarns();
+		drainDevWarns();
 		await controller.commitMultiScope({
 			scopes,
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -60,7 +60,7 @@ describe('commit ceremony fires the node invariants over its touched nodes', () 
 		const blockEdit = createBlockEditActions(deps, controller);
 		corruptNestedBlockquote(deps.doc.children[0]);
 
-		takeDevWarns();
+		drainDevWarns();
 		await blockEdit.updateBlockMetadata(0, { quoteDepth: 1 });
 
 		expect(firesStaleRaw(), 'expected an invariant:stale-raw fire').toBe(true);

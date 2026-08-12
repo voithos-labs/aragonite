@@ -13,11 +13,11 @@ import {
 	makeEditorActionsDeps
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The container fixture is hand-built, not parser output, so the container-raw oracle reads it as
 // stale.
-afterEach(() => expectDevWarns(['invariant:stale-raw']));
+afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 // jsdom has no native selection, so every commit here exercises the no-caret fallback:
 // the stored path must resolve to the operated child in the snapshot it restores

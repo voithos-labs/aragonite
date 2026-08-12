@@ -2,11 +2,11 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
 // SelectionState would have snapped to cell coordinates.
-afterEach(() => expectDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
+afterEach(() => allowDevWarns(['deleteAcrossTwoTables:start', 'deleteAcrossTwoTables:end']));
 
 const TWO_COL_THREE_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 

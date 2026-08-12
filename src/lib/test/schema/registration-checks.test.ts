@@ -19,7 +19,7 @@ import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.sve
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { testClosure } from '$lib/test/support/closure';
-import { expectDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 
@@ -68,7 +68,7 @@ beforeEach(() => {
 
 // The unit setup registers built-in descriptors, never components, so every flush this file
 // forces reports the completeness gap; the subject here is what else the flush finds.
-afterEach(() => expectDevWarns(['invariant:registry-completeness']));
+afterEach(() => allowDevWarns(['invariant:registry-completeness']));
 
 describe('checkLateOpenerRegistration', () => {
 	it('passes while the grammar is unconsumed', () => {
