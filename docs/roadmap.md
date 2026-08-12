@@ -328,12 +328,11 @@ Settles what only an integrated surface can settle:
   backgrounds at full opacity, so it fails contrast wherever it lands (link text, the code-fence
   language label). Markers were fixed by raising their dim; the accent needs a lighter value, and
   that is a brand decision.
-- **Token-role audit** — the first integration found two token-hygiene classes worth one deliberate
-  pass: a token serving two visual roles at once (`--syntax-separator` tinted marker glyphs AND
-  painted the full-width thematic-break rule, so a consumer's palette choice for one was the wrong
-  loudness for the other), and a chrome token with no mode response (`--color-ui-faint`,
-  identical in both palettes and hue-odd among its siblings). The audit asks of every token: one
-  role, both modes answered, and a stated reason for any exception.
+- **Token-role audit** — one deliberate pass over the whole token set, asking the same of every
+  token: one visual role, both modes answered, the right tier (host-chrome vs editor-owned), and a
+  stated reason for any exception. The two classes the first integration found — a token painting
+  two roles at once, a chrome token blind to the mode — were each fixed where they were spotted,
+  never swept for.
 
 _(Presentation modes shipped pre-1.0 in 0.9.26.)_
 
