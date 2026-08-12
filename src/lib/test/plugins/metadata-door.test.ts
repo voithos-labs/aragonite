@@ -1,6 +1,7 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { composeMetadataDoor } from '../../editor-actions/plugin/container';
-import { configureEditorEnv, resetEditorEnv } from '../../env';
+import { configureEditorEnv } from '../../env';
+import { takeDevWarns } from '../support/warn-gate';
 import type { NodeView } from '../../core/node-views';
 import type { PresentationMode } from '../../presentation-mode';
 
@@ -20,35 +21,29 @@ function makeDoor(mode: PresentationMode) {
 	return { door, commit };
 }
 
-afterEach(() => resetEditorEnv());
-
 describe('composeMetadataDoor — the updateOwnMetadata reading gate', () => {
 	it('declines the write in reading mode and dev-warns naming the kind', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		const { door, commit } = makeDoor('reading');
 
 		const result = door({ open: true });
 
 		expect(commit).not.toHaveBeenCalled();
 		expect(result).toBeUndefined(); // the declined door reports no pending commit
-		expect(warnSpy).toHaveBeenCalledTimes(1);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/plugin-container/);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/reading/);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/demo-collapsible/);
-		warnSpy.mockRestore();
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].tag).toBe('plugin-container');
+		expect(fires[0].message).toMatch(/reading/);
+		expect(fires[0].message).toMatch(/demo-collapsible/);
 	});
 
 	it('stays silent in production while still declining', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		configureEditorEnv({ isDev: false, isTest: false });
 		const { door, commit } = makeDoor('reading');
 
 		void door({ open: true });
 
 		expect(commit).not.toHaveBeenCalled();
-		expect(warnSpy).not.toHaveBeenCalled();
-		warnSpy.mockRestore();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('commits patch and afterTick untouched outside reading mode', () => {

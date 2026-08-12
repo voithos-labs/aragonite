@@ -1,8 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CstNode, Document } from '../../core/nodes';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
+// SelectionState would have snapped to cell coordinates first.
+afterEach(() =>
+	expectDevWarns([
+		'deleteFromProseIntoTable:end',
+		'deleteFromTableIntoProse:start',
+		'deleteAcrossTwoTables:start',
+		'deleteAcrossTwoTables:end'
+	])
+);
 
 function findTable(doc: Document): CstNode | null {
 	for (const child of doc.children) {

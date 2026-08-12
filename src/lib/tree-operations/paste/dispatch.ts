@@ -6,7 +6,6 @@
  * block's `pendingCursorOffset` may address a block the range delete is about to unmount.
  */
 
-import { DEV } from 'esm-env';
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
@@ -18,6 +17,7 @@ import { applyInlineResult, applyStructuralResult } from './apply';
 import { normalizeClipboardForBody } from './body-write';
 import { applyContainerMatchingPaste, findContainerMatchingUnwrap } from './container-match';
 import { defaultInlineHook, defaultStructuralHook } from './hooks';
+import { devWarn } from '../../dev-warn';
 import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
 import type { PasteCommitCoordinator } from './paste-deps';
@@ -125,11 +125,12 @@ export async function pasteDispatch(
 	}
 
 	const surface = getPasteSurface(targetNode.kind);
-	if (DEV && surface === undefined) {
-		console.warn(
-			`[paste-dispatch] No paste surface registered for kind`,
-			targetNode.kind,
-			`— falling through to default hooks. Register via registerPasteSurface() if this kind has its own paste semantics.`
+	if (surface === undefined) {
+		devWarn(
+			'paste-dispatch',
+			'no paste surface registered for this kind; falling through to default hooks. Register ' +
+				'via registerPasteSurface() if the kind has its own paste semantics',
+			targetNode.kind
 		);
 	}
 	const blocks = surface?.blankEdgesArePackaging ? contentBlocks(parsed.children) : parsed.children;

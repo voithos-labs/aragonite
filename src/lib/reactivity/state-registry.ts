@@ -5,6 +5,7 @@ import { DEV } from 'esm-env';
 import { tick } from 'svelte';
 import type { NodeView } from '../core/node-views';
 import type { BlockListState } from './block-list-state.svelte';
+import { devWarn } from '../dev-warn';
 
 const stateRegistry = new WeakMap<NodeView, BlockListState>();
 
@@ -31,10 +32,11 @@ async function reportContestedClaim(
 	await tick();
 	if (stateRegistry.get(node) !== winner) return;
 	if (loser.innerBlockRefs.every((ref) => ref === undefined)) return;
-	console.warn(
-		`[state-registry] two live components claim the same ${node.kind} — the loser's ` +
-			`child refs are orphaned. Either both mounts render this node, or cloneDocument ` +
-			`is preserving node identity across snapshots unexpectedly.`
+	devWarn(
+		'state-registry',
+		`two live components claim the same ${node.kind} — the loser's child refs are orphaned. ` +
+			`Either both mounts render this node, or cloneDocument is preserving node identity ` +
+			`across snapshots unexpectedly.`
 	);
 }
 

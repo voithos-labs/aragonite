@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { configureEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 import { INLINE_KIND_TABLE, type AnyInlineKind } from '$lib/core/nodes';
 import type { InvariantViolation } from '$lib/invariants/assert';
 import {
@@ -41,7 +42,6 @@ function collector() {
 }
 
 afterEach(() => {
-	resetEditorEnv();
 	__resetInlineConstructPoliciesForTests();
 	// Separate door: the row reset deliberately leaves the slot alone, so only this suite —
 	// which tests the slot itself — empties it between cases.
@@ -134,6 +134,7 @@ describe('registration lifecycle', () => {
 			registerInlineConstructPolicy(kind, { ...atomic, revealable: true })
 		).not.toThrow();
 		expect(getInlineConstructPolicy(kind)?.revealable).toBe(true);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 });
 
@@ -161,6 +162,7 @@ describe('live split rebalancer slot', () => {
 		const second = rebalancer();
 		expect(() => registerLiveSplitRebalancer(second)).not.toThrow();
 		expect(getLiveSplitRebalancer()).toBe(second);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 
 	// Miss-analysis: a reset that drops the slot retires live splits silently, since

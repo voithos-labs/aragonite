@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DEV } from 'esm-env';
 import { tick } from 'svelte';
 import {
@@ -10,6 +10,7 @@ import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import type { CstNode } from '../../core/nodes';
 import { refSlotsOver } from '../../reactivity/publish-ref.svelte';
+import { takeDevWarns } from '../support/warn-gate';
 
 function makeFakeState(): BlockListState {
 	const innerBlockRefs: BlockListState['innerBlockRefs'] = [];
@@ -70,15 +71,6 @@ describe('state-registry', () => {
 	});
 
 	describe('dev-mode contested-claim warning', () => {
-		let warnSpy: ReturnType<typeof vi.spyOn>;
-
-		beforeEach(() => {
-			warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		});
-		afterEach(() => {
-			warnSpy.mockRestore();
-		});
-
 		/** A torn-down mount's `bind:this` slots are cleared; a live one's are not. */
 		function stateWithRefs(mounted: boolean): BlockListState {
 			const innerBlockRefs: BlockListState['innerBlockRefs'] = [
@@ -94,8 +86,9 @@ describe('state-registry', () => {
 			registerBlockListState(node, stateWithRefs(true));
 
 			await tick();
-			expect(warnSpy).toHaveBeenCalledOnce();
-			expect(warnSpy.mock.calls[0][0]).toContain('two live components');
+			const fires = takeDevWarns();
+			expect(fires).toHaveLength(1);
+			expect(fires[0].message).toContain('two live components');
 		});
 
 		// The remount handoff: the loser is torn down within the same flush, so by the
@@ -109,7 +102,7 @@ describe('state-registry', () => {
 			loser.innerBlockRefs[0] = undefined;
 
 			await tick();
-			expect(warnSpy).not.toHaveBeenCalled();
+			expect(takeDevWarns()).toEqual([]);
 		});
 
 		// A third registration means the contested pair is already history — reporting it
@@ -122,7 +115,7 @@ describe('state-registry', () => {
 
 			await tick();
 			// The second contest (2nd vs 3rd) is still live and reports; the first is not.
-			expect(warnSpy).toHaveBeenCalledOnce();
+			expect(takeDevWarns()).toHaveLength(1);
 		});
 
 		it('does not warn on a fresh registration', async () => {
@@ -130,7 +123,7 @@ describe('state-registry', () => {
 			registerBlockListState(node, makeFakeState());
 
 			await tick();
-			expect(warnSpy).not.toHaveBeenCalled();
+			expect(takeDevWarns()).toEqual([]);
 		});
 	});
 

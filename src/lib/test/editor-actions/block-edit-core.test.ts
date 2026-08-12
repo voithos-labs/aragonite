@@ -11,6 +11,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { testClosure } from '$lib/test/support/closure';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 function leaf(raw: string): CstNode {
 	return parse(raw).children[0];
@@ -94,6 +95,7 @@ describe('block-edit core — shared structural decisions', () => {
 		expect(children.map((c) => c.raw)).toEqual(['    a\n', '\n', '    b\n']);
 		expect(secondHalf.calls).toEqual([CURSOR_EXACT_START]);
 		expect(firstHalfTail.calls).toEqual([]);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 	});
 
 	it('merge-prev of two paragraphs is eligible and concatenates', async () => {

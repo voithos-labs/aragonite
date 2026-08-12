@@ -6,10 +6,10 @@
 // A slot left holding the raw instance is a block whose caret never lands, and it
 // fails nowhere near here — so the resolution is asserted at the slot, over a REAL
 // container.
-import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { resolveBlockSurface, type ContainerBlockComponent } from '$lib/block-component';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
@@ -102,8 +102,6 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 	});
 
 	it('dev-warns when a component publishes neither surface shape', () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		const doc = parse('surfaceless\n');
 		const kind = declareComponentlessKind('host-surfaceless');
 		// The cast is the point: `defineBlockComponent` rejects this component, so the
@@ -115,33 +113,16 @@ describe('BlockHost publishes the resolved surface, not the instance', () => {
 		});
 		doc.children[0].kind = kind;
 
-		try {
-			mounted = mountBlockHost(doc, { index: 0 });
+		mounted = mountBlockHost(doc, { index: 0 });
 
-			expect(warn).toHaveBeenCalledWith(
-				expect.stringContaining('published no BlockComponent surface'),
-				kind
-			);
-		} finally {
-			warn.mockRestore();
-			resetEditorEnv();
-		}
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain('published no BlockComponent surface');
+		expect(fires[0].details).toBe(kind);
 	});
 
 	it('stays quiet for a container that published correctly', () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
-
-		try {
-			mounted = mountBlockHost(parse('> quoted\n'), { index: 0 });
-
-			const surfaceWarns = warn.mock.calls.filter(
-				(args) => typeof args[0] === 'string' && args[0].includes('published no BlockComponent')
-			);
-			expect(surfaceWarns).toEqual([]);
-		} finally {
-			warn.mockRestore();
-			resetEditorEnv();
-		}
+		mounted = mountBlockHost(parse('> quoted\n'), { index: 0 });
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

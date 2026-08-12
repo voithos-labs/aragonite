@@ -10,6 +10,7 @@ import type { CstNode } from '$lib/core/nodes';
 import type { EditorError } from '$lib/editor-events';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 function listItemNode(raw: string): CstNode {
 	return {
@@ -56,6 +57,7 @@ describe('commitMultiScope bails on a scope path that ran off the tree', () => {
 			expect(concatChildren(sharedList.children ?? [])).toBe(sharedBefore);
 			expect(concatChildren(deps.doc.children[0].children ?? [])).toBe(sharedBefore);
 			expect(serialize(deps.doc)).toBe(treeBefore);
+			expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:multi-scope-scope-depth');
 		});
 	}
 
@@ -68,5 +70,6 @@ describe('commitMultiScope bails on a scope path that ran off the tree', () => {
 
 		expect(errors).toHaveLength(1);
 		expect(errors[0].origin).toBe('commit');
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:multi-scope-scope-depth');
 	});
 });

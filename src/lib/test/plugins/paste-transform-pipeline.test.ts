@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { registerPasteTransform, isPasteTransformRegistered } from '$lib/plugin';
 import { applyPasteTransforms, resetPluginPlatformForTests } from '$lib/testing';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 const upcaseHeadings = {
 	name: 'upcase-headings',
@@ -60,6 +61,7 @@ describe('the registered paste pipeline, driven through aragonite/testing', () =
 			}
 		});
 		expect(applyPasteTransforms('body\n')).toBe('body\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['paste-transform']);
 	});
 });
 

@@ -3,7 +3,6 @@
  * dispatch.ts for the composer that wires this together with the keydown half.
  */
 
-import { DEV } from 'esm-env';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
@@ -12,6 +11,7 @@ import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
 import { clearNativeSelection, offsetFromViewportPoint } from '../native-bridge';
 import { installDragListener } from '../drag-pointer';
+import { devWarn } from '../../dev-warn';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -91,11 +91,10 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		const anchorPoint = { path: myPath.slice(), offset };
 		const lifetimeSignal = ctx.getEditorLifetime();
 		if (!lifetimeSignal) {
-			if (DEV) {
-				console.warn(
-					'[cross-block-dispatch] editor lifetime signal unavailable; skipping drag install to avoid document-listener leak on unmount'
-				);
-			}
+			devWarn(
+				'cross-block-dispatch',
+				'editor lifetime signal unavailable; skipping drag install to avoid document-listener leak on unmount'
+			);
 			return false;
 		}
 		installDragListener(

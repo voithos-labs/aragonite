@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { reorderChildren, reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
+import { takeDevWarns } from '../support/warn-gate';
 
 const node = (raw: string) => ({ kind: 'paragraph', raw }) as any;
 const triviaNode = (leadingTrivia: string, raw: string) =>
@@ -39,12 +40,14 @@ describe('reorderChildren', () => {
 		const children = [node('a'), node('b')];
 		expect(reorderChildren(children, 5, 0)).toEqual({ op: 'noop' });
 		expect(children.map((c) => c.raw)).toEqual(['a', 'b']);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['reorder']);
 	});
 
 	it('is a guarded noop when `to` is out of bounds', () => {
 		const children = [node('a'), node('b')];
 		expect(reorderChildren(children, 0, 9)).toEqual({ op: 'noop' });
 		expect(children.map((c) => c.raw)).toEqual(['a', 'b']);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['reorder']);
 	});
 });
 
@@ -93,6 +96,7 @@ describe('reorderChildrenWithTrivia', () => {
 		s.markSnapshotTaken();
 
 		expect(reorderChildrenWithTrivia(children, 5, 0, s)).toEqual({ op: 'noop' });
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['reorder']);
 		expect(children.map((c) => c.raw)).toEqual(['a\n', 'b\n']);
 		expect(children.every((c, i) => c === originals[i])).toBe(true);
 	});
@@ -100,6 +104,7 @@ describe('reorderChildrenWithTrivia', () => {
 	it('is a guarded noop when `to` is out of bounds', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
 		expect(reorderChildrenWithTrivia(children, 0, 9, sharing())).toEqual({ op: 'noop' });
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['reorder']);
 		expect(children.map((c) => c.raw)).toEqual(['a\n', 'b\n']);
 	});
 });

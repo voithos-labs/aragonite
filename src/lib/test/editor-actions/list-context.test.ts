@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { registerBlockListState } from '../../reactivity/state-registry';
 import { parse } from '../../core/parser';
 import {
@@ -7,6 +7,11 @@ import {
 	makeListContextAt
 } from '../harness/editor-actions';
 import { metadataOf, type CstNode } from '../../core/nodes';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// Hand-built list fixtures read as stale to the container-raw oracle, and a plural first half is
+// one of the split shapes under test.
+afterEach(() => expectDevWarns(['invariant:stale-raw', 'tree-ops']));
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
 

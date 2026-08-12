@@ -8,6 +8,7 @@ import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kin
 import { findContainerMatchingUnwrap } from '$lib/tree-operations/paste/container-match';
 import { findListAbsorb } from '$lib/tree-operations/paste/list-absorb';
 import { findListBreakOut } from '$lib/tree-operations/paste/list-break-out';
+import { takeDevWarns } from '../../support/warn-gate';
 
 const original = {
 	blockquote: tryGetBlockKindDescriptor('blockquote')!.containerPaste,
@@ -38,12 +39,14 @@ describe('a throwing matchesAncestor is contained at every gate', () => {
 		const doc = parse('> x\n');
 		doc.children[0].children![0].raw = '\n';
 		expect(findContainerMatchingUnwrap(doc, [0, 0], 0, parse('> pasted\n'), false)).toBeNull();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['container-paste']);
 	});
 
 	it('list-absorb declines instead of propagating', () => {
 		throwOnMatch('list', true);
 		const doc = parse('- a\n- b\n');
 		expect(findListAbsorb(doc, [0, 1, 0], parse('- x\n- y\n'), 0)).toBeNull();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['container-paste']);
 	});
 
 	// Break-out's gate reads the predicate the other way round, so a broken predicate must
@@ -52,5 +55,6 @@ describe('a throwing matchesAncestor is contained at every gate', () => {
 		throwOnMatch('list', true);
 		const doc = parse('- a\n- b\n');
 		expect(findListBreakOut(doc, [0, 1, 0], parse('- x\n- y\n'), 0)).not.toBeNull();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['container-paste']);
 	});
 });

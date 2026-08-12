@@ -12,6 +12,11 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '../../perf/instruments';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// The measurement edits a snapshotted node by writing raw directly rather than through the commit
+// ceremony, which is what the shared-node oracle reports.
+afterEach(() => expectDevWarns(['invariant:snapshot-integrity']));
 
 // inlineComputeCount has a single production caller, computeInlineContent, so it is an
 // exact meter of how often the inline tree is built — a re-introduced eager parse bumps

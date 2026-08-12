@@ -2,7 +2,7 @@
 // rebuild or invariant-check the detached node, and overlapping scopes must not
 // false-fire the identity assert on the ceremony's own copies.
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -10,7 +10,6 @@ import { asDocPath } from '$lib/selection/path-math';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { __computeScopeDescriptorForTests } from '$lib/selection/cross-block/ops';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import type { CstNode } from '$lib/core/nodes';
 import {
@@ -18,22 +17,7 @@ import {
 	makeEditorActionsDeps,
 	makeListContextAt
 } from '$lib/test/harness/editor-actions';
-
-// devWarn mutes itself under Vitest, which is why no unit test ever saw these fires.
-function armInvariantChannel(): string[] {
-	const fires: string[] = [];
-	configureEditorEnv({ isTest: false });
-	vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
-		const head = typeof args[0] === 'string' ? args[0] : '';
-		if (head.includes('[invariant:')) fires.push(`${head} ${JSON.stringify(args[1] ?? '')}`);
-	});
-	return fires;
-}
-
-afterEach(() => {
-	resetEditorEnv();
-	vi.restoreAllMocks();
-});
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 describe('multi-scope commits with a scope detached by the mutation', () => {
 	it('unindent of the only nested item fires nothing (nested-list scope dies)', async () => {
@@ -54,11 +38,11 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 
 		const { listContext } = makeListContextAt(deps, 0);
 
-		const fires = armInvariantChannel();
+		takeDevWarns();
 		await listContext.promoteNestedItem(0, nestedList, 0);
 
 		expect(serialize(deps.doc)).toBe('- Item 1\n- Nested\n- Item 2\n');
-		expect(fires).toEqual([]);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('cross-container delete consuming the end item fires nothing (item scope dies)', async () => {
@@ -84,7 +68,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		const start = { path: [0, 0, 0], offset: 0 };
 		const end = { path: [0, 1, 0], offset: 'target two'.length };
 
-		const fires = armInvariantChannel();
+		takeDevWarns();
 		await controller.commitMultiScope({
 			scopes,
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
@@ -105,7 +89,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		});
 
 		expect(serialize(deps.doc)).toBe('- \n- target three\n- tail\n');
-		expect(fires).toEqual([]);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('cross-container delete consuming a blockquote scope fires nothing (the CI kind)', async () => {
@@ -121,7 +105,7 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		const start = { path: [0], offset: 'head'.length };
 		const end = { path: [1, 0], offset: 'quoted line'.length };
 
-		const fires = armInvariantChannel();
+		takeDevWarns();
 		await controller.commitMultiScope({
 			scopes,
 			snapshot: { path: asDocPath([0]), offset: 0 },
@@ -142,6 +126,6 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		});
 
 		expect(serialize(deps.doc)).toBe('head\n');
-		expect(fires).toEqual([]);
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

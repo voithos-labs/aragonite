@@ -4,7 +4,7 @@
 // Miss-analysis: the probe set was tested one probe at a time against its own registry, and
 // no test held the SET to the registries a plugin actually writes — so the missing block
 // declare-probe was invisible while its inline mirror shipped.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	declarePluginKind,
 	declaredPluginKind,
@@ -15,12 +15,12 @@ import {
 	isPasteTransformRegistered
 } from '$lib/plugin';
 import { applyPasteTransforms, resetPluginPlatformForTests } from '$lib/testing';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { configureEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 
 const KIND = 'probe-declared-kind';
 
 beforeEach(() => resetPluginPlatformForTests());
-afterEach(() => resetEditorEnv());
 
 describe('isBlockKindDeclared', () => {
 	it('answers before and after a declaration, and after a reset', () => {
@@ -71,5 +71,6 @@ describe('registerPasteTransform under the dev duplicate valve', () => {
 		expect(() => registerPasteTransform(named('second'))).not.toThrow();
 		expect(isPasteTransformRegistered('valve-probe')).toBe(true);
 		expect(applyPasteTransforms('x')).toBe('second');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
 });

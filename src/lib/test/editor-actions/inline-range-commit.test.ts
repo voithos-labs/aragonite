@@ -1,10 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
 import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { EditEvent } from '$lib/editor-events';
+import { expectDevWarns } from '$lib/test/support/warn-gate';
+
+// The container fixtures are hand-built, not parser output, so the container-raw oracle reads
+// them as stale.
+afterEach(() => expectDevWarns(['invariant:stale-raw']));
 
 // The one primitive both the image popover and the link card write through: splice bytes over a
 // raw range in the leaf at `path`, as ONE undo entry, at any depth.

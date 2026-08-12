@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode, updateNodeContent } from '../../tree-operations';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 // GH #97: a fragment parse peels a half's trailing blank line into `doc.suffix`, and the
 // reparse funnel dropped it. The line stands between the halves, so it is the second half's
@@ -42,6 +43,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		splitNode(doc, 0, 9, undefined, undefined);
 
 		expect(serialize(doc)).toBe('    a\n\n\n\n    b\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 	});
 });
 

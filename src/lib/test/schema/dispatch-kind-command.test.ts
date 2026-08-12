@@ -1,10 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { __resetBlockCommandsForTests } from '$lib/schema/block-commands';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { mintCommandId } from '$lib/schema/command-id';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode } from '$lib/core/nodes';
 
 const listItemNode = (): CstNode => ({
@@ -14,13 +13,8 @@ const listItemNode = (): CstNode => ({
 	metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
 });
 
-// devWarn is silent under test by default — force dev/non-test so the dead-key
-// warn fires (pattern: src/lib/test/schema/dispatch-dead-key.test.ts).
 describe('container-bubble dispatch over the block-command registry', () => {
-	beforeEach(() => configureEditorEnv({ isDev: true, isTest: false }));
 	afterEach(() => {
-		resetEditorEnv();
-		__resetCommandWarningsForTests();
 		__resetBlockCommandsForTests();
 		vi.restoreAllMocks();
 	});
@@ -48,7 +42,6 @@ describe('container-bubble dispatch over the block-command registry', () => {
 	});
 
 	it('dead-keys and warns once when a bound plugin id has no registered handler', () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		// Minted but never registered on any kind → getBlockCommand misses.
 		const id = mintCommandId('demo.ghost');
 		const overrides = normalizeKeybindingOverrides([
@@ -62,7 +55,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		expect(first).toBe(false);
 		expect(second).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
-		expect(warn).toHaveBeenCalledTimes(1);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 
 	it('falls through to runCommand for a built-in kind command with no command context', () => {
@@ -80,5 +73,6 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand('Mod+J', { kind: 'listItem', runCommand });
 		expect(handled).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

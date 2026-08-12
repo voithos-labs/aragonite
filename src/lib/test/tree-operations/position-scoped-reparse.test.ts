@@ -9,17 +9,13 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { updateNodeContent } from '../../tree-operations';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { resetEditorEnv } from '../../env';
 import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
 
 const BROKEN_CLOSER = '---\ntitle: x\n--\n';
 
 describe('a position-scoped kind and the commit-time reparse', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
-	afterEach(() => {
-		__resetSchemaRegistriesForTests();
-		resetEditorEnv();
-	});
+	afterEach(__resetSchemaRegistriesForTests);
 
 	it('a mid-document content commit does not mint it', () => {
 		const kind = registerDocumentTopKind();

@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../../core/parser';
 import { registerBlockOpener, type OpenContext } from '../../../schema/block-openers';
 import { declarePluginKind } from '../../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset';
-import { resetEditorEnv } from '../../../env';
 import type { ParsedLine } from '../../../core/lines';
 
 // A strip that rewrites a line's `raw` while spreading its OLD offsets desyncs the whole
@@ -16,7 +15,6 @@ function offsetPairs(lines: ParsedLine[]): [number, number][] {
 
 describe('task-checkbox strip recomputes stripped-line offsets', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
-	afterEach(() => resetEditorEnv());
 
 	it('hands a task item body a stream whose offsets match its bytes', () => {
 		let taskBody: ParsedLine[] | null = null;

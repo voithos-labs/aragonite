@@ -4,6 +4,7 @@ import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 const minimalRegistration = {
 	mergeRole: 'not-mergeable',
@@ -40,6 +41,7 @@ describe('installPlugins', () => {
 
 		expect(firstCalls).toBe(1);
 		expect(secondCalls).toBe(0);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['plugin-install']);
 	});
 
 	it('installs plugins in array order', () => {

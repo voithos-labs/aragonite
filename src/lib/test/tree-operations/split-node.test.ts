@@ -3,6 +3,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { applyStructuralChangeToIdsRefs } from '../../tree-operations/structural-change';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 describe('splitNode', () => {
 	it('splits a paragraph into two paragraphs', () => {
@@ -90,6 +91,7 @@ describe('splitNode edge cases', () => {
 		const { secondHalfIndex } = splitNode(doc, 0, 7, undefined, undefined);
 		expect(secondHalfIndex).toBe(2);
 		expect(doc.children[secondHalfIndex].raw).toBe('    b\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 	});
 
 	it('splits the only node in the document', () => {

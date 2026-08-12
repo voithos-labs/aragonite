@@ -6,7 +6,6 @@ import { parse } from '../../core/parser';
 import { registerBlockOpener, type OpenContext } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { resetEditorEnv } from '../../env';
 import { activateDirectiveGrammar } from '../../core/directive/activate';
 import { FRONT_MATTER, registerDocumentTopKind } from '../support/position-scoped-kind';
 
@@ -27,10 +26,7 @@ function observeContexts(): OpenContext[] {
 
 describe('parse scope', () => {
 	beforeEach(__resetSchemaRegistriesForTests);
-	afterEach(() => {
-		__resetSchemaRegistriesForTests();
-		resetEditorEnv();
-	});
+	afterEach(__resetSchemaRegistriesForTests);
 
 	it('a whole-document parse mints a position-scoped kind at the document top', () => {
 		const kind = registerDocumentTopKind();
