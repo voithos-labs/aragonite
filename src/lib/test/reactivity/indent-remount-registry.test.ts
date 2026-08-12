@@ -4,9 +4,10 @@
 // and a fresh one claim it at once. The registry must read that as a handoff rather
 // than corruption, and must land it forwards: the entry has to be the LIVE mount's
 // state, or every later commit at that scope addresses refs nothing renders.
-import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../blocks/editor-mount';
 import { getStateForNode } from '$lib/reactivity/state-registry';
+import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode, Document } from '$lib/core/nodes';
 import type { EditorInstance } from '$lib/editor-props';
 
@@ -27,7 +28,6 @@ function nodeAtPath(editor: ReturnType<typeof mountEditor>, path: number[]): Cst
 
 describe('list indent hands the item node to its new mount', () => {
 	it('lands the registry on the live mount without reporting a contested claim', async () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		mounted = mountEditor({ source: '- alpha\n- beta\n' });
 
 		const stateBeforeIndent = getStateForNode(nodeAtPath(mounted, [0, 1]));
@@ -44,10 +44,6 @@ describe('list indent hands the item node to its new mount', () => {
 		expect(stateAfterIndent!.innerBlockRefs[0], 'the winner renders the item').toBeDefined();
 		expect(stateBeforeIndent!.innerBlockRefs[0], 'the loser was torn down').toBeUndefined();
 
-		const registryWarnings = warn.mock.calls
-			.map((call) => String(call[0]))
-			.filter((message) => message.startsWith('[state-registry]'));
-		warn.mockRestore();
-		expect(registryWarnings).toEqual([]);
+		expect(takeDevWarns(), 'no contested claim was reported').toEqual([]);
 	});
 });

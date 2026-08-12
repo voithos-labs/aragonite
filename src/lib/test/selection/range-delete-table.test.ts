@@ -4,11 +4,11 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { CstNode, Document, TableMetadata, TableRowMetadata } from '../../core/nodes';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
 // SelectionState would have snapped to cell coordinates first.
-afterEach(() => expectDevWarns(['deleteFromProseIntoTable:end', 'deleteFromTableIntoProse:start']));
+afterEach(() => allowDevWarns(['deleteFromProseIntoTable:end', 'deleteFromTableIntoProse:start']));
 
 function findTable(doc: Document): CstNode | null {
 	for (const child of doc.children) {

@@ -8,11 +8,11 @@ import {
 	makeNode
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The synthesized replacement containers are minted without a rebuilt raw, which is what the
 // oracle reports.
-afterEach(() => expectDevWarns(['invariant:stale-raw']));
+afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 // ── Top-level replaceBlock preserves id ──────────────────────────────────────
 

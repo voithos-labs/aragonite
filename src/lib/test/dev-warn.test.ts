@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { devWarn, setDevWarnSink, type DevWarnSink } from '../dev-warn';
+import { devWarn, setDevWarnSink, type DevWarnEntry, type DevWarnSink } from '../dev-warn';
 import { configureEditorEnv } from '../env';
 
 // The console arm is what the e2e watchers read, so it is pinned with the unit gate's sink
@@ -54,27 +54,31 @@ describe('devWarn — console arm', () => {
 });
 
 describe('devWarn — sink arm', () => {
-	it('hands the sink a structured entry and emits no console line', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		const seen: unknown[] = [];
-		const gateSink = setDevWarnSink((entry) => seen.push(entry));
+	let warnSpy: ReturnType<typeof vi.spyOn>;
+	let gateSink: DevWarnSink | null;
+	let seen: DevWarnEntry[];
 
-		devWarn('cursor', 'bad offset', { offset: 3 });
+	beforeEach(() => {
+		seen = [];
+		gateSink = setDevWarnSink((entry) => seen.push(entry));
+		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	});
 
-		setDevWarnSink(gateSink);
+	afterEach(() => {
 		warnSpy.mockRestore();
+		setDevWarnSink(gateSink);
+	});
+
+	it('hands the sink a structured entry and emits no console line', () => {
+		devWarn('cursor', 'bad offset', { offset: 3 });
 		expect(seen).toEqual([{ tag: 'cursor', message: 'bad offset', details: { offset: 3 } }]);
 		expect(warnSpy).not.toHaveBeenCalled();
 	});
 
 	it('stays silent outside dev mode even with a sink registered', () => {
-		const seen: unknown[] = [];
-		const gateSink = setDevWarnSink((entry) => seen.push(entry));
 		configureEditorEnv({ isDev: false, isTest: false });
-
 		devWarn('tag', 'message');
-
-		setDevWarnSink(gateSink);
 		expect(seen).toEqual([]);
+		expect(warnSpy).not.toHaveBeenCalled();
 	});
 });

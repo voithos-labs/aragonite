@@ -8,11 +8,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { makeKeydownEnv, press } from './keydown-env';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The fixtures seat table endpoints directly instead of through SelectionState, so the coordinate
 // guard sees the un-normalized point.
-afterEach(() => expectDevWarns(['invariant:cross-block-endpoint-coordinates']));
+afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 /** The doc-end leaf `Ctrl+Shift+End` extends to, held off-window. */

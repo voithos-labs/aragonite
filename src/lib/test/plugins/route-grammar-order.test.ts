@@ -16,11 +16,11 @@ import { memoPlugin } from '../../../routes/test/plugins/memo/register';
 import { docStatsPlugin } from '../../../routes/test/plugins/doc-stats/doc-stats-plugin';
 import { SHOWCASE_DOCUMENT } from '../../../routes/showcase-content';
 import { CHANGELOG_FAMILIES } from '../../../routes/changelog/changelog-content';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // Each route re-installs the same plugin set into a process-global registry; the second install
 // onward is ignored, which is the point of the ordering probe.
-afterEach(() => expectDevWarns(['plugin-install']));
+afterEach(() => allowDevWarns(['plugin-install']));
 
 /**
  * A plugin's setup runs once per process, so a route that installs second inherits whatever

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
-import { expectDevWarns, takeDevWarns } from '../support/warn-gate';
+import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
 import {
 	registerGlobalCommand,
 	__resetPluginGlobalCommandsForTests
@@ -109,7 +109,7 @@ describe('registerGlobalCommand', () => {
 // 500 the route. Only a same-command re-bind in dev-not-test softens; the rest still throw.
 describe('chorded global command survives dev re-eval', () => {
 	// The dev valve announces every replace it performs; these cases are about what throws.
-	afterEach(() => expectDevWarns(['registry']));
+	afterEach(() => allowDevWarns(['registry']));
 
 	it('re-binding the same command+chord replaces instead of throwing', () => {
 		configureEditorEnv({ isDev: true, isTest: false });

@@ -4,11 +4,11 @@ import { parse } from '$lib/core/parser';
 import { restoreGapCaret } from '$lib/selection/selection-restore';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { SelectionRestoreDeps } from '$lib/selection/selection-restore';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The fixtures seat table endpoints directly instead of through SelectionState, so the coordinate
 // guard sees the un-normalized point.
-afterEach(() => expectDevWarns(['invariant:cross-block-endpoint-coordinates']));
+afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 // Restoring a gap-carrying undo entry: the boundary is clamped into the tree it lands in,
 // and the block it sits against is revealed before the caret parks.

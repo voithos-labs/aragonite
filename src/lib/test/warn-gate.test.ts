@@ -1,14 +1,14 @@
-// Miss-analysis: nothing could have caught a silently-swallowed dev guard, because
-// `devWarn` returned early under Vitest — every DEV assertion in the tree was unobservable
-// to the unit gate by construction, so no test at any level could have failed on a fire.
+// Miss-analysis: devWarn returned early under Vitest, so the guard channel was unobservable.
 
 import { describe, it, expect } from 'vitest';
-import { devWarn } from '$lib/dev-warn';
+import { devWarn, setDevWarnSink } from '$lib/dev-warn';
 import {
 	takeDevWarns,
-	expectDevWarns,
+	allowDevWarns,
+	enforceWarnGate,
 	findUnallowlistedWarns,
 	formatWarnFailure,
+	formatUndeclaredWarnFailure,
 	siteFromStack,
 	UNKNOWN_SITE,
 	type AllowedWarn,
@@ -46,18 +46,29 @@ describe('warn-gate verdict', () => {
 		expect(text).toContain('src/lib/x.ts');
 		expect(text).toContain('boom');
 	});
+
+	it('names the declared set beside the fire it failed to cover', () => {
+		const text = formatUndeclaredWarnFailure(
+			['alpha', 'beta'],
+			[{ tag: 'gamma', site: 'src/lib/x.ts', message: 'boom' }]
+		);
+		expect(text).toContain('declared [alpha, beta]');
+		expect(text).toContain('[gamma]');
+		expect(text).toContain('src/lib/x.ts');
+		expect(text).toContain('boom');
+	});
 });
 
 describe('warn-gate declared-fire drain', () => {
 	it('accepts a declared tag from any site and leaves the sink empty', () => {
 		devWarn('probe', 'declared');
-		expect(expectDevWarns(['probe'])).toHaveLength(1);
+		expect(allowDevWarns(['probe'])).toHaveLength(1);
 		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('reds the test on a tag the caller did not declare', () => {
 		devWarn('probe', 'undeclared');
-		expect(() => expectDevWarns(['other'])).toThrow(/undeclared|unclaimed/);
+		expect(() => allowDevWarns(['other'])).toThrow(/declared \[other\][\s\S]*\[probe\]/);
 	});
 });
 
@@ -99,5 +110,24 @@ describe('warn-gate sink', () => {
 	it('carries the details payload through the sink', () => {
 		devWarn('probe', 'with details', { offset: 3 });
 		expect(takeDevWarns()[0].details).toEqual({ offset: 3 });
+	});
+});
+
+// An unrestored sink swap blinds the gate for the rest of the worker: later fires reach the
+// console instead, and every later test passes regardless.
+describe('warn-gate sink ownership', () => {
+	it('reds the test that stole the sink, and re-arms itself for the next one', () => {
+		const thief: unknown[] = [];
+		setDevWarnSink((entry) => thief.push(entry));
+
+		expect(() => enforceWarnGate()).toThrow(/never restored it/);
+
+		devWarn('probe', 'after the re-arm');
+		expect(thief, 'the thief stopped receiving fires').toEqual([]);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['probe']);
+	});
+
+	it('stays quiet when the gate still owns the sink', () => {
+		expect(() => enforceWarnGate()).not.toThrow();
 	});
 });

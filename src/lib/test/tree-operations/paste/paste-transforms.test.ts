@@ -10,11 +10,11 @@ import {
 	installPlugins,
 	__resetInstalledPluginsForTests
 } from '../../../schema/plugin-install';
-import { expectDevWarns, takeDevWarns } from '../../support/warn-gate';
+import { allowDevWarns, takeDevWarns } from '../../support/warn-gate';
 
 // The ordering fixtures append unconditionally, so the dev idempotence probe warns on them;
 // only the containment cases below are about the diagnostic itself.
-afterEach(() => expectDevWarns(['paste-transform']));
+afterEach(() => allowDevWarns(['paste-transform']));
 
 function appending(name: string, suffix: string): PasteTransform {
 	return { name, transform: (text) => text + suffix };

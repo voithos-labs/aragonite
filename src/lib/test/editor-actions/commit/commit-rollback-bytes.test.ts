@@ -12,11 +12,11 @@ import type { CstNode } from '$lib/core/nodes';
 import type { EditorActionsDeps, MultiScopeTarget, UndoController } from '$lib/editor-actions/deps';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
 // oracle reads them as stale.
-afterEach(() => expectDevWarns(['invariant:stale-raw']));
+afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 /** `serialize()` reads only top-level raws, so it cannot see an inner container
  *  whose bytes the rebuild rewrote before the throw. */

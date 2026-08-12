@@ -3,12 +3,12 @@ import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
 // SelectionState would have snapped to cell coordinates first.
 afterEach(() =>
-	expectDevWarns([
+	allowDevWarns([
 		'deleteFromProseIntoTable:end',
 		'deleteFromTableIntoProse:start',
 		'deleteAcrossTwoTables:start',

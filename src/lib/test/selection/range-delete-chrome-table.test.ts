@@ -7,12 +7,12 @@ import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfac
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { SelectionPoint } from '../../selection/primitives';
-import { expectDevWarns } from '$lib/test/support/warn-gate';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
 // SelectionState would have snapped to cell coordinates first.
 afterEach(() =>
-	expectDevWarns([
+	allowDevWarns([
 		'deleteFromProseIntoTable:end',
 		'deleteFromTableIntoProse:start',
 		'deleteAcrossTwoTables:start',
