@@ -10,7 +10,11 @@ import {
 	isProseKind,
 	parseInline
 } from '../../../core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
+import {
+	CONTENT_VISIBILITY,
+	paintsOnlyChrome,
+	renderedText
+} from '../../../core/inline/visibility';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
@@ -106,8 +110,9 @@ interface ChainLink {
 
 /**
  * Every construct holding `offset`, outermost first — or null when one of them declines. A kind
- * with no policy row, one whose split behavior is plain, and one whose content bounds are unknown
- * all cannot be cut open, and cutting the constructs inside it would strand its pair.
+ * with no policy row, one whose split behavior is plain, one whose content bounds are unknown and
+ * a block whose chrome paints all cannot be cut open, and cutting the constructs inside one would
+ * strand its pair.
  */
 function splittableChainAt(
 	bytes: SplitBytes,
@@ -138,9 +143,11 @@ function splittableChainAt(
 		}
 		return true;
 	};
-	return visit(parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver))
-		? chain
-		: null;
+	const inlines = parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver);
+	// Chrome standing over nothing is all on screen (live-mode.md § 4.1), so closing and reopening
+	// it moves delimiters the reader is looking at: the byte-literal cut stands.
+	if (paintsOnlyChrome(inlines, bytes.raw)) return null;
+	return visit(inlines) ? chain : null;
 }
 
 // ── Candidates ───────────────────────────────────────────────────────────────

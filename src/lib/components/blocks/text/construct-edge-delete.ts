@@ -234,8 +234,8 @@ function removesExactly(before: string, after: string, removed: string): boolean
 }
 
 /** What a reader sees, asked of the thing that paints it. The content reading, not the block's
- *  own: a cut that empties a construct folds its chrome INTO view, and the diff below would read
- *  that arrival as bytes lost. */
+ *  own: a cut that empties a construct folds its chrome INTO view, and the diff would read that
+ *  arrival as bytes lost. Sound because the painting-chrome case returned at the door. */
 function visibleText(raw: string): string {
 	return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
 }

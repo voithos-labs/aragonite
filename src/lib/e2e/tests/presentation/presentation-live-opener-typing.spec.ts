@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { primaryModifier } from '../../platform';
-import { clickBlockSettled, enterPresentationMode, landAt } from './helpers';
+import { clickBlockSettled, enterPresentationMode, extendTo, landAt } from './helpers';
 
 // A block whose only bytes are its own chrome has nothing to stand behind it, so the chrome
 // paints: a caret can land on it and a typed byte seats after it. A destructive key at the block's
@@ -24,6 +24,13 @@ const PAINTED_LINK_DOC = ['[](u)', '', 'para'].join('\n') + '\n';
 
 /** Between `]` and `(` — inside the painted chrome, where each rewrite has a claim to decline. */
 const MID_CHROME = 2;
+
+/** The same chrome inside a construct the two cut seams DO open. All nine bytes paint, and the
+ *  caret reaches offset 2 only because they do. */
+const WRAPPED_DOC = ['**[](u)**', '', 'para'].join('\n') + '\n';
+
+/** Between the outer pair and the inner one. */
+const INSIDE_PAIR = 2;
 
 /** An empty paragraph below a settled one, minted by the gesture that mints it in use. */
 async function emptyBlockBelow(page: Page, mode: 'live' | 'preview-inline'): Promise<EditorPage> {
@@ -254,6 +261,34 @@ test.describe('painted inline chrome — the live rewrites leave what the reader
 		await page.keyboard.press('Enter');
 
 		await ep.bridge.waitForSourceContains('[](v)');
+	});
+});
+
+// A construct WRAPPING content-empty chrome paints its own delimiters too, so the two seams that
+// rewrite across a cut meet a painted pair where they are used to a hidden one.
+test.describe('painted chrome inside a construct the cut seams open', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterPresentationMode(page, 'live', WRAPPED_DOC);
+		await clickBlockSettled(ep, OPENER);
+		await landAt(ep, page, INSIDE_PAIR);
+	});
+
+	test('a range delete into the block below leaves the painted pair standing', async ({ page }) => {
+		await extendTo(ep, page, 'ArrowRight', [1], 0);
+
+		await page.keyboard.press('Delete');
+		await ep.bridge.waitForBlockCount(1);
+
+		expect(await ep.bridge.getSource()).toBe('**para\n');
+	});
+
+	test('Enter cuts the bytes literally instead of carrying the opener across', async ({ page }) => {
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForBlockCount(3);
+
+		expect(await ep.bridge.getSource()).toBe('**\n\n[](u)**\n\npara\n');
 	});
 });
 

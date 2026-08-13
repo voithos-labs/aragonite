@@ -202,3 +202,26 @@ describe('what the cleanup refuses to be asked', () => {
 		).toBeNull();
 	});
 });
+
+// A construct standing over a content-empty one paints ALL its bytes (live-mode.md § 4.1), so a
+// side that survives as chrome survives as bytes the reader saw. Miss-analysis: the painted-chrome
+// pins used the FLAT `[](u)`, which both seams decline by childless arity (the wrong reason), so no
+// case ever reached the cleaner with a painting side it could classify as a stranded run.
+describe('a side that is painting chrome is not a stranded run', () => {
+	const PAINTED = '**[](u)**\n';
+
+	it('keeps a leading run the reader saw, whichever end of it survives', () => {
+		expect(deleteBetween(PAINTED, 2, 'para\n', 2)).toBeNull();
+		expect(deleteBetween(PAINTED, 7, 'para\n', 2)).toBeNull();
+	});
+
+	it('keeps a trailing run the reader saw', () => {
+		expect(deleteBetween('para\n', 4, PAINTED, 7)).toBeNull();
+	});
+
+	// The same cut where the construct stands over content: those delimiters really are hidden,
+	// so the cleanup is still the cleanup.
+	it('still cleans a side whose construct stands over content', () => {
+		expect(deleteBetween('**bold**\n', 2, 'para\n', 2)).toBe('ra\n');
+	});
+});

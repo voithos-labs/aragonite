@@ -88,12 +88,16 @@ export function screenVisibility(
 }
 
 /**
- * The content behind every marker family, whatever the container paints. The reading a rewrite's
- * before/after conservation diff needs: chrome folds the moment content arrives, so a diff taken
- * against the screen reads that fold as bytes lost
- * (`e2e/requirements/presentation/presentation-live-opener-typing.md`).
+ * The content behind every marker family, whatever the container paints: the reading a rewrite's
+ * before/after conservation diff needs, since chrome folds the moment content arrives and a diff
+ * against the screen would read that fold as bytes lost. Sound only past a
+ * {@link paintsOnlyChrome} gate — over chrome the reader IS looking at, this reading calls those
+ * bytes unseen and licenses dropping them.
  */
 export const CONTENT_VISIBILITY: VisibilityContext = { hidesMarkers: true, chromePaints: false };
+
+/** A container whose chrome stands over no content: every family the override paints does. */
+const CHROME_STANDS_ALONE: VisibilityContext = { hidesMarkers: true, chromePaints: true };
 
 /** Whether a `family` span paints NOTHING under `ctx` — the one hiding rule, before any preview
  *  reveal. */
@@ -136,7 +140,7 @@ export function visibleRuns(
 
 /** The text a reader SEES for `nodes` — every run `ctx` leaves on screen, in source order. */
 export function renderedText(
-	nodes: InlineNode[],
+	nodes: readonly InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
 	opts: RenderInlineOptions = {}
@@ -144,6 +148,24 @@ export function renderedText(
 	let out = '';
 	for (const run of visibleRuns(nodes, raw, ctx, opts)) if (run.visible) out += run.text;
 	return out;
+}
+
+/**
+ * Whether `nodes` are chrome standing over nothing, and therefore ALL on screen (live-mode.md
+ * § 4.1). The inline half of the content-empty stamp, for a seam with no DOM to read the stamp
+ * off: a license over bytes the reader never saw has nothing to claim here. A block's OWN chrome
+ * (a `## ` prefix, a fence line) sits outside the inline content range, so an empty one answers
+ * false and the surfaces that own it are unaffected.
+ */
+export function paintsOnlyChrome(
+	nodes: readonly InlineNode[],
+	raw: string,
+	opts: RenderInlineOptions = {}
+): boolean {
+	return (
+		renderedText(nodes, raw, CONTENT_VISIBILITY, opts) === '' &&
+		renderedText(nodes, raw, CHROME_STANDS_ALONE, opts) !== ''
+	);
 }
 
 function collectRuns(
