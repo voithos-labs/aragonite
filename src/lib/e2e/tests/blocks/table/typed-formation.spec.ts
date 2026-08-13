@@ -142,6 +142,24 @@ test.describe('table block: typed formation', () => {
 		await editor.bridge.waitForSourceEquals('> | a | b |\n> | --- | --- |\n> | Z |  |\n');
 	});
 
+	// The item's own Enter would append a sibling item; the consult sits above that override, so a
+	// claimed line completes and only an unclaimed one reaches the list gesture.
+	test('a row typed inside a list item completes rather than appending a sibling', async ({
+		page
+	}) => {
+		await editor.loadContent('- \n');
+		await editor.clickBlock(0);
+		await page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		await editor.typeSlowly('| a | b |');
+		await editor.bridge.waitForSourceContains('- | a | b |');
+		await page.keyboard.press('Enter');
+
+		await editor.bridge.waitForSourceEquals('- | a | b |\n  | --- | --- |\n  |  |  |\n');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceEquals('- | a | b |\n  | --- | --- |\n  | Z |  |\n');
+	});
+
 	test('an escaped pipe stays cell content, so the row completes with two columns', async ({
 		page
 	}) => {

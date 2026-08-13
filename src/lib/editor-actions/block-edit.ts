@@ -10,6 +10,7 @@ import { stampStructuralChange, type StructuralChange } from '../tree-operations
 import type { EditorActionsDeps, UndoController } from './deps';
 import { createTopLevelScope } from './block-edit-scope';
 import { createBlockEditCore } from './block-edit-core';
+import { withEnterCompletion } from './enter-completion';
 import { previewContentReparse, focusAfterContentReplace } from './replacement-focus';
 
 export function createBlockEditActions(
@@ -19,7 +20,7 @@ export function createBlockEditActions(
 	const scope = createTopLevelScope(deps, controller);
 	const core = createBlockEditCore(scope);
 
-	return {
+	const actions: BlockEditActions = {
 		// ── Structural split / merge / delete (shared core) ───────────────────
 
 		splitBlock: (blockIndex, offset) => core.split(blockIndex, offset),
@@ -124,4 +125,6 @@ export function createBlockEditActions(
 			);
 		}
 	};
+
+	return withEnterCompletion(actions, (blockIndex) => scope.children()[blockIndex]);
 }

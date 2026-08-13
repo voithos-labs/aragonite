@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
+import { planEnterCompletion, withEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -11,6 +11,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import type { BlockComponent } from '$lib/block-component';
+import type { BlockEditActions } from '$lib/action-contracts';
 import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
 
 // The split command's one completion arm: which presses reach a completer at all, and what the
@@ -49,6 +50,18 @@ function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = [
 		}
 	};
 	return { scope, commits, children };
+}
+
+/** The composed shape both wiring sites build: the consult wrapped around the core's split, with
+ *  the core reachable underneath as the no-claim fallthrough. */
+function seamOver(scope: CommitScope): BlockEditActions {
+	const core = createBlockEditCore(scope);
+	const consulted: Pick<BlockEditActions, 'splitBlock' | 'replaceBlock'> = {
+		splitBlock: (i, offset) => core.split(i, offset),
+		replaceBlock: (i, replacement, focus, options) =>
+			core.replaceBlock(i, replacement, focus, options)
+	};
+	return withEnterCompletion(consulted as BlockEditActions, (index) => scope.children()[index]);
 }
 
 // A second registrant whose caret sits on a line the seam mints, which the table's cell-addressed
@@ -130,11 +143,11 @@ describe('Enter completion — the caret the seam resolves', () => {
 	});
 });
 
-describe('Enter completion — what the split commits', () => {
+describe('Enter completion — what the composed split commits', () => {
 	it('replaces the paragraph with one table and seats the caret in the first body cell', async () => {
 		const cell = pathFocusSpy();
 		const { scope, commits, children } = stubScope([leaf('| a | b |\n')], [cell.ref]);
-		await createBlockEditCore(scope).split(0, 9);
+		await seamOver(scope).splitBlock(0, 9);
 
 		expect(children).toHaveLength(1);
 		expect(children[0].kind).toBe('table');
@@ -148,20 +161,20 @@ describe('Enter completion — what the split commits', () => {
 	// paragraph with the caret at 0 would put the next typed byte in front of the row.
 	it('snapshots the caret at the end of the typed line, not at the cell it lands in', async () => {
 		const { scope, commits } = stubScope([leaf('| a | b |\n')]);
-		await createBlockEditCore(scope).split(0, 9);
+		await seamOver(scope).splitBlock(0, 9);
 		expect(commits[0].snapshot).toEqual({ index: 0, offset: 9 });
 	});
 
 	it('falls through to the ordinary split on a line no completer claims', async () => {
 		const { scope, commits, children } = stubScope([leaf('| a | b |\n')]);
-		await createBlockEditCore(scope).split(0, 4);
+		await seamOver(scope).splitBlock(0, 4);
 		expect(commits[0].op.kind).toBe('split');
 		expect(children.map((c) => c.raw)).toEqual(['| a \n', '| b |\n']);
 	});
 
 	it('falls through on a single-cell row the table scan would reject', async () => {
 		const { scope, commits, children } = stubScope([leaf('|a|\n')]);
-		await createBlockEditCore(scope).split(0, 3);
+		await seamOver(scope).splitBlock(0, 3);
 		expect(commits[0].op.kind).toBe('split');
 		expect(children).toHaveLength(2);
 	});

@@ -15,6 +15,8 @@ header-shaped row, with the caret at its end, is replaced by the finished table 
   survives, so a reload still sees two
 - A header row typed inside a blockquote completes in place: the container's rebuild prefixes all
   three lines, and the caret still reaches the body cell (the container resolves its own refs)
+- A header row typed inside a list item completes in place too. Completion wins over the item's own
+  Enter, which would otherwise append a sibling item; a line no completer claims still appends one
 
 ## Edge cases
 

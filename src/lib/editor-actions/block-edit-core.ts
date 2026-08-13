@@ -32,7 +32,6 @@ import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
 import type { CommitScope, MutationView } from './block-edit-scope';
 import { mergedElseFocusPrevious } from './merge-fallback';
-import { planEnterCompletion } from './enter-completion';
 
 /** The byte/settle sinks' owner answer, read live off the commit's owned view. */
 const bodyParentOf = (view: MutationView) => ({
@@ -64,19 +63,6 @@ export interface BlockEditCore {
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 	const core: BlockEditCore = {
 		async split(i, offset) {
-			// The one Enter-completion arm (`schema/block-completions.ts`): a claimed lone line
-			// becomes the structure it opens, and the press is spent on that instead of a split.
-			const completion = planEnterCompletion(scope.children()[i], offset);
-			if (completion) {
-				await core.replaceBlock(
-					i,
-					completion.replacement,
-					{ replacementIndex: 0, ...completion.caret },
-					{ snapshotOffset: offset }
-				);
-				return;
-			}
-
 			// Offset 0 is not special: empty block above, content below, caret on the content. The
 			// landing is the primitive's answer, not `i + 1` — a plural first half pushes the
 			// second half further down, and G1.34 holds the seat to it.
