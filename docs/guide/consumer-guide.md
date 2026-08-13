@@ -309,6 +309,12 @@ For a `parse()` pipeline with no `<Editor>` mounted, call `installPlugins(units)
 
 A later editor may mount carrying a plugin an earlier one never had. The late install is legal and serves the new editor's own parse; an already-parsed editor does not re-parse against the newer grammar, and a dev-warn names the late registration.
 
+**One plugin set per app, not per route.** Declare the array once, at module scope in a shared module, and pass that same array to every `<Editor>` in the app. Installation is once per process and first-wins: the first set to install decides the grammar for the whole process, and a later route's different set is ignored with a dev warning. Under SSR that process outlives a request while each browser load starts a fresh realm, so which route the server rendered first decides the server's grammar while the client re-decides from the route it actually loaded. When the two disagree, the server-rendered block and the hydrating one resolve different kinds and the block fails at its error boundary. A single shared set removes the disagreement by construction.
+
+The same rule covers directive names. A plugin that yields an already-claimed `:::name` resolves that claim by which setup ran first in the process, which under SSR is route order again, so a pre-claim behaves predictably only when one set installs everywhere.
+
+Per-route variation belongs in per-instance options, not in per-route plugin sets: pass `{ plugin, options }` in the array and read the values through `editor.options`. An option baked into a plugin factory at definition time is process-global, so the first route to load fixes it for every other one.
+
 ### Bundled plugins
 
 Eight first-party plugins ship in the package as subpath exports — install them like any other unit:
