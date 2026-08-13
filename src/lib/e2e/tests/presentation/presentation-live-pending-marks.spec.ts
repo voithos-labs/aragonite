@@ -17,13 +17,22 @@ const DOC = [
 	'',
 	'**hello world**',
 	'',
-	'see <https://example.com> now'
+	'see <https://example.com> now',
+	'',
+	'~~struck~~ tail',
+	'',
+	'gap  here'
 ].join('\n');
 
 const PLAIN = 0;
 const BOLD = 1;
 const PHRASE = 2;
 const AUTOLINK = 3;
+const STRUCK = 4;
+/** Two spaces, so a caret between them has whitespace on BOTH sides — the one collapsed position
+ *  where a nested pair's outer run is flanking enough to open and close (`**` before a backtick
+ *  after a letter is neither). */
+const GAP = 5;
 
 async function enterLive(page: Page): Promise<EditorPage> {
 	const ep = new EditorPage(page);
@@ -68,6 +77,8 @@ async function stepTo(ep: EditorPage, page: Page, key: string, target: number): 
 
 const bold = (page: Page) => page.keyboard.press(`${primaryModifier}+b`);
 const italic = (page: Page) => page.keyboard.press(`${primaryModifier}+i`);
+const struck = (page: Page) => page.keyboard.press(`${primaryModifier}+Shift+X`);
+const code = (page: Page) => page.keyboard.press(`${primaryModifier}+e`);
 
 test.describe('live mode — a pended mark rides the next insertion', () => {
 	let ep: EditorPage;
@@ -123,6 +134,82 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 		await ep.waitForNoSourceMutation();
 
 		expect(await ep.bridge.getSource()).toBe(before);
+	});
+});
+
+// The two chords no other scenario spends: strikethrough's two-byte run and inline code's
+// backtick, whose delimiters the resolver has to write for itself. The nesting rows are the pin
+// on the order being the TABLE's and not the chords' — a code span wrapping literal stars is what
+// the wrong order produces, and the resolver would decline it and type plain instead.
+test.describe('live mode — the marks beyond bold and italic', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterLive(page);
+	});
+
+	const atEndOfPlain = async (page: Page): Promise<void> => {
+		await clickBlock(ep, PLAIN);
+		await page.keyboard.press('End');
+		await ep.waitForRenderFlush();
+	};
+
+	/** Between the two spaces of `gap  here`, reached by real presses from the line start. */
+	const atGap = async (page: Page): Promise<void> => {
+		await clickBlock(ep, GAP);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		await stepTo(ep, page, 'ArrowRight', 4);
+	};
+
+	test('Mod+Shift+X then a keystroke writes a struck byte', async ({ page }) => {
+		await atEndOfPlain(page);
+		await struck(page);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('plain~~X~~');
+
+		await expect(page.locator('.text-editable-block s').first()).toHaveText('X');
+	});
+
+	test('Mod+E then a keystroke writes a code byte', async ({ page }) => {
+		await atEndOfPlain(page);
+		await code(page);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('plain`X`');
+
+		await expect(page.locator('.text-editable-block code').first()).toHaveText('X');
+	});
+
+	test('Mod+B then Mod+E nests the code span inside the strong', async ({ page }) => {
+		await atGap(page);
+		await bold(page);
+		await code(page);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('gap **`X`** here');
+	});
+
+	test('Mod+E then Mod+B writes the same bytes, so the order is the table’s', async ({ page }) => {
+		await atGap(page);
+		await code(page);
+		await bold(page);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('gap **`X`** here');
+	});
+
+	// `~~struck~~ tail`: content is [2,8), so offset 4 sits after `st`. The same close-and-reopen
+	// escape bold takes, on the run whose delimiters are two bytes rather than two asterisks.
+	test('a mark pended inside a struck phrase splits it open', async ({ page }) => {
+		// Home lands past the hidden opener, so the two presses are counted from content start.
+		await clickBlock(ep, STRUCK);
+		await page.keyboard.press('Home');
+		await ep.waitForRenderFlush();
+		await stepTo(ep, page, 'ArrowRight', 4);
+
+		await struck(page);
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('~~st~~X~~ruck~~ tail');
+
+		await expect(ep.getBlock(STRUCK)).toHaveText('stXruck tail', { useInnerText: true });
 	});
 });
 

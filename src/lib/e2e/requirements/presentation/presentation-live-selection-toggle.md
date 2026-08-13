@@ -17,6 +17,8 @@ since live paints no delimiter to assert against.
 - `Mod+Shift+X` over the same selection wraps it in `~~`, and `Mod+E` in a
   backtick pair — live's two new chords over the same seam
 - `Mod+B` over an already-bold word strips the pair rather than double-wrapping
+- the same strip works for the other two: `Mod+Shift+X` over a struck word and `Mod+E` over a
+  code span each take their own delimiters back off, whatever run length they were written with
 - one `Mod+Z` after a toggle restores the pre-toggle bytes exactly
 
 ## Edge cases

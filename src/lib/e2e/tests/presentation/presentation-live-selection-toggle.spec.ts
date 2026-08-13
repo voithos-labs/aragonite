@@ -9,11 +9,23 @@ import { clickBlockSettled, enterPresentationMode, focusOffset, stepTo } from '.
 // the user actually sees change.
 // Requirements: e2e/requirements/presentation/presentation-live-selection-toggle.md.
 
-const DOC = ['plain words here', '', '**already bold** tail', '', '## Heading words'].join('\n');
+const DOC = [
+	'plain words here',
+	'',
+	'**already bold** tail',
+	'',
+	'## Heading words',
+	'',
+	'~~already struck~~ tail',
+	'',
+	'`already code` tail'
+].join('\n');
 
 const PLAIN = 0;
 const BOLD = 1;
 const HEADING = 2;
+const STRUCK = 3;
+const CODE = 4;
 
 const CHORD = {
 	strong: `${primaryModifier}+b`,
@@ -78,6 +90,19 @@ test.describe('live mode — a toggle over a selection writes its bytes at once'
 		await ep.bridge.waitForSourceContains('already bold tail');
 		expect(await ep.bridge.getSource()).not.toContain('**already bold**');
 	});
+
+	// The strip half for the other two runs: `~~` is two bytes and a code fence sizes itself, so
+	// the pair each one takes back off is read off its own parse rather than off the chord.
+	for (const [format, block, from, length, stripped] of [
+		['strikethrough', STRUCK, 2, 14, 'already struck tail'],
+		['inlineCode', CODE, 1, 12, 'already code tail']
+	] as const) {
+		test(`a selection over an already-${format} word strips the pair`, async ({ page }) => {
+			await selectFrom(ep, page, block, from, length);
+			await page.keyboard.press(CHORD[format]);
+			await ep.bridge.waitForSourceContains(stripped);
+		});
+	}
 
 	test('a toggle inside a heading leaves the unpainted prefix alone', async ({ page }) => {
 		// Home lands past the hidden `## `, so the selection can only start in content.
