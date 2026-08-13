@@ -55,7 +55,7 @@ The two spaces are bridged **structurally**, not by any offset-rebasing function
 
 There is no function mapping an inline offset into a container's `raw`, because nothing needs one. Inline parsing, cursor offsets, and selection all work in the prose block's own `raw`.
 
-The only _runtime_ coordinate translation is DOM ↔ raw, and it has exactly one home: `cursor/widget-offset.ts`, wrapped by `ambient/ambient-cursor.ts` for the marker prefix. Offset arithmetic done anywhere else will eventually disagree with it — every offset bug in the 2026-07 audit traced to arithmetic outside the shared walk (`contributing/culture.md`).
+The only _runtime_ coordinate translation is DOM ↔ raw, and it has exactly one home: `cursor/widget-offset.ts`, wrapped by `ambient/ambient-cursor.ts` for the marker prefix. Offset arithmetic done anywhere else will eventually disagree with it — every offset bug in the 2026-07 audit traced to arithmetic outside the shared walk (`contributing/casebook.md`).
 
 ## 4. The parser
 

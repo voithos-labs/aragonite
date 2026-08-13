@@ -182,7 +182,7 @@ Some inline nodes render as opaque widgets — `contenteditable="false"` islands
 
 A widget carries its raw bytes on `data-source-start` / `data-source-end` attributes on its root, **not** in `textContent`. The cursor is addressable only at its leading and trailing edges. Because the widget contributes 0 characters to `textContent`, a prose block's `textContent !== raw` — which is exactly why the input path walks rather than reads (above).
 
-**`cursor/widget-offset.ts` is the single translation point between DOM Range positions and raw offsets.** It walks the block in document order, summing text-node lengths and widget raw lengths. Everything that needs the translation — the ambient-marker helpers, sticky-column measurement, the native selection bridge, the block's own `setSelection` / `measurePartialRects` — routes through it. Offset arithmetic done anywhere else will eventually disagree with it (`contributing/culture.md`).
+**`cursor/widget-offset.ts` is the single translation point between DOM Range positions and raw offsets.** It walks the block in document order, summing text-node lengths and widget raw lengths. Everything that needs the translation — the ambient-marker helpers, sticky-column measurement, the native selection bridge, the block's own `setSelection` / `measurePartialRects` — routes through it. Offset arithmetic done anywhere else will eventually disagree with it (`contributing/casebook.md`).
 
 Two cross-block focus behaviors compose on top:
 
@@ -209,7 +209,7 @@ Some container metadata feeds the container's `rebuildRaw` — a list item's `ta
 
 ### Reactive state plumbing (Svelte 5)
 
-Three invariants govern how CST state crosses into Svelte's reactivity. Each exists to prevent silent corruption, and none is discoverable from the types (`contributing/culture.md`).
+Three invariants govern how CST state crosses into Svelte's reactivity. Each exists to prevent silent corruption, and none is discoverable from the types (`contributing/rules.md`).
 
 - **Reactive state crosses module boundaries as getters, never values.** Re-init effects and bootstrap helpers read mutable state through `() => state` closures or getter properties. A plain value-read would snapshot at effect-run time _and_ register the state as a dependency of the effect — re-firing it on every later mutation and wiping unrelated work. The `source !== lastSource` guard in `Editor.svelte` exists for the same reason.
 - **The document is not its own memo key; the content version is.** The `$state` document is mutated in place, so its object identity survives every edit. Anything derived from the whole tree (footnote numbering, a table of contents) must key on the editor's **content version**, a lazy derived on the document facet that changes whenever a byte-carrying field moves and is stable otherwise. Lazy is load-bearing: a document nothing memoizes against never computes it. It is not the decoration engine's `editEpoch`, which moves at edit-event cadence and so lags a typing batch; the version moves at render cadence.

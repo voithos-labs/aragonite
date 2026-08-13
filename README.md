@@ -1,5 +1,7 @@
 # <img alt="header" src="docs/assets/header.png" />
 
+_Contributing to the editor itself? Start at [CONTRIBUTING.md](./CONTRIBUTING.md), not here._
+
 This project is an effort (perhaps in vain) to create a markdown editor that is both open source and not crap. In my book, this means that it has to be lossless, extensible, lean, fast, have a graceful ui/ux, and have a hella good plugin interface. So you know, just some simplistic and easy to achieve goals [^1] [^2].
 
 Note that aragonite is a work in progress [^3]. It's written in typescript and svelte [^4] [^5] [^6] [^7], and tested on chromium browsers (chrome and edge) [^8]. Yes, there are plans to port to different frontend frameworks and test in different browsers. No, not right now, sometime in the future.

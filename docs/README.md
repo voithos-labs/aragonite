@@ -6,14 +6,14 @@ New to the repo? Run it with the root [`README.md`](../README.md), work in it wi
 
 ## Start here
 
-| If you want to…                     | Read                                                                                                  |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                                |
-| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                                  |
-| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md)                                                      |
-| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md), then [`contributing/culture.md`](contributing/culture.md) |
+| If you want to…                     | Read                                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Understand how the editor works** | [`design/editor.md`](design/editor.md)                                                            |
+| **Embed the editor in an app**      | [`guide/consumer-guide.md`](guide/consumer-guide.md)                                              |
+| **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md)                                                  |
+| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md), then [`contributing/rules.md`](contributing/rules.md) |
 
-Everything else hangs off those four. `CONTRIBUTING.md` gets you set up and through the gates; `culture.md` is the second step, and the one to take before your first edit. The folders are split by **audience**, not by topic.
+Everything else hangs off those four. `CONTRIBUTING.md` gets you set up, oriented, and through the gates; `rules.md` is the second step, and the one to take before your first edit. The folders are split by **audience**, not by topic.
 
 ## `design/` — how it works
 
@@ -44,16 +44,19 @@ Because the pack ships flat, a markdown link inside `guide/` may only point at a
 
 ## `contributing/` — how we work
 
-| Doc                                                                        | Scope                                                   |
-| -------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [`contributing/culture.md`](contributing/culture.md)                       | Incident-backed rules — **read before your first edit** |
-| [`contributing/codebase-map.md`](contributing/codebase-map.md)             | Behavior → seam index: where a behavior lives           |
-| [`contributing/testing.md`](contributing/testing.md)                       | Test infrastructure and patterns                        |
-| [`contributing/adding-a-block.md`](contributing/adding-a-block.md)         | Adding a built-in block kind                            |
-| [`contributing/code-style.md`](contributing/code-style.md)                 | Code style conventions                                  |
-| [`contributing/commit-conventions.md`](contributing/commit-conventions.md) | Commit message format                                   |
+| Doc                                                                          | Scope                                                          |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [`contributing/rules.md`](contributing/rules.md)                             | The incident-backed rule set — **read before your first edit** |
+| [`contributing/casebook.md`](contributing/casebook.md)                       | The eight incidents behind the rules — before structural work  |
+| [`contributing/anatomy-of-a-change.md`](contributing/anatomy-of-a-change.md) | One cross-cutting feature traced from design to ship           |
+| [`contributing/codebase-map.md`](contributing/codebase-map.md)               | Behavior → seam index: where a behavior lives                  |
+| [`contributing/testing.md`](contributing/testing.md)                         | Test infrastructure and patterns                               |
+| [`contributing/warnings.md`](contributing/warnings.md)                       | Dev-warning taxonomy: which console output fails which gate    |
+| [`contributing/adding-a-block.md`](contributing/adding-a-block.md)           | Adding a built-in block kind                                   |
+| [`contributing/code-style.md`](contributing/code-style.md)                   | Code style conventions                                         |
+| [`contributing/commit-conventions.md`](contributing/commit-conventions.md)   | Commit message format                                          |
 
-`culture.md` is the one to read before you write code, and the one people skip. Every rule in it was paid for by a real bug.
+`rules.md` is the one to read before you write code, and the one people skip. Every rule in it was paid for by a real bug, and `casebook.md` holds the bug.
 
 ## Records + reference
 
