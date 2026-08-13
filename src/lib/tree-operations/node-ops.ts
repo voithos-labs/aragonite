@@ -701,7 +701,7 @@ export function restoreSeparatorOnFill(
  * only where its own follower holds none: two would reload as a second empty paragraph
  * ({@link dropDoubledSeparator}'s rule, declined here rather than undone after).
  */
-export function restoreSeparatorAfterBlank(
+function restoreSeparatorAfterBlank(
 	parent: SeparatorParent,
 	index: number,
 	sharing?: SharingState
@@ -996,10 +996,14 @@ export function widenForTailMint(
 	const grown = after - before;
 	if (grown === 0) return change;
 	if (change.op === 'noop') return { op: 'insert', at: before, count: grown };
+	if (change.op === 'insert' && change.at + change.count === before) {
+		return { ...change, count: change.count + grown };
+	}
 	if (change.op === 'replace' && change.at + change.newCount === before) {
 		return { ...change, newCount: change.newCount + grown };
 	}
-	// Needs a pre-divergent tree (a blank tail beside a standing fold), which no parse mints.
+	// The mint landed past a window that does not reach the tail, so no single contiguous
+	// span describes both; the parallel arrays would drift either way this widened it.
 	devWarn('tree-ops', 'a tail suffix materialized outside the reported window');
 	return change;
 }

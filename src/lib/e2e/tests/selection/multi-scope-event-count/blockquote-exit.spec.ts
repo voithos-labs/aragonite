@@ -26,7 +26,9 @@ test.describe('one edit event per op — blockquote splitBlock exit', () => {
 
 		expect(count).toBe(1);
 		// The empty child leaves the quote as a NEW blank between quote and `after`: the
-		// exit mints the line the caret lands on, it never enters the block below.
-		expect(await editor.bridge.getSource()).toBe('> first\n\n\n\nafter\n');
+		// exit mints the line the caret lands on, it never enters the block below. Three
+		// lines, not four — the minted blank IS the separating line of the block below it.
+		expect(await editor.bridge.getSource()).toBe('> first\n\n\nafter\n');
+		expect(await editor.parseConverged()).toBe(true);
 	});
 });

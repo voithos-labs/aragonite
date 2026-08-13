@@ -17,8 +17,8 @@ import { asDocPath } from '$lib/selection/path-math';
 // settle over the same window does, nor whether a probe reading post-splice state could still
 // see was-blank. Both only became askable when the rule moved into the seam.
 
-function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
+function makeTop(source: string | ReturnType<typeof parse>) {
+	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
 	const controller = createUndoController(harness.deps);
 	return { ...harness, controller, actions: createBlockEditActions(harness.deps, controller) };
 }
@@ -106,6 +106,29 @@ describe('a delete that crosses both funnel entries in one commit', () => {
 		const h = deleteAcross('> alpha\n>\n>\n> delta\n\nomega\n', [0, 1], [0, 2], [0, 2]);
 
 		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n> lta\n\nomega\n');
+		expectParseConverged(h.deps.doc);
+	});
+});
+
+// The gap-caret Enter below the last block of a suffix-folded document: the mint is blank, so
+// the settle materializes the folded line into a block, and the published change must report
+// that growth or `applyStructuralChangeToIdsRefs` under-counts. Bytes stay green through the
+// desync, hence the assertions on the parallel arrays.
+describe('an insert whose settle materializes the folded tail line', () => {
+	// Miss-analysis: `makeEditorActionsDeps` hardcoded `suffix: ''`, so a top-level fixture built
+	// the natural way could not hold a folded trailing line — unreachable, not merely untested.
+	it('keeps blockIds and refs in step with the tree', async () => {
+		const h = makeTop(parse('alpha\n\n'));
+		expect(h.deps.doc.suffix).toBe('\n');
+
+		await h.actions.insertParagraph(1, '');
+
+		// Three blocks: the mint is blank, so the folded line can no longer stay folded — it is
+		// a block the reload would read anyway (GH #129's rule, reached through an insert).
+		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
+		expect(h.deps.doc.children).toHaveLength(3);
+		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
+		expect(h.getBlockRefs()).toHaveLength(h.deps.doc.children.length);
 		expectParseConverged(h.deps.doc);
 	});
 });

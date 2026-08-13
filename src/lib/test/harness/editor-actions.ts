@@ -189,11 +189,21 @@ export interface EditorActionsHarness {
 // `onSelectionChange` has to be supplied here rather than attached later:
 // SelectionState takes it at construction, so a test counting emissions cannot
 // install one afterwards.
+// Takes a whole parsed Document, not only its children: the parse folds a trailing blank line
+// into `suffix`, and a children-only fixture silently loses it — with it every structural
+// materialization of that line.
 export function makeEditorActionsDeps(
-	docChildren: CstNode[],
+	source: CstNode[] | Document,
 	options: { onSelectionChange?: () => void; presentationMode?: PresentationMode } = {}
 ): EditorActionsHarness {
-	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
+	const parsed: Document | undefined = Array.isArray(source) ? undefined : source;
+	const docChildren: CstNode[] = Array.isArray(source) ? source : source.children;
+	const doc: Document = {
+		kind: 'document',
+		prefix: parsed?.prefix ?? '',
+		children: docChildren,
+		suffix: parsed?.suffix ?? ''
+	};
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
 	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
 	const events = createEditorEvents();
@@ -359,9 +369,10 @@ export function makeNestedHarness(
 	input: string | CstNode[],
 	opts: NestedHarnessOptions = {}
 ): NestedHarness {
-	const nodes = typeof input === 'string' ? parse(input).children : input;
+	const source = typeof input === 'string' ? parse(input) : input;
+	const nodes = Array.isArray(source) ? source : source.children;
 	const index = opts.index ?? nodes.length - 1;
-	const { deps, events } = makeEditorActionsDeps(nodes);
+	const { deps, events } = makeEditorActionsDeps(source);
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];

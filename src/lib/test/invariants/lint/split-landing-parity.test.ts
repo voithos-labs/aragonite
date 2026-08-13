@@ -27,6 +27,15 @@ const namesToken = (token: string) => (file: SourceFile) =>
 
 const namesSplit = namesToken('splitNode');
 
+/** What the file calls the primitive: its import alias, or the bare name. */
+function splitCallName(code: string): string {
+	return /(?<![\w'"])splitNode\s+as\s+(\w+)/.exec(code)?.[1] ?? 'splitNode';
+}
+
+function countCalls(code: string, name: string): number {
+	return (code.match(new RegExp(`(?<![\\w'"])${name}\\s*\\(`, 'g')) ?? []).length;
+}
+
 describe('G1.34 split-landing parity census', () => {
 	const sources = collectEditorSources();
 
@@ -48,6 +57,19 @@ describe('G1.34 split-landing parity census', () => {
 		}
 	});
 
+	// Per call site, not per file: an allowlisted caller growing a SECOND split whose landing it
+	// re-derives would pass a file-granular scan, which is the bypass this census exists to close.
+	it('each split call in a caller carries its own landing assertion', () => {
+		for (const file of sources.filter((f) => namesSplit(f) && !NON_LANDING.has(f.relPath))) {
+			const code = stripComments(file.text);
+			const splits = countCalls(code, splitCallName(code));
+			expect([file.relPath, countCalls(code, 'assertSplitLanding') >= splits]).toEqual([
+				file.relPath,
+				true
+			]);
+		}
+	});
+
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
 	it('the matcher sees a call and an aliased import, and skips prose', () => {
@@ -59,12 +81,18 @@ describe('G1.34 split-landing parity census', () => {
 	});
 
 	it('a split caller landing at i + 1 without the guard fails the parity arm', () => {
-		const rogue: SourceFile = {
-			relPath: 'src/lib/editor-actions/rogue.ts',
-			text: 'const r = splitNode(p, i, 0);\nscope.refAt(i + 1)?.focus(0);',
-			code: ''
-		};
-		expect(namesSplit(rogue)).toBe(true);
-		expect(namesToken('assertSplitLanding')(rogue)).toBe(false);
+		const rogue = 'const r = splitNode(p, i, 0);\nscope.refAt(i + 1)?.focus(0);';
+		expect(namesSplit({ relPath: 'x', text: rogue, code: '' })).toBe(true);
+		expect(countCalls(rogue, 'assertSplitLanding') >= countCalls(rogue, 'splitNode')).toBe(false);
+	});
+
+	it('a SECOND unguarded split inside an already-guarded file fails the per-site arm', () => {
+		const code =
+			"import { splitNode as performSplit } from '../tree-operations';\n" +
+			'performSplit(p, i, 0);\nassertSplitLanding(split, split.secondHalfIndex);\n' +
+			'performSplit(p, j, 0);\nscope.refAt(j + 1)?.focus(0);';
+		expect(splitCallName(code)).toBe('performSplit');
+		expect(countCalls(code, 'performSplit')).toBe(2);
+		expect(countCalls(code, 'assertSplitLanding') >= 2).toBe(false);
 	});
 });
