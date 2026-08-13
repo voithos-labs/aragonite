@@ -1,10 +1,10 @@
 # The casebook
 
-Eight incidents, one per rule. These are the ways this codebase actually gets corrupted, so read
-them before your first structural change. [`rules.md`](rules.md) is the short version and the thing
-to read first; this file is its evidence.
+Eight incidents, each headed by the rule it bought. These are the ways this codebase actually gets
+corrupted, so read them before your first structural change. [`rules.md`](rules.md) is the short
+version and the thing to read first; this file is its evidence.
 
-Each entry is headed by the rule, then names the guard that now catches it (G-numbers are entries in
+Every entry names the guard that now catches it (G-numbers are entries in
 `docs/design/invariants.md`) and the spec that owns the full statement. "The audit" is the 2026-07
 internal review that produced most of them.
 
