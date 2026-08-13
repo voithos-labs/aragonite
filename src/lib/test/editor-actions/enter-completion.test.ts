@@ -4,6 +4,8 @@ import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
+import { registerBlockCompleter } from '$lib/schema/block-completions';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -48,6 +50,16 @@ function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = [
 	};
 	return { scope, commits, children };
 }
+
+// A second registrant whose caret sits on a line the seam mints, which the table's cell-addressed
+// caret cannot exercise. Kind-name order puts it ahead of `table`; its trigger is ordinary prose,
+// so no other case in this file reaches it.
+registerBlockCompleter(declarePluginKind('spec-fence'), {
+	tryComplete: (line) =>
+		line === 'fence me'
+			? { lines: ['```', '', '```'], caret: { path: [], line: 1, column: 0 } }
+			: null
+});
 
 describe('Enter completion — which presses reach a completer', () => {
 	it('claims a lone header row with the caret at its end', () => {
@@ -96,6 +108,25 @@ describe('Enter completion — which presses reach a completer', () => {
 	it('terminates an unterminated tail line rather than leaving the mint open', () => {
 		const plan = planEnterCompletion(leaf('| a | b |'), 9)!;
 		expect(plan.replacement[0].raw).toBe('| a | b |\n| --- | --- |\n|  |  |\n');
+	});
+});
+
+// A completer answers where the caret sits as a line and a column, because the seam picks the line
+// ending AFTER the claim: a byte offset minted by the completer is one short on every CRLF block.
+describe('Enter completion — the caret the seam resolves', () => {
+	it.each([
+		['fence me\n', 4],
+		['fence me\r\n', 5]
+	])('resolves line 1 column 0 against %j to offset %i', (raw, offset) => {
+		const plan = planEnterCompletion(leaf(raw), 8)!;
+		expect(plan.caret).toEqual({ path: [], offset });
+	});
+
+	// The table's caret addresses an empty cell, whose raw holds no lines at all — the resolution
+	// must read that as column 0 in the cell rather than falling off the line list.
+	it('resolves a path-addressed caret inside a childless empty cell', () => {
+		const plan = planEnterCompletion(leaf('| a | b |\r\n'), 9)!;
+		expect(plan.caret).toEqual({ path: [1, 0], offset: 0 });
 	});
 });
 

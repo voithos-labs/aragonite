@@ -14,7 +14,7 @@ import { takeDevWarns } from '../support/warn-gate';
 function claims(marker: string, lines: string[]): BlockCompleter {
 	return {
 		tryComplete: (line): CompletionResult | null =>
-			line.startsWith(marker) ? { lines, caret: { path: [1, 0], offset: 0 } } : null
+			line.startsWith(marker) ? { lines, caret: { path: [1, 0], line: 0, column: 0 } } : null
 	};
 }
 

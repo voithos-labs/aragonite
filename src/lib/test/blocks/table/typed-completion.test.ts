@@ -57,7 +57,7 @@ describe('table Enter completer — the bytes it answers', () => {
 	});
 
 	it('seats the caret in the first body cell', () => {
-		expect(claim('| a | b |')!.caret).toEqual({ path: [1, 0], offset: 0 });
+		expect(claim('| a | b |')!.caret).toEqual({ path: [1, 0], line: 0, column: 0 });
 	});
 
 	// The claim is only worth anything if the bytes parse back as the table it describes —

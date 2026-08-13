@@ -10,11 +10,13 @@ import { registerOnce } from './register-once';
 
 /**
  * The replacement, as lines WITHOUT endings — the seam attaches the block's own (G4.20) — plus
- * where the caret seats: `path` is child indices inside the minted block, empty for the block.
+ * where the caret seats: `path` is child indices inside the minted block, empty for the block,
+ * and `line`/`column` address a position inside THAT node. Line-relative rather than a byte
+ * offset because the seam picks the line ending after the claim, so only it can count bytes.
  */
 export interface CompletionResult {
 	lines: string[];
-	caret: { path: number[]; offset: number };
+	caret: { path: number[]; line: number; column: number };
 }
 
 export interface BlockCompleter {
