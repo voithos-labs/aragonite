@@ -6,7 +6,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { displayLength } from '$lib/core/lines';
 import { getContentRange, parseInline } from '$lib/core/inline';
-import { renderedText } from '$lib/core/inline-render';
+import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -110,7 +110,7 @@ function deleteRange(
 function visibleTextOf(node: Document['children'][number]): string {
 	const range = getContentRange(node);
 	if (range.end > displayLength(node.raw)) return node.raw;
-	return renderedText(parseInline(node.raw, range.start, range.end), node.raw);
+	return renderedText(parseInline(node.raw, range.start, range.end), node.raw, CONTENT_VISIBILITY);
 }
 
 /** Whether `inner` can be read off `outer` by deleting characters — the shape of a rewrite that

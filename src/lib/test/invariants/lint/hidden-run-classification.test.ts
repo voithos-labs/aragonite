@@ -1,29 +1,32 @@
 /**
- * G4.30 — hidden-run classification has one home. Which marker text a mode paints nothing
- * for is decided in `cursor/widget-offset.ts` alone: a second copy would disagree the day a
- * mode or a reveal rule moved, and a caret seated in unpainted text corrupts silently. The
- * vocabulary census is the second arm — a file that starts naming marker classes is a
- * decision, not a drift.
+ * G4.30 — hidden-run classification has one rule, in two spaces. `core/inline/visibility.ts`
+ * owns the families and the hiding rule; `cursor/widget-offset.ts` applies them where there is a
+ * caret. A third answer would disagree the day a mode or a reveal rule moved, and a caret seated
+ * in unpainted text corrupts silently. The vocabulary census is the second arm — a file that
+ * starts naming marker classes is a decision, not a drift.
  */
 
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, type SourceFile } from './scan-source';
 
-const CLASSIFICATION_HOME = 'src/lib/cursor/widget-offset.ts';
+/** The rule and its two spaces: the node-space home, and the DOM-space one the caret reads. */
+const CLASSIFICATION_HOMES: Record<string, string> = {
+	'src/lib/core/inline/visibility.ts': 'the families and the hiding rule',
+	'src/lib/cursor/widget-offset.ts': 'applies them to a live DOM, and owns the reveal arms'
+};
 
-/** A DOM read that resolves marker-hiding state: the mode root, the block-focus stamp, the
- *  construct stamp, the content-empty stamp, or a marker class tested by selector. */
+/** Resolving marker-hiding state either way: a DOM read (the mode root, the block-focus stamp,
+ *  the construct stamp, the content-empty stamp, a marker class tested by selector) or a call to
+ *  the model's own rule, which is the same decision with no DOM read to spot it by. */
 const CLASSIFICATION_RE =
-	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused|data-content-empty)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused|content-empty)/;
+	/(?:classList\.contains|closest|matches|querySelector(?:All)?)\s*\(\s*['"`][^'"`]*(?:md-marker|md-fence-line|md-ref-label|md-construct-reveal|data-construct-|data-presentation|data-focused|data-content-empty)|(?:get|has)Attribute\s*\(\s*['"`]data-(?:presentation|construct-|focused|content-empty)|(?<![\w.])(?:markerFamilyOf|familyHidesText|familyPaintsAlone)\s*\(/;
 
 /** Files reading that vocabulary for a DIFFERENT question, each saying which. */
 const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/ambient/ambient-dom.ts':
 		'ambient span identity — a contenteditable="false" marker keeps its box, so the hidden-run rule excludes it by construction',
 	'src/lib/components/blocks/text/construct-reveal.ts':
-		'preview-inline reveal writer — it stamps the class the classification reads, and asks nothing about hiding',
-	'src/lib/core/inline-render.ts':
-		"reads back the marker spans it just minted, in the same call that minted them (renderedText) — the mint's own inverse, and it asks nothing about which MODE paints them"
+		'preview-inline reveal writer — it stamps the class the classification reads, and asks nothing about hiding'
 };
 
 const MARKER_CLASSES = [
@@ -41,6 +44,7 @@ const MARKER_CLASS_FILES: Record<string, string> = {
 		'mints the directive container chrome — contenteditable="false" AND outside every walk container, so the hiding classification excludes it twice over',
 	'src/lib/ambient/ambient-dom.ts': 'mints and identifies the ambient span',
 	'src/lib/core/inline-render.ts': 'mints inline marker and ref-label spans',
+	'src/lib/core/inline/visibility.ts': 'names the families the hiding rule is stated over',
 	'src/lib/components/blocks/text/text-render.ts': 'mints the block-own prefix span',
 	'src/lib/components/blocks/code/code-renderer.ts': 'mints fence marker and fence-line spans',
 	'src/lib/components/blocks/text/construct-reveal.ts': 'flips the reveal class',
@@ -68,8 +72,10 @@ describe('G4.30 hidden-run classification', () => {
 		expect(
 			readers,
 			'a file started reading the mode/reveal/marker vocabulary: route the question through ' +
-				'widget-offset.ts, or add it to NON_CLASSIFYING_READERS saying what else it asks'
-		).toEqual([CLASSIFICATION_HOME, ...Object.keys(NON_CLASSIFYING_READERS)].sort());
+				'visibility.ts, or add it to NON_CLASSIFYING_READERS saying what else it asks'
+		).toEqual(
+			[...Object.keys(CLASSIFICATION_HOMES), ...Object.keys(NON_CLASSIFYING_READERS)].sort()
+		);
 	});
 
 	it('each non-classifying reader still reads the vocabulary (no dead entry)', () => {
@@ -96,14 +102,16 @@ describe('G4.30 hidden-run classification', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('the classification matcher flags every shape the home uses', () => {
+	it('the classification matcher flags every shape the homes use', () => {
 		for (const shape of [
 			"container.closest('[data-presentation]')",
 			"el.getAttribute('data-presentation')",
 			"el.closest('.block-host[data-focused]')",
 			"el.hasAttribute('data-construct-start')",
 			"el.classList.contains('md-construct-reveal')",
-			"node.matches('.md-ref-label')"
+			"node.matches('.md-ref-label')",
+			'familyHidesText(family, ctx)',
+			'markerFamilyOf(el)'
 		]) {
 			expect(CLASSIFICATION_RE.test(shape), shape).toBe(true);
 		}

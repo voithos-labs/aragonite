@@ -11,7 +11,7 @@ import {
 	isProseKind,
 	parseInline
 } from '../../../core/inline';
-import { renderedText } from '../../../core/inline-render';
+import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
@@ -295,7 +295,7 @@ const shownAfterJoin = (left: Side, right: Side): string =>
  * contributes its content, since its delimiter runs paint nothing either way.
  */
 function visibleSide(side: Side, keep: 'before' | 'after'): string {
-	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw);
+	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY);
 }
 
 function clipNodes(
@@ -337,5 +337,9 @@ function visibleBlockText(raw: string, resolver: LinkReferenceResolver | undefin
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
 	const range = getContentRange(block);
-	return renderedText(parseInline(block.raw, range.start, range.end, resolver), block.raw);
+	return renderedText(
+		parseInline(block.raw, range.start, range.end, resolver),
+		block.raw,
+		CONTENT_VISIBILITY
+	);
 }

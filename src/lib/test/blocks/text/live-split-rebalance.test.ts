@@ -4,7 +4,7 @@ import { parse } from '$lib/core/parser';
 import { parsesBack, rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import { getContentRange, parseInline } from '$lib/core/inline';
-import { renderedText } from '$lib/core/inline-render';
+import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 
 // The bytes a live-mode Enter writes into each half. Every case states the plain byte-literal cut
 // the rewrite is offered — that is what a decline leaves behind — so a null return is as pinned as
@@ -28,7 +28,11 @@ function split(source: string, offset: number) {
 function visibleAfterReload(raw: string): string[] {
 	return parse(raw, { scope: 'fragment' }).children.map((block) => {
 		const range = getContentRange(block);
-		return renderedText(parseInline(block.raw, range.start, range.end, undefined), block.raw);
+		return renderedText(
+			parseInline(block.raw, range.start, range.end, undefined),
+			block.raw,
+			CONTENT_VISIBILITY
+		);
 	});
 }
 

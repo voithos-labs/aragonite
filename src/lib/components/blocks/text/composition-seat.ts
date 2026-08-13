@@ -5,6 +5,7 @@
  */
 
 import type { InlineNode } from '../../../core/nodes';
+import type { VisibilityContext } from '../../../core/inline/visibility';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
 import { plainInsertionAt, relocateComposedRun } from './edge-seat';
@@ -15,6 +16,8 @@ export interface CompositionSeatDeps {
 	getDisplayText: () => string;
 	getInlines: () => readonly InlineNode[];
 	getAffinity: () => EdgeAffinity | null;
+	/** How the surface reads on screen, for the seat's own painted-range question. */
+	getScreen: () => VisibilityContext;
 	/** Spend the pending marks: a composition is the one insertion they were promised to. */
 	consumePendingMarks: () => ReadonlySet<InlineMarkKind> | null;
 	/** The block's live selection, read at compositionstart: composing over one is a range op no
@@ -89,7 +92,8 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				after,
 				composedAt,
 				deps.getInlines(),
-				started.affinity
+				started.affinity,
+				deps.getScreen()
 			);
 		},
 		noteEnd: () => {

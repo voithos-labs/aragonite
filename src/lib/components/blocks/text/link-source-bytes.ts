@@ -8,7 +8,7 @@
 import { parseInline } from '../../../core/inline';
 import { encodeDestination, escapeTitle } from '../../../core/inline/destination-bytes';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
-import { renderedText } from '../../../core/inline-render';
+import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import { devWarn } from '../../../dev-warn';
 
@@ -127,9 +127,11 @@ function declineClaimed(link: InlineNode, what: string): boolean {
 	return true;
 }
 
-/** What a reader SEES for `raw`, asked of the thing that paints it. */
+/** What a reader SEES for `raw`, asked of the thing that paints it. The content reading, not the
+ *  block's own: the card edits a destination the chrome may be painting, and a diff against the
+ *  screen would refuse every such edit as a visible change. */
 function visibleText(raw: string, resolver?: LinkReferenceResolver): string {
-	return renderedText(parseInline(raw, 0, raw.length, resolver), raw);
+	return renderedText(parseInline(raw, 0, raw.length, resolver), raw, CONTENT_VISIBILITY);
 }
 
 /** A candidate is bytes only if splicing it over `[start, end)` leaves the reader's text

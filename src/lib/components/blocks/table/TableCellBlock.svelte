@@ -38,7 +38,8 @@
 		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
-		createRangeAtDomTextOffsets
+		createRangeAtDomTextOffsets,
+		screenVisibilityOf
 	} from '../../../cursor/widget-offset';
 	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
@@ -253,6 +254,7 @@
 		getDisplayText: () => trimTrailingLineEnding(node.raw),
 		getInlines: () => resolvedInlineContent(node, linkRef),
 		getAffinity: () => edgeAffinity.get(),
+		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: () => pendingMarks.consume()
 	});
 

@@ -15,6 +15,7 @@ import {
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import { trimTrailingLineEnding } from '$lib/core/lines';
+import { screenVisibilityOf } from '$lib/cursor/widget-offset';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makeSurface, type SurfaceHarness } from '../harness/editable-surface';
 
@@ -41,6 +42,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 		getDisplayText: () => surface.el.textContent ?? '',
 		getInlines: () => parseInline(source, 0, source.length),
 		getAffinity: () => affinity,
+		getScreen: () => screenVisibilityOf(surface.el),
 		consumePendingMarks: () => null,
 		getRawSelection: () => rawSelection,
 		resolveRangeEdit: (range, typed) => {

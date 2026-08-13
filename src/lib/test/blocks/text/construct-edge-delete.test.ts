@@ -5,6 +5,7 @@ import {
 	resolveEdgeDeletion,
 	type DeleteDirection
 } from '$lib/components/blocks/text/construct-edge-delete';
+import { screenVisibility } from '$lib/core/inline/visibility';
 
 // The bytes a destructive key at a hidden delimiter run turns into. Live paints no marker, so the
 // source is the oracle and every result is re-parsed: a press must never leave a delimiter on
@@ -22,7 +23,7 @@ function del(
 		content,
 		caret,
 		direction,
-		chromePaints,
+		screen: screenVisibility('live', { chromePaints }),
 		inlines: parseInline(display, content.start, content.end)
 	});
 }

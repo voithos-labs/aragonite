@@ -20,11 +20,12 @@ const WALK_CONTAINER_SURFACES: Record<string, string> = {
 };
 
 /** Files naming a renderer whose output no caret parks in, so nothing reads a stamp back. Each
- *  says why in its own right: defining the renderer is not the reason, or moving `renderedText`
- *  out of its file would silently re-open the census. */
+ *  says why in its own right, so moving a renderer call between files cannot silently re-open the
+ *  census. */
 const NON_EDITING_RENDERERS: Record<string, string> = {
-	'src/lib/core/inline-render.ts':
-		'defines renderInlineNodes; `renderedText` renders into a detached fragment to read what paints',
+	'src/lib/core/inline-render.ts': 'defines renderInlineNodes; the caller mounts the fragment',
+	'src/lib/core/inline/visibility.ts':
+		'renders into a detached fragment to read what paints, and mounts nothing',
 	'src/lib/components/blocks/code/code-renderer.ts':
 		'defines renderCodeBlock and hands the fragment back — the caller mounts it',
 	'src/lib/testing/inline-conformance.ts':

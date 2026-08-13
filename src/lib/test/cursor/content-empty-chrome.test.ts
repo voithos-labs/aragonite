@@ -90,10 +90,19 @@ describe('holdsOnlyMarkerChrome — the stamp condition', () => {
 		);
 	});
 
-	// The stylesheet's override names two families; a ref label is metadata that stays hidden,
-	// so treating it as chrome here would stamp a block nothing then paints.
-	it('reads a reference label as content, not as paintable chrome', () => {
+	// The stylesheet's override names two families; a ref label is metadata that stays hidden, so
+	// a block holding only labels would be stamped for a paint that never comes.
+	it('a reference label is chrome the stamp does not paint, and never content', () => {
 		expect(holdsOnlyMarkerChrome(mount({}, span('md-ref-label', '[ref]')))).toBe(false);
+		// #141's shape: a label BESIDE paintable chrome must not read as content standing behind
+		// it, or the block goes unstamped, paints nothing, and G1.33 fires with no paint available.
+		const withLabel = mount(
+			{ mode: 'live', stamped: true },
+			span('md-marker', '['),
+			span('md-ref-label', '[ref]')
+		);
+		expect(holdsOnlyMarkerChrome(withLabel)).toBe(true);
+		expect(landableDomTextBounds(withLabel)).toEqual({ start: 0, end: 1 });
 	});
 });
 
