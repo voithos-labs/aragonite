@@ -2,12 +2,18 @@
  * CSS↔TS parity for the hidden-run predicate: `cursor/widget-offset.ts` mirrors the
  * stylesheet's class scoping structurally, because a getComputedStyle per keystroke is
  * unaffordable — so the two can drift. This probe pays for the comparison once per mode
- * change, per marker family. It declines wherever no stylesheet demonstrably hides anything
- * (jsdom, source mode); the presentation e2e battery is the real assertion there.
+ * change, per marker family, over three answers: the stylesheet's, the walk's, and the
+ * node-space model both are stated over. It declines wherever no stylesheet demonstrably hides
+ * anything (jsdom, source mode); the presentation e2e battery is the real assertion there.
  */
 
 import type { InvariantViolation } from './assert';
-import { CONTENT_EMPTY_ATTR, isHiddenMarkerRoot } from '../cursor/widget-offset';
+import { familyHidesText, markerFamilyOf, type VisibilityContext } from '../core/inline/visibility';
+import {
+	CONTENT_EMPTY_ATTR,
+	isHiddenMarkerRoot,
+	screenVisibilityOf
+} from '../cursor/widget-offset';
 
 interface ProbeCase {
 	name: string;
@@ -49,16 +55,22 @@ export function checkMarkerCssParity(editorRoot: HTMLElement): InvariantViolatio
 		const read = probes.map(({ probe, span, block }) => ({
 			name: probe.name,
 			predicate: isHiddenMarkerRoot(span, block),
+			// The model claims the families and the chrome fold; the REVEAL arms are the walk's
+			// alone, so a focused host is where the two are allowed to differ.
+			model: probe.focusedHost ? null : modelHides(span, screenVisibilityOf(block)),
 			css: getComputedStyle(span).display === 'none'
 		}));
 		// No case computes hidden: either source mode (nothing hides by design) or an engine
 		// that applies no stylesheet — no signal to compare against, so the probe stands down.
 		if (!read.some((entry) => entry.css)) return null;
-		const diverged = read.find((entry) => entry.predicate !== entry.css);
+		const diverged = read.find(
+			(entry) =>
+				entry.predicate !== entry.css || (entry.model !== null && entry.model !== entry.css)
+		);
 		if (!diverged) return null;
 		return {
 			code: 'marker-css-parity',
-			message: `the hidden-run predicate and the stylesheet disagree about "${diverged.name}" — the selector vocabulary in cursor/widget-offset.ts and styles/editor.css moved apart`,
+			message: `the hidden-run answers disagree about "${diverged.name}" — the families in core/inline/visibility.ts, the walk in cursor/widget-offset.ts and styles/editor.css moved apart`,
 			detail: read
 		};
 	} finally {
@@ -86,4 +98,9 @@ function mountProbe(
 	host.appendChild(block);
 	editorRoot.appendChild(host);
 	return { probe, host, block, span };
+}
+
+function modelHides(span: Element, ctx: VisibilityContext): boolean {
+	const family = markerFamilyOf(span);
+	return family !== null && familyHidesText(family, ctx);
 }

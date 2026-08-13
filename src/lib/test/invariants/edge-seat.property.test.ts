@@ -4,7 +4,7 @@ import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { resolveEdgeSeat } from '../../components/blocks/text/edge-seat';
-import { screenVisibility } from '../../core/inline/visibility';
+import { MARKER_FAMILY_SELECTOR, screenVisibility } from '../../core/inline/visibility';
 import type { EdgeAffinity } from '../../cursor/edge-affinity';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
@@ -40,7 +40,8 @@ const LIVE = screenVisibility('live', { chromePaints: false });
 /**
  * The DOM the block actually paints, marker subtrees skipped. Deliberately the painter rather
  * than `renderedText`: the seams under test call that themselves, and an oracle that shares the
- * check echoes it instead of contesting it.
+ * check echoes it instead of contesting it. The FAMILIES are the model's, since a private list of
+ * them is the drift this net cannot also be the guard against.
  */
 function paintedText(raw: string): string {
 	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
@@ -50,7 +51,7 @@ function paintedText(raw: string): string {
 	let out = '';
 	let node: Node | null;
 	while ((node = walker.nextNode())) {
-		if (!node.parentElement?.closest('.md-marker')) out += node.textContent ?? '';
+		if (!node.parentElement?.closest(MARKER_FAMILY_SELECTOR)) out += node.textContent ?? '';
 	}
 	return out;
 }
@@ -85,7 +86,7 @@ function unpaintedBytes(raw: string): boolean[] {
 		const text = node.textContent ?? '';
 		const found = raw.indexOf(text, at);
 		if (text === '' || found === -1) continue;
-		if (!node.parentElement?.closest('.md-marker')) {
+		if (!node.parentElement?.closest(MARKER_FAMILY_SELECTOR)) {
 			for (let i = found; i < found + text.length; i++) unpainted[i] = false;
 		}
 		at = found + text.length;

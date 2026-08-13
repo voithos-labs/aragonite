@@ -8,6 +8,7 @@
 
 import type { InlineNode } from '../nodes';
 import { renderInlineNodes, type RenderInlineOptions } from '../inline-render';
+import { widgetSourceRange } from './inline-widgets';
 import { type PresentationMode } from '../../presentation-mode';
 
 // ── The families ─────────────────────────────────────────────────────────────
@@ -103,21 +104,75 @@ export function familyHidesText(family: MarkerFamily, ctx: VisibilityContext): b
 // ── The reader's text ────────────────────────────────────────────────────────
 
 /**
- * The text a reader SEES for `nodes` — the rendered DOM minus every span `ctx` drops. Asked of
- * the render path rather than derived per kind, because which bytes a construct shows only the
- * painter answers (G4.33): a caller re-deriving it drifts from what actually paints, which is the
- * only thing the answer is worth anything as.
+ * One stretch of `raw` as the reader meets it. `text` is what it paints, which is not always
+ * `raw.slice(start, end)`: an atomic widget substitutes its own.
  */
+export interface VisibleRun {
+	start: number;
+	end: number;
+	text: string;
+	visible: boolean;
+}
+
+/**
+ * `nodes` as runs of raw bytes, each carrying what it paints under `ctx`. Read off the rendered
+ * DOM rather than derived per kind, because which bytes a construct shows only the painter
+ * answers (G4.33): a caller re-deriving that drifts from what paints, which is the only thing the
+ * answer is worth anything as. Top-level nodes render one at a time, so a CLIPPED list (a join
+ * seam's surviving side) keeps honest offsets instead of a running count that assumes contiguity.
+ */
+export function visibleRuns(
+	nodes: readonly InlineNode[],
+	raw: string,
+	ctx: VisibilityContext,
+	opts: RenderInlineOptions = {}
+): VisibleRun[] {
+	const runs: VisibleRun[] = [];
+	for (const node of nodes) {
+		collectRuns(renderInlineNodes([node], raw, opts), node.start, ctx, runs);
+	}
+	return runs;
+}
+
+/** The text a reader SEES for `nodes` — every run `ctx` leaves on screen, in source order. */
 export function renderedText(
 	nodes: InlineNode[],
 	raw: string,
 	ctx: VisibilityContext,
 	opts: RenderInlineOptions = {}
 ): string {
-	const fragment = renderInlineNodes(nodes, raw, opts);
-	for (const span of fragment.querySelectorAll(MARKER_FAMILY_SELECTOR)) {
-		const family = markerFamilyOf(span);
-		if (family !== null && familyHidesText(family, ctx)) span.remove();
-	}
-	return fragment.textContent ?? '';
+	let out = '';
+	for (const run of visibleRuns(nodes, raw, ctx, opts)) if (run.visible) out += run.text;
+	return out;
+}
+
+function collectRuns(
+	fragment: DocumentFragment,
+	start: number,
+	ctx: VisibilityContext,
+	out: VisibleRun[]
+): void {
+	let at = start;
+	const visit = (dom: Node, hidden: boolean): void => {
+		if (dom.nodeType === Node.TEXT_NODE) {
+			const text = dom.textContent ?? '';
+			out.push({ start: at, end: at + text.length, text, visible: !hidden });
+			at += text.length;
+			return;
+		}
+		if (dom.nodeType !== Node.ELEMENT_NODE) return;
+		const el = dom as Element;
+		// Only an atomic widget's shell carries a source range here, and it is the one element
+		// whose text is not its bytes — so the range is both the test and the re-sync.
+		const source = widgetSourceRange(el);
+		if (source !== null) {
+			out.push({ ...source, text: el.textContent ?? '', visible: !hidden });
+			at = source.end;
+			return;
+		}
+		const family = markerFamilyOf(el);
+		const inner = hidden || (family !== null && familyHidesText(family, ctx));
+		for (const child of el.childNodes) visit(child, inner);
+	};
+	for (const child of fragment.childNodes) visit(child, false);
 }

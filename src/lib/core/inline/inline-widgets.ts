@@ -28,6 +28,15 @@ export function mintWidgetShell(className: string, node: InlineNode): HTMLSpanEl
 	return shell;
 }
 
+/** The raw byte range a shell carries, or null when the attributes are absent or malformed —
+ *  {@link mintWidgetShell}'s inverse, so the mint and every read-back move together. */
+export function widgetSourceRange(el: Element): { start: number; end: number } | null {
+	const start = parseInt(el.getAttribute('data-source-start') ?? '', 10);
+	const end = parseInt(el.getAttribute('data-source-end') ?? '', 10);
+	if (Number.isNaN(start) || Number.isNaN(end)) return null;
+	return { start, end };
+}
+
 /**
  * Props a `component` widget kind is mounted with. Frozen at mount: the pool remounts on a
  * source change, so `source` never shifts under a live instance, but `inline.start`/`end` CAN

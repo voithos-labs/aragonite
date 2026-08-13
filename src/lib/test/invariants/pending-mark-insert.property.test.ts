@@ -4,6 +4,7 @@ import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
+import { MARKER_FAMILY_SELECTOR } from '../../core/inline/visibility';
 import { constructContentRange } from '../../core/inline';
 import { resolveMarkedInsertion } from '../../components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '../../cursor/pending-marks';
@@ -33,7 +34,8 @@ const MARK_SUBSETS: InlineMarkKind[][] = [
 /**
  * The DOM the block actually paints, read text node by text node with marker subtrees skipped.
  * Deliberately NOT `renderedText`, which the resolver's own check calls: sharing the PAINTER is
- * the point, sharing the traversal would make this echo the check instead of contesting it.
+ * the point, sharing the traversal would make this echo the check instead of contesting it. The
+ * FAMILIES are the model's, though — a private list of them went stale on the ref label once.
  */
 function paintedText(raw: string): string {
 	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
@@ -43,9 +45,7 @@ function paintedText(raw: string): string {
 	let out = '';
 	let node: Node | null;
 	while ((node = walker.nextNode())) {
-		if (!(node.parentElement && node.parentElement.closest('.md-marker'))) {
-			out += node.textContent ?? '';
-		}
+		if (!node.parentElement?.closest(MARKER_FAMILY_SELECTOR)) out += node.textContent ?? '';
 	}
 	return out;
 }
