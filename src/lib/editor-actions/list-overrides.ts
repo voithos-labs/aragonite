@@ -16,6 +16,8 @@ export interface ListOverridesDeps {
 export function createListOverrides(deps: ListOverridesDeps): NestedActionsOverrideFactory {
 	return () => ({
 		blockEdit: {
+			// Items split through the ITEM's own bundle; nothing calls the list's, and the shared
+			// core would run a prose split on a `listItem` if anything ever did.
 			splitBlock: async (): Promise<void> => {},
 			updateBlockContent: (): void => {},
 

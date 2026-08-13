@@ -5,6 +5,7 @@
 // and `exitListAtItem` has no coverage at any level. Each branch lands different bytes, so the
 // real keystroke tells them apart without a spy — the routing is asserted by the document.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import { parse } from '$lib/core/parser';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
 
 beforeAll(installLayoutStubs);
@@ -52,5 +53,31 @@ describe('list item Enter routing', () => {
 		await pressKeyAt(mounted, [0, 0, 0], 5, ENTER);
 
 		expect(mounted.source()).toBe('- alpha\n- \n  - nested\n');
+	});
+});
+
+// Miss-analysis: the Enter-completion suite asserted the top-level and blockquote seams only, and
+// the routing suite above asserted the item's three arms only, so nothing asserted the item as an
+// Enter path that owes the completion consult — the sibling-parity class, one entry path short.
+describe('list item Enter completion (#146)', () => {
+	it('completes a header row typed in an item instead of appending a sibling', async () => {
+		mounted = mountEditor({ source: '- | a | b |\n' });
+
+		await pressKeyAt(mounted, [0, 0, 0], 9, ENTER);
+
+		expect(mounted.source()).toBe('- | a | b |\n  | --- | --- |\n  |  |  |\n');
+		expect(parse(mounted.source()).children[0].children![0].children!.map((c) => c.kind)).toEqual([
+			'table'
+		]);
+	});
+
+	// Complete-wins takes only the claimed line: an item whose text no completer claims still
+	// reaches the three arms above, which is what keeps Enter in a list a list gesture.
+	it('leaves an unclaimed line to the item’s own arms', async () => {
+		mounted = mountEditor({ source: '- | a |\n' });
+
+		await pressKeyAt(mounted, [0, 0, 0], 7, ENTER);
+
+		expect(mounted.source()).toBe('- | a |\n- \n');
 	});
 });

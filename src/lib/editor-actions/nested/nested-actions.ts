@@ -26,6 +26,7 @@ import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
+import { withEnterCompletion } from '../enter-completion';
 import type { InlineResolverRef } from '../../schema/inline-construct-policy';
 
 export interface NestedActionsBundle {
@@ -115,11 +116,17 @@ export function createStandardNestedActions(
 	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
-	if (!overrideFactory) return defaults;
+	// Above the override spread, so a container replacing `splitBlock` keeps the completion arm
+	// its subtree owes (#146). `defaults` stays undecorated: an override chaining back into it is
+	// already past the consult, and re-entering would spend one press on two.
+	const childAt = (index: number) => deps.node.children?.[index];
+	if (!overrideFactory) {
+		return { ...defaults, blockEdit: withEnterCompletion(blockEdit, childAt) };
+	}
 
 	const overrides = overrideFactory(defaults);
 	return {
-		blockEdit: { ...blockEdit, ...(overrides.blockEdit ?? {}) },
+		blockEdit: withEnterCompletion({ ...blockEdit, ...(overrides.blockEdit ?? {}) }, childAt),
 		focus: { ...focus, ...(overrides.focus ?? {}) },
 		containerEdit: { ...containerEdit, ...(overrides.containerEdit ?? {}) }
 	};
