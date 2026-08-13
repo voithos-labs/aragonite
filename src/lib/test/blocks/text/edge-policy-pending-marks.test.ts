@@ -70,7 +70,8 @@ function mount(
 		enterWidget: () => {},
 		isReading: () => isReading,
 		getEdgeAffinity: () => affinity,
-		pendingMarks: marks
+		pendingMarks: marks,
+		installedAs: 'block'
 	};
 	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits, marks };
 }

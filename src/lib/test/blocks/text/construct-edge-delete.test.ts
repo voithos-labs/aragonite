@@ -24,7 +24,21 @@ function del(
 		caret,
 		direction,
 		screen: screenVisibility('live', { chromePaints }),
-		inlines: parseInline(display, content.start, content.end)
+		inlines: parseInline(display, content.start, content.end),
+		installedAs: 'block'
+	});
+}
+
+/** The same press on a table cell, whose text the caller installs as cell bytes. */
+function delInCell(display: string, caret: number, direction: DeleteDirection = 'backward') {
+	return resolveEdgeDeletion({
+		display,
+		content: { start: 0, end: display.length },
+		caret,
+		direction,
+		screen: screenVisibility('live', { chromePaints: false }),
+		inlines: parseInline(display, 0, display.length),
+		installedAs: 'cell'
 	});
 }
 
@@ -265,5 +279,20 @@ describe('a candidate that re-reads as another block is not written', () => {
 
 	it('still takes the same construct where the abutted bytes stay one paragraph', () => {
 		expect(del('~~[](u)~~ x', 2, 'forward')).toEqual({ raw: ' x', caret: 0 });
+	});
+
+	// The reader follows the INSTALLATION, not the seam: a cell's text is stored as cell bytes, and
+	// reading it back as a block refuses every cell that happens to open like a container marker —
+	// leaving the press to the engine, which paints the delimiters § 4.4 forbids on screen.
+	it.each(['- **a** b', '> **a** b', '1. **a** b', '    **a** b'])(
+		'rewrites in a cell whose text opens like %j',
+		(cell) => {
+			expect(delInCell(cell, cell.length - 2)).not.toBeNull();
+			expect(delInCell(cell, cell.length - 2)).not.toEqual({ swallow: true });
+		}
+	);
+
+	it('a block surface still refuses those bytes, since a block is what it installs', () => {
+		expect(del('- **a** b', 7)).toBeNull();
 	});
 });

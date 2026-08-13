@@ -61,7 +61,8 @@ function mount(source: string, kind: string) {
 		enterWidget: (w, fromTrailingEdge) => entered.push({ start: w.start, fromTrailingEdge }),
 		isReading: () => false,
 		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		installedAs: 'block'
 	};
 	return { dispatch: createEdgePolicyDispatch(deps), widget, entered, edits };
 }

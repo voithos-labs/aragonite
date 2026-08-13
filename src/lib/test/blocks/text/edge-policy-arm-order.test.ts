@@ -50,7 +50,8 @@ function mount(reading: boolean, source = 'hello world\n') {
 		enterWidget: (widget) => entered.push({ start: widget.start, end: widget.end }),
 		isReading: () => reading,
 		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		installedAs: 'block'
 	};
 	return { dispatch: createEdgePolicyDispatch(deps), node, commits, entered };
 }

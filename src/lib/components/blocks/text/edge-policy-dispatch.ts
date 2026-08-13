@@ -27,7 +27,7 @@ import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import { completesContainerMarker } from './marker-completion';
-import { resolveEdgeDeletion } from './construct-edge-delete';
+import { resolveEdgeDeletion, type EdgeDeletionSurface } from './construct-edge-delete';
 import { hidesStructuralSuffix } from './hidden-suffix';
 import { resolveEdgeSeat } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
@@ -98,6 +98,9 @@ export interface EdgePolicyDispatchDeps {
 	/** The constructs a collapsed-caret toggle promised the next insertion. Read AND spent
 	 *  here: the first byte after the chord is the one insertion they were pending for. */
 	pendingMarks: PendingMarksState;
+	/** What this surface installs a rewrite as, so the seams read a candidate back the way it will
+	 *  be stored. Required: a cell answering `block` by silence would refuse its own text. */
+	installedAs: EdgeDeletionSurface;
 }
 
 export interface EdgePolicyDispatch {
@@ -414,7 +417,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			caret: caretOffset,
 			direction: e.key === 'Backspace' ? 'backward' : 'forward',
 			screen: screenVisibilityOf(el),
-			inlines: inlinesOf(deps.node)
+			inlines: inlinesOf(deps.node),
+			installedAs: deps.installedAs
 		});
 		if (!deletion) return false;
 		e.preventDefault();

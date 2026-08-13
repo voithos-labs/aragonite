@@ -50,7 +50,8 @@ function dispatchOver(node: CstNode, el: HTMLElement, hasIslands: boolean) {
 		enterWidget: () => {},
 		isReading: () => false,
 		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		installedAs: 'block'
 	};
 	return { dispatch: createEdgePolicyDispatch(deps), parks };
 }

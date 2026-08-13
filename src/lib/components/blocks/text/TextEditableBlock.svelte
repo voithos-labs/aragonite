@@ -377,7 +377,8 @@
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
 		isReading: () => readOnly,
 		getEdgeAffinity: () => edgeAffinity.get(),
-		pendingMarks
+		pendingMarks,
+		installedAs: 'block'
 	});
 
 	// The same seat the keydown dispatch takes, for the one insertion a keydown cannot reach.
