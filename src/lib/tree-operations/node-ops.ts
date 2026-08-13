@@ -777,6 +777,23 @@ export function settleSeparatorOnBlank(
 }
 
 /**
+ * The give-back twin of {@link settleSeparatorOnBlank}'s closer peel: a blank run reaching the
+ * body tail borrows a line into `innerSuffix` so the reload keeps the block, and a tail that
+ * stops being blank owes it back or the wrap emits a line nobody typed. A trailing blank the
+ * author wrote against the closer reaches the same shape and is spent here too — one cosmetic
+ * line, against a stray one after every tail split.
+ */
+function releaseWrapPeel(parent: SeparatorParent, index: number): void {
+	const children = parent.children;
+	const slots = wrapSlotsOf(parent);
+	if (!children || children.length === 0 || !slots?.innerSuffix) return;
+	if (!bodyWrapOf(parent)?.beforeCloserLine) return;
+	if (index < children.length - 1) return;
+	if (isBlankParagraph(children[children.length - 1])) return;
+	slots.innerSuffix = '';
+}
+
+/**
  * The parse folds the document's one trailing blank line into `suffix` only while the tail
  * block is non-blank (`parseBlocks`' separator-spent rule); once the tail turns blank the
  * reload reads that line as its own empty paragraph, so the settle materializes it.
@@ -817,6 +834,7 @@ function settleSplicedWindow(
 		// Both ends: the line was the slot's own AND the one below it stood on.
 		restoreSeparatorAfterBlank(parent, at, sharing);
 		if (added > 0) restoreSeparatorAfterBlank(parent, at + added, sharing);
+		releaseWrapPeel(parent, at + Math.max(added - 1, 0));
 	} else {
 		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
 	}
@@ -1138,6 +1156,7 @@ export function updateNodeContent(
 	if (wasBlank && !isBlankParagraph(parent.children[blockIndex])) {
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
+		releaseWrapPeel(parent, lastMintedIndex(change, blockIndex));
 		return change;
 	}
 	// The reverse transition: the block IS the separating line now, so the run it joins gives
