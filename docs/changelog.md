@@ -1,8 +1,6 @@
 # Changelog
 
-Editor version history (CST block editor). **Style:** one tight entry per released version, newest first; the entries live in a per-family file under `changelog/`, and this page is the index over them. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
-
-Versions before 0.9 predate the editor's extraction into this repo; their entries stay summary-level.
+Editor version history (CST block editor). **Style:** one tight entry per released version, newest first; the entries live in a per-family file under `changelog/`, and this page is the index. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
 
 ## [0.9](changelog/0.9.md)
 
