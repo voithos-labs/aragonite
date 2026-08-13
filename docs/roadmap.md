@@ -35,20 +35,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    the natural candidate), port the plain-mode battery onto the real plugin and retire the memo
    fixture; until one does, memo remains plain mode's only consumer. The external-author gate at
    the freeze cut stays a separate box — the run probed discoverability, not external evidence.
-3. **Two hardening items from the 2026-08-08 assessment**, both before the freeze because each
-   is a class the session's defect discoveries kept paying into:
-   - **The separator-settle funnel.** Five seams hand-call the restore/drop door pair (the
-     #73/#96 class); a probe-based `settleSeparator` at the splice level closes the class
-     structurally and absorbs the container-match and absorb arms free. It was priced out of
-     the keystroke path once; the build carries the measurement that clears or re-prices that.
-     Validator: the becomes-blank sweep reads zero divergent outside #61's class, and the
-     hand-carried seam count drops to one.
-   - **Gate-visible warnings.** `devWarn` returns early under test and the e2e console watch
-     sees only `[invariant:` fires (#63), so every DEV-only guard is invisible to every gate —
-     the #98 caret-drift warn is the shipped example. Direction: a warn fails the unit run by
-     default behind an expected-warn allowlist, and the collector widens. Validator: #98's
-     warn class reds a gate the day it regresses.
-4. **Freeze cut at release** — in order:
+3. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (a structured review pass, matched to what changed since 2026-07) —
      audits before milestones, not after incidents. Most of the accumulated freeze-review
      pointers from the 2026-07 burn-down landed in the 2026-08 open-source prep (conformance
@@ -91,13 +78,11 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      registrar-poison class was structurally fixed in 0.9.27 — dev re-registration replaces
      instead of throwing; only the chorded plugin-global-command residual remains); a first pass of curated entry-level issues. The bar stays
      high — the reading order is what changes.
-   - **Collapse `docs/changelog/0.9.md` into one tight 0.9 entry** — the changelog's own
-     pre-v1 style rule; the per-patch notes served the pre-1.0 window and their detail lives in
-     `git log`.
    - Final contract reconciliation; **pre-freeze labels come off** — the `(pre-freeze)` section
      markers in `src/lib/plugin.ts` are the published signal telling an external author which
-     parts of the frozen contract are not yet frozen, so `grep -c pre-freeze src/lib/plugin.ts`
-     returning nonzero after the cut means the API is lying about its own stability. The
+     parts of the frozen contract are not yet frozen, so `grep -rc pre-freeze src/lib/plugin.ts src/lib/index.ts`
+     returning nonzero after the cut means the API is lying about its own stability (the
+     consumer barrel carries the same markers since the command door landed). The
      pending owner decisions this bullet used to carry landed in the 2026-08 prep: the env
      seam's split is deliberate and lint-enforced (G4.25; the override door ships on
      `aragonite/testing`), `BlockComponent` members stay flat with the three-layer grouping as
@@ -368,25 +353,6 @@ Where live mode's complexity actually arrives, and the consolidations that cap i
 the 2026-08 arcs; each is a direction, not a promise, and none is freeze-bound (all internal
 machinery).
 
-- **One screen-truth home.** Two modules answer "which bytes does the screen show" — the DOM
-  walk's hiding classifier (`cursor/widget-offset.ts`) and the painter oracle
-  (`core/inline-render.ts` :: `renderedText`) — and the `[](u)` destructive divergence happened
-  when one learned a rule the other did not. Direction: a single visibility model both consume,
-  so a seam asking the question cannot get two answers. The divergence class becomes
-  unrepresentable rather than individually patched.
-- **The policy table finishes its migration.** Several live editing arms are still hand-written
-  seams that read `schema/inline-construct-policy.ts` rather than rows one interpreter executes.
-  Direction: every live gesture rule is a row; a hand-written arm outside the table joins a
-  census lint and states its reason. A new construct then costs a row, not a seam.
-- **A live-mode gesture fuzzer.** The § 4 catalog's edge cases are a searchable space: a seeded
-  generator driving typing and destructive gestures at random hidden-edge positions, checking
-  the § 2 license invariants (the screen shows what the gesture claimed; only unseen bytes drop)
-  continuously. The simulation drives scripted flows; this searches the space between them.
-- **The completion registry completes its story.** The Enter-completion registry is the declared
-  home for adjacent-line formation (blank-line semantics make this a Markdown fact, not an
-  architecture debt). Remaining: the math `$$` registrant, a completer-or-not decision per
-  future multi-line grammar (front matter, footnote definitions), and the seam hoist so every
-  Enter path crosses the consult (#146, freeze-milestoned).
 - **Incremental ancestry rebuild, behind a falsification gate.** The container rebuild is
   measured-cheap at realistic nesting; an O(child) splice-based rebuild is designed only if the
   perf gate ever shows the O(container) cost moving. Not before.
