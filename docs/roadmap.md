@@ -26,15 +26,18 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    has not convened); and landing whatever the consumer's remaining manual passes (journal
    surface, real-webview gestures) surface before the freeze.
 
-2. **Clean-room 2 residue: the plain-mode promotion decision.** The second run executed
-   2026-08-01 (front matter subject: editable-leaf plain mode, a paste transform, its own
-   `aragonite/testing` suite; its artifacts stay internal records), and
-   its findings landed as pre-freeze refinements — the docs pack carried three of the five
-   requirements unaided, and one support question was the recorded benchmark. What stays
-   forward: if a plain-mode kind promotes in-repo (the admonitions precedent — front matter is
-   the natural candidate), port the plain-mode battery onto the real plugin and retire the memo
-   fixture; until one does, memo remains plain mode's only consumer. The external-author gate at
-   the freeze cut stays a separate box — the run probed discoverability, not external evidence.
+2. **Plain-mode promotion: declined (owner, 2026-08-14).** Front matter was the natural
+   candidate, and the first consumer settled it the other way: limestone splits front matter
+   off at the app layer (`DocHandle.deserialize`, the editor receives the body only), which is
+   the two-plugin-systems boundary holding — front matter is vault metadata, not document
+   content. The in-repo build also carries three structural prerequisites serving no current
+   consumer: the conformance sweep has no position contract (a byte-0-gated fixture can
+   neither enroll nor be omitted), #53 makes the kind untypeable in place with the completer
+   door closed by design, and reorder drags a position-scoped block into the stale-raw
+   oracle's blind spot with no per-kind veto. Memo remains plain mode's documented consumer.
+   Revisit only on a real consumer request for editor-visible front matter; that request's
+   priced work-list is the three prerequisites above. The external-author gate at the freeze
+   cut stays a separate box — the clean-room run probed discoverability, not external evidence.
 3. **Freeze cut at release** — in order:
    - **Scoped pre-freeze re-audit** (a structured review pass, matched to what changed since 2026-07) —
      audits before milestones, not after incidents. Most of the accumulated freeze-review
