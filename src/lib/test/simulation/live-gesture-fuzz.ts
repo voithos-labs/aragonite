@@ -148,44 +148,55 @@ const escapeRegExp = (run: string): string => run.replace(/[.*+?^${}()|[\]\\]/g,
  *  so a byte against `__x__` kills the pair from either side whatever a seam answers. */
 const delimitersOnScreen = (text: string): number => (text.match(/[*~`<>[\]]/g) ?? []).length;
 
+type ScreenIssue = '#116' | '#162' | '#165';
+
 /**
- * The open ledger issue a live-only screen divergence belongs to, each pinned by its own case so a
- * fix reds the pin and takes the exclusion with it. `#162` owns every seat relocation, the seat
- * being the one live rewrite that verifies no candidate at all; `#116` is the older, narrower number
- * for the instance where the run the byte lands against is shared between a nested pair.
+ * The open ledger issue a live-only screen divergence belongs to, scoped to the SHAPE each one's own
+ * pin asserts so a fix reds the pin and takes the exclusion with it. `#116` is a byte landing against
+ * a shared asterisk run; `#162` is the unverified seat's three shapes; `#165` is the selection
+ * replace splicing typed bytes into a candidate it already verified. Everything else still gates.
  */
-function seatIssue(doc: Document, gesture: Gesture): '#116' | '#162' | null {
+function seatIssue(doc: Document, gesture: Gesture, rewrote: boolean): ScreenIssue | null {
+	// The splice happens only where the cleanup produced something to splice into.
+	if (gesture.kind === 'type-over') return rewrote ? '#165' : null;
 	if (gesture.kind !== 'type') return null;
-	const shared = gestureSites(doc, gesture).some(({ node, offset }) =>
-		[...node.raw.matchAll(/\*{3,}/g)].some(
-			(run) => offset >= run.index - 1 && offset <= run.index + run[0].length + 1
-		)
-	);
-	return shared ? '#116' : '#162';
+	for (const { node, offset } of gestureSites(doc, gesture)) {
+		const near = (start: number, end: number) => offset >= start - 1 && offset <= end + 1;
+		const runsOf = (pattern: RegExp) =>
+			[...node.raw.matchAll(pattern)].some((run) => near(run.index, run.index + run[0].length));
+		if (runsOf(/\*{3,}/g)) return '#116';
+		// A run opens and closes against a word, never whitespace, and the `_`/`~` families pair only
+		// outside one — so on those the seat's outer side kills the pair its inner side would keep.
+		if (gesture.char.trim() === '' && runsOf(/[*_~`<>[\]]+/g)) return '#162';
+		if (runsOf(/[_~]+/g)) return '#162';
+		const range = getContentRange(node);
+		const empty = (nodes: readonly InlineNode[]): boolean =>
+			nodes.some((inline) => {
+				const content = constructContentRange(inline);
+				const paintsNothing = content === null || content.start === content.end;
+				return (
+					(paintsNothing && near(inline.start, inline.end)) ||
+					(inline.children ? empty(inline.children) : false)
+				);
+			});
+		if (empty(parseInline(node.raw, range.start, range.end))) return '#162';
+	}
+	return null;
 }
 
 /**
  * The open ledger issue a live-only reload divergence belongs to, matched on the divergence the
- * oracle reports so the exclusion cannot widen past the shape that earned it.
- *
- * `#163`: a cleaned join inside a list item leaves the body starting with a space, which the reload
- * folds into the marker. `#164`: a rebalanced split whose first half comes out empty writes a block
- * the reload reads as its predecessor's separator.
+ * oracle reports AND the gesture family that owns the seam, so the exclusion cannot widen past the
+ * shape that earned it. `#163` is the join cleaner leaving a space against a list marker; `#164` is
+ * a rebalanced split whose empty first half reloads as its predecessor's separator.
  */
-function shapeIssue(divergence: string): '#163' | '#164' | null {
-	if (/listItem\.marker: live "- " != reparsed "-\s+"/.test(divergence)) return '#163';
-	const children = divergence.match(/live has (\d+) children, reparsed has (\d+)/);
-	return children && Number(children[1]) === Number(children[2]) + 1 ? '#164' : null;
-}
-
-/** Markdown's own rule rather than a seam's choice: underscore emphasis is intraword-restricted, so
- *  a byte against `__x__` from either outside edge kills the pair whatever a seat answers. */
-function intrawordUnderscore(doc: Document, gesture: Gesture): boolean {
-	return gestureSites(doc, gesture).some(({ node, offset }) =>
-		[...node.raw.matchAll(/_+/g)].some(
-			(run) => offset >= run.index - 1 && offset <= run.index + run[0].length + 1
-		)
-	);
+function shapeIssue(gesture: Gesture, divergence: string): '#163' | '#164' | null {
+	if (gesture.kind === 'enter') {
+		const children = divergence.match(/live has (\d+) children, reparsed has (\d+)/);
+		return children && Number(children[1]) === Number(children[2]) + 1 ? '#164' : null;
+	}
+	if (gesture.kind === 'type') return null;
+	return /listItem\.marker: live "- " != reparsed "-\s+"/.test(divergence) ? '#163' : null;
 }
 
 /**
@@ -204,9 +215,13 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 	return live === before || isSubsequence(inked(live), inked(literal));
 }
 
-/** Whitespace out: a join REORDERS the trivia around its seam (a trailing run moves ahead of the
- *  line endings it followed), which is the block primitive's business in every mode, and an ordered
- *  containment check would report that reordering as bytes the rewrite lost. */
+/**
+ * Whitespace out. A structural edit mints and drops line endings by design (a split adds one, an
+ * emptied block gains a separator) and a join REORDERS the run around its seam, both of which an
+ * ordered containment check reads as bytes lost. The narrowing is stated rather than hidden: these
+ * arms cannot see a dropped mid-line space. The split's own `keepsEveryByte` still can, and #106
+ * makes only TERMINAL whitespace a declared drop.
+ */
 const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
 
 /**
@@ -300,7 +315,7 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 
 	const liveShape = describeConvergence(live.doc);
 	if (liveShape && describeConvergence(literal.doc) === null) {
-		const owner = shapeIssue(liveShape);
+		const owner = shapeIssue(gesture, liveShape);
 		say('shape', owner ? 'known' : 'seam', `${owner ? `${owner} ` : ''}${liveShape}`);
 	}
 	const roundTrips = (bytes: string) => serialize(parse(bytes)) === bytes;
@@ -313,30 +328,29 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 	const liveScreen = documentContentText(live.doc);
 	const literalScreen = documentContentText(literal.doc);
 	const literalHolds = screenClaimHolds(gesture, screenBefore, literalScreen);
-	// Only the seat's own number and markdown's intraword rule reach the screen-shaped pair; a lost
-	// byte stays `seam` whatever the shape, since no rebinding can excuse one.
-	const screenCategory = (): ViolationCategory => {
-		if (!literalHolds || intrawordUnderscore(start, gesture)) return 'ambiguous';
-		return seatIssue(start, gesture) ? 'known' : 'seam';
-	};
-	const issue = seatIssue(start, gesture);
+	const issue = seatIssue(start, gesture, live.bytes !== literal.bytes);
+	// Only the seat's own numbers reach the screen-shaped pair; a lost byte or a broken reload stays
+	// `seam` whatever the shape, since no rebinding can excuse one.
+	const excused: ViolationCategory | null = issue ? 'known' : null;
 
 	if (!screenClaimHolds(gesture, screenBefore, liveScreen)) {
 		say(
 			'screen',
-			screenCategory(),
+			literalHolds ? (excused ?? 'seam') : 'ambiguous',
 			`${issue ?? ''} screen went ${JSON.stringify(screenBefore)} → ${JSON.stringify(liveScreen)}`
 		);
 	}
-	// The tie-break inside the ambiguous bucket, one-sided as it is in the seat's own net: where
-	// neither arm can keep the screen, live may still never put MORE delimiters on it than the
-	// byte-literal edit does. Outside that bucket the claim above already answers, and a literal edit
-	// that happens to FORM a construct would make this fire on a live result that is simply right.
-	if (!literalHolds && delimitersOnScreen(liveScreen) > delimitersOnScreen(literalScreen)) {
+	// One-sided, as it is in the seat's own net: whatever the parse rebinds, a rewrite may never put
+	// MORE delimiters on screen than the document already showed. Stated against BEFORE rather than
+	// against the twin, because the byte-literal edit can FORM a construct by accident and hide runs
+	// live correctly kept. A press live SWALLOWED wrote nothing, so it makes no claim at all (§ 4.4).
+	const shown = delimitersOnScreen(liveScreen);
+	if (live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
+		const alsoLiteral = delimitersOnScreen(literalScreen) >= shown;
 		say(
 			'delimiters',
-			screenCategory(),
-			`live shows ${JSON.stringify(liveScreen)} for ${JSON.stringify(literalScreen)}`
+			alsoLiteral ? 'ambiguous' : (excused ?? 'seam'),
+			`live shows ${JSON.stringify(liveScreen)} for ${JSON.stringify(screenBefore)}`
 		);
 	}
 
@@ -353,7 +367,7 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 		const owner = !minted
 			? null
 			: gesture.kind === 'type'
-				? seatIssue(start, gesture)
+				? seatIssue(start, gesture, minted)
 				: /\*{4,}/.test(live.bytes)
 					? '#136'
 					: null;
