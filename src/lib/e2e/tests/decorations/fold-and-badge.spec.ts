@@ -66,11 +66,7 @@ test.describe('fold fixture: islands in table cells', () => {
 		expect(warnings.filter(islandWarn)).toHaveLength(0);
 	});
 
-	// Deleting the island's covered range leaves the fixture's fixed-offset source providing
-	// a range the shortened cell no longer holds, which the engine skips and reports.
 	test.describe('after the covered range is gone', () => {
-		test.use({ expectWarns: ['decorations'] });
-
 		test('an edge press selects the cell fold island whole, then deletes its hidden range', async ({
 			page
 		}) => {

@@ -1,6 +1,5 @@
 import { DEV } from 'esm-env';
-import type { CstNode } from '../core/nodes';
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import {
 	groupDecorationsByAncestor,
 	groupDecorationsByPath,
@@ -19,7 +18,7 @@ import type {
 } from './types';
 import { assertInvariant } from '../invariants/assert';
 import { isCommitInProgress } from '../invariants/commit-scope';
-import { isProseKind } from '../core/inline';
+import { getContentRange, isProseKind } from '../core/inline';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { devWarn } from '../dev-warn';
 import { recordDecorationRun } from '../perf/instruments';
@@ -85,11 +84,31 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		results = copy;
 	}
 
-	// Non-prose kinds run no inline pass, so they apply no islands. Flag that at the source
-	// seam rather than leaving the author to wonder why nothing rendered.
-	function islandSkipReason(kind: CstNode['kind']): string | null {
-		if (!isProseKind(kind)) return 'islands render only in prose blocks';
-		return null;
+	/**
+	 * Why the render path will apply nothing for this island, or null when it will. The
+	 * verdict belongs here and nowhere downstream: only this pass holds the decorations
+	 * beside the document they were derived from, so only here does an unrenderable island
+	 * mean the author placed it wrong rather than the document having moved since.
+	 */
+	function islandDefect(
+		dec: WidgetDecoration | ReplaceDecoration,
+		node: NodeView
+	): { key: string; message: string } | null {
+		// Non-prose kinds run no inline pass, so they apply no islands.
+		if (!isProseKind(node.kind)) {
+			return {
+				key: `non-prose\0${node.kind}`,
+				message: `on a non-prose ${node.kind} block; islands render only in prose blocks`
+			};
+		}
+		const contentLength = getContentRange(node).end;
+		const held = `the block holds ${contentLength} content bytes`;
+		if (dec.type === 'widget') {
+			if (dec.offset >= 0 && dec.offset <= contentLength) return null;
+			return { key: 'range', message: `at offset ${dec.offset}, but ${held}` };
+		}
+		if (dec.start >= 0 && dec.start < dec.end && dec.end <= contentLength) return null;
+		return { key: 'range', message: `at ${dec.start}..${dec.end}, but ${held}` };
 	}
 
 	function warnUnrenderableIslands(sourceName: string, decs: Decoration[]): void {
@@ -99,14 +118,14 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			if (dec.type !== 'widget' && dec.type !== 'replace') continue;
 			const node = nodeAt(doc, dec.path);
 			if (!node || !isBlockNode(node)) continue;
-			const reason = islandSkipReason(node.kind);
-			if (!reason) continue;
-			const key = `${sourceName}\0${node.kind}`;
+			const defect = islandDefect(dec, node);
+			if (!defect) continue;
+			const key = `${sourceName}\0${defect.key}`;
 			if (warnedUnrenderableIslands.has(key)) continue;
 			warnedUnrenderableIslands.add(key);
 			devWarn(
 				'decorations',
-				`source '${sourceName}' places a ${dec.type} island on a non-prose ${node.kind} block; ${reason}`,
+				`source '${sourceName}' places a ${dec.type} island ${defect.message}`,
 				{ path: dec.path }
 			);
 		}

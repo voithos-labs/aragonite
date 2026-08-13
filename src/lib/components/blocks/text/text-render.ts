@@ -239,6 +239,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content));
 			islandDestroys = applyIslandDecorations(el, node.raw, islands, {
+				contentLength: getContentRange(node).end,
 				ambientLength: deps.ambientPrefixText.length,
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)

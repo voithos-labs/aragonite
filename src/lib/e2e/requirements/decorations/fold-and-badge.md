@@ -29,6 +29,5 @@ heading host. Scenarios run on `/test/plugins?seed=fold` / `?seed=fold-table` /
   bytes leave the DOM text but never leave `getSource()`, and the source seam
   raises no cells-unsupported dev-warn
 - an edge press selects the cell fold island whole and a second deletes its
-  covered range; the fixture's fixed-offset source then provides a range the
-  shortened cell no longer holds, which the engine skips and reports on the
-  `decorations` channel, so the spec declares that tag
+  covered range; the fold source is content-keyed, so it simply stops providing
+  and the session raises no dev warning

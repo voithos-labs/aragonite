@@ -3,13 +3,16 @@
  * covers. An island is an atomic inline widget, so the shared raw-offset walk reads the
  * block back byte-exact with no walker changes — a widget island spans zero bytes, and a
  * replace island's `data-source-*` span equals the raw span of the DOM it displaced.
+ *
+ * Whether a range is one the author could place at all is decided where the source and the
+ * document it read are provably the same version (`decoration-state.svelte.ts`); a range
+ * this pass cannot honour is one the document has since outgrown, so it drops silently.
  */
 
 import { DEV } from 'esm-env';
 import { ambientSpanOf } from '../ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
 import {
-	containerDomTextLength,
 	createRangeAtDomTextOffsets,
 	rawTextOfNode,
 	widgetSpanContainingOffset
@@ -29,6 +32,10 @@ export interface ApplyIslandsOpts {
 		dec: Decoration
 	) => { el: HTMLElement; destroy(): void } | null;
 	onSkipped?: (dec: Decoration, reason: string) => void; // dev-warn hook
+	/** Raw-space length of the block's rendered content — `getContentRange(node).end`, the
+	 *  CST's answer. Measuring the DOM instead would read a container this pass is itself
+	 *  mutating, and would answer in walk space rather than the offsets a decoration carries. */
+	contentLength: number;
 	/** Rendered ambient-marker length. Island offsets are raw-relative and the shared walk
 	 *  counts ambient text as ordinary text, so every boundary adds this (the
 	 *  TextEditableBlock compensation pattern). Default 0. */
@@ -45,7 +52,7 @@ export function applyIslandDecorations(
 ): Array<() => void> {
 	if (islands.length === 0) return [];
 	const ambientLength = opts.ambientLength ?? 0;
-	const contentLength = toRawOffset(containerDomTextLength(root), ambientLength);
+	const contentLength = opts.contentLength;
 	const destroys: Array<() => void> = [];
 
 	for (const { dec } of orderForApplication(islands)) {
@@ -55,10 +62,7 @@ export function applyIslandDecorations(
 	return destroys;
 
 	function applyWidget(dec: WidgetDecoration): void {
-		if (dec.offset < 0 || dec.offset > contentLength) {
-			opts.onSkipped?.(dec, 'offset outside the block content');
-			return;
-		}
+		if (dec.offset < 0 || dec.offset > contentLength) return;
 		const walkOffset = toDomTextOffset(asRawOffset(dec.offset), ambientLength);
 		const range = createRangeAtDomTextOffsets(root, walkOffset, walkOffset);
 		if (!range) {
@@ -77,10 +81,7 @@ export function applyIslandDecorations(
 	}
 
 	function applyReplace(dec: ReplaceDecoration): void {
-		if (dec.start < 0 || dec.end > contentLength || dec.start >= dec.end) {
-			opts.onSkipped?.(dec, 'range outside the block content');
-			return;
-		}
+		if (dec.start < 0 || dec.end > contentLength || dec.start >= dec.end) return;
 		// A boundary strictly inside an atomic widget snaps outward to whole-element
 		// coverage, so the island's span still equals the bytes it displaces.
 		let start = dec.start;

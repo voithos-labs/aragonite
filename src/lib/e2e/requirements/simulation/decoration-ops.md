@@ -59,7 +59,11 @@ entity is typed then deleted whole — so the document returns to the loaded byt
 ## Error cases
 
 - no console, page, or structured editor error fires across the session, including the
-  `[invariant:…]` channel
+  `[invariant:…]` channel. Miss-analysis: the two-press island delete fired a
+  `decorations` warning here because the render pass judged a decoration's range against
+  a document one edit newer than the one the source read; no test paired a source with
+  its own document, and the render-side unit suite asserted the misplaced blame as the
+  contract.
 - the live serializer round-trips the current CST, and the live CST converges with a
   reparse of its serialization, at every checkpoint
 - the nested-state audit finds no BlockListState desync after any island edit, badge
