@@ -18,6 +18,7 @@ import {
 	isInlineKindDeclared,
 	registerBlockKind,
 	registerBlockOpener,
+	registerBlockCompleter,
 	registerBlockCommand,
 	registerGlobalCommand,
 	registerInlineSyntax,
@@ -27,6 +28,7 @@ import {
 	isBlockKindDeclared,
 	isBlockKindRegistered,
 	isBlockOpenerRegistered,
+	isBlockCompleterRegistered,
 	isPasteTransformRegistered,
 	isDirectiveRegistered,
 	definePlugin,
@@ -54,6 +56,7 @@ function installProbePlugin(): void {
 		closure: testClosure
 	});
 	registerBlockOpener(block, { priority: 0, tryOpen: () => null, interruptsParagraph: false });
+	registerBlockCompleter(block, { tryComplete: () => null });
 	registerBlockCommand(block, 'probe.cmd', () => true);
 	registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' });
 	registerPasteSurface({ kind: block });
@@ -72,6 +75,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isBlockKindDeclared('probe-block')).toBe(true);
 		expect(isBlockKindRegistered('probe-block')).toBe(true);
 		expect(isBlockOpenerRegistered('probe-block')).toBe(true);
+		expect(isBlockCompleterRegistered('probe-block')).toBe(true);
 		expect(isPasteTransformRegistered('probe-transform')).toBe(true);
 		expect(isInlineKindDeclared('probe-inline')).toBe(true);
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(true);
@@ -84,6 +88,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isBlockKindDeclared('probe-block')).toBe(false);
 		expect(isBlockKindRegistered('probe-block')).toBe(false);
 		expect(isBlockOpenerRegistered('probe-block')).toBe(false);
+		expect(isBlockCompleterRegistered('probe-block')).toBe(false);
 		expect(isPasteTransformRegistered('probe-transform')).toBe(false);
 		expect(isInlineKindDeclared('probe-inline')).toBe(false);
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(false);

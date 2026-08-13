@@ -1,5 +1,6 @@
 import { __removePluginBlockKindsForTests } from './block-kind-descriptor';
 import { __removePluginComponentsForTests } from './block-component-registry';
+import { __removePluginCompletersForTests } from './block-completions';
 import { __removePluginOpenersForTests } from './block-openers';
 import {
 	__removePluginCommandsForTests,
@@ -20,6 +21,7 @@ import { __resetInstalledPluginsForTests } from './plugin-install';
 export function __resetSchemaRegistriesForTests(): void {
 	__removePluginBlockKindsForTests();
 	__removePluginComponentsForTests();
+	__removePluginCompletersForTests();
 	__removePluginOpenersForTests();
 	__removePluginCommandsForTests();
 	__resetBlockCommandsForTests();
