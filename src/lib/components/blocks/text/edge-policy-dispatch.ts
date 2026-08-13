@@ -104,6 +104,24 @@ export interface EdgePolicyDispatch {
 	/** A plain edge key against a caret-adjacent construct. Returns whether the event
 	 *  was consumed; a false return leaves the key to the shared keymap below. */
 	handleKeydown(e: KeyboardEvent, caretOffset: RawOffset | null): boolean;
+	/** The declared order `handleKeydown` walks, ids and reasons only. The ORDER is the seam
+	 *  (G4.12), so it is readable rather than something a test can only re-derive. */
+	readonly arms: readonly { id: string; reason: string }[];
+}
+
+/**
+ * One gesture family's claim on a keydown, in the order the families outrank each other. Declared
+ * rather than a chain of `if`s so a new family is a visible entry carrying its reason. Deliberately
+ * NOT policy rows: this is a total order over FAMILIES, where a row answers a per-construct
+ * question — the split is asserted by `test/invariants/lint/policy-arm-census.test.ts`.
+ */
+interface DispatchArm {
+	id: string;
+	reason: string;
+	/** A CUT ends the dispatch UNCLAIMED when it fires, leaving the key to the keymap below;
+	 *  every other arm consumes the event. */
+	cut?: boolean;
+	claims: (e: KeyboardEvent, caretOffset: RawOffset | null) => boolean;
 }
 
 export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePolicyDispatch {
@@ -482,25 +500,68 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		return true;
 	}
 
+	// ── The declared order ─────────────────────────────────────────────────────
+
+	const arms: readonly DispatchArm[] = [
+		{
+			id: 'pending-marks',
+			reason:
+				'an explicit instruction about the very next byte, so it outranks every classification below, which decide by where the caret happens to be',
+			claims: handlePendingMarks
+		},
+		{
+			id: 'cst-widget',
+			reason: 'a key aimed at an atomic construct is the widget branch’s before any byte rule',
+			claims: handleCstWidget
+		},
+		{
+			id: 'reading-mode',
+			reason:
+				'islands and the ambient marker are destructive-only view guards, so reading skips every arm below; the widget arm above still selects, committing nothing',
+			cut: true,
+			claims: () => deps.isReading()
+		},
+		{
+			id: 'decoration-island',
+			reason: 'a view-only range with no on-screen bytes of its own to eat',
+			claims: handleIsland
+		},
+		{
+			id: 'ambient-marker',
+			reason:
+				'a selection into the ambient span blocks native delete silently, with no beforeinput',
+			claims: (e) => handleAmbient(e)
+		},
+		// The four below claim only what would otherwise reach native editing or the block-merge
+		// command; the more specific families above still own a key aimed at one of theirs.
+		{
+			id: 'hidden-suffix-delete',
+			reason: 'the merge this press would reach concatenates past the block’s own hidden structure',
+			claims: handleHiddenSuffixDelete
+		},
+		{
+			id: 'construct-edge-delete',
+			reason: 'a destructive key beside an unpainted delimiter run takes content, never a marker',
+			claims: handleConstructEdgeDelete
+		},
+		{
+			id: 'marker-completion',
+			reason: 'the container re-emits this space itself, so writing it here would double it',
+			claims: handleMarkerCompletion
+		},
+		{
+			id: 'construct-seat',
+			reason: 'the DOM caret cannot express which side of a zero-width run a typed byte belongs on',
+			claims: handleConstructSeat
+		}
+	];
+
 	function handleKeydown(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
-		// First: a pending mark is an explicit instruction about the very next byte, so it
-		// outranks every classification below, which decide by where the caret happens to be.
-		if (handlePendingMarks(e, caretOffset)) return true;
-		if (handleCstWidget(e, caretOffset)) return true;
-		// Islands and the ambient marker are destructive-only view guards, so reading mode
-		// skips both wholesale; the widget branch above still selects, committing nothing.
-		if (deps.isReading()) return false;
-		if (handleIsland(e, caretOffset)) return true;
-		if (handleAmbient(e)) return true;
-		// Last: the more specific construct classes above still own a key aimed at one of
-		// theirs, and these claim only what would otherwise reach native editing or the
-		// block-merge command.
-		if (handleHiddenSuffixDelete(e, caretOffset)) return true;
-		if (handleConstructEdgeDelete(e, caretOffset)) return true;
-		if (handleMarkerCompletion(e, caretOffset)) return true;
-		if (handleConstructSeat(e, caretOffset)) return true;
+		for (const arm of arms) {
+			if (arm.claims(e, caretOffset)) return arm.cut !== true;
+		}
 		return false;
 	}
 
-	return { handleKeydown };
+	return { handleKeydown, arms };
 }

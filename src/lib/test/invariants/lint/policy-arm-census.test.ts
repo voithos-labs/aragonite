@@ -125,8 +125,9 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 	{
 		path: 'src/lib/components/blocks/text/edge-policy-dispatch.ts',
 		detection: 'declared',
-		fate: 'backlog',
-		reason: 'seven literal dispatch lines; the order becomes a declared arm list'
+		fate: 'outside',
+		reason:
+			'a declared arm list, and never rows: this is a total order over gesture FAMILIES, where a row answers a per-construct question — the reading-mode cut is an entry in that order for the same reason'
 	},
 	{
 		path: 'src/lib/components/blocks/text/link-source-bytes.ts',
@@ -165,11 +166,11 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 ];
 
 /**
- * The backlog's high-water mark. It only ever decrements: each migration deletes its entries and
- * edits this number down, so a commit that adds a hand-written arm has to argue for it in review
- * rather than absorb it into slack.
+ * The backlog's high-water mark, now empty: every live gesture rule is a row, a decided `outside`,
+ * or a `deferred` with what blocks it. It only ever decrements, so a commit that adds a
+ * hand-written arm has to argue for it in review rather than absorb it into slack.
  */
-const BACKLOG_CEILING = 1;
+const BACKLOG_CEILING = 0;
 
 const backlog = HAND_WRITTEN_ARMS.filter((arm) => arm.fate === 'backlog');
 const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kind-literal');
