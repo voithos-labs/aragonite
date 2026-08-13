@@ -118,7 +118,7 @@ A container builds its reactive state and a default action bundle from the `edit
 
 **`createBlockListState(() => node)`** — the scope's `innerBlockIds` / `innerBlockRefs`.
 
-Pass the node **as a getter, never by value.** A by-value argument freezes on the node your container mounted with and misses undo's deep-clone reassignment — the state silently points at a tree nobody is rendering. This is the incident behind culture.md's "reactive state crosses module boundaries as getters, never values", and invariant G4.1 scans every call site in the editor for it.
+Pass the node **as a getter, never by value.** A by-value argument freezes on the node your container mounted with and misses undo's deep-clone reassignment — the state silently points at a tree nobody is rendering. This is the incident behind rules.md's "reactive state crosses module boundaries as getters, never values" (`casebook.md`), and invariant G4.1 scans every call site in the editor for it.
 
 **`createStandardNestedActions(state, deps, overrideFactory?)`** — a complete `{ blockEdit, focus, containerEdit }` bundle. Its methods handle the split/merge/delete/content/replace ceremony uniformly, and Backspace-at-start dispatches by the kind's declared `unwrapRole`. Containers needing custom behavior pass an `overrideFactory`: it receives the fully-built default bundle and returns per-sub-interface partial overrides, which chain back by calling `defaults.blockEdit.splitBlock(...)` directly. The override set is visible at the call site and type-checked against each sub-interface — no post-construction method reassignment.
 

@@ -118,7 +118,7 @@ jobs:
             full, trace call sites and related modules, and verify every finding against the
             real code — don't review from the raw diff alone.
 
-            Read docs/contributing/culture.md first for the project's incident-backed rules, then
+            Read docs/contributing/rules.md first for the project's incident-backed rules, then
             orient from docs/design/editor.md and read the design doc for any
             subsystem the diff touches. aragonite is a CST-based GFM
             markdown block editor where the CST is the single source of truth; pay special
@@ -134,7 +134,7 @@ jobs:
               mishandling, wrong state transitions, missing error handling at
               boundaries, broken control flow, stale derived state, authorization gaps,
               leaked secrets.
-            - Invariant violations (per docs/contributing/culture.md + the design docs): the items above.
+            - Invariant violations (per docs/contributing/rules.md + the design docs): the items above.
             - Test quality: would a new/changed test catch a regression, or is it
               happy-path-only / asserting mocks? Missing error and edge cases? For e2e,
               does it drive real keyboard/mouse rather than programmatic shortcuts?
