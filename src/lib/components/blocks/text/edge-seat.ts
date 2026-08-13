@@ -7,7 +7,7 @@
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import { constructContentRange } from '../../../core/inline';
-import { renderedText } from '../../../core/inline-render';
+import { renderedText, type VisibilityContext } from '../../../core/inline/visibility';
 import type { ContentRange } from '../../../core/inline';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 
@@ -25,9 +25,10 @@ export function resolveEdgeSeat(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
-	raw?: string
+	raw: string,
+	screen: VisibilityContext
 ): EdgeSeat | null {
-	const run = markerRunAt(caretOffset, inlines, raw);
+	const run = markerRunAt(caretOffset, inlines, raw, screen);
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
@@ -52,11 +53,12 @@ export function relocateComposedRun(
 	after: string,
 	composedAt: number,
 	inlines: readonly InlineNode[],
-	affinity: EdgeAffinity | null
+	affinity: EdgeAffinity | null,
+	screen: VisibilityContext
 ): { raw: string; caret: number } | null {
 	const composed = plainInsertionAt(before, after, composedAt);
 	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before);
+	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen);
 	if (!seat) return null;
 	return {
 		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
@@ -97,12 +99,13 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 function markerRunAt(
 	offset: number,
 	inlines: readonly InlineNode[],
-	raw: string | undefined
+	raw: string,
+	screen: VisibilityContext
 ): MarkerRun | null {
 	let found: MarkerRun | null = null;
 	const visit = (nodes: readonly InlineNode[]): void => {
 		for (const node of nodes) {
-			const content = constructContentRange(node) ?? paintedRange(node, raw);
+			const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
 			if (content) {
 				if (node.start < content.start && offset >= node.start && offset <= content.start) {
 					found = { start: node.start, end: content.start, leading: true, kind: node.kind };
@@ -120,10 +123,16 @@ function markerRunAt(
 /**
  * What a CHILDLESS construct paints, as a range in the block's own bytes. Asked of the render path
  * rather than derived per kind: which bytes a construct shows only the painter answers (G4.33).
+ * The block's OWN reading, not the content one: where its chrome paints, the whole construct is on
+ * screen, no run is hidden, and the seat has nothing to relocate.
  */
-function paintedRange(node: InlineNode, raw: string | undefined): ContentRange | null {
-	if (raw === undefined || node.kind === 'text') return null;
-	const painted = renderedText([node], raw);
+function paintedRange(
+	node: InlineNode,
+	raw: string,
+	screen: VisibilityContext
+): ContentRange | null {
+	if (node.kind === 'text') return null;
+	const painted = renderedText([node], raw, screen);
 	if (painted === '') return null;
 	// lastIndexOf, not indexOf: a self-similar shape (`\\` paints `\`) matches at its own leading
 	// marker too, and every childless kind paints a suffix-or-whole slice.

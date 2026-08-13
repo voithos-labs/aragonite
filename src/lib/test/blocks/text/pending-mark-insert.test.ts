@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
-import { renderedText } from '$lib/core/inline-render';
+import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '$lib/cursor/pending-marks';
 import type { InlineNode } from '$lib/core/nodes';
@@ -46,7 +46,7 @@ function kindsAround(raw: string, probe: string): string[] {
 /** What a reader sees, asked of the renderer. The hand-written walk that stood here counted an
  *  angle autolink's `<`/`>` as content, so it could not see them surface. */
 function visibleText(raw: string): string {
-	return renderedText(parseInline(raw, 0, raw.length), raw);
+	return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
 }
 
 describe('applying a mark the chain does not carry', () => {

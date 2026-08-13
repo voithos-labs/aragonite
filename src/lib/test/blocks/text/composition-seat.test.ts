@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
+import { screenVisibility } from '$lib/core/inline/visibility';
 import type { InlineMarkKind } from '$lib/cursor/pending-marks';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 
@@ -26,6 +27,7 @@ function makeSeat(live: Live) {
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
 		getAffinity: () => live.affinity,
+		getScreen: () => screenVisibility('live', { chromePaints: false }),
 		consumePendingMarks: () => live.marks,
 		getRawSelection: () => live.range,
 		resolveRangeEdit: (range, typed) => {

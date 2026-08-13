@@ -61,7 +61,8 @@
 		landableStartAbutsIsland,
 		rawTextOfNode,
 		createRangeAtDomTextOffsets,
-		revealsNoMarkers
+		revealsNoMarkers,
+		screenVisibilityOf
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
 	import {
@@ -383,6 +384,7 @@
 		getDisplayText: () => getDisplayText(),
 		getInlines: () => resolvedInlineContent(node, linkRef),
 		getAffinity: () => edgeAffinity.get(),
+		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: () => pendingMarks.consume(),
 		getRawSelection: () => cursor.getRawSelection(),
 		// The same join seam `handleLiveSelectionEdit` takes, in the display bytes the seat's

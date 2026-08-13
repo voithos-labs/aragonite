@@ -4,6 +4,7 @@ import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { resolveEdgeSeat } from '../../components/blocks/text/edge-seat';
+import { screenVisibility } from '../../core/inline/visibility';
 import type { EdgeAffinity } from '../../cursor/edge-affinity';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
@@ -32,6 +33,9 @@ const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
  * chose the wrong side. Every asterisk-spelled pair stays in, and they carry the same class.
  */
 const DELIMITERS = '*~`<>\\';
+
+/** Every fixture is a block holding content, so its chrome hides: the live reading. */
+const LIVE = screenVisibility('live', { chromePaints: false });
 
 /**
  * The DOM the block actually paints, marker subtrees skipped. Deliberately the painter rather
@@ -118,7 +122,13 @@ function typeThroughSeat(
 	caret: number,
 	affinity: EdgeAffinity | null
 ): { after: string; relocated: boolean } {
-	const seat = resolveEdgeSeat(caret, parseInline(display, 0, display.length), affinity, display);
+	const seat = resolveEdgeSeat(
+		caret,
+		parseInline(display, 0, display.length),
+		affinity,
+		display,
+		LIVE
+	);
 	const at = seat?.offset ?? caret;
 	return { after: display.slice(0, at) + 'Z' + display.slice(at), relocated: seat !== null };
 }

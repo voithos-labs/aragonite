@@ -21,7 +21,7 @@ const REWRITE_MODULES = [
 ];
 
 /** The one home for "what the reader sees", the module DECLARING the slots, and their one reader. */
-const ORACLE_HOME = 'src/lib/core/inline-render.ts';
+const ORACLE_HOME = 'src/lib/core/inline/visibility.ts';
 const SLOT_HOME = 'src/lib/schema/inline-construct-policy.ts';
 const SLOT_READER = 'src/lib/tree-operations/node-ops.ts';
 
@@ -52,12 +52,28 @@ const readsSlot = (file: SourceFile): boolean =>
 	file.relPath !== SLOT_HOME &&
 	/(?<![\w.])(getLiveJoinSeamCleaner|getLiveSplitRebalancer)\s*\(/.test(stripComments(file.text));
 
-/** A private CODE answer to "which spans does a marker-hiding mode drop", which only the render
- *  path may hold. A component's own `<style>` block names the same classes to PAINT them, a
- *  different question G4.30's manifest already holds, so `.svelte` files sit this arm out. */
-const stripsMarkerSpans = (file: SourceFile): boolean =>
+/**
+ * Every file naming an inline marker family in code, and what it does with it. Only the oracle
+ * may answer "which of these spans does a marker-hiding mode drop"; the rest mint the class,
+ * identify their own span, or probe it. The spelling is deliberately loose — the CSS form and the
+ * `classList` form are the same claim, and requiring the leading dot let the second one through.
+ * A component's own `<style>` block names the classes to PAINT them, a different question G4.30's
+ * manifest holds, so `.svelte` files sit this arm out.
+ */
+const MARKER_FAMILY_NAMERS: Record<string, string> = {
+	'src/lib/core/inline/visibility.ts': 'the oracle: states the families and drops what hides',
+	'src/lib/core/inline-render.ts': 'mints the spans the oracle then reads back',
+	'src/lib/cursor/widget-offset.ts':
+		'identifies the ambient island, whose contenteditable="false" marker is no family of the rule',
+	'src/lib/ambient/ambient-dom.ts': 'mints that same island',
+	'src/lib/components/blocks/text/text-render.ts': "mints the block's own prefix span",
+	'src/lib/components/blocks/code/code-renderer.ts': 'mints the fence marker spans',
+	'src/lib/invariants/marker-css-parity.ts': 'mounts one probe span per family for the DEV probe'
+};
+
+const namesMarkerFamily = (file: SourceFile): boolean =>
 	!file.relPath.endsWith('.svelte') &&
-	/['"][^'"]*\.md-(marker|ref-label)/.test(stripComments(file.text));
+	/['"][^'"]*md-(marker|ref-label)/.test(stripComments(file.text));
 
 /** Naming the range at all is the tripwire: an alias, a bracket index and a helper forward all
  *  still spell the name once. Comment mentions are out of scope through the shared strip. */
@@ -81,9 +97,13 @@ describe('live-rewrite verification source-scan', () => {
 		expect(REWRITE_MODULES.filter((path) => !namesRenderedText(byPath(path)!))).toEqual([]);
 	});
 
-	it('only the render path decides which spans a marker-hiding mode drops', () => {
-		const derivers = sources.filter(stripsMarkerSpans).map((file) => file.relPath);
-		expect(derivers).toEqual([ORACLE_HOME]);
+	it('every file naming an inline marker family is manifested with what it does with it', () => {
+		const namers = sources.filter(namesMarkerFamily).map((file) => file.relPath);
+		expect(
+			namers.sort(),
+			'a file started naming marker classes: route the drop question through the oracle, or ' +
+				'add it to MARKER_FAMILY_NAMERS saying what it does instead'
+		).toEqual(Object.keys(MARKER_FAMILY_NAMERS).sort());
 	});
 
 	it('the registered seam slots have exactly one reader', () => {
@@ -127,10 +147,12 @@ describe('live-rewrite verification source-scan', () => {
 		expect(namers.sort()).not.toEqual(Object.keys(PRE_DELETE_NAMERS).sort());
 	});
 
-	it('the span matcher sees a private strip of either class', () => {
-		const probe = (text: string) => stripsMarkerSpans({ relPath: 'x', text, code: '' });
+	it('the family matcher sees either class in either spelling', () => {
+		const probe = (text: string) => namesMarkerFamily({ relPath: 'x', text, code: '' });
 		expect(probe("el.querySelectorAll('.md-marker')")).toBe(true);
 		expect(probe("const SEL = '.md-ref-label, b';")).toBe(true);
+		// The spelling the dot-anchored matcher could not see.
+		expect(probe("el.classList.contains('md-marker')")).toBe(true);
 		expect(probe("el.querySelectorAll('.block')")).toBe(false);
 	});
 });

@@ -6,7 +6,11 @@
  */
 
 import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
-import { renderedText } from '../../../core/inline-render';
+import {
+	CONTENT_VISIBILITY,
+	renderedText,
+	type VisibilityContext
+} from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 
@@ -23,9 +27,9 @@ export interface EdgeDeletionQuery {
 	content: ContentRange;
 	caret: number;
 	direction: DeleteDirection;
-	/** Whether the block's chrome stands over no content and therefore paints (live-mode.md
-	 *  § 4.1). Required, so a second caller cannot inherit the hiding assumption by silence. */
-	chromePaints: boolean;
+	/** How the block reads on screen. Required, so a second caller cannot inherit the hiding
+	 *  assumption by silence. */
+	screen: VisibilityContext;
 	/** The inline tree the render painted from, so the runs skipped here are the runs hidden. */
 	inlines: readonly InlineNode[];
 }
@@ -50,8 +54,9 @@ export type EdgeDeletion = EdgeDeletionWrite | EdgeDeletionSwallow;
  */
 export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | null {
 	// Painted delimiters are bytes the reader saw, so no run here is this arm's to protect and the
-	// license to drop one (live-mode.md § 2) does not reach: the press is the engine's.
-	if (query.chromePaints) return null;
+	// license to drop one (live-mode.md § 2) does not reach: the press is the engine's. Every
+	// oracle call below is past this gate, which is why they can all take the content reading.
+	if (query.screen.chromePaints) return null;
 	const { display, content, caret, direction } = query;
 	const constructs = policyConstructs(query.inlines);
 	const target = deletionTarget(display, constructs, content, caret, direction);
@@ -68,7 +73,7 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 
 	const before = visibleText(display);
 	const removed = target.atomic
-		? renderedText([target.atomic], display)
+		? renderedText([target.atomic], display, CONTENT_VISIBILITY)
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
@@ -228,8 +233,9 @@ function removesExactly(before: string, after: string, removed: string): boolean
 	);
 }
 
-/** What a reader sees, asked of the thing that paints it: the render path's own DOM with every
- *  marker span dropped. A private walk over the parse cannot know which bytes a kind hides. */
+/** What a reader sees, asked of the thing that paints it. The content reading, not the block's
+ *  own: a cut that empties a construct folds its chrome INTO view, and the diff below would read
+ *  that arrival as bytes lost. */
 function visibleText(raw: string): string {
-	return renderedText(parseInline(raw, 0, raw.length), raw);
+	return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
 }

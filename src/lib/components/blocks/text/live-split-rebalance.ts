@@ -10,7 +10,7 @@ import {
 	isProseKind,
 	parseInline
 } from '../../../core/inline';
-import { renderedText } from '../../../core/inline-render';
+import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
@@ -268,7 +268,8 @@ export function parsesBack(
 	if (candidate.droppedTail !== undefined && candidate.droppedTail.trim() !== '') return false;
 	const whole = renderedText(
 		parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver),
-		bytes.raw
+		bytes.raw,
+		CONTENT_VISIBILITY
 	);
 	if (!whole.startsWith(first.visible)) return false;
 	// The line ending the cut landed on is the one character a split legitimately consumes; a
@@ -287,7 +288,10 @@ function soleProseBlock(raw: string, resolver: LinkReferenceResolver | undefined
 	const block = blocks[0];
 	const range = getContentRange(block);
 	const nodes = parseInline(block.raw, range.start, range.end, resolver);
-	return { visible: renderedText(nodes, block.raw), kinds: constructKinds(nodes) };
+	return {
+		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY),
+		kinds: constructKinds(nodes)
+	};
 }
 
 function constructKinds(nodes: readonly InlineNode[]): Set<AnyInlineKind> {

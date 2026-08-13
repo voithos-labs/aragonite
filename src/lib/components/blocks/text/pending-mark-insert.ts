@@ -6,7 +6,7 @@
  */
 
 import { constructContentRange, parseInline } from '../../../core/inline';
-import { renderedText } from '../../../core/inline-render';
+import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
@@ -217,9 +217,11 @@ function enclosingKinds(
 }
 
 /** What a reader sees, asked of the thing that actually paints it: only the render path knows
- *  which bytes a kind paints as markers (G4.33), so no private walk over the parse. */
+ *  which bytes a kind paints as markers (G4.33), so no private walk over the parse. The content
+ *  reading, not the block's own: the first byte typed into content-empty chrome folds it away, and
+ *  the diff above would read that fold as bytes lost. */
 function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
-	return renderedText([...(parsed ?? parseInline(raw, 0, raw.length))], raw);
+	return renderedText([...(parsed ?? parseInline(raw, 0, raw.length))], raw, CONTENT_VISIBILITY);
 }
 
 // ── The chain ────────────────────────────────────────────────────────────────

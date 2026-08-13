@@ -3,6 +3,8 @@
  * raw.slice. Atomic widgets break that by design, contributing their own text or none and
  * carrying source bytes on `data-source-*`, so a raw offset is recovered only through the shared
  * walk (cursor/widget-offset.ts), never by counting textContent. Stated both ways by G2.4.
+ *
+ * Which of the spans minted here a mode leaves on screen is `inline/visibility.ts`.
  */
 
 import type { InlineNode } from './nodes';
@@ -416,26 +418,6 @@ export function renderInlineNodes(
 		if (child !== null) stack.push(child);
 	}
 	return root.content;
-}
-
-/**
- * The text a reader SEES for `nodes` — the rendered DOM minus every span the marker-hiding modes
- * drop. Lives here because this file decides which bytes become which span (G4.30): a caller
- * re-deriving that drifts from what actually paints, which is the only thing the answer is worth
- * anything as. The reference label is in the list because the same CSS hides it.
- */
-export function renderedText(
-	nodes: InlineNode[],
-	raw: string,
-	opts: RenderInlineOptions = {}
-): string {
-	const fragment = renderInlineNodes(nodes, raw, opts);
-	// The CSS qualifies its hide with `:not([contenteditable='false'])`; the strip does not need to,
-	// because nothing here mints a marker span with that attribute — ambient and widget chrome does,
-	// and neither carries a marker class. A marker span that ever gains it owes this line the same
-	// qualifier.
-	for (const span of fragment.querySelectorAll('.md-marker, .md-ref-label')) span.remove();
-	return fragment.textContent ?? '';
 }
 
 // ── Cursor mapping ───────────────────────────────────────────────────────────

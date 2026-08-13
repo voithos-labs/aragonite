@@ -7,6 +7,14 @@
  */
 
 import { hidesMarkers, isPreviewMode, type PresentationMode } from '../presentation-mode';
+import {
+	familyHidesText,
+	familyPaintsAlone,
+	markerFamilyOf,
+	screenVisibility,
+	type MarkerFamily,
+	type VisibilityContext
+} from '../core/inline/visibility';
 import { asDomTextOffset, toClampedRawOffset, type DomTextOffset } from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
@@ -207,9 +215,9 @@ export function createRangeAtDomTextOffsets(
 
 /**
  * Whether `node` is text the mode CSS paints nothing for — a marker span's own text under a
- * marker-hiding mode with no reveal on it. Detected structurally against the CSS families in
- * `styles/editor.css`, never by layout: a `getComputedStyle` per keystroke is not affordable,
- * so the selector vocabulary here and the stylesheet's move together.
+ * marker-hiding mode with no reveal on it. Detected structurally against the families in
+ * `core/inline/visibility.ts`, never by layout: a `getComputedStyle` per keystroke is not
+ * affordable, so that vocabulary and `styles/editor.css` move together.
  */
 export function isHiddenMarkerText(node: Node, container: HTMLElement): boolean {
 	if (node.nodeType !== Node.TEXT_NODE || !container.contains(node)) return false;
@@ -244,12 +252,16 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 }
 
 /**
- * Whether this block's marker chrome stands over no content and therefore PAINTS (live-mode.md
- * § 4.1). The reader sees those bytes, so a seam holding a license over unseen ones has nothing
- * to claim here.
+ * How this container's bytes read on screen: its mode and its content-empty stamp, resolved here
+ * so a rewrite seam needs no marker vocabulary of its own. Chrome standing over no content PAINTS
+ * (live-mode.md § 4.1), and a seam holding a license over unseen bytes has nothing to claim there.
+ * An unmounted surface reads as source, where nothing hides and no rewrite has a run to move.
  */
-export function chromeStandsAlone(container: ParentNode): boolean {
-	return chromeStandsAloneUnder(container, markerHidingMode(container));
+export function screenVisibilityOf(container: ParentNode | null): VisibilityContext {
+	return screenVisibility(
+		container === null ? 'source' : (markerHidingMode(container) ?? 'source'),
+		{ chromePaints: container instanceof Element && container.hasAttribute(CONTENT_EMPTY_ATTR) }
+	);
 }
 
 /**
@@ -282,18 +294,21 @@ export function landableDomTextBounds(container: ParentNode): {
 }
 
 /**
- * Whether every byte `container` holds is chrome of a family the empty-construct override paints:
- * at least one such span, and no landable text or widget behind it. The stamp condition the render
- * path writes as `data-content-empty` and the walk reads back — computed WITHOUT reading the stamp,
- * or each render would flip the previous one's answer.
+ * Whether every byte `container` holds is marker chrome, at least one span of it a family the
+ * empty-construct override paints. The stamp condition the render path writes as
+ * `data-content-empty` and the walk reads back — computed WITHOUT reading the stamp, or each
+ * render would flip the previous one's answer. Membership and paintability are separate
+ * questions: a reference label is chrome that stays hidden, so it is not content standing behind
+ * the stamp, and it is not the paint the stamp promises either.
  */
 export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 	let chrome = false;
 	for (const seg of walkSegments(container, null)) {
 		if (seg.len === 0) continue;
 		if (seg.kind === 'widget') return false;
-		if (markerRootOf(seg.node, container) !== null) {
-			chrome = true;
+		const marker = markerRootOf(seg.node, container);
+		if (marker !== null) {
+			chrome ||= familyPaintsAlone(marker.family);
 			continue;
 		}
 		// The ambient island keeps its box in every mode, so it neither hides the block nor
@@ -381,39 +396,21 @@ function markerHidingMode(container: ParentNode): PresentationMode | null {
 	return mode !== null && hidesMarkers(mode) ? mode : null;
 }
 
-/**
- * The `display:none` families. `:not([contenteditable="false"])` scopes to `.md-marker`
- * exactly as the stylesheet does — that arm is what excludes the ambient prefix (which is
- * `visibility:hidden`, keeps its box, and belongs to `ambient/ambient-cursor.ts`) and the
- * `.directive-marker` chrome (which also sits outside every walk container).
- */
-function isMarkerSpan(el: Element): boolean {
-	const classes = el.classList;
-	if (classes.contains('md-marker')) return el.getAttribute('contenteditable') !== 'false';
-	return classes.contains('md-fence-line') || classes.contains('md-ref-label');
-}
-
-/** The two families the stamped-container override paints (`styles/editor.css`, same mode
- *  scoping). A ref label is resolution metadata rather than chrome a caret types against, so
- *  it stays hidden either way — the JS arm and the CSS arm must name the same two. */
-function paintsWhenChromeStandsAlone(el: Element): boolean {
-	return isMarkerSpan(el) && !el.classList.contains('md-ref-label');
-}
-
-/** Nearest ancestor between `node` and `root` whose own text is paintable chrome. */
-function markerRootOf(node: Node, root: ParentNode): Element | null {
+/** Nearest ancestor between `node` and `root` whose own text is marker chrome, with the family
+ *  that decides what the stamped-container override does with it. */
+function markerRootOf(node: Node, root: ParentNode): { el: Element; family: MarkerFamily } | null {
 	for (let el = node.parentElement; el && el !== root; el = el.parentElement) {
-		if (paintsWhenChromeStandsAlone(el)) return el;
+		const family = markerFamilyOf(el);
+		if (family !== null) return { el, family };
 	}
 	return null;
 }
 
-/** Whether `root` carries the content-empty stamp under a mode that paints it. Reading is
- *  excluded: it takes no keystrokes, so a construct with nothing behind its chrome is allowed
- *  to paint nothing there. */
+/** Whether `root` carries the content-empty stamp under a mode that paints it. */
 function chromeStandsAloneUnder(root: ParentNode, mode: PresentationMode | null): boolean {
-	if (mode === null || mode === 'reading' || !(root instanceof Element)) return false;
-	return root.hasAttribute(CONTENT_EMPTY_ATTR);
+	if (mode === null || !(root instanceof Element)) return false;
+	return screenVisibility(mode, { chromePaints: root.hasAttribute(CONTENT_EMPTY_ATTR) })
+		.chromePaints;
 }
 
 /**
@@ -431,10 +428,11 @@ function inAmbientIsland(node: Node, root: ParentNode): boolean {
 }
 
 function hidesOwnText(el: Element, mode: PresentationMode, chromePaints: boolean): boolean {
-	if (!isMarkerSpan(el)) return false;
-	// Chrome with nothing behind it paints, so the caret has a position of its own — the
-	// stylesheet's `[data-content-empty]` override under the same two modes and two families.
-	if (chromePaints && paintsWhenChromeStandsAlone(el)) return false;
+	const family = markerFamilyOf(el);
+	// The shared rule first (the stylesheet's `[data-content-empty]` override among it); the
+	// reveal arms below are per-span DOM state, which only this side of the model can see.
+	if (family === null || !familyHidesText(family, screenVisibility(mode, { chromePaints })))
+		return false;
 	if (mode !== 'preview-block' && mode !== 'preview-inline') return true;
 	if (!el.closest(FOCUSED_HOST_SELECTOR)) return true;
 	if (mode === 'preview-block') return false;
