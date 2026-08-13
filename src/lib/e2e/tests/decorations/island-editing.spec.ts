@@ -12,12 +12,21 @@ import { primaryModifier } from '../../platform';
 
 const ISLAND = '[data-decoration-island]';
 
+// Both sources place their island at a FIXED offset — that is what pins the offset
+// convention across marker shapes — but decline once the block no longer holds the bytes,
+// because a source is a pure function of the document it is handed.
 async function addReplaceIsland(page: Page, path: number[], start: number, end: number) {
 	await page.evaluate(
 		({ path, start, end }) => {
+			let node: any = null;
 			(window as any).__test.decorations.addSource({
 				name: 'e2e-replace-island',
-				provide: () => [{ type: 'replace', path, start, end, class: 'e2e-island' }]
+				provide: (doc: any) => {
+					node = doc;
+					for (const index of path) node = node?.children?.[index];
+					const held = node ? String(node.raw).replace(/\r?\n$/, '').length : 0;
+					return held >= end ? [{ type: 'replace', path, start, end, class: 'e2e-island' }] : [];
+				}
 			});
 		},
 		{ path, start, end }
@@ -27,16 +36,23 @@ async function addReplaceIsland(page: Page, path: number[], start: number, end: 
 async function addWidgetIsland(page: Page, path: number[], offset: number) {
 	await page.evaluate(
 		({ path, offset }) => {
+			let node: any = null;
 			(window as any).__test.decorations.addSource({
 				name: 'e2e-widget-island',
-				provide: () => [
-					{
-						type: 'widget',
-						path,
-						offset,
-						widget: { buildDom: () => document.createElement('span') }
-					}
-				]
+				provide: (doc: any) => {
+					node = doc;
+					for (const index of path) node = node?.children?.[index];
+					const held = node ? String(node.raw).replace(/\r?\n$/, '').length : 0;
+					if (held < offset) return [];
+					return [
+						{
+							type: 'widget',
+							path,
+							offset,
+							widget: { buildDom: () => document.createElement('span') }
+						}
+					];
+				}
 			});
 		},
 		{ path, offset }
@@ -98,11 +114,7 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 	});
 
-	// Each of these deletes the island's hidden range, so the fixture's fixed-offset source
-	// then provides a range the shortened block no longer holds and the engine skips it.
 	test.describe('the two-press delete', () => {
-		test.use({ expectWarns: ['decorations'] });
-
 		test('Backspace against a replace island selects it whole, then deletes it in one undo', async ({
 			page
 		}) => {

@@ -201,6 +201,7 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 		container.appendChild(renderInlineNodes(parseInline(source, 0, source.length), source));
 		applyIslandDecorations(container, source, toIslands(specs, source.length), {
 			...opts,
+			contentLength: source.length,
 			ambientLength: prefix?.length ?? 0
 		});
 		if (prefix === undefined) return rawTextOfNode(container, source);

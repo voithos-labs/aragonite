@@ -156,11 +156,11 @@ describe('createDecorationEngine', () => {
 		const engine = makeEngine();
 		engine.addSource({
 			name: 'isl',
-			provide: () => [widget([0], 5), replace([0], 2, 3), widget([0], 0), mark([0])]
+			provide: () => [widget([0], 3), replace([0], 1, 2), widget([0], 0), mark([0])]
 		});
 		const islands = engine.islandsForPath([0]);
 		const positions = islands.map((i) => (i.dec.type === 'widget' ? i.dec.offset : i.dec.start));
-		expect(positions).toEqual([0, 2, 5]);
+		expect(positions).toEqual([0, 1, 3]);
 	});
 
 	it('marksForDescendants reads the ancestor bucket; blockDecorationsForPath returns block decorations', () => {
@@ -258,5 +258,69 @@ describe('non-prose island dev-warn', () => {
 		handle.invalidate();
 		engine.notifyEdit();
 		expect(takeDevWarns(), 'subsequent runs stay quiet').toEqual([]);
+	});
+});
+
+// Miss-analysis: the render pass owned the out-of-range verdict, and no test paired a source
+// with the document it read — so a decoration one edit stale was indistinguishable from one
+// the author placed wrong, and the engine blamed the author for its own deferred re-run.
+describe('out-of-range island dev-warn', () => {
+	// 'one\n' and 'two\n': content length 3 apiece.
+	function makeSized() {
+		return createDecorationEngine({ getDoc: () => doc });
+	}
+
+	it('warns naming the source and the block content length when a replace range overruns it', () => {
+		makeSized().addSource({ name: 'r', provide: () => [replace([0], 1, 9)] });
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain("source 'r' places a replace island at 1..9");
+		expect(fires[0].message).toContain('block holds 3 content bytes');
+		expect(fires[0].details).toEqual({ path: [0] });
+	});
+
+	it('warns for a widget offset past the content, and for an empty or inverted replace range', () => {
+		for (const dec of [widget([0], 4), replace([0], 2, 2), replace([0], 3, 1)]) {
+			makeSized().addSource({ name: 's', provide: () => [dec] });
+			expect(takeDevWarns(), JSON.stringify(dec)).toHaveLength(1);
+		}
+	});
+
+	it('stays silent at the exact content bounds', () => {
+		makeSized().addSource({ name: 'edge', provide: () => [widget([0], 3), replace([1], 0, 3)] });
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	// The trailing newline is not content: a range covering it is out of bounds, so the
+	// engine's answer must be `getContentRange`, never `raw.length`.
+	it('measures against the content range, not the raw bytes', () => {
+		makeSized().addSource({ name: 'nl', provide: () => [replace([0], 0, 4)] });
+		expect(takeDevWarns()).toHaveLength(1);
+	});
+
+	// A setext heading's underline is raw the render path never paints, so its content
+	// range stops short of the block's own display length.
+	it('respects a kind whose content range stops before the raw ends', () => {
+		const setext = parse('head\n====\n');
+		const engine = createDecorationEngine({ getDoc: () => setext });
+		engine.addSource({ name: 'setext', provide: () => [replace([0], 0, 6)] });
+		expect(takeDevWarns()).toHaveLength(1);
+	});
+
+	it('warns once per source, not per re-run', () => {
+		const engine = makeSized();
+		const handle = engine.addSource({ name: 'r', provide: () => [replace([0], 1, 9)] });
+		expect(takeDevWarns()).toHaveLength(1);
+		handle.invalidate();
+		engine.notifyEdit();
+		expect(takeDevWarns(), 'subsequent runs stay quiet').toEqual([]);
+	});
+
+	// The two defects are distinct verdicts: sharing a dedupe slot would swallow whichever
+	// arrived second.
+	it('reports a range defect even after the same source reported a non-prose one', () => {
+		const engine = createDecorationEngine({ getDoc: () => mixedDoc });
+		engine.addSource({ name: 'both', provide: () => [widget([1], 0), replace([0], 0, 99)] });
+		expect(takeDevWarns()).toHaveLength(2);
 	});
 });
