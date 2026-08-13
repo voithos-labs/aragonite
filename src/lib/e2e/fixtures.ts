@@ -31,7 +31,6 @@ export const test = base.extend<WarnFixtures>({
 		};
 		page.on('console', onConsole);
 		await use(page);
-		page.off('console', onConsole);
 
 		// `assertInvariant` relays under the `invariant:` tag prefix, so the two option lists
 		// meet in one namespace and one watch covers both classes.
@@ -45,12 +44,13 @@ export const test = base.extend<WarnFixtures>({
 		);
 
 		// Console delivery to the Node listener is async, so a required fire may still
-		// be in flight when the test body ends; poll rather than read once.
+		// be in flight when the test body ends; poll rather than read once, listener still on.
 		if (expected.size > 0) {
 			await expect
 				.poll(() => [...expected].filter((tag) => !fires.some((f) => f.tag === tag)))
 				.toEqual([]);
 		}
+		page.off('console', onConsole);
 
 		const hasEditor = await page
 			.evaluate(

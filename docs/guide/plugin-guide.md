@@ -915,6 +915,8 @@ afterEach(() => {
 
 `setDevWarnSink` returns the sink it replaced, so a nested harness can restore rather than clear. A registered sink takes reporting over: nothing reaches the console while yours is installed, and each entry carries the guard's `tag`, its `message`, and any `details`.
 
+One prerequisite, or the gate is green because it is blind: warnings emit only while the editor env reads as a dev build outside a test runner it recognizes. Vitest is detected automatically; under any other runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true, isTest: false })` (same table, above) in your setup first and `resetEditorEnv()` in teardown.
+
 ### The conformance battery — registering a kind enrolls it
 
 `runKindConformance(kind)` executes the headless half of your kind's `closure` block. It derives one cell per cross-cutting system from the block and your `conformanceFixture`, and runs the part that needs no browser now: it round-trips the fixture (and, for a container, checks `rebuildRaw` is deterministic), holds Backspace-merge eligibility to your `mergeRole`, confirms an `inherit-default` clipboard copies as a plain byte slice, checks one structural op is one undo entry, and asserts a `not-supported` search cell genuinely finds nothing. Cells whose mechanism only exists in the browser — focus, selection and search paint, reorder, the simulation oracle — are recorded `boundary`, run by the e2e sweep rather than stubbed green.
