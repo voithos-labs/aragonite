@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
 //
 // `edge-seat :: paintedRange` reads a CHILDLESS construct's painted span as the outer bounds of
-// its visible runs, and the seat then treats everything before that span as one leading marker run
-// and everything after as one trailing one. That rests on the runs being CONTIGUOUS: a hidden run
-// in the middle would put the seat's written offset inside bytes the reader can see.
-// The claim was prose in the function's header. It is a property rather than a dev assertion
-// because it is about the render path's output SHAPE for a class of nodes, which drawn documents
-// can falsify and a keystroke-time assertion could only observe — and the seat runs on the gated
-// live keystroke path, where a per-press `visibleRuns` call is a cost the claim does not need.
+// its visible runs, and carves the two marker runs out of what is left. That rests on the runs
+// being CONTIGUOUS: a hidden run in the middle would put the seat's written offset inside bytes
+// the reader can see. A property over drawn documents rather than a keystroke-time assertion —
+// the claim is about the render path's output shape for a class of nodes, not about an instance.
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { constructContentRange, parseInline } from '$lib/core/inline';
