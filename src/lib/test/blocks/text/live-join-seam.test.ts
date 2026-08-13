@@ -231,9 +231,14 @@ describe('a side that is painting chrome is not a stranded run', () => {
 // dangling run. Miss-analysis: the two shapes were never contrasted, so a kind-level column looked
 // like it could replace the arity test that produces both answers.
 describe('a cut inside a construct with no content declines', () => {
-	it('declines inside an empty link, whose kind is otherwise rejoinable', () => {
-		expect(sameBlock('A [](u) B\n', 4, 8)).toBeNull();
-	});
+	// 3 is the empty content point itself, where no delimiter run is cut and the node's own arity
+	// is all that is left to decline on; 4 is inside the closer, which the run test also catches.
+	it.each([3, 4])(
+		'declines inside an empty link cut at %i, a kind otherwise rejoinable',
+		(from) => {
+			expect(sameBlock('A [](u) B\n', from, 8)).toBeNull();
+		}
+	);
 
 	it('still cleans the same cut inside a link that has text', () => {
 		expect(sameBlock('A [a](u) B\n', 3, 9)).toBe('A B\n');
