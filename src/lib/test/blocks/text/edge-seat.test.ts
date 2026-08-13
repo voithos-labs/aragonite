@@ -117,6 +117,13 @@ describe('a childless construct is all delimiters', () => {
 	it('declines inside the painted URL', () => {
 		expect(seatIn('<https://e.com> x', 6, 'outside')).toBeNull();
 	});
+
+	// An entity paints a glyph that is none of its bytes, so its whole span reads as painted and
+	// neither end is a run. The widget arm of the dispatch owns a caret there.
+	it('declines at either end of an entity widget', () => {
+		expect(seatIn('a&copy;b', 1, 'near')).toBeNull();
+		expect(seatIn('a&copy;b', 7, 'far')).toBeNull();
+	});
 });
 
 // The IME half: `insertCompositionText` is not cancelable, so the composed run is relocated on
