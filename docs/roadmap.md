@@ -78,8 +78,10 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      checklist, and the interactive-tutorial direction resolved to demo-embedded material
      only); an anatomy-of-a-change case study traced from the gap-caret arc; the PR
      flow and external-contributor setup; dev-loop friction retired or documented (the SSR
-     registrar-poison class was structurally fixed in 0.9.27 — dev re-registration replaces
-     instead of throwing; only the chorded plugin-global-command residual remains); a first pass of curated entry-level issues. The bar stays
+     registrar-poison class was structurally fixed in 0.9.27, dev re-registration replaces
+     instead of throwing, chorded plugin-global commands included; the residual is that
+     editing a plugin's own definition still wants a reload, a unit installing first-wins per
+     process); a first pass of curated entry-level issues. The bar stays
      high — the reading order is what changes.
    - Final contract reconciliation; **pre-freeze labels come off** — the `(pre-freeze)` section
      markers in `src/lib/plugin.ts` are the published signal telling an external author which

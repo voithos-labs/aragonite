@@ -111,35 +111,58 @@ of it is a copy that rots, and the gate only guards the original.
 
 The question this answers: a document is windowed, the block you must touch is not mounted, and you
 need its DOM. Undo restore, a search jump, a consumer's `setSelection`, and a cross-block collapse
-all hit this. It gets a paragraph because the chain runs through most of the rendering stack and no
-single file along it names the whole road.
+all hit this. It gets its own section because the chain runs through most of the rendering stack and
+no single file along it names the whole road.
 
-There are two primitives and callers choose deliberately.
-`src/lib/components/Editor.svelte` :: `revealPath` is the **mount** primitive: it makes the target
-exist, and promises nothing about the viewport. `src/lib/editor-rects.ts` :: `createEditorRects`
-wraps it as `scrollTo`, which claims, mounts, scrolls, and settles. A history swap injects the bare
-mount, so undo does not yank the viewport; a navigation injects the scrolling one.
+```mermaid
+flowchart TD
+    CALLER["a caller that must touch DOM"] --> PICK{"which primitive?"}
+    PICK -->|"mount only (a history swap)"| MOUNT["reveal the path"]
+    PICK -->|"mount + viewport (a navigation)"| SCROLL["claim, mount, scroll, settle"]
+    SCROLL --> MOUNT
+    MOUNT --> LEVEL["descend one path level"]
+    LEVEL --> SLOT{"child's ref slot populated?"}
+    SLOT -->|yes| NEXT["next level"]
+    SLOT -->|no| WRITE["the scope writes scrollTop<br/>from the height model"]
+    WRITE --> INWIN{"index still in window?"}
+    INWIN -->|"provably not"| GIVEUP["give up now; the caller<br/>degrades to path state (VR-5)"]
+    INWIN -->|yes| PUB["the list re-slices, the host<br/>mounts and publishes its ref"]
+    PUB -->|"the publish wakes the wait"| NEXT
+    NEXT --> LEVEL
+    LEVEL -->|"path exhausted"| CARET["place the real caret"]
+```
 
-The walk, in order. A caller that must touch DOM asks for a reveal instead of reaching for an
-element. `src/lib/selection/selection-restore.ts` :: `restoreSelection` decides which path actually
-needs to be on screen (a table endpoint reveals its deep cell, a gap caret reveals the block it
-sits against) and hands that to the injected reveal. The scrolling wrapper claims
+**Two primitives, and callers choose deliberately.** `src/lib/components/Editor.svelte` ::
+`revealPath` is the **mount** primitive: it makes the target exist, and promises nothing about the
+viewport. `src/lib/editor-rects.ts` :: `createEditorRects` wraps it as `scrollTo`, which claims,
+mounts, scrolls, and settles. A history swap injects the bare mount, so undo does not yank the
+viewport; a navigation injects the scrolling one.
+
+**A caller asks for a reveal instead of reaching for an element.**
+`src/lib/selection/selection-restore.ts` :: `restoreSelection` decides which path actually needs to
+be on screen (a table endpoint reveals its deep cell, a gap caret reveals the block it sits against)
+and hands that to the injected reveal.
+
+**The scroll claim is taken before the first await.** The scrolling wrapper claims
 `src/lib/cursor/reveal-anchor.ts` :: `createRevealAnchorState` _before_ its first await, so the
-pointerdown that triggered the jump cannot release its own pin. Then `revealPath` descends the path
-one level at a time. At each level it calls `src/lib/reactivity/publish-ref.svelte.ts` ::
-`revealChildOrWait`, which short-circuits when the child's ref slot is already populated and
-otherwise asks the scope's `revealChild` (`src/lib/reactivity/list-windowing.svelte.ts` ::
+pointerdown that triggered the jump cannot release its own pin, and the final scroll is skipped if a
+newer reveal superseded the claim.
+
+**The descent waits on a publish, never a timer.** `src/lib/reactivity/publish-ref.svelte.ts` ::
+`revealChildOrWait` short-circuits when the child's ref slot is already populated, and otherwise
+asks the scope's `revealChild` (`src/lib/reactivity/list-windowing.svelte.ts` ::
 `createListWindowing`) to write `scrollTop` straight from the height model's offset for that index.
-After that scroll it re-checks `isInWindow`: this is the termination guarantee, VR-5. If the
-recomputed window provably excludes the index, the reveal gives up now rather than awaiting a mount
-that can never fire, and the caller degrades to operating on path state. If the index is in window,
 `src/lib/components/BlockList.svelte` re-slices, `src/lib/components/BlockHost.svelte` mounts and
-publishes its ref, and publishing wakes the pending wait. Event-driven, not a timer. The descent
-recurses into the freshly published ref. Back at the top, the wrapper scrolls (skipping it if a
-newer reveal superseded the claim) and then settles: a bounded loop that re-reads the rect after
-each flush and stops once the block holds still, which is what survives images decoding above the
-target and collapsing the document under it. Only then does
-`src/lib/selection/native-bridge.ts` :: `applySelectionToDom` place the real caret.
+publishes its ref, and publishing wakes the pending wait.
+
+**The window re-check is the termination guarantee, VR-5.** After that scroll the reveal re-reads
+`isInWindow`. A recomputed window that provably excludes the index ends the reveal now rather than
+awaiting a mount that can never fire.
+
+**Settling outlives the scroll.** A bounded loop re-reads the rect after each flush and stops once
+the block holds still, which is what survives images decoding above the target and collapsing the
+document under it. Only then does `src/lib/selection/native-bridge.ts` :: `applySelectionToDom`
+place the real caret.
 
 Nested containers re-enter the same road through
 `src/lib/reactivity/use-container-windowing.svelte.ts`, and a table's rows and cells through its own
