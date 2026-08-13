@@ -67,7 +67,8 @@ function islandDeps(
 		enterWidget: () => {},
 		isReading: () => false,
 		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		installedAs: 'block'
 	};
 }
 

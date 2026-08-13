@@ -60,7 +60,8 @@ function mount(source: string, mode?: string): Harness {
 		enterWidget: () => {},
 		isReading: () => false,
 		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		installedAs: 'block'
 	};
 	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
 }

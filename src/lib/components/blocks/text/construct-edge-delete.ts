@@ -39,7 +39,14 @@ export interface EdgeDeletionQuery {
 	screen: VisibilityContext;
 	/** The inline tree the render painted from, so the runs skipped here are the runs hidden. */
 	inlines: readonly InlineNode[];
+	/** What the caller installs the rewrite as, which is what the candidate is read back as.
+	 *  Required for the same reason `screen` is: a cell's text is never a block. */
+	installedAs: EdgeDeletionSurface;
 }
+
+/** A prose surface installs a block; a table cell installs cell text, whose bytes read as a list or
+ *  a quote the moment they open with `- ` or `> ` though the cell paints neither. */
+export type EdgeDeletionSurface = 'block' | 'cell';
 
 export interface EdgeDeletionWrite {
 	/** The block's whole display bytes after the cut. */
@@ -78,14 +85,14 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 		isDelimiterByte(constructs, target.start - 1) || isDelimiterByte(constructs, target.end);
 	if (!touchesHiddenRun && plain.start === native.start && plain.end === native.end) return null;
 
-	const before = visibleText(display);
+	const before = visibleText(display, query.installedAs);
 	if (before === null) return null;
 	const removed = target.atomic
 		? renderedText([target.atomic], display, CONTENT_VISIBILITY)
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
-		const after = visibleText(raw);
+		const after = visibleText(raw, query.installedAs);
 		if (after === null || !removesExactly(before, after, removed)) continue;
 		// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
 		// only moves when it swallowed delimiters ahead of it.
@@ -243,16 +250,20 @@ function removesExactly(before: string, after: string, removed: string): boolean
 }
 
 /**
- * What a reader sees, asked of the thing that paints it, over the bytes read back as the BLOCK the
- * caller is about to install: a cut can abut two runs into another block's opener, and null refuses
- * that candidate. The content reading, not the block's own — a cut that empties a construct folds
- * its chrome into view, and the diff would read that arrival as bytes lost; sound because the
- * painting-chrome case returned at the door.
+ * What a reader sees, asked of the thing that paints it, over the bytes read back the way `surface`
+ * installs them — null where they do not read back at all. The content reading, not the block's
+ * own: a cut that empties a construct folds its chrome into view, and the diff would read that
+ * arrival as bytes lost; sound because the painting-chrome case returned at the door.
  */
-function visibleText(raw: string): string | null {
+function visibleText(raw: string, surface: EdgeDeletionSurface): string | null {
+	// Cell text is never a block, so it reads as its inline content and nothing else can refuse it.
+	if (surface === 'cell')
+		return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
 	// A cut that empties the block is the one candidate with no block to read: emptied is a shape
 	// the reload keeps, so it answers for itself rather than through the parser.
 	if (raw === '') return '';
+	// A candidate that re-reads as another block is not what the caller is about to install: a cut
+	// can abut two literal runs into a fence opener, which on reload swallows every block below.
 	const blocks = parse(raw, { scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];

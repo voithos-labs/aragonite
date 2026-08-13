@@ -339,7 +339,8 @@
 		},
 		isReading: () => readOnly,
 		getEdgeAffinity: () => edgeAffinity.get(),
-		pendingMarks
+		pendingMarks,
+		installedAs: 'cell'
 	});
 
 	// ── BlockComponent interface ────────────────────────────────────────

@@ -73,7 +73,8 @@ function mount(source: string, rawSelection: { start: number; end: number } | nu
 		enterWidget: () => {},
 		isReading: () => false,
 		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		installedAs: 'block'
 	};
 	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, text, marker, edits };
 }
