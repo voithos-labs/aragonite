@@ -4,8 +4,16 @@ import fc from 'fast-check';
 import type { CstNode, Document } from '$lib/core/nodes';
 import { isBlankParagraph, parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { deleteNode, splitNode, updateNodeContent } from '$lib/tree-operations';
+import {
+	deleteNode,
+	mergeIntoPrevDeepLeaf,
+	mergeWithNext,
+	splitNode,
+	updateNodeContent
+} from '$lib/tree-operations';
+import { isMergeEligible } from '$lib/schema/merge-rules';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { settled } from '$lib/test/harness/settle-funnel';
 import { keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { displayLength, trailingLineEnding } from '$lib/core/lines';
@@ -23,10 +31,17 @@ import type { PresentationMode } from '$lib/presentation-mode';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(424242) } as const;
 
+/**
+ * The corpus plus the trailing blank line the parse folds into `doc.suffix`. Drawn here rather
+ * than in the shared arbitrary, which every suite's seeds ride on: no source it produces carries
+ * one, so every tail-materialization arm in the settle was dead by construction (findings R2-F1).
+ */
+const arbDoc = arbBlankSeparatedGfmDoc.chain((source) => fc.constantFrom(source, source + '\n'));
+
 // The gestures whose separator handling the blank-line rule governs: Enter, block delete, a
-// content commit, and typing into a blank BLOCK. A deep-leaf merge writes a leaf's raw without
-// reparsing its kind, a separate contract this oracle would report against.
-type Gesture = { op: 'split' | 'delete' | 'update' | 'fill' | 'empty'; at: number; offset: number };
+// content commit, typing into a blank BLOCK, and the join in both directions.
+type GestureOp = 'split' | 'delete' | 'update' | 'fill' | 'empty' | 'mergePrev' | 'mergeNext';
+type Gesture = { op: GestureOp; at: number; offset: number };
 
 // `fill` is drawn by its own property below rather than joining this list: a fourth arm re-rolls
 // every seed of the three-gesture stream, trading the coverage it has for coverage it hasn't.
@@ -41,6 +56,9 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 	if (count === 0) return;
 	if (gesture.op === 'fill') return applyFill(doc, gesture.at);
 	if (gesture.op === 'empty') return applyEmpty(doc, gesture.at);
+	if (gesture.op === 'mergePrev' || gesture.op === 'mergeNext') {
+		return applyMerge(doc, gesture.at, gesture.op);
+	}
 	const at = gesture.at % count;
 	const node: CstNode = doc.children[at];
 	// Prose leaves only. A container descends to its leaf and a fence takes the newline into
@@ -51,15 +69,18 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 		node.children === undefined && getBlockKindDescriptor(node.kind).supportsInline === true;
 	switch (gesture.op) {
 		case 'split':
-			if (isProseLeaf)
-				splitNode(doc, at, Math.min(gesture.offset, displayLength(node.raw)), mode, undefined);
+			if (isProseLeaf) {
+				const offset = Math.min(gesture.offset, displayLength(node.raw));
+				settled(doc, (body) => splitNode(body, at, offset, undefined, mode, undefined).change);
+			}
 			return;
 		case 'delete':
-			deleteNode(doc, at);
+			settled(doc, (body) => deleteNode(body, at));
 			return;
 		case 'update':
 			// Typing into the block, keeping its kind: the shape must still reload as it stands.
-			updateNodeContent(doc, at, node.raw);
+			// The content door DOES carry the suffix (`block-edit.updateBlockContent`).
+			settled(doc, () => updateNodeContent(doc, at, node.raw));
 			return;
 	}
 }
@@ -73,7 +94,43 @@ function applyFill(doc: Document, at: number): void {
 	const blanks = doc.children.flatMap((node, i) => (isBlankParagraph(node) ? [i] : []));
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
-	updateNodeContent(doc, target, 'x' + trailingLineEnding(doc.children[target].raw));
+	const text = 'x' + trailingLineEnding(doc.children[target].raw);
+	settled(doc, () => updateNodeContent(doc, target, text));
+}
+
+/**
+ * GH #61's class, out of the join lane as it is out of the split lane: where INDENTATION decides
+ * the reading, a block reads whatever lands beside it as its own body whatever separator stands,
+ * and a join reports that pre-existing fold rather than the blank-line rule this oracle guards.
+ * Both ways in: a neighbour that reads by indentation, and a blank line carrying whitespace, which
+ * a join prepends to the surviving bytes as indentation of its own.
+ */
+function readsByIndentation(node: CstNode): boolean {
+	if (node.children === undefined) {
+		return (
+			getBlockKindDescriptor(node.kind).supportsInline !== true || /^[ \t]/.test(node.raw ?? '')
+		);
+	}
+	return node.kind === 'list' || node.children.some(readsByIndentation);
+}
+
+/**
+ * Backspace and Delete across a block boundary, indexed over the merge-eligible adjacent pairs
+ * so the draw always lands on one. Both doors: the forward one reparses the concatenation, the
+ * backward one writes prev's deepest prose leaf — different sinks, one shape contract (GH #166).
+ */
+function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): void {
+	if (doc.children.some(readsByIndentation)) return;
+	const pairs = doc.children.flatMap((node, i) =>
+		i > 0 && isMergeEligible(doc.children[i - 1].kind, node.kind) ? [i] : []
+	);
+	if (pairs.length === 0) return;
+	const i = pairs[at % pairs.length];
+	settled(doc, (body) =>
+		op === 'mergePrev'
+			? (mergeIntoPrevDeepLeaf(body, i, undefined, undefined, undefined)?.change ?? { op: 'noop' })
+			: mergeWithNext(body, i - 1, undefined, undefined).change
+	);
 }
 
 /** A prose leaf plus the container holding it and the ancestors whose raw the write rebuilds. */
@@ -101,11 +158,13 @@ function applyEmpty(doc: Document, at: number): void {
 	if (slots.length === 0) return;
 	const { holder, index, chain } = slots[at % slots.length];
 	const children = holder.children!;
-	const parent =
-		holder === doc
-			? doc
-			: { children, ownerKind: (holder as CstNode).kind, owner: holder as CstNode };
-	updateNodeContent(parent, index, trailingLineEnding(children[index].raw));
+	const text = trailingLineEnding(children[index].raw);
+	// A container body settles inside its own commit scope, which has no document tail to fold.
+	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text));
+	else {
+		const owner = holder as CstNode;
+		updateNodeContent({ children, ownerKind: owner.kind, owner }, index, text);
+	}
 	for (let i = chain.length - 1; i >= 0; i--) {
 		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
 	}
@@ -118,6 +177,25 @@ function applyEmpty(doc: Document, at: number): void {
  */
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
 const lineCount = (t: string) => t.split('\n').length;
+
+/**
+ * What a JOIN may not spend: every non-whitespace byte survives somewhere in the result.
+ * One-directional and whitespace-blind by design — a join legitimately eats the separating
+ * blank line (whose bytes can be spaces and tabs) and legitimately MINTS bytes when it lands
+ * inside a container, whose continuation markers re-prefix the absorbed lines.
+ */
+function keepsEveryContentByte(before: string, after: string): boolean {
+	const counted = (text: string) => {
+		const counts = new Map<string, number>();
+		for (const byte of text.replace(/\s/g, '')) counts.set(byte, (counts.get(byte) ?? 0) + 1);
+		return counts;
+	};
+	const kept = counted(after);
+	for (const [byte, n] of counted(before)) {
+		if ((kept.get(byte) ?? 0) < n) return false;
+	}
+	return true;
+}
 
 function divergenceAfterEdit(
 	source: string,
@@ -146,13 +224,18 @@ function divergenceAfterEdit(
 	if (gesture.op === 'split' && lineCount(bytes) < lineCount(before)) {
 		return `split dropped a line ending: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
 	}
+	// A truncating join leaves halves that reload as themselves, so the shape oracle above is blind
+	// to it: the lost line's bytes are simply no longer there to disagree (GH #166's forward sink).
+	if (gesture.op.startsWith('merge') && !keepsEveryContentByte(before, bytes)) {
+		return `${gesture.op} dropped content bytes: ${JSON.stringify(before)} → ${JSON.stringify(bytes)}`;
+	}
 	return null;
 }
 
 describe('G2.13 shape fixed point across load → edit → reload', () => {
 	it('every gesture leaves a tree that reloads to its own shape', () => {
 		fc.assert(
-			fc.property(arbBlankSeparatedGfmDoc, arbGesture, (source, gesture) => {
+			fc.property(arbDoc, arbGesture, (source, gesture) => {
 				const divergence = divergenceAfterEdit(source, gesture);
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
@@ -164,7 +247,7 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 	// blankness and the transition the blank-line rule lives on was unreachable by construction.
 	it('typing into a blank block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
-			fc.property(arbBlankSeparatedGfmDoc, fc.nat({ max: 6 }), (source, at) => {
+			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
 				const divergence = divergenceAfterEdit(source, { op: 'fill', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),
@@ -172,12 +255,28 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
+	// GH #166: the join had no gesture here at all, so neither sink was ever read back — the
+	// forward one dropped every block past the first, the backward one wrote a leaf whose own
+	// reload disagreed with it. Its own property for the same reason `fill` has one.
+	it.each(['mergePrev', 'mergeNext'] as const)(
+		'%s leaves a tree that reloads to its own shape',
+		(op) => {
+			fc.assert(
+				fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
+					const divergence = divergenceAfterEdit(source, { op, at, offset: 0 });
+					if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
+				}),
+				PARAMS
+			);
+		}
+	);
+
 	// GH #96: the mirror of the fill. Blanking a leaf beside indentation-delimited content
 	// re-reads the bytes, so the content-commit door absorbs the seam its neighbours now make,
 	// the way the split and delete doors do (GH #61's class).
 	it('emptying a block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
-			fc.property(arbBlankSeparatedGfmDoc, fc.nat({ max: 6 }), (source, at) => {
+			fc.property(arbDoc, fc.nat({ max: 6 }), (source, at) => {
 				const divergence = divergenceAfterEdit(source, { op: 'empty', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),

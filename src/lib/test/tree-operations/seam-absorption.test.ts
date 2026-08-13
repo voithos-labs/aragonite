@@ -16,7 +16,7 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 		const doc = parse(source);
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'indentedCode', 'list']);
 
-		const result = splitNode(doc, 0, 21, undefined, undefined);
+		const result = splitNode(doc, 0, 21, undefined, undefined, undefined);
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list', 'list']);
 		expect(doc.children[1].raw).toBe('- | --- |\n\n    code\n');

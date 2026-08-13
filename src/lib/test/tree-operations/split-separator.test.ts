@@ -19,7 +19,7 @@ import { takeDevWarns } from '$lib/test/support/warn-gate';
 describe('split separator — the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 'Hello world'.length, undefined, undefined);
+		splitNode(doc, 0, 'Hello world'.length, undefined, undefined, undefined);
 		doc.children[1].raw = 'x\n';
 
 		expect(describeConvergence(doc)).toBeNull();
@@ -28,7 +28,7 @@ describe('split separator — the half that absorbs gets one', () => {
 
 	it('Enter mid-paragraph reparses as two blocks', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 5, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, undefined);
 
 		expect(describeConvergence(doc)).toBeNull();
 		expect(serialize(doc)).toBe('Hello\n\n world\n');
@@ -36,7 +36,7 @@ describe('split separator — the half that absorbs gets one', () => {
 
 	it('the separator takes the block line ending, not a literal LF', () => {
 		const doc = parse('Hello world\r\n');
-		splitNode(doc, 0, 5, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, undefined);
 
 		expect(doc.children[1].leadingTrivia).toBe('\r\n');
 	});
@@ -48,6 +48,7 @@ describe('split separator — the half that absorbs gets one', () => {
 			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
 			0,
 			'Risk noted,'.length,
+			undefined,
 			undefined,
 			undefined
 		);
@@ -71,7 +72,7 @@ describe('split separator — the empty half that needs one', () => {
 	for (const [name, source, offset] of emptyHalfBecomesBlock) {
 		it(`${name}`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, offset, undefined, undefined);
+			splitNode(doc, 0, offset, undefined, undefined, undefined);
 			expect(doc.children[1].leadingTrivia).toBe('\n');
 			expect(describeConvergence(doc)).toBeNull();
 		});
@@ -89,21 +90,21 @@ describe('split separator — the halves that close get none', () => {
 	for (const [name, source, offset] of swallowsTheBlank) {
 		it(`${name}`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, offset, undefined, undefined);
+			splitNode(doc, 0, offset, undefined, undefined, undefined);
 			expect(doc.children[1].leadingTrivia).toBe('');
 		});
 	}
 
 	it('an offset-0 split, whose first half is the empty placeholder', () => {
 		const doc = parse('Hello\n');
-		splitNode(doc, 0, 0, undefined, undefined);
+		splitNode(doc, 0, 0, undefined, undefined, undefined);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(serialize(doc)).toBe('\nHello\n');
 	});
 
 	it('a successor already carrying the run’s separator', () => {
 		const doc = parse('one\n\ntwo\n');
-		splitNode(doc, 0, 3, undefined, undefined);
+		splitNode(doc, 0, 3, undefined, undefined, undefined);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(serialize(doc)).toBe('one\n\n\ntwo\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -116,7 +117,7 @@ describe('split separator — the promoted first half', () => {
 	// the real head line where the prose stand-in survives.
 	it('a half promoted to a table separates off the head its rows would absorb (#100)', () => {
 		const doc = parse('| H0 | H1 |\n| --- | --- | --- |\n\n---\n');
-		splitNode(doc, 0, 21, undefined, undefined);
+		splitNode(doc, 0, 21, undefined, undefined, undefined);
 
 		expect(doc.children[1].leadingTrivia).toBe('\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -156,7 +157,7 @@ describe('split separator — the probe line', () => {
 		// The consequence, pinned so the guard's warning is not the only record: a claimed probe
 		// makes the separator read as doing nothing, and every paragraph split loses it.
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 5, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, undefined);
 		expect(doc.children[1].leadingTrivia).toBe('');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
 	});

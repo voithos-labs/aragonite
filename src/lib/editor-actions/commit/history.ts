@@ -24,7 +24,8 @@ export function createHistoryActions(
 		});
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
-		deps.setBlockIds(entry.blockIds);
+		// A copy: live state splices this array in place, and the entry stays on the stack.
+		deps.setBlockIds([...entry.blockIds]);
 		// The tick belongs to the doc swap above, not to the restore: the new tree
 		// must render before the shared seam can reveal or address anything in it.
 		await tick();

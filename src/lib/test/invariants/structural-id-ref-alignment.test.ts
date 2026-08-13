@@ -37,12 +37,16 @@ interface TopHarness {
 	refs: () => (BlockComponent | undefined)[];
 }
 
-function makeTop(raws: string[]): TopHarness {
-	// Blank-separated like a parsed document: a tight paragraph pair is a lazy continuation,
-	// which the seam settle now absorbs the way a reload would (GH #61).
-	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(
-		raws.map((r, i) => ({ ...makeNode('paragraph', r), leadingTrivia: i > 0 ? '\n' : '' }))
-	);
+const makeTop = (raws: string[]): TopHarness => makeTopFrom(raws.join('\n'));
+
+/**
+ * Blank-separated like a parsed document — a tight paragraph pair is a lazy continuation, which
+ * the seam settle absorbs the way a reload would (GH #61) — plus the trailing blank line the
+ * parse folds into `suffix`. A children-only fixture cannot hold one, which left every arm that
+ * spends it unreachable from this lane (GH #168).
+ */
+function makeTopFrom(source: string): TopHarness {
+	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(parse(source + '\n'));
 	const controller = createUndoController(deps);
 	const actions = createBlockEditActions(deps, controller);
 	const reorder = createReorderAction(deps, controller);
@@ -121,6 +125,19 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 
 		assertAligned(h);
 		expect(h.ids()).toEqual([id1, id0, id2]);
+	});
+
+	// GH #168: the settle materializes the document's folded line when a delete leaves the tail
+	// blank, and a change that does not report the growth costs one id on the NEXT commit.
+	it('a delete whose settle mints the folded tail line keeps arrays aligned', async () => {
+		const h = makeTopFrom('alpha\n\n\nbeta\n');
+
+		await h.actions.deleteBlock(2);
+		assertAligned(h);
+		expect(h.doc.children).toHaveLength(3);
+
+		await h.actions.deleteBlock(0);
+		assertAligned(h);
 	});
 
 	it('round-trip stays byte-stable across a sequence of ops', async () => {

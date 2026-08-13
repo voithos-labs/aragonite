@@ -216,6 +216,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						{ children: itemChildren, ownerKind: itemScope.node.kind, owner: itemScope.node },
 						innerIndex,
 						offset,
+						sharing,
 						deps.getPresentationMode?.(),
 						deps.linkRef
 					);

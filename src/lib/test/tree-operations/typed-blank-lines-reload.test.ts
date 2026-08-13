@@ -14,8 +14,8 @@ const layout = (nodes: readonly CstNode[]): [string, string, string][] =>
 /** "1", Enter, Enter, "2" — the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {
 	const doc = parse('1\n');
-	splitNode(doc, 0, 1, undefined, undefined);
-	splitNode(doc, 1, 0, undefined, undefined);
+	splitNode(doc, 0, 1, undefined, undefined, undefined);
+	splitNode(doc, 1, 0, undefined, undefined, undefined);
 	updateNodeContent(doc, 2, '2\n');
 	return doc;
 }
@@ -23,9 +23,9 @@ function typeOneEnterEnterTwo(): Document {
 describe('a typed blank line survives the reload', () => {
 	it('holds the Enter-split byte policy', () => {
 		const doc = parse('1\n');
-		splitNode(doc, 0, 1, undefined, undefined);
+		splitNode(doc, 0, 1, undefined, undefined, undefined);
 		expect(serialize(doc)).toBe('1\n\n\n');
-		splitNode(doc, 1, 0, undefined, undefined);
+		splitNode(doc, 1, 0, undefined, undefined, undefined);
 		expect(serialize(doc)).toBe('1\n\n\n\n');
 		updateNodeContent(doc, 2, '2\n');
 		expect(serialize(doc)).toBe('1\n\n\n2\n');
@@ -66,7 +66,7 @@ describe('a lone blank document is the block you type into', () => {
 describe('typing into the blank line an Enter opened', () => {
 	it('takes back the separator the blank line was standing in for', () => {
 		const doc = parse('Hello world\n\nSecond paragraph\n');
-		splitNode(doc, 0, 11, undefined, undefined);
+		splitNode(doc, 0, 11, undefined, undefined, undefined);
 		expect(serialize(doc)).toBe('Hello world\n\n\nSecond paragraph\n');
 
 		updateNodeContent(doc, 1, 'x\n');
@@ -77,7 +77,7 @@ describe('typing into the blank line an Enter opened', () => {
 
 	it('mints none at the tail, where the blank half already carried one', () => {
 		const doc = parse('Hello world\n');
-		splitNode(doc, 0, 11, undefined, undefined);
+		splitNode(doc, 0, 11, undefined, undefined, undefined);
 		updateNodeContent(doc, 1, 'x\n');
 
 		expect(serialize(doc)).toBe('Hello world\n\nx\n');
@@ -102,8 +102,8 @@ describe('typing into the blank line an Enter opened', () => {
 	// carries its line; a second one there reloads as one more empty paragraph.
 	it('leaves a follower that already carries the separator alone', () => {
 		const doc = parse('Hello\n\nSecond\n');
-		splitNode(doc, 0, 5, undefined, undefined);
-		splitNode(doc, 1, 0, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, undefined);
+		splitNode(doc, 1, 0, undefined, undefined, undefined);
 
 		updateNodeContent(doc, 1, 'x\n');
 
@@ -157,7 +157,7 @@ describe('typing into a blank line the load minted', () => {
 describe('an Enter at block start survives the reload', () => {
 	it('reloads a leading empty paragraph as a block', () => {
 		const doc = parse('a\n');
-		splitNode(doc, 0, 0, undefined, undefined);
+		splitNode(doc, 0, 0, undefined, undefined, undefined);
 		expect(serialize(doc)).toBe('\na\n');
 		expect(layout(parse('\na\n').children)).toEqual(layout(doc.children));
 	});

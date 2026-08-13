@@ -15,7 +15,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		const doc = parse('    a\n\n    b\n');
 		expect(doc.children).toHaveLength(1);
 
-		splitNode(doc, 0, 7, undefined, undefined);
+		splitNode(doc, 0, 7, undefined, undefined, undefined);
 
 		expect(doc.children.map((c) => [c.kind, c.leadingTrivia, c.raw])).toEqual([
 			['indentedCode', '', '    a\n'],
@@ -28,7 +28,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		const doc = parse('    a\r\n\r\n    b\r\n');
 		expect(doc.children).toHaveLength(1);
 
-		splitNode(doc, 0, 9, undefined, undefined);
+		splitNode(doc, 0, 9, undefined, undefined, undefined);
 
 		expect(doc.children[1].leadingTrivia).toBe('\r\n');
 		expect(serialize(doc)).toBe('    a\r\n\r\n    b\r\n');
@@ -40,7 +40,7 @@ describe('a split half ending in a blank line keeps it (GH #97)', () => {
 		const doc = parse('    a\n\n\n\n    b\n');
 		expect(doc.children).toHaveLength(1);
 
-		splitNode(doc, 0, 9, undefined, undefined);
+		splitNode(doc, 0, 9, undefined, undefined, undefined);
 
 		expect(serialize(doc)).toBe('    a\n\n\n\n    b\n');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);

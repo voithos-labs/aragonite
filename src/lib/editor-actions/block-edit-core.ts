@@ -12,6 +12,7 @@ import {
 	assertSplitLanding,
 	type SplitResult,
 	mergeWithNext as performMergeNext,
+	type MergeResult,
 	mergeIntoPrevDeepLeaf,
 	deleteNode as performDelete,
 	ensureEditableContainers,
@@ -31,7 +32,7 @@ import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
 import type { CommitScope, MutationView } from './block-edit-scope';
-import { mergedElseFocusPrevious } from './merge-fallback';
+import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
 
 /** The byte/settle sinks' owner answer, read live off the commit's owned view. */
 const bodyParentOf = (view: MutationView) => ({
@@ -77,6 +78,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 						bodyParentOf(view),
 						i,
 						offset,
+						view.sharing,
 						view.getPresentationMode?.(),
 						view.linkRef
 					);
@@ -237,23 +239,26 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 
 			// The landing is the primitive's answer, not `displayLength` read ahead of it: a live
 			// seam cleanup drops runs on the first block's side and moves where the two met.
-			let mergeOffset = displayLength(children[i].raw);
+			let merged: MergeResult = { change: { op: 'noop' }, joinOffset: 0 };
 			await scope.commit({
 				snapshot: { index: i, offset: CURSOR_END },
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				mutate: (view) => {
-					const merged = performMergeNext(
+					merged = performMergeNext(
 						{ children: view.children },
 						i,
 						view.getPresentationMode?.(),
 						view.linkRef
 					);
-					mergeOffset = merged.joinOffset;
 					stampStructuralChange(view.children, merged.change, view.sharing);
 					return merged.change;
 				},
-				afterTick: () => scope.refAt(i)?.focus(mergeOffset),
+				afterTick: () => {
+					if (mergedElseFocusNext(merged.change, scope.refAt(i + 1))) {
+						scope.refAt(i)?.focus(merged.joinOffset);
+					}
+				},
 				discardIfNoop: true
 			});
 		},
