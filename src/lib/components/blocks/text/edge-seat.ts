@@ -122,10 +122,11 @@ function markerRunAt(
 
 /**
  * What a CHILDLESS construct paints, as a range in the block's own bytes: the outer bounds of its
- * visible runs, which such a construct has one contiguous stretch of. Asked of the render path
- * rather than derived per kind, since which bytes a construct shows only the painter answers
- * (G4.33), and in the block's OWN reading: where its chrome paints, the whole construct is on
- * screen, no run is hidden, and the seat has nothing to relocate.
+ * visible runs, which such a construct has one contiguous stretch of — the precondition the two
+ * marker runs below are carved out of, held by `test/core/inline/painted-contiguity.property`.
+ * Asked of the render path rather than derived per kind, since which bytes a construct shows only
+ * the painter answers (G4.33), and in the block's OWN reading: where its chrome paints, the whole
+ * construct is on screen, no run is hidden, and the seat has nothing to relocate.
  */
 function paintedRange(
 	node: InlineNode,
