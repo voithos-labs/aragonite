@@ -34,7 +34,20 @@ takes no keystrokes, so an empty construct there is still allowed to paint nothi
 - a letter typed at `End` appends (`[](u)a`), the seat claiming nothing where no run is hidden.
 - each of the three matches source mode byte for byte — the paint is what the two rungs now agree on.
 
+## The live rewrites against painted chrome
+
+Every rewrite that builds candidate bytes for a marker-hiding mode meets this block too, and each
+must leave the painted bytes alone: what the reader can see is not a run a rewrite may drop, move
+or wrap.
+
+- a letter typed between `]` and `(` lands exactly there (`[]a(u)`), in live as in source: no seat claims a painted delimiter.
+- Enter between `]` and `(` cuts the bytes literally, leaving `[]` above `(u)` — the rebalancer writes no closer or opener over chrome the reader saw.
+- a pending bold toggle then a letter at the same caret writes no delimiter into the painted chrome.
+- Backspace at the start of the paragraph below concatenates the two blocks literally (`[](u)para`), the join dropping nothing.
+- the link card, entered with the caret inside the painted chrome, still rewrites the destination the chrome is showing.
+
 ## Miss-analysis
 
 - The live requirement families covered typing into paragraphs and typing at hidden INLINE edges, and the destructive side pinned that a construct-edge delete drops the whole `# `. No scenario typed a BLOCK opener, so the path that MINTS a marker-only block had zero coverage while the path that refuses to leave one behind was pinned.
 - The construct-edge delete arm was only ever exercised against blocks holding content, where its delimiters really are hidden. No destructive scenario ran inside a content-empty block, so the arm consulted an oracle that reports every marker as unseen while the screen showed all five bytes.
+- Only the destructive arm was pinned against painted chrome. The other five rewrites reach the same block and answer correctly only because the oracle's wrong answer cancels against their own check, so nothing would have failed the day one of them stopped cancelling.

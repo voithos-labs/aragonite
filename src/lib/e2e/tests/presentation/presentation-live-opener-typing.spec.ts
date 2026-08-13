@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickBlockSettled, enterPresentationMode } from './helpers';
+import { primaryModifier } from '../../platform';
+import { clickBlockSettled, enterPresentationMode, landAt } from './helpers';
 
 // A block whose only bytes are its own chrome has nothing to stand behind it, so the chrome
 // paints: a caret can land on it and a typed byte seats after it. A destructive key at the block's
@@ -17,6 +18,12 @@ const LOADED = ['#', '', '```', '```', '', 'para'].join('\n') + '\n';
 
 /** A link with no text: five painted bytes, none of which any rung may treat as unseen. */
 const EMPTY_LINK = '[](u)\n';
+
+/** The same five bytes above a plain paragraph, so the join has a seam to cross. */
+const PAINTED_LINK_DOC = ['[](u)', '', 'para'].join('\n') + '\n';
+
+/** Between `]` and `(` — inside the painted chrome, where each rewrite has a claim to decline. */
+const MID_CHROME = 2;
 
 /** An empty paragraph below a settled one, minted by the gesture that mints it in use. */
 async function emptyBlockBelow(page: Page, mode: 'live' | 'preview-inline'): Promise<EditorPage> {
@@ -199,5 +206,65 @@ for (const mode of ['live', 'source'] as const) {
 			await page.keyboard.type('a');
 			await expect.poll(() => ep.bridge.getSource()).toBe('[](u)a\n');
 		});
+
+		test('a letter typed inside the chrome lands where the caret is', async ({ page }) => {
+			await landAt(ep, page, MID_CHROME);
+
+			await page.keyboard.type('a');
+			await expect.poll(() => ep.bridge.getSource()).toBe('[]a(u)\n');
+		});
 	});
 }
+
+// The other four live rewrites reach the same block. Each is correct today only because the
+// oracle's answer cancels against its own check, so these pin the outcomes rather than the
+// reasoning: a rewrite that starts reading painted bytes as unseen moves one of them.
+const CARD = '[data-link-card]';
+
+test.describe('painted inline chrome — the live rewrites leave what the reader sees alone', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterPresentationMode(page, 'live', PAINTED_LINK_DOC);
+		await clickBlockSettled(ep, OPENER);
+		await landAt(ep, page, MID_CHROME);
+	});
+
+	test('Enter inside the chrome cuts the bytes literally', async ({ page }) => {
+		await page.keyboard.press('Enter');
+		await ep.bridge.waitForBlockCount(3);
+
+		expect(await ep.bridge.getSource()).toBe('[]\n\n(u)\n\npara\n');
+	});
+
+	test('a pending bold mark writes no delimiter into the chrome', async ({ page }) => {
+		await page.keyboard.press(`${primaryModifier}+b`);
+		await ep.waitForRenderFlush();
+
+		await page.keyboard.type('x');
+		await expect.poll(() => ep.bridge.getSource()).toBe('[]x(u)\n\npara\n');
+	});
+
+	test('the card still rewrites the destination the chrome is showing', async ({ page }) => {
+		await page.keyboard.press(`${primaryModifier}+k`);
+		await expect(page.locator(`${CARD} input`)).toBeFocused();
+
+		await page.keyboard.press(`${primaryModifier}+a`);
+		await page.keyboard.type('v');
+		await page.keyboard.press('Enter');
+
+		await ep.bridge.waitForSourceContains('[](v)');
+	});
+});
+
+test('Backspace below painted chrome concatenates the two blocks literally', async ({ page }) => {
+	const ep = await enterPresentationMode(page, 'live', PAINTED_LINK_DOC);
+	await clickBlockSettled(ep, 1);
+	await page.keyboard.press('Home');
+	await ep.waitForRenderFlush();
+
+	await page.keyboard.press('Backspace');
+	await ep.bridge.waitForBlockCount(1);
+
+	expect(await ep.bridge.getSource()).toBe('[](u)para\n');
+});
