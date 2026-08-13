@@ -266,15 +266,17 @@ export interface InlineConstructPolicyEntry {
 }
 
 /**
- * G1.31 — inline-construct policy coherence: a row names a kind the inline vocabulary holds, the
- * marker-rewriting behaviors belong only to kinds whose markers the reveal can address, and no two
- * mark rows claim one nesting rank or one command. A row for a mistyped kind is silent — the
- * construct keeps the absent-row defaults — a rewrite on a never-revealed kind edits markers the
- * author has no way to see, and a tied rank or command makes which row answers a map-order accident.
+ * G1.31 — inline-construct policy coherence: a row names a kind the inline vocabulary holds; the
+ * marker-rewriting behaviors belong only to kinds whose markers the reveal can address; no two mark
+ * rows claim one nesting rank or one command; and no plugin row's mark claims a built-in command id.
+ * A mistyped kind is silent, a rewrite on a never-revealed kind edits markers the author cannot see,
+ * and a tied or built-in command leaves which meaning answers to each surface's own lookup order.
  */
 export function checkInlineConstructPolicy(
 	entries: readonly InlineConstructPolicyEntry[],
-	isKnownInlineKind: (kind: AnyInlineKind) => boolean
+	isKnownInlineKind: (kind: AnyInlineKind) => boolean,
+	isBuiltinInlineKind: (kind: AnyInlineKind) => boolean,
+	isBuiltinCommandId: (id: string) => boolean
 ): InvariantViolation | null {
 	const ranks = new Map<number, AnyInlineKind>();
 	const commands = new Map<string, AnyInlineKind>();
@@ -286,8 +288,20 @@ export function checkInlineConstructPolicy(
 				detail: { kind: entry.kind, issue: 'unknown-kind' }
 			};
 		}
-		const clash = entry.mark && markClashOf(entry.kind, entry.mark, ranks, commands);
-		if (clash) return clash;
+		if (entry.mark) {
+			const clash = markClashOf(entry.kind, entry.mark, ranks, commands);
+			if (clash) return clash;
+			// The built-in vocabulary is closed and every id in it already answers somewhere, so a
+			// plugin mark claiming one shadows that meaning on whichever surface consults the mark
+			// table first — and the surfaces do not agree on where in their lookup that is.
+			if (!isBuiltinInlineKind(entry.kind) && isBuiltinCommandId(entry.mark.command)) {
+				return {
+					code: 'inline-construct-policy',
+					message: `kind "${entry.kind}" claims built-in command "${entry.mark.command}" for its mark — that id already has a built-in meaning; mint a plugin command id for the mark`,
+					detail: { kind: entry.kind, command: entry.mark.command, issue: 'builtin-command' }
+				};
+			}
+		}
 		if (entry.revealable) continue;
 		const column =
 			entry.splitBehavior === 'close-and-reopen'
