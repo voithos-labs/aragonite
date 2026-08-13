@@ -19,43 +19,43 @@ Severity uses the ledger vocabulary (`important` = byte corruption or contract-b
 
 ### Theme: destructive gestures that never reach their funnel
 
-| ID | Finding | Sev | Route |
-| --- | --- | --- | --- |
+| ID       | Finding                                                                                                                                                                                                                                                             | Sev       | Route                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------------- |
 | R4-A1/A2 | The block join's two sinks: Delete at a heading's end before a multi-line paragraph silently drops a line (`reparseAsNode` truncates); Backspace the other way writes a divergent leaf (`writeMergedLeaf` multi-block arm), no warn, merge absent from G2.13's lane | important | FIX-1 (+#166 rewritten) |
-| R2-F1 | The settle funnel never asks the tail question on a delete window: G2.13 break with no warn, then ids/refs desync on the next commit; the suffix answer is carried at 1 of 6 sibling views | important | FIX-1 (+new issue) |
-| R1-B | Word-delete/line-delete/drag/spellcheck-replace bypass `cleanJoinedRaw`: two gates fail open (`getRawSelection` null at collapsed carets; a 3-element inputType allowlist); CodeBlock's `getTargetRanges` shape is the fix | important | FIX-2 |
-| R1-D | The join seam reads `splitBehavior` but not `autoUnwrapOnEmpty`: a range delete emptying a link leaves `[](url)` invisible in the file | important | FIX-2 (batch with #136) |
-| R1-A | A live selection toggle over boundary whitespace writes delimiters that paint (`**hello **world`); `toggleInlineFormat` never verifies; the fix exists at the split sibling (`assembleSpaceOutside`) | important | FIX-2 |
+| R2-F1    | The settle funnel never asks the tail question on a delete window: G2.13 break with no warn, then ids/refs desync on the next commit; the suffix answer is carried at 1 of 6 sibling views                                                                          | important | FIX-1 (+new issue)      |
+| R1-B     | Word-delete/line-delete/drag/spellcheck-replace bypass `cleanJoinedRaw`: two gates fail open (`getRawSelection` null at collapsed carets; a 3-element inputType allowlist); CodeBlock's `getTargetRanges` shape is the fix                                          | important | FIX-2                   |
+| R1-D     | The join seam reads `splitBehavior` but not `autoUnwrapOnEmpty`: a range delete emptying a link leaves `[](url)` invisible in the file                                                                                                                              | important | FIX-2 (batch with #136) |
+| R1-A     | A live selection toggle over boundary whitespace writes delimiters that paint (`**hello **world`); `toggleInlineFormat` never verifies; the fix exists at the split sibling (`assembleSpaceOutside`)                                                                | important | FIX-2                   |
 
 ### Theme: the dispatch layer's pre-gates and sets
 
-| ID | Finding | Sev | Route |
-| --- | --- | --- | --- |
-| R3-F1 | `isEditorGlobalChord` pre-gates never consult the override map: a global rebind is dead at root, gap, and both container-bubble states; `dispatchKindCommand` drops a resolved global id silently | important | FIX-3 |
-| R3-F2 | A global chord disable is honored by `reservedChords()` and ignored by every arm: the editor reports release, implements swallow | important | FIX-3 |
-| R3-F3 | `link.openCard` (published toolbar id) is outside `SINGLE_BLOCK_RANGE_COMMAND_IDS`; under a backward cross-block range the create card opens over a fabricated range (#127's watch condition fired; explains #157's direction-dependent probe) | important | FIX-3 |
-| R3-F4 | The dead-key warn is once-per-id process-global, so a door no-op burns the diagnostic for the chord path | minor | FIX-3 |
-| R3-F5 | `withEnterCompletion`'s header over-claims "exactly once" (the blockquote-exit parent hop is a second, always-declining consult) | nit | FIX-3 (wording) |
+| ID    | Finding                                                                                                                                                                                                                                        | Sev       | Route           |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | --------------- |
+| R3-F1 | `isEditorGlobalChord` pre-gates never consult the override map: a global rebind is dead at root, gap, and both container-bubble states; `dispatchKindCommand` drops a resolved global id silently                                              | important | FIX-3           |
+| R3-F2 | A global chord disable is honored by `reservedChords()` and ignored by every arm: the editor reports release, implements swallow                                                                                                               | important | FIX-3           |
+| R3-F3 | `link.openCard` (published toolbar id) is outside `SINGLE_BLOCK_RANGE_COMMAND_IDS`; under a backward cross-block range the create card opens over a fabricated range (#127's watch condition fired; explains #157's direction-dependent probe) | important | FIX-3           |
+| R3-F4 | The dead-key warn is once-per-id process-global, so a door no-op burns the diagnostic for the chord path                                                                                                                                       | minor     | FIX-3           |
+| R3-F5 | `withEnterCompletion`'s header over-claims "exactly once" (the blockquote-exit parent hop is a second, always-declining consult)                                                                                                               | nit       | FIX-3 (wording) |
 
 ### Theme: Unicode and adversarial input
 
-| ID | Finding | Sev | Route |
-| --- | --- | --- | --- |
+| ID    | Finding                                                                                                                                                                                                                                                                                                          | Sev             | Route                |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | -------------------- |
 | R4-A3 | #105 splits: the rangeDelete arm destroys the surviving surrogate half irrecoverably, reachable via `setSelection` (important); the split arm is session-recoverable (stays minor). Fix: `snapToScalarBoundary` at `normalizeCharEndpoint` + `clampToLandableRaw`, belts at the two cut seams; no Intl.Segmenter | important/minor | FIX-1 (+issue split) |
-| R4-A4 | 511x container-raw amplification on a single adversarial line (`MAX_NESTING_DEPTH` bounds nodes, not bytes); quantifies performance.md's acknowledged tail | minor | ISSUE |
-| R4-A5 | #121's outcome is duplication below the paste, not survival in place | minor | ISSUE (body amended) |
-| R4-A6 | `convertGithubAlerts` is non-idempotent on nested alerts; the dev idempotence probe fires on ordinary content | minor | ISSUE |
+| R4-A4 | 511x container-raw amplification on a single adversarial line (`MAX_NESTING_DEPTH` bounds nodes, not bytes); quantifies performance.md's acknowledged tail                                                                                                                                                       | minor           | ISSUE                |
+| R4-A5 | #121's outcome is duplication below the paste, not survival in place                                                                                                                                                                                                                                             | minor           | ISSUE (body amended) |
+| R4-A6 | `convertGithubAlerts` is non-idempotent on nested alerts; the dev idempotence probe fires on ordinary content                                                                                                                                                                                                    | minor           | ISSUE                |
 
 ### Theme: ceremony hygiene and storage
 
-| ID | Finding | Sev | Route |
-| --- | --- | --- | --- |
-| R2-F2 | A commit into a never-mounted container publishes wrong-length `childIds`; nothing reconciles | important | FIX-1 |
-| R2-F3 | `splitNode` is the one seam-absorb caller not passing `sharing` (guarded by window-shape accident) | watch | FIX-1 (one argument) |
-| R2-F4 | `path-mutate`'s doors carry an unstated G1.9 unshare precondition; make `sharing` required | minor | FIX-1 |
-| R2-F5 | invariants.md's rollback-residual paragraph overstates the gap post-`savedRaws`; `savedDocSuffix` untested | minor | FIX-1 (docs+test) |
-| R2-F6/F7 | `history.ts` hands the entry's own `blockIds` array to live state; same-kind reparse arms skip `assignChildIdsDeep` (falsified as reachable, hardened anyway) | hardening | FIX-1 |
-| R1-C | Live-mode § 4.2's fourth construct-relative-seat producer (structural landings) is unimplemented; reachability unconfirmed | minor | ISSUE |
+| ID       | Finding                                                                                                                                                       | Sev       | Route                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------------- |
+| R2-F2    | A commit into a never-mounted container publishes wrong-length `childIds`; nothing reconciles                                                                 | important | FIX-1                |
+| R2-F3    | `splitNode` is the one seam-absorb caller not passing `sharing` (guarded by window-shape accident)                                                            | watch     | FIX-1 (one argument) |
+| R2-F4    | `path-mutate`'s doors carry an unstated G1.9 unshare precondition; make `sharing` required                                                                    | minor     | FIX-1                |
+| R2-F5    | invariants.md's rollback-residual paragraph overstates the gap post-`savedRaws`; `savedDocSuffix` untested                                                    | minor     | FIX-1 (docs+test)    |
+| R2-F6/F7 | `history.ts` hands the entry's own `blockIds` array to live state; same-kind reparse arms skip `assignChildIdsDeep` (falsified as reachable, hardened anyway) | hardening | FIX-1                |
+| R1-C     | Live-mode § 4.2's fourth construct-relative-seat producer (structural landings) is unimplemented; reachability unconfirmed                                    | minor     | ISSUE                |
 
 ### Theme: L2 litmus + leads routed onward
 
