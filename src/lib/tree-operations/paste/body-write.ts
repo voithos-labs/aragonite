@@ -8,7 +8,13 @@ import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { parse } from '../../core/parser';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { ensureEditableContainers, isBlockNode, nodeAt, normalizeBodyWrite } from '../node-ops';
+import {
+	ensureEditableContainers,
+	isBlockNode,
+	nodeAt,
+	normalizeBodyWrite,
+	normalizeReplacementTrivia
+} from '../node-ops';
 
 /** Clipboard text made legal inside every `bodyWrite`-declaring ancestor of the paste target. */
 export function normalizeClipboardForBody(
@@ -59,9 +65,9 @@ export function normalizeReplacementForBody(
 			out.push(node);
 			continue;
 		}
-		reparsed[0].leadingTrivia = node.leadingTrivia;
-		for (const minted of reparsed) ensureEditableContainers(minted);
-		out.push(...reparsed);
+		const carried = normalizeReplacementTrivia(node, reparsed);
+		for (const minted of carried) ensureEditableContainers(minted);
+		out.push(...carried);
 	}
 	return {
 		replacement: out,
