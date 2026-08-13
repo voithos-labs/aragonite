@@ -116,7 +116,7 @@ A component that declares a `keymap` — or that can be a cross-block focus targ
 
 A container builds its reactive state and a default action bundle from the `editor-actions/` primitives, then overrides only what needs kind-specific behavior.
 
-**`createBlockListState(() => node)`** — reactive `innerBlockIds` / `innerBlockRefs`.
+**`createBlockListState(() => node)`** — the scope's `innerBlockIds` / `innerBlockRefs`.
 
 Pass the node **as a getter, never by value.** A by-value argument freezes on the node your container mounted with and misses undo's deep-clone reassignment — the state silently points at a tree nobody is rendering. This is the incident behind culture.md's "reactive state crosses module boundaries as getters, never values", and invariant G4.1 scans every call site in the editor for it.
 
