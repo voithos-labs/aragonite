@@ -4,10 +4,22 @@
 // the quote. `createContainerBlock` wires `createBlockquoteOverrides` into the nested
 // bundle and the component names nothing to select it, so its arrival is invisible from
 // the source — which is why both presses are driven here rather than seeded.
+// Miss-analysis (the block-follows exits): the cases asserted BYTES only, and the bytes they
+// asserted reloaded as one block more than the exit had left on screen; nothing compared the
+// two, so a G2.13 divergence read as the expected value until the settle funnel moved.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import { parse } from '$lib/core/parser';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
 
 beforeAll(installLayoutStubs);
+
+/** G2.13 at the mount: the blocks on screen are the blocks a reload of these bytes mints. */
+function expectReloadsAsMounted(source: string): void {
+	const onScreen = mounted.target.querySelectorAll(
+		'[data-block-path]:not([data-block-path*=","])'
+	).length;
+	expect([source, parse(source).children.length]).toEqual([source, onScreen]);
+}
 
 let mounted: ReturnType<typeof mountEditor>;
 afterEach(async () => {
@@ -41,7 +53,10 @@ describe('blockquote Enter override', () => {
 
 		await pressKeyAt(mounted, [0, 1], 0, ENTER);
 
-		expect(mounted.source()).toBe('> alpha\n\n\n\nbeta\n');
+		// Three lines, not four: the exited blank IS the separating line of the block below it,
+		// so a fourth reloads as an empty paragraph nobody typed.
+		expect(mounted.source()).toBe('> alpha\n\n\nbeta\n');
+		expectReloadsAsMounted(mounted.source());
 	});
 
 	// A table can't host a caret at its top edge and the quote declares no gap edge, so
@@ -52,7 +67,8 @@ describe('blockquote Enter override', () => {
 		await pressKeyAt(mounted, [0, 0], 5, ENTER);
 		await pressKeyAt(mounted, [0, 1], 0, ENTER);
 
-		expect(mounted.source()).toBe('> alpha\n\n\n\n| a | b |\n| - | - |\n');
+		expect(mounted.source()).toBe('> alpha\n\n\n| a | b |\n| - | - |\n');
+		expectReloadsAsMounted(mounted.source());
 	});
 
 	// One level per press, the list outdent's convention: the first exit leaves a quoted
