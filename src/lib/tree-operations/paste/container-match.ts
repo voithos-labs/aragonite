@@ -261,7 +261,8 @@ async function applyContainerMatchingMerge(
 				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
 				0,
 				lastDisplay + displayAfter + lastLineEnding,
-				ctx.grammar
+				ctx.grammar,
+				sharing
 			);
 			// Both rebuilds run before the splice, so the published children carry correct
 			// raws in one reactive flush.
