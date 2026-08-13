@@ -15,8 +15,11 @@ replaced by the finished fence pair instead of split.
 
 ## Edge cases
 
-- One Mod+Z restores the paragraph byte-for-byte with the caret back at the end of the typed fence;
-  a character typed after the undo lands after the second `$`, not in front of it
+- The mint's caret lands inside a render-primary leaf, which commits on blur, so the undo unit
+  starts once the caret leaves: after the blur, one Mod+Z restores the paragraph byte-for-byte with
+  the caret back at the end of the typed fence, and a character typed then lands after the second
+  `$`, not in front of it. Mod+Z from INSIDE the still-focused reveal is inert (#161), which is a
+  reveal/undo gap rather than a completion one — the same entry restores correctly after the blur
 - `$$ x` falls through to the ordinary split: an opener line carrying body text implies no
   multi-line form, so it is not a gesture toward the pair
 - Without the latex plugin installed, `$$` plus Enter splits exactly as bare GFM does — the
@@ -25,7 +28,8 @@ replaced by the finished fence pair instead of split.
 ## Presentation modes
 
 - Live mode: the same press mints the same block and the typed expression lands in its body
-- Reading mode: Enter changes nothing; the paragraph's bytes are untouched
+- Reading mode: Enter changes nothing; the paragraph's bytes are untouched, and the same press
+  completes once the mode lifts — which is what proves the key reached the editor and was declined
 
 ## Miss-analysis
 
