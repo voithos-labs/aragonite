@@ -7,7 +7,7 @@ import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
-import { parseInline } from '$lib/core/inline';
+import { contentLengthOf, parseInline } from '$lib/core/inline';
 import { renderInlineNodes } from '$lib/core/inline-render';
 
 function build(raw: string): DocumentFragment {
@@ -56,10 +56,10 @@ const idx = <D extends WidgetDecoration | ReplaceDecoration>(
 	index = 0
 ): IndexedDecoration<D> => ({ dec, index });
 
-/** Every fixture here renders its whole raw, so the CST content length is the raw length. */
+/** Every fixture here renders its whole raw, so a paragraph over it is the CST the gate reads. */
 const optsFor = (raw: string): ApplyIslandsOpts => ({
 	mountWidget: (spec, dec) => mountDecorationWidget(spec, dec),
-	contentLength: raw.length
+	contentLength: contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw })
 });
 
 describe('applyIslandDecorations', () => {

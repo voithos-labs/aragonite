@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
-import { parseInline } from '../../core/inline';
+import { contentLengthOf, parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { rawTextOfNode } from '../../cursor/widget-offset';
@@ -199,9 +199,10 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 		const container = document.createElement('div');
 		if (prefix !== undefined) container.appendChild(buildAmbientSpan(prefix));
 		container.appendChild(renderInlineNodes(parseInline(source, 0, source.length), source));
-		applyIslandDecorations(container, source, toIslands(specs, source.length), {
+		const contentLength = contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw: source });
+		applyIslandDecorations(container, source, toIslands(specs, contentLength), {
 			...opts,
-			contentLength: source.length,
+			contentLength,
 			ambientLength: prefix?.length ?? 0
 		});
 		if (prefix === undefined) return rawTextOfNode(container, source);
