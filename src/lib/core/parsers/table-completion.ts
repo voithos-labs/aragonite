@@ -29,7 +29,7 @@ export function tryCompleteTableRow(line: string): CompletionResult | null {
 			canonicalRow(cells.map(() => '---')),
 			canonicalRow(cells.map(() => ''))
 		],
-		caret: { path: FIRST_BODY_CELL, offset: 0 }
+		caret: { path: FIRST_BODY_CELL, line: 0, column: 0 }
 	};
 }
 

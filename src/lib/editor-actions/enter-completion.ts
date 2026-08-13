@@ -8,7 +8,7 @@ import { displayLength, splitLines, trailingLineEnding } from '../core/lines';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { completeTypedLine } from '../schema/block-completions';
+import { completeTypedLine, type CompletionResult } from '../schema/block-completions';
 
 export interface EnterCompletion {
 	replacement: CstNode[];
@@ -30,7 +30,19 @@ export function planEnterCompletion(
 	// those bytes produces. Global grammar, as every other structural reparse.
 	const lineEnding = trailingLineEnding(node.raw);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
-	return { replacement: parse(raw, { scope: 'fragment' }).children, caret: claim.caret };
+	const replacement = parse(raw, { scope: 'fragment' }).children;
+	// An all-blank mint would replace the block with nothing, which is a delete, not a completion.
+	if (replacement.length === 0) return null;
+	return { replacement, caret: resolveCaret(replacement[0], claim.caret) };
+}
+
+/** The claim's line/column as a byte offset inside the node its path addresses. Resolved here
+ *  because the line ending the count depends on is the seam's choice, not the completer's. */
+function resolveCaret(minted: CstNode, caret: CompletionResult['caret']) {
+	let target: CstNode | undefined = minted;
+	for (const index of caret.path) target = target?.children?.[index];
+	const lines = target ? splitLines(target.raw) : [];
+	return { path: caret.path, offset: (lines[caret.line]?.start ?? 0) + caret.column };
 }
 
 /** The one line this block's raw is, or null when it is not a single line of prose whose every
