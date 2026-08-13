@@ -8,7 +8,11 @@ import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { normalizeBodyWrite, writeOwnRaw } from '../tree-operations/node-ops';
+import {
+	normalizeBodyWrite,
+	normalizeReplacementTrivia,
+	writeOwnRaw
+} from '../tree-operations/node-ops';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import {
 	replacePreservingFirst,
@@ -65,10 +69,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			if (rel.length > 0) rebuildAncestryRaw(child, rel);
 		}
 		const newNodes = parse(child.raw, { grammar: deps.grammar, scope: 'fragment' }).children;
-		// leadingTrivia is positional and lives off `raw`, so parsing `child.raw` alone
-		// drops it; carry it onto the first node.
-		if (newNodes[0]) newNodes[0].leadingTrivia = child.leadingTrivia;
-		return newNodes;
+		// leadingTrivia is positional and lives off `raw`, so parsing `child.raw` alone drops it.
+		return normalizeReplacementTrivia(child, newNodes);
 	}
 
 	// A match can land on a container node itself, but its raw is metadata-derived, so
