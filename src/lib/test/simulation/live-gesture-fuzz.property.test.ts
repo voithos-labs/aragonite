@@ -13,6 +13,7 @@ import { fuzzLiveGestures, type FuzzStats } from './live-gesture-fuzz';
 import { applyGesture, resetSurfaces, type Gesture } from './live-gesture-seams';
 import { documentContentText } from './live-screen-reading';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import '$lib/schema/built-in-descriptors';
 import '$lib/components/built-in-blocks';
 
@@ -65,6 +66,23 @@ describe('live-mode gestures at hidden edges', () => {
 	// prose and the gate below them proves nothing about the shapes they name.
 	it('draws the shapes its exclusions name', () => {
 		expect(stats.violations.filter((v) => v.category === 'known').length).toBeGreaterThan(0);
+	});
+
+	/**
+	 * The unnamed bucket, held to a ceiling rather than left unbounded. Every entry is a divergence
+	 * the byte-literal twin has too, so none is live's to answer — but an unwatched bucket absorbs
+	 * a new class silently, which is how #166 (a mode-independent block drop) sat in it unnamed.
+	 * A rise here is a signal to read the bucket, not automatically a defect.
+	 */
+	it('keeps the unnamed bucket inside its ceiling', () => {
+		const ambiguous = stats.violations.filter((v) => v.category === 'ambiguous');
+		expect(
+			ambiguous.length,
+			ambiguous
+				.slice(0, 3)
+				.map((v) => v.report)
+				.join('\n\n')
+		).toBeLessThan(200);
 	});
 });
 
@@ -188,6 +206,18 @@ describe('the shapes the sweep excuses, and the issues that own them', () => {
 		expect(cut.live).toBe('## \n\n**a**b\n');
 		expect(cut.shape).toBe('[] live has 3 children, reparsed has 2');
 		expect(cut.literalShape).toBeNull();
+	});
+
+	// #166, the one MODE-INDEPENDENT class the sweep surfaces: a content commit whose bytes reparse
+	// to two blocks keeps the first and drops the rest, so a line leaves the document. Both arms do
+	// it, which is what the `ambiguous` bucket above would otherwise absorb without a name.
+	it('#166 — a commit whose bytes reparse to two blocks drops the second', async () => {
+		const merged = await liveAndLiteral('## \n(u\n)\n', { kind: 'delete', leaf: 0, offset: 0 });
+		expect(merged.live).toBe('## (u\n');
+		expect(merged.live).toBe(merged.literal);
+		// The fire is this case's subject: the guard names the seam, and the drop is what it warns
+		// about, so the pin asserts on it rather than declaring the tag and looking away.
+		expect(takeDevWarns().map((warn) => warn.tag)).toEqual(['tree-ops', 'tree-ops']);
 	});
 });
 

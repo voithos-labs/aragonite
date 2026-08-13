@@ -53,6 +53,23 @@ const bracketed = fc.constantFrom(
 	'[shortcut]'
 );
 
+/**
+ * A childless construct standing between two LITERAL delimiter runs. Taking it whole abuts the runs
+ * into one, and a long enough run is another BLOCK's opener — a tilde or backtick fence, which on
+ * reload swallows every block below it. The class a seam verifying its candidate as inline text
+ * cannot see, so no draw without these shapes reaches it.
+ */
+const abuttingRuns = fc.constantFrom(
+	'~~[](u)~~a',
+	'~~[](u)~~ x',
+	'~~~[](u)~~~b',
+	'``[](u)``x',
+	'~~![](u)~~b',
+	'**[](u)**a',
+	'*.****',
+	'~~\\*[](u)~~c'
+);
+
 /** Childless constructs a cut cannot reopen: two halves of a URL are not two URLs (#118). */
 const neverExtend = fc.constantFrom(
 	'<https://example.com>',
@@ -73,6 +90,7 @@ const fragment = fc.oneof(
 	{ arbitrary: symmetricPair, weight: 4 },
 	{ arbitrary: sharedRun, weight: 3 },
 	{ arbitrary: bracketed, weight: 4 },
+	{ arbitrary: abuttingRuns, weight: 3 },
 	{ arbitrary: neverExtend, weight: 2 },
 	{ arbitrary: entity, weight: 1 },
 	{ arbitrary: spacer, weight: 3 }

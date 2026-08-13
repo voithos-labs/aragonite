@@ -216,7 +216,8 @@ async function pressEdgeKey(
 		enterWidget: () => {},
 		isReading: () => false,
 		getEdgeAffinity: () => gesture.affinity,
-		pendingMarks: makePendingMarks()
+		pendingMarks: makePendingMarks(),
+		installedAs: 'block'
 	});
 	const event = new KeyboardEvent('keydown', { key, cancelable: true });
 	if (dispatch.handleKeydown(event, asRawOffset(offset) as RawOffset)) return true;
