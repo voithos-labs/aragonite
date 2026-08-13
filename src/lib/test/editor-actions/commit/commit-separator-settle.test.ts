@@ -1,9 +1,13 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { performCrossBlockDeleteSync } from '$lib/selection/cross-block/ops';
+import { splitNode } from '$lib/tree-operations/node-ops';
+import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
 
@@ -37,6 +41,71 @@ describe('the ceremony settle over a window its mutate already settled', () => {
 		await h.actions.updateBlockContent(1, 'p\n\nq\n');
 
 		expect(serialize(h.deps.doc)).toBe('alpha\n\np\n\nq\n\ndelta\n');
+		expectParseConverged(h.deps.doc);
+	});
+});
+
+// A cross-block delete crosses BOTH funnel entries in one commit: `rangeDelete` splices through
+// the path-addressed door inside `mutate`, then the ceremony settles the scope's change over the
+// same window. The truncated start block is a new node, so the survivor filter reads the original
+// as removed — and a blank one takes the restore branch on top of what the splice already settled.
+describe('a delete that crosses both funnel entries in one commit', () => {
+	function deleteAcross(
+		source: string,
+		anchor: number[],
+		focus: number[],
+		offsets: [number, number]
+	) {
+		const harness = makeEditorActionsDeps(parse(source).children);
+		const controller = createUndoController(harness.deps);
+		// Container scopes resolve through the registry, so a nested endpoint needs its state.
+		harness.deps.doc.children.forEach((node, i) => {
+			if (node.children) {
+				registerBlockListState(
+					node,
+					makeBlockListState(() => harness.deps.doc.children[i])
+				);
+			}
+		});
+		harness.deps.selectionState.enterCrossBlock(
+			{ path: anchor, offset: offsets[0] },
+			{ path: focus, offset: offsets[1] }
+		);
+		performCrossBlockDeleteSync({
+			selection: harness.deps.selectionState,
+			getDoc: () => harness.deps.doc,
+			getBlockElByPath: () => null,
+			revealPath: harness.deps.revealPath,
+			controller,
+			pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
+			grammar: undefined,
+			getPresentationMode: undefined,
+			linkRef: undefined
+		});
+		return harness;
+	}
+
+	it('settles once when the range starts in a load-shaped blank block', () => {
+		const h = deleteAcross('alpha\n\n\ndelta\n\nomega\n', [1], [2], [0, 2]);
+
+		expect(serialize(h.deps.doc)).toBe('alpha\n\nlta\n\nomega\n');
+		expectParseConverged(h.deps.doc);
+	});
+
+	// The split shape: the blank slot holds no line and its follower holds the run's one.
+	it('settles once when the range starts in a split-shaped blank block', () => {
+		const split = parse('alpha\n\ndelta\n\nomega\n');
+		splitNode(split, 0, 5, undefined, undefined);
+		const h = deleteAcross(serialize(split), [1], [2], [0, 2]);
+
+		expectParseConverged(h.deps.doc);
+		expect(serialize(h.deps.doc)).not.toContain('\n\n\n');
+	});
+
+	it('settles once across a container scope', () => {
+		const h = deleteAcross('> alpha\n>\n>\n> delta\n\nomega\n', [0, 1], [0, 2], [0, 2]);
+
+		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n> lta\n\nomega\n');
 		expectParseConverged(h.deps.doc);
 	});
 });
