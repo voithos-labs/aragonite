@@ -26,7 +26,9 @@ const NON_CLASSIFYING_READERS: Record<string, string> = {
 	'src/lib/ambient/ambient-dom.ts':
 		'ambient span identity — a contenteditable="false" marker keeps its box, so the hidden-run rule excludes it by construction',
 	'src/lib/components/blocks/text/construct-reveal.ts':
-		'preview-inline reveal writer — it stamps the class the classification reads, and asks nothing about hiding'
+		'preview-inline reveal writer — it stamps the class the classification reads, and asks nothing about hiding',
+	'src/lib/invariants/marker-css-parity.ts':
+		'the DEV probe COMPARING the two homes against the stylesheet, which is the opposite of holding a third answer'
 };
 
 const MARKER_CLASSES = [

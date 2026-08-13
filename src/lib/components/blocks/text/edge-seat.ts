@@ -7,7 +7,7 @@
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
 import { constructContentRange } from '../../../core/inline';
-import { renderedText, type VisibilityContext } from '../../../core/inline/visibility';
+import { visibleRuns, type VisibilityContext } from '../../../core/inline/visibility';
 import type { ContentRange } from '../../../core/inline';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 
@@ -132,11 +132,7 @@ function paintedRange(
 	screen: VisibilityContext
 ): ContentRange | null {
 	if (node.kind === 'text') return null;
-	const painted = renderedText([node], raw, screen);
-	if (painted === '') return null;
-	// lastIndexOf, not indexOf: a self-similar shape (`\\` paints `\`) matches at its own leading
-	// marker too, and every childless kind paints a suffix-or-whole slice.
-	const at = raw.slice(node.start, node.end).lastIndexOf(painted);
-	if (at === -1) return null;
-	return { start: node.start + at, end: node.start + at + painted.length };
+	const painted = visibleRuns([node], raw, screen).filter((run) => run.visible && run.text !== '');
+	if (painted.length === 0) return null;
+	return { start: painted[0].start, end: painted[painted.length - 1].end };
 }

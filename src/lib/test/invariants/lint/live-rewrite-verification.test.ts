@@ -45,8 +45,10 @@ const PRE_DELETE_NAMERS: Record<string, string> = {
 		'the one splicer: a fenced body has no inline constructs for a seam to clean'
 };
 
-const namesRenderedText = (file: SourceFile): boolean =>
-	/(?<![\w.])renderedText\s*\(/.test(stripComments(file.text));
+/** The oracle's two doors: the reader's text, and the runs it is the concatenation of. */
+const ORACLE_CALL = /(?<![\w.])(?:renderedText|visibleRuns)\s*\(/;
+
+const namesOracle = (file: SourceFile): boolean => ORACLE_CALL.test(stripComments(file.text));
 
 const readsSlot = (file: SourceFile): boolean =>
 	file.relPath !== SLOT_HOME &&
@@ -89,12 +91,12 @@ describe('live-rewrite verification source-scan', () => {
 	});
 
 	it('every module naming the render-path oracle is one of the declared rewrites', () => {
-		const namers = sources.filter(namesRenderedText).map((file) => file.relPath);
+		const namers = sources.filter(namesOracle).map((file) => file.relPath);
 		expect(namers.sort()).toEqual([ORACLE_HOME, ...REWRITE_MODULES].sort());
 	});
 
 	it('each declared rewrite verifies through the oracle rather than its own walk', () => {
-		expect(REWRITE_MODULES.filter((path) => !namesRenderedText(byPath(path)!))).toEqual([]);
+		expect(REWRITE_MODULES.filter((path) => !namesOracle(byPath(path)!))).toEqual([]);
 	});
 
 	it('every file naming an inline marker family is manifested with what it does with it', () => {
@@ -118,11 +120,10 @@ describe('live-rewrite verification source-scan', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('the oracle matcher sees a call and skips a mention in prose', () => {
-		expect(/(?<![\w.])renderedText\s*\(/.test('const v = renderedText(nodes, raw);')).toBe(true);
-		expect(
-			/(?<![\w.])renderedText\s*\(/.test(stripComments('// renderedText(x) is the door'))
-		).toBe(false);
+	it('the oracle matcher sees either door and skips a mention in prose', () => {
+		expect(ORACLE_CALL.test('const v = renderedText(nodes, raw, ctx);')).toBe(true);
+		expect(ORACLE_CALL.test('for (const run of visibleRuns(nodes, raw, ctx))')).toBe(true);
+		expect(ORACLE_CALL.test(stripComments('// renderedText(x) is the door'))).toBe(false);
 	});
 
 	it('the preDelete matcher sees every spelling and skips prose', () => {
