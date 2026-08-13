@@ -1,4 +1,4 @@
-/** Resolve a container node (by identity; views accepted) to its reactive BlockListState.
+/** Resolve a container node (by identity; views accepted) to its BlockListState.
  *  WeakMap, so entries collect when the node becomes unreachable. */
 
 import { DEV } from 'esm-env';

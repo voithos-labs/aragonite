@@ -2,7 +2,7 @@
  * G1.34 — a split's landing is the index the primitive returned. `blockIndex + 1` is right
  * only while the first half stays one block; a first half whose bytes reparse plural pushes
  * the second half further down, and a caller that re-derives the landing seats the caret on
- * the first half's tail (GH #98).
+ * the first half's tail.
  */
 
 import type { InvariantViolation } from './assert';

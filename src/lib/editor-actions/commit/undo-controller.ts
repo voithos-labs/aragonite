@@ -576,7 +576,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── Doc scope adapter ────────────────────────────────────────────────────
 
-	/** Forwards top-level ids/refs through deps setters, so publishes reach the `$state` proxies. */
+	/** Forwards top-level ids/refs through deps setters: ids reach the `$state` proxy, refs copy in place. */
 	function createDocScopeAdapter(): BlockListState {
 		return {
 			get innerBlockIds() {

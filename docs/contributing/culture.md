@@ -120,7 +120,7 @@ kill it:
   wrong while the code was right; the verify-first rule prevented "fixing" correct behavior.
 - **Coverage claims get revert-checked.** "Pinned by existing tests" is disproven by reverting
   the change and watching the suites stay green — this exact claim failed review once already.
-- **Miss-analysis, one line per bug fix**: what test should have caught this, and why didn't
+- **Miss-analysis, a short line or three per bug fix**: what test should have caught this, and why didn't
   it. It lives in the regression test's requirement file (e2e) or as that test's own header
   line (unit). The generalized answers reshape the suite; three of them explained all ten
   audit bugs.
