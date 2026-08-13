@@ -8,7 +8,7 @@ import fc from 'fast-check';
 import { makeRng, type Rng } from '$lib/e2e/simulation/rng';
 import type { CstNode, Document, InlineNode } from '$lib/core/nodes';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { parse } from '$lib/core/parser';
+import { isBlankParagraph, parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { constructContentRange, getContentRange, parseInline } from '$lib/core/inline';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -172,8 +172,11 @@ function seatIssue(doc: Document, gesture: Gesture, rewrote: boolean): ScreenIss
 		const range = getContentRange(node);
 		const empty = (nodes: readonly InlineNode[]): boolean =>
 			nodes.some((inline) => {
+				// `text` is excluded before the content test, not after: a bare run has no content range
+				// at all, so counting it as chrome standing over nothing would excuse every prose site.
 				const content = constructContentRange(inline);
-				const paintsNothing = content === null || content.start === content.end;
+				const paintsNothing =
+					inline.kind !== 'text' && (content === null || content.start === content.end);
 				return (
 					(paintsNothing && near(inline.start, inline.end)) ||
 					(inline.children ? empty(inline.children) : false)
@@ -185,18 +188,35 @@ function seatIssue(doc: Document, gesture: Gesture, rewrote: boolean): ScreenIss
 }
 
 /**
- * The open ledger issue a live-only reload divergence belongs to, matched on the divergence the
- * oracle reports AND the gesture family that owns the seam, so the exclusion cannot widen past the
- * shape that earned it. `#163` is the join cleaner leaving a space against a list marker; `#164` is
- * a rebalanced split whose empty first half reloads as its predecessor's separator.
+ * The open ledger issue a live-only reload divergence belongs to, matched on the divergence AND on
+ * the shape each one's pin asserts, so the exclusion cannot widen past it. `#163` is the join
+ * cleaner leaving a space against a list marker; `#164` is a rebalanced split whose EMPTY first half
+ * reloads as its predecessor's separator, which is a blank block the twin's split does not write.
  */
-function shapeIssue(gesture: Gesture, divergence: string): '#163' | '#164' | null {
+function shapeIssue(
+	gesture: Gesture,
+	divergence: string,
+	live: Applied,
+	literal: Applied
+): '#163' | '#164' | null {
 	if (gesture.kind === 'enter') {
 		const children = divergence.match(/live has (\d+) children, reparsed has (\d+)/);
-		return children && Number(children[1]) === Number(children[2]) + 1 ? '#164' : null;
+		if (!children || Number(children[1]) !== Number(children[2]) + 1) return null;
+		return blankBlocks(live.doc) > blankBlocks(literal.doc) ? '#164' : null;
 	}
 	if (gesture.kind === 'type') return null;
 	return /listItem\.marker: live "- " != reparsed "-\s+"/.test(divergence) ? '#163' : null;
+}
+
+const blankBlocks = (doc: Document): number => doc.children.filter(isBlankParagraph).length;
+
+/** The longest run of one delimiter byte. A join splice abuts two runs into a longer shared one,
+ *  which is #136's mechanism and what tells it from a residue pair that was already there. */
+function longestRun(bytes: string, byte: string): number {
+	return [...bytes.matchAll(new RegExp(`\\${byte}+`, 'g'))].reduce(
+		(longest, run) => Math.max(longest, run[0].length),
+		0
+	);
 }
 
 /**
@@ -218,9 +238,10 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 /**
  * Whitespace out. A structural edit mints and drops line endings by design (a split adds one, an
  * emptied block gains a separator) and a join REORDERS the run around its seam, both of which an
- * ordered containment check reads as bytes lost. The narrowing is stated rather than hidden: these
- * arms cannot see a dropped mid-line space. The split's own `keepsEveryByte` still can, and #106
- * makes only TERMINAL whitespace a declared drop.
+ * ordered containment check reads as bytes lost. The narrowing is stated rather than hidden: no arm
+ * that takes this reading sees a dropped mid-line space. Only `enter` still does, through
+ * `keepsEveryByte`; the destructive and typing families do not, and #106 makes only TERMINAL
+ * whitespace a declared drop.
  */
 const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
 
@@ -315,7 +336,7 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 
 	const liveShape = describeConvergence(live.doc);
 	if (liveShape && describeConvergence(literal.doc) === null) {
-		const owner = shapeIssue(gesture, liveShape);
+		const owner = shapeIssue(gesture, liveShape, live, literal);
 		say('shape', owner ? 'known' : 'seam', `${owner ? `${owner} ` : ''}${liveShape}`);
 	}
 	const roundTrips = (bytes: string) => serialize(parse(bytes)) === bytes;
@@ -368,7 +389,7 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 			? null
 			: gesture.kind === 'type'
 				? seatIssue(start, gesture, minted)
-				: /\*{4,}/.test(live.bytes)
+				: longestRun(live.bytes, '*') > longestRun(before, '*')
 					? '#136'
 					: null;
 		say(
