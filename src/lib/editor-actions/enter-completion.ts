@@ -63,7 +63,8 @@ export function planEnterCompletion(
 	const lineEnding = trailingLineEnding(node.raw);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
 	const replacement = parse(raw, { scope: 'fragment' }).children;
-	// An all-blank mint would replace the block with nothing, which is a delete, not a completion.
+	// A mint holding no blocks would replace the block with nothing, which is a delete, not a
+	// completion. Only an empty `lines` reaches here: a blank line parses back as a paragraph.
 	if (replacement.length === 0) return null;
 	return { replacement, caret: resolveCaret(replacement[0], claim.caret) };
 }

@@ -74,6 +74,13 @@ registerBlockCompleter(declarePluginKind('spec-fence'), {
 			: null
 });
 
+// A registrant that claims a line and mints no lines for it. Only an empty `lines` reaches the
+// seam's arity gate: a blank line is bytes, and parses back as an empty paragraph.
+registerBlockCompleter(declarePluginKind('spec-empty'), {
+	tryComplete: (line) =>
+		line === 'empty me' ? { lines: [], caret: { path: [], line: 0, column: 0 } } : null
+});
+
 describe('Enter completion — which presses reach a completer', () => {
 	it('claims a lone header row with the caret at its end', () => {
 		expect(planEnterCompletion(leaf('| a | b |\n'), 9)).not.toBeNull();
@@ -172,6 +179,16 @@ describe('Enter completion — what the composed split commits', () => {
 		expect(children.map((c) => c.raw)).toEqual(['| a \n', '| b |\n']);
 	});
 
+	// A mint holding no blocks would replace the block with nothing, which is a delete: the seam
+	// declines, so the press stays the ordinary split and the typed line survives.
+	it('falls through on a claim whose mint holds no blocks', async () => {
+		expect(planEnterCompletion(leaf('empty me\n'), 8)).toBeNull();
+		const { scope, commits, children } = stubScope([leaf('empty me\n')]);
+		await seamOver(scope).splitBlock(0, 8);
+		expect(commits[0].op.kind).toBe('split');
+		expect(children.map((c) => c.raw)).toEqual(['empty me\n', '\n']);
+	});
+
 	it('falls through on a single-cell row the table scan would reject', async () => {
 		const { scope, commits, children } = stubScope([leaf('|a|\n')]);
 		await seamOver(scope).splitBlock(0, 3);
@@ -198,7 +215,7 @@ describe('Enter completion — the document it leaves behind', () => {
 	});
 
 	// In-container policy: complete in place; the blockquote rebuild reparses the mint as a
-	// quoted table. The list item's split override routes around the seam entirely (#146).
+	// quoted table.
 	it('completes inside a blockquote and reparses as a quoted table', async () => {
 		const h = makeNestedHarness('> | a | b |\n');
 		await h.bundle.blockEdit.splitBlock(0, 9);
