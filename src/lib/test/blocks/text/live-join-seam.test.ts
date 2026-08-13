@@ -225,3 +225,17 @@ describe('a side that is painting chrome is not a stranded run', () => {
 		expect(deleteBetween('**bold**\n', 2, 'para\n', 2)).toBe('ra\n');
 	});
 });
+
+// The seam's atomic list is per-NODE too: an empty link has no content range, so a cut inside it
+// leaves halves no reading can repair, while the same cut inside a link WITH text is an ordinary
+// dangling run. Miss-analysis: the two shapes were never contrasted, so a kind-level column looked
+// like it could replace the arity test that produces both answers.
+describe('a cut inside a construct with no content declines', () => {
+	it('declines inside an empty link, whose kind is otherwise rejoinable', () => {
+		expect(sameBlock('A [](u) B\n', 4, 8)).toBeNull();
+	});
+
+	it('still cleans the same cut inside a link that has text', () => {
+		expect(sameBlock('A [a](u) B\n', 3, 9)).toBe('A B\n');
+	});
+});
