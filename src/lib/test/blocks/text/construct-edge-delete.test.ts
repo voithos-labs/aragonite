@@ -250,3 +250,20 @@ describe('the whole-construct branch reads the node, not the kind', () => {
 		expect(del('A ![a](u) B', 9)).toEqual({ raw: 'A ![](u) B', caret: 4 });
 	});
 });
+
+// A candidate is bytes the caller is about to install as ONE prose block, so the reader it is
+// verified against is a block reader. The two sibling live rewrites (`live-split-rebalance`,
+// `live-join-seam`) re-read theirs the same way, and this arm was the seam that did not.
+// Miss-analysis: every case here fed the arm a fixture and read its bytes back as inline text, so
+// no case could see a candidate whose bytes re-read as a different BLOCK — the abutted run.
+describe('a candidate that re-reads as another block is not written', () => {
+	// `~~[](u)~~a`: the `~~` runs are literal text, so taking the childless link whole abuts them
+	// into `~~~~a` — a tilde fence, which on reload swallows every block below it.
+	it('refuses a cut that abuts two runs into a fence opener', () => {
+		expect(del('~~[](u)~~a', 2, 'forward')).toEqual({ swallow: true });
+	});
+
+	it('still takes the same construct where the abutted bytes stay one paragraph', () => {
+		expect(del('~~[](u)~~ x', 2, 'forward')).toEqual({ raw: ' x', caret: 0 });
+	});
+});
