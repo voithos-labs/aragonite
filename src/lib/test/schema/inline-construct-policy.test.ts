@@ -12,6 +12,7 @@ import {
 	getInlineConstructPolicy,
 	getInlineMarkPolicy,
 	inlineMarkForCommand,
+	isCardEditableInlineKind,
 	isRevealableInlineKind,
 	listInlineMarks,
 	registerLiveSplitRebalancer,
@@ -95,12 +96,20 @@ describe('built-in rows', () => {
 		expect(getInlineMarkPolicy('link')).toBeUndefined();
 	});
 
+	// The card is one construct's door. An image's destination has its own editor and an
+	// autolink's is the text on screen, so neither claims the card.
+	it('the bracketed link alone is card-editable', () => {
+		const kinds = Object.keys(INLINE_KIND_TABLE) as AnyInlineKind[];
+		expect(kinds.filter(isCardEditableInlineKind)).toEqual(['link']);
+	});
+
 	it('link neither edge extends, but a split still rebalances it', () => {
 		expect(getInlineConstructPolicy('link')).toEqual({
 			edgeAffinity: 'never-extend',
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
-			revealable: true
+			revealable: true,
+			cardEditable: true
 		});
 	});
 
