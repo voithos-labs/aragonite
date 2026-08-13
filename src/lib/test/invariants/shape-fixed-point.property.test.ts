@@ -6,6 +6,7 @@ import { isBlankParagraph, parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '$lib/tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbBlankSeparatedGfmDoc, arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import { displayLength, trailingLineEnding } from '$lib/core/lines';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -117,36 +118,6 @@ function applyEmpty(doc: Document, at: number): void {
  */
 const survivingBytes = (bytes: string) => [...bytes.replace(/\r?\n/g, '')].sort().join('');
 const lineCount = (t: string) => t.split('\n').length;
-
-/**
- * Every non-line-ending byte of `before` still present in `after` — the live arm's relaxation of
- * the equality above, since closing and reopening a construct DUPLICATES its delimiter run. A
- * multiset over code UNITS: a cut between the halves of a surrogate pair is a real hazard, but a
- * pre-existing and mode-independent one, and code points would report it as a loss here.
- */
-function keepsEveryByte(before: string, after: string): boolean {
-	// The declared-drop exception (#106), re-derived: the rebalancer strips `droppedTail` before
-	// returning its halves, so the forgiveness is bounded by the line-terminal whitespace
-	// `before` holds instead — a terminal run can absorb an equal COUNT of mid-line whitespace,
-	// but exact position would make this net an echo of the verifier, not an independent oracle.
-	let droppable = (before.match(/[ \t]+(?=\r?\n|$)/g) ?? []).join('').length;
-	const budget = new Map<string, number>();
-	for (const byte of after.replace(/\r?\n/g, '').split('')) {
-		budget.set(byte, (budget.get(byte) ?? 0) + 1);
-	}
-	for (const byte of before.replace(/\r?\n/g, '').split('')) {
-		const left = budget.get(byte) ?? 0;
-		if (left === 0) {
-			if (byte.trim() === '' && droppable > 0) {
-				droppable--;
-				continue;
-			}
-			return false;
-		}
-		budget.set(byte, left - 1);
-	}
-	return true;
-}
 
 function divergenceAfterEdit(
 	source: string,

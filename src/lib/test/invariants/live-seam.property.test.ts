@@ -10,6 +10,7 @@ import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { countEmptyPairs, isSubsequence } from '$lib/test/harness/live-oracles';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
@@ -28,15 +29,6 @@ import type { PresentationMode } from '$lib/presentation-mode';
  */
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(515151) } as const;
-
-/**
- * The residue live-mode.md § 4.4 names: a symmetric emphasis pair with nothing between it. Two shapes are
- * deliberately NOT counted, both measured: `[]()`, because a link emptied of its text is
- * `autoUnwrapOnEmpty`'s business and the literal join reaches it just as often spelt `[**]()`;
- * and a backtick run, because the two arms spell the same residue at different lengths
- * (``` ``` ``` against `` `` ``) and the count would report the shorter one as the offender.
- */
-const EMPTY_PAIR = /\*\*\*\*|~~~~|(?<![\w_])____(?![\w_])/g;
 
 interface Cut {
 	startBlock: number;
@@ -103,7 +95,7 @@ function deleteRange(
 		bytes,
 		shape: describeConvergence(doc),
 		visible: doc.children.map(visibleTextOf).join('\n'),
-		emptyPairs: (bytes.match(EMPTY_PAIR) ?? []).length
+		emptyPairs: countEmptyPairs(bytes)
 	};
 }
 
@@ -111,17 +103,6 @@ function visibleTextOf(node: Document['children'][number]): string {
 	const range = getContentRange(node);
 	if (range.end > displayLength(node.raw)) return node.raw;
 	return renderedText(parseInline(node.raw, range.start, range.end), node.raw, CONTENT_VISIBILITY);
-}
-
-/** Whether `inner` can be read off `outer` by deleting characters — the shape of a rewrite that
- *  only ever drops runs from the bytes it was handed. Code UNITS, not code points: an offset is a
- *  code-unit index everywhere in the editor, so a lone surrogate is a byte like any other here. */
-function isSubsequence(inner: string, outer: string): boolean {
-	let at = 0;
-	for (let i = 0; i < outer.length; i++) {
-		if (at < inner.length && inner.charCodeAt(at) === outer.charCodeAt(i)) at++;
-	}
-	return at === inner.length;
 }
 
 describe('live-mode join seams over random range deletes', () => {
