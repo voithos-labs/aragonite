@@ -60,6 +60,12 @@ describe('live-mode gestures at hidden edges', () => {
 		expect(stats.rewrote['range-delete']).toBeGreaterThan(5);
 		expect(stats.rewrote.backspace + stats.rewrote.delete).toBeGreaterThan(10);
 	});
+
+	// The excused classes have to be REACHED by the default seed, or the exclusions are unexercised
+	// prose and the gate below them proves nothing about the shapes they name.
+	it('draws the shapes its exclusions name', () => {
+		expect(stats.violations.filter((v) => v.category === 'known').length).toBeGreaterThan(0);
+	});
 });
 
 // ── The pins ─────────────────────────────────────────────────────────────────
@@ -146,6 +152,20 @@ describe('the shapes the sweep excuses, and the issues that own them', () => {
 		});
 		expect(cut.live).toBe('**bold*****foo***foo\n');
 		expect(cut.live).not.toBe(cut.literal);
+	});
+
+	// #165: the selection replace verifies the cleaned join, then splices the typed bytes into it —
+	// so the flanking the check saw is not the flanking the seam writes, and a pair can surface.
+	it('#165 — the selection replace splices typed bytes past its own verification', async () => {
+		const typed = await liveAndLiteral('lorem*汉[](u)*`a`\n', {
+			kind: 'type-over',
+			offset: 14,
+			endOffset: 16,
+			char: 'a'
+		});
+		expect(typed.live).toBe('lorem*汉[](u)*a\n');
+		expect(typed.screen).toBe('lorem*汉*a');
+		expect(typed.literal).toBe('lorem*汉[](u)*`a\n');
 	});
 
 	// #163: the cleaned join leaves the item's body starting with a space, and the reload folds it
