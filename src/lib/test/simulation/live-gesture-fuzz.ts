@@ -160,6 +160,9 @@ function seatIssue(doc: Document, gesture: Gesture, rewrote: boolean): ScreenIss
 	// The splice happens only where the cleanup produced something to splice into.
 	if (gesture.kind === 'type-over') return rewrote ? '#165' : null;
 	if (gesture.kind !== 'type') return null;
+	// A byte the seat did NOT move is the engine's own insertion, and the twin makes it too — so a
+	// screen only live spoilt is a screen the RELOCATION spoilt, which is the whole of #162.
+	if (!rewrote) return null;
 	for (const { node, offset } of gestureSites(doc, gesture)) {
 		const near = (start: number, end: number) => offset >= start - 1 && offset <= end + 1;
 		const runsOf = (pattern: RegExp) =>
@@ -184,7 +187,10 @@ function seatIssue(doc: Document, gesture: Gesture, rewrote: boolean): ScreenIss
 			});
 		if (empty(parseInline(node.raw, range.start, range.end))) return '#162';
 	}
-	return null;
+	// The relocation itself, where no narrower shape named it. #162 is that the seat verifies no
+	// candidate AT ALL, so every screen a relocation spoils IS that missing verification — which does
+	// mean oracle (a) gates typing only where the seat left the byte where the caret was.
+	return '#162';
 }
 
 /**
@@ -210,14 +216,10 @@ function shapeIssue(
 
 const blankBlocks = (doc: Document): number => doc.children.filter(isBlankParagraph).length;
 
-/** The longest run of one delimiter byte. A join splice abuts two runs into a longer shared one,
- *  which is #136's mechanism and what tells it from a residue pair that was already there. */
-function longestRun(bytes: string, byte: string): number {
-	return [...bytes.matchAll(new RegExp(`\\${byte}+`, 'g'))].reduce(
-		(longest, run) => Math.max(longest, run[0].length),
-		0
-	);
-}
+/** How many asterisk runs are long enough to read as a pair enclosing nothing. A splice abuts two
+ *  runs into one more of these, which is #136's mechanism and what tells it from residue that was
+ *  already in the document — a global LONGEST would miss it wherever a longer run stands elsewhere. */
+const residueRuns = (bytes: string): number => (bytes.match(/\*{4,}/g) ?? []).length;
 
 /**
  * The § 2 license over bytes, per gesture family. Typing loses nothing; a split keeps every byte but
@@ -389,7 +391,7 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 			? null
 			: gesture.kind === 'type'
 				? seatIssue(start, gesture, minted)
-				: longestRun(live.bytes, '*') > longestRun(before, '*')
+				: residueRuns(live.bytes) > residueRuns(before)
 					? '#136'
 					: null;
 		say(
