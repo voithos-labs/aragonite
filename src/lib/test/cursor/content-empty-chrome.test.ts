@@ -12,7 +12,8 @@ import {
 	holdsOnlyMarkerChrome,
 	isHiddenMarkerRoot,
 	landableDomTextBounds,
-	paintsNoLandableContent
+	paintsNoLandableContent,
+	screenVisibilityOf
 } from '../../cursor/widget-offset';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 
@@ -133,6 +134,29 @@ describe('the stamp in the walk', () => {
 		}
 		const reading = mount({ mode: 'reading', stamped: true }, span('md-marker', '# '));
 		expect(landableDomTextBounds(reading)).toEqual({ start: 2, end: 2 });
+	});
+});
+
+describe('screenVisibilityOf — the reading a rewrite seam takes', () => {
+	it('reports the mode and the stamp the container carries', () => {
+		expect(screenVisibilityOf(mount({ mode: 'live', stamped: true }))).toEqual({
+			hidesMarkers: true,
+			chromePaints: true
+		});
+		expect(screenVisibilityOf(mount({ mode: 'live' }))).toEqual({
+			hidesMarkers: true,
+			chromePaints: false
+		});
+		// Reading takes no keystrokes, so a construct with nothing behind its chrome may paint
+		// nothing there, stamp or not.
+		expect(screenVisibilityOf(mount({ mode: 'reading', stamped: true })).chromePaints).toBe(false);
+	});
+
+	// An unmounted surface (a composition committing before the block's first render) has no mode
+	// to read: source hides nothing, so no seam finds a run to move.
+	it('reads an unmounted surface as source', () => {
+		expect(screenVisibilityOf(null)).toEqual({ hidesMarkers: false, chromePaints: false });
+		expect(screenVisibilityOf(mount({}))).toEqual({ hidesMarkers: false, chromePaints: false });
 	});
 });
 
