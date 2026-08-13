@@ -20,7 +20,7 @@ export interface CompletionResult {
 }
 
 export interface BlockCompleter {
-	/** Attempt to complete `line`; null declines. */
+	/** Attempt to complete `line`; null declines, as does a claim whose lines would paint nothing. */
 	tryComplete(line: string): CompletionResult | null;
 }
 

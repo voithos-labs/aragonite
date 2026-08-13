@@ -27,6 +27,7 @@ import {
 	flushPendingRegistrationChecks,
 	checkInlineConstructPoliciesAtMount
 } from '$lib/schema/registration-checks';
+import { mintCommandId } from '$lib/schema/command-id';
 
 const atomic: InlineConstructPolicy = {
 	edgeAffinity: 'never-extend',
@@ -179,6 +180,24 @@ describe('registration lifecycle', () => {
 		expect(getInlineConstructPolicy(kind)?.revealable).toBe(true);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['registry']);
 	});
+
+	// The seam refuses the row rather than registering one G1.31 will only warn about. The dev
+	// valve forgives a DUPLICATE, never an invalid row: a re-eval would re-submit the same claim.
+	const claimsCard = (name: string) => () =>
+		registerInlineConstructPolicy(declarePluginInlineKind(name), {
+			...atomic,
+			revealable: true,
+			mark: { nestingRank: 99, markerBytes: '++', command: 'link.openCard' }
+		});
+
+	it('throws on a mark claiming a built-in command id', () => {
+		expect(claimsCard('policy-builtin-command')).toThrow(/link\.openCard/);
+	});
+
+	it('throws on that same claim under the dev valve', () => {
+		configureEditorEnv({ isDev: true, isTest: false });
+		expect(claimsCard('policy-builtin-command-dev')).toThrow(/link\.openCard/);
+	});
 });
 
 describe('live split rebalancer slot', () => {
@@ -250,34 +269,45 @@ describe('coherence check scope', () => {
 		expect(byTag('inline-construct-policy')).toEqual([]);
 	});
 
-	// The guards that replaced the mark union's exhaustiveness: a rank tie leaves which mark
-	// wraps the other to registration order, and a command tie makes one press two toggles.
-	const tie = (mark: InlineMarkPolicy): InlineMarkPolicy => mark;
-	it.each([
-		// `block.split` is claimed by no mark row, so the first case ties on the rank alone.
-		['nestingRank', tie({ nestingRank: 0, markerBytes: '++', command: 'block.split' })],
-		['command', tie({ nestingRank: 99, markerBytes: '++', command: 'format.toggleStrong' })]
-	])('fires when a plugin row ties a built-in mark on %s', (column, mark) => {
-		const kind = declarePluginInlineKind(`mark-tie-${column}`);
-		registerInlineConstructPolicy(kind, { ...atomic, revealable: true, mark });
+	// The guards that replaced the mark union's exhaustiveness: a rank tie leaves which mark wraps
+	// the other to registration order, and a command tie makes one press two toggles. Both ties are
+	// between rows the seam accepts — a mark on a built-in id it refuses at registration instead.
+	const markRow = (mark: InlineMarkPolicy): InlineConstructPolicy => ({
+		...atomic,
+		revealable: true,
+		mark
+	});
+	// Minted, not cast: a mark row's command is an `AnyCommandId`, and the mint is the only door
+	// to the plugin half of it.
+	const tiedCommand = mintCommandId('spec.toggleTied');
+	const sharedCommand = mintCommandId('spec.toggleShared');
+
+	it('fires when a plugin row ties a built-in mark on its nesting rank', () => {
+		registerInlineConstructPolicy(
+			declarePluginInlineKind('mark-tie-rank'),
+			markRow({ nestingRank: 0, markerBytes: '++', command: tiedCommand })
+		);
 		const { report, byTag } = collector();
 		checkInlineConstructPoliciesAtMount(report);
 		expect(byTag('inline-construct-policy')).toHaveLength(1);
-		expect(byTag('inline-construct-policy')[0].violation.detail).toHaveProperty(column);
+		expect(byTag('inline-construct-policy')[0].violation.detail).toHaveProperty('nestingRank');
 	});
 
-	// `link.openCard` ties with no mark row, so nothing above catches it — and it is the id whose
-	// two surfaces rank the mark lookup differently: the cell consults marks first, prose last.
-	it('fires when a plugin row claims a built-in command no mark row holds', () => {
-		const kind = declarePluginInlineKind('mark-builtin-command');
-		registerInlineConstructPolicy(kind, {
-			...atomic,
-			revealable: true,
-			mark: tie({ nestingRank: 99, markerBytes: '++', command: 'link.openCard' })
-		});
+	// One plugin's two kinds pointing at one of its own minted ids: the collision still reachable
+	// now that a built-in id cannot be claimed at all.
+	it('fires when two plugin rows claim one command', () => {
+		for (const [name, nestingRank] of [
+			['mark-tie-first', 98],
+			['mark-tie-second', 99]
+		] as const) {
+			registerInlineConstructPolicy(
+				declarePluginInlineKind(name),
+				markRow({ nestingRank, markerBytes: '++', command: sharedCommand })
+			);
+		}
 		const { report, byTag } = collector();
 		checkInlineConstructPoliciesAtMount(report);
 		expect(byTag('inline-construct-policy')).toHaveLength(1);
-		expect(byTag('inline-construct-policy')[0].violation.message).toContain('link.openCard');
+		expect(byTag('inline-construct-policy')[0].violation.detail).toHaveProperty('command');
 	});
 });

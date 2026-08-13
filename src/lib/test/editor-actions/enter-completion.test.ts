@@ -74,11 +74,18 @@ registerBlockCompleter(declarePluginKind('spec-fence'), {
 			: null
 });
 
-// A registrant that claims a line and mints no lines for it. Only an empty `lines` reaches the
-// seam's arity gate: a blank line is bytes, and parses back as an empty paragraph.
+// A registrant whose every claim mints bytes the reader would see nothing of: no lines at all, and
+// blank lines, which are bytes and parse back as empty paragraphs.
+const PAINTS_NOTHING: Record<string, string[]> = {
+	'empty me': [],
+	'blank me': [''],
+	'blank me twice': ['', '']
+};
 registerBlockCompleter(declarePluginKind('spec-empty'), {
 	tryComplete: (line) =>
-		line === 'empty me' ? { lines: [], caret: { path: [], line: 0, column: 0 } } : null
+		line in PAINTS_NOTHING
+			? { lines: PAINTS_NOTHING[line], caret: { path: [], line: 0, column: 0 } }
+			: null
 });
 
 describe('Enter completion — which presses reach a completer', () => {
@@ -179,14 +186,16 @@ describe('Enter completion — what the composed split commits', () => {
 		expect(children.map((c) => c.raw)).toEqual(['| a \n', '| b |\n']);
 	});
 
-	// A mint holding no blocks would replace the block with nothing, which is a delete: the seam
-	// declines, so the press stays the ordinary split and the typed line survives.
-	it('falls through on a claim whose mint holds no blocks', async () => {
-		expect(planEnterCompletion(leaf('empty me\n'), 8)).toBeNull();
-		const { scope, commits, children } = stubScope([leaf('empty me\n')]);
-		await seamOver(scope).splitBlock(0, 8);
+	// A mint that paints nothing replaces the typed line with a delete, or with blank trivia a
+	// reload reads as neither: the seam declines, so the press stays the ordinary split. The blank
+	// shapes parse to paragraphs, which is why arity alone cannot see them.
+	it.each(Object.keys(PAINTS_NOTHING))('falls through on the %j claim', async (line) => {
+		const raw = `${line}\n`;
+		expect(planEnterCompletion(leaf(raw), line.length)).toBeNull();
+		const { scope, commits, children } = stubScope([leaf(raw)]);
+		await seamOver(scope).splitBlock(0, line.length);
 		expect(commits[0].op.kind).toBe('split');
-		expect(children.map((c) => c.raw)).toEqual(['empty me\n', '\n']);
+		expect(children.map((c) => c.raw)).toEqual([raw, '\n']);
 	});
 
 	it('falls through on a single-cell row the table scan would reject', async () => {
