@@ -11,6 +11,7 @@ import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { LinkReferenceResolver } from '../core/inline/link-reference-resolver';
 import type { AnyCommandId } from './command-id';
+import { isBuiltinCommandId } from './commands';
 import { registerOnce } from './register-once';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
@@ -51,10 +52,20 @@ export function registerInlineConstructPolicy(
 	kind: AnyInlineKind,
 	policy: InlineConstructPolicy
 ): void {
+	assertMarkCommandMintable(kind, policy.mark);
 	registerOnce(
 		policies.has(kind),
 		() => policies.set(kind, policy),
 		`registerInlineConstructPolicy: "${kind}" is already registered. Policies are register-once.`
+	);
+}
+
+/** Ahead of the register-once valve, so it rejects in every env: the valve forgives a duplicate
+ *  row, never an invalid one. The rule and why it matters are G1.31's, which stays the belt. */
+function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy | undefined): void {
+	if (!mark || isBuiltinInlineKind(kind) || !isBuiltinCommandId(mark.command)) return;
+	throw new Error(
+		`registerInlineConstructPolicy: "${kind}" claims built-in command "${mark.command}" for its mark — that id already has a built-in meaning; mint a plugin command id for the mark`
 	);
 }
 

@@ -63,9 +63,10 @@ export function planEnterCompletion(
 	const lineEnding = trailingLineEnding(node.raw);
 	const raw = claim.lines.map((text) => text + lineEnding).join('');
 	const replacement = parse(raw, { scope: 'fragment' }).children;
-	// A mint holding no blocks would replace the block with nothing, which is a delete, not a
-	// completion. Only an empty `lines` reaches here: a blank line parses back as a paragraph.
-	if (replacement.length === 0) return null;
+	// A mint that paints nothing would replace the typed line with a delete, or with blank trivia
+	// a reload reads as neither. Blank lines parse back as empty paragraphs, so the reading is per
+	// node rather than the child count.
+	if (replacement.every((node) => node.raw.trim() === '')) return null;
 	return { replacement, caret: resolveCaret(replacement[0], claim.caret) };
 }
 
