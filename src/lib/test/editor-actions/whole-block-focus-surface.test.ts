@@ -87,7 +87,7 @@ describe('container shim through a composed fallback surface', () => {
 			get innerBlockRefs() {
 				return [];
 			},
-			refSlots: refSlotsOver(() => []),
+			refSlots: refSlotsOver([]),
 			get nodeChildrenLength() {
 				return 0;
 			},

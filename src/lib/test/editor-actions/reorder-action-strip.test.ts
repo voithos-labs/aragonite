@@ -5,6 +5,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
@@ -29,7 +30,10 @@ function makeContainer(source: string) {
 	const history = createHistoryActions(harness.deps, controller);
 	const reorder = createReorderAction(harness.deps, controller);
 	const state = createBlockListState(node);
-	state.innerBlockRefs = (initial.children ?? []).map(() => mockRef());
+	replaceRefs(
+		state.innerBlockRefs,
+		(initial.children ?? []).map(() => mockRef())
+	);
 	return {
 		doc: harness.doc,
 		reorder,
@@ -88,7 +92,10 @@ describe('reorder action — no whole-alert teleport', () => {
 		const reorder = createReorderAction(harness.deps, controller);
 		const alert = () => harness.doc.children[1];
 		const state = createBlockListState(alert);
-		state.innerBlockRefs = (alert().children ?? []).map(() => mockRef());
+		replaceRefs(
+			state.innerBlockRefs,
+			(alert().children ?? []).map(() => mockRef())
+		);
 		return { doc: harness.doc, reorder };
 	}
 

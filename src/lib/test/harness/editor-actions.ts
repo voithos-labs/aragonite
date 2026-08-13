@@ -18,7 +18,7 @@ import {
 	type PendingMarksState
 } from '$lib/cursor/pending-marks';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import { refSlotsOver, replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
@@ -112,7 +112,7 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 	const node = getNode();
 	if (ids) node.childIds = [...ids];
 	else if (!node.childIds) node.childIds = (node.children ?? []).map((_, i) => `auto-${i}`);
-	let innerBlockRefs: (BlockComponent | undefined)[] = (node.childIds ?? []).map(() => undefined);
+	const innerBlockRefs: (BlockComponent | undefined)[] = (node.childIds ?? []).map(() => undefined);
 	return {
 		get innerBlockIds() {
 			return getNode().childIds ?? [];
@@ -120,13 +120,8 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 		set innerBlockIds(v: string[]) {
 			getNode().childIds = v;
 		},
-		get innerBlockRefs() {
-			return innerBlockRefs;
-		},
-		set innerBlockRefs(v: (BlockComponent | undefined)[]) {
-			innerBlockRefs = v;
-		},
-		refSlots: refSlotsOver(() => innerBlockRefs)
+		innerBlockRefs,
+		refSlots: refSlotsOver(innerBlockRefs)
 	};
 }
 
@@ -200,7 +195,7 @@ export function makeEditorActionsDeps(
 ): EditorActionsHarness {
 	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
-	let blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
+	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
 	const events = createEditorEvents();
 	const deps: EditorActionsDeps = {
 		get doc() {
@@ -212,7 +207,7 @@ export function makeEditorActionsDeps(
 		get blockRefs() {
 			return blockRefs;
 		},
-		blockRefSlots: refSlotsOver(() => blockRefs),
+		blockRefSlots: refSlotsOver(blockRefs),
 		setDoc: (v: Document) => {
 			Object.assign(doc, v);
 		},
@@ -220,7 +215,7 @@ export function makeEditorActionsDeps(
 			blockIds = v;
 		},
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			blockRefs = v;
+			replaceRefs(blockRefs, v);
 		},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),

@@ -149,9 +149,11 @@ export interface ContainerScope {
 export interface MultiScopeTarget {
 	/** Scope identity — a view suffices; the ceremony unshares the spine and mints the owned mutation view. */
 	node: NodeView;
+	/** The `BlockListState` shape the ceremony writes: ids by assignment, refs only in
+	 *  place — the array identity is the scope's, so a replacement strands its teardowns. */
 	state: {
 		innerBlockIds: string[];
-		innerBlockRefs: (BlockComponent | undefined)[];
+		readonly innerBlockRefs: (BlockComponent | undefined)[];
 	};
 	/** Doc-absolute path of `node`; the commit primitive unshares its spine. */
 	path: number[];
@@ -189,7 +191,7 @@ export interface CommitContainerStructuralArgs {
 	path: number[];
 	state: {
 		innerBlockIds: string[];
-		innerBlockRefs: (BlockComponent | undefined)[];
+		readonly innerBlockRefs: (BlockComponent | undefined)[];
 	};
 	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;

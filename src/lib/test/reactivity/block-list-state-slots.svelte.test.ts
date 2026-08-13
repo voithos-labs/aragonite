@@ -9,7 +9,7 @@ import {
 	createBlockListState,
 	type BlockListState
 } from '../../reactivity/block-list-state.svelte';
-import { publishRefSlot } from '../../reactivity/publish-ref.svelte';
+import { publishRefSlot, replaceRefs } from '../../reactivity/publish-ref.svelte';
 import { stubBlockComponent } from '../../testing/headless-actions';
 import type { CstNode } from '../../core/nodes';
 
@@ -88,7 +88,7 @@ describe('container scope slots', () => {
 		// written back to the scope, and the same flush tears the child mount down. Svelte
 		// pins destroy-time reads to pre-flush values, so a replaced array would take the
 		// teardown's clear with it and leave the live array holding a dead ref.
-		state.innerBlockRefs = [...state.innerBlockRefs];
+		replaceRefs(state.innerBlockRefs, [...state.innerBlockRefs]);
 		unmount();
 		flushSync();
 
@@ -96,14 +96,21 @@ describe('container scope slots', () => {
 		stop();
 	});
 
-	it('keeps the scope addressable by one array identity across a republish', () => {
+	it('a whole-contents republish resizes the one array rather than swapping it', () => {
 		const { state, stop } = mountScopeWithChild();
 		const before = state.innerBlockRefs;
 
-		state.innerBlockRefs = [undefined, undefined];
+		replaceRefs(state.innerBlockRefs, [undefined, undefined]);
 
 		expect(state.innerBlockRefs).toBe(before);
 		expect(state.innerBlockRefs).toHaveLength(2);
 		stop();
 	});
 });
+
+/** The seal, asserted by `npm run check`: making the property settable again leaves the
+ *  directive unused and fails the type check. Never invoked. */
+export function compileTimePins(state: BlockListState): void {
+	// @ts-expect-error identity is the scope — contents publish through replaceRefs
+	state.innerBlockRefs = [];
+}

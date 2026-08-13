@@ -10,15 +10,16 @@ export interface RefSlots<T> {
 	get(index: number): T | undefined;
 }
 
-/** Mints a scope over its ref array. That array must be plain and must never be replaced:
- *  Svelte pins a teardown's reads to pre-flush values, so a reactive or swapped array takes
- *  each cleanup's clear with it and strands the dead ref in the live one. */
-export function refSlotsOver<T>(readRefs: () => (T | undefined)[]): RefSlots<T> {
+/** Mints a scope over its ref array. Takes the array itself, not a getter, so a scope
+ *  cannot be re-aimed at a replacement: Svelte pins a teardown's reads to pre-flush values,
+ *  so a swapped array takes each cleanup's clear with it and strands the dead ref in the
+ *  live one. Publish a new set of contents with `replaceRefs`. */
+export function refSlotsOver<T>(refs: (T | undefined)[]): RefSlots<T> {
 	return {
 		set: (index, ref) => {
-			readRefs()[index] = ref;
+			refs[index] = ref;
 		},
-		get: (index) => readRefs()[index]
+		get: (index) => refs[index]
 	};
 }
 

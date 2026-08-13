@@ -33,7 +33,7 @@ function container(refs: BlockComponent[]): BlockComponent {
 		get innerBlockRefs() {
 			return refs;
 		},
-		refSlots: refSlotsOver(() => refs),
+		refSlots: refSlotsOver(refs),
 		get nodeChildrenLength() {
 			return refs.length;
 		},
@@ -80,7 +80,7 @@ describe('createContainerBlockComponent', () => {
 			get innerBlockRefs() {
 				return refs;
 			},
-			refSlots: refSlotsOver(() => refs),
+			refSlots: refSlotsOver(refs),
 			get nodeChildrenLength() {
 				return refs.length;
 			},
@@ -138,12 +138,11 @@ describe('createContainerBlockComponent', () => {
 				}
 			]
 		};
+		const unmounted: (BlockComponent | undefined)[] = [];
 		const c = createContainerBlockComponent({
 			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return [];
-			},
-			refSlots: refSlotsOver(() => []),
+			innerBlockRefs: unmounted,
+			refSlots: refSlotsOver(unmounted),
 			get nodeChildrenLength() {
 				return 1;
 			},
@@ -170,7 +169,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 			get innerBlockRefs() {
 				return refs;
 			},
-			refSlots: refSlotsOver(() => refs),
+			refSlots: refSlotsOver(refs),
 			get nodeChildrenLength() {
 				return refs.length;
 			},
@@ -234,7 +233,7 @@ describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () 
 			get innerBlockRefs() {
 				return refs;
 			},
-			refSlots: refSlotsOver(() => refs),
+			refSlots: refSlotsOver(refs),
 			get nodeChildrenLength() {
 				return refs.length;
 			},
@@ -310,12 +309,11 @@ describe('createContainerBlockComponent — measurePartialRects (opaque single-u
 		childCount?: number;
 		getBoxEl?: () => HTMLElement | null | undefined;
 	}): BlockComponent {
+		const unmounted: (BlockComponent | undefined)[] = [];
 		return createContainerBlockComponent({
 			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return [];
-			},
-			refSlots: refSlotsOver(() => []),
+			innerBlockRefs: unmounted,
+			refSlots: refSlotsOver(unmounted),
 			get nodeChildrenLength() {
 				return over.childCount ?? 0;
 			},

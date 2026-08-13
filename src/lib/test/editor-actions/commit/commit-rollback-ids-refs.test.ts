@@ -30,23 +30,23 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 		const idsBefore = [...getBlockIds()];
 		const refsBefore = [...getBlockRefs()];
 
-		// Throws on the FIRST write (publish) and succeeds after (rollback), so the fault
-		// lands once the doc scope has already published its grown ids/refs.
-		let refsWrites = 0;
-		let stashedRefs: (unknown | undefined)[] = [];
+		// Armed once `mutate` has run, so the fault lands on the publish pass rather than the
+		// prepare reads before it, and disarms so the rollback's own read still resolves.
+		let armed = false;
+		const stashedRefs: BlockListState['innerBlockRefs'] = [];
 		const throwingState: BlockListState = {
 			get innerBlockIds() {
 				return deps.doc.children[1].childIds ?? [];
 			},
 			set innerBlockIds(_v: string[]) {},
 			get innerBlockRefs() {
-				return stashedRefs as never;
+				if (armed) {
+					armed = false;
+					throw new Error('publish boom');
+				}
+				return stashedRefs;
 			},
-			set innerBlockRefs(v) {
-				if (refsWrites++ === 0) throw new Error('publish boom');
-				stashedRefs = v as unknown[];
-			},
-			refSlots: refSlotsOver(() => stashedRefs as BlockListState['innerBlockRefs'])
+			refSlots: refSlotsOver(stashedRefs)
 		};
 
 		const scopes: MultiScopeTarget[] = [
@@ -61,6 +61,7 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 				mutate: ([docScope]) => {
 					// A fresh id makes the doc-scope publish rewrite blockIds — the mutation to undo.
 					docScope.children.push({ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' } as CstNode);
+					armed = true;
 					return [{ op: 'insert', at: docScope.children.length - 1, count: 1 }, { op: 'noop' }];
 				}
 			})

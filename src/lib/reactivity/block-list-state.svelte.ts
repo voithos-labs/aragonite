@@ -8,11 +8,14 @@ import type { BlockComponent } from '../block-component';
 import type { NodeView } from '../core/node-views';
 import { assignIds } from '../block-id';
 import { registerBlockListState } from './state-registry';
-import { refSlotsOver, replaceRefs, type RefSlots } from './publish-ref.svelte';
+import { refSlotsOver, type RefSlots } from './publish-ref.svelte';
 
 export interface BlockListState {
+	/** Settable because ids live on the node, where the write reaches the `$state` proxy.
+	 *  Refs do not: the array identity IS the scope, so `replaceRefs` publishes contents
+	 *  and the property itself never moves. */
 	innerBlockIds: string[];
-	innerBlockRefs: (BlockComponent | undefined)[];
+	readonly innerBlockRefs: (BlockComponent | undefined)[];
 	/** This scope's slot accessors, minted once here so every consumer — the child list,
 	 *  the container surface, the mount registry — addresses the scope by one identity. */
 	readonly refSlots: RefSlots<BlockComponent>;
@@ -27,8 +30,6 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		initialNode.childIds = assignIds(initialNode.children ?? []);
 	}
 
-	// Plain and never replaced (`refSlotsOver`): a mount's teardown reads pre-flush values, so
-	// a commit that swaps this array in the same flush strands the teardown's clear on the copy.
 	const innerBlockRefs: (BlockComponent | undefined)[] = [];
 
 	const state: BlockListState = {
@@ -38,13 +39,8 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		set innerBlockIds(value) {
 			getNode().childIds = value;
 		},
-		get innerBlockRefs() {
-			return innerBlockRefs;
-		},
-		set innerBlockRefs(value) {
-			replaceRefs(innerBlockRefs, value);
-		},
-		refSlots: refSlotsOver(() => innerBlockRefs)
+		innerBlockRefs,
+		refSlots: refSlotsOver(innerBlockRefs)
 	};
 
 	// Sync so callers outside a reactive context (unit tests) see the entry on creation.
