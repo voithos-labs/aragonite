@@ -117,15 +117,15 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 	{
 		path: 'src/lib/components/blocks/text/construct-edge-delete.ts',
 		detection: 'declared',
-		fate: 'backlog',
+		fate: 'outside',
 		reason:
-			'atomicity is derived from constructContentRange returning null rather than declared on the row'
+			'which constructs it takes whole is a per-NODE fact: `[](u)` is a link with no content range, `![a](u)` an atomic island with one, so a kind column would swap both answers'
 	},
 	{
 		path: 'src/lib/components/blocks/text/live-join-seam.ts',
 		detection: 'declared',
-		fate: 'backlog',
-		reason: 'the same implicit atomicity derivation, in classifyConstructs'
+		fate: 'outside',
+		reason: 'the same per-node arity, in classifyConstructs, on the same two shapes'
 	},
 	{
 		path: 'src/lib/components/blocks/text/edge-policy-dispatch.ts',
@@ -174,7 +174,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
  * edits this number down, so a commit that adds a hand-written arm has to argue for it in review
  * rather than absorb it into slack.
  */
-const BACKLOG_CEILING = 4;
+const BACKLOG_CEILING = 2;
 
 const backlog = HAND_WRITTEN_ARMS.filter((arm) => arm.fate === 'backlog');
 const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kind-literal');

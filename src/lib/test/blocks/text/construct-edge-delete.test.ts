@@ -232,3 +232,21 @@ describe('no accepted rewrite grows a delimiter run', () => {
 		expect(grown).toEqual([]);
 	});
 });
+
+// Which constructs this arm takes WHOLE is a per-NODE fact, not a per-kind one: `[](u)` is a link
+// — a kind whose delimiters normally enclose content — with no content range at all, and
+// `![a](u)` is an atomic island with one. A kind-level column would answer a different question
+// than the arm asks, and would swap these two answers.
+// Miss-analysis: no case separated the per-node predicate from a per-kind one, so a declared
+// `contentModel` row read as a safe substitution for it.
+describe('the whole-construct branch reads the node, not the kind', () => {
+	it('takes a content-empty link whole, though its kind normally encloses content', () => {
+		expect(del('A [](u) B', 7)).toEqual({ raw: 'A  B', caret: 2 });
+	});
+
+	// The arm's own contract, not a shipped gesture: live paints the image as an atomic island the
+	// widget branch claims first. A kind-level `atomic` for image would take the whole picture here.
+	it('takes one alt character out of an image, whose alt IS content', () => {
+		expect(del('A ![a](u) B', 9)).toEqual({ raw: 'A ![](u) B', caret: 4 });
+	});
+});
