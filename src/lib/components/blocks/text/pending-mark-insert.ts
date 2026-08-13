@@ -9,17 +9,12 @@ import { constructContentRange, parseInline } from '../../../core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
-import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
-import { markersFor } from './format-toggle';
-
-/** Outermost first, so a set wraps to one byte string whatever order the chords arrived in. Code
- *  is innermost because its content is literal: no other mark can take effect inside it. */
-const NESTING_ORDER: readonly InlineMarkKind[] = [
-	'strong',
-	'emphasis',
-	'strikethrough',
-	'inlineCode'
-];
+import {
+	getInlineConstructPolicy,
+	getInlineMarkPolicy,
+	listInlineMarks,
+	type InlineMark
+} from '../../../schema/inline-construct-policy';
 
 export interface MarkedInsertion {
 	/** The block's whole display bytes after the insertion. */
@@ -44,9 +39,9 @@ export function resolveMarkedInsertion(
 
 	const chain = constructChainAt(caretOffset, inlines);
 	const removed = chain.filter((node) => node.mark !== null && marks.has(node.mark));
-	const applied = NESTING_ORDER.filter(
-		(kind) => marks.has(kind) && !chain.some((node) => node.mark === kind)
-	);
+	const applied = listInlineMarks()
+		.map((entry) => entry.kind)
+		.filter((kind) => marks.has(kind) && !chain.some((node) => node.mark === kind));
 	const removedKinds = new Set<AnyInlineKind>(removed.map((node) => node.kind));
 	// What must enclose the inserted text afterwards: every construct the caret was inside minus
 	// the ones this chord removes, plus the ones it adds. Non-markable ancestors are in it too —
@@ -116,14 +111,15 @@ function* candidateInsertions(
 	for (const at of sides) yield spliceWrapped(display, at, text, payload);
 }
 
-/** The markable kinds the insertion must declare for itself: the intended ones its surroundings
- *  do not already provide. */
+/** The marks the insertion must declare for itself: the intended ones its surroundings do not
+ *  already provide, outermost first. Rows rather than kinds, so nothing downstream can look a
+ *  marker up and miss. */
 function marksToWrite(
 	intended: ReadonlySet<AnyInlineKind>,
 	provided: readonly ChainNode[]
-): InlineMarkKind[] {
-	return NESTING_ORDER.filter(
-		(kind) => intended.has(kind) && !provided.some((node) => node.kind === kind)
+): InlineMark[] {
+	return listInlineMarks().filter(
+		({ kind }) => intended.has(kind) && !provided.some((node) => node.kind === kind)
 	);
 }
 
@@ -131,10 +127,13 @@ function spliceWrapped(
 	display: string,
 	at: number,
 	text: string,
-	payload: readonly InlineMarkKind[]
+	payload: readonly InlineMark[]
 ): Candidate {
-	const openers = payload.map(markersFor).join('');
-	const closers = [...payload].reverse().map(markersFor).join('');
+	const openers = payload.map((entry) => entry.mark.markerBytes).join('');
+	const closers = [...payload]
+		.reverse()
+		.map((entry) => entry.mark.markerBytes)
+		.join('');
 	return {
 		raw: display.slice(0, at) + openers + text + closers + display.slice(at),
 		textAt: at + openers.length
@@ -149,7 +148,7 @@ function splitOpen(
 	caretOffset: number,
 	text: string,
 	escaped: readonly ChainNode[],
-	payload: readonly InlineMarkKind[]
+	payload: readonly InlineMark[]
 ): Candidate {
 	let leftEnd = caretOffset;
 	let rightStart = caretOffset;
@@ -237,9 +236,9 @@ interface ChainNode {
 	contentEnd: number;
 }
 
-/** Derived from the nesting order rather than re-listed, so a new format joins in one place. */
+/** Read off the kind's row rather than a second list, so a new format joins in one place. */
 function markOf(kind: AnyInlineKind): InlineMarkKind | null {
-	return NESTING_ORDER.find((mark) => mark === kind) ?? null;
+	return getInlineMarkPolicy(kind) ? kind : null;
 }
 
 /** Whether a construct's closer mirrors its opener, so a split can close and reopen it. The policy

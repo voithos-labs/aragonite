@@ -9,21 +9,10 @@
 import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
-
-// ── Markers ──────────────────────────────────────────────────────────────────
-
-const MARKERS: Record<InlineMarkKind, string> = {
-	strong: '**',
-	emphasis: '*',
-	strikethrough: '~~',
-	inlineCode: '`'
-};
-
-/** The bare delimiter run that opens and closes a construct of this kind. Inline code's run grows
- *  with what it encloses, so a wrap over content sizes its own fence (`codeWrap`). */
-export function markersFor(format: InlineMarkKind): string {
-	return MARKERS[format];
-}
+import {
+	getInlineMarkPolicy,
+	type InlineMarkPolicy
+} from '../../../schema/inline-construct-policy';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -43,17 +32,22 @@ export interface ToggleInlineFormatResult {
 	newSelEnd: number;
 }
 
+/** Null for a kind whose row declares no mark: the vocabulary lives on the row, so a kind without
+ *  one has no delimiters this seam could write. The runtime guard `InlineMarkKind` gave up when it
+ *  opened from a closed union to whatever the table rows. */
 export function toggleInlineFormat(
 	edit: InlineFormatEdit,
 	format: InlineMarkKind
-): ToggleInlineFormatResult {
+): ToggleInlineFormatResult | null {
+	const mark = getInlineMarkPolicy(format);
+	if (!mark) return null;
 	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
 	// The same bounds the block itself parses with, so no construct can straddle the structural
 	// bytes the clamp above keeps the write out of.
 	const inlines = parseInline(display, content.start, content.end);
-	if (start === end) return toggleAtCaret(display, inlines, start, format);
+	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
 	const slice = display.slice(start, end);
 
@@ -81,7 +75,7 @@ export function toggleInlineFormat(
 		};
 	}
 
-	const wrapped = wrapSlice(slice, format);
+	const wrapped = wrapSlice(slice, mark);
 	return {
 		newDisplay: display.slice(0, start) + wrapped + display.slice(end),
 		newSelStart: start,
@@ -95,7 +89,8 @@ function toggleAtCaret(
 	display: string,
 	inlines: readonly InlineNode[],
 	caret: number,
-	format: InlineMarkKind
+	format: InlineMarkKind,
+	mark: InlineMarkPolicy
 ): ToggleInlineFormatResult {
 	const enclosing = enclosingSpanOf(inlines, caret, caret, format);
 	if (enclosing) {
@@ -110,7 +105,7 @@ function toggleAtCaret(
 		};
 	}
 
-	const markers = markersFor(format);
+	const markers = mark.markerBytes;
 	const mLen = markers.length;
 
 	// The empty pair the previous press inserted; there is no span to find, since `****` parses
@@ -204,31 +199,8 @@ function flanksAreItsMarkers(
 
 // ── Wrapping ─────────────────────────────────────────────────────────────────
 
-function wrapSlice(slice: string, format: InlineMarkKind): string {
-	if (format === 'inlineCode') return codeWrap(slice);
-	const markers = markersFor(format);
-	return markers + slice + markers;
-}
-
-/**
- * A code fence is one backtick longer than the longest run it encloses, so no inner run can close
- * it. Content touching a backtick at either edge takes a space pad as well: without it the fence
- * and the content merge into one longer run, and the span closes somewhere else entirely.
- */
-function codeWrap(slice: string): string {
-	const fence = '`'.repeat(longestBacktickRun(slice) + 1);
-	const pad = slice.startsWith('`') || slice.endsWith('`') ? ' ' : '';
-	return fence + pad + slice + pad + fence;
-}
-
-function longestBacktickRun(text: string): number {
-	let longest = 0;
-	let run = 0;
-	for (const char of text) {
-		run = char === '`' ? run + 1 : 0;
-		if (run > longest) longest = run;
-	}
-	return longest;
+function wrapSlice(slice: string, mark: InlineMarkPolicy): string {
+	return mark.wrapBytes ? mark.wrapBytes(slice) : mark.markerBytes + slice + mark.markerBytes;
 }
 
 // ── Content clamp ────────────────────────────────────────────────────────────

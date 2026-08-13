@@ -29,6 +29,7 @@
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import { toggleInlineFormat } from './format-toggle';
+	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
 	import type { InlineMarkKind } from '../../../cursor/pending-marks';
 	import {
 		cycleHeading,
@@ -545,16 +546,6 @@
 						!hidesStructuralSuffix(el ?? null, node, liveDisplayLength()),
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
-			case 'format.toggleStrong':
-				return always(() => toggleFormat('strong', selected ?? { start: offset, end: offset }));
-			case 'format.toggleEmphasis':
-				return always(() => toggleFormat('emphasis', selected ?? { start: offset, end: offset }));
-			case 'format.toggleStrikethrough':
-				return always(() =>
-					toggleFormat('strikethrough', selected ?? { start: offset, end: offset })
-				);
-			case 'format.toggleCode':
-				return always(() => toggleFormat('inlineCode', selected ?? { start: offset, end: offset }));
 			case 'link.openCard':
 				// Consumed wherever the keymap binds it, entry or not: `reservedChords()` reports
 				// Mod+K as the editor's, and handing an unentered press back fires the browser
@@ -574,8 +565,14 @@
 				return always(() => reorder.nudgeReorderUnit(myPath, -1));
 			case 'block.moveDown':
 				return always(() => reorder.nudgeReorderUnit(myPath, 1));
-			default:
-				return null;
+			default: {
+				// The format chords are rows, not arms: a construct that declares a mark names the
+				// command that toggles it, so a new markable kind costs a row here and nothing else.
+				const marked = inlineMarkForCommand(id);
+				return marked === null
+					? null
+					: always(() => toggleFormat(marked.kind, selected ?? { start: offset, end: offset }));
+			}
 		}
 	}
 
@@ -898,10 +895,12 @@
 			return;
 		}
 
-		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
+		const toggled = toggleInlineFormat(
 			{ display: getDisplayText(), content: getContentRange(node), selection: range },
 			format
 		);
+		if (!toggled) return;
+		const { newDisplay, newSelStart, newSelEnd } = toggled;
 
 		// A command is not typing: the toggle's bytes are their own undo step in every mode.
 		controller.isolateUndoEntry(() =>

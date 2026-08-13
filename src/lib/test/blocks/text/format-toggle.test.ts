@@ -1,24 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat, markersFor } from '$lib/components/blocks/text/format-toggle';
+import { MARK_FORMATS, markersOf, toggleFormat } from './format-toggle-fixture';
 import { parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
-import type { InlineMarkKind } from '$lib/cursor/pending-marks';
 
 const leafText = (nodes: InlineNode[]): string =>
 	nodes.map((n) => (n.children ? leafText(n.children) : (n.text ?? ''))).join('');
 
 const whole = (raw: string) => ({ start: 0, end: raw.length });
 
-const FORMATS: InlineMarkKind[] = ['strong', 'emphasis', 'strikethrough', 'inlineCode'];
-
 // Wrap-then-strip is the contract every format owes, whatever its delimiter run: the three fixed
 // pairs and inline code's content-sized fence go round the same way.
-describe.each(FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
-	const markers = markersFor(format);
+describe.each(MARK_FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
+	const markers = markersOf(format);
 
 	it('wraps a bare selection and selects it, markers included', () => {
 		const raw = 'hello world';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 6, end: 11 } },
 			format
 		);
@@ -28,7 +25,7 @@ describe.each(FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
 
 	it('strips the pair back off when the selection includes it', () => {
 		const raw = `x ${markers}word${markers} y`;
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 2, end: raw.length - 2 } },
 			format
 		);
@@ -38,7 +35,7 @@ describe.each(FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
 	it('strips the flanking pair when the selection covers only the content', () => {
 		const raw = `${markers}word${markers}`;
 		const at = markers.length;
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: at, end: at + 4 } },
 			format
 		);
@@ -50,7 +47,7 @@ describe.each(FORMATS)('toggleInlineFormat over a selection (%s)', (format) => {
 
 describe('toggleInlineFormat', () => {
 	it('does not strip flanking markers when only one side is present', () => {
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: '**word', content: whole('**word'), selection: { start: 2, end: 6 } },
 			'strong'
 		);
@@ -61,7 +58,7 @@ describe('toggleInlineFormat', () => {
 
 	it('does not orphan markers on a multi-span selection (regression)', () => {
 		const raw = '**a** **b**';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 0, end: 11 } },
 			'strong'
 		);
@@ -75,7 +72,7 @@ describe('toggleInlineFormat', () => {
 	// must nest, not strip: a construct-blind flank check destroys the bold.
 	it('nests emphasis inside a strong construct instead of stripping its markers', () => {
 		const raw = '**word**';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 2, end: 6 } },
 			'emphasis'
 		);
@@ -87,7 +84,7 @@ describe('toggleInlineFormat', () => {
 
 	it('nests strong inside an emphasis construct (single-marker flank is not strong)', () => {
 		const raw = '*word*';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 1, end: 5 } },
 			'strong'
 		);
@@ -96,7 +93,7 @@ describe('toggleInlineFormat', () => {
 
 	it('strips the emphasis layer when the selection is genuinely inside one', () => {
 		const raw = '***word***';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 3, end: 7 } },
 			'emphasis'
 		);
@@ -105,7 +102,7 @@ describe('toggleInlineFormat', () => {
 
 	it('strips the strong layer of a nested pair from the same selection', () => {
 		const raw = '***word***';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 3, end: 7 } },
 			'strong'
 		);
@@ -118,7 +115,7 @@ describe('toggleInlineFormat', () => {
 		['emphasis' as const, '_word_', 1],
 		['strikethrough' as const, '~word~', 1]
 	])('strips a non-canonical %s run rather than nesting inside it', (format, raw, mLen) => {
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: mLen, end: mLen + 4 } },
 			format
 		);
@@ -129,7 +126,7 @@ describe('toggleInlineFormat', () => {
 
 	it('nests strikethrough around a strong construct', () => {
 		const raw = 'a **b** c';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 2, end: 7 } },
 			'strikethrough'
 		);
