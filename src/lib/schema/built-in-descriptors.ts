@@ -185,7 +185,8 @@ function registerBuiltInInlinePolicies(): void {
 		edgeAffinity: 'never-extend',
 		autoUnwrapOnEmpty: true,
 		splitBehavior: 'close-and-reopen',
-		revealable: true
+		revealable: true,
+		cardEditable: true
 	});
 	// An image with an empty alt is still an image, and a split inside one moves bytes only.
 	registerInlineConstructPolicy('image', {

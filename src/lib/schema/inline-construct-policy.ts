@@ -37,6 +37,10 @@ export interface InlineConstructPolicy {
 	autoUnwrapOnEmpty: boolean;
 	splitBehavior: 'close-and-reopen' | 'plain';
 	revealable: boolean;
+	/** Whether the link card is the door to this construct's destination — the only one a mode
+	 *  that paints no URL leaves the reader (live-mode.md § 4.6). Absent reads as no: an image's
+	 *  destination has its own editor, and an autolink's IS the text on screen. */
+	cardEditable?: boolean;
 	/** Absent for a construct no format chord addresses. */
 	mark?: InlineMarkPolicy;
 }
@@ -62,6 +66,11 @@ export function getInlineConstructPolicy(kind: AnyInlineKind): InlineConstructPo
 /** Whether preview-inline's construct reveal may flip this kind's marker spans. */
 export function isRevealableInlineKind(kind: AnyInlineKind): boolean {
 	return policies.get(kind)?.revealable === true;
+}
+
+/** Whether the link card may address this kind's destination. */
+export function isCardEditableInlineKind(kind: AnyInlineKind): boolean {
+	return policies.get(kind)?.cardEditable === true;
 }
 
 export function listInlineConstructPolicies(): readonly (InlineConstructPolicy & {
