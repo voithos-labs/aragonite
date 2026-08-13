@@ -52,7 +52,7 @@ describe('a paste that breaks a list out settles the slot it spliced', () => {
 	});
 
 	it('keeps the line when the break-out consumes the whole first half', async () => {
-		const pasted = await pasteInto(parse('intro\n\n- one\n', {}), [1, 0, 0], 0, '1. x\n');
+		const pasted = await pasteInto(parse('intro\n\n- one\n'), [1, 0, 0], 0, '1. x\n');
 
 		expect(serialize(pasted)).toContain('intro\n\n');
 		expectParseConverged(pasted);

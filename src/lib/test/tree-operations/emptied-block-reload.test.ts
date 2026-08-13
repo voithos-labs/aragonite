@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { splitNode, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { deleteNode, splitNode, updateNodeContent } from '$lib/tree-operations/node-ops';
 import { trailingLineEnding } from '$lib/core/lines';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -129,6 +129,52 @@ describe('emptying a block that owes nothing', () => {
 		updateNodeContent(doc, 1, 'p\n\n\n');
 
 		expectReloadsAsItStands(doc, 'alpha\n\np\n\n\ndelta\n');
+	});
+});
+
+// Indentation alone delimits indented code, so a block turning blank puts bytes back to back that
+// re-read as fewer blocks — the seam `deleteNode` has always absorbed, now owed by the content door
+// too. G2.13's `empty` arm sat behind a `holdsIndentedCode` precondition for exactly these shapes.
+// Miss-analysis: the property arm excluded them by precondition, and its fixed seed does not draw
+// the shape even with the precondition off — so the arm could not have failed on this class either
+// way, and the deterministic cases are what actually hold the door.
+describe('emptying a block beside indentation-delimited content', () => {
+	it('absorbs the seam the two neighbours now make', () => {
+		const doc = parse('**b**\n\n    code\n\n\n**b**\n\n    code\n\n> q\n');
+
+		empty(doc, 3);
+
+		expect(serialize(doc)).toBe('**b**\n\n    code\n\n\n\n    code\n\n> q\n');
+		expect(doc.children).toHaveLength(3);
+		expectParseConverged(doc);
+	});
+
+	// The absorbed window's own bytes end in a blank line, which a fragment parse peels into its
+	// suffix. Riding the last block's raw is only right at the parent's tail; here the line is a
+	// block of its own, exactly as the reload reads it.
+	it('materializes a peeled trailing blank line instead of hiding it in raw', () => {
+		const doc = parse('- - # **b**\n\n| H0 |\n| --- | --- |\n\n    code\n\t\n\n```\n```\n');
+
+		empty(doc, 1);
+
+		expect(serialize(doc)).toBe('- - # **b**\n\n\n    code\n\t\n\n```\n```\n');
+		expect(layout(doc.children)).toEqual([
+			['list', '', '- - # **b**\n\n\n    code\n'],
+			['paragraph', '\t\n', '\n'],
+			['fencedCode', '', '```\n```\n']
+		]);
+		expectParseConverged(doc);
+	});
+
+	// The higher-traffic caller of the same absorb: a delete puts the neighbours back to back the
+	// same way, and its window can peel the same trailing line.
+	it('materializes the peel on the delete door too', () => {
+		const doc = parse('- - # **b**\n\nmid\n\n    code\n\t\n\n```\n```\n');
+
+		deleteNode(doc, 1);
+
+		expect(serialize(doc)).toBe('- - # **b**\n\n    code\n\t\n\n```\n```\n');
+		expectParseConverged(doc);
 	});
 });
 
