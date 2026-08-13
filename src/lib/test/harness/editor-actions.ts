@@ -366,7 +366,7 @@ export interface NestedHarnessOptions {
 // state is the production createBlockListState (reactive, self-registering), so the
 // container under test has a mounted container's shape.
 export function makeNestedHarness(
-	input: string | CstNode[],
+	input: string | CstNode[] | Document,
 	opts: NestedHarnessOptions = {}
 ): NestedHarness {
 	const source = typeof input === 'string' ? parse(input) : input;
