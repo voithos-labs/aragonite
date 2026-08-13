@@ -208,16 +208,16 @@ describe('the shapes the sweep excuses, and the issues that own them', () => {
 		expect(cut.literalShape).toBeNull();
 	});
 
-	// #166, the one MODE-INDEPENDENT class the sweep surfaces: a content commit whose bytes reparse
-	// to two blocks keeps the first and drops the rest, so a line leaves the document. Both arms do
-	// it, which is what the `ambiguous` bucket above would otherwise absorb without a name.
-	it('#166 — a commit whose bytes reparse to two blocks drops the second', async () => {
+	// #166, the one MODE-INDEPENDENT class the sweep surfaced: a join whose bytes reparse to two
+	// blocks has no home in the one slot the door installs, so both doors refuse it and the pair
+	// stands where it did. Silently, in both arms — the refusal is an ordinary editing outcome
+	// (G1.35), so the seam warns about installing such bytes, never about meeting them.
+	it('#166 — a join whose bytes reparse to two blocks is refused, not truncated', async () => {
 		const merged = await liveAndLiteral('## \n(u\n)\n', { kind: 'delete', leaf: 0, offset: 0 });
-		expect(merged.live).toBe('## (u\n');
+		expect(merged.live).toBe('## \n(u\n)\n');
 		expect(merged.live).toBe(merged.literal);
-		// The fire is this case's subject: the guard names the seam, and the drop is what it warns
-		// about, so the pin asserts on it rather than declaring the tag and looking away.
-		expect(takeDevWarns().map((warn) => warn.tag)).toEqual(['tree-ops', 'tree-ops']);
+		expect(merged.shape).toBeNull();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });
 

@@ -36,6 +36,7 @@ import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import { resyncChildIds, spliceChildren } from './children';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { assertInvariant } from '../invariants/assert';
+import { checkSingleNodeSink } from '../invariants/single-node-sink';
 import { checkSplitLanding } from '../invariants/split-landing';
 
 // ── Types ──
@@ -205,6 +206,7 @@ export function splitNode(
 	parent: BodyParentArg,
 	blockIndex: number,
 	offset: number,
+	sharing: SharingState | undefined,
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): SplitResult {
@@ -271,15 +273,13 @@ export function splitNode(
 	nodes[nodes.length - 1].raw += second.suffix;
 	const splitTail = blockIndex === parent.children.length - 1;
 	parent.children.splice(blockIndex, 1, ...nodes);
-	// A blank second half at the tail exposes the document's folded line; off the tail the new
-	// last-node/successor seam re-reads instead — the two arms are exclusive.
-	const minted = splitTail ? materializeTailSuffix(parent) : 0;
 	// Floor at the seam itself: a wider window would reach back into the spliced set and
-	// break the one-window accounting below.
+	// break the one-window accounting below. At the tail there is no successor to re-read, and
+	// the document's folded line is the settle funnel's question, not this sink's.
 	const seamLeft = blockIndex + nodes.length - 1;
-	const eaten = splitTail ? 0 : absorbSeamReading(parent, seamLeft, seamLeft).eaten;
+	const eaten = splitTail ? 0 : absorbSeamReading(parent, seamLeft, seamLeft, sharing).eaten;
 	return {
-		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length + minted),
+		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length),
 		secondHalfIndex: blockIndex + first.nodes.length
 	};
 }
@@ -513,6 +513,8 @@ export function mergeWithPrevious(
 			)
 		: prev.leadingTrivia;
 	const mergedNode = reparseAsNode(mergedRaw, trivia);
+	// The sink refused, so nothing has been written yet and the pair stays as it stands.
+	if (!mergedNode) return { change: { op: 'noop' }, joinOffset: 0 };
 	// curr's own separator dies with it, so the successor inherits it unless it has one.
 	const successor = parent.children[blockIndex + 1];
 	if (successor) successor.leadingTrivia = successor.leadingTrivia || curr.leadingTrivia;
@@ -549,25 +551,23 @@ export function mergeIntoPrevDeepLeaf(
 	const mergeTarget = findMergeTarget(parent.children[blockIndex - 1]);
 	if (!mergeTarget) return null;
 
+	const leafPath = [blockIndex - 1, ...mergeTarget.path];
+	const slot = leafPath[leafPath.length - 1];
+	// The verdict comes off the LIVE tree, ahead of the unshare: an unshared spine is a write,
+	// and a refused join must leave the pair exactly as it stands.
+	const target = holderChildrenAt(parent.children, leafPath)[slot];
+	const curr = parent.children[blockIndex];
+	const lineEnding = trailingLineEnding(target.raw);
+	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
+	const merged = mergedLeafFor(target, trimTrailingLineEnding(mergedRaw) + lineEnding, grammar);
+	if (!merged) return null;
+
 	// The merge writes the deep leaf's raw plus every spine ancestor's rebuilt raw, so
 	// unshare the whole spine and resolve through the owned copies.
-	const leafPath = [blockIndex - 1, ...mergeTarget.path];
 	if (sharing) ensureUnsharedPath(parent, leafPath, sharing);
 	// Write-then-re-read (tree-operations/unshare.ts header), down to the leaf's own slot
 	// so a kind change can mint into it.
-	let holderChildren: CstNode[] = parent.children;
-	for (const index of leafPath.slice(0, -1)) holderChildren = holderChildren[index].children!;
-	const slot = leafPath[leafPath.length - 1];
-	const target = holderChildren[slot];
-	const curr = parent.children[blockIndex];
-
-	const lineEnding = trailingLineEnding(target.raw);
-	const { raw: mergedRaw, seam: joinOffset } = joinRaw(target, curr, presentationMode, linkRef);
-
-	writeMergedLeaf(holderChildren, slot, trimTrailingLineEnding(mergedRaw) + lineEnding, {
-		sharing,
-		grammar
-	});
+	installMergedLeaf(holderChildrenAt(parent.children, leafPath), slot, merged, sharing);
 	if (mergeTarget.path.length > 0) {
 		rebuildAncestryRaw(parent.children[blockIndex - 1], mergeTarget.path);
 	}
@@ -576,40 +576,71 @@ export function mergeIntoPrevDeepLeaf(
 	return { targetPath: mergeTarget.path, joinOffset, change };
 }
 
+/** The children array holding `path`'s last slot, walked from `children`. */
+function holderChildrenAt(children: CstNode[], path: number[]): CstNode[] {
+	let holder = children;
+	for (const index of path.slice(0, -1)) holder = holder[index].children!;
+	return holder;
+}
+
+/** What the deep-leaf sink will install: the legal bytes, plus their reparse where the kind
+ *  has one — a different kind mints into the slot, the same kind refreshes it in place. */
+interface MergedLeaf {
+	written: string;
+	parsed: CstNode | undefined;
+}
+
 /**
- * The deep-leaf merge's write: the absorbed bytes cross the kind's own rule and a fragment
- * reparse — same kind refreshes the parse-owned fields in place, a kind change mints the reparse
- * into the leaf's slot, and a multi-block read keeps the single-leaf write (one slot).
+ * The deep-leaf merge's verdict: the absorbed bytes cross the kind's own rule and a fragment
+ * reparse. Null when they read as several blocks — the leaf is one slot, and writing them
+ * whole leaves a tree its own reload disagrees with (G1.35).
  */
-function writeMergedLeaf(
+function mergedLeafFor(
+	target: CstNode,
+	raw: string,
+	grammar: GrammarView | undefined
+): MergedLeaf | null {
+	const written = normalizeOwnRaw(target, raw);
+	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
+	// as blocks and the write keeps the kind.
+	if (tryGetBlockKindDescriptor(target.kind)?.contextDependentKind) {
+		return { written, parsed: undefined };
+	}
+	const parsed = parse(written, { grammar, scope: 'fragment' }).children;
+	assertInvariant('single-node-sink', () =>
+		checkSingleNodeSink('mergedLeafFor', parsed.length, parsed.length <= 1)
+	);
+	return parsed.length > 1 ? null : { written, parsed: parsed[0] };
+}
+
+/** {@link mergedLeafFor}'s write, over the unshared spine the verdict was taken ahead of. */
+function installMergedLeaf(
 	holderChildren: CstNode[],
 	slot: number,
-	raw: string,
-	context: { sharing: SharingState | undefined; grammar: GrammarView | undefined }
+	merged: MergedLeaf,
+	sharing: SharingState | undefined
 ): void {
 	const target = holderChildren[slot];
-	const written = normalizeOwnRaw(target, raw);
-	const parsed = tryGetBlockKindDescriptor(target.kind)?.contextDependentKind
-		? []
-		: parse(written, { grammar: context.grammar, scope: 'fragment' }).children;
-	const single = parsed.length === 1 ? parsed[0] : undefined;
-	if (single && single.kind !== target.kind) {
+	const { written, parsed } = merged;
+	if (parsed && parsed.kind !== target.kind) {
 		// Byte-honest over the fragment peel, the single-slot sink's rule.
-		single.raw = written;
-		single.leadingTrivia = target.leadingTrivia;
-		ensureEditableContainers(single);
-		if (context.sharing) context.sharing.stamp(single);
-		assignChildIdsDeep(single);
-		holderChildren[slot] = single;
+		parsed.raw = written;
+		parsed.leadingTrivia = target.leadingTrivia;
+		ensureEditableContainers(parsed);
+		if (sharing) sharing.stamp(parsed);
+		assignChildIdsDeep(parsed);
+		holderChildren[slot] = parsed;
 		return;
 	}
 	target.raw = written;
-	if (!single) return;
-	target.metadata = single.metadata;
-	target.children = single.children;
+	if (!parsed) return;
+	target.metadata = parsed.metadata;
+	target.children = parsed.children;
 	resyncChildIds(target);
-	target.innerPrefix = single.innerPrefix;
-	target.innerSuffix = single.innerSuffix;
+	// The reparsed children are fresh nodes, so their own containers carry no `childIds`.
+	assignChildIdsDeep(target);
+	target.innerPrefix = parsed.innerPrefix;
+	target.innerSuffix = parsed.innerSuffix;
 }
 
 /**
@@ -631,6 +662,7 @@ export function mergeWithNext(
 
 	const { raw: mergedRaw, seam } = joinRaw(curr, next, presentationMode, linkRef);
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
+	if (!mergedNode) return { change: { op: 'noop' }, joinOffset: 0 };
 	parent.children.splice(blockIndex, 2, mergedNode);
 	return { change: replacePreservingFirst(blockIndex, 2, 1), joinOffset: seam };
 }
@@ -803,8 +835,10 @@ function releaseWrapPeel(parent: SeparatorParent, index: number): void {
 function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
 	const children = parent.children;
 	const suffix = parent.suffix;
-	if (!children || children.length === 0 || !suffix) return 0;
-	if (!isBlankParagraph(children[children.length - 1])) return 0;
+	if (!children || !suffix) return 0;
+	// An emptied parent has no tail for the line to fold against, so it is the document's whole
+	// content and the reload reads it as the one block there is.
+	if (children.length > 0 && !isBlankParagraph(children[children.length - 1])) return 0;
 	const minted: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: suffix };
 	if (sharing) sharing.stamp(minted);
 	children.push(minted);
@@ -838,6 +872,10 @@ function settleSplicedWindow(
 	} else {
 		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
 	}
+	// Unconditional, and the funnel's only home for it: every arm above probes a slot inside the
+	// window, and a delete window at the tail has none — the question is about the parent's LAST
+	// block, which no window position answers (GH #168).
+	materializeTailSuffix(parent, sharing);
 }
 
 /** Whoever takes the slot inherits its line, having none of its own — {@link deleteNode}'s rule. */
@@ -1020,6 +1058,10 @@ export function widenForTailMint(
 	if (change.op === 'replace' && change.at + change.newCount === before) {
 		return { ...change, newCount: change.newCount + grown };
 	}
+	// A delete that took the tail vacated the slot the mint lands in, so the two are one window.
+	if (change.op === 'delete' && change.at === before) {
+		return { op: 'replace', at: change.at, count: change.count, newCount: grown };
+	}
 	// The mint landed past a window that does not reach the tail, so no single contiguous
 	// span describes both; the parallel arrays would drift either way this widened it.
 	devWarn('tree-ops', 'a tail suffix materialized outside the reported window');
@@ -1112,8 +1154,8 @@ export function deleteNode(
 
 	parent.children.splice(blockIndex, 1);
 	clearRedundantSeparator(parent, blockIndex, sharing);
-	// The delete puts two blocks beside each other for the first time, and their adjacent bytes can
-	// re-read as fewer. Exclusive with the tail mint below: that one needs the slot past the tail.
+	// The delete puts two blocks beside each other for the first time, and their adjacent bytes
+	// can re-read as fewer.
 	const seam = absorbSeamReading(parent, blockIndex - 1, 0, sharing);
 	if (seam.spliced) {
 		// One contiguous window: the absorbed span plus the deleted block inside it.
@@ -1124,11 +1166,6 @@ export function deleteNode(
 			newCount: seam.span,
 			idMap: { 0: 0 }
 		};
-	}
-	// Removing the tail can leave a blank one beside the document's folded line; the
-	// delete-then-mint pair is one window, so it reports as a replace.
-	if (blockIndex === parent.children.length && materializeTailSuffix(parent, sharing)) {
-		return { op: 'replace', at: blockIndex, count: 1, newCount: 1 };
 	}
 	return { op: 'delete', at: blockIndex, count: 1 };
 }
@@ -1270,6 +1307,8 @@ function writeParsedContent(
 		// The reparse can change the child count while this branch reports `noop`, so
 		// nothing downstream resyncs the parallel id array — and a wrong length is permanent.
 		resyncChildIds(node);
+		// The reparsed children are fresh nodes, so their own containers carry no `childIds`.
+		assignChildIdsDeep(node);
 		node.innerPrefix = first?.innerPrefix;
 		node.innerSuffix = first?.innerSuffix;
 		if (firstBackfilled) reconcileBackfilledRaw(node);
@@ -1374,15 +1413,17 @@ function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[];
 	return { nodes: doc.children, suffix: doc.suffix };
 }
 
-/** The merge sinks' single-block twin: concatenated raw joins two lines, so it stays one block. */
-function reparseAsNode(raw: string, leadingTrivia: string): CstNode {
+/**
+ * The merge sinks' single-block twin, and their decline: a join whose bytes read as several
+ * blocks has no home in one slot, so it is refused rather than truncated (G1.35). Null is the
+ * refusal; the door returns noop and its caller falls back to move-focus.
+ */
+function reparseAsNode(raw: string, leadingTrivia: string): CstNode | null {
 	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia);
-	if (DEV && nodes.length > 1) {
-		devWarn(
-			'tree-ops',
-			`reparseAsNode: raw parsed to ${nodes.length} blocks; all but the first are dropped`
-		);
-	}
+	assertInvariant('single-node-sink', () =>
+		checkSingleNodeSink('reparseAsNode', nodes.length, nodes.length <= 1)
+	);
+	if (nodes.length > 1) return null;
 	// A single-block sink has no follower slot, so the peeled line stays in the block's bytes.
 	nodes[0].raw += suffix;
 	return nodes[0];

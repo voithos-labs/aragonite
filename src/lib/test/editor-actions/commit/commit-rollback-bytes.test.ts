@@ -169,6 +169,30 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 		expect(serialize(deps.doc)).toBe(treeBefore);
 	});
 
+	// The document's folded trailing line is a byte register of its own: the tail settle spends it
+	// through live accessors while the children it belonged to are still an unpublished copy, so a
+	// throw that restores the tree without it leaves the line gone and nothing to notice.
+	it('restores the document suffix a throwing commit had already spent', async () => {
+		const { deps } = makeEditorActionsDeps(parse('alpha\n\n'));
+		const controller = createUndoController(deps);
+		expect(deps.doc.suffix).toBe('\n');
+
+		await expect(
+			controller.commitStructural({
+				snapshot: { path: asDocPath([0]), offset: 0 },
+				mutate: (children) => {
+					// What the tail settle does when it materializes the folded line.
+					children.push({ kind: 'paragraph', leadingTrivia: '', raw: deps.doc.suffix });
+					deps.doc.suffix = '';
+					throw new Error('mutation blew up');
+				}
+			})
+		).rejects.toThrow('mutation blew up');
+
+		expect(deps.doc.suffix).toBe('\n');
+		expect(serialize(deps.doc)).toBe('alpha\n\n');
+	});
+
 	// The same residual with no plugin and no throw: `discardIfNoop` rolls back AFTER
 	// the rebuild loop wrote bytes, into a direct child the shallow spine copy still aliases.
 	it('restores the raws a discarded commit wrote before it bailed', async () => {

@@ -1,4 +1,4 @@
-export type { NodeParent, MergeIntoPrevResult, SplitResult } from './node-ops';
+export type { NodeParent, MergeIntoPrevResult, MergeResult, SplitResult } from './node-ops';
 export {
 	splitNode,
 	assertSplitLanding,

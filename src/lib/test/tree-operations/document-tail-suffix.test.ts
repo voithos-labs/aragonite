@@ -4,6 +4,7 @@ import { serialize } from '../../core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
 import { settleSeparatorOnBlank } from '../../tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { settled } from '$lib/test/harness/settle-funnel';
 
 // GH #129: the parse folds a document's one trailing blank line into `doc.suffix` only while
 // the tail block is non-blank; when a gesture blanks the tail, the reload reads that line as
@@ -39,16 +40,21 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(describeConvergence(doc)).toBeNull();
 	});
 
+	// The structural sinks are handed a slotless body parent, so the mint is the settle's alone
+	// (GH #168): both cases below report the widened window the ceremony publishes.
 	it('a split whose blank second half lands at the tail widens its window', () => {
 		const doc = parse('foo*42*_lorem_  \r\n\n');
 		expect(doc.children).toHaveLength(1);
 
-		const result = splitNode(doc, 0, 14, undefined, undefined);
+		const change = settled(
+			doc,
+			(body) => splitNode(body, 0, 14, undefined, undefined, undefined).change
+		);
 
 		expect(doc.children).toHaveLength(3);
 		expect(doc.suffix).toBe('');
 		expect(describeConvergence(doc)).toBeNull();
-		expect(result.change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 3, idMap: { 0: 0 } });
+		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 3, idMap: { 0: 0 } });
 	});
 
 	it('deleting the tail block hands the new blank tail its line as a replace', () => {
@@ -56,12 +62,25 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\n', '\n', 'b\n']);
 		expect(doc.suffix).toBe('\n');
 
-		const change = deleteNode(doc, 2);
+		const change = settled(doc, (body) => deleteNode(body, 2));
 
 		expect(doc.children).toHaveLength(3);
 		expect(doc.suffix).toBe('');
 		expect(describeConvergence(doc)).toBeNull();
 		expect(change).toEqual({ op: 'replace', at: 2, count: 1, newCount: 1 });
+	});
+
+	// The whole document gone: no tail is left for the line to fold against, so it is the one
+	// block the reload reads and the settle must mint it.
+	it('deleting the only block materializes the folded line rather than emptying the tree', () => {
+		const doc = parse('a\n\n');
+
+		const change = settled(doc, (body) => deleteNode(body, 0));
+
+		expect(doc.children.map((c) => c.raw)).toEqual(['\n']);
+		expect(doc.suffix).toBe('');
+		expect(describeConvergence(doc)).toBeNull();
+		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 1 });
 	});
 
 	// The whole-content range delete's door: `rangeDelete`'s same-block arm writes the blank

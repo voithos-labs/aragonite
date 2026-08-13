@@ -11,7 +11,7 @@ describe('setext heading split', () => {
 
 		it(`Enter at the title end keeps the ${underline} underline with the heading`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, 5, undefined, undefined);
+			splitNode(doc, 0, 5, undefined, undefined, undefined);
 			expect(doc.children).toHaveLength(2);
 			expect(doc.children[0].kind).toBe('setextHeading');
 			expect(doc.children[0].raw).toBe(source);
@@ -21,7 +21,7 @@ describe('setext heading split', () => {
 
 		it(`Enter mid-title keeps the ${underline} underline with the heading half`, () => {
 			const doc = parse(source);
-			splitNode(doc, 0, 2, undefined, undefined);
+			splitNode(doc, 0, 2, undefined, undefined, undefined);
 			expect(doc.children).toHaveLength(2);
 			expect(doc.children[0].kind).toBe('setextHeading');
 			expect(doc.children[0].raw).toBe(`Ti\n${underline}\n`);
@@ -33,7 +33,7 @@ describe('setext heading split', () => {
 	it('Enter at offset 0 keeps the empty-block-above behavior', () => {
 		const source = 'Title\n=====\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 0, undefined, undefined);
+		splitNode(doc, 0, 0, undefined, undefined, undefined);
 		expect(doc.children).toHaveLength(2);
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[0].raw).toBe('\n');
@@ -44,7 +44,7 @@ describe('setext heading split', () => {
 	it('splits a CRLF setext heading with the underline preserved on the heading', () => {
 		const source = 'Title\r\n=====\r\n';
 		const doc = parse(source);
-		splitNode(doc, 0, 5, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, undefined);
 		expect(doc.children[0].kind).toBe('setextHeading');
 		expect(doc.children[0].raw).toBe(source);
 		expect(doc.children[1].kind).toBe('paragraph');
@@ -61,7 +61,7 @@ describe('setext heading split', () => {
 describe('setext split cutting on trailing whitespace', () => {
 	it('consumes the whitespace into the first half instead of minting a blank line', () => {
 		const doc = parse('Title \nMore\n=====\n');
-		splitNode(doc, 0, 5, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, undefined);
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['setextHeading', 'Title \n=====\n'],
 			['paragraph', 'More\n']
@@ -71,7 +71,7 @@ describe('setext split cutting on trailing whitespace', () => {
 
 	it('the CRLF twin', () => {
 		const doc = parse('Title \r\nMore\r\n=====\r\n');
-		splitNode(doc, 0, 5, undefined, undefined);
+		splitNode(doc, 0, 5, undefined, undefined, undefined);
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
 			['setextHeading', 'Title \r\n=====\r\n'],
 			['paragraph', 'More\r\n']
@@ -81,7 +81,7 @@ describe('setext split cutting on trailing whitespace', () => {
 
 	it('consumes a multi-space run whole', () => {
 		const doc = parse('Title   \nMore\n=====\n');
-		splitNode(doc, 0, 6, undefined, undefined);
+		splitNode(doc, 0, 6, undefined, undefined, undefined);
 		expect(doc.children[0].raw).toBe('Title   \n=====\n');
 		expect(doc.children[1].raw).toBe('More\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -91,7 +91,7 @@ describe('setext split cutting on trailing whitespace', () => {
 	// already separates it correctly, so the whitespace stays with the second half.
 	it('leaves an all-whitespace remainder to the blank-half arm', () => {
 		const doc = parse('More \n=====\n');
-		splitNode(doc, 0, 4, undefined, undefined);
+		splitNode(doc, 0, 4, undefined, undefined, undefined);
 		expect(doc.children[0].kind).toBe('setextHeading');
 		expect(describeConvergence(doc)).toBeNull();
 	});

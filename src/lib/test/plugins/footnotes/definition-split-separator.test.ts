@@ -23,6 +23,7 @@ describe('footnote definition Enter at the end of the body', () => {
 			0,
 			'one'.length,
 			undefined,
+			undefined,
 			undefined
 		);
 		def.children![1].raw = 'two\n';

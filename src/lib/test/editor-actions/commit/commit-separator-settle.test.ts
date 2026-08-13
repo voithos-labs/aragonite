@@ -95,7 +95,7 @@ describe('a delete that crosses both funnel entries in one commit', () => {
 	// The split shape: the blank slot holds no line and its follower holds the run's one.
 	it('settles once when the range starts in a split-shaped blank block', () => {
 		const split = parse('alpha\n\ndelta\n\nomega\n');
-		splitNode(split, 0, 5, undefined, undefined);
+		splitNode(split, 0, 5, undefined, undefined, undefined);
 		const h = deleteAcross(serialize(split), [1], [2], [0, 2]);
 
 		expectParseConverged(h.deps.doc);
@@ -127,6 +127,29 @@ describe('an insert whose settle materializes the folded tail line', () => {
 		// a block the reload would read anyway (GH #129's rule, reached through an insert).
 		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
 		expect(h.deps.doc.children).toHaveLength(3);
+		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
+		expect(h.getBlockRefs()).toHaveLength(h.deps.doc.children.length);
+		expectParseConverged(h.deps.doc);
+	});
+
+	// The delete twin (GH #168). Miss-analysis: the settle asked the tail question only through
+	// `settleSeparatorOnBlank`, which a delete window at the tail never reaches — it probes the
+	// slot the delete just vacated — so the funnel had no tail arm for the whole delete family.
+	it('keeps them in step when a delete leaves the tail blank against the folded line', async () => {
+		const h = makeTop(parse('alpha\n\n\nbeta\n\n'));
+		expect(h.deps.doc.suffix).toBe('\n');
+
+		await h.actions.deleteBlock(2);
+
+		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
+		expect(h.deps.doc.children).toHaveLength(3);
+		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
+		expectParseConverged(h.deps.doc);
+
+		// The following commit is where an unreported mint becomes permanent: the parallel
+		// arrays are one short before it and stay one short after.
+		await h.actions.deleteBlock(0);
+
 		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
 		expect(h.getBlockRefs()).toHaveLength(h.deps.doc.children.length);
 		expectParseConverged(h.deps.doc);
