@@ -16,6 +16,7 @@ import {
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { BlockComponent } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
 
 /**
@@ -160,7 +161,10 @@ function makeContainer(source: string): ContainerHarness {
 
 	const { deps, controller, state, bundle, getNode: node } = makeNestedHarness([initial]);
 	const reorder = createReorderAction(deps, controller);
-	state.innerBlockRefs = (initial.children ?? []).map(() => mockRef());
+	replaceRefs(
+		state.innerBlockRefs,
+		(initial.children ?? []).map(() => mockRef())
+	);
 
 	return { doc: deps.doc, node, state, bundle, reorder };
 }

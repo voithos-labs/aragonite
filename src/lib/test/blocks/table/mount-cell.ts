@@ -108,7 +108,7 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 			colIdx: 0,
 			columnCount: 2,
 			rowCount: 2,
-			slots: refSlotsOver(() => refs)
+			slots: refSlotsOver(refs)
 		},
 		context
 	});

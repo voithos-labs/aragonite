@@ -241,9 +241,9 @@
 			return signatureEpoch;
 		}
 	};
-	// Plain array, `const` so it can only ever be mutated in place — see `refSlotsOver`.
+	// Plain, not `$state`: the top-level scope's slot storage (see `refSlotsOver`).
 	const blockRefs: (BlockComponent | undefined)[] = [];
-	const blockRefSlots = refSlotsOver(() => blockRefs);
+	const blockRefSlots = refSlotsOver(blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
 	// Inside a themed host the editor sits under no opt-in class, and the portaled search
 	// bar must not carry one either: the class's defaults would shadow the host tokens the

@@ -20,18 +20,22 @@ function makeNode(): CstNode {
 		leadingTrivia: '',
 		raw: '',
 		metadata: { quoteDepth: 1 },
-		children: []
+		// One child: the scope's length reconcile truncates the published slot on a
+		// childless node, so an empty container could not hold the ref under test.
+		children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'a\n' }],
+		innerPrefix: '',
+		innerSuffix: ''
 	};
 }
 
 /** A real scope over `node`, so registration goes through the factory the editor mounts. */
-function mountScope(node: CstNode): BlockListState {
+function mountScope(node: CstNode): { state: BlockListState; stop: () => void } {
 	let state!: BlockListState;
-	$effect.root(() => {
+	const stop = $effect.root(() => {
 		state = createBlockListState(() => node);
 	});
 	flushSync();
-	return state;
+	return { state, stop };
 }
 
 function publishChild(state: BlockListState): () => void {
@@ -42,25 +46,31 @@ describe('contested-claim suppression over real scopes', () => {
 	it('stays silent when the loser was torn down through publish cleanup', async () => {
 		const node = makeNode();
 		const loser = mountScope(node);
-		const unpublish = publishChild(loser);
+		const unpublish = publishChild(loser.state);
 
 		const winner = mountScope(node);
-		publishChild(winner);
+		publishChild(winner.state);
 		unpublish();
 
 		await tick();
 		expect(takeDevWarns()).toEqual([]);
+		loser.stop();
+		winner.stop();
 	});
 
 	it('still warns when the loser keeps a live publish', async () => {
 		if (!DEV) return;
 		const node = makeNode();
-		publishChild(mountScope(node));
-		publishChild(mountScope(node));
+		const loser = mountScope(node);
+		const winner = mountScope(node);
+		publishChild(loser.state);
+		publishChild(winner.state);
 
 		await tick();
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
 		expect(fires[0].message).toContain('two live components');
+		loser.stop();
+		winner.stop();
 	});
 });

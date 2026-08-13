@@ -43,7 +43,7 @@ function makeEnv(source: string) {
 		get blockRefs() {
 			return blockRefs;
 		},
-		blockRefSlots: refSlotsOver(() => blockRefs),
+		blockRefSlots: refSlotsOver(blockRefs),
 		setDoc: () => {},
 		setBlockIds: (v: string[]) => {
 			blockIds = v;

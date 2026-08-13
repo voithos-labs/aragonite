@@ -17,6 +17,7 @@ import { readCurrentSelection } from '../../selection/native-bridge';
 import { asDocPath, pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../invariants/assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
+import { replaceRefs } from '../../reactivity/publish-ref.svelte';
 import { nodeAt } from '../../tree-operations/node-ops';
 import {
 	attachedChainPrefix,
@@ -486,7 +487,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		} else {
 			p.owned.childIds = p.ids;
 		}
-		p.target.state.innerBlockRefs = p.refs;
+		replaceRefs(p.target.state.innerBlockRefs, p.refs);
 	}
 
 	/**
@@ -568,7 +569,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					for (const { node, raw } of p.savedRaws) node.raw = raw;
 					// Without this, ids/refs published before the throw keep reflecting it.
 					if (p.isDoc) p.target.state.innerBlockIds = p.savedStateIds;
-					p.target.state.innerBlockRefs = p.savedStateRefs;
+					replaceRefs(p.target.state.innerBlockRefs, p.savedStateRefs);
 				}
 			}
 		});
@@ -576,7 +577,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── Doc scope adapter ────────────────────────────────────────────────────
 
-	/** Forwards top-level ids/refs through deps setters: ids reach the `$state` proxy, refs copy in place. */
+	/** Forwards top-level ids through the deps setter, so the write reaches the `$state`
+	 *  proxy; refs are the editor's own array, which every publish mutates in place. */
 	function createDocScopeAdapter(): BlockListState {
 		return {
 			get innerBlockIds() {
@@ -587,9 +589,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			},
 			get innerBlockRefs() {
 				return deps.blockRefs;
-			},
-			set innerBlockRefs(v: (BlockComponent | undefined)[]) {
-				deps.setBlockRefs(v);
 			},
 			refSlots: deps.blockRefSlots
 		};

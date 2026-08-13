@@ -14,7 +14,7 @@ import { takeDevWarns } from '../support/warn-gate';
 
 function makeFakeState(): BlockListState {
 	const innerBlockRefs: BlockListState['innerBlockRefs'] = [];
-	return { innerBlockIds: [], innerBlockRefs, refSlots: refSlotsOver(() => innerBlockRefs) };
+	return { innerBlockIds: [], innerBlockRefs, refSlots: refSlotsOver(innerBlockRefs) };
 }
 
 function makeFakeNode(kind: CstNode['kind'] = 'list'): CstNode {
@@ -76,7 +76,7 @@ describe('state-registry', () => {
 			const innerBlockRefs: BlockListState['innerBlockRefs'] = [
 				mounted ? ({} as BlockListState['innerBlockRefs'][number]) : undefined
 			];
-			return { innerBlockIds: ['a'], innerBlockRefs, refSlots: refSlotsOver(() => innerBlockRefs) };
+			return { innerBlockIds: ['a'], innerBlockRefs, refSlots: refSlotsOver(innerBlockRefs) };
 		}
 
 		it('warns when a second LIVE component claims a node the first still renders', async () => {

@@ -13,7 +13,7 @@ import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
-import { refSlotsOver } from '../reactivity/publish-ref.svelte';
+import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
@@ -87,7 +87,10 @@ export function recordingFocus(): RecordingFocus {
  */
 export function mountBlockListState(getNode: () => CstNode): BlockListState {
 	const state = createBlockListState(() => getNode());
-	state.innerBlockRefs = (getNode().children ?? []).map(() => stubBlockComponent());
+	replaceRefs(
+		state.innerBlockRefs,
+		(getNode().children ?? []).map(() => stubBlockComponent())
+	);
 	return state;
 }
 
@@ -103,7 +106,7 @@ export interface HeadlessActions {
 export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
-	let blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => stubBlockComponent());
+	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => stubBlockComponent());
 	const events = createEditorEvents();
 	const deps: EditorActionsDeps = {
 		get doc() {
@@ -115,7 +118,7 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 		get blockRefs() {
 			return blockRefs;
 		},
-		blockRefSlots: refSlotsOver(() => blockRefs),
+		blockRefSlots: refSlotsOver(blockRefs),
 		setDoc: (v: Document) => {
 			Object.assign(doc, v);
 		},
@@ -123,7 +126,7 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 			blockIds = v;
 		},
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			blockRefs = v;
+			replaceRefs(blockRefs, v);
 		},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),

@@ -3,6 +3,7 @@ import { createListOverrides } from '$lib/editor-actions/list-overrides';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { parse } from '$lib/core/parser';
 import {
@@ -38,7 +39,7 @@ describe('list-overrides deleteBlock — focus after deleting the last item', ()
 		);
 
 		const refs = [focusSpyRef(), focusSpyRef(), focusSpyRef()];
-		listState.innerBlockRefs = [...refs];
+		replaceRefs(listState.innerBlockRefs, refs);
 
 		const controller = createUndoController(deps);
 		const containerEdit = createContainerEditActions(deps, controller);

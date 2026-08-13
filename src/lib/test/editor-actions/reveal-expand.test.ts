@@ -38,7 +38,7 @@ function shim(over: {
 		get innerBlockRefs() {
 			return over.refs;
 		},
-		refSlots: refSlotsOver(() => over.refs),
+		refSlots: refSlotsOver(over.refs),
 		get nodeChildrenLength() {
 			return over.refs.length;
 		},

@@ -54,7 +54,7 @@ export function mountBlockHost(
 	props.index ??= 0;
 	props.node ??= doc.children[props.index];
 	props.id ??= `block-${props.index}`;
-	props.slots ??= refSlotsOver(() => refs);
+	props.slots ??= refSlotsOver(refs);
 	const instance = mount(BlockHost, {
 		target,
 		// The required props are filled above, but only at runtime — the declared

@@ -6,6 +6,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
@@ -49,7 +50,10 @@ function makeContainer(source: string) {
 	const history = createHistoryActions(harness.deps, controller);
 	const reorder = createReorderAction(harness.deps, controller);
 	const state = createBlockListState(node);
-	state.innerBlockRefs = (initial.children ?? []).map(() => mockRef());
+	replaceRefs(
+		state.innerBlockRefs,
+		(initial.children ?? []).map(() => mockRef())
+	);
 	return {
 		doc: harness.doc,
 		node,

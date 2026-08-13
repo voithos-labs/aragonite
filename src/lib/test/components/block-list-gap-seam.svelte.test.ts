@@ -59,7 +59,7 @@ function mountWindowedList(gapIndex: number): Mounted {
 		props: {
 			children: doc.children,
 			blockIds: doc.children.map((_, i) => `block-${i}`),
-			slots: refSlotsOver(() => refs),
+			slots: refSlotsOver(refs),
 			parentPath: [],
 			window: WINDOW
 		},
