@@ -265,4 +265,19 @@ describe('coherence check scope', () => {
 		expect(byTag('inline-construct-policy')).toHaveLength(1);
 		expect(byTag('inline-construct-policy')[0].violation.detail).toHaveProperty(column);
 	});
+
+	// `link.openCard` ties with no mark row, so nothing above catches it — and it is the id whose
+	// two surfaces rank the mark lookup differently: the cell consults marks first, prose last.
+	it('fires when a plugin row claims a built-in command no mark row holds', () => {
+		const kind = declarePluginInlineKind('mark-builtin-command');
+		registerInlineConstructPolicy(kind, {
+			...atomic,
+			revealable: true,
+			mark: tie({ nestingRank: 99, markerBytes: '++', command: 'link.openCard' })
+		});
+		const { report, byTag } = collector();
+		checkInlineConstructPoliciesAtMount(report);
+		expect(byTag('inline-construct-policy')).toHaveLength(1);
+		expect(byTag('inline-construct-policy')[0].violation.message).toContain('link.openCard');
+	});
 });

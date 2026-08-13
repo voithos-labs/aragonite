@@ -170,6 +170,11 @@ export function checkInlineConstructPoliciesAtMount(
 	report: RegistrationCheckReport = assertInvariant
 ): void {
 	report('inline-construct-policy', () =>
-		checkInlineConstructPolicy(listInlineConstructPolicies(), isKnownInlineKind)
+		checkInlineConstructPolicy(
+			listInlineConstructPolicies(),
+			isKnownInlineKind,
+			isBuiltinInlineKind,
+			isBuiltinCommandId
+		)
 	);
 }
