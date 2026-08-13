@@ -11,6 +11,7 @@
 
 import { DEV } from 'esm-env';
 import { ambientSpanOf } from '../ambient/ambient-dom';
+import type { ContentLength } from '../core/inline';
 import { asRawOffset, toDomTextOffset, toRawOffset } from '../cursor/coordinate-spaces';
 import {
 	createRangeAtDomTextOffsets,
@@ -32,10 +33,8 @@ export interface ApplyIslandsOpts {
 		dec: Decoration
 	) => { el: HTMLElement; destroy(): void } | null;
 	onSkipped?: (dec: Decoration, reason: string) => void; // dev-warn hook
-	/** Raw-space length of the block's rendered content — `getContentRange(node).end`, the
-	 *  CST's answer. Measuring the DOM instead would read a container this pass is itself
-	 *  mutating, and would answer in walk space rather than the offsets a decoration carries. */
-	contentLength: number;
+	/** Raw-space length of the block's rendered content (see {@link ContentLength}). */
+	contentLength: ContentLength;
 	/** Rendered ambient-marker length. Island offsets are raw-relative and the shared walk
 	 *  counts ambient text as ordinary text, so every boundary adds this (the
 	 *  TextEditableBlock compensation pattern). Default 0. */

@@ -20,11 +20,21 @@ export interface ContentRange {
 	end: number;
 }
 
+declare const contentLengthBrand: unique symbol;
+/** Raw-space length of a block's rendered content, mintable only from its content range: a
+ *  DOM-measured length answers in walk space and lags the pass that is rewriting the DOM. */
+export type ContentLength = number & { readonly [contentLengthBrand]: true };
+
 /** Content range within a prose block's raw; marker-bearing kinds override via descriptor. */
 export function getContentRange(node: NodeView): ContentRange {
 	const d = getBlockKindDescriptor(node.kind);
 	if (d.getContentRange) return d.getContentRange(node);
 	return { start: 0, end: displayLength(node.raw) };
+}
+
+/** The one {@link ContentLength} mint. */
+export function contentLengthOf(node: NodeView): ContentLength {
+	return getContentRange(node).end as ContentLength;
 }
 
 export function isProseKind(kind: CstNode['kind']): boolean {

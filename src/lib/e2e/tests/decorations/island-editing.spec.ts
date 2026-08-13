@@ -18,11 +18,10 @@ const ISLAND = '[data-decoration-island]';
 async function addReplaceIsland(page: Page, path: number[], start: number, end: number) {
 	await page.evaluate(
 		({ path, start, end }) => {
-			let node: any = null;
 			(window as any).__test.decorations.addSource({
 				name: 'e2e-replace-island',
 				provide: (doc: any) => {
-					node = doc;
+					let node: any = doc;
 					for (const index of path) node = node?.children?.[index];
 					const held = node ? String(node.raw).replace(/\r?\n$/, '').length : 0;
 					return held >= end ? [{ type: 'replace', path, start, end, class: 'e2e-island' }] : [];
@@ -36,11 +35,10 @@ async function addReplaceIsland(page: Page, path: number[], start: number, end: 
 async function addWidgetIsland(page: Page, path: number[], offset: number) {
 	await page.evaluate(
 		({ path, offset }) => {
-			let node: any = null;
 			(window as any).__test.decorations.addSource({
 				name: 'e2e-widget-island',
 				provide: (doc: any) => {
-					node = doc;
+					let node: any = doc;
 					for (const index of path) node = node?.children?.[index];
 					const held = node ? String(node.raw).replace(/\r?\n$/, '').length : 0;
 					if (held < offset) return [];

@@ -8,7 +8,7 @@
 import type { InlineNode } from '../../../core/nodes';
 import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
-import { computeInlineContent, getContentRange } from '../../../core/inline';
+import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import {
@@ -105,7 +105,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		);
 		// Ambient length 0: a cell carries no marker, so island offsets are raw offsets.
 		islandDestroys = applyIslandDecorations(el, node.raw, islands, {
-			contentLength: getContentRange(node).end,
+			contentLength: contentLengthOf(node),
 			ambientLength: 0,
 			mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 			onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)

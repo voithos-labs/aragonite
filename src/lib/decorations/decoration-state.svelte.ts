@@ -18,7 +18,7 @@ import type {
 } from './types';
 import { assertInvariant } from '../invariants/assert';
 import { isCommitInProgress } from '../invariants/commit-scope';
-import { getContentRange, isProseKind } from '../core/inline';
+import { contentLengthOf, isProseKind } from '../core/inline';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { devWarn } from '../dev-warn';
 import { recordDecorationRun } from '../perf/instruments';
@@ -101,7 +101,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 				message: `on a non-prose ${node.kind} block; islands render only in prose blocks`
 			};
 		}
-		const contentLength = getContentRange(node).end;
+		const contentLength = contentLengthOf(node);
 		const held = `the block holds ${contentLength} content bytes`;
 		if (dec.type === 'widget') {
 			if (dec.offset >= 0 && dec.offset <= contentLength) return null;

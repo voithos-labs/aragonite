@@ -10,7 +10,12 @@ import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
-import { computeInlineContent, getContentRange, isProseKind } from '../../../core/inline';
+import {
+	computeInlineContent,
+	contentLengthOf,
+	getContentRange,
+	isProseKind
+} from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
@@ -239,7 +244,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content));
 			islandDestroys = applyIslandDecorations(el, node.raw, islands, {
-				contentLength: getContentRange(node).end,
+				contentLength: contentLengthOf(node),
 				ambientLength: deps.ambientPrefixText.length,
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
