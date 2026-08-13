@@ -4,9 +4,6 @@
 // the quote. `createContainerBlock` wires `createBlockquoteOverrides` into the nested
 // bundle and the component names nothing to select it, so its arrival is invisible from
 // the source — which is why both presses are driven here rather than seeded.
-// Miss-analysis (the block-follows exits): the cases asserted BYTES only, and the bytes they
-// asserted reloaded as one block more than the exit had left on screen; nothing compared the
-// two, so a G2.13 divergence read as the expected value until the settle funnel moved.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { installLayoutStubs, mountEditor, pressKeyAt } from '../editor-mount';
@@ -44,7 +41,9 @@ describe('blockquote Enter override', () => {
 
 	// Miss-analysis: the exit's only pins seeded a quote at document end, where the
 	// move-past-end append happened to mint the blank the exit itself never did — so the
-	// whole "a block follows" class, and with it Enter-as-down-nav, went unobserved.
+	// whole "a block follows" class, and with it Enter-as-down-nav, went unobserved. The
+	// case it then grew asserted BYTES alone, which reloaded as one block more than the
+	// exit left on screen, so a G2.13 divergence read as the expected value.
 	it('exits before a following block by minting the gap, not entering the block', async () => {
 		mounted = mountEditor({ source: '> alpha\n\nbeta\n' });
 
