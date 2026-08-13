@@ -14,7 +14,7 @@ interface ModeProbe {
 	__test: { setPresentationMode(mode: string): void };
 }
 
-async function setMode(page: Page, mode: 'live' | 'reading'): Promise<void> {
+async function setMode(page: Page, mode: 'live' | 'reading' | 'source'): Promise<void> {
 	await page.evaluate((m) => (window as unknown as ModeProbe).__test.setPresentationMode(m), mode);
 }
 
@@ -61,18 +61,23 @@ test.describe('block math: typed formation', () => {
 		await editor.bridge.waitForSourceContains('$$\nx^2\n$$\n');
 	});
 
-	test('one undo restores the paragraph byte-for-byte with the caret at its end', async ({
-		page
-	}) => {
-		await typeAndEnter(editor, 0, '$$');
-		await editor.bridge.waitForSourceEquals(COMPLETED);
+	// A render-primary leaf commits on blur, so the reveal→blur cycle is the unit an undo follows.
+	// Undoing from INSIDE the still-focused reveal is inert today (#161), so the blur is the
+	// gesture under test, not a workaround the caret assertions could skip.
+	test('one undo after the blur restores the paragraph byte-for-byte', async ({ page }) => {
+		await editor.loadContent('Before\n\n\n');
+		await typeAndEnter(editor, 1, '$$');
+		await editor.bridge.waitForSourceContains(COMPLETED);
+		await editor.getBlock(0).click();
+		await editor.waitForRenderFlush();
 
 		await editor.undo();
-		await editor.bridge.waitForSourceEquals('$$\n');
-		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+		await editor.bridge.waitForSourceEquals('Before\n\n$$\n');
+		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 
+		// The undo snapshot anchors where the caret WAS, not where the mint sent it.
 		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceEquals('$$Z\n');
+		await editor.bridge.waitForSourceEquals('Before\n\n$$Z\n');
 	});
 
 	// An opener line carrying body text implies no multi-line form, so it leaves the shape any
@@ -98,7 +103,9 @@ test.describe('block math: typed formation', () => {
 		await editor.bridge.waitForSourceContains('$$\nx^2\n$$\n');
 	});
 
-	test('reading mode leaves the bytes alone', async ({ page }) => {
+	// A decline is only worth asserting if the same press works once the mode lifts — otherwise a
+	// key that never reached the editor would pass it. The completion afterwards is that proof.
+	test('reading mode declines the completion until the mode lifts', async ({ page }) => {
 		await editor.loadContent('$$\n');
 		await setMode(page, 'reading');
 		await editor.waitForRenderFlush();
@@ -106,8 +113,15 @@ test.describe('block math: typed formation', () => {
 		await page.keyboard.press('Enter');
 		await editor.waitForRenderFlush();
 
-		await editor.bridge.waitForSourceEquals('$$\n');
+		expect(await editor.bridge.getSource()).toBe('$$\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+
+		await setMode(page, 'source');
+		await editor.waitForRenderFlush();
+		await editor.clickBlock(0);
+		await page.keyboard.press('End');
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals(COMPLETED);
 	});
 });
 
