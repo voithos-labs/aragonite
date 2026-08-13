@@ -46,8 +46,17 @@ or wrap.
 - Backspace at the start of the paragraph below concatenates the two blocks literally (`[](u)para`), the join dropping nothing.
 - the link card, entered with the caret inside the painted chrome, still rewrites the destination the chrome is showing.
 
+A construct WRAPPING content-empty chrome (`**[](u)**`) paints all nine bytes, and the caret can
+walk between the outer pair and the inner one precisely because they paint. The two seams that
+rewrite across a cut meet the painted pair there, and neither may treat it as a run the reader
+never saw:
+
+- a range delete from between the two pairs into the paragraph below leaves the painted `**` standing, exactly as source mode does.
+- Enter at the same caret cuts the bytes literally, leaving `**` above `[](u)**`, rather than carrying the painted opener into the second half.
+
 ## Miss-analysis
 
 - The live requirement families covered typing into paragraphs and typing at hidden INLINE edges, and the destructive side pinned that a construct-edge delete drops the whole `# `. No scenario typed a BLOCK opener, so the path that MINTS a marker-only block had zero coverage while the path that refuses to leave one behind was pinned.
 - The construct-edge delete arm was only ever exercised against blocks holding content, where its delimiters really are hidden. No destructive scenario ran inside a content-empty block, so the arm consulted an oracle that reports every marker as unseen while the screen showed all five bytes.
 - Only the destructive arm was pinned against painted chrome. The other five rewrites reach the same block and answer correctly only because the oracle's wrong answer cancels against their own check, so nothing would have failed the day one of them stopped cancelling.
+- Every painted-chrome scenario used the FLAT `[](u)`, which the split and the join both decline by childless arity — the wrong reason. No fixture wrapped that chrome in a construct the seams DO cut open, so their conservation check kept reading nine painted bytes as bytes nobody saw.

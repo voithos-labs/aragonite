@@ -322,3 +322,19 @@ describe('a reference form rebalances only when the resolver reaches the seam', 
 		expect(splitWithResolver(10, false)).toBeNull();
 	});
 });
+
+// A construct standing over a content-empty one paints ALL its bytes (live-mode.md § 4.1), so
+// moving its opener across the seam moves bytes the reader is looking at. Miss-analysis: the
+// painted-chrome pins used the FLAT `[](u)`, which declines here by childless arity (the wrong
+// reason), so no case ever reached the rebalancer with a painting construct to cut open.
+describe('a construct that is painting chrome is not cut open', () => {
+	it('declines inside a bold pair standing over a link with no text', () => {
+		expect(split('**[](u)**\n', 2)).toBeNull();
+		expect(split('**[](u)**\n', 7)).toBeNull();
+	});
+
+	// The same pair over content still rebalances: those delimiters really are hidden.
+	it('still rebalances the same pair over content', () => {
+		expect(split('**ab**\n', 3)).toEqual({ firstRaw: '**a**\n', secondRaw: '**b**\n' });
+	});
+});

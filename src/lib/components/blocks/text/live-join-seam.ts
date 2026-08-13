@@ -11,7 +11,11 @@ import {
 	isProseKind,
 	parseInline
 } from '../../../core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
+import {
+	CONTENT_VISIBILITY,
+	paintsOnlyChrome,
+	renderedText
+} from '../../../core/inline/visibility';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
@@ -109,6 +113,9 @@ function readSide(
 	if (offset < content.start || offset > content.end) return null;
 
 	const inlines = parseInline(node.raw, content.start, content.end, resolver);
+	// Chrome standing over nothing is all on screen (live-mode.md § 4.1), so a run surviving this
+	// cut is bytes the reader saw, not a stranded one: the literal join stands.
+	if (paintsOnlyChrome(inlines, node.raw)) return null;
 	const { ranged, atomic } = classifyConstructs(inlines);
 	// Neither an atomic construct's interior nor the middle of a delimiter run leaves halves any
 	// reading of the seam can repair. Live's caret cannot land there; a plugin's can.
@@ -292,7 +299,8 @@ const shownAfterJoin = (left: Side, right: Side): string =>
 /**
  * What a reader sees, asked of the thing that paints it: the render path's own DOM with every
  * marker span dropped. The clip decides only WHERE the bytes stop; a construct the cut crosses
- * contributes its content, since its delimiter runs paint nothing either way.
+ * contributes its content, since its delimiter runs paint nothing either way — which `readSide`
+ * has already established by declining a side whose chrome paints.
  */
 function visibleSide(side: Side, keep: 'before' | 'after'): string {
 	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY);

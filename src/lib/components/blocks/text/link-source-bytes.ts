@@ -129,7 +129,8 @@ function declineClaimed(link: InlineNode, what: string): boolean {
 
 /** What a reader SEES for `raw`, asked of the thing that paints it. The content reading, not the
  *  block's own: the card edits a destination the chrome may be painting, and a diff against the
- *  screen would refuse every such edit as a visible change. */
+ *  screen would refuse every such edit as a visible change. The write splices bytes for bytes and
+ *  drops none, so no reading of it licenses losing one the reader saw. */
 function visibleText(raw: string, resolver?: LinkReferenceResolver): string {
 	return renderedText(parseInline(raw, 0, raw.length, resolver), raw, CONTENT_VISIBILITY);
 }

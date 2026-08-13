@@ -219,7 +219,8 @@ function enclosingKinds(
 /** What a reader sees, asked of the thing that actually paints it: only the render path knows
  *  which bytes a kind paints as markers (G4.33), so no private walk over the parse. The content
  *  reading, not the block's own: the first byte typed into content-empty chrome folds it away, and
- *  the diff above would read that fold as bytes lost. */
+ *  the diff above would read that fold as bytes lost. This arm only ADDS bytes, so no reading of
+ *  it licenses dropping one the reader saw. */
 function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
 	return renderedText([...(parsed ?? parseInline(raw, 0, raw.length))], raw, CONTENT_VISIBILITY);
 }
