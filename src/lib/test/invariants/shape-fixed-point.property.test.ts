@@ -99,28 +99,11 @@ function applyFill(doc: Document, at: number): void {
 }
 
 /**
- * GH #61's class, out of the join lane as it is out of the split lane: where INDENTATION decides
- * the reading, a block reads whatever lands beside it as its own body whatever separator stands,
- * and a join reports that pre-existing fold rather than the blank-line rule this oracle guards.
- * Both ways in: a neighbour that reads by indentation, and a blank line carrying whitespace, which
- * a join prepends to the surviving bytes as indentation of its own.
- */
-function readsByIndentation(node: CstNode): boolean {
-	if (node.children === undefined) {
-		return (
-			getBlockKindDescriptor(node.kind).supportsInline !== true || /^[ \t]/.test(node.raw ?? '')
-		);
-	}
-	return node.kind === 'list' || node.children.some(readsByIndentation);
-}
-
-/**
  * Backspace and Delete across a block boundary, indexed over the merge-eligible adjacent pairs
  * so the draw always lands on one. Both doors: the forward one reparses the concatenation, the
  * backward one writes prev's deepest prose leaf — different sinks, one shape contract (GH #166).
  */
 function applyMerge(doc: Document, at: number, op: 'mergePrev' | 'mergeNext'): void {
-	if (doc.children.some(readsByIndentation)) return;
 	const pairs = doc.children.flatMap((node, i) =>
 		i > 0 && isMergeEligible(doc.children[i - 1].kind, node.kind) ? [i] : []
 	);
@@ -197,6 +180,19 @@ function keepsEveryContentByte(before: string, after: string): boolean {
 	return true;
 }
 
+/**
+ * A join's shape divergence, minus GH #61's class. The two point opposite ways, which is what
+ * separates them: a FOLD reads fewer blocks than the tree holds, because indentation beside the
+ * survivor's new bytes claims them, and it is pre-existing at every seam (the split lane excludes
+ * the same class by kind). A reload that reads MORE is the join's own: a one-node sink installed
+ * bytes describing several, which is GH #166 itself.
+ */
+function joinDivergence(doc: Document): string | null {
+	const divergence = describeConvergence(doc);
+	if (!divergence) return null;
+	return parse(serialize(doc)).children.length < doc.children.length ? null : divergence;
+}
+
 function divergenceAfterEdit(
 	source: string,
 	gesture: Gesture,
@@ -205,7 +201,9 @@ function divergenceAfterEdit(
 	const doc = parse(source);
 	const before = serialize(doc);
 	applyGesture(doc, gesture, mode);
-	const divergence = describeConvergence(doc);
+	const divergence = gesture.op.startsWith('merge')
+		? joinDivergence(doc)
+		: describeConvergence(doc);
 	if (divergence) return `${divergence} — after ${gesture.op}@${gesture.at}`;
 	const bytes = serialize(doc);
 	if (serialize(parse(bytes)) !== bytes) return `bytes not a round-trip: ${JSON.stringify(bytes)}`;
