@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
-import { settleSeparatorOnBlank } from '../../tree-operations/node-ops';
+import { emptyParagraph, settleSeparatorOnBlank } from '../../tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 
@@ -81,6 +81,24 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.suffix).toBe('');
 		expect(describeConvergence(doc)).toBeNull();
 		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 1 });
+	});
+
+	// The full-table delete fills the emptied document itself (`range-delete-table-coverage`), so
+	// the settle meets a blank tail the caller already reported — its own mint has to widen that
+	// window rather than land outside it.
+	it('widens a caller-minted filler window when the folded line materializes beside it', () => {
+		const doc = parse('| H |\n| - |\n\n');
+
+		const change = settled(doc, (body) => {
+			deleteNode(body, 0);
+			body.children.push(emptyParagraph('', '\n'));
+			return { op: 'replace', at: 0, count: 1, newCount: 1 };
+		});
+
+		expect(doc.children.map((c) => c.raw)).toEqual(['\n', '\n']);
+		expect(doc.suffix).toBe('');
+		expect(describeConvergence(doc)).toBeNull();
+		expect(change).toEqual({ op: 'replace', at: 0, count: 1, newCount: 2 });
 	});
 
 	// The whole-content range delete's door: `rangeDelete`'s same-block arm writes the blank
