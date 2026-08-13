@@ -228,6 +228,14 @@ The **fresh lane** is the opt-in escape hatch. `npm run test:editor:property:fre
 
 **Reproducing a fresh find.** Fresh mode prints its seed (`[property:fresh] seed <N> …`) before the run, and fast-check echoes the failing seed and shrunk counterexample in any failure. To replay, pin that seed as the site's fixed default; the durable fix is to add the counterexample as a committed regression case, which guards the class without the lane.
 
+## Live-mode gesture fuzzer
+
+`src/lib/test/simulation/live-gesture-fuzz.property.test.ts` searches the space between the scripted flows: a seeded stream of typing and destructive gestures at positions biased toward hidden construct edges, driven through the real caret-edge, split, join and range-delete seams and judged after every gesture against the live-mode license (`docs/design/live-mode.md` § 2). Each gesture also runs on a byte-literal twin from the same starting bytes, so a divergence the source-mode edit already has is reported rather than gated.
+
+Findings sort into three buckets. `seam` is a live-only divergence and fails the sweep. `ambiguous` is both arms failing the same claim — markdown's own rebinding, or the byte-literal fallback § 4.4 declares. `known` is a live-only divergence an open ledger issue owns; every one of those names its issue and is pinned by a deterministic case in the same file, so closing the issue reds the pin and the exclusion goes with it. An exclusion without an issue number is not allowed.
+
+It rides `npm test` at a bounded default and joins the fresh lane. `LIVE_FUZZ_DOCS` and `LIVE_FUZZ_STEPS` raise the sweep for an overnight run.
+
 ## Note-taking simulation
 
 Long, realistic note-taking sessions driven through real input — the complement to the short per-feature specs. A session types a full GFM note from an empty document, character by character, with messy human behavior (typos and corrections, click-back edits, select/delete, copy/paste, image resize, undo/redo), checking strong correctness oracles continuously.
