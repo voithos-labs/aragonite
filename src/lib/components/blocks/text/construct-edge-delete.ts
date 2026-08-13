@@ -5,7 +5,14 @@
  * a re-parse says the reader lost exactly what the cut aimed at.
  */
 
-import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
+import {
+	constructContentRange,
+	getContentRange,
+	isProseKind,
+	parseInline,
+	type ContentRange
+} from '../../../core/inline';
+import { parse } from '../../../core/parser';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
@@ -72,12 +79,14 @@ export function resolveEdgeDeletion(query: EdgeDeletionQuery): EdgeDeletion | nu
 	if (!touchesHiddenRun && plain.start === native.start && plain.end === native.end) return null;
 
 	const before = visibleText(display);
+	if (before === null) return null;
 	const removed = target.atomic
 		? renderedText([target.atomic], display, CONTENT_VISIBILITY)
 		: display.slice(target.start, target.end);
 	for (const cut of [plain, widenThroughRuns(constructs, plain)]) {
 		const raw = display.slice(0, cut.start) + display.slice(cut.end);
-		if (!removesExactly(before, visibleText(raw), removed)) continue;
+		const after = visibleText(raw);
+		if (after === null || !removesExactly(before, after, removed)) continue;
 		// Backward lands where the cut opened; forward keeps the caret where it was, which the cut
 		// only moves when it swallowed delimiters ahead of it.
 		return { raw, caret: direction === 'backward' ? cut.start : Math.min(caret, cut.start) };
@@ -233,9 +242,24 @@ function removesExactly(before: string, after: string, removed: string): boolean
 	);
 }
 
-/** What a reader sees, asked of the thing that paints it. The content reading, not the block's
- *  own: a cut that empties a construct folds its chrome INTO view, and the diff would read that
- *  arrival as bytes lost. Sound because the painting-chrome case returned at the door. */
-function visibleText(raw: string): string {
-	return renderedText(parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
+/**
+ * What a reader sees, asked of the thing that paints it, over the bytes read back as the BLOCK the
+ * caller is about to install: a cut can abut two runs into another block's opener, and null refuses
+ * that candidate. The content reading, not the block's own — a cut that empties a construct folds
+ * its chrome into view, and the diff would read that arrival as bytes lost; sound because the
+ * painting-chrome case returned at the door.
+ */
+function visibleText(raw: string): string | null {
+	// A cut that empties the block is the one candidate with no block to read: emptied is a shape
+	// the reload keeps, so it answers for itself rather than through the parser.
+	if (raw === '') return '';
+	const blocks = parse(raw, { scope: 'fragment' }).children;
+	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
+	const block = blocks[0];
+	const range = getContentRange(block);
+	return renderedText(
+		parseInline(block.raw, range.start, range.end),
+		block.raw,
+		CONTENT_VISIBILITY
+	);
 }
