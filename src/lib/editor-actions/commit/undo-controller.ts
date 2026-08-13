@@ -18,7 +18,7 @@ import { asDocPath, pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../invariants/assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
-import { nodeAt } from '../../tree-operations/node-ops';
+import { nodeAt, settleSeparator, type SeparatorParent } from '../../tree-operations/node-ops';
 import {
 	attachedChainPrefix,
 	ensureUnsharedPath,
@@ -85,6 +85,24 @@ function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNo
 
 export function createUndoController(deps: EditorActionsDeps): UndoController {
 	// ── Selection helpers ─────────────────────────────────────────────────────
+
+	/**
+	 * The document as the settle's parent, over the mutate's working array. The suffix rides as
+	 * accessors: a tail settle spends the live document's folded line, and the rollback frame
+	 * restores it.
+	 */
+	function docSettleParent(children: CstNode[]): SeparatorParent {
+		return {
+			kind: 'document',
+			children,
+			get suffix() {
+				return deps.doc.suffix;
+			},
+			set suffix(value: string) {
+				deps.doc.suffix = value;
+			}
+		};
+	}
 
 	function collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection {
 		const point: SelectionPoint = { path: [blockIndex], offset };
@@ -282,7 +300,14 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				const idsCopy = [...deps.blockIds];
 				const refsCopy = [...deps.blockRefs];
 
-				const change = args.mutate(childrenCopy);
+				// `deps.doc.children` is still the pre-mutate array here (`publish` swaps it),
+				// so the settle reads was-blank off it with no caller threading any facts.
+				const change = settleSeparator(
+					docSettleParent(childrenCopy),
+					deps.doc.children,
+					args.mutate(childrenCopy),
+					deps.sharing
+				);
 				if (args.discardIfNoop && change.op === 'noop') {
 					// Document branch never published; the frame restores only the stacks here.
 					rollback.restore();
@@ -514,13 +539,21 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
 				// Dynamically-built scope arrays degrade to array typing, so this runtime
 				// check backstops the tuple types.
-				const changeList: readonly StructuralChange[] = changes;
+				const changeList: StructuralChange[] = [...changes];
 				if (changeList.length !== scopes.length) {
 					throw new Error(
 						`commitMultiScope: mutate returned ${changeList.length} changes for ${scopes.length} scopes`
 					);
 				}
 				for (let i = 0; i < prepared.length; i++) {
+					// `savedChildren` is the pre-mutate array the scope prep swapped out, so the
+					// settle reads was-blank off it (`prepareScopeView`).
+					changeList[i] = settleSeparator(
+						prepared[i].owned as SeparatorParent,
+						prepared[i].savedChildren ?? [],
+						changeList[i],
+						deps.sharing
+					);
 					publishScopeView(prepared[i], changeList[i]);
 				}
 				// Deepest chains first: an inner scope's raw must be current before an outer

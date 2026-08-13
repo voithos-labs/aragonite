@@ -33,7 +33,7 @@ import {
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
-import { resyncChildIds } from './children';
+import { resyncChildIds, spliceChildren } from './children';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { assertInvariant } from '../invariants/assert';
 import { checkSplitLanding } from '../invariants/split-landing';
@@ -795,11 +795,113 @@ function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState):
 	return 1;
 }
 
-/** What a seam settle absorbed: post-splice window position and size, and blocks eaten. */
+// ── The splice settle funnel ──
+
+/**
+ * The settle every splice owes its neighbourhood: the vacated separating line hands down, a
+ * now-redundant one frees, and the two debts a consumed blank line leaves are paid
+ * (syntax-tree.md § Blank lines). `removed` is the pre-splice span, the only place was-blank
+ * survives a splice.
+ */
+function settleSplicedWindow(
+	parent: SeparatorParent,
+	at: number,
+	removed: readonly CstNode[],
+	added: number,
+	sharing?: SharingState
+): void {
+	if (!parent.children) return;
+	handDownVacatedSeparator(parent, at, removed[0]?.leadingTrivia ?? '', sharing);
+	clearRedundantSeparator(parent, at, sharing);
+	if (removed.some(isBlankParagraph)) {
+		// Both ends: the line was the slot's own AND the one below it stood on.
+		restoreSeparatorAfterBlank(parent, at, sharing);
+		if (added > 0) restoreSeparatorAfterBlank(parent, at + added, sharing);
+	} else {
+		settleSeparatorOnBlank(parent, at + Math.max(added - 1, 0), sharing);
+	}
+}
+
+/** Whoever takes the slot inherits its line, having none of its own — {@link deleteNode}'s rule. */
+function handDownVacatedSeparator(
+	parent: SeparatorParent,
+	at: number,
+	vacated: string,
+	sharing?: SharingState
+): void {
+	const heir = parent.children?.[at];
+	if (vacated === '' || !heir || heir.leadingTrivia !== '') return;
+	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : heir;
+	owned.leadingTrivia = vacated;
+}
+
+/**
+ * The commit ceremony's settle door: derive the spliced window from the change and settle it
+ * against `before`, the pre-mutate children the ceremony still holds. Nodes surviving inside the
+ * window are not removals, so a coarse descriptor over an in-place write settles as one.
+ * Returns the change widened by a tail line the settle materialized.
+ */
+export function settleSeparator(
+	parent: SeparatorParent,
+	before: readonly CstNode[],
+	change: StructuralChange,
+	sharing?: SharingState
+): StructuralChange {
+	const window = splicedWindow(change);
+	const children = parent.children;
+	if (!window || !children) return change;
+	const survivors = new Set(children.slice(window.at, window.at + window.added));
+	const removed = before
+		.slice(window.at, window.at + window.removed)
+		.filter((node) => !survivors.has(node));
+	const settled = children.length;
+	settleSplicedWindow(parent, window.at, removed, window.added, sharing);
+	return widenForTailMint(change, settled, children.length);
+}
+
+function splicedWindow(
+	change: StructuralChange
+): { at: number; removed: number; added: number } | null {
+	switch (change.op) {
+		case 'noop':
+			return null;
+		case 'insert':
+			return { at: change.at, removed: 0, added: change.count };
+		case 'delete':
+			return { at: change.at, removed: change.count, added: 0 };
+		case 'replace':
+			return { at: change.at, removed: change.count, added: change.newCount };
+	}
+}
+
+/**
+ * The out-of-commit-scope twin of {@link settleSeparator}, for a container discovered by walking
+ * the live tree: it splices through the `childIds` door and reads the pre-splice span itself.
+ */
+export function spliceChildrenSettled(
+	parent: CstNode | Document,
+	at: number,
+	removeCount: number,
+	replacement: CstNode[],
+	sharing?: SharingState
+): void {
+	const children = parent.children;
+	if (!children || at < 0 || at > children.length) return;
+	const removed = children.slice(at, at + removeCount);
+	spliceChildren(parent as CstNode, at, removeCount, ...replacement);
+	settleSplicedWindow(parent as SeparatorParent, at, removed, replacement.length, sharing);
+}
+
+/**
+ * What a seam settle absorbed: post-splice window position and size, and the net blocks eaten
+ * (negative when a materialized peel outgrew the window). `span + eaten` is the pre-absorb slot
+ * count, which is what a change descriptor reports; `spliced` says the window moved at all.
+ */
 interface SeamAbsorption {
 	at: number;
 	span: number;
 	eaten: number;
+	spliced: boolean;
 }
 
 /**
@@ -816,12 +918,13 @@ function absorbSeamReading(
 	sharing?: SharingState
 ): SeamAbsorption {
 	const children = parent.children;
-	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0 };
+	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0, spliced: false };
 	let left = seamLeft;
 	while (left > floor && isBlankParagraph(children[left])) left--;
 	const at = left;
 	let span = seamLeft - at + 1;
 	let eaten = 0;
+	let spliced = false;
 	for (;;) {
 		// The candidate edge crosses a blank run too: the absorbed content sits on the
 		// run's far side (a list continues into indented code across any number of blanks).
@@ -840,8 +943,7 @@ function absorbSeamReading(
 		// reparse. A structured container's children fail this by construction — two items'
 		// joined bytes read as a nested LIST — and the seam is not askable there.
 		if (blocks[0].kind !== window[0].kind) break;
-		// Byte-honest over the fragment peel, the single-slot sink's rule.
-		blocks[blocks.length - 1].raw += reparsed.suffix;
+		absorbFragmentPeel(parent, at + window.length, reparsed.suffix, blocks, sharing);
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
 		for (const block of blocks) {
 			ensureEditableContainers(block);
@@ -851,9 +953,39 @@ function absorbSeamReading(
 		children.splice(at, window.length, ...blocks);
 		eaten += window.length - blocks.length;
 		span = blocks.length;
+		spliced = true;
 	}
-	return { at, span, eaten };
+	return { at, span, eaten, spliced };
 }
+
+/**
+ * Where the fragment parse's peeled trailing blank run goes. At the parent's tail it stays in the
+ * last block's raw, the single-slot sink's rule; mid-document it joins the follower's run, where
+ * one line separates and every later one is a block of its own (syntax-tree.md § Blank lines).
+ */
+function absorbFragmentPeel(
+	parent: NodeParent,
+	followerIndex: number,
+	peel: string,
+	blocks: CstNode[],
+	sharing?: SharingState
+): void {
+	const follower = parent.children[followerIndex];
+	if (!follower) {
+		blocks[blocks.length - 1].raw += peel;
+		return;
+	}
+	if (peel === '') return;
+	const lines = blankLinesOf(peel + follower.leadingTrivia);
+	const owned = sharing ? ensureUnsharedChild(parent, followerIndex, sharing) : follower;
+	owned.leadingTrivia = lines.length > 1 ? '' : lines[0];
+	for (let i = 1; i < lines.length; i++) {
+		blocks.push({ kind: 'paragraph', leadingTrivia: i === 1 ? lines[0] : '', raw: lines[i] });
+	}
+}
+
+/** A blank run split back into the lines it is made of, each keeping its own ending. */
+const blankLinesOf = (run: string): string[] => run.match(/[^\n]*\n|[^\n]+$/g) ?? [];
 
 /** The materialized tail reported inside the sink's one contiguous window. */
 export function widenForTailMint(
@@ -961,7 +1093,7 @@ export function deleteNode(
 	// The delete puts two blocks beside each other for the first time, and their adjacent bytes can
 	// re-read as fewer. Exclusive with the tail mint below: that one needs the slot past the tail.
 	const seam = absorbSeamReading(parent, blockIndex - 1, 0, sharing);
-	if (seam.eaten > 0) {
+	if (seam.spliced) {
 		// One contiguous window: the absorbed span plus the deleted block inside it.
 		return {
 			op: 'replace',
@@ -1006,12 +1138,47 @@ export function updateNodeContent(
 	}
 	// The reverse transition: the block IS the separating line now, so the run it joins gives
 	// back the second one. The last block minted is the one that meets the follower.
-	if (!wasBlank) {
+	const blanked = lastMintedIndex(change, blockIndex);
+	if (!wasBlank && isBlankParagraph(parent.children[blanked])) {
 		const settled = parent.children.length;
-		settleSeparatorOnBlank(parent, lastMintedIndex(change, blockIndex), sharing);
-		return widenForTailMint(change, settled, parent.children.length);
+		settleSeparatorOnBlank(parent, blanked, sharing);
+		const widened = widenForTailMint(change, settled, parent.children.length);
+		// Only here, never on the ordinary keystroke: the neighbour reparse below is the
+		// expensive half and a block that stayed non-blank moved nothing next to anything.
+		const seam = absorbSeamReading(parent, blanked, 0, sharing);
+		return seam.spliced ? foldAbsorbIntoChange(widened, seam) : widened;
 	}
 	return change;
+}
+
+/**
+ * The absorbed window folded into the write's own, as the ONE contiguous window the sink
+ * reports: `count` counts pre-write slots, so the union's span converts back across whatever
+ * the write itself added or removed.
+ */
+function foldAbsorbIntoChange(change: StructuralChange, seam: SeamAbsorption): StructuralChange {
+	const absorbedTo = seam.at + seam.span + seam.eaten;
+	if (change.op === 'noop') {
+		return {
+			op: 'replace',
+			at: seam.at,
+			count: absorbedTo - seam.at,
+			newCount: seam.span,
+			idMap: { 0: 0 }
+		};
+	}
+	const written =
+		change.op === 'insert' ? change.count : change.op === 'delete' ? 0 : change.newCount;
+	const removed = change.op === 'insert' ? 0 : change.count;
+	const lo = Math.min(seam.at, change.at);
+	const hi = Math.max(absorbedTo, change.at + written);
+	return {
+		op: 'replace',
+		at: lo,
+		count: hi - lo - written + removed,
+		newCount: hi - lo - seam.eaten,
+		idMap: { 0: 0 }
+	};
 }
 
 /** Where the filled block's follower ended up: a multi-block reparse pushes it down. */
