@@ -34,6 +34,10 @@ the assertion is always the SOURCE, since the byte position is the whole contrac
 - the bold control types identically through every one of those gestures, which is what says the
   fix moved the childless class and nothing else
 
+- the other two symmetric pairs seat the same way, on runs bold's cases never exercise: a
+  strikethrough's two-byte `~~` and a code span's single backtick both extend from an arrival
+  inside them
+
 ## Edge cases
 
 - `Home` on a line that OPENS with a construct types BEFORE it: a line extreme is

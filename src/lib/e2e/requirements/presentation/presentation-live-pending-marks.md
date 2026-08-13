@@ -22,6 +22,13 @@ contradicted it — the row below is what would have.
 - `Mod+B` then `Mod+I` then a keystroke: both marks ride the one insertion, `***X***`
 - a mark pended inside existing bold REMOVES it: the byte escapes the construct, by splitting it
   close-and-reopen where that parses back correctly and by stepping outside it where it does not
+
+- `Mod+Shift+X` then a keystroke writes `~~X~~`, and `Mod+E` then a keystroke writes a backtick
+  pair — the two marks whose delimiters no earlier scenario ever wrote
+- two marks nest OUTERMOST FIRST whatever order the chords arrived in: `Mod+B` then `Mod+E` and
+  `Mod+E` then `Mod+B` both write ``**`X`**``, never a code span with literal stars inside it
+- a mark pended inside a struck phrase removes it exactly as bold's does, by the close-and-reopen
+  split
 - the insertion that spends a mark is its own undo entry: one `Mod+Z` after a burst plus a
   toggle plus a keystroke returns the burst's text, not the empty block
 

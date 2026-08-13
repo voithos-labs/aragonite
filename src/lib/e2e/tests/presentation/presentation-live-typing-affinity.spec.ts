@@ -18,7 +18,11 @@ const DOC = [
 	'end  ',
 	'next',
 	'',
-	'**Lead** in'
+	'**Lead** in',
+	'',
+	'A ~~struck~~ tail',
+	'',
+	'A `code` tail'
 ].join('\n');
 
 const BOLD = 0;
@@ -151,6 +155,31 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Some **boldX** text');
 	});
+});
+
+// Bold's cases all run over a two-asterisk run. These two say the seat reads the kind's row and
+// not that run's shape: `~~` is a different two bytes, and a code fence is ONE.
+test.describe('live mode — the other symmetric pairs seat the same way', () => {
+	let ep: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		ep = await enterLive(page);
+	});
+
+	// `A ~~struck~~ tail`: content [4,10). `A \`code\` tail`: content [3,7). Both reached by
+	// clicking the word and stepping right, the arrival that stays inside the construct.
+	for (const [name, word, contentEnd, extended] of [
+		['a strikethrough', 'struck', 10, 'A ~~struckX~~ tail'],
+		['a code span', 'code', 7, 'A `codeX` tail']
+	] as const) {
+		test(`${name} extends from an arrival inside it`, async ({ page }) => {
+			await clickWord(ep, page, word);
+			await stepTo(ep, page, 'ArrowRight', contentEnd);
+
+			await page.keyboard.type('X');
+			await ep.bridge.waitForSourceContains(extended);
+		});
+	}
 });
 
 test.describe('live mode — a never-extend construct ignores the arrival', () => {
