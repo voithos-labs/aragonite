@@ -75,13 +75,6 @@ function applyFill(doc: Document, at: number): void {
 	updateNodeContent(doc, target, 'x' + trailingLineEnding(doc.children[target].raw));
 }
 
-/** Indentation alone delimits indented code, at any depth: see the property's own note. */
-function holdsIndentedCode(node: Document | CstNode): boolean {
-	return (node.children ?? []).some(
-		(child) => child.kind === 'indentedCode' || holdsIndentedCode(child)
-	);
-}
-
 /** A prose leaf plus the container holding it and the ancestors whose raw the write rebuilds. */
 type LeafSlot = { holder: Document | CstNode; index: number; chain: CstNode[] };
 
@@ -208,13 +201,12 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
-	// GH #96: the mirror of the fill. Documents holding indented code sit out — blanking a leaf
-	// beside indentation-delimited content re-reads the bytes, and the content-commit door has
-	// no seam absorb yet (GH #61's residue; the split and delete doors settle it in node-ops).
+	// GH #96: the mirror of the fill. Blanking a leaf beside indentation-delimited content
+	// re-reads the bytes, so the content-commit door absorbs the seam its neighbours now make,
+	// the way the split and delete doors do (GH #61's class).
 	it('emptying a block leaves a tree that reloads to its own shape', () => {
 		fc.assert(
 			fc.property(arbBlankSeparatedGfmDoc, fc.nat({ max: 6 }), (source, at) => {
-				fc.pre(!holdsIndentedCode(parse(source)));
 				const divergence = divergenceAfterEdit(source, { op: 'empty', at, offset: 0 });
 				if (divergence) throw new Error(`${JSON.stringify(source)}: ${divergence}`);
 			}),

@@ -153,8 +153,9 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					view.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
 					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
 					stampStructuralChange(view.children, change, view.sharing);
-					// The displaced sibling is a body block now, not the head, so it owes its own
-					// separator; an EMPTY mint is a blank line itself and shares the follower's.
+					// A gap-caret paragraph is a block of its own on BOTH sides, which the splice
+					// settle cannot infer: the displaced sibling is a body block now, not the head,
+					// so it owes its own separator, and an EMPTY mint is a blank line itself.
 					const parent = bodyParentOf(view);
 					restoreSeparatorOnFill(parent, i + 1, view.sharing);
 					dropDoubledSeparator(parent, i, view.sharing);

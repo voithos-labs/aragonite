@@ -11,7 +11,7 @@ import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
-import { isBlankParagraph, parse } from '../core/parser';
+import { parse } from '../core/parser';
 import { displayLength, trailingLineEnding } from '../core/lines';
 import { walkBetween } from './primitives';
 import {
@@ -26,13 +26,9 @@ import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import {
 	cleanJoinedRaw,
-	clearRedundantSeparator,
 	emptyParagraph,
-	isBlockNode,
 	nodeAt,
-	normalizeOwnRaw,
-	restoreSeparatorAfterBlank,
-	settleSeparatorOnBlank
+	normalizeOwnRaw
 } from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
@@ -71,22 +67,8 @@ export function deleteSubtreesIdentityGated(
 		.sort((a, b) => comparePaths(deletionPaths[b], deletionPaths[a]));
 	for (const i of reverseSortedIndices) {
 		const path = deletionPaths[i];
-		const target = targetNodes[i];
-		if (nodeAt(doc, path) === target) {
-			// A blank block IS the separating line of the block below it, and `deleteAtPath` is a
-			// bare splice — nothing hands that line down the way `deleteNode` does.
-			const deletedBlank = target !== null && isBlockNode(target) && isBlankParagraph(target);
-			deleteAtPath(doc, path);
-			const index = path[path.length - 1];
-			const parent = nodeAt(doc, path.slice(0, -1));
-			if (parent) {
-				// Guards are exclusive: one frees a separator, the other mints one.
-				clearRedundantSeparator(parent, index, sharing);
-				if (deletedBlank) restoreSeparatorAfterBlank(parent, index, sharing);
-				// The deletion can leave a blank against lines it no longer stands beside
-				// (a wrap's chrome, the run head) — re-judge its run.
-				else settleSeparatorOnBlank(parent, index, sharing);
-			}
+		if (nodeAt(doc, path) === targetNodes[i]) {
+			deleteAtPath(doc, path, sharing);
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
 	}
@@ -147,9 +129,8 @@ export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[
 }
 
 /**
- * Install an endpoint's replacement and settle the blank run it joins when the truncation left it
- * blank: the run and the block below it hold one separating line, and a second reloads as one more
- * empty paragraph (G2.13). Every endpoint-install site routes here; `sharing` owns the writes.
+ * Install an endpoint's replacement, stamped as the live tree's own. The splice door settles the
+ * blank run a truncation left the slot in (G2.13); `sharing` owns the writes.
  */
 export function installTruncatedEndpoint(
 	doc: Document,
@@ -158,11 +139,7 @@ export function installTruncatedEndpoint(
 	sharing: SharingState
 ): void {
 	for (const node of replacement) sharing.stamp(node);
-	replaceAtPath(doc, path, replacement);
-	const parent = nodeAt(doc, path.slice(0, -1));
-	if (parent) {
-		settleSeparatorOnBlank(parent, path[path.length - 1] + replacement.length - 1, sharing);
-	}
+	replaceAtPath(doc, path, replacement, sharing);
 }
 
 // ── Cross-block deletion plan (chrome + table branches) ─────────────────────
