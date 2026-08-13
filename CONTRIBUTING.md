@@ -135,6 +135,8 @@ Defects and proposals go straight to [GitHub Issues](https://github.com/voithos-
 
 A note on reading the ledger: it is deliberately a memory, not a scoreboard. `severity: watch` entries record observed signals with no confirmed defect, and small true things stay open until fixed rather than being tidied away, so the open count runs higher than the defect count. The labels are the sort order.
 
+Friction that is real but is not a defect (a convention nobody wrote down, a doc that sends you the wrong way) belongs in [`docs/contributing/friction-log.md`](docs/contributing/friction-log.md). If you trip over something while getting oriented, add it there before it becomes invisible to you.
+
 ## Fixing bugs
 
 Root-cause first, never a patch around an edge case. Add the regression test **red first** (it fails on the pre-fix code, for the right reason), then fix. Record a one-line miss-analysis, what test should have caught this and why none did, in the regression test's requirement file (e2e) or as the regression test's own header line (unit).

@@ -120,3 +120,5 @@ behavior that does not exist.
   same commit.
 - **A moved seam moves the codebase map in the same commit** ([`codebase-map.md`](codebase-map.md)).
   `npm run lint` fails on a path or symbol it names that no longer exists, which is the reminder.
+- Contributor-facing friction that is real but is not a defect lives in
+  [`friction-log.md`](friction-log.md) rather than in someone's memory.

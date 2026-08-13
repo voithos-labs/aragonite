@@ -55,6 +55,7 @@ Because the pack ships flat, a markdown link inside `guide/` may only point at a
 | [`contributing/adding-a-block.md`](contributing/adding-a-block.md)           | Adding a built-in block kind                                   |
 | [`contributing/code-style.md`](contributing/code-style.md)                   | Code style conventions                                         |
 | [`contributing/commit-conventions.md`](contributing/commit-conventions.md)   | Commit message format                                          |
+| [`contributing/friction-log.md`](contributing/friction-log.md)               | Known contributor-experience friction, open and retired        |
 
 `rules.md` is the one to read before you write code, and the one people skip. Every rule in it was paid for by a real bug, and `casebook.md` holds the bug.
 
