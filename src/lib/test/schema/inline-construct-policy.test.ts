@@ -20,6 +20,7 @@ import {
 	__resetInlineConstructPoliciesForTests,
 	__resetLiveSplitRebalancerForTests,
 	type InlineConstructPolicy,
+	type InlineMarkPolicy,
 	type LiveSplitRebalancer
 } from '$lib/schema/inline-construct-policy';
 import {
@@ -251,14 +252,17 @@ describe('coherence check scope', () => {
 
 	// The guards that replaced the mark union's exhaustiveness: a rank tie leaves which mark
 	// wraps the other to registration order, and a command tie makes one press two toggles.
+	const tie = (mark: InlineMarkPolicy): InlineMarkPolicy => mark;
 	it.each([
-		['nestingRank', { nestingRank: 0, markerBytes: '++', command: 'plugin.toggleFresh' }],
-		['command', { nestingRank: 99, markerBytes: '++', command: 'format.toggleStrong' }]
-	])('fires when a plugin row ties a built-in mark on %s', (_column, mark) => {
-		const kind = declarePluginInlineKind(`mark-tie-${_column}`);
+		// `block.split` is claimed by no mark row, so the first case ties on the rank alone.
+		['nestingRank', tie({ nestingRank: 0, markerBytes: '++', command: 'block.split' })],
+		['command', tie({ nestingRank: 99, markerBytes: '++', command: 'format.toggleStrong' })]
+	])('fires when a plugin row ties a built-in mark on %s', (column, mark) => {
+		const kind = declarePluginInlineKind(`mark-tie-${column}`);
 		registerInlineConstructPolicy(kind, { ...atomic, revealable: true, mark });
 		const { report, byTag } = collector();
 		checkInlineConstructPoliciesAtMount(report);
 		expect(byTag('inline-construct-policy')).toHaveLength(1);
+		expect(byTag('inline-construct-policy')[0].violation.detail).toHaveProperty(column);
 	});
 });
