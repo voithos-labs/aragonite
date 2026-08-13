@@ -24,6 +24,7 @@ import {
 	type FenceOpen
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
+import { registerMathBlockCompleter } from './math-completion';
 
 export const MATH_INLINE = 'math';
 export const MATH_BLOCK = 'mathBlock';
@@ -193,6 +194,9 @@ export function registerMathBlock(): void {
 			return { node, consumed: i + 1 - ctx.index };
 		}
 	});
+
+	// The open/close pair needs its lines adjacent, which Enter alone can never type.
+	registerMathBlockCompleter(mathBlock);
 
 	// Co-registered so one install teaches both forms (the admonition/githubAlert precedent).
 	registerMathFence();

@@ -1,11 +1,11 @@
 /**
  * Per-kind Enter-completion registry, the block-opener registry's sibling: an opener recognizes
  * a line while parsing, a completer recognizes a lone typed line at an Enter press and answers
- * the canonical lines that complete it. Internal — nothing here is exported from `plugin.ts`, so
- * it is a built-in registrar and owes `aragonite/testing` no reset seam.
+ * the canonical lines that complete it. Published on `plugin.ts`, so its plugin entries clear
+ * through `registry-reset.ts` like every other public register-once seam.
  */
 
-import type { AnyBlockKind } from '../core/nodes';
+import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { registerOnce } from './register-once';
 
 /**
@@ -58,7 +58,21 @@ export function completeTypedLine(line: string): CompletionResult | null {
 	return null;
 }
 
+/** Whether `kind` already owns a completer — the probe a registrar re-run reads before it
+ *  registers, so a re-installed plugin never trips the register-once throw. */
+export function isBlockCompleterRegistered(kind: string): boolean {
+	return completers.has(kind as AnyBlockKind);
+}
+
 export function __resetBlockCompletersForTests(): void {
 	completers.clear();
+	orderedCache = null;
+}
+
+// The unified schema reset preserves built-ins for tests that merely add plugin kinds.
+export function __removePluginCompletersForTests(): void {
+	for (const kind of completers.keys()) {
+		if (!isBuiltinBlockKind(kind)) completers.delete(kind);
+	}
 	orderedCache = null;
 }

@@ -19,7 +19,7 @@ Only the kind and its descriptor are always required. A component makes it visib
 
 **Registration is process-global and register-once.** A kind is a definition every editor on the page shares — the `customElements` model, where `customElements.define` defines an element for every document. Registering the same kind, component, or opener twice is a **conflict that throws**, not a silent override, so a plugin colliding with a built-in or another plugin fails loudly. There is no unregister and no runtime replace. (Under a dev server, re-evaluating a registration module replaces its prior registrations in place, so a changed definition takes effect on re-run; editing a plugin unit's own `definePlugin` still needs a page reload. That replace covers **every** register-once seam, the paste-transform registry included, while production and a test run keep the throw — so the throw is what your suite observes.)
 
-Registrations get packaged into a **plugin unit** whose `setup` runs at most once per process — so you write each `register*` call straight, and the unit, not a per-call guard, owns idempotence. A registrar that runs at **module scope** instead has no such owner, and guards each call on a probe: `isBlockKindDeclared`, `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isPasteTransformRegistered`, `isDirectiveRegistered`, and `isInlineKindDeclared` for the inline tier. Guard on the probe, never on a module-level `registered` flag — a flag survives `resetPluginPlatformForTests()` and silently skips the re-registration your next test case needs.
+Registrations get packaged into a **plugin unit** whose `setup` runs at most once per process — so you write each `register*` call straight, and the unit, not a per-call guard, owns idempotence. A registrar that runs at **module scope** instead has no such owner, and guards each call on a probe: `isBlockKindDeclared`, `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isBlockCompleterRegistered`, `isPasteTransformRegistered`, `isDirectiveRegistered`, and `isInlineKindDeclared` for the inline tier. Guard on the probe, never on a module-level `registered` flag — a flag survives `resetPluginPlatformForTests()` and silently skips the re-registration your next test case needs.
 
 ### The plugin unit
 
@@ -592,6 +592,25 @@ The flag stays constant through nested container recursion, so `depth` is what t
 
 The residual, stated plainly. A fragment edit that should dissolve the kind does dissolve it: break the closing fence and the block becomes the constituent blocks its bytes now warrant. Restoring those bytes does not put the kind back in the live tree, because nothing reparses across a block boundary after a commit. `getSource()` returns the correct bytes and a reload restores the block. That limit is not specific to position-scoped kinds (it is the general case of two blocks whose bytes jointly reparse as one), and it has a sibling: typing the syntax at the document top also needs a reload before the kind appears, since the commit reparse sees one block's bytes and declines by design.
 
+## Typing a multi-line construct into existence
+
+An opener recognizes syntax that is already there. A grammar whose lines must be **adjacent** — a table's header over its delimiter, a `$$` fence over its closer — can never get there by typing, because Enter splits a paragraph into a blank-line-separated pair and two adjacent prose lines would just re-parse as one paragraph. `registerBlockCompleter` closes that: your completer reads the one line the user typed and answers the canonical lines that complete it.
+
+```ts
+registerBlockCompleter(myKind, {
+	tryComplete: (line) =>
+		line.trim() === '$$'
+			? { lines: ['$$', '', '$$'], caret: { path: [], line: 1, column: 0 } }
+			: null
+});
+```
+
+What the editor guarantees before your `tryComplete` is called: the block is a single line of prose whose every byte is content, and the caret sits at its end. So the line you receive is the whole typed line and never a kind's own markers. Return `null` to decline; the press then splits as usual. Claims are consulted in kind-name order, so which completer wins never depends on registration order.
+
+Answer `lines` **without** line endings — the seam attaches the editing block's own, so a CRLF document stays CRLF. Answer the caret as a `path` (child indices inside the minted block, empty for the block itself) plus a `line` and `column` inside that node, never a byte offset: the seam picks the line ending after your claim, so only it can count bytes. The claim lands as one block replacement and one undo entry; one undo restores the typed line with the caret back at its end, and pressing Enter there completes again.
+
+Two bounds worth knowing. Your lines are re-parsed by the ordinary parser, so a completer can only mint what a reload of those bytes would produce — register the opener that recognizes them first. And a completer sees a line, never a position, so a grammar that is only legal at one place in the document is not a completion candidate.
+
 ## Inline kinds
 
 An inline kind is minted with `declarePluginInlineKind`, recognized by hooking the scanner on a trigger character (`registerInlineSyntax`), and rendered as a live atomic widget (`registerInlineWidgetKind`). A widget renders through one of two paths, and the descriptor rejects declaring both:
@@ -1106,6 +1125,14 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `BlockOpenerResult`          | What a claiming `tryOpen` returns: the node, plus the count of lines it consumed |
 | `OPENER_PRIORITIES`          | The built-in priority ladder your opener prices against                          |
 
+**Enter completion** _(pre-freeze / unstable)_ — the recipe is in [Typing a multi-line construct into existence](#typing-a-multi-line-construct-into-existence)
+
+| Export                   | Role                                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------------- |
+| `registerBlockCompleter` | Let one typed line complete into a grammar whose lines must be adjacent                        |
+| `BlockCompleter`         | The completer contract: `tryComplete(line)` claims or declines                                 |
+| `CompletionResult`       | A claim: the lines to mint (no endings) plus the caret's path, line and column inside the mint |
+
 **Directive authoring** _(pre-freeze / unstable)_ — full semantics in the [directives guide](directives.md)
 
 | Export                                                                                             | Role                                                                                                                   |
@@ -1217,11 +1244,11 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Idempotence probes**
 
-| Export                                                                           | Role                                                         |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `isBlockKindDeclared`                                                            | Probe a kind declaration, where both declaration seams throw |
-| `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered` | Guard each register-once call so re-import is safe           |
-| `isPasteTransformRegistered`                                                     | The same guard for a paste transform's name                  |
+| Export                                                                                                         | Role                                                         |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `isBlockKindDeclared`                                                                                          | Probe a kind declaration, where both declaration seams throw |
+| `isBlockKindRegistered`, `isBlockComponentRegistered`, `isBlockOpenerRegistered`, `isBlockCompleterRegistered` | Guard each register-once call so re-import is safe           |
+| `isPasteTransformRegistered`                                                                                   | The same guard for a paste transform's name                  |
 
 **Paste transforms** _(pre-freeze / unstable)_ — the recipe is in [Paste transforms](#paste-transforms)
 

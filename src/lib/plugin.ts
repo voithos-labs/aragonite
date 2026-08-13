@@ -79,6 +79,13 @@ export type { BlockOpener, BlockOpenerResult, OpenContext } from './schema/block
 // guide's opener-priority section for the two placement rules.
 export { OPENER_PRIORITIES } from './schema/opener-priorities';
 
+// ── Enter-completion registry (pre-freeze: refined against the caret contract) ──
+// The opener's sibling for a grammar whose lines must be adjacent, which Enter alone can
+// never type into existence: a completer reads one typed line and answers the lines that
+// complete it, plus where the caret seats inside the mint.
+export { registerBlockCompleter } from './schema/block-completions';
+export type { BlockCompleter, CompletionResult } from './schema/block-completions';
+
 // ── Command vocabulary + keybindings ─────────────────────────────────────────
 // The built-in half; a plugin's own commands are minted in the section below.
 export type { CommandId } from './schema/commands';
@@ -163,6 +170,7 @@ export { isBlockKindDeclared } from './schema/plugin-kind';
 export { isBlockKindRegistered } from './schema/block-kind-descriptor';
 export { isBlockComponentRegistered } from './schema/block-component-registry';
 export { isBlockOpenerRegistered } from './schema/block-openers';
+export { isBlockCompleterRegistered } from './schema/block-completions';
 export { isPasteTransformRegistered } from './tree-operations/paste/paste-transforms';
 
 // ── Container-authoring surface (pre-freeze: refined against real plugin blocks) ──
