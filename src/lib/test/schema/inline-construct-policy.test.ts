@@ -10,7 +10,10 @@ import {
 import {
 	registerInlineConstructPolicy,
 	getInlineConstructPolicy,
+	getInlineMarkPolicy,
+	inlineMarkForCommand,
 	isRevealableInlineKind,
+	listInlineMarks,
 	registerLiveSplitRebalancer,
 	getLiveSplitRebalancer,
 	__resetInlineConstructPoliciesForTests,
@@ -53,7 +56,7 @@ describe('built-in rows', () => {
 	it.each(['emphasis', 'strong', 'strikethrough', 'inlineCode'] as const)(
 		'%s is a symmetric marker pair that closes and reopens across a split',
 		(kind) => {
-			expect(getInlineConstructPolicy(kind)).toEqual({
+			expect(getInlineConstructPolicy(kind)).toMatchObject({
 				edgeAffinity: 'symmetric-pair',
 				autoUnwrapOnEmpty: true,
 				splitBehavior: 'close-and-reopen',
@@ -61,6 +64,36 @@ describe('built-in rows', () => {
 			});
 		}
 	);
+
+	// The mark vocabulary the toggle seams used to hold as two hand-written tables: the byte run
+	// each chord writes, and the order a set of them nests in.
+	it('the markable kinds are the four format chords, outermost first', () => {
+		expect(
+			listInlineMarks().map(({ kind, mark }) => [kind, mark.markerBytes, mark.command])
+		).toEqual([
+			['strong', '**', 'format.toggleStrong'],
+			['emphasis', '*', 'format.toggleEmphasis'],
+			['strikethrough', '~~', 'format.toggleStrikethrough'],
+			['inlineCode', '`', 'format.toggleCode']
+		]);
+	});
+
+	// Inline code is the one kind whose delimiters depend on what they enclose, so it is the one
+	// row carrying a wrap function rather than leaning on the marker-content-marker default.
+	it('inline code alone sizes its own fence', () => {
+		const wrappers = listInlineMarks().filter(({ mark }) => mark.wrapBytes !== undefined);
+		expect(wrappers.map(({ kind }) => kind)).toEqual(['inlineCode']);
+		expect(wrappers[0].mark.wrapBytes?.('a `b` c')).toBe('``a `b` c``');
+	});
+
+	it('a command resolves to the one mark that claims it, and to null otherwise', () => {
+		expect(inlineMarkForCommand('format.toggleStrikethrough')?.kind).toBe('strikethrough');
+		expect(inlineMarkForCommand('block.split')).toBeNull();
+	});
+
+	it('a kind with no mark row reads undefined rather than an empty vocabulary', () => {
+		expect(getInlineMarkPolicy('link')).toBeUndefined();
+	});
 
 	it('link neither edge extends, but a split still rebalances it', () => {
 		expect(getInlineConstructPolicy('link')).toEqual({
@@ -205,5 +238,18 @@ describe('coherence check scope', () => {
 		const { report, byTag } = collector();
 		checkInlineConstructPoliciesAtMount(report);
 		expect(byTag('inline-construct-policy')).toEqual([]);
+	});
+
+	// The guards that replaced the mark union's exhaustiveness: a rank tie leaves which mark
+	// wraps the other to registration order, and a command tie makes one press two toggles.
+	it.each([
+		['nestingRank', { nestingRank: 0, markerBytes: '++', command: 'plugin.toggleFresh' }],
+		['command', { nestingRank: 99, markerBytes: '++', command: 'format.toggleStrong' }]
+	])('fires when a plugin row ties a built-in mark on %s', (_column, mark) => {
+		const kind = declarePluginInlineKind(`mark-tie-${_column}`);
+		registerInlineConstructPolicy(kind, { ...atomic, revealable: true, mark });
+		const { report, byTag } = collector();
+		checkInlineConstructPoliciesAtMount(report);
+		expect(byTag('inline-construct-policy')).toHaveLength(1);
 	});
 });

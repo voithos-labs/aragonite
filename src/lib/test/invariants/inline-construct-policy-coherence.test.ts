@@ -59,6 +59,47 @@ describe('checkInlineConstructPolicy (G1.31)', () => {
 		expect(checkInlineConstructPolicy([row()], known(['emphasis']))).toBeNull();
 	});
 
+	// The mark column's two ties. Both were compile errors while `InlineMarkKind` was a closed
+	// union and the vocabulary two hand-written tables; the check is what replaced that.
+	it('fires when two mark rows share a nesting rank', () => {
+		const mark = { nestingRank: 0, command: 'format.toggleStrong' };
+		const violation = checkInlineConstructPolicy(
+			[
+				row({ kind: kind('strong'), mark }),
+				row({ kind: kind('emphasis'), mark: { ...mark, command: 'format.toggleEmphasis' } })
+			],
+			known(['strong', 'emphasis'])
+		);
+		expect(violation?.detail).toMatchObject({ kinds: ['strong', 'emphasis'], nestingRank: 0 });
+	});
+
+	it('fires when two mark rows claim one command', () => {
+		const violation = checkInlineConstructPolicy(
+			[
+				row({ kind: kind('strong'), mark: { nestingRank: 0, command: 'format.toggleStrong' } }),
+				row({ kind: kind('emphasis'), mark: { nestingRank: 1, command: 'format.toggleStrong' } })
+			],
+			known(['strong', 'emphasis'])
+		);
+		expect(violation?.detail).toMatchObject({ command: 'format.toggleStrong' });
+	});
+
+	it('accepts distinct ranks and commands, and rows carrying no mark at all', () => {
+		expect(
+			checkInlineConstructPolicy(
+				[
+					row({ kind: kind('strong'), mark: { nestingRank: 0, command: 'format.toggleStrong' } }),
+					row({
+						kind: kind('emphasis'),
+						mark: { nestingRank: 1, command: 'format.toggleEmphasis' }
+					}),
+					row({ kind: kind('link') })
+				],
+				known(['strong', 'emphasis', 'link'])
+			)
+		).toBeNull();
+	});
+
 	// The kind is read before its fields, so a typo reports itself rather than the
 	// incidental incoherence a mistyped row usually also carries.
 	it('reports the unknown kind ahead of that row’s own field gap', () => {

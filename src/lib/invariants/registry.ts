@@ -261,18 +261,23 @@ export interface InlineConstructPolicyEntry {
 	revealable: boolean;
 	autoUnwrapOnEmpty: boolean;
 	splitBehavior: 'close-and-reopen' | 'plain';
+	/** The mark vocabulary, for a kind a format chord addresses. */
+	mark?: { nestingRank: number; command: string };
 }
 
 /**
- * G1.31 — inline-construct policy coherence: a row names a kind the inline vocabulary holds,
- * and the marker-rewriting behaviors belong only to kinds whose markers the reveal can address.
- * A row for a mistyped kind is silent — the construct keeps the absent-row defaults — and a
- * rewrite on a never-revealed kind edits markers the author has no way to see.
+ * G1.31 — inline-construct policy coherence: a row names a kind the inline vocabulary holds, the
+ * marker-rewriting behaviors belong only to kinds whose markers the reveal can address, and no two
+ * mark rows claim one nesting rank or one command. A row for a mistyped kind is silent — the
+ * construct keeps the absent-row defaults — a rewrite on a never-revealed kind edits markers the
+ * author has no way to see, and a tied rank or command makes which row answers a map-order accident.
  */
 export function checkInlineConstructPolicy(
 	entries: readonly InlineConstructPolicyEntry[],
 	isKnownInlineKind: (kind: AnyInlineKind) => boolean
 ): InvariantViolation | null {
+	const ranks = new Map<number, AnyInlineKind>();
+	const commands = new Map<string, AnyInlineKind>();
 	for (const entry of entries) {
 		if (!isKnownInlineKind(entry.kind)) {
 			return {
@@ -281,6 +286,8 @@ export function checkInlineConstructPolicy(
 				detail: { kind: entry.kind, issue: 'unknown-kind' }
 			};
 		}
+		const clash = entry.mark && markClashOf(entry.kind, entry.mark, ranks, commands);
+		if (clash) return clash;
 		if (entry.revealable) continue;
 		const column =
 			entry.splitBehavior === 'close-and-reopen'
@@ -296,6 +303,33 @@ export function checkInlineConstructPolicy(
 			};
 		}
 	}
+	return null;
+}
+
+function markClashOf(
+	kind: AnyInlineKind,
+	mark: { nestingRank: number; command: string },
+	ranks: Map<number, AnyInlineKind>,
+	commands: Map<string, AnyInlineKind>
+): InvariantViolation | null {
+	const rankHolder = ranks.get(mark.nestingRank);
+	if (rankHolder !== undefined) {
+		return {
+			code: 'inline-construct-policy',
+			message: `kinds "${rankHolder}" and "${kind}" share mark nesting rank ${mark.nestingRank} — which one wraps the other would fall to registration order`,
+			detail: { kinds: [rankHolder, kind], nestingRank: mark.nestingRank }
+		};
+	}
+	const commandHolder = commands.get(mark.command);
+	if (commandHolder !== undefined) {
+		return {
+			code: 'inline-construct-policy',
+			message: `kinds "${commandHolder}" and "${kind}" both claim command "${mark.command}" — one press cannot toggle two marks`,
+			detail: { kinds: [commandHolder, kind], command: mark.command }
+		};
+	}
+	ranks.set(mark.nestingRank, kind);
+	commands.set(mark.command, kind);
 	return null;
 }
 

@@ -1,18 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat, markersFor } from '$lib/components/blocks/text/format-toggle';
-import type { InlineMarkKind } from '$lib/cursor/pending-marks';
+import { MARK_FORMATS, markersOf, toggleFormat } from './format-toggle-fixture';
 
 // The collapsed-caret contract: insert the empty pair and land the caret between its halves,
 // unless it already sits inside such a span or between the halves.
 
 const whole = (raw: string) => ({ start: 0, end: raw.length });
 
-const FORMATS: InlineMarkKind[] = ['strong', 'emphasis', 'strikethrough', 'inlineCode'];
-
-describe.each(FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (format) => {
-	const markers = markersFor(format);
+describe.each(MARK_FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (format) => {
+	const markers = markersOf(format);
 	const at = (raw: string, caret: number) =>
-		toggleInlineFormat(
+		toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: caret, end: caret } },
 			format
 		);
@@ -52,7 +49,7 @@ describe.each(FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (format) 
 
 describe('toggleInlineFormat at a collapsed caret', () => {
 	it('unwraps the innermost matching layer of a nested construct', () => {
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: '***x***', content: whole('***x***'), selection: { start: 3, end: 3 } },
 			'strong'
 		);
@@ -61,7 +58,7 @@ describe('toggleInlineFormat at a collapsed caret', () => {
 
 	it('nests when the caret is inside a span of the other format', () => {
 		const raw = '**bold**';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 4, end: 4 } },
 			'emphasis'
 		);
@@ -71,7 +68,7 @@ describe('toggleInlineFormat at a collapsed caret', () => {
 
 	it('inserts rather than unwrapping when the caret is outside the span', () => {
 		const raw = '**bold**';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 0, end: 0 } },
 			'strong'
 		);

@@ -32,7 +32,7 @@ const WIDGET_REGISTRY = 'src/lib/core/inline/inline-widgets.ts';
 
 /** Every door out of the policy table, the table's own module excluded. */
 const POLICY_READ =
-	/(?<![\w.])(getInlineConstructPolicy|isRevealableInlineKind|listInlineConstructPolicies|getLiveSplitRebalancer|getLiveJoinSeamCleaner)\s*\(/;
+	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|isRevealableInlineKind|listInlineConstructPolicies|listInlineMarks|getLiveSplitRebalancer|getLiveJoinSeamCleaner)\s*\(/;
 
 const readsPolicyTable = (file: SourceFile): boolean =>
 	file.relPath !== POLICY_TABLE && POLICY_READ.test(stripComments(file.text));
@@ -74,15 +74,26 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
 	'src/lib/components/blocks/text/live-join-seam.ts': 'the join cleaner: splitBehavior',
 	'src/lib/components/blocks/text/live-split-rebalance.ts': 'the split rebalancer: splitBehavior',
+	'src/lib/components/blocks/text/format-toggle.ts': 'the toggle seam: the mark vocabulary',
 	'src/lib/components/blocks/text/pending-mark-insert.ts':
-		'the pending-mark resolver: edgeAffinity',
+		'the pending-mark resolver: edgeAffinity and the mark nesting order',
+	'src/lib/components/blocks/table/TableCellBlock.svelte':
+		'the cell surface: which mark a format command toggles',
+	'src/lib/components/blocks/text/TextEditableBlock.svelte':
+		'the prose surface: the same command lookup',
 	'src/lib/schema/registration-checks.ts': 'the registration-time coherence check over every row',
 	'src/lib/tree-operations/node-ops.ts': 'the one reader of both registered rewrite slots'
 };
 
-/** A file asking BOTH tables, and why it needs both answers. Empty is the expected state: the two
- *  answer different questions, so one arm rarely wants both. */
-const BOTH_TABLE_READERS: Record<string, string> = {};
+/** A file asking BOTH tables, and why it needs both answers. Only a block SURFACE legitimately
+ *  does: it hosts every inline kind at once, so it meets the delimiter-run question and the
+ *  atomic-island one on the same keystroke. An arm below a surface asking both is the boundary
+ *  blurring, which is what this manifest is here to make visible. */
+const BOTH_TABLE_READERS: Record<string, string> = {
+	'src/lib/components/blocks/text/TextEditableBlock.svelte':
+		'the prose surface: which mark a format command toggles, and whether a node is an island',
+	'src/lib/components/blocks/table/TableCellBlock.svelte': 'the same pair on the cell surface'
+};
 
 // ── The arms that answer by hand ─────────────────────────────────────────────
 
@@ -97,37 +108,6 @@ interface HandWrittenArm {
 }
 
 const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
-	{
-		path: 'src/lib/components/blocks/text/format-toggle.ts',
-		detection: 'kind-literal',
-		fate: 'backlog',
-		reason:
-			"the marker bytes are a hand-written table and inline code's content-sized fence a branch beside it; both become row vocabulary"
-	},
-	{
-		path: 'src/lib/components/blocks/text/pending-mark-insert.ts',
-		detection: 'kind-literal',
-		fate: 'backlog',
-		reason: 'NESTING_ORDER orders the marks by hand; it becomes a rank on the row'
-	},
-	{
-		path: 'src/lib/cursor/pending-marks.ts',
-		detection: 'kind-literal',
-		fate: 'backlog',
-		reason: 'InlineMarkKind is a closed union; it opens to whichever rows declare a mark'
-	},
-	{
-		path: 'src/lib/components/blocks/text/TextEditableBlock.svelte',
-		detection: 'kind-literal',
-		fate: 'backlog',
-		reason: 'four literal toggle arms, one per format command; they follow from the mark rows'
-	},
-	{
-		path: 'src/lib/components/blocks/table/TableCellBlock.svelte',
-		detection: 'kind-literal',
-		fate: 'backlog',
-		reason: "the cell surface's four literal toggle arms, the text surface's twin"
-	},
 	{
 		path: 'src/lib/components/blocks/text/link-at-point.ts',
 		detection: 'kind-literal',
@@ -194,7 +174,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
  * edits this number down, so a commit that adds a hand-written arm has to argue for it in review
  * rather than absorb it into slack.
  */
-const BACKLOG_CEILING = 9;
+const BACKLOG_CEILING = 4;
 
 const backlog = HAND_WRITTEN_ARMS.filter((arm) => arm.fate === 'backlog');
 const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kind-literal');

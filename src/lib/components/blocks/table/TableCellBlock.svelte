@@ -11,6 +11,7 @@
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
+	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
 	import type { InlineMarkKind } from '../../../cursor/pending-marks';
 	import type { NodeView } from '../../../core/node-views';
 	import { emitCommandError } from '../../../editor-events';
@@ -377,6 +378,7 @@
 			{ display: cellText, content: { start: 0, end: cellText.length }, selection: offsets },
 			format
 		);
+		if (!result) return true;
 		// Anchor undo at the live post-toggle caret: cross-block dispatch arrives with no
 		// preceding onKeyDown, so `preEditOffset` would be stale (mirrors TextEditableBlock).
 		// A command is not typing, so the toggle's bytes are their own undo step.
@@ -396,10 +398,10 @@
 	// declined below and only the action plans run.
 	export function runCommand(id: CommandId): boolean {
 		if (!el) return false;
-		if (id === 'format.toggleStrong') return toggleFormat('strong');
-		if (id === 'format.toggleEmphasis') return toggleFormat('emphasis');
-		if (id === 'format.toggleStrikethrough') return toggleFormat('strikethrough');
-		if (id === 'format.toggleCode') return toggleFormat('inlineCode');
+		// The format chords are rows: the construct that declares a mark names the command that
+		// toggles it, so this surface grows a new one without an arm.
+		const marked = inlineMarkForCommand(id);
+		if (marked) return toggleFormat(marked.kind);
 		// Consumed whether or not it enters, the prose surface's rule on this surface too:
 		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {

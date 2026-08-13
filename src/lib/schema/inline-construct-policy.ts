@@ -1,23 +1,44 @@
 /**
  * Per-inline-kind editing policy: how a construct behaves at its edges, whether emptying it
- * unwraps it, how a split treats its markers, and whether preview-inline's reveal addresses
- * them. Lives in `schema/` because it is the only directory `tree-operations`, `selection`,
- * `components` and `core/inline` can all reach. Rows are data; the split rebalancer is a
- * function value patched in from the component layer, so this module keeps no import of it.
+ * unwraps it, how a split treats its markers, whether preview-inline's reveal addresses them, and
+ * what a format chord writes for it. Lives in `schema/` because it is the only directory
+ * `tree-operations`, `selection`, `components` and `core/inline` can all reach. Rows are data; the
+ * split rebalancer is a function value patched in from the component layer, so this module keeps
+ * no import of it.
  */
 
 import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { LinkReferenceResolver } from '../core/inline/link-reference-resolver';
+import type { AnyCommandId } from './command-id';
 import { registerOnce } from './register-once';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
+
+/**
+ * The vocabulary a format chord needs to write a construct's own delimiters. Whole or absent, so a
+ * kind cannot declare itself markable without saying what a mark on it writes.
+ */
+export interface InlineMarkPolicy {
+	/** Where the kind sits when one insertion carries several marks: ascending is outermost first,
+	 *  and the order is the table's, never the order the chords arrived in. */
+	nestingRank: number;
+	/** The bare run that opens and closes the construct. */
+	markerBytes: string;
+	/** Wrap `content` for a kind whose delimiters depend on what they enclose — a code span sizes
+	 *  its fence past the longest run inside it. Absent means marker, content, marker. */
+	wrapBytes?: (content: string) => string;
+	/** The command whose press toggles this mark. */
+	command: AnyCommandId;
+}
 
 export interface InlineConstructPolicy {
 	edgeAffinity: 'symmetric-pair' | 'never-extend';
 	autoUnwrapOnEmpty: boolean;
 	splitBehavior: 'close-and-reopen' | 'plain';
 	revealable: boolean;
+	/** Absent for a construct no format chord addresses. */
+	mark?: InlineMarkPolicy;
 }
 
 const policies = new Map<AnyInlineKind, InlineConstructPolicy>();
@@ -47,6 +68,32 @@ export function listInlineConstructPolicies(): readonly (InlineConstructPolicy &
 	kind: AnyInlineKind;
 })[] {
 	return [...policies].map(([kind, policy]) => ({ kind, ...policy }));
+}
+
+// ── The mark vocabulary ─────────────────────────────────────────────────────
+
+/** A kind's mark vocabulary, or undefined for one no chord addresses — the membership test the
+ *  toggle seams run before writing any delimiter. */
+export function getInlineMarkPolicy(kind: AnyInlineKind): InlineMarkPolicy | undefined {
+	return policies.get(kind)?.mark;
+}
+
+export interface InlineMark {
+	kind: AnyInlineKind;
+	mark: InlineMarkPolicy;
+}
+
+/** Every markable kind, outermost first. Carrying the row rather than the bare kind is what keeps
+ *  a caller from mapping a lookup that can miss over a list it built itself. */
+export function listInlineMarks(): readonly InlineMark[] {
+	const marks: InlineMark[] = [];
+	for (const [kind, policy] of policies) if (policy.mark) marks.push({ kind, mark: policy.mark });
+	return marks.sort((a, b) => a.mark.nestingRank - b.mark.nestingRank);
+}
+
+/** The mark a command toggles, or null for a command no row claims. */
+export function inlineMarkForCommand(command: string): InlineMark | null {
+	return listInlineMarks().find((entry) => entry.mark.command === command) ?? null;
 }
 
 // ── Split rebalancer ────────────────────────────────────────────────────────

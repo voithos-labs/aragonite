@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
+import { toggleFormat } from './format-toggle-fixture';
 import { parseInline } from '$lib/core/inline';
 
 // Inline code is the only format whose delimiter run is content-dependent, in BOTH directions: a
@@ -19,7 +19,7 @@ function soleCodeSpanText(raw: string): string | null {
 describe('toggleInlineFormat — inline code wrap', () => {
 	it('wraps a plain selection in a single backtick', () => {
 		const raw = 'call fetchAll now';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 5, end: 13 } },
 			'inlineCode'
 		);
@@ -29,7 +29,7 @@ describe('toggleInlineFormat — inline code wrap', () => {
 
 	it('sizes the fence past the longest run inside the selection', () => {
 		const raw = 'a ``x`` y b';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 2, end: 9 } },
 			'inlineCode'
 		);
@@ -39,7 +39,7 @@ describe('toggleInlineFormat — inline code wrap', () => {
 
 	it('pads a selection that starts or ends with a backtick, so the fence still closes', () => {
 		const raw = 'a `b';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 2, end: 4 } },
 			'inlineCode'
 		);
@@ -48,7 +48,7 @@ describe('toggleInlineFormat — inline code wrap', () => {
 
 	it('selects the whole wrapped span, markers included', () => {
 		const raw = 'ab';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 0, end: 2 } },
 			'inlineCode'
 		);
@@ -61,7 +61,7 @@ describe('toggleInlineFormat — inline code strip', () => {
 	// so a strip takes the fence runs and nothing else.
 	it('strips a multi-backtick fence, leaving the content bytes untouched', () => {
 		const raw = 'a ``` ``x`` ``` b';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 2, end: 15 } },
 			'inlineCode'
 		);
@@ -70,7 +70,7 @@ describe('toggleInlineFormat — inline code strip', () => {
 
 	it('strips the flanking run when the selection sits at the span content', () => {
 		const raw = 'a ```x``` b';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 5, end: 6 } },
 			'inlineCode'
 		);
@@ -79,7 +79,7 @@ describe('toggleInlineFormat — inline code strip', () => {
 
 	it('unwraps at a collapsed caret using the span own run length', () => {
 		const raw = 'a ``x`y`` b';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 5, end: 5 } },
 			'inlineCode'
 		);
@@ -88,13 +88,13 @@ describe('toggleInlineFormat — inline code strip', () => {
 	});
 
 	it('inserts a one-backtick pair at a caret and removes it on the second press', () => {
-		const first = toggleInlineFormat(
+		const first = toggleFormat(
 			{ display: 'ab', content: whole('ab'), selection: { start: 1, end: 1 } },
 			'inlineCode'
 		);
 		expect(first.newDisplay).toBe('a``b');
 		expect(first.newSelStart).toBe(2);
-		const second = toggleInlineFormat(
+		const second = toggleFormat(
 			{
 				display: first.newDisplay,
 				content: whole(first.newDisplay),
@@ -107,7 +107,7 @@ describe('toggleInlineFormat — inline code strip', () => {
 
 	it('nests a code span inside a strong construct rather than eating its stars', () => {
 		const raw = '**word**';
-		const r = toggleInlineFormat(
+		const r = toggleFormat(
 			{ display: raw, content: whole(raw), selection: { start: 2, end: 6 } },
 			'inlineCode'
 		);

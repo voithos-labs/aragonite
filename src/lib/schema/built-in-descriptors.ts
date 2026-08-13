@@ -22,6 +22,7 @@ import {
 import { normalizeCellRaw } from './table-cell-raw';
 import { normalizeFencedRaw } from './fenced-code-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
+import { wrapAsCodeSpan } from '../core/inline/backticks';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -156,14 +157,28 @@ function proseLeafClosure(vias: {
 // Registered beside the block descriptors rather than from the component layer so a headless
 // consumer — and the unit bootstrap, which loads only this module — reads the same rows.
 function registerBuiltInInlinePolicies(): void {
-	for (const kind of ['emphasis', 'strong', 'strikethrough', 'inlineCode'] as const) {
+	// Outermost first, and code is innermost because its content is literal: no other mark can
+	// take effect inside it.
+	const marks = [
+		{ kind: 'strong', markerBytes: '**', command: 'format.toggleStrong' },
+		{ kind: 'emphasis', markerBytes: '*', command: 'format.toggleEmphasis' },
+		{ kind: 'strikethrough', markerBytes: '~~', command: 'format.toggleStrikethrough' },
+		{
+			kind: 'inlineCode',
+			markerBytes: '`',
+			command: 'format.toggleCode',
+			wrapBytes: wrapAsCodeSpan
+		}
+	] as const;
+	marks.forEach(({ kind, ...mark }, nestingRank) => {
 		registerInlineConstructPolicy(kind, {
 			edgeAffinity: 'symmetric-pair',
 			autoUnwrapOnEmpty: true,
 			splitBehavior: 'close-and-reopen',
-			revealable: true
+			revealable: true,
+			mark: { nestingRank, ...mark }
 		});
-	}
+	});
 	// A link's closer is its URL, not a mirror of its opener, so neither edge extends; the
 	// split rebalancer is what duplicates the URL across the halves.
 	registerInlineConstructPolicy('link', {
