@@ -38,7 +38,7 @@
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
-	import { refSlotsOver, revealChildOrWait } from '../reactivity/publish-ref.svelte';
+	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
@@ -241,9 +241,8 @@
 			return signatureEpoch;
 		}
 	};
-	// Plain array: $state's mutation guards revert writes from a BlockHost publish
-	// that fires during the post-undo reactive flush.
-	let blockRefs: (BlockComponent | undefined)[] = [];
+	// Plain array, `const` so it can only ever be mutated in place — see `refSlotsOver`.
+	const blockRefs: (BlockComponent | undefined)[] = [];
 	const blockRefSlots = refSlotsOver(() => blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
 	// Inside a themed host the editor sits under no opt-in class, and the portaled search
@@ -349,7 +348,7 @@
 			const reset = initDocument(source);
 			doc = reset.doc;
 			blockIds = assignIds(doc.children);
-			blockRefs = [];
+			blockRefs.length = 0;
 			undoManager.clear();
 			stickyColumn.reset();
 			edgeAffinity.reset();
@@ -630,11 +629,7 @@
 		setBlockIds: (v) => {
 			blockIds = v;
 		},
-		// In-place mutation — closures capture this array, reassignment would orphan their writes.
-		setBlockRefs: (v) => {
-			blockRefs.length = v.length;
-			for (let i = 0; i < v.length; i++) blockRefs[i] = v[i];
-		},
+		setBlockRefs: (v) => replaceRefs(blockRefs, v),
 		undoManager,
 		sharing,
 		stickyColumn,

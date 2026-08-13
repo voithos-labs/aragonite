@@ -1,16 +1,14 @@
 /**
- * Reactive state bundle for a container's inner BlockList children: the keyed-each source
- * and the component-ref slot array. Structural mutations route through the commit
- * primitives on UndoController, which apply `StructuralChange` descriptors to keep
- * ids/refs aligned with children.
+ * A container's inner BlockList scope: the keyed-each id source and the component-ref slot
+ * array. Structural mutations route through the commit primitives on UndoController, which
+ * apply `StructuralChange` descriptors to keep ids/refs aligned with children.
  */
 
-import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
 import type { NodeView } from '../core/node-views';
 import { assignIds } from '../block-id';
 import { registerBlockListState } from './state-registry';
-import { refSlotsOver, type RefSlots } from './publish-ref.svelte';
+import { refSlotsOver, replaceRefs, type RefSlots } from './publish-ref.svelte';
 
 export interface BlockListState {
 	innerBlockIds: string[];
@@ -29,7 +27,9 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		initialNode.childIds = assignIds(initialNode.children ?? []);
 	}
 
-	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
+	// Plain and never replaced (`refSlotsOver`): a mount's teardown reads pre-flush values, so
+	// a commit that swaps this array in the same flush strands the teardown's clear on the copy.
+	const innerBlockRefs: (BlockComponent | undefined)[] = [];
 
 	const state: BlockListState = {
 		get innerBlockIds() {
@@ -42,7 +42,7 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 			return innerBlockRefs;
 		},
 		set innerBlockRefs(value) {
-			innerBlockRefs = value;
+			replaceRefs(innerBlockRefs, value);
 		},
 		refSlots: refSlotsOver(() => innerBlockRefs)
 	};
@@ -62,11 +62,9 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		// children than before. Publish cleanup empties departing slots but never shrinks
 		// the array, and refs length must track children exactly, so reconcile it here.
 		const childCount = node.children?.length ?? 0;
-		untrack(() => {
-			if (innerBlockRefs.length > childCount) {
-				innerBlockRefs = innerBlockRefs.slice(0, childCount);
-			}
-		});
+		if (innerBlockRefs.length > childCount) {
+			innerBlockRefs.length = childCount;
+		}
 	});
 
 	return state;

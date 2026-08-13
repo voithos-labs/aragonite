@@ -10,8 +10,9 @@ export interface RefSlots<T> {
 	get(index: number): T | undefined;
 }
 
-/** Mints a scope over a ref array reached through a live getter, so replacing the array
- *  (a document swap, a length reconcile) keeps the scope's one identity. */
+/** Mints a scope over its ref array. That array must be plain and must never be replaced:
+ *  Svelte pins a teardown's reads to pre-flush values, so a reactive or swapped array takes
+ *  each cleanup's clear with it and strands the dead ref in the live one. */
 export function refSlotsOver<T>(readRefs: () => (T | undefined)[]): RefSlots<T> {
 	return {
 		set: (index, ref) => {
@@ -19,6 +20,16 @@ export function refSlotsOver<T>(readRefs: () => (T | undefined)[]): RefSlots<T> 
 		},
 		get: (index) => readRefs()[index]
 	};
+}
+
+/** Publishes a whole slot array in place, the only sanctioned way to replace a scope's
+ *  contents wholesale (see `refSlotsOver` for why identity is load-bearing). */
+export function replaceRefs<T>(
+	target: (T | undefined)[],
+	values: readonly (T | undefined)[]
+): void {
+	target.length = values.length;
+	for (let i = 0; i < values.length; i++) target[i] = values[i];
 }
 
 /**
@@ -33,8 +44,8 @@ export function publishRefSlot<T>(
 ): () => void {
 	const capturedIndex = index;
 	slots.set(capturedIndex, ref);
-	// Re-read for canonical identity — a $state slot proxies the write, so the raw ref never
-	// equals the read; untracked, since publishers run inside effects and would self-invalidate.
+	// The cleanup's identity check compares against what the slot actually holds, not the raw
+	// ref; untracked, since publishers run inside effects and would self-invalidate.
 	const publishedRef = untrack(() => slots.get(capturedIndex));
 	if (publishedRef !== undefined) resolveMountWaiters(slots, capturedIndex);
 	return () => {

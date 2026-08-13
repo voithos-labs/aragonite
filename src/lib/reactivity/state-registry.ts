@@ -21,8 +21,8 @@ export function registerBlockListState(node: NodeView, state: BlockListState): v
 /**
  * A dev signal, not a guarantee. Svelte creates a structural remount's new mount before
  * tearing the old one down, so a claim contested INSIDE a flush says nothing about
- * ownership; re-ask once it settles, when a loser still holding child refs is a genuine
- * second live owner.
+ * ownership; re-ask once it settles, when a loser still holding child refs means either a
+ * second live owner or a teardown whose clear never reached the live slots.
  */
 async function reportContestedClaim(
 	node: NodeView,
@@ -35,8 +35,8 @@ async function reportContestedClaim(
 	devWarn(
 		'state-registry',
 		`two live components claim the same ${node.kind} — the loser's child refs are orphaned. ` +
-			`Either both mounts render this node, or cloneDocument is preserving node identity ` +
-			`across snapshots unexpectedly.`
+			`Either both mounts render this node, or the loser's teardown emptied slots the ` +
+			`scope no longer reads.`
 	);
 }
 
