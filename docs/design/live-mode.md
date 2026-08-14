@@ -40,6 +40,8 @@ A byte typed where a marker run sits is seated by the edge seat (`components/blo
 
 A collapsed-caret toggle in a mode that paints no delimiter cannot write an empty pair (§ 4.1), so it pends the mark instead (`cursor/pending-marks.ts`): the promise is held outside the document and spent by exactly one insertion. Resolution is against the caret's construct chain (`pending-mark-insert.ts`): a kind the chain lacks wraps the insertion, a kind it carries escapes it, by close-and-reopen split or by stepping outside the construct. The marks ride the edge affinity's invalidation (G4.31), so every seam that drops an arrival side drops them, and a mode flip clears them. Table cells fork to the same seat.
 
+Over a SELECTION the same chord writes bytes at once, so it takes § 2's discipline rather than the promise: the literal wrap is a candidate, a boundary space moves outside the run where the literal wrap would break it (the split rebalancer's reading, at the toggle), and a press whose candidates the painter all rejects writes nothing. Source mode is unaffected, its delimiters being on screen for the reader to see and fix.
+
 ### 4.4 Cutting a construct open: splits and destructive presses
 
 What happens to delimiters an edit cuts through or empties:

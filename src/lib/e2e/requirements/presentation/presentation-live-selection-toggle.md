@@ -30,6 +30,11 @@ since live paints no delimiter to assert against.
   range — the `# ` prefix keeps its bytes whatever the selection reached
 - the selection survives the toggle: a second press on the same selection
   reverses the first
+- a selection that ends on a trailing space wraps only the word: markdown closes
+  a run against a word, so the literal wrap would paint four asterisks the reader
+  cannot delete. Miss-analysis: every toggle scenario, here and in the unit
+  suites, selected a bare word, so no case handed the seam a slice markdown
+  refuses to wrap — and the seam verified nothing, so nothing could catch it
 
 ## User interactions
 
@@ -38,7 +43,8 @@ since live paints no delimiter to assert against.
   dispatch the chord is claimed at
 - source mode is asserted for the same gestures, where the delimiters are
   painted and the result is identical bytes — the toggle is not a live-only rule,
-  only its invisibility is
+  only its invisibility is. The one divergence is the boundary-space selection:
+  source paints what it writes, so it keeps the space inside the run
 
 ## Error cases
 
