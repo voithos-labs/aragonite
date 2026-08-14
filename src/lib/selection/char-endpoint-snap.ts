@@ -7,7 +7,7 @@
  */
 
 import type { DocumentView } from '../core/node-views';
-import { displayLength } from '../core/lines';
+import { displayLength, snapToScalarBoundary } from '../core/lines';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import { comparePaths } from './path-math';
@@ -37,6 +37,8 @@ export function normalizeCharEndpoint(
 	if (isWholeBlockUnit(node)) {
 		return endpoint.offset === 0 || endpoint.offset === end ? endpoint : wholeUnit;
 	}
-	const clamped = Math.min(Math.max(endpoint.offset, 0), end);
+	// Range AND scalar: `setSelection` takes plain numbers, so this is the only gate between a
+	// caller's arithmetic and a delete that would halve an astral scalar (#167).
+	const clamped = snapToScalarBoundary(node.raw, Math.min(Math.max(endpoint.offset, 0), end));
 	return clamped === endpoint.offset ? endpoint : { path: endpoint.path.slice(), offset: clamped };
 }

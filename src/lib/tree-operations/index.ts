@@ -3,7 +3,6 @@ export {
 	splitNode,
 	assertSplitLanding,
 	assertSingleNodeSink,
-	mergeWithPrevious,
 	mergeWithNext,
 	mergeIntoPrevDeepLeaf,
 	deleteNode,
