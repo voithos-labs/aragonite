@@ -60,6 +60,10 @@ describe('live-mode gestures at hidden edges', () => {
 		expect(stats.rewrote.enter).toBeGreaterThan(5);
 		expect(stats.rewrote['range-delete']).toBeGreaterThan(5);
 		expect(stats.rewrote.backspace + stats.rewrote.delete).toBeGreaterThan(10);
+		// The two newest entrances: the toggle seam, and the beforeinput arm a chorded delete is the
+		// only gesture that reaches. Both count draws where live diverged from the byte-literal twin.
+		expect(stats.rewrote['format-toggle']).toBeGreaterThan(5);
+		expect(stats.rewrote['word-delete']).toBeGreaterThan(5);
 	});
 
 	// The excused classes have to be REACHED by the default seed, or the exclusions are unexercised
@@ -96,6 +100,7 @@ const gesture = (over: Partial<Gesture>): Gesture => ({
 	endOffset: 0,
 	char: 'a',
 	affinity: null,
+	mark: 0,
 	...over
 });
 

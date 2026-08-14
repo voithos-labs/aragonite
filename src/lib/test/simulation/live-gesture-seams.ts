@@ -11,7 +11,10 @@ import type { BlockEditActions } from '$lib/action-contracts';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
+import { trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
 import { renderInlineNodes } from '$lib/core/inline-render';
+import { listInlineMarks } from '$lib/schema/inline-construct-policy';
+import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
 import {
 	CONTENT_EMPTY_ATTR,
 	holdsOnlyMarkerChrome,
@@ -19,14 +22,25 @@ import {
 } from '$lib/cursor/widget-offset';
 import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
 import { createEdgePolicyDispatch } from '$lib/components/blocks/text/edge-policy-dispatch';
-import { resolveSelectionEdit } from '$lib/components/blocks/text/live-selection-edit';
+import {
+	resolveLiveRangeEdit,
+	resolveSelectionEdit
+} from '$lib/components/blocks/text/live-selection-edit';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, makePendingMarks } from '$lib/test/harness/editor-actions';
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 
-export type GestureKind = 'type' | 'backspace' | 'delete' | 'enter' | 'range-delete' | 'type-over';
+export type GestureKind =
+	| 'type'
+	| 'backspace'
+	| 'delete'
+	| 'enter'
+	| 'range-delete'
+	| 'type-over'
+	| 'format-toggle'
+	| 'word-delete';
 
 export interface Gesture {
 	kind: GestureKind;
@@ -37,6 +51,8 @@ export interface Gesture {
 	endOffset: number;
 	char: string;
 	affinity: EdgeAffinity | null;
+	/** Index into the markable kinds, wrapped by the toggle gesture. */
+	mark: number;
 }
 
 export interface Applied {
@@ -176,7 +192,18 @@ async function applyBlockGesture(
 		return false;
 	}
 	if (gesture.kind === 'type-over') return replaceSelection(h, index, node, gesture, mode);
+	if (gesture.kind === 'format-toggle') return toggleFormat(h, index, node, gesture, mode);
+	if (gesture.kind === 'word-delete') return wordDelete(h, index, node, gesture, mode);
 	return pressEdgeKey(h, index, node, offset, gesture, mode);
+}
+
+/** The two offsets a range gesture drew, ordered and clamped into the block's content. Null where
+ *  they collapsed: every range gesture here needs a span to act on. */
+function drawnRange(node: CstNode, gesture: Gesture): { start: number; end: number } | null {
+	const a = clampOffset(node, gesture.offset);
+	const b = clampOffset(node, gesture.endOffset);
+	const [start, end] = a <= b ? [a, b] : [b, a];
+	return start === end ? null : { start, end };
 }
 
 /** A printable key or a destructive press at `offset`, through the caret-edge dispatch. A press no
@@ -267,6 +294,77 @@ function codePointStart(raw: string, at: number): number {
 	return code >= 0xdc00 && code <= 0xdfff ? at - 1 : at;
 }
 
+/** A format chord over the drawn range, through the seam both prose surfaces call. A collapsed
+ *  range forks to pending marks in live, which is a different seam, so this gesture needs a span. */
+function toggleFormat(
+	h: Harness,
+	index: number,
+	node: CstNode,
+	gesture: Gesture,
+	mode: PresentationMode | undefined
+): boolean {
+	const range = drawnRange(node, gesture);
+	if (range === null) return false;
+	const marks = listInlineMarks();
+	const toggled = toggleInlineFormat(
+		{
+			display: trimTrailingLineEnding(node.raw),
+			content: getContentRange(node),
+			selection: range
+		},
+		marks[gesture.mark % marks.length].kind,
+		mode
+	);
+	// A press with no candidate the painter accepts writes nothing, which is the seam's own answer
+	// rather than a gesture the fuzzer failed to apply.
+	if (!toggled) return true;
+	void h.blockEdit.updateBlockContent(
+		index,
+		toggled.newDisplay + trailingLineEnding(node.raw),
+		range.start,
+		toggled.newSelStart
+	);
+	return true;
+}
+
+/** A chorded delete over the range the ENGINE reports: the caret stays collapsed, so the range
+ *  rides the beforeinput event and the surface's arm is the only reader that can see it. */
+function wordDelete(
+	h: Harness,
+	index: number,
+	node: CstNode,
+	gesture: Gesture,
+	mode: PresentationMode | undefined
+): boolean {
+	const range = drawnRange(node, gesture);
+	if (range === null) return false;
+	const event = new InputEvent('beforeinput', {
+		inputType: 'deleteWordBackward',
+		cancelable: true
+	});
+	Object.defineProperty(event, 'getTargetRanges', { value: () => [document.createRange()] });
+	const edit = resolveLiveRangeEdit(
+		event,
+		node,
+		{ rawRangeOf: () => range, getRawSelection: () => null },
+		mode,
+		undefined
+	);
+	if (edit === null) {
+		void h.blockEdit.updateBlockContent(
+			index,
+			splice(node.raw, range.start, range.end, ''),
+			range.start,
+			range.start
+		);
+		return false;
+	}
+	if (edit.kind === 'rewrite') {
+		void h.blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
+	}
+	return true;
+}
+
 /** Typing over a selection inside one block: the native replace, re-expressed as a join
  *  (live-mode.md § 4.5). A decline leaves the engine's own splice. */
 function replaceSelection(
@@ -276,17 +374,15 @@ function replaceSelection(
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): boolean {
-	const a = clampOffset(node, gesture.offset);
-	const b = clampOffset(node, gesture.endOffset);
-	const [start, end] = a <= b ? [a, b] : [b, a];
-	if (start === end) return false;
-	const edit = resolveSelectionEdit(node, { start, end }, gesture.char, mode, undefined);
+	const range = drawnRange(node, gesture);
+	if (range === null) return false;
+	const edit = resolveSelectionEdit(node, range, gesture.char, mode, undefined);
 	if (edit) {
-		void h.blockEdit.updateBlockContent(index, edit.raw, start, edit.caret);
+		void h.blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
 		return true;
 	}
-	const raw = splice(node.raw, start, end, gesture.char);
-	void h.blockEdit.updateBlockContent(index, raw, start, start + gesture.char.length);
+	const raw = splice(node.raw, range.start, range.end, gesture.char);
+	void h.blockEdit.updateBlockContent(index, raw, range.start, range.start + gesture.char.length);
 	return false;
 }
 

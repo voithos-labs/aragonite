@@ -70,7 +70,9 @@ const KIND_WEIGHTS: { value: GestureKind; weight: number }[] = [
 	{ value: 'delete', weight: 2 },
 	{ value: 'enter', weight: 2 },
 	{ value: 'range-delete', weight: 3 },
-	{ value: 'type-over', weight: 2 }
+	{ value: 'type-over', weight: 2 },
+	{ value: 'format-toggle', weight: 2 },
+	{ value: 'word-delete', weight: 2 }
 ];
 
 const TYPED = ['a', 'Z', '1', ' ', '.', '汉', '😀'];
@@ -98,7 +100,8 @@ function drawGesture(rng: Rng, source: string): Gesture {
 		offset: drawOffset(rng, targets[leaf]?.node),
 		endOffset: drawOffset(rng, targets[endLeaf]?.node),
 		char: rng.pick(TYPED),
-		affinity: rng.pick(AFFINITIES)
+		affinity: rng.pick(AFFINITIES),
+		mark: rng.int(0, 4)
 	};
 }
 
@@ -113,6 +116,11 @@ function drawGesture(rng: Rng, source: string): Gesture {
 function screenClaimHolds(gesture: Gesture, before: string, after: string): boolean {
 	if (gesture.kind === 'type') return insertsSomewhere(before, after, gesture.char);
 	if (gesture.kind === 'enter') return insertsSomewhere(before, after, '\n');
+	// A toggle changes formatting and nothing else, so its claim is the strictest of the family:
+	// equality, not containment.
+	if (gesture.kind === 'format-toggle') {
+		return normalizeScreen(after) === normalizeScreen(before);
+	}
 	const target = normalizeScreen(after);
 	if (gesture.kind === 'type-over') {
 		// The typed run may also have collapsed against a line end, so its absence is a candidate too.
@@ -226,6 +234,9 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 	if (gesture.kind === 'backspace' || gesture.kind === 'delete') {
 		return isSubsequence(inked(live), inked(before));
 	}
+	// A toggle writes and takes back delimiter runs by design, so the claim is over what is left
+	// when they go: every other byte survives it exactly.
+	if (gesture.kind === 'format-toggle') return withoutMarks(before) === withoutMarks(live);
 	// The swallow: an arm that owns a press but has no sound rewrite writes nothing (§ 4.4).
 	return live === before || isSubsequence(inked(live), inked(literal));
 }
@@ -240,6 +251,10 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
  */
 const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
 
+/** The bytes a mark can never be spelled with — what a toggle leaves untouched whichever way it
+ *  went, since its own vocabulary is exactly the runs removed here. */
+const withoutMarks = (bytes: string): string => inked(bytes).replace(/[*~`_]/g, '');
+
 // ── The run ──────────────────────────────────────────────────────────────────
 
 export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats> {
@@ -249,7 +264,16 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 		gestures: 0,
 		applied: 0,
 		claimed: 0,
-		rewrote: { type: 0, backspace: 0, delete: 0, enter: 0, 'range-delete': 0, 'type-over': 0 },
+		rewrote: {
+			type: 0,
+			backspace: 0,
+			delete: 0,
+			enter: 0,
+			'range-delete': 0,
+			'type-over': 0,
+			'format-toggle': 0,
+			'word-delete': 0
+		},
 		violations: []
 	};
 	for (const [index, source] of sources.entries()) {
