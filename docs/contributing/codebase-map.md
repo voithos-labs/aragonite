@@ -192,9 +192,11 @@ Its sibling family is the **seam absorb**, for the joins no separator can hold a
 invalidate a join that was already correct — a list newly standing above indented code, a demoted
 heading no longer interrupting the paragraph under it — and adjacent bytes that re-read as fewer
 blocks ARE the reload's reading, so the tree converges to them rather than minting bytes into an
-untouched neighbour. `src/lib/tree-operations/node-ops.ts` :: `absorbWindowSeams` asks every join a
-splice's window disturbed; the doors that owe the question are `deleteNode`, `updateNodeContent`'s
-kind-change arm, and `src/lib/tree-operations/reorder.ts` :: `reorderChildrenWithTrivia`.
+untouched neighbour. `src/lib/tree-operations/node-ops.ts` :: `absorbSeamReading` answers one
+join, and every door that disturbs one owes it the question: `deleteNode` and both absorbing
+arms of `updateNodeContent` (blank and kind-change) ask it directly, while
+`src/lib/tree-operations/reorder.ts` :: `reorderChildrenWithTrivia` asks through
+`absorbWindowSeams`, the window walker over both edges a move disturbed.
 
 ## What a block must, may, and must not do
 
