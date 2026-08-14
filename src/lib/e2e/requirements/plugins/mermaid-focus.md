@@ -27,6 +27,12 @@ paragraph `tail text` — so the block has an editable neighbor on each side.
   unchanged (the container-factory pin for the shared whole-block copy tail)
 - Mod+X while the block is focused copies the markdown and deletes the block; one Mod+Z
   restores it
+- Mod+Z while the block is focused undoes the last edit, and a `keybindings` rebind onto a chord
+  the built-in table does not own (`Mod+Alt+U`) undoes there too — no inner leaf carries the
+  global tier for a plugin container and the editor root declines while its box holds focus, so
+  this arm is the only thing between the press and the browser's native undo (miss-analysis: the
+  built-in twin, ThematicBreak, had a component-level chord test and this call site had none, and
+  every override case anywhere re-pointed a chord the BUILT-IN table already owned)
 
 ## User interactions
 

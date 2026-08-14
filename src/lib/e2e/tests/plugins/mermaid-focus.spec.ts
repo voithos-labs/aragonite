@@ -111,6 +111,36 @@ test.describe('mermaid whole-block focus', () => {
 		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
 	});
 
+	// The plugin container's own global-chord arm. No inner leaf carries the tier here and the
+	// editor root declines while the box holds focus, so this surface is the only thing between
+	// the press and the browser's native undo — which would rewrite the document past the CST
+	// stack. The rebind proves the arm consults the override tier rather than the built-in table
+	// alone; a consumer's `Mod+Alt+U` reaches every leaf surface and used to die here.
+	test('undo fires while the diagram holds focus, built-in chord and rebind alike', async ({
+		page
+	}) => {
+		const original = await editor.bridge.getSource();
+		await editor.getBlock(0).click();
+		await page.keyboard.press('End');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('textZ');
+
+		await editor.viewport.click();
+		await expect(editor.viewport).toBeFocused();
+		await page.keyboard.press('ControlOrMeta+z');
+		await editor.bridge.waitForSourceEquals(original);
+
+		await page.evaluate(() =>
+			(window as any).__test.setKeybindings([{ chord: 'Mod+Alt+U', command: 'history.undo' }])
+		);
+		await page.keyboard.type('Q');
+		await editor.bridge.waitForSourceContains('Q');
+		await editor.viewport.click();
+		await expect(editor.viewport).toBeFocused();
+		await page.keyboard.press('Control+Alt+u');
+		await editor.bridge.waitForSourceEquals(original);
+	});
+
 	test('clicking the diagram then Backspace deletes the block', async ({ page }) => {
 		await editor.viewport.click();
 		await expect(editor.viewport).toBeFocused();

@@ -238,7 +238,7 @@ Findings sort into three buckets. `seam` is a live-only divergence and fails the
 
 One oracle stands outside that sort: UTF-16 well-formedness. A gesture that mints a lone surrogate its input did not hold fails the sweep whether or not the twin mints one too, because no rebinding excuses bytes that no UTF-8 boundary round-trips and no inverse gesture restores. It is why the two gestures whose offset a caller computes rather than the engine reporting it — the split and the range delete — reach their seams unsnapped: the production snap is the thing under test, and a harness that snapped first would assert the invariant instead of checking it.
 
-It rides `npm test` at a bounded default and joins the fresh lane. `LIVE_FUZZ_DOCS` and `LIVE_FUZZ_STEPS` raise the sweep for an overnight run.
+It rides `npm test` at a bounded default and joins the fresh lane. `LIVE_FUZZ_DOCS` and `LIVE_FUZZ_STEPS` raise the sweep for an overnight run, and every budgeted claim it makes is a RATE over applied gestures rather than a count, so raising them changes what the sweep searches and not what it asserts.
 
 ## Note-taking simulation
 

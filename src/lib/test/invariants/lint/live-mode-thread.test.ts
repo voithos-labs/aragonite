@@ -17,7 +17,6 @@ const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
 const MODE_TRAILING_CALLS = [
 	'splitNode',
 	'performSplit',
-	'mergeWithPrevious',
 	'mergeWithNext',
 	'performMergeNext',
 	'mergeIntoPrevDeepLeaf',

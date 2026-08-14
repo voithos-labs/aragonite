@@ -33,6 +33,14 @@ const SEED = freshOrFixedSeed(606060);
 const DOCS = Number(process.env.LIVE_FUZZ_DOCS ?? 100);
 const STEPS = Number(process.env.LIVE_FUZZ_STEPS ?? 12);
 
+/**
+ * The unnamed bucket's ceiling, PER APPLIED GESTURE — an absolute count measures how big the
+ * sweep was, so the deep lane above reds on nothing but its own budget. Derived from the count
+ * ceiling it replaces against the applied count that ceiling was set against (200/909), which
+ * keeps the default lane's standard exactly and hands the deep lane the same one.
+ */
+const AMBIGUOUS_RATE_CEILING = 0.22;
+
 let stats: FuzzStats;
 
 beforeAll(async () => {
@@ -88,13 +96,10 @@ describe('live-mode gestures at hidden edges', () => {
 	 */
 	it('keeps the unnamed bucket inside its ceiling', () => {
 		const ambiguous = stats.violations.filter((v) => v.category === 'ambiguous');
-		expect(
-			ambiguous.length,
-			ambiguous
-				.slice(0, 3)
-				.map((v) => v.report)
-				.join('\n\n')
-		).toBeLessThan(200);
+		const detail = [`${ambiguous.length} of ${stats.applied} applied`]
+			.concat(ambiguous.slice(0, 3).map((v) => v.report))
+			.join('\n\n');
+		expect(ambiguous.length / stats.applied, detail).toBeLessThan(AMBIGUOUS_RATE_CEILING);
 	});
 });
 
