@@ -51,6 +51,12 @@ export interface PasteDispatchContext {
 	seam?: PasteSeam;
 }
 
+/** Where an inline paste's caret belongs once the commit settled, when that moved it. */
+export interface InlineCaretLanding {
+	path: number[];
+	offset: number;
+}
+
 export interface PasteDispatchResult {
 	/**
 	 * Inline-paste caret offset; undefined for structural paste, which handles focus
@@ -58,6 +64,8 @@ export interface PasteDispatchResult {
 	 * land in one reactive flush.
 	 */
 	inlineCaretOffset?: number;
+	/** The cross-block route's settled landing: a fold above the target moved the slot itself. */
+	inlineCaretPath?: number[];
 }
 
 /** Execute a paste at the specified target position. */
@@ -94,8 +102,8 @@ export async function pasteDispatch(
 		const flattened = pastedText.replace(/(\r?\n)+/g, ' ').trim();
 		const hook = getPasteSurface(targetNode.kind)?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, flattened, input.preDelete, ctx.seam);
-		await applyInlineResult(input.targetPath, result, ctx);
-		return { inlineCaretOffset: result.caretOffset };
+		const landing = await applyInlineResult(input.targetPath, result, ctx);
+		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	const unwrap = findContainerMatchingUnwrap(
@@ -158,14 +166,23 @@ export async function pasteDispatch(
 	if (strategy === 'inline') {
 		const hook = surface?.onInlinePaste ?? defaultInlineHook;
 		const result = hook(targetNode, input.offset, pastedText, input.preDelete, ctx.seam);
-		await applyInlineResult(input.targetPath, result, ctx);
-		return { inlineCaretOffset: result.caretOffset };
+		const landing = await applyInlineResult(input.targetPath, result, ctx);
+		return inlineCaretResult(result.caretOffset, landing);
 	}
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
 	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, ctx.seam);
 	await applyStructuralResult(input.targetPath, result, ctx);
 	return {};
+}
+
+/** The hook's own caret offset, overridden by the settled landing where a fold moved it. */
+function inlineCaretResult(
+	caretOffset: number,
+	landing: InlineCaretLanding | undefined
+): PasteDispatchResult {
+	if (!landing) return { inlineCaretOffset: caretOffset };
+	return { inlineCaretOffset: landing.offset, inlineCaretPath: landing.path };
 }
 
 export { pickPasteStrategy } from './strategy';

@@ -939,6 +939,15 @@ interface SeamAbsorption {
 }
 
 /**
+ * A byte position the folds carry with them: the slot it lives in, and its offset inside that
+ * slot's raw. Written in place, since each fold re-tiles the bytes under it.
+ */
+export interface TrackedPosition {
+	index: number;
+	offset: number;
+}
+
+/**
  * A splice can leave neighbours whose adjacent bytes re-read as fewer blocks on reload — a list
  * standing above indented code absorbs it, and no separator can hold indentation apart.
  * Absorb while the window's own bytes parse to fewer blocks, which is the reload's reading;
@@ -949,7 +958,8 @@ function absorbSeamReading(
 	parent: NodeParent,
 	seamLeft: number,
 	floor: number,
-	sharing?: SharingState
+	sharing?: SharingState,
+	tracked?: TrackedPosition
 ): SeamAbsorption {
 	const children = parent.children;
 	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0, spliced: false };
@@ -984,12 +994,40 @@ function absorbSeamReading(
 			if (sharing) sharing.stamp(block);
 			assignChildIdsDeep(block);
 		}
+		if (tracked) retrackThroughFold(tracked, at, window, blocks);
 		children.splice(at, window.length, ...blocks);
 		eaten += window.length - blocks.length;
 		span = blocks.length;
 		spliced = true;
 	}
 	return { at, span, eaten, spliced };
+}
+
+/**
+ * Where a byte position inside the folded window lands: the fold's own reparse re-tiles the
+ * joined bytes, and a position past the window only shifts by what the fold ate.
+ */
+function retrackThroughFold(
+	tracked: TrackedPosition,
+	at: number,
+	window: readonly CstNode[],
+	blocks: readonly CstNode[]
+): void {
+	const member = tracked.index - at;
+	if (member < 0) return;
+	if (member >= window.length) {
+		tracked.index -= window.length - blocks.length;
+		return;
+	}
+	// The window joins as `window[0].raw` then each follower's trivia and raw.
+	let joined = tracked.offset;
+	for (let i = 0; i < member; i++) {
+		joined += (i === 0 ? 0 : window[i].leadingTrivia.length) + window[i].raw.length;
+	}
+	if (member > 0) joined += window[member].leadingTrivia.length;
+	const landed = focusTargetInReplacement(blocks, joined);
+	tracked.index = at + landed.index;
+	tracked.offset = landed.offset;
 }
 
 /** What a splice settled: its change widened by every fold, and where a tracked index landed. */
@@ -1001,7 +1039,8 @@ export interface SettledSplice {
 /**
  * The seam question at every join the splice at `at` disturbed — its window's two edges and the
  * joins inside it — since a move can invalidate a join that was already correct (GH #21). Each
- * fold cascades downward, so the next seam is asked past what that one ate.
+ * fold cascades downward, so the next seam is asked past what that one ate. `tracked` rides the
+ * folds for a caller placing a caret in bytes an absorb can move.
  */
 export function absorbWindowSeams(
 	parent: NodeParent,
@@ -1009,14 +1048,15 @@ export function absorbWindowSeams(
 	added: number,
 	landing: number,
 	change: StructuralChange,
-	sharing?: SharingState
+	sharing?: SharingState,
+	tracked?: TrackedPosition
 ): SettledSplice {
 	let settled: SeamAbsorption | null = null;
 	let moved = landing;
 	let seamLeft = at - 1;
 	let last = at + added - 1;
 	while (seamLeft <= last) {
-		const seam = absorbSeamReading(parent, seamLeft, 0, sharing);
+		const seam = absorbSeamReading(parent, seamLeft, 0, sharing, tracked);
 		if (!seam.spliced) {
 			seamLeft++;
 			continue;
@@ -1206,6 +1246,13 @@ export function deleteNode(
 
 // ── Update Content ──
 
+/** What a content write settled: its change widened by every fold, and the offset the written
+ *  text starts at inside that change's window — nonzero once a fold above absorbed it. */
+export interface SettledContent {
+	change: StructuralChange;
+	textStart: number;
+}
+
 /**
  * Update raw and re-parse. The sole re-parse transfer funnel: a kind change mints the reparsed
  * block into the slot rather than reassigning `kind` in place, and multi-block text mints every
@@ -1219,7 +1266,7 @@ export function updateNodeContent(
 	text: string,
 	grammar?: GrammarView,
 	sharing?: SharingState
-): StructuralChange {
+): SettledContent {
 	const wasBlank = isBlankParagraph(parent.children[blockIndex]);
 	const change = writeParsedContent(parent, blockIndex, text, grammar);
 	// One blank line served BOTH sides: it separated this block from the one above and stood in
@@ -1228,7 +1275,7 @@ export function updateNodeContent(
 		restoreSeparatorOnFill(parent, blockIndex, sharing);
 		restoreSeparatorAfterBlank(parent, followerIndexAfter(change, blockIndex), sharing);
 		releaseWrapPeel(parent, lastMintedIndex(change, blockIndex));
-		return change;
+		return { change, textStart: 0 };
 	}
 	// The reverse transition: the block IS the separating line now, so the run it joins gives
 	// back the second one. The last block minted is the one that meets the follower.
@@ -1237,15 +1284,59 @@ export function updateNodeContent(
 		const settled = parent.children.length;
 		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
-		const seam = absorbSeamReading(parent, lastWritten, 0, sharing);
-		return seam.spliced ? foldAbsorbIntoChange(widened, seam) : widened;
+		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing);
 	}
-	// A kind change stops the block interrupting the one below it, which becomes its lazy
-	// continuation (GH #21). Off the noop path, so ordinary typing never pays the neighbour
-	// reparse; the join ABOVE stays for the caret's sake, since the slot must survive the write.
-	if (change.op === 'noop') return change;
-	const seam = absorbSeamReading(parent, lastWritten, 0, sharing);
-	return seam.spliced ? foldAbsorbIntoChange(change, seam) : change;
+	// A kind change stops the block interrupting its neighbours, which become lazy continuations
+	// (GH #21). Off the noop path, so ordinary typing never pays the neighbour reparse.
+	if (change.op === 'noop') return { change, textStart: 0 };
+	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
+}
+
+/**
+ * Ask every join the write disturbed, both edges of its window included, and report where the
+ * written text ended up: an absorb ABOVE leaves the predecessor standing, so its bytes and the
+ * join newline now sit in front of the text the caret was typed into.
+ */
+function settleWriteSeams(
+	parent: BodyParentArg,
+	blockIndex: number,
+	lastWritten: number,
+	change: StructuralChange,
+	sharing?: SharingState
+): SettledContent {
+	const tracked: TrackedPosition = { index: blockIndex, offset: 0 };
+	const settled = absorbWindowSeams(
+		parent,
+		blockIndex,
+		lastWritten - blockIndex + 1,
+		blockIndex,
+		change,
+		sharing,
+		tracked
+	);
+	return {
+		change: settled.change,
+		textStart: textOffsetInWindow(parent.children, settled.change, tracked)
+	};
+}
+
+/**
+ * The tracked position as an offset in the settled window's committed text — the space every
+ * caret door measures in ({@link focusTargetInReplacement}), where the head block's own
+ * leading trivia is outside the window.
+ */
+function textOffsetInWindow(
+	children: readonly CstNode[],
+	change: StructuralChange,
+	tracked: TrackedPosition
+): number {
+	const at = change.op === 'noop' ? tracked.index : change.at;
+	let pos = 0;
+	for (let i = at; i < tracked.index; i++) {
+		pos += (i === at ? 0 : children[i].leadingTrivia.length) + children[i].raw.length;
+	}
+	const ownTrivia = tracked.index > at ? children[tracked.index].leadingTrivia.length : 0;
+	return pos + ownTrivia + tracked.offset;
 }
 
 /**
@@ -1430,6 +1521,27 @@ export function focusTargetInReplacement(
 	}
 	const last = nodes.length - 1;
 	return { index: last, offset: trimTrailingLineEnding(nodes[last].raw).length };
+}
+
+/**
+ * Where a caret at `offset` in the written text lands once {@link updateNodeContent}'s folds
+ * settled: an absorb ABOVE leaves the predecessor holding the bytes, so the slot the gesture
+ * named is gone and the offset carries what that predecessor put in front of it. Every caret
+ * door onto the content funnel asks this, so the settle is answered in one place.
+ */
+export function settledCaretTarget(
+	settled: SettledContent,
+	at: number,
+	offset: number,
+	children: readonly NodeView[]
+): { index: number; offset: number } {
+	const { change, textStart } = settled;
+	if (change.op !== 'replace') return { index: at, offset };
+	const shifted = offset + textStart;
+	if (change.newCount <= 1) return { index: change.at, offset: shifted };
+	const blocks = children.slice(change.at, change.at + change.newCount);
+	const target = focusTargetInReplacement(blocks, shifted);
+	return { index: change.at + target.index, offset: target.offset };
 }
 
 // ── Reparse helper (private) ──
