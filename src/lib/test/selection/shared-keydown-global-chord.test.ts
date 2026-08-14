@@ -78,4 +78,24 @@ describe('handleSharedKeydown — plugin-global chord deferral', () => {
 		expect(handled).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 	});
+
+	// The swallow the consumer guide now promises: a disabled history chord runs nothing and is
+	// still taken, because the native default it would fall through to rewrites the document past
+	// the CST stack. This arm reads the DEFAULT table, so it swallows before any override is
+	// consulted — which is why the press is consumed whatever the override left it bound to.
+	// Miss-analysis: the file drove plugin-global chords only, so the arm's own reason for
+	// existing — the three built-in history chords — was never pressed at this level.
+	it.each(['Mod+Z', 'Mod+Y', 'Mod+Shift+Z'])(
+		'%s is preventDefaulted and deferred to the block dispatch',
+		async (chord) => {
+			const shiftKey = chord.includes('Shift');
+			const key = chord.endsWith('Z') ? (shiftKey ? 'Z' : 'z') : 'y';
+			const e = keydown({ key, ctrlKey: true, shiftKey });
+
+			const handled = await handleSharedKeydown(e, makeCtx());
+
+			expect(handled).toBe(false);
+			expect(e.defaultPrevented).toBe(true);
+		}
+	);
 });

@@ -11,13 +11,7 @@ import { collectEditorSources, stripComments, type SourceFile } from './scan-sou
 
 /** The primitives that splice a body without settling it. Keyed on the IMPORT rather than the
  *  call, so an alias (`splitNode as performSplit`) still enrolls its file. */
-const BARE_PRIMITIVES = [
-	'splitNode',
-	'deleteNode',
-	'mergeWithPrevious',
-	'mergeWithNext',
-	'mergeIntoPrevDeepLeaf'
-];
+const BARE_PRIMITIVES = ['splitNode', 'deleteNode', 'mergeWithNext', 'mergeIntoPrevDeepLeaf'];
 
 const IMPORTS_PRIMITIVE = new RegExp(
 	`import\\s*\\{[^}]*\\b(?:${BARE_PRIMITIVES.join('|')})\\b[^}]*\\}\\s*from\\s*'[^']*(?:tree-operations|node-ops)`,

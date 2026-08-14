@@ -140,7 +140,7 @@ export function __removePluginCommandsForTests(): void {
 
 /** Which seam found the command dead. Half the memo key below: a no-op at one seam must not
  *  spend the one-time diagnostic another seam still owes. */
-export type CommandDispatchPath = 'chord' | 'door' | 'plugin-global';
+export type CommandDispatchPath = 'chord' | 'door' | 'plugin-global' | 'global-chord';
 
 const warnedDeadKeys = new Set<string>();
 
@@ -351,7 +351,7 @@ export function runGlobalChord(
 	overrides: KeybindingOverrideMap | undefined,
 	context: GlobalChordContext
 ): boolean {
-	return runClaimedGlobalChord(resolveGlobalBinding(chord, overrides), chord, context);
+	return runClaimedGlobalChord(resolveGlobalBinding(chord, overrides), chord, context, false);
 }
 
 /**
@@ -364,7 +364,7 @@ export function runGlobalChordOnKind(
 	overrides: KeybindingOverrideMap | undefined,
 	context: GlobalChordContext
 ): boolean {
-	return runClaimedGlobalChord(resolveBinding(chord, kind, overrides), chord, context);
+	return runClaimedGlobalChord(resolveBinding(chord, kind, overrides), chord, context, true);
 }
 
 /** A chord the built-in tables bind is consumed whatever an override left it resolving to: the
@@ -372,10 +372,18 @@ export function runGlobalChordOnKind(
 function runClaimedGlobalChord(
 	binding: KeyBinding | null,
 	chord: string,
-	context: GlobalChordContext
+	context: GlobalChordContext,
+	kindDispatchBelow: boolean
 ): boolean {
 	const run = binding ? getCommand(binding.command) : undefined;
-	if (!run && !isDefaultGlobalChord(chord)) return false;
+	const consumed = !!run || isDefaultGlobalChord(chord);
+	// A resolved binding no global command backs is dead only where nothing else can answer it:
+	// consumed here and inert, or declined at a surface with no kind dispatch under it. A kind
+	// keymap chord declining INTO that dispatch is the normal handoff.
+	if (binding && !run && (consumed || !kindDispatchBelow)) {
+		warnDeadKeyCommand(binding.command, 'global-chord');
+	}
+	if (!consumed) return false;
 	if (!context.isReading) run?.(context);
 	return true;
 }
