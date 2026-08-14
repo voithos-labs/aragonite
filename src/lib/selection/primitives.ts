@@ -82,7 +82,13 @@ export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
 
 // ── Normalization ──────────────────────────────────────────────────────────
 
-/** `{start, end}` in document order: by path, then by offset when paths match. */
+/**
+ * `{start, end}` in document order: by path, then by offset when paths match. Published on the
+ * consumer barrel as `normalizeSelection`, which is what a host anchors UI to. The offset tiebreak
+ * is coordinate-space agnostic: two endpoints sharing a table's path carry row-major CELL indices,
+ * whose order IS document order inside that table. A caller with no selection has nothing to
+ * order, since `getSelection()` answers null with nothing focused and at a gap caret.
+ */
 export function normalize(selection: EditorSelection): {
 	start: SelectionPoint;
 	end: SelectionPoint;

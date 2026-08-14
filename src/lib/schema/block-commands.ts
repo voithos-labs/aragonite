@@ -209,6 +209,23 @@ function runResolvedCommand(
 	return runBlockLocalCommand(target, id, arg, path, onCommandError);
 }
 
+/**
+ * The door's admissibility read, asked at the seam that would run the command, so a host greys an
+ * affordance out instead of hiding it. False wherever the door declines before dispatch: the gates
+ * above, a block-local id with no focused surface, and an id no built-in arm answers (a minted
+ * command is chord-only, so the door never reaches one). True is REACHABILITY: the focused
+ * surface's own arm still decides whether it writes.
+ */
+export function canRunCommandById(
+	id: AnyCommandId,
+	target: KindCommandTarget | null,
+	gates: CommandGates
+): boolean {
+	if (!commandIsAdmissible(id, gates)) return false;
+	if (getCommand(id)) return true;
+	return target !== null && isBuiltinCommandId(id);
+}
+
 /** The `EditorInstance.runCommand` door: an id with no keystroke behind it. */
 export function runCommandById(
 	id: AnyCommandId,

@@ -2,7 +2,7 @@
 	import { setContext, tick, onMount, untrack } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
-	import type { Document } from '../core/nodes';
+	import type { AnyBlockKind, Document } from '../core/nodes';
 	import type { EditorProps, EditorInstance, EditorDiagnostics } from '../editor-props';
 	import type { EditorEvents } from '../editor-events';
 	import {
@@ -99,6 +99,7 @@
 	import { toClampedRawOffset } from '../cursor/coordinate-spaces';
 	import { domTextOffsetAtNode } from '../cursor/widget-offset';
 	import {
+		canRunCommandById,
 		runCommandById,
 		type CommandDispatchContext,
 		type CommandErrorSink,
@@ -1259,6 +1260,12 @@
 		return serialize(doc);
 	}
 
+	// The kind alone, never the node: a host reads the tree's shape without holding a handle into
+	// it. See `editor-props.ts` for the contract.
+	export function getBlockKindAt(path: number[]): AnyBlockKind | null {
+		return blockNodeAt(doc, path)?.kind ?? null;
+	}
+
 	/**
 	 * A frozen snapshot of the current selection, or null when nothing is focused.
 	 * Path arrays are copies, so mutating the result does not affect internal state.
@@ -1362,6 +1369,16 @@
 		);
 	}
 
+	// The same seam the door dispatches through, so what a host greys out and what a click declines
+	// cannot drift. See `editor-props.ts` for the contract.
+	export function canRunCommand(commandId: string): boolean {
+		return canRunCommandById(
+			commandId as AnyCommandId,
+			focusedCommandTarget(),
+			commandDispatchContext
+		);
+	}
+
 	export function getEvents(): EditorEvents {
 		return events;
 	}
@@ -1421,11 +1438,13 @@
 	// Compile-time conformance: the published handle can't drift from the exports.
 	void ({
 		getSource,
+		getBlockKindAt,
 		getSelection,
 		setSelection,
 		placeCaretAtPoint,
 		insertMarkdown,
 		runCommand,
+		canRunCommand,
 		getEvents,
 		getSearch,
 		getDecorations,

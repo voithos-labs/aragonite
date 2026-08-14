@@ -98,4 +98,17 @@ test.describe('selection toolbar', () => {
 		);
 		expect(bar!.y + bar!.height).toBeLessThanOrEqual(blockTop + 1);
 	});
+
+	// The affordance the decline owes a reader: the bar stays anchored and the buttons the door
+	// would refuse are visibly dead, rather than five live-looking controls that write nothing.
+	test('a cross-block selection greys the single-block rewrites out', async ({ page }) => {
+		await editor.loadContent('first block here\n\nsecond block below\n');
+		await editor.focusBlockStart(0);
+		await editor.shiftClickBlock([1], 6);
+		await editor.waitForCrossBlock(true);
+
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await expect(page.locator('[data-testid="toolbar-format.toggleStrong"]')).toBeDisabled();
+		await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toBeDisabled();
+	});
 });
