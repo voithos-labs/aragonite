@@ -126,12 +126,12 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 	// A pointer or a Tab lands natively on the kind's own surface, where no beforeinput fires;
 	// without this hand-off the first character after a click is keydown-minted again.
 	function onFocusIn(event: FocusEvent): void {
-		const box = deps.getBoxEl();
-		if (!proxy || !box || event.target !== deps.getFocusEl()) return;
+		if (!proxy || event.target !== deps.getFocusEl()) return;
 		if (isEditableEventTarget(event.target)) return;
-		// Arrivals from outside only: a Shift+Tab off the host lands here on its way out, and
-		// bouncing it back would trap focus inside the block.
-		if (event.relatedTarget instanceof Node && box.contains(event.relatedTarget)) return;
+		// The host's own Shift+Tab lands here on its way out; bouncing it back would trap focus
+		// in the block. Every other arrival is passed on — a toolbar button included, or the
+		// click after one leaves the declared surface holding focus and drops IME again.
+		if (event.relatedTarget === proxy) return;
 		focusProxy();
 	}
 
