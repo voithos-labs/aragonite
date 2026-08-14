@@ -4,6 +4,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 
 ## [0.9](changelog/0.9.md)
 
+- [0.9.42](changelog/0.9.md#0942-the-audits-fixes--merges-that-refuse-to-corrupt-live-gestures-that-all-verify): merges refuse to corrupt, every live gesture verifies, overrides reach every focus state
 - [0.9.41](changelog/0.9.md#0941-the-command-door-typed-math-and-the-live-mode-hardening): the command door, typed `$$` math, and the live-mode hardening
 - [0.9.40](changelog/0.9.md#0940-the-host-theming-contract): the host theming contract, in two token tiers, with radius and selection bases
 - [0.9.39](changelog/0.9.md#0939-typed-tables-insertmarkdown-the-language-chip): a table typed into existence, `insertMarkdown`, the code language chip
