@@ -66,6 +66,14 @@ describe('live-mode gestures at hidden edges', () => {
 		expect(stats.rewrote['word-delete']).toBeGreaterThan(5);
 	});
 
+	// The two gestures whose offset a CALLER computes rather than the engine reporting it, so a
+	// mid-scalar one reaches the seam and its own snap has to catch it. A silent well-formedness
+	// oracle means those snaps held; a zero here would mean the sweep never asked.
+	it('draws offsets inside a surrogate pair, at the doors that take a raw one', () => {
+		expect(stats.midScalar.enter).toBeGreaterThan(0);
+		expect(stats.midScalar['range-delete']).toBeGreaterThan(0);
+	});
+
 	// The excused classes have to be REACHED by the default seed, or the exclusions are unexercised
 	// prose and the gate below them proves nothing about the shapes they name.
 	it('draws the shapes its exclusions name', () => {

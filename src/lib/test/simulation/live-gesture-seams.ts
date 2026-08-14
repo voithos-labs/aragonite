@@ -27,6 +27,7 @@ import {
 	resolveSelectionEdit
 } from '$lib/components/blocks/text/live-selection-edit';
 import { rangeDelete } from '$lib/selection/range-delete';
+import { normalizeCharEndpoint } from '$lib/selection/char-endpoint-snap';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps, makePendingMarks } from '$lib/test/harness/editor-actions';
@@ -142,22 +143,65 @@ export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
 /** Where a gesture lands, resolved once so the draw's bias and the classifier's questions address
  *  the very bytes the applier will touch. A range gesture answers with both endpoints. */
 export function gestureSites(doc: Document, gesture: Gesture): { node: CstNode; offset: number }[] {
+	return drawnSites(doc, gesture).map(({ node, offset }) => ({
+		node,
+		offset: throughDoor(node, offset, gesture.kind)
+	}));
+}
+
+/** Whether a drawn offset landed inside a surrogate pair, read before any door: the shape a
+ *  caller's arithmetic can produce and the one this harness used to snap away unseen. */
+export function drawsMidScalar(doc: Document, gesture: Gesture): boolean {
+	return drawnSites(doc, gesture).some(
+		({ node, offset }) => codePointStart(node.raw, offset) !== offset
+	);
+}
+
+/** The offsets inside an astral scalar's own bytes, for a draw that would otherwise meet one by
+ *  accident. Absolute, like {@link hiddenEdgeOffsets}. */
+export function scalarInteriors(raw: string, start: number, end: number): number[] {
+	const found: number[] = [];
+	for (let at = start + 1; at < end; at++) if (codePointStart(raw, at) !== at) found.push(at);
+	return found;
+}
+
+// ── The drawn offset ─────────────────────────────────────────────────────────
+
+/** The nodes and offsets a gesture addresses, as drawn: wrapped into the content range and
+ *  nothing else. A range gesture answers with both endpoints. */
+function drawnSites(doc: Document, gesture: Gesture): { node: CstNode; offset: number }[] {
 	const targets = gestureTargets(doc, gesture.kind);
 	if (targets.length === 0) return [];
 	const start = targets[gesture.leaf % targets.length].node;
-	const site = { node: start, offset: clampOffset(start, gesture.offset) };
+	const site = { node: start, offset: contentOffset(start, gesture.offset) };
 	if (gesture.kind === 'type' || gesture.kind === 'backspace' || gesture.kind === 'delete') {
 		return [site];
 	}
 	const end = targets[gesture.endLeaf % targets.length].node;
-	return [site, { node: end, offset: clampOffset(end, gesture.endOffset) }];
+	return [site, { node: end, offset: contentOffset(end, gesture.endOffset) }];
 }
 
-/** Into the content range, off a surrogate seam: half a code point is not a caret. */
-function clampOffset(node: CstNode, offset: number): number {
+function contentOffset(node: CstNode, offset: number): number {
 	const { start, end } = getContentRange(node);
-	const at = start + (offset % Math.max(1, end - start + 1));
-	const code = node.raw.charCodeAt(at);
+	return start + (offset % Math.max(1, end - start + 1));
+}
+
+/**
+ * The drawn offset as the gesture's own door delivers it. A native press and a native selection
+ * come back from the ENGINE, which reports no offset inside a surrogate pair, so the harness models
+ * that. The split takes one a CALLER computed, and the range delete one the selection store holds
+ * ({@link storedEndpoint}): both arrive raw, and the production snap is what has to catch them.
+ */
+function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
+	return kind === 'enter' || kind === 'range-delete' ? offset : codePointStart(node.raw, offset);
+}
+
+const drawnOffset = (node: CstNode, gesture: Gesture, offset: number): number =>
+	throughDoor(node, contentOffset(node, offset), gesture.kind);
+
+/** The start of the code point `at` sits inside — what every engine-reported offset already is. */
+function codePointStart(raw: string, at: number): number {
+	const code = raw.charCodeAt(at);
 	return code >= 0xdc00 && code <= 0xdfff ? at - 1 : at;
 }
 
@@ -186,7 +230,7 @@ async function applyBlockGesture(
 	if (targets.length === 0) return null;
 	const index = targets[gesture.leaf % targets.length].path[0];
 	const node = h.doc.children[index];
-	const offset = clampOffset(node, gesture.offset);
+	const offset = drawnOffset(node, gesture, gesture.offset);
 	if (gesture.kind === 'enter') {
 		await h.blockEdit.splitBlock(index, offset);
 		return false;
@@ -200,8 +244,8 @@ async function applyBlockGesture(
 /** The two offsets a range gesture drew, ordered and clamped into the block's content. Null where
  *  they collapsed: every range gesture here needs a span to act on. */
 function drawnRange(node: CstNode, gesture: Gesture): { start: number; end: number } | null {
-	const a = clampOffset(node, gesture.offset);
-	const b = clampOffset(node, gesture.endOffset);
+	const a = drawnOffset(node, gesture, gesture.offset);
+	const b = drawnOffset(node, gesture, gesture.endOffset);
 	const [start, end] = a <= b ? [a, b] : [b, a];
 	return start === end ? null : { start, end };
 }
@@ -288,11 +332,6 @@ async function nativePress(
 
 const splice = (raw: string, from: number, to: number, insert: string): string =>
 	raw.slice(0, from) + insert + raw.slice(to);
-
-function codePointStart(raw: string, at: number): number {
-	const code = raw.charCodeAt(at);
-	return code >= 0xdc00 && code <= 0xdfff ? at - 1 : at;
-}
 
 /** A format chord over the drawn range, through the seam both prose surfaces call. A collapsed
  *  range forks to pending marks in live, which is a different seam, so this gesture needs a span. */
@@ -398,8 +437,8 @@ function deleteRange(
 	const first = leaves[gesture.leaf % leaves.length];
 	const second = leaves[gesture.endLeaf % leaves.length];
 	const [lo, hi] = comparePaths(first.path, second.path) <= 0 ? [first, second] : [second, first];
-	const a = clampOffset(lo.node, gesture.offset);
-	const b = clampOffset(hi.node, gesture.endOffset);
+	const a = storedEndpoint(h.doc, lo, hi.path, gesture.offset);
+	const b = storedEndpoint(h.doc, hi, lo.path, gesture.endOffset);
 	if (lo === hi && a === b) return null;
 	const [startOffset, endOffset] = lo === hi && a > b ? [b, a] : [a, b];
 	rangeDelete(
@@ -412,6 +451,18 @@ function deleteRange(
 		undefined
 	);
 	return false;
+}
+
+/** The offset as the selection store holds it. Every production range delete reads its endpoints
+ *  from there, so a raw one here would be testing a door no caller comes through. */
+function storedEndpoint(
+	doc: Document,
+	leaf: ProseLeaf,
+	otherPath: readonly number[],
+	offset: number
+): number {
+	const point = { path: leaf.path, offset: contentOffset(leaf.node, offset) };
+	return normalizeCharEndpoint(doc, point, otherPath).offset;
 }
 
 function comparePaths(a: readonly number[], b: readonly number[]): number {

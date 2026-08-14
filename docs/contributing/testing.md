@@ -226,6 +226,8 @@ Property/fuzz suites (`fc.assert` over the shared arbitraries) run **fixed-seed*
 
 The **fresh lane** is the opt-in escape hatch. `npm run test:editor:property:fresh` sets `PROPERTY_FRESH=1`, which swaps each site's fixed seed for a random one — every `fc.assert` seed threads through the `freshOrFixedSeed` helper — and runs just the property-bearing suites. Run it when touching the inline parser, the CST, or the arbitraries, or periodically, to hunt inputs the fixed seed never reaches. It is never part of the gate; reachability self-tests keep their fixed seeds so they cannot flake.
 
+**What the arbitraries must draw.** A generator that cannot produce a shape proves nothing about it, so the shared document lanes carry a reachability floor of their own: `invariants/corpus-coverage.test.ts` samples each lane and fails when non-ASCII text, an astral scalar, or CRLF stops being drawn, and when a lane draws source that is not well-formed UTF-16. It keeps a fixed seed for the same reason the other reachability self-tests do.
+
 **Reproducing a fresh find.** Fresh mode prints its seed (`[property:fresh] seed <N> …`) before the run, and fast-check echoes the failing seed and shrunk counterexample in any failure. To replay, pin that seed as the site's fixed default; the durable fix is to add the counterexample as a committed regression case, which guards the class without the lane.
 
 ## Live-mode gesture fuzzer
@@ -233,6 +235,8 @@ The **fresh lane** is the opt-in escape hatch. `npm run test:editor:property:fre
 `src/lib/test/simulation/live-gesture-fuzz.property.test.ts` searches the space between the scripted flows: a seeded stream of typing and destructive gestures at positions biased toward hidden construct edges, driven through the real caret-edge, split, join and range-delete seams and judged after every gesture against the live-mode license (`docs/design/live-mode.md` § 2). Each gesture also runs on a byte-literal twin from the same starting bytes, so a divergence the source-mode edit already has is reported rather than gated.
 
 Findings sort into three buckets. `seam` is a live-only divergence and fails the sweep. `ambiguous` is both arms failing the same claim — markdown's own rebinding, or the byte-literal fallback § 4.4 declares. `known` is a live-only divergence an open ledger issue owns; every one of those names its issue and is pinned by a deterministic case in the same file, so closing the issue reds the pin and the exclusion goes with it. An exclusion without an issue number is not allowed.
+
+One oracle stands outside that sort: UTF-16 well-formedness. A gesture that mints a lone surrogate its input did not hold fails the sweep whether or not the twin mints one too, because no rebinding excuses bytes that no UTF-8 boundary round-trips and no inverse gesture restores. It is why the two gestures whose offset a caller computes rather than the engine reporting it — the split and the range delete — reach their seams unsnapped: the production snap is the thing under test, and a harness that snapped first would assert the invariant instead of checking it.
 
 It rides `npm test` at a bounded default and joins the fresh lane. `LIVE_FUZZ_DOCS` and `LIVE_FUZZ_STEPS` raise the sweep for an overnight run.
 

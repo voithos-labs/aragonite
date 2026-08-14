@@ -111,7 +111,9 @@ function kindsPresent(raw: string): Set<string> {
 	return kinds;
 }
 
-/** Code-point boundaries only: an offset inside a surrogate pair is not a caret. */
+/** Code-point boundaries only, for the ORACLE's sake rather than the caret's: this net judges
+ *  painted text and construct kinds, neither of which can see a slice through a scalar, so a
+ *  mid-pair stop would pass here. The gesture fuzzer's well-formedness oracle owns that class. */
 function caretPositions(text: string): number[] {
 	const stops = [0];
 	for (const char of text) stops.push(stops[stops.length - 1] + char.length);
