@@ -87,6 +87,48 @@ describe('getRawSelection', () => {
 	});
 });
 
+// The door a native ranged edit reads its own range through: `getTargetRanges()` reports a span
+// while the caret stays collapsed, so the selection answers nothing there (G4.44).
+describe('rawRangeOf', () => {
+	const rangeOver = (
+		startNode: Node,
+		startOffset: number,
+		endNode: Node,
+		endOffset: number
+	): Range => {
+		const range = document.createRange();
+		range.setStart(startNode, startOffset);
+		range.setEnd(endNode, endOffset);
+		return range;
+	};
+
+	it('reads an arbitrary range in raw offsets, past the ambient prefix', () => {
+		expect(cursorIO().rawRangeOf(rangeOver(text, 1, text, 3))).toEqual({ start: 1, end: 3 });
+	});
+
+	// The event's range is the argument, so neither focus nor the live selection is consulted —
+	// which is the whole reason a collapsed caret can still carry one.
+	it('answers without focus, and answers a collapsed range', () => {
+		elsewhere.focus();
+		select(elsewhere.firstChild!, 0, elsewhere.firstChild!, 2);
+		expect(cursorIO().rawRangeOf(rangeOver(text, 2, text, 2))).toEqual({ start: 2, end: 2 });
+	});
+
+	it('clamps a marker-interior endpoint to raw 0', () => {
+		expect(cursorIO().rawRangeOf(rangeOver(marker.firstChild!, 1, text, 2))).toEqual({
+			start: 0,
+			end: 2
+		});
+	});
+
+	// A range another surface reported: resolving it here would write this block's bytes at
+	// offsets that address someone else's text.
+	it('declines a range outside the surface', () => {
+		const foreign = elsewhere.firstChild!;
+		expect(cursorIO().rawRangeOf(rangeOver(foreign, 0, foreign, 2))).toBeNull();
+	});
+});
+
 describe('getRaw', () => {
 	it('reads the caret inside the focused surface in raw offsets', () => {
 		el.focus();
