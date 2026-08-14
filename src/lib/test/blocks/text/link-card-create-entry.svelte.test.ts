@@ -49,7 +49,8 @@ describe('the chord entry vets the range before the door', () => {
 		card: ReturnType<typeof makeState>['card'],
 		source: string,
 		selection: { start: number; end: number } | null,
-		mode: 'live' | 'source' = 'live'
+		mode: 'live' | 'source' = 'live',
+		crossBlockRange = false
 	): void {
 		enterLinkCardAtCaret({
 			contentEl: document.createElement('div'),
@@ -57,7 +58,8 @@ describe('the chord entry vets the range before the door', () => {
 			path: [0],
 			card,
 			mode,
-			selection
+			selection,
+			crossBlockRange
 		});
 	}
 
@@ -84,5 +86,17 @@ describe('the chord entry vets the range before the door', () => {
 		const { card } = makeState();
 		enter(card, 'Alpha bravo charlie\n', { start: 6, end: 6 });
 		expect(card.getCreateTarget()).toBeNull();
+	});
+
+	// The block-local range is read off this block's own DOM walk, which reports an endpoint in
+	// another block as end-of-walk — so a cross-block drag hands the arm a range nobody selected,
+	// running to the block's end. Miss-analysis: every case here supplied a range the caller had
+	// really measured, so the one input class the arm cannot trust was never fed to it.
+	it('a cross-block range enters nothing, whatever the block-local offsets say', () => {
+		const { card, onOpen } = makeState();
+		enter(card, 'Alpha bravo charlie\n', { start: 6, end: 19 }, 'live', true);
+		expect(card.getCreateTarget()).toBeNull();
+		expect(card.getTarget()).toBeNull();
+		expect(onOpen).not.toHaveBeenCalled();
 	});
 });

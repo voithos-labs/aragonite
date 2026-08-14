@@ -415,7 +415,8 @@
 				card: linkCard,
 				mode: presentationMode,
 				// Null declines create here: cell raw carries pipe escapes, its own wrap policy.
-				selection: null
+				selection: null,
+				crossBlockRange: selection.isCrossBlock
 			});
 			return true;
 		}

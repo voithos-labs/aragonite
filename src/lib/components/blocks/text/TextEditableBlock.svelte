@@ -160,7 +160,8 @@
 		linkRef,
 		card: linkCard,
 		mode: presentationMode,
-		selection: cursor.getRawSelection()
+		selection: cursor.getRawSelection(),
+		crossBlockRange: selection.isCrossBlock
 	});
 	const enterLinkCard = () => {
 		if (el) enterLinkCardAtCaret(linkCardQuery());

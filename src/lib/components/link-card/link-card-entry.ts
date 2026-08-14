@@ -15,6 +15,10 @@ export interface LinkCardEntryQuery extends LinkPointQuery {
 	/** The block-local raw selection, or null at a collapsed caret. Required, never defaulted:
 	 *  every keymap arm states its create policy, so a surface that must not mint links says so. */
 	selection: { start: number; end: number } | null;
+	/** True while a range crosses block boundaries. Required for the same reason, and because
+	 *  `selection` cannot report it: read off this block's own DOM walk, an endpoint in another
+	 *  block comes back as end-of-walk — a range running to the block's end that nobody made. */
+	crossBlockRange: boolean;
 }
 
 /**
@@ -25,6 +29,10 @@ export interface LinkCardEntryQuery extends LinkPointQuery {
  */
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	if (query.mode !== 'live') return;
+	// The dispatch seam declines `link.openCard` over a cross-block range already
+	// (`SINGLE_BLOCK_RANGE_COMMAND_IDS`); the belt is here because the offsets this arm would
+	// otherwise trust are fabricated in exactly that state rather than absent.
+	if (query.crossBlockRange) return;
 	const range = query.selection;
 	if (range !== null && range.start < range.end) {
 		if (canWrapRangeAsLink(query.block.raw, range.start, range.end, query.linkRef?.current))

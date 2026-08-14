@@ -70,13 +70,15 @@ export type CommandId = GlobalCommandId | BlockCommandId;
  * Commands whose arms rewrite one block's bytes around that block's own selection. The
  * dispatch seam declines them while a cross-block range is painted; the cross-block keydown
  * arm swallows the default chords earlier, but only this set reaches a rebind or the
- * `runCommand` door.
+ * `runCommand` door. Membership is the arm's shape, not the id's prefix: the link card mints
+ * its link over one block's offsets exactly as a toggle wraps one block's run.
  */
 export const SINGLE_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'format.toggleStrong',
 	'format.toggleEmphasis',
 	'format.toggleStrikethrough',
-	'format.toggleCode'
+	'format.toggleCode',
+	'link.openCard'
 ]);
 
 /**

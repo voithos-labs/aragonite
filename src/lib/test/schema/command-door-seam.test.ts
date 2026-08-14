@@ -105,16 +105,20 @@ describe('runCommandById gates', () => {
 		expect(ran).toEqual([]);
 	});
 
-	it('a painted cross-block range declines the format toggles and nothing else', () => {
+	// Miss-analysis: the set had one member class and the census that guards it read the
+	// `format.` prefix, so the fifth single-block rewrite — bound at the same keymaps, published
+	// on `TOOLBAR_COMMANDS` — was structurally invisible to the guard AND to this case.
+	it('a painted cross-block range declines every single-block rewrite and nothing else', () => {
 		const ran: string[] = [];
 		const ctx = context({ isCrossBlockRange: () => true });
-		const toggles: CommandId[] = [
+		const rewrites: CommandId[] = [
 			'format.toggleStrong',
 			'format.toggleEmphasis',
 			'format.toggleStrikethrough',
-			'format.toggleCode'
+			'format.toggleCode',
+			'link.openCard'
 		];
-		for (const id of toggles) expect(runCommandById(id, undefined, target(ran), ctx)).toBe(false);
+		for (const id of rewrites) expect(runCommandById(id, undefined, target(ran), ctx)).toBe(false);
 		expect(ran).toEqual([]);
 
 		expect(runCommandById('block.split', undefined, target(ran), ctx)).toBe(true);
@@ -133,10 +137,12 @@ describe('runCommandById gates', () => {
 		const ran: string[] = [];
 		// The chord #107 never sees: a consumer moved the toggle off Mod+B.
 		const overrides = normalizeKeybindingOverrides([
-			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' }
+			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' },
+			{ chord: 'Mod+Alt+L', command: 'link.openCard', kind: 'paragraph' }
 		]);
 		const ctx = context({ isCrossBlockRange: () => true });
 		expect(dispatchKeyCommand('Mod+Alt+G', target(ran), ctx, overrides)).toBe(false);
+		expect(dispatchKeyCommand('Mod+Alt+L', target(ran), ctx, overrides)).toBe(false);
 		expect(ran).toEqual([]);
 	});
 });

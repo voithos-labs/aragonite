@@ -91,9 +91,9 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	// Ahead of the command candidates, because a toggle is NOT a type-replace: deleting the range
+	// Ahead of the command candidates, because a rewrite is NOT a type-replace: deleting the range
 	// and dispatching at the collapsed caret leaves empty pairs where the document stood.
-	if (isFormatToggleChord(e)) {
+	if (isSingleBlockRewriteChord(e)) {
 		e.preventDefault();
 		return true;
 	}
@@ -248,16 +248,16 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 }
 
 /**
- * The keystroke half of the cross-block format decline: swallow the default chords before the
- * browser's own bold runs and before the delete-and-redispatch arm below sees them. The
- * SEMANTIC decline is id-keyed at the dispatch seam (`SINGLE_BLOCK_RANGE_COMMAND_IDS`), which
- * is what a rebound chord or the `runCommand` door meets. Mod+Shift+X takes an arm of its own
- * rather than joining the letters: the unshifted Mod+X is the whole-block cut.
+ * The keystroke half of the cross-block single-block-rewrite decline: swallow the default chords
+ * before the browser's own bold (or Ctrl+K kill-line) runs and before the delete-and-redispatch
+ * arm below sees them. The SEMANTIC decline is id-keyed at the dispatch seam
+ * (`SINGLE_BLOCK_RANGE_COMMAND_IDS`), which is what a rebound chord or the `runCommand` door
+ * meets. Mod+Shift+X takes an arm of its own: the unshifted Mod+X is the whole-block cut.
  */
-function isFormatToggleChord(e: KeyboardEvent): boolean {
+function isSingleBlockRewriteChord(e: KeyboardEvent): boolean {
 	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
 	// Literal comparisons, not a character class: the G4.29 manifest scan reads the keys a file
-	// compares, and a regex would hide this file's claim on Mod+B/I/E from it.
+	// compares, and a regex would hide this file's claim on Mod+B/I/E/K from it.
 	if (e.shiftKey) return e.key === 'x' || e.key === 'X';
 	return (
 		e.key === 'b' ||
@@ -265,7 +265,9 @@ function isFormatToggleChord(e: KeyboardEvent): boolean {
 		e.key === 'i' ||
 		e.key === 'I' ||
 		e.key === 'e' ||
-		e.key === 'E'
+		e.key === 'E' ||
+		e.key === 'k' ||
+		e.key === 'K'
 	);
 }
 

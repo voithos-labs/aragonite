@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 //
-// G4.40 — "format toggle" is spelled in three places and must name one set: the ids the built-in
-// keymaps bind, the ids the dispatch seam declines over a cross-block range
+// G4.40 — "single-block rewrite" is spelled in three places and must name one set: the ids the
+// built-in keymaps bind, the ids the dispatch seam declines over a cross-block range
 // (`SINGLE_BLOCK_RANGE_COMMAND_IDS`), and the chords `cross-block/keydown.ts` swallows before its
-// delete-and-redispatch arm. A fifth single-block rewrite taught to one spelling is an N-1 gap at
-// the other two. The swallow GROWING a chord is caught by G4.29 instead: the manifest records the
-// key literals that file compares, so a new one fails there until it is re-derived.
+// delete-and-redispatch arm. A sixth rewrite taught to one spelling is an N-1 gap at the other
+// two. The swallow GROWING a chord is caught by G4.29 instead, off the key literals its
+// manifest records.
 import { describe, it, expect } from 'vitest';
 import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -15,12 +15,20 @@ import { makeKeydownEnv, press } from './keydown-env';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
-/** Every chord the built-in kind keymaps bind to a `format.*` command, deduplicated. */
-function formatToggleKeymap(): Array<{ chord: string; command: string }> {
+/** Set members whose id carries no `format.` prefix. Hand-carried because membership is the
+ *  arm's shape and no naming rule separates them from the kind commands beside them: a prefix
+ *  census could not see `link.openCard`, which is how it stayed outside the set. */
+const NON_FORMAT_REWRITE_IDS = ['link.openCard'];
+
+const isSingleBlockRewriteId = (command: string): boolean =>
+	command.startsWith('format.') || NON_FORMAT_REWRITE_IDS.includes(command);
+
+/** Every chord the built-in kind keymaps bind to a single-block rewrite, deduplicated. */
+function singleBlockRewriteKeymap(): Array<{ chord: string; command: string }> {
 	const rows = new Map<string, { chord: string; command: string }>();
 	for (const kind of ALL_BLOCK_KINDS) {
 		for (const binding of tryGetBlockKindDescriptor(kind)?.keymap ?? []) {
-			if (!binding.command.startsWith('format.')) continue;
+			if (!isSingleBlockRewriteId(binding.command)) continue;
 			const chord = normalizeChord(binding.chord);
 			rows.set(`${chord} ${binding.command}`, { chord, command: binding.command });
 		}
@@ -50,8 +58,8 @@ async function pressOverCrossBlockRange(chord: string) {
 	return { consumed, event, source: env.source() };
 }
 
-describe('G4.40 format-toggle set parity', () => {
-	const keymap = formatToggleKeymap();
+describe('G4.40 single-block-rewrite set parity', () => {
+	const keymap = singleBlockRewriteKeymap();
 
 	it('the keymaps bind exactly the ids the seam declines over a range', () => {
 		const bound = [...new Set(keymap.map((row) => row.command))].sort();
@@ -65,10 +73,9 @@ describe('G4.40 format-toggle set parity', () => {
 		expect(source).toBe(SOURCE);
 	});
 
-	// Non-vacuity: the arm claims the toggles, not every modified letter. Mod+K binds at the same
-	// keymaps and is declined at the link card's own door instead, so it must reach past here.
-	it('a keymap chord outside the set is not swallowed by the format arm', async () => {
-		const { consumed, event } = await pressOverCrossBlockRange('Mod+K');
+	// Non-vacuity: the arm claims the rewrites, not every modified chord the keymaps bind.
+	it('a keymap chord outside the set is not swallowed by the rewrite arm', async () => {
+		const { consumed, event } = await pressOverCrossBlockRange('Mod+Enter');
 		expect(consumed).toBe(false);
 		expect(event.defaultPrevented).toBe(false);
 	});
