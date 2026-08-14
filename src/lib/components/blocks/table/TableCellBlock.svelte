@@ -31,7 +31,7 @@
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
-	import { resolveSelectionEditFromInput } from '../text/live-selection-edit';
+	import { resolveLiveRangeEdit } from '../text/live-selection-edit';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
@@ -753,16 +753,15 @@
 		else tableContext.exitDownward(x);
 	}
 
-	// The cell's copy of the prose surface's live selection-edit arm: a native replace of a
-	// selection spanning hidden delimiters is the one destructive input with no seam of its own.
+	// The cell at the prose surface's live ranged-edit arm: a native edit over a range spanning
+	// hidden delimiters is the destructive family with no seam offsets of its own.
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
-		if (presentationMode !== 'live' || widgetInteraction.isRevealing()) return false;
-		const range = cursor.getRawSelection();
-		if (!range) return false;
-		const edit = resolveSelectionEditFromInput(e, node, range, presentationMode, linkRef);
+		if (widgetInteraction.isRevealing()) return false;
+		const edit = resolveLiveRangeEdit(e, node, cursor, presentationMode, linkRef);
 		if (!edit) return false;
 		e.preventDefault();
-		void blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
+		if (edit.kind === 'swallow') return true;
+		void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
 		parkCursor(edit.caret, edit.raw);
 		return true;
 	}

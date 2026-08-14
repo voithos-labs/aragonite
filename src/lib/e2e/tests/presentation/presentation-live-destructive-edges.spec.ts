@@ -30,7 +30,9 @@ const DOC = [
 	'',
 	'merge target',
 	'',
-	'\\*c\\*'
+	'\\*c\\*',
+	'',
+	'Some **big brave** text'
 ].join('\n');
 
 const BOLD = 0;
@@ -40,6 +42,7 @@ const UNSOUND = 4;
 const TWO_BOLDS = 5;
 const MERGE_TARGET = 6;
 const LEADING_ESCAPE = 7;
+const TWO_WORD_BOLD = 8;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
 
@@ -60,6 +63,21 @@ test.describe('live mode — a destructive key at a hidden run takes what the re
 		const block = ep.getBlock(BOLD);
 		await expect(block).toHaveText('Some bol text', { useInnerText: true });
 		await expect(block.locator('strong')).toHaveText('bol', { useInnerText: true });
+	});
+
+	// A chorded delete reports its range on the EVENT, at a caret that is still collapsed, so it
+	// reaches the bytes past the caret-edge arm entirely. Native leaves `Some **big ** text`: a
+	// run closing against a space is no run, so both halves paint.
+	test('a word delete inside a construct takes the run it broke', async ({ page }) => {
+		await clickWordSettled(ep, page, 'brave');
+		await stepTo(ep, page, 'ArrowRight', 16);
+
+		await page.keyboard.press('Control+Backspace');
+		await ep.bridge.waitForSourceContains('Some big  text');
+
+		const block = ep.getBlock(TWO_WORD_BOLD);
+		await expect(block).toHaveText('Some big text', { useInnerText: true });
+		await expect(block.locator('strong')).toHaveCount(0);
 	});
 
 	// The engine deletes from where the BYTE is, not from where the caret started, so the first

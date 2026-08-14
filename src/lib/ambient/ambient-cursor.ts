@@ -33,6 +33,9 @@ export interface AmbientCursorIO {
 	setRaw(offset: RawOffset): void;
 	/** Raw offsets of the anchor/focus endpoints of the current selection, or null. */
 	getRawSelection(): { start: RawOffset; end: RawOffset } | null;
+	/** Raw offsets of an arbitrary range inside this surface — an InputEvent's target range, which
+	 *  a word delete reports at a COLLAPSED caret and the selection therefore cannot answer. */
+	rawRangeOf(range: AbstractRange): { start: RawOffset; end: RawOffset } | null;
 	/** Ensure the caret sits outside the ambient marker region. No-op when `el`
 	 * isn't the active element or the caret is already out. */
 	clampOutOfAmbient(): void;
@@ -139,7 +142,23 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		};
 	}
 
-	return { getRaw, setRaw, getRawSelection, clampOutOfAmbient, setToAmbientBoundary };
+	function rawRangeOf(range: AbstractRange): { start: RawOffset; end: RawOffset } | null {
+		const el = deps.getEl();
+		if (!el || !el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+		const ambientLength = deps.getAmbientLength();
+		return {
+			start: toClampedRawOffset(
+				domTextOffsetAtNode(el, range.startContainer, range.startOffset),
+				ambientLength
+			),
+			end: toClampedRawOffset(
+				domTextOffsetAtNode(el, range.endContainer, range.endOffset),
+				ambientLength
+			)
+		};
+	}
+
+	return { getRaw, setRaw, getRawSelection, rawRangeOf, clampOutOfAmbient, setToAmbientBoundary };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
