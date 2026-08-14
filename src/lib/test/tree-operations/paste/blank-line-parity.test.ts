@@ -201,6 +201,18 @@ describe('a clipboard’s trailing blank line is content', () => {
 		expect(doc.suffix).toBe('\r\n');
 	});
 
+	// The slot's own bytes are not the only CRLF question: an EMPTY slot mints one, and a
+	// clipboard normalized to LF at every entry point cannot answer for its flavor (G4.20).
+	// Miss-analysis: the CRLF-mirror oracle's gestures drew no paste at the document tail, and
+	// G4.20's shape scans see literal newlines only, which a data-derived suffix never is.
+	it('mints the tail separator in a CRLF document’s own ending', async () => {
+		const { doc } = await pasteLive(parse('x\r\n'), [0], 1, '# h\n\n');
+
+		expect(doc.suffix).toBe('\r\n');
+		// Byte round-trip, not `layout`: the suffix is the subject and layout does not carry it.
+		expect(serialize(parse(serialize(doc)))).toBe(serialize(doc));
+	});
+
 	it('gives the suffix back on undo', async () => {
 		const { doc, history } = await pasteLive(parse('x\n'), [0], 1, '# h\n\n');
 		expect(doc.suffix).toBe('\n');

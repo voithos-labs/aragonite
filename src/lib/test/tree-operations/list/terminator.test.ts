@@ -7,6 +7,8 @@ import {
 } from '$lib/tree-operations/list/terminator';
 import { rebuildListRaw } from '$lib/schema/container-rebuilders';
 import { checkStaleRaw } from '$lib/invariants/node-shape';
+import { activateDirectiveGrammar } from '$lib/core/directive/activate';
+import { DIRECTIVE_CONTAINER } from '$lib/core/directive/kinds';
 import type { CstNode } from '$lib/core/nodes';
 
 describe('ensureListItemNewlineTerminated', () => {
@@ -60,6 +62,25 @@ describe('ensureListItemNewlineTerminated', () => {
 		ensureListItemNewlineTerminated(item, '\n');
 
 		expect(item.raw).toBe(source + '\n');
+		expect(checkStaleRaw(item)).toBeNull();
+	});
+
+	// The opaque twin of the grid case, and the one that fails SILENTLY: the descent used to reach
+	// a body block already ending in `\n`, return, and leave the item unterminated — the state
+	// `spliceTerminatedItems` exists to prevent. `directiveContainer` is core's own `:::` fallback,
+	// so the arm needs no plugin.
+	it('stops above an opaque container body rather than leaving the item unterminated', () => {
+		activateDirectiveGrammar();
+		const source = '- text\n\n  :::note Heads up\n  body\n  :::';
+		const item = parse(source).children[0].children![0];
+		const opaque = item.children![item.children!.length - 1];
+		expect(opaque.kind).toBe(DIRECTIVE_CONTAINER);
+		const bodyRaws = opaque.children!.map((c) => c.raw);
+
+		ensureListItemNewlineTerminated(item, '\n');
+
+		expect(item.raw).toBe(source + '\n');
+		expect(opaque.children!.map((c) => c.raw)).toEqual(bodyRaws);
 		expect(checkStaleRaw(item)).toBeNull();
 	});
 
