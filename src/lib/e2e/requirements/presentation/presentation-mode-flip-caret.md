@@ -14,6 +14,10 @@ Miss-analysis (#109): the flip family's spec pinned bytes only and its
 requirement said so — byte equality is silent about the seat, so the loss read
 as normal until a spec owned the caret across a flip.
 
+Miss-analysis (#39): every flip scenario parked the caret in prose, so the
+capture/restore pair a mode-keyed cell render newly fires had no oracle — the
+presentation specs that carry a table hover its grips instead of entering it.
+
 ## Happy paths
 
 - a caret mid-construct in live survives the flip to source at the same raw
@@ -22,6 +26,8 @@ as normal until a spec owned the caret across a flip.
   (preview-block, preview-inline, live) at the same path and offset
 - flipping INTO an editable rung re-seats the caret right away, not only after
   the round trip back
+- a caret inside a table cell survives the flip at the same cell path and
+  offset, and the next typed byte lands in that cell
 
 ## Edge cases
 

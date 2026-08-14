@@ -317,7 +317,7 @@ A later editor may mount carrying a plugin an earlier one never had. The late in
 
 The same rule covers directive names. A plugin that yields an already-claimed `:::name` resolves that claim by which setup ran first in the process, which under SSR is route order again, so a pre-claim behaves predictably only when one set installs everywhere.
 
-Per-route variation belongs in per-instance options, not in per-route plugin sets: pass `{ plugin, options }` in the array and read the values through `editor.options`. An option baked into a plugin factory at definition time is process-global, so the first route to load fixes it for every other one.
+Per-route variation belongs in per-instance options, not in per-route plugin sets: pass `{ plugin, options }` in the array. An option baked into a plugin factory at definition time is process-global, so the first route to load fixes it for every other one.
 
 ### Bundled plugins
 
