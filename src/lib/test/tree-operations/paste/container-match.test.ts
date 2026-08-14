@@ -92,3 +92,42 @@ describe('findContainerMatchingUnwrap — blockquote non-empty target (no wholes
 		expect(unwrap!.outerPath).toEqual([0]);
 	});
 });
+
+// The merge slices a DISPLAY offset out of the target leaf and reattaches the residue to the
+// clipboard's last item, so both ends must be one paragraph. An item carrying more declines the
+// whole unwrap and the paste falls through to the routes that splice whole blocks.
+// Miss-analysis: the finder's paragraph gate had pins for empty and non-empty TARGETS but none
+// for a clipboard item whose shape the merge cannot address.
+describe('findContainerMatchingUnwrap — the merge arm’s paragraph gate', () => {
+	const target = () => parse('- hello\n');
+
+	it('unwraps with a merge when every clipboard item is one paragraph', () => {
+		const unwrap = findContainerMatchingUnwrap(
+			target(),
+			[0, 0, 0],
+			'hello'.length,
+			parse('- one\n- two\n'),
+			true
+		);
+
+		expect(unwrap!.merge).toEqual({ targetLeafPath: [0, 0, 0], offset: 'hello'.length });
+	});
+
+	it('declines when the first item carries more than its paragraph', () => {
+		const clipboard = parse('- one\n\n  two\n- three\n');
+		expect(clipboard.children[0].children![0].children).toHaveLength(2);
+
+		expect(
+			findContainerMatchingUnwrap(target(), [0, 0, 0], 'hello'.length, clipboard, true)
+		).toBeNull();
+	});
+
+	it('declines when the last item carries more than its paragraph', () => {
+		const clipboard = parse('- one\n- two\n\n  three\n');
+		expect(clipboard.children[0].children![1].children).toHaveLength(2);
+
+		expect(
+			findContainerMatchingUnwrap(target(), [0, 0, 0], 'hello'.length, clipboard, true)
+		).toBeNull();
+	});
+});

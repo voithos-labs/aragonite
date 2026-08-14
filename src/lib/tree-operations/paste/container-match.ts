@@ -5,6 +5,7 @@
  */
 
 import { CURSOR_END } from '../../block-component';
+import { devWarn } from '../../dev-warn';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { nodeAt, updateNodeContent, writeOwnRaw } from '../node-ops';
@@ -72,8 +73,8 @@ export function findContainerMatchingUnwrap(
 		// Merge-first / trailing-residue semantics are only well-defined for
 		// single-paragraph first and last items.
 		if (!crossBlockContext) return null;
-		if (!hasSingleParagraphChild(topBlock.children[0])) return null;
-		if (!hasSingleParagraphChild(topBlock.children[topBlock.children.length - 1])) return null;
+		if (!singleParagraphChildOf(topBlock.children[0])) return null;
+		if (!singleParagraphChildOf(topBlock.children[topBlock.children.length - 1])) return null;
 
 		return {
 			outerPath: ancestorPath,
@@ -94,8 +95,15 @@ function isEmptyContainerChild(node: CstNode): boolean {
 	return c.raw.trim() === '';
 }
 
-function hasSingleParagraphChild(node: CstNode): boolean {
-	return !!node.children && node.children.length === 1 && node.children[0].kind === 'paragraph';
+/**
+ * The one paragraph an unwrapped item's text may be spliced as. The merge slices a DISPLAY
+ * offset out of the target leaf and reattaches the residue, which only prose bytes address —
+ * so both writes re-read this rather than trusting the finder's gate from a distance.
+ */
+function singleParagraphChildOf(node: CstNode): CstNode | null {
+	if (!node.children || node.children.length !== 1) return null;
+	const child = node.children[0];
+	return child.kind === 'paragraph' ? child : null;
 }
 
 /**
@@ -190,9 +198,17 @@ async function applyContainerMatchingMerge(
 	const targetLeaf = nodeAt(ctx.doc, merge.targetLeafPath) as CstNode | null;
 	if (!targetLeaf) return;
 
-	const firstItem = unwrap.items[0];
-	const firstLeaf = firstItem.children?.[0];
-	if (!firstLeaf) return;
+	const firstLeaf = singleParagraphChildOf(unwrap.items[0]);
+	const lastLeaf = singleParagraphChildOf(unwrap.items[unwrap.items.length - 1]);
+	if (!firstLeaf || !lastLeaf) {
+		// Unreachable while the finder's gate holds. Declining before the commit keeps a drifted
+		// gate a clean no-op, and the diagnostic is what stops that drift being silent.
+		devWarn('paste-container-match', 'merge items are no longer single-paragraph', {
+			first: unwrap.items[0].kind,
+			last: unwrap.items[unwrap.items.length - 1].kind
+		});
+		return;
+	}
 
 	const targetLineEnding = trailingLineEnding(targetLeaf.raw);
 	const targetDisplay = trimTrailingLineEnding(targetLeaf.raw);
@@ -238,10 +254,6 @@ async function applyContainerMatchingMerge(
 	}
 
 	const lastItem = remainingItems[remainingItems.length - 1];
-	// Guaranteed by `hasSingleParagraphChild` upstream; bailing here (before the commit)
-	// keeps a drifting guard a clean no-op rather than a half-applied mutation.
-	const lastLeaf = lastItem.children?.[0];
-	if (!lastLeaf) return;
 	const lastLineEnding = trailingLineEnding(lastLeaf.raw);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
 
