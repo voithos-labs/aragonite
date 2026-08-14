@@ -1,9 +1,11 @@
 <script module lang="ts">
+	import type { TocOptions } from '$lib/plugins/toc';
 	import { DEMO_PLUGINS, DEMO_TOC } from './../demo-plugins';
 
 	// This route's own outline depth, declared per instance so the shared set still installs once.
+	// `satisfies` because the prop's options are `unknown` to the editor.
 	const changelogPlugins = DEMO_PLUGINS.map((entry) =>
-		entry === DEMO_TOC ? { plugin: DEMO_TOC, options: { maxDepth: 3 } } : entry
+		entry === DEMO_TOC ? { plugin: DEMO_TOC, options: { maxDepth: 3 } satisfies TocOptions } : entry
 	);
 </script>
 
