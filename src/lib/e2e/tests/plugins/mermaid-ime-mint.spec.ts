@@ -87,6 +87,22 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('日本');
 	});
 
+	// A toolbar click is a focus arrival from INSIDE the box, and a hand-off that exempts those
+	// leaves the next click on the diagram sitting on the declared surface — where IME is dropped
+	// exactly as before the fix, with the keydown mint still working so nothing else reds.
+	test('a click after a toolbar button still reaches the editing host', async ({ page }) => {
+		await editor.box.hover();
+		await editor.box.getByTestId('mermaid-reset').click();
+
+		await editor.viewport.click();
+
+		await expect(editor.inputHost).toBeFocused();
+		const cdp = await page.context().newCDPSession(page);
+		await cdp.send('Input.insertText', { text: '€' });
+		await waitForDoc(page, (s) => s.rootCount === 4);
+		expect((await readDoc(page)).texts[2]).toBe('€');
+	});
+
 	// The one declared surface that owns its caret: the host must not take focus from it, or
 	// every keystroke of an edit session mints a paragraph instead of editing the draft. Typed
 	// rather than composed — the CDP driver settles on `textContent`, which a textarea has none of.
