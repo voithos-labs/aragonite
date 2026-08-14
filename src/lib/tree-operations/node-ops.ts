@@ -750,31 +750,47 @@ export function settleSeparatorOnBlank(
 	// (`innerPrefix`/`innerSuffix`), on top of the run's own count; an all-blank body owes none.
 	const wrap = bodyWrapOf(parent);
 	const slots = wrapSlotsOf(parent);
-	const tailBelowProse = start > bodyStart && end === children.length - 1;
-	if (slots && wrap?.beforeCloserLine && tailBelowProse && !slots.innerSuffix) {
+	const bodyEnd = children.length - 1;
+	// A run of two or more that IS the whole body sits against both chrome lines, and the reload
+	// peels one line into each slot before it materializes a block — so it owes BOTH, where an
+	// arm bounded by prose on one side grants at most one (GH #130).
+	const twoPeelBody =
+		!!slots &&
+		wrap?.afterOpenerLine === true &&
+		wrap.beforeCloserLine === true &&
+		start === bodyStart &&
+		end === bodyEnd &&
+		start < end;
+	const tailBelowProse = start > bodyStart && end === bodyEnd;
+	if (slots && wrap?.beforeCloserLine && (tailBelowProse || twoPeelBody) && !slots.innerSuffix) {
 		slots.innerSuffix = trailingLineEnding(children[end].raw);
 	}
 	// The reverse: a deletion can leave a lone blank as the WHOLE body, where the closer
 	// peel no longer engages beside the opener's — the run gives the extra line back.
-	const loneBlankBody = start === bodyStart && end === children.length - 1 && start === end;
+	const loneBlankBody = start === bodyStart && end === bodyEnd && start === end;
 	if (slots && loneBlankBody && slots.innerSuffix && (slots.innerPrefix || standing.length > 0)) {
 		slots.innerSuffix = '';
 	}
 	const headUnderWrap =
-		!!slots && wrap?.afterOpenerLine === true && start === bodyStart && end < children.length - 1;
-	if (headUnderWrap && slots && !slots.innerPrefix && standing.length === 0) {
+		!!slots && wrap?.afterOpenerLine === true && start === bodyStart && end < bodyEnd;
+	// A line already standing IS the opener's peel on reload, so taking one as well would add a
+	// line — but a two-peel body's count comes out of the slots, not out of the run.
+	const takesOpenerPeel = twoPeelBody || (headUnderWrap && standing.length === 0);
+	if (slots && takesOpenerPeel && !slots.innerPrefix) {
 		slots.innerPrefix = trailingLineEnding(children[start].raw);
 	}
 	// Under the wrap the run keeps exactly the one peel line — in `innerPrefix` or still
 	// standing; elsewhere a run with no LINE above it (the document head, a plain container's
 	// body head) separates from nothing and materializes in full.
-	const wanted = headUnderWrap
-		? slots?.innerPrefix
-			? 0
-			: 1
-		: start > 0 || wrap?.afterOpenerLine
-			? 1
-			: 0;
+	const wanted = twoPeelBody
+		? 0
+		: headUnderWrap
+			? slots?.innerPrefix
+				? 0
+				: 1
+			: start > 0 || wrap?.afterOpenerLine
+				? 1
+				: 0;
 	if (standing.length < wanted) {
 		mintSeparator(parent, start, sharing);
 	} else {
