@@ -22,10 +22,8 @@ const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sa
 const TABLE_TAIL_DOC = 'lead para\n\nmiddle para\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 const MATH_DOC = 'Alpha lead paragraph.\n\nBeta $x^2$ middle.\n\nGamma tail paragraph.\n';
 const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph.\n';
-// The blank line under `# Overview` is load-bearing, not formatting: the TOC entry lands
-// its caret at that heading's offset 0, where the key demotes it to a paragraph. Tighten
-// the gap and the block below becomes a lazy continuation on reparse, reddening the
-// convergence oracle over the deferred class in issue #21 — nothing this probe tests.
+// The blank lines are fixture hygiene, not a workaround: a demotion at `# Overview` now
+// folds inside the commit either way, so live and reload agree at any spacing.
 const TOC_DOC = '# Overview\n\nSome prose here.\n\n## Details\n\n[[toc]]\n\nFooter line.\n';
 // A table FIRST, so the editor's leading padding is the gap boundary a click can reach; the
 // trailing paragraph is long enough to anchor the select-all the family builds from.

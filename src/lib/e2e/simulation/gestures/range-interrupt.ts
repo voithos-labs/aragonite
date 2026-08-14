@@ -58,9 +58,8 @@ const SPECS: Record<RangeInterruptGesture, GestureSpec> = {
 	'image-click': { consumes: 'block', build: 'select-all', act: clickImageWidget },
 	'drag-handle-press': { consumes: 'range', build: 'prose-range', act: pressDragHandle },
 	// The one caret-pinned gesture on a prose range: Escape collapses to the ANCHOR, and a
-	// select-all anchor is byte 0 — typing there demotes the first block's kind into the
-	// deferred lazy-continuation class of issue #21, reddening convergence for an unrelated
-	// reason. A prose-range anchor is interior.
+	// prose-range anchor is interior — a stable landing to assert against, no more than that
+	// (a byte-0 demotion now folds inside the commit and converges).
 	escape: { consumes: 'caret', build: 'prose-range', act: pressEscape },
 	'search-round-trip': { consumes: 'range', build: 'prose-range', act: searchRoundTrip },
 	// Only the second cost a whole-document delete: an inline island's click reaches the

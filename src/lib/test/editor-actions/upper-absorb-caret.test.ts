@@ -61,6 +61,20 @@ describe('caret after a fold above the edited block — top level', () => {
 		expect(h.calls).toEqual([{ slot: 0, offset: 3 }]);
 	});
 
+	// The blank arm reaches the same door when emptying changes the KIND: a heading emptied to a
+	// blank line is a non-noop preview, so the ceremony runs and the container above swallows the
+	// slot — the blank arm's textStart, spent at a door, not just derived at the tree op.
+	it('spends the blank arm textStart when emptying a heading folds it upward', async () => {
+		const h = makeTop('- item\n\n# h\n\n    code\n');
+
+		await h.actions.updateBlockContent(1, '\n', 1, 0);
+
+		expect(h.harness.doc.children.map((c) => [c.kind, c.raw])).toEqual([
+			['list', '- item\n\n\n    code\n']
+		]);
+		expect(h.calls).toEqual([{ slot: 0, offset: 8 }]);
+	});
+
 	// The decline side: nothing absorbed above, so the caret keeps the offset it was handed.
 	it('leaves the caret alone where the join above still holds', async () => {
 		const h = makeTop('a\n\n# h\nb\n');
