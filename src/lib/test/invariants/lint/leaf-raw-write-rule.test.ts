@@ -64,6 +64,13 @@ const FENCE_READERS: Record<string, string> = {
 	'src/lib/components/blocks/code/code-paste.ts': 'the paste surface'
 };
 
+/** Every site sizing a fence run over a body, which is a wider set than the write rule. */
+const ESCALATION_SITES: Record<string, string> = {
+	'src/lib/core/parsers/fence-syntax.ts': 'the grammar leaf that defines it',
+	[FENCE_HOME]: 'the fencedCode write rule',
+	[SINK]: 'sizes the terminator the content write mints for a construct it left open (GH #180)'
+};
+
 const CAPABILITY = /\bnormalizeRawWrite\b/;
 const READER = /\bwriteOwnRaw\b/;
 const PRE_REPARSE_READER = /\bnormalizeOwnRaw\b/;
@@ -225,11 +232,10 @@ describe('the fence rule has one implementation', () => {
 		);
 	});
 
-	it('the escalation primitive is named only by the grammar leaf and the rule', () => {
-		expect(namesInCode(sources, /\bescalatedFenceLength\b/)).toEqual([
-			'src/lib/core/parsers/fence-syntax.ts',
-			FENCE_HOME
-		]);
+	it('exactly the documented sites name the escalation primitive', () => {
+		expect(namesInCode(sources, /\bescalatedFenceLength\b/)).toEqual(
+			Object.keys(ESCALATION_SITES).sort()
+		);
 	});
 
 	// The rule reads the block's OWN fence shape, so it must live where a headless sink can

@@ -10,6 +10,7 @@ import { DEV } from 'esm-env';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph, isBlankSource, parse, type ContainerBodyWrap } from '../core/parser';
+import { escalatedFenceLength, matchFenceOpen } from '../core/parsers/fence-syntax';
 import { isBlockOpenerRegistered, type GrammarView } from '../schema/block-openers';
 import {
 	getLiveJoinSeamCleaner,
@@ -1428,6 +1429,57 @@ function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
 	return change.op === 'replace' ? change.at + change.newCount - 1 : blockIndex;
 }
 
+/**
+ * The written bytes parsed, with the construct they leave OPEN closed off first. An unterminated
+ * construct reads every block below it as its body at the next parse, and the seam settle
+ * converges the live tree to exactly that reading — the whole document swallowed by one typed
+ * fence (GH #180). Declines where nothing is at stake: a kind-stable single block never reaches
+ * the settle, and a construct with no follower eats nothing.
+ */
+function closeWrittenConstruct(
+	parent: BodyParentArg,
+	blockIndex: number,
+	text: string,
+	oldKind: AnyBlockKind,
+	grammar: GrammarView | undefined
+): { text: string; parsed: Document } {
+	// An absent grammar defaults to the global one. Fragment scope: this is one block's
+	// bytes, whatever its position, so a position-scoped kind must not mint here.
+	const parsed = parse(text, { grammar, scope: 'fragment' });
+	if (blockIndex + 1 >= parent.children.length) return { text, parsed };
+	if (parsed.children.length === 1 && parsed.children[0].kind === oldKind) return { text, parsed };
+	const terminator = openConstructTerminator(text, parsed.children, grammar);
+	if (!terminator) return { text, parsed };
+	const closed = text + terminator;
+	return { text: closed, parsed: parse(closed, { grammar, scope: 'fragment' }) };
+}
+
+/**
+ * The terminator written bytes owe when their last construct absorbs to EOF, asked of the grammar
+ * rather than a kind list: swallowing a blank line AND a prose line is what separates an absorber
+ * from a paragraph continuing onto the next line. Null when the bytes terminate themselves, or
+ * when no fence opener explains the absorb — the one family whose closer its opener determines.
+ */
+function openConstructTerminator(
+	text: string,
+	blocks: readonly CstNode[],
+	grammar: GrammarView | undefined
+): string | null {
+	// The terminator is a line of its own, so bytes whose last line is still open have none to
+	// append to — G4.20's unterminated tail slice, which absorbs nothing while it stands alone.
+	if (!text.endsWith('\n') || blocks.length === 0) return null;
+	const ending = trailingLineEnding(text);
+	const probe = parse(text + ending + NEXT_PROSE_LINE + ending, { grammar, scope: 'fragment' });
+	if (probe.children.length !== blocks.length) return null;
+	const raw = blocks[blocks.length - 1].raw;
+	const nl = raw.indexOf('\n');
+	const opener = matchFenceOpen(nl < 0 ? raw : raw.slice(0, nl));
+	if (!opener) return null;
+	const body = nl < 0 ? '' : raw.slice(nl + 1);
+	const run = escalatedFenceLength(body, opener.marker, opener.length);
+	return opener.indent + opener.marker.repeat(run) + ending;
+}
+
 function writeParsedContent(
 	parent: BodyParentArg,
 	blockIndex: number,
@@ -1439,19 +1491,23 @@ function writeParsedContent(
 	const oldDescriptor = getBlockKindDescriptor(oldKind);
 	// Ahead of every reparse below, so a write lands on the kind its committed bytes
 	// describe, not the kind the pre-escape text would parse to (`bodyWrite`).
-	const newText = forBody(parent, text);
+	const bodyText = forBody(parent, text);
 
 	// A context-dependent kind (tableCell, plugin chrome) has no standalone recognizer, so
 	// reparsing would downgrade it: keep the kind and write raw through the kind's own
 	// legality pass, since a delimiter arriving bare would restructure the container.
 	if (oldDescriptor.contextDependentKind) {
-		writeOwnRaw(node, newText, grammar);
+		writeOwnRaw(node, bodyText, grammar);
 		return { op: 'noop' };
 	}
 
-	// An absent grammar defaults to the global one. Fragment scope: this is one block's
-	// bytes, whatever its position, so a position-scoped kind must not mint here.
-	const reparsed = parse(newText, { grammar, scope: 'fragment' });
+	const { text: newText, parsed: reparsed } = closeWrittenConstruct(
+		parent,
+		blockIndex,
+		bodyText,
+		oldKind,
+		grammar
+	);
 	const parsed = reparsed.children;
 	const first: CstNode | undefined = parsed[0];
 	// A container whose empty body will be backfilled: a marker-consuming container (a
