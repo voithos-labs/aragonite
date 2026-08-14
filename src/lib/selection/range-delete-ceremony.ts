@@ -255,7 +255,8 @@ export function rebuildSharedAncestries(
 	grammar: GrammarView | undefined
 ): void {
 	for (const path of plan.deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing, grammar);
+		rebuildUnsharedAncestry(doc, path, sharing, null, grammar);
 	}
-	if (plan.chromeClearChain) rebuildUnsharedChain(doc, plan.chromeClearChain, sharing, grammar);
+	if (plan.chromeClearChain)
+		rebuildUnsharedChain(doc, plan.chromeClearChain, sharing, null, grammar);
 }

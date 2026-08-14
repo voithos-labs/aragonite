@@ -317,7 +317,7 @@ export function checkInnermostFirstAncestry(
 
 	// Fresh sharing state and global grammar: this probe asserts raw propagation only,
 	// never a kind re-derivation, so nothing shared and no registry view is needed.
-	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), undefined);
+	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), null, undefined);
 
 	assert(root.raw.includes(marker), `root raw reflects the deep leaf edit through "${kind}"`);
 }

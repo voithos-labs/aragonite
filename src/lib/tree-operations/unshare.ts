@@ -8,15 +8,17 @@
 import type { CstNode } from '../core/nodes';
 import type { NodeParentView, NodeView } from '../core/node-views';
 import type { SharingState } from './sharing';
-import type { NodeParent } from './node-ops';
+import type { NodeParent, TrackedPosition } from './node-ops';
+import type { StructuralChange } from './structural-change';
 import { assertInvariant } from '../invariants/assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { GrammarView } from '../schema/block-openers';
+import { trimTrailingLineEnding } from '../core/lines';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
-import { lineOpensAs, reclassifyContainer } from './node-ops';
+import { absorbWindowSeams, lineOpensAs, reclassifyContainer } from './node-ops';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
 	const copy = { ...node } as CstNode;
@@ -166,44 +168,125 @@ export interface ContainerReclassification {
 }
 
 /**
- * Rebuild raws along an owned spine chain innermost-first, re-deriving each container's kind;
- * chain- rather than path-based so it survives sibling-index shifts. Re-derivation costs a
- * whole-container parse, so it is gated on the opener line changing AND `lineOpensAs` not naming
- * the current kind — a positive identification, so a declining opener parses rather than eliding
- * a real kind change (`test/tree-operations/opener-verdict-agreement`).
+ * A fold the rebuilt container's own slot owed: its bytes stopped interrupting a neighbour, so
+ * the parent's array reloads as fewer blocks and no scope-local settle reaches that join
+ * (GH #176). `before` is the pre-splice array — the rollback register, since the splice lands in
+ * an array no commit descriptor covers. `landing` is where the container's first byte ended up.
+ */
+export interface AncestrySeamFold {
+	/** Chain level of the folded container, so a caller composes the owner's path from its own. */
+	depth: number;
+	siblings: CstNode[];
+	/** The chain node owning `siblings`, or null when they are the rebuild root's children. */
+	owner: CstNode | null;
+	change: StructuralChange;
+	before: CstNode[];
+	landing: TrackedPosition;
+}
+
+/**
+ * Rebuild raws along an owned spine chain innermost-first, re-deriving each container's kind and
+ * settling the seams at its own slot; chain- rather than path-based so it survives index shifts.
+ * Both passes gate on a boundary line of the rebuilt raw moving; the re-derive additionally needs
+ * `lineOpensAs` not to name the current kind, a positive identification so a declining opener
+ * parses rather than eliding a real kind change. `folds` is required-nullable: a fold splices the
+ * PARENT's array, so only a caller that reconciles that scope's ids/refs passes a sink.
  */
 export function rebuildUnsharedChain(
 	root: NodeParent | CstNode,
 	chain: CstNode[],
 	sharing: SharingState,
+	folds: AncestrySeamFold[] | null,
 	grammar: GrammarView | undefined
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
 	for (let i = chain.length - 1; i >= 0; i--) {
 		const node = chain[i];
-		const openerLineBefore = firstLine(node.raw);
+		const rawBefore = node.raw;
 		rebuildOwnedContainer(node, sharing);
-		const openerLineAfter = firstLine(node.raw);
-		if (openerLineAfter === openerLineBefore) continue;
-		if (lineOpensAs(openerLineAfter, grammar) === node.kind) continue;
+		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
+		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
+		if (!openerMoved && !closerMoved) continue;
 
-		const siblings = (i === 0 ? root : chain[i - 1]).children;
+		const owner = i === 0 ? null : chain[i - 1];
+		const siblings = (owner ?? root).children;
 		const index = siblings?.indexOf(node) ?? -1;
 		if (!siblings || index < 0) continue;
-		const replacement = reclassifyContainer({ children: siblings }, index, grammar);
-		if (replacement) {
-			sharing.stamp(replacement);
-			reclassified.push({ siblings, index, previous: node, replacement });
+
+		if (openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind) {
+			const replacement = reclassifyContainer({ children: siblings }, index, grammar);
+			if (replacement) {
+				sharing.stamp(replacement);
+				reclassified.push({ siblings, index, previous: node, replacement });
+			}
+		}
+		// After the re-derive: the seam reads whatever occupies the slot now.
+		if (folds) {
+			settleSlotSeams(
+				{ siblings, owner, depth: i, index, openerMoved, closerMoved },
+				sharing,
+				folds
+			);
 		}
 	}
 	if (perfEnabled()) recordRebuildDepth(chain.length);
 	return reclassified;
 }
 
+/** Where a rebuilt container sits, and which of its joins its new bytes can have moved. */
+interface ChainSlot {
+	siblings: CstNode[];
+	owner: CstNode | null;
+	depth: number;
+	index: number;
+	/** The join ABOVE turns on the opener line, the one BELOW on the closer: each is asked only
+	 *  when its own line moved, so a head-child edit never pays the follower-side parse. */
+	openerMoved: boolean;
+	closerMoved: boolean;
+}
+
+/**
+ * Ask the joins at a rebuilt container's slot, since its new bytes can stop interrupting a
+ * neighbour, which the reload then reads as one block with it. Byte-identical by construction,
+ * like every other seam absorb. `absorbWindowSeams` walks `at - 1 … at + added - 1`, so the two
+ * arguments below name exactly the sides whose line moved.
+ */
+function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: AncestrySeamFold[]): void {
+	const { siblings, index, openerMoved, closerMoved } = slot;
+	const before = siblings.slice();
+	const landing: TrackedPosition = { index, offset: 0 };
+	const settled = absorbWindowSeams(
+		{ children: siblings },
+		openerMoved ? index : index + 1,
+		openerMoved && closerMoved ? 1 : 0,
+		index,
+		{ op: 'noop' },
+		sharing,
+		landing,
+		index
+	);
+	if (settled.change.op === 'noop') return;
+	folds.push({
+		depth: slot.depth,
+		siblings,
+		owner: slot.owner,
+		change: settled.change,
+		before,
+		landing
+	});
+}
+
 /** The container's opener line. */
 function firstLine(raw: string): string {
 	const nl = raw.indexOf('\n');
 	return nl < 0 ? raw : raw.slice(0, nl);
+}
+
+/** The container's closing line: its last line carrying bytes, without the ending. */
+function lastLine(raw: string): string {
+	const body = trimTrailingLineEnding(raw);
+	const nl = body.lastIndexOf('\n');
+	return nl < 0 ? body : body.slice(nl + 1);
 }
 
 /**
@@ -215,7 +298,9 @@ export function rebuildUnsharedAncestry(
 	root: NodeParent,
 	path: number[],
 	sharing: SharingState,
+	folds: AncestrySeamFold[] | null,
 	grammar: GrammarView | undefined
 ): ContainerReclassification[] {
-	return rebuildUnsharedChain(root, walkUnsharing(root, path, sharing, false), sharing, grammar);
+	const chain = walkUnsharing(root, path, sharing, false);
+	return rebuildUnsharedChain(root, chain, sharing, folds, grammar);
 }

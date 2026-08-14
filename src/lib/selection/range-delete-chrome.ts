@@ -118,8 +118,8 @@ export function chromeAwareRangeDelete(
 
 	// Chain-based rebuilds: node references survive the splices above where paths may not, and
 	// every touched container re-emits raw (G1.12).
-	rebuildUnsharedChain(doc, startChain, sharing, grammar);
-	rebuildUnsharedChain(doc, endChain, sharing, grammar);
+	rebuildUnsharedChain(doc, startChain, sharing, null, grammar);
+	rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
 
 	return {
 		newDoc: doc,

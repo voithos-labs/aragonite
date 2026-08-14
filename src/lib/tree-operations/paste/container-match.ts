@@ -221,7 +221,7 @@ async function applyContainerMatchingMerge(
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
 					ctx.grammar
 				);
-				rebuildUnsharedChain(ctx.doc, chain, sharing, ctx.grammar);
+				rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
 				return [{ op: 'noop' }];
 			},
 			op: {
@@ -266,7 +266,7 @@ async function applyContainerMatchingMerge(
 			);
 			// Both rebuilds run before the splice, so the published children carry correct
 			// raws in one reactive flush.
-			rebuildUnsharedChain(ctx.doc, chain, sharing, ctx.grammar);
+			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
 			rebuildContainerRawIfContainer(remainingItems[remainingItems.length - 1]);
 
 			// The siblings land after the merged target, which keeps its own slot.

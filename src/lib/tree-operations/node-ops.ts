@@ -975,7 +975,8 @@ function absorbSeamReading(
 	seamLeft: number,
 	floor: number,
 	sharing?: SharingState,
-	tracked?: TrackedPosition
+	tracked?: TrackedPosition,
+	headProbe?: number
 ): SeamAbsorption {
 	const children = parent.children;
 	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0, spliced: false };
@@ -985,6 +986,8 @@ function absorbSeamReading(
 	let span = seamLeft - at + 1;
 	let eaten = 0;
 	let spliced = false;
+	// Only the first pass: a fold re-tiles the window, so the probe's absolute index is stale.
+	let probe = headProbe;
 	for (;;) {
 		// The candidate edge crosses a blank run too: the absorbed content sits on the
 		// run's far side (a list continues into indented code across any number of blanks).
@@ -994,6 +997,8 @@ function absorbSeamReading(
 		if (window.length <= span || window.length < 2) break;
 		// A context-dependent kind has no standalone reading, so its seam is not askable.
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
+		if (probe !== undefined && declinesOnHeadLine(window, probe - at)) break;
+		probe = undefined;
 		let joined = window[0].raw;
 		for (let i = 1; i < window.length; i++) joined += window[i].leadingTrivia + window[i].raw;
 		const reparsed = parse(joined, { scope: 'fragment' });
@@ -1017,6 +1022,24 @@ function absorbSeamReading(
 		spliced = true;
 	}
 	return { at, span, eaten, spliced };
+}
+
+/**
+ * Decline-only pre-parse for a window whose LAST member is the block that changed: join the
+ * others with only that block's first line. Block parsing is a left-to-right line scan, so the
+ * state entering that line is the same in both strings — if it opens a block here it opens one
+ * in the full join and no fold is possible. A pass falls through to the real parse, so no fold
+ * verdict is ever taken from truncated bytes. Costs the window minus the changed block, which is
+ * what keeps a keystroke inside a giant container off its own bytes.
+ */
+function declinesOnHeadLine(window: readonly CstNode[], member: number): boolean {
+	if (member <= 0 || member !== window.length - 1) return false;
+	let joined = window[0].raw;
+	for (let i = 1; i < member; i++) joined += window[i].leadingTrivia + window[i].raw;
+	const raw = window[member].raw;
+	const nl = raw.indexOf('\n');
+	joined += window[member].leadingTrivia + (nl < 0 ? raw : raw.slice(0, nl + 1));
+	return parse(joined, { scope: 'fragment' }).children.length >= window.length;
 }
 
 /**
@@ -1056,7 +1079,9 @@ export interface SettledSplice {
  * The seam question at every join the splice at `at` disturbed — its window's two edges and the
  * joins inside it — since a move can invalidate a join that was already correct (GH #21). Each
  * fold cascades downward, so the next seam is asked past what that one ate. `tracked` rides the
- * folds for a caller placing a caret in bytes an absorb can move.
+ * folds for a caller placing a caret in bytes an absorb can move. `headProbe` names the one block
+ * whose bytes changed, letting each ask decline on its first line alone; dropped once anything
+ * folds, since the index it names has moved by then.
  */
 export function absorbWindowSeams(
 	parent: NodeParent,
@@ -1065,14 +1090,22 @@ export function absorbWindowSeams(
 	landing: number,
 	change: StructuralChange,
 	sharing?: SharingState,
-	tracked?: TrackedPosition
+	tracked?: TrackedPosition,
+	headProbe?: number
 ): SettledSplice {
 	let settled: SeamAbsorption | null = null;
 	let moved = landing;
 	let seamLeft = at - 1;
 	let last = at + added - 1;
 	while (seamLeft <= last) {
-		const seam = absorbSeamReading(parent, seamLeft, 0, sharing, tracked);
+		const seam = absorbSeamReading(
+			parent,
+			seamLeft,
+			0,
+			sharing,
+			tracked,
+			settled ? undefined : headProbe
+		);
 		if (!seam.spliced) {
 			seamLeft++;
 			continue;

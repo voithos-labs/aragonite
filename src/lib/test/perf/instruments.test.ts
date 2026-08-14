@@ -197,7 +197,7 @@ describe('perf seams', () => {
 		// Nested paragraph's spine: list > listItem > list > listItem > paragraph.
 		const chain = ensureUnsharedPath(doc, [0, 0, 1, 0, 0], sharing);
 		enablePerfInstruments();
-		rebuildUnsharedChain(doc, chain, sharing, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
 		expect(perfSnapshot().rebuildDepths).toEqual({ 5: 1 });
 	});
 });

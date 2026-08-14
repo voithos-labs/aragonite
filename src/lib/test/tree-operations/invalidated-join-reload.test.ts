@@ -173,20 +173,35 @@ describe('absorbWindowSeams reports disjoint folds as one window', () => {
 	});
 });
 
-// Pins a known divergence at a producer no seam ask reaches: a mutation INSIDE a container changes
-// whether the container interrupts, and the join it invalidates is in the GRANDPARENT's children,
-// which the container's commit never splices. Driven through the door, so any level that closes it
-// turns this red — do not delete it to make it green.
+// A mutation INSIDE a container changes whether the container interrupts, and the join it
+// invalidates is in the GRANDPARENT's children, which the container's own commit never splices
+// (GH #176). The ancestry rebuild asks the seam at the container's slot on its way out.
 // Miss-analysis: the fuzzer's lanes each mutate a block and ask about its siblings; none mutates
 // inside a container and asks the container's own slot above.
-describe('a nested delete can stop an ordered list interrupting (GH #21, open)', () => {
-	it('leaves the list starting at 2, which the paragraph above swallows on reload', async () => {
+describe('a nested delete can stop an ordered list interrupting (GH #176)', () => {
+	it('folds the list into the paragraph it stopped interrupting', async () => {
 		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
 
 		await h.bundle.blockEdit.deleteBlock(0);
 
 		expect(serialize(h.deps.doc)).toBe('a\n2. y\n');
+		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph']);
+		expect(describeConvergence(h.deps.doc)).toBeNull();
+		// The parallel arrays are the grandparent's, which no commit descriptor covers.
+		expect(h.deps.blockIds).toHaveLength(1);
+		expect(h.deps.blockRefs).toHaveLength(1);
+	});
+
+	// The other side of the gate: a delete that leaves the list still interrupting settles
+	// nothing, so the paragraph above keeps its own slot.
+	it('leaves a list that still starts at 1 standing', async () => {
+		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
+
+		await h.bundle.blockEdit.deleteBlock(1);
+
+		expect(serialize(h.deps.doc)).toBe('a\n1. x\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
-		expect(describeConvergence(h.deps.doc)).toBe('[] live has 2 children, reparsed has 1');
+		expect(describeConvergence(h.deps.doc)).toBeNull();
+		expect(h.deps.blockIds).toHaveLength(2);
 	});
 });

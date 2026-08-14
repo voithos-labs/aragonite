@@ -24,8 +24,10 @@ import {
 	attachedChainPrefix,
 	ensureUnsharedPath,
 	rebuildUnsharedChain,
+	type AncestrySeamFold,
 	type ContainerReclassification
 } from '../../tree-operations/unshare';
+import { foldLandingFor, publishAncestryFolds, type FoldLanding } from '../ancestry-folds';
 import { createTextBatch } from './text-batch';
 import type {
 	CommitContainerStructuralArgs,
@@ -533,6 +535,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		// Container slots the chain rebuild re-kinded: the replacements are what the DEV
 		// probes check, and the slot is what an unwind restores.
 		const reclassified: ContainerReclassification[] = [];
+		// Parent-scope folds the ancestry settle spliced, with the caret landing they owe: the
+		// fold re-mints every block in its window, so a scope it ate has no ref left to focus.
+		const folds: AncestrySeamFold[] = [];
+		let landing: FoldLanding | null = null;
+		let unwindFolds: (() => void) | null = null;
 		await __commit({
 			kind: 'container',
 			snapshot,
@@ -565,23 +572,35 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 				// chain concatenates it. Truncating to the attached prefix keeps a
 				// spliced-out scope from being rebuilt off its emptied children.
 				for (const p of [...prepared].sort((a, b) => b.chain.length - a.chain.length)) {
+					const before = folds.length;
 					reclassified.push(
 						...rebuildUnsharedChain(
 							deps.doc,
 							attachedChainPrefix(deps.doc, p.chain),
 							deps.sharing,
+							folds,
 							deps.grammar
 						)
 					);
+					landing = foldLandingFor(folds.slice(before), p.target.path) ?? landing;
 				}
-				return changeList.some((c) => c.op !== 'noop');
+				unwindFolds = publishAncestryFolds(deps, folds);
+				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
 			},
 			publish: () => {
 				// Nudge top-level reactivity so ancestor-raw mutations propagate.
 				deps.doc.children = [...deps.doc.children];
 			},
 			op,
-			afterTick,
+			afterTick: async () => {
+				try {
+					await afterTick?.();
+				} finally {
+					// After the caller's landing and regardless of it: the fold ate the scope that
+					// landing addressed, so it resolved no ref — or read through a detached node.
+					if (landing) (await deps.revealPath(landing.path))?.focus(landing.offset);
+				}
+			},
 			discardIfNoop,
 			// Detached scopes are no longer committed tree state — checking one would fire
 			// stale-raw on a node the document no longer contains.
@@ -593,6 +612,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					...reclassified.map((r) => r.replacement)
 				].filter((n) => tryGetBlockKindDescriptor(n.kind) !== undefined),
 			rollback: () => {
+				// Folds unwind first: each restores a whole parent array, which the
+				// reclassification registers below then correct slot by slot.
+				unwindFolds?.();
 				// Reverse of the landing order, so a slot is never restored under a node the
 				// next restore is about to replace.
 				for (let i = reclassified.length - 1; i >= 0; i--) {

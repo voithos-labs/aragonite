@@ -105,7 +105,7 @@ function deleteWithinTable(
 	// Same-path intra-table endpoints are context-established, not flagged, so they read
 	// `.offset` directly; cellIndexOf would warn spuriously here.
 	clearRectangularCells(table, start.offset, end.offset);
-	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
@@ -193,9 +193,9 @@ function deleteFromProseIntoTable(
 
 	const tableSurvives = result === 'tableSurvives';
 	if (tableSurvives) rebuildOwnedContainer(table, sharing);
-	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
-	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing, grammar);
+	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing, null, grammar);
 
 	return {
 		newDoc: doc,
@@ -269,9 +269,9 @@ function deleteFromTableIntoProse(
 
 	if (tableResult === 'tableSurvives') {
 		rebuildOwnedContainer(table, sharing);
-		rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	}
-	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing, grammar);
+	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing, null, grammar);
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
 	// Case 2 of `e2e/requirements/blocks/table/cross-block-delete.md`: a fully consumed table
@@ -361,11 +361,11 @@ function deleteAcrossTwoTables(
 
 	if (startResult === 'tableSurvives') {
 		rebuildOwnedContainer(startTable, sharing);
-		rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	}
 	if (endTablePath) {
 		rebuildOwnedContainer(endTable, sharing);
-		rebuildUnsharedAncestry(doc, endTablePath, sharing, grammar);
+		rebuildUnsharedAncestry(doc, endTablePath, sharing, null, grammar);
 	}
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
