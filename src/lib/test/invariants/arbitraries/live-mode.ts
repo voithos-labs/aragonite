@@ -1,4 +1,5 @@
 import fc from 'fast-check';
+import { withDrawnLineEnding } from './line-endings';
 
 /**
  * The alphabet live mode's hidden edges are made of. `inline.ts` biases toward the emphasis
@@ -118,6 +119,6 @@ const arbLiveBlock = fc
  * A multi-block document with blank separators: the gestures that cross a block boundary (a merge,
  * a cross-block range delete) need two prose leaves and a seam between them.
  */
-export const arbLiveDoc = fc
-	.array(arbLiveBlock, { minLength: 1, maxLength: 3 })
-	.map((blocks) => blocks.join('\n\n') + '\n');
+export const arbLiveDoc = withDrawnLineEnding(
+	fc.array(arbLiveBlock, { minLength: 1, maxLength: 3 }).map((blocks) => blocks.join('\n\n') + '\n')
+);
