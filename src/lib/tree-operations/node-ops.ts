@@ -1432,9 +1432,9 @@ function lastMintedIndex(change: StructuralChange, blockIndex: number): number {
 /**
  * The written bytes parsed, with the construct they leave OPEN closed off first. An unterminated
  * construct reads every block below it as its body at the next parse, and the seam settle
- * converges the live tree to exactly that reading — the whole document swallowed by one typed
- * fence (GH #180). Declines where nothing is at stake: a kind-stable single block never reaches
- * the settle, and a construct with no follower eats nothing.
+ * converges the live tree to exactly that reading. Declines where nothing is at stake: a
+ * kind-stable single block never reaches the settle, and a construct with no follower eats
+ * nothing.
  */
 function closeWrittenConstruct(
 	parent: BodyParentArg,
