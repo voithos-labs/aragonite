@@ -11,6 +11,7 @@ import {
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
 
@@ -37,13 +38,28 @@ async function pasteAfterX(clipboard: string): Promise<Document> {
 
 /** Paste `clipboard` at the head of block `index` of a live document. */
 async function pasteAtHeadOf(doc: Document, index: number, clipboard: string): Promise<Document> {
+	return (await pasteLive(doc, [index], 0, clipboard)).doc;
+}
+
+/**
+ * Paste through the real per-level bundle, so the INLINE route commits too — `makeStubBlockEdit`
+ * swallows `updateBlockContent`, which is every single-paragraph clipboard.
+ */
+async function pasteLive(
+	doc: Document,
+	targetPath: number[],
+	offset: number,
+	clipboard: string
+): Promise<{ doc: Document; history: ReturnType<typeof createHistoryActions> }> {
 	__resetPasteSurfacesForTests();
 	registerPasteSurface(__getDefaultTextSurface('paragraph'));
-	const { deps } = makeEditorActionsDeps(doc.children);
+	registerPasteSurface(__getDefaultTextSurface('heading'));
+	// The whole document, not its children: the trailing slot is the subject here.
+	const { deps } = makeEditorActionsDeps(doc);
 	const controller = createUndoController(deps);
 
 	await pasteDispatch(
-		{ pastedText: clipboard, targetPath: [index], offset: 0 },
+		{ pastedText: clipboard, targetPath, offset },
 		{
 			doc: deps.doc,
 			blockEdit: createBlockEditActions(deps, controller),
@@ -51,7 +67,7 @@ async function pasteAtHeadOf(doc: Document, index: number, clipboard: string): P
 			undoEntry: 'own'
 		}
 	);
-	return deps.doc;
+	return { doc: deps.doc, history: createHistoryActions(deps, controller) };
 }
 
 const raws = (doc: Document): string[] => doc.children.map((n) => n.raw);
@@ -139,5 +155,59 @@ describe('pasting over a blank line settles the separators it consumed', () => {
 
 		expect(serialize(pasted)).toBe('alpha\n\njust text\n\ndelta\n');
 		expect(layout(parse(serialize(pasted)))).toEqual(layout(pasted));
+	});
+});
+
+// GH #131: the parse folds a clipboard's ONE trailing blank into `doc.suffix` (a second already
+// materializes as a block), and the structural route consumed children only — so the same copied
+// separation survived an inline paste and vanished on a structural one.
+// Miss-analysis: every parity case pasted a clipboard whose bytes ended in content or in a run
+// long enough to materialize, so the single-line suffix was the one shape none of them carried.
+describe('a clipboard’s trailing blank line is content', () => {
+	it('keeps it at the document tail, where nothing else stands for the separation', async () => {
+		const { doc } = await pasteLive(parse('x\n'), [0], 1, '# h\n\n');
+
+		expect(serialize(doc)).toBe('x\n\n# h\n\n');
+		expect(doc.suffix).toBe('\n');
+		expect(layout(parse(serialize(doc)))).toEqual(layout(doc));
+	});
+
+	// The route that never lost it: the same bytes through the inline splice, which is what makes
+	// the structural arm's answer a parity fix rather than a new opinion.
+	it('keeps it on the inline route too', async () => {
+		const { doc } = await pasteLive(parse('x\n'), [0], 1, 'one\n\n');
+
+		expect(serialize(doc)).toBe('xone\n\n\n');
+	});
+
+	// Settled away: the splice already separates the pasted blocks from what follows, so the
+	// clipboard's line would be a second blank nobody typed.
+	it.each([
+		['a follower below the splice', [0] as number[], 5, 'alpha\n\n# h\n\ndelta\n'],
+		['a follower it was pasted in front of', [1] as number[], 0, 'alpha\n\n# h\n\ndelta\n'],
+		['reattached residue', [1] as number[], 2, 'alpha\n\nde\n\n# h\n\nlta\n']
+	])('drops it where the splice leaves %s', async (_case, path, offset, expected) => {
+		const { doc } = await pasteLive(parse('alpha\n\ndelta\n'), path, offset, '# h\n\n');
+
+		expect(serialize(doc)).toBe(expected);
+		expect(doc.suffix).toBe('');
+	});
+
+	// The slot's own bytes win where it already holds a line: a clipboard is normalized to LF at
+	// every entry point, so overwriting would strand one in a CRLF document (G4.20).
+	it('leaves a tail that already ends in a blank alone', async () => {
+		const { doc } = await pasteLive(parse('x\r\n\r\n'), [0], 1, '# h\n\n');
+
+		expect(doc.suffix).toBe('\r\n');
+	});
+
+	it('gives the suffix back on undo', async () => {
+		const { doc, history } = await pasteLive(parse('x\n'), [0], 1, '# h\n\n');
+		expect(doc.suffix).toBe('\n');
+
+		await history.requestUndo();
+
+		expect(serialize(doc)).toBe('x\n');
+		expect(doc.suffix).toBe('');
 	});
 });

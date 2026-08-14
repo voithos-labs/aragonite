@@ -32,6 +32,23 @@ export interface ReplaceBlockAtParentArgs {
 	source: Extract<OperationDetailMap['replaceBlock'], { source: unknown }>['source'];
 	/** Instance grammar for the escape's kind re-derive; absent = global. */
 	grammar?: GrammarView;
+	/** The clipboard's own trailing blank line, where nothing in the splice stands for it. */
+	trailingSeparator?: string;
+}
+
+/**
+ * Land the clipboard's trailing blank where a reload folds one: the DOCUMENT's own suffix, and
+ * only at a tail whose slot is empty — one separation is one separation. A container tail
+ * declines, since `innerSuffix` is the wrap-peel settle's register on this same commit.
+ */
+function landTrailingSeparator(
+	args: ReplaceBlockAtParentArgs,
+	children: CstNode[],
+	afterIndex: number
+): void {
+	if (!args.trailingSeparator || args.blockPath.length !== 1) return;
+	if (args.doc.suffix !== '' || afterIndex !== children.length) return;
+	args.doc.suffix = args.trailingSeparator;
 }
 
 export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Promise<void> {
@@ -66,6 +83,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 				? replacePreservingFirst(blockIdx, 1, replacement.length)
 				: { op: 'replace', at: blockIdx, count: 1, newCount: replacement.length };
 			stampStructuralChange(scopeView.children, change, scopeView.sharing);
+			landTrailingSeparator(args, scopeView.children, blockIdx + replacement.length);
 			return [change];
 		},
 		op: {

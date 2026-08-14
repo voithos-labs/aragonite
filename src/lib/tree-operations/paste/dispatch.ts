@@ -11,7 +11,13 @@ import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { parse } from '../../core/parser';
 import { isBlockNode, nodeAt } from '../node-ops';
-import { getPasteSurface, type PasteRange, type PasteSeam } from '../paste-surfaces';
+import {
+	getPasteSurface,
+	type PasteRange,
+	type PasteSeam,
+	type PasteSurface,
+	type StructuralPasteResult
+} from '../paste-surfaces';
 import { isReservedChromeChild } from '../../schema/reserved-chrome';
 import { applyInlineResult, applyStructuralResult } from './apply';
 import { normalizeClipboardForBody } from './body-write';
@@ -172,8 +178,31 @@ export async function pasteDispatch(
 
 	const hook = surface?.onStructuralPaste ?? defaultStructuralHook;
 	const result = hook(targetNode, input.offset, blocks.slice(), input.preDelete, ctx.seam);
-	await applyStructuralResult(input.targetPath, result, ctx);
+	await applyStructuralResult(
+		input.targetPath,
+		result,
+		ctx,
+		trailingSeparatorOf(parsed, result, surface)
+	);
 	return {};
+}
+
+/**
+ * A clipboard's trailing blank line is CONTENT (GH #131): a parse folds exactly one into `suffix`
+ * while a second already materializes as a block, and the inline route splices the bytes verbatim
+ * — so consuming children alone made one route keep the copied separation and its twin lose it.
+ * Spent only where the splice leaves nothing behind the pasted blocks; a residue or a follower
+ * already carries a separator of its own, and a packaging surface declines the whole question.
+ */
+function trailingSeparatorOf(
+	parsed: Document,
+	result: StructuralPasteResult,
+	surface: PasteSurface | undefined
+): string {
+	if (surface?.blankEdgesArePackaging) return '';
+	// `focusReplacementIndex` IS the last pasted node (`paste/focus-target.ts`), so anything past
+	// it is reattached residue.
+	return result.focusReplacementIndex === result.replacement.length - 1 ? parsed.suffix : '';
 }
 
 /** The hook's own caret offset, overridden by the settled landing where a fold moved it. */
