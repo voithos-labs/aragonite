@@ -134,7 +134,7 @@ describe('G1.33 fires from the focus seam', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	// The platform's own door no longer fires the guard from its body; it inherits it here.
+	// The platform's own door inherits the guard here rather than carrying it in its body.
 	it('fires when the shared editable factory parks into a marker-only surface', async () => {
 		const editor = await mountWith(
 			PLAIN_MARKER,
