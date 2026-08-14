@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { nodeAt } from '$lib/tree-operations/node-ops';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -13,12 +13,6 @@ import {
 	makeEditorActionsDeps
 } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// The container fixture is hand-built, not parser output, so the container-raw oracle reads it as
-// stale.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
-
 // jsdom has no native selection, so every commit here exercises the no-caret fallback:
 // the stored path must resolve to the operated child in the snapshot it restores
 // (reorder-action's "deep restore path" contract, extended to every container commit).
@@ -34,7 +28,7 @@ function quoteOf(children: CstNode[]): CstNode {
 		raw: children.map((c) => `> ${c.raw}`).join(''),
 		metadata: { quoteDepth: 1 },
 		children,
-		innerPrefix: '> ',
+		innerPrefix: '',
 		innerSuffix: ''
 	};
 }

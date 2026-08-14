@@ -15,7 +15,7 @@ function makeContainer(childRaws: string[]): CstNode {
 			leadingTrivia: '',
 			raw: r
 		})) as CstNode[],
-		innerPrefix: '> ',
+		innerPrefix: '',
 		innerSuffix: ''
 	} as CstNode;
 }

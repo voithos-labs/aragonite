@@ -1,14 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// The container fixtures are hand-built, not parser output, so the container-raw oracle reads
-// them as stale.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
-
 function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): any {
 	return { kind, leadingTrivia: '', raw, metadata };
 }
@@ -216,7 +210,7 @@ function makeContainerSetup(containerIndex: number) {
 		leadingTrivia: '',
 		raw: '> hello\n',
 		children: [innerNode],
-		innerPrefix: '> ',
+		innerPrefix: '',
 		innerSuffix: ''
 	};
 
