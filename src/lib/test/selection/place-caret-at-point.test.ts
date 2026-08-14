@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vite
 import type { BlockComponent } from '$lib/block-component';
 import { CURSOR_END } from '$lib/block-component';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { createDeadSpaceCaret } from '$lib/selection/dead-space-caret';
+import { createDeadSpaceCaret, type DeadSpaceCaretDeps } from '$lib/selection/dead-space-caret';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createStickyColumnState } from '$lib/cursor/sticky-column';
 import { makeEmptyGapScope } from '../harness/editor-actions';
@@ -71,13 +71,24 @@ describe('placeCaretAtPoint landing walk', () => {
 		root.remove();
 	});
 
-	function placeAt(x: number, y: number, reset: () => void = resetSelectionForClick): boolean {
-		const caret = createDeadSpaceCaret({
+	// One block is mounted, at index 0, so the default deps put the document's end inside the
+	// rendered slice — where every arm below but the windowed-tail one belongs.
+	function makeCaret(
+		overrides: Partial<DeadSpaceCaretDeps> = {},
+		reset: () => void = resetSelectionForClick
+	) {
+		return createDeadSpaceCaret({
 			getBlockComponent: () => component,
 			resetSelectionForClick: reset,
-			gapScope: makeEmptyGapScope()
+			gapScope: makeEmptyGapScope(),
+			lastBlockIndex: () => 0,
+			revealBlock: async () => component,
+			...overrides
 		});
-		return caret.placeAtPoint(root, x, y);
+	}
+
+	function placeAt(x: number, y: number, reset: () => void = resetSelectionForClick): boolean {
+		return makeCaret({}, reset).placeAtPoint(root, x, y);
 	}
 
 	it('lands the caret in the cell the point names', () => {
@@ -105,6 +116,29 @@ describe('placeCaretAtPoint landing walk', () => {
 	it('aims a point below the document at the last block’s trailing corner', () => {
 		expect(placeAt(20, TABLE_BOX.bottom + 2000)).toBe(true);
 		expect(focusByPath).toHaveBeenCalledWith([0, 1], CURSOR_END);
+	});
+
+	// Miss-analysis: the below-document arm above only ever ran with the whole document
+	// mounted, so "last mounted band" and "last block" were the same index and no test could
+	// tell which one the walk read.
+	it('resolves a point below a windowed-out tail against the document, not the slice', async () => {
+		const tail = { editable: true, focusable: true, focus: vi.fn() } as unknown as BlockComponent;
+		const revealBlock = vi.fn(async () => tail);
+		const caret = makeCaret({ lastBlockIndex: () => 9, revealBlock });
+
+		expect(caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000)).toBe(true);
+
+		await vi.waitFor(() => expect(tail.focus).toHaveBeenCalledWith(CURSOR_END));
+		expect(revealBlock).toHaveBeenCalledWith(9);
+		// The rendered slice's own last block is never touched — that landing is the defect.
+		expect(focusByPath).not.toHaveBeenCalled();
+	});
+
+	it('leaves the selection alone while a reveal that resolves nothing focusable is in flight', async () => {
+		const caret = makeCaret({ lastBlockIndex: () => 9, revealBlock: async () => null });
+		expect(caret.placeAtPoint(root, 20, TABLE_BOX.bottom + 2000)).toBe(true);
+		await Promise.resolve();
+		expect(resetSelectionForClick).not.toHaveBeenCalled();
 	});
 
 	it('returns false when the point resolves nothing focusable', () => {

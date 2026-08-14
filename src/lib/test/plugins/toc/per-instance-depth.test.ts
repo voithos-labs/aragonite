@@ -18,7 +18,7 @@ const mounted: Array<{ instance: EditorInstance; target: HTMLElement }> = [];
 function mountEditor(plugins: EditorPluginEntry[]): HTMLElement {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
-	// `scrollMode: 'host'` keeps windowing off, so the toc block stays mounted.
+	// A short fixture, so it stays under the windowing watermark and the toc block mounts.
 	const instance = mount(Editor, {
 		target,
 		props: { source: SOURCE, plugins, scrollMode: 'host' as const }

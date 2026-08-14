@@ -27,6 +27,7 @@ import { createEditorEvents } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
 import { createHeightOracle } from '$lib/cursor/height-oracle';
+import { createScrollport, type Scrollport } from '$lib/cursor/scrollport';
 import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
 import {
 	makeStickyColumn,
@@ -129,8 +130,24 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 			imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 		}),
 		scrollHost: () => null,
-		windowingEnabled: () => true,
+		scrollport: () => null,
+		correctsScroll: () => true,
 		widthVersion: () => 0
+	};
+}
+
+/** Self mode's own wiring: an editor root supplied without a port IS the port, so a harness
+ *  that stubs scroll geometry on the root gets windowing reading it, as in production. */
+function withDerivedScrollport(doc: EditorDoc): EditorDoc {
+	if (doc.scrollport() !== null) return doc;
+	let port: Scrollport | null = null;
+	return {
+		...doc,
+		scrollport: () => {
+			const el = doc.editorRoot();
+			if (el && !port) port = createScrollport(el);
+			return port;
+		}
 	};
 }
 
@@ -138,7 +155,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	const emptyDoc: Document = { kind: 'document', prefix: '', children: [], suffix: '' };
 	// The doc facet is assembled first so services that read the document (the
 	// decoration engine) see the override rather than the empty placeholder.
-	const doc: EditorDoc = { ...stubbedDoc(emptyDoc), ...overrides.doc };
+	const doc: EditorDoc = withDerivedScrollport({ ...stubbedDoc(emptyDoc), ...overrides.doc });
 	return new Map<symbol, unknown>([
 		[BLOCK_EDIT_KEY, overrides.blockEdit ?? makeStubBlockEdit()],
 		[FOCUS_KEY, overrides.focus ?? makeStubFocus()],

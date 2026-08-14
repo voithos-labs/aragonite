@@ -71,18 +71,17 @@ function placementOf(
 export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowing {
 	const {
 		heightOracle: oracle,
-		editorRoot: getEditorRoot,
+		scrollport: getPort,
+		correctsScroll,
 		focusedPath: getFocusPath,
 		widthVersion: getWidthVersion,
-		windowingEnabled,
 		blockElLookup
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
 	// Single-claimant: nested scopes keep top-of-viewport anchoring, or their deltas would
-	// fight over one scrollTop. Host-scroll mode has no claimant at all — the re-assertion
-	// would write scrollTop on an element that doesn't scroll.
-	const claimsRevealAnchor = opts.getParentPath().length === 0 && windowingEnabled();
+	// fight over one scrollTop.
+	const claimsRevealAnchor = opts.getParentPath().length === 0;
 
 	const windowing = createListWindowing({
 		oracle,
@@ -90,13 +89,13 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		getChildIds: opts.getChildIds,
 		getListEl: opts.getListEl,
 		getOwnEl: opts.getOwnEl,
-		getScrollEl: () => getEditorRoot?.() ?? null,
+		getPort: () => getPort?.() ?? null,
+		correctsScroll: () => correctsScroll?.() ?? true,
 		getFocusPath: () => getFocusPath?.() ?? null,
 		getRevealAnchorTarget: claimsRevealAnchor
 			? () => placementOf(revealAnchor?.get() ?? null, blockElLookup)
 			: undefined,
 		getWidthVersion: () => getWidthVersion?.() ?? 0,
-		windowingEnabled,
 		getParentPath: opts.getParentPath,
 		reportSelfHeight: parentSink
 			? (h) => parentSink.setChildSubtotal(opts.getIndex(), h)

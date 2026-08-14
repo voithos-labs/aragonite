@@ -41,9 +41,9 @@ export interface EditorProps {
 	 *  ignored while `searchBar` is false. Positioning inside it is the element's own business. */
 	searchBarAnchor?: HTMLElement | null;
 	/** Who owns the scroll, set once at mount. `'self'` (default) makes the root its own
-	 *  scrollport, so windowing keeps the mounted set O(viewport). `'host'` lets an
-	 *  ancestor scroll it: windowing never activates and EVERY block stays mounted, which
-	 *  suits a small embedded document, never a whole file. */
+	 *  scrollport. `'host'` lets an ancestor scroll it, and the editor windows against that
+	 *  scroller instead — so the mounted set stays O(viewport) either way. The one behavioural
+	 *  difference is scroll anchoring; the consumer guide's scrollMode section has the trade. */
 	scrollMode?: 'self' | 'host';
 	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
@@ -84,8 +84,8 @@ export interface EditorInstance {
 	 * nearest block's box, the block under it resolves the landing, a live cross-block range ends
 	 * first. For a shell owning chrome beside the document: the shell decides whether a click on
 	 * its own territory comes here, the editor decides where the caret goes. False when no
-	 * focusable landing resolves. Points resolve against MOUNTED blocks, so one below the document
-	 * lands in the last rendered block.
+	 * focusable landing resolves. A point below the whole document resolves against the CST, not
+	 * the rendered slice: past a windowed-out tail it claims the point and lands after the reveal.
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**

@@ -62,13 +62,29 @@ export function topVisibleHostTop(
 // ── Page-scrolled host embedding (`/test/page-scroll`) ──────────────
 
 /** The host shape where the scroll-host walk finds nothing scrollable and the window's own
- *  viewport is the scrollport. */
-export async function gotoPageScroll(page: Page): Promise<void> {
-	await page.goto('/test/page-scroll');
+ *  viewport is the scrollport. `blocks` sizes the entry across the windowing watermark. */
+export async function gotoPageScroll(page: Page, blocks?: number): Promise<void> {
+	await page.goto(
+		blocks === undefined ? '/test/page-scroll' : `/test/page-scroll?blocks=${blocks}`
+	);
 	await page.waitForFunction(
 		() => (window as any).__test !== undefined && (window as any).__pageScroll !== undefined,
 		null,
 		{ timeout: 10_000 }
+	);
+}
+
+/** Below the activation watermark, yet tall enough that a scroll can put nothing but entry
+ *  content in the viewport — the same embedding, rendered whole. */
+export const UNWINDOWED_ENTRY_BLOCKS = 60;
+
+/** Top-level hosts only — a nested path carries a comma. */
+export const TOP_LEVEL_HOSTS = '[data-block-path]:not([data-block-path*=","])';
+
+export function mountedTopLevelCount(page: Page): Promise<number> {
+	return page.evaluate(
+		(sel) => document.querySelectorAll(`.editor ${sel}`).length,
+		TOP_LEVEL_HOSTS
 	);
 }
 

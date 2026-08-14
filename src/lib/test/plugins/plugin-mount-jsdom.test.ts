@@ -78,7 +78,7 @@ function mountEditor(plugins: EditorPlugin[]): HTMLElement {
 	document.body.appendChild(target);
 	instance = mount(Editor, {
 		target,
-		// `scrollMode: 'host'` keeps windowing off, so the block under assertion stays mounted.
+		// A short fixture, so it stays under the windowing watermark and every block mounts.
 		props: { source: SOURCE, plugins, scrollMode: 'host' as const }
 	}) as EditorInstance;
 	flushSync();

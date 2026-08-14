@@ -3,10 +3,10 @@
  * below the last one) and the public `placeCaretAtPoint`, which shares the walk under the gesture
  * guards. A y belonging to no band may name an eligible gap boundary; otherwise clamp into the
  * nearest block's box and let `blockAtPoint` resolve the leaf, so nothing here knows a block kind.
- * "Below the last block" means the last MOUNTED one — the bands come from the live DOM.
+ * The bands come from the live DOM, so "below the last block" resolves against the CST (VR-6).
  */
 
-import type { BlockComponent } from '../block-component';
+import { CURSOR_END, type BlockComponent } from '../block-component';
 import { blockAtPoint, type BlockHit } from './block-hit-test';
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
@@ -59,6 +59,12 @@ export interface DeadSpaceCaretDeps {
 	resetSelectionForClick(): void;
 	/** The gap-caret arrival's reads; a point landing between two root bands parks there. */
 	gapScope: GapStopScope;
+	/** The document's own last top-level index, from the CST. The last mounted band is the
+	 *  document's last block only while nothing is windowed out below it. */
+	lastBlockIndex(): number;
+	/** Reveal (mount) a top-level block and hand back its component — the same road undo's
+	 *  restore uses. */
+	revealBlock(index: number): Promise<BlockComponent | null>;
 }
 
 export interface DeadSpaceCaret {
@@ -69,7 +75,8 @@ export interface DeadSpaceCaret {
 	/**
 	 * The landing walk with no gesture discrimination in front of it, for a caller that has
 	 * already decided to answer the point — the public `placeCaretAtPoint`. Shared rather than
-	 * reimplemented, so the two can never resolve one point differently.
+	 * reimplemented, so the two can never resolve one point differently. True means the point
+	 * was claimed; a point past a windowed-out tail claims it and lands after the reveal.
 	 */
 	placeAtPoint(root: HTMLElement, x: number, y: number): boolean;
 }
@@ -78,6 +85,18 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 	// The press half of the gesture, because `click` alone cannot tell a dead-space click from a
 	// drag that STARTED on a block and released in the margin: both report dead space as target.
 	let pressedOnDeadSpace = false;
+
+	/** The end-of-document gesture when the tail is windowed out: reveal the real last block,
+	 *  then land at its end — which is where the trailing-corner probe below lands when the
+	 *  slice already reaches it. */
+	async function landAtDocumentEnd(): Promise<void> {
+		const index = deps.lastBlockIndex();
+		if (index < 0) return;
+		const component = await deps.revealBlock(index);
+		if (!component?.focusable) return;
+		deps.resetSelectionForClick();
+		component.focus(CURSOR_END);
+	}
 
 	function placeAtPoint(root: HTMLElement, x: number, y: number): boolean {
 		// One measuring pass for both walks: the boundary question and the band clamp read the
@@ -96,6 +115,15 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			y
 		);
 		if (!band) return false;
+
+		// Below the last MOUNTED block is not below the document while a tail is windowed out,
+		// and a host's own below-the-editor handler resolves against the whole document — so
+		// the two would land a document apart. The reveal road is the only answer available
+		// here: the target has no box to probe until it mounts.
+		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) {
+			void landAtDocumentEnd();
+			return true;
+		}
 
 		const rect = blocks[band.index].rect;
 		const probeX = band.belowAll ? rect.right - 1 : clamp(x, rect.left + 1, rect.right - 1);
@@ -167,6 +195,15 @@ function measureBlocks(root: HTMLElement): MeasuredBlock[] {
 		path: readBlockPath(el),
 		rect: el.getBoundingClientRect()
 	}));
+}
+
+/** The last top-level index the slice currently holds; -1 when none is mounted. */
+function lastMountedTopLevel(blocks: MeasuredBlock[]): number {
+	for (let i = blocks.length - 1; i >= 0; i--) {
+		const path = blocks[i].path;
+		if (path?.length === 1) return path[0];
+	}
+	return -1;
 }
 
 /**

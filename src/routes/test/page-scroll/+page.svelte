@@ -3,10 +3,13 @@
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import { installTestProbes } from '../editor/test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
+	import type { PageData } from './$types';
 
 	// The second host-scroll shape: `scrollMode="host"` with NOTHING scrollable between the
 	// editor and the document, so the window's viewport is the scrollport and the PAGE scrolls.
 	// `/test/flow` covers the other one, an ancestor scroller pinned to 100vh.
+
+	let { data }: { data: PageData } = $props();
 
 	// No bytes to fetch, so the decode is fast and the intrinsic size is exact.
 	const LATE_IMAGE_SRC = `data:image/svg+xml,${encodeURIComponent(
@@ -17,8 +20,12 @@
 	// until the spec flips the policy, so the late sizing happens INSIDE the editor's subtree,
 	// the case the anchoring opt-out decides.
 	const IMAGE_BLOCK_INDEX = 6;
+	// `?blocks=` sizes the entry: the default clears the windowing watermark, and a short one
+	// is the same embedding below it, where the host's own native anchoring still runs. Seeded
+	// once — a fixture that reparsed on navigation would not be the document the spec measured.
+	// svelte-ignore state_referenced_locally
 	const ENTRY =
-		Array.from({ length: 160 }, (_, i) =>
+		Array.from({ length: data.blocks }, (_, i) =>
 			i === IMAGE_BLOCK_INDEX
 				? `![late](${LATE_IMAGE_SRC})`
 				: `Paragraph ${i} — lorem ipsum dolor sit amet, consectetur adipiscing elit.`

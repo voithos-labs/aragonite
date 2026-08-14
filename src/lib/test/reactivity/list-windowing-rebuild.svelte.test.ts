@@ -7,6 +7,7 @@ import { flushSync } from 'svelte';
 import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
 import type { CstNode } from '../../core/nodes';
+import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
 
 // Height BY ID, so a permutation the model tracks changes each index's offset — the
 // observable that proves the rebuild followed the reorder.
@@ -21,17 +22,6 @@ const oracle: HeightOracle = {
 	clear: () => {}
 };
 
-function stubEl(height: number) {
-	return {
-		scrollTop: 0,
-		clientHeight: height,
-		clientWidth: 800,
-		getBoundingClientRect: () => ({ top: 0, height }),
-		addEventListener: () => {},
-		removeEventListener: () => {}
-	} as unknown as HTMLElement;
-}
-
 const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
 describe('list-windowing structural rebuild', () => {
@@ -43,8 +33,8 @@ describe('list-windowing structural rebuild', () => {
 			makePara('p3\n')
 		]);
 		const ids = $state(['b0', 'b1', 'b2', 'b3']);
-		const scrollEl = stubEl(500);
-		const listEl = stubEl(200);
+		const port = stubScrollport({ viewportHeight: 500 });
+		const listEl = stubListEl(port, 200);
 
 		let windowing!: ListWindowing;
 		const cleanup = $effect.root(() => {
@@ -53,10 +43,10 @@ describe('list-windowing structural rebuild', () => {
 				getChildren: () => children,
 				getChildIds: () => ids,
 				getListEl: () => listEl,
-				getScrollEl: () => scrollEl,
+				getPort: () => port,
+				correctsScroll: () => true,
 				getFocusPath: () => null,
 				getWidthVersion: () => 0,
-				windowingEnabled: () => true,
 				getParentPath: () => [],
 				overscan: 2,
 				pinExtensionCap: 100,
@@ -75,7 +65,7 @@ describe('list-windowing structural rebuild', () => {
 		// revealChild scrolls to model.offsetOf(index). After the reorder the first two
 		// blocks are b3(40)+b0(10)=50; a stale (un-rebuilt) model reads b0(10)+b1(20)=30.
 		await windowing.revealChild(2);
-		expect(scrollEl.scrollTop).toBe(50);
+		expect(port.scrollTop()).toBe(50);
 		cleanup();
 	});
 });

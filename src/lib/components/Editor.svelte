@@ -34,6 +34,7 @@
 		userScrollportFor,
 		type UserScrollport
 	} from '../cursor/scroll-ancestors';
+	import { createScrollport, type Scrollport } from '../cursor/scrollport';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
@@ -177,6 +178,18 @@
 		if (!hostScroll) return [];
 		resolveHost();
 		return resolvedClipBounds;
+	}
+
+	// The scrollport every windowing scope measures and writes, over the SAME scroller the
+	// autoscroll seam resolves — so the mode picks the target and nothing downstream branches
+	// on it. Memoized with that resolution.
+	let scrollport: Scrollport | null = null;
+	function getScrollport(): Scrollport | null {
+		if (!scrollport) {
+			const target = getScrollHost();
+			if (target) scrollport = createScrollport(target);
+		}
+		return scrollport;
 	}
 
 	// Install before initDocument parses `source`, so plugin openers/directives are live
@@ -409,7 +422,9 @@
 			getDoc: () => doc,
 			selection: selectionState,
 			getPresentationMode: () => effectiveMode
-		}
+		},
+		lastBlockIndex: () => doc.children.length - 1,
+		revealBlock: (index) => revealPath([index])
 	});
 
 	// The caret snapshot and the entry guards ride the STATE, not the callers, so entry path N+1
@@ -1143,14 +1158,15 @@
 		return () => observer.disconnect();
 	});
 
-	// The header slot's height lives outside the height model and `overflow-anchor` is off (VR-2),
-	// so a growing header would slide the document under the reader. Compensating from the SLOT's
-	// own resize is what composes with `correctAnchor` instead of double-correcting; a reveal
-	// already holding the scroll outranks it.
+	// The header slot's height lives outside the height model, so while the editor owns the
+	// correction a growing header would slide the document under the reader. Compensating from
+	// the SLOT's own resize is what composes with `correctAnchor` instead of double-correcting;
+	// a reveal already holding the scroll outranks it.
 	$effect(() => {
 		const el = headerEl;
-		const scrollEl = editorEl;
-		if (hostScroll || !el || !scrollEl) return;
+		if (!el || !editorEl) return;
+		const port = getScrollport();
+		if (!port) return;
 		let lastHeight = el.getBoundingClientRect().height;
 		const observer = new ResizeObserver((entries) => {
 			// Border boxes throughout, seed and fallback alike, so a browser without
@@ -1159,8 +1175,8 @@
 			const height = box ? box.blockSize : el.getBoundingClientRect().height;
 			const delta = height - lastHeight;
 			lastHeight = height;
-			if (delta === 0 || scrollEl.scrollTop === 0) return;
-			if (!topWindowing.revealHoldsScroll()) scrollEl.scrollTop += delta;
+			if (delta === 0 || !ownsScrollCorrection() || port.scrollTop() === 0) return;
+			if (!topWindowing.revealHoldsScroll()) port.setScrollTop(port.scrollTop() + delta);
 		});
 		observer.observe(el);
 		return () => observer.disconnect();
@@ -1235,10 +1251,11 @@
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
 		scrollHost: getScrollHost,
+		scrollport: getScrollport,
 		blockElLookup: getBlockElByPath,
 		focusedPath: () => focusedPath,
 		heightOracle,
-		windowingEnabled: () => !hostScroll,
+		correctsScroll: ownsScrollCorrection,
 		widthVersion: () => widthVersion
 	} satisfies EditorDoc);
 
@@ -1253,6 +1270,21 @@
 		getListEl: () => editorEl?.querySelector(':scope > .block-list') ?? null,
 		provideLeafChannel: true
 	});
+
+	// Plain `let`, not $state or $derived: the correction path asks this mid-measure, where
+	// evaluating the window derived would force the layout read the batched pass exists to
+	// avoid (VR-4). Nothing reactive reads it — the root's own attribute reads the derived.
+	let rootWindowingActive = false;
+	$effect(() => {
+		rootWindowingActive = topWindowing.window.active;
+	});
+
+	// Who holds the reader's place through a height mutation. Self mode always; host mode only
+	// while windowing runs, since below the budget the host's own native anchoring does it and
+	// both correcting would double-count. The `overflow-anchor` opt-out keys off the same fact.
+	function ownsScrollCorrection(): boolean {
+		return !hostScroll || rootWindowingActive;
+	}
 
 	// ── Public API ──────────────────────────────────────────────────────
 
@@ -1501,6 +1533,7 @@
 	class="editor"
 	data-editor-theme={theme}
 	data-scroll-mode={hostScroll ? 'host' : undefined}
+	data-windowing={topWindowing.window.active ? 'active' : undefined}
 	data-presentation={effectiveMode === 'source' ? undefined : effectiveMode}
 	bind:this={editorEl}
 	tabindex="-1"
@@ -1605,9 +1638,9 @@
 	}
 
 	/* Embedded flow mode: an ancestor owns the scroll, so the root drops its scrollport and the
-	   standalone-widget chrome that would box every entry of a journal. Native anchoring returns
-	   with the scrollport, since VR-2's opt-out is for hand-corrected windowing (inactive here) and
-	   `none` would exclude the subtree from the HOST's anchor candidates. */
+	   standalone-widget chrome that would box every entry of a journal. Below the windowing
+	   budget nothing corrects by hand, so native anchoring is restored — `none` would strip the
+	   subtree from the HOST's anchor candidates and hold nothing in its place. */
 	.editor[data-scroll-mode='host'] {
 		overflow-y: visible;
 		overflow-anchor: auto;
@@ -1615,6 +1648,13 @@
 		flex: none;
 		border: none;
 		padding: 0;
+	}
+
+	/* The stated trade of windowing under host scroll: native anchoring and the manual
+	   correction cannot coexist, so an active editor withdraws its own subtree from the host's
+	   anchor candidates and holds the line itself (VR-2). The host's scroller is untouched. */
+	.editor[data-scroll-mode='host'][data-windowing='active'] {
+		overflow-anchor: none;
 	}
 
 	/* Absolute and zero-width so it takes no part in layout; never `display: none`,
