@@ -173,13 +173,12 @@ describe('absorbWindowSeams reports disjoint folds as one window', () => {
 	});
 });
 
-// Pins a known divergence of the same class at a producer no seam ask reaches: a mutation INSIDE a
-// container changes whether the container itself interrupts, and the join it invalidates is in the
-// grandparent's children, which the container's own commit never splices. Driven through the DOOR,
-// so whichever level closes it — the ceremony, the delete, or a renumber at the list overrides —
-// turns this red. Do not delete it to make it green.
-// Miss-analysis: every fuzzer lane mutates a block and asks about ITS siblings; the delete lane is
-// top-level only, so no lane mutates inside a container and asks the container's own slot above.
+// Pins a known divergence at a producer no seam ask reaches: a mutation INSIDE a container changes
+// whether the container interrupts, and the join it invalidates is in the GRANDPARENT's children,
+// which the container's commit never splices. Driven through the door, so any level that closes it
+// turns this red — do not delete it to make it green.
+// Miss-analysis: the fuzzer's lanes each mutate a block and ask about its siblings; none mutates
+// inside a container and asks the container's own slot above.
 describe('a nested delete can stop an ordered list interrupting (GH #21, open)', () => {
 	it('leaves the list starting at 2, which the paragraph above swallows on reload', async () => {
 		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
