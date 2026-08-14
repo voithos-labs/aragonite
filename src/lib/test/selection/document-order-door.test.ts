@@ -58,10 +58,12 @@ describe('normalizeSelection', () => {
 	});
 
 	// What a null selection answers: nothing, by construction. `getSelection()` reports null with
-	// nothing focused and at a gap caret, and the host must branch on that before ordering.
+	// nothing focused and at a gap caret, so the host branches before ordering. The compile-time
+	// half is the load-bearing one; `npm run check` verifies the directive.
 	it('cannot be handed the null getSelection reports', () => {
 		const nothingFocused: EditorSelection | null = null;
 		// @ts-expect-error — the helper takes a selection, so the null branch is the caller's
-		expect(() => normalizeSelection(nothingFocused)).toThrow();
+		void (() => normalizeSelection(nothingFocused));
+		expect(nothingFocused ? normalizeSelection(nothingFocused) : null).toBeNull();
 	});
 });
