@@ -29,6 +29,28 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
+	// The other sink that can leave a fence open: the keystroke that MINTS it. Without a closer
+	// the settle converges the live tree to the reload's reading, which swallows everything below
+	// (GH #180).
+	test('a fence opener typed above other blocks closes as it is minted', async ({ page }) => {
+		await editor.loadContent('Above\n\ntail\n');
+		await editor.getBlock(0).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Enter');
+		await editor.typeSlowly('```');
+		await editor.bridge.waitForSourceContains('```\n```');
+
+		expect(await editor.bridge.getBlockKind(1)).toBe('fencedCode');
+		expect(await editor.getBlockText(2)).toBe('tail');
+		expect(await editor.parseConverged()).toBe(true);
+
+		// The caret stayed on the opener's own line, so Enter opens the body under it.
+		await page.keyboard.press('Enter');
+		await editor.typeText('code');
+		await editor.bridge.waitForSourceContains('```\ncode\n```');
+		expect(await editor.bridge.getSource()).toBe('Above\n\n```\ncode\n```\n\ntail\n');
+	});
+
 	test('one undo restores the open fence and removes the created block', async () => {
 		await editor.loadContent('```\ncode\n');
 		await editor.getBlock(0).click();
