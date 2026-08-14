@@ -26,19 +26,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    has not convened); and landing whatever the consumer's remaining manual passes (journal
    surface, real-webview gestures) surface before the freeze.
 
-2. **Plain-mode promotion: declined (owner, 2026-08-14).** Front matter was the natural
-   candidate, and the first consumer settled it the other way: limestone splits front matter
-   off at the app layer (`DocHandle.deserialize`, the editor receives the body only), which is
-   the two-plugin-systems boundary holding — front matter is vault metadata, not document
-   content. The in-repo build also carries three structural prerequisites serving no current
-   consumer: the conformance sweep has no position contract (a byte-0-gated fixture can
-   neither enroll nor be omitted), #53 makes the kind untypeable in place with the completer
-   door closed by design, and reorder drags a position-scoped block into the stale-raw
-   oracle's blind spot with no per-kind veto. Memo remains plain mode's documented consumer.
-   Revisit only on a real consumer request for editor-visible front matter; that request's
-   priced work-list is the three prerequisites above. The external-author gate at the freeze
-   cut stays a separate box — the clean-room run probed discoverability, not external evidence.
-3. **Freeze cut at release** — in order. (The scoped pre-freeze re-audit and the
+2. **Freeze cut at release** — in order. (The scoped pre-freeze re-audit and the
    contributor-experience pass both ran 2026-08-14/15 and left the roadmap: the audit's record
    is `docs/code-review-findings.md`, its decision items all closed — `chordsForCommand`
    confirmed 1.2, the `getRects()`/`.rects` split recorded as deliberate convention, the
@@ -347,14 +335,19 @@ shape is an **overridable history seam** — the undo/redo module behind an inte
 can replace — decided at the limestone integration, scheduled deliberately rather than ambient
 (the longer the decision floats, the more code accretes against the snapshot shape).
 
-A second named joint decision: **host-scrollport windowing (the journal shape).** Windowing is
-deliberately inactive in host-scroll mode today; the height model reads its viewport and offset
-from the editor root, which a page-scrolled shell never scrolls. The port is characterized: a
-scrollport abstraction supplying rect, offset, writer, change signal, and content width, which
-converges on the `UserScrollport` resolution the autoscroll seam already owns. A
-single-editor-per-scrollport version is mechanical plus one stated trade (native scroll
-anchoring and windowing's manual correction cannot coexist on one editor, so the mode drives
-the declaration). The open design, and the journal's actual shape, is N editors sharing one
-scrollport: N windowing roots correcting one scroll offset needs a coordinator that owns the
-write. Sequenced after the owner exercises the real journal surface; the coordinator is decided
-jointly with the consumer, not sketched ahead of it.
+A second, formerly joint, decision: **host-scrollport windowing.** Windowing is deliberately
+inactive in host-scroll mode today; the height model reads its viewport and offset from the
+editor root, which a page-scrolled shell never scrolls. The port is characterized: a scrollport
+abstraction supplying rect, offset, writer, change signal, and content width, which converges
+on the `UserScrollport` resolution the autoscroll seam already owns, and the single-editor
+version is mechanical plus one stated trade (native scroll anchoring and windowing's manual
+correction cannot coexist on one editor, so the mode drives the declaration).
+
+The consumer's shape resolved this (2026-08-14, read from the shipped app): the journal is a
+day navigator around ONE mounted editor in host-scroll mode, the shell mounts one editor at a
+time everywhere, and the owner's manual pass reads decently. The N-editors-one-scrollport
+coordinator this item once carried is therefore dropped, not deferred; it returns only if a
+continuous multi-day surface ever materializes. What remains is the single-editor scrollport,
+post-1.0 and additive, whose trigger is a large document read through a host-scrolled surface
+(every view-page doc face, the journal's entry included): such a document mounts whole today,
+and the standalone-tab route keeps windowing meanwhile.
