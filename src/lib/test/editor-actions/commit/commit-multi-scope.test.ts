@@ -97,6 +97,38 @@ describe('commitMultiScope', () => {
 		expect(editHandler).toHaveBeenCalledTimes(1);
 	});
 
+	// A container that never mounted has no `childIds` at all, which is not the same fact as an
+	// EMPTY one — and the paste ceremony reaches exactly that scope through its unmounted stand-in
+	// (`tree-operations/paste/parent-scope.ts`). Miss-analysis: every fixture in this file mints
+	// ids first, so the ceremony was only ever asked to grow an array that already fit.
+	it('a scope that never mounted publishes one id per child, not one per insert', async () => {
+		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n', '- c\n'])]);
+		const owned = deps.doc.children[0];
+		expect(owned.childIds).toBeUndefined();
+		const state = { innerBlockIds: [...(owned.childIds ?? [])], innerBlockRefs: [] };
+		const controller = createUndoController(deps);
+
+		await controller.commitMultiScope({
+			scopes: [{ node: owned, state, path: [0] }],
+			snapshot: { path: asDocPath([0]), offset: 0 },
+			mutate: ([scope]) => {
+				scope.children.push({
+					kind: 'listItem',
+					leadingTrivia: '',
+					raw: '- d\n',
+					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
+				});
+				return [{ op: 'insert', at: 3, count: 1 }];
+			},
+			op: { kind: 'appendBlock', eventPath: asDocPath([0, 3]) }
+		});
+
+		const published = deps.doc.children[0];
+		expect(published.children).toHaveLength(4);
+		expect(published.childIds).toHaveLength(4);
+		expect(new Set(published.childIds).size).toBe(4);
+	});
+
 	it('unshares each scope before mutate: the snapshot keeps the pre-commit nodes intact', async () => {
 		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
