@@ -58,13 +58,15 @@ async function press(
 	el: HTMLElement,
 	inputType: string,
 	target?: { start: number; end: number },
-	data?: string
+	data?: string,
+	init: InputEventInit = {}
 ): Promise<InputEvent> {
 	const e = new InputEvent('beforeinput', {
 		inputType,
 		...(data === undefined ? {} : { data }),
 		bubbles: true,
-		cancelable: true
+		cancelable: true,
+		...init
 	});
 	if (target) {
 		const range = createRangeFromOffsets(
@@ -158,11 +160,31 @@ describe('what the arm leaves to the engine', () => {
 		expect(committed(mounted.blockEdit)).toEqual([]);
 	});
 
-	// Paste and composition carry seams of their own; claiming them here handles them twice.
-	it.each(['insertFromPaste', 'insertCompositionText'] as const)('%s', async (inputType) => {
+	// Paste and composition carry seams of their own; claiming one here writes the block twice,
+	// once from this arm and once from the seat's commit over the same range. The DELETE half of
+	// the composition family is the sibling the insert-only list missed.
+	it.each([
+		'insertFromPaste',
+		'insertCompositionText',
+		'deleteCompositionText',
+		'deleteByComposition'
+	] as const)('%s', async (inputType) => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);
 		const e = await press(mounted.el, inputType, { start: 2, end: 6 }, 'x');
+
+		expect(e.defaultPrevented).toBe(false);
+		expect(committed(mounted.blockEdit)).toEqual([]);
+	});
+
+	// The flag, not the spelling: a delete dispatched mid-composition is the seat's whatever the
+	// engine calls it, which is what keeps a future composition inputType out of this arm.
+	it('a delete carrying isComposing', async () => {
+		mounted = mountText(BOLD);
+		seat(mounted.el, 6, 6);
+		const e = await press(mounted.el, 'deleteContentBackward', { start: 2, end: 6 }, undefined, {
+			isComposing: true
+		});
 
 		expect(e.defaultPrevented).toBe(false);
 		expect(committed(mounted.blockEdit)).toEqual([]);

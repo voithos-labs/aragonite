@@ -196,6 +196,15 @@ export function assertSplitLanding(split: SplitResult, landing: number): void {
 }
 
 /**
+ * What a one-slot sink is about to put in its slot, held to one node (G1.35). Asked at the WRITE
+ * with the nodes being written, so the guard answers for sink N+1 — one that skips the refusal its
+ * siblings make, or splices a plural replacement into a slot that holds one.
+ */
+export function assertSingleNodeSink(sink: string, installed: readonly CstNode[]): void {
+	assertInvariant('single-node-sink', () => checkSingleNodeSink(sink, installed.length));
+}
+
+/**
  * Split the node at `blockIndex` at raw `offset` (display-relative). The first half inherits the
  * original ID and the whole structural suffix (a setext underline), which a plain cut would strand
  * below as junk. The second half opens with a blank separator wherever one does structural work
@@ -518,7 +527,9 @@ export function mergeWithPrevious(
 	// curr's own separator dies with it, so the successor inherits it unless it has one.
 	const successor = parent.children[blockIndex + 1];
 	if (successor) successor.leadingTrivia = successor.leadingTrivia || curr.leadingTrivia;
-	parent.children.splice(blockIndex - 1, 2, mergedNode);
+	const installed = [mergedNode];
+	assertSingleNodeSink('mergeWithPrevious', installed);
+	parent.children.splice(blockIndex - 1, 2, ...installed);
 	return { change: replacePreservingFirst(blockIndex - 1, 2, 1), joinOffset: seam };
 }
 
@@ -584,10 +595,11 @@ function holderChildrenAt(children: CstNode[], path: number[]): CstNode[] {
 }
 
 /** What the deep-leaf sink will install: the legal bytes, plus their reparse where the kind
- *  has one — a different kind mints into the slot, the same kind refreshes it in place. */
+ *  has one — a different kind mints into the slot, the same kind refreshes it in place. The
+ *  blocks ride whole rather than as their first, so the install answers G1.35 over what it writes. */
 interface MergedLeaf {
 	written: string;
-	parsed: CstNode | undefined;
+	blocks: readonly CstNode[];
 }
 
 /**
@@ -604,13 +616,10 @@ function mergedLeafFor(
 	// A context-dependent kind has no standalone recognizer, so its bytes are never read back
 	// as blocks and the write keeps the kind.
 	if (tryGetBlockKindDescriptor(target.kind)?.contextDependentKind) {
-		return { written, parsed: undefined };
+		return { written, blocks: [] };
 	}
-	const parsed = parse(written, { grammar, scope: 'fragment' }).children;
-	assertInvariant('single-node-sink', () =>
-		checkSingleNodeSink('mergedLeafFor', parsed.length, parsed.length <= 1)
-	);
-	return parsed.length > 1 ? null : { written, parsed: parsed[0] };
+	const blocks = parse(written, { grammar, scope: 'fragment' }).children;
+	return blocks.length > 1 ? null : { written, blocks };
 }
 
 /** {@link mergedLeafFor}'s write, over the unshared spine the verdict was taken ahead of. */
@@ -621,7 +630,9 @@ function installMergedLeaf(
 	sharing: SharingState | undefined
 ): void {
 	const target = holderChildren[slot];
-	const { written, parsed } = merged;
+	const { written, blocks } = merged;
+	assertSingleNodeSink('mergedLeafFor', blocks);
+	const parsed = blocks[0];
 	if (parsed && parsed.kind !== target.kind) {
 		// Byte-honest over the fragment peel, the single-slot sink's rule.
 		parsed.raw = written;
@@ -663,7 +674,9 @@ export function mergeWithNext(
 	const { raw: mergedRaw, seam } = joinRaw(curr, next, presentationMode, linkRef);
 	const mergedNode = reparseAsNode(mergedRaw, curr.leadingTrivia);
 	if (!mergedNode) return { change: { op: 'noop' }, joinOffset: 0 };
-	parent.children.splice(blockIndex, 2, mergedNode);
+	const installed = [mergedNode];
+	assertSingleNodeSink('mergeWithNext', installed);
+	parent.children.splice(blockIndex, 2, ...installed);
 	return { change: replacePreservingFirst(blockIndex, 2, 1), joinOffset: seam };
 }
 
@@ -1420,9 +1433,6 @@ function reparseAsNodes(raw: string, leadingTrivia: string): { nodes: CstNode[];
  */
 function reparseAsNode(raw: string, leadingTrivia: string): CstNode | null {
 	const { nodes, suffix } = reparseAsNodes(raw, leadingTrivia);
-	assertInvariant('single-node-sink', () =>
-		checkSingleNodeSink('reparseAsNode', nodes.length, nodes.length <= 1)
-	);
 	if (nodes.length > 1) return null;
 	// A single-block sink has no follower slot, so the peeled line stays in the block's bytes.
 	nodes[0].raw += suffix;

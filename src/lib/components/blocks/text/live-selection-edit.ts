@@ -41,7 +41,7 @@ export function resolveLiveRangeEdit(
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): LiveRangeEdit | null {
-	if (presentationMode !== 'live' || !rewritesTargetRange(e.inputType)) return null;
+	if (presentationMode !== 'live' || !rewritesTargetRange(e)) return null;
 	const range = pendingEditRange(e, cursor);
 	if (!range) return null;
 	const insert = replacementText(e);
@@ -100,14 +100,19 @@ function pendingEditRange(
 	return targets.length > 0 ? cursor.rawRangeOf(targets[0]) : cursor.getRawSelection();
 }
 
-/** The inputs that rewrite the range they target: every delete family — word, line, drag, cut,
- *  forward, backward — plus the two that replace it with text. Paste and composition carry seams
- *  of their own, so they route there rather than being handled twice. */
-function rewritesTargetRange(inputType: string): boolean {
+/**
+ * The inputs that rewrite the range they target: every delete family — word, line, drag, cut,
+ * forward, backward — plus the two that replace it with text. Paste and composition carry seams of
+ * their own; composing is excluded by the NAME and by the flag rather than by listing the two
+ * delete types today's engines spell, since `composition-seat.ts` owns that window end to end and a
+ * second resolution here writes the block twice.
+ */
+function rewritesTargetRange(e: InputEvent): boolean {
+	if (e.isComposing || /composition/i.test(e.inputType)) return false;
 	return (
-		inputType.startsWith('delete') ||
-		inputType === 'insertText' ||
-		inputType === 'insertReplacementText'
+		e.inputType.startsWith('delete') ||
+		e.inputType === 'insertText' ||
+		e.inputType === 'insertReplacementText'
 	);
 }
 

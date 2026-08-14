@@ -54,14 +54,18 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 		expect(serialize(doc)).toBe(HEADING_OVER_TWO_LINES);
 	});
 
+	// Bytes are no oracle here: a body merge writes the quote's CHILDREN and never rebuilds the
+	// container's own raw, so `serialize` reads back the source whatever the sink did. What can
+	// fail is the change descriptor and the reload, which is what a truncation would break.
 	it('declines both directions inside a blockquote body', () => {
 		const forward = quotedBody();
 		expect(mergeWithNext(forward.body, 0, undefined, undefined).change).toEqual({ op: 'noop' });
-		expect(serialize(forward.doc)).toBe(QUOTED);
+		expect(forward.body.children).toHaveLength(2);
+		expectParseConverged(forward.doc);
 
 		const backward = quotedBody();
 		expect(mergeIntoPrevDeepLeaf(backward.body, 1, undefined, undefined, undefined)).toBeNull();
-		expect(serialize(backward.doc)).toBe(QUOTED);
+		expect(backward.body.children).toHaveLength(2);
 		expectParseConverged(backward.doc);
 	});
 });
