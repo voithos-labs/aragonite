@@ -167,6 +167,32 @@ export function rawAssignments(
 
 // ── Call arguments ───────────────────────────────────────────────────────────
 
+/**
+ * A call to `name`. A spread (`...name(`) is one — the seam scans read call sites, and a result
+ * spread into an array is where one of them hid; a property access (`x.name(`) is not.
+ */
+function callSiteRegex(name: string): RegExp {
+	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
+}
+
+/** The argument text of every call to `name`; pass comment-stripped code. Skips the declaration. */
+export function callsTo(code: string, name: string): string[] {
+	const out: string[] = [];
+	const re = callSiteRegex(name);
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(code)) !== null) {
+		if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
+		const call = balancedCall(code, m.index + m[0].length);
+		if (call !== null) out.push(call);
+	}
+	return out;
+}
+
+/** Whether `code` calls `name` at all — the membership form of {@link callsTo}. */
+export function callsAnywhere(code: string, name: string): boolean {
+	return callSiteRegex(name).test(code);
+}
+
 /** The text from just after a call's opening paren to its matching close, parens balanced. */
 export function balancedCall(code: string, openParenIndex: number): string | null {
 	let depth = 1;
@@ -183,14 +209,33 @@ export function balancedCall(code: string, openParenIndex: number): string | nul
 	return null;
 }
 
+/** A call's top-level arguments: split on the commas outside every bracket and string literal. */
+export function callArguments(args: string): string[] {
+	const out: string[] = [];
+	let depth = 0;
+	let quote: string | null = null;
+	let start = 0;
+	for (let i = 0; i < args.length; i++) {
+		const ch = args[i];
+		if (quote) {
+			if (ch === '\\') i++;
+			else if (ch === quote) quote = null;
+			continue;
+		}
+		if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+		else if (ch === '(' || ch === '[' || ch === '{') depth++;
+		else if (ch === ')' || ch === ']' || ch === '}') depth--;
+		else if (ch === ',' && depth === 0) {
+			out.push(args.slice(start, i).trim());
+			start = i + 1;
+		}
+	}
+	out.push(args.slice(start).trim());
+	return out;
+}
+
 /** The last top-level argument of a call's argument text — the slot the threading scans read. */
 export function lastArgument(args: string): string {
-	let depth = 0;
-	for (let i = args.length - 1; i >= 0; i--) {
-		const ch = args[i];
-		if (ch === ')' || ch === ']' || ch === '}') depth++;
-		else if (ch === '(' || ch === '[' || ch === '{') depth--;
-		else if (ch === ',' && depth === 0) return args.slice(i + 1).trim();
-	}
-	return args.trim();
+	const parts = callArguments(args);
+	return parts[parts.length - 1];
 }

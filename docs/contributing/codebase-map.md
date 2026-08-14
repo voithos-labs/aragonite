@@ -216,7 +216,9 @@ commit descriptor covers, so `src/lib/editor-actions/ancestry-folds.ts` publishe
 ids/refs and answers the caret the eaten slot owed. The sink is required-nullable — a caller that
 cannot reconcile a parent-scope splice passes `null` and declines the ask. A declining caller
 whose chain is built from a leaf path BELOW its commit scope declines for that reason alone (the
-chain's fold slots outrun the scope's descriptor), not because a wider commit re-walks it.
+chain's fold slots outrun the scope's descriptor), not because a wider commit re-walks it. Which
+caller takes which stance, and why, is enumerated in
+`src/lib/test/invariants/lint/ancestry-fold-sink-thread.test.ts` (G4.46).
 
 ## What a block must, may, and must not do
 
