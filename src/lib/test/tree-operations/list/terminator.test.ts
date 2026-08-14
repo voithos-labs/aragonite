@@ -48,6 +48,21 @@ describe('ensureListItemNewlineTerminated', () => {
 		expect(item.raw).toBe('- a\n  - b\n');
 	});
 
+	// The descent stops above a node whose children are not whole lines: a grid cell's bytes sit
+	// inside the row's line, so an ending appended there splits the row and corrupts the table.
+	// Miss-analysis: every descent case ended in a prose leaf or a strip container, so the arm
+	// reaching a kind whose raw is not a line of its own was never driven.
+	it('stops above a grid cell rather than splitting the row', () => {
+		const source = '- | a | b |\n  | --- | --- |\n  | c | d |';
+		const item = parse(source).children[0].children![0];
+		expect(item.children![item.children!.length - 1].kind).toBe('table');
+
+		ensureListItemNewlineTerminated(item, '\n');
+
+		expect(item.raw).toBe(source + '\n');
+		expect(checkStaleRaw(item)).toBeNull();
+	});
+
 	it('leaves a terminated nested container able to take a following sibling item', () => {
 		const item = parse('- a\n  - b').children[0].children![0];
 		const nested = item.children![item.children!.length - 1];

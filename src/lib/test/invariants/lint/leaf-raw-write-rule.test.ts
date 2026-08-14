@@ -188,7 +188,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 	},
 	'src/lib/tree-operations/list/terminator.ts': {
 		count: 1,
-		why: "appends the list's own line ending to the deepest leaf; an ending terminates a line rather than restructuring one"
+		why: "appends the list's own line ending to the deepest node that OWNS its last line — the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits; an ending terminates a line rather than restructuring one"
 	},
 	'src/lib/testing/container-conformance.ts': {
 		count: 4,
