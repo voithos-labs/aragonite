@@ -78,8 +78,7 @@ const refsBySubtree = new WeakMap<NodeView, SubtreeEntry>();
  * One top-level subtree's references, memoized against the bytes they came from, so a
  * keystroke re-parses that subtree and reuses every other. Sound because the serializer
  * never recurses (`editor.md` § 12): a subtree's `raw` is its whole byte image, kept so by
- * the container-`raw` rebuild up the ancestry. Bytes, not node identity — copy-on-write
- * mints a new node only on a typing batch's FIRST keystroke (`tree-operations/sharing.ts`).
+ * the container-`raw` rebuild up the ancestry.
  */
 function subtreeRefs(node: NodeView): readonly FootnoteReference[] {
 	const cached = refsBySubtree.get(node);

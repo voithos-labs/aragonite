@@ -1,10 +1,11 @@
 // Miss-analysis: numbering had no cost pin at all — every case asserted the map, and a
 // whole-document walk produces the same map as a per-subtree one, so only counting the
 // inline parses tells them apart.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { footnotesPlugin } from '$lib/plugins/footnotes';
+import { rebuildAncestryRaw } from '$lib/schema/container-raw';
 import {
 	collectFootnoteReferences,
 	footnoteNumbersFor
@@ -30,6 +31,10 @@ beforeEach(() => {
 	installPlugins([footnotesPlugin()]);
 });
 
+afterEach(() => {
+	disablePerfInstruments();
+});
+
 describe('footnote numbering rebuilds one subtree per edit', () => {
 	it('inline-parses only the edited subtree, not every top-level block', () => {
 		const doc = referenceDenseDocument();
@@ -41,7 +46,6 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		doc.children[3].raw = 'Paragraph 3 with [^r3] and [^extra] inside.';
 		const numbers = footnoteNumbersFor(doc, 2);
 		const parses = perfSnapshot().inlineComputeCount;
-		disablePerfInstruments();
 
 		expect(numbers.get('extra')).toBe(5);
 		expect(numbers.get(`r${TOP_LEVEL - 1}`)).toBe(TOP_LEVEL + 1);
@@ -96,6 +100,19 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 
 		const restored = { ...doc, children: [...shared] } as DocumentView;
 		expect([...footnoteNumbersFor(restored, 3).keys()]).toEqual(['a', 'b']);
+	});
+
+	// Miss-analysis: every earlier case edits a top-level leaf, so the container contract the
+	// memo leans on (a subtree's raw is its whole byte image) had no test of its own — a nested
+	// edit is invisible to the key until the ancestry rebuild moves the container's raw.
+	it('renumbers a nested edit once the ancestry rebuild moves the container raw', () => {
+		const doc = parse('Head.\n\n> Quote [^q] here.\n');
+		expect([...footnoteNumbersFor(doc, 1).keys()]).toEqual(['q']);
+
+		const quote = doc.children[1];
+		quote.children![0].raw = 'Quote [^q] here and [^nested] too.\n';
+		rebuildAncestryRaw(quote, [0]);
+		expect([...footnoteNumbersFor(doc, 2).keys()]).toEqual(['q', 'nested']);
 	});
 
 	// Memoized paths are subtree-relative; the doc-absolute contract is the caller's rebase,
