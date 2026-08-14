@@ -321,7 +321,13 @@ machinery).
 
 - **Incremental ancestry rebuild, behind a falsification gate.** The container rebuild is
   measured-cheap at realistic nesting; an O(child) splice-based rebuild is designed only if the
-  perf gate ever shows the O(container) cost moving. Not before.
+  perf gate ever shows the O(container) cost moving. Not before. The lower-join seam ask's
+  measured tail (#182) is the first candidate workload.
+- **A non-fence open absorber declines the terminator mint silently.** The #180 discriminator
+  correctly identifies today's absorbing class as exactly the fence family, whose closer is
+  derivable; a future grammar whose open absorber has no derivable terminator would fall back
+  to the fold with no mint and no warn. Revisit when such a kind exists; the probe's seam is
+  where the answer lands.
 
 ## Downstream boundary
 
