@@ -29,18 +29,58 @@ import { rangeDelete } from '../../selection/range-delete';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-ops';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
+import { pasteDispatch, __getDefaultTextSurface } from '../../tree-operations/paste/dispatch';
+import {
+	__resetPasteSurfacesForTests,
+	registerPasteSurface
+} from '../../tree-operations/paste-surfaces';
+import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
+import { createUndoController } from '../../editor-actions/commit/undo-controller';
+import { createBlockEditActions } from '../../editor-actions/block-edit';
+import { makeEditorActionsDeps } from '../harness/editor-actions';
 
 interface EditGesture {
 	name: string;
 	/** LF-authored fixture; the harness mirrors it to CRLF and runs the gesture twice. */
 	source: string;
 	/** Apply the gesture to the parsed document and return the bytes it emitted. */
-	apply: (doc: Document) => string;
+	apply: (doc: Document) => string | Promise<string>;
 }
 
 /** Bytes of a node list an op produced but has not yet spliced into a document. */
 const serializeNodes = (nodes: CstNode[]) =>
 	nodes.map((n) => (n.leadingTrivia ?? '') + n.raw).join('');
+
+/**
+ * The separators a paste MINTED, without the clipboard raws it merely spliced: normalization
+ * makes the clipboard LF on both runs, so only the editor's own seams can mirror.
+ */
+const mintedSeams = (doc: Document) =>
+	doc.children.map((n) => n.leadingTrivia ?? '').join('') + doc.suffix;
+
+/** Paste `clipboard` into `doc` through the real per-level bundle. */
+async function pasteInto(
+	doc: Document,
+	targetPath: number[],
+	offset: number,
+	clipboard: string
+): Promise<Document> {
+	__resetPasteSurfacesForTests();
+	registerPasteSurface(__getDefaultTextSurface('paragraph'));
+	registerPasteSurface(__getDefaultTextSurface('heading'));
+	const { deps } = makeEditorActionsDeps(doc);
+	const controller = createUndoController(deps);
+	await pasteDispatch(
+		{ pastedText: clipboard, targetPath, offset },
+		{
+			doc: deps.doc,
+			blockEdit: createBlockEditActions(deps, controller),
+			controller: createPasteCoordinator(controller, deps.revealPath),
+			undoEntry: 'own'
+		}
+	);
+	return deps.doc;
+}
 
 const GESTURES: EditGesture[] = [
 	{
@@ -191,6 +231,11 @@ const GESTURES: EditGesture[] = [
 			const caret = node.raw.indexOf('code') + 'code'.length;
 			return codePasteSurface.onInlinePaste!(node, caret, 'X').newRaw;
 		}
+	},
+	{
+		name: 'structural paste landing the clipboard’s trailing blank at the document tail',
+		source: 'x\n',
+		apply: async (doc) => mintedSeams(await pasteInto(doc, [0], 1, '# h\n\n'))
 	}
 ];
 
@@ -198,11 +243,11 @@ const mirrorToCrlf = (bytes: string) => bytes.replace(/\n/g, '\r\n');
 
 describe('G4.20 CRLF-mirror oracle', () => {
 	for (const gesture of GESTURES) {
-		it(`${gesture.name} emits the CRLF mirror of its LF result`, () => {
+		it(`${gesture.name} emits the CRLF mirror of its LF result`, async () => {
 			// Mirror-identity, not "contains no lone LF": an untouched line rewritten under a
 			// blank-line test that never matched a bare CR is a byte difference with no stray LF.
-			const lf = gesture.apply(parse(gesture.source));
-			const crlf = gesture.apply(parse(mirrorToCrlf(gesture.source)));
+			const lf = await gesture.apply(parse(gesture.source));
+			const crlf = await gesture.apply(parse(mirrorToCrlf(gesture.source)));
 			expect(crlf).toBe(mirrorToCrlf(lf));
 		});
 	}
