@@ -50,9 +50,8 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 			return { spans, raw, read: readCandidate(raw, resolver) };
 		}
 	);
-	// § 4.1's other half, and why least destructive is not simply the first reading: a run this one
-	// keeps can be one the cut left enclosing nothing, and a pair over nothing paints nothing either
-	// way — so the screen check alone takes it. Fewest drops AMONG the readings that mint no residue.
+	// § 4.1's other half: a run the leanest reading keeps can be one the cut left enclosing nothing,
+	// and a pair over nothing passes the screen check. Least destructive is read among the rest.
 	const floor = Math.min(...candidates.map(({ read }) => read?.residue ?? Infinity));
 	for (const { spans, raw: candidate, read } of candidates) {
 		if (read === null || read.visible !== shown || read.residue > floor) continue;

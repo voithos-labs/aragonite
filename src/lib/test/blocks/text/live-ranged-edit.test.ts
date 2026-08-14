@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 //
 // Every destructive gesture a prose surface can receive, at the entry layer that decides whether
-// it reaches the join seam. Ctrl+Backspace beside a hidden run is the shape that shipped: the
-// caret-edge arm declines a chorded press, so it arrives as `beforeinput` at a COLLAPSED caret
-// whose target range is the whole word. Miss-analysis: the seam's own suite drives ranges
-// directly, and this layer had no test at all — so the two gates that fail open (a null live
-// selection, and a three-element inputType list) were invisible to every suite.
+// it reaches the join seam: the caret-edge arm declines a chorded press, so it arrives as
+// `beforeinput` at a COLLAPSED caret whose target range is the whole word.
+// Miss-analysis: the seam's own suite drives ranges directly and this layer had no test at all, so
+// both gates that fail open (a null live selection, a three-element inputType list) were invisible.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
