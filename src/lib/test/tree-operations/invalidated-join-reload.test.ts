@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/node-ops';
+import { absorbWindowSeams, updateNodeContent } from '$lib/tree-operations/node-ops';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
+import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import type { CstNode } from '$lib/core/nodes';
 
 // GH #21: a mutation can invalidate a join that was already correct — a demoted heading stops
 // interrupting the paragraph under it, a reorder pulls an interrupter out from between two — and
@@ -48,6 +50,25 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 		expect(serialize(doc)).toBe('x# h\n\nb\n');
 		expect(doc.children.map((c) => c.raw)).toEqual(['x# h\n', 'b\n']);
 		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	// The content door exists at two levels, and the container one writes marker-stripped body
+	// bytes — a different reading path than the document's, so it owes its own pin.
+	it('absorbs inside a container body too', () => {
+		const doc = parse('> # h\n> b\n');
+		const quote = doc.children[0];
+
+		const change = updateNodeContent(
+			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
+			0,
+			'x# h\n'
+		);
+		rebuildContainerRaw(quote);
+
+		expect(serialize(doc)).toBe('> x# h\n> b\n');
+		expect(describeConvergence(doc)).toBeNull();
+		expect(quote.children!.map((c) => c.raw)).toEqual(['x# h\nb\n']);
+		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
 	});
 
 	// A multi-block write puts a MINTED block against the follower, so the seam owed is the one
@@ -126,5 +147,27 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 
 		expect(items.map((c) => c.raw)).toEqual(['- a\n', '- b\n', '- # h\n']);
 		expect(result.landing).toBe(2);
+	});
+});
+
+// No single reorder reaches two DISJOINT folds — a fold's own cascade collapses adjacent ones into
+// one anchor, and positional trivia keeps a moved block's new slot separated — so the union
+// arithmetic is pinned at the helper's own contract instead.
+describe('absorbWindowSeams reports disjoint folds as one window', () => {
+	it('unions them and carries the tracked index through both', () => {
+		const block = (source: string): CstNode => parse(source, { scope: 'fragment' }).children[0];
+		const children = ['a\n', 'b\n', '# h\n', 'c\n', 'd\n'].map(block);
+
+		const settled = absorbWindowSeams({ children }, 0, 5, 4, { op: 'noop' });
+
+		expect(children.map((c) => c.raw)).toEqual(['a\nb\n', '# h\n', 'c\nd\n']);
+		expect(settled.change).toEqual({
+			op: 'replace',
+			at: 0,
+			count: 5,
+			newCount: 3,
+			idMap: { 0: 0 }
+		});
+		expect(settled.landing).toBe(2);
 	});
 });
