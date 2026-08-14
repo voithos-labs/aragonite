@@ -38,24 +38,14 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    Revisit only on a real consumer request for editor-visible front matter; that request's
    priced work-list is the three prerequisites above. The external-author gate at the freeze
    cut stays a separate box — the clean-room run probed discoverability, not external evidence.
-3. **Freeze cut at release** — in order:
-   - **Scoped pre-freeze re-audit** (a structured review pass, matched to what changed since 2026-07) —
-     audits before milestones, not after incidents. Most of the accumulated freeze-review
-     pointers from the 2026-07 burn-down landed in the 2026-08 open-source prep (conformance
-     guards for `conformanceFixture` and the `bodyWrite`/`terminatorCollision` pairing, the
-     checked fixture-position contract, the G4.28 bare-`.raw =` arm, the re-derived
-     `normalizeRawWrite` docstring, the one-place collision-policy statement, `isFirstInWindow`
-     removed). Still open for the re-audit: `chordsForCommand` lands with the 1.2 unified
-     command registry, and `EditorRects` naming (the embedding instance says `getRects()`, the
-     plugin context says `.rects`, each consistent with its own surface's convention; decide
-     whether the two surfaces should agree), and one decision the mount-waiter rekeying left
-     behind: every production reveal caller supplies `isInWindow`, so the waiter registry has
-     no production reader today; with `RefSlots` public, either require the option and delete
-     the wait path, or keep the registry as the documented fallback and say so at the type.
-     The collision policy's consumer-facing half stays ledgered as #70. Also for the re-audit:
-     the separator family's parent types unified 2026-08-08 (`SeparatorParent` is the one
-     shape), and the `settleSeparator` funnel itself moved up to pre-1.0 item 3 rather than
-     riding here as a pointer.
+3. **Freeze cut at release** — in order. (The scoped pre-freeze re-audit and the
+   contributor-experience pass both ran 2026-08-14/15 and left the roadmap: the audit's record
+   is `docs/code-review-findings.md`, its decision items all closed — `chordsForCommand`
+   confirmed 1.2, the `getRects()`/`.rects` split recorded as deliberate convention, the
+   mount-waiter fallback documented at its type, #70 closed by the consumer-guide pattern —
+   and the 1.3 dry-run confirm is answered: the repo-context autolink exclusion is additive to
+   close, with the leftward-claim limitation recorded in `plugin-contract.md` § Inline
+   authoring.)
    - **External-author gate** — the freeze does not cut on first-party evidence alone: at
      least one plugin built by a genuinely external developer from the tarball and the docs
      pack, unassisted, with the friction log treated as blocking input — additive findings
@@ -64,25 +54,6 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      BEFORE the freeze, the gate runs against that published package, and 1.0 cuts when the
      gate passes — gated by the importants column and contract completeness, never by the
      minor tail or an empty ledger.
-   - **1.3 dry-run** — the beyond-GFM reference plugins shipped pre-freeze rather than as paper
-     probes: footnotes, the riskiest, on the 0.9.33 inline precedence ladder (build-probed 0.9.30,
-     then promoted whole), and emoji on the 0.9.34 bare-`:` rung, so this check rests on shipped
-     consumers where it matters most. At the cut, confirm the one deliberately-excluded item (the
-     GitHub repo-context autolink sugar, § 1.3) carries no breaking-if-deferred gap.
-   - **Contributor-experience pass** — the minimal CONTRIBUTING front door shipped in 0.9.17;
-     at release it becomes an actual on-ramp, not a deposition. Progressive disclosure:
-     quickstart → conventions → the incident casebook (culture.md absorbed but restructured so
-     a weekend contributor meets the rules before the scar tissue); a CODE_OF_CONDUCT (shipped
-     2026-08-07); the behavior-to-seam codebase map (pre-freeze, with a reference-existence
-     lint so staleness fails CI; the 2026-08-07 cold-start probes' friction logs are its
-     checklist, and the interactive-tutorial direction resolved to demo-embedded material
-     only); an anatomy-of-a-change case study traced from the gap-caret arc; the PR
-     flow and external-contributor setup; dev-loop friction retired or documented (the SSR
-     registrar-poison class was structurally fixed in 0.9.27, dev re-registration replaces
-     instead of throwing, chorded plugin-global commands included; the residual is that
-     editing a plugin's own definition still wants a reload, a unit installing first-wins per
-     process); a first pass of curated entry-level issues. The bar stays
-     high — the reading order is what changes.
    - Final contract reconciliation; **pre-freeze labels come off** — the `(pre-freeze)` section
      markers in `src/lib/plugin.ts` are the published signal telling an external author which
      parts of the frozen contract are not yet frozen, so `grep -rc pre-freeze src/lib/plugin.ts src/lib/index.ts`
