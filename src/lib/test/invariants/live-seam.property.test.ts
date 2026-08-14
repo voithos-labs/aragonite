@@ -10,7 +10,8 @@ import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
-import { countEmptyPairs, isSubsequence } from '$lib/test/harness/live-oracles';
+import { isSubsequence } from '$lib/test/harness/live-oracles';
+import { unpaintedResidue } from '$lib/test/simulation/live-screen-reading';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
@@ -21,8 +22,8 @@ import type { PresentationMode } from '$lib/presentation-mode';
 
 /**
  * live-mode.md § 4.5's join seam under random range deletes. DIFFERENTIAL like the split arm: the seam sits on
- * a range delete with divergences of its own. It sees reload shape, round-trip, empty pairs, and
- * that the rewrite only ever REMOVES bytes from the join it was handed. It does not see a
+ * a range delete with divergences of its own. It sees reload shape, round-trip, § 4.1's residue,
+ * and that the rewrite only ever REMOVES bytes from the join it was handed. It does not see a
  * delimiter surfacing — measured: the literal join can re-form a construct ACROSS the seam and
  * hide glyphs the two sides showed apart, so it is no upper bound. That claim belongs to the
  * cleanup's own render-path oracle, the unit suite and the e2e rows.
@@ -70,7 +71,7 @@ interface DeleteResult {
 	bytes: string;
 	shape: string | null;
 	visible: string;
-	emptyPairs: number;
+	residue: number;
 }
 
 function deleteRange(
@@ -95,7 +96,7 @@ function deleteRange(
 		bytes,
 		shape: describeConvergence(doc),
 		visible: doc.children.map(visibleTextOf).join('\n'),
-		emptyPairs: countEmptyPairs(bytes)
+		residue: unpaintedResidue(doc)
 	};
 }
 
@@ -130,7 +131,7 @@ describe('live-mode join seams over random range deletes', () => {
 		);
 	});
 
-	it('a live delete only ever drops bytes, and never mints an empty pair', () => {
+	it('a live delete only ever drops bytes, and never mints unpainted residue', () => {
 		fc.assert(
 			fc.property(arbInlineDoc, arbCut, (source, cut) => {
 				const literal = deleteRange(source, cut, undefined);
@@ -142,9 +143,12 @@ describe('live-mode join seams over random range deletes', () => {
 							`subsequence of ${JSON.stringify(literal.bytes)}`
 					);
 				}
-				if (live.emptyPairs > literal.emptyPairs) {
+				// Neither baseline alone: the twin can re-form a construct by accident and swallow
+				// residue the document already carried, and it can equally produce residue of its own
+				// that live is then judged against. What live owns is what exceeds both.
+				if (live.residue > Math.max(unpaintedResidue(parse(source)), literal.residue)) {
 					throw new Error(
-						`${JSON.stringify(source)}: live minted an empty pair in ${JSON.stringify(live.bytes)} ` +
+						`${JSON.stringify(source)}: live minted residue in ${JSON.stringify(live.bytes)} ` +
 							`against ${JSON.stringify(literal.bytes)}`
 					);
 				}

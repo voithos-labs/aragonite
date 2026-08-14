@@ -159,6 +159,47 @@ describe('a join whose survivors are only terminal hard-break trivia', () => {
 	});
 });
 
+// Miss-analysis: every join case cut a construct so that ONE side kept content, so the shape the
+// two sides jointly empty was never drawn; and the empty-pair oracle spelled residue as an
+// asterisk-family regex, which `[](url)` is not a member of, so the property lane could not see it.
+describe('a join that would leave a construct enclosing nothing unwraps it', () => {
+	it('unwraps a link the cut emptied rather than leaving [](url) unpainted', () => {
+		expect(sameBlock('[text](url) more\n', 1, 5)).toBe(' more\n');
+	});
+
+	it('lands the caret where the emptied construct stood', () => {
+		const node = blockOf('[text](url) more\n');
+		expect(
+			cleanLiveJoinSeam({
+				mergedRaw: '[](url) more\n',
+				seam: 1,
+				start: { node, offset: 1 },
+				end: { node, offset: 5 },
+				linkRef: undefined
+			})
+		).toEqual({ raw: ' more\n', seam: 0 });
+	});
+
+	// Across two blocks, and through a nesting chain: emptying the inner link leaves the strong
+	// enclosing nothing, so both runs go rather than one pair surviving around the other's residue.
+	it('unwraps across two blocks, and through a nesting chain', () => {
+		expect(deleteBetween('a [te](url)\n', 3, '[xt](url) b\n', 3)).toBe('a  b\n');
+		expect(sameBlock('x **[a](u)** y\n', 5, 6)).toBe('x  y\n');
+	});
+
+	// The kept-run reading is the one that empties the link here, so "fewest drops" has to be read
+	// among the readings that leave none — found by the property lane once the net could see it.
+	it('prefers the fuller drop where the leaner one empties a construct', () => {
+		expect(sameBlock('[**bold**]()*x***foo**\n', 1, 7)).toBe('*x***foo**\n');
+	});
+
+	// Only what THIS cut emptied: residue the document already carried is bytes the gesture never
+	// aimed at, and dropping it would take more than the reader asked for.
+	it('leaves residue the cut did not create', () => {
+		expect(sameBlock('[](url) some text\n', 9, 13)).toBeNull();
+	});
+});
+
 describe('what the cleanup refuses to be asked', () => {
 	it('declines an offset outside the block content', () => {
 		const heading = blockOf('## bo\n');

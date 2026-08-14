@@ -43,10 +43,19 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 	// Least destructive first: keep the runs the two sides can still pair across the seam, and fall
 	// back to dropping every stranded one. Identical readings render once.
 	const readings = [unpairedSpans(join, left, right), everyDanglingSpan(join, left, right)];
-	const candidates = readings.map((dangling) => [...dangling, ...pairs]);
-	for (const spans of sameSpans(candidates[0], candidates[1]) ? [candidates[0]] : candidates) {
-		const candidate = withoutSpans(join.mergedRaw, spans);
-		if (visibleBlockText(candidate, resolver) !== shown) continue;
+	const spanSets = readings.map((dangling) => [...dangling, ...pairs]);
+	const candidates = (sameSpans(spanSets[0], spanSets[1]) ? [spanSets[0]] : spanSets).map(
+		(spans) => {
+			const raw = withoutSpans(join.mergedRaw, spans);
+			return { spans, raw, read: readCandidate(raw, resolver) };
+		}
+	);
+	// § 4.1's other half, and why least destructive is not simply the first reading: a run this one
+	// keeps can be one the cut left enclosing nothing, and a pair over nothing paints nothing either
+	// way — so the screen check alone takes it. Fewest drops AMONG the readings that mint no residue.
+	const floor = Math.min(...candidates.map(({ read }) => read?.residue ?? Infinity));
+	for (const { spans, raw: candidate, read } of candidates) {
+		if (read === null || read.visible !== shown || read.residue > floor) continue;
 		// A candidate that changed nothing IS the literal join: declining says so, and keeps the
 		// caller off a rewrite path it does not need.
 		if (candidate === join.mergedRaw) return null;
@@ -338,16 +347,41 @@ function clipNodes(
 	return out;
 }
 
-/** The candidate read back as a block: a join produces ONE, and a candidate that parses to two
- *  (or to a kind with no inline content) is not the thing the caller is about to install. */
-function visibleBlockText(raw: string, resolver: LinkReferenceResolver | undefined): string | null {
+/**
+ * The candidate read back as a block: what it shows, and how many constructs its row unwraps are
+ * left standing over nothing. Null where a join produces something the caller cannot install — two
+ * blocks, or a kind with no inline content.
+ */
+function readCandidate(
+	raw: string,
+	resolver: LinkReferenceResolver | undefined
+): { visible: string; residue: number } | null {
 	const blocks = parse(raw, { scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
 	const range = getContentRange(block);
-	return renderedText(
-		parseInline(block.raw, range.start, range.end, resolver),
-		block.raw,
-		CONTENT_VISIBILITY
-	);
+	const nodes = parseInline(block.raw, range.start, range.end, resolver);
+	return {
+		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY),
+		// Chrome standing over nothing is all on screen (§ 4.1), so a block that paints hides no pair.
+		residue: paintsOnlyChrome(nodes, block.raw) ? 0 : countResidue(nodes, block.raw)
+	};
+}
+
+/** Constructs the reader would meet as nothing at all: no painted byte, and a row that unwraps
+ *  them when emptied rather than leaving delimiters over nothing. */
+function countResidue(nodes: readonly InlineNode[], raw: string): number {
+	let found = 0;
+	for (const node of nodes) {
+		if (node.kind === 'text') continue;
+		if (
+			node.end > node.start &&
+			renderedText([node], raw, CONTENT_VISIBILITY) === '' &&
+			getInlineConstructPolicy(node.kind)?.autoUnwrapOnEmpty === true
+		) {
+			found++;
+		}
+		if (node.children) found += countResidue(node.children, raw);
+	}
+	return found;
 }

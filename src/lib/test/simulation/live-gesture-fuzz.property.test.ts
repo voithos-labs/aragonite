@@ -160,18 +160,6 @@ describe('the shapes the sweep excuses, and the issues that own them', () => {
 		expect(cut.screen).toBe('<https://exam\nple.com> tail');
 	});
 
-	// #136: the join cleaner's splice abuts two runs into a shared one the empty-pair net reads as
-	// residue. The cut unwraps the link between the two blocks' asterisk runs.
-	it('#136 — the join cleaner splices two asterisk runs into a shared one', async () => {
-		const cut = await liveAndLiteral('[**bold**](url)***foo***foo\n', {
-			kind: 'range-delete',
-			offset: 0,
-			endOffset: 1
-		});
-		expect(cut.live).toBe('**bold*****foo***foo\n');
-		expect(cut.live).not.toBe(cut.literal);
-	});
-
 	// #165: the selection replace verifies the cleaned join, then splices the typed bytes into it —
 	// so the flanking the check saw is not the flanking the seam writes, and a pair can surface.
 	it('#165 — the selection replace splices typed bytes past its own verification', async () => {

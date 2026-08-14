@@ -73,7 +73,8 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-reveal.ts': "preview-inline's reveal chain: revealable",
 	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
 	'src/lib/components/blocks/text/link-at-point.ts': 'the card entry: cardEditable',
-	'src/lib/components/blocks/text/live-join-seam.ts': 'the join cleaner: splitBehavior',
+	'src/lib/components/blocks/text/live-join-seam.ts':
+		'the join cleaner: splitBehavior, and autoUnwrapOnEmpty for a construct the cut emptied',
 	'src/lib/components/blocks/text/live-split-rebalance.ts': 'the split rebalancer: splitBehavior',
 	'src/lib/components/blocks/text/format-toggle.ts': 'the toggle seam: the mark vocabulary',
 	'src/lib/components/blocks/text/pending-mark-insert.ts':
