@@ -117,6 +117,7 @@
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '../invariants/assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
+	import { checkLandableCaret } from '../invariants/landable-caret';
 	import { registerBuiltInBlocks } from './built-in-blocks';
 	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
 
@@ -1206,6 +1207,14 @@
 			setFocusedHost(host as HTMLElement);
 			const path = readBlockPath(host);
 			focusedPath = path && path.length > 0 ? path : null;
+			// G1.33 at the seam every caret door crosses: a door seats a caret by focusing the
+			// surface, whoever minted it, so a consumer's own door inherits the guard here.
+			const landed = e.target;
+			if (landed instanceof HTMLElement) {
+				assertInvariant('landable-caret', () =>
+					checkLandableCaret(landed, effectiveMode, path ?? [])
+				);
+			}
 		};
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;

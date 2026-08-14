@@ -322,7 +322,7 @@ export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 /**
  * Whether the mode paints NOTHING landable here: every walk segment is a hidden marker run, so no
  * caret position has a pixel of its own. `invariants/landable-caret.ts` refuses this shape at the
- * park door — an empty container (landable at offset 0) and one fronted by the ambient island are
+ * focus seam — an empty container (landable at offset 0) and one fronted by the ambient island are
  * not it.
  */
 export function paintsNoLandableContent(container: ParentNode): boolean {

@@ -40,4 +40,15 @@ describe('checkLandableCaret (G1.33)', () => {
 		expect(checkLandableCaret(block('reading', '# '), 'reading', [0])).toBeNull();
 		expect(checkLandableCaret(block(undefined, '# '), 'source', [0])).toBeNull();
 	});
+
+	// The seam hands it whatever took focus, which need not be the walk container itself.
+	it('resolves the surface from a landing inside it', () => {
+		const marker = block('live', '# ').querySelector('span');
+		expect(checkLandableCaret(marker as HTMLElement, 'live', [2])?.code).toBe('landable-caret');
+	});
+
+	it('stands down for a landing outside any editable surface', () => {
+		const host = block('live', '# ').parentElement;
+		expect(checkLandableCaret(host as HTMLElement, 'live', [2])).toBeNull();
+	});
 });

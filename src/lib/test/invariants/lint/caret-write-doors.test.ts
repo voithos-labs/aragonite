@@ -58,6 +58,16 @@ const WRITE_HELPER_NAMERS: Record<string, string> = {
 	'src/lib/cursor/reveal-source.ts': 'reveal fold caret carry'
 };
 
+/**
+ * Files that may name `checkLandableCaret` — G1.33's ONE fire site, plus its definition. A door
+ * cannot carry the guard itself: a consumer's own caret door mints from nothing here, so the
+ * question is asked once at the focus seam every door crosses. A per-door copy re-opens the class.
+ */
+const LANDABLE_CARET_NAMERS: Record<string, string> = {
+	'src/lib/invariants/landable-caret.ts': 'defines the predicate',
+	'src/lib/components/Editor.svelte': 'the editor root focusin seam — the one fire site'
+};
+
 /** Files that may mint a public `focus` from `selection/caret-doors`' placeCaret. */
 const PLACE_CARET_MINTERS: Record<string, string> = {
 	'src/lib/components/blocks/editable-leaf.ts': 'the plugin leaf surface',
@@ -111,6 +121,10 @@ describe('G4.36 caret-write-door census', () => {
 
 	it('the files minting placeCaret are the declared surfaces', () => {
 		census(sources, mintsPlaceCaret, PLACE_CARET_MINTERS);
+	});
+
+	it('the files naming checkLandableCaret are the definition and its one seam', () => {
+		census(sources, namesToken('checkLandableCaret'), LANDABLE_CARET_NAMERS);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
