@@ -237,9 +237,9 @@ export interface BlockComponent {
 		sel: { start: number; end: number }
 	): Promise<void>;
 	/**
-	 * Whether this component's own surface takes text input. NOT the flag the editor
-	 * gates on: merge eligibility and search read the *descriptor*'s `editable` for the
-	 * kind. Keep the two in agreement.
+	 * Whether this component's own surface takes text input — a REPORT, never a gate. The
+	 * kind's descriptor `editable` is the declaration and the only flag the editor gates on
+	 * (merge eligibility, search scanning); this mirrors it for the mounted surface.
 	 */
 	readonly editable: boolean;
 	/** Whether focus may land on this block at all. This is the flag focus dispatch reads. */

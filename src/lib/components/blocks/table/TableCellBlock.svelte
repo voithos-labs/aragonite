@@ -128,6 +128,7 @@
 	const {
 		keybindingOverrides,
 		presentationMode: getPresentationMode,
+		theme: getTheme,
 		resolveLinkUrl,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
@@ -446,19 +447,11 @@
 		return true;
 	}
 
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		focusAtColumn,
-		insertMarkdown
-	} satisfies BlockComponent);
-
+	// The ONE surface literal: this cell reaches every caller through its published slot, so a
+	// second literal to type-check against would be a decoy a dropped member could hide behind.
 	$effect(() => {
 		if (!slots) return;
-		const self: BlockComponent = {
+		const self = {
 			editable,
 			focusable,
 			focus,
@@ -473,7 +466,7 @@
 			applyMenuClipboard,
 			snapCaretToPoint,
 			insertMarkdown
-		};
+		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self);
 	});
 
@@ -490,6 +483,10 @@
 			return linkRef;
 		},
 		resolveLinkUrl,
+		get presentationMode() {
+			return presentationMode;
+		},
+		getTheme,
 		getDocument: () => getDoc(),
 		getContentVersion,
 		get islands() {

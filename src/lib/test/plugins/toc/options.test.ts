@@ -15,8 +15,8 @@ function reset(): void {
 beforeEach(reset);
 afterEach(reset);
 
-// Pins `tocPlugin({ maxDepth })` end to end, from factory arg through the extraProps
-// closure to the component prop — the walk and e2e both run at the default.
+// Pins `tocPlugin({ maxDepth })` from factory arg through the extraProps closure to the
+// component prop — the bare-install default. Per-instance depth is per-instance-depth.test.ts.
 describe('tocPlugin maxDepth option', () => {
 	function tocExtraProps(): Record<string, unknown> | undefined {
 		const kind = declaredPluginKind(TOC_BLOCK);
