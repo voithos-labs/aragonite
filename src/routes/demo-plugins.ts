@@ -9,12 +9,14 @@ import { katexRenderer } from '$lib/plugins/latex/renderer';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
 import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 
-// One mint site for every demo route: definitions are process-global and install first-wins,
-// so per-route arrays silently ignore the loser's options (toc depth is the shipped case, #64).
+// One mint site for every demo route: definitions are process-global and install first-wins, so a
+// route varying a plugin's configuration passes `{ plugin, options }` rather than its own array.
+export const DEMO_TOC = tocPlugin();
+
 export const DEMO_PLUGINS = [
 	admonitionsPlugin(),
 	detailsPlugin(),
-	tocPlugin(),
+	DEMO_TOC,
 	footnotesPlugin(),
 	emojiPlugin(),
 	highlightOccurrencesPlugin(),

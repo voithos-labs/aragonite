@@ -1,7 +1,10 @@
 <script module lang="ts">
-	import { DEMO_PLUGINS } from './../demo-plugins';
+	import { DEMO_PLUGINS, DEMO_TOC } from './../demo-plugins';
 
-	const changelogPlugins = DEMO_PLUGINS;
+	// This route's own outline depth, declared per instance so the shared set still installs once.
+	const changelogPlugins = DEMO_PLUGINS.map((entry) =>
+		entry === DEMO_TOC ? { plugin: DEMO_TOC, options: { maxDepth: 3 } } : entry
+	);
 </script>
 
 <script lang="ts">

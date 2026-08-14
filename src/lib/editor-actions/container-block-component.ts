@@ -142,6 +142,9 @@ async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Pro
 }
 
 export interface ContainerBlockComponentDeps {
+	/** What the mounted surface reports as `editable`, mirroring the kind's descriptor flag;
+	 *  omitted stays `true`, the built-in containers' answer. A getter, never a snapshot. */
+	readonly editable?: boolean;
 	/** Ends a live cross-block range when `focus` lands a caret — a whole-block landing
 	 *  reaches no child to borrow it from. */
 	readonly selection: SelectionState;
@@ -208,7 +211,9 @@ export function createContainerBlockComponent(
 	}
 
 	return {
-		editable: true,
+		get editable() {
+			return deps.editable ?? true;
+		},
 		focusable: true,
 		focus: placeCaret(deps.selection, (offset) => walkInto(offset, (child, at) => child.focus(at))),
 		parkCaret,

@@ -123,6 +123,13 @@ export interface EditableLeaf {
 	 */
 	getTheme(): string;
 
+	/**
+	 * This editor instance's options for the plugin owning this block's kind — the
+	 * `{ plugin, options }` entry's channel, so two editors in one process configure the
+	 * same kind differently. `unknown`, like `commandHooks`: the plugin narrows it.
+	 */
+	getOptions(): unknown;
+
 	// ── BlockComponent surface (mode-guarded; re-export as one-liners) ────────
 	focus(offset: number): void;
 	parkCaret(offset: number): void;
@@ -230,6 +237,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
+	// Resolved by the kind's recorded owner, like the command context's `editor`.
+	const getOptions = (): unknown =>
+		pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')?.options;
 	const isReading = () => getPresentationMode() === 'reading';
 	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
@@ -576,6 +586,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		getPresentationMode,
 		getTheme,
+		getOptions,
 
 		focus,
 		parkCaret,

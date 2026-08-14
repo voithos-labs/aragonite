@@ -8,6 +8,7 @@
 import type { InlineNode } from '../../../core/nodes';
 import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { LinkReferenceResolverRef, ResolveLinkUrl } from '../../../editor-keys';
+import type { PresentationMode } from '../../../presentation-mode';
 import { computeInlineContent, contentLengthOf } from '../../../core/inline';
 import { renderInlineNodes } from '../../../core/inline-render';
 import { trimTrailingLineEnding } from '../../../core/lines';
@@ -29,6 +30,12 @@ export interface CellRenderDeps {
 	get node(): NodeView;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 	resolveLinkUrl: ResolveLinkUrl;
+	/** Effective mode. Read inside the render pass on purpose: the read is the
+	 *  reactive dependency that re-renders every mounted cell on a mode flip. */
+	get presentationMode(): PresentationMode;
+	/** The editor's theme name, forwarded to widgets. NOT a render-key term: this DOM is
+	 *  themed by CSS, so only a widget whose engine paints its own colors reads it. */
+	getTheme?: () => string;
 	/** Live root document for widgets that derive from it. A getter, so a pooled widget
 	 *  re-reads the current document across edits rather than a mount-time snapshot. */
 	getDocument: () => DocumentView | undefined;
@@ -58,6 +65,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 	let lastRenderedKey = '';
 	const widgetPool = createSvelteWidgetPool({
 		reportError: deps.reportRenderError,
+		getPresentationMode: () => deps.presentationMode,
+		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
 		getContentVersion: deps.getContentVersion
 	});
@@ -82,8 +91,12 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		const hasRef = node.raw.includes('[');
 		// Key on the compact signature epoch, never the ~MB-scale string (text-render's twin).
 		const sig = hasRef ? String(deps.linkRef?.epoch ?? deps.linkRef?.signature ?? '') : '';
+		// Unconditional, unlike the ref gating: a mode flip re-renders every mounted cell.
+		// '' in source keeps the default key byte-identical but for one NUL (text-render's twin).
+		const mode = deps.presentationMode;
+		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
-		const renderKey = `${node.raw}\0${sig}${islandRenderKeyPart(islands)}`;
+		const renderKey = `${node.raw}\0${sig}\0${modeKeyPart}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		if (renderKey === lastRenderedKey && !forceRebuild) return;
 

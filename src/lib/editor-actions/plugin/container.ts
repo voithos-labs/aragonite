@@ -21,6 +21,7 @@ import type {
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { AmbientPrefix, BlockComponent, ContainerBlockComponent } from '../../block-component';
+import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
@@ -136,6 +137,12 @@ export interface ContainerBlock {
 	 * rather than CSS must key its render on this and re-render when it changes.
 	 */
 	getTheme(): string;
+	/**
+	 * This editor instance's options for the plugin owning this block's kind — the
+	 * `{ plugin, options }` entry's channel, so two editors in one process configure the
+	 * same kind differently. `unknown`, like `commandHooks`: the plugin narrows it.
+	 */
+	getOptions(): unknown;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
@@ -329,6 +336,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const pluginEditor = editorDoc?.pluginEditor;
 	const linkRef = editorDoc?.linkRef;
 
+	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
+	const getOptions = (): unknown =>
+		pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')?.options;
+
 	const listState = createBlockListState(deps.getNode);
 
 	// One live scope over the frozen thunks, shared by every factory this seam wires.
@@ -423,6 +434,10 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	});
 
 	const containerApi = createContainerBlockComponent({
+		// The kind's descriptor is the declaration; the mounted surface only reports it.
+		get editable() {
+			return getBlockKindDescriptor(deps.getNode().kind).editable;
+		},
 		selection,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
@@ -571,6 +586,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleKeydown,
 		moveFocusOut,
 		getPresentationMode,
-		getTheme
+		getTheme,
+		getOptions
 	};
 }

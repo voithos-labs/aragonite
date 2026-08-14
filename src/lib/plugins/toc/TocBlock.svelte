@@ -8,7 +8,7 @@
 		type EditorRects,
 		type NodeView
 	} from '$lib/plugin';
-	import { collectHeadings } from './heading-outline';
+	import { collectHeadings, resolveMaxDepth } from './heading-outline';
 	import { createNavigationQueue } from './navigation-queue';
 
 	let {
@@ -42,9 +42,13 @@
 		}
 	});
 
+	// Instance options win; the `maxDepth` prop is the factory argument, which a bare install
+	// (and only a bare install) is configured by.
+	const depth = $derived(resolveMaxDepth(leaf.getOptions(), maxDepth));
+
 	// The walk reads heading bytes through the prop, subscribing to the CST's $state proxy, so
 	// an edit above re-runs it; it stays uncached to keep the derived reactive-safe.
-	const headings = $derived(collectHeadings(document, maxDepth));
+	const headings = $derived(collectHeadings(document, depth));
 
 	// Serialized per block (see `navigation-queue.ts` for why). `navigateTo` lands the caret as
 	// well as scrolling, so focus never stays where the editor's chords cannot reach it.

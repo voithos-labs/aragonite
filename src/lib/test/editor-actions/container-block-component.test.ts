@@ -50,6 +50,29 @@ describe('createContainerBlockComponent', () => {
 		expect(c.focusable).toBe(true);
 	});
 
+	// Miss-analysis: the flag was a literal `true` with no reader, so no test could tell a
+	// declared value from the hardcode — the only pin was the default it never left.
+	it('reports the declared editable value, re-read live', () => {
+		let declared = false;
+		const c = createContainerBlockComponent({
+			get editable() {
+				return declared;
+			},
+			selection: createSelectionState(),
+			innerBlockRefs: [],
+			refSlots: refSlotsOver([]),
+			nodeChildrenLength: 0,
+			get node() {
+				return listNode(0);
+			}
+		});
+		expect(c.editable).toBe(false);
+		// A snapshot dep would freeze the first read; focusability is a separate axis.
+		declared = true;
+		expect(c.editable).toBe(true);
+		expect(c.focusable).toBe(true);
+	});
+
 	it('focus(0) targets the first child ref', () => {
 		const refs = [makeRef(), makeRef()];
 		container(refs).focus(0);

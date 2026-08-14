@@ -62,6 +62,9 @@ function mount(
 			return linkRef;
 		},
 		resolveLinkUrl,
+		get presentationMode() {
+			return 'source' as const;
+		},
 		getDocument: () => undefined,
 		get islands() {
 			return islands;

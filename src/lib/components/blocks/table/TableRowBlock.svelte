@@ -181,20 +181,11 @@
 		return null;
 	}
 
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		getBlockComponentByPath
-	} satisfies BlockComponent);
-
+	// The ONE surface literal, the cell's twin: a row reaches every caller through its published
+	// slot, so a second literal to type-check against would only be a decoy.
 	$effect(() => {
 		if (!slots) return;
-		const self: BlockComponent = {
+		const self = {
 			editable,
 			focusable,
 			focus,
@@ -203,7 +194,7 @@
 			getCursorPosition,
 			focusByPath,
 			getBlockComponentByPath
-		};
+		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self);
 	});
 </script>
