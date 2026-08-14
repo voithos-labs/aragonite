@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
-import {
-	composeWholeBlockFocusSurface,
-	createContainerBlockComponent
-} from '$lib/editor-actions/container-block-component';
+import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
+import { composeWholeBlockFocusSurface } from '$lib/editor-actions/whole-block-focus-surface';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';

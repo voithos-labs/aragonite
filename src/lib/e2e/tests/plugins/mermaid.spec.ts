@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, activeBlockPath } from './helpers';
+import { wholeBlockInput } from '../../whole-block-input';
 
 /**
  * Mermaid reference plugin: render-primary block with plugin-owned editing
@@ -64,6 +65,12 @@ class MermaidPage extends PluginsPage {
 		return this.page.locator('.mermaid-viewport').first();
 	}
 
+	/** Where whole-block focus lands on the first diagram, scoped to it: a document-wide
+	 *  locator would pass on either of the seed's two. */
+	get firstInputHost() {
+		return wholeBlockInput(this.blocks.first());
+	}
+
 	/** Toolbar buttons stay hidden until the block is hovered/focused; a real user
 	 *  hovers to reveal them, so reveal then click. */
 	async clickToolbar(testId: string): Promise<void> {
@@ -125,7 +132,7 @@ test.describe('mermaid reference plugin', () => {
 
 		// A keyboard commit hands focus back to the diagram, which is where a user presses
 		// undo next — no click away first.
-		await expect(editor.firstViewport).toBeFocused();
+		await expect(editor.firstInputHost).toBeFocused();
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains(EDITED_CODE);
 		expect(await editor.bridge.getSource()).toBe(SEED);
@@ -178,7 +185,7 @@ test.describe('mermaid reference plugin', () => {
 
 	test('single click focuses the viewport; double click enters edit mode', async () => {
 		await editor.firstViewport.click();
-		await expect(editor.firstViewport).toBeFocused();
+		await expect(editor.firstInputHost).toBeFocused();
 		await expect(editor.textarea).toHaveCount(0);
 
 		await editor.firstViewport.dblclick();

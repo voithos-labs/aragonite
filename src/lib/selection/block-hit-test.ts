@@ -7,6 +7,7 @@
  */
 
 import type { AnyBlockKind } from '../core/nodes';
+import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CellSelectionPoint, SelectionEndpoint } from './primitives';
 import { offsetFromViewportPoint } from './native-bridge';
@@ -55,10 +56,13 @@ export function blockAtPoint(
 			return {
 				path,
 				// A cell-addressed kind's first contenteditable is one of its CELLS, so declaring
-				// the drag hook withdraws the block-level surface rather than offering that.
+				// the drag hook withdraws the block-level surface rather than offering that. The
+				// whole-block editing host is chrome, not characters, so it is excluded too.
 				charSurface: dragHitTest
 					? null
-					: (wrapper.querySelector('[contenteditable]') as HTMLElement | null),
+					: (wrapper.querySelector(
+							`[contenteditable]:not([${WHOLE_BLOCK_INPUT_ATTR}])`
+						) as HTMLElement | null),
 				foreignDragHitTest: dragHitTest && ((cx, cy) => dragHitTest(wrapper, cx, cy)),
 				caretTargetAtPoint: caretTarget && ((cx, cy) => caretTarget(wrapper, cx, cy))
 			};

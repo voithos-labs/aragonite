@@ -498,8 +498,9 @@
 		outline: none;
 	}
 
-	/* Only the focused viewport pans, so only it hints with the grab cursor. */
-	.mermaid-viewport:focus {
+	/* Only a focused block pans, so only then does the viewport hint with the grab cursor.
+	   `:focus-within`: whole-block focus lands on the editor's hidden input host beside it. */
+	.mermaid-block:focus-within .mermaid-viewport {
 		cursor: grab;
 	}
 

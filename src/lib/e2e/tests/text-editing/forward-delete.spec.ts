@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { wholeBlockInput } from '../../whole-block-input';
 
 test.describe('forward delete', () => {
 	let editor: EditorPage;
@@ -39,7 +40,7 @@ test.describe('forward delete', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
 
-		await expect(editor.page.locator('.thematic-break-block')).toBeFocused();
+		await expect(wholeBlockInput(editor.page.locator('.thematic-break-block'))).toBeFocused();
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 

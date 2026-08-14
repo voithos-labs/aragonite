@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readDoc, waitForDoc, activeBlockPath } from './helpers';
+import { wholeBlockInput } from '../../whole-block-input';
 
 /**
  * Whole-block focus on a BROKEN mermaid fence (requirements/plugins/mermaid-broken-focus.md). The
@@ -23,6 +24,12 @@ class BrokenMermaidPage extends PluginsPage {
 		return this.page.locator('.mermaid-surface');
 	}
 
+	/** Where whole-block focus lands: the error card is a declared surface a redraw replaces,
+	 *  so the editing host lives in the chrome box beside it. */
+	get inputHost() {
+		return wholeBlockInput(this.page.locator('.mermaid-block'));
+	}
+
 	get textarea() {
 		return this.page.getByTestId('mermaid-source');
 	}
@@ -41,7 +48,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 	}) => {
 		await editor.getBlock(2).click();
 		await page.keyboard.press('ArrowUp');
-		await expect(editor.surface).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		expect(await activeBlockPath(page)).toEqual([1]);
 
 		await page.keyboard.press('ArrowUp');
@@ -56,7 +63,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 		await editor.getBlock(2).click();
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
-		await expect(editor.surface).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original); // focus only — no byte change
 
@@ -72,7 +79,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 		page
 	}) => {
 		await editor.surface.click();
-		await expect(editor.surface).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('Enter');
 
 		await waitForDoc(page, (s) => s.rootCount === 4);
@@ -86,12 +93,12 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 		page
 	}) => {
 		await editor.surface.click();
-		await expect(editor.surface).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 
 		await page.keyboard.press('Alt+ArrowDown');
 		await waitForDoc(page, (s) => s.kinds[2] === 'mermaid');
 		expect((await readDoc(page)).kinds).toEqual(['paragraph', 'paragraph', 'mermaid']);
-		await expect(editor.surface).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 
 		await page.keyboard.press('Alt+ArrowUp');
 		await waitForDoc(page, (s) => s.kinds[1] === 'mermaid');
@@ -110,7 +117,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 		await page.keyboard.press('Control+Enter');
 
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
-		await expect(page.locator('.mermaid-viewport')).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		expect(await editor.bridge.getSource()).toContain(FIXED_CODE);
 	});
 

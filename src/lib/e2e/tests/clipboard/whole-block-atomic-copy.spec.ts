@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { wholeBlockInput } from '../../whole-block-input';
 
 // Whole-block atomic copy/cut through the shared `handleWholeBlockKeys` tail
 // (requirements/clipboard/whole-block-atomic-copy.md). Mod+C writes via
@@ -24,7 +25,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 	async function focusBreakByArrow(): Promise<void> {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowDown');
-		await expect(breakBlock()).toBeFocused();
+		await expect(wholeBlockInput(breakBlock())).toBeFocused();
 	}
 
 	test('Mod+C copies the block markdown and leaves the document unchanged', async () => {
@@ -53,7 +54,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 		await page.getByTestId('presentation-toggle').click();
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
 		await breakBlock().click();
-		await expect(breakBlock()).toBeFocused();
+		await expect(wholeBlockInput(breakBlock())).toBeFocused();
 		const before = await editor.bridge.getSource();
 
 		await page.keyboard.press('Control+c');

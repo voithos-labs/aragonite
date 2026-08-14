@@ -22,6 +22,7 @@
 		handleEditorGlobalChord,
 		handleWholeBlockKeys
 	} from '../../editor-actions/container-block-component';
+	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
 	import { placeCaret } from '../../selection/caret-doors';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
@@ -43,7 +44,17 @@
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
 	const isReading = () => getPresentationMode?.() === 'reading';
+	let boxEl: HTMLDivElement | undefined = $state();
 	let el: HTMLDivElement | undefined = $state();
+
+	// The editing host AltGr and IME input arrive through: keydown alone drops both, and this
+	// block has no editable surface of its own to catch them.
+	const inputProxy = createWholeBlockInputProxy({
+		getBoxEl: () => boxEl,
+		getFocusEl: () => el,
+		isReading,
+		mint: (text) => void blockEdit.insertParagraph(index + 1, text)
+	});
 
 	// ── BlockComponent interface ────────────────────────────────────────
 
@@ -55,11 +66,12 @@
 	export const focus = placeCaret(selection, parkCaret);
 
 	export function parkCaret(_offset: number): void {
-		el?.focus();
+		if (el) inputProxy.focus(el);
 	}
 
+	// `contains`, not identity: focus lands on the hidden host beside the separator.
 	export function getCursorOffset(): number | null {
-		if (!el || document.activeElement !== el) return null;
+		if (!boxEl || !boxEl.contains(document.activeElement)) return null;
 		return 0;
 	}
 
@@ -137,26 +149,32 @@
 	}
 </script>
 
-<!-- Deliberately focusable non-interactive: the whole-block-focus model (the block IS
-     its own focus target). The role/naming question is the 1.1 shell a11y decision. -->
-<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-<div
-	bind:this={el}
-	tabindex="0"
-	class="thematic-break-block"
-	role="separator"
-	onkeydown={onKeyDown}
->
-	<hr />
+<!-- The box holds the separator and the editor's hidden input host as SIBLINGS: focusable
+     content inside a focusable widget is not reachable by every AT (axe nested-interactive). -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div bind:this={boxEl} class="thematic-break-block" onkeydown={onKeyDown}>
+	<!-- Deliberately focusable non-interactive: the whole-block-focus model (the block IS
+	     its own focus target). The role/naming question is the 1.1 shell a11y decision. -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<div bind:this={el} tabindex="0" class="thematic-break-rule" role="separator">
+		<hr />
+	</div>
 </div>
 
 <style>
+	/* Positioned so the hidden input host resolves against the block; the padding lives on the
+	   rule below, so a click anywhere in the box lands on the focusable element. */
 	.thematic-break-block {
+		position: relative;
+	}
+
+	.thematic-break-rule {
 		outline: none;
 		padding: 8px 0;
 	}
 
-	.thematic-break-block:focus {
+	/* `:focus-within`: whole-block focus lands on the host, not the separator. */
+	.thematic-break-block:focus-within .thematic-break-rule {
 		outline: 2px solid var(--color-accent, #567b67);
 		outline-offset: 2px;
 		border-radius: 2px;

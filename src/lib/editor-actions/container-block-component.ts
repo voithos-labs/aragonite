@@ -27,56 +27,12 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { placeCaret } from '../selection/caret-doors';
+import {
+	focusWholeBlockEl,
+	holdsWholeBlockFocus,
+	type WholeBlockInputProxy
+} from './whole-block-focus-surface';
 import { devWarn } from '../dev-warn';
-
-// ── Whole-block focus surface ───────────────────────────────────────────────
-
-/**
- * A key originating in a plugin's own text-editing surface belongs to that surface,
- * never the whole-block affordances: Backspace inside an edit textarea edits text.
- */
-export function isEditableEventTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) return false;
-	const tag = target.tagName;
-	return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
-}
-
-/**
- * The class guard behind `getFocusEl`: an absent declared element degrades to the
- * focusable box, never a silent no-op that strands the caret. The one legitimate null
- * survives — a plugin-owned editable inside the box holding focus.
- */
-export function composeWholeBlockFocusSurface(
-	getFocusEl: () => HTMLElement | null | undefined,
-	getBoxEl: () => HTMLElement | null | undefined,
-	getKind: () => string
-): () => HTMLElement | null {
-	let warned = false;
-	return () => {
-		const declared = getFocusEl();
-		if (declared) return declared;
-		const box = getBoxEl();
-		if (!box) return null;
-		const active = document.activeElement;
-		if (isEditableEventTarget(active) && box.contains(active)) return null;
-		if (!warned) {
-			warned = true;
-			devWarn(
-				'container-block',
-				`whole-block kind "${getKind()}" supplied no focus element for this state; falling back to the box`
-			);
-		}
-		return box;
-	};
-}
-
-// The fallback box is a plain div, focusable only once a tabindex is minted. A surface
-// already in the tab order (an explicit tabindex, or a natively focusable element like a
-// plugin's edit textarea) keeps it — writing -1 would only take it out.
-function focusWholeBlockEl(el: HTMLElement): void {
-	if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.tabIndex = -1;
-	el.focus();
-}
 
 export interface EditorGlobalChordDeps extends Pick<
 	GlobalCommandContext,
@@ -213,11 +169,16 @@ export interface ContainerBlockComponentDeps {
 	/** A childless opaque container has no child hosts to paint search/decoration
 	 *  rects, so `measurePartialRects` measures the block itself off this element. */
 	readonly getBoxEl?: () => HTMLElement | null | undefined;
+	/** The hidden editing host beside the declared surface, where whole-block focus lands. */
+	readonly inputProxy?: WholeBlockInputProxy;
 }
 
 export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
 ): ContainerBlockComponent {
+	const landFocus = (declared: HTMLElement) =>
+		deps.inputProxy ? deps.inputProxy.focus(declared) : focusWholeBlockEl(declared);
+
 	/**
 	 * `focus` lands in a child that never forwarded the park door; `parkCaret` skips it,
 	 * because for an extend a missed park costs a caret and `focus` costs the range.
@@ -227,7 +188,7 @@ export function createContainerBlockComponent(
 		// offset carries no meaning.
 		const focusEl = deps.getFocusEl?.();
 		if (focusEl) {
-			focusWholeBlockEl(focusEl);
+			landFocus(focusEl);
 			return;
 		}
 		if (deps.nodeChildrenLength === 0) return;
@@ -253,7 +214,7 @@ export function createContainerBlockComponent(
 		parkCaret,
 		getCursorOffset() {
 			const focusEl = deps.getFocusEl?.();
-			if (focusEl) return focusEl.contains(document.activeElement) ? 0 : null;
+			if (focusEl) return holdsWholeBlockFocus(focusEl, deps.inputProxy?.el()) ? 0 : null;
 			for (const ref of deps.innerBlockRefs) {
 				const offset = ref?.getCursorOffset();
 				if (offset !== null && offset !== undefined) return offset;
@@ -307,7 +268,7 @@ export function createContainerBlockComponent(
 			// block itself, mirroring the plain-arrow path.
 			const focusEl = deps.getFocusEl?.();
 			if (focusEl) {
-				focusWholeBlockEl(focusEl);
+				landFocus(focusEl);
 				return;
 			}
 			if (deps.nodeChildrenLength === 0) return;

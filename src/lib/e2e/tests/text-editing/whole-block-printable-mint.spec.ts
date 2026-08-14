@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
+import { wholeBlockInput } from '../../whole-block-input';
 
 // Requirements: e2e/requirements/text-editing/whole-block-printable-mint.md.
 
@@ -13,7 +14,7 @@ const rule = (editor: EditorPage) => editor.page.locator('.thematic-break-block'
 async function focusTheRule(editor: EditorPage): Promise<void> {
 	await editor.focusBlockStart(2);
 	await editor.page.keyboard.press('Backspace');
-	await expect(rule(editor)).toBeFocused();
+	await expect(wholeBlockInput(rule(editor))).toBeFocused();
 }
 
 test.describe('whole-block focus — a typed character mints a paragraph below', () => {
@@ -80,7 +81,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		const original = await readingEditor.bridge.getSource();
 
 		await rule(readingEditor).click();
-		await expect(rule(readingEditor)).toBeFocused();
+		await expect(wholeBlockInput(rule(readingEditor))).toBeFocused();
 		await page.keyboard.press('x');
 
 		await readingEditor.waitForNoSourceMutation();
