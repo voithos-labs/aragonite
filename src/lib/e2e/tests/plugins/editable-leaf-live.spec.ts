@@ -16,7 +16,7 @@ test.describe('plugin editable leaf under live mode: the %% memo kind', () => {
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
 
 		// Arrow entry, not a click: a click seats the caret natively, and only the structural
-		// route reaches the leaf's `parkCaret` — the seam G1.33 guards.
+		// route reaches the leaf's `parkCaret` door.
 		await editor.focusBlockEnd(0);
 		await page.keyboard.press('ArrowRight');
 		expect(await activeBlockPath(page)).toEqual([1]);

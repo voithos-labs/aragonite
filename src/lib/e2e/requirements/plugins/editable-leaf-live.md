@@ -3,7 +3,7 @@
 The `%%` memo kind (`createEditableLeaf({ mode: 'plain' })`) driven under `live`. The mode is the
 variable, so the byte oracle repeats the plain-leaf battery's on purpose; what is new is that a
 plugin surface takes real keystrokes while the rung hides markers. The shared fixture's console
-watch rides along, so any `[invariant:…]` fire — G1.33's park-door check included — fails the run.
+watch rides along, so any `[invariant:…]` fire (G1.33's landable-caret check included) fails the run.
 
 ## Live mode
 
