@@ -45,7 +45,7 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { hidesStructuralSuffix } from './hidden-suffix';
-	import { resolveSelectionEdit, resolveSelectionEditFromInput } from './live-selection-edit';
+	import { resolveLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../invariants/assert';
@@ -819,18 +819,18 @@
 	}
 
 	/**
-	 * A selection edit inside ONE block, in a mode that paints no delimiter: the engine would write
-	 * the runs the range crossed literally, so the edit goes through the join seam instead. Declines
-	 * wherever that seam has nothing to clean, leaving the engine its grapheme and IME behavior.
+	 * A native ranged edit inside ONE block, in a mode that paints no delimiter: the engine would
+	 * write the runs the range crossed literally, so the edit goes through the join seam instead.
+	 * Declines wherever that seam has nothing to clean, leaving the engine its grapheme and IME
+	 * behavior.
 	 */
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
 		if (widgetInteraction.isRevealing()) return false;
-		const range = cursor.getRawSelection();
-		if (!range) return false;
-		const edit = resolveSelectionEditFromInput(e, node, range, presentationMode, linkRef);
+		const edit = resolveLiveRangeEdit(e, node, cursor, presentationMode, linkRef);
 		if (!edit) return false;
 		e.preventDefault();
-		void blockEdit.updateBlockContent(index, edit.raw, range.start, edit.caret);
+		if (edit.kind === 'swallow') return true;
+		void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
 		setPendingCursorOffset(edit.caret, 'live-selection-edit');
 		return true;
 	}
