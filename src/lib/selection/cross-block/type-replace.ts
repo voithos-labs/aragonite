@@ -127,15 +127,16 @@ export async function handleCrossBlockTypeReplace(
 			detail: { length: targetNode.raw.length + typed.length },
 			eventPath: docPathFrom(caret.path)
 		},
-		afterTick: () => {
+		afterTick: async () => {
 			// A settle that absorbed the join above left the predecessor holding the typed bytes,
 			// so the leaf slot the delete resolved is no longer where the caret belongs.
 			const siblings = scopeChildrenOf(ctx, scope.path);
 			const target = settledCaretTarget(settled, leafIndex, caret.offset + typed.length, siblings);
-			focusCollapsedCaret(ctx.getBlockElByPath, {
-				path: [...caret.path.slice(0, -1), target.index],
-				offset: target.offset
-			});
+			const path = [...caret.path.slice(0, -1), target.index];
+			// The reveal above mounted the slot the delete resolved; a fold can land the caret on
+			// one the render window never held.
+			if (target.index !== leafIndex) await ctx.revealPath(path);
+			focusCollapsedCaret(ctx.getBlockElByPath, { path, offset: target.offset });
 		}
 	});
 	return true;
