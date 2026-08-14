@@ -28,6 +28,12 @@ export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 	if (!d.isContainer && node.innerSuffix !== undefined) {
 		return illegalField(node.kind, 'innerSuffix', 'leaf carries container structural field');
 	}
+	// Only a body sitting under a chrome line of the container's own can peel a blank into
+	// `innerPrefix` (`core/parser.parseContainerBody`); elsewhere the body opens on the
+	// container's first line and a filled slot emits a line no parse can produce.
+	if (d.bodyWrap?.afterOpenerLine !== true && node.innerPrefix) {
+		return illegalField(node.kind, 'innerPrefix', 'container declares no opener-line body wrap');
+	}
 	return null;
 }
 

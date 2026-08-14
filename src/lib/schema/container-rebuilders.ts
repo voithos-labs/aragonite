@@ -99,7 +99,11 @@ function formatAlignmentCell(a: TableAlignment): string {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** The bytes a `strip` container re-prefixes: inner trivia around its serialized children. */
+/**
+ * The bytes a `strip` container re-prefixes. Both kinds below open their body on the container's
+ * OWN first line, so no parse can peel a blank into `innerPrefix` and the slot stays empty
+ * (G1.5); reading it would emit a line nobody typed.
+ */
 function innerContentOf(node: CstNode): string {
-	return (node.innerPrefix ?? '') + concatChildren(node.children!) + (node.innerSuffix ?? '');
+	return concatChildren(node.children!) + (node.innerSuffix ?? '');
 }

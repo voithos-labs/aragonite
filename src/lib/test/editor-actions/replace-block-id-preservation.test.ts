@@ -91,7 +91,7 @@ function makeNestedSetup() {
 		leadingTrivia: '',
 		raw: '> hello\n',
 		children: [innerPara],
-		innerPrefix: '> ',
+		innerPrefix: '',
 		innerSuffix: ''
 	} as CstNode;
 

@@ -191,6 +191,25 @@ describe('rebuildListItemRaw: nested content', () => {
 	});
 });
 
+// GH #76: both kinds open their body on the container's own first line, so `innerPrefix` is
+// pinned empty and honoring it emitted an opener line no parse produces ('- item' rebuilding
+// to '- \n  item'). Miss-analysis: every rebuilder case built its node with the slot already
+// empty, so the arm reading it was reachable only from a hand-built node no test wrote.
+describe('the wrap-less rebuilders ignore innerPrefix', () => {
+	it.each([
+		['blockquote', '> quoted\n', (n: CstNode) => rebuildBlockquoteRaw(n)],
+		['listItem', '- item\n', (n: CstNode) => rebuildListItemRaw(n)]
+	] as const)('%s re-emits its own bytes with a stray slot filled', (_kind, source, rebuild) => {
+		const top = parse(source).children[0];
+		const node = top.kind === 'list' ? top.children![0] : top;
+
+		node.innerPrefix = '\n';
+		rebuild(node);
+
+		expect(node.raw).toBe(source);
+	});
+});
+
 describe('parse + rebuild round-trip', () => {
 	it('parse nested list then rebuild preserves raw', () => {
 		const source = '- Item 1\n  - Nested\n- Item 2\n';

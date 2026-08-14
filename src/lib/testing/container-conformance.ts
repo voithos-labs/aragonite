@@ -644,17 +644,21 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 				`whose top level opens a "${kind}" carrying a body`
 		);
 	}
-	const node = parse(fixture).children.find((child) => child.kind === kind);
-	if (!node) {
-		// Only a kind with no recognizer (listItem, tableRow) legitimately never parses at the
-		// top level; openers alone misread directive kinds, whose recognizer is the shared `:::`.
-		if (!isBlockOpenerRegistered(kind) && !isDirectiveKind(kind)) return;
-		fail(
-			`${kind} conformanceFixture must open a "${kind}" at the top level — the bodyWrap ` +
-				`probe rebuilds and reparses that node, and a nested fixture would skip it silently ` +
-				`while the declarations cell reads asserted`
-		);
-	}
+	// A kind with no standalone recognizer (listItem) can only ever be nested, so it is probed
+	// where the fixture puts it; openers alone misread directive kinds, whose recognizer is the
+	// shared `:::`.
+	const doc = parse(fixture);
+	const opensAtTop = isBlockOpenerRegistered(kind) || isDirectiveKind(kind);
+	const node = opensAtTop
+		? doc.children.find((child) => child.kind === kind)
+		: findFirstOfKind(doc, kind);
+	assert(
+		node,
+		`${kind} conformanceFixture must ${opensAtTop ? 'open' : 'carry'} a "${kind}"` +
+			`${opensAtTop ? ' at the top level' : ''} — the bodyWrap probe rebuilds and reparses that ` +
+			`node, and a fixture without one would skip it silently while the declarations cell reads ` +
+			`asserted`
+	);
 	assert(
 		node.children?.length,
 		`${kind} conformanceFixture opens a "${kind}" with no body child, leaving its ` +
