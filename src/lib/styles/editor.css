@@ -87,6 +87,21 @@
 	caret-color: transparent;
 }
 
+/* The whole-block editing host: invisible, but a REAL box — Chromium fires no `beforeinput` on a
+   zero-height editing host, which would silently cost it every keystroke. Click-through, so it
+   never steals a pointer from the surface it stands over; in-flight IME text paints here. */
+:where(.editor) .whole-block-input {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 1.2em;
+	overflow: hidden;
+	outline: none;
+	pointer-events: none;
+	caret-color: transparent;
+}
+
 /* Global, not component-scoped, so a consumer's own `.decoration-overlay.<their-class>`
    rules resolve. */
 :where(.editor) .decoration-overlay {
@@ -353,7 +368,7 @@
 	border-left-color: var(--syntax-quote, var(--color-ui-muted, #a4a4a4));
 }
 
-:where(.editor) .thematic-break-block[role='separator'] > hr {
+:where(.editor) .thematic-break-rule[role='separator'] > hr {
 	border-top-color: var(--syntax-separator, var(--color-ui-muted, #a4a4a4));
 }
 

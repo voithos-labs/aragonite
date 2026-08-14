@@ -47,13 +47,17 @@ import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
 import { createBlockquoteOverrides } from '../blockquote-overrides';
 import {
-	composeWholeBlockFocusSurface,
 	createContainerBlockComponent,
 	focusAcrossBlockEdge,
 	handleEditorGlobalChord,
-	handleWholeBlockKeys,
-	isEditableEventTarget
+	handleWholeBlockKeys
 } from '../container-block-component';
+import {
+	composeWholeBlockFocusSurface,
+	createWholeBlockInputProxy,
+	holdsWholeBlockFocus,
+	isEditableEventTarget
+} from '../whole-block-focus-surface';
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,
@@ -398,6 +402,17 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			)
 		: undefined;
 
+	// The editing host AltGr and IME input arrive through: keydown alone drops both, and a
+	// whole-block kind has no editable surface of its own to catch them.
+	const inputProxy = wholeBlockSurface
+		? createWholeBlockInputProxy({
+				getBoxEl: () => deps.getBoxEl(),
+				getFocusEl: wholeBlockSurface,
+				isReading: () => isReadingMode(getPresentationMode),
+				mint: (text) => void parentBlockEdit.insertParagraph(deps.getIndex() + 1, text)
+			})
+		: undefined;
+
 	// Through a closure, not the `updateOwnMetadata` value: that const is declared
 	// below, and is only ever read at reveal time.
 	const expandCollapsed = composeExpandDoor({
@@ -424,7 +439,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		isCollapsed: collapsed,
 		expandCollapsed,
 		getFocusEl: wholeBlockSurface,
-		getBoxEl: () => deps.getBoxEl()
+		getBoxEl: () => deps.getBoxEl(),
+		inputProxy
 	});
 
 	const blockListProps: ContainerBlockListProps = {
@@ -507,8 +523,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	// and an Enter split) and a plugin's own editable surface untouched.
 	function ownsWholeBlockFocus(e: KeyboardEvent): boolean {
 		if (!wholeBlockSurface) return false;
+		const proxy = inputProxy?.el();
+		// Identity, not the attribute alone: a proxy keydown bubbling up from a nested block
+		// would otherwise read as this one's.
+		if (proxy && e.target === proxy) return true;
 		const focusEl = wholeBlockSurface();
-		if (!focusEl || !focusEl.contains(document.activeElement)) return false;
+		if (!holdsWholeBlockFocus(focusEl, proxy)) return false;
 		return !isEditableEventTarget(e.target);
 	}
 

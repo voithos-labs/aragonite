@@ -297,7 +297,7 @@ An admonition picks its own palette; only the chrome around it is the host's.
 		display: none;
 	}
 
-	.doc-editor :global(.editor .thematic-break-block[role='separator'] > hr) {
+	.doc-editor :global(.editor .thematic-break-rule[role='separator'] > hr) {
 		border-top-color: var(--color-border);
 	}
 

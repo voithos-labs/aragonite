@@ -8,17 +8,22 @@ import { type SimContext } from '../invariants';
 
 const VIEWPORT = '.mermaid-viewport';
 
-async function waitForViewportFocused(page: Page, timeout = 2000): Promise<void> {
+// Whole-block focus lands on the editing host in the chrome box, not on the declared viewport,
+// which a redraw replaces.
+const FOCUS_HOST = '.mermaid-block [data-whole-block-input]';
+
+async function waitForDiagramFocused(page: Page, timeout = 2000): Promise<void> {
 	await page.waitForFunction(
-		() => document.activeElement === document.querySelector('.mermaid-viewport'),
-		null,
+		(selector) => document.activeElement === document.querySelector(selector),
+		FOCUS_HOST,
 		{ timeout, polling: 16 }
 	);
 }
 
-async function viewportIsFocused(page: Page): Promise<boolean> {
+async function diagramIsFocused(page: Page): Promise<boolean> {
 	return page.evaluate(
-		() => document.activeElement === document.querySelector('.mermaid-viewport')
+		(selector) => document.activeElement === document.querySelector(selector),
+		FOCUS_HOST
 	);
 }
 
@@ -45,11 +50,11 @@ export async function arrowFocusMermaid(ctx: SimContext, belowIndex: number): Pr
 
 	await editor.clickBlock(belowIndex);
 	await page.keyboard.press('ArrowUp');
-	await waitForViewportFocused(page);
+	await waitForDiagramFocused(page);
 	await assertUnchanged(ctx, before, 'arrow-focus');
 
 	await page.keyboard.press('ArrowDown');
-	if (await viewportIsFocused(page)) {
+	if (await diagramIsFocused(page)) {
 		throw new Error(`[${ctx.label}] ArrowDown did not step out of the focused diagram.`);
 	}
 	await assertUnchanged(ctx, before, 'arrow-exit');
@@ -68,7 +73,7 @@ export async function enterBelowUndoMermaid(ctx: SimContext): Promise<void> {
 	const hostsBefore = await page.evaluate(() => document.querySelectorAll('.block-host').length);
 
 	await page.locator(VIEWPORT).click();
-	await waitForViewportFocused(page);
+	await waitForDiagramFocused(page);
 
 	await page.keyboard.press('Enter');
 	await editor.waitForBlockHostCount(hostsBefore + 1);
@@ -96,7 +101,7 @@ export async function backspaceTwoStepDeleteUndoMermaid(
 	await page.keyboard.press('Home');
 
 	await page.keyboard.press('Backspace');
-	await waitForViewportFocused(page);
+	await waitForDiagramFocused(page);
 	await assertUnchanged(ctx, before, 'first backspace (focus only)');
 
 	await page.keyboard.press('Backspace');

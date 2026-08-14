@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { wholeBlockInput } from '../../whole-block-input';
 
 test.describe('text editing — edge cases', () => {
 	let editor: EditorPage;
@@ -64,7 +65,7 @@ test.describe('text editing — edge cases', () => {
 		await editor.focusBlockStart(2);
 		await editor.page.keyboard.press('Backspace');
 
-		await expect(breakBlock).toBeFocused();
+		await expect(wholeBlockInput(breakBlock)).toBeFocused();
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 		expect(await editor.bridge.getBlockCount()).toBe(countBefore);

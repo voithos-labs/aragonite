@@ -63,21 +63,24 @@ afterEach(async () => {
 describe('thematic break — the whole-block focus surface', () => {
 	it('renders a keyboard-reachable separator and declares itself non-editable', () => {
 		mounted = mountBreak();
+		const rule = mounted.el.querySelector('.thematic-break-rule') as HTMLElement;
 
-		expect(mounted.el.getAttribute('role')).toBe('separator');
-		expect(mounted.el.getAttribute('tabindex')).toBe('0');
-		expect(mounted.el.querySelector('hr')).not.toBeNull();
+		expect(rule.getAttribute('role')).toBe('separator');
+		expect(rule.getAttribute('tabindex')).toBe('0');
+		expect(rule.querySelector('hr')).not.toBeNull();
 		expect(mounted.instance.editable).toBe(false);
 		expect(mounted.instance.focusable).toBe(true);
 	});
 
-	it('parks the caret on the block itself, and reports an offset only while it holds focus', () => {
+	// Focus lands on the block's hidden editing host, so containment is the assertion — the
+	// host's own wiring is `thematic-break-input-proxy.test.ts`.
+	it('parks the caret inside the block, and reports an offset only while it holds focus', () => {
 		mounted = mountBreak();
 		expect(mounted.instance.getCursorOffset()).toBeNull();
 
 		mounted.instance.parkCaret(0);
 
-		expect(document.activeElement).toBe(mounted.el);
+		expect(mounted.el.contains(document.activeElement)).toBe(true);
 		expect(mounted.instance.getCursorOffset()).toBe(0);
 	});
 
@@ -90,7 +93,7 @@ describe('thematic break — the whole-block focus surface', () => {
 		mounted.instance.focus(0);
 
 		expect(mounted.selection.isCrossBlock).toBe(false);
-		expect(document.activeElement).toBe(mounted.el);
+		expect(mounted.el.contains(document.activeElement)).toBe(true);
 	});
 });
 

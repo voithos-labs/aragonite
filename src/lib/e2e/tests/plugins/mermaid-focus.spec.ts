@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, readDoc, waitForDoc, activeBlockPath, roundTripStable } from './helpers';
+import { wholeBlockInput } from '../../whole-block-input';
 
 /**
  * Mermaid whole-block focus + two-step delete (requirements/plugins/mermaid-focus.md). The opaque
@@ -23,6 +24,12 @@ class MermaidFocusPage extends PluginsPage {
 		return this.page.locator('.mermaid-viewport');
 	}
 
+	/** Where whole-block focus lands: the diagram's declared surface is replaced on every
+	 *  redraw, so the editing host lives in the chrome box beside it. */
+	get inputHost() {
+		return wholeBlockInput(this.page.locator('.mermaid-block'));
+	}
+
 	get textarea() {
 		return this.page.getByTestId('mermaid-source');
 	}
@@ -41,7 +48,7 @@ test.describe('mermaid whole-block focus', () => {
 	}) => {
 		await editor.getBlock(2).click();
 		await page.keyboard.press('ArrowUp');
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		expect(await activeBlockPath(page)).toEqual([1]);
 
 		await page.keyboard.press('ArrowUp');
@@ -54,7 +61,7 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('ArrowDown');
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		expect(await activeBlockPath(page)).toEqual([1]);
 
 		await page.keyboard.press('ArrowDown');
@@ -67,12 +74,12 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.getBlock(2).click();
 		await page.keyboard.press('Home');
 		await page.keyboard.press('ArrowLeft');
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 
 		await editor.getBlock(0).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('ArrowRight');
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 	});
 
 	test('Backspace at offset 0 below focuses the block; a second Backspace deletes it; one undo restores it', async ({
@@ -83,7 +90,7 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.getBlock(2).click();
 		await page.keyboard.press('Home');
 		await page.keyboard.press('Backspace');
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original); // focus only — no byte change, no undo entry
 
@@ -103,7 +110,7 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.getBlock(0).click();
 		await page.keyboard.press('End');
 		await page.keyboard.press('Delete');
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 
@@ -126,7 +133,7 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.bridge.waitForSourceContains('textZ');
 
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceEquals(original);
 
@@ -136,14 +143,14 @@ test.describe('mermaid whole-block focus', () => {
 		await page.keyboard.type('Q');
 		await editor.bridge.waitForSourceContains('Q');
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('Control+Alt+u');
 		await editor.bridge.waitForSourceEquals(original);
 	});
 
 	test('clicking the diagram then Backspace deletes the block', async ({ page }) => {
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('Backspace');
 		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
 	});
@@ -165,7 +172,7 @@ test.describe('mermaid whole-block focus', () => {
 		page
 	}) => {
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('Enter');
 
 		await waitForDoc(page, (s) => s.rootCount === 4);
@@ -178,7 +185,7 @@ test.describe('mermaid whole-block focus', () => {
 
 	test('a typed character while focused mints a paragraph below carrying it', async ({ page }) => {
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('x');
 
 		await waitForDoc(page, (s) => s.rootCount === 4);
@@ -191,14 +198,14 @@ test.describe('mermaid whole-block focus', () => {
 
 	test('Alt+ArrowDown reorders the block down; Alt+ArrowUp moves it back', async ({ page }) => {
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 
 		await page.keyboard.press('Alt+ArrowDown');
 		await waitForDoc(page, (s) => s.kinds[2] === 'mermaid');
 		let doc = await readDoc(page);
 		expect(doc.kinds).toEqual(['paragraph', 'paragraph', 'mermaid']);
 		expect([doc.texts[0], doc.texts[1]]).toEqual(['Above text', 'tail text']);
-		await expect(editor.viewport).toBeFocused(); // the reorder keeps the block focused
+		await expect(editor.inputHost).toBeFocused(); // the reorder keeps the block focused
 
 		await page.keyboard.press('Alt+ArrowUp');
 		await waitForDoc(page, (s) => s.kinds[1] === 'mermaid');
@@ -221,7 +228,7 @@ test.describe('mermaid whole-block focus', () => {
 		page
 	}) => {
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
@@ -234,7 +241,7 @@ test.describe('mermaid whole-block focus', () => {
 	}) => {
 		const original = await editor.bridge.getSource();
 		await editor.viewport.click();
-		await expect(editor.viewport).toBeFocused();
+		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('Control+x');
 		await editor.waitForClipboardWrite();
 		expect(await readClipboardLF()).toBe(MERMAID_MD);
