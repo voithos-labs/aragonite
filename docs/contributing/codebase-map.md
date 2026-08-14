@@ -214,7 +214,9 @@ container changes what the container interrupts and that join lives in the grand
 ancestry rebuild, gated on a boundary line of the rebuilt raw moving; the fold splices a scope no
 commit descriptor covers, so `src/lib/editor-actions/ancestry-folds.ts` publishes that scope's
 ids/refs and answers the caret the eaten slot owed. The sink is required-nullable — a caller that
-cannot reconcile a parent-scope splice passes `null` and declines the ask.
+cannot reconcile a parent-scope splice passes `null` and declines the ask. A declining caller
+whose chain is built from a leaf path BELOW its commit scope declines for that reason alone (the
+chain's fold slots outrun the scope's descriptor), not because a wider commit re-walks it.
 
 ## What a block must, may, and must not do
 
