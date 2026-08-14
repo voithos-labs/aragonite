@@ -23,9 +23,12 @@ export type { Match } from './search/document-scan';
 export { installPlugins } from './schema/plugin-install';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 
-// ── Selection + keybinding public types ────────────────────────────────────────
+// ── Selection + keybindings ────────────────────────────────────────────────────
 
 export type { EditorSelection, SelectionPoint } from './selection/primitives';
+// Document order over a selection's endpoints, so a host anchoring UI to a range needn't
+// re-derive path-lexicographic comparison.
+export { normalize as normalizeSelection } from './selection/primitives';
 export type { KeybindingOverride } from './schema/keybinding-overrides';
 export type { CommandId } from './schema/commands';
 
@@ -47,6 +50,8 @@ export type {
 	BlockKind,
 	LeafBlockKind,
 	ContainerBlockKind,
+	// What a node's `kind` actually is: a built-in kind or a plugin's own declared name.
+	AnyBlockKind,
 	CstNode,
 	Document,
 	BlockMetadata,

@@ -7,9 +7,9 @@
 	import {
 		SELECTION_END,
 		TOOLBAR_COMMANDS,
+		normalizeSelection,
 		type EditorInstance,
-		type EditorSelection,
-		type SelectionPoint
+		type EditorSelection
 	} from '$lib';
 
 	const BUTTONS = [
@@ -29,6 +29,7 @@
 	let { editor }: { editor: EditorInstance | undefined } = $props();
 
 	let placement = $state<Placement | null>(null);
+	let declined = $state<ReadonlySet<string>>(new Set());
 
 	$effect(() => {
 		if (!editor) return;
@@ -37,23 +38,26 @@
 
 	function update(selection: EditorSelection | null): void {
 		placement = selection ? place(selection) : null;
+		// Asked per selection change, not per render: the answer is a snapshot of this selection.
+		declined = new Set(
+			BUTTONS.filter((b) => !editor?.canRunCommand(b.command)).map((b) => b.command)
+		);
 	}
 
 	function place(selection: EditorSelection): Placement | null {
-		if (selection.anchor.path.join('.') !== selection.focus.path.join('.')) {
-			const start = startPoint(selection);
+		const { start, end } = normalizeSelection(selection);
+		const sameBlock = start.path.join('.') === end.path.join('.');
+		if (!sameBlock) {
 			// Rects from the start offset through the start block's last measurable position.
 			const rects = editor!.getRects().rangeRects(start.path, start.offset, SELECTION_END);
 			return rects.length ? above(rects[0], 'cross-block') : null;
 		}
-		// Same block: the snapshot carries real range offsets, so the public API serves both
-		// extent and geometry. Cell-coordinate pairs (an intra-table rect) keep the bar hidden.
-		if (selection.anchor.cellCoordinate || selection.focus.cellCoordinate) return null;
-		const lo = Math.min(selection.anchor.offset, selection.focus.offset);
-		const hi = Math.max(selection.anchor.offset, selection.focus.offset);
-		if (lo === hi) return null;
-		const rects = editor!.getRects().rangeRects(selection.focus.path, lo, hi);
-		return rects.length ? above(rects[0], `${hi - lo} chars`) : null;
+		// An intra-table rectangle shares the table's path and carries cell indices on endpoints the
+		// flag need not mark, so the kind read is what excludes it rather than the flag.
+		if (editor!.getBlockKindAt(start.path) === 'table') return null;
+		if (start.offset === end.offset) return null;
+		const rects = editor!.getRects().rangeRects(start.path, start.offset, end.offset);
+		return rects.length ? above(rects[0], `${end.offset - start.offset} chars`) : null;
 	}
 
 	/** How far above the selection the bar sits: its own height plus a gap, so the buttons never
@@ -65,21 +69,10 @@
 	}
 
 	// The id, not a synthesized chord: a host rebind moves the shortcut and leaves the button. The
-	// answer is read because this bar stays up over cross-block ranges, where a toggle declines.
+	// boolean is still read, since reachability is not success.
 	function fire(command: string): void {
 		if (!editor) return;
 		if (!editor.runCommand(command) && placement) placement = { ...placement, label: 'declined' };
-	}
-
-	/** The endpoint earlier in document order — path-lexicographic, then offset. */
-	function startPoint(selection: EditorSelection): SelectionPoint {
-		const { anchor: a, focus: f } = selection;
-		const len = Math.min(a.path.length, f.path.length);
-		for (let i = 0; i < len; i++) {
-			if (a.path[i] !== f.path[i]) return a.path[i] < f.path[i] ? a : f;
-		}
-		if (a.path.length !== f.path.length) return a.path.length < f.path.length ? a : f;
-		return a.offset <= f.offset ? a : f;
 	}
 </script>
 
@@ -96,6 +89,7 @@
 				class="toolbar-btn"
 				data-testid="toolbar-{button.command}"
 				title={button.title}
+				disabled={declined.has(button.command)}
 				onmousedown={(e) => e.preventDefault()}
 				onclick={() => fire(button.command)}
 			>
@@ -132,6 +126,10 @@
 		font-size: inherit;
 		line-height: 1.2;
 		cursor: pointer;
+	}
+	.toolbar-btn:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 	.toolbar-label {
 		padding-left: 0.2rem;

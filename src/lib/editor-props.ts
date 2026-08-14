@@ -3,6 +3,7 @@
  * $props() and instance surface against these, so neither can drift from the component.
  */
 import type { Snippet } from 'svelte';
+import type { AnyBlockKind } from './core/nodes';
 import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
@@ -62,6 +63,13 @@ export interface EditorProps {
 /** The `bind:this` surface a consumer can name and hold a ref to. */
 export interface EditorInstance {
 	getSource(): string;
+	/**
+	 * The block kind at `path` (child indices from the document root), or null when the path
+	 * addresses no block: an out-of-range index, and the empty root path, which is the document
+	 * itself. A read, not a handle: the node stays inside the editor. A plugin block answers its
+	 * own declared kind name.
+	 */
+	getBlockKindAt(path: number[]): AnyBlockKind | null;
 	getSelection(): EditorSelection | null;
 	/**
 	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view
@@ -97,6 +105,15 @@ export interface EditorInstance {
 	 * link editor) while a cross-block range is painted. A minted plugin command stays chord-only.
 	 */
 	runCommand(commandId: string): boolean;
+	/**
+	 * Whether `runCommand(id)` would reach that command's arm right now, asked at the seam that
+	 * would run it, so a host can grey a toolbar button out instead of hiding the affordance.
+	 * False wherever the door declines before dispatch: an unknown id, reading mode, a block-local
+	 * id with nothing focused (a gap caret included, where only the global ids stay live), and a
+	 * single-block rewrite while a cross-block range is painted. True is reachability, not success:
+	 * the focused surface's own arm still decides whether it writes.
+	 */
+	canRunCommand(commandId: string): boolean;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
