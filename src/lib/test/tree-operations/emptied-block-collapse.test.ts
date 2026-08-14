@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { Document } from '$lib/core/nodes';
-import { deleteNode, mergeWithPrevious } from '$lib/tree-operations/node-ops';
+import { deleteNode, mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
@@ -45,7 +45,9 @@ describe('an emptied middle block takes its own blank line with it', () => {
 
 	describe.each(TAILS)('above / blank / %s', (_name, tail) => {
 		it('merges into the block above, leaving one separator', () => {
-			const doc = collapsed(tail, (d) => mergeWithPrevious(d, 1, undefined, undefined));
+			const doc = collapsed(tail, (d) => {
+				mergeIntoPrevDeepLeaf(d, 1, undefined, undefined, undefined);
+			});
 
 			expect(serialize(doc)).toBe(`above\n\n${tail}`);
 			expect(doc.children).toHaveLength(2);
@@ -53,7 +55,9 @@ describe('an emptied middle block takes its own blank line with it', () => {
 		});
 
 		it('deletes to the same shape the merge reaches', () => {
-			const merged = collapsed(tail, (d) => mergeWithPrevious(d, 1, undefined, undefined));
+			const merged = collapsed(tail, (d) => {
+				mergeIntoPrevDeepLeaf(d, 1, undefined, undefined, undefined);
+			});
 			const deleted = collapsed(tail, (d) => deleteNode(d, 1));
 
 			expect(serialize(deleted)).toBe(serialize(merged));

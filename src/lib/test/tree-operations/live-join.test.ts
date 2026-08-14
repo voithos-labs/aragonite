@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { mergeIntoPrevDeepLeaf, mergeWithNext, mergeWithPrevious } from '$lib/tree-operations';
+import { mergeIntoPrevDeepLeaf, mergeWithNext } from '$lib/tree-operations';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
@@ -9,9 +9,9 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
 
-// All THREE merge primitives, because the Backspace cascade reaches a different one per shape and
-// a rule carried at two of three is the audit's dominant bug. Each case is run in live and again
-// with no mode, so the byte-literal behavior every other mode keeps is pinned beside the rewrite.
+// BOTH merge primitives the Backspace cascade reaches, because it reaches a different one per
+// shape and a rule carried at one of two is the audit's dominant bug. Each case is run in live and
+// again with no mode, so the byte-literal behavior every other mode keeps is pinned beside it.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
@@ -30,15 +30,6 @@ const merged = (
 };
 
 describe('each merge primitive drops the seam pair in live', () => {
-	it('mergeWithPrevious', () => {
-		expect(merged('live', (doc) => void mergeWithPrevious(doc, 1, 'live', undefined))).toBe(
-			REJOINED
-		);
-		expect(merged(undefined, (doc) => void mergeWithPrevious(doc, 1, undefined, undefined))).toBe(
-			RESIDUE
-		);
-	});
-
 	it('mergeWithNext', () => {
 		expect(merged('live', (doc) => void mergeWithNext(doc, 0, 'live', undefined))).toBe(REJOINED);
 		expect(merged(undefined, (doc) => void mergeWithNext(doc, 0, undefined, undefined))).toBe(
@@ -80,7 +71,7 @@ describe('the join offset the caret rides moves with the runs the cleanup droppe
 describe('a merge with nothing on its seam', () => {
 	it('joins two plain paragraphs unchanged', () => {
 		const doc = parse('abc\n\ndef\n');
-		void mergeWithPrevious(doc, 1, 'live', undefined);
+		mergeIntoPrevDeepLeaf(doc, 1, undefined, 'live', undefined);
 		expect(doc.children[0].raw).toBe('abcdef\n');
 	});
 

@@ -12,6 +12,21 @@ export function trimTrailingLineEnding(raw: string): string {
 }
 
 /**
+ * `offset` moved off the interior of a surrogate pair, back to the pair's own start. Caret
+ * offsets are UTF-16 code units, so a cut at one can halve an astral scalar and leave a lone
+ * surrogate — bytes no UTF-8 encoder round-trips (`TextEncoder` yields U+FFFD) and no inverse
+ * gesture restores. Scalars only: a grapheme cluster is a rendering question, and answering it
+ * here would move a caret the author placed between two legitimately separate scalars.
+ */
+export function snapToScalarBoundary(raw: string, offset: number): number {
+	if (offset <= 0 || offset >= raw.length) return offset;
+	const splitsPair =
+		(raw.charCodeAt(offset - 1) & 0xfc00) === 0xd800 &&
+		(raw.charCodeAt(offset) & 0xfc00) === 0xdc00;
+	return splitsPair ? offset - 1 : offset;
+}
+
+/**
  * The block's authored trailing line ending. Every site that reattaches or mints one reads it
  * here (G4.20), so a CRLF-authored block keeps its ending and an unterminated one gets `\n`.
  */

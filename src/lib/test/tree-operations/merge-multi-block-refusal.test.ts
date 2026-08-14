@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { mergeIntoPrevDeepLeaf, mergeWithNext, mergeWithPrevious } from '$lib/tree-operations';
+import { mergeIntoPrevDeepLeaf, mergeWithNext } from '$lib/tree-operations';
 import type { BodyParent } from '$lib/tree-operations/node-ops';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
@@ -43,15 +43,6 @@ describe('a join whose bytes read as several blocks is refused, not truncated', 
 		expect(serialize(doc)).toBe(HEADING_OVER_TWO_LINES);
 		expect(doc.children).toHaveLength(2);
 		expectParseConverged(doc);
-	});
-
-	it('declines the reparse-both-halves join at the same boundary', () => {
-		const doc = parse(HEADING_OVER_TWO_LINES);
-
-		const { change } = mergeWithPrevious(doc, 1, undefined, undefined);
-
-		expect(change).toEqual({ op: 'noop' });
-		expect(serialize(doc)).toBe(HEADING_OVER_TWO_LINES);
 	});
 
 	// Bytes are no oracle here: a body merge writes the quote's CHILDREN and never rebuilds the

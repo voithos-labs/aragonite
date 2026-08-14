@@ -19,7 +19,12 @@ import {
 	type JoinSeam
 } from '../schema/inline-construct-policy';
 import type { PresentationMode } from '../presentation-mode';
-import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import {
+	displayLength,
+	snapToScalarBoundary,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '../core/lines';
 import { devWarn } from '../dev-warn';
 import { assignChildIdsDeep } from '../block-id';
 import { perfEnabled, recordContainerKindReparse } from '../perf/instruments';
@@ -301,12 +306,13 @@ export function splitNode(
  */
 function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offset: number): number {
 	const raw = node.raw;
-	const ending = raw[offset] === '\n' ? '\n' : raw.startsWith('\r\n', offset) ? '\r\n' : '';
-	if (ending === '') return offset;
+	// A surrogate pair is one boundary too: a cut through it leaves each half in a block of its
+	// own, where nothing can put them back (#167).
+	const at = snapToScalarBoundary(raw, offset);
+	const ending = raw[at] === '\n' ? '\n' : raw.startsWith('\r\n', at) ? '\r\n' : '';
+	if (ending === '') return at;
 	const contentEnd = descriptor.getContentRange?.(node).end;
-	return contentEnd === undefined
-		? offset + ending.length
-		: Math.min(offset + ending.length, contentEnd);
+	return contentEnd === undefined ? at + ending.length : Math.min(at + ending.length, contentEnd);
 }
 
 /**
@@ -336,11 +342,6 @@ function blankBlockTrivia(
 	const runOpenBelow =
 		successor !== undefined && (successor.leadingTrivia !== '' || isBlankParagraph(successor));
 	return runOpenBelow ? '' : lineEnding;
-}
-
-/** True when `node` is absent or a blank block — the two ways a blank run is open above. */
-function opensBlankRunAbove(node: CstNode | undefined): boolean {
-	return node === undefined || isBlankParagraph(node);
 }
 
 /**
@@ -452,13 +453,17 @@ export function cutRangeFromDisplay(
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): { display: string; offset: number } {
-	if (range.start >= range.end) return { display, offset: range.start };
+	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
+	// bytes, not a recoverable edit (#167). Snapping the same direction cannot invert the range.
+	const start = snapToScalarBoundary(display, range.start);
+	const end = snapToScalarBoundary(display, range.end);
+	if (start >= end) return { display, offset: start };
 	const cleaned = cleanJoinedRaw(
 		{
-			mergedRaw: display.slice(0, range.start) + display.slice(range.end),
-			seam: range.start,
-			start: { node, offset: range.start },
-			end: { node, offset: range.end },
+			mergedRaw: display.slice(0, start) + display.slice(end),
+			seam: start,
+			start: { node, offset: start },
+			end: { node, offset: end },
 			linkRef
 		},
 		presentationMode
@@ -491,46 +496,6 @@ function joinRaw(
 export interface MergeResult {
 	change: StructuralChange;
 	joinOffset: number;
-}
-
-/**
- * Merge the node at `blockIndex` into its predecessor; combined raw is re-parsed and the merged
- * block inherits prev's ID. Noop at index 0. `presentationMode` is nullable rather than optional
- * here as at every byte sink: skipping the question is a compile error.
- */
-export function mergeWithPrevious(
-	parent: NodeParent,
-	blockIndex: number,
-	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
-): MergeResult {
-	if (blockIndex <= 0 || blockIndex >= parent.children.length) {
-		return { change: { op: 'noop' }, joinOffset: 0 };
-	}
-
-	const prev = parent.children[blockIndex - 1];
-	const curr = parent.children[blockIndex];
-
-	const { raw: mergedRaw, seam } = joinRaw(prev, curr, presentationMode, linkRef);
-	// A merge of two blank blocks collapses the run, so prev's separator no longer describes
-	// where the survivor sits; re-derive it.
-	const trivia = isBlankSource(mergedRaw)
-		? blankBlockTrivia(
-				opensBlankRunAbove(parent.children[blockIndex - 2]),
-				parent.children[blockIndex + 1],
-				trailingLineEnding(prev.raw)
-			)
-		: prev.leadingTrivia;
-	const mergedNode = reparseAsNode(mergedRaw, trivia);
-	// The sink refused, so nothing has been written yet and the pair stays as it stands.
-	if (!mergedNode) return { change: { op: 'noop' }, joinOffset: 0 };
-	// curr's own separator dies with it, so the successor inherits it unless it has one.
-	const successor = parent.children[blockIndex + 1];
-	if (successor) successor.leadingTrivia = successor.leadingTrivia || curr.leadingTrivia;
-	const installed = [mergedNode];
-	assertSingleNodeSink('mergeWithPrevious', installed);
-	parent.children.splice(blockIndex - 1, 2, ...installed);
-	return { change: replacePreservingFirst(blockIndex - 1, 2, 1), joinOffset: seam };
 }
 
 /**
