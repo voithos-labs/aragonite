@@ -476,6 +476,8 @@ The text is then parsed and routed by a single dispatcher (`tree-operations/past
 
 Pasted list items are normalized to be newline-terminated before the splice; a clipboard without a trailing newline would otherwise mash adjacent items together during the ancestry raw rebuild.
 
+A clipboard's trailing blank line is content, not packaging: it survives the paste as the separation it was copied with. One separation is one separation, so it is spent only where nothing in the splice already stands for it — a follower, reattached residue, or a tail slot that already holds a line all settle it away.
+
 The paste modules depend on a `PasteCommitCoordinator` interface satisfied by an editor-actions factory, which is what keeps `tree-operations/paste/` from importing back into `editor-actions/`.
 
 ## 11. Undo / redo

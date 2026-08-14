@@ -172,6 +172,9 @@ async function replaceTableWithPaste(
 		undoEntry: 'join',
 		focusReplacementIndex: replacement.length - 1,
 		focusOffset: CURSOR_END,
-		source: 'cross-block-paste-whole-table'
+		source: 'cross-block-paste-whole-table',
+		// Nothing is reattached behind the clipboard here — the table's whole slot is the target —
+		// so the trailing blank rides in unfiltered (`paste/dispatch.ts` states the rule).
+		trailingSeparator: parsed.suffix
 	});
 }

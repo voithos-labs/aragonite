@@ -85,7 +85,8 @@ async function commitInlineJoin(
 export async function applyStructuralResult(
 	targetPath: number[],
 	result: StructuralPasteResult,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	trailingSeparator = ''
 ): Promise<void> {
 	await replaceBlockAtParent({
 		doc: ctx.doc,
@@ -96,6 +97,7 @@ export async function applyStructuralResult(
 		focusReplacementIndex: result.focusReplacementIndex,
 		focusOffset: result.focusOffset,
 		source: 'paste-dispatch',
+		trailingSeparator,
 		...(ctx.grammar ? { grammar: ctx.grammar } : {})
 	});
 }
