@@ -15,7 +15,7 @@ import {
 	visibleRuns
 } from '$lib/core/inline/visibility';
 import { displayLength } from '$lib/core/lines';
-import { emptyPairSpans } from '$lib/test/harness/live-oracles';
+import { emptyConstructSpans } from '$lib/test/harness/live-oracles';
 
 /** A prose leaf and the path that addresses it. */
 export interface ProseLeaf {
@@ -75,11 +75,8 @@ export function unpaintedResidue(holder: Document | CstNode): number {
 			if (!run.visible) continue;
 			for (let at = run.start; at < run.end; at++) painted[at] = true;
 		}
-		const hidden = emptyPairSpans(child.raw).filter(
-			(span) =>
-				span.start >= range.start &&
-				span.end <= range.end &&
-				!painted.slice(span.start, span.end).includes(true)
+		const hidden = emptyConstructSpans(child.raw, range).filter(
+			(span) => !painted.slice(span.start, span.end).includes(true)
 		);
 		return total + hidden.length;
 	}, 0);

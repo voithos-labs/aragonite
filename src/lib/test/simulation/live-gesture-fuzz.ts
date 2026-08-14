@@ -16,11 +16,9 @@ import { isSubsequence, keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { arbLiveDoc } from '$lib/test/invariants/arbitraries';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import {
-	chromePaints,
 	documentContentText,
 	hiddenEdgeOffsets,
 	normalizeScreen,
-	proseLeaves,
 	unpaintedResidue
 } from './live-screen-reading';
 import {
@@ -216,11 +214,6 @@ function shapeIssue(
 
 const blankBlocks = (doc: Document): number => doc.children.filter(isBlankParagraph).length;
 
-/** How many asterisk runs are long enough to read as a pair enclosing nothing. A splice abuts two
- *  runs into one more of these, which is #136's mechanism and what tells it from residue that was
- *  already in the document — a global LONGEST would miss it wherever a longer run stands elsewhere. */
-const residueRuns = (bytes: string): number => (bytes.match(/\*{4,}/g) ?? []).length;
-
 /**
  * The § 2 license over bytes, per gesture family. Typing loses nothing; a split keeps every byte but
  * a line ending; a destructive press only removes. The two range gestures cut a span the byte-literal
@@ -246,29 +239,6 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
  * whitespace a declared drop.
  */
 const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
-
-/**
- * § 4.1's residue, counted two ways: a construct the parse still reads as delimiters enclosing
- * nothing inside a block whose chrome does not paint, and an abutted run the parse no longer reads
- * as a construct at all. Differential, since a drawn document may already hold either.
- */
-function residueCount(doc: Document): number {
-	let empty = 0;
-	for (const { node } of proseLeaves(doc)) {
-		if (chromePaints(node)) continue;
-		const range = getContentRange(node);
-		if (range.end > node.raw.length) continue;
-		const visit = (nodes: readonly InlineNode[]): void => {
-			for (const inline of nodes) {
-				const content = constructContentRange(inline);
-				if (content && content.start === content.end && inline.end > inline.start) empty++;
-				if (inline.children) visit(inline.children);
-			}
-		};
-		visit(parseInline(node.raw, range.start, range.end));
-	}
-	return empty + unpaintedResidue(doc);
-}
 
 // ── The run ──────────────────────────────────────────────────────────────────
 
@@ -382,18 +352,11 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 	}
 	// Against the document the gesture STARTED from: § 4.1 forbids writing residue, and a twin that
 	// happened to destroy a pre-existing run would otherwise read as live having minted one.
-	if (residueCount(live.doc) > residueCount(start)) {
-		// Where the twin wrote the same bytes, nothing live did minted it. #136 is the join cleaner's
-		// splice abutting two asterisk runs into a shared one; a type gesture's residue is whatever
-		// the unverified seat left, so it takes the seat's number.
+	if (unpaintedResidue(live.doc) > unpaintedResidue(start)) {
+		// Where the twin wrote the same bytes, nothing live did minted it; a type gesture's residue is
+		// whatever the unverified seat left, so it takes the seat's number.
 		const minted = live.bytes !== literal.bytes;
-		const owner = !minted
-			? null
-			: gesture.kind === 'type'
-				? seatIssue(start, gesture, minted)
-				: residueRuns(live.bytes) > residueRuns(before)
-					? '#136'
-					: null;
+		const owner = minted && gesture.kind === 'type' ? seatIssue(start, gesture, minted) : null;
 		say(
 			'residue',
 			!minted ? 'ambiguous' : owner ? 'known' : 'seam',

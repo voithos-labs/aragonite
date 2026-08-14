@@ -1,22 +1,42 @@
 /**
- * The byte-level oracles live-mode.md § 2's license is checked with: what a rewrite may drop, and
- * the residue § 4.1 forbids it from minting. Shared by the split and join property nets and the
- * gesture fuzzer, so one reading of the license answers for all three.
+ * The oracles live-mode.md § 2's license is checked with: what a rewrite may drop, and the residue
+ * § 4.1 forbids it from minting. Shared by the split and join property nets and the gesture fuzzer,
+ * so one reading of the license answers for all three.
  */
+
+import { constructContentRange, parseInline } from '$lib/core/inline';
+import type { InlineNode } from '$lib/core/nodes';
+import { getInlineConstructPolicy } from '$lib/schema/inline-construct-policy';
 
 /**
- * The residue § 4.4 names: a symmetric emphasis pair with nothing between it. Two shapes are
- * deliberately NOT counted, both measured: `[]()`, whose emptied text is `autoUnwrapOnEmpty`'s
- * business, and a backtick run, which the literal and live arms spell at different lengths so the
- * count would report the shorter one as the offender.
+ * The residue § 4.1 forbids, in one block's content: a construct whose row declares
+ * `autoUnwrapOnEmpty` standing over nothing. Off the parse and the table rather than a delimiter
+ * spelling, so every row answers for itself and two legitimate runs meeting are not residue.
  */
-const EMPTY_PAIR = /\*\*\*\*|~~~~|(?<![\w_])____(?![\w_])/g;
-
-/** Where each residue run sits, for a caller that also has to ask whether those bytes PAINT. */
-export const emptyPairSpans = (bytes: string): { start: number; end: number }[] =>
-	[...bytes.matchAll(EMPTY_PAIR)].map((m) => ({ start: m.index, end: m.index + m[0].length }));
-
-export const countEmptyPairs = (bytes: string): number => emptyPairSpans(bytes).length;
+export function emptyConstructSpans(
+	raw: string,
+	content: { start: number; end: number }
+): { start: number; end: number }[] {
+	const spans: { start: number; end: number }[] = [];
+	const visit = (nodes: readonly InlineNode[]): void => {
+		for (const node of nodes) {
+			// Null content is the emptied pair itself, not a missing answer: `[](u)` has delimiters
+			// and nothing between them, which is the shape the column speaks to.
+			const range = constructContentRange(node);
+			if (
+				node.kind !== 'text' &&
+				node.end > node.start &&
+				(range === null || range.start === range.end) &&
+				getInlineConstructPolicy(node.kind)?.autoUnwrapOnEmpty === true
+			) {
+				spans.push({ start: node.start, end: node.end });
+			}
+			if (node.children) visit(node.children);
+		}
+	};
+	visit(parseInline(raw, content.start, content.end));
+	return spans;
+}
 
 /**
  * Whether `inner` can be read off `outer` by deleting characters — the shape of a rewrite that only
