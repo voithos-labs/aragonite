@@ -16,8 +16,9 @@ class NoopResizeObserver {
 
 /**
  * Install the jsdom gaps a mounted editor hits — the block-height `ResizeObserver` and the
- * reveal's `scrollIntoView`. Call it once before the first mount; pair it with
- * `scrollMode="host"` so windowing keeps every block mounted under a zero-height viewport.
+ * reveal's `scrollIntoView`. Call it once before the first mount. Windowing activates on
+ * ESTIMATED height in either scroll mode, so keep fixture documents small if a test asserts
+ * on a block being mounted; jsdom reports a zero viewport and mounts only the first few.
  */
 export function installEditorDomStubsForTests(): void {
 	const globals = globalThis as StubbableGlobals;

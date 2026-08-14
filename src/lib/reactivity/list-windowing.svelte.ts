@@ -1,15 +1,16 @@
 /**
  * One windowing wiring unit per BlockList-bearing scope (the editor root and every
  * activated nested container). Composes the height oracle, a per-scope Fenwick model, and
- * `createBlockWindow`; maps the single editor scroll element into this scope's coordinate
+ * `createBlockWindow`; maps the single editor scrollport into this scope's coordinate
  * range by DOM measurement, and reports this scope's own box height upward so ancestor
  * spacers stay correct. See `docs/design/virtual-rendering.md`.
  */
 import { tick, untrack } from 'svelte';
 import { HeightModel } from '../cursor/height-model';
 import type { HeightOracle } from '../cursor/height-oracle';
+import type { Scrollport } from '../cursor/scrollport';
 import { createBlockWindow, type BlockWindow, type WindowResult } from './block-window.svelte';
-import { estimateWidth, effectiveViewportHeight } from './scope-geometry';
+import { estimateWidth, effectiveViewportHeight, listTopWithinContent } from './scope-geometry';
 import { runMeasureBatch, type MeasureEntry } from './measure-batch';
 import type { NodeView } from '../core/node-views';
 import type { RevealBlock } from '../cursor/reveal-anchor';
@@ -33,10 +34,11 @@ export interface ListWindowingDeps {
 	oracle: HeightOracle;
 	getChildren: () => readonly NodeView[];
 	getChildIds: () => string[];
-	/** This scope's own list element — its top within the scroll content maps root scrollTop to local. */
+	/** This scope's own list element — its top within the scroll content maps port scrollTop to local. */
 	getListEl: () => HTMLElement | null;
-	/** The single editor scroll element (the document facet's `editorRoot`). */
-	getScrollEl: () => HTMLElement | null;
+	/** The single scrollport every scope of this editor windows against: the root under
+	 *  `scrollMode="self"`, the host's scroller or the page viewport under `"host"`. */
+	getPort: () => Scrollport | null;
 	/** The focused block's full path, for the per-level pin. */
 	getFocusPath: () => number[] | null;
 	/** Where an active reveal target sits in this scope's coordinates, else null. While set,
@@ -52,9 +54,9 @@ export interface ListWindowingDeps {
 	getOwnEl?: () => HTMLElement | null;
 	/** Report this scope's own box height to the parent scope's setChildSubtotal (undefined at top level). */
 	reportSelfHeight?: (height: number) => void;
-	/** False in host-scroll mode: this scope never activates, so every child mounts and
-	 *  no spacer renders. Static — the flag is set once at mount. */
-	windowingEnabled: () => boolean;
+	/** False while the HOST's native scroll anchoring holds the reader instead (host mode below
+	 *  the windowing budget): two writers on one scroll position double-correct. */
+	correctsScroll: () => boolean;
 	/** Collapse clamp: while true this scope mounts ONLY its chrome row, a fixed [0,1) with
 	 *  zero spacers. The window math is bypassed, not fed — collapse is height removal, and
 	 *  a clamped slice through `computeWindow` would emit the body as a giant spacer. */
@@ -123,13 +125,15 @@ const collapsedWindow: WindowResult = Object.freeze({
 	bottomSpacerPx: 0
 });
 
-// This scope's list top within the editor scroll content — the offset mapping root
-// scrollTop into this scope's local range, real at every depth because spacers preserve
-// the geometry above the list. One home: a divergence between its consumers below would
-// be a coordinate-mapping bug.
-function listTopWithinContent(scrollEl: HTMLElement, listEl: HTMLElement): number {
-	return (
-		listEl.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop
+// This scope's list top within the port's scroll content — the offset mapping port scrollTop
+// into this scope's local range, real at every depth because spacers preserve the geometry
+// above the list. One home: a divergence between its consumers below would be a
+// coordinate-mapping bug. The arithmetic itself is pure (`scope-geometry`).
+function listTopInPort(port: Scrollport, listEl: HTMLElement): number {
+	return listTopWithinContent(
+		listEl.getBoundingClientRect().top,
+		port.viewportTop(),
+		port.scrollTop()
 	);
 }
 
@@ -140,7 +144,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	let modelChildIds: string[] = [];
 
 	function buildModel(): HeightModel {
-		const width = estimateWidth(deps.getListEl(), deps.getScrollEl());
+		const width = estimateWidth(deps.getListEl(), deps.getPort()?.contentWidth() ?? 0);
 		const children = deps.getChildren();
 		const ids = deps.getChildIds();
 		modelChildIds = ids.slice();
@@ -164,27 +168,27 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	 * model write only marks `$state` dirty, so a DOM read here would see pre-flush layout.
 	 */
 	function revealTargetScrollTop(): number | null {
-		const scrollEl = deps.getScrollEl();
+		const port = deps.getPort();
 		const listEl = deps.getListEl();
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal == null || reveal.index >= model.size || !scrollEl || !listEl) return null;
+		if (reveal == null || reveal.index >= model.size || !port || !listEl) return null;
 
 		const targetTop =
-			listTopWithinContent(scrollEl, listEl) + model.offsetOf(reveal.index) + reveal.innerOffset;
-		// Center off `scrollEl.clientHeight`, NOT `viewportHeight()`: clientHeight is stable
+			listTopInPort(port, listEl) + model.offsetOf(reveal.index) + reveal.innerOffset;
+		// Center off the PORT's own height, NOT `scopeViewportHeight()`: the port's is stable
 		// through the shrink, whereas the scope-intersection reads listEl geometry mid-mutate
 		// and would center off a transiently-tiny viewport.
 		const targetHeight = reveal.height ?? model.heightOf(reveal.index);
 		return reveal.block === 'center'
-			? targetTop - Math.max(0, (scrollEl.clientHeight - targetHeight) / 2)
+			? targetTop - Math.max(0, (port.viewportHeight() - targetHeight) / 2)
 			: targetTop;
 	}
 
 	function placeRevealTarget(): boolean {
 		const targetScrollTop = revealTargetScrollTop();
-		const scrollEl = deps.getScrollEl();
-		if (targetScrollTop === null || !scrollEl) return false;
-		scrollEl.scrollTop = targetScrollTop;
+		const port = deps.getPort();
+		if (targetScrollTop === null || !port) return false;
+		port.setScrollTop(targetScrollTop);
 		// A programmatic scrollTop write fires no `scroll` event, so the window's derived
 		// scrollTop would stay stale and leave the target windowed OUT at the very position
 		// we just scrolled it to.
@@ -201,7 +205,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	 */
 	function reassertRevealAnchor(mutate: () => void): boolean {
 		const reveal = deps.getRevealAnchorTarget?.() ?? null;
-		if (reveal == null || reveal.index >= model.size || !deps.getScrollEl()) return false;
+		if (reveal == null || reveal.index >= model.size || !deps.getPort()) return false;
 		mutate();
 		placeRevealTarget();
 		return true;
@@ -214,12 +218,16 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// would see pre-flush layout and a ~0 delta.
 	function correctAnchor(mutate: () => void): void {
 		if (reassertRevealAnchor(mutate)) return;
-		const scrollEl = deps.getScrollEl();
+		if (!deps.correctsScroll()) {
+			mutate();
+			return;
+		}
+		const port = deps.getPort();
 		const anchorIndex = model.indexAtOffset(localScrollTop());
 		const before = model.offsetOf(anchorIndex);
 		mutate();
 		const delta = model.offsetOf(anchorIndex) - before;
-		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
+		if (delta !== 0 && port) port.setScrollTop(port.scrollTop() + delta);
 	}
 
 	// The structural-rebuild variant of correctAnchor. A count change shifts every index
@@ -229,7 +237,11 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// surviving block to hold the line, so skip.
 	function correctAnchorByStableId(mutate: () => void): void {
 		if (reassertRevealAnchor(mutate)) return;
-		const scrollEl = deps.getScrollEl();
+		if (!deps.correctsScroll()) {
+			mutate();
+			return;
+		}
+		const port = deps.getPort();
 		const lst = localScrollTop();
 		const anchorIndex = model.indexAtOffset(lst);
 		const before = model.offsetOf(anchorIndex);
@@ -243,7 +255,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const newIndex = anchorId !== undefined ? modelChildIds.indexOf(anchorId) : -1;
 		if (newIndex === -1) return;
 		const delta = model.offsetOf(newIndex) - before;
-		if (delta !== 0 && scrollEl) scrollEl.scrollTop += delta;
+		if (delta !== 0 && port) port.setScrollTop(port.scrollTop() + delta);
 	}
 
 	// Rebuild on any structural child change or an editor WIDTH change, never per keystroke.
@@ -253,7 +265,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	$effect(() => {
 		const ids = deps.getChildIds();
 		for (let i = 0; i < ids.length; i++) void ids[i];
-		void deps.getScrollEl();
+		void deps.getPort();
 		void deps.getWidthVersion();
 		untrack(() => {
 			correctAnchorByStableId(() => {
@@ -263,27 +275,26 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		});
 	});
 
-	// Map the single scroll element's scrollTop into this scope's local range.
+	// Map the port's scrollTop into this scope's local range.
 	function localScrollTop(): number {
-		const scrollEl = deps.getScrollEl();
+		const port = deps.getPort();
 		const listEl = deps.getListEl();
-		if (!scrollEl || !listEl) return 0;
-		return Math.max(0, scrollEl.scrollTop - listTopWithinContent(scrollEl, listEl));
+		if (!port || !listEl) return 0;
+		return Math.max(0, port.scrollTop() - listTopInPort(port, listEl));
 	}
 
-	// Each scope windows against its OWN slice of the viewport: against the full editor
+	// Each scope windows against its OWN slice of the viewport: against the full port
 	// height, N stacked active scopes would each mount a viewport's worth of blocks. Falls
-	// back to the full height when either element is unmounted.
-	function viewportHeight(): number {
-		const scrollEl = deps.getScrollEl();
+	// back to the full height when the list is unmounted.
+	function scopeViewportHeight(): number {
+		const port = deps.getPort();
 		const listEl = deps.getListEl();
-		if (!scrollEl) return 0;
-		if (!listEl) return scrollEl.clientHeight;
-		const scrollRect = scrollEl.getBoundingClientRect();
+		if (!port) return 0;
+		if (!listEl) return port.viewportHeight();
 		const listRect = listEl.getBoundingClientRect();
 		return effectiveViewportHeight(
-			scrollRect.top,
-			scrollEl.clientHeight,
+			port.viewportTop(),
+			port.viewportHeight(),
 			listRect.top,
 			listRect.height
 		);
@@ -304,11 +315,10 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			void heightVersion;
 			return model;
 		},
-		getScrollEl: deps.getScrollEl,
+		getPort: deps.getPort,
 		getLocalScrollTop: localScrollTop,
-		getViewportHeight: viewportHeight,
+		getViewportHeight: scopeViewportHeight,
 		getPinnedIndex: pinnedIndex,
-		windowingEnabled: deps.windowingEnabled,
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,
 		activateAbovePx: deps.activateAbovePx,
@@ -423,23 +433,20 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		},
 		revealHoldsScroll() {
 			const targetScrollTop = revealTargetScrollTop();
-			const scrollEl = deps.getScrollEl();
+			const port = deps.getPort();
 			// Sub-pixel tolerance: the settle's own refinement lands a fraction of a device
 			// pixel off the model-derived position, and a strict compare would re-admit the delta.
 			return (
-				targetScrollTop !== null &&
-				!!scrollEl &&
-				Math.abs(scrollEl.scrollTop - targetScrollTop) <= 1
+				targetScrollTop !== null && !!port && Math.abs(port.scrollTop() - targetScrollTop) <= 1
 			);
 		},
 		async revealChild(index) {
 			// A clamped-out body child can never mount, so degrade instead of scroll-and-wait.
 			if (index >= 1 && deps.isCollapsed?.()) return;
-			const scrollEl = deps.getScrollEl();
+			const port = deps.getPort();
 			const listEl = deps.getListEl();
-			if (!scrollEl || !listEl) return;
-			scrollEl.scrollTop =
-				listTopWithinContent(scrollEl, listEl) + model.offsetOf(Math.min(index, model.size));
+			if (!port || !listEl) return;
+			port.setScrollTop(listTopInPort(port, listEl) + model.offsetOf(Math.min(index, model.size)));
 			win.syncScrollTop();
 			await tick();
 		},

@@ -1,23 +1,58 @@
 import { describe, it, expect } from 'vitest';
-import { estimateWidth, effectiveViewportHeight } from '../../reactivity/scope-geometry';
+import {
+	estimateWidth,
+	effectiveViewportHeight,
+	listTopWithinContent
+} from '../../reactivity/scope-geometry';
 
 describe('estimateWidth', () => {
-	// VR-3: a nested scope must estimate at its OWN content width, not the editor
-	// root's — the oracle's line-wrap is monotonic in width, so the wider root
-	// systematically undercounts wrapped heights at depth.
-	it('prefers the scope content element width over the editor root', () => {
-		expect(estimateWidth({ clientWidth: 400 }, { clientWidth: 800 })).toBe(400);
+	// VR-3: a nested scope must estimate at its OWN content width, not the scrollport's —
+	// the oracle's line-wrap is monotonic in width, so the wider port systematically
+	// undercounts wrapped heights at depth.
+	it('prefers the scope content element width over the scrollport', () => {
+		expect(estimateWidth({ clientWidth: 400 }, 800)).toBe(400);
 	});
 
-	it('falls back to the editor root, then a constant, when the list element is absent', () => {
-		expect(estimateWidth(null, { clientWidth: 800 })).toBe(800);
-		expect(estimateWidth(null, null)).toBe(800);
+	it('falls back to the scrollport, then a constant, when the list element is absent', () => {
+		expect(estimateWidth(null, 800)).toBe(800);
+		expect(estimateWidth(null, 0)).toBe(800);
 	});
 
 	// A zero-width (pre-layout) list element is unusable — fall through rather than
 	// estimate every block at one char per line.
-	it('falls through a zero-width list element to the root', () => {
-		expect(estimateWidth({ clientWidth: 0 }, { clientWidth: 800 })).toBe(800);
+	it('falls through a zero-width list element to the scrollport', () => {
+		expect(estimateWidth({ clientWidth: 0 }, 800)).toBe(800);
+	});
+});
+
+describe('listTopWithinContent', () => {
+	// The editor owns the scrollport: its box top IS the viewport top, so the two port
+	// terms are the identity mapping and the list's rect top is already content-space.
+	it('maps a list at the top of a self-scrolled editor to offset zero', () => {
+		expect(listTopWithinContent(0, 0, 0)).toBe(0);
+		// Scrolled 900px down, the list's rect has travelled the same distance up.
+		expect(listTopWithinContent(-900, 0, 900)).toBe(0);
+	});
+
+	// The load-bearing case: a page-scrolled shell puts chrome ABOVE the editor and the
+	// port's own box starts elsewhere. Subtracting only the scroll (or only the viewport
+	// top) leaves the other term in the answer and slices the window a whole band off.
+	it('cancels the port offset and the scroll independently', () => {
+		// Editor 400px down a page scrolled 900px: the list's client rect reads
+		// 400 - 900 = -500, and its content-space top is still 400.
+		expect(listTopWithinContent(-500, 0, 900)).toBe(400);
+		// The same editor inside an ancestor scroller whose own box starts at 120.
+		expect(listTopWithinContent(-380, 120, 900)).toBe(400);
+	});
+
+	// Both terms zero is the degenerate reading a stub can produce; it must not be the
+	// only one the arithmetic gets right.
+	it('is not satisfied by dropping either term', () => {
+		const listTop = -500;
+		const both = listTopWithinContent(listTop, 120, 900);
+		expect(both).not.toBe(listTop - 120); // scroll dropped
+		expect(both).not.toBe(listTop + 900); // port offset dropped
+		expect(both).toBe(280);
 	});
 });
 

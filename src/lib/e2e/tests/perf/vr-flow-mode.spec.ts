@@ -8,7 +8,7 @@ import { capturePageErrors } from '../../page-probes';
 // Host-scroll (flow) mode: several entries in one ancestor scroller, plus a pane that clips
 // rather than scrolls. The root spans the whole document here, so measuring or scrolling IT
 // would call an unreachable block visible and leave a drag stranded — every seam has to
-// resolve against whatever actually scrolls the editor.
+// resolve against whatever actually scrolls the editor — windowing included.
 
 async function gotoFlow(page: Page): Promise<void> {
 	await page.goto('/test/flow');
@@ -26,33 +26,40 @@ const flowSource = (page: Page, id: string): Promise<string> =>
 const blockCount = (page: Page, id: string): Promise<number> =>
 	page.evaluate((i) => (window as any).__flow.blockCount(i) as number, id);
 
-async function scrollHostTo(page: Page, top: number): Promise<void> {
-	await page.evaluate((t) => {
-		(document.querySelector('[data-testid="scroller"]') as HTMLElement).scrollTop = t;
-	}, top);
-	await page.evaluate(
+function settleFrames(page: Page): Promise<void> {
+	return page.evaluate(
 		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
 	);
 }
 
-test('a host-scroll entry mounts every block and renders no spacers', async ({ page }) => {
+async function scrollHostTo(page: Page, top: number): Promise<void> {
+	await page.evaluate((t) => {
+		(document.querySelector('[data-testid="scroller"]') as HTMLElement).scrollTop = t;
+	}, top);
+	await settleFrames(page);
+}
+
+test('a host-scroll entry windows its blocks against the ancestor scrollport', async ({ page }) => {
 	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
 	const count = await blockCount(page, 'a');
 	expect(count).toBe(200);
-	await expect(hosts(entry(page, 'a'))).toHaveCount(count);
-	await expect(entry(page, 'a').locator('.vr-spacer')).toHaveCount(0);
+	const hostMounted = await hosts(entry(page, 'a')).count();
+	expect(hostMounted).toBeLessThan(count);
+	expect(await entry(page, 'a').locator('.vr-spacer').count()).toBeGreaterThan(0);
 	expect(pageErrors).toEqual([]);
 
-	// Attribution: the SAME source in a self-mode editor windows. Without this the
-	// zero-spacer assertion above would pass on any document under the watermark.
+	// One implementation, two ports: the SAME source in a self-mode editor mounts a slice of
+	// the same order. Mounting all 200 here is this mode's pre-scrollport behaviour.
 	const source = await flowSource(page, 'a');
 	const selfMode = new EditorPage(page);
 	await selfMode.goto();
 	await selfMode.loadContent(source);
 	expect(await spacerCount(page)).toBeGreaterThan(0);
-	expect(await selfMode.getDomBlockCount()).toBeLessThan(count);
+	const selfMounted = await selfMode.getDomBlockCount();
+	expect(selfMounted).toBeLessThan(count);
+	expect(Math.abs(selfMounted - hostMounted)).toBeLessThan(count / 2);
 });
 
 test('the editor root stops being a scroll container and the ancestor carries the entry', async ({
@@ -77,12 +84,11 @@ test('the editor root stops being a scroll container and the ancestor carries th
 	expect(geometry.rootHeight).toBeGreaterThan(4000);
 	expect(geometry.scrollerOverflowPx).toBeGreaterThan(geometry.rootHeight);
 
+	// The ENTRY's own box, not a block's: blocks come and go with the window, and the claim
+	// here is that the ancestor's scroll moves the editor at all.
 	const topOf = () =>
 		page.evaluate(
-			() =>
-				document
-					.querySelector('[data-testid="entry-a"] [data-block-path="[0]"]')!
-					.getBoundingClientRect().top
+			() => document.querySelector('[data-testid="entry-a"]')!.getBoundingClientRect().top
 		);
 	const before = await topOf();
 	await scrollHostTo(page, 1500);
@@ -252,15 +258,14 @@ test('the find bar rides the entry top edge, not the ancestor scrollport', async
 	expect(pageErrors).toEqual([]);
 });
 
-test('nested scopes in a host-scroll entry mount every child and stay error-free', async ({
+test('nested scopes in a host-scroll entry window their children and stay error-free', async ({
 	page
 }) => {
 	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 	const nested = entry(page, 'nested');
 
-	// Both nested scope shapes, each over the watermark on its own — in self mode both
-	// would window.
+	// Both nested scope shapes, each over the watermark on its own.
 	const [items, rows] = await Promise.all([
 		page.evaluate(() => (window as any).__flow.childCount('nested', [1]) as number),
 		page.evaluate(() => (window as any).__flow.childCount('nested', [2]) as number)
@@ -268,11 +273,16 @@ test('nested scopes in a host-scroll entry mount every child and stay error-free
 	expect(items).toBeGreaterThan(100);
 	expect(rows).toBeGreaterThan(100);
 
+	// Into the scrollport first: an entry below the fold intersects it in zero pixels and
+	// correctly mounts almost nothing (VR-11), which would pass the census for no reason.
+	await nested.scrollIntoViewIfNeeded();
+	await settleFrames(page);
+
 	// List items and table rows are direct-`{#each}` children, not BlockHosts, so
 	// they census by their own element rather than by `data-block-kind`.
-	await expect(nested.locator('.list-item-block')).toHaveCount(items);
-	await expect(nested.locator('[data-table-row-idx]')).toHaveCount(rows);
-	await expect(nested.locator('.vr-spacer')).toHaveCount(0);
+	expect(await nested.locator('.list-item-block').count()).toBeLessThan(items);
+	expect(await nested.locator('[data-table-row-idx]').count()).toBeLessThan(rows);
+	expect(await nested.locator('.vr-spacer').count()).toBeGreaterThan(0);
 
 	// Editing inside a nested scope drives the measure/subtotal path that reports up
 	// through a parent model nothing reads — a render-phase throw there fails here.
@@ -283,18 +293,22 @@ test('nested scopes in a host-scroll entry mount every child and stay error-free
 	expect(pageErrors).toEqual([]);
 });
 
-test('two entries in one scroller both mount fully and stay independent', async ({ page }) => {
+test('two entries in one scroller window independently against the shared port', async ({
+	page
+}) => {
 	const pageErrors = capturePageErrors(page);
 	await gotoFlow(page);
 
 	const [countA, countB] = [await blockCount(page, 'a'), await blockCount(page, 'b')];
 	// Different sizes, so an assertion that read one entry twice cannot pass.
 	expect(countA).not.toBe(countB);
-	await expect(hosts(entry(page, 'a'))).toHaveCount(countA);
-	await expect(hosts(entry(page, 'b'))).toHaveCount(countB);
-	await expect(page.locator('.vr-spacer')).toHaveCount(0);
+	expect(await hosts(entry(page, 'a')).count()).toBeLessThan(countA);
+	expect(await hosts(entry(page, 'b')).count()).toBeLessThan(countB);
+	expect(await page.locator('.vr-spacer').count()).toBeGreaterThan(0);
 
 	const sourceABefore = await flowSource(page, 'a');
+	await entry(page, 'b').scrollIntoViewIfNeeded();
+	await settleFrames(page);
 	await entry(page, 'b').locator('[contenteditable]').first().click();
 	await page.keyboard.press('End');
 	await page.keyboard.type('BETA_MARK');

@@ -10,7 +10,9 @@ import {
 	type RevealAnchorPlacement
 } from '../../reactivity/list-windowing.svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
+import type { Scrollport } from '../../cursor/scrollport';
 import type { CstNode } from '../../core/nodes';
+import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
 
 const HEIGHTS: Record<string, number> = { b0: 10, b1: 20, b2: 30, b3: 40, b4: 50, b5: 60 };
 
@@ -22,39 +24,6 @@ const oracle: HeightOracle = {
 	invalidateWidth: () => {},
 	clear: () => {}
 };
-
-/** `maxScrollTop` models the browser's own clamp, which a plain property cannot: a
- *  scroll past the content end is refused, so the anchor can never hold that target. */
-function stubScrollEl(height: number, maxScrollTop = Infinity) {
-	let scrollTop = 0;
-	return {
-		get scrollTop() {
-			return scrollTop;
-		},
-		set scrollTop(v: number) {
-			scrollTop = Math.max(0, Math.min(v, maxScrollTop));
-		},
-		clientHeight: height,
-		clientWidth: 800,
-		getBoundingClientRect: () => ({ top: 0, height }),
-		addEventListener: () => {},
-		removeEventListener: () => {}
-	} as unknown as HTMLElement;
-}
-
-/** The list scrolls WITH the content, so its viewport top must move by -scrollTop —
- *  otherwise `listTopWithinContent` reads the scroll offset twice and the two anchor
- *  rules coincide in the stub while diverging in a browser. */
-function stubListEl(height: number, scrollEl: HTMLElement, headerHeight = 0) {
-	return {
-		scrollTop: 0,
-		clientHeight: height,
-		clientWidth: 800,
-		getBoundingClientRect: () => ({ top: headerHeight - scrollEl.scrollTop, height }),
-		addEventListener: () => {},
-		removeEventListener: () => {}
-	} as unknown as HTMLElement;
-}
 
 const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
@@ -69,7 +38,7 @@ const topLevel = (index: number): RevealAnchorPlacement => ({
 function mountScope(
 	children: CstNode[],
 	ids: string[],
-	scrollEl: HTMLElement,
+	port: Scrollport,
 	listEl: HTMLElement,
 	getRevealAnchorTarget: () => RevealAnchorPlacement | null
 ): { windowing: ListWindowing; cleanup: () => void } {
@@ -80,11 +49,11 @@ function mountScope(
 			getChildren: () => children,
 			getChildIds: () => ids,
 			getListEl: () => listEl,
-			getScrollEl: () => scrollEl,
+			getPort: () => port,
+			correctsScroll: () => true,
 			getFocusPath: () => null,
 			getRevealAnchorTarget,
 			getWidthVersion: () => 0,
-			windowingEnabled: () => true,
 			getParentPath: () => [],
 			overscan: 2,
 			pinExtensionCap: 100,
@@ -105,16 +74,16 @@ describe('list-windowing reveal anchor', () => {
 			)
 		);
 		const ids = $state(['b0', 'b1', 'b2', 'b3', 'b4', 'b5']);
-		const scrollEl = stubScrollEl(500);
-		const listEl = stubListEl(200, scrollEl);
+		const port = stubScrollport({ viewportHeight: 500 });
+		const listEl = stubListEl(port, 200);
 		let revealTarget: RevealAnchorPlacement | null = null;
 
-		const { windowing, cleanup } = mountScope(children, ids, scrollEl, listEl, () => revealTarget);
+		const { windowing, cleanup } = mountScope(children, ids, port, listEl, () => revealTarget);
 
 		// Offsets: b0@0 b1@10 b2@30 b3@60 b4@100 b5@150. Park b1 at the viewport top,
 		// so the top-of-viewport anchor is NOT the reveal target.
 		await windowing.revealChild(1);
-		expect(scrollEl.scrollTop).toBe(10);
+		expect(port.scrollTop()).toBe(10);
 		revealTarget = topLevel(5);
 
 		// Delete b3 — BETWEEN the anchor and the target, so the stable-id rule corrects
@@ -124,7 +93,7 @@ describe('list-windowing reveal anchor', () => {
 		revealTarget = topLevel(4);
 		flushSync();
 
-		expect(scrollEl.scrollTop).toBe(110);
+		expect(port.scrollTop()).toBe(110);
 		cleanup();
 	});
 
@@ -146,27 +115,21 @@ describe('list-windowing reveal anchor', () => {
 				)
 			);
 			const ids = $state(['b0', 'b1', 'b2', 'b3', 'b4', 'b5']);
-			const scrollEl = stubScrollEl(viewport);
-			const listEl = stubListEl(80, scrollEl);
+			const port = stubScrollport({ viewportHeight: viewport });
+			const listEl = stubListEl(port, 80);
 			let revealTarget: RevealAnchorPlacement | null = null;
 
-			const { windowing, cleanup } = mountScope(
-				children,
-				ids,
-				scrollEl,
-				listEl,
-				() => revealTarget
-			);
+			const { windowing, cleanup } = mountScope(children, ids, port, listEl, () => revealTarget);
 
 			await windowing.revealChild(1);
-			expect(scrollEl.scrollTop).toBe(10);
+			expect(port.scrollTop()).toBe(10);
 
 			children.splice(3, 1);
 			ids.splice(3, 1);
 			revealTarget = { index: 4, block, ...NESTED };
 			flushSync();
 
-			expect(scrollEl.scrollTop).toBe(expected);
+			expect(port.scrollTop()).toBe(expected);
 			cleanup();
 		});
 	}
@@ -188,64 +151,64 @@ describe('revealHoldsScroll — the orderings a second writer can land in', () =
 	function mount(maxScrollTop = Infinity) {
 		const children = [0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`));
 		const ids = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5'];
-		const scrollEl = stubScrollEl(500, maxScrollTop);
+		const port = stubScrollport({ viewportHeight: 500, maxScrollTop });
 		// Post-resize layout: the callback that asks this question runs after the header
 		// has already grown, so the taller header is what the predicate measures against.
-		const listEl = stubListEl(200, scrollEl, HEADER_AFTER);
+		const listEl = stubListEl(port, 200, HEADER_AFTER);
 		let revealTarget: RevealAnchorPlacement | null = null;
-		const { windowing, cleanup } = mountScope(children, ids, scrollEl, listEl, () => revealTarget);
+		const { windowing, cleanup } = mountScope(children, ids, port, listEl, () => revealTarget);
 		return {
 			windowing,
 			cleanup,
-			scrollEl,
+			port,
 			claim: (t: RevealAnchorPlacement | null) => (revealTarget = t)
 		};
 	}
 
 	it('answers true only where the target already sits at its placement', () => {
-		const { windowing, cleanup, scrollEl, claim } = mount();
+		const { windowing, cleanup, port, claim } = mount();
 		claim(topLevel(4));
-		scrollEl.scrollTop = HELD;
+		port.setScrollTop(HELD);
 		expect(windowing.revealHoldsScroll()).toBe(true);
 		cleanup();
 	});
 
 	it('answers false when the observer runs first, and the delta then lands on the target', () => {
-		const { windowing, cleanup, scrollEl, claim } = mount();
+		const { windowing, cleanup, port, claim } = mount();
 		claim(topLevel(4));
 		// The anchor last placed against the SHORT header and has not re-placed yet.
-		scrollEl.scrollTop = HEADER_BEFORE + TARGET_OFFSET;
+		port.setScrollTop(HEADER_BEFORE + TARGET_OFFSET);
 		expect(windowing.revealHoldsScroll()).toBe(false);
 		// Which is the whole reason `false` is safe: the relative correction the caller
 		// falls back to is not merely harmless here, it is exact.
-		scrollEl.scrollTop += DELTA;
-		expect(scrollEl.scrollTop).toBe(HELD);
+		port.setScrollTop(port.scrollTop() + DELTA);
+		expect(port.scrollTop()).toBe(HELD);
 		expect(windowing.revealHoldsScroll()).toBe(true);
 		cleanup();
 	});
 
 	it('answers false for a claim the anchor never placed', () => {
-		const { windowing, cleanup, scrollEl, claim } = mount();
+		const { windowing, cleanup, port, claim } = mount();
 		// A `'nearest'` reveal of an already-visible block scrolls nothing, so the claim
 		// rides a target sitting mid-viewport rather than at its pin.
-		scrollEl.scrollTop = HELD - 263;
+		port.setScrollTop(HELD - 263);
 		claim(topLevel(4));
 		expect(windowing.revealHoldsScroll()).toBe(false);
 		cleanup();
 	});
 
 	it('answers false when the placement is clamped beyond the scroll range', () => {
-		const { windowing, cleanup, scrollEl, claim } = mount(HELD - 40);
+		const { windowing, cleanup, port, claim } = mount(HELD - 40);
 		claim(topLevel(4));
-		scrollEl.scrollTop = HELD; // refused by the clamp
-		expect(scrollEl.scrollTop).toBe(HELD - 40);
+		port.setScrollTop(HELD); // refused by the clamp
+		expect(port.scrollTop()).toBe(HELD - 40);
 		expect(windowing.revealHoldsScroll()).toBe(false);
 		cleanup();
 	});
 
 	it('answers false with no reveal in flight', () => {
-		const { windowing, cleanup, scrollEl } = mount();
-		scrollEl.scrollTop = HELD;
+		const { windowing, cleanup, port } = mount();
+		port.setScrollTop(HELD);
 		expect(windowing.revealHoldsScroll()).toBe(false);
 		cleanup();
 	});

@@ -10,6 +10,7 @@ import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './cursor/scroll-ancestors';
+import type { Scrollport } from './cursor/scrollport';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
@@ -191,15 +192,18 @@ export interface EditorDoc {
 	 *  scrolls. What BOUNDS the visible region is a separate answer held by the rect
 	 *  surface — see `cursor/scroll-ancestors`. */
 	scrollHost: () => UserScrollport | null;
+	/** The same scroller as `scrollHost`, in the shape windowing measures and writes it
+	 *  through. Null only before the root mounts. */
+	scrollport: () => Scrollport | null;
 	blockElLookup: BlockElLookup;
 	/** Live getter for the focused block's full path; drives per-level VR pins. */
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height oracle (root-constructed); read by nested windowing scopes. */
 	heightOracle: HeightOracle;
-	/** False in host-scroll mode: no viewport to window against, so every scope mounts all
-	 *  its children. Set once at mount — a windowing scope reads it inside its window
-	 *  derived, so a live prop read would make it a keystroke-path dependency. */
-	windowingEnabled: () => boolean;
+	/** True while the editor holds the reader's place through a height mutation rather than
+	 *  leaving it to the host's native scroll anchoring. The `overflow-anchor` opt-out keys
+	 *  off the same fact, so the two can never both write one scroll position. */
+	correctsScroll: () => boolean;
 	/** Monotonic width-change counter the root bumps on an editor width resize, so
 	 *  every windowing scope rebuilds its model and re-measures at the new width. */
 	widthVersion: WidthVersionGetter;
