@@ -66,9 +66,9 @@ describe('live-mode gestures at hidden edges', () => {
 		expect(stats.rewrote['word-delete']).toBeGreaterThan(5);
 	});
 
-	// The two gestures whose offset a CALLER computes rather than the engine reporting it, so a
-	// mid-scalar one reaches the seam and its own snap has to catch it. A silent well-formedness
-	// oracle means those snaps held; a zero here would mean the sweep never asked.
+	// The two gestures whose offset a CALLER computes rather than the engine reporting it: a
+	// mid-scalar one reaches the seam, and a silent well-formedness oracle means its snap held.
+	// Single digits at the default budget, so a zero is a thin draw before it is a defect.
 	it('draws offsets inside a surrogate pair, at the doors that take a raw one', () => {
 		expect(stats.midScalar.enter).toBeGreaterThan(0);
 		expect(stats.midScalar['range-delete']).toBeGreaterThan(0);
