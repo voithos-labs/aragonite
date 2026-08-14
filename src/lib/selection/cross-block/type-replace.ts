@@ -101,7 +101,7 @@ export async function handleCrossBlockTypeReplace(
 					),
 					ctx.grammar
 				);
-				rebuildUnsharedChain(doc, chain, sharing, ctx.grammar);
+				rebuildUnsharedChain(doc, chain, sharing, null, ctx.grammar);
 				return [{ op: 'noop' }];
 			}
 

@@ -129,7 +129,7 @@ export function rangeDelete(
 		// text leaves it blank, and a blank block is the separating line of the one below it.
 		const parent = nodeAt(doc, start.path.slice(0, -1));
 		if (parent) settleSeparatorOnBlank(parent, start.path[start.path.length - 1], sharing);
-		rebuildUnsharedChain(doc, chain, sharing, grammar);
+		rebuildUnsharedChain(doc, chain, sharing, null, grammar);
 		return {
 			newDoc: doc,
 			collapsedCaret: { path: start.path.slice(), offset: joined.seam }
@@ -159,9 +159,9 @@ export function rangeDelete(
 
 	installTruncatedEndpoint(doc, start.path, replacement, sharing);
 
-	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	for (const path of deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing, grammar);
+		rebuildUnsharedAncestry(doc, path, sharing, null, grammar);
 	}
 
 	// The re-parse may change kind, including leaf → CONTAINER (a list marker joined to its item

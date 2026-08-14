@@ -298,10 +298,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					// container's OPENER line (an alert's type), so the rebuilt bytes may open
 					// as a different kind. The document branch runs no chain rebuild of its
 					// own, so this is the only seam a top-level metadata write crosses.
+					// `folds: null` — the rebuild root is the commit's own scope array, whose
+					// descriptor this mutate has already fixed as `noop`.
 					const [reclassified] = rebuildUnsharedChain(
 						{ children: view.children },
 						[node],
 						view.sharing,
+						null,
 						view.grammar
 					);
 					touchedNodes.push(reclassified?.replacement ?? node);

@@ -202,6 +202,14 @@ ABOVE leaves the predecessor holding the written bytes, so the content funnel re
 text ended up and `settledCaretTarget` is what each caret door spends: the two `updateBlockContent`
 levels, the cross-block typed character, and the cross-block inline paste.
 
+One join no scope-local ask reaches is the one at a CONTAINER's own slot, since a mutation inside a
+container changes what the container interrupts and that join lives in the grandparent's array.
+`src/lib/tree-operations/unshare.ts` :: `rebuildUnsharedChain` asks it on the way out of the
+ancestry rebuild, gated on a boundary line of the rebuilt raw moving; the fold splices a scope no
+commit descriptor covers, so `src/lib/editor-actions/ancestry-folds.ts` publishes that scope's
+ids/refs and answers the caret the eaten slot owed. The sink is required-nullable — a caller that
+cannot reconcile a parent-scope splice passes `null` and declines the ask.
+
 ## What a block must, may, and must not do
 
 The interface is `src/lib/block-component.ts`, and each member's docstring is authoritative. This

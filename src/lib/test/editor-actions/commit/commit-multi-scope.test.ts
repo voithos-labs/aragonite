@@ -9,10 +9,10 @@ import { allowDevWarns } from '$lib/test/support/warn-gate';
 // oracle reads them as stale; the ids and refs under test do not care.
 afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
-function makeContainerNode(childRaws: string[]): any {
+function makeContainerNode(childRaws: string[], leadingTrivia = ''): any {
 	return {
 		kind: 'list',
-		leadingTrivia: '',
+		leadingTrivia,
 		raw: childRaws.join(''),
 		children: childRaws.map((r) => ({ kind: 'listItem', leadingTrivia: '', raw: r }))
 	};
@@ -55,9 +55,11 @@ describe('commitMultiScope', () => {
 	});
 
 	it('multi-scope: two scopes each get independent descriptors, still ONE snapshot + ONE event', async () => {
+		// A separator and a different bullet: two TIGHT `-` lists are one list on reload, which
+		// the ancestry settle now folds them back into.
 		const { deps, events } = makeEditorActionsDeps([
 			makeContainerNode(['- a\n', '- b\n', '- c\n']),
-			makeContainerNode(['- x\n', '- y\n'])
+			makeContainerNode(['* x\n', '* y\n'], '\n')
 		]);
 		const stateA = makeBlockListState(() => deps.doc.children[0], ['a0', 'a1', 'a2']);
 		const stateB = makeBlockListState(() => deps.doc.children[1], ['b0', 'b1']);
