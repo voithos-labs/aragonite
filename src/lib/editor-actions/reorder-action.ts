@@ -88,7 +88,9 @@ export function createReorderAction(
 			},
 			afterTick: () => state.innerBlockRefs[landing]?.focus(CURSOR_START)
 		});
-		return { landing, total: parent.children?.length ?? 0 };
+		// Re-resolved, not `parent`: the ceremony's copy-on-write replaced that node, so the one
+		// this action resolved still holds the pre-move children.
+		return { landing, total: blockNodeAt(deps.doc, unit.parentPath)?.children?.length ?? 0 };
 	}
 
 	function resolveAndClamp(

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { absorbWindowSeams, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { absorbWindowSeams, deleteNode, updateNodeContent } from '$lib/tree-operations/node-ops';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
@@ -169,5 +169,23 @@ describe('absorbWindowSeams reports disjoint folds as one window', () => {
 			idMap: { 0: 0 }
 		});
 		expect(settled.landing).toBe(2);
+	});
+});
+
+// Pins a known divergence of the same class at a producer no seam ask reaches: a mutation INSIDE a
+// container changes whether the container itself interrupts, and the join it invalidates is in the
+// grandparent's children, which the container's own commit never splices. Do not delete this to
+// make it green — closing it is a parent-scope splice, not another call to the leaf's ask.
+describe('a nested delete can stop an ordered list interrupting (GH #21, open)', () => {
+	it('leaves the list starting at 2, which the paragraph above swallows on reload', () => {
+		const doc = parse('a\n1. x\n2. y\n');
+		const list = doc.children[1];
+
+		deleteNode({ children: list.children!, ownerKind: list.kind, owner: list }, 0);
+		rebuildContainerRaw(list);
+
+		expect(serialize(doc)).toBe('a\n2. y\n');
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
+		expect(describeConvergence(doc)).toBe('[] live has 2 children, reparsed has 1');
 	});
 });
