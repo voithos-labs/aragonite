@@ -1,9 +1,9 @@
 /**
- * The `(kind, id) → handler` block-command registry and every dispatch seam over it. Chord
- * dispatch (leaf and container-bubble) resolves a chord to an id and enters `runCommandById`,
- * which the editor's `runCommand` door enters directly, so the rules that hold regardless of
- * invocation live at one seam. Register-once, throw-on-duplicate (culture.md "Registries are
- * code, not state"). Here, not `./commands`: `commands → block-commands → command-id` cycles.
+ * The `(kind, id) → handler` block-command registry and every dispatch seam over it. A chord
+ * (leaf or container bubble), the `runCommand` door and its admissibility read all resolve the
+ * same tiers here, so the rules that hold regardless of invocation live at one seam.
+ * Register-once, throw-on-duplicate (culture.md "Registries are code, not state"). Here, not
+ * `./commands`: `commands → block-commands → command-id` cycles.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
@@ -278,8 +278,8 @@ export function dispatchKeyCommand(
  * Container-bubble dispatch. Kind-only, no global tier: undo/redo belong to the focused leaf,
  * and a container bubble re-firing them would double-fire (`resolveKindBinding` in `./commands`).
  * The bubble callers hold no GlobalCommandContext, so they pass the gates directly — and an
- * override that resolves a GLOBAL id here declines loudly in the block-local tail rather than
- * being dropped by a `runCommand` that has no arm for it.
+ * override that resolves a GLOBAL id here resolves DEAD, declining loudly rather than being
+ * dropped by a `runCommand` that has no arm for it.
  */
 export function dispatchKindCommand(
 	chord: string,
