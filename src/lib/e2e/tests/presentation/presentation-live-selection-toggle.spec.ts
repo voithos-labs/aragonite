@@ -104,6 +104,18 @@ test.describe('live mode — a toggle over a selection writes its bytes at once'
 		});
 	}
 
+	// A run closes against a word, so wrapping the space would print four asterisks the reader
+	// cannot see to delete. The word goes in the run and the space stays beside it.
+	test('a selection ending on a space wraps the word alone', async ({ page }) => {
+		await selectFrom(ep, page, PLAIN, 6, 6);
+		await page.keyboard.press(CHORD.strong);
+		await ep.bridge.waitForSourceContains('**words** here');
+
+		// The space is beside the run, not in it, so the literal wrap's four asterisks never appear.
+		await expect(ep.getBlock(PLAIN).locator('strong')).toHaveText('words');
+		expect(await ep.bridge.getSource()).not.toContain('**words **');
+	});
+
 	test('a toggle inside a heading leaves the unpainted prefix alone', async ({ page }) => {
 		// Home lands past the hidden `## `, so the selection can only start in content.
 		await selectFrom(ep, page, HEADING, 3, 7);
@@ -138,5 +150,13 @@ test.describe('source mode — the same chord writes the same bytes', () => {
 		await page.keyboard.press(CHORD.strong);
 		await ep.bridge.waitForSourceContains('**words**');
 		expect(await ep.getBlockText(PLAIN)).toBe('plain **words** here');
+	});
+
+	// The one divergence: source paints the run it writes, so the reader can see and fix it.
+	test('a selection ending on a space keeps the space inside the run', async ({ page }) => {
+		const ep = await enterPresentationMode(page, 'source', DOC);
+		await selectFrom(ep, page, PLAIN, 6, 6);
+		await page.keyboard.press(CHORD.strong);
+		await ep.bridge.waitForSourceContains('**words **here');
 	});
 });

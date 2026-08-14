@@ -10,13 +10,17 @@ import {
 	type ToggleInlineFormatResult
 } from '$lib/components/blocks/text/format-toggle';
 import type { InlineMarkKind } from '$lib/cursor/pending-marks';
+import type { PresentationMode } from '$lib/presentation-mode';
 import { getInlineMarkPolicy, listInlineMarks } from '$lib/schema/inline-construct-policy';
 
+/** Source mode by default: these suites pin the bytes a painting mode writes, and the marker-hiding
+ *  fork has its own file. */
 export function toggleFormat(
 	edit: InlineFormatEdit,
-	format: InlineMarkKind
+	format: InlineMarkKind,
+	mode: PresentationMode = 'source'
 ): ToggleInlineFormatResult {
-	const result = toggleInlineFormat(edit, format);
+	const result = toggleInlineFormat(edit, format, mode);
 	if (!result) throw new Error(`toggleInlineFormat declined "${format}": no mark row registered`);
 	return result;
 }

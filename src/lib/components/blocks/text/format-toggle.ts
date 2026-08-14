@@ -1,14 +1,17 @@
 /**
  * Toggle an inline format inside a prose block. Over a SELECTION, strips flanking markers only
- * when they belong to a same-format construct enclosing it, else wraps. At a COLLAPSED CARET,
- * unwraps the enclosing span, else removes the empty pair the previous press left, else inserts a
- * pair — a strategy live mode forks away from first (pending marks, live-mode.md § 4.3). Every
- * write clamps to the CONTENT range: a marker in `# ` or a setext underline changes the kind.
+ * when they belong to a same-format construct enclosing it, else wraps, and where the mode paints
+ * no delimiter the bytes stay candidates until the render path agrees the screen is unchanged. At
+ * a COLLAPSED CARET, unwraps the enclosing span, else removes the empty pair the previous press
+ * left, else inserts a pair — a strategy live mode forks away from first (live-mode.md § 4.3).
+ * Every write clamps to the CONTENT range: a marker in `# ` or a setext underline changes the kind.
  */
 
 import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
+import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
+import { hidesMarkers, type PresentationMode } from '../../../presentation-mode';
 import {
 	getInlineMarkPolicy,
 	type InlineMarkPolicy
@@ -32,12 +35,13 @@ export interface ToggleInlineFormatResult {
 	newSelEnd: number;
 }
 
-/** Null for a kind whose row declares no mark: the vocabulary lives on the row, so a kind without
- *  one has no delimiters this seam could write. The runtime guard `InlineMarkKind` gave up when it
- *  opened from a closed union to whatever the table rows. */
+/** Null for a kind whose row declares no mark, or for a selection whose every candidate would put
+ *  a delimiter on a screen that paints none: the vocabulary lives on the row, so a kind without one
+ *  has no delimiters this seam could write, and a toggle's sound fallback is not writing. */
 export function toggleInlineFormat(
 	edit: InlineFormatEdit,
-	format: InlineMarkKind
+	format: InlineMarkKind,
+	mode: PresentationMode | undefined
 ): ToggleInlineFormatResult | null {
 	const mark = getInlineMarkPolicy(format);
 	if (!mark) return null;
@@ -49,6 +53,33 @@ export function toggleInlineFormat(
 	const inlines = parseInline(display, content.start, content.end);
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
+	const candidates = selectionCandidates(display, inlines, start, end, format, mark);
+	// Painted delimiters are the mode's own answer, so the bytes stand whatever they parse as.
+	if (!hidesMarkers(mode ?? 'source')) return candidates[0] ?? null;
+	const shown = screenOf(display, content);
+	return (
+		candidates.find(
+			(candidate) =>
+				screenOf(candidate.newDisplay, shiftedContent(content, display, candidate)) === shown
+		) ?? null
+	);
+}
+
+// ── Selection ────────────────────────────────────────────────────────────────
+
+/**
+ * What the press could mean over `[start, end)`, what it literally says first. Only the wrap has a
+ * second reading: markdown opens and closes a run against a word, never whitespace, so a boundary
+ * space goes to the plain text beside the run, as `live-split-rebalance` reads the same problem.
+ */
+function selectionCandidates(
+	display: string,
+	inlines: readonly InlineNode[],
+	start: number,
+	end: number,
+	format: InlineMarkKind,
+	mark: InlineMarkPolicy
+): ToggleInlineFormatResult[] {
 	const slice = display.slice(start, end);
 
 	// The selection carries its own flanking markers (the user selected `**word**`). Exactly one
@@ -56,11 +87,13 @@ export function toggleInlineFormat(
 	const selfSpan = soleSpanOf(slice, format);
 	if (selfSpan) {
 		const unwrapped = slice.slice(selfSpan.contentStart, selfSpan.contentEnd);
-		return {
-			newDisplay: display.slice(0, start) + unwrapped + display.slice(end),
-			newSelStart: start,
-			newSelEnd: start + unwrapped.length
-		};
+		return [
+			{
+				newDisplay: display.slice(0, start) + unwrapped + display.slice(end),
+				newSelStart: start,
+				newSelEnd: start + unwrapped.length
+			}
+		];
 	}
 
 	// Markers outside the selection (`word` inside `*word*`). The construct check is what makes
@@ -68,19 +101,67 @@ export function toggleInlineFormat(
 	const enclosing = enclosingSpanOf(inlines, start, end, format);
 	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) {
 		const mLen = markerLengthOf(enclosing);
-		return {
-			newDisplay: display.slice(0, start - mLen) + slice + display.slice(end + mLen),
-			newSelStart: start - mLen,
-			newSelEnd: end - mLen
-		};
+		return [
+			{
+				newDisplay: display.slice(0, start - mLen) + slice + display.slice(end + mLen),
+				newSelStart: start - mLen,
+				newSelEnd: end - mLen
+			}
+		];
 	}
 
-	const wrapped = wrapSlice(slice, mark);
+	const core = trimmedRange(display, start, end);
+	const trimmed = core === null ? [] : [wrapRange(display, core.start, core.end, mark)];
+	return [wrapRange(display, start, end, mark), ...trimmed];
+}
+
+/** The selection minus its boundary whitespace, or null when there is none to trim or nothing
+ *  left once it goes. */
+function trimmedRange(
+	display: string,
+	start: number,
+	end: number
+): { start: number; end: number } | null {
+	let from = start;
+	let to = end;
+	while (from < to && /\s/.test(display[from])) from++;
+	while (to > from && /\s/.test(display[to - 1])) to--;
+	return (from === start && to === end) || from === to ? null : { start: from, end: to };
+}
+
+function wrapRange(
+	display: string,
+	start: number,
+	end: number,
+	mark: InlineMarkPolicy
+): ToggleInlineFormatResult {
+	const wrapped = wrapSlice(display.slice(start, end), mark);
 	return {
 		newDisplay: display.slice(0, start) + wrapped + display.slice(end),
 		newSelStart: start,
 		newSelEnd: start + wrapped.length
 	};
+}
+
+// ── Verification ─────────────────────────────────────────────────────────────
+
+/** A toggle changes formatting, never the text on screen, so the render path's own reading of the
+ *  content is what a candidate has to leave unchanged (live-mode.md § 2). */
+function screenOf(display: string, content: ContentRange): string {
+	return renderedText(
+		parseInline(display, content.start, content.end),
+		display,
+		CONTENT_VISIBILITY
+	);
+}
+
+/** The write clamps into the content, so only its END moves, by what the candidate added. */
+function shiftedContent(
+	content: ContentRange,
+	display: string,
+	candidate: ToggleInlineFormatResult
+): ContentRange {
+	return { start: content.start, end: content.end + candidate.newDisplay.length - display.length };
 }
 
 // ── Caret ────────────────────────────────────────────────────────────────────

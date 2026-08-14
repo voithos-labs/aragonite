@@ -1,7 +1,7 @@
 /**
- * Every live-mode byte rewrite answers to the same oracle and the same seam. Five modules build
- * candidate bytes for a mode that paints no delimiter, and the edge seat asks which bytes a
- * childless construct shows; each is only sound because it asks the RENDER PATH what the reader
+ * Every live-mode byte rewrite answers to the same oracle and the same seam. Most of the modules
+ * below build candidate bytes for a mode that paints no delimiter; the edge seat asks which bytes a
+ * childless construct shows. Each is only sound because it asks the RENDER PATH what the reader
  * sees rather than walking the parse itself (G4.33). The joins add a second rule: they all cross
  * `cleanJoinedRaw`, the one reader of the registered cleaner, so a new destructive path cannot
  * quietly write its own concatenation.
@@ -10,10 +10,11 @@
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
 
-/** The live byte-rewrite modules, by set equality: a seventh one is a decision, not a drift. */
+/** The live byte-rewrite modules, by set equality: one more is a decision, not a drift. */
 const REWRITE_MODULES = [
 	'src/lib/components/blocks/text/construct-edge-delete.ts',
 	'src/lib/components/blocks/text/edge-seat.ts',
+	'src/lib/components/blocks/text/format-toggle.ts',
 	'src/lib/components/blocks/text/link-source-bytes.ts',
 	'src/lib/components/blocks/text/live-join-seam.ts',
 	'src/lib/components/blocks/text/live-split-rebalance.ts',

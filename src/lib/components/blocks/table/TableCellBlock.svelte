@@ -377,7 +377,8 @@
 		const cellText = readCellText();
 		const result = toggleInlineFormat(
 			{ display: cellText, content: { start: 0, end: cellText.length }, selection: offsets },
-			format
+			format,
+			presentationMode
 		);
 		if (!result) return true;
 		// Anchor undo at the live post-toggle caret: cross-block dispatch arrives with no

@@ -898,7 +898,8 @@
 
 		const toggled = toggleInlineFormat(
 			{ display: getDisplayText(), content: getContentRange(node), selection: range },
-			format
+			format,
+			presentationMode
 		);
 		if (!toggled) return;
 		const { newDisplay, newSelStart, newSelEnd } = toggled;
