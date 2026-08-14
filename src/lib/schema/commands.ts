@@ -136,22 +136,27 @@ export function __removePluginCommandsForTests(): void {
 	}
 }
 
-const warnedUnresolvedIds = new Set<string>();
+/** Which seam found the command dead. Half the memo key below: a no-op at one seam must not
+ *  spend the one-time diagnostic another seam still owes. */
+export type CommandDispatchPath = 'chord' | 'door' | 'plugin-global';
+
+const warnedDeadKeys = new Set<string>();
 
 /**
- * Dev-warn once per id that a bound command reached no runnable handler on the dispatch path
- * that fired — a dead key. Unreachable, not unregistered: a minted command resolves only where
- * the dispatch target supplies a command context.
+ * Dev-warn once per (id, path) that a command reached no runnable handler at `path` — a dead
+ * key. Unreachable, not unregistered: a minted command resolves only where the dispatch target
+ * supplies a command context.
  */
-export function warnUnresolvedPluginCommand(id: AnyCommandId): void {
-	if (warnedUnresolvedIds.has(id)) return;
-	warnedUnresolvedIds.add(id);
-	devWarn('commands', `command "${id}" reached no handler on this dispatch path; key is dead`);
+export function warnDeadKeyCommand(id: AnyCommandId, path: CommandDispatchPath): void {
+	const key = `${path} ${id}`;
+	if (warnedDeadKeys.has(key)) return;
+	warnedDeadKeys.add(key);
+	devWarn('commands', `command "${id}" reached no handler on the ${path} path; key is dead`);
 }
 
-/** Test-only. Clears the once-per-id warn set so each test sees a first-time warn. */
+/** Test-only. Clears the dead-key warn memo so each test sees a first-time warn. */
 export function __resetCommandWarningsForTests(): void {
-	warnedUnresolvedIds.clear();
+	warnedDeadKeys.clear();
 }
 
 registerCommand('history.undo', (ctx) => {
@@ -306,10 +311,12 @@ export function resolveBinding(
 }
 
 /**
- * True when the editor-global or plugin-global keymap binds this exact chord — never a modified
- * variant like `Mod+Alt+Y`. Input-layer sites consult it to know which chords they own.
+ * True when the built-in or plugin-global keymap binds this exact chord BEFORE any consumer
+ * override — never a modified variant like `Mod+Alt+Y`. Override-BLIND by design: it answers
+ * which chords carry a native browser default to suppress, not which command runs. A dispatch
+ * question reads `runGlobalChord`/`runGlobalChordOnKind`, which consult the override tier.
  */
-export function isEditorGlobalChord(chord: string): boolean {
+export function isDefaultGlobalChord(chord: string): boolean {
 	return builtinGlobalBinding(chord) !== null;
 }
 
@@ -326,16 +333,47 @@ export function resolveGlobalBinding(
 	return builtinGlobalBinding(chord);
 }
 
+/** Reading mode consumes a claimed chord and runs nothing: falling through would hand a
+ *  read-only document the browser's own history. */
+export interface GlobalChordContext extends GlobalCommandContext {
+	isReading: boolean;
+}
+
 /**
- * Run whatever `chord` resolves to at global scope. The surfaces with no focused block for a
- * kind tier to apply to — the editor root's windowed-out caret, the gap caret's proxy — share
- * this, so a consumer's global override reaches both or neither.
+ * Run whatever `chord` claims at global scope, for the surfaces with no focused block for a kind
+ * tier to apply to — the editor root's windowed-out caret, the gap caret's proxy. True means the
+ * press was CONSUMED, which a disabled chord is without running anything.
  */
 export function runGlobalChord(
 	chord: string,
 	overrides: KeybindingOverrideMap | undefined,
-	context: GlobalCommandContext
-): void {
-	const binding = resolveGlobalBinding(chord, overrides);
-	if (binding) getCommand(binding.command)?.(context);
+	context: GlobalChordContext
+): boolean {
+	return runClaimedGlobalChord(resolveGlobalBinding(chord, overrides), chord, context);
+}
+
+/**
+ * The same, for a block that IS its own focus target: no inner leaf carries the global tier for
+ * it, so resolution takes the leaf precedence and a consumer's KIND-scoped rebind reaches here.
+ */
+export function runGlobalChordOnKind(
+	chord: string,
+	kind: AnyBlockKind,
+	overrides: KeybindingOverrideMap | undefined,
+	context: GlobalChordContext
+): boolean {
+	return runClaimedGlobalChord(resolveBinding(chord, kind, overrides), chord, context);
+}
+
+/** A chord the built-in tables bind is consumed whatever an override left it resolving to: the
+ *  fall-through is the browser's own history, which bypasses the CST undo stack. */
+function runClaimedGlobalChord(
+	binding: KeyBinding | null,
+	chord: string,
+	context: GlobalChordContext
+): boolean {
+	const run = binding ? getCommand(binding.command) : undefined;
+	if (!run && !isDefaultGlobalChord(chord)) return false;
+	if (!context.isReading) run?.(context);
+	return true;
 }

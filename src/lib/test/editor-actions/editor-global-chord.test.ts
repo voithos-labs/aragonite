@@ -8,6 +8,10 @@ import type { AnyBlockKind } from '$lib/core/nodes';
 
 // The arm a block that IS its own focus target carries: no inner leaf runs the global tier
 // for it, and the editor root declines while focus sits on the block itself.
+//
+// Miss-analysis for the rebind cases below: every override case here re-pointed a chord the
+// BUILT-IN table already owned, so the arm's pre-gate answered true for reasons that had
+// nothing to do with the override, and its override-blindness was invisible.
 
 function makeDeps(overrides?: Parameters<typeof normalizeKeybindingOverrides>[0]) {
 	const requestUndo = vi.fn();
@@ -61,5 +65,28 @@ describe('handleEditorGlobalChord', () => {
 		expect(handleEditorGlobalChord('Mod+Z', deps)).toBe(true);
 		expect(requestRedo).toHaveBeenCalledTimes(1);
 		expect(requestUndo).not.toHaveBeenCalled();
+	});
+
+	it('runs a global rebind onto a chord the built-in table does not own', () => {
+		const { deps, requestUndo } = makeDeps([{ chord: 'Mod+J', command: 'history.undo' }]);
+		expect(handleEditorGlobalChord('Mod+J', deps)).toBe(true);
+		expect(requestUndo).toHaveBeenCalledTimes(1);
+	});
+
+	it('runs the same rebind scoped to this kind', () => {
+		const { deps, requestUndo } = makeDeps([
+			{ chord: 'Mod+J', command: 'history.undo', kind: 'thematicBreak' as AnyBlockKind }
+		]);
+		expect(handleEditorGlobalChord('Mod+J', deps)).toBe(true);
+		expect(requestUndo).toHaveBeenCalledTimes(1);
+	});
+
+	// A kind keymap binding is not this arm's business: it declines so the caller's own
+	// dispatch runs it.
+	it('declines a chord the kind keymap binds, leaving it to the kind dispatch', () => {
+		const { deps, requestUndo, requestRedo } = makeDeps();
+		expect(handleEditorGlobalChord('Alt+ArrowUp', deps)).toBe(false);
+		expect(requestUndo).not.toHaveBeenCalled();
+		expect(requestRedo).not.toHaveBeenCalled();
 	});
 });

@@ -14,6 +14,7 @@ const DISPATCH_TOKENS = [
 	'dispatchKindCommand(',
 	'getCommand(',
 	'runGlobalChord(',
+	'runGlobalChordOnKind(',
 	'runCommandById('
 ];
 
@@ -27,7 +28,7 @@ const GATE_OWNER_FILES = new Set([
 // getPresentationMode → the regex the guard must keep present.
 const LOCAL_GATE_SITES: Record<string, RegExp> = {
 	'src/lib/components/blocks/list/ListItemBlock.svelte': /\breadOnly\b/,
-	'src/lib/components/GapCaret.svelte': /if \(isReading\) return/,
+	'src/lib/components/GapCaret.svelte': /isReading,/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
 	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/
 };

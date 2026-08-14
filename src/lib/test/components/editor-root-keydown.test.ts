@@ -245,10 +245,11 @@ describe('editor-root keydown — reading-mode gate', () => {
 
 // ── Consumer keybinding overrides ────────────────────────────────────────────
 
+// Miss-analysis for the rebind case below: every override case here re-pointed a chord the
+// BUILT-IN table already owned, so the arm's pre-gate answered true for reasons that had
+// nothing to do with the override, and its override-blindness was invisible.
 describe('editor-root keydown — global-scope binding resolution', () => {
 	it('resolves the chord through a consumer override, not the built-in table', () => {
-		// isEditorGlobalChord reads the built-in keymap only, so an override reaches
-		// resolveGlobalBinding only by re-pointing a chord that is already global.
 		const h = harness();
 		h.setOverrides([{ chord: 'Mod+Z', command: 'history.redo' }]);
 		h.root.focus();
@@ -279,6 +280,25 @@ describe('editor-root keydown — global-scope binding resolution', () => {
 		expect(h.redoCount()).toBe(0);
 		// The arm still owns the chord — a disabled binding must not leak to the browser.
 		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it('runs a rebind onto a chord the built-in table does not own', () => {
+		const h = harness();
+		h.setOverrides([{ chord: 'Mod+J', command: 'history.undo' }]);
+		h.root.focus();
+
+		const event = h.press('j', { ctrlKey: true });
+		expect(h.undoCount()).toBe(1);
+		expect(event.defaultPrevented).toBe(true);
+	});
+
+	it('leaves an unbound chord to the browser', () => {
+		const h = harness();
+		h.root.focus();
+
+		const event = h.press('j', { ctrlKey: true });
+		expect(h.undoCount()).toBe(0);
+		expect(event.defaultPrevented).toBe(false);
 	});
 });
 

@@ -9,7 +9,7 @@ import {
 	getCommand,
 	resolveBinding,
 	resolveGlobalBinding,
-	isEditorGlobalChord,
+	isDefaultGlobalChord,
 	pluginGlobalBinding,
 	__resetPluginGlobalKeymapForTests,
 	__removePluginCommandsForTests,
@@ -69,7 +69,7 @@ describe('registerGlobalCommand', () => {
 	it('chord registers into the plugin-global tier; built-in chords are unstealable', () => {
 		registerGlobalCommand('demo.chorded', () => true, { chord: 'Mod+Shift+9' });
 		expect(pluginGlobalBinding('Mod+Shift+9')?.command).toBe('demo.chorded');
-		expect(isEditorGlobalChord('Mod+Shift+9')).toBe(true);
+		expect(isDefaultGlobalChord('Mod+Shift+9')).toBe(true);
 		expect(resolveGlobalBinding('Mod+Shift+9')?.command).toBe('demo.chorded');
 		expect(resolveBinding('Mod+Shift+9', 'paragraph')?.command).toBe('demo.chorded');
 		expect(() => registerGlobalCommand('demo.steal', () => true, { chord: 'Mod+Z' })).toThrow(

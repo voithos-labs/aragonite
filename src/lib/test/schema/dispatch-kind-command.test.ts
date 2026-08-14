@@ -89,4 +89,23 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		expect(runCommand).not.toHaveBeenCalled();
 		expect(takeDevWarns()).toEqual([]);
 	});
+
+	// Miss-analysis: the bubble's override tier had a test per SCOPE but none for the id CLASS it
+	// can resolve, so a global id resolving here fell into `runCommand`'s default arm and read as
+	// an ordinary decline.
+	it('declines a GLOBAL id an override resolved here, loudly — the bubble has no global tier', () => {
+		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+J', command: 'history.undo' }]);
+		const runCommand = vi.fn(() => false);
+
+		const handled = dispatchKindCommand(
+			'Mod+J',
+			{ kind: 'listItem', runCommand },
+			GATES,
+			overrides
+		);
+
+		expect(handled).toBe(false);
+		expect(runCommand).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
+	});
 });

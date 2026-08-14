@@ -18,12 +18,7 @@ import { revealChildOrWait, type RefSlots } from '../reactivity/publish-ref.svel
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
-import {
-	getCommand,
-	isEditorGlobalChord,
-	resolveBinding,
-	type GlobalCommandContext
-} from '../schema/commands';
+import { runGlobalChordOnKind, type GlobalCommandContext } from '../schema/commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
 import { isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
@@ -99,17 +94,12 @@ export interface EditorGlobalChordDeps extends Pick<
  * document the browser's native undo.
  */
 export function handleEditorGlobalChord(chord: string, deps: EditorGlobalChordDeps): boolean {
-	if (!isEditorGlobalChord(chord)) return false;
-	if (deps.isReading()) return true;
-	const binding = resolveBinding(chord, deps.getKind(), deps.getKeybindingOverrides());
-	if (binding) {
-		getCommand(binding.command)?.({
-			history: deps.history,
-			pluginEditor: deps.pluginEditor,
-			onCommandError: deps.onCommandError
-		});
-	}
-	return true;
+	return runGlobalChordOnKind(chord, deps.getKind(), deps.getKeybindingOverrides(), {
+		isReading: deps.isReading(),
+		history: deps.history,
+		pluginEditor: deps.pluginEditor,
+		onCommandError: deps.onCommandError
+	});
 }
 
 export interface BlockEdgeExitDeps {

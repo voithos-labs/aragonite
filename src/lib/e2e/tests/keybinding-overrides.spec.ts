@@ -115,6 +115,30 @@ test.describe('keybinding-override prop', () => {
 	});
 });
 
+// The gap caret's proxy is focused DOM of its own, so the editor root's arm declines and the
+// proxy resolves the global tier itself. No leaf is focused and there is no kind scope to fall
+// back on, which makes it the surface where an override-blind pre-gate is fatal rather than
+// merely wrong: nothing else on the path can run the rebound command.
+test.describe('override fires where no block holds focus', () => {
+	test('Mod+Alt+U undo fires at the gap caret between two blocks', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('| a | b |\n| - | - |\n| c | d |\n\n```\ncode\n```\n');
+		await setKeybindings(editor, [{ chord: 'Mod+Alt+U', command: 'history.undo' }]);
+
+		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.type('Z');
+		await expect.poll(() => source(editor)).toContain('dZ');
+
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.bridge.waitForGapCaret({ parentPath: [], index: 1 });
+
+		await editor.page.keyboard.press('Control+Alt+u');
+		await expect.poll(() => source(editor)).not.toContain('dZ');
+	});
+});
+
 // Mod+Alt+U has no built-in binding, so undo fires only via the per-instance override.
 // Drives every contenteditable leaf surface through its own dispatchKeyCommand call.
 test.describe('override fires on every leaf dispatch surface', () => {

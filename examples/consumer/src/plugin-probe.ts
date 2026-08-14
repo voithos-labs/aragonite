@@ -19,4 +19,5 @@ export type TestingSurfaceProbe = {
 	reset: typeof import('aragonite/testing').resetPluginPlatformForTests;
 	containerConformance: typeof import('aragonite/testing').runContainerConformance;
 	kindConformance: typeof import('aragonite/testing').runKindConformance;
+	inlineKindConformance: typeof import('aragonite/testing').runInlineKindConformance;
 };
