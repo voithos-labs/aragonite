@@ -202,6 +202,12 @@ ABOVE leaves the predecessor holding the written bytes, so the content funnel re
 text ended up and `settledCaretTarget` is what each caret door spends: the two `updateBlockContent`
 levels, the cross-block typed character, and the cross-block inline paste.
 
+One reading the absorb must never converge to is a construct the WRITE itself left open: an
+unterminated fence reads the rest of the document as its body, so the content funnel closes it
+before the ask: `src/lib/tree-operations/node-ops.ts` :: `closeWrittenConstruct`. The class is the grammar's — bytes
+that swallow a blank line and a prose line absorb to EOF — never a kind list. A gesture that only
+EXPOSES an open construct (a reorder, a delete) writes no bytes and still folds.
+
 One join no scope-local ask reaches is the one at a CONTAINER's own slot, since a mutation inside a
 container changes what the container interrupts and that join lives in the grandparent's array.
 `src/lib/tree-operations/unshare.ts` :: `rebuildUnsharedChain` asks it on the way out of the
