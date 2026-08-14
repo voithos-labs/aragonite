@@ -64,13 +64,10 @@ describe('reorderChildrenWithTrivia', () => {
 
 	it('returns the same permutation idMap as reorderChildren', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n'), triviaNode('\n', 'c\n')];
-		const change = reorderChildrenWithTrivia(children, 0, 2, sharing());
-		expect(change).toEqual({
-			op: 'replace',
-			at: 0,
-			count: 3,
-			newCount: 3,
-			idMap: { 0: 1, 1: 2, 2: 0 }
+		const settled = reorderChildrenWithTrivia(children, 0, 2, sharing());
+		expect(settled).toEqual({
+			change: { op: 'replace', at: 0, count: 3, newCount: 3, idMap: { 0: 1, 1: 2, 2: 0 } },
+			landing: 2
 		});
 	});
 
@@ -95,7 +92,11 @@ describe('reorderChildrenWithTrivia', () => {
 		const s = sharing();
 		s.markSnapshotTaken();
 
-		expect(reorderChildrenWithTrivia(children, 5, 0, s)).toEqual({ op: 'noop' });
+		// The block never moved, so the landing is where it still stands.
+		expect(reorderChildrenWithTrivia(children, 5, 0, s)).toEqual({
+			change: { op: 'noop' },
+			landing: 5
+		});
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['reorder']);
 		expect(children.map((c) => c.raw)).toEqual(['a\n', 'b\n']);
 		expect(children.every((c, i) => c === originals[i])).toBe(true);
@@ -103,7 +104,10 @@ describe('reorderChildrenWithTrivia', () => {
 
 	it('is a guarded noop when `to` is out of bounds', () => {
 		const children = [triviaNode('', 'a\n'), triviaNode('\n', 'b\n')];
-		expect(reorderChildrenWithTrivia(children, 0, 9, sharing())).toEqual({ op: 'noop' });
+		expect(reorderChildrenWithTrivia(children, 0, 9, sharing())).toEqual({
+			change: { op: 'noop' },
+			landing: 0
+		});
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['reorder']);
 		expect(children.map((c) => c.raw)).toEqual(['a\n', 'b\n']);
 	});

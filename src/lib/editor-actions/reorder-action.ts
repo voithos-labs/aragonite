@@ -30,6 +30,10 @@ export function createReorderAction(
 	}
 
 	async function commitReorder(unit: ReorderUnit, to: number, offset: number): Promise<void> {
+		// The settle can fold a seam the move invalidated, which pulls the moved block below the
+		// destination it was clamped to — so the caret rides the primitive's answer, not `to`.
+		let landing = to;
+
 		if (unit.scope === 'document') {
 			await controller.commitStructural({
 				snapshot: { path: docPathFrom([unit.index]), offset },
@@ -38,8 +42,12 @@ export function createReorderAction(
 					detail: { from: unit.index, to },
 					eventPath: docPathFrom([unit.index])
 				},
-				mutate: (children) => reorderChildrenWithTrivia(children, unit.index, to, deps.sharing),
-				afterTick: () => deps.blockRefs[to]?.focus(CURSOR_START)
+				mutate: (children) => {
+					const settled = reorderChildrenWithTrivia(children, unit.index, to, deps.sharing);
+					landing = settled.landing;
+					return settled.change;
+				},
+				afterTick: () => deps.blockRefs[landing]?.focus(CURSOR_START)
 			});
 			return;
 		}
@@ -59,15 +67,16 @@ export function createReorderAction(
 				eventPath: docPathFrom(unit.parentPath)
 			},
 			mutate: (scope) => {
-				const change = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
+				const settled = reorderChildrenWithTrivia(scope.children, unit.index, to, scope.sharing);
+				landing = settled.landing;
 				if (unit.renumberMarkers) {
 					// Ordered markers are position-dependent, so this unshares each item whose
 					// marker it rewrites; the ceremony's rebuild then concatenates fresh raws.
 					renumberOrderedList(scope.node, 0, scope.sharing);
 				}
-				return change;
+				return settled.change;
 			},
-			afterTick: () => state.innerBlockRefs[to]?.focus(CURSOR_START)
+			afterTick: () => state.innerBlockRefs[landing]?.focus(CURSOR_START)
 		});
 	}
 

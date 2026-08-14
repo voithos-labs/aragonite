@@ -82,6 +82,34 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
 	});
 
+	// GH #21's cross-linked family member, replayed off its fresh-seed shape: a setext heading
+	// deleted from between a list and indented code lets the four-space indent continue the item,
+	// which no separator normalization can hold apart. The fold stops at the blockquote below, so
+	// the tail code block keeps its own slot.
+	it('a delete letting a list swallow indented code stops the fold at the next block', () => {
+		const doc = parse('# word\n- > # word\n\n[t](u)\n=\n\n    code\n\n> q\n\n    tail\n');
+		expect(doc.children.map((c) => c.kind)).toEqual([
+			'heading',
+			'list',
+			'setextHeading',
+			'indentedCode',
+			'blockquote',
+			'indentedCode'
+		]);
+
+		const change = deleteNode(doc, 2);
+
+		expect(doc.children.map((c) => c.kind)).toEqual([
+			'heading',
+			'list',
+			'blockquote',
+			'indentedCode'
+		]);
+		expect(doc.children[1].raw).toBe('- > # word\n\n    code\n');
+		expect(describeConvergence(doc)).toBeNull();
+		expect(change).toEqual({ op: 'replace', at: 1, count: 3, newCount: 1, idMap: { 0: 0 } });
+	});
+
 	it('a delete between separated paragraphs stays a plain delete', () => {
 		const doc = parse('a\n\nb\n\nc\n');
 

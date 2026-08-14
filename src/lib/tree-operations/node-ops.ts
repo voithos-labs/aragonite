@@ -992,6 +992,62 @@ function absorbSeamReading(
 	return { at, span, eaten, spliced };
 }
 
+/** What a splice settled: its change widened by every fold, and where a tracked index landed. */
+export interface SettledSplice {
+	change: StructuralChange;
+	landing: number;
+}
+
+/**
+ * The seam question at every join the splice at `at` disturbed — its window's two edges and the
+ * joins inside it — since a move can invalidate a join that was already correct (GH #21). Each
+ * fold cascades downward, so the next seam is asked past what that one ate.
+ */
+export function absorbWindowSeams(
+	parent: NodeParent,
+	at: number,
+	added: number,
+	landing: number,
+	change: StructuralChange,
+	sharing?: SharingState
+): SettledSplice {
+	let settled: SeamAbsorption | null = null;
+	let moved = landing;
+	let seamLeft = at - 1;
+	let last = at + added - 1;
+	while (seamLeft <= last) {
+		const seam = absorbSeamReading(parent, seamLeft, 0, sharing);
+		if (!seam.spliced) {
+			seamLeft++;
+			continue;
+		}
+		settled = settled ? unionAbsorptions(settled, seam) : seam;
+		moved = indexAfterAbsorb(moved, seam);
+		last = indexAfterAbsorb(last, seam);
+		seamLeft = seam.at + seam.span;
+	}
+	if (!settled) return { change, landing: moved };
+	return { change: foldAbsorbIntoChange(change, settled), landing: moved };
+}
+
+/** Two folds as ONE window, which is what a change descriptor reports. The walk is left to
+ *  right, so `later` never opens above `earlier`'s post-splice span. */
+function unionAbsorptions(earlier: SeamAbsorption, later: SeamAbsorption): SeamAbsorption {
+	return {
+		at: earlier.at,
+		span: later.at + later.span - earlier.at,
+		eaten: earlier.eaten + later.eaten,
+		spliced: true
+	};
+}
+
+/** Where `index` sits once `seam` folded: a slot inside the absorbed span collapses into it. */
+function indexAfterAbsorb(index: number, seam: SeamAbsorption): number {
+	if (index < seam.at) return index;
+	const absorbedTo = seam.at + seam.span + seam.eaten;
+	return index >= absorbedTo ? index - seam.eaten : Math.min(index, seam.at + seam.span - 1);
+}
+
 /**
  * Where the fragment parse's peeled trailing blank run goes. At the parent's tail it stays in the
  * last block's raw, the single-slot sink's rule; mid-document it joins the follower's run, where
@@ -1176,17 +1232,20 @@ export function updateNodeContent(
 	}
 	// The reverse transition: the block IS the separating line now, so the run it joins gives
 	// back the second one. The last block minted is the one that meets the follower.
-	const blanked = lastMintedIndex(change, blockIndex);
-	if (!wasBlank && isBlankParagraph(parent.children[blanked])) {
+	const lastWritten = lastMintedIndex(change, blockIndex);
+	if (!wasBlank && isBlankParagraph(parent.children[lastWritten])) {
 		const settled = parent.children.length;
-		settleSeparatorOnBlank(parent, blanked, sharing);
+		settleSeparatorOnBlank(parent, lastWritten, sharing);
 		const widened = widenForTailMint(change, settled, parent.children.length);
-		// Only here, never on the ordinary keystroke: the neighbour reparse below is the
-		// expensive half and a block that stayed non-blank moved nothing next to anything.
-		const seam = absorbSeamReading(parent, blanked, 0, sharing);
+		const seam = absorbSeamReading(parent, lastWritten, 0, sharing);
 		return seam.spliced ? foldAbsorbIntoChange(widened, seam) : widened;
 	}
-	return change;
+	// A kind change stops the block interrupting the one below it, which becomes its lazy
+	// continuation (GH #21). Off the noop path, so ordinary typing never pays the neighbour
+	// reparse; the join ABOVE stays for the caret's sake, since the slot must survive the write.
+	if (change.op === 'noop') return change;
+	const seam = absorbSeamReading(parent, lastWritten, 0, sharing);
+	return seam.spliced ? foldAbsorbIntoChange(change, seam) : change;
 }
 
 /**

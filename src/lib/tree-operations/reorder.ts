@@ -1,6 +1,7 @@
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
+import { absorbWindowSeams, type SettledSplice } from './node-ops';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
 
@@ -33,20 +34,22 @@ export function reorderChildren(children: CstNode[], from: number, to: number): 
 }
 
 /**
- * Reorder children while keeping block separators positional. A separator is stored as
- * the next child's `leadingTrivia` but read per slot, so it belongs to the position, not
- * the node; permuting nodes alone would drag each separator along. Writing
- * `leadingTrivia` is a byte write, so spanned children are unshared first (`unshare.ts`)
- * and `children` must already be an owned array.
+ * Reorder children while keeping block separators positional. A separator is stored as the next
+ * child's `leadingTrivia` but read per slot, so it belongs to the position, not the node. Writing
+ * it is a byte write, so spanned children are unshared first (`unshare.ts`) and `children` must
+ * already be an owned array. The landing rides the result: a fold settling a seam the move
+ * invalidated can sit above the moved block.
  */
 export function reorderChildrenWithTrivia(
 	children: CstNode[],
 	from: number,
 	to: number,
 	sharing: SharingState
-): StructuralChange {
-	if (from === to) return { op: 'noop' };
-	if (isReorderOutOfBounds(from, to, children.length)) return { op: 'noop' };
+): SettledSplice {
+	if (from === to) return { change: { op: 'noop' }, landing: to };
+	if (isReorderOutOfBounds(from, to, children.length)) {
+		return { change: { op: 'noop' }, landing: from };
+	}
 	const lo = Math.min(from, to);
 	const hi = Math.max(from, to);
 	const windowTrivia: string[] = [];
@@ -57,5 +60,5 @@ export function reorderChildrenWithTrivia(
 	for (let k = 0; k < windowTrivia.length; k++) {
 		children[lo + k].leadingTrivia = windowTrivia[k];
 	}
-	return change;
+	return absorbWindowSeams({ children }, lo, hi - lo + 1, to, change, sharing);
 }
