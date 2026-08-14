@@ -21,10 +21,11 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    attach), so the door is proven rather than assumed; what it left forward is narrower — the
    embedder must hold and expose the editor instance for the diagnostics door to be reachable at
    all (an example-app requirement), and the trace behind the report covers the inline layer only.
-   What has NOT yet run, and stays here as forward work: the **overridable-history-seam joint
-   design** (§ Downstream boundary — the integration is named as the design table, and the table
-   has not convened); and landing whatever the consumer's remaining manual passes (journal
-   surface, real-webview gestures) surface before the freeze.
+   What stays here as forward work: landing whatever the real-webview gesture pass surfaces
+   before the freeze (the journal-surface pass ran 2026-08-14: owner manual pass plus a code
+   read of the shipped app, resolving § Downstream boundary's scrollport question). The
+   overridable-history-seam design this item once carried was dissolved by the consumer
+   decision recorded in § Downstream boundary.
 
 2. **Freeze cut at release** — in order. (The scoped pre-freeze re-audit and the
    contributor-experience pass both ran 2026-08-14/15 and left the roadmap: the audit's record
@@ -103,11 +104,9 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      consumer must switch over.
    - **Freeze litmus (history seam)**: no frozen surface binds the snapshot shape of undo — no
      public type exposes the undo stack or its entries, and the `edit` event's `undo`/`redo`
-     variants stay representation-agnostic — so the overridable history seam (§ Downstream
-     boundary) remains additive. Its interface is designed at the limestone integration against
-     the consumer's actual history representation, together with the `EditEvent` real-delta
-     discriminant (`plugin-contract.md` § Deferred) — the two are one design, and neither is
-     shaped without the consumer at the table.
+     variants stay representation-agnostic. No history-module replacement is planned (§
+     Downstream boundary carries the consumer decision); the litmus stays as future-proofing,
+     so a collaboration representation adopted later remains additive.
    - **Branch protection at the flip to public**: run `node scripts/apply-branch-protection.mjs`
      as part of the flip, which is the first point the API accepts protection rules for this repo;
      the required status contexts mirror ci.yml's job names (a job rename updates the script).
@@ -133,9 +132,12 @@ milestone that touches each area inherits it rather than rediscovering it:
   retargeting to `document.body` off a caret-less endpoint, the host webview's built-in
   accelerator keys consuming chords before the page, and the image-src scheme policy meeting
   a real host protocol. The consumer guide's webview-host section is the documented half.
-  Direction: post-1.0 a minimal **Tauri example consumer** joins `examples/`, so this class is
-  exercised by a gate rather than discovered by a user. Validator: each webview find of the next
-  integration lands as a row in that example's checklist, not a surprise.
+  Direction: post-1.0 a minimal **Tauri example consumer** joins `examples/` (possibly in this
+  repo), so this class is exercised by a gate rather than discovered by a user. Validator: each
+  webview find of the next integration lands as a row in that example's checklist, not a
+  surprise. Cross-platform webview coverage rides the same item (owner, 2026-08-14): WebKitGTK
+  is reachable from Linux CI or WSL, and a macOS/WKWebView lane needs a real or virtualized
+  macOS runner; both are future gates, not pre-1.0 work.
 - **Singletons earn their keep only until the second claimant arrives.** The process-global
   reveal anchor produced two consumer-visible defects, the interaction trace interleaves
   instances by design, and the reveal mount-waiter registry had to move off its bare-index
@@ -324,16 +326,15 @@ machinery).
 ## Downstream boundary
 
 Consumer-owned work (shell integration, sync, collaboration, app features) lives in consumer
-repos and their own roadmaps — not here. Two standing editor-side commitments: additive API
-needs surfaced by consumers ship as 1.x minors, breaking changes ride a major; and the one
-joint decision worth naming — the **persistent version-history / collaboration representation
-spike** — stays joint because it constrains editor internals (the snapshot undo model is not
-CRDT/op-log shaped, and unifying undo, history, and collaboration onto one representation is a
-design decision the editor and its first consumer must make together). Working direction
-(owner, 2026-07): limestone supplies the collaboration infrastructure; the likely editor-side
-shape is an **overridable history seam** — the undo/redo module behind an interface a consumer
-can replace — decided at the limestone integration, scheduled deliberately rather than ambient
-(the longer the decision floats, the more code accretes against the snapshot shape).
+repos and their own roadmaps — not here. One standing editor-side commitment: additive API
+needs surfaced by consumers ship as 1.x minors, breaking changes ride a major.
+
+The overridable-history-seam direction this section once carried is dissolved (owner +
+consumer, 2026-08-14): cloud sync and limestone's history need only the serialized markdown,
+which aragonite's serializer answers fast, so no history-module replacement is planned for the
+coming two quarters. Collaboration sits half a year to a year out by the consumer's own
+estimate; its representation spike is designed when it nears, jointly, and until then the
+history-seam freeze litmus above is what keeps that future additive.
 
 A second, formerly joint, decision: **host-scrollport windowing.** Windowing is deliberately
 inactive in host-scroll mode today; the height model reads its viewport and offset from the
@@ -348,6 +349,9 @@ day navigator around ONE mounted editor in host-scroll mode, the shell mounts on
 time everywhere, and the owner's manual pass reads decently. The N-editors-one-scrollport
 coordinator this item once carried is therefore dropped, not deferred; it returns only if a
 continuous multi-day surface ever materializes. What remains is the single-editor scrollport,
-post-1.0 and additive, whose trigger is a large document read through a host-scrolled surface
-(every view-page doc face, the journal's entry included): such a document mounts whole today,
-and the standalone-tab route keeps windowing meanwhile.
+pulled forward to pre-1.0 (owner, 2026-08-14, on the consumer shape being this simple): a
+scrollport the host supplies so windowing runs under host scroll, carrying the stated trade
+(native scroll anchoring and windowing's manual correction cannot coexist on one editor, so
+the mode drives the declaration), validated against the local limestone integration branch.
+Its trigger is real: every view-page doc face, the journal's entry included, mounts a large
+document whole today, and only the standalone-tab route windows.
