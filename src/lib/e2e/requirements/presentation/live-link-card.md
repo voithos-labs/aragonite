@@ -87,6 +87,11 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
   opens and not a byte moves
 - a selection inside a table cell declines create: cell raw carries pipe escapes, a wrap policy of
   its own; the chord stays consumed
+- a selection SPANNING two blocks declines create: no block hosts the range, and the block-local
+  offsets the arm would read are fabricated — a block's own DOM walk reports an endpoint in
+  another block as end-of-walk. The chord stays consumed, taken by the cross-block arm before
+  dispatch (miss-analysis: every create case drove a range the caller had really measured inside
+  one block, so the one input class the arm cannot trust was never fed to it)
 - Enter over an empty URL in create mode is inert — the card stays open holding its focus rather
   than closing having minted nothing, and Open stays disabled on the same empty draft
 

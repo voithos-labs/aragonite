@@ -9,9 +9,10 @@ import {
 } from '$lib/schema/inline-construct-policy';
 import type { PresentationMode } from '$lib/presentation-mode';
 
-// BOTH merge primitives the Backspace cascade reaches, because it reaches a different one per
-// shape and a rule carried at one of two is the audit's dominant bug. Each case is run in live and
-// again with no mode, so the byte-literal behavior every other mode keeps is pinned beside it.
+// BOTH merge primitives production reaches — the deep-leaf sink Backspace enters and the reparse
+// sink Delete enters — because a rule carried at one of two is the audit's dominant bug. Each case
+// runs in live and again with no mode, so the byte-literal behavior every other mode keeps is
+// pinned beside the rewrite.
 
 beforeEach(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterEach(() => __resetLiveJoinSeamCleanerForTests());
