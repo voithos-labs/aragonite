@@ -2,6 +2,7 @@ export type { NodeParent, MergeIntoPrevResult, MergeResult, SplitResult } from '
 export {
 	splitNode,
 	assertSplitLanding,
+	assertSingleNodeSink,
 	mergeWithPrevious,
 	mergeWithNext,
 	mergeIntoPrevDeepLeaf,
