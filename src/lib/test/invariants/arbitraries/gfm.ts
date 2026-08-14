@@ -1,4 +1,5 @@
 import fc from 'fast-check';
+import { withDrawnLineEnding } from './line-endings';
 
 // Valid-ish GFM SOURCE strings, whose job is reaching the structured parser paths raw
 // garbage rarely does. Structural validity is never required: round-trip is byte-preserving
@@ -6,13 +7,22 @@ import fc from 'fast-check';
 
 // ── Leaf-block source fragments ─────────────────────────────────────────────
 
+// The minority arm, and `inline.ts`'s own vocabulary: what these words move is offset
+// ARITHMETIC (a multi-unit scalar under a slice), not the block grammar, so a rate high enough
+// to reach every structural lane is enough and ASCII stays the bulk of the bytes.
+const nonAsciiWord = fc.constantFrom('汉字', 'ém', '😀', '👩‍👦');
+
 const inlineText = fc
 	.array(
 		fc.oneof(
-			fc.constantFrom('word', 'lorem', 'x', '42'),
-			fc.constantFrom('**b**', '_i_', '`c`', '~~s~~'),
-			fc.constantFrom('[t](u)', '![a](i.png)', '&copy;', '\\*', '<br>'),
-			fc.constantFrom('foo@bar.com', '<https://x.com>', 'www.x.com')
+			{ arbitrary: fc.constantFrom('word', 'lorem', 'x', '42'), weight: 4 },
+			{ arbitrary: fc.constantFrom('**b**', '_i_', '`c`', '~~s~~'), weight: 4 },
+			{
+				arbitrary: fc.constantFrom('[t](u)', '![a](i.png)', '&copy;', '\\*', '<br>'),
+				weight: 4
+			},
+			{ arbitrary: fc.constantFrom('foo@bar.com', '<https://x.com>', 'www.x.com'), weight: 4 },
+			{ arbitrary: nonAsciiWord, weight: 2 }
 		),
 		{ minLength: 1, maxLength: 5 }
 	)
@@ -129,17 +139,8 @@ const lfDoc = fc
 	.array(fc.tuple(blankRun, block), { minLength: 1, maxLength: 8 })
 	.map((parts) => parts.map(([run, b]) => run + b).join(''));
 
-/**
- * Valid-ish GFM source with bounded nesting depth (~3), emitted as a source STRING.
- *
- * The line ending is a document-level draw because "a CRLF document containing a
- * structured block" is otherwise unreachable by every lane at once — the hole two shipped
- * byte-corruption defects lived in. Mapped at the top: the container arms split on `'\n'`
- * internally, so rewriting after they compose is what keeps the result byte-exact.
- */
-export const arbGfmDoc = fc
-	.tuple(lfDoc, fc.boolean())
-	.map(([source, crlf]) => (crlf ? source.replace(/\n/g, '\r\n') : source));
+/** Valid-ish GFM source with bounded nesting depth (~3), emitted as a source STRING. */
+export const arbGfmDoc = withDrawnLineEnding(lfDoc);
 
 /**
  * The same blocks, but every gap holds at least one blank line — a real document's shape,
@@ -147,12 +148,14 @@ export const arbGfmDoc = fc
  * block into the new half (indented code cannot interrupt a paragraph), which is a separate
  * defect class from the blank-line rule and would mask it.
  */
-export const arbBlankSeparatedGfmDoc = fc
-	.array(fc.tuple(fc.array(blankLine, { minLength: 1, maxLength: 3 }), block), {
-		minLength: 1,
-		maxLength: 6
-	})
-	.map((parts) => parts.map(([run, b], i) => (i === 0 ? b : run.join('') + b)).join(''));
+export const arbBlankSeparatedGfmDoc = withDrawnLineEnding(
+	fc
+		.array(fc.tuple(fc.array(blankLine, { minLength: 1, maxLength: 3 }), block), {
+			minLength: 1,
+			maxLength: 6
+		})
+		.map((parts) => parts.map(([run, b], i) => (i === 0 ? b : run.join('') + b)).join(''))
+);
 
 // ── Leading-indent dimension ────────────────────────────────────────────────
 
@@ -181,16 +184,18 @@ function indentBlock(source: string, indent: string, firstLineOnly: boolean): st
  * indenting only the opener leaves continuation lines at column 0, which is where a
  * container's prefix re-derivation and a lazy continuation disagree about the indent.
  */
-export const arbIndentedGfmDoc = fc
-	.array(fc.tuple(blankRun, blockIndent, block, fc.boolean()), {
-		minLength: 1,
-		maxLength: 6
-	})
-	.map((parts) =>
-		parts
-			.map(
-				([trivia, indent, source, firstLineOnly]) =>
-					trivia + indentBlock(source, indent, firstLineOnly)
-			)
-			.join('')
-	);
+export const arbIndentedGfmDoc = withDrawnLineEnding(
+	fc
+		.array(fc.tuple(blankRun, blockIndent, block, fc.boolean()), {
+			minLength: 1,
+			maxLength: 6
+		})
+		.map((parts) =>
+			parts
+				.map(
+					([trivia, indent, source, firstLineOnly]) =>
+						trivia + indentBlock(source, indent, firstLineOnly)
+				)
+				.join('')
+		)
+);
