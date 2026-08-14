@@ -153,10 +153,9 @@
      content inside a focusable widget is not reachable by every AT (axe nested-interactive). -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div bind:this={boxEl} class="thematic-break-block" onkeydown={onKeyDown}>
-	<!-- Deliberately focusable non-interactive: the whole-block-focus model (the block IS
-	     its own focus target). The role/naming question is the 1.1 shell a11y decision. -->
-	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-	<div bind:this={el} tabindex="0" class="thematic-break-rule" role="separator">
+	<!-- Focusable by pointer and by the editor, never by Tab: the host beside it is the block's
+	     one tab stop. The role/naming question is the 1.1 shell a11y decision. -->
+	<div bind:this={el} tabindex="-1" class="thematic-break-rule" role="separator">
 		<hr />
 	</div>
 </div>

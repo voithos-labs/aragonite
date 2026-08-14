@@ -87,6 +87,28 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 		expect((await readDoc(page)).texts[2]).toBe('日本');
 	});
 
+	// The redraw hands focus back to the surface it replaced, and the hand-off declines an arrival
+	// whose relatedTarget is the host — so a recovery scoped wider than that surface parks focus on
+	// the viewport, where the next AltGr or composition is dropped. Only the SETTLED state shows
+	// it: the assertion above runs while the recovery is still in flight.
+	test('focus settles on the host after the redraw, not on the new viewport', async ({ page }) => {
+		await editor.viewport.dblclick();
+		await expect(editor.page.getByTestId('mermaid-source')).toBeFocused();
+		await page.keyboard.press('End');
+		await page.keyboard.type('\n\tB --> C[Done]');
+		await page.keyboard.press('ControlOrMeta+Enter');
+
+		await expect(editor.viewport.locator('svg')).toHaveCount(1, { timeout: 30_000 });
+		await editor.waitForRenderFlush();
+		await editor.waitForRenderFlush();
+
+		await expect(editor.inputHost).toBeFocused();
+		const cdp = await page.context().newCDPSession(page);
+		await cdp.send('Input.insertText', { text: '€' });
+		await waitForDoc(page, (s) => s.rootCount === 4);
+		expect((await readDoc(page)).texts[2]).toBe('€');
+	});
+
 	// A toolbar click is a focus arrival from INSIDE the box, and a hand-off that exempts those
 	// leaves the next click on the diagram sitting on the declared surface — where IME is dropped
 	// exactly as before the fix, with the keydown mint still working so nothing else reds.

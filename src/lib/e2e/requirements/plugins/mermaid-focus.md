@@ -4,15 +4,17 @@ An opaque childless plugin container (the ` ```mermaid ` block) opts into editor
 whole-block focus via `blockFocus: 'whole-block'`. Arrow traversal stops on it, a
 caret-adjacent Backspace/Delete focuses it before a second press deletes it, Enter inserts a
 paragraph below, and Alt+arrows reorder it — ThematicBreak's focus-then-delete model, exposed
-through the public container factory. The rendered viewport (`tabindex=0`) is the shared focus
-surface for keyboard and mouse, and the `:focus-within` border/background is the highlight.
+through the public container factory. The rendered viewport is the surface the block DECLARES, and
+what a pointer lands on; the editor passes that arrival on to a hidden editing host in the chrome
+box, which is where DOM focus sits and what the focus assertions name. The `:focus-within`
+border/background is still the highlight.
 
 Fixture (loaded per test): a paragraph `Above text`, a valid ` ```mermaid ` diagram, a
 paragraph `tail text` — so the block has an editable neighbor on each side.
 
 ## Happy paths
 
-- ArrowUp from `tail text` focuses the mermaid block (viewport focused, focus editor-owned);
+- ArrowUp from `tail text` focuses the mermaid block (editing host focused, focus editor-owned);
   a second ArrowUp exits to `Above text`
 - ArrowDown from `Above text` (caret at end) focuses the mermaid block; a second ArrowDown
   exits to `tail text`
@@ -40,8 +42,9 @@ paragraph `tail text` — so the block has an editable neighbor on each side.
   a second Backspace deletes the block, and one undo (Mod+Z) restores it byte-exactly
 - Delete at the end of `Above text` focuses the mermaid block; a second Delete deletes it
   (forward twin of the Backspace path)
-- Clicking the diagram focuses the viewport (`:focus-within` highlight); a single Backspace then
-  deletes the block — the click is the highlight step
+- Clicking the diagram focuses the block, the arrival passed on to the editing host
+  (`:focus-within` highlight); a single Backspace then deletes the block — the click is the
+  highlight step
 - Backspace and typing inside the plugin's edit `<textarea>` (opened by double-click) edit the
   draft and never delete the block
 
