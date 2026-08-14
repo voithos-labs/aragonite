@@ -447,8 +447,8 @@
 		return true;
 	}
 
-	// The ONE surface literal: this cell reaches every caller through its published slot, so a
-	// second literal to type-check against would be a decoy a dropped member could hide behind.
+	// The ONE surface literal: the row mounts this cell with no `bind:this`, so the published slot
+	// is the only channel a caller reaches it through — and the parity G4.38 scans.
 	$effect(() => {
 		if (!slots) return;
 		const self = {
@@ -465,7 +465,7 @@
 			getSelectionOffsets,
 			applyMenuClipboard,
 			snapCaretToPoint,
-			insertMarkdown
+			insertMarkdown: clipboard.insertMarkdown
 		} satisfies BlockComponent;
 		return publishRefSlot(slots, index, self);
 	});
@@ -892,10 +892,6 @@
 		}
 	});
 	const { onCopy, onCut, onPaste } = clipboard;
-
-	export function insertMarkdown(md: string): boolean {
-		return clipboard.insertMarkdown(md);
-	}
 
 	// ── Shared mutation primitives (event handlers + right-click menu) ───────
 
