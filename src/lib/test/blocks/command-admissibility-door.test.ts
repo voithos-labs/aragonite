@@ -5,6 +5,7 @@
 // (`test/schema/command-admissibility.test.ts`), where a painted range needs no live selection.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { TOOLBAR_COMMANDS, type EditorInstance } from '$lib';
+import { registerBlockCommand, __resetBlockCommandsForTests } from '$lib/schema/block-commands';
 import { takeDevWarns } from '../support/warn-gate';
 import {
 	installLayoutStubs,
@@ -21,6 +22,7 @@ afterEach(async () => {
 	if (mounted) await mounted.destroy();
 	mounted = null;
 	document.body.innerHTML = '';
+	__resetBlockCommandsForTests();
 });
 
 const SOURCE = 'alpha beta\n';
@@ -59,5 +61,18 @@ describe('the admissibility read on the instance surface', () => {
 		const editor = editorWithSelection();
 		expect(editor.canRunCommand('format.toggleRainbow')).toBe(false);
 		expect(takeDevWarns()).toEqual([]);
+	});
+
+	// The chord-only boundary, held by the real focused target rather than by prose: the door
+	// resolves a surface with no command context, so a minted id reaches neither tier. Both halves
+	// spend one walk now, so this is what keeps the contract from moving under the read.
+	it('reaches no minted plugin command, neither read nor run', () => {
+		const minted = registerBlockCommand('paragraph', 'demo.doorOnly', () => true);
+		const editor = editorWithSelection();
+
+		expect(editor.canRunCommand(minted)).toBe(false);
+		expect(editor.runCommand(minted)).toBe(false);
+		// The run owes the diagnostic the read withholds.
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 });
