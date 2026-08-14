@@ -22,7 +22,8 @@ import {
 	isBuiltinCommandId,
 	SINGLE_BLOCK_RANGE_COMMAND_IDS,
 	type CommandDispatchPath,
-	type GlobalCommandContext
+	type GlobalCommandContext,
+	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import { currentInstallingPlugin, type EditorContext } from './plugin-install';
@@ -106,7 +107,7 @@ export interface KindCommandTarget {
 	runCommand(id: AnyCommandId, arg?: unknown): boolean;
 	// The node → metadata-commit bridge a minted block command resolves against, supplied by the
 	// surfaces holding the focused node and a commit route. A target omitting it resolves no
-	// minted command, and dispatch falls through to `runCommand`.
+	// minted command, so the dispatch AND the admissibility read alike fall through to `runCommand`.
 	getCommandContext?(): Omit<BlockCommandContext, 'arg'>;
 }
 
@@ -125,53 +126,78 @@ export interface CommandErrorReport {
 export type CommandErrorSink = (report: CommandErrorReport) => void;
 
 /**
- * The one seam both dispatchers route a minted `(kind, id)` command through. Containment is
- * unconditional — the safety guarantee lives here, not at the call sites, so an unwired caller
- * still turns a plugin throw into a no-op, it just doesn't report. `'unresolved'` means no
- * handler or no command context, so the caller falls through to its own tiers.
+ * Which tier answers an id at a target. `'dead'` is a bound id no arm below the surface answers;
+ * `'no-surface'` is the block-local id with nothing focused, where no arm was tried and so none
+ * of the dispatch's one-time diagnostics is owed.
  */
-function runMintedCommand(
-	target: KindCommandTarget,
+type BlockLocalResolution =
+	| {
+			tier: 'minted';
+			target: KindCommandTarget;
+			handler: BlockCommandHandler;
+			context: Omit<BlockCommandContext, 'arg'>;
+	  }
+	| { tier: 'builtin'; target: KindCommandTarget }
+	| { tier: 'dead' }
+	| { tier: 'no-surface' };
+
+type CommandResolution = { tier: 'global'; run: GlobalCommandRun } | BlockLocalResolution;
+
+/**
+ * The kind tiers, in dispatch order. A GLOBAL id resolves DEAD here: the leaf path has already
+ * run it, and the container bubble deliberately has no global tier, so a container can never
+ * re-fire the focused leaf's undo.
+ */
+function resolveBlockLocalCommand(
 	id: AnyCommandId,
-	arg: unknown,
-	onCommandError?: CommandErrorSink
-): boolean | 'unresolved' {
+	target: KindCommandTarget | null
+): BlockLocalResolution {
+	if (!target) return { tier: 'no-surface' };
+	if (getCommand(id)) return { tier: 'dead' };
 	const handler = getBlockCommand(target.kind, id);
-	if (!handler) return 'unresolved';
-	const cmdCtx = target.getCommandContext?.();
-	if (!cmdCtx) return 'unresolved';
-	try {
-		return handler({ ...cmdCtx, arg });
-	} catch (error) {
-		onCommandError?.({ kind: target.kind, command: id, error });
-		return true;
-	}
+	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
+	// read a host may run per selection change.
+	const context = handler ? target.getCommandContext?.() : undefined;
+	if (handler && context) return { tier: 'minted', target, handler, context };
+	return isBuiltinCommandId(id) ? { tier: 'builtin', target } : { tier: 'dead' };
+}
+
+/** The full walk: global first, then the kind tiers. Both the dispatch and the admissibility
+ *  read spend this one, so a greyed affordance cannot disagree with the click under it. */
+function resolveCommand(id: AnyCommandId, target: KindCommandTarget | null): CommandResolution {
+	const globalRun = getCommand(id);
+	if (globalRun) return { tier: 'global', run: globalRun };
+	return resolveBlockLocalCommand(id, target);
 }
 
 /**
- * The block-local tail every dispatcher shares once its tier-specific prefix has declined: the
- * minted seam, else a built-in id to the target's `runCommand`. A GLOBAL id gets here only from
- * the bubble tier, which holds no `GlobalCommandContext` to run it with; both it and a
- * bound-but-unreachable plugin id decline loudly rather than reaching a `runCommand` with no arm.
+ * Spend a resolved kind tier. Containment is unconditional — the safety guarantee lives here, not
+ * at the call sites, so an unwired caller still turns a plugin throw into a no-op, it just doesn't
+ * report. A dead id declines loudly rather than reaching a `runCommand` with no arm for it.
  */
 function runBlockLocalCommand(
-	target: KindCommandTarget,
+	resolved: BlockLocalResolution,
 	id: AnyCommandId,
 	arg: unknown,
 	path: CommandDispatchPath,
 	onCommandError?: CommandErrorSink
 ): boolean {
-	if (getCommand(id)) {
-		warnDeadKeyCommand(id, path);
-		return false;
+	switch (resolved.tier) {
+		case 'minted':
+			try {
+				return resolved.handler({ ...resolved.context, arg });
+			} catch (error) {
+				onCommandError?.({ kind: resolved.target.kind, command: id, error });
+				return true;
+			}
+		case 'builtin':
+			return resolved.target.runCommand(id, arg);
+		case 'dead':
+			warnDeadKeyCommand(id, path);
+			return false;
+		case 'no-surface':
+			return false;
 	}
-	const minted = runMintedCommand(target, id, arg, onCommandError);
-	if (minted !== 'unresolved') return minted;
-	if (!isBuiltinCommandId(id)) {
-		warnDeadKeyCommand(id, path);
-		return false;
-	}
-	return target.runCommand(id, arg);
 }
 
 /**
@@ -201,20 +227,18 @@ function runResolvedCommand(
 	onCommandError?: CommandErrorSink
 ): boolean {
 	if (!commandIsAdmissible(id, ctx)) return false;
-	const globalRun = getCommand(id);
+	const resolved = resolveCommand(id, target);
 	// Inject the sink so a plugin-global handler's contained throw reports through the same
 	// channel as a block command's; the global tier is the only path reaching one.
-	if (globalRun) return globalRun({ ...ctx, onCommandError });
-	if (!target) return false;
-	return runBlockLocalCommand(target, id, arg, path, onCommandError);
+	if (resolved.tier === 'global') return resolved.run({ ...ctx, onCommandError });
+	return runBlockLocalCommand(resolved, id, arg, path, onCommandError);
 }
 
 /**
- * The door's admissibility read, asked at the seam that would run the command, so a host greys an
- * affordance out instead of hiding it. False wherever the door declines before dispatch: the gates
- * above, a block-local id with no focused surface, and an id no built-in arm answers (a minted
- * command is chord-only, so the door never reaches one). True is REACHABILITY: the focused
- * surface's own arm still decides whether it writes.
+ * The door's admissibility read: the gates plus the same tier walk the dispatch spends, never a
+ * second derivation of them. Silent by design — a host may ask on every selection change, so an
+ * unreachable id spends none of the dispatch's one-time dead-key diagnostics.
+ * See `editor-props.ts` for the contract this answers.
  */
 export function canRunCommandById(
 	id: AnyCommandId,
@@ -222,8 +246,8 @@ export function canRunCommandById(
 	gates: CommandGates
 ): boolean {
 	if (!commandIsAdmissible(id, gates)) return false;
-	if (getCommand(id)) return true;
-	return target !== null && isBuiltinCommandId(id);
+	const { tier } = resolveCommand(id, target);
+	return tier !== 'dead' && tier !== 'no-surface';
 }
 
 /** The `EditorInstance.runCommand` door: an id with no keystroke behind it. */
@@ -267,5 +291,6 @@ export function dispatchKindCommand(
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;
 	if (!commandIsAdmissible(binding.command, gates)) return false;
-	return runBlockLocalCommand(target, binding.command, binding.arg, 'chord', onCommandError);
+	const resolved = resolveBlockLocalCommand(binding.command, target);
+	return runBlockLocalCommand(resolved, binding.command, binding.arg, 'chord', onCommandError);
 }

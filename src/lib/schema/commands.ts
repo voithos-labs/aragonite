@@ -106,7 +106,7 @@ export interface GlobalCommandContext {
 	onCommandError?: CommandErrorSink;
 }
 
-type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
+export type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
 const globalCommands = new Map<AnyCommandId, GlobalCommandRun>();
 
 export function registerCommand(id: AnyCommandId, run: GlobalCommandRun): void {
