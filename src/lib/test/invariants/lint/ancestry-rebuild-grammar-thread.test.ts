@@ -9,7 +9,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { balancedCall, collectEditorSources, lastArgument, stripComments } from './scan-source';
+import {
+	callsAnywhere,
+	callsTo,
+	collectEditorSources,
+	lastArgument,
+	stripComments
+} from './scan-source';
 
 const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
 
@@ -23,27 +29,18 @@ interface GlobalGrammarCall {
 /** Flag seam call sites whose grammar argument is the literal `undefined`. */
 function findGlobalGrammarCalls(relPath: string, rawText: string): GlobalGrammarCall[] {
 	const code = stripComments(rawText);
-	const hits: GlobalGrammarCall[] = [];
-	for (const seam of SEAMS) {
-		const callRe = new RegExp(`(?<![\\w.])${seam}\\s*\\(`, 'g');
-		let m: RegExpExecArray | null;
-		while ((m = callRe.exec(code)) !== null) {
-			if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
-			const call = balancedCall(code, m.index + m[0].length);
-			if (call === null) continue;
-			if (lastArgument(call) === 'undefined') hits.push({ relPath, call });
-		}
-	}
-	return hits;
+	return SEAMS.flatMap((seam) =>
+		callsTo(code, seam)
+			.filter((call) => lastArgument(call) === 'undefined')
+			.map((call) => ({ relPath, call }))
+	);
 }
 
 describe('ancestry-rebuild grammar-thread source-scan', () => {
 	const sources = collectEditorSources().filter((f) => f.relPath !== CONFORMANCE_KIT);
 
 	it('found the seam call sites to validate', () => {
-		const callSites = sources.filter((f) =>
-			SEAMS.some((seam) => new RegExp(`(?<![\\w.])${seam}\\s*\\(`).test(f.code))
-		);
+		const callSites = sources.filter((f) => SEAMS.some((seam) => callsAnywhere(f.code, seam)));
 		// Routine typing, the commit ceremony, the metadata seam, paste, cross-block
 		// type-replace and the four range-delete modules, plus the declarations.
 		expect(callSites.length).toBeGreaterThan(7);
@@ -74,5 +71,14 @@ describe('ancestry-rebuild grammar-thread source-scan', () => {
 			'export function rebuildUnsharedChain(root, chain, sharing, grammar) {}\n' +
 			'// rebuildUnsharedAncestry(doc, path, sharing, undefined) would be wrong';
 		expect(findGlobalGrammarCalls('synthetic.ts', decl)).toEqual([]);
+	});
+
+	// A call whose result is spread into an array reads as `...seam(` — the shape the commit
+	// ceremony's own rebuild uses, and the one a bare word-boundary matcher walks straight past.
+	it('matcher sees a call spread into an array', () => {
+		const spread = 'out.push(...rebuildUnsharedChain(doc, chain, sharing, folds, undefined));';
+		expect(findGlobalGrammarCalls('synthetic.ts', spread)).toEqual([
+			{ relPath: 'synthetic.ts', call: 'doc, chain, sharing, folds, undefined' }
+		]);
 	});
 });
