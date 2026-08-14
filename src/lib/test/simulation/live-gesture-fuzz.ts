@@ -24,9 +24,11 @@ import {
 } from './live-screen-reading';
 import {
 	applyGesture,
+	drawsMidScalar,
 	gestureSites,
 	gestureTargets,
 	resetSurfaces,
+	scalarInteriors,
 	type Applied,
 	type Gesture,
 	type GestureKind
@@ -35,10 +37,11 @@ import {
 // ── What a run reports ───────────────────────────────────────────────────────
 
 /**
- * `seam` is live diverging where the byte-literal twin holds: a defect, and what the sweep gates on.
- * `ambiguous` is both arms failing the same absolute claim — markdown's own rebinding, or the
- * byte-literal fallback § 4.4 declares (#118). `known` is a live-only divergence an open ledger issue
- * already owns, named by {@link seatIssue} and pinned by its own case.
+ * `seam` is live diverging where the byte-literal twin holds: a defect, and what the sweep gates on,
+ * plus the one absolute claim (well-formedness) that gates on either arm. `ambiguous` is both arms
+ * failing the same claim — markdown's own rebinding, or the byte-literal fallback § 4.4 declares
+ * (#118). `known` is a live-only divergence an open ledger issue already owns, named by
+ * {@link seatIssue} and pinned by its own case.
  */
 export type ViolationCategory = 'seam' | 'ambiguous' | 'known';
 
@@ -54,6 +57,8 @@ export interface FuzzStats {
 	applied: number;
 	claimed: number;
 	rewrote: Record<GestureKind, number>;
+	/** Gestures whose drawn offset landed inside a surrogate pair, per kind. */
+	midScalar: Record<GestureKind, number>;
 	violations: Violation[];
 }
 
@@ -79,17 +84,19 @@ const KIND_WEIGHTS: { value: GestureKind; weight: number }[] = [
 const TYPED = ['a', 'Z', '1', ' ', '.', '汉', '😀'];
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
 
-/** Hidden-edge biased, because a uniform draw meets a zero-width run only by accident. */
+/** Hidden-edge biased, because a uniform draw meets a zero-width run only by accident — and the
+ *  same for a surrogate seam, which is two units wide in a document that is mostly ASCII. */
 function drawOffset(rng: Rng, node: CstNode | undefined): number {
 	if (!node) return 0;
 	const { start, end } = getContentRange(node);
 	const edges = hiddenEdgeOffsets(node);
 	if (edges.length > 0 && rng.chance(0.7)) return rng.pick(edges) - start;
+	const interiors = scalarInteriors(node.raw, start, end);
+	if (interiors.length > 0 && rng.chance(0.5)) return rng.pick(interiors) - start;
 	return rng.int(0, Math.max(1, end - start + 1));
 }
 
-function drawGesture(rng: Rng, source: string): Gesture {
-	const doc = parse(source);
+function drawGesture(rng: Rng, doc: Document): Gesture {
 	const kind = rng.weightedPick(KIND_WEIGHTS);
 	const targets = gestureTargets(doc, kind);
 	const leaf = rng.int(0, Math.max(1, targets.length));
@@ -260,6 +267,10 @@ const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
 
 // ── The run ──────────────────────────────────────────────────────────────────
 
+/** Off the weight table, so a gesture added there is counted the day it is drawn. */
+const perKind = (): Record<GestureKind, number> =>
+	Object.fromEntries(KIND_WEIGHTS.map(({ value }) => [value, 0])) as Record<GestureKind, number>;
+
 export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats> {
 	const sources = fc.sample(arbLiveDoc, { numRuns: options.docs, seed: options.seed });
 	const stats: FuzzStats = {
@@ -267,24 +278,18 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 		gestures: 0,
 		applied: 0,
 		claimed: 0,
-		rewrote: {
-			type: 0,
-			backspace: 0,
-			delete: 0,
-			enter: 0,
-			'range-delete': 0,
-			'type-over': 0,
-			'format-toggle': 0,
-			'word-delete': 0
-		},
+		rewrote: perKind(),
+		midScalar: perKind(),
 		violations: []
 	};
 	for (const [index, source] of sources.entries()) {
 		const rng = makeRng(options.seed + index * 7919);
 		let current = source;
 		for (let step = 0; step < options.steps; step++) {
-			const gesture = drawGesture(rng, current);
+			const before = parse(current);
+			const gesture = drawGesture(rng, before);
 			stats.gestures++;
+			if (drawsMidScalar(before, gesture)) stats.midScalar[gesture.kind]++;
 			resetSurfaces();
 			const live = await applyGesture(current, gesture, 'live');
 			const liveWarns = takeDevWarns();
@@ -296,7 +301,7 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 			stats.applied++;
 			if (live.claimed) stats.claimed++;
 			if (live.bytes !== literal.bytes) stats.rewrote[gesture.kind]++;
-			const found = judge(gesture, current, live, literal);
+			const found = judge(gesture, { bytes: current, doc: before }, live, literal);
 			// A dev guard that fired is a finding in its own right: the fuzzer is the caller that
 			// provoked it, and which of the two arms provoked it is the same question every oracle asks.
 			if (liveWarns.length > 0) {
@@ -320,7 +325,13 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 	return stats;
 }
 
-function judge(gesture: Gesture, before: string, live: Applied, literal: Applied): Violation[] {
+function judge(
+	gesture: Gesture,
+	origin: { bytes: string; doc: Document },
+	live: Applied,
+	literal: Applied
+): Violation[] {
+	const before = origin.bytes;
 	const out: Violation[] = [];
 	const say = (oracle: string, category: ViolationCategory, detail: string) =>
 		out.push({
@@ -342,8 +353,16 @@ function judge(gesture: Gesture, before: string, live: Applied, literal: Applied
 	if (!roundTrips(live.bytes) && roundTrips(literal.bytes)) {
 		say('round-trip', 'seam', 'live bytes do not reparse to themselves');
 	}
+	// The one absolute claim in the set: half a scalar is bytes no UTF-8 boundary round-trips and no
+	// inverse gesture restores, so no rebinding excuses it and the twin is no defense either. Held
+	// against the input because only an ill-formed draw could hand a gesture one to keep, and
+	// `invariants/corpus-coverage.test.ts` pins that the corpus draws none.
+	if (!live.bytes.isWellFormed() && before.isWellFormed()) {
+		const alsoLiteral = !literal.bytes.isWellFormed();
+		say('well-formed', 'seam', `${alsoLiteral ? 'both arms' : 'live'} minted a lone surrogate`);
+	}
 
-	const start = parse(before);
+	const start = origin.doc;
 	const screenBefore = documentContentText(start);
 	const liveScreen = documentContentText(live.doc);
 	const literalScreen = documentContentText(literal.doc);

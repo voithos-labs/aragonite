@@ -62,7 +62,9 @@ function delimitersOnScreen(raw: string): number {
 	return count;
 }
 
-/** Code-point boundaries only: an offset inside a surrogate pair is not a caret. */
+/** Code-point boundaries only, for the ORACLE's sake rather than the caret's: this net judges
+ *  delimiters on screen and has no claim about a slice through a scalar, so a mid-pair stop would
+ *  pass here while its class went unwatched. The gesture fuzzer's well-formedness oracle owns it. */
 function caretPositions(text: string): number[] {
 	const stops = [0];
 	for (const char of text) stops.push(stops[stops.length - 1] + char.length);
