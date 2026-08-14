@@ -12,6 +12,10 @@ const PROSE = [1];
 // `Some **bo|ld**` — mid-construct, landable on every rung.
 const SEAT = 9;
 
+// A cell's raw is its own, so the same seat reads the same way inside the grid.
+const TABLE_DOC = ['| Some **bold** cell | b |', '| --- | --- |', '| c | d |'].join('\n');
+const CELL = [0, 0, 0];
+
 async function focusPoint(ep: EditorPage): Promise<{ path: number[]; offset: number } | null> {
 	return (await ep.bridge.getSelectionPaths())?.focus ?? null;
 }
@@ -46,6 +50,26 @@ test.describe('mode flips — the caret comes back', () => {
 		await page.getByTestId('presentation-toggle').click();
 		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
 		await expect.poll(async () => (await focusPoint(ep))?.offset).toBe(SEAT);
+
+		await page.keyboard.type('X');
+		await ep.bridge.waitForSourceContains('boXld');
+	});
+
+	// A cell keys its rendered DOM on the mode (#39), so a flip rebuilds every mounted cell and
+	// runs the capture/restore pair prose has always run — for a block that carries no
+	// `data-block-path` of its own and reaches the caret three levels deep.
+	test('a caret inside a table cell survives the flip and takes the next byte there', async ({
+		page
+	}) => {
+		const ep = await enterPresentationMode(page, 'live', TABLE_DOC);
+		await clickWordSettled(ep, page, 'bold');
+		await landAt(ep, page, SEAT);
+		expect((await focusPoint(ep))?.path).toEqual(CELL);
+
+		await page.getByTestId('live-toggle').click();
+		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
+		await expect.poll(async () => (await focusPoint(ep))?.offset).toBe(SEAT);
+		expect((await focusPoint(ep))?.path).toEqual(CELL);
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('boXld');

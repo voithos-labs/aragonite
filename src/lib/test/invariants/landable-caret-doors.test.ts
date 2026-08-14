@@ -21,10 +21,12 @@ import { takeDevWarns } from '../support/warn-gate';
 import RogueCaretDoorBlock from './fixtures/RogueCaretDoorBlock.svelte';
 import MarkerSourcePlainBlock from './fixtures/MarkerSourcePlainBlock.svelte';
 import MarkerSourceRevealBlock from './fixtures/MarkerSourceRevealBlock.svelte';
+import InertSurfaceBlock from './fixtures/InertSurfaceBlock.svelte';
 
 const ROGUE_MARKER = '@@rogue';
 const PLAIN_MARKER = '@@plain';
 const REVEAL_MARKER = '@@reveal';
+const INERT_MARKER = '@@inert';
 
 /** A plugin whose kind is one whole line spelled `marker`, the smallest kind an opener can mint. */
 function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string, unknown>>(
@@ -75,6 +77,14 @@ function blockComponentAt(mounted: MountedEditor, path: number[]): BlockComponen
 	const block = probe.__test.getBlockComponent(path);
 	if (!block) throw new Error(`no block component at ${JSON.stringify(path)}`);
 	return block;
+}
+
+/** A stand-down claim is only evidence once the door has actually taken focus. */
+function expectFocusLandedIn(selector: string): void {
+	expect(
+		document.activeElement?.closest(selector),
+		`no focus landed in ${selector}`
+	).not.toBeNull();
 }
 
 let mounted: MountedEditor | null = null;
@@ -131,6 +141,24 @@ describe('G1.33 fires from the focus seam', () => {
 		blockComponentAt(editor, [0]).parkCaret?.(0);
 		await editor.settle();
 
+		expectFocusLandedIn('.rogue-door-block');
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	// The stand-down arm for a surface that takes no keystroke. No built-in reaches it — a built-in
+	// is `contenteditable="false"` only in reading, which the mode gate already excludes — so
+	// nothing else tells the next reader the arm is load-bearing for plugin surfaces.
+	it('stands down for an inert surface, over chrome the rogue door fires on', async () => {
+		const editor = await mountWith(
+			INERT_MARKER,
+			markerLinePlugin('inert-caret-door', INERT_MARKER, InertSurfaceBlock),
+			'live'
+		);
+
+		blockComponentAt(editor, [0]).parkCaret?.(0);
+		await editor.settle();
+
+		expectFocusLandedIn('.inert-door-block');
 		expect(takeDevWarns()).toEqual([]);
 	});
 

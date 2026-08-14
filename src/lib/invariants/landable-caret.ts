@@ -4,6 +4,8 @@
  * the keystroke at an element boundary between `display:none` spans, and the engine seats the
  * byte on whichever side it likes. Built-ins satisfy it by painting chrome that stands over no
  * content (`docs/design/live-mode.md` § 4.1); this catches a plugin surface that does not.
+ * Reported at block-host granularity: a table cell has no host of its own, so a cell violation
+ * names its table's path while the predicate still resolves the cell's own surface.
  */
 
 import { hidesMarkers, type PresentationMode } from '../presentation-mode';
