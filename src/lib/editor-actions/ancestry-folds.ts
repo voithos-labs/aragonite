@@ -6,6 +6,7 @@
 
 import type { AncestrySeamFold } from '../tree-operations/unshare';
 import { applyStructuralChangeToIdsRefs } from '../tree-operations/structural-change';
+import { assignIds } from '../block-id';
 import { getStateForNode } from '../reactivity/state-registry';
 import { replaceRefs } from '../reactivity/publish-ref.svelte';
 import type { BlockComponent } from '../block-component';
@@ -75,9 +76,11 @@ function publishDocFold(deps: EditorActionsDeps, fold: AncestrySeamFold): () => 
 function publishContainerFold(fold: AncestrySeamFold): () => void {
 	const owner = fold.owner!;
 	const state = getStateForNode(owner);
-	const savedIds = owner.childIds ? [...owner.childIds] : undefined;
+	const savedIds = owner.childIds;
 	const savedRefs: (BlockComponent | undefined)[] = state ? [...state.innerBlockRefs] : [];
-	const ids = [...(savedIds ?? [])];
+	// A container that never mounted has NO ids, which is not an empty list: seeding `[]` would
+	// publish one id per changed slot against N children (`prepareScopeView`'s rule).
+	const ids = [...(savedIds ?? assignIds(owner.children ?? []))];
 	const refs = [...savedRefs];
 	applyStructuralChangeToIdsRefs(fold.change, ids, refs);
 	owner.childIds = ids;

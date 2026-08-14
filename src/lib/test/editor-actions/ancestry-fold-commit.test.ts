@@ -1,7 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
+import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { makeNestedHarness, mockRef } from '$lib/test/harness/editor-actions';
+import { createListOverrides } from '$lib/editor-actions/list-overrides';
+import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import {
+	makeBlockListState,
+	makeEditorActionsDeps,
+	makeNestedActionsDeps,
+	makeNestedHarness,
+	makeStubBlockEdit,
+	makeStubFocus,
+	mockRef
+} from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import type { BlockComponent } from '$lib/block-component';
 
@@ -73,5 +87,57 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 		expect(serialize(h.deps.doc)).toBe(SOURCE);
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
 		expect(h.deps.blockIds).toHaveLength(2);
+	});
+});
+
+/** The same producer one level down, where the folded array belongs to a CONTAINER. */
+function quotedListHarness() {
+	const { deps } = makeEditorActionsDeps(parse('> a\n> 1. x\n> 2. y\n'));
+	const controller = createUndoController(deps);
+	const quote = () => deps.doc.children[0];
+	const getNode = () => quote().children![1];
+	const state = makeBlockListState(getNode);
+	registerBlockListState(getNode(), state);
+	const scope = {
+		get index() {
+			return 1;
+		},
+		get node() {
+			return getNode();
+		},
+		get path() {
+			return [0, 1];
+		}
+	};
+	const bundle = createStandardNestedActions(
+		state,
+		makeNestedActionsDeps({
+			index: 1,
+			getNode,
+			path: [0, 1],
+			parent: {
+				blockEdit: makeStubBlockEdit(),
+				focus: makeStubFocus(),
+				containerEdit: createContainerEditActions(deps, controller)
+			}
+		}),
+		createListOverrides({ scope, parentBlockEdit: makeStubBlockEdit() })
+	);
+	return { deps, quote, bundle };
+}
+
+describe('a fold whose parent scope is a container, not the document', () => {
+	it('publishes one id per surviving child of the owner', async () => {
+		const h = quotedListHarness();
+		expect(h.quote().children!.map((c) => c.kind)).toEqual(['paragraph', 'list']);
+
+		await h.bundle.blockEdit.deleteBlock(0);
+
+		expect(serialize(h.deps.doc)).toBe('> a\n> 2. y\n');
+		expect(h.quote().children!.map((c) => c.kind)).toEqual(['paragraph']);
+		// An unmounted owner has NO ids, which is not an empty list: seeding one would publish
+		// one id per changed slot instead of one per child, and a wrong length is permanent.
+		expect(h.quote().childIds).toHaveLength(h.quote().children!.length);
+		expect(h.quote().childIds).not.toContain(undefined);
 	});
 });
