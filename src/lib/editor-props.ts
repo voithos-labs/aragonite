@@ -93,8 +93,8 @@ export interface EditorInstance {
 	 * `keybindings` rebind cannot rewire a toolbar button. `TOOLBAR_COMMANDS` names the
 	 * supported ids. Semantics match the same command pressed as a chord: same arm, one undo
 	 * entry, same caret. False, and nothing mutates, on an unknown id, in reading mode, with no
-	 * focused block for a block-local id, and on a format toggle while a cross-block range is
-	 * painted. A minted plugin block command stays chord-only.
+	 * focused block for a block-local id, and on a single-block rewrite (the format toggles, the
+	 * link editor) while a cross-block range is painted. A minted plugin command stays chord-only.
 	 */
 	runCommand(commandId: string): boolean;
 	getEvents(): EditorEvents;
