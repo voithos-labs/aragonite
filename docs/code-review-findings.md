@@ -67,3 +67,7 @@ Severity uses the ledger vocabulary (`important` = byte corruption or contract-b
 ## Fix-tier order
 
 FIX-1 tree-ops (line loss + tail funnel + ceremony hygiene) → FIX-2 live seams (A/B/D + fuzzer gestures) → FIX-3 dispatch layer → FIX-4 generators/oracles (non-ASCII structural corpus, CRLF in the live lane, the well-formedness oracle replacing the offset clamp — must land together). Full battery + perf after the tiers; each fix red-first with a miss-analysis; gate lists derive from files touched.
+
+## Closure — 2026-08-15
+
+All four fix tiers shipped and wave-reviewed (two waves, both PASS_WITH_FINDINGS, every review finding fixed in a tidy round or routed). Closing gates on the final tree: full battery 2139/0, perf gate green on all rows with the live keystroke p50s below baseline (2.7/2.8 ms vs 3.5/2.9; live p95 elevated but inside ceilings, attributed to the unclaimed-delete join pipeline, bounded by the gate). Every important finding above is FIXED with a red-first pin and a class guard; the ledger actions are recorded on the issues themselves. Residual accepts: the one-sided well-formedness oracle (both arms share the snapped seams), the fuzzer enter-door counter's thin margin (documented at the counter), R1-C/#172 (reachability unconfirmed, ledgered). The L2 litmus constraints are recorded in plugin-contract.md § Target shapes; the policy-table door is recorded as declined with its blast-radius price list.
