@@ -4,6 +4,11 @@ import { serialize } from '$lib/core/serializer';
 import { absorbWindowSeams, updateNodeContent } from '$lib/tree-operations/node-ops';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
+import {
+	ensureUnsharedPath,
+	rebuildUnsharedChain,
+	type AncestrySeamFold
+} from '$lib/tree-operations/unshare';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -203,5 +208,26 @@ describe('a nested delete can stop an ordered list interrupting (GH #176)', () =
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
 		expect(describeConvergence(h.deps.doc)).toBeNull();
 		expect(h.deps.blockIds).toHaveLength(2);
+	});
+
+	// The slot ask's LOWER half, which the #176 pins left to the opener side. The producer opens
+	// the container's own LAST block: a tight follower the quote could not continue into becomes a
+	// lazy continuation, so the pair reloads as one. Only the closer line moves, so this is the
+	// arm that pays the container's own bytes on every keystroke.
+	it('folds the follower a body write let the container continue into', () => {
+		const doc = parse('> a\n> # h\ntext\n');
+		expect(doc.children.map((c) => c.kind)).toEqual(['blockquote', 'paragraph']);
+		const share = sharing();
+		const chain = ensureUnsharedPath(doc, [0, 1], share);
+		const quote = chain[0];
+
+		updateNodeContent({ children: quote.children!, ownerKind: quote.kind, owner: quote }, 1, 'h\n');
+		const folds: AncestrySeamFold[] = [];
+		rebuildUnsharedChain(doc, chain, share, folds, undefined);
+
+		expect(serialize(doc)).toBe('> a\n> h\ntext\n');
+		expect(doc.children.map((c) => c.kind)).toEqual(['blockquote']);
+		expect(folds).toHaveLength(1);
+		expect(describeConvergence(doc)).toBeNull();
 	});
 });
