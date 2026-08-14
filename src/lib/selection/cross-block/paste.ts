@@ -93,6 +93,9 @@ export async function handleCrossBlockPaste(
 		}
 	);
 
+	// A settle that absorbed the join above the target moved the caret to a slot this gesture
+	// never revealed, so mount it before the landing reads for its element.
+	if (result.inlineCaretPath) await ctx.revealPath(result.inlineCaretPath);
 	await landCaretAfterPaste(ctx, result.inlineCaretPath ?? caret.path, result.inlineCaretOffset);
 	return true;
 }

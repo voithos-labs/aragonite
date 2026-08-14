@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { absorbWindowSeams, deleteNode, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { absorbWindowSeams, updateNodeContent } from '$lib/tree-operations/node-ops';
 import { reorderChildrenWithTrivia } from '$lib/tree-operations/reorder';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import { rebuildContainerRaw } from '$lib/schema/container-raw';
+import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { CstNode } from '$lib/core/nodes';
 
@@ -174,18 +175,19 @@ describe('absorbWindowSeams reports disjoint folds as one window', () => {
 
 // Pins a known divergence of the same class at a producer no seam ask reaches: a mutation INSIDE a
 // container changes whether the container itself interrupts, and the join it invalidates is in the
-// grandparent's children, which the container's own commit never splices. Do not delete this to
-// make it green — closing it is a parent-scope splice, not another call to the leaf's ask.
+// grandparent's children, which the container's own commit never splices. Driven through the DOOR,
+// so whichever level closes it — the ceremony, the delete, or a renumber at the list overrides —
+// turns this red. Do not delete it to make it green.
+// Miss-analysis: every fuzzer lane mutates a block and asks about ITS siblings; the delete lane is
+// top-level only, so no lane mutates inside a container and asks the container's own slot above.
 describe('a nested delete can stop an ordered list interrupting (GH #21, open)', () => {
-	it('leaves the list starting at 2, which the paragraph above swallows on reload', () => {
-		const doc = parse('a\n1. x\n2. y\n');
-		const list = doc.children[1];
+	it('leaves the list starting at 2, which the paragraph above swallows on reload', async () => {
+		const h = makeNestedHarness('a\n1. x\n2. y\n', { index: 1, listOverrides: true });
 
-		deleteNode({ children: list.children!, ownerKind: list.kind, owner: list }, 0);
-		rebuildContainerRaw(list);
+		await h.bundle.blockEdit.deleteBlock(0);
 
-		expect(serialize(doc)).toBe('a\n2. y\n');
-		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
-		expect(describeConvergence(doc)).toBe('[] live has 2 children, reparsed has 1');
+		expect(serialize(h.deps.doc)).toBe('a\n2. y\n');
+		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'list']);
+		expect(describeConvergence(h.deps.doc)).toBe('[] live has 2 children, reparsed has 1');
 	});
 });
