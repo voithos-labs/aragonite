@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { arbBlankSeparatedGfmDoc, arbGfmDoc, arbIndentedGfmDoc, arbLiveDoc } from './arbitraries';
+import {
+	arbBlankSeparatedGfmDoc,
+	arbGfmDoc,
+	arbIndentedGfmDoc,
+	arbLiveDoc,
+	arbRawString
+} from './arbitraries';
 
 // A generator that cannot draw a shape proves nothing about it, and the shapes below were
 // missing from lanes whose properties are entirely about them: three structural lanes drew pure
@@ -66,3 +72,23 @@ describe.each(LANES)('%s draws the shapes its properties are about', (name, arbi
 		expect(draws.filter((source) => !source.isWellFormed())).toEqual([]);
 	});
 });
+
+// The garbage lane carries the shape the structured ones cannot: a control character no markdown
+// grammar mentions, which a byte-preserving parser has to hand back untouched anyway.
+describe('arbRawString', () => {
+	const draws = fc.sample(arbRawString, { numRuns: DRAWS, seed: SEED });
+
+	it('draws control characters', () => {
+		const found = draws.filter((source) => [...source].some(isControl)).length;
+		expect(found, `drew a control character in ${found} of ${DRAWS}`).toBeGreaterThanOrEqual(40);
+	});
+
+	it('draws no ill-formed source', () => {
+		expect(draws.filter((source) => !source.isWellFormed())).toEqual([]);
+	});
+});
+
+function isControl(char: string): boolean {
+	const code = char.charCodeAt(0);
+	return code === 0x7f || (code < 0x20 && char !== '\n' && char !== '\r' && char !== '\t');
+}

@@ -12,6 +12,10 @@ const escapes = ['\\*', '\\\\', '\\`', '\\[', '\\]', '\\!', '\\', '\\&'];
 
 const whitespaceRuns = ['', ' ', '  ', '\t', ' \t ', '   '];
 
+// CommonMark § 2.3 turns NUL into U+FFFD; a byte-preserving parser keeps it, so every scanner
+// meets a control character no grammar mentions and the round-trip has to hold over it anyway.
+const controls = ['\u0000', '\u0001', '\u001f', '\u007f'];
+
 // Lazy continuations the parser must absorb without re-deriving the prefix. Indents
 // straddle the CommonMark block-indent boundary deliberately: at four columns the `>`
 // becomes content of an indented code block instead of a quote marker.
@@ -40,6 +44,7 @@ const arbFragment = fc.oneof(
 	{ arbitrary: fc.constantFrom(...entities), weight: 2 },
 	{ arbitrary: fc.constantFrom(...escapes), weight: 2 },
 	{ arbitrary: fc.constantFrom(...whitespaceRuns), weight: 2 },
+	{ arbitrary: fc.constantFrom(...controls), weight: 1 },
 	{ arbitrary: fc.constantFrom(...lazyQuoteShapes), weight: 2 }
 );
 
