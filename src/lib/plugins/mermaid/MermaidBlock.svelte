@@ -69,10 +69,9 @@
 		let stale = false;
 		void renderMermaid(current, theme).then(async (result) => {
 			if (stale) return;
-			// A result swap replaces the focused element (error card → viewport once an
-			// edit fixes the code), so recovery must hand focus to the new surface.
-			const hadFocus =
-				document.activeElement !== null && document.activeElement === focusSurfaceEl();
+			// A swap replaces the rendered surface alone, so only focus INSIDE it is re-handed:
+			// the editor hidden input host and the toolbar are box children and survive untouched.
+			const hadFocus = focusSurfaceEl()?.contains(document.activeElement) ?? false;
 			rendered = result;
 			if (hadFocus) {
 				await tick();

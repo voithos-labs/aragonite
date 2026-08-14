@@ -11,6 +11,7 @@ import ThematicBreakBlock from '$lib/components/blocks/ThematicBreakBlock.svelte
 import type { EditorServices } from '$lib/editor-keys';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { displayLength } from '$lib/core/lines';
+import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
 import { parse } from '$lib/core/parser';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { makeStubBlockEdit, makeStubFocus } from '../harness/editor-actions';
@@ -61,12 +62,16 @@ afterEach(async () => {
 });
 
 describe('thematic break — the whole-block focus surface', () => {
-	it('renders a keyboard-reachable separator and declares itself non-editable', () => {
+	// Miss-analysis: nothing read the two tabindexes together, so the block shipped with two tab
+	// stops and a Shift+Tab that parked on the separator instead of leaving.
+	it('renders a separator and declares itself non-editable, with the host as its one tab stop', () => {
 		mounted = mountBreak();
 		const rule = mounted.el.querySelector('.thematic-break-rule') as HTMLElement;
+		const host = mounted.el.querySelector(`[${WHOLE_BLOCK_INPUT_ATTR}]`) as HTMLElement;
 
 		expect(rule.getAttribute('role')).toBe('separator');
-		expect(rule.getAttribute('tabindex')).toBe('0');
+		expect(rule.tabIndex).toBe(-1);
+		expect(host.tabIndex).toBe(0);
 		expect(rule.querySelector('hr')).not.toBeNull();
 		expect(mounted.instance.editable).toBe(false);
 		expect(mounted.instance.focusable).toBe(true);

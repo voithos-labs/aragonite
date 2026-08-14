@@ -152,9 +152,9 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		proxy.setAttribute('role', 'textbox');
 		proxy.setAttribute('aria-label', WHOLE_BLOCK_INPUT_LABEL);
 		proxy.spellcheck = false;
-		// Focusable but not tabbable: the declared surface keeps the block's one tab stop, and
-		// the hand-off above passes that arrival on.
-		proxy.tabIndex = -1;
+		// The block's tab stop, because focus belongs here: a declared surface left in the tab
+		// order is a second stop the backward tab parks on, where no input door exists.
+		proxy.tabIndex = 0;
 		proxy.addEventListener('beforeinput', onBeforeInput as EventListener);
 		proxy.addEventListener('compositionstart', () => (composing = true));
 		proxy.addEventListener('compositionend', onCompositionEnd);

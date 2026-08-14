@@ -6,6 +6,7 @@
 // subtree instead of a decline. `table` declares both hooks, so only test kinds reach every arm.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { blockAtPoint, endpointAtPoint, type BlockHit } from '$lib/selection/block-hit-test';
+import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -99,6 +100,25 @@ describe('blockAtPoint hook plumbing', () => {
 
 		expect(hit?.charSurface).toBeNull();
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
+	});
+
+	// Miss-analysis: the hit-test had no test at its own level for a wrapper whose only
+	// contenteditable is chrome, so the exclusion that keeps a drag released ON a whole-block
+	// kind selecting it whole could be deleted with 1055 tests staying green.
+	it('reports no surface when the only editable descendant is the hidden input host', () => {
+		editable.remove();
+		const rule = wrapper.appendChild(document.createElement('div'));
+		const host = wrapper.appendChild(document.createElement('div'));
+		host.setAttribute('contenteditable', 'true');
+		host.setAttribute(WHOLE_BLOCK_INPUT_ATTR, '');
+		// The host is click-through, so a release over the block lands on the painted body.
+		document.elementFromPoint = (() => rule) as typeof document.elementFromPoint;
+		const hit = withKind('wholeBlockKind', {});
+
+		expect(hit?.charSurface).toBeNull();
+		// Offering the host instead costs the drag its endpoint entirely: nothing paints
+		// characters there, so the release resolves to null and the block is never reached.
+		expect(hit && endpointAtPoint(hit, 10, 10)).toEqual({ path: [0], wholeBlock: true });
 	});
 });
 
