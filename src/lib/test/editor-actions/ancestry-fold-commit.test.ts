@@ -17,6 +17,7 @@ import {
 	mockRef
 } from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { describeConvergence } from '$lib/test/harness/parse-converged';
 import type { BlockComponent } from '$lib/block-component';
 
 // GH #176: a nested delete stops the list interrupting the paragraph above, and the ancestry
@@ -67,6 +68,39 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 
 		expect(serialize(h.deps.doc)).toBe('a\n> bz\n');
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'blockquote']);
+		expect(h.deps.blockIds).toHaveLength(2);
+	});
+
+	// The other producer of the same fold: a body write that DEMOTES a child stops the container
+	// interrupting its follower. It reaches the door through the non-noop preview, which is a
+	// different route into the same settle than the delete above.
+	// Miss-analysis: the content-write producer's only pin was at the tree op, so no assertion
+	// covered the door's registers, caret or undo entry for a fold a write caused.
+	it('folds the follower a body write let the container continue into', async () => {
+		const h = makeNestedHarness('> a\n> # h\ntext\n', { index: 0 });
+		const survivor: number[] = [];
+		h.deps.blockRefs[0] = mockRef({
+			focus: vi.fn((offset?: number) => survivor.push(offset ?? -1))
+		}) as BlockComponent;
+		const errors: unknown[] = [];
+		h.events.on('error', (e) => errors.push(e));
+
+		await h.bundle.blockEdit.updateBlockContent(1, 'h\n');
+
+		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['blockquote']);
+		expect(serialize(h.deps.doc)).toBe('> a\n> h\ntext\n');
+		expect(describeConvergence(h.deps.doc)).toBeNull();
+		expect(h.deps.blockIds).toEqual(['block-0']);
+		expect(survivor).toEqual([0]);
+		expect(errors).toEqual([]);
+		expect(takeDevWarns()).toEqual([]);
+
+		const stacks = h.deps.undoManager.getStacks();
+		expect(serialize(stacks.undo[0].snapshot)).toBe('> a\n> # h\ntext\n');
+
+		await createHistoryActions(h.deps, h.controller).requestUndo();
+
+		expect(serialize(h.deps.doc)).toBe('> a\n> # h\ntext\n');
 		expect(h.deps.blockIds).toHaveLength(2);
 	});
 

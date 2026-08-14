@@ -315,8 +315,8 @@ export function checkInnermostFirstAncestry(
 	const marker = `zzmark-${kind}`;
 	leaf.raw = marker + '\n';
 
-	// Fresh sharing state and global grammar: this probe asserts raw propagation only,
-	// never a kind re-derivation, so nothing shared and no registry view is needed.
+	// Fresh sharing state, no fold sink and the global grammar: this probe asserts raw propagation
+	// only, and a kit owning neither ids nor refs can reconcile no parent-scope splice.
 	rebuildUnsharedAncestry(doc, leafPath, createSharingState(), null, undefined);
 
 	assert(root.raw.includes(marker), `root raw reflects the deep leaf edit through "${kind}"`);
