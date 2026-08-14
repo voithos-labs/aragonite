@@ -13,6 +13,7 @@ import { serialize } from '$lib/core/serializer';
 import { constructContentRange, getContentRange, parseInline } from '$lib/core/inline';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { isSubsequence, keepsEveryByte } from '$lib/test/harness/live-oracles';
+import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 import { arbLiveDoc } from '$lib/test/invariants/arbitraries';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import {
@@ -101,7 +102,9 @@ function drawGesture(rng: Rng, source: string): Gesture {
 		endOffset: drawOffset(rng, targets[endLeaf]?.node),
 		char: rng.pick(TYPED),
 		affinity: rng.pick(AFFINITIES),
-		mark: rng.int(0, 4)
+		// Off the table, so a newly rowed mark is drawn the day it registers rather than wrapping
+		// back into the four that were there when this was written.
+		mark: rng.int(0, listInlineMarks().length)
 	};
 }
 
@@ -234,9 +237,13 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 	if (gesture.kind === 'backspace' || gesture.kind === 'delete') {
 		return isSubsequence(inked(live), inked(before));
 	}
-	// A toggle writes and takes back delimiter runs by design, so the claim is over what is left
-	// when they go: every other byte survives it exactly.
-	if (gesture.kind === 'format-toggle') return withoutMarks(before) === withoutMarks(live);
+	// A toggle either wraps or strips and never both, so its claim is one containment or the other
+	// — read off the direction rather than off a list of delimiter bytes the table alone knows.
+	if (gesture.kind === 'format-toggle') {
+		return live.length >= before.length
+			? isSubsequence(inked(before), inked(live))
+			: isSubsequence(inked(live), inked(before));
+	}
 	// The swallow: an arm that owns a press but has no sound rewrite writes nothing (§ 4.4).
 	return live === before || isSubsequence(inked(live), inked(literal));
 }
@@ -250,10 +257,6 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
  * whitespace a declared drop.
  */
 const inked = (bytes: string): string => bytes.replace(/\s+/g, '');
-
-/** The bytes a mark can never be spelled with — what a toggle leaves untouched whichever way it
- *  went, since its own vocabulary is exactly the runs removed here. */
-const withoutMarks = (bytes: string): string => inked(bytes).replace(/[*~`_]/g, '');
 
 // ── The run ──────────────────────────────────────────────────────────────────
 
