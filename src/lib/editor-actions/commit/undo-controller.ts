@@ -17,6 +17,7 @@ import { readCurrentSelection } from '../../selection/native-bridge';
 import { asDocPath, pathsEqual } from '../../selection/path-math';
 import { assertInvariant } from '../../invariants/assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
+import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
 import { nodeAt, settleSeparator, type SeparatorParent } from '../../tree-operations/node-ops';
 import {
@@ -476,7 +477,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		// The ceremony's view→mutable door (core/node-views.ts): the unshared chain owns
 		// the scope node, and the doc scope owns the root by construction.
 		const owned = isDoc ? (s.node as CstNode) : chain[chain.length - 1];
-		const ids = isDoc ? [...s.state.innerBlockIds] : [...(owned.childIds ?? [])];
+		// A container that never mounted has NO ids, which is not an empty list: seeding `[]`
+		// publishes one id per structural change against N children, and nothing reconciles it.
+		const ids = isDoc
+			? [...s.state.innerBlockIds]
+			: [...(owned.childIds ?? assignIds(owned.children ?? []))];
 		const refs = [...s.state.innerBlockRefs];
 		// Distinct copies: publishScopeView mutates `ids`/`refs` above in place.
 		const savedStateIds = [...s.state.innerBlockIds];
