@@ -480,6 +480,29 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
+	// Three guards deep by design, and this is the user-visible outcome all three owe: the
+	// cross-block keydown swallows Mod+K, the dispatch seam declines `link.openCard` over a range,
+	// and the card's own create door refuses. The unit pins say which one answered.
+	test('a selection spanning two blocks declines create: no card, not a byte', async ({ page }) => {
+		await clickWordSettled(ep, page, 'Alpha');
+		await landAt(ep, page, 6);
+		const before = await ep.bridge.getSource();
+		// Extend by real presses until the range leaves block 0 — the byte the focus stops on is
+		// the walk's business, and this case is about the range spanning blocks at all.
+		for (let i = 0; i < 30 && !(await ep.bridge.isCrossBlockActive()); i++) {
+			await page.keyboard.press('Shift+ArrowRight');
+			await ep.waitForRenderFlush();
+		}
+		expect(await ep.bridge.isCrossBlockActive()).toBe(true);
+
+		await page.keyboard.press('ControlOrMeta+k');
+		await ep.waitForRenderFlush();
+
+		await expect(page.locator(CARD)).toHaveCount(0);
+		await ep.waitForNoSourceMutation();
+		expect(await ep.bridge.getSource()).toBe(before);
+	});
+
 	test('a selection inside a table cell declines create', async ({ page }) => {
 		await clickWordSettled(ep, page, 'plain');
 		await selectRight(ep, page, 3);
