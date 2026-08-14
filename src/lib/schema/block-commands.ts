@@ -18,9 +18,10 @@ import {
 	resolveBinding,
 	resolveKindBinding,
 	getCommand,
-	warnUnresolvedPluginCommand,
+	warnDeadKeyCommand,
 	isBuiltinCommandId,
 	SINGLE_BLOCK_RANGE_COMMAND_IDS,
+	type CommandDispatchPath,
 	type GlobalCommandContext
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
@@ -149,19 +150,25 @@ function runMintedCommand(
 
 /**
  * The block-local tail every dispatcher shares once its tier-specific prefix has declined: the
- * minted seam, else a built-in id to the target's `runCommand`, dev-warning a
- * bound-but-unreachable plugin id rather than handing it to a `runCommand` that can't resolve it.
+ * minted seam, else a built-in id to the target's `runCommand`. A GLOBAL id gets here only from
+ * the bubble tier, which holds no `GlobalCommandContext` to run it with; both it and a
+ * bound-but-unreachable plugin id decline loudly rather than reaching a `runCommand` with no arm.
  */
 function runBlockLocalCommand(
 	target: KindCommandTarget,
 	id: AnyCommandId,
 	arg: unknown,
+	path: CommandDispatchPath,
 	onCommandError?: CommandErrorSink
 ): boolean {
+	if (getCommand(id)) {
+		warnDeadKeyCommand(id, path);
+		return false;
+	}
 	const minted = runMintedCommand(target, id, arg, onCommandError);
 	if (minted !== 'unresolved') return minted;
 	if (!isBuiltinCommandId(id)) {
-		warnUnresolvedPluginCommand(id);
+		warnDeadKeyCommand(id, path);
 		return false;
 	}
 	return target.runCommand(id, arg);
@@ -185,11 +192,12 @@ function commandIsAdmissible(id: AnyCommandId, gates: CommandGates): boolean {
  * order: global (undo/redo) → minted block command → built-in kind command. A null target means
  * no focused surface, where the global tier still runs and the block-local tiers decline.
  */
-export function runCommandById(
+function runResolvedCommand(
 	id: AnyCommandId,
 	arg: unknown,
 	target: KindCommandTarget | null,
 	ctx: CommandDispatchContext,
+	path: CommandDispatchPath,
 	onCommandError?: CommandErrorSink
 ): boolean {
 	if (!commandIsAdmissible(id, ctx)) return false;
@@ -198,7 +206,18 @@ export function runCommandById(
 	// channel as a block command's; the global tier is the only path reaching one.
 	if (globalRun) return globalRun({ ...ctx, onCommandError });
 	if (!target) return false;
-	return runBlockLocalCommand(target, id, arg, onCommandError);
+	return runBlockLocalCommand(target, id, arg, path, onCommandError);
+}
+
+/** The `EditorInstance.runCommand` door: an id with no keystroke behind it. */
+export function runCommandById(
+	id: AnyCommandId,
+	arg: unknown,
+	target: KindCommandTarget | null,
+	ctx: CommandDispatchContext,
+	onCommandError?: CommandErrorSink
+): boolean {
+	return runResolvedCommand(id, arg, target, ctx, 'door', onCommandError);
 }
 
 /** Leaf-path chord dispatch (the focused editable/chrome surface). */
@@ -211,13 +230,15 @@ export function dispatchKeyCommand(
 ): boolean {
 	const binding = resolveBinding(chord, target.kind, overrides);
 	if (!binding) return false;
-	return runCommandById(binding.command, binding.arg, target, ctx, onCommandError);
+	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord', onCommandError);
 }
 
 /**
  * Container-bubble dispatch. Kind-only, no global tier: undo/redo belong to the focused leaf,
  * and a container bubble re-firing them would double-fire (`resolveKindBinding` in `./commands`).
- * The bubble callers hold no GlobalCommandContext, so they pass the gates directly.
+ * The bubble callers hold no GlobalCommandContext, so they pass the gates directly — and an
+ * override that resolves a GLOBAL id here declines loudly in the block-local tail rather than
+ * being dropped by a `runCommand` that has no arm for it.
  */
 export function dispatchKindCommand(
 	chord: string,
@@ -229,5 +250,5 @@ export function dispatchKindCommand(
 	const binding = resolveKindBinding(chord, target.kind, overrides);
 	if (!binding) return false;
 	if (!commandIsAdmissible(binding.command, gates)) return false;
-	return runBlockLocalCommand(target, binding.command, binding.arg, onCommandError);
+	return runBlockLocalCommand(target, binding.command, binding.arg, 'chord', onCommandError);
 }

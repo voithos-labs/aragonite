@@ -18,7 +18,7 @@
 		type EditorServices
 	} from '../editor-keys';
 	import { emitCommandError } from '../editor-events';
-	import { isEditorGlobalChord, runGlobalChord } from '../schema/commands';
+	import { runGlobalChord } from '../schema/commands';
 	import { eventToChord } from '../schema/keybindings';
 	import { isReadingMode } from '../presentation-mode';
 
@@ -78,15 +78,15 @@
 		deps: { history: HistoryActions; doc: EditorDoc; events: EditorServices['events'] }
 	): boolean {
 		const chord = eventToChord(event);
-		if (!chord || !isEditorGlobalChord(chord)) return false;
-		event.preventDefault();
-		if (isReading) return true;
-		runGlobalChord(chord, policies?.keybindingOverrides(), {
+		if (!chord) return false;
+		const consumed = runGlobalChord(chord, policies?.keybindingOverrides(), {
+			isReading,
 			history: deps.history,
 			pluginEditor: deps.doc.pluginEditor,
 			onCommandError: (report) => emitCommandError(deps.events, report)
 		});
-		return true;
+		if (consumed) event.preventDefault();
+		return consumed;
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {

@@ -7,7 +7,7 @@ import {
 import {
 	resolveBinding,
 	resolveKindBinding,
-	isEditorGlobalChord,
+	isDefaultGlobalChord,
 	resolveGlobalBinding
 } from '$lib/schema/commands';
 import { mintCommandId } from '$lib/schema/command-id';
@@ -132,17 +132,17 @@ describe('override-aware resolution (commands.ts)', () => {
 	});
 });
 
-describe('isEditorGlobalChord', () => {
+describe('isDefaultGlobalChord', () => {
 	it('matches the exact default history chords only', () => {
-		expect(isEditorGlobalChord('Mod+Z')).toBe(true);
-		expect(isEditorGlobalChord('Mod+Y')).toBe(true);
-		expect(isEditorGlobalChord('Mod+Shift+Z')).toBe(true);
+		expect(isDefaultGlobalChord('Mod+Z')).toBe(true);
+		expect(isDefaultGlobalChord('Mod+Y')).toBe(true);
+		expect(isDefaultGlobalChord('Mod+Shift+Z')).toBe(true);
 	});
 
 	it('does NOT match a modified variant — the Ctrl+Alt+Y interception bug guard', () => {
-		expect(isEditorGlobalChord('Mod+Alt+Y')).toBe(false);
-		expect(isEditorGlobalChord('Mod+Alt+Z')).toBe(false);
-		expect(isEditorGlobalChord('Mod+B')).toBe(false);
+		expect(isDefaultGlobalChord('Mod+Alt+Y')).toBe(false);
+		expect(isDefaultGlobalChord('Mod+Alt+Z')).toBe(false);
+		expect(isDefaultGlobalChord('Mod+B')).toBe(false);
 	});
 });
 

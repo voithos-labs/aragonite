@@ -106,7 +106,9 @@ export interface EditorInstance {
 	 * Every MODIFIER chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd).
 	 * Composed live from the kind keymaps, the command tables, installed plugins, the
 	 * `keybindings` overrides and the search option, so a host accelerator table can be derived
-	 * rather than hand-copied. Bare keys are out of contract: a focused document owns them.
+	 * rather than hand-copied. Bare keys are out of contract: a focused document owns them. So is
+	 * a DISABLED chord (`command: null`), released for the host to claim app-wide — yet still
+	 * swallowed INSIDE the editor, whose native fall-through would bypass the CST undo stack.
 	 */
 	reservedChords(): ReadonlySet<string>;
 	/** Whether this instance consumes that keystroke, answered with the editor's own chord

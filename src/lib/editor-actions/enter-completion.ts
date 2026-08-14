@@ -20,8 +20,9 @@ export interface EnterCompletion {
 /**
  * Wraps a COMPOSED `splitBlock` with the consult, at the two bundle composition sites only. Above
  * the container overrides rather than inside the split body, so a container that replaces
- * `splitBlock` cannot take the completion arm out of its subtree (#146), and one press crosses
- * the consult exactly once.
+ * `splitBlock` cannot take the completion arm out of its subtree. One press consults once per
+ * NODE: the blockquote exit's hop to the parent scope is a second consult, on a different node,
+ * and an always-declining one — a container is never a prose line.
  */
 export function withEnterCompletion(
 	blockEdit: BlockEditActions,

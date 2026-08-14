@@ -70,9 +70,10 @@ export interface RevealChildOptions<T> {
 	 *  cache, not a mount oracle. A stale slot is dropped so the mount-wait resolves on
 	 *  the FRESH child. Omitted for non-windowing scopes, where nothing detaches a ref. */
 	readonly isStale?: (index: number) => boolean;
-	/** True iff `index` is inside the scope's CURRENT mounted window, read AFTER
-	 *  `revealChild` resolved. The termination guarantee (VR-5): without proving membership
-	 *  first, a scroll that missed leaves the loop waiting on a mount that never fires. */
+	/** True iff `index` is inside the scope's CURRENT mounted window, read AFTER `revealChild`
+	 *  resolved (VR-5's termination guarantee). Optional only for a scope that does not window:
+	 *  every production reveal supplies it, so the bounded re-wait below is the harness
+	 *  fallback, not a live path. */
 	readonly isInWindow?: (index: number) => boolean;
 }
 

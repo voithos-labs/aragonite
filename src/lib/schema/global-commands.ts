@@ -9,7 +9,7 @@ import {
 	registerCommand,
 	registerPluginGlobalBinding,
 	assertPluginGlobalChordAvailable,
-	warnUnresolvedPluginCommand
+	warnDeadKeyCommand
 } from './commands';
 import { currentInstallingPlugin } from './plugin-install';
 import type { EditorContext } from './plugin-install';
@@ -32,7 +32,7 @@ export function registerGlobalCommand(
 	registerCommand(id, (ctx) => {
 		const editor = ctx.pluginEditor?.(owner ?? '');
 		if (!editor) {
-			warnUnresolvedPluginCommand(id);
+			warnDeadKeyCommand(id, 'plugin-global');
 			return false;
 		}
 		try {

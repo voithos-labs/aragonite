@@ -19,7 +19,7 @@ import { getCurrentCursorEditorRelativeX } from '../cursor/sticky-measure';
 import { landableRawBounds } from '../cursor/widget-offset';
 import { isAtFirstVisualLine, isAtLastVisualLine } from '../cursor/visual-lines';
 import { eventToChord } from '../schema/keybindings';
-import { isEditorGlobalChord } from '../schema/commands';
+import { isDefaultGlobalChord } from '../schema/commands';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -68,12 +68,12 @@ export async function handleSharedKeydown(
 	ctx.stickyColumn.noteKey(e, () => getCurrentCursorEditorRelativeX(el));
 	ctx.edgeAffinity.note(e);
 
-	// The editor owns every editor-global chord (undo/redo and plugin globals alike): native
-	// contenteditable history stays suppressed on keydown, since Ctrl+Y doesn't fire beforeinput
-	// historyRedo in Chromium/WebView2. Precise chord matching, not a loose key check, then
-	// defers the command to the block's override-aware dispatch so a consumer can rebind it.
+	// Native contenteditable history stays suppressed on keydown, since Ctrl+Y doesn't fire
+	// beforeinput historyRedo in Chromium/WebView2. The DEFAULT table is the right question here:
+	// it names the chords with a native history default, and running the command is the block's
+	// own override-aware dispatch, one branch further on.
 	const historyChord = eventToChord(e);
-	if (historyChord && isEditorGlobalChord(historyChord)) {
+	if (historyChord && isDefaultGlobalChord(historyChord)) {
 		e.preventDefault();
 		return false;
 	}

@@ -99,6 +99,13 @@ describe('collectReservedChords — per-instance overrides', () => {
 		expect(withOverrides([{ chord: 'Mod+B', command: null }]).has('Mod+B')).toBe(false);
 	});
 
+	// The released half of the disable split: the host may claim Mod+Z app-wide, and their
+	// handler fires while focus is outside the editor. Inside it the press is still consumed —
+	// the other half, pinned at `components/gap-caret-global-chord.svelte.test.ts`.
+	it('drops a disabled GLOBAL chord even though the arms still consume it', () => {
+		expect(withOverrides([{ chord: 'Mod+Z', command: null }]).has('Mod+Z')).toBe(false);
+	});
+
 	it('keeps a hardcoded chord a global disable cannot reach', () => {
 		// Mod+C is read straight off the keydown, so unbinding it in the keymap changes nothing.
 		expect(withOverrides([{ chord: 'Mod+C', command: null }]).has('Mod+C')).toBe(true);

@@ -14,12 +14,7 @@ import type { SearchState } from '../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 import type { CommandErrorSink } from '../schema/block-commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
-import {
-	isEditorGlobalChord,
-	isReservedUiChord,
-	runGlobalChord,
-	type GlobalCommandContext
-} from '../schema/commands';
+import { isReservedUiChord, runGlobalChord, type GlobalCommandContext } from '../schema/commands';
 import { eventToChord } from '../schema/keybindings';
 
 export interface EditorRootKeydownDeps {
@@ -119,17 +114,19 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			if (handleSearchChords(event, root, chord, active)) return;
 			if (!ownsWindowedOutCaret(root, active)) return;
 
-			// No block is focused here, so resolve at global scope. This branch bypasses
-			// dispatchKeyCommand, so it carries the reading-mode gate itself — sibling:
-			// ThematicBreakBlock.
-			if (chord && isEditorGlobalChord(chord)) {
-				event.preventDefault();
-				if (deps.mode === 'reading') return;
+			// No block is focused here, so resolve at global scope — override tier included, or a
+			// consumer's global rebind would be dead at this surface alone. The seam carries the
+			// reading gate and answers whether the press was consumed.
+			if (
+				chord &&
 				runGlobalChord(chord, deps.keybindingOverrides, {
+					isReading: deps.mode === 'reading',
 					history: deps.history,
 					pluginEditor: deps.pluginEditor,
 					onCommandError: deps.onCommandError
-				});
+				})
+			) {
+				event.preventDefault();
 				return;
 			}
 
