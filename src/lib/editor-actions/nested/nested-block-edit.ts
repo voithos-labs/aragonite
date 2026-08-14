@@ -13,10 +13,8 @@ import {
 	ensureUnsharedChild,
 	reconcileTaskMetadata
 } from '../../tree-operations';
-import {
-	stampStructuralChange,
-	type StructuralChange
-} from '../../tree-operations/structural-change';
+import type { SettledContent } from '../../tree-operations/node-ops';
+import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { assertInvariant } from '../../invariants/assert';
@@ -150,7 +148,7 @@ export function createNestedBlockEdit(
 				// bytes that never landed. Reachable here and not only on the routine path:
 				// completing `</details>` is a kind change, and a kind change commits.
 				const focusOffset = mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0);
-				let change: StructuralChange = { op: 'noop' };
+				let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 				await parent.containerEdit.commitContainer({
 					containerNode: deps.node,
 					path: deps.path,
@@ -158,15 +156,15 @@ export function createNestedBlockEdit(
 					snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
 					mutate: (scope) => {
 						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						change = performUpdate(
+						settled = performUpdate(
 							{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
 							innerIndex,
 							text,
 							deps.grammar,
 							scope.sharing
 						);
-						stampStructuralChange(scope.children, change, scope.sharing);
-						return change;
+						stampStructuralChange(scope.children, settled.change, scope.sharing);
+						return settled.change;
 					},
 					op: {
 						kind: 'updateContent',
@@ -174,7 +172,7 @@ export function createNestedBlockEdit(
 						eventPath: leafPath
 					},
 					afterTick: () =>
-						focusAfterContentReplace(deps.path, innerIndex, change, focusOffset, scope)
+						focusAfterContentReplace(deps.path, innerIndex, settled, focusOffset, scope)
 				});
 				return;
 			}

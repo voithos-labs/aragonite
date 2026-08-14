@@ -21,7 +21,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 	it('absorbs the neighbour a typed character turned into a continuation', () => {
 		const doc = parse('# h\nb\n');
 
-		const change = updateNodeContent(doc, 0, 'x# h\n');
+		const { change } = updateNodeContent(doc, 0, 'x# h\n');
 
 		expect(serialize(doc)).toBe('x# h\nb\n');
 		expect(describeConvergence(doc)).toBeNull();
@@ -58,7 +58,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 		const doc = parse('> # h\n> b\n');
 		const quote = doc.children[0];
 
-		const change = updateNodeContent(
+		const { change } = updateNodeContent(
 			{ children: quote.children!, ownerKind: quote.kind, owner: quote },
 			0,
 			'x# h\n'
@@ -76,7 +76,7 @@ describe('a kind demotion settles the join below (GH #21)', () => {
 	it('asks at the last block a multi-block write minted', () => {
 		const doc = parse('# h\nb\n');
 
-		const change = updateNodeContent(doc, 0, '---\nx\n');
+		const { change } = updateNodeContent(doc, 0, '---\nx\n');
 
 		expect(serialize(doc)).toBe('---\nx\nb\n');
 		expect(describeConvergence(doc)).toBeNull();

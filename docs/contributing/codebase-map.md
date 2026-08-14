@@ -193,10 +193,13 @@ invalidate a join that was already correct — a list newly standing above inden
 heading no longer interrupting the paragraph under it — and adjacent bytes that re-read as fewer
 blocks ARE the reload's reading, so the tree converges to them rather than minting bytes into an
 untouched neighbour. `src/lib/tree-operations/node-ops.ts` :: `absorbSeamReading` answers one
-join, and every door that disturbs one owes it the question: `deleteNode` and both absorbing
-arms of `updateNodeContent` (blank and kind-change) ask it directly, while
-`src/lib/tree-operations/reorder.ts` :: `reorderChildrenWithTrivia` asks through
-`absorbWindowSeams`, the window walker over both edges a move disturbed.
+join, and every door that disturbs one owes it the question: `deleteNode` asks it directly, while
+both absorbing arms of `updateNodeContent` (blank and kind-change) and
+`src/lib/tree-operations/reorder.ts` :: `reorderChildrenWithTrivia` ask through
+`absorbWindowSeams`, the window walker over both edges a splice disturbed. Absorbing the join
+ABOVE leaves the predecessor holding the written bytes, so the content funnel reports where its
+text ended up and `settledCaretTarget` is what each caret door spends: the two `updateBlockContent`
+levels, the cross-block typed character, and the cross-block inline paste.
 
 ## What a block must, may, and must not do
 

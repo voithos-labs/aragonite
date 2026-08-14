@@ -7,6 +7,7 @@
  */
 
 import type { MultiScopeTarget } from '../../action-contracts';
+import type { CstNode } from '../../core/nodes';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
@@ -15,7 +16,9 @@ import {
 	blockNodeAt,
 	normalizeBodyWrite,
 	updateNodeContent,
-	writeOwnRaw
+	writeOwnRaw,
+	settledCaretTarget,
+	type SettledContent
 } from '../../tree-operations/node-ops';
 import { focusCollapsedCaret } from '../native-bridge';
 import {
@@ -72,6 +75,7 @@ export async function handleCrossBlockTypeReplace(
 	const leafIndex = caret.path[caret.path.length - 1];
 	const scopeIsImmediateParent = scope.path.length === caret.path.length - 1;
 
+	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
 		snapshot: 'skip',
@@ -106,15 +110,15 @@ export async function handleCrossBlockTypeReplace(
 			// never introduces a blank line, so the multi-block replacement arm is unreachable.
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
-			const change = updateNodeContent(
+			settled = updateNodeContent(
 				{ children: scopeView.children, ownerKind: scopeView.node.kind, owner: scopeView.node },
 				leafIndex,
 				newText,
 				ctx.grammar,
 				sharing
 			);
-			stampStructuralChange(scopeView.children, change, sharing);
-			return [change];
+			stampStructuralChange(scopeView.children, settled.change, sharing);
+			return [settled.change];
 		},
 		op: {
 			kind: 'updateContent',
@@ -124,13 +128,24 @@ export async function handleCrossBlockTypeReplace(
 			eventPath: docPathFrom(caret.path)
 		},
 		afterTick: () => {
+			// A settle that absorbed the join above left the predecessor holding the typed bytes,
+			// so the leaf slot the delete resolved is no longer where the caret belongs.
+			const siblings = scopeChildrenOf(ctx, scope.path);
+			const target = settledCaretTarget(settled, leafIndex, caret.offset + typed.length, siblings);
 			focusCollapsedCaret(ctx.getBlockElByPath, {
-				path: caret.path,
-				offset: caret.offset + typed.length
+				path: [...caret.path.slice(0, -1), target.index],
+				offset: target.offset
 			});
 		}
 	});
 	return true;
+}
+
+/** The scope's children, re-read after the commit: the ceremony replaces the node it published. */
+function scopeChildrenOf(ctx: CrossBlockDispatchContext, scopePath: number[]): readonly CstNode[] {
+	const doc = ctx.getDoc();
+	if (scopePath.length === 0) return doc.children;
+	return blockNodeAt(doc, scopePath)?.children ?? [];
 }
 
 /**

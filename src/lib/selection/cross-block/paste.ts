@@ -93,7 +93,7 @@ export async function handleCrossBlockPaste(
 		}
 	);
 
-	await landCaretAfterPaste(ctx, caret.path, result.inlineCaretOffset);
+	await landCaretAfterPaste(ctx, result.inlineCaretPath ?? caret.path, result.inlineCaretOffset);
 	return true;
 }
 

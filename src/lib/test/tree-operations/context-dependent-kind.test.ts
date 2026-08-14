@@ -27,7 +27,7 @@ describe('updateNodeContent — contextDependentKind stickiness', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
 
-		const change = updateNodeContent(parent as never, 0, 'TitleX\n');
+		const { change } = updateNodeContent(parent as never, 0, 'TitleX\n');
 
 		expect(parent.children[0].kind).toBe(chrome);
 		expect(parent.children[0].raw).toBe('TitleX\n');

@@ -18,7 +18,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.children).toHaveLength(1);
 		expect(doc.suffix).toBe('\n');
 
-		const change = updateNodeContent(doc, 0, '\n');
+		const { change } = updateNodeContent(doc, 0, '\n');
 
 		expect(doc.children.map((c) => [c.leadingTrivia, c.raw])).toEqual([
 			['', '\n'],
@@ -118,7 +118,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		const doc = parse('a\n\nb\n\n');
 		expect(doc.children).toHaveLength(2);
 
-		const change = updateNodeContent(doc, 0, '\n');
+		const { change } = updateNodeContent(doc, 0, '\n');
 
 		expect(doc.suffix).toBe('\n');
 		expect(change).toEqual({ op: 'noop' });

@@ -6,7 +6,8 @@
 
 import type { BlockEditActions } from '../action-contracts';
 import { updateNodeContent as performUpdate, ensureUnsharedPath } from '../tree-operations';
-import { stampStructuralChange, type StructuralChange } from '../tree-operations/structural-change';
+import type { SettledContent } from '../tree-operations/node-ops';
+import { stampStructuralChange } from '../tree-operations/structural-change';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { createTopLevelScope } from './block-edit-scope';
 import { createBlockEditCore } from './block-edit-core';
@@ -77,7 +78,7 @@ export function createBlockEditActions(
 
 			if (preview.op !== 'noop') {
 				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
-				let change: StructuralChange = { op: 'noop' };
+				let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 				await scope.commit({
 					snapshot: 'skip',
 					eventTarget: blockIndex,
@@ -87,7 +88,7 @@ export function createBlockEditActions(
 					// settle folds against the live document.
 					mutate: (view) => {
 						view.unshareChild(blockIndex);
-						change = performUpdate(
+						settled = performUpdate(
 							{
 								children: view.children,
 								ownerKind: undefined,
@@ -104,10 +105,10 @@ export function createBlockEditActions(
 							deps.grammar,
 							view.sharing
 						);
-						stampStructuralChange(view.children, change, view.sharing);
-						return change;
+						stampStructuralChange(view.children, settled.change, view.sharing);
+						return settled.change;
 					},
-					afterTick: () => focusAfterContentReplace([], blockIndex, change, focusOffset, scope)
+					afterTick: () => focusAfterContentReplace([], blockIndex, settled, focusOffset, scope)
 				});
 				return;
 			}

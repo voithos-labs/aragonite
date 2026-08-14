@@ -80,7 +80,7 @@ function applyGesture(doc: Document, gesture: Gesture, mode: PresentationMode | 
 		case 'update':
 			// Typing into the block, keeping its kind: the shape must still reload as it stands.
 			// The content door DOES carry the suffix (`block-edit.updateBlockContent`).
-			settled(doc, () => updateNodeContent(doc, at, node.raw));
+			settled(doc, () => updateNodeContent(doc, at, node.raw).change);
 			return;
 	}
 }
@@ -95,7 +95,7 @@ function applyFill(doc: Document, at: number): void {
 	if (blanks.length === 0) return;
 	const target = blanks[at % blanks.length];
 	const text = 'x' + trailingLineEnding(doc.children[target].raw);
-	settled(doc, () => updateNodeContent(doc, target, text));
+	settled(doc, () => updateNodeContent(doc, target, text).change);
 }
 
 /**
@@ -143,7 +143,7 @@ function applyEmpty(doc: Document, at: number): void {
 	const children = holder.children!;
 	const text = trailingLineEnding(children[index].raw);
 	// A container body settles inside its own commit scope, which has no document tail to fold.
-	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text));
+	if (holder === doc) settled(doc, () => updateNodeContent(doc, index, text).change);
 	else {
 		const owner = holder as CstNode;
 		updateNodeContent({ children, ownerKind: owner.kind, owner }, index, text);
