@@ -20,6 +20,10 @@ policy; the other is a plain `<img>` outside the entry.
 - Below the budget, the identical growth holds the reader too, this time because the
   editor's blocks are still anchor candidates and nothing corrects by hand. A red here
   means the opt-out was applied unconditionally.
+- Below the budget with a reveal claim still HELD (`rects.scrollTo` pins by default),
+  the identical growth still holds the reader. The claim's re-assertion outranks every
+  other anchor rule and writes an absolute position, so it is the one path that would
+  otherwise stay a second writer after the compensation itself was gated.
 
 ## Edge cases
 
