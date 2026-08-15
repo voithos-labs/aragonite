@@ -1,9 +1,9 @@
 /**
- * The whole-block editing host looks exactly like a plugin's own editable and paints nothing, so
- * every reader of "is this a REAL editable surface" owes it an answer, and the question has escaped
- * a hand grep twice: a reader either routes through the predicate that knows the host, or declares
- * its own answer below. Two of the three known spellings are scanned; the third, dispatch-target
- * identity (`editor-root-clipboard :: landedNowhere`), is probed-benign and not enumerable.
+ * G4.47 — the whole-block editing host looks exactly like a plugin's own editable and paints
+ * nothing, so every reader of "is this a REAL editable surface" owes it an answer: route through
+ * the predicate that knows the host, or declare your own below. Two of the three known spellings
+ * are scanned; the third, dispatch-target identity (`editor-root-clipboard :: landedNowhere`), is
+ * probed-benign and not enumerable.
  */
 
 import { describe, it, expect } from 'vitest';

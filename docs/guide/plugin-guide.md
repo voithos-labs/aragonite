@@ -67,14 +67,16 @@ For an editor-less `parse()` pipeline that needs the grammar live without mounti
 
 `setup` runs once per process, but a plugin often needs to react to _each editor_ — recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that seam: it registers a callback fired once per mounted `<Editor>`, handed that instance's **`EditorContext`**.
 
-| Field         | What it gives you                                                                           |
-| ------------- | ------------------------------------------------------------------------------------------- |
-| `editorId`    | A stable per-mount id — key your own `Map` / `WeakMap` on it for per-editor state           |
-| `document`    | A live getter for the root document — a `DocumentView`, read-only by type ([views](#views)) |
-| `events`      | The subscribe-only event view — `events.on('edit', …)` returns a disposer                   |
-| `options`     | The options this editor passed, typed when you write `definePlugin<Options>` (see below)    |
-| `decorations` | This editor's decoration registry — register a source ([Decorations](#decorations))         |
-| `rects`       | This editor's viewport-space geometry — block box, range rects, caret, reveal, navigation   |
+| Field              | What it gives you                                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `editorId`         | A stable per-mount id — key your own `Map` / `WeakMap` on it for per-editor state                             |
+| `document`         | A live getter for the root document — a `DocumentView`, read-only by type ([views](#views))                   |
+| `events`           | The subscribe-only event view — `events.on('edit', …)` returns a disposer                                     |
+| `options`          | The options this editor passed, typed when you write `definePlugin<Options>` (see below)                      |
+| `decorations`      | This editor's decoration registry — register a source ([Decorations](#decorations))                           |
+| `rects`            | This editor's viewport-space geometry — block box, range rects, caret, reveal, navigation                     |
+| `presentationMode` | The effective mode, live, with the `presentationModeChange` event ([Presentation modes](#presentation-modes)) |
+| `theme`            | The editor's theme name, live, with the `themeChange` event — for content whose colors an engine paints       |
 
 Return a disposer from the callback and the editor runs it at unmount. Registration is **synchronous-only** — call `onEditor` from `setup`, not from a later callback.
 
@@ -389,7 +391,7 @@ Three rules for that file, each earned the hard way:
 - **`BlockList` stays a _direct_ child of your box**, so the container's windowing finds it. Other chrome (an icon, a toggle button) may sit beside it.
 - **Chrome CSS reads the editor's theme tokens**, with an inline fallback on every read — `var(--color-ui-muted, #a4a4a4)` — so the block still renders outside `.editor` scope. Match that fallback to the token's **dark base** value; dark is the base. The stable token set by role is the [consumer guide's theme-token manifest](consumer-guide.md#theme-tokens).
 
-The factory returns more than the walkthrough destructures. **`updateOwnMetadata`** is the sanctioned commit path for a component that writes its own node's metadata; the [render-primary recipe](#recipe-a-render-primary-block) leans on it. In reading mode, which writes no bytes, it declines as a no-op (dev builds warn). **`moveFocusOut`** hands the caret to the neighbour a plain arrow points at, for a plugin-owned editing surface whose caret has run off its own edge — it routes through the editor's focus traversal, so the landing skips non-focusable blocks, enters containers and reveals a windowed target like any other arrow. **`getPresentationMode`** is the container tier's live mode read (see [Presentation modes](#presentation-modes)), and **`getTheme`** its sibling — the editor's theme name, for a body an engine PAINTS rather than CSS styles. Chrome styled with tokens needs neither: it rethemes itself through the cascade. **`getOptions`** returns this instance's `{ plugin, options }` value for the plugin owning your kind, typed `unknown`; it is the per-instance channel a definition-time factory argument cannot reach (see [the editable leaf](#the-editable-leaf)).
+The factory returns more than the walkthrough destructures. **`updateOwnMetadata`** is the sanctioned commit path for a component that writes its own node's metadata; the [render-primary recipe](#recipe-a-render-primary-block) leans on it. In reading mode, which writes no bytes, it declines as a no-op (dev builds warn). **`moveFocusOut`** hands the caret to the neighbour a plain arrow points at, for a plugin-owned editing surface whose caret has run off its own edge — it routes through the editor's focus traversal, so the landing skips non-focusable blocks, enters containers and reveals a windowed target like any other arrow. **`getPresentationMode`** is the container tier's live mode read (see [Presentation modes](#presentation-modes)), and **`getTheme`** its sibling — the editor's theme name, for a body an engine PAINTS rather than CSS styles. Chrome styled with tokens needs neither: it rethemes itself through the cascade. **`getOptions`** returns this editor instance's options for the plugin owning your kind, typed `unknown`; it is the per-instance channel a definition-time factory argument cannot reach (see [the editable leaf](#the-editable-leaf)).
 
 A marker-bearing container (a footnote definition's `[^label]: `, mirroring a list item's `- `) hands the factory a **`getAmbientPrefix`** getter. Its first child then paints that string as a dimmed, read-only prefix before its own bytes, and the caret and offset walk skip it exactly as they do a list marker. Read it live so a marker derived from metadata re-renders after an edit.
 
@@ -455,7 +457,7 @@ Block math (`$$…$$` in the bundled `aragonite/plugins/latex` plugin) is the wo
 
 ## Presentation modes
 
-**The contract: every plugin tier can learn the editor's current presentation mode and render for it.** The editor is not permanently the marker-always source view — a consumer can put it in `reading`, `preview-block`, or `preview-inline` mode today — so a plugin that assumes source mode renders wrong the day its host flips the prop. `PresentationMode` is `'source' | 'reading' | 'preview-block' | 'preview-inline'`; every read below reports the **effective** mode, and with all four rungs built the effective mode equals the requested one.
+**The contract: every plugin tier can learn the editor's current presentation mode and render for it.** The editor is not permanently the marker-always source view — a consumer can put it in `reading`, `preview-block`, `preview-inline`, or `live` mode today — so a plugin that assumes source mode renders wrong the day its host flips the prop. `PresentationMode` is `'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live'`; every read below reports the **effective** mode, and with every rung built the effective mode equals the requested one. The union **grows by addition**, so handle it non-exhaustively: read the one property your rendering depends on — does this mode paint markers, does it write bytes — and default the rest, or the next rung renders your kind wrong the day it lands.
 
 How each tier reads it:
 
@@ -470,12 +472,14 @@ How each tier reads it:
 
 What the platform already does for you in `reading` mode — so most plugins need no mode code at all: your editable-leaf never reveals and never commits; chord dispatch (block commands, global commands, keymaps) dead-keys at the dispatcher; the container factory's whole-block Enter/Backspace/reorder gate; and marker spans hide by CSS. You read the mode yourself when your component owns an edit affordance of its own — a toolbar button, a click-to-edit swap, an interactive widget — which must go inert (the bundled mermaid block's Edit button and the details disclosure are the worked examples), or when your rendering should genuinely differ between a source view and a reading view.
 
-`preview-block` is different: it is a **fully live editing** mode, so none of those reading gates fire — you type, edit, and command in it exactly as in source. What it changes is that every block except the focused one hides its markers. A **render-primary** plugin block (a diagram, a chart — the [render-primary recipe](#recipe-a-render-primary-block)) gets this for free: it already renders its picture when unfocused and reveals its source only on caret entry, in every non-reading mode, which _is_ block-granular preview. A plugin block that instead renders always-visible source chrome should hide that chrome when it is not the focused block; the built-in prose kinds do this by CSS, and the reveal-on-focus render-primary pattern is the supported way for a plugin to match it. A reactive "am I the focused block" block-tier signal is a later rung.
+`preview-block` is different: it is a **live editing** mode, so none of those reading gates fire — you type, edit, and command in it exactly as in source. What it changes is that every block except the focused one hides its markers. A **render-primary** plugin block (a diagram, a chart — the [render-primary recipe](#recipe-a-render-primary-block)) gets this for free: it already renders its picture when unfocused and reveals its source only on caret entry, in every non-reading mode, which _is_ block-granular preview. A plugin block that instead renders always-visible source chrome should hide that chrome when it is not the focused block; the built-in prose kinds do this by CSS, and the reveal-on-focus render-primary pattern is the supported way for a plugin to match it. A reactive "am I the focused block" block-tier signal is a later rung.
 
 `preview-inline` narrows the reveal to inline granularity inside the focused block — the construct under the caret shows its syntax; everything else stays rendered. For plugin inline kinds nothing changes at the API level, and what happens to each follows from how it renders:
 
 - **A registered inline widget** (component or `buildWidget`) keeps its editing policy exactly as in every other live mode — `revealSource` opens the source on caret entry, selection/delete semantics are untouched. The caret-proximity marker reveal covers the built-in marker-wrapped kinds (emphasis, strong, strikethrough, inline code, links, image alt syntax), not widgets — a widget already has its own reveal or select behavior.
 - **A recognized but unwidgeted inline kind** renders as its raw source text with no marker spans, so preview-inline neither hides nor reveals anything for it — it looks the same as in source mode. If you want rendered-until-touched behavior for your inline kind, register it as a widget with `revealSource`.
+
+`live` hides every marker standing over content and reveals nothing at all, while staying fully editable: render for it as you render for `preview-block` — hide your own source chrome — and edit in it as you edit in source.
 
 Reactivity is **per tier, not universal** — the honesty this section exists to state:
 
@@ -919,7 +923,7 @@ const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scro
 flushSync(); // the first render has to land before you can assert on it
 ```
 
-`scrollMode="host"` is the third. The default `'self'` gives the editor its own scrollport, and against a zero-height jsdom viewport windowing unmounts the very block you are asserting on; `'host'` turns windowing off, so every block stays mounted. From there `target.querySelector` reaches your component's own chrome and `editor.getSource()` is a byte-exact assertion surface.
+`scrollMode="host"` is the third: it drops the editor's own scrollport and the standalone chrome a jsdom box cannot size anyway. Windowing is gated on the height budget alone in either scroll mode, so keep the fixture short — a document tall enough to clear the budget windows here too, and unmounts the very block you are asserting on. From there `target.querySelector` reaches your component's own chrome and `editor.getSource()` is a byte-exact assertion surface.
 
 **Failing on a dev warning.** The editor reports contract violations it can contain rather than throw through dev warnings, which reach the console under an `[aragonite:…]` head. A suite that wants those to fail rather than scroll past registers a sink:
 
@@ -1004,7 +1008,7 @@ Escaping at the **rebuild** is the one thing that does not work, and it is the t
 
 #### Declaring the wrap: `bodyWrap`
 
-A container whose opener parses its body through `parseContainerBody` declares the same wrap as `container.bodyWrap`. The parse peels the blank line against your opener into `innerPrefix`, so that line is the wrap's rather than an empty first row — and the editor's separator settle has to know it, or a delete that frees a blank line above your body head drops the line the peel eats and the head block disappears on the next load. Declare it and the two agree; the container conformance kit probes the parse and fails a declaration that does not match. A strip container whose body starts at its own first line (a blockquote shape) declares nothing.
+A container whose opener parses its body through `parseContainerBody` declares the same wrap as `container.bodyWrap`. The parse peels the blank line against your opener into `innerPrefix`, so that line is the wrap's rather than an empty first row — and the editor's separator settle has to know it, or a delete that frees a blank line above your body head drops the line the peel eats and the head block disappears on the next load. Declare it and the two agree; the container conformance kit probes the parse and fails a declaration that does not match. A strip container whose body starts at its own first line (a blockquote shape) declares nothing, and must therefore carry no `innerPrefix` — the node-shape guard fails a wrap-less container that fills that slot.
 
 #### Making body bytes legal: `bodyWrite`
 

@@ -154,6 +154,8 @@ What it does **not** do is reconstruct that text from parsed structure — the s
 
 When the edited text re-parses to **multiple** blocks — a hard-break line followed by an interrupter, an early fence close — the block structurally replaces itself with all of them: the first keeps the slot's identity, the rest splice in as following siblings, and the caret follows the edit position into whichever block it lands in. This is the choke point that keeps the live CST from cramming multi-block text into one node's `raw`.
 
+Before that split, a construct the write itself left **open** is closed: a typed unterminated fence mints its own closing fence over an empty body, so the blocks below stand instead of being absorbed into it. A gesture that merely exposes an already-open fence still folds — that is the reload's honest reading, and the join settle in § 8 converges to it.
+
 The common case (no kind change) needs no DOM patching at all — the browser's update and the CST agree. Prose blocks rebuild their styled span tree from `raw` on every input; cursor offsets map to `raw` positions unchanged.
 
 ### Intercepted operations
@@ -237,13 +239,15 @@ All structural operations are CST mutations performed by the editor shell. Block
 
 Two grammars that look like candidates are not. Front matter is position-blind to a completer (`tryComplete` sees a line, not where the document starts) and a typed `---` parses as a thematic break, which the prose gate excludes; it would need a different signal. A footnote definition forms from one line, so Enter has nothing to complete — whether `[^1]:` opens is an opener question.
 
-**Merge** — concatenate two adjacent nodes' `raw`, replace both with one, re-parse to determine the merged kind. The survivor keeps its ID.
+**Merge** — concatenate two adjacent nodes' `raw` and re-parse to determine the merged kind, where the concatenation reads as **one** block. A join whose bytes reparse plural is refused at the write, and the caret moves across the boundary instead. The survivor keeps its ID.
 
-**Delete** — remove the node from its children array.
+**Delete** — remove the node from its children array, then settle the join that removal opened (below).
 
-**Reorder** — move a node among its siblings; IDs don't change. Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle (an insertion line marks the drop, one commit on release, autoscroll for off-screen targets). The hover handle is consumer-toggleable (`blockDragHandles`); keyboard reorder is always available.
+**Reorder** — move a node among its siblings; IDs don't change, and both edges of the moved window are settled (below). Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle (an insertion line marks the drop, one commit on release, autoscroll for off-screen targets). The hover handle is consumer-toggleable (`blockDragHandles`); keyboard reorder is always available.
 
-**Kind change** — when a re-parse of a block's updated `raw` yields a different kind, the node is replaced with one of the correct kind and keeps its ID. When the re-parse yields several blocks, the first keeps the slot's ID and leading trivia and the rest splice in with fresh IDs, exactly as a split does. The same rule runs a level up for **containers**: an edit inside one changes what the container's own rebuilt `raw` parses to (typing the rest of a `> [!TIP]` marker), so the ancestry rebuild re-derives the container's kind and swaps the slot the same way (§ 9).
+**Kind change** — when a re-parse of a block's updated `raw` yields a different kind, the node is replaced with one of the correct kind and keeps its ID. When the re-parse yields several blocks, the first keeps the slot's ID and leading trivia and the rest splice in with fresh IDs, exactly as a split does. The same rule runs a level up for **containers**: an edit inside one changes what the container's own rebuilt `raw` parses to (typing the rest of a `> [!TIP]` marker), so the ancestry rebuild re-derives the container's kind and swaps the slot the same way (§ 9). A demotion also settles the joins it disturbed (below).
+
+**Settling a disturbed join** — a mutation can invalidate an adjacency that was correct before it, and adjacent bytes that re-read as **fewer** blocks are the reload's own reading, so the tree converges to that reading rather than minting separator bytes into an untouched neighbour. Four doors settle: a kind demotion absorbs the neighbours above and below that it stopped interrupting, a delete folds its survivor into a tight neighbour, a reorder re-judges both edges of the moved window and reports where the block actually landed, and a container's own slot is asked on the way out of the ancestry rebuild. A write that leaves its own construct open is closed first — see § 6.
 
 ### Merge eligibility: roles, not pairs
 
@@ -597,7 +601,7 @@ Further seams don't add a kind:
 - **Paste transforms** — a content-keyed, pre-parse rewrite of clipboard text.
 - **Block commands** — a minted `(kind, name)` command a plugin binds in its keymap; its context carries the dispatching instance's `EditorContext` (`BlockCommandContext.editor`) for document/events/options reads.
 - **Global commands** — `registerGlobalCommand` mints a process-wide command, chord-bindable in the plugin-global tier (resolves last), run against the same `EditorContext`.
-- **Per-instance context** — `setup(ctx)` → `ctx.onEditor(cb)` hands each `<Editor>` an `EditorContext`: instance identity, a live document getter, a subscribe-only events view, and typed options. The seam for derived state and edit reaction, so no plugin-state API is needed.
+- **Per-instance context** — `setup(ctx)` → `ctx.onEditor(cb)` hands each `<Editor>` an `EditorContext`: instance identity, a live document getter, a subscribe-only events view, and typed options. The seam for derived state and edit reaction, so no plugin-state API is needed. The options reach the block tiers directly too — the container and editable-leaf factories publish a `getOptions()` a mounted component reads, so nothing keys a side map on the instance id to configure a block.
 - **The root document in a component** — every block component receives it read-only at any depth (`BlockComponentProps.document`), so a block can read structure above its own node.
 - **Height-oracle estimate** — a kind declares an optional O(1) `estimateHeight` the windowing model consults before its built-in default.
 - **Decorations** — a pure `doc → Decoration[]` source (mark, widget, replace, block), registered per instance, memoized per edit and painted by the shared overlay over content the plugin does not own. Never enters the CST; search is its first client (§ 10).

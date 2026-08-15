@@ -61,7 +61,8 @@ schema/          cross-cutting block-kind metadata (descriptors, registries, ope
 core/            parser, serializer, inline pipeline, CST node types
 ambient/         marker DOM and offset translation
 cursor/          sticky column, visual lines, range measurement
-reactivity/      block-list state and the state registry
+reactivity/      block-list state, the state registry, and windowing (scope hooks,
+                 slice math, height model, content version)
 selection/       cross-block selection model and dispatch
 decorations/     view-only annotation model and its reactive state
 undo/            undo/redo stack and the snapshot entry it stores
