@@ -499,6 +499,8 @@ Tables also carry pointer affordances: hovering a row or column reveals a grip y
 
 **Typing a table into existence.** A table's header and delimiter lines must be adjacent, which Enter alone could never produce, so a paragraph holding just a header row (`| a | b |`) is completed by `Enter` into the finished table (delimiter, one empty body row, caret in the first body cell) as one undoable step. It needs the leading pipe, so a paragraph that merely contains one (`ls | grep foo`) is left alone; one undo restores the row you typed.
 
+**A merge that would not read back as one block is refused.** `Backspace` / `Delete` at a boundary joins the two blocks only where the joined bytes re-parse as a single block; otherwise the press moves the caret across the boundary and the document is untouched.
+
 **The Editing rows assume a caret in ordinary block content.** Inside a table cell, `Enter`, `Tab` and `Shift+Tab` mean what the **Tables** rows say instead — the `tableCell` keymap binds them to the cell's own commands, which shadow the prose bindings for as long as the caret is in a cell. `Alt+↑` / `Alt+↓` likewise move the caret's ROW rather than the block; the whole table moves among its siblings on `Mod+Alt+↑` / `Mod+Alt+↓`.
 
 **Whole-block clipboard.** A block focused as a whole — a thematic break or a plugin diagram — has no text selection, so `Mod+C` / `Mod+X` copy or cut the block's own Markdown (cut removes the block); the same chords on a selected inline image act on the image's source. In reading mode copy works and cut degrades to copy.
