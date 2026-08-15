@@ -1,6 +1,6 @@
 {
 	"name": "aragonite",
-	"version": "0.9.35",
+	"version": "0.10.0",
 	"description": "Svelte 5 block editor for GFM Markdown with byte-for-byte lossless round-trip and a plugin platform",
 	"keywords": [
 		"markdown",
