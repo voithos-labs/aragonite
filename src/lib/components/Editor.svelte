@@ -1273,7 +1273,8 @@
 
 	// Plain `let`, not $state or $derived: the correction path asks this mid-measure, where
 	// evaluating the window derived would force the layout read the batched pass exists to
-	// avoid (VR-4). Nothing reactive reads it — the root's own attribute reads the derived.
+	// avoid (VR-4). Nothing reactive reads it — the root's own attribute reads the derived,
+	// so the flag lags the attribute one flush at a watermark crossing (measured harmless).
 	let rootWindowingActive = false;
 	$effect(() => {
 		rootWindowingActive = topWindowing.window.active;
