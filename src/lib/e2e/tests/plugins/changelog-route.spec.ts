@@ -45,8 +45,25 @@ test.describe('/changelog route', () => {
 	test('clicking the outline scrolls a windowed-out version heading into view', async ({
 		page
 	}) => {
-		await page.locator('.details-toggle').click();
 		const entries = page.locator('.toc-block-item');
+		// A first-release family is one short entry that windows nothing out, so pick the
+		// family with the longest outline at runtime — the precondition needs a tall document.
+		const chips = page.locator('.changelog-family');
+		const chipCount = await chips.count();
+		let tallest = 0;
+		let tallestEntries = 0;
+		for (let i = 0; i < chipCount; i++) {
+			await chips.nth(i).click();
+			await page.locator('.details-toggle').click();
+			await expect(entries.first()).toBeVisible();
+			const n = await entries.count();
+			if (n > tallestEntries) {
+				tallestEntries = n;
+				tallest = i;
+			}
+		}
+		await chips.nth(tallest).click();
+		await page.locator('.details-toggle').click();
 		await expect(entries.first()).toBeVisible();
 		await expect.poll(() => entries.count()).toBeGreaterThan(1);
 

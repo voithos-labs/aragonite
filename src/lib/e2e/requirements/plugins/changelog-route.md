@@ -21,7 +21,11 @@ render path, rendered or as styled source. Presentation-mode _behavior_ is owned
   heading is present and a floor of blocks is mounted
 - the prepended outline is collapsed at load — the disclosure reads closed and no
   outline entry is mounted, so a reader lands on the newest entry rather than an index
-- expanding the disclosure renders the outline, and clicking an entry navigates
+- expanding the disclosure renders the outline, and clicking an entry navigates — asserted
+  on the family with the longest outline, picked at runtime, so the reveal precondition (a
+  windowed-out tail) holds whatever family is newest. Miss-analysis: the spec's runtime read
+  defended against renamed entries, not against a first-release family whose single short
+  entry windows nothing out — 0.10.0's records commit staled it the day it landed
 - the editor starts in reading mode (`data-presentation="reading"` on the editor root),
   since a changelog is a document to read
 - clicking "source" drops the attribute and paints markers again; clicking "reading"
