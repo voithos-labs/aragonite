@@ -110,8 +110,8 @@ export function parkFocusOnEditorRoot(
 	editorRoot: HTMLElement | null
 ): void {
 	if (!blockEl || !editorRoot?.isConnected) return;
-	// preventScroll: the root is the scroll container, so a default focus scroll would fight the
-	// reveal path's scrollIntoView.
+	// preventScroll: the implicit focus scroll would fight the reveal path's, whichever port
+	// owns the scrolling.
 	if (document.activeElement === blockEl) editorRoot.focus({ preventScroll: true });
 }
 
