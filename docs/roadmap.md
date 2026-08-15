@@ -138,7 +138,14 @@ milestone that touches each area inherits it rather than rediscovering it:
   webview find of the next integration lands as a row in that example's checklist, not a
   surprise. Cross-platform webview coverage rides the same item (owner, 2026-08-14): WebKitGTK
   is reachable from Linux CI or WSL, and a macOS/WKWebView lane needs a real or virtualized
-  macOS runner; both are future gates, not pre-1.0 work.
+  macOS runner; both are future gates, not pre-1.0 work. The first step, ahead of any real
+  webview lane, is a curated **Playwright-WebKit smoke project** (owner, 2026-08-14): a
+  30-50-spec slice of typing, split/merge, selection, paste, and round-trip, run per release
+  rather than per commit, with composition driven through hand-fired events because the CDP
+  IME driver is Chromium-only. Contenteditable is the most engine-divergent API the editor
+  sits on, and the ledger already carries two Safari-shaped watches (#37, #46); the smoke lane
+  prices that gap before a WKWebView runner ever exists. An exploratory run of one e2e area
+  under the WebKit binary is the spike that sizes it.
 - **Singletons earn their keep only until the second claimant arrives.** The process-global
   reveal anchor produced two consumer-visible defects, the interaction trace interleaves
   instances by design, and the reveal mount-waiter registry had to move off its bare-index
