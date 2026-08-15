@@ -197,6 +197,18 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	}
 
 	/**
+	 * Runs the mutation and writes no scroll while the HOST's native anchoring holds the reader
+	 * (host mode below the windowing budget). It outranks even the reveal claim, which would
+	 * otherwise re-assert an absolute position the browser is already holding — two writers,
+	 * one scroll position, double the correction.
+	 */
+	function skipWhileHostAnchors(mutate: () => void): boolean {
+		if (deps.correctsScroll()) return false;
+		mutate();
+		return true;
+	}
+
+	/**
 	 * The reveal claim outranks either anchor rule: the target's absolute position is
 	 * re-asserted after the mutation, overriding the browser's auto-clamp (which drags
 	 * scrollTop off the target as undecoded off-window images measure ~0). Delta
@@ -212,16 +224,13 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	}
 
 	// Hold the anchor block's screen position across a height mutation that would otherwise
-	// slide the visible content (VR-2) — the editor disables native `overflow-anchor`, so
+	// slide the visible content (VR-2) — native `overflow-anchor` is off wherever this runs, so
 	// nothing else holds the line. The delta comes from the Fenwick model, not
 	// `getBoundingClientRect`: a model write only marks `$state` dirty, so a DOM read here
 	// would see pre-flush layout and a ~0 delta.
 	function correctAnchor(mutate: () => void): void {
+		if (skipWhileHostAnchors(mutate)) return;
 		if (reassertRevealAnchor(mutate)) return;
-		if (!deps.correctsScroll()) {
-			mutate();
-			return;
-		}
 		const port = deps.getPort();
 		const anchorIndex = model.indexAtOffset(localScrollTop());
 		const before = model.offsetOf(anchorIndex);
@@ -236,11 +245,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// instead, captured against the OLD ordering in `modelChildIds`; a deleted anchor has no
 	// surviving block to hold the line, so skip.
 	function correctAnchorByStableId(mutate: () => void): void {
+		if (skipWhileHostAnchors(mutate)) return;
 		if (reassertRevealAnchor(mutate)) return;
-		if (!deps.correctsScroll()) {
-			mutate();
-			return;
-		}
 		const port = deps.getPort();
 		const lst = localScrollTop();
 		const anchorIndex = model.indexAtOffset(lst);

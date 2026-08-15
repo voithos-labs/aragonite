@@ -127,6 +127,25 @@ test('a document image decoding in above the fold does not shift an unwindowed r
 	expect(pageErrors).toEqual([]);
 });
 
+// A held reveal claim re-asserts its target's absolute position on every measure pass. Below
+// the budget the browser is already holding that same line, so the re-assertion is the second
+// writer — the same shape as the correction itself, on the one path that outranks it.
+test('a held reveal claim does not double-correct against native anchoring', async ({ page }) => {
+	const pageErrors = capturePageErrors(page);
+	await gotoPageScroll(page, UNWINDOWED_ENTRY_BLOCKS);
+	expect(await spacerCount(page)).toBe(0);
+
+	// `'nearest'` holds its pin by default, and no user gesture follows to release it.
+	const target = Math.round(UNWINDOWED_ENTRY_BLOCKS / 2);
+	expect(await page.evaluate((i) => (window as any).__test.rects.scrollTo([i]), target)).toBe(true);
+
+	await assertReaderHeld(page, async () => {
+		await page.evaluate(() => (window as any).__pageScroll.loadDocumentImage());
+		expect(await decodedHeight(page, DOCUMENT_IMAGE)).toBeCloseTo(300, 0);
+	});
+	expect(pageErrors).toEqual([]);
+});
+
 test('an image decoding in outside an unwindowed entry does not shift the reader', async ({
 	page
 }) => {
