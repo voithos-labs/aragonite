@@ -2,6 +2,10 @@
 
 Editor version history (CST block editor). **Style:** one tight entry per released version, newest first; the entries live in a per-family file under `changelog/`, and this page is the index. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
 
+## [0.10](changelog/0.10.md)
+
+- [0.10.0](changelog/0.10.md#0100-reload-truth-at-every-door-and-windowing-under-host-scroll): reload truth at every mutating door, windowing under host scroll, the whole-block editing host
+
 ## [0.9](changelog/0.9.md)
 
 - [0.9.42](changelog/0.9.md#0942-the-audits-fixes--merges-that-refuse-to-corrupt-live-gestures-that-all-verify): merges refuse to corrupt, every live gesture verifies, overrides reach every focus state

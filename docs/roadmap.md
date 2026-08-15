@@ -21,11 +21,12 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    attach), so the door is proven rather than assumed; what it left forward is narrower — the
    embedder must hold and expose the editor instance for the diagnostics door to be reachable at
    all (an example-app requirement), and the trace behind the report covers the inline layer only.
-   What stays here as forward work: landing whatever the real-webview gesture pass surfaces
-   before the freeze (the journal-surface pass ran 2026-08-14: owner manual pass plus a code
-   read of the shipped app, resolving § Downstream boundary's scrollport question). The
-   overridable-history-seam design this item once carried was dissolved by the consumer
-   decision recorded in § Downstream boundary.
+   What stays here as forward work: the owner's manual half of the real-webview gesture pass
+   (real IME, host accelerators, DPI moves — the checklist is written), whose findings land
+   before the freeze. The automated half ran 2026-08-14 in the real WebView2 (clipboard settle
+   re-probed and its watch closed; boot, bridge and console clean). The journal-surface pass
+   ran the same day, and the overridable-history-seam design this item once carried was
+   dissolved by the consumer decision recorded in § Downstream boundary.
 
 2. **Freeze cut at release** — in order. (The scoped pre-freeze re-audit and the
    contributor-experience pass both ran 2026-08-14/15 and left the roadmap: the audit's record
@@ -342,22 +343,8 @@ coming two quarters. Collaboration sits half a year to a year out by the consume
 estimate; its representation spike is designed when it nears, jointly, and until then the
 history-seam freeze litmus above is what keeps that future additive.
 
-A second, formerly joint, decision: **host-scrollport windowing.** Windowing is deliberately
-inactive in host-scroll mode today; the height model reads its viewport and offset from the
-editor root, which a page-scrolled shell never scrolls. The port is characterized: a scrollport
-abstraction supplying rect, offset, writer, change signal, and content width, which converges
-on the `UserScrollport` resolution the autoscroll seam already owns, and the single-editor
-version is mechanical plus one stated trade (native scroll anchoring and windowing's manual
-correction cannot coexist on one editor, so the mode drives the declaration).
-
-The consumer's shape resolved this (2026-08-14, read from the shipped app): the journal is a
-day navigator around ONE mounted editor in host-scroll mode, the shell mounts one editor at a
-time everywhere, and the owner's manual pass reads decently. The N-editors-one-scrollport
-coordinator this item once carried is therefore dropped, not deferred; it returns only if a
-continuous multi-day surface ever materializes. What remains is the single-editor scrollport,
-pulled forward to pre-1.0 (owner, 2026-08-14, on the consumer shape being this simple): a
-scrollport the host supplies so windowing runs under host scroll, carrying the stated trade
-(native scroll anchoring and windowing's manual correction cannot coexist on one editor, so
-the mode drives the declaration), validated against the local limestone integration branch.
-Its trigger is real: every view-page doc face, the journal's entry included, mounts a large
-document whole today, and only the standalone-tab route windows.
+The host-scrollport windowing item this section once carried shipped in 0.10.0 (the
+single-editor scrollport; `docs/design/virtual-rendering.md` is the spec). The
+N-editors-one-scrollport coordinator was dropped, not deferred, when the consumer's shape
+resolved to one mounted editor everywhere (2026-08-14); it returns only if a continuous
+multi-day surface ever materializes.
