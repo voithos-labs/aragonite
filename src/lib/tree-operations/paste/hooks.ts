@@ -6,7 +6,7 @@
 import { CURSOR_END } from '../../block-component';
 import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import { buildPastedReplacement } from '../paste-replacement';
+import { buildPastedReplacement } from './paste-replacement';
 import { cutRangeFromDisplay } from '../node-ops';
 import { focusIndexBeforeResidue } from './focus-target';
 import {

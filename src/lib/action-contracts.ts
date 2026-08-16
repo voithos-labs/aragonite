@@ -6,6 +6,7 @@
 import type { CstNode, TableAlignment } from './core/nodes';
 import type { NodeView } from './core/node-views';
 import type { StructuralChange } from './tree-operations/structural-change';
+import type { TrackedPosition } from './tree-operations/node-ops';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
@@ -172,6 +173,12 @@ export interface CommitMultiScopeArgs<
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	discardIfNoop?: DiscardIfNoop;
+	/**
+	 * Caret positions the scopes' settles carry through their folds, parallel to `scopes` —
+	 * a fold re-tiles the bytes under a landing chosen before the settle ran. Written in
+	 * place, so `afterTick` reads the settled seat back off the object it passed in.
+	 */
+	trackCaret?: readonly (TrackedPosition | undefined)[];
 }
 
 export interface CommitStructuralArgs {
@@ -251,10 +258,11 @@ export interface ContainerEditActions {
 	 * epoch to own anything OFF that spine, then rebuilds innermost-first. The caller still pushes
 	 * its own checkpoint and nudges. True means the rebuild re-derived a container's kind (typing
 	 * out a `> [!TIP]` marker), remounting the edited leaf — the caller re-places the caret.
+	 * `write` returns the change its own settle made, so the wrapper can publish it.
 	 */
 	withUnsharedSpine(
 		absPath: number[],
-		write: (chain: CstNode[], sharing: SharingState) => void
+		write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
 	): boolean;
 	/**
 	 * Preferred entry for structural container mutations: spine unshare, snapshot,

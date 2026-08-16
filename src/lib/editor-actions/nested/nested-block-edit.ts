@@ -184,6 +184,7 @@ export function createNestedBlockEdit(
 				preEditOffset ?? 0,
 				state.innerBlockIds[innerIndex]
 			);
+			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 			const reclassified = parent.containerEdit.withUnsharedSpine(leafPath, (chain, sharing) => {
 				assertInvariant('unshared-spine-depth', () =>
 					chain.length === leafPath.length
@@ -195,7 +196,7 @@ export function createNestedBlockEdit(
 				);
 				const ownedContainer = chain[leafPath.length - 2];
 				if (!ownedContainer?.children) return;
-				performUpdate(
+				settled = performUpdate(
 					{
 						children: ownedContainer.children,
 						ownerKind: ownedContainer.kind,
@@ -211,6 +212,7 @@ export function createNestedBlockEdit(
 				if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
 					reconcileTaskMetadata(ownedContainer);
 				}
+				return settled.change;
 			});
 			parent.containerEdit.nudgeReactivity();
 			// The rebuild re-kinded a container on this spine (a typed `> [!TIP]` marker
@@ -219,7 +221,19 @@ export function createNestedBlockEdit(
 			if (reclassified) {
 				await tick();
 				await parent.focus.moveFocus(deps.index, 'start');
+				return;
 			}
+			// A blank-fill settle can fold here, which the single-node preview probe cannot see;
+			// the spine wrapper published the splice, and the caret follows the re-tiled bytes.
+			if (settled.change.op === 'noop') return;
+			await tick();
+			focusAfterContentReplace(
+				deps.path,
+				innerIndex,
+				settled,
+				mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0),
+				scope
+			);
 		}
 	};
 

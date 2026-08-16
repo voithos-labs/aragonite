@@ -4,8 +4,10 @@
  * guards and the one per-level body the core can't share, `updateBlockContent`.
  */
 
+import { tick } from 'svelte';
 import type { BlockEditActions } from '../action-contracts';
 import { updateNodeContent as performUpdate, ensureUnsharedPath } from '../tree-operations';
+import { publishScopeFold } from './ancestry-folds';
 import type { SettledContent } from '../tree-operations/node-ops';
 import { stampStructuralChange } from '../tree-operations/structural-change';
 import type { EditorActionsDeps, UndoController } from './deps';
@@ -117,12 +119,25 @@ export function createBlockEditActions(
 			// snapshot shares it. Slotless parent on purpose — the preview already routed every
 			// suffix materialization into the ceremony, so none can happen here.
 			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
-			performUpdate(
+			const settled = performUpdate(
 				{ children: deps.doc.children, ownerKind: undefined, owner: undefined },
 				blockIndex,
 				text,
 				deps.grammar,
 				deps.sharing
+			);
+			// A blank-fill settle can still FOLD here — the single-node preview probe has no
+			// neighbour to absorb it — so this path publishes its own descriptor and re-lands the
+			// caret, which the ceremony would otherwise have done.
+			if (settled.change.op === 'noop') return;
+			publishScopeFold(deps, undefined, settled.change);
+			await tick();
+			focusAfterContentReplace(
+				[],
+				blockIndex,
+				settled,
+				postEditFocusOffset ?? preEditOffset ?? 0,
+				scope
 			);
 		}
 	};

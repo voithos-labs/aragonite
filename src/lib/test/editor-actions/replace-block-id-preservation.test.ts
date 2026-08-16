@@ -34,7 +34,8 @@ describe('top-level replaceBlock id preservation', () => {
 
 	it('first replacement inherits the original block id when expanding to multiple blocks', async () => {
 		const original = makeNode('paragraph', 'a\n');
-		const sibling = makeNode('paragraph', 'b\n');
+		// Separated: trivia-less sibling paragraphs reload as one, which the settle converges.
+		const sibling = { ...makeNode('paragraph', 'b\n'), leadingTrivia: '\n' };
 		const { deps, getBlockIds } = makeEditorActionsDeps([original, sibling]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
@@ -42,7 +43,10 @@ describe('top-level replaceBlock id preservation', () => {
 		const originalId = getBlockIds()[0];
 		const siblingId = getBlockIds()[1];
 
-		await actions.replaceBlock(0, [makeNode('paragraph', 'x\n'), makeNode('paragraph', 'y\n')]);
+		await actions.replaceBlock(0, [
+			makeNode('paragraph', 'x\n'),
+			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
+		]);
 
 		const ids = getBlockIds();
 		expect(ids).toHaveLength(3);
@@ -67,7 +71,8 @@ describe('top-level replaceBlock id preservation', () => {
 
 	it('empty replacement (delete) does not need id preservation', async () => {
 		const original = makeNode('paragraph', 'a\n');
-		const sibling = makeNode('paragraph', 'b\n');
+		// Separated: trivia-less sibling paragraphs reload as one, which the settle converges.
+		const sibling = { ...makeNode('paragraph', 'b\n'), leadingTrivia: '\n' };
 		const { deps, getBlockIds } = makeEditorActionsDeps([original, sibling]);
 		const controller = createUndoController(deps);
 		const actions = createBlockEditActions(deps, controller);
@@ -117,7 +122,7 @@ describe('nested replaceBlock id preservation', () => {
 
 		await bundle.blockEdit.replaceBlock(0, [
 			makeNode('paragraph', 'x\n'),
-			makeNode('paragraph', 'y\n')
+			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
 		]);
 
 		expect(containerState.innerBlockIds).toHaveLength(2);

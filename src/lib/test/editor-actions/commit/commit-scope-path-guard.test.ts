@@ -1,7 +1,7 @@
 // A scope `path` that does not address its `node` must bail, not fall back to the
 // caller's never-unshared node: the splice would land on the snapshot-shared node and
-// corrupt the freshest undo entry, silently — G1.19/G1.22 are dev-only warnings. The
-// sibling seam (`withUnsharedSpine`, G1.20) bails on the same input.
+// corrupt the freshest undo entry, silently — G1.19/G1.22 are dev-only warnings. Its
+// sibling (`withUnsharedSpine`, G1.20) rebuilds what the walk did reach instead.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';

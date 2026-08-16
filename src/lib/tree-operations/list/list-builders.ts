@@ -3,7 +3,7 @@
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { cloneMetadata } from '../clone';
 import { parseFirstBlock } from '../parse-block';
@@ -132,16 +132,21 @@ export function readOrderedSuffix(list: NodeView): string {
 /**
  * Slice a leaf's raw at `offset` for a paste-style split, re-parsing each half. One
  * leading whitespace is trimmed from the trailing slice, which would otherwise produce
- * double-space markers after a word-boundary split. Null on an empty side.
+ * double-space markers after a word-boundary split. Null on an empty side. `raw` overrides
+ * the leaf's own bytes, which a paste that ran a delete half first supplies.
  */
 export function splitLeafForPaste(
 	leaf: CstNode,
-	offset: number
+	offset: number,
+	raw: string = leaf.raw
 ): { leadingNode: CstNode | null; trailingNode: CstNode | null; lineEnding: '\n' | '\r\n' } {
-	const lineEnding = trailingLineEnding(leaf.raw);
-	const display = trimTrailingLineEnding(leaf.raw);
-	const leadingText = display.slice(0, offset);
-	const trailingText = display.slice(offset).replace(/^[ \t]/, '');
+	const lineEnding = trailingLineEnding(raw);
+	const display = trimTrailingLineEnding(raw);
+	// Off any scalar interior first: the halves become separate items, so a pair cut here is
+	// unrecoverable bytes rather than a recoverable edit.
+	const cut = snapToScalarBoundary(display, offset);
+	const leadingText = display.slice(0, cut);
+	const trailingText = display.slice(cut).replace(/^[ \t]/, '');
 
 	const leadingNode = leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding) : null;
 	const trailingNode = trailingText.length > 0 ? parseFirstBlock(trailingText + lineEnding) : null;

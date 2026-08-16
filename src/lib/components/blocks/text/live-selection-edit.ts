@@ -9,6 +9,7 @@
 import type { NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
+import { snapToScalarBoundary } from '../../../core/lines';
 import { cleanJoinedRaw } from '../../../tree-operations/node-ops';
 
 export interface SelectionEdit {
@@ -64,14 +65,18 @@ export function resolveSelectionEdit(
 	presentationMode: PresentationMode | undefined,
 	linkRef: InlineResolverRef | undefined
 ): SelectionEdit | null {
-	if (selection.start >= selection.end) return null;
-	const mergedRaw = node.raw.slice(0, selection.start) + node.raw.slice(selection.end);
+	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
+	// bytes, not a recoverable edit. Snapping the same direction cannot invert the range.
+	const start = snapToScalarBoundary(node.raw, selection.start);
+	const end = snapToScalarBoundary(node.raw, selection.end);
+	if (start >= end) return null;
+	const mergedRaw = node.raw.slice(0, start) + node.raw.slice(end);
 	const joined = cleanJoinedRaw(
 		{
 			mergedRaw,
-			seam: selection.start,
-			start: { node, offset: selection.start },
-			end: { node, offset: selection.end },
+			seam: start,
+			start: { node, offset: start },
+			end: { node, offset: end },
 			linkRef
 		},
 		presentationMode

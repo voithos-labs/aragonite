@@ -9,7 +9,7 @@ import { createUndoController } from '$lib/editor-actions/commit/undo-controller
 import { asDocPath } from '$lib/selection/path-math';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { rangeDelete } from '$lib/selection/range-delete';
-import { __computeScopeDescriptorForTests } from '$lib/selection/cross-block/ops';
+import { trackChildIds } from '$lib/tree-operations/structural-change';
 import type { MultiScopeTarget } from '$lib/editor-actions/deps';
 import type { CstNode } from '$lib/core/nodes';
 import {
@@ -51,7 +51,6 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		const controller = createUndoController(deps);
 		const list = () => deps.doc.children[0];
 		// ops.ts's commitCrossContainerDelete shape: every endpoint ancestor is a scope.
-		const paths = [[0], [0, 0], [0, 1]];
 		const scopes: MultiScopeTarget[] = [
 			{ node: list(), state: makeBlockListState(list), path: [0] },
 			{
@@ -73,17 +72,13 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			scopes,
 			snapshot: { path: asDocPath([0, 0, 0]), offset: 0 },
 			mutate: (views) => {
-				const beforeLens = views.map((v) => v.children.length);
+				const ledgers = views.map((v) => trackChildIds(v.node));
 				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, undefined);
-				return views.map((v, i) =>
-					__computeScopeDescriptorForTests(
-						paths[i],
-						start.path,
-						end.path,
-						beforeLens[i],
-						v.children.length
-					)
-				);
+				return ledgers.map((ledger) => {
+					const change = ledger.read();
+					ledger.release();
+					return change;
+				});
 			},
 			op: { kind: 'delete', eventPath: asDocPath([0]) }
 		});
@@ -101,7 +96,6 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			controller.getDocScope(),
 			{ node: bq, state: makeBlockListState(() => bq), path: [1] }
 		];
-		const paths = [[], [1]];
 		const start = { path: [0], offset: 'head'.length };
 		const end = { path: [1, 0], offset: 'quoted line'.length };
 
@@ -110,17 +104,13 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 			scopes,
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
-				const beforeLens = views.map((v) => v.children.length);
+				const ledgers = views.map((v) => trackChildIds(v.node));
 				rangeDelete(deps.doc, start, end, views[0].sharing, undefined, undefined, undefined);
-				return views.map((v, i) =>
-					__computeScopeDescriptorForTests(
-						paths[i],
-						start.path,
-						end.path,
-						beforeLens[i],
-						v.children.length
-					)
-				);
+				return ledgers.map((ledger) => {
+					const change = ledger.read();
+					ledger.release();
+					return change;
+				});
 			},
 			op: { kind: 'delete', eventPath: asDocPath([0]) }
 		});

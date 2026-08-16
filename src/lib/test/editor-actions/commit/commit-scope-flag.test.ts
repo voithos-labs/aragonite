@@ -47,7 +47,8 @@ describe('commit-scope flag', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (children) => {
 				flagInsideMutate = isCommitInProgress();
-				children.push(makeNode('paragraph', 'world\n'));
+				// Separated: two trivia-less paragraphs reload as one, which the settle converges.
+				children.push({ ...makeNode('paragraph', 'world\n'), leadingTrivia: '\n' });
 				const change: StructuralChange = { op: 'insert', at: children.length - 1, count: 1 };
 				stampStructuralChange(children, change, deps.sharing);
 				return change;

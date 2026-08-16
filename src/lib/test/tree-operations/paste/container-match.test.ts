@@ -110,7 +110,11 @@ describe('findContainerMatchingUnwrap — the merge arm’s paragraph gate', () 
 			true
 		);
 
-		expect(unwrap!.merge).toEqual({ targetLeafPath: [0, 0, 0], offset: 'hello'.length });
+		expect(unwrap!.merge).toEqual({
+			targetLeafPath: [0, 0, 0],
+			offset: 'hello'.length,
+			targetRaw: 'hello\n'
+		});
 	});
 
 	it('declines when the first item carries more than its paragraph', () => {

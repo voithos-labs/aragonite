@@ -348,6 +348,9 @@ export interface Document {
 	prefix: string;
 	children: CstNode[];
 	suffix: string;
+	/** The root's parallel id array while a caller keeps one here — the editor's own live ids
+	 *  are editor state, but the splice doors maintain whatever array the parent carries. */
+	childIds?: string[];
 }
 
 // ── Inline Node Types ──────────────────────────────────────────────────────

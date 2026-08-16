@@ -12,6 +12,7 @@ import type { PasteCommitCoordinator } from './paste-deps';
 import { nodeAt } from '../node-ops';
 import { trailingLineEnding } from '../../core/lines';
 import { normalizeReplacementForBody } from './body-write';
+import { landedPasteOffset, trackedPasteCaret } from './focus-target';
 import { resolveParentScope } from './parent-scope';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import {
@@ -71,6 +72,10 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		args.grammar
 	);
 	const focusReplacementIndex = mapIndex(args.focusReplacementIndex);
+	// The settle can fold the spliced window into its neighbours, which moves both halves of the
+	// landing: the residue reattaches inside the last pasted leaf, and an absorb above moves the
+	// slot itself. The commit carries this through its folds and `afterTick` reads it back.
+	const caret = trackedPasteCaret(replacement, blockIdx, focusReplacementIndex, focusOffset);
 
 	const oldBlock = nodeAt(doc, blockPath) as CstNode | null;
 	const sameKindFirst =
@@ -98,7 +103,15 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 			detail: { source },
 			eventPath: docPathFrom(blockPath)
 		},
-		afterTick: () =>
-			controller.landCaret([...scope.path, blockIdx + focusReplacementIndex], focusOffset)
+		trackCaret: [caret],
+		afterTick: () => {
+			// Re-read from the document: the ceremony unshares the spine, so the scope node the
+			// caller resolved is a stale copy by now.
+			const landed = nodeAt(doc, scope.path)?.children?.[caret.index];
+			return controller.landCaret(
+				[...scope.path, caret.index],
+				landedPasteOffset(landed, caret, focusOffset)
+			);
+		}
 	});
 }

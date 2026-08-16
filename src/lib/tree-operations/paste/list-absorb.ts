@@ -35,6 +35,8 @@ export interface ListAbsorb {
 	itemIndex: number;
 	innerIndex: number;
 	offset: number;
+	/** The target leaf's bytes AFTER the paste's delete half. */
+	targetRaw?: string;
 }
 
 /**
@@ -47,7 +49,8 @@ export function findListAbsorb(
 	doc: Document,
 	targetPath: number[],
 	parsed: Document,
-	offset: number
+	offset: number,
+	targetRaw?: string
 ): ListAbsorb | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
@@ -63,7 +66,8 @@ export function findListAbsorb(
 		listPath: enclosing.listPath,
 		itemIndex: enclosing.itemIndex,
 		innerIndex: enclosing.innerIndex,
-		offset
+		offset,
+		targetRaw
 	};
 }
 
@@ -82,10 +86,14 @@ export async function applyListAbsorb(
 
 	const item = outer.children[plan.itemIndex];
 	if (!item?.children) return;
-	const targetLeaf = item.children[plan.innerIndex];
-	if (!targetLeaf) return;
+	if (!item.children[plan.innerIndex]) return;
 
-	const { leadingItem, trailingItem } = buildSplitItems(item, plan.innerIndex, plan.offset);
+	const { leadingItem, trailingItem } = buildSplitItems(
+		item,
+		plan.innerIndex,
+		plan.offset,
+		plan.targetRaw
+	);
 	const pastedItems = (pastedList.children ?? []).map((c) => cloneNode(c));
 
 	const replacement: CstNode[] = [];
@@ -162,13 +170,18 @@ export async function applyListAbsorb(
 function buildSplitItems(
 	item: CstNode,
 	innerIndex: number,
-	offset: number
+	offset: number,
+	targetRaw?: string
 ): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
 	if (!item.children) return { leadingItem: null, trailingItem: null };
 	const targetLeaf = item.children[innerIndex];
 	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
 
-	const { leadingNode, trailingNode } = splitLeafForPaste(targetLeaf, offset);
+	const { leadingNode, trailingNode } = splitLeafForPaste(
+		targetLeaf,
+		offset,
+		targetRaw ?? targetLeaf.raw
+	);
 
 	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);
 	if (leadingNode) leadingChildren.push(leadingNode);

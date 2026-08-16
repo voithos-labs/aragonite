@@ -109,7 +109,10 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		const h = makeTop(['hello\n', 'tail\n']);
 		const [id0, id1] = h.ids();
 
-		await h.actions.replaceBlock(0, [makeNode('paragraph', 'x\n'), makeNode('paragraph', 'y\n')]);
+		await h.actions.replaceBlock(0, [
+			makeNode('paragraph', 'x\n'),
+			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
+		]);
 
 		assertAligned(h);
 		expect(h.doc.children.length).toBeGreaterThan(2);
