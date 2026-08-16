@@ -79,7 +79,7 @@ styles/          editor.css (structural) and editor-theme.css (tokens)
 index.ts         the public barrel, which is the supported API surface
 ```
 
-**`schema/` depends on neither `core/inline/` nor `tree-operations/`.** That is what lets both read it, so a cross-cutting block-kind fact belongs there. Both also share `core/` and `perf/`. `invariants/` is not a leaf: its predicates read `core/`, `schema/`, and `dev-warn`.
+**`schema/` has no `tree-operations/` dependency, and it cross-imports with `core/inline/` in both directions**; the edges that would close a loop land on dependency-free leaf modules (`backticks`, `register-once`), so the directory-level cycle is no module cycle and both sides read the other's registries. A cross-cutting block-kind fact belongs in `schema/`. Both also share `core/` and `perf/`. `invariants/` is not a leaf: its predicates read `core/`, `schema/`, and `dev-warn`.
 
 [`docs/contributing/codebase-map.md`](docs/contributing/codebase-map.md) is the next level down: you know the editor did something wrong, and it names the one file to open.
 

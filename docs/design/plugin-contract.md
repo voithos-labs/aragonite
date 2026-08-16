@@ -191,6 +191,7 @@ What freezes is `CompletionResult`'s shape. Its `lines` carry **no line endings*
 
 - `createBoundedMemo` — a bounded LRU memo for a renderer's per-source work. Sync (with an optional clone-on-read for live DOM) or async (the value is the render promise, so in-flight work is shared and a rejection caches).
 - `OPENER_PRIORITIES` — the published built-in priority ladder a plugin opener prices its own placement against. An offset from a named built-in, never a bare integer.
+- `lineStartsOuterBlock` (with `OuterBlockScan`) — the shared end-of-extent test for a container opener scanning its own lines: does this line start a block at the outer level, given whether a paragraph is open above it. Published so a plugin container ends its extent where the built-ins end theirs, rather than re-deriving the paragraph-interrupt exceptions.
 
 ### Container authoring
 
