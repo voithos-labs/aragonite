@@ -3,12 +3,8 @@ import { isBuiltinBlockKind } from '$lib/core/nodes';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	assertExemptionDocumented,
-	checkDeclarationSanity,
-	checkFocusBubbleTermination,
-	checkGridLocalIndexAddressing,
-	checkInnermostFirstAncestry,
-	checkOneUndoPerMultiScope,
-	checkStripLocalIndexAddressing,
+	assertProfileCoverageFloor,
+	CONTAINER_CONFORMANCE_CELLS,
 	reversedAncestryLeavesRootStale
 } from '$lib/testing/container-conformance';
 import { CONTAINER_PROFILES } from './builtin-container-profiles';
@@ -40,56 +36,39 @@ describe('G4.3 container conformance — registry coverage', () => {
 	it('derives a non-empty container set from the registry', () => {
 		expect(registeredContainerKinds.length).toBeGreaterThan(0);
 	});
+
+	// The floor under the matrix: five excused cells is five reviewed reasons and zero coverage.
+	it.each(registeredContainerKinds)('%s asserts at least one behavioral cell', (kind) => {
+		assertProfileCoverageFloor(kind, CONTAINER_PROFILES[kind]!);
+	});
 });
 
 // ── Parametrized per-kind kit ───────────────────────────────────────────────────
-// Coverage matrix (assert / exempt / boundary) lives in CONTAINER_PROFILES. One case per
-// invariant, so a failure names the invariant that broke.
+// Cells come from the kit's own manifest rather than a list here, so a cell added there runs
+// over every built-in the day it lands. Coverage (assert / exempt / boundary) lives in
+// CONTAINER_PROFILES, and one case per cell keeps a failure naming the invariant that broke.
 
 describe.each(registeredContainerKinds)('G4.3 conformance kit — %s', (kind) => {
 	const profile = CONTAINER_PROFILES[kind]!;
-	const isGrid = getBlockKindDescriptor(kind).containerContract === 'grid';
 
-	it('(a) local-index addressing', async () => {
-		if (profile.localIndex.mode !== 'assert') {
-			assertExemptionDocumented(profile.localIndex, `${kind} (a) local-index`);
-			return;
+	it.each(CONTAINER_CONFORMANCE_CELLS.map((c) => [c.cell, c] as const))(
+		'%s',
+		async (_name, { coverage, run }) => {
+			const declared = coverage(profile);
+			if (declared.mode !== 'assert') {
+				assertExemptionDocumented(declared, `${kind} ${_name}`);
+				return;
+			}
+			await run(kind, profile);
 		}
-		if (isGrid) await checkGridLocalIndexAddressing();
-		else await checkStripLocalIndexAddressing(profile);
-	});
+	);
 
-	it('(b) innermost-first ancestry rebuild', () => {
-		if (profile.ancestry.mode !== 'assert') {
-			assertExemptionDocumented(profile.ancestry, `${kind} (b) ancestry`);
-			return;
-		}
-		checkInnermostFirstAncestry(kind, profile);
-		// Non-vacuous: a reversed (outer-first) rebuild must leave the root stale.
+	// Non-vacuous ancestry: a reversed (outer-first) rebuild must leave the root stale.
+	it('ancestry check is non-vacuous', () => {
+		if (profile.ancestry.mode !== 'assert') return;
 		expect(
 			reversedAncestryLeavesRootStale(profile),
 			`reversed rebuild leaves "${kind}" root stale`
 		).toBe(true);
-	});
-
-	it('(c) one undo entry per multi-scope op', async () => {
-		if (profile.multiScope.mode !== 'assert') {
-			assertExemptionDocumented(profile.multiScope, `${kind} (c) multi-scope`);
-			return;
-		}
-		await checkOneUndoPerMultiScope(kind);
-	});
-
-	it('(d) focus-bubble termination at root', async () => {
-		if (profile.focusBubble.mode !== 'assert') {
-			assertExemptionDocumented(profile.focusBubble, `${kind} (d) focus-bubble`);
-			return;
-		}
-		await checkFocusBubbleTermination(kind, profile);
-	});
-
-	// Conditional internally on what the descriptor declares, so it has no coverage cell.
-	it('(e) declaration sanity (unwrapRole / containerPaste / rebuildRaw)', () => {
-		checkDeclarationSanity(kind, profile);
 	});
 });

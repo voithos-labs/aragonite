@@ -81,7 +81,19 @@ const KIND_WEIGHTS: { value: GestureKind; weight: number }[] = [
 	{ value: 'word-delete', weight: 2 }
 ];
 
-const TYPED = ['a', 'Z', '1', ' ', '.', '汉', '😀'];
+const INERT_CHARS = ['a', 'Z', '1', ' ', '.', '汉', '😀'];
+
+/** Block-grammar minting bytes: a pipe opens a row, `#` a heading, `>` a quote, `:` a directive
+ *  fence. No registry carries them, unlike the inline delimiters {@link typedVocabulary} reads. */
+const BLOCK_MINTING_CHARS = ['|', '#', '>', ':'];
+
+/** Off the mark table for the same reason the `mark` draw is: a delimiter registered tomorrow is
+ *  typed tomorrow, rather than frozen into whatever was rowed when this was written. */
+function typedVocabulary(): string[] {
+	const heads = new Set(listInlineMarks().map(({ mark }) => mark.markerBytes[0]));
+	return [...INERT_CHARS, ...BLOCK_MINTING_CHARS, ...heads];
+}
+
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
 
 /** Hidden-edge biased, because a uniform draw meets a zero-width run only by accident — and the
@@ -107,7 +119,7 @@ function drawGesture(rng: Rng, doc: Document): Gesture {
 		endLeaf,
 		offset: drawOffset(rng, targets[leaf]?.node),
 		endOffset: drawOffset(rng, targets[endLeaf]?.node),
-		char: rng.pick(TYPED),
+		char: rng.pick(typedVocabulary()),
 		affinity: rng.pick(AFFINITIES),
 		// Off the table, so a newly rowed mark is drawn the day it registers rather than wrapping
 		// back into the four that were there when this was written.

@@ -19,6 +19,8 @@ not semantics of its own.
 
 ## Edge cases
 
+- A structural insertion at a collapsed caret: ONE undo restores the pre-insertion document
+  and its block count, so the claim binds every strategy rather than the replace alone.
 - A live cross-block selection: the range is deleted and the payload lands at the collapsed
   caret, and ONE undo restores both halves of the document.
 - A selected inline widget in a paragraph holding no other text: the widget's bytes are

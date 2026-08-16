@@ -116,6 +116,10 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 	},
 	tableRow: {
 		deepNesting: { source: '| h1 |\n| --- |\n| a |\n', leafPath: [0, 1, 0] },
+		wholeProfileExemption:
+			'tableRow owns no author action bundle, no terminator and no rebuild of its own: every ' +
+			'row/column op runs through the enclosing table scope and its raw is re-derived wholesale ' +
+			'by rebuildTableRaw, so the `table` profile asserts each cell over the row it addresses',
 		localIndex: {
 			mode: 'boundary',
 			reason:

@@ -13,7 +13,7 @@ Escape discards
 the edit and restores the rendered widget. The caret lands in the source across the
 reveal swap and at the math's trailing edge across the commit re-render (flagship
 axis A1). IME composition during the source edit is the spec's named highest-risk
-edge (there is no other IME harness in the suite).
+edge, driven through the suite's shared CDP driver so the events are the browser's own.
 
 Seed (`?seed=math`): `Before $x^2$ after` in block [0], a `Next` paragraph in [1]
 as a blur target. Seed (`?seed=math-multiline`): a two-visual-line paragraph with the
@@ -54,7 +54,7 @@ math on line 1 and column-aligned text on line 2, for the reveal hit-test.
 
 - real mouse click on the widget; real Home / End / ArrowRight / Escape / typing —
   no programmatic selection or caret placement
-- IME composition (compositionstart → composed text inserted → compositionend) into
+- real CDP IME composition (genuine compositionstart → update → compositionend) into
   the revealed source commits nothing per keystroke; the composed math commits only
   when focus leaves the block
 

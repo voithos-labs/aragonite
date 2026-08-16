@@ -6,24 +6,28 @@ import { measureScanGrowth, BOUNDED_GROWTH_CEILING } from '../../harness/scan-gr
 
 activateDirectiveGrammar(); // before any parse
 
-// A flood of unclosed container openers can forward-scan to EOF per opener — O(n^2). The
-// wall-time bound is generous: it fails on a quadratic regression without flaking.
+const parseOnly = (source: string) => void parse(source);
+
+// A flood of unclosed container openers can forward-scan to EOF per opener — O(n^2). Priced as
+// the N-vs-4N ratio, so the bound is the machine-independent one.
 
 describe('directive container-opener bounds (ADV-2)', () => {
-	it('an unclosed-opener flood parses in bounded time and round-trips', () => {
+	it('an unclosed-opener flood parses within a bounded growth ratio and round-trips', () => {
+		const { times, ratio } = measureScanGrowth(parseOnly, ':::a\n', [32, 128]);
+		expect(ratio, `32KB=${times[0].toFixed(1)}ms 128KB=${times[1].toFixed(1)}ms`).toBeLessThan(
+			BOUNDED_GROWTH_CEILING
+		);
+
 		const source = ':::a\n'.repeat(25_000);
-		const started = performance.now();
-		const doc = parse(source);
-		expect(performance.now() - started).toBeLessThan(2000);
-		expect(serialize(doc)).toBe(source);
-	}, 60_000);
+		expect(serialize(parse(source))).toBe(source);
+	}, 300_000);
 });
 
 // One rung below the flood above: when every closer-shaped line is SHORTER than its
 // openers the lookup never matches, so an unbounded walk revisits every closer per opener.
 describe('directive closer lookup bounds', () => {
 	it('stays bounded when no closer is long enough to close any opener', () => {
-		const { ratio } = measureScanGrowth((source) => void parse(source), ':::a\n:\n', [64, 256]);
+		const { ratio } = measureScanGrowth(parseOnly, ':::a\n:\n', [64, 256]);
 		expect(ratio).toBeLessThan(BOUNDED_GROWTH_CEILING);
 	}, 120_000);
 
