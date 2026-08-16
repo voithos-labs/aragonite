@@ -29,8 +29,8 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
    dissolved by the consumer decision recorded in § Downstream boundary.
 
 2. **Freeze cut at release** — in order. (The scoped pre-freeze re-audit and the
-   contributor-experience pass both ran 2026-08-14/15 and left the roadmap: the audit's record
-   is `docs/code-review-findings.md`, its decision items all closed — `chordsForCommand`
+   contributor-experience pass both ran 2026-08-14/15 and left the roadmap, the audit's
+   decision items all closed — `chordsForCommand`
    confirmed 1.2, the `getRects()`/`.rects` split recorded as deliberate convention, the
    mount-waiter fallback documented at its type, #70 closed by the consumer-guide pattern —
    and the 1.3 dry-run confirm is answered: the repo-context autolink exclusion is additive to
