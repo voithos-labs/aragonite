@@ -56,15 +56,24 @@ export interface SelectionState {
 	/** The third mode: a collapsed caret in a between-blocks boundary (`gap-caret.ts`). */
 	readonly gapCaret: GapCaretPosition | null;
 
+	// Every mutator below is silent when it changes nothing: a preamble that clears what is
+	// already clear must not wake a subscriber into re-reading an unmoved selection.
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void;
 	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
 	setGapCaret(pos: GapCaretPosition): void;
-	/** Silent when no gap is live, so a bare caret placement stays a zero-emission no-op. */
 	clearGapCaret(): void;
 	incrementSelectAllCount(): void;
 	resetSelectAllCount(): void;
+
+	/**
+	 * Fire the channel for a selection this state cannot see. Subscribers read the editor
+	 * back through `getSelection()`, which also answers for a NATIVE caret the restore road
+	 * lands and for a document a `source` swap replaced under it — neither of which moves a
+	 * field the mutators above guard on. Coalesces inside a {@link SelectionState.batch}.
+	 */
+	announceSelection(): void;
 
 	/**
 	 * Hold change notification until `mutate` returns, then fire once if anything mutated.
@@ -83,8 +92,13 @@ export interface SelectionState {
 		anchor: SelectionPoint,
 		focus: SelectionPoint
 	): 'collapsed' | 'single-block' | 'custom';
-	/** The deep `[table,row,col]` leaf path of a cell-coordinate point, else null. */
-	cellDeepPath(point: SelectionPoint): number[] | null;
+	/**
+	 * Where a caret lands for `point`: an endpoint inside a table addresses the table block by
+	 * cell INDEX, so its landing is the cell's own deep `[table,row,col]` leaf at offset 0.
+	 * Any other point lands as itself. Every reveal and every park goes through here, so no
+	 * caller can seat a cell index as a char offset on the table wrapper.
+	 */
+	cellLandingFor(point: SelectionPoint): SelectionPoint;
 }
 
 // ── Implementation ──────────────────────────────────────────────────────────
@@ -257,6 +271,7 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	collapse(): void {
+		if (!this.#hasCaretClaim()) return;
 		this.#anchor = null;
 		this.#focus = null;
 		this.#gapCaret = null;
@@ -264,11 +279,18 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	clear(): void {
+		if (!this.#hasCaretClaim() && this.#selectAllCount === 0) return;
 		this.#anchor = null;
 		this.#focus = null;
 		this.#gapCaret = null;
 		this.#selectAllCount = 0;
 		this.#notify();
+	}
+
+	// Every field the two clears zero: a guard reading fewer of them would swallow the
+	// notification for the ones it does not see.
+	#hasCaretClaim(): boolean {
+		return this.#anchor !== null || this.#focus !== null || this.#gapCaret !== null;
 	}
 
 	// The mutual exclusion's other half: a gap and a range are never live together, and the
@@ -283,6 +305,11 @@ class SelectionStateImpl implements SelectionState {
 	clearGapCaret(): void {
 		if (this.#gapCaret === null) return;
 		this.#gapCaret = null;
+		this.#notify();
+	}
+
+	incrementSelectAllCount(): void {
+		this.#selectAllCount += 1;
 		this.#notify();
 	}
 
@@ -301,24 +328,22 @@ class SelectionStateImpl implements SelectionState {
 		return node?.kind === 'table' ? 'custom' : 'single-block';
 	}
 
-	cellDeepPath(point: SelectionPoint): number[] | null {
+	cellLandingFor(point: SelectionPoint): SelectionPoint {
 		const getDoc = this.#getDoc;
-		if (!getDoc) return null;
-		// A context-established intra-table endpoint is unflagged though its offset is a cell
-		// index; mint the flag. cellEndpointDeepPath returns null for any non-table path.
-		const cellPoint: SelectionPoint = point.cellCoordinate
-			? point
-			: { path: point.path, offset: point.offset, cellCoordinate: true };
-		return cellEndpointDeepPath(getDoc(), cellPoint);
-	}
-
-	incrementSelectAllCount(): void {
-		this.#selectAllCount += 1;
-		this.#notify();
+		if (!getDoc) return point;
+		// Resolution is the door's, on the node kind: a context-established intra-table endpoint
+		// is unflagged and still a cell index, and a non-table path answers null.
+		const deepPath = cellEndpointDeepPath(getDoc(), point);
+		return deepPath ? { path: deepPath, offset: 0 } : point;
 	}
 
 	resetSelectAllCount(): void {
+		if (this.#selectAllCount === 0) return;
 		this.#selectAllCount = 0;
+		this.#notify();
+	}
+
+	announceSelection(): void {
 		this.#notify();
 	}
 }

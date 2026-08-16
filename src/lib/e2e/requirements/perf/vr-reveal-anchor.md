@@ -43,9 +43,14 @@ and `test/cursor/editor-rects`; this file covers what a reader observes.
   assertion: every re-assertion between the navigation resolving and that read
   happens after scroll events the correction itself fired, so a pin that released
   on `scroll` strands the target there.
-- **Not covered, and known:** churn INSIDE the target's own container. A nested
-  scope's upward subtotal report is correction-free by design, so the pin is never
-  consulted for it (issue #32).
+- Churn INSIDE the target's own container reaches the pin too: a nested scope's
+  upward subtotal report consults it before writing, so growth above the target
+  within its container re-asserts rather than displacing it.
+- The pin declines outright once a MOUNTED container has windowed its target out —
+  the reader scrolled past it, and the container's own top is a different block, so
+  re-asserting would teleport them back. A container windowed out at the top level
+  is the other case: nothing but the model knows where the target sits, so the pin
+  holds the container.
 
 ## Error cases
 

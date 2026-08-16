@@ -48,6 +48,9 @@ export interface ListWindowingDeps {
 	/** Monotonic counter bumped on an editor WIDTH change (after the oracle's measured
 	 *  cache is cleared). Rebuilds the model at the new width and re-measures mounted blocks. */
 	getWidthVersion: () => number;
+	/** Monotonic counter bumped when the PORT's height changes. The slice's extent comes
+	 *  from a plain DOM height read, which no reactive edge reaches; this is that edge. */
+	getViewportHeightVersion: () => number;
 	/** This scope's path (the parentPath its children render under). [] at top level. */
 	getParentPath: () => number[];
 	/** This scope's own measurable box; re-measured on inner reflow to report a fresh subtotal upward. Absent at top level. */
@@ -264,6 +267,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (delta !== 0 && port) port.setScrollTop(port.scrollTop() + delta);
 	}
 
+	let lastWidthVersion = deps.getWidthVersion();
+
 	// Rebuild on any structural child change or an editor WIDTH change, never per keystroke.
 	// Keying on the id SEQUENCE rather than its length is load-bearing: a reorder leaving the count
 	// unchanged would skip the rebuild. `untrack` keeps the effect from subscribing to every child's
@@ -272,11 +277,18 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		const ids = deps.getChildIds();
 		for (let i = 0; i < ids.length; i++) void ids[i];
 		void deps.getPort();
-		void deps.getWidthVersion();
+		const widthVersion = deps.getWidthVersion();
 		untrack(() => {
+			const widthChanged = widthVersion !== lastWidthVersion;
+			lastWidthVersion = widthVersion;
+			// ONE correction across ONE model transition: a delta taken between the reseed and
+			// the re-measure compares measured-before against all-estimate-after, and lands the
+			// anchor a block off wherever the poisoned model names a different top child (#188).
+			// Width only — re-measuring on a structural edit costs a reflow per split.
 			correctAnchorByStableId(() => {
 				model = buildModel();
 				heightVersion++;
+				if (widthChanged) remeasureMounted();
 			});
 		});
 	});
@@ -291,8 +303,10 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 
 	// Each scope windows against its OWN slice of the viewport: against the full port
 	// height, N stacked active scopes would each mount a viewport's worth of blocks. Falls
-	// back to the full height when the list is unmounted.
+	// back to the full height when the list is unmounted. Read only by the window derived,
+	// which is why the height version belongs here and not in `revealTargetScrollTop`.
 	function scopeViewportHeight(): number {
+		void deps.getViewportHeightVersion();
 		const port = deps.getPort();
 		const listEl = deps.getListEl();
 		if (!port) return 0;
@@ -339,12 +353,18 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// Children measuring in resize the spacers, so the box height the parent measured at
 	// this container's mount goes stale. BOX height, not `model.total()`, so it matches what
 	// this container's own BlockHost measured — otherwise two writers fight over the slot.
+	// Gated on the box actually moving: ungated, the rect read and the upward write chain up
+	// the scopes inside the observer's own delivery frame, raising the RO loop warning (#189).
+	let reportedSelfHeight = 0;
 	$effect(() => {
 		void heightVersion;
 		const el = deps.getOwnEl?.();
 		if (!el || !deps.reportSelfHeight) return;
 		const h = el.getBoundingClientRect().height;
-		if (h > 0) deps.reportSelfHeight(h);
+		if (h > 0 && Math.abs(h - reportedSelfHeight) >= 1) {
+			reportedSelfHeight = h;
+			deps.reportSelfHeight(h);
+		}
 	});
 
 	// The batched measure pass for NEWLY-MOUNTED children, keyed on the EFFECTIVE window: the
@@ -357,19 +377,9 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		untrack(() => flushMeasurements());
 	});
 
-	// Re-measure mounted children after a WIDTH change: the rebuild above reseeds every slot
-	// from the new-width estimate, but mounted blocks hold real old-width heights and their
-	// measure effects key on `node.raw`, not width. Drained here rather than by the
-	// window-tracking effect so the re-measure lands on the resize frame either way.
-	$effect(() => {
-		void deps.getWidthVersion();
-		untrack(() => {
-			for (const id of registry.keys()) pending.add(id);
-			flushMeasurements();
-		});
-	});
-
-	function flushMeasurements(): void {
+	// The UNCORRECTED batch: the caller owns the anchor correction, because nesting a second
+	// one inside an outer `mutate` double-counts the delta.
+	function drainMeasurements(): void {
 		if (pending.size === 0) return;
 		const entries: MeasurableChild[] = [];
 		for (const id of pending) {
@@ -377,9 +387,21 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			if (child) entries.push(child);
 		}
 		pending.clear();
+		runMeasureBatch(entries);
+	}
+
+	// A width rebuild reseeds every slot from the new-width estimate, but mounted blocks hold
+	// real heights and their measure effects key on `node.raw`, not width.
+	function remeasureMounted(): void {
+		for (const id of registry.keys()) pending.add(id);
+		drainMeasurements();
+	}
+
+	function flushMeasurements(): void {
+		if (pending.size === 0) return;
 		// The batch writes above-viewport slots too, so the anchor correction keeps the
 		// top-of-viewport block fixed.
-		correctAnchor(() => runMeasureBatch(entries));
+		correctAnchor(drainMeasurements);
 	}
 
 	// Read the height BEFORE correctAnchor so no DOM read follows the model write. The write
@@ -407,15 +429,21 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		},
 		// List items aren't BlockHosts and have no other oracle writer, so without this write
 		// a parent rebuild would reseed their slots from estimates and the viewport jumps.
-		// Idempotent for hosted children. No anchor correction, so a deep leaf measurement
-		// updates each ancestor's slot without cascading scrollTop fixes up the chain.
+		// Idempotent for hosted children. `modelChildIds`, not the live list, for the same
+		// reason `recordMeasuredChild` takes its id from the caller: both write a model
+		// indexed by the snapshot.
 		setChildSubtotal(index, total) {
-			const id = deps.getChildIds()[index];
+			const id = modelChildIds[index];
 			if (id !== undefined) deps.oracle.recordMeasured(id, total);
-			if (index < model.size && model.heightOf(index) !== total) {
+			if (index >= model.size || model.heightOf(index) === total) return;
+			const write = () => {
 				model.setHeight(index, total);
 				heightVersion++;
-			}
+			};
+			// Correction-free unless a reveal claim is live — the claim is the gate, so the
+			// no-cascade rule stands for every other write. Without it, growth INSIDE the
+			// target's own container pushes a resolved target down by its full height (#32).
+			if (!skipWhileHostAnchors(write) && !reassertRevealAnchor(write)) write();
 		},
 		// Enroll without touching reactive state: the mount that registers this child already
 		// moved the window, which re-runs the batch effect to drain `pending`.

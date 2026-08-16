@@ -127,7 +127,7 @@
 
 	$effect(() => {
 		if (!slots) return;
-		return publishRefSlot(slots, index, ref);
+		return publishRefSlot(slots, index, ref, hostEl);
 	});
 
 	// No `focus` means neither sanctioned shape was published. `defineBlockComponent`

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { parse } from '../../core/parser';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 describe('SelectionState lifecycle', () => {
 	it('starts empty and reports not cross-block', () => {
@@ -177,25 +178,47 @@ describe('SelectionState.restoreRoute (classify a pair without mutating state)',
 	});
 });
 
-describe('SelectionState.cellDeepPath', () => {
+describe('SelectionState.cellLandingFor', () => {
 	const tableSource = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
-	it('resolves a flagged cell endpoint to its deep [table,row,col] path', () => {
+	it('lands a flagged cell endpoint at the start of its deep [table,row,col] leaf', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
 		// cellIdx 3 in a 2-column table = row 1, col 1.
-		expect(s.cellDeepPath({ path: [0], offset: 3, cellCoordinate: true })).toEqual([0, 1, 1]);
+		expect(s.cellLandingFor({ path: [0], offset: 3, cellCoordinate: true })).toEqual({
+			path: [0, 1, 1],
+			offset: 0
+		});
 	});
 
-	it('resolves a context-established (unflagged) intra-table endpoint too (E-F4)', () => {
+	it('lands a context-established (unflagged) intra-table endpoint too (E-F4)', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
-		expect(s.cellDeepPath({ path: [0], offset: 2 })).toEqual([0, 1, 0]);
+		expect(s.cellLandingFor({ path: [0], offset: 2 })).toEqual({ path: [0, 1, 0], offset: 0 });
 	});
 
-	it('returns null for a prose endpoint', () => {
+	// The fallback is what lets every caller drop its own `?? point` arm.
+	it('lands a prose endpoint as itself, offset included', () => {
 		const doc = parse('paragraph\n');
 		const s = createSelectionState({ getDoc: () => doc });
-		expect(s.cellDeepPath({ path: [0], offset: 3 })).toBeNull();
+		const point = { path: [0], offset: 3 };
+		expect(s.cellLandingFor(point)).toEqual(point);
+	});
+
+	it('lands a point as itself when no doc accessor is wired', () => {
+		const s = createSelectionState();
+		const point = { path: [0], offset: 3, cellCoordinate: true as const };
+		expect(s.cellLandingFor(point)).toEqual(point);
+	});
+
+	// Out of the grid the door declines (and says so), and a landing must not invent a row.
+	it('lands an out-of-grid cell index as itself', () => {
+		const doc = parse(tableSource);
+		const s = createSelectionState({ getDoc: () => doc });
+		const point = { path: [0], offset: 99, cellCoordinate: true as const };
+
+		expect(s.cellLandingFor(point)).toEqual(point);
+
+		allowDevWarns(['table-endpoint-snap']);
 	});
 });

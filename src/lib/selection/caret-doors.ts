@@ -39,10 +39,10 @@ export function placeGapCaret(selection: SelectionState, pos: GapCaretPosition):
 }
 
 /**
- * Ends any editor-owned caret claim (cross-block range or gap) before a new caret lands. Each
- * arm is guarded so the common bare placement stays a zero-emission no-op; `clear()` notifies
- * whether or not it changed anything, and it ends the gap too. The native clear matters for a
- * whole-block landing, which seats no DOM range of its own.
+ * Ends any editor-owned caret claim (cross-block range or gap) before a new caret lands. The
+ * range arm takes the gap with it, so the split is on which claim is live rather than on which
+ * field to zero. The native clear matters for a whole-block landing, which seats no DOM range
+ * of its own.
  */
 function endLiveCaretClaim(selection: SelectionState): void {
 	if (selection.isCrossBlock) {

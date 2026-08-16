@@ -57,7 +57,7 @@ export type PluginEditorLookup = (pluginName: string) => EditorContext;
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
 export type DocumentGetter = () => Document;
 export type FocusedPathGetter = () => number[] | null;
-export type WidthVersionGetter = () => number;
+export type VersionGetter = () => number;
 
 /** Resolver ref read by inline parsers in block components. Wrapped in a `{ current }`
  *  accessor so the shell can rebuild it after each commit without invalidating
@@ -206,5 +206,9 @@ export interface EditorDoc {
 	correctsScroll: () => boolean;
 	/** Monotonic width-change counter the root bumps on an editor width resize, so
 	 *  every windowing scope rebuilds its model and re-measures at the new width. */
-	widthVersion: WidthVersionGetter;
+	widthVersion: VersionGetter;
+	/** Monotonic counter the root bumps when the SCROLLPORT's height changes. Its own
+	 *  signal, never `widthVersion`: a height resize re-wraps no prose, so bumping the
+	 *  width counter would drop every measured height for nothing. */
+	viewportHeightVersion: VersionGetter;
 }

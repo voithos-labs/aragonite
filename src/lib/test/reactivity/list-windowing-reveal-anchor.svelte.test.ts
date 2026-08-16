@@ -54,6 +54,7 @@ function mountScope(
 			getFocusPath: () => null,
 			getRevealAnchorTarget,
 			getWidthVersion: () => 0,
+			getViewportHeightVersion: () => 0,
 			getParentPath: () => [],
 			overscan: 2,
 			pinExtensionCap: 100,
@@ -95,6 +96,47 @@ describe('list-windowing reveal anchor', () => {
 
 		expect(port.scrollTop()).toBe(110);
 		cleanup();
+	});
+
+	// Miss-analysis: every reveal-anchor arm drove a corrector (rebuild or measure batch);
+	// none drove the upward subtotal channel, which is correction-free and so had no arm to
+	// fail when growth inside the target's own container displaced it (#32).
+	describe('growth reported upward by a nested scope', () => {
+		function mountWithTarget() {
+			const children = [0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`));
+			const ids = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5'];
+			const port = stubScrollport({ viewportHeight: 500 });
+			let revealTarget: RevealAnchorPlacement | null = null;
+			const scope = mountScope(children, ids, port, stubListEl(port, 200), () => revealTarget);
+			return { ...scope, port, claim: (t: RevealAnchorPlacement | null) => (revealTarget = t) };
+		}
+
+		// b2 grows 30 → 130, entirely above the target: b4's offset moves 100 → 200.
+		const GROW_INDEX = 2;
+		const GROWN_TOTAL = 130;
+		const TARGET = 4;
+
+		it('re-asserts the pin while a reveal claim is live', async () => {
+			const { windowing, cleanup, port, claim } = mountWithTarget();
+			await windowing.revealChild(TARGET);
+			expect(port.scrollTop()).toBe(100);
+			claim(topLevel(TARGET));
+
+			windowing.setChildSubtotal(GROW_INDEX, GROWN_TOTAL);
+
+			expect(port.scrollTop()).toBe(200);
+			cleanup();
+		});
+
+		it('stays correction-free with no claim live (no cascade up the chain)', async () => {
+			const { windowing, cleanup, port } = mountWithTarget();
+			await windowing.revealChild(TARGET);
+
+			windowing.setChildSubtotal(GROW_INDEX, GROWN_TOTAL);
+
+			expect(port.scrollTop()).toBe(100);
+			cleanup();
+		});
 	});
 
 	// A nested target is not its container: re-asserting the ancestor's top pushes the

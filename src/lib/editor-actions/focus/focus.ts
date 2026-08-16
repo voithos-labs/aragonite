@@ -74,6 +74,11 @@ export function createFocusActions(
 				return;
 			}
 
+			// A landing AT a block's end is a seat at an extreme, not a step onto it, so the side
+			// it means is construct-relative (docs/design/live-mode.md § 4.2). Without this the
+			// first byte typed after a structural landing joins the closer it landed inside.
+			if (position === 'end') deps.edgeAffinity.noteExtreme();
+
 			await consumeStickyLanding(block, blockIndex, position, deps.stickyColumn, (i) =>
 				this.moveFocus(i, position, options)
 			);

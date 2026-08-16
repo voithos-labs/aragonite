@@ -11,6 +11,7 @@
 	} from '../editor-keys';
 	import type { WindowResult } from '../reactivity/block-window.svelte';
 	import type { RefSlots } from '../reactivity/publish-ref.svelte';
+	import { gapEligibleAmong } from '../selection/gap-caret';
 	import { pathsEqual } from '../selection/path-math';
 	import { sliceWindow } from '../reactivity/window-slice';
 	import BlockHost from './BlockHost.svelte';
@@ -51,10 +52,14 @@
 	const blockEdit = getContext<BlockEditActions | undefined>(BLOCK_EDIT_KEY);
 
 	// The boundary index the live gap addresses in THIS scope, when the slice reaches it.
+	// Eligibility is re-read against the children as they stand: the state cannot see an edit
+	// that changed the kinds facing this boundary, and a caret must never paint where no
+	// gesture could have parked one.
 	let gapIndex = $derived.by(() => {
 		const gap = selection?.gapCaret;
 		if (!gap || !pathsEqual(gap.parentPath, parentPath)) return null;
-		return gap.index >= start && gap.index <= end ? gap.index : null;
+		if (gap.index < start || gap.index > end) return null;
+		return gapEligibleAmong(children, gap.index, parentPath.length > 0) ? gap.index : null;
 	});
 </script>
 

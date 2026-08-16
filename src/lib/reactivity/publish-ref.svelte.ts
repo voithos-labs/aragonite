@@ -37,14 +37,17 @@ export function replaceRefs<T>(
  * Replaces `bind:this={refs[i]}` in a keyed each — Svelte 5's `bind:this` doesn't re-target
  * when the iteration index shifts. Cleanup is conditional because effect-cleanup order
  * across siblings isn't guaranteed, and an unconditional clear stomps a neighbor's slot.
+ * `el` is the ref's own box, which is what makes `isSlotDetached` answerable.
  */
 export function publishRefSlot<T>(
 	slots: RefSlots<T>,
 	index: number,
-	ref: T | undefined
+	ref: T | undefined,
+	el?: Element | null
 ): () => void {
 	const capturedIndex = index;
 	slots.set(capturedIndex, ref);
+	if (el && typeof ref === 'object' && ref !== null) publishedElements.set(ref, el);
 	// The cleanup's identity check compares against what the slot actually holds, not the raw
 	// ref; untracked, since publishers run inside effects and would self-invalidate.
 	const publishedRef = untrack(() => slots.get(capturedIndex));
@@ -56,6 +59,27 @@ export function publishRefSlot<T>(
 	};
 }
 
+// ── Mount attachment ─────────────────────────────────────────────────────────
+
+// Keyed on ref identity, not on (slots, index): a wholesale `replaceRefs` re-seats a saved
+// ref no publisher will run for again, and only the ref itself still knows its box. Weak,
+// so the entry dies with the ref rather than outliving the scope.
+const publishedElements = new WeakMap<object, Element>();
+
+/**
+ * True when the slot's ref is a mount that already left the DOM. The one home for the
+ * question every reveal asks before trusting a filled slot — and it is an ATTACHMENT
+ * question, never a window-membership one: a programmatic scroll moves the slice a flush
+ * before the DOM follows, so "off-window" clears refs whose components are still mounted
+ * and which nothing re-publishes. A ref with no recorded box degrades to live.
+ */
+function isSlotDetached<T>(slots: RefSlots<T>, index: number): boolean {
+	const ref = slots.get(index);
+	if (typeof ref !== 'object' || ref === null) return false;
+	const el = publishedElements.get(ref);
+	return el !== undefined && !el.isConnected;
+}
+
 // ── Windowed reveal-and-wait ─────────────────────────────────────────────────
 
 export interface RevealChildOptions<T> {
@@ -65,11 +89,6 @@ export interface RevealChildOptions<T> {
 	readonly childCount: number;
 	/** Scroll this scope so child `index` enters its window; resolves after a tick. */
 	readonly revealChild: (index: number) => Promise<void>;
-	/** True when the published ref at `index` is stale — its child scrolled off-window but
-	 *  the teardown that empties the slot lands a flush later, so slot truthiness is a
-	 *  cache, not a mount oracle. A stale slot is dropped so the mount-wait resolves on
-	 *  the FRESH child. Omitted for non-windowing scopes, where nothing detaches a ref. */
-	readonly isStale?: (index: number) => boolean;
 	/** True iff `index` is inside the scope's CURRENT mounted window, read AFTER `revealChild`
 	 *  resolved (VR-5's termination guarantee). Optional only for a scope that does not window:
 	 *  every production reveal supplies it, so the bounded re-wait below is the harness
@@ -82,7 +101,7 @@ export interface RevealChildOptions<T> {
 const MAX_MOUNT_REWAITS = 64;
 
 /**
- * Bring child `index` into its window before a caller reads its ref: drop a stale off-window ref,
+ * Bring child `index` into its window before a caller reads its ref: drop a detached ref,
  * scroll it in, and await its mount. Shared by the canonical container reveal and TableBlock's
  * hand-rolled one, so the "is this slot a live mount" gate has one home. Termination (VR-5): only
  * a mount at this index in THIS scope wakes the wait, so a windowing caller proves membership
@@ -92,9 +111,9 @@ export async function revealChildOrWait<T>(
 	index: number,
 	opts: RevealChildOptions<T>
 ): Promise<void> {
-	const stale = opts.isStale?.(index) ?? false;
-	if (index >= opts.childCount || (!stale && opts.slots.get(index))) return;
-	if (stale) opts.slots.set(index, undefined);
+	const detached = isSlotDetached(opts.slots, index);
+	if (index >= opts.childCount || (!detached && opts.slots.get(index))) return;
+	if (detached) opts.slots.set(index, undefined);
 	await opts.revealChild(index);
 	if (opts.slots.get(index)) return;
 	if (opts.isInWindow) {

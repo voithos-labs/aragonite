@@ -16,6 +16,25 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.waitForCrossBlock(false);
 	});
 
+	// The table sibling of the case above. Asserted through the STATE, never through
+	// `[data-cross-block]`: the attribute is what a phantom pair hides the caret with, so a wait
+	// on it reports a selection nothing paints as no selection at all.
+	test('Shift+ArrowDown out of a last-block table leaves the cell editable', async () => {
+		await editor.loadContent('intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n');
+		await editor.page.locator('[role="cell"]').last().click();
+		await editor.page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+
+		await editor.page.keyboard.press('Shift+ArrowDown');
+		await editor.waitForRenderFlush();
+		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+
+		// One character, not the cell: a stored pair routes this press into the rectangular
+		// delete, which clears every covered cell in one press and never paints a thing.
+		await editor.page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('| cc | wxy |');
+	});
+
 	test('Shift+ArrowUp at first block stays inactive', async () => {
 		await editor.loadContent('only block\n');
 		await editor.focusBlockStart(0);

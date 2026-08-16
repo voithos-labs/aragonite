@@ -212,7 +212,7 @@
 
 	$effect(() => {
 		if (!slots) return;
-		return publishRefSlot(slots, index, containerApi);
+		return publishRefSlot(slots, index, containerApi, boxEl);
 	});
 
 	// ── Commands ────────────────────────────────────────────────────────

@@ -542,13 +542,10 @@
 	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const [rowIdx, ...rest] = path;
-		// A row scrolled off-window can leave a detached ref in its slot, so the scroll gates
-		// on live window bounds (a present ref is a cache, not a mount oracle) and drops it.
 		await revealChildOrWait(rowIdx, {
 			slots: rowsState.refSlots,
 			childCount: rowCount,
 			revealChild: windowing.revealChild,
-			isStale: (i) => i < bounds.start || i >= bounds.end,
 			isInWindow: windowing.isInWindow
 		});
 		const rowRef = rowsState.innerBlockRefs[rowIdx];

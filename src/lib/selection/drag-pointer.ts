@@ -95,8 +95,12 @@ export function installDragListener(
  * Chromium routes paste events to <body>. The highlight still comes from SelectionOverlay.
  */
 function parkCaretInFocusBlock(ctx: DragContext): void {
-	if (!ctx.selection.focus) return;
-	const blockEl = ctx.getBlockElByPath(ctx.selection.focus.path);
+	const focus = ctx.selection.focus;
+	if (!focus) return;
+	// A drag ending inside a table leaves a focus addressing the table block by cell index; the
+	// landing is the cell that actually holds a caret.
+	const landing = ctx.selection.cellLandingFor(focus);
+	const blockEl = ctx.getBlockElByPath(landing.path);
 	if (!blockEl) return;
-	applyCollapsedCaret(blockEl, ctx.selection.focus);
+	applyCollapsedCaret(blockEl, landing);
 }

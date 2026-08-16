@@ -56,7 +56,8 @@ export function tableCellCount(node: NodeView): number {
  * deep `[tableIdx, row, col]` leaf path so reveal/caret placement reaches an off-window cell.
  * Null when the path is already a leaf or the index lands outside the grid. Resolution is on the
  * NODE KIND, not the `cellCoordinate` flag: an intra-table focus is unflagged (see
- * {@link SelectionPoint}) yet still a cell index, hence the mint rather than `cellIndexOf`.
+ * {@link SelectionPoint}) yet still a cell index. Callers reach it through
+ * `SelectionState.cellLandingFor`, which is where the landing rule lives.
  */
 export function cellEndpointDeepPath(doc: DocumentView, point: SelectionPoint): number[] | null {
 	const node = nodeAt(doc, point.path);

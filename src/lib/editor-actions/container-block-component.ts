@@ -249,16 +249,12 @@ export function createContainerBlockComponent(
 			// Only a body target needs the door opened; the chrome row stays mounted.
 			// Awaited because everything below must run against the post-commit window.
 			if (head >= 1 && deps.isCollapsed?.()) await deps.expandCollapsed?.();
-			// publishRefSlot's cleanup is conditional, so a filled slot is a cache, not a
-			// mount oracle: without the window gate the mount-wait hangs on a stale child.
-			const isInWindow = deps.isInWindow;
 			if (deps.revealChild) {
 				await revealChildOrWait(head, {
 					slots: deps.refSlots,
 					childCount: deps.nodeChildrenLength,
 					revealChild: deps.revealChild,
-					isStale: isInWindow ? (i) => !isInWindow(i) : undefined,
-					isInWindow
+					isInWindow: deps.isInWindow
 				});
 			}
 			const ref = deps.innerBlockRefs[head];

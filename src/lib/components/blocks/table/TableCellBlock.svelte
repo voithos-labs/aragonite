@@ -467,7 +467,7 @@
 			snapCaretToPoint,
 			insertMarkdown: clipboard.insertMarkdown
 		} satisfies BlockComponent;
-		return publishRefSlot(slots, index, self);
+		return publishRefSlot(slots, index, self, el);
 	});
 
 	// ── Render pipeline ────────────────────────────────────────────────────
@@ -734,12 +734,17 @@
 			return true;
 		}
 		// Enter the rect at the current cell, then hand off to the block-level extend so
-		// the selection leaves the table.
+		// the selection leaves the table. The seed is minted before the extend can answer, so
+		// a decline (no block past the table) has to take it back: the stored pair would be an
+		// invisible selection the next Backspace deletes the whole cell through.
 		selection.enterCrossBlock(anchor, { path: tablePath.slice(), offset: currentIdx });
-		if (ext.direction === 'forward') {
-			extendFocusToNextBlock(selection, getDoc(), el, ext.fromCellPath, 'vertical');
-		} else {
-			extendFocusToPreviousBlock(selection, getDoc(), el, ext.fromCellPath, 'start');
+		const extended =
+			ext.direction === 'forward'
+				? extendFocusToNextBlock(selection, getDoc(), el, ext.fromCellPath, 'vertical')
+				: extendFocusToPreviousBlock(selection, getDoc(), el, ext.fromCellPath, 'start');
+		if (!extended) {
+			selection.collapse();
+			return false;
 		}
 		return true;
 	}

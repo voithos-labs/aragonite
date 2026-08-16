@@ -42,6 +42,7 @@ function mountScope(opts: { viewportTop?: number; editorOffset?: number }) {
 			correctsScroll: () => true,
 			getFocusPath: () => null,
 			getWidthVersion: () => 0,
+			getViewportHeightVersion: () => 0,
 			getParentPath: () => [],
 			overscan: 2,
 			pinExtensionCap: 100,

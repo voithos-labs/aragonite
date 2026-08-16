@@ -21,7 +21,7 @@ import {
 	selectWholeDocument,
 	scrollFocusBlockIntoView
 } from '../keyboard-extend';
-import { cellEndpointDeepPath } from '../table-endpoint-snap';
+import { pathsEqual } from '../path-math';
 import { intraTableRectExtension } from '../table-rect-extend';
 import { ambientSpanOf, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
@@ -334,9 +334,10 @@ function selectFirstPressContent(el: HTMLElement): void {
  */
 async function revealActiveEndpoint(ctx: CrossBlockDispatchContext): Promise<void> {
 	const focus = ctx.selection.focus;
-	const deepPath = focus && cellEndpointDeepPath(ctx.getDoc(), focus);
-	if (deepPath) {
-		const cellRef = await ctx.revealPath(deepPath);
+	const landing = focus && ctx.selection.cellLandingFor(focus);
+	// A landing that deepened the path is a cell; anything else lands as itself.
+	if (focus && landing && !pathsEqual(landing.path, focus.path)) {
+		const cellRef = await ctx.revealPath(landing.path);
 		// A null ref means the cell never mounted; fall through to scroll the (mounted) table
 		// so a failed reveal still keeps the endpoint in view.
 		if (cellRef) {

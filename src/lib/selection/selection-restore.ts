@@ -48,7 +48,7 @@ export async function restoreSelection(
 
 	// Reveal exactly what the applier parks the caret at: a cell-coordinate focus parks in its
 	// deep [table, row, col] cell, and table rows window too.
-	const revealed = await deps.revealTarget(deps.selectionState.cellDeepPath(focus) ?? focus.path);
+	const revealed = await deps.revealTarget(deps.selectionState.cellLandingFor(focus).path);
 	const placed = applySelectionToDom({ anchor, focus }, deps.selectionState, deps.getBlockElByPath);
 	return revealed && placed ? 'applied' : 'unplaced';
 }

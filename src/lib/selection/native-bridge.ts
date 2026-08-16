@@ -203,6 +203,9 @@ export function applySelectionToDom(
 	let placed = false;
 	selectionState.batch(() => {
 		placed = placeRestoredSelection(selection, selectionState, getBlockElByPath);
+		// Announced, not inferred from the arm's own mutation: a restore onto an already-clear
+		// state changes no editor-owned field and still moves the caret subscribers read back.
+		selectionState.announceSelection();
 	});
 	return placed;
 }
@@ -218,9 +221,14 @@ function placeRestoredSelection(
 
 	if (route === 'collapsed') {
 		selectionState.clear();
-		return focusCollapsedCaret(getBlockElByPath, selection.anchor);
+		// Through the landing like the custom arm below: a collapsed CELL point reaches this arm
+		// (equal offsets classify before coordinate space does) carrying a cell index, which a
+		// char walk on the table wrapper would seat somewhere in the grid's rendered text.
+		return focusCollapsedCaret(getBlockElByPath, selectionState.cellLandingFor(selection.anchor));
 	}
 
+	// No landing translation on this arm: a same-path pair whose block is a table routes 'custom',
+	// so every pair reaching here is a char range on a prose leaf.
 	if (route === 'single-block') {
 		selectionState.clear();
 		const blockEl = getBlockElByPath(selection.anchor.path);
@@ -234,10 +242,9 @@ function placeRestoredSelection(
 	// dispatch anchor (Chromium otherwise routes paste to <body>). A cell-coordinate focus
 	// addresses the table wrapper by cell index, so park in its deep cell instead.
 	selectionState.enterCrossBlock(selection.anchor, selection.focus);
-	const cellPath = selectionState.cellDeepPath(selection.focus);
-	const parkPath = cellPath ?? selection.focus.path;
-	const parkPoint = cellPath ? { path: parkPath, offset: 0 } : selection.focus;
-	if (focusCollapsedCaret(getBlockElByPath, parkPoint)) return true;
+	if (focusCollapsedCaret(getBlockElByPath, selectionState.cellLandingFor(selection.focus))) {
+		return true;
+	}
 	clearNativeSelection();
 	return false;
 }

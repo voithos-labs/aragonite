@@ -34,6 +34,56 @@ export function editorScrollHeight(page: Page): Promise<number> {
 	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollHeight);
 }
 
+/**
+ * The nested analog of a non-uniform flat doc: one blockquote whose `<br>`-heavy children the
+ * char estimator under-models ~30×. Blockquote, not list — its paragraph children are
+ * BlockHosts enrolled in the scope's `correctAnchor`-wrapped measure pass, whereas list items
+ * report through the deliberately-uncorrected subtotal channel.
+ */
+export const NESTED_NON_UNIFORM_CHILDREN = 1000;
+export function buildNonUniformBlockquoteDoc(): string {
+	const tall = `line${'<br>line'.repeat(30)}`;
+	return (
+		Array.from({ length: NESTED_NON_UNIFORM_CHILDREN }, () => `> ${tall}`).join('\n>\n') + '\n'
+	);
+}
+
+// ── Mounted-set coverage floor ──────────────────────────────────────
+
+/** Share of the scrollport either edge may go unmounted before the window has a hole. */
+export const MAX_UNMOUNTED_EDGE_FRACTION = 0.15;
+
+export interface ViewportSpan {
+	/** Unmounted band between the scrollport's top edge and the first mounted box. */
+	topGapPx: number;
+	/** Unmounted band between the last mounted box and the scrollport's bottom edge. */
+	bottomGapPx: number;
+	viewportHeight: number;
+}
+
+/**
+ * How far the mounted band reaches toward each edge of the editor's scrollport. Every
+ * mounted-set CEILING pairs with this floor: a ceiling alone is satisfied by mounting
+ * NOTHING, so only the span proves the slice is a window rather than a gap. Extent, not
+ * covered area — inter-block margins are honest holes and would sink an area metric.
+ */
+export function mountedViewportSpan(page: Page, selector: string): Promise<ViewportSpan> {
+	return page.evaluate((sel) => {
+		const editorEl = document.querySelector('.editor') as HTMLElement;
+		const port = editorEl.getBoundingClientRect();
+		const rects = (Array.from(document.querySelectorAll(`.editor ${sel}`)) as HTMLElement[]).map(
+			(el) => el.getBoundingClientRect()
+		);
+		const tops = rects.map((r) => r.top);
+		const bottoms = rects.map((r) => r.bottom);
+		return {
+			topGapPx: tops.length ? Math.max(0, Math.min(...tops) - port.top) : port.height,
+			bottomGapPx: bottoms.length ? Math.max(0, port.bottom - Math.max(...bottoms)) : port.height,
+			viewportHeight: port.height
+		};
+	}, selector);
+}
+
 export type VisibleHost = { ref: string | null; top: number };
 
 /**

@@ -195,7 +195,7 @@
 			focusByPath,
 			getBlockComponentByPath
 		} satisfies BlockComponent;
-		return publishRefSlot(slots, index, self);
+		return publishRefSlot(slots, index, self, rowEl);
 	});
 </script>
 

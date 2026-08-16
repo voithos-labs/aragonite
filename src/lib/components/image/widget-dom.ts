@@ -5,7 +5,7 @@
 import type { InlineNode } from '../../core/nodes';
 import type { ImageLoadPolicy } from '../../core/inline-render';
 import { isAllowedImageSrcScheme } from '../../core/url-policy';
-import { findBlockPathForElement } from '../../selection/path-lookup';
+import { findSurfacePathForElement } from '../../selection/path-lookup';
 import { devWarn } from '../../dev-warn';
 
 export interface BuildImageWidgetOpts {
@@ -39,8 +39,9 @@ export function buildImageWidget(
 		if (e.shiftKey) return;
 		// Resolve the path live rather than baking it at build time: content inserted
 		// above shifts the block's path without touching its `raw`, so the render memo
-		// skips a rebuild and a baked path resolves the wrong CST node.
-		const paragraphPath = findBlockPathForElement(widget);
+		// skips a rebuild and a baked path resolves the wrong CST node. The SURFACE door:
+		// inside a cell the block path stops at the table, whose offsets are cell indices.
+		const paragraphPath = findSurfacePathForElement(widget);
 		if (!paragraphPath) return;
 		// Match TextEditableBlock.snapClickToWidgetEdge, which lands the caret at the
 		// widget's right edge, so Ctrl+Z restores the click's visual landing.
