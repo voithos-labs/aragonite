@@ -29,9 +29,6 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: /aragonite
-      # Pages answers any path it has no file for with 404.html. The SPA fallback
-      # has to be that page too, or a deep link (/aragonite/changelog) dead-ends.
-      - run: cp build/index.html build/404.html
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: build
