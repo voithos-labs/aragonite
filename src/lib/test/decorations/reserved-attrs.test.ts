@@ -36,6 +36,25 @@ describe('acceptedBlockAttrs', () => {
 		]);
 	});
 
+	// `setAttribute` lowercases, so every reserved name is one capital away from landing anyway —
+	// and `data-Presentation` lands as the stamp the caret walk and the CSS families both read.
+	it('drops a reserved name spelled with capitals', () => {
+		expect(acceptedBlockAttrs({ 'data-Presentation': 'garbage' }, [0])).toEqual([]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			expect.stringContaining("'data-Presentation' is reserved")
+		]);
+	});
+
+	// `setAttribute` throws on these, and the write runs inside a decoration effect: the throw takes
+	// the mount, where dropping the one attribute costs the decoration nothing else.
+	it('drops a name the DOM would refuse', () => {
+		expect(acceptedBlockAttrs({ 'data attr': 'x', '2bad': 'y' }, [0])).toEqual([]);
+		expect(takeDevWarns().map((w) => w.message)).toEqual([
+			expect.stringContaining("'data attr' is not a valid attribute name"),
+			expect.stringContaining("'2bad' is not a valid attribute name")
+		]);
+	});
+
 	it('is empty for a decoration carrying no attrs', () => {
 		expect(acceptedBlockAttrs(undefined, [0])).toEqual([]);
 	});

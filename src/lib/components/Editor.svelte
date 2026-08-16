@@ -59,7 +59,7 @@
 	} from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo/manager';
 	import { createSharingState } from '../tree-operations/sharing';
-	import { createEditorEvents, emitCommandError } from '../editor-events';
+	import { createEditorEvents, emitBlockedLinkError, emitCommandError } from '../editor-events';
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
@@ -210,7 +210,9 @@
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
 	const activateLink = (url: string, event: MouseEvent) =>
-		(onLinkActivate ?? defaultLinkActivation)(url, event);
+		onLinkActivate
+			? onLinkActivate(url, event)
+			: defaultLinkActivation(url, event, (blocked) => emitBlockedLinkError(events, blocked));
 
 	// ── State ───────────────────────────────────────────────────────────
 
@@ -715,7 +717,8 @@
 		revealAnchor,
 		// A navigation holds its pin, unlike the consumer restore door: nothing follows
 		// it that wants the viewport back, and the band should outlive a late decode.
-		landCaretAt: async (path) => (await restoreThroughRevealRoad(caretAt(path), true)) === 'applied'
+		landCaretAt: async (path) =>
+			(await restoreThroughRevealRoad(caretAt(path), 'hold')) === 'applied'
 	});
 
 	// After getDoc so it reuses that one live-doc closure: a second getDoc would be a
@@ -875,22 +878,31 @@
 		return { path, offset };
 	}
 
-	// Captured in the PRE phase, where the outgoing mode still owns the DOM. Reading
-	// keeps its entry snapshot — it has no caret of its own to recapture on the way out.
+	// The flip's PRE phase, the last moment the outgoing mode owns the DOM: past it the mode's
+	// render key has rebuilt every block from its own CST bytes, and the reveal's ephemeral edit
+	// is gone. Reading keeps its entry snapshot — no caret of its own to recapture on the way out.
 	let flipCaret: { path: number[]; offset: number } | null = null;
 	// svelte-ignore state_referenced_locally
-	let flipCaretSeenMode = effectiveMode;
+	let preFlipSeenMode = effectiveMode;
 	$effect.pre(() => {
 		const mode = effectiveMode;
-		if (mode === flipCaretSeenMode) return;
-		const from = flipCaretSeenMode;
-		flipCaretSeenMode = mode;
-		if (from !== 'reading') flipCaret = untrack(captureFlipCaret);
+		if (mode === preFlipSeenMode) return;
+		const from = preFlipSeenMode;
+		preFlipSeenMode = mode;
+		untrack(() => {
+			if (from !== 'reading') flipCaret = captureFlipCaret();
+			// A flip is a blur-class event: a live reveal or composition folds through the existing
+			// blur choke point. Host chrome is exempt, or a mode toggle blurs a title field mid-edit.
+			const active = document.activeElement;
+			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active)) {
+				active.blur();
+				// A blur the editor performs announces the selection it drops: the document listener
+				// only reports a range the browser still anchors in the root, and this one is gone.
+				events.emit('selectionChange', getSelection());
+			}
+		});
 	});
 
-	// Mode flips are blur-class events: a live reveal or composition must fold through
-	// the existing blur choke points before the surface goes inert, so blur the active
-	// element rather than invent a new fold path.
 	// svelte-ignore state_referenced_locally
 	let lastEffectiveMode = effectiveMode;
 	$effect(() => {
@@ -901,24 +913,21 @@
 		// no longer names the offset the user meant.
 		edgeAffinity.reset();
 		if (mode === 'reading') {
-			// The gap is an editor-owned caret no DOM blur can reach, so it folds here beside
-			// the blur rather than at each arrival path.
+			// The gap is an editor-owned caret no DOM blur can reach, so the flip clears it
+			// rather than each arrival path.
 			selectionState.clearGapCaret();
-			// Header chrome keeps its focus, or a mode toggle blurs a title field mid-edit.
-			const active = document.activeElement;
-			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active))
-				active.blur();
 		} else if (flipCaret) {
 			const caret = flipCaret;
 			flipCaret = null;
 			void (async () => {
 				// A post-tick focus like every structural op's; the road clamps the saved offset
 				// into the destination mode's landable range at the door. Yielding to a focused
-				// text-entry surface keeps the restore from stealing a search-bar or host-field
-				// mid-typing — a toggle button holding focus does not block it.
+				// text-entry surface keeps the restore from stealing a host field mid-typing.
+				// The reveal is the bare MOUNT: a flip is a view operation, so it re-seats the
+				// caret without writing the scrollport the reader chose.
 				await tick();
 				if (effectiveMode !== mode || isTextEntrySurface(document.activeElement)) return;
-				await restoreThroughRevealRoad(caretAt(caret.path, caret.offset), true);
+				await restoreThroughRevealRoad(caretAt(caret.path, caret.offset), 'mount');
 			})();
 		}
 		events.emit('presentationModeChange', mode);
@@ -1371,20 +1380,24 @@
 	}
 
 	/**
-	 * The one restore road: resolve + clamp, reveal through the SCROLLING primitive, place — the
-	 * mount primitive can't promise a focus block IN VIEW, since overscan keeps blocks mounted past
-	 * the fold. `hold` decides whether the reveal's pin outlives the call: a navigation holds, a
-	 * consumer restore hands the viewport back so a kept pin can't override the host's next scroll.
+	 * The one restore road: resolve + clamp, reveal, place. `reveal` picks which reveal. The two
+	 * scrolling ones differ in whether the pin outlives the call — a navigation holds, a consumer
+	 * restore hands the viewport back so a kept pin can't override the host's next scroll — and
+	 * `mount` is the history swap's bare mount, which promises no block IN VIEW (overscan keeps
+	 * blocks mounted past the fold) and in exchange writes no scrollport.
 	 */
 	function restoreThroughRevealRoad(
 		selection: EditorSelection,
-		hold: boolean
+		reveal: 'hold' | 'release' | 'mount'
 	): Promise<SelectionRestoreOutcome> {
 		return restoreSelection(selection, {
 			getDoc,
 			selectionState,
 			getBlockElByPath,
-			revealTarget: (path) => rects.scrollTo(path, { block: 'nearest', hold })
+			revealTarget: async (path) =>
+				reveal === 'mount'
+					? (await revealPath(path)) !== null
+					: rects.scrollTo(path, { block: 'nearest', hold: reveal === 'hold' })
 		});
 	}
 
@@ -1395,7 +1408,7 @@
 	/** Land the caret at a raw offset through the shared restore road — the link card's return
 	 *  door after a commit, so the next keystroke (Ctrl+Z included) addresses the document. */
 	async function landCaretAtOffset(path: number[], offset: number): Promise<boolean> {
-		return (await restoreThroughRevealRoad(caretAt(path, offset), true)) === 'applied';
+		return (await restoreThroughRevealRoad(caretAt(path, offset), 'hold')) === 'applied';
 	}
 
 	/**
@@ -1405,7 +1418,7 @@
 	 * mid-settle owns the viewport and makes this false, a user gesture does not.
 	 */
 	export async function setSelection(selection: EditorSelection): Promise<boolean> {
-		return (await restoreThroughRevealRoad(selection, false)) === 'applied';
+		return (await restoreThroughRevealRoad(selection, 'release')) === 'applied';
 	}
 
 	// The dead-space click's own landing walk, minus the press/target discrimination a host

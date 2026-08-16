@@ -11,6 +11,7 @@
 	} from '../editor-keys';
 	import type { WindowResult } from '../reactivity/block-window.svelte';
 	import type { RefSlots } from '../reactivity/publish-ref.svelte';
+	import { isProseKind } from '../core/inline';
 	import { gapEligibleAmong } from '../selection/gap-caret';
 	import { pathsEqual } from '../selection/path-math';
 	import { sliceWindow } from '../reactivity/window-slice';
@@ -51,6 +52,14 @@
 	const focusActions = getContext<FocusActions | undefined>(FOCUS_KEY);
 	const blockEdit = getContext<BlockEditActions | undefined>(BLOCK_EDIT_KEY);
 
+	// Only a surface that paints inline content paints one, so the prefix is withheld from a
+	// first child that would ignore it — a code block, a nested list, a container. Withheld, not
+	// handed over and dropped: a prefix a child does not paint but does count is an offset the
+	// walk has no bytes for. Painting the marker for those shapes is open (GH #43).
+	function ambientFor(node: NodeView): AmbientPrefix {
+		return isProseKind(node.kind) ? ambientPrefixForFirst : '';
+	}
+
 	// The boundary index the live gap addresses in THIS scope, when the slice reaches it.
 	// Eligibility is re-read against the children as they stand: the state cannot see an edit
 	// that changed the kinds facing this boundary, and a caret must never paint where no
@@ -79,7 +88,7 @@
 			index={absoluteIndex}
 			id={blockIds[absoluteIndex]}
 			{parentPath}
-			ambientPrefix={absoluteIndex === 0 ? ambientPrefixForFirst : ''}
+			ambientPrefix={absoluteIndex === 0 ? ambientFor(node) : ''}
 			{slots}
 			{reorderable}
 		/>

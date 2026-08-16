@@ -1,15 +1,22 @@
 /**
  * Which side of a construct's unpainted marker run a typed byte belongs to: a run painted at zero
- * width leaves one screen position naming two raw offsets. The kind's `edgeAffinity` policy
- * answers first (a link never extends), the arrival affinity second.
+ * width leaves one screen position naming two raw offsets. The kind's `edgeAffinity` policy answers
+ * first (a link never extends), the arrival affinity second — and the painter has the last word
+ * (live-mode.md § 2), since a seat that reads right can parse wrong.
  */
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
-import { constructContentRange } from '../../../core/inline';
-import { visibleRuns, type VisibilityContext } from '../../../core/inline/visibility';
+import { constructContentRange, parseInline } from '../../../core/inline';
+import {
+	CONTENT_VISIBILITY,
+	renderedText,
+	visibleRuns,
+	type VisibilityContext
+} from '../../../core/inline/visibility';
 import type { ContentRange } from '../../../core/inline';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import { insertsExactly } from './screen-diff';
 
 export interface EdgeSeat {
 	/** Raw offset the byte must be written at. */
@@ -18,15 +25,17 @@ export interface EdgeSeat {
 }
 
 /**
- * Where a byte typed at `caretOffset` belongs, or null when the offset touches no construct
- * marker run, the kind declares no policy, or the seat is already where the caret is.
+ * Where `typed` belongs when the caret sits at `caretOffset`, or null when the offset touches no
+ * construct marker run, the kind declares no policy, or no candidate earns the write. Declining is
+ * the honest fallback: the byte then lands at the caret, which is what the engine writes anyway.
  */
 export function resolveEdgeSeat(
 	caretOffset: number,
 	inlines: readonly InlineNode[],
 	affinity: EdgeAffinity | null,
 	raw: string,
-	screen: VisibilityContext
+	screen: VisibilityContext,
+	typed: string
 ): EdgeSeat | null {
 	const run = markerRunAt(caretOffset, inlines, raw, screen);
 	if (!run) return null;
@@ -37,10 +46,20 @@ export function resolveEdgeSeat(
 	// arrival, defaulting to the near side — the gdocs click default (live-mode.md § 4.2).
 	const side: EdgeAffinity =
 		policy.edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
-	const offset = offsetForSide(run, side);
-	// The walk's read and Chromium's insertion canonicalize the same way, so `seat === caret`
-	// means native typing already lands where the seat wants it.
-	return offset === caretOffset ? null : { offset, kind: run.kind };
+	const content = contentBounds(inlines);
+	const before = shown(raw, content.start, content.end);
+	// The policy's side first, then the run's other end — the split rebalancer's space-outside
+	// reading in the seat's terms, since a byte the run's inner side kills is one its outer side
+	// keeps. The caret's own offset ends the list: reaching it means declining.
+	for (const offset of [offsetForSide(run, side), otherEnd(run, side), caretOffset]) {
+		// The walk's read and Chromium's insertion canonicalize the same way, so `seat === caret`
+		// means native typing already lands where the seat wants it.
+		if (offset === caretOffset) return null;
+		const candidate = raw.slice(0, offset) + typed + raw.slice(offset);
+		const after = shown(candidate, content.start, content.end + typed.length);
+		if (insertsExactly(before, after, typed)) return { offset, kind: run.kind };
+	}
+	return null;
 }
 
 /**
@@ -58,7 +77,7 @@ export function relocateComposedRun(
 ): { raw: string; caret: number } | null {
 	const composed = plainInsertionAt(before, after, composedAt);
 	if (composed === null) return null;
-	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen);
+	const seat = resolveEdgeSeat(composedAt, inlines, affinity, before, screen, composed);
 	if (!seat) return null;
 	return {
 		raw: before.slice(0, seat.offset) + composed + before.slice(seat.offset),
@@ -92,9 +111,24 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 	return run.leading ? run.start : run.end;
 }
 
+const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
+	offsetForSide(run, side) === run.start ? run.end : run.start;
+
+/** The bytes the inline tree covers — the block's content range, read off the tree rather than
+ *  taken as a second parameter that could disagree with it. */
+function contentBounds(inlines: readonly InlineNode[]): ContentRange {
+	return { start: inlines[0].start, end: inlines[inlines.length - 1].end };
+}
+
+/** What a reader sees, asked of the thing that paints it (G4.33). The content reading, not the
+ *  block's own: this seam only ADDS bytes, so no reading of it licenses dropping one. */
+const shown = (raw: string, start: number, end: number): string =>
+	renderedText(parseInline(raw, start, end), raw, CONTENT_VISIBILITY);
+
 /**
- * The innermost construct marker run `offset` sits in, its own boundaries included. INSIDE counts,
- * not just the two ends — a doubled code fence is a run a caret can be handed the middle of.
+ * The construct marker run `offset` sits in, its own boundaries included — the LAST in pre-order,
+ * so the innermost construct at a shared boundary wins. INSIDE counts, not just the two ends: a
+ * doubled code fence is a run a caret can be handed the middle of.
  */
 function markerRunAt(
 	offset: number,

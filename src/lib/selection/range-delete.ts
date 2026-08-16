@@ -7,7 +7,7 @@
 import type { GrammarView } from '../schema/block-openers';
 import type { PresentationMode } from '../presentation-mode';
 import type { InlineResolverRef } from '../schema/inline-construct-policy';
-import type { CstNode, Document } from '../core/nodes';
+import { metadataOf, type CstNode, type Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { walkBetween, charOffsetOf } from './primitives';
@@ -111,7 +111,8 @@ export function rangeDelete(
 			seam: startOffset,
 			start: { node: startBlock, offset: startOffset },
 			end: { node: endBlock, offset: endOffset },
-			linkRef
+			linkRef,
+			ambientPrefix: containerAmbientPrefix(doc, start.path)
 		},
 		presentationMode
 	);
@@ -175,4 +176,16 @@ export function rangeDelete(
 			: { path: start.path.slice(), offset: joined.seam };
 
 	return { newDoc: doc, collapsedCaret };
+}
+
+/** The container prefix the survivor renders under, so the join seam can read its candidate back
+ *  through it (live-mode.md § 4.5). An ambient marker rides the container's FIRST child only, the
+ *  way `BlockList` forwards it, and a list item is the one built-in container that paints one. */
+function containerAmbientPrefix(doc: Document, path: readonly number[]): string {
+	if (path.length < 2 || path[path.length - 1] !== 0) return '';
+	const parent = blockNodeAt(doc, path.slice(0, -1));
+	const item = parent?.kind === 'listItem' ? metadataOf(parent, 'listItem') : null;
+	// A task item's ambient carries its checkbox too, which this derivation does not model: '' skips
+	// the read-back rather than checking it against the wrong prefix.
+	return item && !item.taskItem ? item.marker : '';
 }

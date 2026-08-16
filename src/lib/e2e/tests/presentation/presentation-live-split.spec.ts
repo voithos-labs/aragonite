@@ -191,22 +191,20 @@ test.describe('live mode — a cut that would strand terminal whitespace', () =>
 	});
 });
 
-// KNOWN GAP, pinned rather than left silent: a cut through a childless construct writes its
-// delimiters onto the screen. Two halves of a URL are not two URLs, so close-and-reopen cannot
-// apply, and the reading that would keep the screen (drop the `<`/`>` pair) is refused by a
-// stronger rule — a live split may lose no byte but a line ending (`shape-fixed-point` ::
-// `keepsEveryByte`). Changing that contract is a decision, not a fix; this row states the
-// current bytes so the day it changes is deliberate.
+// A childless construct has no interior a cut can land in (live-mode.md § 4.4): two halves of a URL
+// are not two URLs, so the cut moves to the construct's nearer edge and one half takes it whole.
+// Every byte survives, which is what ruled out the alternative of dropping the `<`/`>` pair.
 test.describe('live mode — a cut through a childless construct', () => {
-	test('splits byte-literally, brackets and all', async ({ page }) => {
+	test('takes the whole autolink into the half the caret was nearer', async ({ page }) => {
 		const ep = await enterPresentationMode(page, 'live', '<https://example.com> tail\n');
 		await clickWordSettled(ep, page, 'example');
 		await landAt(ep, page, 13);
 		await page.keyboard.press('Enter');
 		await ep.bridge.waitForSourceContains('\n\n');
 
-		expect(await ep.bridge.getSource()).toBe('<https://exam\n\nple.com> tail\n');
-		expect(await visibleText(ep, 0)).toBe('<https://exam');
+		expect(await ep.bridge.getSource()).toBe('<https://example.com>\n\n tail\n');
+		// No bracket reaches the screen on either side — the whole point of moving the cut.
+		expect(await visibleText(ep, 0)).toBe('https://example.com');
 	});
 });
 

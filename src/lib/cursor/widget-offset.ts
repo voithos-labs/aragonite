@@ -6,7 +6,12 @@
  * `DomTextOffset` and `ambient/ambient-cursor.ts` owns the ± ambientLength step to raw.
  */
 
-import { hidesMarkers, isPreviewMode, type PresentationMode } from '../presentation-mode';
+import {
+	asPresentationMode,
+	hidesMarkers,
+	isPreviewMode,
+	type PresentationMode
+} from '../presentation-mode';
 import { widgetSourceRange } from '../core/inline/inline-widgets';
 import {
 	familyHidesText,
@@ -392,9 +397,10 @@ const FOCUSED_HOST_SELECTOR = '.block-host[data-focused]';
  *  stamps no attribute, and for a detached build with no root to read. */
 function markerHidingMode(container: ParentNode): PresentationMode | null {
 	if (!(container instanceof Element)) return null;
-	const attr = container.closest('[data-presentation]')?.getAttribute('data-presentation');
-	const mode = (attr ?? null) as PresentationMode | null;
-	return mode !== null && hidesMarkers(mode) ? mode : null;
+	const mode = asPresentationMode(
+		container.closest('[data-presentation]')?.getAttribute('data-presentation')
+	);
+	return hidesMarkers(mode) ? mode : null;
 }
 
 /** Nearest ancestor between `node` and `root` whose own text is marker chrome, with the family

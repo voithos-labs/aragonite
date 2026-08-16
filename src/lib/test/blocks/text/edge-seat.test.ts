@@ -11,8 +11,15 @@ import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 /** Every row below is a block holding content, so its chrome hides: the live reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
 
-function seatIn(source: string, offset: number, affinity: EdgeAffinity | null) {
-	return resolveEdgeSeat(offset, parseInline(source, 0, source.length), affinity, source, LIVE);
+function seatIn(source: string, offset: number, affinity: EdgeAffinity | null, typed = 'X') {
+	return resolveEdgeSeat(
+		offset,
+		parseInline(source, 0, source.length),
+		affinity,
+		source,
+		LIVE,
+		typed
+	);
 }
 
 // `Some **bold** text`: strong [5,13), `bold` [7,11). The leading run is [5,7), the trailing
@@ -163,5 +170,25 @@ describe('relocateComposedRun', () => {
 		expect(relocateComposedRun(BOLD, BOLD, 11, inlines, 'far', LIVE)).toBeNull();
 		expect(relocateComposedRun(BOLD, 'Some **bol**X text', 11, inlines, 'far', LIVE)).toBeNull();
 		expect(relocateComposedRun(BOLD, composed(4, 'X'), 11, inlines, 'far', LIVE)).toBeNull();
+	});
+});
+
+// #116's own draw: a run of three or more asterisks is SHARED between a nested pair, so a byte at
+// either end rebinds which delimiters pair with which. The painter is what catches it — the seat
+// has no side that keeps the screen, and declining leaves the byte where the caret already was.
+describe('a delimiter run shared between two pairings', () => {
+	const SHARED = '***foo****foo*';
+
+	it('declines every side at the issue’s own draw', () => {
+		for (const affinity of ['near', 'far', 'outside', null] as const) {
+			expect(seatIn(SHARED, 6, affinity), `${affinity}`).toBeNull();
+		}
+	});
+
+	// Non-vacuity, and the point of verifying rather than blanket-declining: the run's OTHER end
+	// has a reading that keeps the pairing, and the seat still takes it.
+	it('still seats where a reading keeps the pairing', () => {
+		expect(seatIn(SHARED, 8, 'near')).toEqual({ offset: 6, kind: 'strong' });
+		expect(seatIn(SHARED, 13, 'outside')).toEqual({ offset: 14, kind: 'emphasis' });
 	});
 });

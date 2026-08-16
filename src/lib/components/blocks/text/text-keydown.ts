@@ -56,21 +56,26 @@ export function dropStructuralSuffix(
 }
 
 /**
- * Replace any leading `#{1,6} ` prefix with one for `level`; `level === 0` strips it.
- * Idempotent, not a toggle — stripping is reached only by asking for level 0.
+ * Re-mark the block's CONTENT with an ATX prefix for `level`, replacing whatever structural bytes
+ * the current kind keeps — the same content range {@link demoteToParagraph} reads, so an indented
+ * `  ## x` or a setext underline is given up rather than left in the new heading's text.
+ * `level === 0` IS the demotion, and null there means the content already is the whole display.
+ * Idempotent, not a toggle: stripping is reached only by asking for level 0.
  */
-export function cycleHeading(raw: string, level: number, preEditOffset: number): TextEditResult {
-	const display = trimTrailingLineEnding(raw);
-	const trailing = raw.slice(displayLength(raw));
-
-	const oldPrefixMatch = display.match(/^#{1,6}\s?/);
-	const oldPrefixLen = oldPrefixMatch ? oldPrefixMatch[0].length : 0;
-	const stripped = display.slice(oldPrefixLen);
-	const newPrefix = level === 0 ? '' : '#'.repeat(level) + ' ';
-	const newDisplay = newPrefix + stripped;
-	const caretOffset = newPrefix.length + Math.max(0, preEditOffset - oldPrefixLen);
-
-	return { newRaw: newDisplay + trailing, caretOffset };
+export function cycleHeading(
+	raw: string,
+	content: ContentRange,
+	level: number,
+	preEditOffset: number
+): TextEditResult | null {
+	if (level === 0) return demoteToParagraph(raw, content, preEditOffset);
+	const prefix = '#'.repeat(level) + ' ';
+	const newDisplay = prefix + raw.slice(content.start, content.end);
+	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
+	return {
+		newRaw: newDisplay + raw.slice(displayLength(raw)),
+		caretOffset: prefix.length + (inContent - content.start)
+	};
 }
 
 /**

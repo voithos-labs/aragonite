@@ -15,6 +15,7 @@ import {
 	listInlineMarks,
 	type InlineMark
 } from '../../../schema/inline-construct-policy';
+import { insertsExactly } from './screen-diff';
 
 export interface MarkedInsertion {
 	/** The block's whole display bytes after the insertion. */
@@ -51,7 +52,7 @@ export function resolveMarkedInsertion(
 		...applied
 	]);
 
-	const visibleBefore = visibleText(display);
+	const before = { visible: visibleText(display), kinds: kindsAnywhere(inlines) };
 	for (const candidate of candidateInsertions(
 		display,
 		caretOffset,
@@ -60,7 +61,7 @@ export function resolveMarkedInsertion(
 		removed,
 		intended
 	)) {
-		if (parsesAsIntended(candidate, text, intended, visibleBefore)) {
+		if (parsesAsIntended(candidate, text, intended, before)) {
 			return { raw: candidate.raw, caret: candidate.textAt + text.length };
 		}
 	}
@@ -169,32 +170,44 @@ function splitOpen(
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
+/** What the block was before the splice: what it showed, and every construct kind standing in it. */
+interface BlockBefore {
+	visible: string;
+	kinds: ReadonlySet<AnyInlineKind>;
+}
+
 /**
- * Two questions, and a candidate answers both or it is not written. Did the mark TAKE — do
- * exactly the intended constructs enclose the inserted text? And is the rewrite invisible
- * otherwise — is the only thing that changed on screen the one character that was typed?
+ * Three questions, and a candidate answers all of them or it is not written. Did the mark TAKE —
+ * do exactly the intended constructs enclose the inserted text? Did every construct the block
+ * already held SURVIVE — a delimiter run shared between two pairings rebinds under any splice, and
+ * the loser is a construct nobody asked to spend. And is the rewrite invisible otherwise?
  */
 function parsesAsIntended(
 	candidate: Candidate,
 	text: string,
 	intended: ReadonlySet<AnyInlineKind>,
-	visibleBefore: string
+	before: BlockBefore
 ): boolean {
 	const nodes = parseInline(candidate.raw, 0, candidate.raw.length);
 	const around = enclosingKinds(nodes, candidate.textAt, candidate.textAt + text.length);
 	if (around.size !== intended.size) return false;
 	for (const kind of intended) if (!around.has(kind)) return false;
-	return insertsExactly(visibleBefore, visibleText(candidate.raw, nodes), text);
+	const after = kindsAnywhere(nodes);
+	for (const kind of before.kinds) if (!after.has(kind)) return false;
+	return insertsExactly(before.visible, visibleText(candidate.raw, nodes), text);
 }
 
-/** Whether `after` is `before` with `text` spliced in at one place and nothing else moved. */
-function insertsExactly(before: string, after: string, text: string): boolean {
-	if (after.length !== before.length + text.length) return false;
-	let at = 0;
-	while (at < before.length && before[at] === after[at]) at++;
-	return (
-		after.slice(at, at + text.length) === text && after.slice(at + text.length) === before.slice(at)
-	);
+/** Every construct kind anywhere in a parse, at any depth. */
+function kindsAnywhere(nodes: readonly InlineNode[]): Set<AnyInlineKind> {
+	const kinds = new Set<AnyInlineKind>();
+	const visit = (level: readonly InlineNode[]): void => {
+		for (const node of level) {
+			if (node.kind !== 'text') kinds.add(node.kind);
+			if (node.children) visit(node.children);
+		}
+	};
+	visit(nodes);
+	return kinds;
 }
 
 /** The construct kinds covering `[start, end)`; `text` is content, not a construct. */

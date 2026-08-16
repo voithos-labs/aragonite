@@ -24,19 +24,28 @@ export const RESERVED_BLOCK_ATTRS: ReadonlySet<string> = new Set([
 	'data-table-row-idx'
 ]);
 
-/** A block decoration's attributes minus the reserved names, which are dropped with a dev warn. */
+/** The name production `setAttribute` enforces: a name it refuses throws inside the decoration
+ *  effect, taking the whole mount rather than one attribute. */
+const ATTR_NAME = /^[A-Za-z_:][A-Za-z0-9_.:-]*$/;
+
+/** A block decoration's attributes minus the names it may not spell, which are dropped with a dev
+ *  warn. Reserved is asked in lowercase: `setAttribute` lowercases, so a capital is not a
+ *  different name, only a different spelling of the same one. */
 export function acceptedBlockAttrs(
 	attrs: Record<string, string> | undefined,
 	path: number[]
 ): Array<[string, string]> {
 	const accepted: Array<[string, string]> = [];
 	for (const [name, value] of Object.entries(attrs ?? {})) {
-		if (RESERVED_BLOCK_ATTRS.has(name)) {
-			devWarn(
-				'decorations',
-				`block decoration attribute '${name}' is reserved by the editor and was dropped`,
-				{ path }
-			);
+		const refusal = !ATTR_NAME.test(name)
+			? 'is not a valid attribute name'
+			: RESERVED_BLOCK_ATTRS.has(name.toLowerCase())
+				? 'is reserved by the editor'
+				: null;
+		if (refusal !== null) {
+			devWarn('decorations', `block decoration attribute '${name}' ${refusal} and was dropped`, {
+				path
+			});
 			continue;
 		}
 		accepted.push([name, value]);

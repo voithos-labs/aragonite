@@ -40,13 +40,21 @@ export function resolveLiveRangeEdit(
 	node: NodeView,
 	cursor: LiveEditCursor,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef | undefined,
+	ambientPrefix = ''
 ): LiveRangeEdit | null {
 	if (presentationMode !== 'live' || !rewritesTargetRange(e)) return null;
 	const range = pendingEditRange(e, cursor);
 	if (!range) return null;
 	const insert = replacementText(e);
-	const edit = resolveSelectionEdit(node, range, insert ?? '', presentationMode, linkRef);
+	const edit = resolveSelectionEdit(
+		node,
+		range,
+		insert ?? '',
+		presentationMode,
+		linkRef,
+		ambientPrefix
+	);
 	if (!edit) return null;
 	return insert === null
 		? { kind: 'swallow' }
@@ -63,7 +71,8 @@ export function resolveSelectionEdit(
 	selection: { start: number; end: number },
 	typed: string,
 	presentationMode: PresentationMode | undefined,
-	linkRef: InlineResolverRef | undefined
+	linkRef: InlineResolverRef | undefined,
+	ambientPrefix = ''
 ): SelectionEdit | null {
 	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
 	// bytes, not a recoverable edit. Snapping the same direction cannot invert the range.
@@ -71,13 +80,17 @@ export function resolveSelectionEdit(
 	const end = snapToScalarBoundary(node.raw, selection.end);
 	if (start >= end) return null;
 	const mergedRaw = node.raw.slice(0, start) + node.raw.slice(end);
+	// `typed` rides the seam rather than being spliced past it: the bytes the cleanup verifies have
+	// to be the bytes this returns, or the flanking it checked is not the flanking that ships.
 	const joined = cleanJoinedRaw(
 		{
 			mergedRaw,
 			seam: start,
 			start: { node, offset: start },
 			end: { node, offset: end },
-			linkRef
+			linkRef,
+			typed,
+			ambientPrefix
 		},
 		presentationMode
 	);

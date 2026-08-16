@@ -20,6 +20,7 @@ import {
 } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import { removesExactly } from './screen-diff';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -236,18 +237,6 @@ function isDelimiterByte(constructs: readonly PolicyConstruct[], at: number): bo
 }
 
 // ── Verification ─────────────────────────────────────────────────────────────
-
-/** Whether `after` is `before` with exactly `removed` gone from one place — the whole claim a cut
- *  makes to the reader, asked of the bytes the parser produced rather than the ones it was given. */
-function removesExactly(before: string, after: string, removed: string): boolean {
-	if (after.length !== before.length - removed.length) return false;
-	let at = 0;
-	while (at < after.length && before[at] === after[at]) at++;
-	return (
-		before.slice(at, at + removed.length) === removed &&
-		after.slice(at) === before.slice(at + removed.length)
-	);
-}
 
 /**
  * What a reader sees, asked of the thing that paints it, over the bytes read back the way `surface`

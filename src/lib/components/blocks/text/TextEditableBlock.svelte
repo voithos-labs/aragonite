@@ -328,6 +328,7 @@
 		foldRevealBeforeMutation: () => widgetInteraction.foldRevealBeforeMutation(),
 		isRevealing: () => widgetInteraction.isRevealing(),
 		getPresentationMode: () => presentationMode,
+		getAmbientPrefix: () => ambientPrefixText,
 		readRevealedText: () => readRawText(),
 		get linkRef() {
 			return linkRef;
@@ -365,6 +366,7 @@
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
+		getAmbientPrefix: () => ambientPrefixText,
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
@@ -393,7 +395,14 @@
 		// The same join seam `handleLiveSelectionEdit` takes, in the display bytes the seat's
 		// contract returns (commitInput re-appends the trailing line ending).
 		resolveRangeEdit: (range, typed) => {
-			const edit = resolveSelectionEdit(node, range, typed, presentationMode, linkRef);
+			const edit = resolveSelectionEdit(
+				node,
+				range,
+				typed,
+				presentationMode,
+				linkRef,
+				ambientPrefixText
+			);
 			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
 		}
 	});
@@ -554,15 +563,21 @@
 				// default the host was told not to expect (Ctrl+K kills to end of line here).
 				return always(enterLinkCard);
 			case 'heading.cycle':
-				return always(() => {
-					// `arg` is untrusted `unknown` from the widened keybinding channel: an
-					// out-of-range value would throw a RangeError inside `repeat`, so fall
-					// back to the strip behavior.
-					const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
-					const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
-					blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
-					setPendingCursorOffset(caretOffset, 'heading-cycle');
-				});
+				return {
+					// A heading marks PROSE. The raw-editable kinds bind this keymap too, and there
+					// an ATX prefix is content: it would destroy a link reference definition.
+					applies: () => isProseKind(node.kind),
+					perform: () => {
+						// `arg` is untrusted `unknown` from the widened keybinding channel: an
+						// out-of-range value would throw a RangeError inside `repeat`, so fall
+						// back to the strip behavior.
+						const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
+						const cycled = cycleHeading(node.raw, getContentRange(node), level, offset);
+						if (!cycled) return;
+						blockEdit.updateBlockContent(index, cycled.newRaw, offset, cycled.caretOffset);
+						setPendingCursorOffset(cycled.caretOffset, 'heading-cycle');
+					}
+				};
 			case 'block.moveUp':
 				return always(() => reorder.nudgeReorderUnit(myPath, -1));
 			case 'block.moveDown':
@@ -827,7 +842,14 @@
 	 */
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
 		if (widgetInteraction.isRevealing()) return false;
-		const edit = resolveLiveRangeEdit(e, node, cursor, presentationMode, linkRef);
+		const edit = resolveLiveRangeEdit(
+			e,
+			node,
+			cursor,
+			presentationMode,
+			linkRef,
+			ambientPrefixText
+		);
 		if (!edit) return false;
 		e.preventDefault();
 		if (edit.kind === 'swallow') return true;

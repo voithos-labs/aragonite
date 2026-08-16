@@ -61,6 +61,9 @@ export interface TextClipboardDeps {
 	/** The effective mode the cut's join seam answers to (live-mode.md § 4.5); `undefined` reads
 	 *  as not-live. */
 	getPresentationMode: () => PresentationMode | undefined;
+	/** The container prefix this block renders under, which the cut's seam reads its candidate
+	 *  back through — an item body the cut left starting with a space reloads under a wider marker. */
+	getAmbientPrefix: () => string;
 	/** The block's live DOM as raw text, so a copy over a revealed (uncommitted) edit
 	 *  yields what the user sees rather than the stale raw slice. */
 	readRevealedText: () => string;
@@ -164,7 +167,8 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 				selOffsets,
 				'',
 				deps.getPresentationMode(),
-				deps.linkRef
+				deps.linkRef,
+				deps.getAmbientPrefix()
 			);
 			const displayText = trimTrailingLineEnding(deps.node.raw);
 			const newRaw =

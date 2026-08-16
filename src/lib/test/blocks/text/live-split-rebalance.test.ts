@@ -220,17 +220,8 @@ describe('a cut that would strand terminal whitespace drops it instead', () => {
 });
 
 describe('constructs that declare no rewrite decline the whole cut', () => {
-	it('an image splits byte-literally', () => {
+	it('an image splits byte-literally through its alt', () => {
 		expect(split('![alpha](u)\n', 4)).toBeNull();
-	});
-
-	it('an escape and a hard break are atomic', () => {
-		expect(split('a\\*b\n', 2)).toBeNull();
-		expect(split('x  \ny\n', 2)).toBeNull();
-	});
-
-	it('an autolink has no policy row at all', () => {
-		expect(split('<https://example.com>\n', 8)).toBeNull();
 	});
 
 	it('a cut outside every construct is left alone', () => {
@@ -320,6 +311,53 @@ describe('a reference form rebalances only when the resolver reaches the seam', 
 
 	it('declines with no resolver, because the brackets read as text', () => {
 		expect(splitWithResolver(10, false)).toBeNull();
+	});
+});
+
+// #118: a childless never-extend construct has no interior a cut can land in — two halves of a URL
+// are not two URLs, and half an escape is a literal backslash — so the cut moves to its nearer edge
+// and one half takes it whole. Miss-analysis: the class was pinned as a KNOWN GAP in the split e2e
+// and as `toBeNull()` here, both of which assert the byte-literal cut rather than contest it.
+describe('a childless never-extend construct is taken whole', () => {
+	it('an autolink lands entirely in the half its caret was nearer', () => {
+		expect(split('<https://example.com> tail\n', 13)).toEqual({
+			firstRaw: '<https://example.com>\n',
+			secondRaw: ' tail\n'
+		});
+		expect(split('lead <https://example.com>\n', 8)).toEqual({
+			firstRaw: 'lead \n',
+			secondRaw: '<https://example.com>\n'
+		});
+	});
+
+	it('an escape goes with the half it leans into', () => {
+		expect(split('a\\*b\n', 2)).toEqual({ firstRaw: 'a\n', secondRaw: '\\*b\n' });
+	});
+
+	// A hard break's own bytes are a line ending, so either moved cut reloads as a shape the
+	// candidate never claimed — the byte-literal cut stands, which is the declared fallback.
+	it('a hard break finds no moved cut that parses back', () => {
+		expect(split('x  \ny\n', 2)).toBeNull();
+		expect(split('x  \ny\n', 3)).toBeNull();
+	});
+
+	// The move keeps the enclosing pair's own rewrite: the chain is resolved at the moved cut, and
+	// the boundary-space reading applies there like anywhere else.
+	it('a pair around the construct still closes and reopens at the moved cut', () => {
+		expect(split('**a <https://e.com> b**\n', 8)).toEqual({
+			firstRaw: '**a** \n',
+			secondRaw: '**<https://e.com> b**\n'
+		});
+		expect(split('**a <https://e.com> b**\n', 14)).toEqual({
+			firstRaw: '**a <https://e.com>**\n',
+			secondRaw: ' **b**\n'
+		});
+	});
+
+	// Every byte survives the move, which is the contract that ruled the bracket-drop out.
+	it('keeps every byte of the construct across the two halves', () => {
+		const halves = split('<https://example.com> tail\n', 13)!;
+		expect(halves.firstRaw + halves.secondRaw).toContain('<https://example.com>');
 	});
 });
 
