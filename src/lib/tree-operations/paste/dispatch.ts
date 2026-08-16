@@ -10,7 +10,8 @@ import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import { parse } from '../../core/parser';
-import { isBlockNode, nodeAt } from '../node-ops';
+import { cutRangeFromDisplay, isBlockNode, nodeAt } from '../node-ops';
+import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import {
 	getPasteSurface,
 	type PasteRange,
@@ -96,9 +97,9 @@ export async function pasteDispatch(
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;
 	if (!targetNode) return {};
 
-	// A reserved-chrome leaf is single-line by serialization (its bytes live in the
-	// container's opener line), so paste there is forced inline and flattened ahead of the
-	// container-paste family — a multi-block clipboard must never split the chrome node.
+	// A reserved-chrome leaf is single-line by serialization, so paste there is forced inline
+	// ahead of the container-paste family: a multi-block clipboard must never split it. The trim
+	// drops the edge spaces the newline flattening minted, not bytes anyone copied.
 	const chromeParent = nodeAt(ctx.doc, input.targetPath.slice(0, -1));
 	if (
 		chromeParent &&
@@ -112,12 +113,18 @@ export async function pasteDispatch(
 		return inlineCaretResult(result.caretOffset, landing);
 	}
 
+	// The delete half the container routes never ran, spent ONCE and ahead of the strategy pick:
+	// each finder decides on the TARGET's bytes, and a range still standing there answers about
+	// bytes the paste is removing. The hook routes cut their own, kind rules included.
+	const target = targetAfterPreDelete(targetNode, input, ctx.seam);
+
 	const unwrap = findContainerMatchingUnwrap(
 		ctx.doc,
 		input.targetPath,
-		input.offset,
+		target.offset,
 		parsed,
-		ctx.undoEntry === 'join'
+		ctx.undoEntry === 'join',
+		target.raw
 	);
 	if (unwrap) {
 		await applyContainerMatchingPaste(unwrap, ctx);
@@ -127,12 +134,12 @@ export async function pasteDispatch(
 	// The rest of the container paste-merge family, for single-block non-empty targets:
 	// absorb when `matchesAncestor` accepts the enclosing container, break-out when it
 	// does not.
-	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, input.offset);
+	const absorb = findListAbsorb(ctx.doc, input.targetPath, parsed, target.offset, target.raw);
 	if (absorb) {
 		await applyListAbsorb(absorb, parsed.children[0], ctx);
 		return {};
 	}
-	const breakOut = findListBreakOut(ctx.doc, input.targetPath, parsed, input.offset);
+	const breakOut = findListBreakOut(ctx.doc, input.targetPath, parsed, target.offset, target.raw);
 	if (breakOut) {
 		await applyListBreakOut(breakOut, parsed.children, ctx);
 		return {};
@@ -185,6 +192,23 @@ export async function pasteDispatch(
 		trailingSeparatorOf(parsed, result, surface)
 	);
 	return {};
+}
+
+/** The target's bytes and caret as the paste's delete half leaves them. */
+function targetAfterPreDelete(
+	node: CstNode,
+	input: PasteDispatchInput,
+	seam: PasteSeam | undefined
+): { raw: string; offset: number } {
+	if (!input.preDelete) return { raw: node.raw, offset: input.offset };
+	const cut = cutRangeFromDisplay(
+		node,
+		trimTrailingLineEnding(node.raw),
+		input.preDelete,
+		seam?.presentationMode,
+		seam?.linkRef
+	);
+	return { raw: cut.display + trailingLineEnding(node.raw), offset: cut.offset };
 }
 
 /**

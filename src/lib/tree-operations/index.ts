@@ -49,7 +49,7 @@ export {
 	rebuildUnsharedAncestry
 } from './unshare';
 
-export { buildPastedReplacement } from './paste-replacement';
+export { buildPastedReplacement } from './paste/paste-replacement';
 
 export { cloneDocument, cloneNode } from './clone';
 

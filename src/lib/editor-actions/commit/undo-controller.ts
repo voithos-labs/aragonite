@@ -52,6 +52,7 @@ import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import {
 	assertCommitPaths,
 	assertCommittedNodes,
+	assertIdsInLockstep,
 	assertUndoTopIntegrity
 } from '../../invariants/install';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -317,6 +318,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					discarded = true;
 				} else {
 					applyStructuralChangeToIdsRefs(change, idsCopy, refsCopy);
+					assertIdsInLockstep('commitStructural', idsCopy.length, childrenCopy.length);
 					args.publish(childrenCopy, idsCopy, refsCopy);
 					if (DEV) {
 						assertCommittedNodes(touchedFromChange(change, childrenCopy, args.touchedNodes));
@@ -347,6 +349,13 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 			// editor. The tree is intact either way: rolled back, or never published.
 			if (DEV) throw err;
 			return false;
+		}
+
+		if (!discarded) {
+			// The gap names a BOUNDARY INDEX, and a commit moves what that index names. Ended
+			// here rather than remapped: no arm can say which boundary the user meant afterwards.
+			// After the push above, so the entry this commit stored keeps the gap it was taken at.
+			deps.selectionState.clearGapCaret();
 		}
 
 		if (!discarded && args.op) {
@@ -467,8 +476,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		const chain = isDoc ? [] : ensureUnsharedPath(deps.doc, s.path, deps.sharing);
 		if (!isDoc && chain.length !== s.path.length) {
 			// Falling back to the caller's still-shared node would silently corrupt the
-			// snapshot entry sharing it (G1.9); G1.19/G1.22 are dev-only. Bail, as the
-			// sibling seam (`withUnsharedSpine`, G1.20) does.
+			// snapshot entry sharing it (G1.9); G1.19/G1.22 are dev-only. This door throws;
+			// its sibling (`withUnsharedSpine`, G1.20) rebuilds what the walk did reach.
 			const message = `commitMultiScope: unshared chain depth ${chain.length} != scope path depth ${s.path.length} (path [${s.path.join(',')}])`;
 			assertInvariant('multi-scope-scope-depth', () => ({
 				code: 'multi-scope-scope-depth',
@@ -514,6 +523,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 */
 	function publishScopeView(p: PreparedScope, change: StructuralChange): void {
 		applyStructuralChangeToIdsRefs(change, p.ids, p.refs);
+		assertIdsInLockstep(
+			`commitMultiScope [${p.target.path.join(',')}]`,
+			p.ids.length,
+			p.owned.children?.length ?? 0
+		);
 		if (p.isDoc) {
 			p.target.state.innerBlockIds = p.ids;
 		} else {
@@ -530,7 +544,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	async function commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<void> {
-		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop } = args;
+		const { scopes, snapshot, mutate, op, afterTick, discardIfNoop, trackCaret } = args;
 		const prepared: PreparedScope[] = [];
 		// Container slots the chain rebuild re-kinded: the replacements are what the DEV
 		// probes check, and the slot is what an unwind restores.
@@ -564,7 +578,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 						prepared[i].owned as SeparatorParent,
 						prepared[i].savedChildren ?? [],
 						changeList[i],
-						deps.sharing
+						deps.sharing,
+						trackCaret?.[i]
 					);
 					publishScopeView(prepared[i], changeList[i]);
 				}
@@ -661,6 +676,11 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 
 	// ── State capture / checkpoint control ──────────────────────────────────
 
+	// Every history swap replaces the whole tree, so a landing that awaited across one is
+	// aimed at content that no longer exists. Monotonic and never reset: a landing compares
+	// stamps, it never reads the value.
+	let historyGeneration = 0;
+
 	function captureCurrentState(): UndoEntry {
 		// Same three-tier read as the snapshot pushers — this is the entry a history swap
 		// pushes onto the opposite stack, so a gap live at the swap must survive the return.
@@ -683,6 +703,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		getDocScope,
 		captureCurrentState,
 		collapsedSelectionAt,
+		historyGeneration: () => historyGeneration,
+		noteHistorySwap: () => {
+			historyGeneration++;
+		},
 		flushDebouncedCheckpoint: textBatch.interrupt,
 		isolateUndoEntry: (write) => {
 			// Both sides: the leading break makes the write push its own snapshot instead of

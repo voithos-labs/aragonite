@@ -132,7 +132,8 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 		scrollHost: () => null,
 		scrollport: () => null,
 		correctsScroll: () => true,
-		widthVersion: () => 0
+		widthVersion: () => 0,
+		viewportHeightVersion: () => 0
 	};
 }
 

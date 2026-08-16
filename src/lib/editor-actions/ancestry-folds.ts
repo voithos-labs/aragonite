@@ -4,8 +4,12 @@
  * covers, so that scope's ids and refs are resynced here instead.
  */
 
+import type { CstNode } from '../core/nodes';
 import type { AncestrySeamFold } from '../tree-operations/unshare';
-import { applyStructuralChangeToIdsRefs } from '../tree-operations/structural-change';
+import {
+	applyStructuralChangeToIdsRefs,
+	type StructuralChange
+} from '../tree-operations/structural-change';
 import { assignIds } from '../block-id';
 import { getStateForNode } from '../reactivity/state-registry';
 import { replaceRefs } from '../reactivity/publish-ref.svelte';
@@ -28,7 +32,7 @@ export function publishAncestryFolds(
 ): () => void {
 	const restores: (() => void)[] = [];
 	for (const fold of folds) {
-		restores.push(fold.owner ? publishContainerFold(fold) : publishDocFold(deps, fold));
+		restores.push(fold.owner ? publishContainerFold(deps, fold) : publishDocFold(deps, fold));
 	}
 	return () => {
 		for (let i = restores.length - 1; i >= 0; i--) restores[i]();
@@ -54,14 +58,52 @@ export function foldLandingFor(
 	};
 }
 
+/**
+ * A splice made outside the commit ceremony, published as the ceremony publishes the change its
+ * mutate returns. `owner` is the container whose children moved, or undefined for the document.
+ */
+export function publishScopeFold(
+	deps: EditorActionsDeps,
+	owner: CstNode | undefined,
+	change: StructuralChange
+): void {
+	if (change.op === 'noop') return;
+	if (owner) publishContainerScope(owner, change);
+	else publishDocScope(deps, change);
+}
+
+function publishDocScope(deps: EditorActionsDeps, change: StructuralChange): void {
+	const ids = [...deps.blockIds];
+	const refs = [...deps.blockRefs];
+	applyStructuralChangeToIdsRefs(change, ids, refs);
+	deps.setBlockIds(ids);
+	deps.setBlockRefs(refs);
+}
+
+/**
+ * Ids live on the owner node, which is what an unmounted container's BlockListState reads back;
+ * refs live on the state and only exist while the scope is mounted.
+ */
+function publishContainerScope(owner: CstNode, change: StructuralChange): void {
+	const state = getStateForNode(owner);
+	// A container that never mounted has no ids to carry across, and this runs AFTER the fold —
+	// so one fresh id per surviving child is the whole answer, where a descriptor over a window
+	// the seeded array never held would mis-shape it (G1.36).
+	if (!owner.childIds) {
+		owner.childIds = assignIds(owner.children ?? []);
+		return;
+	}
+	const ids = [...owner.childIds];
+	const refs: (BlockComponent | undefined)[] = state ? [...state.innerBlockRefs] : [];
+	applyStructuralChangeToIdsRefs(change, ids, refs);
+	owner.childIds = ids;
+	if (state) replaceRefs(state.innerBlockRefs, refs);
+}
+
 function publishDocFold(deps: EditorActionsDeps, fold: AncestrySeamFold): () => void {
 	const savedIds = [...deps.blockIds];
 	const savedRefs = [...deps.blockRefs];
-	const ids = [...savedIds];
-	const refs = [...savedRefs];
-	applyStructuralChangeToIdsRefs(fold.change, ids, refs);
-	deps.setBlockIds(ids);
-	deps.setBlockRefs(refs);
+	publishScopeFold(deps, undefined, fold.change);
 	return () => {
 		deps.setBlockIds(savedIds);
 		deps.setBlockRefs(savedRefs);
@@ -69,22 +111,12 @@ function publishDocFold(deps: EditorActionsDeps, fold: AncestrySeamFold): () => 
 	};
 }
 
-/**
- * Ids live on the owner node, which is what an unmounted container's BlockListState reads back;
- * refs live on the state and only exist while the scope is mounted.
- */
-function publishContainerFold(fold: AncestrySeamFold): () => void {
+function publishContainerFold(deps: EditorActionsDeps, fold: AncestrySeamFold): () => void {
 	const owner = fold.owner!;
 	const state = getStateForNode(owner);
 	const savedIds = owner.childIds;
 	const savedRefs: (BlockComponent | undefined)[] = state ? [...state.innerBlockRefs] : [];
-	// A container that never mounted has NO ids, which is not an empty list: seeding `[]` would
-	// publish one id per changed slot against N children (`prepareScopeView`'s rule).
-	const ids = [...(savedIds ?? assignIds(owner.children ?? []))];
-	const refs = [...savedRefs];
-	applyStructuralChangeToIdsRefs(fold.change, ids, refs);
-	owner.childIds = ids;
-	if (state) replaceRefs(state.innerBlockRefs, refs);
+	publishScopeFold(deps, owner, fold.change);
 	return () => {
 		owner.childIds = savedIds;
 		if (state) replaceRefs(state.innerBlockRefs, savedRefs);

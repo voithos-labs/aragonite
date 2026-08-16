@@ -136,7 +136,9 @@ async function listItemCascadeMiddle(
 				scope.node,
 				scope.children,
 				itemIndex,
-				scope.sharing
+				scope.sharing,
+				deps.getPresentationMode?.(),
+				deps.linkRef
 			);
 			mergePoint = result?.mergePoint ?? null;
 			return mergePoint ? { op: 'delete', at: itemIndex, count: 1 } : { op: 'noop' };

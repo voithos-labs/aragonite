@@ -19,6 +19,7 @@ import {
 	checkCategoryFields
 } from './node-shape';
 import { checkContentRange } from './descriptor';
+import { checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
 /**
@@ -66,6 +67,17 @@ export function assertCommitPaths(
 export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 	if (!entry) return;
 	assertInvariant('snapshot-integrity', () => checkSnapshotIntegrity(entry));
+}
+
+/**
+ * G1.36 consumer half, at each publish seam: the descriptor's own bounds check cannot see a
+ * change that fits its array while describing the wrong window, and a short id array reaches
+ * Svelte's keyed each as missing keys.
+ */
+export function assertIdsInLockstep(seam: string, idCount: number, childCount: number): void {
+	assertInvariant('ids-children-lockstep', () =>
+		checkIdsChildrenLockstep(seam, idCount, childCount)
+	);
 }
 
 /**

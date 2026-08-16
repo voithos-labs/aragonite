@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildPastedReplacement } from '../../tree-operations/paste-replacement';
-import type { CstNode } from '../../core/nodes';
-import { parse } from '../../core/parser';
+import { buildPastedReplacement } from '$lib/tree-operations/paste/paste-replacement';
+import type { CstNode } from '$lib/core/nodes';
+import { parse } from '$lib/core/parser';
 
 describe('buildPastedReplacement — blank-line preservation between blocks', () => {
 	it('preserves blank line between two pasted paragraphs at end of leaf', () => {

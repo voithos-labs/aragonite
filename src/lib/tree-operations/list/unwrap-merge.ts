@@ -6,8 +6,11 @@
 
 import type { CstNode, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
+import type { PresentationMode } from '../../presentation-mode';
+import type { InlineResolverRef } from '../../schema/inline-construct-policy';
 import { metadataOf } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
+import { cleanJoinedRaw } from '../node-ops';
 import type { SharingState } from '../sharing';
 import { cloneMetadata, cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
@@ -180,7 +183,9 @@ export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],
 	currentIndex: number,
-	sharing?: SharingState
+	sharing: SharingState | undefined,
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): { mergePoint: { targetPath: number[]; offset: number } } | null {
 	// Targeting may read `list.children`, but the final splice MUST land in `children`
 	// (`node-ops.ts` header).
@@ -213,7 +218,6 @@ export function mergeListItemIntoPrevious(
 		throw new Error('mergeListItemIntoPrevious: target path does not end at a paragraph');
 	}
 	const targetOriginalText = (targetParagraph.raw ?? '').replace(/\r?\n$/, '');
-	const mergeOffset = targetOriginalText.length;
 
 	const currentItem = children[currentIndex];
 	if (
@@ -228,7 +232,22 @@ export function mergeListItemIntoPrevious(
 	const currentFirstText = (currentFirstParagraph.raw ?? '').replace(/\r?\n$/, '');
 
 	const lineEnding = trailingLineEnding(targetParagraph.raw ?? '');
-	targetParagraph.raw = targetOriginalText + currentFirstText + lineEnding;
+	// Every destructive join crosses the seam cleaner, M1 included: a literal concatenation
+	// surfaces the marker runs the join orphaned, which live paints for nobody.
+	const joined = cleanJoinedRaw(
+		{
+			mergedRaw: targetOriginalText + currentFirstText,
+			seam: targetOriginalText.length,
+			start: { node: targetParagraph, offset: targetOriginalText.length },
+			end: { node: currentFirstParagraph, offset: 0 },
+			linkRef
+		},
+		presentationMode
+	);
+	// The caret rides the CLEANED seam: a run dropped on the target's side moves where the
+	// two halves met.
+	const mergeOffset = joined.seam;
+	targetParagraph.raw = joined.raw + lineEnding;
 
 	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);
 

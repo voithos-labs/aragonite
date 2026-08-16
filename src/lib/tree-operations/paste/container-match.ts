@@ -8,12 +8,23 @@ import { CURSOR_END } from '../../block-component';
 import { devWarn } from '../../dev-warn';
 import { metadataOf, type CstNode, type Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
-import { nodeAt, updateNodeContent, writeOwnRaw } from '../node-ops';
+import {
+	nodeAt,
+	settledCaretTarget,
+	updateNodeContent,
+	writeOwnRaw,
+	type SettledContent
+} from '../node-ops';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedNode, ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
-import { stampStructuralChange, type StructuralChange } from '../structural-change';
+import { containerScopeState } from './parent-scope';
+import {
+	applyStructuralChangeToIdsRefs,
+	stampStructuralChange,
+	type StructuralChange
+} from '../structural-change';
 import { normalizeItemMarkerToList, renumberOrderedList } from '../list/ordered-markers';
 import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
 import { spliceTerminatedItems } from '../list/terminator';
@@ -34,6 +45,8 @@ interface ContainerUnwrap {
 	merge?: {
 		targetLeafPath: number[];
 		offset: number;
+		/** The target leaf's bytes AFTER the paste's delete half. */
+		targetRaw: string;
 	};
 }
 
@@ -47,13 +60,18 @@ export function findContainerMatchingUnwrap(
 	targetPath: number[],
 	offset: number,
 	parsed: Document,
-	crossBlockContext: boolean
+	crossBlockContext: boolean,
+	targetRaw?: string
 ): ContainerUnwrap | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
 	const containerPaste = containerPasteFor(topBlock.kind);
 	if (!containerPaste) return null;
 	if (!topBlock.children || topBlock.children.length === 0) return null;
+
+	// The bytes the strategies decide on: the target's own, post-delete.
+	const targetLeaf = nodeAt(doc, targetPath) as CstNode | null;
+	const postDelete = { node: targetLeaf, raw: targetRaw ?? targetLeaf?.raw ?? '' };
 
 	for (let depth = targetPath.length - 1; depth >= 1; depth--) {
 		const ancestorPath = targetPath.slice(0, depth);
@@ -66,7 +84,7 @@ export function findContainerMatchingUnwrap(
 		const targetChild = ancestor.children?.[spliceIndex];
 		if (!targetChild) continue;
 
-		if (isEmptyContainerChild(targetChild)) {
+		if (isEmptyContainerChild(targetChild, postDelete)) {
 			return { outerPath: ancestorPath, spliceIndex, items: topBlock.children };
 		}
 
@@ -80,19 +98,23 @@ export function findContainerMatchingUnwrap(
 			outerPath: ancestorPath,
 			spliceIndex,
 			items: topBlock.children,
-			merge: { targetLeafPath: targetPath, offset }
+			merge: { targetLeafPath: targetPath, offset, targetRaw: postDelete.raw }
 		};
 	}
 	return null;
 }
 
 /** One leaf child whose raw has no visible content (post-cross-block-delete stub). */
-function isEmptyContainerChild(node: CstNode): boolean {
-	if (!node.children || node.children.length === 0) return node.raw.trim() === '';
+function isEmptyContainerChild(
+	node: CstNode,
+	postDelete: { node: CstNode | null; raw: string }
+): boolean {
+	const rawOf = (n: CstNode) => (n === postDelete.node ? postDelete.raw : n.raw);
+	if (!node.children || node.children.length === 0) return rawOf(node).trim() === '';
 	if (node.children.length !== 1) return false;
 	const c = node.children[0];
 	if (c.kind !== 'paragraph') return false;
-	return c.raw.trim() === '';
+	return rawOf(c).trim() === '';
 }
 
 /**
@@ -139,8 +161,7 @@ export async function applyContainerMatchingPaste(
 ): Promise<void> {
 	const outer = nodeAt(ctx.doc, unwrap.outerPath) as CstNode | null;
 	if (!outer) return;
-	const outerState = ctx.controller.resolveState(outer);
-	if (!outerState) return;
+	const outerState = containerScopeState(ctx.controller, outer);
 
 	if (unwrap.merge) {
 		await applyContainerMatchingMerge(unwrap, unwrap.merge, outer, outerState, ctx);
@@ -206,8 +227,9 @@ async function applyContainerMatchingMerge(
 		return;
 	}
 
-	const targetLineEnding = trailingLineEnding(targetLeaf.raw);
-	const targetDisplay = trimTrailingLineEnding(targetLeaf.raw);
+	// Post-delete bytes: the door spent the paste's delete half before picking this strategy.
+	const targetLineEnding = trailingLineEnding(merge.targetRaw);
+	const targetDisplay = trimTrailingLineEnding(merge.targetRaw);
 	const displayBefore = targetDisplay.slice(0, merge.offset);
 	const displayAfter = targetDisplay.slice(merge.offset);
 	const firstItemText = trimTrailingLineEnding(firstLeaf.raw);
@@ -252,6 +274,7 @@ async function applyContainerMatchingMerge(
 	const lastItem = remainingItems[remainingItems.length - 1];
 	const lastLineEnding = trailingLineEnding(lastLeaf.raw);
 	const lastDisplay = trimTrailingLineEnding(lastLeaf.raw);
+	let residue: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
@@ -265,13 +288,22 @@ async function applyContainerMatchingMerge(
 			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse funnel, never a bare write.
-			updateNodeContent(
+			residue = updateNodeContent(
 				{ children: lastItem.children!, ownerKind: lastItem.kind, owner: lastItem },
 				0,
 				lastDisplay + displayAfter + lastLineEnding,
 				ctx.grammar,
 				sharing
 			);
+			// The write's settle can splice the item's own body, a scope this commit's descriptor
+			// does not cover: its ids stay in step here, and the caret rides it below.
+			if (lastItem.childIds) {
+				applyStructuralChangeToIdsRefs(
+					residue.change,
+					lastItem.childIds,
+					new Array(lastItem.childIds.length)
+				);
+			}
 			// Both rebuilds run before the splice, so the published children carry correct
 			// raws in one reactive flush.
 			rebuildUnsharedChain(ctx.doc, chain, sharing, null, ctx.grammar);
@@ -298,11 +330,12 @@ async function applyContainerMatchingMerge(
 		},
 		afterTick: () => {
 			// A char offset in the last spliced item's paragraph, so land on the paragraph
-			// rather than CURSOR_END on the item.
+			// rather than CURSOR_END on the item — at the slot the residue's own settle left it in.
 			const lastInsertedIdx = unwrap.spliceIndex + remainingItems.length;
+			const target = settledCaretTarget(residue, 0, lastDisplay.length, lastItem.children ?? []);
 			return ctx.controller.landCaret(
-				[...unwrap.outerPath, lastInsertedIdx, 0],
-				lastDisplay.length
+				[...unwrap.outerPath, lastInsertedIdx, target.index],
+				target.offset
 			);
 		}
 	});

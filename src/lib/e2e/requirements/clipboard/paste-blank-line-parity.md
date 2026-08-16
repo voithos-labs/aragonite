@@ -15,4 +15,4 @@ Paste parses the clipboard, so blank lines on it follow the parser's rule and no
 
 ## Caret placement
 
-- Pasting multi-block content into the MIDDLE of a non-empty paragraph lands the caret at the end of the PASTED content, not the trailing residue that sat after the caret. Typing immediately after the paste appends to the pasted content (end-of-block pastes, which have no residue, are unchanged).
+- Pasting multi-block content into the MIDDLE of a non-empty paragraph lands the caret at the end of the PASTED content, not the trailing residue that sat after the caret. Typing immediately after the paste appends to the pasted content (end-of-block pastes, which have no residue, are unchanged). This holds when the residue reads as a continuation of the last pasted block and the splice settle folds the two into one, where "end of the pasted content" is an offset inside that folded block rather than its end.

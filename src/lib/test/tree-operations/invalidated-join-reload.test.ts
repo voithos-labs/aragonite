@@ -103,12 +103,14 @@ describe('a reorder settles the joins the move disturbed (GH #21)', () => {
 		expect(serialize(doc)).toBe('a\nb\n# h\n');
 		expect(describeConvergence(doc)).toBeNull();
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\nb\n', '# h\n']);
+		// The heading the fold did not eat keeps its slot's identity: only the folded window's
+		// blocks are re-minted (GH #178).
 		expect(result.change).toEqual({
 			op: 'replace',
 			at: 0,
 			count: 3,
 			newCount: 2,
-			idMap: { 0: 0 }
+			idMap: { 0: 0, 1: 1 }
 		});
 		// The moved block outlived a fold ABOVE it, so the caret lands one slot short of `to`.
 		expect(result.landing).toBe(1);

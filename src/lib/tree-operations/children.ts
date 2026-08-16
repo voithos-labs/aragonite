@@ -44,7 +44,13 @@ export function spliceChildren(
 	if (!container.children) container.children = [];
 	// No lazy-init here: containers without childIds get them from the mounting BlockList anyway.
 	if (container.childIds) {
-		container.childIds.splice(at, removeCount, ...items.map(() => generateBlockId()));
+		// A replacement's head continues the slot it lands in, so it keeps that slot's id —
+		// `replacePreservingFirst`'s rule, which the in-commit-scope splice already carries.
+		const continues = removeCount > 0 && items.length > 0;
+		const ids = items.map((_, i) =>
+			i === 0 && continues ? container.childIds![at] : generateBlockId()
+		);
+		container.childIds.splice(at, removeCount, ...ids);
 	}
 	container.children.splice(at, removeCount, ...items);
 }

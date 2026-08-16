@@ -4,12 +4,12 @@
  * routing a single-paragraph clipboard here would split it into three nodes.
  */
 
-import type { CstNode } from '../core/nodes';
-import type { NodeView } from '../core/node-views';
-import { trailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { isBlankParagraph } from '../core/parser';
-import { ensureEditableContainers } from './node-ops';
-import { parseFirstBlock } from './parse-block';
+import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
+import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { isBlankParagraph } from '../../core/parser';
+import { ensureEditableContainers } from '../node-ops';
+import { parseFirstBlock } from '../parse-block';
 
 export function buildPastedReplacement(
 	leaf: NodeView,
@@ -21,8 +21,11 @@ export function buildPastedReplacement(
 	const leafRaw = leaf.raw;
 	const lineEnding = trailingLineEnding(leafRaw);
 	const display = trimTrailingLineEnding(leafRaw);
-	const rawBefore = display.slice(0, offset);
-	const rawAfter = display.slice(offset);
+	// Off any scalar interior before the cut: the halves land in DIFFERENT blocks, so a pair
+	// split here is unrecoverable bytes rather than a recoverable edit.
+	const cut = snapToScalarBoundary(display, offset);
+	const rawBefore = display.slice(0, cut);
+	const rawAfter = display.slice(cut);
 	const originalTrivia = leaf.leadingTrivia ?? '';
 
 	const newNodes: CstNode[] = [];

@@ -25,7 +25,7 @@ const TRIVIA_WRITERS: Record<string, string> = {
 		'head normalization, plus the exit paragraph’s own line: a minted block between two halves owes one on both sides, which no splice probe can infer',
 	'src/lib/tree-operations/paste/list-absorb.ts': 'head normalization of the trailing residue',
 	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
-	'src/lib/tree-operations/paste-replacement.ts':
+	'src/lib/tree-operations/paste/paste-replacement.ts':
 		'positional: the before/after slots around an inline paste each answer for their own line',
 	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half'
 };

@@ -20,7 +20,7 @@ import {
 	splitLeafForPaste
 } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { focusIndexBeforeResidue } from './focus-target';
+import { focusIndexBeforeResidue, landedPasteOffset, trackedPasteCaret } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
@@ -36,6 +36,8 @@ export interface ListBreakOut {
 	innerIndex: number;
 	/** Caret offset within the target leaf's raw. */
 	offset: number;
+	/** The target leaf's bytes AFTER the paste's delete half. */
+	targetRaw?: string;
 }
 
 /**
@@ -47,7 +49,8 @@ export function findListBreakOut(
 	doc: Document,
 	targetPath: number[],
 	parsed: Document,
-	offset: number
+	offset: number,
+	targetRaw?: string
 ): ListBreakOut | null {
 	if (parsed.children.length === 0) return null;
 	const topBlock = parsed.children[0];
@@ -63,7 +66,8 @@ export function findListBreakOut(
 		listPath: enclosing.listPath,
 		itemIndex: enclosing.itemIndex,
 		innerIndex: enclosing.innerIndex,
-		offset
+		offset,
+		targetRaw
 	};
 }
 
@@ -84,7 +88,8 @@ export async function applyListBreakOut(
 		plan.itemIndex,
 		plan.innerIndex,
 		plan.offset,
-		pastedBlocks
+		pastedBlocks,
+		plan.targetRaw
 	);
 	if (replacement.length === 0) return;
 
@@ -93,6 +98,14 @@ export async function applyListBreakOut(
 	const parentScope = resolveParentScope(ctx.doc, plan.listPath, ctx.controller);
 	if (!parentScope) return;
 	const spliceIndex = plan.listPath[plan.listPath.length - 1];
+	// The last pasted block, never the second-half residue list — and carried through the settle,
+	// whose folds can move the slot out from under a landing chosen here.
+	const caret = trackedPasteCaret(
+		replacement,
+		spliceIndex,
+		focusIndexBeforeResidue(replacement.length, hasTrailingResidue),
+		CURSOR_END
+	);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
@@ -113,11 +126,13 @@ export async function applyListBreakOut(
 			detail: { source: 'list-break-out', listPath: plan.listPath },
 			eventPath: docPathFrom(plan.listPath)
 		},
+		trackCaret: [caret],
 		afterTick: () => {
-			// The last pasted block, never the second-half residue list.
-			const lastPastedIdx =
-				spliceIndex + focusIndexBeforeResidue(replacement.length, hasTrailingResidue);
-			return ctx.controller.landCaret([...parentScope.path, lastPastedIdx], CURSOR_END);
+			const landed = nodeAt(ctx.doc, parentScope.path)?.children?.[caret.index];
+			return ctx.controller.landCaret(
+				[...parentScope.path, caret.index],
+				landedPasteOffset(landed, caret, CURSOR_END)
+			);
 		}
 	});
 }
@@ -141,7 +156,8 @@ export function buildListBreakOutReplacement(
 	itemIndex: number,
 	innerIndex: number,
 	offset: number,
-	pastedBlocks: CstNode[]
+	pastedBlocks: CstNode[],
+	targetRaw?: string
 ): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];
@@ -151,7 +167,8 @@ export function buildListBreakOutReplacement(
 
 	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } = splitLeafForPaste(
 		targetLeaf,
-		offset
+		offset,
+		targetRaw ?? targetLeaf.raw
 	);
 
 	const itemChildrenBefore = item.children.slice(0, innerIndex).map(cloneNode);

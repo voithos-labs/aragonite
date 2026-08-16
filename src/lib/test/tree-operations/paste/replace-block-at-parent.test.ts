@@ -7,8 +7,8 @@ import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
 
-function makePara(raw: string): CstNode {
-	return { kind: 'paragraph', leadingTrivia: '', raw };
+function makePara(raw: string, leadingTrivia = ''): CstNode {
+	return { kind: 'paragraph', leadingTrivia, raw };
 }
 
 function makeHeading(raw: string): CstNode {
@@ -68,7 +68,12 @@ describe('replaceBlockAtParent — id preservation', () => {
 	});
 
 	it('empty replacement removes the block', async () => {
-		const harness = makeEditorActionsDeps([makePara('a\n'), makePara('b\n'), makePara('c\n')]);
+		// Separated: three trivia-less paragraphs are one paragraph on reload.
+		const harness = makeEditorActionsDeps([
+			makePara('a\n'),
+			makePara('b\n', '\n'),
+			makePara('c\n', '\n')
+		]);
 		const controller = createPasteCoordinator(
 			createUndoController(harness.deps),
 			harness.deps.revealPath
