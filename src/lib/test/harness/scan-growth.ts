@@ -32,19 +32,29 @@ function timeMs(run: (source: string) => void, source: string): number {
 }
 
 /**
- * Time `run` over `unit` repeated to each of `[smallKb, largeKb]` (a 4x step),
+ * How a size's body is built: a unit to repeat, or a builder for a shape repetition cannot
+ * express (one construct with a long tail, a ladder of growing runs). A builder places the
+ * distinctness itself, since a shape whose defect lives at its END cannot take a `z` tail.
+ */
+export type ScanSource = string | ((bytes: number, salt: string) => string);
+
+/**
+ * Time `run` over `source` built to each of `[smallKb, largeKb]` (a 4x step),
  * warming and sampling both sizes symmetrically.
  */
 export function measureScanGrowth(
 	run: (source: string) => void,
-	unit: string,
+	source: ScanSource,
 	[smallKb, largeKb]: [number, number]
 ): ScanGrowth {
 	let sample = 0;
-	// The repeated body is built once per size: rebuilding a six-figure-byte string
-	// per sample would charge allocation and GC to whatever runs next.
+	// A repeated body is built once per size: rebuilding a six-figure-byte string per sample
+	// would charge allocation and GC to whatever runs next. Every source is built before the
+	// timer starts, so a builder's own cost is never inside a measurement either way.
 	const sourceAt = (kb: number) => {
-		const body = unit.repeat(Math.ceil((kb * 1024) / unit.length));
+		const bytes = kb * 1024;
+		if (typeof source !== 'string') return () => source(bytes, salt(sample++));
+		const body = source.repeat(Math.ceil(bytes / source.length));
 		return () => body + salt(sample++);
 	};
 	const small = sourceAt(smallKb);

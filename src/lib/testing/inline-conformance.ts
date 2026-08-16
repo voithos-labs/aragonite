@@ -525,6 +525,13 @@ function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung)
 		`"${kind}" declares no editing policy — register one, or declare this cell exempt if the ` +
 			`widget takes the default select-then-delete behavior deliberately`
 	);
+	// An all-absent object is what the dispatch reads as no policy, so accepting one lets a kind
+	// clear the cell with a declaration that changes not one byte of behavior.
+	assert(
+		Object.values(policy).some((field) => field !== undefined),
+		`"${kind}" registers an editing policy with every field absent, which the caret-edge ` +
+			`dispatch reads exactly as no policy at all — declare a field, or declare this cell exempt`
+	);
 	assertPolicyVocabulary(policy, kind);
 
 	if (policy.deleteGranularity === 'atomic') {

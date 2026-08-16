@@ -4,16 +4,21 @@ import {
 	arbBlankSeparatedGfmDoc,
 	arbGfmDoc,
 	arbIndentedGfmDoc,
+	arbLargeDoc,
 	arbLiveDoc,
+	arbPluginBlockSource,
+	arbPluginGfmDoc,
+	arbPluginInlineSource,
+	arbPluginInlineToken,
 	arbRawString
 } from './arbitraries';
 
 // A generator that cannot draw a shape proves nothing about it, and the shapes below were
 // missing from lanes whose properties are entirely about them: three structural lanes drew pure
-// ASCII, two never drew CRLF. The floors are the audit's own measurement kept as a gate — 400
-// draws per lane, counted by shape — so a weight tweak that quietly starves one fails here
-// rather than at the next audit. Fixed seed on purpose: a coverage floor that flakes is not a
-// floor, which is also why this suite stays off the fresh lane.
+// ASCII, two never drew CRLF. The floors are the audit's own measurement kept as a gate —
+// counted by shape — so a weight tweak that quietly starves one fails here rather than at the
+// next audit. Fixed seed on purpose: a coverage floor that flakes is not a floor, which is also
+// why this suite stays off the fresh lane.
 
 const DRAWS = 400;
 const SEED = 20260814;
@@ -29,16 +34,24 @@ const SHAPES = {
 	LF: (source: string) => /(^|[^\r])\n/.test(source)
 };
 
-const LANES: [name: string, arbitrary: fc.Arbitrary<string>][] = [
-	['arbGfmDoc', arbGfmDoc],
-	['arbBlankSeparatedGfmDoc', arbBlankSeparatedGfmDoc],
-	['arbIndentedGfmDoc', arbIndentedGfmDoc],
-	['arbLiveDoc', arbLiveDoc]
-];
+type Shape = keyof typeof SHAPES;
+
+/**
+ * A lane's per-shape floor: a count, or the reason the lane's own purpose puts the shape out of
+ * reach. A reason keeps a missing shape declared rather than absent — the same visible-not-silent
+ * vocabulary the conformance kits use, and the alternative (a floor of zero) reads as measured.
+ */
+interface Lane {
+	name: string;
+	arbitrary: fc.Arbitrary<string>;
+	/** Draws per lane. The scale lane costs ~100KB a draw, so it samples far fewer. */
+	draws?: number;
+	floors: Record<Shape, number | string>;
+}
 
 /** Well under every measured rate: the claim is that the shape is REACHED, not that its weight
  *  never moves. Astral pairs sit lowest, being one word of one vocabulary. */
-const FLOOR: Record<keyof typeof SHAPES, number> = {
+const DOC_FLOOR: Record<Shape, number> = {
 	'non-ASCII': 100,
 	'accented Latin': 20,
 	CJK: 20,
@@ -47,31 +60,85 @@ const FLOOR: Record<keyof typeof SHAPES, number> = {
 	LF: 100
 };
 
-describe.each(LANES)('%s draws the shapes its properties are about', (name, arbitrary) => {
-	const draws = fc.sample(arbitrary, { numRuns: DRAWS, seed: SEED });
+const NO_LINE = 'an inline-fragment lane draws no line ending at all: its source is one line';
 
-	it.each(Object.keys(SHAPES) as (keyof typeof SHAPES)[])('draws %s', (shape) => {
-		const found = draws.filter(SHAPES[shape]).length;
-		expect(found, `${name} drew ${shape} in ${found} of ${DRAWS}`).toBeGreaterThanOrEqual(
-			FLOOR[shape]
-		);
-	});
+/** The composed plugin lanes draw a built-in arm too, so their non-ASCII and line-ending shapes
+ *  can be met without one plugin byte carrying either — the construct-only lanes are what bind. */
+const PLUGIN_CONSTRUCT_FLOOR: Record<Shape, number | string> = {
+	'non-ASCII': 100,
+	'accented Latin': 20,
+	CJK: 20,
+	'an astral pair': 20,
+	CRLF: 100,
+	LF: 100
+};
 
-	// The other half of the weighting: parse behavior differences are mostly offset arithmetic,
-	// not grammar, so a corpus drowning in non-ASCII would spend its draws on the same class.
-	it('keeps ASCII the bulk of the bytes', () => {
-		const bytes = draws.join('');
-		const ascii = [...bytes].filter((char) => char.charCodeAt(0) < 0x80).length;
-		expect(ascii / bytes.length).toBeGreaterThan(0.9);
-	});
+const LANES: Lane[] = [
+	{ name: 'arbGfmDoc', arbitrary: arbGfmDoc, floors: DOC_FLOOR },
+	{ name: 'arbBlankSeparatedGfmDoc', arbitrary: arbBlankSeparatedGfmDoc, floors: DOC_FLOOR },
+	{ name: 'arbIndentedGfmDoc', arbitrary: arbIndentedGfmDoc, floors: DOC_FLOOR },
+	{ name: 'arbLiveDoc', arbitrary: arbLiveDoc, floors: DOC_FLOOR },
+	{ name: 'arbPluginBlockSource', arbitrary: arbPluginBlockSource, floors: PLUGIN_CONSTRUCT_FLOOR },
+	{
+		name: 'arbPluginInlineToken',
+		arbitrary: arbPluginInlineToken,
+		floors: { ...PLUGIN_CONSTRUCT_FLOOR, CRLF: NO_LINE, LF: NO_LINE }
+	},
+	{ name: 'arbPluginGfmDoc', arbitrary: arbPluginGfmDoc, floors: DOC_FLOOR },
+	{
+		name: 'arbPluginInlineSource',
+		arbitrary: arbPluginInlineSource,
+		floors: { ...DOC_FLOOR, CRLF: NO_LINE, LF: NO_LINE }
+	},
+	{
+		name: 'arbLargeDoc',
+		arbitrary: arbLargeDoc,
+		// Each draw is ~100KB, so the lane samples for reach rather than density.
+		draws: 100,
+		floors: {
+			'non-ASCII': 10,
+			'accented Latin': 10,
+			CJK: 10,
+			'an astral pair': 10,
+			CRLF: 20,
+			LF: 20
+		}
+	}
+];
 
-	// Lone surrogates are the one shape the corpus deliberately excludes: no UTF-8 boundary
-	// round-trips one, so no document holding one can reach the editor through any documented
-	// door. The gesture fuzzer's well-formedness oracle reads that as its precondition.
-	it('draws no ill-formed source', () => {
-		expect(draws.filter((source) => !source.isWellFormed())).toEqual([]);
-	});
-});
+describe.each(LANES.map((lane) => [lane.name, lane] as const))(
+	'%s draws the shapes its properties are about',
+	(name, lane) => {
+		const draws = fc.sample(lane.arbitrary, { numRuns: lane.draws ?? DRAWS, seed: SEED });
+
+		it.each(Object.keys(SHAPES) as Shape[])('draws %s', (shape) => {
+			const floor = lane.floors[shape];
+			if (typeof floor === 'string') {
+				expect(floor.length, `${name} ${shape} exclusion is documented`).toBeGreaterThan(20);
+				return;
+			}
+			const found = draws.filter(SHAPES[shape]).length;
+			expect(found, `${name} drew ${shape} in ${found} of ${draws.length}`).toBeGreaterThanOrEqual(
+				floor
+			);
+		});
+
+		// The other half of the weighting: parse behavior differences are mostly offset arithmetic,
+		// not grammar, so a corpus drowning in non-ASCII would spend its draws on the same class.
+		it('keeps ASCII the bulk of the bytes', () => {
+			const bytes = draws.join('');
+			const ascii = [...bytes].filter((char) => char.charCodeAt(0) < 0x80).length;
+			expect(ascii / bytes.length).toBeGreaterThan(0.9);
+		});
+
+		// Lone surrogates are the one shape the corpus deliberately excludes: no UTF-8 boundary
+		// round-trips one, so no document holding one can reach the editor through any documented
+		// door. The gesture fuzzer's well-formedness oracle reads that as its precondition.
+		it('draws no ill-formed source', () => {
+			expect(draws.filter((source) => !source.isWellFormed())).toEqual([]);
+		});
+	}
+);
 
 // The garbage lane carries the shape the structured ones cannot: a control character no markdown
 // grammar mentions, which a byte-preserving parser has to hand back untouched anyway.

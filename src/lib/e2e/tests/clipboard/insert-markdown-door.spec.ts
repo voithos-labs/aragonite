@@ -53,6 +53,22 @@ test.describe('insertMarkdown — programmatic insertion', () => {
 		expect(source.match(/^- .*$/gm)).toEqual(['- alpha', '- x', '- y', '- beta']);
 	});
 
+	// The one-undo claim held against the STRUCTURAL strategy too, not just the cross-block
+	// replace: a splice that pushed the delete and the insert separately would leave a half-
+	// reverted document here, since one press has to restore the whole insertion.
+	test('a structural insertion is one undo entry', async () => {
+		await editor.loadContent('before\n\nafter\n');
+		const before = await editor.bridge.getSource();
+		await editor.focusBlockEnd(0);
+
+		expect(await insert(TABLE)).toBe(true);
+		await editor.bridge.waitForSourceContains('| --- | --- |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before);
+		expect(await editor.bridge.getBlockCount()).toBe(2);
+	});
+
 	test('a cross-block selection is replaced, and one undo restores both halves', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();

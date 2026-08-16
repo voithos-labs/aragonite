@@ -17,6 +17,7 @@ import {
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	type InlineNode,
+	type InlineWidgetEditingPolicy,
 	type PluginInlineKind
 } from '$lib/plugin';
 import { resetPluginPlatformForTests, runInlineKindConformance } from '$lib/testing';
@@ -139,18 +140,17 @@ describe('registration reds a rung that is not where the profile says', () => {
 
 const MARKER = 'marker';
 
-function registerMarkerRung(build: (node: InlineNode) => HTMLElement): PluginInlineKind {
+function registerMarkerRung(
+	build: (node: InlineNode) => HTMLElement,
+	editing: InlineWidgetEditingPolicy = { deleteGranularity: 'atomic', onEdge: 'step-over' }
+): PluginInlineKind {
 	const kind = declarePluginInlineKind(MARKER);
 	registerInlineSyntax('@', (raw, pos, end) => {
 		const close = raw.indexOf('@', pos + 1);
 		if (close < 0 || close + 1 > end || close === pos + 1) return null;
 		return { kind, start: pos, end: close + 1 };
 	});
-	registerInlineWidgetKind(kind, {
-		isWidget: () => true,
-		buildWidget: build,
-		editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
-	});
+	registerInlineWidgetKind(kind, { isWidget: () => true, buildWidget: build, editing });
 	return kind;
 }
 
@@ -162,6 +162,15 @@ const markerProfile = (kind: PluginInlineKind): InlineConformanceProfile => ({
 	widget: { mode: 'assert' },
 	editingPolicy: { mode: 'assert' },
 	imageClaim: { mode: 'exempt', reason: A_REASON }
+});
+
+describe('editingPolicy reds a declaration that decides nothing', () => {
+	// The caret-edge dispatch reads an all-absent object exactly as an unregistered one, so
+	// without this a kind clears the cell with a policy that moves no byte.
+	it('fails an editing policy whose every field is absent', () => {
+		const kind = registerMarkerRung((node) => mintWidgetShell(MARKER, node), {});
+		expect(run(markerProfile(kind))).toThrow(/editingPolicy: .*every field absent/s);
+	});
 });
 
 describe('widget reds an island the offset walk cannot measure', () => {

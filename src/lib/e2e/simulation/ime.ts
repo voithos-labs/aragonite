@@ -1,9 +1,9 @@
 import { type CDPSession, type Page } from '@playwright/test';
 
-// Real IME composition via CDP: `Input.imeSetComposition` fires genuine
-// compositionstart/update events and `Input.insertText` commits through a real
-// compositionend — the wiring `tests/ime-composition.spec.ts` pins at the browser level.
-// Mid-composition there is no source change, so `compose` settles on the DOM instead.
+// The one CDP IME driver, shared by the simulation gestures and the specs: `Input.imeSetComposition`
+// fires genuine compositionstart/update events and `Input.insertText` commits through a real
+// compositionend. Mid-composition there is no source change, so `compose` settles on the DOM instead.
+// Nothing here may hand-fire a CompositionEvent — a synthetic one skips the browser's own window.
 
 export interface ImeDriver {
 	/** Set the in-flight composition text and settle on its DOM arrival. */

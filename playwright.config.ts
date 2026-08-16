@@ -3,10 +3,13 @@ import { defineConfig } from '@playwright/test';
 declare const process: { env: Record<string, string | undefined> };
 const PROD = !!process.env.PERF_PROD;
 
+// `stdout: 'pipe'` routes the server's console through the reporters, which is what lets
+// `server-warn-reporter` fail a run on an SSR-side `[aragonite:` guard fire. Stderr already pipes.
 const devServer = {
 	command: 'npm run dev',
 	port: 1420,
 	reuseExistingServer: true,
+	stdout: 'pipe' as const,
 	timeout: 15_000
 };
 
@@ -14,6 +17,7 @@ const prodServer = {
 	command: 'npm run build && npm run preview -- --port 1421 --strictPort',
 	port: 1421,
 	reuseExistingServer: true,
+	stdout: 'pipe' as const,
 	timeout: 180_000
 };
 
@@ -45,6 +49,8 @@ export default defineConfig({
 		// would turn red the day Playwright's implicit default moves. Projects may override.
 		viewport: { width: 1280, height: 720 }
 	},
+	// Playwright's own default, kept explicit because the server watcher rides beside it.
+	reporter: [[process.env.CI ? 'dot' : 'list'], ['./src/lib/e2e/server-warn-reporter.ts']],
 	webServer: PROD ? [devServer, prodServer] : devServer,
 	projects: [
 		{

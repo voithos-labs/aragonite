@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
 import { PluginsPage, revealWidget, roundTripStable } from './helpers';
 import { capturePageErrors } from '../../page-probes';
+import { attachIme } from '../../simulation/ime';
 
 /**
  * Inline `$…$` math: select → reveal editable source → commit re-renders (design §"Inline edit UX",
@@ -62,35 +62,6 @@ class MathPage extends PluginsPage {
 			return editable.contains(sel.getRangeAt(0).startContainer);
 		});
 	}
-}
-
-// Playwright exposes no IME API, so a composition is simulated by firing the real
-// compositionstart/input/compositionend the editor listens to and inserting the composed text at
-// the caret as the browser would. Everything else here is real input. The CDP driver
-// `ime-composition.spec.ts` uses would be the honest route (issue #46).
-async function composeIntoCaret(page: Page, text: string): Promise<void> {
-	await page.evaluate((composed) => {
-		const el = document.activeElement as HTMLElement | null;
-		const sel = window.getSelection();
-		if (!el || !sel || sel.rangeCount === 0) return;
-		const range = sel.getRangeAt(0);
-		const node = range.startContainer;
-		const at = range.startOffset;
-		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-		if (node.nodeType === Node.TEXT_NODE) {
-			const t = node as Text;
-			t.data = t.data.slice(0, at) + composed + t.data.slice(at);
-			const r = document.createRange();
-			r.setStart(t, at + composed.length);
-			r.collapse(true);
-			sel.removeAllRanges();
-			sel.addRange(r);
-		}
-		el.dispatchEvent(
-			new InputEvent('input', { bubbles: true, inputType: 'insertCompositionText', data: composed })
-		);
-		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: composed }));
-	}, text);
 }
 
 test.describe('plugin inline math: select → reveal-source editing', () => {
@@ -216,7 +187,9 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	test('IME composition in the revealed source commits only on blur', async ({ page }) => {
 		await editor.revealByClick();
 		await page.keyboard.press('ArrowRight');
-		await composeIntoCaret(page, 'yy');
+		const ime = await attachIme(page);
+		await ime.compose('yy');
+		await ime.commit('yy');
 
 		// Composition is ephemeral: nothing committed to the CST yet.
 		await editor.waitForRenderFlush();
@@ -282,9 +255,8 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect([paths!.anchor.path[0], paths!.focus.path[0]].sort()).toEqual([0, 1]);
 
 		// Blur while the cross-block selection is live. No mouse/keyboard gesture moves focus off
-		// the block without collapsing the selection, so the blur is fired directly (mirrors this
-		// file's IME carve-out). The commit must bail on cross-block, not fold the source out from
-		// under the anchored endpoint.
+		// the block without collapsing the selection, so the blur is fired directly. The commit must
+		// bail on cross-block, not fold the source out from under the anchored endpoint.
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await editor.waitForRenderFlush();
 

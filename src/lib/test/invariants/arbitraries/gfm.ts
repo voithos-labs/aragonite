@@ -10,7 +10,15 @@ import { withDrawnLineEnding } from './line-endings';
 // The minority arm, and `inline.ts`'s own vocabulary: what these words move is offset
 // ARITHMETIC (a multi-unit scalar under a slice), not the block grammar, so a rate high enough
 // to reach every structural lane is enough and ASCII stays the bulk of the bytes.
-const nonAsciiWord = fc.constantFrom('汉字', 'ém', '😀', '👩‍👦');
+export const nonAsciiWord = fc.constantFrom('汉字', 'ém', '😀', '👩‍👦');
+
+/**
+ * Construct-minting bytes inside prose. A pipe confined to the table arm makes a pipe-bearing
+ * NON-table line undrawable, and a block marker only ever seen at a line's own start never gets
+ * to interrupt one — both are shapes whose whole defect class is the disagreement between what
+ * the line looks like and what it parses as.
+ */
+const mintingWord = fc.constantFrom('|', 'a | b', '|x|', '#', '>', '- x', ':::', '`|`', '---');
 
 const inlineText = fc
 	.array(
@@ -22,6 +30,7 @@ const inlineText = fc
 				weight: 4
 			},
 			{ arbitrary: fc.constantFrom('foo@bar.com', '<https://x.com>', 'www.x.com'), weight: 4 },
+			{ arbitrary: mintingWord, weight: 3 },
 			{ arbitrary: nonAsciiWord, weight: 2 }
 		),
 		{ minLength: 1, maxLength: 5 }
