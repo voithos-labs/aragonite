@@ -75,7 +75,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 
 	// A match can land on a container node itself, but its raw is metadata-derived, so
 	// a direct substitution would drift and trip the G1.12/G1.13 staleness probes.
-	// Skipped until a kind-aware write path exists (issue #41).
+	// TODO(#41): substitute inside containers once a kind-aware write path exists.
 	function isReplaceable(match: Match): boolean {
 		const top: CstNode | undefined = deps.doc.children[match.path[0]];
 		const node = top ? descend(top, match.path.slice(1)) : null;

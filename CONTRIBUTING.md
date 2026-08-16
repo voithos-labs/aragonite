@@ -87,7 +87,7 @@ index.ts         the public barrel, which is the supported API surface
 
 | Command                      | Purpose                                                |
 | ---------------------------- | ------------------------------------------------------ |
-| `npm run dev`                | Demo app at `/test/editor`                             |
+| `npm run dev`                | Showcase at `/`, dev harness at `/test/editor`         |
 | `npm run test:editor`        | Unit tests (all)                                       |
 | `npm run test:editor:<area>` | Unit tests by area (`package.json` is the list)        |
 | `npm run test:e2e`           | E2E tests (all)                                        |

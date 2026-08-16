@@ -342,7 +342,7 @@ closure: containerClosure({
 });
 ```
 
-A container that synthesizes on copy or adds an indent gesture overrides its one baked cell. Whole-block-focus opaque leaves and any novel tier still hand-write the full nine, where the 0.9.18 lesson applies.
+A container that synthesizes on copy overrides the baked `clipboard` cell; one that adds an indent gesture overrides the baked `reorder` cell. Whole-block-focus opaque leaves and any novel tier still hand-write the full nine, where the 0.9.18 lesson applies.
 
 Optionally add a `conformanceFixture` — a small markdown source that parses to your kind — for the conformance battery.
 
@@ -708,14 +708,14 @@ setup(ctx) {
 
 ### The four decoration types
 
-| Type      | Shape                                   | Renders as                                                                     |
-| --------- | --------------------------------------- | ------------------------------------------------------------------------------ |
-| `mark`    | `{ path, start, end, class }`           | A positioned overlay span over the inline range — style it via the class       |
-| `widget`  | `{ path, offset, widget }`              | A zero-width atomic island at the offset (ghost text's shape)                  |
-| `replace` | `{ path, start, end, widget?, class? }` | An atomic island covering the range; the hidden bytes stay in the document     |
-| `block`   | `{ path, class?, attrs?, badge? }`      | A class/attrs treatment on the whole block host, plus an optional badge widget |
+| Type      | Shape                                                    | Renders as                                                                     |
+| --------- | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `mark`    | `{ type: 'mark', path, start, end, class }`              | A positioned overlay span over the inline range — style it via the class       |
+| `widget`  | `{ type: 'widget', path, offset, widget }`               | A zero-width atomic island at the offset (ghost text's shape)                  |
+| `replace` | `{ type: 'replace', path, start, end, widget?, class? }` | An atomic island covering the range; the hidden bytes stay in the document     |
+| `block`   | `{ type: 'block', path, class?, attrs?, badge? }`        | A class/attrs treatment on the whole block host, plus an optional badge widget |
 
-Offsets are **raw offsets** into the target block — dimmed markers included, the same coordinate space `getContentRange` describes. A `widget`, `replace` widget, or `badge` takes a `DecorationWidgetSpec`: a Svelte `component` (receives the decoration as its prop) or a hand-built `buildDom`. An interactive mark takes an `onClick`; interactive DOM inside an island is native — wire your own listeners in `buildDom`.
+Offsets are **raw offsets** into the target block — dimmed markers included, the same coordinate space `getContentRange` describes. A `widget`, `replace` widget, or `badge` takes a `DecorationWidgetSpec`: a Svelte `component` (receives the decoration as its prop) or a hand-built `buildDom`. An interactive mark takes `interactive: { onClick }`, not a top-level `onClick`; interactive DOM inside an island is native — wire your own listeners in `buildDom`.
 
 Islands (`widget` / `replace`) render in prose blocks and in table cells, applied through the same seam in both; `mark` and `block` decorations serve cells too. Island caret behavior is defined and pinned: arrows step over, destructive keys treat a widget island as transparent and select-then-delete a replace island whole, so the hidden bytes are never silently corrupted.
 
@@ -761,7 +761,7 @@ A minted command dispatches on the two tiers that can hand it a `BlockCommandCon
 
 Bind commands to your own plugin kinds. A command bound on a built-in kind's leaf (paragraph, code, table cell) does **not** dispatch — those surfaces supply no context and dead-key it.
 
-The consumer door `editor.runCommand(id)` reaches neither tier: it resolves the focused surface without a command context, so a minted id finds no handler and dev-warns that the command reached no handler on this dispatch path. Bind a chord, or expose an API of your own, for an affordance a host must invoke without a keystroke.
+The consumer door `editor.runCommand(id)` reaches neither of those tiers: it resolves the focused surface without a command context, so a **block**-minted id finds no handler and dev-warns that the command reached no handler on this dispatch path. Bind a chord, or expose an API of your own, for a block affordance a host must invoke without a keystroke. A **global** command is not so limited: its name resolves ahead of the block tiers, so `editor.runCommand('wordCount.log')` runs it and `canRunCommand` answers `true` for it (below).
 
 **View state rides `ctx.hooks`.** Because the context is built by the surface that owns the mounted component, it also carries the component's own view-state handles, supplied through the factory's `commandHooks` getter. A view-state command — open an editor, open a focus overlay — therefore drives the component directly, with no node-keyed side map. Hand `createContainerBlock` a `commandHooks: () => ({ openEdit, openFocusView })` getter (read live at dispatch, so an undo that replaces the node still hits the current handlers). The platform keeps `hooks` opaque (`unknown`): cast it to your own type in the handler, and decline when it is `undefined` — kind registered, no instance mounted.
 
@@ -1006,6 +1006,10 @@ Three repairs, by terminator shape. A **fence-shaped** terminator escalates — 
 
 Escaping at the **rebuild** is the one thing that does not work, and it is the tempting one: an opaque container's `raw` is checked against its live children, so rewriting a child on the way out reads as staleness. The write sink is early enough that no such gap exists.
 
+Every cell is `assert`, `exempt`, or `boundary`. A cell you cannot assert is declared, not skipped: `exempt` means the invariant has nothing to bite on (no multi-scope op exists), `boundary` means asserting it would need something the harness cannot reach (a mounted component, a DOM). Both demand a substantive `reason` — a thin one fails the run, so an exemption stays visible instead of quietly hollowing the harness out. The call resolves with a report of what was asserted and what was excused; it throws an `Error` naming every failed cell otherwise, so it drops straight into a test case under any runner.
+
+One companion worth asserting alongside it: `reversedAncestryLeavesRootStale(profile)` must be `true` for a container whose `rebuildRaw` reads only its direct children. It rebuilds outer-first on purpose and checks the root went **stale** — that is what proves your `ancestry` cell is testing something rather than passing by construction.
+
 #### Declaring the wrap: `bodyWrap`
 
 A container whose opener parses its body through `parseContainerBody` declares the same wrap as `container.bodyWrap`. The parse peels the blank line against your opener into `innerPrefix`, so that line is the wrap's rather than an empty first row — and the editor's separator settle has to know it, or a delete that frees a blank line above your body head drops the line the peel eats and the head block disappears on the next load. Declare it and the two agree; the container conformance kit probes the parse and fails a declaration that does not match. A strip container whose body starts at its own first line (a blockquote shape) declares nothing, and must therefore carry no `innerPrefix` — the node-shape guard fails a wrap-less container that fills that slot.
@@ -1028,10 +1032,6 @@ container: {
 `normalize` is applied to every byte destined for the body, at the tree-op write sinks — **ahead of the reparse that decides the child's kind**, which is what makes it work where a rebuild-time rewrite cannot: the kind a write lands on is the kind its committed bytes describe. It must be **idempotent** (a re-commit of already-legal bytes changes nothing) and **line-local** (it may read the whole raw to decide _which_ lines to rewrite, but never moves bytes across a line boundary). `mapOffset` is its caret image, so a surface whose committed bytes differ from what the user typed still seats the caret on the bytes; the pair ships as one object because a rewrite without its caret image strands the caret.
 
 Two rules of thumb from the bundled `details` container. Ask the **grammar**, not your own spelling: what breaks the container is everything the Markdown spec hands to raw-HTML passthrough — indented, upper-cased and trailing-space spellings included — which is looser than the canonical form your `rebuildRaw` emits, and `htmlBlockTagLineMatcher` from `aragonite/plugin` answers that question for a tag name. And rewrite the **minimum**: `details` escapes one `<` to `&lt;`, which renders as the literal tag both in the editor and on GitHub while matching no tag line, so the author sees what they typed.
-
-Every cell is `assert`, `exempt`, or `boundary`. A cell you cannot assert is declared, not skipped: `exempt` means the invariant has nothing to bite on (no multi-scope op exists), `boundary` means asserting it would need something the harness cannot reach (a mounted component, a DOM). Both demand a substantive `reason` — a thin one fails the run, so an exemption stays visible instead of quietly hollowing the harness out. The call resolves with a report of what was asserted and what was excused; it throws an `Error` naming every failed cell otherwise, so it drops straight into a test case under any runner.
-
-One companion worth asserting alongside it: `reversedAncestryLeavesRootStale(profile)` must be `true` for a container whose `rebuildRaw` reads only its direct children. It rebuilds outer-first on purpose and checks the root went **stale** — that is what proves your `ancestry` cell is testing something rather than passing by construction.
 
 ### Conformance-testing an inline rung
 
@@ -1124,12 +1124,12 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Parser opener** — placement rules in [Opener priority](#opener-priority)
 
-| Export                       | Role                                                                             |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `registerBlockOpener`        | Teach the parser to recognize a block's own Markdown syntax                      |
-| `BlockOpener`, `OpenContext` | The opener contract, and the line cursor it inspects to open a block             |
-| `BlockOpenerResult`          | What a claiming `tryOpen` returns: the node, plus the count of lines it consumed |
-| `OPENER_PRIORITIES`          | The built-in priority ladder your opener prices against                          |
+| Export                       | Role                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `registerBlockOpener`        | Teach the parser to recognize a block's own Markdown syntax                       |
+| `BlockOpener`, `OpenContext` | The opener contract, and the line cursor it inspects to open a block              |
+| `BlockOpenerResult`          | What a claiming `tryOpen` returns: the node, plus the count of lines it consumed  |
+| `OPENER_PRIORITIES`          | The built-in priority ladder your opener prices against _(pre-freeze / unstable)_ |
 
 **Enter completion** _(pre-freeze / unstable)_ — the recipe is in [Typing a multi-line construct into existence](#typing-a-multi-line-construct-into-existence)
 
@@ -1168,7 +1168,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `PluginInlineKind`, `InlineNode`, `InlineSyntaxRecognizer`, `InlineWidgetDescriptor`, `InlineWidgetComponentProps`, `InlineWidgetEditingPolicy`, `InlineWidgetEditingContext` | The inline kind and node types, the recognizer contract, and the widget descriptor plus its component-props and editing shapes |
 | `ImageSyntaxRewriter`, `ImageFields`                                                                                                                                          | The `rewriteImage` contract, and the image fields an edit hands it                                                             |
 
-**Commands and keybindings** — dispatch tiers in [Block commands](#block-commands)
+**Commands and keybindings** _(pre-freeze / unstable)_ — dispatch tiers in [Block commands](#block-commands)
 
 | Export                                                                                                     | Role                                                                                                                                                |
 | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1195,7 +1195,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `EditableLeaf`, `EditableLeafSurfaceProps`, `EditableLeafDeps`, `EditableLeafMode` | The leaf API your component re-exports, the one-spread source surface, its thunk deps, and the two modes             |
 | `StickyColumnDirection`                                                            | The vertical-entry direction `focusAtColumn` receives when the caret traverses into your block                       |
 
-**Parse / serialize helpers**
+**Parse / serialize helpers** _(pre-freeze / unstable)_
 
 | Export                                    | Role                                                                                                                                                                              |
 | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1210,7 +1210,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | `splitLines`                              | Split source into the parsed lines every line-scoped seam consumes                                                                                                                |
 | `Document`, `ParsedLine`                  | The parsed-document shape, and a single parsed source line                                                                                                                        |
 
-**Renderer utilities**
+**Renderer utilities** _(pre-freeze / unstable)_
 
 | Export               | Role                                                                                                                                                                              |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1237,7 +1237,7 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `blockquoteExtent` | Scan a blockquote's extent (CommonMark §5.1 lazy continuation) from a start line, returning its `raw` plus the `nextIndex` past it (a slice bound, not an opener's `consumed` delta) — no child decomposition |
 
-**CST node access and metadata**
+**CST node access and metadata** _(pre-freeze / unstable beyond the stable metadata pair)_
 
 | Export                                   | Role                                                                                                                                                   |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |

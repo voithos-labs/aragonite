@@ -117,7 +117,7 @@ export function createStandardNestedActions(
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
 	// Above the override spread, so a container replacing `splitBlock` keeps the completion arm
-	// its subtree owes (#146). `defaults` stays undecorated: an override chaining back into it is
+	// its subtree owes. `defaults` stays undecorated: an override chaining back into it is
 	// already past the consult, and re-entering would spend one press on two.
 	const childAt = (index: number) => deps.node.children?.[index];
 	if (!overrideFactory) {

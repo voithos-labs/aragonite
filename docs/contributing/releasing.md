@@ -5,7 +5,7 @@ The maintainer's runbook: version cut, npm publish, and (once) the flip to publi
 ## Every release
 
 1. **Ship gate, on the release tree.** `npm test`, `npm run check`, `npm run lint`, then `npm run perf:check` on the calibration machine (any other host reads red by design; CI's scaled perf job is the cross-check). Capture output to files, check exit codes, never pipe.
-2. **Version + changelog.** Bump `package.json`. Move the `(unreleased)` entry to its released heading in the version's family file (`docs/changelog/<minor>.md`), and add its line to the index in `docs/changelog.md`. A new family means a new file, a new index section, and a new entry in the demo route's family picker order.
+2. **Version + changelog.** Run `npm version <x.y.z>` rather than hand-editing `package.json`: the version lives in `package.json` **and** `package-lock.json`, and only the command writes both. In the same commit, add the version's entry under its own released heading in the family file (`docs/changelog/<minor>.md`) and its line to the index in `docs/changelog.md`; there is no `(unreleased)` staging heading. A new family means a new file and a new index section, and nothing else: the demo route globs `docs/changelog/*.md` and orders the picker numerically, so it picks the file up on its own.
 3. **dev → main.** PR from `dev`, wait for green CI (all eight checks), merge. `main` is the released history; nothing lands on it directly.
 4. **Tag + GitHub release.** `git tag vX.Y.Z` on the merge commit, push the tag, write the release notes from the changelog entry.
 5. **Publish.** `npm publish` (add `--access public` if the package is scoped). `prepack` builds and verifies the tarball (`verify-pack.mjs`); a red verify aborts the publish, which is the point. Sanity-check the npm page after: the README's footnotes, math, mermaid, and `<picture>` blocks do not render on npmjs.com, and its images resolve only if npm's relative-path rewrite cooperates, so eyeball the page once and decide whether a short npm-specific README should ride the next publish.
@@ -18,7 +18,7 @@ Pre-flip, in order:
 
 1. **Name decision.** `aragonite` on npm is squatted by a dormant unrelated package. Either the dispute has resolved in our favor or the package publishes as `@voithos-labs/aragonite`; a scope rename touches the exports subpaths in every doc and example, and requires `"publishConfig": { "access": "public" }`, so it lands as its own reviewed commit before the release cut.
 2. **History secrets scan.** The whole history goes public at once. Run a real scanner (e.g. `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source /repo --log-opts=--all`) and clear or triage every hit. The tracked tree was pattern-clean at the 2026-08 audit; the scanner is the belt.
-3. **Freeze paperwork** (if the flip is the 1.0 freeze): pre-freeze labels resolved (`grep -c pre-freeze src/lib/plugin.ts` returns 0), the freeze litmuses in `docs/roadmap.md` checked off, the external-author gate run.
+3. **Freeze paperwork** (if the flip is the 1.0 freeze): pre-freeze labels resolved in **both** published barrels (`grep -rc pre-freeze src/lib/plugin.ts src/lib/index.ts` returns 0 for each; the consumer barrel carries the markers too, so clearing only the plugin one reads green while the API still says unstable), the freeze litmuses in `docs/roadmap.md` checked off, the external-author gate run.
 
 The flip itself:
 

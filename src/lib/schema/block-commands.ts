@@ -2,7 +2,7 @@
  * The `(kind, id) → handler` block-command registry and every dispatch seam over it. A chord
  * (leaf or container bubble), the `runCommand` door and its admissibility read all resolve the
  * same tiers here, so the rules that hold regardless of invocation live at one seam.
- * Register-once, throw-on-duplicate (culture.md "Registries are code, not state"). Here, not
+ * Register-once, throw-on-duplicate (casebook.md "Registries are code, not state"). Here, not
  * `./commands`: `commands → block-commands → command-id` cycles.
  */
 import type { AnyBlockKind } from '../core/nodes';

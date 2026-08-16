@@ -58,7 +58,8 @@ than a timing problem. The predecessor editor, the pre-aragonite attempt at this
 README's Origin story), died of them.
 
 **Guard:** G4.4, whose allowlist holds the few genuine wall-clock uses (the undo debounce, the
-frame-paced autoscroll and pointermove coalescing). **Spec:** `docs/design/editor.md` § 11.
+regex-scan cancellation deadline, the frame-paced autoscroll and pointermove coalescing).
+**Spec:** `docs/design/editor.md` § 11.
 ([rule 3](rules.md#the-five-rules))
 
 ## Rules live at choke points, not call sites

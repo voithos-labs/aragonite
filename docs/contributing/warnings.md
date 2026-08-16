@@ -19,6 +19,10 @@ The sentinel is deliberate. No page script or dependency shares that prefix, so 
 can fail on ours alone. In production the emitter returns before doing anything, so none of this
 reaches a consumer.
 
+**The funnel is a contract, not a description.** It is what lets the browser gate be sound and what
+keeps a consumer's console ours-free, so library console output that reaches a user outside the
+emitter is a defect to fix at the site, never a fourth channel to document here.
+
 ## Three classes
 
 | Class              | Looks like                               | Means                                                                                                   |

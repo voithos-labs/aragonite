@@ -1,7 +1,7 @@
 // The plugin-authoring surface, published at the `aragonite/plugin` subpath. Only the
 // authoring API belongs here — not the `<Editor>` embedding barrel (index.ts), no test
 // helpers, no internal dispatch. Sections tagged (pre-freeze) may change until the 1.0
-// freeze; the tag names what the shape is being refined against.
+// freeze.
 
 import TextEditableBlock from './components/blocks/text/TextEditableBlock.svelte';
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
@@ -26,7 +26,7 @@ export { definePluginBlock } from './schema/define-plugin-block';
 export { declarePluginKind, declaredPluginKind } from './schema/plugin-kind';
 export type { PluginBlockKind, AnyBlockKind } from './core/nodes';
 
-// ── Inline authoring surface (pre-freeze: refined against the KaTeX/inline-widget work) ──
+// ── Inline authoring surface (pre-freeze) ────────────────────────────────────
 // Mint an inline kind, hook the scanner on a trigger character, register a live atomic widget.
 export {
 	declarePluginInlineKind,
@@ -75,23 +75,23 @@ export type { BlockComponent, BlockComponentExports, BlockComponentProps } from 
 // ── Parser-opener registry ───────────────────────────────────────────────────
 export { registerBlockOpener } from './schema/block-openers';
 export type { BlockOpener, BlockOpenerResult, OpenContext } from './schema/block-openers';
-// The built-in priority ladder a plugin opener prices against — see the plugin
-// guide's opener-priority section for the two placement rules.
+// The built-in priority ladder a plugin opener prices against (pre-freeze) — see the
+// plugin guide's opener-priority section for the two placement rules.
 export { OPENER_PRIORITIES } from './schema/opener-priorities';
 
-// ── Enter-completion registry (pre-freeze: refined against the caret contract) ──
+// ── Enter-completion registry (pre-freeze) ───────────────────────────────────
 // The opener's sibling for a grammar whose lines must be adjacent, which Enter alone can
 // never type into existence: a completer reads one typed line and answers the lines that
 // complete it, plus where the caret seats inside the mint.
 export { registerBlockCompleter } from './schema/block-completions';
 export type { BlockCompleter, CompletionResult } from './schema/block-completions';
 
-// ── Command vocabulary + keybindings ─────────────────────────────────────────
+// ── Command vocabulary + keybindings (pre-freeze) ────────────────────────────
 // The built-in half; a plugin's own commands are minted in the section below.
 export type { CommandId } from './schema/commands';
 export type { KeyBinding } from './schema/keybindings';
 
-// ── Command mint ─────────────────────────────────────────────────────────────
+// ── Command mint (pre-freeze) ────────────────────────────────────────────────
 // A (kind, name) block-command mints a PluginCommandId; AnyCommandId spans built-in and minted.
 export { registerBlockCommand } from './schema/block-commands';
 export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
@@ -99,7 +99,7 @@ export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 // A global command is process-wide but runs against the dispatching instance's EditorContext.
 export { registerGlobalCommand } from './schema/global-commands';
 
-// ── Parse / serialize helpers ────────────────────────────────────────────────
+// ── Parse / serialize helpers (pre-freeze) ───────────────────────────────────
 // Re-exported so an opener needn't reach into core/ deep paths the packaged artifact
 // doesn't expose.
 export { parse, type ParseScope } from './core/parser';
@@ -120,25 +120,25 @@ export { isBlankLine } from './core/parser';
 export { parseContainerBody } from './core/parser';
 export type { ContainerBodyWrap } from './core/parser';
 
-// ── Fence grammar (pre-freeze: refined against the fence-claiming reference plugins) ──
+// ── Fence grammar (pre-freeze) ───────────────────────────────────────────────
 // The built-in CommonMark fence recognizers, so a plugin claiming a fence (```mermaid)
 // never reimplements the rules. The opener match keeps verbatim indent/info bytes, for
 // byte-exact rebuilds.
 export { matchFenceOpen, matchFenceClose } from './core/parsers/fence-syntax';
 export type { FenceOpen } from './core/parsers/fence-syntax';
 
-// ── HTML tag-line grammar (pre-freeze: refined against the details reference plugin) ──
+// ── HTML tag-line grammar (pre-freeze) ───────────────────────────────────────
 // CommonMark's type-6 tag-line shape for one tag name. What actually closes such a
 // container is everything the spec passes through raw (indented, upper-cased, trailing
 // space) — looser than any canonical form a rebuild emits.
 export { htmlBlockTagLineMatcher } from './core/parsers/html-block';
 
-// ── Blockquote grammar (pre-freeze: refined against the alert-claiming reference plugin) ──
+// ── Blockquote grammar (pre-freeze) ──────────────────────────────────────────
 // The built-in blockquote extent scanner, so a plugin claiming a blockquote-shaped
 // construct (`> [!NOTE]`) reuses CommonMark §5.1 lazy continuation instead of forking it.
 export { blockquoteExtent } from './core/parsers/blockquote';
 
-// ── CST node access ────────────────────────────────────────────────────────────
+// ── CST node access (pre-freeze; the metadata pair below is stable) ──────────
 export type { CstNode } from './core/nodes';
 // Reads get bytes-readonly views; CstNode/Document stay the types a plugin CONSTRUCTS
 // (openers, factories, rebuildRaw), which stay mutable.
@@ -173,7 +173,7 @@ export { isBlockOpenerRegistered } from './schema/block-openers';
 export { isBlockCompleterRegistered } from './schema/block-completions';
 export { isPasteTransformRegistered } from './tree-operations/paste/paste-transforms';
 
-// ── Container-authoring surface (pre-freeze: refined against real plugin blocks) ──
+// ── Container-authoring surface (pre-freeze) ─────────────────────────────────
 // Lets a plugin build an editable nested container as thinly as the built-in
 // blockquote, without touching any editor context key.
 export { default as BlockList } from './components/BlockList.svelte';
@@ -196,7 +196,7 @@ export { chromeChild } from './editor-actions/plugin/chrome-leaf';
 // One definition of collapsed, shared by a component's getter and the model-layer walks.
 export { isCollapsedContainer } from './schema/reserved-chrome';
 
-// ── Editable-leaf authoring surface (pre-freeze: refined against the block-math work) ──
+// ── Editable-leaf authoring surface (pre-freeze) ─────────────────────────────
 // A text-editing leaf with native caret/IME/undo/selection parity, plain (per-keystroke
 // commits) or render-primary (reveal-to-edit, one commit on blur). The
 // createContainerBlock sibling for leaves.
@@ -209,7 +209,7 @@ export type {
 } from './components/blocks/editable-leaf';
 export type { StickyColumnDirection } from './block-component';
 
-// ── Directive authoring (pre-freeze: refined against the `:::name` directive work) ──
+// ── Directive authoring (pre-freeze) ─────────────────────────────────────────
 // `activateDirectives()` claims `:::` — call it once at startup, before the editor
 // parses. The other symbols are inert: importing them does NOT claim the grammar.
 export { activateDirectives } from './components/blocks/directive/activate-directives';
@@ -230,13 +230,13 @@ export { createDirectiveRebuild } from './editor-actions/plugin/directive-contai
 // so the editor's separator settle knows the blank line against the fence belongs to the fence.
 export { DIRECTIVE_BODY_WRAP } from './core/directive/kinds';
 
-// ── Renderer utilities ────────────────────────────────────────────────────────
+// ── Renderer utilities (pre-freeze) ──────────────────────────────────────────
 // A bounded LRU memo for a renderer's per-source work, sync or async (store the
 // promise). See the plugin guide's renderer recipe.
 export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
 
-// ── Paste transforms (pre-freeze: refined against the admonitions alert→directive rewrite) ──
+// ── Paste transforms (pre-freeze) ────────────────────────────────────────────
 // A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline
 // (null). Transforms run in install order at every paste site — never on load or typing.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';

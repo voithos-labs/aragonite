@@ -309,7 +309,7 @@ The plugin _authoring_ API ships at 1.0; 1.2 is the developer experience that ma
 
 ### 1.3 — Beyond-GFM (as plugins)
 
-De-facto GitHub.com extensions built as plugins on the 1.0 authoring API, dogfood proof the API carries third-party contributions. The reference-plugin set shipped pre-1.0: admonitions, Mermaid, and footnotes (footnotes rode the 0.9.33 inline precedence ladder), and emoji shipped on the 0.9.34 bare-`:` rung as the last of them. GitHub autolinks need no plugin (bare, `www.`, and email autolinks are already native GFM), and the remaining GitHub.com repo-context sugar (issue/PR refs like `#123`, `@`-mentions, cross-repo `user/repo#123`) stays deliberately excluded: it resolves against a repo/vault the editor does not own, so it belongs to the consumer, not the editor library. The milestone's forward scope is therefore closed; it stands as the record that the authoring API carried every beyond-GFM extension it was asked to. Had any failed to build cleanly as a plugin, that would have revealed an API gap to fix; none did.
+This milestone's scope is closed: every beyond-GFM extension it named shipped pre-1.0 as a plugin, and the changelog holds the record. What stays deliberately out is GitHub.com's repo-context sugar (issue and PR refs, `@`-mentions, cross-repo `user/repo#123`), which resolves against a repo or vault the editor does not own and so belongs to the consumer rather than the library.
 
 ### 1.4 — Git-native integration (likely a first-party plugin)
 

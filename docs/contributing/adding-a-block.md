@@ -10,18 +10,19 @@ Orient from `docs/design/editor.md` first if you haven't.
 
 ## The shape of it
 
-A block kind is two registrations and one component. The registries are the only wiring — nothing dispatches on your kind by name, and no other file grows a case for it.
+A built-in block kind is a **union member**, two registrations and one component. `core/nodes.ts` grows entries for the kind itself; past that, the registries are the only wiring — nothing dispatches on your kind by name, and no behavior file grows a case for it.
 
 ```mermaid
 flowchart LR
-  D["descriptor<br/>schema/block-kind-descriptor.ts"] --> R[("schema<br/>registries")]
+  N["union member<br/>core/nodes.ts"] --> D["descriptor<br/>schema/block-kind-descriptor.ts"]
+  D --> R[("schema<br/>registries")]
   C["component<br/>components/blocks/"] --> R
   O["opener (optional)<br/>schema/block-openers.ts"] --> R
   R --> H["BlockHost renders by kind"]
   R --> X["merge · paste · selection<br/>inline · container raw"]
 ```
 
-The **descriptor** says what your kind _is_ (mergeable? editable? a container?). The **component** says how it looks and how it takes input. The **opener** teaches the block parser to recognize your syntax — you skip it if your kind emerges from the paragraph fallback (setext headings and tables do).
+The **union member** is what makes the rest type-check. The **descriptor** says what your kind _is_ (mergeable? editable? a container?). The **component** says how it looks and how it takes input. The **opener** teaches the block parser to recognize your syntax — you skip it if your kind emerges from the paragraph fallback (setext headings and tables do).
 
 Everything downstream — merge rules, BlockHost, SelectionOverlay, paste dispatch, the inline pipeline, container-raw rebuild — reads the registries. That's the payoff: adding a kind is additive.
 
@@ -74,6 +75,16 @@ The undo/commit _ceremony_ — commit primitive, snapshot debounce — lives in 
 
 ## Registration
 
+### 0. The union member
+
+Everything below fails to compile until `core/nodes.ts` knows your kind. Four edits, all in that
+one file:
+
+1. Add the kind string to `LeafBlockKind` or `ContainerBlockKind`.
+2. Add its `true` entry to `BLOCK_KIND_TABLE`, the union-derived iteration source. It is a `Record<BlockKind, true>` precisely so the compiler flags the member you forgot.
+3. Declare the node interface and add it to the `BuiltinCstNode` arm list, so `switch (node.kind)` narrows without a cast.
+4. If the kind carries metadata, declare its shape and add it to both `BlockMetadata` and `BlockMetadataByKind`. A metadata-less kind is deliberately absent from those, which is what makes `metadataOf` reject it.
+
 ### 1. The descriptor
 
 Call `registerBlockKind(kind, registration)` in `schema/block-kind-descriptor.ts` — built-ins do this from `schema/built-in-descriptors.ts`. Core fields: merge role, `editable`, `supportsInline`, and the required `closure` block (below). `BlockKindRegistration` documents every optional hook; the ones you're most likely to want:
@@ -81,6 +92,7 @@ Call `registerBlockKind(kind, registration)` in `schema/block-kind-descriptor.ts
 | Field                   | For                                                                           |
 | ----------------------- | ----------------------------------------------------------------------------- |
 | `keymap`                | Declarative chord → command bindings                                          |
+| `conformanceFixture`    | Source parsing to your kind: **the field the conformance battery enrols on**  |
 | `getContentRange`       | Kinds whose editable span is narrower than their raw (headings)               |
 | `blockFocus`            | `'whole-block'` — an opaque childless block joins the focus-then-delete model |
 | `contextDependentKind`  | Kinds with no standalone line recognizer, whose container owns their syntax   |
@@ -90,19 +102,19 @@ Call `registerBlockKind(kind, registration)` in `schema/block-kind-descriptor.ts
 
 The required `closure` block is the kind's answer to each cross-cutting editor system — one `ClosureCell` per column, `implemented` (name the mechanism in `via`), `inherit-default` (the generic ceremony, nothing kind-specific), or `not-supported` (name the degradation). It stops a kind shipping silently closed under a subsystem nobody asked about. Two presets in `schema/closure.ts` bake the structurally-fixed cells for the common shapes — `simpleLeafClosure` (a not-mergeable source-editable leaf) and `containerClosure` (a strip/chrome container) — each still demanding the cells the kind genuinely determines, so omitting one stays a compile error; `built-in-descriptors.ts` keeps a file-local `proseLeafClosure` for the prose trio. A kind matching none of those shapes writes its row by hand. [`docs/guide/plugin-guide.md`](../guide/plugin-guide.md) § "The closure block" walks the columns and the two bootstrap coherence rules (G1.24); [`docs/design/plugin-contract.md`](../design/plugin-contract.md) § "The tier × subsystem closure matrix" is the full row-by-tier reference.
 
-Container kinds declare their container-only fields as one `container` group: required `contract` and `rebuildRaw` (implementations in `schema/container-rebuilders.ts`), optional `reservedChrome`, `containerPaste`, `unwrapRole` (the Backspace-at-start strategy — see `editor-actions/unwrap-strategies.ts`), `contentStartSpace` (a space at an empty child's content start finishes the marker the opener already minted, so it is consumed — only sound where `rebuildRaw` canonicalizes that space), and `reorderChildren` (this container's direct children reorder among themselves, by drag or Alt+↑/↓ — see `tree-operations/reorder-unit.ts`). `isContainer` is derived from the group's presence, so a leaf carrying container fields won't compile.
+Container kinds declare their container-only fields as one `container` group: required `contract` and `rebuildRaw` (implementations in `schema/container-rebuilders.ts`), optional `reservedChrome` (child 0 is a title leaf whose bytes live in the container's own raw; register the chrome kind itself through `registerChromeLeaf`), `containerPaste`, `unwrapRole` (the Backspace-at-start strategy — see `editor-actions/unwrap-strategies.ts`), `bodyWrap` (the wrap your opener parsed the body with, so the blank line against a chrome line settles as the wrap's rather than a body block's), `bodyWrite` (`normalize` plus its caret image `mapOffset`, for a container whose fixed terminator a body write could otherwise reproduce), `contentStartSpace` (a space at an empty child's content start finishes the marker the opener already minted, so it is consumed — only sound where `rebuildRaw` canonicalizes that space), and `reorderChildren` (this container's direct children reorder among themselves, by drag or Alt+↑/↓ — see `tree-operations/reorder-unit.ts`). `isContainer` is derived from the group's presence, so a leaf carrying container fields won't compile.
 
 ### 2. The component
 
 Call `registerBlockComponent(kind, defineBlockComponent(YourBlock, extraProps?))` in `components/built-in-blocks.ts`. Go through `defineBlockComponent` rather than building the entry object by hand — it's the typed constructor, and it enforces at the call site that your component's exported surface really is `BlockComponent` and its props really are a subset of what BlockHost passes.
 
-BlockHost looks up by kind and hands every block the same standard props: `node`, `index`, `myPath`, `ambientPrefix`, `ref`, plus the two it reads from editor context and threads on both dispatch branches — `document` (the root, readonly, so a block at any depth can read structure above its own node) and `rects` (the instance's measure/reveal/scroll-by-path surface). `extraProps` is a `(node) => Record<string, unknown>` supplying anything beyond that — the heading's `blockClass`, for instance.
+BlockHost looks up by kind and hands every block the same standard props: `node`, `index`, `myPath`, `ambientPrefix`, plus the two it reads from editor context and threads on both dispatch branches — `document` (the root, readonly, so a block at any depth can read structure above its own node) and `rects` (the instance's measure/reveal/scroll-by-path surface). `extraProps` is a `(node) => Record<string, unknown>` supplying anything beyond that — the heading's `blockClass`, for instance. Your surface reaches BlockHost the other way: it `bind:this`-es your component and resolves the published surface from its exports, so you publish it, never receive a handle for it.
 
 ### 3. The opener, if you need one
 
 Kinds the block parser must recognize on a line register `registerBlockOpener(kind, { priority, tryOpen, interruptsParagraph })` in `schema/block-openers.ts` — built-ins do this from `core/parsers/built-in-openers.ts`.
 
-Priority orders the parser's attempts, ascending; the built-ins occupy a 10–80 ladder, so slot yours against them. Give each kind its own priority. Ties are _deterministic_ (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
+Priority orders the parser's attempts, ascending; the built-in ladder is single-sourced in `schema/opener-priorities.ts` as `OPENER_PRIORITIES`, so slot yours against that constant rather than a number copied from a doc. Give each kind its own priority. Ties are _deterministic_ (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
 
 ### Commands
 
@@ -198,4 +210,6 @@ Nothing else changes. The language is live on the next editor mount.
 
 Complex blocks (lists, tables) get a requirement file in `src/lib/e2e/requirements/blocks/` and a spec in `src/lib/e2e/tests/blocks/`, one-to-one. Simple blocks are covered by the feature-level suites. See `docs/contributing/testing.md`.
 
-**Registration enrolls your kind in the conformance battery.** The `conformanceFixture` that rides your `closure` block — a source snippet parsing to your kind — is picked up from the live registry: the headless cells (round-trip, merge eligibility, clipboard byte-slice, undo, search degradation) run at the unit gate, and the mounted-DOM cells (focus walk, selection paint, search paint) run in the browser sweep. A cell you declared `implemented` but didn't is caught here — the closure block's promises are executed, not just asserted.
+**A `conformanceFixture` enrols your kind in the conformance battery.** The field is optional and the enrolment gates on it: declare a source snippet that parses to your kind, or the battery never sees the kind at all and nothing warns you. With it declared, the live registry is the enrolment list: the headless cells (round-trip, merge eligibility, clipboard byte-slice, undo, search degradation) run at the unit gate, and the mounted-DOM cells (focus walk, selection paint, search paint) run in the browser sweep. A cell you declared `implemented` but didn't is caught here — the closure block's promises are executed, not just asserted. Omit the field only for a kind no document scan yields in isolation, and say so in review.
+
+**A built-in container owes a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry. G4.3 fails in both directions, so a registered container with no profile and a profile for no container each red the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason; never leave it out.

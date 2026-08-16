@@ -597,8 +597,8 @@
 	}
 
 	// No arm reached through here mutates while a reveal is open (G1.26): a fire means a
-	// `runCommand` branch that skipped the fold. It guards the arms, not every entry path
-	// — a caller reaching `blockEdit` directly sees neither the fold nor this (issue #35).
+	// `runCommand` branch that skipped the fold. It guards the arms, not every entry path.
+	// TODO(#35): funnel the fold at every mutation entry path, not just the command arms.
 	function performBlockCommand(id: CommandId, perform: () => void): void {
 		assertInvariant('reveal-transition', () =>
 			widgetInteraction.isRevealing()
