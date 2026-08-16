@@ -69,7 +69,6 @@ The moving state, and the background material behind it.
 | [`roadmap.md`](roadmap.md)                                                       | Forward plan — nothing shipped                                          |
 | [`changelog.md`](changelog.md)                                                   | Shipped history — nothing speculative; index over the per-family files  |
 | [GitHub Issues](https://github.com/voithos-labs/aragonite/issues)                | Defect ledger — severity + area labelled, closed by the shipping commit |
-| [`code-review-findings.md`](code-review-findings.md)                             | The pre-freeze re-audit's findings and where each one routed            |
 | [`research/gfm-reference.md`](research/gfm-reference.md)                         | The GFM syntax the editor parses                                        |
 | [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What a plugin system must expose; where aragonite stands                |
 | [`research/code-smells.md`](research/code-smells.md)                             | Code-smell vocabulary used in reviews                                   |
