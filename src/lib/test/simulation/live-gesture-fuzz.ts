@@ -6,11 +6,11 @@
 
 import fc from 'fast-check';
 import { makeRng, type Rng } from '$lib/e2e/simulation/rng';
-import type { CstNode, Document, InlineNode } from '$lib/core/nodes';
+import type { CstNode, Document } from '$lib/core/nodes';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { isBlankParagraph, parse } from '$lib/core/parser';
+import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { constructContentRange, getContentRange, parseInline } from '$lib/core/inline';
+import { getContentRange } from '$lib/core/inline';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { isSubsequence, keepsEveryByte } from '$lib/test/harness/live-oracles';
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
@@ -25,7 +25,6 @@ import {
 import {
 	applyGesture,
 	drawsMidScalar,
-	gestureSites,
 	gestureTargets,
 	resetSurfaces,
 	scalarInteriors,
@@ -39,11 +38,9 @@ import {
 /**
  * `seam` is live diverging where the byte-literal twin holds: a defect, and what the sweep gates on,
  * plus the one absolute claim (well-formedness) that gates on either arm. `ambiguous` is both arms
- * failing the same claim — markdown's own rebinding, or the byte-literal fallback § 4.4 declares
- * (#118). `known` is a live-only divergence an open ledger issue already owns, named by
- * {@link seatIssue} and pinned by its own case.
+ * failing the same claim — markdown's own rebinding, or a byte-literal fallback § 4.4 declares.
  */
-export type ViolationCategory = 'seam' | 'ambiguous' | 'known';
+export type ViolationCategory = 'seam' | 'ambiguous';
 
 export interface Violation {
 	oracle: string;
@@ -176,73 +173,9 @@ const escapeRegExp = (run: string): string => run.replace(/[.*+?^${}()|[\]\\]/g,
  *  so a byte against `__x__` kills the pair from either side whatever a seam answers. */
 const delimitersOnScreen = (text: string): number => (text.match(/[*~`<>[\]]/g) ?? []).length;
 
-type ScreenIssue = '#116' | '#162' | '#165';
-
-/**
- * The open ledger issue a live-only screen divergence belongs to, scoped to the SHAPE each one's own
- * pin asserts so a fix reds the pin and takes the exclusion with it. `#116` is a byte landing against
- * a shared asterisk run; `#162` is the unverified seat's three shapes; `#165` is the selection
- * replace splicing typed bytes into a candidate it already verified. Everything else still gates.
- */
-function seatIssue(doc: Document, gesture: Gesture, rewrote: boolean): ScreenIssue | null {
-	// The splice happens only where the cleanup produced something to splice into.
-	if (gesture.kind === 'type-over') return rewrote ? '#165' : null;
-	if (gesture.kind !== 'type') return null;
-	// A byte the seat did NOT move is the engine's own insertion, and the twin makes it too — so a
-	// screen only live spoilt is a screen the RELOCATION spoilt, which is the whole of #162.
-	if (!rewrote) return null;
-	for (const { node, offset } of gestureSites(doc, gesture)) {
-		const near = (start: number, end: number) => offset >= start - 1 && offset <= end + 1;
-		const runsOf = (pattern: RegExp) =>
-			[...node.raw.matchAll(pattern)].some((run) => near(run.index, run.index + run[0].length));
-		if (runsOf(/\*{3,}/g)) return '#116';
-		// A run opens and closes against a word, never whitespace, and the `_`/`~` families pair only
-		// outside one — so on those the seat's outer side kills the pair its inner side would keep.
-		if (gesture.char.trim() === '' && runsOf(/[*_~`<>[\]]+/g)) return '#162';
-		if (runsOf(/[_~]+/g)) return '#162';
-		const range = getContentRange(node);
-		const empty = (nodes: readonly InlineNode[]): boolean =>
-			nodes.some((inline) => {
-				// `text` is excluded before the content test, not after: a bare run has no content range
-				// at all, so counting it as chrome standing over nothing would excuse every prose site.
-				const content = constructContentRange(inline);
-				const paintsNothing =
-					inline.kind !== 'text' && (content === null || content.start === content.end);
-				return (
-					(paintsNothing && near(inline.start, inline.end)) ||
-					(inline.children ? empty(inline.children) : false)
-				);
-			});
-		if (empty(parseInline(node.raw, range.start, range.end))) return '#162';
-	}
-	// The relocation itself, where no narrower shape named it. #162 is that the seat verifies no
-	// candidate AT ALL, so every screen a relocation spoils IS that missing verification — which does
-	// mean oracle (a) gates typing only where the seat left the byte where the caret was.
-	return '#162';
-}
-
-/**
- * The open ledger issue a live-only reload divergence belongs to, matched on the divergence AND on
- * the shape each one's pin asserts, so the exclusion cannot widen past it. `#163` is the join
- * cleaner leaving a space against a list marker; `#164` is a rebalanced split whose EMPTY first half
- * reloads as its predecessor's separator, which is a blank block the twin's split does not write.
- */
-function shapeIssue(
-	gesture: Gesture,
-	divergence: string,
-	live: Applied,
-	literal: Applied
-): '#163' | '#164' | null {
-	if (gesture.kind === 'enter') {
-		const children = divergence.match(/live has (\d+) children, reparsed has (\d+)/);
-		if (!children || Number(children[1]) !== Number(children[2]) + 1) return null;
-		return blankBlocks(live.doc) > blankBlocks(literal.doc) ? '#164' : null;
-	}
-	if (gesture.kind === 'type') return null;
-	return /listItem\.marker: live "- " != reparsed "-\s+"/.test(divergence) ? '#163' : null;
-}
-
-const blankBlocks = (doc: Document): number => doc.children.filter(isBlankParagraph).length;
+/** What the gesture asked to appear on screen, which the delimiter oracle owes it. */
+const typedRun = (gesture: Gesture): string =>
+	gesture.kind === 'type' || gesture.kind === 'type-over' ? gesture.char : '';
 
 /**
  * The § 2 license over bytes, per gesture family. Typing loses nothing; a split keeps every byte but
@@ -357,10 +290,7 @@ function judge(
 		});
 
 	const liveShape = describeConvergence(live.doc);
-	if (liveShape && describeConvergence(literal.doc) === null) {
-		const owner = shapeIssue(gesture, liveShape, live, literal);
-		say('shape', owner ? 'known' : 'seam', `${owner ? `${owner} ` : ''}${liveShape}`);
-	}
+	if (liveShape && describeConvergence(literal.doc) === null) say('shape', 'seam', liveShape);
 	const roundTrips = (bytes: string) => serialize(parse(bytes)) === bytes;
 	if (!roundTrips(live.bytes) && roundTrips(literal.bytes)) {
 		say('round-trip', 'seam', 'live bytes do not reparse to themselves');
@@ -379,28 +309,26 @@ function judge(
 	const liveScreen = documentContentText(live.doc);
 	const literalScreen = documentContentText(literal.doc);
 	const literalHolds = screenClaimHolds(gesture, screenBefore, literalScreen);
-	const issue = seatIssue(start, gesture, live.bytes !== literal.bytes);
-	// Only the seat's own numbers reach the screen-shaped pair; a lost byte or a broken reload stays
-	// `seam` whatever the shape, since no rebinding can excuse one.
-	const excused: ViolationCategory | null = issue ? 'known' : null;
 
 	if (!screenClaimHolds(gesture, screenBefore, liveScreen)) {
 		say(
 			'screen',
-			literalHolds ? (excused ?? 'seam') : 'ambiguous',
-			`${issue ?? ''} screen went ${JSON.stringify(screenBefore)} → ${JSON.stringify(liveScreen)}`
+			literalHolds ? 'seam' : 'ambiguous',
+			`screen went ${JSON.stringify(screenBefore)} → ${JSON.stringify(liveScreen)}`
 		);
 	}
 	// One-sided, as it is in the seat's own net: whatever the parse rebinds, a rewrite may never put
-	// MORE delimiters on screen than the document already showed. Stated against BEFORE rather than
+	// more delimiters on screen than the document already showed PLUS the ones the gesture typed —
+	// a `*` the user types is a glyph they asked for, and a seat that keeps it visible where the
+	// literal insert buried it inside a URL is the honest answer. Stated against BEFORE rather than
 	// against the twin, because the byte-literal edit can FORM a construct by accident and hide runs
 	// live correctly kept. A press live SWALLOWED wrote nothing, so it makes no claim at all (§ 4.4).
-	const shown = delimitersOnScreen(liveScreen);
+	const shown = delimitersOnScreen(liveScreen) - delimitersOnScreen(typedRun(gesture));
 	if (live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
 		const alsoLiteral = delimitersOnScreen(literalScreen) >= shown;
 		say(
 			'delimiters',
-			alsoLiteral ? 'ambiguous' : (excused ?? 'seam'),
+			alsoLiteral ? 'ambiguous' : 'seam',
 			`live shows ${JSON.stringify(liveScreen)} for ${JSON.stringify(screenBefore)}`
 		);
 	}
@@ -411,15 +339,9 @@ function judge(
 	// Against the document the gesture STARTED from: § 4.1 forbids writing residue, and a twin that
 	// happened to destroy a pre-existing run would otherwise read as live having minted one.
 	if (unpaintedResidue(live.doc) > unpaintedResidue(start)) {
-		// Where the twin wrote the same bytes, nothing live did minted it; a type gesture's residue is
-		// whatever the unverified seat left, so it takes the seat's number.
+		// Where the twin wrote the same bytes, nothing live did minted it.
 		const minted = live.bytes !== literal.bytes;
-		const owner = minted && gesture.kind === 'type' ? seatIssue(start, gesture, minted) : null;
-		say(
-			'residue',
-			!minted ? 'ambiguous' : owner ? 'known' : 'seam',
-			`${owner ? `${owner} ` : ''}live minted a delimiter pair enclosing nothing`
-		);
+		say('residue', minted ? 'seam' : 'ambiguous', 'live minted a delimiter pair enclosing nothing');
 	}
 	return out;
 }

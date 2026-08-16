@@ -33,6 +33,7 @@ import {
 	readOrderedSuffix
 } from '../tree-operations/list/list-builders';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
+import { settleSublistSeparator } from '../tree-operations/list/sublist-separator';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
 import type { NodeScope } from './nested/nested-actions';
@@ -117,6 +118,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// Renumber writes the moved item's marker — sharing unshares it.
 					renumberOrderedList(destList, 0, sharing);
 					rebuildListRaw(destList);
+					// After the rebuild: the separator question is asked of the sublist's own bytes.
+					settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					renumberOrderedList(outerScope.node, itemIndex, sharing);
 
 					return [
