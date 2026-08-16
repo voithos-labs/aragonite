@@ -1,31 +1,8 @@
-<script module lang="ts">
-	import { admonitionsPlugin } from '$lib/plugins/admonitions';
-	import { detailsPlugin } from '$lib/plugins/details';
-	import { emojiPlugin } from '$lib/plugins/emoji';
-	import { footnotesPlugin } from '$lib/plugins/footnotes';
-	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
-	import { latexPlugin } from '$lib/plugins/latex';
-	import { katexRenderer } from '$lib/plugins/latex/renderer';
-	import { mermaidPlugin } from '$lib/plugins/mermaid';
-	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
-	import { tocPlugin } from '$lib/plugins/toc';
-
-	// The full bundled set, so the host palette is judged with every plugin's chrome installed.
-	const BUNDLED_PLUGINS = [
-		admonitionsPlugin(),
-		detailsPlugin(),
-		emojiPlugin(),
-		footnotesPlugin(),
-		latexPlugin({ renderer: katexRenderer }),
-		mermaidPlugin({ renderer: mermaidRenderer }),
-		tocPlugin(),
-		highlightOccurrencesPlugin()
-	];
-</script>
-
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
 	import { trackParityDocument } from '../../parity-documents.svelte';
+	// The whole shared set, so the host palette is judged with every plugin's chrome installed.
+	import { DEMO_PLUGINS } from '../../demo-plugins';
 
 	/**
 	 * The themed-host embed: host-chrome tokens declared on the page wrapper and NO
@@ -213,7 +190,7 @@ An admonition picks its own palette; only the chrome around it is the host's.
 				theme={theme.type}
 				presentationMode={mode}
 				blockDragHandles={false}
-				plugins={BUNDLED_PLUGINS}
+				plugins={DEMO_PLUGINS}
 			>
 				{#snippet header()}
 					<div class="hero">

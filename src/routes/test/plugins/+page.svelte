@@ -1,17 +1,17 @@
 <script module lang="ts">
 	import { calloutPlugin } from './callout/register';
-	import { detailsPlugin } from '$lib/plugins/details';
-	import { latexPlugin } from '$lib/plugins/latex';
-	import { katexRenderer } from '$lib/plugins/latex/renderer';
-	import { admonitionsPlugin } from '$lib/plugins/admonitions';
-	import { mermaidPlugin } from '$lib/plugins/mermaid';
-	import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
+	import {
+		DEMO_ADMONITIONS,
+		DEMO_DETAILS,
+		DEMO_EMOJI,
+		DEMO_FOOTNOTES,
+		DEMO_HIGHLIGHT_OCCURRENCES,
+		DEMO_LATEX,
+		DEMO_MERMAID,
+		DEMO_TOC
+	} from '../../demo-plugins';
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
-	import { tocPlugin } from '$lib/plugins/toc';
-	import { footnotesPlugin } from '$lib/plugins/footnotes';
-	import { emojiPlugin } from '$lib/plugins/emoji';
-	import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 	import { hloccurScanProbePlugin } from './hloccur-scan/hloccur-scan-plugin';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
@@ -24,13 +24,13 @@
 	// docStatsPlugin is a bare entry (no options), covering the options-default branch.
 	const basePlugins = [
 		calloutPlugin(),
-		detailsPlugin(),
-		latexPlugin({ renderer: katexRenderer }),
-		admonitionsPlugin(),
-		mermaidPlugin({ renderer: mermaidRenderer }),
+		DEMO_DETAILS,
+		DEMO_LATEX,
+		DEMO_ADMONITIONS,
+		DEMO_MERMAID,
 		memoPlugin(),
 		docStatsPlugin,
-		tocPlugin()
+		DEMO_TOC
 	];
 
 	// Decoration dogfoods annotate ambient content, so each installs only under its own
@@ -38,15 +38,15 @@
 	const seedPlugins: Record<string, EditorPlugin[]> = {
 		// Scoped to its own seed so the `[^…]:` opener only claims lines under the
 		// footnotes battery, leaving sibling seeds' parses untouched.
-		footnotes: [footnotesPlugin()],
-		'footnotes-ref': [footnotesPlugin()],
+		footnotes: [DEMO_FOOTNOTES],
+		'footnotes-ref': [DEMO_FOOTNOTES],
 		// Emoji rides the bare `:` trigger process-wide once installed; scoped to its own
 		// seed so its rung never perturbs a sibling battery's `:`-bearing prose.
-		emoji: [emojiPlugin()],
+		emoji: [DEMO_EMOJI],
 		// The `![[…]]` rung mints a built-in `image`, so it would claim `!` for every
 		// sibling seed's prose once installed; scoped to its own.
 		'wiki-embed': [wikiEmbedPlugin],
-		hloccur: [highlightOccurrencesPlugin()],
+		hloccur: [DEMO_HIGHLIGHT_OCCURRENCES],
 		// The observability wrapper over the same shipped createOccurrenceSource, so the
 		// battery can read the index-rebuild count off window.
 		'hloccur-memo': [hloccurScanProbePlugin],

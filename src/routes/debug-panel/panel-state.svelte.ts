@@ -74,10 +74,19 @@ export function writePanelState(state: PanelStateShape): void {
 // ── Reactive state for the panel UI ───────────────────────────────────────
 
 export function createPanelState() {
-	const initial = readPanelState();
-	let state = $state<PanelStateShape>(initial);
+	let state = $state<PanelStateShape>(defaultPanelState());
+	let hydrated = $state(false);
 
+	// The stored state lands after hydration, never at init: the showcase is prerendered, so a
+	// panel opened from storage on the first client render would not match the served markup.
 	$effect(() => {
+		state = readPanelState();
+		hydrated = true;
+	});
+
+	// Gated on the read above, or a first write would persist the defaults over it.
+	$effect(() => {
+		if (!hydrated) return;
 		writePanelState(state);
 	});
 

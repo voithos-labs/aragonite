@@ -61,6 +61,8 @@ A directory reflects a decision, not an accident. Name the concept that lives th
 
 Prettier owns every formatting decision, so there is nothing to argue about. Tabs, single quotes, 100 columns — see `.prettierrc`.
 
+One exception is configured rather than argued: a Markdown code fence is quoted syntax, not code, so embedded formatting is off for `*.md`. A fence showing `~single tilde~` keeps the bytes it demonstrates instead of being rewritten into the form the demonstration is contrasting against.
+
 ```bash
 npm run format   # write
 npm run lint     # check (this one is in the commit gate)

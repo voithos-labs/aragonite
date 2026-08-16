@@ -11,15 +11,23 @@ import { mermaidRenderer } from '$lib/plugins/mermaid/renderer';
 
 // One mint site for every demo route: definitions are process-global and install first-wins, so a
 // route varying a plugin's configuration passes `{ plugin, options }` rather than its own array.
+// Exported unit by unit as well as in a set, because a route may install a subset.
+export const DEMO_ADMONITIONS = admonitionsPlugin();
+export const DEMO_DETAILS = detailsPlugin();
 export const DEMO_TOC = tocPlugin();
+export const DEMO_FOOTNOTES = footnotesPlugin();
+export const DEMO_EMOJI = emojiPlugin();
+export const DEMO_HIGHLIGHT_OCCURRENCES = highlightOccurrencesPlugin();
+export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
+export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 
 export const DEMO_PLUGINS = [
-	admonitionsPlugin(),
-	detailsPlugin(),
+	DEMO_ADMONITIONS,
+	DEMO_DETAILS,
 	DEMO_TOC,
-	footnotesPlugin(),
-	emojiPlugin(),
-	highlightOccurrencesPlugin(),
-	latexPlugin({ renderer: katexRenderer }),
-	mermaidPlugin({ renderer: mermaidRenderer })
+	DEMO_FOOTNOTES,
+	DEMO_EMOJI,
+	DEMO_HIGHLIGHT_OCCURRENCES,
+	DEMO_LATEX,
+	DEMO_MERMAID
 ];

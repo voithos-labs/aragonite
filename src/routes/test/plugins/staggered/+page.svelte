@@ -2,7 +2,8 @@
 	import { calloutPlugin } from '../callout/register';
 	import { detailsPlugin } from '$lib/plugins/details';
 
-	// Editor 2 adds detailsPlugin — the staggered late-mount this harness exercises.
+	// Editor 2 adds detailsPlugin — the staggered late-mount this harness exercises. Its own
+	// units, not the shared demo set: a set every sibling route installs has no late rung left.
 	const callout = calloutPlugin();
 	const editorOnePlugins = [callout];
 	const editorTwoPlugins = [callout, detailsPlugin()];
