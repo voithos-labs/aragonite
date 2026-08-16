@@ -90,22 +90,23 @@ function renderInlineCode(
 	opts: RenderInlineOptions
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	// Read back off `raw`, not inferred from `node.text`: every span emitted here must be a slice
-	// of raw rather than a parsed field that happens to agree.
+	// Every span is a slice of raw, never a parsed field that happens to agree — and each is its
+	// OWN slice: the opening fence is capped at half the node and the closing one read back off
+	// the tail, so a node nobody parsed (a plugin mint over unfenced bytes) still emits its bytes
+	// exactly once (G2.4).
+	const fenceLimit = node.start + Math.floor((node.end - node.start) / 2);
 	let contentStart = node.start;
-	while (contentStart < node.end && raw[contentStart] === '`') contentStart++;
-	const tickLen = contentStart - node.start;
-	const ticks = raw.slice(node.start, contentStart);
-	const content = raw.slice(contentStart, node.end - tickLen);
+	while (contentStart < fenceLimit && raw[contentStart] === '`') contentStart++;
+	const contentEnd = node.end - (contentStart - node.start);
 
-	frag.appendChild(tagConstruct(markerSpan(ticks), node, opts));
+	frag.appendChild(tagConstruct(markerSpan(raw.slice(node.start, contentStart)), node, opts));
 
 	const code = document.createElement('code');
 	code.className = 'inline-code-content';
-	code.textContent = content;
+	code.textContent = raw.slice(contentStart, contentEnd);
 	frag.appendChild(code);
 
-	frag.appendChild(tagConstruct(markerSpan(ticks), node, opts));
+	frag.appendChild(tagConstruct(markerSpan(raw.slice(contentEnd, node.end)), node, opts));
 	return frag;
 }
 
@@ -165,7 +166,9 @@ function openWrapped(
 
 // ── Links ────────────────────────────────────────────────────────────────────
 
-// Markers come from raw.slice: the parsed url/title can differ from the source bytes.
+// Markers come from raw.slice: the parsed url/title can differ from the source bytes. Every
+// split point is clamped to node.end — a plugin mint need not carry the bytes GFM's own link
+// does, and a search running past the node would render the NEXT node's source (G2.4).
 function openLink(
 	node: InlineNode,
 	raw: string,
@@ -175,11 +178,10 @@ function openLink(
 	const children = node.children ?? [];
 	if (children.length === 0) {
 		// Empty link text: [](url)
-		const mid = raw.indexOf(']', node.start);
-		container.appendChild(
-			tagConstruct(markerSpan(raw.slice(node.start, mid !== -1 ? mid : node.end)), node, opts)
-		);
-		if (mid !== -1) {
+		const bracket = raw.indexOf(']', node.start);
+		const mid = bracket !== -1 && bracket < node.end ? bracket : node.end;
+		container.appendChild(tagConstruct(markerSpan(raw.slice(node.start, mid)), node, opts));
+		if (mid < node.end) {
 			container.appendChild(tagConstruct(markerSpan(raw.slice(mid, node.end)), node, opts));
 		}
 		return null;
@@ -189,7 +191,9 @@ function openLink(
 	// The close marker splits into the text bracket's `]` and the trailing marker. Reference forms
 	// get their own `md-ref-label` class so CSS can dim them harder than inline markers.
 	const closingTextBracket =
-		raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
+		lastChild.end < node.end && raw[lastChild.end] === ']'
+			? raw.slice(lastChild.end, lastChild.end + 1)
+			: '';
 	const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
 
 	container.appendChild(
@@ -319,7 +323,14 @@ function renderNode(
 			// a `<br>` would diverge across browsers.
 			const breakRaw = raw.slice(node.start, node.end);
 			const nlIdx = breakRaw.indexOf('\n');
-			const lineEndingStart = nlIdx > 0 && breakRaw[nlIdx - 1] === '\r' ? nlIdx - 1 : nlIdx;
+			// A node carrying no line ending (a plugin mint) is all marker: a -1 here would
+			// slice from the end and drop bytes.
+			const lineEndingStart =
+				nlIdx === -1
+					? breakRaw.length
+					: nlIdx > 0 && breakRaw[nlIdx - 1] === '\r'
+						? nlIdx - 1
+						: nlIdx;
 			if (lineEndingStart > 0) {
 				container.appendChild(markerSpan(breakRaw.slice(0, lineEndingStart)));
 			}

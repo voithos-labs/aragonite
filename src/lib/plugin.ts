@@ -75,6 +75,10 @@ export type { BlockComponent, BlockComponentExports, BlockComponentProps } from 
 // ── Parser-opener registry ───────────────────────────────────────────────────
 export { registerBlockOpener } from './schema/block-openers';
 export type { BlockOpener, BlockOpenerResult, OpenContext } from './schema/block-openers';
+// The shared "does this line start a block at the outer level" gate, so a container opener
+// scanning its own extent ends it where cmark-gfm does instead of forking the rule.
+export { lineStartsOuterBlock } from './schema/block-openers';
+export type { OuterBlockScan } from './schema/block-openers';
 // The built-in priority ladder a plugin opener prices against (pre-freeze) — see the
 // plugin guide's opener-priority section for the two placement rules.
 export { OPENER_PRIORITIES } from './schema/opener-priorities';

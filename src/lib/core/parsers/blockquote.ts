@@ -8,6 +8,7 @@ import { joinRaw, parseBlocks, isBlankLine } from '../parser';
 import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
+	lineStartsOuterBlock,
 	type BlockOpenerResult
 } from '../../schema/block-openers';
 
@@ -47,7 +48,11 @@ export function blockquoteExtent(
 			i++;
 			continue;
 		}
-		if (paragraphOpen && wouldKeepParagraphOpen(lineText)) {
+		if (
+			paragraphOpen &&
+			wouldKeepParagraphOpen(lineText) &&
+			!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+		) {
 			i++;
 			continue;
 		}

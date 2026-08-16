@@ -7,6 +7,7 @@ import type { ParsedLine } from '../lines';
 import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
 import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
+import { matchSetextUnderline } from './paragraph';
 
 export function parseLinkReferenceDefinition(
 	lines: ParsedLine[],
@@ -57,7 +58,8 @@ function stripLeadingSpaces(s: string): string {
 
 /**
  * CommonMark §4.7 allows one line ending before the destination, so an empty same-line tail
- * defers to the next line. A next line that opens a block, or an empty one, declines.
+ * defers to the next line. A next line that opens a block or underlines the label line as a
+ * setext heading, and an empty one, decline.
  */
 function resolveDestinationSegment(
 	afterColon: string,
@@ -72,6 +74,7 @@ function resolveDestinationSegment(
 	if (nextLineIndex >= endIndex) return null;
 	const nextLine = lines[nextLineIndex];
 	if (lineInterruptsParagraph(nextLine.text)) return null;
+	if (matchSetextUnderline(nextLine.text)) return null;
 	const segment = stripLeadingSpaces(nextLine.text);
 	if (segment.length === 0) return null;
 	return { segment, segmentLine: nextLineIndex };
@@ -96,8 +99,10 @@ function matchLabelOpener(line: string): { label: string; afterColon: string } |
 	}
 	if (j >= line.length || line[j] !== ']') return null;
 	if (j + 1 >= line.length || line[j + 1] !== ':') return null;
-	if (j === labelStart) return null;
-	return { label: line.slice(labelStart, j), afterColon: line.slice(j + 2) };
+	const label = line.slice(labelStart, j);
+	// §4.7: a label holds at least one non-whitespace character.
+	if (label.trim() === '') return null;
+	return { label, afterColon: line.slice(j + 2) };
 }
 
 function parseUrl(s: string): { url: string; consumed: number } | null {

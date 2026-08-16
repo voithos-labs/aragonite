@@ -45,13 +45,29 @@ export function checkCrossBlockEndpointCoordinates(
 		['anchor', anchor],
 		['focus', focus]
 	] as const) {
-		if (point.cellCoordinate) continue;
 		const node = resolve(doc, point.path);
 		if (!node) continue;
-		const violation = checkCharOffset(role, point, node);
+		const violation = point.cellCoordinate
+			? checkCellCoordinate(role, point, node)
+			: checkCharOffset(role, point, node);
 		if (violation) return violation;
 	}
 	return null;
+}
+
+/** The flag's other direction: a cell index against a block with no cells reads as a character
+ *  offset downstream, so the same corruption arrives from the opposite producer. */
+function checkCellCoordinate(
+	role: 'anchor' | 'focus',
+	point: EndpointCoordinate,
+	node: NodeView
+): InvariantViolation | null {
+	if (node.kind === 'table') return null;
+	return {
+		code: 'endpoint-cell-coordinate-off-table',
+		message: `cross-block ${role} [${point.path.join(',')}] carries a cell index (${point.offset}) against a "${node.kind}", which has no cells`,
+		detail: { role, path: [...point.path], offset: point.offset }
+	};
 }
 
 function checkCharOffset(

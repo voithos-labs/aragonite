@@ -6,7 +6,13 @@ import { joinRaw, isBlankLine } from '../parser';
 import type { BlockOpenerResult } from '../../schema/block-openers';
 
 export function matchIndentedCode(text: string): boolean {
-	return /^(?: {4}|\t)/.test(text);
+	// GFM §2.2: a tab advances to the next 4-column stop, so `  \t` is four columns of indent.
+	let col = 0;
+	for (let i = 0; i < text.length && (text[i] === ' ' || text[i] === '\t'); i++) {
+		col += text[i] === '\t' ? 4 - (col % 4) : 1;
+		if (col >= 4) return true;
+	}
+	return false;
 }
 
 export function parseIndentedCode(
