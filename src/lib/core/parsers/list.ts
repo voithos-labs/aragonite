@@ -44,12 +44,12 @@ function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string 
 }
 
 /**
- * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1`, so
- * "... is 2. bananas" is not a list. Standalone list parsing accepts any ordered number.
+ * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1` AND its
+ * first item is non-empty, so neither "... is 2. bananas" nor a content-less marker is a list.
+ * Standalone list parsing (`matchListItem`) accepts both.
  */
 export function canInterruptParagraph(text: string): boolean {
-	if (/^ {0,3}[-*+]\s+/.test(text)) return true;
-	return /^ {0,3}1[.)]\s+/.test(text);
+	return /^ {0,3}(?:[-*+]|1[.)])[ \t]+\S/.test(text);
 }
 
 export function parseList(

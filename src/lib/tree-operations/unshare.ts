@@ -19,6 +19,7 @@ import { trimTrailingLineEnding } from '../core/lines';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { cloneMetadata } from './clone';
 import { absorbWindowSeams, lineOpensAs, reclassifyContainer } from './node-ops';
+import { settleSublistSeparator } from './list/sublist-separator';
 
 function copyNode(node: NodeView, sharing: SharingState): CstNode {
 	const copy = { ...node } as CstNode;
@@ -220,6 +221,9 @@ export function rebuildUnsharedChain(
 				reclassified.push({ siblings, index, previous: node, replacement });
 			}
 		}
+		// Ahead of the seam ask, which then reads the settled bytes: a list rebuilt down to an
+		// empty marker owes the paragraph above it a separating line.
+		if (openerMoved) settleSublistSeparator(siblings, index);
 		// After the re-derive: the seam reads whatever occupies the slot now.
 		if (folds) {
 			settleSlotSeams(

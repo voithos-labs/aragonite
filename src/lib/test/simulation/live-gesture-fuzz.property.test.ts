@@ -82,12 +82,6 @@ describe('live-mode gestures at hidden edges', () => {
 		expect(stats.midScalar['range-delete']).toBeGreaterThan(0);
 	});
 
-	// The excused classes have to be REACHED by the default seed, or the exclusions are unexercised
-	// prose and the gate below them proves nothing about the shapes they name.
-	it('draws the shapes its exclusions name', () => {
-		expect(stats.violations.filter((v) => v.category === 'known').length).toBeGreaterThan(0);
-	});
-
 	/**
 	 * The unnamed bucket, held to a ceiling rather than left unbounded. Every entry is a divergence
 	 * the byte-literal twin has too, so none is live's to answer — but an unwatched bucket absorbs
@@ -133,80 +127,79 @@ async function liveAndLiteral(source: string, over: Partial<Gesture>) {
 }
 
 /**
- * The open issues the sweep excuses, each pinned to the shape that earns the exclusion. A pin
- * asserts the CURRENT bytes, so closing the issue reds it and the exclusion has to go with it.
+ * The shapes the sweep once excused, kept as the fixes' regression pins: each was a live-only
+ * divergence with a ledger number, and each now writes what the byte-literal twin writes.
  */
-describe('the shapes the sweep excuses, and the issues that own them', () => {
-	// #116: a run of three or more asterisks shared between a nested pair. Either seat rebinds the
-	// pairing, and the near side happens to be the one that keeps this screen.
-	it('#116 — a byte seated against a shared asterisk run rebinds the pairing', async () => {
+describe('the shapes that used to need an exclusion', () => {
+	// #116: a run of three or more asterisks shared between a nested pair. No seat keeps the
+	// pairing, so the seat declines and the byte lands where the caret already was.
+	it('#116 — a byte against a shared asterisk run lands at the caret', async () => {
 		const at = { kind: 'type' as const, offset: 18, char: 'a' };
-		const outside = await liveAndLiteral('******foo***![](u)**\n', { ...at, affinity: 'outside' });
-		expect(outside.live).toBe('******foo***![](u)**a\n');
-		expect(outside.screen).toBe('***foo**a');
-		const near = await liveAndLiteral('******foo***![](u)**\n', { ...at, affinity: 'near' });
-		expect(near.screen).toBe('*fooa');
+		for (const affinity of ['outside', 'near'] as const) {
+			const drawn = await liveAndLiteral('******foo***![](u)**\n', { ...at, affinity });
+			expect(drawn.live, affinity).toBe(drawn.literal);
+			expect(drawn.screen, affinity).toBe('*fooa');
+		}
 	});
 
-	// #162: the seat writes without verifying its candidate through the render path, so a space
-	// seated just inside an opener kills the construct and paints both its runs.
-	it('#162 — a space seated inside an opener paints the run it broke', async () => {
+	// #162: a space seated just inside an opener kills the construct and paints both its runs, so
+	// the painter rejects that candidate and the outside reading is written instead.
+	it('#162 — a space at an opener seats outside the run it would break', async () => {
 		const far = await liveAndLiteral('**bold** x\n', { offset: 0, char: ' ', affinity: 'far' });
-		expect(far.live).toBe('** bold** x\n');
-		expect(far.screen).toBe('** bold** x');
-		expect(far.literal).toBe(' **bold** x\n');
+		expect(far.live).toBe(' **bold** x\n');
+		expect(far.live).toBe(far.literal);
+		expect(far.screen).toBe(' bold x');
 	});
 
-	// #162, second shape: a byte seated across a content-empty construct surfaces its delimiters.
-	it('#162 — a byte seated across content-empty chrome surfaces it', async () => {
+	// #162, second shape: no seat across a content-empty construct keeps its delimiters hidden, so
+	// the caret's own offset stands.
+	it('#162 — a byte across content-empty chrome surfaces nothing', async () => {
 		const seated = await liveAndLiteral('**[](u)**&amp; z\n', {
 			offset: 2,
 			char: 'a',
 			affinity: 'outside'
 		});
-		expect(seated.live).toBe('a**[](u)**&amp; z\n');
-		expect(seated.screen).toBe('a****& z');
+		expect(seated.live).toBe(seated.literal);
+		expect(seated.screen).toBe('a& z');
 	});
 
-	// #118: a cut through a childless construct writes its delimiters onto the screen. The painting
-	// side gate (`paintsOnlyChrome`) does NOT reach it — an autolink HAS content, so its chrome
-	// hides — and § 4.4 declares the byte-literal fallback rather than trading the round-trip.
-	it('#118 — a split inside an autolink stays byte-literal, brackets and all', async () => {
+	// #118, settled: a childless construct has no interior a cut can land in, so the cut moves to
+	// its nearer edge and one half takes it whole — every byte kept, no delimiter on screen.
+	it('#118 — a split inside an autolink takes the whole autolink', async () => {
 		const cut = await liveAndLiteral('<https://example.com> tail\n', { kind: 'enter', offset: 13 });
-		expect(cut.live).toBe('<https://exam\n\nple.com> tail\n');
-		expect(cut.live).toBe(cut.literal);
-		expect(cut.screen).toBe('<https://exam\nple.com> tail');
+		expect(cut.live).toBe('<https://example.com>\n\n tail\n');
+		expect(cut.literal).toBe('<https://exam\n\nple.com> tail\n');
+		expect(cut.screen).toBe('https://example.com\n tail');
 	});
 
-	// #165: the selection replace verifies the cleaned join, then splices the typed bytes into it —
-	// so the flanking the check saw is not the flanking the seam writes, and a pair can surface.
-	it('#165 — the selection replace splices typed bytes past its own verification', async () => {
+	// #165: the typed run rides the seam into the cleanup's own verification, so the reading that
+	// would surface a pair around it is rejected and the literal replace stands.
+	it('#165 — the selection replace verifies the bytes it writes', async () => {
 		const typed = await liveAndLiteral('lorem*汉[](u)*`a`\n', {
 			kind: 'type-over',
 			offset: 14,
 			endOffset: 16,
 			char: 'a'
 		});
-		expect(typed.live).toBe('lorem*汉[](u)*a\n');
-		expect(typed.screen).toBe('lorem*汉*a');
-		expect(typed.literal).toBe('lorem*汉[](u)*`a\n');
+		expect(typed.live).toBe(typed.literal);
+		expect(typed.screen).toBe('lorem汉`a');
 	});
 
-	// #163: the cleaned join leaves the item's body starting with a space, and the reload folds it
-	// into the marker — the live tree and the reload disagree about where the marker ends.
-	it('#163 — a cleaned join in a list item moves the marker on reload', async () => {
+	// #163: the cleaned body would start with a space the item's marker absorbs on reload, so the
+	// seam reads its candidate back through the marker and declines it.
+	it('#163 — a join in a list item keeps the marker the tree holds', async () => {
 		const cut = await liveAndLiteral('- **a b** c\n', {
 			kind: 'range-delete',
 			offset: 0,
 			endOffset: 5
 		});
-		expect(cut.live).toBe('-  c\n');
-		expect(cut.shape).toBe('[0,0] listItem.marker: live "- " != reparsed "-  "');
-		expect(cut.literalShape).toBeNull();
+		expect(cut.live).toBe('- ** c\n');
+		expect(cut.live).toBe(cut.literal);
+		expect(cut.shape).toBeNull();
 	});
 
-	// #164's shape, now settled: the rebalanced split's empty first half owes a blank line of its
-	// own, which the splice settle's seam ask (GH #183) hands it like any other window.
+	// #164's shape, settled by the splice settle's seam ask (GH #183): the rebalanced split's empty
+	// first half owes a blank line of its own, handed to it like any other window.
 	it('#164 — a split with an empty first half converges', async () => {
 		const cut = await liveAndLiteral('## \n**a**b\n', { kind: 'enter', leaf: 1, offset: 2 });
 		expect(cut.live).toBe('## \n\n**a**b\n');
