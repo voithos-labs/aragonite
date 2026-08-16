@@ -18,6 +18,14 @@ export interface TextBatch {
 	 */
 	keystroke(leafPath: number[], offset: number, batchKey?: string | number): void;
 	/**
+	 * Start the pause window, called once the keystroke's own edit has SETTLED. Split from
+	 * `keystroke` because the window measures the gap the user leaves, not the gap plus the
+	 * editor's own work: armed before the settle, a keystroke whose processing approaches the
+	 * window opens a fresh batch every time and undo granularity collapses to one entry per
+	 * character (#71). A no-op with no live batch.
+	 */
+	armPause(): void;
+	/**
 	 * Structural-commit interrupt: cancel the pause timer, flush the pending input
 	 * event, and require a fresh snapshot from the next keystroke.
 	 */
@@ -64,6 +72,9 @@ export function createTextBatch(deps: TextBatchDeps): TextBatch {
 				needsCheckpoint = false;
 			}
 			batchByteLength++;
+		},
+		armPause() {
+			if (needsCheckpoint) return;
 			clearTimer();
 			// Wall-clock pause detection, not async sequencing (G4.4 allowlist):
 			// tick() is microtask-grained and can't express "stopped typing ~250ms".

@@ -37,6 +37,22 @@ describe('buildDiagnosticsReport', () => {
 		expect(out).toContain(SECRET);
 	});
 
+	// Miss-analysis: every case fed the report bodies that were prose, so nothing drew the one
+	// content a diagnostics dump most reliably carries — a document with a code fence in it.
+	it('escalates a section fence past a fence run in its own body', () => {
+		const out = buildDiagnosticsReport({
+			timestamp: 't',
+			trace: '',
+			opsLog: '',
+			selection: '',
+			source: '```js\nconst a = 1;\n```\n',
+			includeSource: true
+		});
+		const source = out.slice(out.indexOf('## Source'));
+		expect(source).toContain('````\n```js');
+		expect(source.trimEnd().endsWith('````')).toBe(true);
+	});
+
 	it('renders (empty) for a blank section body', () => {
 		const out = buildDiagnosticsReport({
 			timestamp: 't',

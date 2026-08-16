@@ -17,7 +17,7 @@ import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 import type { AnyCommandId } from '$lib/schema/command-id';
 
 // No cross-block range in these cases; the seam's range decline has its own suite.
-const GATES = { isCrossBlockRange: () => false };
+const GATES = { getPresentationMode: () => 'source' as const, isCrossBlockRange: () => false };
 
 // Declared once at module scope: the reset clears the command registry, not the
 // plugin-kind declarations, so a per-test declare would double-throw.

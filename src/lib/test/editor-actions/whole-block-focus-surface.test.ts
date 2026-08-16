@@ -75,6 +75,56 @@ describe('composeWholeBlockFocusSurface', () => {
 	});
 });
 
+// Miss-analysis: the one-tab-stop rule was prose beside the proxy's `tabIndex = 0`, and the only
+// case that measured a tab order drove the built-in separator — which already declares -1 in its
+// markup. Nothing read a SUPPLIED surface's tabindex, so the two kinds that declare 0 (mermaid's
+// five render states, the opaque-container fixture) satisfied every green test in the repo.
+describe('the declared surface leaves the tab order', () => {
+	function surfaceOver(getDeclared: () => HTMLElement | null) {
+		return composeWholeBlockFocusSurface(
+			getDeclared,
+			() => box(),
+			() => 'mermaid'
+		);
+	}
+
+	it('demotes a focusable non-editable surface, and leaves an unfocusable one alone', () => {
+		const declared = box();
+		declared.tabIndex = 0;
+		const plain = box();
+		expect(surfaceOver(() => declared)()).toBe(declared);
+		expect(declared.tabIndex).toBe(-1);
+		expect(surfaceOver(() => plain)()).toBe(plain);
+		expect(plain.hasAttribute('tabindex')).toBe(false);
+	});
+
+	// The plugin's own caret host: taking it out of the tab order would make the block's edit
+	// mode unreachable by keyboard.
+	it('leaves a natively editable declared surface in the tab order', () => {
+		const textarea = document.createElement('textarea');
+		document.body.appendChild(textarea);
+		expect(surfaceOver(() => textarea)()).toBe(textarea);
+		expect(textarea.tabIndex).toBe(0);
+	});
+
+	// A kind's declared element is per render state, so a demotion applied once at mount reaches
+	// only the state that happened to be showing — mermaid's loading surface, never its viewport.
+	it('demotes the surface a LATER render state supplies', () => {
+		const loading = box();
+		loading.tabIndex = 0;
+		const viewport = box();
+		viewport.tabIndex = 0;
+		let declared = loading;
+		const surface = surfaceOver(() => declared);
+
+		surface();
+		declared = viewport;
+		surface();
+
+		expect([loading.tabIndex, viewport.tabIndex]).toEqual([-1, -1]);
+	});
+});
+
 describe('container shim through a composed fallback surface', () => {
 	// Every shim here composes the fallback the describe above pins; the shim's focus is the subject.
 	afterEach(() => allowDevWarns(['container-block']));

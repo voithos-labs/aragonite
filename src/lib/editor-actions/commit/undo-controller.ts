@@ -697,6 +697,7 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		pushUndoSnapshot,
 		pushUndoSnapshotPath,
 		pushUndoSnapshotDebounced: textBatch.keystroke,
+		armUndoPause: textBatch.armPause,
 		commitStructural,
 		commitContainerStructural,
 		commitMultiScope,

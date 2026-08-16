@@ -3,7 +3,7 @@ import {
 	clampWidth,
 	keyboardResizeWidth,
 	snapWidth,
-	resolveAspectLockedHeight,
+	resolveDraggedHeight,
 	KEYBOARD_MIN_WIDTH,
 	MIN_WIDTH
 } from '../../components/image/image-resize';
@@ -59,14 +59,17 @@ describe('snapWidth', () => {
 	});
 });
 
-describe('resolveAspectLockedHeight', () => {
-	it('preserves aspect ratio', () => {
-		expect(resolveAspectLockedHeight(400, 800, 600)).toBe(300);
+// Miss-analysis: the suite tested the aspect helper the commit called and never asked whether
+// the DRAG that reached it wanted an aspect-preserving height, so the preview branch and the
+// commit branch could read opposite senses of the same flag with every case still green.
+describe('resolveDraggedHeight', () => {
+	it('leaves an aspect-locked drag to the `|N` form, whatever the box measured', () => {
+		expect(resolveDraggedHeight(true, 300)).toBeUndefined();
 	});
-	it('rounds to integer', () => {
-		expect(resolveAspectLockedHeight(401, 800, 600)).toBe(301);
+	it('carries the height an unlocked drag held, rounded', () => {
+		expect(resolveDraggedHeight(false, 300.4)).toBe(300);
 	});
-	it('returns undefined when naturalWidth is 0 (not-yet-loaded image, avoids |Nx0)', () => {
-		expect(resolveAspectLockedHeight(400, 0, 600)).toBeUndefined();
+	it('declines a box that never laid out rather than committing |Nx0', () => {
+		expect(resolveDraggedHeight(false, 0)).toBeUndefined();
 	});
 });

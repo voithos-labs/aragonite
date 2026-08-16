@@ -23,6 +23,87 @@ export function createBlockEditActions(
 	const scope = createTopLevelScope(deps, controller);
 	const core = createBlockEditCore(scope);
 
+	// The keystroke's own work, split out so `updateBlockContent` owns the batch ceremony
+	// around it and nothing inside can return past the pause arm.
+	async function applyContentUpdate(
+		blockIndex: number,
+		text: string,
+		preEditOffset?: number,
+		postEditFocusOffset?: number
+	): Promise<void> {
+		// The structural path's live mutation runs inside the ceremony, so a
+		// multi-block splice never touches the live children array out-of-commit.
+		const preview = previewContentReparse(
+			deps.doc.children[blockIndex],
+			text,
+			deps.grammar,
+			undefined,
+			blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : ''
+		);
+
+		if (preview.op !== 'noop') {
+			const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
+			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+			await scope.commit({
+				snapshot: 'skip',
+				eventTarget: blockIndex,
+				op: { kind: 'updateContent', detail: { length: text.length } },
+				// ownerKind undefined is the ANSWER, not an omission: the document root
+				// imposes no body grammar. The suffix rides as accessors so the tail
+				// settle folds against the live document.
+				mutate: (view) => {
+					view.unshareChild(blockIndex);
+					settled = performUpdate(
+						{
+							children: view.children,
+							ownerKind: undefined,
+							owner: undefined,
+							get suffix() {
+								return deps.doc.suffix;
+							},
+							set suffix(value: string) {
+								deps.doc.suffix = value;
+							}
+						},
+						blockIndex,
+						text,
+						deps.grammar,
+						view.sharing
+					);
+					stampStructuralChange(view.children, settled.change, view.sharing);
+					return settled.change;
+				},
+				afterTick: () => focusAfterContentReplace([], blockIndex, settled, focusOffset, scope)
+			});
+			return;
+		}
+
+		// Routine typing: an out-of-ceremony in-place write, so copy the node first when a
+		// snapshot shares it. Slotless parent on purpose — the preview already routed every
+		// suffix materialization into the ceremony, so none can happen here.
+		ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
+		const settled = performUpdate(
+			{ children: deps.doc.children, ownerKind: undefined, owner: undefined },
+			blockIndex,
+			text,
+			deps.grammar,
+			deps.sharing
+		);
+		// A blank-fill settle can still FOLD here — the single-node preview probe has no
+		// neighbour to absorb it — so this path publishes its own descriptor and re-lands the
+		// caret, which the ceremony would otherwise have done.
+		if (settled.change.op === 'noop') return;
+		publishScopeFold(deps, undefined, settled.change);
+		await tick();
+		focusAfterContentReplace(
+			[],
+			blockIndex,
+			settled,
+			postEditFocusOffset ?? preEditOffset ?? 0,
+			scope
+		);
+	}
+
 	const actions: BlockEditActions = {
 		// ── Structural split / merge / delete (shared core) ───────────────────
 
@@ -67,78 +148,13 @@ export function createBlockEditActions(
 				preEditOffset ?? 0,
 				deps.blockIds[blockIndex]
 			);
-
-			// The structural path's live mutation runs inside the ceremony, so a
-			// multi-block splice never touches the live children array out-of-commit.
-			const preview = previewContentReparse(
-				deps.doc.children[blockIndex],
-				text,
-				deps.grammar,
-				undefined,
-				blockIndex === deps.doc.children.length - 1 ? deps.doc.suffix : ''
-			);
-
-			if (preview.op !== 'noop') {
-				const focusOffset = postEditFocusOffset ?? preEditOffset ?? 0;
-				let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
-				await scope.commit({
-					snapshot: 'skip',
-					eventTarget: blockIndex,
-					op: { kind: 'updateContent', detail: { length: text.length } },
-					// ownerKind undefined is the ANSWER, not an omission: the document root
-					// imposes no body grammar. The suffix rides as accessors so the tail
-					// settle folds against the live document.
-					mutate: (view) => {
-						view.unshareChild(blockIndex);
-						settled = performUpdate(
-							{
-								children: view.children,
-								ownerKind: undefined,
-								owner: undefined,
-								get suffix() {
-									return deps.doc.suffix;
-								},
-								set suffix(value: string) {
-									deps.doc.suffix = value;
-								}
-							},
-							blockIndex,
-							text,
-							deps.grammar,
-							view.sharing
-						);
-						stampStructuralChange(view.children, settled.change, view.sharing);
-						return settled.change;
-					},
-					afterTick: () => focusAfterContentReplace([], blockIndex, settled, focusOffset, scope)
-				});
-				return;
+			// The pause window opens once this keystroke's own work is done, throw included: an
+			// unarmed batch never ends by pause and would swallow every later keystroke (#71).
+			try {
+				await applyContentUpdate(blockIndex, text, preEditOffset, postEditFocusOffset);
+			} finally {
+				controller.armUndoPause();
 			}
-
-			// Routine typing: an out-of-ceremony in-place write, so copy the node first when a
-			// snapshot shares it. Slotless parent on purpose — the preview already routed every
-			// suffix materialization into the ceremony, so none can happen here.
-			ensureUnsharedPath(deps.doc, [blockIndex], deps.sharing);
-			const settled = performUpdate(
-				{ children: deps.doc.children, ownerKind: undefined, owner: undefined },
-				blockIndex,
-				text,
-				deps.grammar,
-				deps.sharing
-			);
-			// A blank-fill settle can still FOLD here — the single-node preview probe has no
-			// neighbour to absorb it — so this path publishes its own descriptor and re-lands the
-			// caret, which the ceremony would otherwise have done.
-			if (settled.change.op === 'noop') return;
-			publishScopeFold(deps, undefined, settled.change);
-			await tick();
-			focusAfterContentReplace(
-				[],
-				blockIndex,
-				settled,
-				postEditFocusOffset ?? preEditOffset ?? 0,
-				scope
-			);
 		}
 	};
 

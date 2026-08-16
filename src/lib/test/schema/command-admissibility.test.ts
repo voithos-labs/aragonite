@@ -27,6 +27,7 @@ afterEach(() => {
 function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
 	return {
 		history: { requestUndo: () => {}, requestRedo: () => {} },
+		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => false,
 		...over
 	};

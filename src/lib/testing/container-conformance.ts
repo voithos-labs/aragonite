@@ -754,11 +754,18 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 			`node, and a fixture without one would skip it silently while the declarations cell reads ` +
 			`asserted`
 	);
-	assert(
-		node.children?.length,
-		`${kind} conformanceFixture opens a "${kind}" with no body child, leaving its ` +
-			`container.bodyWrap declaration unprobed`
-	);
+	// A container that keeps its body in metadata parses childless, so there is no body child for a
+	// blank line to peel off — the probe has nothing to run and the declaration must be absent,
+	// since a wrap the parse can never perform would tell the separator settle a falsehood.
+	if (!node.children?.length) {
+		assertIs(
+			descriptor.bodyWrap?.afterOpenerLine,
+			undefined,
+			`${kind} parses childless (its body lives in metadata), so a blank line against its ` +
+				`opener belongs to that body — drop the container.bodyWrap declaration`
+		);
+		return;
+	}
 
 	const expected = node.children.length;
 	const ending = trailingLineEnding(node.raw) || '\n';

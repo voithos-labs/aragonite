@@ -396,43 +396,54 @@
 		return true;
 	}
 
-	// Every chord the `tableCell` keymap binds arrives here, including from cross-block
-	// dispatch, which carries no event — so the 'native'/'select-all-step' plans are
-	// declined below and only the action plans run.
-	export function runCommand(id: CommandId): boolean {
-		if (!el) return false;
+	/**
+	 * The cell's mutation funnel. A live reveal holds this cell's bytes in ephemeral DOM the CST
+	 * has not seen, so a mutation would either splice the pre-reveal source or re-derive the whole
+	 * row from cell raws — dropping the edit. Fold, settle, then act.
+	 */
+	function afterRevealFold(run: () => void): void {
+		if (!widgetInteraction.isRevealing()) {
+			run();
+			return;
+		}
+		const fold = widgetInteraction.foldRevealBeforeMutation();
+		void (fold?.settled ?? tick()).then(run);
+	}
+
+	/** One arm per command this cell owns, resolved BEFORE any fold so the fold sits between
+	 *  resolution and mutation — the prose surface's split. Null declines the chord. */
+	function cellCommand(id: CommandId, contentEl: HTMLElement): (() => void) | null {
 		// The format chords are rows: the construct that declares a mark names the command that
 		// toggles it, so this surface grows a new one without an arm.
 		const marked = inlineMarkForCommand(id);
-		if (marked) return toggleFormat(marked.kind);
+		if (marked) return () => void toggleFormat(marked.kind);
 		// Consumed whether or not it enters, the prose surface's rule on this surface too:
 		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {
-			enterLinkCardAtCaret({
-				contentEl: el,
-				block: node,
-				path: myPath,
-				linkRef,
-				card: linkCard,
-				mode: presentationMode,
-				// Null declines create here: cell raw carries pipe escapes, its own wrap policy.
-				selection: null,
-				crossBlockRange: selection.isCrossBlock
-			});
-			return true;
+			return () =>
+				enterLinkCardAtCaret({
+					contentEl,
+					block: node,
+					path: myPath,
+					linkRef,
+					card: linkCard,
+					mode: presentationMode,
+					// Null declines create here: cell raw carries pipe escapes, its own wrap policy.
+					selection: null,
+					crossBlockRange: selection.isCrossBlock
+				});
 		}
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {
-			void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
-			return true;
+			return () =>
+				void tableContext[axisCommand.action](axisCommand.axis === 'row' ? rowIdx : colIdx);
 		}
 		// Moves the whole table: the reorder walk resolves the unit at the nearest ancestor
 		// that reorders its children, which a table's grid rows are not.
 		if (id === 'block.moveUp' || id === 'block.moveDown') {
-			void reorder.nudgeReorderUnit(myPath, id === 'block.moveUp' ? -1 : 1);
-			return true;
+			return () => void reorder.nudgeReorderUnit(myPath, id === 'block.moveUp' ? -1 : 1);
 		}
-		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return false;
+		if (id !== 'cell.enter' && id !== 'cell.tab' && id !== 'cell.shiftTab') return null;
 		const plan = cellKeydownPlan(
 			{
 				key: id === 'cell.enter' ? 'Enter' : 'Tab',
@@ -442,8 +453,18 @@
 			},
 			cellPlanState(cursor.getRaw() ?? 0)
 		);
-		if (plan.kind === 'native' || plan.kind === 'select-all-step') return false;
-		void applyCellPlan(plan);
+		if (plan.kind === 'native' || plan.kind === 'select-all-step') return null;
+		return () => void applyCellPlan(plan);
+	}
+
+	// Every chord the `tableCell` keymap binds arrives here, including from cross-block
+	// dispatch, which carries no event — so the 'native'/'select-all-step' plans are
+	// declined by the arm table and only the action plans run.
+	export function runCommand(id: CommandId): boolean {
+		if (!el) return false;
+		const perform = cellCommand(id, el);
+		if (!perform) return false;
+		afterRevealFold(perform);
 		return true;
 	}
 
@@ -690,8 +711,12 @@
 		}
 	}
 
-	// The navigation plans, no live event needed; the caller preventDefaults.
+	// The navigation plans, no live event needed; the caller preventDefaults. The fold is here
+	// rather than at each caller: insert-row-below rebuilds every row from cell raws, so an open
+	// reveal's edit would be re-derived away.
 	async function applyCellPlan(plan: CellKeyPlan): Promise<void> {
+		const fold = widgetInteraction.foldRevealBeforeMutation();
+		if (fold) await fold.settled;
 		switch (plan.kind) {
 			case 'focus-cell':
 				if (plan.setStickyColumn !== undefined) tableContext.setStickyColumn(plan.setStickyColumn);
@@ -777,6 +802,10 @@
 			// which the inline-HTML pipeline renders as a live widget.
 			e.preventDefault();
 			if (!el) return;
+			// Both reads below are taken AFTER the fold: the committed text is what the offset
+			// they splice must be measured against.
+			const fold = widgetInteraction.foldRevealBeforeMutation();
+			if (fold) await fold.settled;
 			const offset = cursor.getRaw() ?? 0;
 			const text = readCellText();
 			const inserted = '<br>';
@@ -955,6 +984,10 @@
 		if (!el) return;
 		// Belt behind TableBlock's menu-open gate: paste and cut mutate.
 		if (readOnly && action !== 'copy') return;
+		// Right-click deliberately skips the pointerdown reset, so the reveal is still open here
+		// and `sel` was captured in the REVEALED DOM's coordinates — a fold before any of it.
+		const fold = widgetInteraction.foldRevealBeforeMutation();
+		if (fold) await fold.settled;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses before
 		// mutating: execCommand needs the restored range, paste needs a focused caret.
 		if (action === 'paste') {

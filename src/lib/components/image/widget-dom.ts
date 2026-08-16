@@ -73,6 +73,12 @@ export function buildImageWidget(
 	if (node.title) img.title = node.title;
 	if (node.width !== undefined) img.setAttribute('width', String(node.width));
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
+	// A declared `|WxH` box belongs to the author, so it both reserves space before the bytes
+	// arrive and survives the decode: the attribute pair alone loses to the natural ratio the
+	// moment `height: auto` has one to read.
+	if (node.width !== undefined && node.height !== undefined) {
+		img.style.aspectRatio = `${node.width} / ${node.height}`;
+	}
 	const markBroken = (): void => {
 		opts.brokenUrlCache.add(resolvedUrl);
 		widget.classList.add('md-image-broken');

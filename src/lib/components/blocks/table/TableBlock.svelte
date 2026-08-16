@@ -94,10 +94,15 @@
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 
-	// A column reorder permutes cells while leaving columnCount and widthVersion untouched,
-	// so it alone can't invalidate the monotonic width floors below; the header row's
-	// cell-id order tracks column order and nothing else, so the measure epoch folds it in.
-	const columnStructureToken = $derived((node.children?.[0]?.childIds ?? []).join(','));
+	// A column reorder permutes cells while leaving columnCount and widthVersion untouched, so it
+	// alone can't invalidate the monotonic width floors below; the header row's cell bytes permute
+	// with it, so the measure epoch folds them in. The bytes, not the row's `childIds`: those are
+	// minted at the row's first mount, so a windowed-out header row would hold the epoch still
+	// across the very reorder it exists to catch.
+	const columnStructureToken = $derived(
+		// The grammar keeps a cell to one line, so a newline joiner cannot be confused for content.
+		(node.children?.[0]?.children ?? []).map((cell) => cell.raw).join('\n')
+	);
 
 	// Plain `let`, not $state: writes happen during keyed-each reconcile via
 	// the focusout handler, which Svelte 5 traps as state_unsafe_mutation.

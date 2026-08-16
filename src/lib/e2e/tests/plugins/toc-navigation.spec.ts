@@ -216,7 +216,7 @@ test.describe('toc outline: gesture ownership (entry vs block)', () => {
 		await editor.render.click({ position: { x: 2, y: 2 } });
 		await editor.waitForRenderFlush();
 
-		// Reading mode gates the reveal (`onRenderPointerDown` early-returns on isReading),
+		// Reading mode gates the reveal (the folded view's reveal handler early-returns on isReading),
 		// and a non-entry click reaches no navigation button: the outline just stays shown.
 		await expect(editor.source).toHaveCount(0);
 		await expect(editor.render).toBeVisible();

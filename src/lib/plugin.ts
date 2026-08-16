@@ -125,10 +125,11 @@ export { parseContainerBody } from './core/parser';
 export type { ContainerBodyWrap } from './core/parser';
 
 // ── Fence grammar (pre-freeze) ───────────────────────────────────────────────
-// The built-in CommonMark fence recognizers, so a plugin claiming a fence (```mermaid)
-// never reimplements the rules. The opener match keeps verbatim indent/info bytes, for
-// byte-exact rebuilds.
-export { matchFenceOpen, matchFenceClose } from './core/parsers/fence-syntax';
+// The built-in CommonMark fence recognizers, so a plugin claiming a fence (```mermaid) never
+// reimplements the rules. The opener match keeps verbatim indent/info bytes, for byte-exact
+// rebuilds; `escalatedFenceLength` is `escalatedColonCount`'s fence twin, owed by any kind that
+// rebuilds its own raw around a body it did not parse.
+export { matchFenceOpen, matchFenceClose, escalatedFenceLength } from './core/parsers/fence-syntax';
 export type { FenceOpen } from './core/parsers/fence-syntax';
 
 // ── HTML tag-line grammar (pre-freeze) ───────────────────────────────────────
@@ -209,7 +210,8 @@ export type {
 	EditableLeaf,
 	EditableLeafDeps,
 	EditableLeafMode,
-	EditableLeafSurfaceProps
+	EditableLeafSurfaceProps,
+	EditableLeafRenderProps
 } from './components/blocks/editable-leaf';
 export type { StickyColumnDirection } from './block-component';
 

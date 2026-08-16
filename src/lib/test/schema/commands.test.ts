@@ -26,6 +26,7 @@ describe('global command registry', () => {
 describe('dispatchKeyCommand', () => {
 	const ctx = {
 		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
+		getPresentationMode: () => 'source' as const,
 		isCrossBlockRange: () => false
 	};
 	it('routes a global chord to the global command (no runCommand call)', () => {

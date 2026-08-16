@@ -90,11 +90,11 @@ export function __resetBlockCommandsForTests(): void {
 
 /**
  * Editor state a command's admissibility reads, whatever invoked it. Getters, never values:
- * both change under a live editor between one dispatch and the next. `isCrossBlockRange` is
- * required, so a new dispatch site cannot silently skip the range decline.
+ * both change under a live editor between one dispatch and the next. Both fields are required,
+ * so a new dispatch site cannot silently skip the reading-mode or the range decline.
  */
 export interface CommandGates {
-	getPresentationMode?: GlobalCommandContext['getPresentationMode'];
+	getPresentationMode: GlobalCommandContext['getPresentationMode'];
 	/** True while a cross-block range is painted. */
 	isCrossBlockRange(): boolean;
 }

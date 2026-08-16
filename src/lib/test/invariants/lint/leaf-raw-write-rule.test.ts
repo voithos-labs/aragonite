@@ -68,7 +68,12 @@ const FENCE_READERS: Record<string, string> = {
 const ESCALATION_SITES: Record<string, string> = {
 	'src/lib/core/parsers/fence-syntax.ts': 'the grammar leaf that defines it',
 	[FENCE_HOME]: 'the fencedCode write rule',
-	[SINK]: 'sizes the terminator the content write mints for a construct it left open (GH #180)'
+	[SINK]: 'sizes the terminator the content write mints for a construct it left open (GH #180)',
+	'src/lib/debug/diagnostics-report.ts':
+		'sizes the section fences of a field report whose bodies routinely carry fences of their own',
+	'src/lib/plugins/mermaid/mermaid-kind.ts':
+		'sizes the fence its metadata body is rebuilt inside — the body is never re-parsed here',
+	'src/lib/plugin.ts': 'the author barrel: a plugin rebuilding its own raw needs the same rule'
 };
 
 const CAPABILITY = /\bnormalizeRawWrite\b/;

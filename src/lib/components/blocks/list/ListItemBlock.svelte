@@ -237,16 +237,16 @@
 	// preventDefaults only after an await, so a global tier here would re-fire undo/redo.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
-		// Both bubbled commands (list.indent/unindent) are edits; this caller has
-		// no pluginEditor lookup to hand the dispatcher's own gate, so it gates here.
-		if (readOnly) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
 		if (
 			dispatchKindCommand(
 				chord,
 				{ kind: node.kind, runCommand },
-				{ isCrossBlockRange: () => selection?.isCrossBlock ?? false },
+				{
+					getPresentationMode,
+					isCrossBlockRange: () => selection?.isCrossBlock ?? false
+				},
 				keybindingOverrides()
 			)
 		) {

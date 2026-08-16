@@ -27,7 +27,6 @@ const GATE_OWNER_FILES = new Set([
 // Sites gated by a LOCAL reading/readOnly guard instead of a threaded
 // getPresentationMode → the regex the guard must keep present.
 const LOCAL_GATE_SITES: Record<string, RegExp> = {
-	'src/lib/components/blocks/list/ListItemBlock.svelte': /\breadOnly\b/,
 	'src/lib/components/GapCaret.svelte': /isReading,/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
 	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/
@@ -183,11 +182,6 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 	});
 
 	it('each local-gate regex matches its guard and rejects unrelated text', () => {
-		expect(
-			LOCAL_GATE_SITES['src/lib/components/blocks/list/ListItemBlock.svelte'].test(
-				'if (readOnly) return;'
-			)
-		).toBe(true);
 		expect(
 			LOCAL_GATE_SITES['src/lib/components/editor-root-keydown.ts'].test(
 				"if (deps.mode === 'reading') return;"

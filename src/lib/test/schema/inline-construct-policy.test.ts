@@ -28,6 +28,7 @@ import {
 	checkInlineConstructPoliciesAtMount
 } from '$lib/schema/registration-checks';
 import { mintCommandId } from '$lib/schema/command-id';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 
 const atomic: InlineConstructPolicy = {
 	edgeAffinity: 'never-extend',
@@ -168,6 +169,17 @@ describe('registration lifecycle', () => {
 		const kind = declarePluginInlineKind('policy-dup');
 		registerInlineConstructPolicy(kind, atomic);
 		expect(() => registerInlineConstructPolicy(kind, atomic)).toThrow(/already registered/i);
+	});
+
+	// Miss-analysis: the aggregate reset's own test enumerates the PUBLISHED register-once doors,
+	// and this row's door is not on the plugin barrel yet, so no case ever pointed the schema reset
+	// at it — leaving a suite that registers a row unable to re-run its setup.
+	it('drops its plugin rows through the schema registry reset', () => {
+		const kind = declarePluginInlineKind('policy-schema-reset');
+		registerInlineConstructPolicy(kind, atomic);
+		__resetSchemaRegistriesForTests();
+		expect(getInlineConstructPolicy(kind)).toBeUndefined();
+		expect(() => registerInlineConstructPolicy(kind, atomic)).not.toThrow();
 	});
 
 	it('replaces instead of throwing on a dev server', () => {

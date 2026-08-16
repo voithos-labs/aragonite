@@ -29,6 +29,7 @@ let undos = 0;
 function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
 	return {
 		history: { requestUndo: () => void undos++, requestRedo: () => {} },
+		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => false,
 		...over
 	};

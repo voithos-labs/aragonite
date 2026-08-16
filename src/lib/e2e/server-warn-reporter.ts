@@ -10,6 +10,15 @@ import type { FullResult, Reporter, TestCase } from '@playwright/test/reporter';
 
 const SENTINEL = '[aragonite:';
 
+// Browser-side warns vite relays into the server stream; the page collector already governs them.
+const CLIENT_RELAY = '[vite] (client)';
+
+// Structural to the shared demo SSR process (registration order, not a defect): GH #196.
+const EXEMPT_CHANNELS = [
+	'[aragonite:invariant:late-opener-registration]',
+	'[aragonite:plugin-install]'
+];
+
 class ServerWarnReporter implements Reporter {
 	private readonly fires: string[] = [];
 
@@ -34,8 +43,12 @@ class ServerWarnReporter implements Reporter {
 	/** Output with a `test` is a spec's own, which already fails through that spec. */
 	private collect(chunk: string | Buffer, test: TestCase | undefined): void {
 		if (test) return;
-		for (const line of chunk.toString().split('\n')) {
-			if (line.includes(SENTINEL)) this.fires.push(line.trimEnd());
+		for (const raw of chunk.toString().split('\n')) {
+			// eslint-disable-next-line no-control-regex -- vite colors its relay marker
+			const line = raw.replace(/\x1b\[[0-9;]*m/g, '');
+			if (!line.includes(SENTINEL) || line.includes(CLIENT_RELAY)) continue;
+			if (EXEMPT_CHANNELS.some((c) => line.includes(c))) continue;
+			this.fires.push(line.trimEnd());
 		}
 	}
 }

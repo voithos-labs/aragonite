@@ -100,3 +100,30 @@ describe('buildImageWidget — the path a click emits', () => {
 		host.remove();
 	});
 });
+
+// Miss-analysis: nothing asserted what a `|WxH` hint puts on the element, so the attribute pair
+// read as "sizes the rendered widget" (syntax-tree.md § image) while the decoded natural ratio
+// silently won every layout back through the stylesheet's `height: auto`.
+describe('buildImageWidget — declared dimensions', () => {
+	function widgetFor(source: string): HTMLImageElement {
+		const node = parseInline(source, 0, source.length).find((n) => n.kind === 'image');
+		if (!node) throw new Error('expected an image node');
+		return buildImageWidget(node, source, {
+			resolveImageUrl: (u) => u,
+			imageLoadPolicy: 'auto',
+			brokenUrlCache: new Set<string>()
+		}).querySelector('img')!;
+	}
+
+	it('reserves the declared box as an aspect ratio the decode cannot overrule', () => {
+		const img = widgetFor('![cat|300x100](https://example.com/cat.png)');
+		expect([img.getAttribute('width'), img.getAttribute('height')]).toEqual(['300', '100']);
+		expect(img.style.aspectRatio).toBe('300 / 100');
+	});
+
+	it('leaves a width-only hint to derive its own height', () => {
+		const img = widgetFor('![cat|300](https://example.com/cat.png)');
+		expect(img.getAttribute('height')).toBeNull();
+		expect(img.style.aspectRatio).toBe('');
+	});
+});

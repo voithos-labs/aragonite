@@ -26,6 +26,10 @@ export function createContainerEditActions(
 			controller.pushUndoSnapshotDebounced(leafPath, offset, batchKey);
 		},
 
+		armDebouncedPause(): void {
+			controller.armUndoPause();
+		},
+
 		nudgeReactivity(): void {
 			// Raw mutations made outside the commit primitive surface through this nudge,
 			// so Svelte re-reads doc.children.
