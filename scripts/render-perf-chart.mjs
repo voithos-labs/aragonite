@@ -25,8 +25,17 @@ for (const [key, row] of Object.entries(baseline.e2e)) {
 	byShape.get(shape)[size] = row;
 }
 
+// A chart is a size series, so it draws only the shapes recorded at every size: the `-head`
+// rows are 1MB-only gate probes and sit outside that contract by design.
+const sizeSeriesShapes = [...byShape.keys()].filter((s) =>
+	SIZES.every((size) => size in byShape.get(s))
+);
+
 function series(metric, exceptionShape) {
-	const others = [...byShape.keys()].filter((s) => s !== exceptionShape);
+	if (!sizeSeriesShapes.includes(exceptionShape)) {
+		throw new Error(`${exceptionShape}: a chart's exception shape must be recorded at every size`);
+	}
+	const others = sizeSeriesShapes.filter((s) => s !== exceptionShape);
 	const band = SIZES.map((size) => {
 		const values = others.map((s) => byShape.get(s)[size][metric]);
 		values.sort((a, b) => a - b);
@@ -70,7 +79,7 @@ function fmtMs(v) {
 
 function chart(theme, spec) {
 	const t = THEMES[theme];
-	const { band, exception } = series(spec.metric, spec.exceptionShape);
+	const { band, exception, otherCount } = series(spec.metric, spec.exceptionShape);
 	const [logMin, logMax] = [Math.log10(spec.yDomain[0]), Math.log10(spec.yDomain[1])];
 	const y = (v) =>
 		PLOT.bottom - ((Math.log10(v) - logMin) / (logMax - logMin)) * (PLOT.bottom - PLOT.top);
@@ -79,7 +88,7 @@ function chart(theme, spec) {
 	const text = textBuilder(t, parts);
 
 	parts.push(
-		`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(spec.aria)}">`
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(spec.aria(otherCount))}">`
 	);
 	parts.push(`<rect width="${W}" height="${H}" fill="${t.surface}"/>`);
 
@@ -87,7 +96,7 @@ function chart(theme, spec) {
 	text(24, 34, spec.title, { size: 15, weight: 600, fill: t.inkPrimary });
 	text(24, 54, spec.subtitle, { size: 12.5, fill: t.inkSecondary });
 	const legend = [
-		[t.bundle, spec.bundleName],
+		[t.bundle, spec.bundleName(otherCount)],
 		[t.accent, spec.exceptionName]
 	];
 	let lx = 24;
@@ -173,7 +182,11 @@ function chart(theme, spec) {
 	// Direct labels, right gutter — placed top-down, pushed apart on collision
 	const gutterEntries = [
 		{ y: y(exception[exception.length - 1]), color: t.accent, lines: spec.exceptionLabel },
-		{ y: y(band[band.length - 1].median), color: t.bundle, lines: spec.bundleLabel(band) }
+		{
+			y: y(band[band.length - 1].median),
+			color: t.bundle,
+			lines: spec.bundleLabel(band, otherCount)
+		}
 	].sort((a, b) => a.y - b.y);
 	let nextFreeY = PLOT.top + 10;
 	for (const entry of gutterEntries) {
@@ -202,23 +215,24 @@ const keystroke = {
 	yTicks: [1, 10, 100, 1000],
 	title: 'Keystroke latency (p50) vs document size',
 	subtitle: 'typing cost stays flat as the document grows, except inside one giant block',
-	bundleName: '8 other fixture shapes',
+	bundleName: (otherCount) => `${otherCount} other fixture shapes`,
 	exceptionName: 'single giant paragraph',
 	exceptionLabel: [
 		'single giant paragraph',
 		'the whole file as one block,',
 		'the recorded exception'
 	],
-	bundleLabel: (band) => {
+	bundleLabel: (band, otherCount) => {
 		const lo = Math.min(...band.map((b) => b.min));
 		const hi = Math.max(...band.map((b) => b.max));
 		return [
-			'8 other fixture shapes',
+			`${otherCount} other fixture shapes`,
 			`band and median, ${fmtMs(lo)}`,
 			`to ${fmtMs(hi)} at every size`
 		];
 	},
-	aria: 'Keystroke p50 latency across nine fixture shapes from 100 kilobytes to 10 megabytes. Eight shapes stay in a flat band of a few milliseconds at every size. A single giant paragraph rises to above a second at 10 megabytes.'
+	aria: (otherCount) =>
+		`Keystroke p50 latency across ${otherCount + 1} fixture shapes from 100 kilobytes to 10 megabytes. ${otherCount} shapes stay in a flat band of a few milliseconds at every size. A single giant paragraph rises to above a second at 10 megabytes.`
 };
 
 const load = {
@@ -228,18 +242,19 @@ const load = {
 	yTicks: [10, 100, 1000, 10000],
 	title: 'Document load vs document size',
 	subtitle: 'materializing the tree is O(document): linear in block count',
-	bundleName: '8 other fixture shapes',
+	bundleName: (otherCount) => `${otherCount} other fixture shapes`,
 	exceptionName: 'many small blocks',
 	exceptionLabel: ['many small blocks', '392k blocks at 10 MB,', 'the block count extreme'],
-	bundleLabel: (band) => {
+	bundleLabel: (band, otherCount) => {
 		const last = band[band.length - 1];
 		return [
-			'8 other fixture shapes',
+			`${otherCount} other fixture shapes`,
 			`band and median,`,
 			`${fmtMs(last.min)} to ${fmtMs(last.max)} at 10 MB`
 		];
 	},
-	aria: 'Document load time across nine fixture shapes from 100 kilobytes to 10 megabytes, on a log scale. Load grows roughly linearly with size; every shape loads within a few seconds at 10 megabytes, the 392 thousand block extreme taking the longest.'
+	aria: (otherCount) =>
+		`Document load time across ${otherCount + 1} fixture shapes from 100 kilobytes to 10 megabytes, on a log scale. Load grows roughly linearly with size; every shape loads within a few seconds at 10 megabytes, the 392 thousand block extreme taking the longest.`
 };
 
 // ── Emit ─────────────────────────────────────────────────────────────────────
