@@ -61,11 +61,12 @@ diagnose it in dev.
 
 ## What fails on what
 
-| Gate                   | Watches                                         | Failure unit                                                     |
-| ---------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
-| Unit suite (Vitest)    | Every `devWarn` fire, through a structured sink | The test that provoked it, unless that test claims it            |
-| E2E specs (Playwright) | Console lines carrying the sentinel             | The spec whose page emitted one, at teardown                     |
-| Simulation sessions    | The sentinel plus the Svelte runtime list       | The checkpoint, so a fire surfaces mid-session rather than after |
+| Gate                    | Watches                                         | Failure unit                                                           |
+| ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| Unit suite (Vitest)     | Every `devWarn` fire, through a structured sink | The test that provoked it, unless that test claims it                  |
+| E2E specs (Playwright)  | Console lines carrying the sentinel             | The spec whose page emitted one, at teardown                           |
+| Simulation sessions     | The sentinel plus the Svelte runtime list       | The checkpoint, so a fire surfaces mid-session rather than after       |
+| Playwright's dev server | The server's own console, for a fire during SSR | The whole run, at teardown — only where Playwright launched the server |
 
 The unit runner registers a sink, which means the console line never happens there. Two consequences
 worth knowing before you debug: a `console.warn` spy will not see dev warnings, and a `vi.mock` of
