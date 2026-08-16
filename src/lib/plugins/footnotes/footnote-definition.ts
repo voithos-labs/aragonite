@@ -13,6 +13,7 @@ import {
 	defineBlockComponent,
 	getPluginMetadata,
 	isBlankLine,
+	lineStartsOuterBlock,
 	parse,
 	registerBlockComponent,
 	registerBlockKind,
@@ -47,28 +48,6 @@ function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar'
 	return true;
 }
 
-/** cmark-gfm ends lazy continuation on any line that starts a block at the outer level, the
- *  paragraph-interrupt exceptions not applying there. An LRD is carved out of a paragraph at
- *  finalize, never a block start, so its claim is transparent. */
-function startsSiblingBlock(ctx: OpenContext, index: number): boolean {
-	const line = ctx.lines[index];
-	const probe: OpenContext = {
-		lines: [line],
-		index: 0,
-		end: 1,
-		line,
-		leadingTrivia: '',
-		isDocumentParse: false,
-		depth: ctx.depth,
-		grammar: ctx.grammar
-	};
-	for (const opener of ctx.grammar.orderedOpeners()) {
-		const claim = opener.tryOpen(probe);
-		if (claim) return claim.node.kind !== 'linkReferenceDefinition';
-	}
-	return false;
-}
-
 /**
  * Blank lines are absorbed only while a later indented line still follows — a trailing blank
  * run belongs to the document. An unindented non-blank line continues the definition only as
@@ -91,7 +70,10 @@ function scanDefinitionEnd(ctx: OpenContext): number {
 			i++;
 			continue;
 		}
-		if (paragraphOpen && !startsSiblingBlock(ctx, i)) {
+		if (
+			paragraphOpen &&
+			!lineStartsOuterBlock(ctx.lines[i], { paragraphOpen: true, grammar: ctx.grammar })
+		) {
 			lastContent = i;
 			i++;
 			continue;

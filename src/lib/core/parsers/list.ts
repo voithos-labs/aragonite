@@ -10,6 +10,7 @@ import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
+	lineStartsOuterBlock,
 	type BlockOpenerResult
 } from '../../schema/block-openers';
 
@@ -88,7 +89,11 @@ export function parseList(
 			} else if (getIndent(lines[i].text) >= contentIndent) {
 				paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
 				i++;
-			} else if (paragraphOpen && wouldKeepParagraphOpen(lines[i].text)) {
+			} else if (
+				paragraphOpen &&
+				wouldKeepParagraphOpen(lines[i].text) &&
+				!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+			) {
 				// Lazy continuation: the verbatim bytes stay in raw, and stripListItemLines
 				// feeds the paragraph parser one continuous paragraph.
 				i++;

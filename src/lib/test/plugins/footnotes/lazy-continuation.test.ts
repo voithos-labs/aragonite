@@ -35,6 +35,15 @@ describe('footnote definition lazy continuation (absorbed lines)', () => {
 		expect(serialize(doc)).toBe(src);
 	});
 
+	// The marker-strip pattern wants four literal columns; a tab-expanded indent reaches the
+	// scan as a lazy line instead, and an indented line cannot end laziness (§4.4).
+	it('absorbs a tab-expanded indent the marker strip does not claim', () => {
+		const src = '[^a]: one\n  \tbar\n';
+		const doc = parse(src);
+		expect(doc.children.map((c) => c.kind)).toEqual([FOOTNOTE_DEF_KIND]);
+		expect(serialize(doc)).toBe(src);
+	});
+
 	it('continues lazily after an indented continuation line', () => {
 		const doc = parse('[^a]: one\n    two\nlazy\n');
 		expect(doc.children.map((c) => c.kind)).toEqual([FOOTNOTE_DEF_KIND]);

@@ -157,6 +157,48 @@ export function createGrammarView(isEnabled: OpenerEnablement): GrammarView {
 	};
 }
 
+// ── Outer block starts ──────────────────────────────────────────────────
+
+/** What a line means at the outer level, which turns on whether a paragraph is open above it. */
+export interface OuterBlockScan {
+	/** A lazy continuation: an open paragraph absorbs the starts §4.4 forbids from interrupting. */
+	paragraphOpen: boolean;
+	/** Defaults to the global openers, the boundary `lineInterruptsParagraph` also reads. */
+	grammar?: GrammarView;
+}
+
+/**
+ * Does `line` start a block at the outer level? cmark-gfm ends both a lazy continuation and a
+ * table's row scan there, and the paragraph-interrupt exceptions do not apply. Two claims are
+ * transparent: a link reference definition is carved out of a paragraph at finalize rather than
+ * opened as a block, and indented code cannot open while a paragraph is open to absorb the line.
+ */
+export function lineStartsOuterBlock(line: ParsedLine, scan: OuterBlockScan): boolean {
+	const grammar = scan.grammar ?? defaultGrammarView;
+	const probe: OpenContext = {
+		lines: [line],
+		index: 0,
+		end: 1,
+		line,
+		leadingTrivia: '',
+		isDocumentParse: false,
+		// Depth-free by design: the verdict is which kind CLAIMS the line at the outer level, and
+		// depth only moves the nesting cap and the body parse under the claim, never the claim.
+		depth: 0,
+		grammar
+	};
+	for (const opener of grammar.orderedOpeners()) {
+		const claim = opener.tryOpen(probe);
+		if (claim) return claimOpensBlock(claim.node.kind, scan.paragraphOpen);
+	}
+	return false;
+}
+
+function claimOpensBlock(kind: AnyBlockKind, paragraphOpen: boolean): boolean {
+	if (kind === 'linkReferenceDefinition') return false;
+	return !(paragraphOpen && kind === 'indentedCode');
+}
+
 /** Registry introspection for the invariant guard (G1.10). */
 export function listRegisteredOpeners(): { kind: AnyBlockKind; priority: number }[] {
 	return [...openers.entries()].map(([kind, o]) => ({ kind, priority: o.priority }));

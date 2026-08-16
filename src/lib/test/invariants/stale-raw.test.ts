@@ -107,6 +107,22 @@ describe('checkStaleRaw (G1.1)', () => {
 		expect(checkStaleRaw(item)?.code).toBe('stale-container-raw');
 	});
 
+	// Miss-analysis (M-1): every drift fixture pushed the divergence into the first child, so
+	// the check's single-correspondent read was never asked about bytes attributed to a LATER
+	// sibling — the reparse growing extra blocks looked identical to a faithful one.
+
+	it('fires when the raw carries bytes belonging to a following sibling block', () => {
+		const bq = firstBlock('> a\n');
+		bq.raw = '> a\n\nnot quoted\n';
+		expect(checkStaleRaw(bq)?.code).toBe('stale-container-raw');
+	});
+
+	it('fires when a list item raw carries a second item', () => {
+		const item = firstBlock('- a\n').children![0];
+		item.raw = '- a\n- b\n';
+		expect(checkStaleRaw(item)?.code).toBe('stale-container-raw');
+	});
+
 	// ── Purity and exemptions ──────────────────────────────────────────────────
 
 	it('does not mutate the input node', () => {

@@ -46,6 +46,29 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		);
 		expect(violation?.message).toContain('focus');
 	});
+
+	// Miss-analysis (M-3): the fixtures only ever put a char offset on a table, so the flag's
+	// other direction — a cell index stored against a block that has no cells — was never
+	// asked, and `cellCoordinate` short-circuited before any node was resolved.
+	it('flags a cell coordinate on a block that is not a table', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			doc(),
+			{ path: [1], offset: 1, cellCoordinate: true },
+			{ path: [0], offset: 0, cellCoordinate: true }
+		);
+		expect(violation?.code).toBe('endpoint-cell-coordinate-off-table');
+		expect(violation?.message).toContain('anchor');
+	});
+
+	it('ignores a cell coordinate whose path resolves to nothing', () => {
+		expect(
+			checkCrossBlockEndpointCoordinates(
+				doc(),
+				{ path: [9], offset: 1, cellCoordinate: true },
+				{ path: [1], offset: 0 }
+			)
+		).toBeNull();
+	});
 });
 
 // A thematic break is the built-in kind with no character positions: `---\n` admits

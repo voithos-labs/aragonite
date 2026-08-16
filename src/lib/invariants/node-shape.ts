@@ -57,13 +57,9 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
 export function checkStaleRaw(node: CstNode): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
-	// `listItem` is never a top-level block, so its raw re-parses to a wrapping `list`;
-	// unwrap one level by kind to reach the grammatical correspondent. Document scope
-	// because the oracle gets no document position: fragment would fire on every
-	// legitimate position-scoped node at the top.
-	const top = parse(node.raw, { scope: 'document' }).children[0];
-	const correspondent =
-		top?.kind === node.kind ? top : top?.children?.find((c) => c.kind === node.kind);
+	// Document scope because the oracle gets no document position: fragment would fire on
+	// every legitimate position-scoped node at the top.
+	const correspondent = soleCorrespondent(parse(node.raw, { scope: 'document' }).children, node);
 
 	if (!rawFaithful(correspondent, node)) {
 		return {
@@ -75,6 +71,20 @@ export function checkStaleRaw(node: CstNode): InvariantViolation | null {
 		};
 	}
 	return null;
+}
+
+/**
+ * The one block `node.raw` must reparse to, or undefined. Singularity is the invariant's other
+ * half: bytes belonging to a following sibling leave the first block's inner content intact, so
+ * comparing that block alone would read a container whose raw has grown as faithful. `listItem`
+ * is never a top-level block, so its raw reparses to a wrapping `list` holding it alone.
+ */
+function soleCorrespondent(blocks: CstNode[], node: CstNode): CstNode | undefined {
+	if (blocks.length !== 1) return undefined;
+	const top = blocks[0];
+	if (top.kind === node.kind) return top;
+	const wrapped = top.children ?? [];
+	return wrapped.length === 1 && wrapped[0].kind === node.kind ? wrapped[0] : undefined;
 }
 
 const MAX_RAW_IN_DETAIL = 200;
