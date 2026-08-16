@@ -26,6 +26,7 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		const target = { kind: 'paragraph' as const, runCommand };
 		const ctx = {
 			history: { requestUndo() {}, requestRedo() {} },
+			getPresentationMode: () => 'source' as const,
 			isCrossBlockRange: () => false
 		};
 
@@ -49,6 +50,7 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		const target = { kind: 'paragraph' as const, runCommand };
 		const ctx = {
 			history: { requestUndo() {}, requestRedo() {} },
+			getPresentationMode: () => 'source' as const,
 			isCrossBlockRange: () => false
 		};
 

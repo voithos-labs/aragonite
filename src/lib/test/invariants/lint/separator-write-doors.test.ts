@@ -20,6 +20,8 @@ const TRIVIA_WRITERS: Record<string, string> = {
 	'src/lib/tree-operations/blockquote.ts':
 		'head normalization inside a built subtree: a body head separates from nothing',
 	'src/lib/tree-operations/list/list-builders.ts': 'same head normalization, per assembled half',
+	'src/lib/tree-operations/list/sublist-separator.ts':
+		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
 	'src/lib/tree-operations/list/unwrap-merge.ts': 'same head normalization, per lifted body',
 	'src/lib/tree-operations/list/exit-replacement.ts':
 		'head normalization, plus the exit paragraph’s own line: a minted block between two halves owes one on both sides, which no splice probe can infer',
@@ -34,8 +36,12 @@ const TRIVIA_WRITERS: Record<string, string> = {
 const HAND_SETTLE_CALLERS: Record<string, string> = {
 	'src/lib/tree-operations/node-ops.ts': 'defines them, and the funnel entries beside them',
 	'src/lib/tree-operations/index.ts': 're-exports the two the gap-caret mint still needs',
+	'src/lib/tree-operations/list/sublist-separator.ts': 'defines the empty-marker sublist door',
+	'src/lib/tree-operations/unshare.ts':
+		'the chain rebuild is where a list rebuilt down to an empty marker becomes visible',
 	'src/lib/editor-actions/block-edit-core.ts':
 		'the gap-caret paragraph is a block of its own on both sides, which a splice window cannot say',
+	'src/lib/editor-actions/list-context.ts': 'the nesting mint writes the sublist it just built',
 	'src/lib/selection/range-delete.ts':
 		'its same-block arm writes bytes rather than splicing, so it settles as the content door does'
 };
@@ -44,7 +50,7 @@ const writesTrivia = (file: SourceFile): boolean =>
 	/\.leadingTrivia\s*\+?=(?!=)/.test(stripComments(file.text));
 
 const namesHandSettle = (file: SourceFile): boolean =>
-	/(?<![\w'"])(clearRedundantSeparator|dropDoubledSeparator|restoreSeparatorOnFill|restoreSeparatorAfterBlank|settleSeparatorOnBlank)\b/.test(
+	/(?<![\w'"])(clearRedundantSeparator|dropDoubledSeparator|restoreSeparatorOnFill|restoreSeparatorAfterBlank|settleSeparatorOnBlank|settleSublistSeparator)\b/.test(
 		stripComments(file.text)
 	);
 

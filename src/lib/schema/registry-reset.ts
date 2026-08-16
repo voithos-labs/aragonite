@@ -12,11 +12,13 @@ import { __resetPluginGlobalCommandsForTests } from './global-commands';
 import { __clearDeclaredPluginKindsForTests } from './plugin-kind';
 import { __resetRegistrationChecksForTests } from './registration-checks';
 import { __resetInstalledPluginsForTests } from './plugin-install';
+import { __resetInlineConstructPoliciesForTests } from './inline-construct-policy';
 
 /**
  * Test-only. Clears every non-built-in registration; built-ins survive. Also clears the warn
  * dedup, the registration-check latches, and the installed-plugin set — state that shadows a
- * registry must never outlive its reset.
+ * registry must never outlive its reset. The single-slot registrations (live split rebalancer,
+ * join-seam cleaner) keep their own doors: only a suite testing a slot wants it emptied.
  */
 export function __resetSchemaRegistriesForTests(): void {
 	__removePluginBlockKindsForTests();
@@ -25,6 +27,7 @@ export function __resetSchemaRegistriesForTests(): void {
 	__removePluginOpenersForTests();
 	__removePluginCommandsForTests();
 	__resetBlockCommandsForTests();
+	__resetInlineConstructPoliciesForTests();
 	__resetPluginGlobalCommandsForTests();
 	__resetPluginGlobalKeymapForTests();
 	__resetCommandWarningsForTests();

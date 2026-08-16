@@ -11,9 +11,7 @@ import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source
 /** Files whose subject IS a warning channel, so reading it directly is the test. */
 const CONSOLE_WARN_READERS: Record<string, string> = {
 	'src/lib/test/dev-warn.test.ts':
-		'pins devWarn’s console arm: the exact line shape the e2e watchers key on',
-	'src/lib/test/core/url-policy.test.ts':
-		'pins the blocked-scheme warning, which is production security feedback rather than a devWarn'
+		'pins devWarn’s console arm: the exact line shape the e2e watchers key on'
 };
 
 const MOCKS_DEV_WARN = /vi\s*\.\s*mock\(\s*['"`][^'"`]*dev-warn['"`]/;

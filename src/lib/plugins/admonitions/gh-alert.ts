@@ -41,19 +41,26 @@ export interface AlertConversion {
 	changed: boolean;
 }
 
-/** Each emitted line keeps its source line's ending so CRLF survives; the synthesized
- *  closer runs one line past the source, which is what the fallback covers. */
+/**
+ * Each emitted line keeps its source line's ending so CRLF survives; the synthesized closer runs
+ * one line past the source, which is what the fallback covers. The body converts in the SAME pass
+ * (#171): stripping one quote level promotes a nested `> [!TIP]` to a top-level marker, so a
+ * transform that left it would convert further every time it saw its own output.
+ */
 function emitDirective(name: string, source: ParsedLine[]): string {
-	const body = source.slice(1).map((line) => stripQuoteMarker(line.text));
-	const wrapped = wrapAsDirective(name, body);
 	const fallback = source.find((line) => line.lineEnding !== '')?.lineEnding ?? '\n';
-	const closerEnding = source[source.length - 1].lineEnding;
-	let out = '';
-	for (let i = 0; i < wrapped.length; i++) {
-		const isCloser = i === wrapped.length - 1;
-		out += wrapped[i] + (isCloser ? closerEnding : source[i].lineEnding || fallback);
-	}
-	return out;
+	const stripped = source
+		.slice(1)
+		.map((line) => stripQuoteMarker(line.text) + (line.lineEnding || fallback))
+		.join('');
+	const body = splitLines(convertGithubAlerts(stripped).converted);
+	const wrapped = wrapAsDirective(
+		name,
+		body.map((line) => line.text)
+	);
+	let out = `${wrapped[0]}${source[0].lineEnding || fallback}`;
+	for (let i = 0; i < body.length; i++) out += body[i].text + (body[i].lineEnding || fallback);
+	return out + wrapped[wrapped.length - 1] + source[source.length - 1].lineEnding;
 }
 
 /** GitHub honors `[!TYPE]` only on the blockquote's first line; everything after,

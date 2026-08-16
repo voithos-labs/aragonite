@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { takeDevWarns } from '../support/warn-gate';
 import {
 	isAllowedHrefScheme,
 	isAllowedImageSrcScheme,
@@ -49,13 +50,18 @@ describe('url-policy — defaultLinkActivation', () => {
 		expect(open).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
 	});
 
-	it('refuses disallowed schemes (incl. control-byte obfuscation) and warns instead', () => {
+	// Miss-analysis: the blocked arm was pinned through a console spy — the one reader the warn
+	// gate cannot see — so a bare production `console.warn` read as covered while escaping the
+	// sentinel funnel, and no case asked what a HOST learns when a link is refused.
+	it('refuses disallowed schemes (incl. control-byte obfuscation) and reports each one', () => {
 		const open = vi.spyOn(window, 'open').mockReturnValue(null);
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		defaultLinkActivation('javascript:alert(1)', new MouseEvent('click'));
-		defaultLinkActivation('\x01javascript:alert(1)', new MouseEvent('click'));
+		const blocked: string[] = [];
+		const report = (url: string) => void blocked.push(url);
+		defaultLinkActivation('javascript:alert(1)', new MouseEvent('click'), report);
+		defaultLinkActivation('\x01javascript:alert(1)', new MouseEvent('click'), report);
 		expect(open).not.toHaveBeenCalled();
-		expect(warn).toHaveBeenCalledTimes(2);
+		expect(blocked).toEqual(['javascript:alert(1)', '\x01javascript:alert(1)']);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['url-policy', 'url-policy']);
 	});
 });
 

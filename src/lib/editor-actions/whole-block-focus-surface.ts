@@ -31,6 +31,22 @@ export function isEditableEventTarget(target: EventTarget | null): boolean {
 	return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
 }
 
+// ── Tab order ────────────────────────────────────────────────────────────────
+
+/**
+ * The hidden host is the block's ONE tab stop, so a declared surface that is not itself an
+ * editing host leaves the tab order (editor.md § 8). Applied on every read rather than once at
+ * mount: a kind's declared element is whatever its current render state supplies, and the state
+ * that appears after mount would otherwise keep its stop. Inverse of `focusWholeBlockEl`, which
+ * only ever MINTS focusability on a box that has none.
+ */
+export function demoteDeclaredFromTabOrder(declared: HTMLElement | null): HTMLElement | null {
+	if (declared && declared.tabIndex >= 0 && !isEditableEventTarget(declared)) {
+		declared.tabIndex = -1;
+	}
+	return declared;
+}
+
 /**
  * The class guard behind `getFocusEl`: an absent declared element degrades to the
  * focusable box, never a silent no-op that strands the caret. The one legitimate null
@@ -44,7 +60,7 @@ export function composeWholeBlockFocusSurface(
 	let warned = false;
 	return () => {
 		const declared = getFocusEl();
-		if (declared) return declared;
+		if (declared) return demoteDeclaredFromTabOrder(declared);
 		const box = getBoxEl();
 		if (!box) return null;
 		const active = document.activeElement;
@@ -60,9 +76,9 @@ export function composeWholeBlockFocusSurface(
 	};
 }
 
-// The fallback box is a plain div, focusable only once a tabindex is minted. A surface
-// already in the tab order (an explicit tabindex, or a natively focusable element like a
-// plugin's edit textarea) keeps it — writing -1 would only take it out.
+// The degraded path's own policy, and the inverse of the demotion above: the fallback box is a
+// plain div, focusable only once a tabindex is minted. A surface already focusable keeps whatever
+// it has — this door only ever adds reachability, never removes it.
 export function focusWholeBlockEl(el: HTMLElement): void {
 	if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.tabIndex = -1;
 	el.focus();
@@ -102,6 +118,11 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 	let proxy: HTMLElement | null = null;
 	let composing = false;
 
+	/** Every read of the declared surface inside the proxy goes through the demotion, so a kind
+	 *  supplying its own `getFocusEl` (no composed surface) is held to the rule too. */
+	const declaredSurface = (): HTMLElement | null =>
+		demoteDeclaredFromTabOrder(deps.getFocusEl() ?? null);
+
 	function mint(text: string): void {
 		if (!deps.isReading()) deps.mint(text);
 	}
@@ -126,7 +147,10 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 	// A pointer or a Tab lands natively on the kind's own surface, where no beforeinput fires;
 	// without this hand-off the first character after a click is keydown-minted again.
 	function onFocusIn(event: FocusEvent): void {
-		if (!proxy || event.target !== deps.getFocusEl()) return;
+		// Read before the identity test, so an arrival ANYWHERE in the box (the host's own included)
+		// re-applies the demotion to whatever surface the current render state supplies — which is
+		// what puts it out of the tab order before the next press, not after it.
+		if (!proxy || event.target !== declaredSurface()) return;
 		if (isEditableEventTarget(event.target)) return;
 		// The host's own Shift+Tab lands here on its way out; bouncing it back would trap focus
 		// in the block. Every other arrival is passed on — a toolbar button included, or the
@@ -155,6 +179,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 		// The block's tab stop, because focus belongs here: a declared surface left in the tab
 		// order is a second stop the backward tab parks on, where no input door exists.
 		proxy.tabIndex = 0;
+		declaredSurface();
 		proxy.addEventListener('beforeinput', onBeforeInput as EventListener);
 		proxy.addEventListener('compositionstart', () => (composing = true));
 		proxy.addEventListener('compositionend', onCompositionEnd);
@@ -174,6 +199,7 @@ export function createWholeBlockInputProxy(deps: WholeBlockInputProxyDeps): Whol
 				focusWholeBlockEl(declared);
 				return;
 			}
+			demoteDeclaredFromTabOrder(declared);
 			focusProxy();
 		}
 	};

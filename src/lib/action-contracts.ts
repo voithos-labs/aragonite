@@ -220,6 +220,9 @@ export interface CommitController {
 	pushUndoSnapshotPath(path: number[], offset: number): void;
 	/** Debounced typing snapshot; `leafPath` is the edited leaf's doc-absolute path. */
 	pushUndoSnapshotDebounced(leafPath: number[], offset: number, batchKey?: string | number): void;
+	/** Start the batch's pause window, once the keystroke's own edit has settled. Paired with
+	 *  every `pushUndoSnapshotDebounced`, or the batch never ends by pause. */
+	armUndoPause(): void;
 	commitStructural(args: CommitStructuralArgs): Promise<void>;
 	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
@@ -246,6 +249,8 @@ export interface ContainerEditActions {
 	 * focus moves between sibling leaves.
 	 */
 	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
+	/** The checkpoint's other half: open the pause window once the keystroke's edit has settled. */
+	armDebouncedPause(): void;
 	/**
 	 * Publish a raw change made outside the commit primitive, forwarded unchanged through
 	 * nested containers. Raw rebuilds are NOT part of the nudge — out-of-ceremony writers

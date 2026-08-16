@@ -6,7 +6,7 @@
  * editable leaf.
  */
 
-import { getContext, tick } from 'svelte';
+import { getContext } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
@@ -103,12 +103,27 @@ export interface EditableLeafSurfaceProps {
 	[attachment: symbol]: unknown;
 }
 
+/**
+ * The one-spread rendered surface: `<div {...leaf.renderProps}>` on a render-primary block's
+ * FOLDED view. One bundle rather than a handler apiece, because a rendered view wired for the
+ * reveal click alone swallows every chord while it holds focus — undo included.
+ */
+export interface EditableLeafRenderProps {
+	/** Reveal-on-click (shift-click extends a selection instead). */
+	onpointerdown: (e: PointerEvent) => void;
+	/** Chord dispatch at this block's kind: the global tier, then its own commands. */
+	onkeydown: (e: KeyboardEvent) => void;
+}
+
 export interface EditableLeaf {
 	/** The block's source minus its trailing line ending — the editable text. */
 	readonly sourceText: string;
 
 	/** The one-spread source surface (attributes + handlers + view/park attachments). */
 	surfaceProps: EditableLeafSurfaceProps;
+
+	/** render-primary: the one-spread folded surface. */
+	renderProps: EditableLeafRenderProps;
 
 	/**
 	 * The live EFFECTIVE presentation mode. The factory already gates itself in
@@ -156,8 +171,6 @@ export interface EditableLeaf {
 	onPointerDown(e: PointerEvent): void;
 	/** render-primary: commit-on-blur (fold + one CST commit). Plain: no-op. */
 	onFocusOut(): void;
-	/** render-primary: reveal-on-click for the rendered view (shift-click extends a selection instead). */
-	onRenderPointerDown(e: PointerEvent): void;
 
 	// ── Programmatic edits ─────────────────────────────────────────────────────
 	/** Insert markdown at the caret exactly as pasting it here would, minus the clipboard —
@@ -246,6 +259,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	let composing = false;
 	let preEditOffset = 0;
 	let pendingCursor: number | null = null;
+	/** The bytes the open reveal was measured against; null while folded. */
+	let revealedBase: string | null = null;
 
 	const sourceText = (): string => trimTrailingLineEnding(deps.getNode().raw);
 
@@ -336,9 +351,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// already revealed, so it fires once per open.
 		showSource: () => {
 			traceRevealOpen('leaf');
+			revealedBase = sourceText();
 			deps.setRevealed?.(true);
 		},
-		showRendered: () => deps.setRevealed?.(false)
+		showRendered: () => {
+			revealedBase = null;
+			deps.setRevealed?.(false);
+		}
 	});
 
 	// ── Commit ─────────────────────────────────────────────────────────────────
@@ -363,7 +382,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// Only wired to onFocusOut — the block leaf folds on blur, never Escape-cancel.
 		traceRevealFold('blur');
 		const edited = deps.getEl()?.textContent ?? sourceText();
+		const base = revealedBase;
+		revealedBase = null;
 		deps.setRevealed!(false); // reactive re-render of the edited source
+		// The fold writes back only what the reveal measured. An undo, or a `source` prop swap,
+		// can seat a DIFFERENT document at this index before focusout fires — the component is
+		// destroyed and the blur arrives on the way out, so these bytes belong to a block that is
+		// no longer here and writing them corrupts the one that is (#161).
+		if (base !== null && base !== sourceText()) return;
 		if (edited === sourceText()) return; // pure view toggle, nothing for the CST
 		commitSource(edited);
 	}
@@ -389,8 +415,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		void (async () => {
 			if (!isRevealed()) {
 				if (isReading()) return;
-				deps.setRevealed!(true);
-				await tick();
+				// Through the kernel like every other open, so this entry gets the same trace pair,
+				// length assert and reveal base; it seats a caret at 0, which the column re-seats.
+				await revealKernel.reveal();
 			}
 			if (!deps.getEl()) return;
 			surface.focusAtColumn(x, from);
@@ -477,17 +504,13 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	});
 
-	async function handleKeydown(e: KeyboardEvent): Promise<void> {
-		const el = deps.getEl();
-		if (composing || !el) return;
-		preEditOffset = getCursorOffset(el) ?? 0;
-
-		if (await handleSharedKeydown(e, editableSurface.sharedCtx)) return;
-
+	/** Resolve a chord at this leaf's kind and report whether it was consumed. Both views spend
+	 *  it: undo belongs to the block whatever half of the swap holds focus. */
+	function dispatchChord(e: KeyboardEvent): boolean {
 		const chord = eventToChord(e);
 		if (
-			chord &&
-			dispatchKeyCommand(
+			!chord ||
+			!dispatchKeyCommand(
 				chord,
 				{ kind: deps.getNode().kind, runCommand, getCommandContext },
 				{
@@ -500,9 +523,20 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				onCommandError
 			)
 		) {
-			e.preventDefault();
-			return;
+			return false;
 		}
+		e.preventDefault();
+		return true;
+	}
+
+	async function handleKeydown(e: KeyboardEvent): Promise<void> {
+		const el = deps.getEl();
+		if (composing || !el) return;
+		preEditOffset = getCursorOffset(el) ?? 0;
+
+		if (await handleSharedKeydown(e, editableSurface.sharedCtx)) return;
+
+		if (dispatchChord(e)) return;
 
 		// Enter stays inside the leaf as a literal newline (multiline source);
 		// it never splits the block. Plain mode commits the insertion.
@@ -529,6 +563,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
 		void revealKernel.reveal(0);
 	}
+
+	const renderProps: EditableLeafRenderProps = {
+		onpointerdown: onRenderPointerDown,
+		onkeydown: (e) => void dispatchChord(e)
+	};
 
 	// ── Source surface bundle ────────────────────────────────────────────────────
 
@@ -583,6 +622,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 
 		surfaceProps,
+		renderProps,
 
 		getPresentationMode,
 		getTheme,
@@ -617,7 +657,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		handleKeydown,
 		onPointerDown,
 		onFocusOut: commitReveal,
-		onRenderPointerDown,
 
 		reveal: (offset = 0) => {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));

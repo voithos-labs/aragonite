@@ -39,9 +39,16 @@ describe('debounce flush on batch-key change', () => {
 		try {
 			const { controller, inputEvents } = makeSetup();
 
-			controller.pushUndoSnapshotDebounced([0], 0);
-			controller.pushUndoSnapshotDebounced([0], 1);
-			controller.pushUndoSnapshotDebounced([1], 0);
+			// The arm is the keystroke's other half — the edit actions pair them, so a driver
+			// spending the controller directly owes both or no window ever opens.
+			for (const [path, offset] of [
+				[[0], 0],
+				[[0], 1],
+				[[1], 0]
+			] as [number[], number][]) {
+				controller.pushUndoSnapshotDebounced(path, offset);
+				controller.armUndoPause();
+			}
 			vi.runAllTimers();
 
 			expect(inputEvents().map((e) => e.path)).toEqual([[0], [1]]);

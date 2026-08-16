@@ -100,11 +100,10 @@
 		aria-label="TOC source"
 	></div>
 {:else}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="toc-block-render"
 		aria-label="Table of contents (click to edit)"
-		onpointerdown={leaf.onRenderPointerDown}
+		{...leaf.renderProps}
 	>
 		<nav class="toc-block-nav" aria-label="Document headings">
 			{#if headings.length === 0}

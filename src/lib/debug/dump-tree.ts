@@ -5,13 +5,11 @@ import { trimTrailingLineEnding } from '../core/lines';
 export interface DumpTreeOptions {
 	maxRawChars?: number;
 	showAllMetadata?: boolean;
-	includeInline?: boolean;
 }
 
 const DEFAULTS: Required<DumpTreeOptions> = {
 	maxRawChars: 40,
-	showAllMetadata: false,
-	includeInline: false
+	showAllMetadata: false
 };
 
 export function dumpTree(doc: DocumentView, opts: DumpTreeOptions = {}): string {

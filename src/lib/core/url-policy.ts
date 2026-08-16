@@ -3,6 +3,8 @@
  * URLs cannot smuggle script execution into the DOM. `defaultLinkActivation` is the one DOM sink.
  */
 
+import { devWarn } from '../dev-warn';
+
 const ALLOWED_HREF_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
 // `asset:` is a desktop shell's local-file protocol off Windows, where the same URL arrives as
 // `http://asset.localhost/...`, so omitting it blocks every image on macOS and Linux while
@@ -32,11 +34,20 @@ export function isAllowedImageSrcScheme(url: string): boolean {
 	return scheme === null || ALLOWED_IMG_SCHEMES.has(scheme);
 }
 
-/** The default when a consumer supplies no `onLinkActivate`, gated on the href allowlist. */
-export function defaultLinkActivation(url: string, _event: MouseEvent): void {
+/**
+ * The default when a consumer supplies no `onLinkActivate`, gated on the href allowlist. A block
+ * is a security-relevant signal a production host can act on, so it reports through `onBlocked`
+ * (the editor's `error` channel) rather than only reaching a dev console.
+ */
+export function defaultLinkActivation(
+	url: string,
+	_event: MouseEvent,
+	onBlocked?: (url: string) => void
+): void {
 	if (isAllowedHrefScheme(url)) {
 		window.open(url, '_blank', 'noopener,noreferrer');
-	} else {
-		console.warn(`Blocked link with disallowed scheme: ${url}`);
+		return;
 	}
+	devWarn('url-policy', `blocked link with disallowed scheme: ${url}`);
+	onBlocked?.(url);
 }

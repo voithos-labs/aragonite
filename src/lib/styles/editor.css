@@ -133,6 +133,13 @@
 	user-select: none;
 }
 
+/* The find bar is editor-level chrome and outranks a block affordance, so a per-block affordance
+   claiming the same top-right band yields it while the bar is open. Without this the pointer hits
+   the bar and the affordance is unreachable until search closes (#145). */
+.editor:has(> .search-anchor .search-bar) .code-lang-chip {
+	top: 52px;
+}
+
 :where(.editor) .md-image-widget {
 	display: block;
 	/* Shrink-wrap so the widget matches the image, not its line-box. */
@@ -213,6 +220,18 @@
 
 :where(.editor) .md-image-broken img {
 	display: none;
+}
+
+/* An image the editor deliberately did not fetch — refused by the scheme allowlist, or deferred
+   by `imageLoadPolicy: 'placeholder'`. Both leave `src` unset, and an <img> with no bytes and no
+   `|WxH` hint lays out 0×0; a dimensioned one keeps its own larger box. */
+:where(.editor) .md-image-blocked,
+:where(.editor) .md-image-placeholder {
+	min-width: 100px;
+	min-height: 60px;
+	border: 1px dashed var(--color-ui-muted, #a4a4a4);
+	background: var(--color-bg-muted, #2a2a2a);
+	box-sizing: border-box;
 }
 
 :where(.editor) .md-image-broken::before {

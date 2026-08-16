@@ -13,6 +13,7 @@ import { scanDocument } from '$lib/search/document-scan';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 
 // A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
 function scanForLiteral(doc: Document, needle: string) {
@@ -253,5 +254,86 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 		expect(replaced).toBe(0);
 		expect(deps.doc.children[0].raw).toBe(DIAGRAM_RAW);
 		expect(deps.undoManager.getStacks().undo.length).toBe(0);
+	});
+});
+
+describe('replace — a batch that applies nothing leaves no undo entry', () => {
+	// Miss-analysis: the undo assertions all counted entries after a SUCCESSFUL batch, and the
+	// throw arm was pinned on its error event alone — so the snapshot pushed before the loop, the
+	// one register no commit ceremony covers, had no case looking at it on the failing path.
+	it('restores the stacks when the first subtree throws in its rebuild', async () => {
+		__resetSchemaRegistriesForTests();
+		const brittle = declarePluginKind('replace-brittle');
+		registerBlockKind(brittle, {
+			mergeRole: 'container',
+			editable: true,
+			supportsInline: false,
+			closure: testClosure,
+			container: {
+				contract: 'opaque',
+				rebuildRaw: () => {
+					throw new Error('rebuild refused');
+				}
+			}
+		});
+		const child: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'prose cat\n' };
+		const node: CstNode = {
+			kind: brittle,
+			leadingTrivia: '',
+			raw: 'prose cat\n',
+			children: [child]
+		};
+		const { deps } = makeEditorActionsDeps([node]);
+		const errors: unknown[] = [];
+		deps.events.on('error', (e) => void errors.push(e));
+		const sr = createSearchReplace(deps, createUndoController(deps));
+
+		const replaced = await sr.replaceAll([{ path: [0, 0], start: 6, end: 9 }], 'dog');
+
+		expect(replaced).toBe(0);
+		expect(errors).toHaveLength(1);
+		expect(deps.undoManager.getStacks().undo).toEqual([]);
+	});
+});
+
+describe('replace — a childless opaque container reparses its own bytes', () => {
+	// Miss-analysis (#41): the container arm was pinned only by its DECLINE, with a fixture kind
+	// whose opener was never registered — so the decline read as "containers are excluded" when
+	// the real rule is kind stability, and the reachable half (a registered kind that survives the
+	// substitution) had no case at all.
+	function scanFor(doc: Document, q: string) {
+		const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
+		if (!r.ok) throw new Error(r.error);
+		return scanDocument(doc, r.matcher);
+	}
+
+	beforeEach(() => {
+		__resetSchemaRegistriesForTests();
+		registerMermaidKind();
+	});
+
+	it('substitutes inside the diagram and comes back the same kind', async () => {
+		const doc = parse('```mermaid\ngraph cat\n```\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+
+		const matches = scanFor(deps.doc, 'cat');
+		expect(matches.map((m) => m.path)).toEqual([[0]]);
+		expect(await sr.replaceAll(matches, 'dog')).toBe(1);
+
+		expect(deps.doc.children[0].kind).toBe('mermaid');
+		expect(serialize(deps.doc)).toBe('```mermaid\ngraph dog\n```\n');
+	});
+
+	// The one hazard the reparse cannot absorb: bytes that break the opener line.
+	it('declines a substitution that would reparse as a different kind', async () => {
+		const doc = parse('```mermaid\ngraph cat\n```\n');
+		const { deps } = makeEditorActionsDeps(doc.children);
+		const sr = createSearchReplace(deps, createUndoController(deps));
+
+		const matches = scanFor(deps.doc, 'mermaid');
+		expect(await sr.replaceAll(matches, 'js')).toBe(0);
+		expect(deps.doc.children[0].kind).toBe('mermaid');
+		expect(serialize(deps.doc)).toBe('```mermaid\ngraph cat\n```\n');
 	});
 });

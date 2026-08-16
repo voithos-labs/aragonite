@@ -151,6 +151,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
 		pushDebouncedCheckpoint: vi.fn(),
+		armDebouncedPause: vi.fn(),
 		nudgeReactivity: vi.fn(),
 		withUnsharedSpine: vi.fn(() => false)
 	};

@@ -130,7 +130,8 @@ function typeThroughSeat(
 		parseInline(display, 0, display.length),
 		affinity,
 		display,
-		LIVE
+		LIVE,
+		'Z'
 	);
 	const at = seat?.offset ?? caret;
 	return { after: display.slice(0, at) + 'Z' + display.slice(at), relocated: seat !== null };

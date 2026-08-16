@@ -14,6 +14,7 @@ import {
 	getPluginMetadata,
 	matchFenceOpen,
 	matchFenceClose,
+	escalatedFenceLength,
 	OPENER_PRIORITIES,
 	type FenceOpen,
 	type CstNode
@@ -54,17 +55,36 @@ export function joinMermaidBody(draft: string, lineEnding: string): string {
 	return draft.replaceAll('\n', lineEnding) + lineEnding;
 }
 
-/** The opener's inverse, and the byte path every code edit rides. */
+/**
+ * The opener's inverse, and the byte path every code edit rides. The body is a metadata string
+ * this kind never re-parses, so the fence is sized against it here — a diagram line that reads as
+ * this block's closer would otherwise truncate the block on its next load.
+ */
 export function rebuildMermaidRaw(node: CstNode): void {
 	const meta = getPluginMetadata<MermaidMetadata>(node);
 	if (!meta) return;
+	const marker = meta.fenceChar === '~' ? '~' : '`';
+	const fenceLength = escalatedFenceLength(meta.code, marker, meta.fenceLength);
 	node.raw =
 		meta.openerIndent +
-		meta.fenceChar.repeat(meta.fenceLength) +
+		marker.repeat(fenceLength) +
 		meta.infoRaw +
 		meta.openerLineEnding +
 		meta.code +
-		meta.closerRaw;
+		(fenceLength > meta.fenceLength
+			? grownCloser(meta.closerRaw, marker, fenceLength)
+			: meta.closerRaw);
+}
+
+/**
+ * Grow a verbatim closer line's run to `length`, keeping its indent, trailing spaces and line
+ * ending. An unterminated block has no closer line and gains none: the parser reads it to the end
+ * of input either way.
+ */
+function grownCloser(closerRaw: string, marker: '`' | '~', length: number): string {
+	const match = /^( {0,3})([`~]+)([\s\S]*)$/.exec(closerRaw);
+	if (!match) return closerRaw;
+	return match[1] + marker.repeat(Math.max(match[2].length, length)) + match[3];
 }
 
 // ── Component UI hooks ────────────────────────────────────────────────────────

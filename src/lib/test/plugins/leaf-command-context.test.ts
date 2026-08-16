@@ -40,6 +40,7 @@ function bindKindChord(
 
 const ctx = {
 	history: { requestUndo() {}, requestRedo() {} },
+	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false
 };
 

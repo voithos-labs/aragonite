@@ -17,8 +17,10 @@ const RESET_RE = /\bresetForPointerDown\s*\(/;
  *  whose own preamble is the reset. */
 const DELEGATE_RE = /\bcrossBlock\.handlePointerDown\s*\(/;
 /** A press handler of any spelling. The bundle-key form (`onpointerdown:`) is how a leaf
- *  hands its surface to a plugin component; omitting it hides `editable-leaf.ts`. */
-const POINTER_HANDLER_RE = /\bon(pointerdown|mousedown)\s*[=:]|['"](pointerdown|mousedown)['"]/;
+ *  hands its surface to a plugin component; omitting it hides `editable-leaf.ts`. A spread of
+ *  the leaf's `renderProps` binds the press without naming it, and hides the component. */
+const POINTER_HANDLER_RE =
+	/\bon(pointerdown|mousedown)\s*[=:]|['"](pointerdown|mousedown)['"]|\brenderProps\b/;
 /** A call THROUGH the park door, optional-call spelling included. A bare forward
  *  (`export const parkCaret = leaf.parkCaret;`) has no call and is not a caller. */
 const PARK_CALL_RE = /\.parkCaret\s*\??\.?\s*\(/;

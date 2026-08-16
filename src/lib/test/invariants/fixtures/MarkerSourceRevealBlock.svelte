@@ -51,7 +51,7 @@
 		role="button"
 		tabindex="-1"
 		aria-label="Marker source (click to edit)"
-		onpointerdown={leaf.onRenderPointerDown}
+		{...leaf.renderProps}
 	>
 		rendered
 	</div>

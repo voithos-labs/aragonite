@@ -89,7 +89,7 @@
 		role="button"
 		tabindex="-1"
 		aria-label="Math (click to edit)"
-		onpointerdown={leaf.onRenderPointerDown}
+		{...leaf.renderProps}
 	></div>
 {/if}
 

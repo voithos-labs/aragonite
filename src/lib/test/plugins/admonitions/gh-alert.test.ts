@@ -58,6 +58,19 @@ describe('convertGithubAlerts', () => {
 		expect(convertGithubAlerts(src).converted).toBe(':::note\na\n:::\n\n:::tip\nb\n:::');
 	});
 
+	// Miss-analysis (#171): every fixture drew a FLAT alert, so nothing exercised the one input
+	// the conversion changes twice — a nested alert, which loses a quote level here and becomes a
+	// top-level marker on the next pass. The dev idempotence probe found it on ordinary content.
+	it('converts a nested alert in the same pass, so a second pass changes nothing', () => {
+		const src = '> [!NOTE]\n> > [!TIP]\n> > inner\n';
+		const once = convertGithubAlerts(src);
+		expect(once.converted).toBe('::::note\n:::tip\ninner\n:::\n::::\n');
+		expect(convertGithubAlerts(once.converted)).toEqual({
+			converted: once.converted,
+			changed: false
+		});
+	});
+
 	it('strips exactly one space after the quote marker', () => {
 		expect(convertGithubAlerts('> [!NOTE]\n>  indented').converted).toBe(':::note\n indented\n:::');
 		expect(convertGithubAlerts('> [!NOTE]\n>nospace').converted).toBe(':::note\nnospace\n:::');
