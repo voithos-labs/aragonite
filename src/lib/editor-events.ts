@@ -32,11 +32,11 @@ export interface EditorError {
 	 * `clipboard` is a failure on the paste route — the channel a host needs to release
 	 * an asset `onPasteImage` already imported for it.
 	 */
-	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard';
+	origin: 'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard' | 'link';
 	error: unknown;
 	/** Origin-specific: `path` for render, `op`+`path` for commit, `kind`+`command`
-	 *  (+`plugin`) for a command throw, `source` for decoration, and the paste's start
-	 *  path for clipboard when it was aimed at a range. */
+	 *  (+`plugin`) for a command throw, `source` for decoration, `url` for link, and the
+	 *  paste's start path for clipboard when it was aimed at a range. */
 	context?: {
 		path?: number[];
 		op?: OperationKind;
@@ -44,6 +44,7 @@ export interface EditorError {
 		command?: string;
 		plugin?: string;
 		source?: string;
+		url?: string;
 	};
 }
 
@@ -136,6 +137,19 @@ export function emitCommandError(
 			plugin:
 				report.plugin ?? (report.kind ? (pluginKindOwner(report.kind) ?? undefined) : undefined)
 		}
+	});
+}
+
+/**
+ * Route a blocked link activation to the `error` channel: the scheme allowlist refused the URL,
+ * which a host may want to log or surface. Fires for the DEFAULT activation only — a consumer
+ * supplying `onLinkActivate` owns its own policy.
+ */
+export function emitBlockedLinkError(events: EditorEvents | undefined, url: string): void {
+	events?.emit('error', {
+		origin: 'link',
+		error: new Error(`aragonite: blocked link with disallowed scheme: ${url}`),
+		context: { url }
 	});
 }
 

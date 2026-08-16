@@ -115,14 +115,26 @@ describe('a destructive chord at a collapsed caret reaches the join seam', () =>
 		expect(committed(mounted.blockEdit)).toEqual([' tail\n']);
 	});
 
-	// A spellcheck replacement is the same range question with a payload.
+	// A spellcheck replacement is the same range question with a payload. The range crosses the
+	// closer, so the opener is stranded whatever the payload does and the cleanup takes it.
 	it('insertReplacementText writes its text at the cleaned seam', async () => {
+		mounted = mountText(BOLD);
+		seat(mounted.el, 6, 6);
+		const e = await press(mounted.el, 'insertReplacementText', { start: 2, end: 10 }, 'X');
+
+		expect(e.defaultPrevented).toBe(true);
+		expect(committed(mounted.blockEdit)).toEqual(['Xail\n']);
+	});
+
+	// The payload is part of what the seam verifies (#165): `**brave**` strands nothing, so the
+	// cleanup declines and the replacement stays inside the run the reader saw.
+	it('leaves a replacement that fills the run to the engine', async () => {
 		mounted = mountText(BOLD);
 		seat(mounted.el, 6, 6);
 		const e = await press(mounted.el, 'insertReplacementText', { start: 2, end: 6 }, 'brave');
 
-		expect(e.defaultPrevented).toBe(true);
-		expect(committed(mounted.blockEdit)).toEqual(['brave tail\n']);
+		expect(e.defaultPrevented).toBe(false);
+		expect(committed(mounted.blockEdit)).toEqual([]);
 	});
 
 	// A payload only a `dataTransfer` carries would reach the re-parse without the paste transforms

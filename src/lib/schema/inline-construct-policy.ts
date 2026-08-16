@@ -53,6 +53,7 @@ export function registerInlineConstructPolicy(
 	policy: InlineConstructPolicy
 ): void {
 	assertMarkCommandMintable(kind, policy.mark);
+	assertCardImpliesRevealable(kind, policy);
 	registerOnce(
 		policies.has(kind),
 		() => policies.set(kind, policy),
@@ -66,6 +67,16 @@ function assertMarkCommandMintable(kind: AnyInlineKind, mark: InlineMarkPolicy |
 	if (!mark || isBuiltinInlineKind(kind) || !isBuiltinCommandId(mark.command)) return;
 	throw new Error(
 		`registerInlineConstructPolicy: "${kind}" claims built-in command "${mark.command}" for its mark — that id already has a built-in meaning; mint a plugin command id for the mark`
+	);
+}
+
+/** The card's open chain admits only revealable kinds (`link-at-point.ts`), so a row claiming the
+ *  card without the reveal declares a door nothing can walk through. Stated here rather than left
+ *  to a silent no-op at the click. */
+function assertCardImpliesRevealable(kind: AnyInlineKind, policy: InlineConstructPolicy): void {
+	if (!policy.cardEditable || policy.revealable) return;
+	throw new Error(
+		`registerInlineConstructPolicy: "${kind}" declares cardEditable without revealable — the card's open chain reaches only revealable kinds, so the door would never open`
 	);
 }
 
@@ -171,6 +182,14 @@ export interface JoinSeam {
 	/** Per-instance, so it rides the call: a reference form parsed without it reads as brackets,
 	 *  and the seam would step around a construct the reader saw as a link. */
 	linkRef: InlineResolverRef | undefined;
+	/** Text the caller will splice at the seam once the cleanup returns. Absent for a pure delete;
+	 *  present, it is part of the bytes the cleanup has to verify, since a typed run changes the
+	 *  flanking a kept delimiter pairs against. */
+	typed?: string;
+	/** The container prefix the surviving side is installed under (`- `, `> `). Absent where the
+	 *  surface paints none. A candidate is read back through it: an item's body starting with a
+	 *  space reloads as a WIDER marker than the live tree holds. */
+	ambientPrefix?: string;
 }
 
 /** The bytes a cleanup wrote and where the two sides now meet in them: dropping a run on the

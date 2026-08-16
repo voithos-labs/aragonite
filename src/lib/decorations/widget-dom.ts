@@ -25,10 +25,14 @@ export function mountDecorationWidget(
 		if ('component' in spec) {
 			const el = document.createElement('span');
 			const instance = mount(spec.component, { target: el, props: { decoration: dec } });
+			// The flag is what makes the documented idempotence real: a second `unmount` of the same
+			// instance is not a no-op the way a second `remove()` is.
+			let unmounted = false;
 			return {
 				el,
 				destroy: () => {
-					void unmount(instance);
+					if (!unmounted) void unmount(instance);
+					unmounted = true;
 					el.remove();
 				}
 			};

@@ -38,7 +38,10 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 	if (!standsOnSeam(left) && !standsOnSeam(right)) return null;
 	if (!anchorsOnMerged(join, left, right)) return null;
 
-	const shown = shownAfterJoin(left, right);
+	// The caller splices `typed` at the seam once this returns, so the bytes verified below are the
+	// bytes written: a typed run changes the flanking a kept delimiter pairs against.
+	const typed = join.typed ?? '';
+	const shown = shownAfterJoin(left, right, typed);
 	const pairs = abuttingPairSpans(join, left, right);
 	// Least destructive first: keep the runs the two sides can still pair across the seam, and fall
 	// back to dropping every stranded one. Identical readings render once.
@@ -47,13 +50,19 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 	const candidates = (sameSpans(spanSets[0], spanSets[1]) ? [spanSets[0]] : spanSets).map(
 		(spans) => {
 			const raw = withoutSpans(join.mergedRaw, spans);
-			return { spans, raw, read: readCandidate(raw, resolver) };
+			const seam = join.seam - droppedBefore(spans, join.seam);
+			return {
+				spans,
+				raw,
+				seam,
+				read: readCandidate(raw.slice(0, seam) + typed + raw.slice(seam), resolver, join)
+			};
 		}
 	);
 	// § 4.1's other half: a run the leanest reading keeps can be one the cut left enclosing nothing,
 	// and a pair over nothing passes the screen check. Least destructive is read among the rest.
 	const floor = Math.min(...candidates.map(({ read }) => read?.residue ?? Infinity));
-	for (const { spans, raw: candidate, read } of candidates) {
+	for (const { raw: candidate, seam, read } of candidates) {
 		if (read === null || read.visible !== shown || read.residue > floor) continue;
 		// A candidate that changed nothing IS the literal join: declining says so, and keeps the
 		// caller off a rewrite path it does not need.
@@ -64,14 +73,16 @@ export const cleanLiveJoinSeam: LiveJoinSeamCleaner = (join) => {
 		if (display !== '' && display.trim() === '') {
 			return { raw: candidate.slice(display.length), seam: 0 };
 		}
-		// Every byte dropped ahead of the seam moves the caret's landing with it.
-		const droppedBefore = spans
-			.filter((span) => span.end <= join.seam)
-			.reduce((total, span) => total + span.end - span.start, 0);
-		return { raw: candidate, seam: join.seam - droppedBefore };
+		return { raw: candidate, seam };
 	}
 	return null;
 };
+
+/** Every byte a reading drops ahead of the seam moves the caret's landing with it. */
+const droppedBefore = (spans: readonly Span[], seam: number): number =>
+	spans
+		.filter((span) => span.end <= seam)
+		.reduce((total, span) => total + span.end - span.start, 0);
 
 const standsOnSeam = (side: Side): boolean => side.dangling.length > 0 || side.touching.length > 0;
 
@@ -301,8 +312,8 @@ function withoutSpans(raw: string, spans: readonly Span[]): string {
  * pre-join parse, never off the joined halves — either of those bakes the defect this checks for
  * into its own expectation.
  */
-const shownAfterJoin = (left: Side, right: Side): string =>
-	visibleSide(left, 'before') + visibleSide(right, 'after');
+const shownAfterJoin = (left: Side, right: Side, typed: string): string =>
+	visibleSide(left, 'before') + typed + visibleSide(right, 'after');
 
 /**
  * What a reader sees, asked of the thing that paints it: the render path's own DOM with every
@@ -347,14 +358,16 @@ function clipNodes(
 }
 
 /**
- * The candidate read back as a block: what it shows, and how many constructs its row unwraps are
- * left standing over nothing. Null where a join produces something the caller cannot install — two
- * blocks, or a kind with no inline content.
+ * The candidate read back as the caller will install it: what it shows, and how many constructs its
+ * row unwraps are left standing over nothing. Null where a join produces something the caller cannot
+ * install — two blocks, a kind with no inline content, or a body the container would re-read.
  */
 function readCandidate(
 	raw: string,
-	resolver: LinkReferenceResolver | undefined
+	resolver: LinkReferenceResolver | undefined,
+	join: { ambientPrefix?: string }
 ): { visible: string; residue: number } | null {
+	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw)) return null;
 	const blocks = parse(raw, { scope: 'fragment' }).children;
 	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
 	const block = blocks[0];
@@ -365,6 +378,18 @@ function readCandidate(
 		// Chrome standing over nothing is all on screen (§ 4.1), so a block that paints hides no pair.
 		residue: paintsOnlyChrome(nodes, block.raw) ? 0 : countResidue(nodes, block.raw)
 	};
+}
+
+/**
+ * Whether the container still reads its own marker off the candidate. The item's marker is not in
+ * these bytes but absorbs from them, so a body the cut left starting with a space reloads under a
+ * WIDER marker than the live tree holds — the load/save cycle would then change the tree.
+ */
+function keepsContainerMarker(prefix: string, raw: string): boolean {
+	if (prefix === '') return true;
+	const blocks = parse(prefix + raw, { scope: 'fragment' }).children;
+	if (blocks.length !== 1) return false;
+	return (blocks[0] as { marker?: string }).marker === prefix;
 }
 
 /** Constructs the reader would meet as nothing at all: no painted byte, and a row that unwraps

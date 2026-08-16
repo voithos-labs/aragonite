@@ -250,3 +250,14 @@ describe('a childless construct is in the chain, so nothing may cut it open', ()
 		expect(insert('end  \nnext', 4, 'X', ['strong'])).toBeNull();
 	});
 });
+
+// #194: a delimiter run shared between two pairings rebinds under any splice the resolver can make
+// there, so `__foo__`'s strong vanishes though the painted text and the intended chain both check
+// out. Kind survival is the third question the acceptance predicate has to ask.
+// Miss-analysis: the property net's `no construct kind vanishes` draws this shape only on a fresh
+// seed (568150862), so the pinned seed never met it — the counterexample is spelled out here.
+describe('a candidate that spends a construct is declined', () => {
+	it('declines rather than rebind the strong pairing of a shared underscore run', () => {
+		expect(insert(' __foo__', 2, 'X', ['emphasis'])).toBeNull();
+	});
+});

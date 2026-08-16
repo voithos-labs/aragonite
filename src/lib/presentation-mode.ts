@@ -8,6 +8,25 @@
 
 export type PresentationMode = 'source' | 'reading' | 'preview-block' | 'preview-inline' | 'live';
 
+/** Keyed by the union, so a rung added to it fails `npm run check` here rather than falling
+ *  silently through {@link asPresentationMode}'s door. */
+const MODES: Record<PresentationMode, true> = {
+	source: true,
+	reading: true,
+	'preview-block': true,
+	'preview-inline': true,
+	live: true
+};
+
+/**
+ * A mode read off the DOM or handed in untyped, narrowed to the contract. The marker-hiding CSS
+ * families match known values only, so an unrecognized one must read as the editing default here or
+ * the stylesheet and the caret walk disagree about the same block.
+ */
+export function asPresentationMode(value: string | null | undefined): PresentationMode {
+	return value != null && Object.hasOwn(MODES, value) ? (value as PresentationMode) : 'source';
+}
+
 /** Membership for the marker-hiding CSS families and the `data-list-marker` hook that
  *  feeds them: styled source is the one mode that paints Markdown syntax. */
 export function hidesMarkers(mode: PresentationMode): boolean {

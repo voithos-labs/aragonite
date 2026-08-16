@@ -79,12 +79,12 @@ describe('out-of-range island dev-warn', () => {
 		return createDecorationEngine({ getDoc: () => doc });
 	}
 
-	it('warns naming the source and the block content length when a replace range overruns it', () => {
+	it('warns naming the source and the block content bound when a replace range overruns it', () => {
 		makeSized().addSource({ name: 'r', provide: () => [replace([0], 1, 9)] });
 		const fires = takeDevWarns();
 		expect(fires).toHaveLength(1);
 		expect(fires[0].message).toContain("source 'r' places a replace island at 1..9");
-		expect(fires[0].message).toContain('block holds 3 content bytes');
+		expect(fires[0].message).toContain("block's content ends at 3");
 		expect(fires[0].details).toEqual({ path: [0] });
 	});
 

@@ -39,11 +39,11 @@ SOURCE is the oracle, since a hidden delimiter and an absent one look identical 
   that pixel to the construct's OUTER start, so no real gesture reaches the offset where an empty
   pair could be minted — the model-level guard still has to exist, since a plugin can address it
 - Enter outside every construct is unchanged by the mode: the bytes cut where the caret is
-- KNOWN GAP: a cut through a CHILDLESS construct splits byte-literally and puts its delimiters
-  on screen (`<https://ex|ample.com>`). Two halves of a URL are not two URLs, so close-and-reopen
-  cannot apply, and the reading that would keep the screen — dropping the `<`/`>` pair — is
-  refused by a stronger rule: a live split may lose no byte but a line ending. The row states the
-  current bytes so a change to that contract is deliberate
+- a cut through a CHILDLESS never-extend construct (`<https://ex|ample.com>`) moves to the
+  construct's nearer edge, so one half takes it whole and no delimiter reaches the screen. Two
+  halves of a URL are not two URLs, so close-and-reopen cannot apply; dropping the `<`/`>` pair is
+  refused by the stronger rule that a live split may lose no byte but a line ending, and moving
+  the cut is the reading that satisfies both
 - a cut that would strand a block's TERMINAL whitespace drops those bytes instead of carrying
   them: they are a hard break with no line after them, so they paint nothing — carried along the
   pair reloads as a different shape (#106), and declining to the byte-literal cut prints the

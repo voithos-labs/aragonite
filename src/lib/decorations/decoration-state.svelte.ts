@@ -101,13 +101,15 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 				message: `on a non-prose ${node.kind} block; islands render only in prose blocks`
 			};
 		}
-		const contentLength = contentLengthOf(node);
-		const held = `the block holds ${contentLength} content bytes`;
+		// An END offset, not a count: a heading's content starts past its marker, so reporting it as
+		// a byte total would name a number the author cannot place anything at.
+		const contentEnd = contentLengthOf(node);
+		const held = `the block's content ends at ${contentEnd}`;
 		if (dec.type === 'widget') {
-			if (dec.offset >= 0 && dec.offset <= contentLength) return null;
+			if (dec.offset >= 0 && dec.offset <= contentEnd) return null;
 			return { key: 'range', message: `at offset ${dec.offset}, but ${held}` };
 		}
-		if (dec.start >= 0 && dec.start < dec.end && dec.end <= contentLength) return null;
+		if (dec.start >= 0 && dec.start < dec.end && dec.end <= contentEnd) return null;
 		return { key: 'range', message: `at ${dec.start}..${dec.end}, but ${held}` };
 	}
 

@@ -33,12 +33,21 @@ export const rebalanceLiveSplit: LiveSplitRebalancer = (
 	secondRaw,
 	linkRef
 ) => {
-	const bytes = readSplitBytes(node, offset, firstRaw, secondRaw);
-	if (bytes === null) return null;
+	const read = readSplitBytes(node, offset, firstRaw, secondRaw);
+	if (read === null) return null;
 	const resolver = linkRef?.current;
-	const chain = splittableChainAt(bytes, offset, resolver);
-	if (chain === null || chain.length === 0) return null;
-	const seam = seamParts(bytes, chain, offset);
+	const inlines = parseInline(read.raw, read.contentStart, read.contentEnd, resolver);
+	// Chrome standing over nothing is all on screen (live-mode.md § 4.1), so closing and reopening
+	// it moves delimiters the reader is looking at: the byte-literal cut stands.
+	if (paintsOnlyChrome(inlines, read.raw)) return null;
+	const moved = wholeConstructEdge(inlines, offset);
+	const at = moved ?? offset;
+	const bytes = moved === null ? read : { ...read, cut: moved };
+	const chain = splittableChainAt(inlines, at);
+	// An empty chain with the cut where the caller put it is a cut no construct touches, and the
+	// byte-literal halves are already right; a MOVED cut is a rewrite in its own right.
+	if (chain === null || (chain.length === 0 && moved === null)) return null;
+	const seam = seamParts(bytes, chain, at);
 	const candidates = [
 		assemble(bytes, seam),
 		assembleSpaceOutside(bytes, seam),
@@ -109,16 +118,34 @@ interface ChainLink {
 }
 
 /**
- * Every construct holding `offset`, outermost first — or null when one of them declines. A kind
- * with no policy row, one whose split behavior is plain, one whose content bounds are unknown and
- * a block whose chrome paints all cannot be cut open, and cutting the constructs inside one would
- * strand its pair.
+ * The edge a cut moves to rather than landing inside a childless never-extend construct: two
+ * halves of a URL are not two URLs, and half an escape is a literal backslash, so the whole
+ * construct goes to the half the caret was nearer (live-mode.md § 4.4). Null where the cut lands
+ * in no such construct. Innermost wins, as everywhere else.
  */
-function splittableChainAt(
-	bytes: SplitBytes,
-	offset: number,
-	resolver: LinkReferenceResolver | undefined
-): ChainLink[] | null {
+function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): number | null {
+	let found: number | null = null;
+	const visit = (nodes: readonly InlineNode[]): void => {
+		for (const node of nodes) {
+			const childless = node.kind !== 'text' && constructContentRange(node) === null;
+			const takesWhole =
+				childless && getInlineConstructPolicy(node.kind)?.edgeAffinity === 'never-extend';
+			if (takesWhole && offset > node.start && offset < node.end) {
+				found = offset - node.start <= node.end - offset ? node.start : node.end;
+			}
+			if (node.children) visit(node.children);
+		}
+	};
+	visit(inlines);
+	return found;
+}
+
+/**
+ * Every construct holding `offset`, outermost first — or null when one of them declines. A kind
+ * with no policy row, one whose split behavior is plain and one whose content bounds are unknown
+ * cannot be cut open, and cutting the constructs inside one would strand its pair.
+ */
+function splittableChainAt(inlines: readonly InlineNode[], offset: number): ChainLink[] | null {
 	const chain: ChainLink[] = [];
 	const visit = (nodes: readonly InlineNode[]): boolean => {
 		for (const node of nodes) {
@@ -143,10 +170,6 @@ function splittableChainAt(
 		}
 		return true;
 	};
-	const inlines = parseInline(bytes.raw, bytes.contentStart, bytes.contentEnd, resolver);
-	// Chrome standing over nothing is all on screen (live-mode.md § 4.1), so closing and reopening
-	// it moves delimiters the reader is looking at: the byte-literal cut stands.
-	if (paintsOnlyChrome(inlines, bytes.raw)) return null;
 	return visit(inlines) ? chain : null;
 }
 
