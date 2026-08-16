@@ -1,8 +1,8 @@
 /**
  * Built-in block-kind descriptors and inline-construct policies, applied by an EXPLICIT
  * `registerBuiltInDescriptors()` call from `core/inline/index.ts` and
- * `components/built-in-blocks.ts`: the production build tree-shakes a bare side-effect import of
- * a module outside the `sideEffects` allowlist, while a called binding cannot be dropped. Split
+ * `components/built-in-blocks.ts`: the `sideEffects` allowlist names dist paths, never the src
+ * specifiers used inside this library, so only a called binding is safe from tree-shaking. Split
  * from `block-kind-descriptor.ts` so that module carries no registration payload.
  */
 

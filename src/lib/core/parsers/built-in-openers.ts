@@ -1,8 +1,9 @@
 /**
  * Registers the built-in block openers. Lives beside the matchers because
  * schema/block-kind-descriptor.ts importing them would cycle (parsers/* import
- * parser.ts, which reads the opener registry). Called explicitly from core/parser.ts:
- * a bare side-effect import is tree-shaken out of the production build.
+ * parser.ts, which reads the opener registry). Called explicitly from core/parser.ts: the
+ * `sideEffects` allowlist names dist paths, never the src specifier used here, so a bare
+ * side-effect import would be droppable.
  */
 
 import { registerBlockOpener } from '../../schema/block-openers';

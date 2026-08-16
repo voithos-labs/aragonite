@@ -1,8 +1,8 @@
 /**
- * Built-in block component registrations, applied by an explicit
- * `registerBuiltInBlocks()` call: a bare side-effect import is tree-shaken out of the
- * production build (see built-in-descriptors.ts). Lives in `components/` rather than
- * `schema/` so the schema layer keeps no downstream imports.
+ * Built-in block component registrations, applied by an explicit `registerBuiltInBlocks()` call:
+ * the `sideEffects` allowlist names dist paths and so never covers the src specifiers this
+ * library imports from itself, leaving a bare side-effect import here droppable. Lives in
+ * `components/` rather than `schema/` so the schema layer keeps no downstream imports.
  */
 
 import type { NodeView } from '../core/node-views';
