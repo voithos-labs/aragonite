@@ -293,7 +293,7 @@ Viewport-space geometry over the rendered document — the read the decoration t
 These ship today and are part of what plugins observe. They are frozen _as the current shape_ — but because they are payloads consumers _receive_, new fields and new union members can be added later without breaking a receiver.
 
 - **`EditEvent`** — `{ op, path, detail, timestamp }`, where `op` is the `OperationKind` vocabulary derived from `OperationDetailMap`. Emitted from the commit ceremony (structural ops) and the keystroke-debounce flush (`op: 'input'`).
-- **`EditorError`** — `{ origin, error, context? }` with `origin` in `'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard'` and `error: unknown` (correct for a boundary). Routed through the `error` event channel with a recursion guard.
+- **`EditorError`** — `{ origin, error, context? }` with `origin` in `'subscriber' | 'render' | 'commit' | 'command' | 'decoration' | 'clipboard' | 'link'` and `error: unknown` (correct for a boundary). Routed through the `error` event channel with a recursion guard.
 
 ## Editable-content tiers
 

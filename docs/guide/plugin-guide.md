@@ -447,7 +447,7 @@ Nested-editor interiors — a second editor's state serialized as a blob — are
 That single text node carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines: without it the browser collapses the line breaks on screen while the offset walk goes on counting them, so the caret sits nowhere near where it looks. Beyond that you add only your own `class` / `aria-label`, and **`bind:this` in both modes** — the factory reaches your element only through `getEl()`, so plain mode's view sync reads it exactly as a reveal does; the modes differ only in that render-primary's `getEl()` returns null while the view is folded. Two modes:
 
 - **`'plain'`** — the source is always the editable view; every keystroke commits to the tree (prose-like undo batching). The spread's sync mirrors external rewrites (undo, a structural replace) into the source and gates `contenteditable` off the mode, so the always-mounted surface goes inert in reading mode; the factory owns the Chromium trailing-newline caret anchor and the caret restore.
-- **`'render-primary'`** — a rendered view by default; focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once** — the whole reveal→edit→blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering; the spread owns the source surface (populate-once-per-reveal included) and `onRenderPointerDown` is on the returned surface for the rendered view.
+- **`'render-primary'`** — a rendered view by default; focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once** — the whole reveal→edit→blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering; there are two spreads, `surfaceProps` for the source and `renderProps` for the folded view. Spread both: the folded view owes the reveal click AND the chord dispatch, and one wired for the click alone swallows undo while it holds focus. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it.
 
 **Commit semantics.** A commit parses the edited text and lands it through the editor's own edit ladder: same-kind text updates the node in place (caret preserved), a kind change remounts the block, and text that parses to **multiple blocks structurally replaces the leaf with all of them**, the caret following the edit position into whichever block it falls in. Editing past your own fence therefore re-splits the document instead of wedging foreign text into your node, and the byte round-trip holds through every commit.
 
@@ -1190,11 +1190,11 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Editable-leaf authoring** _(pre-freeze / unstable)_
 
-| Export                                                                             | Role                                                                                                                 |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `createEditableLeaf`                                                               | Wire a text-editing leaf surface — plain or render-primary — with native caret/IME/undo/cross-block-selection parity |
-| `EditableLeaf`, `EditableLeafSurfaceProps`, `EditableLeafDeps`, `EditableLeafMode` | The leaf API your component re-exports, the one-spread source surface, its thunk deps, and the two modes             |
-| `StickyColumnDirection`                                                            | The vertical-entry direction `focusAtColumn` receives when the caret traverses into your block                       |
+| Export                                                                                                        | Role                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `createEditableLeaf`                                                                                          | Wire a text-editing leaf surface — plain or render-primary — with native caret/IME/undo/cross-block-selection parity            |
+| `EditableLeaf`, `EditableLeafSurfaceProps`, `EditableLeafRenderProps`, `EditableLeafDeps`, `EditableLeafMode` | The leaf API your component re-exports, its two one-spread surfaces (source and folded view), its thunk deps, and the two modes |
+| `StickyColumnDirection`                                                                                       | The vertical-entry direction `focusAtColumn` receives when the caret traverses into your block                                  |
 
 **Parse / serialize helpers** _(pre-freeze / unstable)_
 
@@ -1220,11 +1220,12 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 
 **Fence grammar** _(pre-freeze / unstable)_
 
-| Export            | Role                                                                                          |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `matchFenceOpen`  | Recognize a CommonMark fence-opener line, verbatim indent/info bytes included                 |
-| `matchFenceClose` | Test a line as the closer for a matched opener (marker + minimum run length)                  |
-| `FenceOpen`       | The matched opener's shape: marker, run length, trimmed `info`, verbatim `indent` + `infoRaw` |
+| Export                 | Role                                                                                                                                                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `matchFenceOpen`       | Recognize a CommonMark fence-opener line, verbatim indent/info bytes included                                                                                                                   |
+| `matchFenceClose`      | Test a line as the closer for a matched opener (marker + minimum run length)                                                                                                                    |
+| `escalatedFenceLength` | The fence run a body needs so no line inside it reads as the closer — a floor, never a shorter fence. A kind that rebuilds its own raw around a body owes it, and must grow the CLOSER to match |
+| `FenceOpen`            | The matched opener's shape: marker, run length, trimmed `info`, verbatim `indent` + `infoRaw`                                                                                                   |
 
 **HTML tag-line grammar** _(pre-freeze / unstable)_
 
