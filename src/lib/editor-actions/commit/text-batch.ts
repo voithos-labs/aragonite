@@ -24,7 +24,7 @@ export interface TextBatch {
 	interrupt(): void;
 }
 
-/** 500 ms reverted entire half-words at typical typing speeds; 250 ms matches Obsidian. */
+/** 250 ms, matching Obsidian: longer reverts entire half-words at typical typing speeds. */
 export const UNDO_DEBOUNCE_MS = 250;
 
 export function createTextBatch(deps: TextBatchDeps): TextBatch {

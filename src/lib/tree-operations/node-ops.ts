@@ -308,7 +308,7 @@ export function splitNode(
 function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offset: number): number {
 	const raw = node.raw;
 	// A surrogate pair is one boundary too: a cut through it leaves each half in a block of its
-	// own, where nothing can put them back (#167).
+	// own, where nothing can put them back.
 	const at = snapToScalarBoundary(raw, offset);
 	const ending = raw[at] === '\n' ? '\n' : raw.startsWith('\r\n', at) ? '\r\n' : '';
 	if (ending === '') return at;
@@ -455,7 +455,7 @@ export function cutRangeFromDisplay(
 	linkRef: InlineResolverRef | undefined
 ): { display: string; offset: number } {
 	// Both ends off any scalar interior before the slice: a half-pair here is unrecoverable
-	// bytes, not a recoverable edit (#167). Snapping the same direction cannot invert the range.
+	// bytes, not a recoverable edit. Snapping the same direction cannot invert the range.
 	const start = snapToScalarBoundary(display, range.start);
 	const end = snapToScalarBoundary(display, range.end);
 	if (start >= end) return { display, offset: start };
@@ -754,7 +754,7 @@ export function settleSeparatorOnBlank(
 	const bodyEnd = children.length - 1;
 	// A run of two or more that IS the whole body sits against both chrome lines, and the reload
 	// peels one line into each slot before it materializes a block — so it owes BOTH, where an
-	// arm bounded by prose on one side grants at most one (GH #130).
+	// arm bounded by prose on one side grants at most one.
 	const twoPeelBody =
 		!!slots &&
 		wrap?.afterOpenerLine === true &&
@@ -869,7 +869,7 @@ function settleSplicedWindow(
 	}
 	// Unconditional, and the funnel's only home for it: every arm above probes a slot inside the
 	// window, and a delete window at the tail has none — the question is about the parent's LAST
-	// block, which no window position answers (GH #168).
+	// block, which no window position answers.
 	materializeTailSuffix(parent, sharing);
 }
 
@@ -1078,7 +1078,7 @@ export interface SettledSplice {
 
 /**
  * The seam question at every join the splice at `at` disturbed — its window's two edges and the
- * joins inside it — since a move can invalidate a join that was already correct (GH #21). Each
+ * joins inside it — since a move can invalidate a join that was already correct. Each
  * fold cascades downward, so the next seam is asked past what that one ate. `tracked` rides the
  * folds for a caller placing a caret in bytes an absorb can move. `headProbe` names the one block
  * whose bytes changed, letting each ask decline on its first line alone; dropped once anything
@@ -1337,7 +1337,7 @@ export function updateNodeContent(
 		return settleWriteSeams(parent, blockIndex, lastWritten, widened, sharing);
 	}
 	// A kind change stops the block interrupting its neighbours, which become lazy continuations
-	// (GH #21). Off the noop path, so ordinary typing never pays the neighbour reparse.
+	// Off the noop path, so ordinary typing never pays the neighbour reparse.
 	if (change.op === 'noop') return { change, textStart: 0 };
 	return settleWriteSeams(parent, blockIndex, lastWritten, change, sharing);
 }

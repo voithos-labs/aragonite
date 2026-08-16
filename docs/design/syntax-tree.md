@@ -181,6 +181,19 @@ Every GFM block type is implemented with its own kind:
 
 Inline: emphasis and strong (`*`, `_`, `**`, `__`), strikethrough, inline code, links, images, autolinks (bare URLs and emails), hard line breaks, and reference-style links and images.
 
+### Pinned divergences from cmark-gfm
+
+Coverage is by block type; agreement with the reference implementation is close but not total. These four differences are pinned, not accidental, and each is byte-safe (round-trip holds either way):
+
+| Source                                  | Here                                      | cmark-gfm                         |
+| --------------------------------------- | ----------------------------------------- | --------------------------------- |
+| A pipeless line below a table's body    | ends the table; the line is its own block | a one-cell body row               |
+| `-` followed by five spaces and content | a list item whose content is that text    | a list item holding indented code |
+| A bare `-` on its own line              | a paragraph                               | an empty list item                |
+| `- a`, blank line, `- b`                | two sibling `list` nodes                  | one loose list of two items       |
+
+The last one is load-bearing rather than incidental: the blank-line rule above is universal, so a blank line between two top-level blocks is the follower's separator wherever it appears. Folding the two items into one loose list would put that separator inside a node whose reload splits it again, and the tree would stop being a fixed point of serialize → parse.
+
 ## 6. Extending the tree
 
 The tree itself is agnostic to kind strings — the parser, the serializer, and the node model don't care whether a kind is built-in or minted this morning. What a new block kind actually needs is three registrations, and all three matter:
@@ -204,5 +217,5 @@ Why it was rejected, after the editing loop had matured enough to judge:
 - **Round-trip fidelity.** Phase 2's guarantee is trivial because serialization _is_ concatenation. Tree-as-truth requires the serializer to reproduce exact delimiter styles (`*italic*` vs `_italic_`, `- ` vs `* `), which makes the round-trip an ongoing fight instead of a property.
 - **Partial syntax while typing.** `**bold` mid-keystroke is just a string in raw-as-truth. In tree-as-truth it is an invalid tree state that every keystroke has to handle.
 - **Semantic editing already works.** Toggle bold = insert `**` around the selection in `raw`. Change heading level = swap the `# ` prefix. The editor already does this. No tree manipulation needed.
-- **Syntax hiding never needed the flip.** The one thing Phase 3 promised over Phase 2 — hiding markers on unfocus — ships instead as CSS view treatments (the presentation modes: reading, block- and inline-granular preview) over the single render path, marker visibility keyed on focus and caret proximity, never a derived-`raw` tree. The feature that seemed to justify the ownership flip arrived without it — the flip stays rejected as a _mechanism_, and its not being required is the strongest vindication of that call.
+- **Syntax hiding never needed the flip.** The one thing Phase 3 promised over Phase 2 — hiding markers on unfocus — ships instead as CSS view treatments (the presentation modes: reading, block- and inline-granular preview, and fully live) over the single render path, marker visibility keyed on focus and caret proximity, never a derived-`raw` tree. The feature that seemed to justify the ownership flip arrived without it — the flip stays rejected as a _mechanism_, and its not being required is the strongest vindication of that call.
 - **Complexity cost.** Tree↔DOM sync, fragile serialization, and a new bug class, in exchange for that. The editors that took this road (ProseMirror, Slate) pay an enormous complexity tax for it, and they don't have a byte-lossless round-trip to protect.

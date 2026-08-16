@@ -170,7 +170,7 @@ export interface ContainerReclassification {
 /**
  * A fold the rebuilt container's own slot owed: its bytes stopped interrupting a neighbour, so
  * the parent's array reloads as fewer blocks and no scope-local settle reaches that join
- * (GH #176). `before` is the pre-splice array — the rollback register, since the splice lands in
+ * `before` is the pre-splice array — the rollback register, since the splice lands in
  * an array no commit descriptor covers. `landing` is where the container's first byte ended up.
  */
 export interface AncestrySeamFold {

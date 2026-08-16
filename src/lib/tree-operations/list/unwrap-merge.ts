@@ -101,10 +101,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	return liftedBlocks;
 }
 
-/**
- * M1's target-finder: a path from `list` down to the deepest visible prose leaf of the
- * previous item, or null when no prose leaf is reachable.
- */
+/** M1's target-finder; null when no prose leaf is reachable. */
 function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): number[] | null {
 	if (!list.children || targetItemIndex < 0 || targetItemIndex >= list.children.length) {
 		return null;

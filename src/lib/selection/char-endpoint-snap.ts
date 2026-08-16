@@ -38,7 +38,7 @@ export function normalizeCharEndpoint(
 		return endpoint.offset === 0 || endpoint.offset === end ? endpoint : wholeUnit;
 	}
 	// Range AND scalar: `setSelection` takes plain numbers, so this is the only gate between a
-	// caller's arithmetic and a delete that would halve an astral scalar (#167).
+	// caller's arithmetic and a delete that would halve an astral scalar.
 	const clamped = snapToScalarBoundary(node.raw, Math.min(Math.max(endpoint.offset, 0), end));
 	return clamped === endpoint.offset ? endpoint : { path: endpoint.path.slice(), offset: clamped };
 }

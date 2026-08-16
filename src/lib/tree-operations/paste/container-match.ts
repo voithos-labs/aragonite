@@ -183,11 +183,7 @@ export async function applyContainerMatchingPaste(
 	});
 }
 
-/**
- * Non-empty-target path: merge the first item into the target leaf at the caret, splice
- * the rest as siblings, reattach post-caret residue to the last. A single-item clipboard
- * keeps everything in the target leaf.
- */
+/** A single-item clipboard keeps everything in the target leaf. */
 async function applyContainerMatchingMerge(
 	unwrap: ContainerUnwrap,
 	merge: NonNullable<ContainerUnwrap['merge']>,

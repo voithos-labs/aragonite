@@ -11,6 +11,8 @@ Two layers, both living inside `src/lib/` next to the code they test.
 
 The whole editor module is self-contained — components, core logic, and both test layers under one root. That's the property that made extracting aragonite from limestone a file move rather than a project.
 
+Beside them sits `src/lib/testing/`, which is not a test layer but **shipped code**: the published `aragonite/testing` seam, holding the plugin-platform reset and the kind, container and inline conformance kits a plugin author runs inside their own case. Its own suites live under `src/lib/test/invariants/` (the built-in sweeps) and `src/lib/test/plugins/` (the kits driven as an author drives them).
+
 ```bash
 npm test               # full suite — the commit gate
 npm run test:editor    # all unit tests
@@ -86,9 +88,11 @@ diagnostic too cross-cutting for any of those joins `src/lib/test/support/warn-a
 which waives a tag at a site for the whole run and only shrinks. Prefer the first three: an
 allowlist row blinds its site everywhere, which is why no `invariant:` fire may take one.
 
-The claim doors sit in file-level `afterEach` hooks that must run before the gate's own, which is
-why `vitest.config.ts` pins `sequence.hooks: 'stack'`. A file that swaps the sink out and never
-restores it reds itself rather than blinding the rest of the worker, and the gate re-arms.
+Two teardown guards hold the gate up, and both live in `src/lib/test/support/warn-gate.ts`. The
+per-test `afterEach` is the verdict: the claim doors sit in file-level `afterEach` hooks that must
+run before it, which is why `vitest.config.ts` pins `sequence.hooks: 'stack'`. The per-file
+`afterAll` is the aggregate, below. A file that swaps the sink out and never restores it reds
+itself rather than blinding the rest of the worker, and the gate re-arms.
 
 There is no exemption. A file that `vi.mock`s `$lib/dev-warn` replaces `devWarn` outright and a
 file that spies `console.warn` reads a channel the registered sink silences; either way the gate
@@ -130,22 +134,22 @@ Specs are organized by feature area at the top level, and per-block inside `test
 
 ### By area
 
-| Script                    | Covers                                                                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `test:e2e:top`            | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers                                                  |
-| `test:e2e:blocks`         | All per-block specs under `tests/blocks/`                                                                                      |
-| `test:e2e:blocks:<block>` | One block only — `list`, `code`, `image`, `table`, `blockquote`                                                                |
-| `test:e2e:plugins`        | Plugin authoring — plugin containers, reserved chrome, collapse, the `plugins` prop, component-portal widgets, editable leaves |
-| `test:e2e:clipboard`      | Cut / copy / paste (excludes exploration)                                                                                      |
-| `test:e2e:exploration`    | Clipboard exploration / manual-verification scenarios                                                                          |
-| `test:e2e:selection`      | Cross-block selection behavior                                                                                                 |
-| `test:e2e:sticky-column`  | Vertical cursor column tracking across block transitions                                                                       |
-| `test:e2e:search`         | Find/replace bar and controller behavior                                                                                       |
-| `test:e2e:decorations`    | Decoration engine in the browser — mark / island / block paint, search as its first client                                     |
-| `test:e2e:presentation`   | Presentation modes — reading-mode inertness, block- and inline-granular preview reveal, mid-session mode flips                 |
-| `test:e2e:simulation`     | The note-taking simulation sessions (below)                                                                                    |
-| `test:e2e:a11y`           | axe baseline-ratchet over `.editor` — fails on any violation outside the committed allowlist                                   |
-| `test:e2e:vr`             | Virtual rendering on large fixtures — windowing, reveal, table-row windowing, mounted-count ceiling                            |
+| Script                    | Covers                                                                                                                                                                                                                                                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test:e2e:top`            | Top-level specs — smoke, text editing, keyboard nav, undo, inline, containers                                                                                                                                                                                                                                     |
+| `test:e2e:blocks`         | All per-block specs under `tests/blocks/`                                                                                                                                                                                                                                                                         |
+| `test:e2e:blocks:<block>` | One block only — `list`, `code`, `image`, `table`, `blockquote`                                                                                                                                                                                                                                                   |
+| `test:e2e:plugins`        | Plugin authoring — plugin containers, reserved chrome, collapse, the `plugins` prop, component-portal widgets, editable leaves, plus the browser conformance sweep (`tests/plugins/conformance-sweep.spec.ts`), which drives every registered kind declaring a `conformanceFixture` through the mounted-DOM cells |
+| `test:e2e:clipboard`      | Cut / copy / paste (excludes exploration)                                                                                                                                                                                                                                                                         |
+| `test:e2e:exploration`    | Clipboard exploration / manual-verification scenarios                                                                                                                                                                                                                                                             |
+| `test:e2e:selection`      | Cross-block selection behavior                                                                                                                                                                                                                                                                                    |
+| `test:e2e:sticky-column`  | Vertical cursor column tracking across block transitions                                                                                                                                                                                                                                                          |
+| `test:e2e:search`         | Find/replace bar and controller behavior                                                                                                                                                                                                                                                                          |
+| `test:e2e:decorations`    | Decoration engine in the browser — mark / island / block paint, search as its first client                                                                                                                                                                                                                        |
+| `test:e2e:presentation`   | Presentation modes — reading-mode inertness, block- and inline-granular preview reveal, mid-session mode flips                                                                                                                                                                                                    |
+| `test:e2e:simulation`     | The note-taking simulation sessions (below)                                                                                                                                                                                                                                                                       |
+| `test:e2e:a11y`           | axe baseline-ratchet over `.editor` — fails on any violation outside the committed allowlist                                                                                                                                                                                                                      |
+| `test:e2e:vr`             | Virtual rendering on large fixtures — windowing, reveal, table-row windowing, mounted-count ceiling                                                                                                                                                                                                               |
 
 The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither is a perf gate — both ride `npm test`.
 
@@ -203,7 +207,7 @@ Note the import path — `../fixtures`, not `@playwright/test`. That's the invar
 
 **Marker prefixes count toward block text.** Headings and list items render their markers as dimmed spans inside the contenteditable, and `getBlockText(i)` returns the full text including the marker.
 
-**Geometry reads against an image widget need a decode barrier, and not every Playwright API is one.** An `<img>` that has not decoded lays out 0x0, and `.md-image-widget` shrink-wraps it, so a rect read too early is degenerate. Compute a point from that rect and the click lands _inside_ the widget once the image decodes, which selects the image instead of placing a caret, so whatever the spec was waiting for is never painted at all. Measured against a 1.2s stalled response: `locator.waitFor()` and `locator.click()` block until the box is non-empty (they ran the full stall), while `locator.boundingBox()` and `page.evaluate(() => el.getBoundingClientRect())` both returned a 0x0 box in under 6ms. So a raw-`evaluate` or bare-`boundingBox` read needs an explicit guard: `waitForFirstImageLoaded` (`tests/blocks/image/helpers.ts`), a preceding `waitFor()`/`click()` on the widget, or an explicit fixture width (`![alt|120](url)`) when width is the only dimension you need. Which regime you land in is set by dev-server latency, so this is invisible in isolation and surfaces as a full-battery flake: the 2026-07-25 measurement was 0 of 120 repeats pre-decode on a warm cache, 80 of 180 with two heavy projects running alongside.
+**Geometry reads against an image widget need a decode barrier, and not every Playwright API is one.** An `<img>` that has not decoded lays out 0x0, and `.md-image-widget` shrink-wraps it, so a rect read too early is degenerate. Compute a point from that rect and the click lands _inside_ the widget once the image decodes, which selects the image instead of placing a caret, so whatever the spec was waiting for is never painted at all. `locator.waitFor()` and `locator.click()` block until the box is non-empty; `locator.boundingBox()` and `page.evaluate(() => el.getBoundingClientRect())` do not. So a raw-`evaluate` or bare-`boundingBox` read needs an explicit guard: `waitForFirstImageLoaded` (`tests/blocks/image/helpers.ts`), a preceding `waitFor()`/`click()` on the widget, or an explicit fixture width (`![alt|120](url)`) when width is the only dimension you need. Which regime you land in is set by dev-server latency, so this is invisible in isolation and surfaces only as a full-battery flake.
 
 **Driving IME composition.** Two complementary halves. For handler-level contract pins (the composing gate, the end funnel, offset capture), use the unit harness — `test/harness/editable-surface.ts` drives the real surface skeleton with synthetic event calls, simulating the IME's writes by assigning `el.textContent` before firing the end. For browser event ORDER and full wiring, drive real sequences in e2e via CDP: `page.context().newCDPSession(page)`, then `Input.imeSetComposition` per update and `Input.insertText` to commit — see `tests/ime-composition.spec.ts`. Mid-composition there is no source change to settle on; settle on the composed text arriving in the focused element's DOM instead.
 
@@ -313,7 +317,7 @@ On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()`
 | Kind                         | Examples                                          | Treatment                                                                                                                                                                                |
 | ---------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Machine-independent counters | Clone byte parity, container-raw amplification    | Hard ceilings — fail the commit gate (`test:editor:perf`, inside `npm test`)                                                                                                             |
-| Keystroke p50 (renderable)   | Five 1MB shapes + six 10MB shapes                 | Gated by `npm run perf:check` — deliberate, not in `npm test`; ceiling = `baseline × 1.1 + 5ms`, × `PERF_RUNNER_SCALE` (1 locally — the tight gate; CI sets 2.5, a gross-regression net) |
+| Keystroke p50 (renderable)   | The 1MB, 10MB and live rows in `GATED_ROWS`       | Gated by `npm run perf:check` — deliberate, not in `npm test`; ceiling = `baseline × 1.1 + 5ms`, × `PERF_RUNNER_SCALE` (1 locally — the tight gate; CI sets 2.5, a gross-regression net) |
 | Other time rows              | Parse/clone bench ms, p95, single-giant-paragraph | Report-only vs `src/lib/test/perf/baseline.json`                                                                                                                                         |
 
 Ceiling and baseline bumps are deliberate decisions with a changelog note, never reflexive edits.

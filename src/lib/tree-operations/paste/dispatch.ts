@@ -188,7 +188,7 @@ export async function pasteDispatch(
 }
 
 /**
- * A clipboard's trailing blank line is CONTENT (GH #131): a parse folds exactly one into `suffix`
+ * A clipboard's trailing blank line is CONTENT: a parse folds exactly one into `suffix`
  * while a second already materializes as a block, and the inline route splices the bytes verbatim
  * — so consuming children alone made one route keep the copied separation and its twin lose it.
  * Spent only where the splice leaves nothing behind the pasted blocks; a residue or a follower

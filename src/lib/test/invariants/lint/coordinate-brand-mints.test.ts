@@ -1,6 +1,6 @@
 /**
- * Coordinate-space brand mints stay enumerable (`docs/contributing/culture.md` § "offset
- * arithmetic has one home"). A bare `as <Brand>` cast lives only in that brand's declared
+ * Coordinate-space brand mints stay enumerable (`docs/contributing/casebook.md` § "DOM to raw
+ * offset translation has one home"). A bare `as <Brand>` cast lives only in that brand's declared
  * home module, and an `as<Brand>(…)` mint call only in those homes plus the declared door
  * files below — so every boundary cast stays findable by reading one list. The named
  * conversion and compose helpers are sanctioned inter-space arithmetic and unrestricted.
