@@ -26,11 +26,24 @@ export interface GapCaretPosition {
 export function gapEligibleAt(doc: DocumentView, parentPath: number[], index: number): boolean {
 	const children = gapScopeChildren(doc, parentPath);
 	if (!children) return false;
+	return gapEligibleAmong(children, index, parentPath.length > 0);
+}
+
+/**
+ * The same rule for a scope that already holds its own children — the renderer, which has them
+ * in hand and no path to resolve. `ownsTrailingBoundary` is false for the root, whose trailing
+ * boundary belongs to the move-past-end append.
+ */
+export function gapEligibleAmong(
+	children: readonly NodeView[],
+	index: number,
+	ownsTrailingBoundary: boolean
+): boolean {
 	if (index < 0 || index > children.length) return false;
 
 	if (index === 0) return declaresEdge(children[0], 'before');
 	if (index === children.length) {
-		return parentPath.length > 0 && declaresEdge(children[index - 1], 'after');
+		return ownsTrailingBoundary && declaresEdge(children[index - 1], 'after');
 	}
 	return declaresEdge(children[index - 1], 'after') && declaresEdge(children[index], 'before');
 }

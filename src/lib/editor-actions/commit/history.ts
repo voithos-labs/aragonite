@@ -22,6 +22,9 @@ export function createHistoryActions(
 			const violation = checkSnapshotIntegrity(entry);
 			return violation && { ...violation, message: `${op}: ${violation.message}` };
 		});
+		// Ahead of the swap itself, so a landing awaiting across it reads the new stamp
+		// whichever side of the doc write its reveal resolves on.
+		controller.noteHistorySwap();
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		// A copy: live state splices this array in place, and the entry stays on the stack.

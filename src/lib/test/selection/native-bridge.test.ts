@@ -152,4 +152,24 @@ describe('applySelectionToDom — restore routing', () => {
 		// not a char-walk on the table wrapper path [0].
 		expect(requested).toEqual([[0, 1, 1]]);
 	});
+
+	// Miss (Sel-F2): the restore road's table coverage all came in through the cross-block arm,
+	// where a cell endpoint HAD to be translated to paint anything. The collapsed arm looks like
+	// prose from the outside, so nothing ever asked which space its offset was in.
+	it('lands a COLLAPSED cell selection in the cell, not at a char offset on the table', () => {
+		const doc = parse(TABLE_ONLY);
+		const s = createSelectionState({ getDoc: () => doc });
+		const requested: number[][] = [];
+		// What getSelection() reports for a caret parked in the last cell, and what a consumer
+		// replays through setSelection.
+		const stored = { path: [0], offset: 3, cellCoordinate: true as const };
+
+		applySelectionToDom({ anchor: stored, focus: { ...stored } }, s, (p) => {
+			requested.push(p);
+			return document.createElement('div');
+		});
+
+		expect(requested).toEqual([[0, 1, 1]]);
+		expect(s.isCrossBlock).toBe(false);
+	});
 });

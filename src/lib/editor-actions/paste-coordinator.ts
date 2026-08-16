@@ -17,7 +17,12 @@ export function createPasteCoordinator(
 		resolveState: getStateForNode,
 		expectState: expectStateForNode,
 		landCaret: async (path, offset) => {
-			(await revealPath(path))?.focus(offset);
+			const stamp = controller.historyGeneration();
+			const block = await revealPath(path);
+			// A history swap that resolved inside the reveal restored a different tree, so
+			// this path no longer addresses what the paste aimed at (#31).
+			if (controller.historyGeneration() !== stamp) return;
+			block?.focus(offset);
 		}
 	};
 }

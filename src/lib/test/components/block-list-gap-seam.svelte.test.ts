@@ -44,9 +44,13 @@ afterEach(async () => {
 	mounted = null;
 });
 
-/** A windowed BlockList over `BLOCK_COUNT` paragraphs with the gap parked at `gapIndex`. */
-function mountWindowedList(gapIndex: number): Mounted {
-	const doc = parse(Array.from({ length: BLOCK_COUNT }, (_, i) => `para ${i}\n`).join('\n'));
+/** Fences declare both gap edges; paragraphs declare none. */
+const FENCE = '```\ncode\n```\n';
+const PARAGRAPH = 'para\n';
+
+/** A windowed BlockList over `BLOCK_COUNT` blocks with the gap parked at `gapIndex`. */
+function mountWindowedList(gapIndex: number, blockSource = FENCE): Mounted {
+	const doc = parse(Array.from({ length: BLOCK_COUNT }, () => blockSource).join('\n'));
 	expect(doc.children).toHaveLength(BLOCK_COUNT);
 	const selection = createSelectionState();
 	selection.setGapCaret({ parentPath: [], index: gapIndex });
@@ -99,6 +103,15 @@ describe('the gap indicator at a windowed slice boundary', () => {
 	// would put the caret's line at a boundary the user is not looking at.
 	it('paints nothing for a boundary past the slice end', () => {
 		mounted = mountWindowedList(SLICE_END + 1);
+
+		expect(mounted.target.querySelectorAll('[data-gap-caret]')).toHaveLength(0);
+	});
+
+	// A gap outlives the tree it was minted against: an edit elsewhere can change the kinds
+	// facing its boundary, and the state has no way to see that. The renderer re-reads the
+	// eligibility rather than painting a caret no gesture could have parked there.
+	it('paints nothing at a boundary the kinds facing it do not declare', () => {
+		mounted = mountWindowedList(SLICE_END, PARAGRAPH);
 
 		expect(mounted.target.querySelectorAll('[data-gap-caret]')).toHaveLength(0);
 	});

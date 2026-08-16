@@ -40,6 +40,7 @@ function setup(childCount: number, isCollapsed?: () => boolean) {
 			correctsScroll: () => true,
 			getFocusPath: () => null,
 			getWidthVersion: () => 0,
+			getViewportHeightVersion: () => 0,
 			getParentPath: () => [],
 			isCollapsed,
 			overscan: 2,

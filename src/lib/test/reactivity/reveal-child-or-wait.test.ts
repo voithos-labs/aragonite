@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+// Miss-analysis: the staleness arms below asserted the WINDOW question, so the false
+// positive they encoded (a mounted child cleared by a one-flush window skew, and never
+// re-published) read as intent; no arm asked whether the ref's element was still attached.
 import { describe, it, expect, vi } from 'vitest';
 import {
 	revealChildOrWait,
@@ -58,28 +62,46 @@ describe('revealChildOrWait', () => {
 		expect(revealChild).not.toHaveBeenCalled();
 	});
 
-	it('drops a stale ref and re-reveals when isStale reports the slot off-window', async () => {
+	it('drops a ref whose published element left the DOM and re-reveals', async () => {
 		const { refs, slots, revealChild } = makeScope();
-		const stale = {};
-		refs[0] = stale;
+		const detached = {};
+		// A wholesale `replaceRefs` re-seat is the live shape: the publisher that recorded
+		// this element is long gone, so no teardown will ever empty the slot.
+		publishRefSlot(slots, 0, detached, document.createElement('div'));
+		refs[0] = detached;
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isStale: () => true });
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
 
-		// The stale ref was dropped and a fresh one mounted via revealChild.
 		expect(revealChild).toHaveBeenCalledWith(0);
 		expect(refs[0]).toBeTruthy();
-		expect(refs[0]).not.toBe(stale);
+		expect(refs[0]).not.toBe(detached);
 	});
 
-	it('keeps a present ref when isStale reports the slot in-window', async () => {
+	it('keeps a mounted ref the window reports off-slice (the one-flush skew)', async () => {
 		const { refs, slots, revealChild } = makeScope();
-		const live = {};
-		refs[0] = live;
+		const mounted = {};
+		const el = document.createElement('div');
+		document.body.append(el);
+		publishRefSlot(slots, 0, mounted, el);
 
-		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isStale: () => false });
+		// A programmatic scroll moves the slice a flush before the DOM follows. Clearing here
+		// strands the ref — nothing re-publishes an unchanged mount.
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild, isInWindow: () => false });
 
 		expect(revealChild).not.toHaveBeenCalled();
-		expect(refs[0]).toBe(live);
+		expect(refs[0]).toBe(mounted);
+		el.remove();
+	});
+
+	it('keeps a ref no publisher recorded an element for (degrades to live)', async () => {
+		const { refs, slots, revealChild } = makeScope();
+		const unrecorded = {};
+		refs[0] = unrecorded;
+
+		await revealChildOrWait(0, { slots, childCount: 1, revealChild });
+
+		expect(revealChild).not.toHaveBeenCalled();
+		expect(refs[0]).toBe(unrecorded);
 	});
 
 	it('does not reveal an out-of-doc index (transient size lag never mounts)', async () => {

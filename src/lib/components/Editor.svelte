@@ -291,7 +291,13 @@
 	const widgetSelection = createWidgetSelectionState({
 		onSelect: () => {
 			window.getSelection()?.removeAllRanges();
-			selectionState.clear();
+			// Announced like the `source` swap: dropping the native range ends the document
+			// caret without moving a field the clear guards on, and the native `selectionchange`
+			// it fires bails on the empty range before it reaches the channel.
+			selectionState.batch(() => {
+				selectionState.clear();
+				selectionState.announceSelection();
+			});
 		}
 	});
 
@@ -367,7 +373,13 @@
 			undoManager.clear();
 			stickyColumn.reset();
 			edgeAffinity.reset();
-			selectionState.clear();
+			// Announced, not left to the clear: the swap usually arrives on a plain caret, which
+			// is native-only, so nothing editor-owned moves and subscribers would keep painting
+			// the outgoing document's selection. Batched, so a real range still emits once.
+			selectionState.batch(() => {
+				selectionState.clear();
+				selectionState.announceSelection();
+			});
 			documentGeneration++;
 			// The resolver refreshes unconditionally — the old one closes over the
 			// swapped-out doc — but the epoch bumps only on a differing LRD signature.
@@ -379,7 +391,7 @@
 		}
 	});
 
-	// ── Listener ritual ─────────────────────────────────────────────────
+	// ── Root listener helpers ───────────────────────────────────────────
 	//
 	// Every root listener installs on an $effect and removes on its teardown; these two capture
 	// that pair once rather than per site. Typed off `Event`, not the per-target event maps: those
@@ -412,6 +424,8 @@
 		return !!node && !!headerEl && headerEl.contains(node);
 	}
 
+	// ── Dead-space caret ────────────────────────────────────────────────
+
 	// A click in the root's padding or below the last block places a caret rather than
 	// doing nothing. `getBlockComponent` is hoisted; the reset closure defers its reads.
 	const deadSpaceCaret = createDeadSpaceCaret({
@@ -426,6 +440,8 @@
 		lastBlockIndex: () => doc.children.length - 1,
 		revealBlock: (index) => revealPath([index])
 	});
+
+	// ── Link card door ──────────────────────────────────────────────────
 
 	// The caret snapshot and the entry guards ride the STATE, not the callers, so entry path N+1
 	// cannot forget them. Both doors decline a cross-block range absolutely: canOpen wants a
@@ -456,6 +472,8 @@
 		if (effectiveMode !== 'live') linkCard.close();
 	});
 
+	// ── Hidden-run class probe ──────────────────────────────────────────
+
 	// Once per mode change, the probe pays the getComputedStyle the per-keystroke hidden-run
 	// predicate cannot afford, so the two class vocabularies cannot drift silently.
 	$effect(() => {
@@ -464,6 +482,8 @@
 		const root = editorEl;
 		assertInvariant('marker-css-parity', () => checkMarkerCssParity(root));
 	});
+
+	// ── Root gesture listeners ──────────────────────────────────────────
 
 	$effect(() => {
 		if (!editorEl) return;
@@ -507,17 +527,19 @@
 		);
 	});
 
-	// Release on the next user-intent gesture, so the anchor holds only through the
-	// post-reveal settle. NOT on `scroll`: a programmatic correctAnchor write fires
-	// `scroll` itself and would self-release the anchor mid-settle.
+	// Release on the next user-intent gesture, so the anchor holds only through the post-reveal
+	// settle. NOT on `scroll`: a programmatic correctAnchor write fires `scroll` itself and
+	// would self-release mid-settle. On the resolved PORT, not the root — the pin fights
+	// whoever scrolls the port, and in host mode that gesture lands outside the editor.
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
+		const target = getScrollHost();
+		if (!target) return;
 		const release = () => revealAnchor.releaseAll();
 		return removeAll(
-			onRoot(root, 'keydown', release),
-			onRoot(root, 'pointerdown', release),
-			onRoot(root, 'wheel', release, { passive: true })
+			onRoot(target, 'keydown', release),
+			onRoot(target, 'pointerdown', release),
+			onRoot(target, 'wheel', release, { passive: true })
 		);
 	});
 
@@ -558,6 +580,8 @@
 			unregisterEditor(root);
 		};
 	});
+
+	// ── Block element and component lookup ──────────────────────────────
 
 	// The measurement surface for cross-block caret math. Table cells carry no
 	// data-block-path (they render without BlockHost), so a deep cell path resolves
@@ -607,10 +631,6 @@
 			slots: blockRefSlots,
 			childCount: doc.children.length,
 			revealChild: topWindowing.revealChild,
-			// An off-window child's slot only empties when its teardown flushes; until then
-			// the detached ref would silently no-op the reveal, so `isStale` drops it and
-			// the scroll and a fresh mount run.
-			isStale: (i) => !topWindowing.isInWindow(i),
 			isInWindow: topWindowing.isInWindow
 		});
 		const ref = blockRefs[top];
@@ -916,10 +936,11 @@
 	});
 
 	// CSS keys on `data-cross-block` to hide the native caret and selection highlight
-	// while the overlay paints the cross-block range.
+	// while the overlay paints the cross-block range. Keyed on the OVERLAY's own predicate:
+	// a state it declines to paint must not also lose the caret, or the screen shows neither.
 	$effect(() => {
 		if (!editorEl) return;
-		if (selectionState.isCrossBlock) {
+		if (selectionState.isCustomRendered) {
 			editorEl.setAttribute('data-cross-block', '');
 		} else {
 			editorEl.removeAttribute('data-cross-block');
@@ -1090,7 +1111,7 @@
 		);
 	});
 
-	// ── Virtual rendering (top-level windowing) ──────────────────────────
+	// ── Height oracle ───────────────────────────────────────────────────
 
 	// How far the host scaled the type off the size HEIGHT_ESTIMATES were calibrated
 	// at. Plain `let`, not `$state`: the oracle reads it inside `estimate()`, the
@@ -1114,9 +1135,11 @@
 		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 	});
 
+	// ── Resize invalidation ─────────────────────────────────────────────
+
 	// A WIDTH change re-wraps prose, staling every cached height, so the scopes rebuild
-	// off this counter; a height-only resize is ignored. ResizeObserver's per-callback
-	// batching is the coalescing — no setTimeout/rAF debounce (G4.4).
+	// off this counter; a height-only resize spares the measured cache. ResizeObserver's
+	// per-callback batching is the coalescing — no setTimeout/rAF debounce (G4.4).
 	let widthVersion = $state(0);
 	$effect(() => {
 		const el = editorEl;
@@ -1132,6 +1155,40 @@
 		observer.observe(el);
 		return () => observer.disconnect();
 	});
+
+	// The slice's own axis, watched on the RESOLVED port: the window's extent comes from the
+	// scrollport's height, so a height-only resize otherwise leaves the newly-exposed band as
+	// bare spacer until the next scroll. Its own counter, never `widthVersion` — that one
+	// drops every measured height, which a resize re-wrapping no prose has not earned.
+	let viewportHeightVersion = $state(0);
+	$effect(() => {
+		if (!editorEl) return;
+		const target = getScrollHost();
+		if (!target) return;
+		const bump = () => viewportHeightVersion++;
+		if (target === window) {
+			// The page viewport has no box to observe, and a visualViewport move (a mobile URL
+			// bar retracting) never touches documentElement's height — hence both, ungated.
+			const visual = window.visualViewport;
+			return removeAll(
+				onRoot(window, 'resize', bump),
+				visual ? onRoot(visual, 'resize', bump) : () => {}
+			);
+		}
+		// Cast, not a narrowing: `UserScrollport` is a union of object types, which `=== window`
+		// does not narrow — the same cast `createScrollport` makes on the same split.
+		const el = target as HTMLElement;
+		let lastHeight = el.clientHeight;
+		const observer = new ResizeObserver(() => {
+			if (el.clientHeight === lastHeight) return;
+			lastHeight = el.clientHeight;
+			bump();
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
+
+	// ── Type scale ──────────────────────────────────────────────────────
 
 	// The width change's sibling: a font-size move puts estimates off several-fold, so a
 	// document whose true height clears the activation watermark can fail to window at
@@ -1157,6 +1214,8 @@
 		return () => observer.disconnect();
 	});
 
+	// ── Header slot compensation ────────────────────────────────────────
+
 	// The header slot's height lives outside the height model, so while the editor owns the
 	// correction a growing header would slide the document under the reader. Compensating from
 	// the SLOT's own resize is what composes with `correctAnchor` instead of double-correcting;
@@ -1180,6 +1239,8 @@
 		observer.observe(el);
 		return () => observer.disconnect();
 	});
+
+	// ── Focus attribution ───────────────────────────────────────────────
 
 	// Drives each windowing scope's per-level pin, so a scroll that pushes the caret
 	// off-screen never tears down native focus/IME. Plain `let`, not $state: focusout
@@ -1240,6 +1301,8 @@
 		};
 		return removeAll(onRoot(root, 'focusin', onFocusIn), onRoot(root, 'focusout', onFocusOut));
 	});
+	// ── Top-level windowing ─────────────────────────────────────────────
+
 	// Assembled here, after the windowing signals it carries exist; the block
 	// components and the windowing hook below both read it back through getContext.
 	setContext(EDITOR_DOC_KEY, {
@@ -1255,7 +1318,8 @@
 		focusedPath: () => focusedPath,
 		heightOracle,
 		correctsScroll: ownsScrollCorrection,
-		widthVersion: () => widthVersion
+		widthVersion: () => widthVersion,
+		viewportHeightVersion: () => viewportHeightVersion
 	} satisfies EditorDoc);
 
 	// getListEl is the inner .block-list wrapper, never editorEl (== scrollEl): it
@@ -1518,8 +1582,8 @@
 		// buckets are the only oracle for a stale bucket, since jsdom measures every
 		// range at zero width and no overlay ever paints there.
 		getDecorationEngine: () => decorationEngine,
-		// Constructs the stale-slot artifact the windowed each-block's cleanup can
-		// leave behind (see revealPath's isStale wiring); e2e-only.
+		// Constructs the detached-slot artifact the windowed each-block's cleanup can
+		// leave behind (see `isSlotDetached`); e2e-only.
 		setBlockRefSlot: blockRefSlots.set
 	};
 </script>

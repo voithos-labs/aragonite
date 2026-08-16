@@ -60,4 +60,9 @@ export interface EditorActionsDeps {
 export interface UndoController extends CommitController {
 	captureCurrentState(): UndoEntry;
 	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;
+	/** Monotonic stamp of the last history swap. A caret landing captures it before its
+	 *  reveal and declines when it moved: the tree it was aimed at is no longer on screen. */
+	historyGeneration(): number;
+	/** Announce a swap. The restore road's own call — nothing else may bump it. */
+	noteHistorySwap(): void;
 }
