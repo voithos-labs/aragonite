@@ -40,6 +40,15 @@ export function isPreviewMode(mode: PresentationMode): boolean {
 }
 
 /**
+ * Whether the mode paints a marker in the block the caret is in: styled source always, and the
+ * preview rungs by revealing that block. The question every seam writing at the caret asks, since
+ * a rewrite may only drop bytes the reader never saw (live-mode.md § 2).
+ */
+export function paintsFocusedMarkers(mode: PresentationMode): boolean {
+	return !hidesMarkers(mode) || isPreviewMode(mode);
+}
+
+/**
  * The read-only gate the dispatch seams key off. Structural parameter type so the
  * schema/selection layers need no editor-keys import; an `undefined` getter (test
  * doubles, unwired surfaces) means not reading.

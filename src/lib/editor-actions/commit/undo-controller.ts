@@ -15,7 +15,7 @@ import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import { asDocPath, pathsEqual } from '../../selection/path-math';
-import { assertInvariant } from '../../invariants/assert';
+import { assertInvariant } from '../../assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
@@ -352,6 +352,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		}
 
 		if (!discarded) {
+			// After both publish arms, so nothing can memoize the new key against a tree the
+			// ceremony has not finished handing over. A discarded commit rolled its own
+			// mutation back, and announcing it would claim bytes that never moved.
+			deps.bumpContentVersion();
 			// The gap names a BOUNDARY INDEX, and a commit moves what that index names. Ended
 			// here rather than remapped: no arm can say which boundary the user meant afterwards.
 			// After the push above, so the entry this commit stored keeps the gap it was taken at.

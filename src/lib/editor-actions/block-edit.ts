@@ -92,8 +92,11 @@ export function createBlockEditActions(
 		// A blank-fill settle can still FOLD here — the single-node preview probe has no
 		// neighbour to absorb it — so this path publishes its own descriptor and re-lands the
 		// caret, which the ceremony would otherwise have done.
+		if (settled.change.op !== 'noop') publishScopeFold(deps, undefined, settled.change);
+		// After that publish, as the ceremony announces after its own, and ahead of the no-fold
+		// return: the leaf's raw is already written, and the ordinary keystroke settles to `noop`.
+		deps.bumpContentVersion();
 		if (settled.change.op === 'noop') return;
-		publishScopeFold(deps, undefined, settled.change);
 		await tick();
 		focusAfterContentReplace(
 			[],

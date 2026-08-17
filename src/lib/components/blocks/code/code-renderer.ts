@@ -8,7 +8,7 @@ import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { devWarn } from '../../../dev-warn';
-import { assertInvariant } from '../../../invariants/assert';
+import { assertInvariant } from '../../../assert';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';

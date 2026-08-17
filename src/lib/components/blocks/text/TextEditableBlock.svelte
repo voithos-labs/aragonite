@@ -48,7 +48,8 @@
 	import { resolveLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
-	import { assertInvariant } from '../../../invariants/assert';
+	import { assertInvariant } from '../../../assert';
+	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import { widgetElByStart } from './widget-adjacency';
 	import {
 		caretLandableBounds,
@@ -391,6 +392,7 @@
 		getAffinity: () => edgeAffinity.get(),
 		getScreen: () => screenVisibilityOf(el ?? null),
 		consumePendingMarks: () => pendingMarks.consume(),
+		restorePendingMarks: (marks) => pendingMarks.restore(marks),
 		getRawSelection: () => cursor.getRawSelection(),
 		// The same join seam `handleLiveSelectionEdit` takes, in the display bytes the seat's
 		// contract returns (commitInput re-appends the trailing line ending).
@@ -908,10 +910,11 @@
 	function toggleFormat(format: InlineMarkKind, range: { start: number; end: number }): void {
 		if (!el) return;
 
-		// Live paints no delimiter, so the byte-pair strategy's abandoned `****` would be
-		// invisible garbage the user can see the effect of but not explain: pend the mark and
-		// let the next insertion carry it instead (live-mode.md § 4.3). Every other mode shows the pair.
-		if (presentationMode === 'live' && range.start === range.end) {
+		// A surface painting no delimiter would hold the byte-pair strategy's abandoned `****` as
+		// invisible garbage the user can see the effect of but not explain: pend the mark and let
+		// the next insertion carry it instead (live-mode.md § 4.3). The preview rungs reveal the
+		// block the caret is in, so they show the pair and take the byte path.
+		if (!paintsFocusedMarkers(presentationMode) && range.start === range.end) {
 			// The insertion that spends the mark starts its own undo entry, so it is never
 			// folded into the burst the chord interrupted.
 			controller.flushDebouncedCheckpoint();

@@ -20,6 +20,9 @@ export interface CompositionSeatDeps {
 	getScreen: () => VisibilityContext;
 	/** Spend the pending marks: a composition is the one insertion they were promised to. */
 	consumePendingMarks: () => ReadonlySet<InlineMarkKind> | null;
+	/** Give them back when the composition committed nothing — an IME cancel inserts no run, so
+	 *  the promise is still owed. Required, so both surfaces answer for it alike. */
+	restorePendingMarks: (marks: ReadonlySet<InlineMarkKind>) => void;
 	/** The block's live selection, read at compositionstart: composing over one is a range op no
 	 *  plain-insertion arm claims, so it routes to `resolveRangeEdit`. Omit to keep ranges verbatim. */
 	getRawSelection?: () => { start: number; end: number } | null;
@@ -46,6 +49,9 @@ interface CompositionWindow {
 	affinity: EdgeAffinity | null;
 	marks: ReadonlySet<InlineMarkKind> | null;
 	range: { start: number; end: number } | null;
+	/** Whether a commit asked this window for bytes. The relocation's own answer does not matter:
+	 *  a run arrived either way, and that run is the insertion the marks were promised to. */
+	committed: boolean;
 }
 
 export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSeat {
@@ -59,11 +65,13 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 				before: deps.getDisplayText(),
 				affinity: deps.getAffinity(),
 				marks: deps.consumePendingMarks(),
-				range: deps.getRawSelection?.() ?? null
+				range: deps.getRawSelection?.() ?? null,
+				committed: false
 			};
 		},
 		relocate: (after, composedAt) => {
 			if (started === null) return null;
+			started.committed = true;
 			// A selection at the window's open makes this a range replace: the plain arms below
 			// cannot claim it, and the engine's literal replace strands the runs the range crossed.
 			if (started.range && started.range.start < started.range.end) {
@@ -97,6 +105,9 @@ export function createCompositionSeat(deps: CompositionSeatDeps): CompositionSea
 			);
 		},
 		noteEnd: () => {
+			if (started && !started.committed && started.marks) {
+				deps.restorePendingMarks(started.marks);
+			}
 			started = null;
 		}
 	};

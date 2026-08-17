@@ -31,6 +31,10 @@ export interface EditorActionsDeps {
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
+	/** Announce that this door moved the document's bytes
+	 *  (`reactivity/content-version.svelte.ts`). The ceremony owes one call per commit; the
+	 *  writers outside it owe their own, which is the census G4.52 keeps honest. */
+	bumpContentVersion(): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
 	stickyColumn: StickyColumnState;

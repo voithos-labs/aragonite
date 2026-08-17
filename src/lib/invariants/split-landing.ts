@@ -5,7 +5,7 @@
  * the first half's tail.
  */
 
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 export function checkSplitLanding(expected: number, landing: number): InvariantViolation | null {
 	if (landing === expected) return null;

@@ -7,7 +7,7 @@
  * anything (jsdom, source mode); the presentation e2e battery is the real assertion there.
  */
 
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 import { familyHidesText, markerFamilyOf, type VisibilityContext } from '../core/inline/visibility';
 import {
 	CONTENT_EMPTY_ATTR,

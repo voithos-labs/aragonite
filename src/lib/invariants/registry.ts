@@ -1,5 +1,5 @@
 import type { AnyBlockKind, AnyInlineKind, BlockKind } from '../core/nodes';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /**
  * Registry predicates take every lookup as a parameter — pure by construction, and a

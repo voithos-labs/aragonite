@@ -32,7 +32,7 @@ import {
 	traceRevealFold,
 	type RevealFoldReason
 } from '../../../debug/interaction-trace';
-import { assertInvariant } from '../../../invariants/assert';
+import { assertInvariant } from '../../../assert';
 import type { RevealFold } from '../editable-surface';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import {

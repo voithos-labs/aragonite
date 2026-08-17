@@ -42,6 +42,9 @@ export function createContainerEditActions(
 		): boolean {
 			const chain = ensureUnsharedPath(deps.doc, absPath, deps.sharing);
 			const written = write(chain, deps.sharing) ?? { op: 'noop' };
+			// Unconditional: this door exists to carry bytes, and a short chain or a `noop`
+			// settle says nothing about whether `write` moved any.
+			deps.bumpContentVersion();
 			// The write's own settle can splice the scope it wrote in, and a short chain means the
 			// unshare never reached that scope, so there is nothing to publish against.
 			if (chain.length === absPath.length) {

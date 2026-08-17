@@ -46,6 +46,8 @@ function makeEnv(source: string) {
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
 			blockRefs = v;
 		},
+		// This env asserts on the pasted grammar, never on the version; the door census owns that.
+		bumpContentVersion: () => {},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn,

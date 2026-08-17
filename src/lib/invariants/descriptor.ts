@@ -2,7 +2,7 @@ import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { getContentRange, type ContentRange } from '../core/inline';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /**
  * G1.8 — a content range stays within its raw: `0 <= start <= end <= displayLength(raw)`.

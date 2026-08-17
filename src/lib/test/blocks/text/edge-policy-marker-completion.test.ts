@@ -19,6 +19,9 @@ interface Harness {
 	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
 	/** `updateBlockContent` argument tuples — empty is the consume contract. */
 	edits: unknown[];
+	/** Repoint the same dispatch at another child of the mounted container, as a windowed
+	 *  surface re-used for a different block does. */
+	useChild: (index: number) => void;
 }
 
 /** The leaf at `path` inside `source`, wired to the dispatch with its real ancestor container. */
@@ -66,7 +69,13 @@ function mount(source: string, path: number[], isReading = false): Harness {
 		pendingMarks: makePendingMarks(),
 		installedAs: 'block'
 	};
-	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
+	return {
+		handleKeydown: createEdgePolicyDispatch(deps).handleKeydown,
+		edits,
+		useChild: (index) => {
+			node = parent!.children![index];
+		}
+	};
 }
 
 const key = (name: string, modifiers: Partial<KeyboardEvent> = {}) =>
@@ -98,13 +107,26 @@ describe('a container declaring contentStartSpace completes its marker', () => {
 		expect(h.edits).toHaveLength(0);
 	});
 
-	// The consumed space writes nothing, so the child is still empty when press 2 arrives and
-	// the arm answers the same way.
-	it('consumes a second consecutive space at the same seat', () => {
+	// The consumed press writes nothing, so the child is byte-identical when press 2 arrives and
+	// only this arm's own memory can tell them apart. Press 2 is also the only way to type a
+	// leading space at all — the indented-code opener needs four (GH #143).
+	it('declines the second space at the same seat, leaving it to land as content', () => {
 		const h = mount('>\n', [0, 0]);
 		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
-		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
+		const second = key(' ');
+		expect(h.handleKeydown(second, at(0))).toBe(false);
+		expect(second.defaultPrevented).toBe(false);
 		expect(h.edits).toHaveLength(0);
+	});
+
+	// The claim is per child, not per surface: a windowed surface re-used for another empty
+	// child owes that child its own completion.
+	it('re-arms when the surface is re-used for a different empty child', () => {
+		const h = mount('>\n>\n', [0, 0]);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(false);
+		h.useChild(1);
+		expect(h.handleKeydown(key(' '), at(0))).toBe(true);
 	});
 
 	it('declines in an equally empty child of a container that declares nothing', () => {

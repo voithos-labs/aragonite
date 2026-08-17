@@ -6,7 +6,7 @@
  * install so a sink that forgets the refusal answers for what it actually wrote.
  */
 
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 export function checkSingleNodeSink(sink: string, installed: number): InvariantViolation | null {
 	if (installed <= 1) return null;

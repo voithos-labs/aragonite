@@ -23,6 +23,10 @@ export interface PendingMarksState {
 	/** Read and clear: exactly one insertion spends the set. */
 	consume(): ReadonlySet<InlineMarkKind> | null;
 
+	/** Hand back a set taken for an insertion that never happened (an IME cancel). Declines once
+	 *  anything else is pending: that is a newer instruction about the same caret. */
+	restore(marks: ReadonlySet<InlineMarkKind>): void;
+
 	reset(): void;
 }
 
@@ -38,6 +42,9 @@ export function createPendingMarksState(): PendingMarksState {
 			const spent = marks;
 			marks = null;
 			return spent;
+		},
+		restore: (unspent) => {
+			if (marks === null) marks = unspent;
 		},
 		reset: () => {
 			marks = null;

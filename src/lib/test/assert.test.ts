@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-import { takeDevWarns } from '../support/warn-gate';
-import { assertInvariant, type InvariantViolation } from '../../invariants/assert';
+import { takeDevWarns } from './support/warn-gate';
+import { assertInvariant, type InvariantViolation } from '../assert';
 
 describe('assertInvariant — dev-runtime channel', () => {
 	afterEach(() => {
@@ -38,7 +38,7 @@ describe('assertInvariant — dev-runtime channel', () => {
 	it('does not run the predicate in production', async () => {
 		vi.resetModules();
 		vi.doMock('esm-env', () => ({ DEV: false }));
-		const production = await import('../../invariants/assert');
+		const production = await import('../assert');
 		const check = vi.fn(() => null);
 		production.assertInvariant('test', check);
 		expect(check).not.toHaveBeenCalled();

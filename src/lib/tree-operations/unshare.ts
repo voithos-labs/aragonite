@@ -10,7 +10,7 @@ import type { NodeParentView, NodeView } from '../core/node-views';
 import type { SharingState } from './sharing';
 import type { NodeParent, TrackedPosition } from './node-ops';
 import type { StructuralChange } from './structural-change';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';

@@ -185,6 +185,9 @@ export interface EditorActionsHarness {
 	events: EditorEvents;
 	getBlockIds: () => string[];
 	getBlockRefs: () => (BlockComponent | undefined)[];
+	/** A plain counter standing in for the editor's content version, so a door test can ask
+	 *  whether the door it drove announced its write. */
+	contentVersion: () => number;
 }
 
 // `onSelectionChange` has to be supplied here rather than attached later:
@@ -208,6 +211,7 @@ export function makeEditorActionsDeps(
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
 	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => mockRef());
 	const events = createEditorEvents();
+	let contentVersion = 0;
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -227,6 +231,9 @@ export function makeEditorActionsDeps(
 		},
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
 			replaceRefs(blockRefs, v);
+		},
+		bumpContentVersion: () => {
+			contentVersion++;
 		},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
@@ -256,7 +263,8 @@ export function makeEditorActionsDeps(
 		doc,
 		events,
 		getBlockIds: () => blockIds,
-		getBlockRefs: () => blockRefs
+		getBlockRefs: () => blockRefs,
+		contentVersion: () => contentVersion
 	};
 }
 
@@ -352,6 +360,7 @@ export interface NestedHarness {
 	state: BlockListState;
 	bundle: NestedActionsBundle;
 	getNode: () => CstNode;
+	contentVersion: () => number;
 }
 
 export interface NestedHarnessOptions {
@@ -373,7 +382,7 @@ export function makeNestedHarness(
 	const source = typeof input === 'string' ? parse(input) : input;
 	const nodes = Array.isArray(source) ? source : source.children;
 	const index = opts.index ?? nodes.length - 1;
-	const { deps, events } = makeEditorActionsDeps(source);
+	const { deps, events, contentVersion } = makeEditorActionsDeps(source);
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];
@@ -405,5 +414,5 @@ export function makeNestedHarness(
 		}),
 		overrides
 	);
-	return { deps, events, controller, containerEdit, state, bundle, getNode };
+	return { deps, events, controller, containerEdit, state, bundle, getNode, contentVersion };
 }

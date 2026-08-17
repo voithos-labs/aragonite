@@ -11,6 +11,7 @@
 	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
+	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
 	import type { InlineMarkKind } from '../../../cursor/pending-marks';
 	import type { NodeView } from '../../../core/node-views';
@@ -257,7 +258,8 @@
 		getInlines: () => resolvedInlineContent(node, linkRef),
 		getAffinity: () => edgeAffinity.get(),
 		getScreen: () => screenVisibilityOf(el ?? null),
-		consumePendingMarks: () => pendingMarks.consume()
+		consumePendingMarks: () => pendingMarks.consume(),
+		restorePendingMarks: (marks) => pendingMarks.restore(marks)
 	});
 
 	const crossBlock = editableSurface.crossBlock;
@@ -366,9 +368,10 @@
 		const offsets =
 			cursor.getRawSelection() ?? (caret === null ? null : { start: caret, end: caret });
 		if (!offsets) return true;
-		// Same fork as the prose surface: live paints no delimiter, so an abandoned empty pair
-		// would be invisible garbage in the cell's bytes (live-mode.md § 4.3).
-		if (presentationMode === 'live' && offsets.start === offsets.end) {
+		// Same fork as the prose surface, on the same question the toggle door asks: a surface
+		// painting no delimiter would hold an abandoned empty pair as invisible garbage in the
+		// cell's bytes (live-mode.md § 4.3).
+		if (!paintsFocusedMarkers(presentationMode) && offsets.start === offsets.end) {
 			controller.flushDebouncedCheckpoint();
 			pendingMarks.toggle(format);
 			return true;

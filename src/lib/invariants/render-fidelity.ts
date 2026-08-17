@@ -5,7 +5,7 @@
  * so this runtime belt is the only thing that can catch it — a unit suite cannot.
  */
 
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /** First index at which the strings differ, or -1. */
 function firstDivergence(rendered: string, expected: string): number {

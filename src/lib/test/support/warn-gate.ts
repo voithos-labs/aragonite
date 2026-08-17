@@ -103,7 +103,7 @@ export function siteFromStack(stack: string | undefined): string {
 const FRAME_SITE = /\/(src\/lib\/[^\s:?]+\.(?:ts|svelte))(?:\?[^\s:]*)?:\d+:\d+/;
 
 /** Frames that relay a fire rather than emit it; the interesting site sits below them. */
-const RELAYS = new Set(['src/lib/dev-warn.ts', 'src/lib/invariants/assert.ts']);
+const RELAYS = new Set(['src/lib/dev-warn.ts', 'src/lib/assert.ts']);
 
 let recorded: DevWarnRecord[] = [];
 

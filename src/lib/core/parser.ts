@@ -13,7 +13,7 @@ import {
 	type GrammarView,
 	type OpenContext
 } from '../schema/block-openers';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { parseParagraph } from './parsers/paragraph';
 import { registerBuiltInOpeners } from './parsers/built-in-openers';
 import { registerTableCompleter } from './parsers/table-completion';

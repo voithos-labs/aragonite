@@ -100,6 +100,9 @@ export interface HeadlessActions {
 	deps: EditorActionsDeps;
 	doc: Document;
 	events: EditorEvents;
+	/** Counts the byte-write announcements the driven doors made, so a kit can ask whether a
+	 *  kind's own write reached the editor's content version. */
+	contentVersion: () => number;
 }
 
 /** An `EditorActionsDeps` over `docChildren`, with every block treated as mounted. */
@@ -108,6 +111,7 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
 	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => stubBlockComponent());
 	const events = createEditorEvents();
+	let contentVersion = 0;
 	const deps: EditorActionsDeps = {
 		get doc() {
 			return doc;
@@ -128,6 +132,9 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
 			replaceRefs(blockRefs, v);
 		},
+		bumpContentVersion: () => {
+			contentVersion++;
+		},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn: stubStickyColumn(),
@@ -143,5 +150,5 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 		},
 		events
 	};
-	return { deps, doc, events };
+	return { deps, doc, events, contentVersion: () => contentVersion };
 }

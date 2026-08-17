@@ -44,6 +44,7 @@ function makeSeatHarness(source: string, affinity: EdgeAffinity | null): SeatHar
 		getAffinity: () => affinity,
 		getScreen: () => screenVisibilityOf(surface.el),
 		consumePendingMarks: () => null,
+		restorePendingMarks: () => {},
 		getRawSelection: () => rawSelection,
 		resolveRangeEdit: (range, typed) => {
 			const edit = resolveSelectionEdit(node, range, typed, 'live', undefined);

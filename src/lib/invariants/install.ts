@@ -5,7 +5,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import type { DocPath } from '../selection/path-math';
-import { assertInvariant } from './assert';
+import { assertInvariant } from '../assert';
 import { checkCommitPathAddressable } from './commit-paths';
 import {
 	flushPendingRegistrationChecks,

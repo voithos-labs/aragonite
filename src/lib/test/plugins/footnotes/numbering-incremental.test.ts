@@ -17,6 +17,9 @@ import {
 	resetPerfInstruments
 } from '$lib/perf/instruments';
 import type { DocumentView } from '$lib/core/node-views';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
 const TOP_LEVEL = 40;
 
@@ -113,6 +116,19 @@ describe('footnote numbering rebuilds one subtree per edit', () => {
 		quote.children![0].raw = 'Quote [^q] here and [^nested] too.\n';
 		rebuildAncestryRaw(quote, [0]);
 		expect([...footnoteNumbersFor(doc, 2).keys()]).toEqual(['q', 'nested']);
+	});
+
+	// Miss-analysis: every case above hands the version in as a literal, so the memo was never
+	// asked against the number the editor actually produces — a door that stopped announcing its
+	// write would have left this whole suite green while every mounted widget froze.
+	it('recomputes after a real keystroke, against the editor’s own version', async () => {
+		const harness = makeEditorActionsDeps(parse('Body [^a].\n\nTail [^b].\n'));
+		const blockEdit = createBlockEditActions(harness.deps, createUndoController(harness.deps));
+		const doc = harness.doc as DocumentView;
+		expect([...footnoteNumbersFor(doc, harness.contentVersion()).keys()]).toEqual(['a', 'b']);
+
+		await blockEdit.updateBlockContent(0, 'Body [^z] and [^a].\n', 5, 9);
+		expect([...footnoteNumbersFor(doc, harness.contentVersion()).keys()]).toEqual(['z', 'a', 'b']);
 	});
 
 	// Memoized paths are subtree-relative; the doc-absolute contract is the caller's rebase,

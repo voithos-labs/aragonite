@@ -66,6 +66,27 @@ describe('toggleInlineFormat at a collapsed caret', () => {
 		expect(r.newSelStart).toBe(5);
 	});
 
+	// The removal is the exact inverse of this seam's own insert, so the pair has to be a run of its
+	// own. A marker character abutting it means these bytes are something the user wrote, and every
+	// mode this arm is reachable from paints them — live forks to pending marks before it.
+	it('declines the pair removal when a shorter delimiter sits inside a longer run', () => {
+		const raw = 'a****b';
+		const r = toggleFormat(
+			{ display: raw, content: whole(raw), selection: { start: 3, end: 3 } },
+			'emphasis'
+		);
+		expect(r.newDisplay).toBe('a******b');
+	});
+
+	it('declines the pair removal when the run is longer than the pair itself', () => {
+		const raw = 'a******b';
+		const r = toggleFormat(
+			{ display: raw, content: whole(raw), selection: { start: 3, end: 3 } },
+			'strong'
+		);
+		expect(r.newDisplay).toBe('a**********b');
+	});
+
 	it('inserts rather than unwrapping when the caret is outside the span', () => {
 		const raw = '**bold**';
 		const r = toggleFormat(

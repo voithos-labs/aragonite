@@ -16,7 +16,7 @@ import type {
 	ReplaceDecoration,
 	WidgetDecoration
 } from './types';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { isCommitInProgress } from '../invariants/commit-scope';
 import { contentLengthOf, isProseKind } from '../core/inline';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';

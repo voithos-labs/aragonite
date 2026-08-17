@@ -9,7 +9,7 @@
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /**
  * Structural, NOT `selection/`'s `SelectionPoint`: no `invariants/` predicate takes a

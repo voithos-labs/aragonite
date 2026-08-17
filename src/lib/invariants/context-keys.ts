@@ -1,4 +1,4 @@
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /**
  * G1.4 — a container's provided context keys must not include the editor's

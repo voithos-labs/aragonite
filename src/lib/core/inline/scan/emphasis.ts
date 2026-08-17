@@ -6,7 +6,7 @@
  */
 
 import type { InlineNode } from '../../nodes';
-import { assertInvariant } from '../../../invariants/assert';
+import { assertInvariant } from '../../../assert';
 import { appendNode, type Delimiter, type ScanContext } from './scan-state';
 
 // ── Flanking classification (§6.2 phase 1) ──────────────────────────────────

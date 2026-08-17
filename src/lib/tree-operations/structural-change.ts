@@ -9,7 +9,7 @@ import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from './sharing';
 import { generateBlockId, assignChildIdsDeep, assignIds } from '../block-id';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
 
 export type StructuralChange =
