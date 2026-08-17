@@ -11,7 +11,7 @@ import { constructContentRange, parseInline, type ContentRange } from '../../../
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
-import { hidesMarkers, type PresentationMode } from '../../../presentation-mode';
+import { paintsFocusedMarkers, type PresentationMode } from '../../../presentation-mode';
 import {
 	getInlineMarkPolicy,
 	type InlineMarkPolicy
@@ -54,8 +54,10 @@ export function toggleInlineFormat(
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
 	const candidates = selectionCandidates(display, inlines, start, end, format, mark);
-	// Painted delimiters are the mode's own answer, so the bytes stand whatever they parse as.
-	if (!hidesMarkers(mode ?? 'source')) return candidates[0] ?? null;
+	// Painted delimiters are the mode's own answer, so the bytes stand whatever they parse as. The
+	// preview rungs paint them: this seam only ever writes into the block the caret is in, which is
+	// the block those rungs reveal.
+	if (paintsFocusedMarkers(mode ?? 'source')) return candidates[0] ?? null;
 	const shown = screenOf(display, content);
 	return (
 		candidates.find(
@@ -189,12 +191,11 @@ function toggleAtCaret(
 	const markers = mark.markerBytes;
 	const mLen = markers.length;
 
-	// The empty pair the previous press inserted; there is no span to find, since `****` parses
-	// as literal text.
-	if (
-		display.slice(caret - mLen, caret) === markers &&
-		display.slice(caret, caret + mLen) === markers
-	) {
+	// The empty pair the previous press inserted; there is no span to find, since `****` parses as
+	// literal text. Removal is the exact inverse of the insert below, so the pair must be a run of
+	// its own: a marker character abutting either side means these are bytes the user wrote, and
+	// this arm only runs where the mode paints them.
+	if (isLoneEmptyPair(display, caret, markers)) {
 		return {
 			newDisplay: display.slice(0, caret - mLen) + display.slice(caret + mLen),
 			newSelStart: caret - mLen,
@@ -207,6 +208,19 @@ function toggleAtCaret(
 		newSelStart: caret + mLen,
 		newSelEnd: caret + mLen
 	};
+}
+
+/** Both halves at the caret, with no marker character abutting the pair on either side. */
+function isLoneEmptyPair(display: string, caret: number, markers: string): boolean {
+	const mLen = markers.length;
+	const start = caret - mLen;
+	if (start < 0) return false;
+	return (
+		display.slice(start, caret) === markers &&
+		display.slice(caret, caret + mLen) === markers &&
+		display[start - 1] !== markers[0] &&
+		display[caret + mLen] !== markers[mLen - 1]
+	);
 }
 
 // ── Spans ────────────────────────────────────────────────────────────────────

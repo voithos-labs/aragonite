@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { InvariantViolation } from '$lib/invariants/assert';
+import type { InvariantViolation } from '$lib/assert';
 import { parse } from '$lib/core/parser';
 import { isBlockKindRegistered } from '$lib/schema/block-kind-descriptor';
 import { isBlockOpenerRegistered, __removePluginOpenersForTests } from '$lib/schema/block-openers';

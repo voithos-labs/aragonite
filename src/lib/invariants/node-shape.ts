@@ -6,7 +6,7 @@ import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
 

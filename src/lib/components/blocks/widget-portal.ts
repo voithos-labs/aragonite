@@ -11,7 +11,7 @@ import type { DocumentView } from '../../core/node-views';
 import type { PresentationMode } from '../../presentation-mode';
 import { getInlineWidgetComponent } from '../../core/inline/inline-widgets';
 import { tracePoolPass } from '../../debug/interaction-trace';
-import { assertInvariant } from '../../invariants/assert';
+import { assertInvariant } from '../../assert';
 import { checkPoolBracket } from '../../invariants/inline-transitions';
 
 // ── Pure pool ─────────────────────────────────────────────────────────────────

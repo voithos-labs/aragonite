@@ -6,7 +6,7 @@
  * that matters to serialization surfaces without recursion.
  */
 import type { Document } from '../core/nodes';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /** Structural slice of UndoEntry — keeps this leaf module free of undo/ imports. */
 export interface SnapshotEntry {

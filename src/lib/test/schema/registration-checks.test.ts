@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import type { InvariantViolation } from '$lib/invariants/assert';
+import type { InvariantViolation } from '$lib/assert';
 import { checkLateOpenerRegistration } from '$lib/invariants/registry';
 import {
 	flushPendingRegistrationChecks,

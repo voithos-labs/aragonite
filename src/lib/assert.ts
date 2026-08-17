@@ -4,7 +4,7 @@
  * invoked. Tests call predicates directly rather than going through here.
  */
 import { DEV } from 'esm-env';
-import { devWarn } from '../dev-warn';
+import { devWarn } from './dev-warn';
 
 export interface InvariantViolation {
 	code: string;

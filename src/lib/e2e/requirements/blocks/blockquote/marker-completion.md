@@ -23,9 +23,15 @@ source share both the defect and the fix.
 - Any empty child completes the same way wherever it sits (first, middle or last, made by
   an Enter or loaded with the document): the space is consumed there too, so the following
   character lands as `> x` rather than `>  x`
-- Repeated presses at that seat are all consumed: the child is still empty, so press 2 and
-  every one after it leave the source byte-identical as well. The middle seat and the
-  repeat pin at the dispatch (`test/blocks/text/edge-policy-marker-completion.test.ts`)
+- Only the FIRST press at a given empty child completes the marker. A consumed press writes
+  nothing, so the child looks identical to press 2 and only the dispatch's own memory tells
+  them apart; press 2 lands as ordinary content, which is what makes leading whitespace and
+  the indented-code opener typeable in keystroke order. "Given child" is the CST node, so a
+  child a commit re-minted (typing content and deleting it back to empty) answers its next
+  space as a completion again — a bare `>` line always reads the same way. The middle seat and
+  the second-press decline pin at the dispatch
+  (`test/blocks/text/edge-policy-marker-completion.test.ts`); the bytes those presses leave pin
+  at `test/blocks/blockquote/blockquote-leading-space.test.ts`
 - A space at offset 0 of a NON-empty quote child is ordinary content: `> abc` becomes
   `>  abc`
 
@@ -39,3 +45,8 @@ source share both the defect and the fix.
 - No scenario ever typed the opener sequence `> ` as two keystrokes — every blockquote in
   the suite was loaded via `setSource`, so the marker-completion press had zero coverage
   while the loaded quote's editing was pinned throughout
+- The repeat case was pinned as consumed rather than asked whether it should be (GH #143):
+  a test written from the implementation's answer rather than from what a user typing four
+  spaces expects. The dispatch arm was a stateless predicate, so the suite could only assert
+  the same answer twice; the class is an arm whose contract needs a press ORDINAL and whose
+  input carries none

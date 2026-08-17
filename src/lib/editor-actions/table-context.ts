@@ -14,7 +14,7 @@ import type { MultiScopeTarget, UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { getStateForNode } from '../reactivity/state-registry';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import {
 	columnAligned,
 	COLUMN_ALIGNMENT_CLEARED,

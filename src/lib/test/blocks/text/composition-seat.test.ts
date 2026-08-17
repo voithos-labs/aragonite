@@ -6,8 +6,9 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
 import { screenVisibility } from '$lib/core/inline/visibility';
-import type { InlineMarkKind } from '$lib/cursor/pending-marks';
+import type { InlineMarkKind, PendingMarksState } from '$lib/cursor/pending-marks';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
+import { makePendingMarks } from '$lib/test/harness/editor-actions';
 
 const BOLD = 'Some **bold** text';
 
@@ -22,13 +23,14 @@ interface Live {
 	rangeEdits: Array<{ range: { start: number; end: number }; typed: string }>;
 }
 
-function makeSeat(live: Live) {
+function makeSeat(live: Live, pending?: PendingMarksState) {
 	return createCompositionSeat({
 		getDisplayText: () => live.display,
 		getInlines: () => live.inlines,
 		getAffinity: () => live.affinity,
 		getScreen: () => screenVisibility('live', { chromePaints: false }),
-		consumePendingMarks: () => live.marks,
+		consumePendingMarks: () => pending?.consume() ?? live.marks,
+		restorePendingMarks: (marks) => pending?.restore(marks),
 		getRawSelection: () => live.range,
 		resolveRangeEdit: (range, typed) => {
 			live.rangeEdits.push({ range, typed });
@@ -79,6 +81,45 @@ describe('pending marks beat the arrival side', () => {
 		const seat = makeSeat(live);
 		seat.noteStart();
 		expect(seat.relocate('helloかん', 5)).toEqual({ raw: 'hello**かん**', caret: 9 });
+	});
+});
+
+// The window takes the marks out of the affinity's reach at compositionstart, which spends them
+// whether or not the composition ever commits. An IME cancel is a composition that inserts
+// nothing, so the promise the toggle made is still owed to the next insertion.
+describe('a composition that commits nothing returns the marks it took', () => {
+	it('hands back a set no commit spent', () => {
+		const live = liveState('hello', 'far');
+		const pending = makePendingMarks('strong');
+		const seat = makeSeat(live, pending);
+
+		seat.noteStart();
+		expect(pending.get()).toBeNull();
+		seat.noteEnd();
+		expect([...(pending.get() ?? [])]).toEqual(['strong']);
+	});
+
+	it('keeps a set the composition’s own commit spent', () => {
+		const live = liveState('hello', 'far');
+		const pending = makePendingMarks('strong');
+		const seat = makeSeat(live, pending);
+
+		seat.noteStart();
+		expect(seat.relocate('helloかん', 5)).toEqual({ raw: 'hello**かん**', caret: 9 });
+		seat.noteEnd();
+		expect(pending.get()).toBeNull();
+	});
+
+	// A chord pressed while the IME was open is the newer instruction about the same caret.
+	it('declines to overwrite a set pended during the composition', () => {
+		const live = liveState('hello', 'far');
+		const pending = makePendingMarks('strong');
+		const seat = makeSeat(live, pending);
+
+		seat.noteStart();
+		pending.toggle('emphasis');
+		seat.noteEnd();
+		expect([...(pending.get() ?? [])]).toEqual(['emphasis']);
 	});
 });
 

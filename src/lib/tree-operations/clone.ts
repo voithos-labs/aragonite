@@ -1,6 +1,6 @@
 import type { CstNode, Document } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 
 // ── Document ────────────────────────────────────────────────────────────────

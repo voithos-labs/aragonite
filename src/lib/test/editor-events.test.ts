@@ -128,6 +128,8 @@ describe('createEditorEvents', () => {
 			setDoc: (v: any) => Object.assign(doc, v),
 			setBlockIds: () => {},
 			setBlockRefs: () => {},
+			// This env asserts on the edit-event channel; the door census owns the version.
+			bumpContentVersion: () => {},
 			undoManager: createUndoManager(),
 			sharing: createSharingState(),
 			stickyColumn: {

@@ -74,6 +74,23 @@ describe('a live toggle over a selection with boundary whitespace', () => {
 	});
 });
 
+// The preview rungs hide markers everywhere EXCEPT the block the caret is in, and a toggle only
+// ever writes into the block the caret is in — so the delimiters this seam mints DO paint there,
+// and the mode owes source's answer rather than live's (live-mode.md § 4.3). Miss-analysis: the
+// fork was written as hiding-versus-painting, and no case asked a rung that hides in general
+// while revealing exactly the surface being written to.
+describe('the preview rungs write what source writes', () => {
+	it.each(['preview-block', 'preview-inline'] as const)(
+		'keeps a boundary space inside the run rather than dead-keying (%s)',
+		(mode) => {
+			const at = (raw: string, selection: { start: number; end: number }) =>
+				toggleInlineFormat({ display: raw, content: whole(raw), selection }, 'strong', mode);
+			expect(at('hello world', { start: 0, end: 6 })?.newDisplay).toBe('**hello **world');
+			expect(at('a b', { start: 1, end: 2 })?.newDisplay).toBe('a** **b');
+		}
+	);
+});
+
 describe('source mode writes the same bytes it always did', () => {
 	const source = (raw: string, selection: { start: number; end: number }) =>
 		toggleInlineFormat({ display: raw, content: whole(raw), selection }, 'strong', 'source');

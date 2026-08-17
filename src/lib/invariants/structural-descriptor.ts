@@ -1,5 +1,5 @@
 import type { StructuralChange } from '../tree-operations/structural-change';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /**
  * G1.36, producer half — a descriptor's window fits the array it syncs and mints no negative

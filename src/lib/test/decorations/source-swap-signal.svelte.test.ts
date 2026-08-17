@@ -22,7 +22,9 @@ beforeAll(() => {
 	Element.prototype.scrollIntoView = () => {};
 });
 
-type MountedEditor = EditorInstance & { __test: { getDecorationEngine(): DecorationEngine } };
+type MountedEditor = EditorInstance & {
+	__test: { getDecorationEngine(): DecorationEngine; getContentVersion(): number };
+};
 
 let mounted: MountedEditor | null = null;
 let target: HTMLElement | null = null;
@@ -101,6 +103,25 @@ describe('a `source` prop swap signals the decoration engine', () => {
 		const seen: { blocks: number; epoch: number }[] = [];
 		editor.getDecorations().addSource(tailSource(seen));
 		expect(seen).toEqual([{ blocks: 1, epoch: 0 }]);
+	});
+});
+
+// The swap is the one byte-writing door that lives in the component rather than in the action
+// bundles (G4.52); every other door is pinned headlessly in `reactivity/content-version-doors`.
+describe('a `source` prop swap moves the content version', () => {
+	it('announces the replaced document, and nothing when the prop is rewritten unchanged', async () => {
+		const { editor, props } = mountEditor('one\n\ntwo\n');
+		const before = editor.__test.getContentVersion();
+
+		props.source = 'only\n';
+		await settleSwap();
+		const afterSwap = editor.__test.getContentVersion();
+		expect(afterSwap).not.toBe(before);
+
+		// The `source !== lastSource` guard: an identical prop write replaces no bytes.
+		props.source = 'only\n';
+		await settleSwap();
+		expect(editor.__test.getContentVersion()).toBe(afterSwap);
 	});
 });
 

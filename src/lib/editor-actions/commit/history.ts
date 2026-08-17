@@ -8,7 +8,7 @@
 import { tick } from 'svelte';
 import type { HistoryActions } from '../../action-contracts';
 import { isGapSelection, type UndoEntry } from '../../undo/types';
-import { assertInvariant } from '../../invariants/assert';
+import { assertInvariant } from '../../assert';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { restoreGapCaret, restoreSelection } from '../../selection/selection-restore';
 import type { EditorActionsDeps, UndoController } from '../deps';
@@ -27,6 +27,7 @@ export function createHistoryActions(
 		controller.noteHistorySwap();
 		deps.sharing.markSnapshotTaken();
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
+		deps.bumpContentVersion();
 		// A copy: live state splices this array in place, and the entry stays on the stack.
 		deps.setBlockIds([...entry.blockIds]);
 		// The tick belongs to the doc swap above, not to the restore: the new tree

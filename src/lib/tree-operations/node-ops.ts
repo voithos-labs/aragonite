@@ -45,7 +45,7 @@ import {
 	replacePreservingFirst,
 	type StructuralChange
 } from './structural-change';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { checkSingleNodeSink } from '../invariants/single-node-sink';
 import { checkSplitLanding } from '../invariants/split-landing';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';

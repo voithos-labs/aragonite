@@ -81,7 +81,7 @@ describe('warn-gate site attribution', () => {
 			'Error',
 			'    at listener (C:/a b/repo/src/lib/test/support/warn-gate.ts:70:20)',
 			'    at devWarn (C:/a b/repo/src/lib/dev-warn.ts:22:11)',
-			'    at assertInvariant (C:/a b/repo/src/lib/invariants/assert.ts:21:3)',
+			'    at assertInvariant (C:/a b/repo/src/lib/assert.ts:21:3)',
 			'    at check (C:/a b/repo/src/lib/tree-operations/node-ops.ts:255:3)'
 		].join('\n');
 		expect(siteFromStack(stack)).toBe('src/lib/tree-operations/node-ops.ts');

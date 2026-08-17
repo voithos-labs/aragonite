@@ -17,7 +17,7 @@ import {
 } from './table-endpoint-snap';
 import { normalizeCharEndpoint } from './char-endpoint-snap';
 import { pathsEqual } from './path-math';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
 
 // ── Public factory ──────────────────────────────────────────────────────────

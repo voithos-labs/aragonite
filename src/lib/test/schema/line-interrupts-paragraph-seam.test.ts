@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { InvariantViolation } from '$lib/invariants/assert';
+import type { InvariantViolation } from '$lib/assert';
 import {
 	flushPendingRegistrationChecks,
 	hasPendingRegistrationChecks

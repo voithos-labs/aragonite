@@ -51,7 +51,7 @@ import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import { clampToLandableRaw, revealsNoMarkers } from '../../cursor/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
 import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
-import { assertInvariant } from '../../invariants/assert';
+import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
 
 /**

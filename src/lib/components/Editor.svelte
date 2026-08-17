@@ -117,7 +117,7 @@
 	import { createLinkCardState } from './link-card/link-card-state.svelte';
 	import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 	import { runStartupInvariantChecks } from '../invariants/install';
-	import { assertInvariant } from '../invariants/assert';
+	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
 	import { checkLandableCaret } from '../invariants/landable-caret';
 	import { registerBuiltInBlocks } from './built-in-blocks';
@@ -241,6 +241,10 @@
 	let doc = $state<Document>(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
+	// The edit epoch's twin at render cadence: a byte-writing door bumps it immediately,
+	// while `editEpoch` waits for the typing batch to flush. Inline widgets derive at
+	// render cadence and need this one.
+	const contentVersion = createContentVersion();
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
@@ -370,6 +374,7 @@
 			lastSource = source;
 			const reset = initDocument(source);
 			doc = reset.doc;
+			contentVersion.bump();
 			blockIds = assignIds(doc.children);
 			blockRefs.length = 0;
 			undoManager.clear();
@@ -664,6 +669,7 @@
 		setDoc: (v) => {
 			doc = v;
 		},
+		bumpContentVersion: contentVersion.bump,
 		setBlockIds: (v) => {
 			blockIds = v;
 		},
@@ -688,11 +694,6 @@
 	// A getter, so block components read the live doc at keystroke time rather than
 	// the snapshot they mounted with.
 	const getDoc: DocumentGetter = () => doc;
-
-	// The edit epoch's twin at render cadence: a keystroke changes this immediately,
-	// while `editEpoch` waits for the typing batch to flush. Inline widgets derive at
-	// render cadence and need this one. Lazy — nothing computes until a reader asks.
-	const contentVersion = createContentVersion(getDoc);
 
 	// Ahead of the plugin contexts because the plugin door hands its registry into
 	// createEditorPluginContexts below.
@@ -1316,7 +1317,7 @@
 	// components and the windowing hook below both read it back through getContext.
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
-		contentVersion,
+		contentVersion: contentVersion.read,
 		linkRef: linkRefView,
 		pluginEditor: pluginEditorLookup,
 		lifetime: lifetimeController.signal,
@@ -1581,6 +1582,9 @@
 
 	export const __test = {
 		getDocument,
+		// The swap door's only oracle: every other door is reachable headlessly, but the
+		// `source` prop's reset lives in this component.
+		getContentVersion: contentVersion.read,
 		getBlockComponent,
 		getUndoStack,
 		getOperationsLog,

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 import { INLINE_KIND_TABLE, type AnyInlineKind } from '$lib/core/nodes';
-import type { InvariantViolation } from '$lib/invariants/assert';
+import type { InvariantViolation } from '$lib/assert';
 import {
 	declarePluginInlineKind,
 	__clearDeclaredPluginInlineKindsForTests

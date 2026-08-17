@@ -45,6 +45,8 @@ describe('moveFocus past the last block', { timeout: 20_000 }, () => {
 				blockRefs.length = 0;
 				blockRefs.push(...refs);
 			},
+			// This env asserts on the edit-event channel; the door census owns the version.
+			bumpContentVersion: () => {},
 			undoManager: createUndoManager(),
 			sharing: createSharingState(),
 			stickyColumn: {

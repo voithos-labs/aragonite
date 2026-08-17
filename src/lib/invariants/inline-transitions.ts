@@ -2,7 +2,7 @@
  * Predicates for the inline layer's transition guards (G1.25–G1.27): the widget-pool pass
  * bracket, the reveal kernel's source-length precondition, and the IME composition window.
  */
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 export type PoolBracketAction = 'acquire' | 'beginPass' | 'sweep';
 

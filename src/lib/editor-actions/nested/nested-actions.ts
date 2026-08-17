@@ -20,7 +20,7 @@ import {
 	HISTORY_KEY,
 	type PresentationModeGetter
 } from '../../editor-keys';
-import { assertInvariant } from '../../invariants/assert';
+import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';

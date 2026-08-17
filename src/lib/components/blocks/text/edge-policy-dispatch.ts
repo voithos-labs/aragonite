@@ -26,7 +26,7 @@ import {
 import { ambientSpanOf } from '../../../ambient/ambient-dom';
 import { recordIslandKeyScan } from '../../../perf/instruments';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
-import { completesContainerMarker } from './marker-completion';
+import { createMarkerCompletion } from './marker-completion';
 import {
 	resolveEdgeDeletion,
 	type DeleteDirection,
@@ -138,6 +138,7 @@ interface DispatchArm {
 }
 
 export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePolicyDispatch {
+	const markerCompletion = createMarkerCompletion();
 	const arms: readonly DispatchArm[] = [
 		{
 			id: 'pending-marks',
@@ -600,12 +601,13 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	/**
 	 * A bare space at the content start of an empty child whose container declares
 	 * `contentStartSpace`. Consumed, not written: the container's `rebuildRaw` re-emits it the
-	 * moment content arrives, so inserting it here would double the marker's own space.
+	 * moment content arrives, so inserting it here would double the marker's own space. The
+	 * claim is once per child; a later space at the same seat is content.
 	 */
 	function handleMarkerCompletion(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		const bareSpace = e.key === ' ' && !e.shiftKey && !hasModifier(e);
 		if (!bareSpace || caretOffset === null || hasSelectionHelper()) return false;
-		if (!completesContainerMarker(deps.node, deps.containerParent, caretOffset)) return false;
+		if (!markerCompletion.claimSpace(deps.node, deps.containerParent, caretOffset)) return false;
 		e.preventDefault();
 		return true;
 	}

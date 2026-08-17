@@ -17,7 +17,7 @@ import type { SettledContent } from '../../tree-operations/node-ops';
 import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
-import { assertInvariant } from '../../invariants/assert';
+import { assertInvariant } from '../../assert';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
 import { createContainerScope } from '../block-edit-scope';

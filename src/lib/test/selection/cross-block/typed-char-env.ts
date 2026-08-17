@@ -47,6 +47,8 @@ export function makeEnv(source: string) {
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
 			blockRefs = v;
 		},
+		// This env asserts on selection, never on the version; the door census owns that question.
+		bumpContentVersion: () => {},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn,
