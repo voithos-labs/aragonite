@@ -292,3 +292,40 @@ describe('closure coherence at the flush', () => {
 		});
 	});
 });
+
+// The predicate is unit-tested in test/invariants/descriptor-field-coherence.test.ts; the
+// opener arm is the one the flush alone can supply, since no descriptor field records it.
+describe('descriptor field coherence at the flush', () => {
+	it('flags a context-dependent kind that also registers an opener', () => {
+		const kind = declarePluginKind('ctx-dependent-opener');
+		registerBlockKind(kind, { ...leaf, contextDependentKind: true });
+		registerBlockOpener(kind, opener(9111));
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('descriptor-field-coherence')).toHaveLength(1);
+		expect(byTag('descriptor-field-coherence')[0].violation.detail).toMatchObject({
+			kind: 'ctx-dependent-opener'
+		});
+	});
+
+	it('joins the opener across batches, so a later opener still enrols its kind', () => {
+		const kind = declarePluginKind('ctx-dependent-later-opener');
+		registerBlockKind(kind, { ...leaf, contextDependentKind: true });
+		flushPendingRegistrationChecks();
+		registerBlockOpener(kind, opener(9112));
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('descriptor-field-coherence')).toHaveLength(1);
+	});
+
+	it('stays silent for a context-dependent kind with no opener', () => {
+		const kind = declarePluginKind('ctx-dependent-clean');
+		registerBlockKind(kind, { ...leaf, contextDependentKind: true });
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('descriptor-field-coherence')).toEqual([]);
+	});
+});

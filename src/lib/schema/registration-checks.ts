@@ -22,9 +22,11 @@ import {
 	checkLateOpenerRegistration,
 	checkMergeRoleVocabulary,
 	checkContentStartBackspace,
+	checkDescriptorFieldCoherence,
 	checkInlineConstructPolicy,
 	type ClosureCoherenceEntry,
 	type ContentStartBackspaceEntry,
+	type DescriptorFieldEntry,
 	type MergeRoleEntry
 } from '../invariants/registry';
 import { listInlineConstructPolicies } from './inline-construct-policy';
@@ -117,10 +119,29 @@ const contentStartBackspaceEntries = (
 		};
 	});
 
+const descriptorFieldEntries = (
+	kinds: readonly AnyBlockKind[],
+	openerKinds: ReadonlySet<AnyBlockKind>
+): DescriptorFieldEntry[] =>
+	kinds.flatMap((kind) => {
+		const d = tryGetBlockKindDescriptor(kind);
+		if (!d) return [];
+		return [
+			{
+				kind,
+				declaresWholeBlockFocus: d.blockFocus === 'whole-block',
+				supportsInline: d.supportsInline,
+				declaresReservedChrome: d.reservedChrome !== undefined,
+				contextDependentKind: d.contextDependentKind === true,
+				hasOpener: openerKinds.has(kind)
+			}
+		];
+	});
+
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18/24/30). The first call sweeps the whole
+ * Run the registry coherence checks (G1.2/10/11/17/18/24/30/32/37). The first call sweeps the whole
  * world; later calls validate only the kinds registered since, plus opener coherence over the
  * full registry (a new opener's priority collision is inherently cross-entry).
  */
@@ -146,6 +167,11 @@ export function flushPendingRegistrationChecks(
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
 	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
+	report('descriptor-field-coherence', () =>
+		checkDescriptorFieldCoherence(
+			descriptorFieldEntries(kinds, new Set(listRegisteredOpeners().map((entry) => entry.kind)))
+		)
+	);
 	report('merge-role-vocabulary', () =>
 		checkMergeRoleVocabulary(mergeRoleEntries(kinds), isKnownMergeRole)
 	);
