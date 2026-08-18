@@ -45,16 +45,15 @@ export function publishRefSlot<T>(
 	ref: T | undefined,
 	el?: Element | null
 ): () => void {
-	const capturedIndex = index;
-	slots.set(capturedIndex, ref);
+	slots.set(index, ref);
 	if (el && typeof ref === 'object' && ref !== null) publishedElements.set(ref, el);
 	// The cleanup's identity check compares against what the slot actually holds, not the raw
 	// ref; untracked, since publishers run inside effects and would self-invalidate.
-	const publishedRef = untrack(() => slots.get(capturedIndex));
-	if (publishedRef !== undefined) resolveMountWaiters(slots, capturedIndex);
+	const publishedRef = untrack(() => slots.get(index));
+	if (publishedRef !== undefined) resolveMountWaiters(slots, index);
 	return () => {
-		if (slots.get(capturedIndex) === publishedRef) {
-			slots.set(capturedIndex, undefined);
+		if (slots.get(index) === publishedRef) {
+			slots.set(index, undefined);
 		}
 	};
 }
@@ -128,7 +127,7 @@ export async function revealChildOrWait<T>(
 	// never publishes degrades within the cap instead of parking forever.
 	let rewaits = 0;
 	while (!opts.slots.get(index) && rewaits++ < MAX_MOUNT_REWAITS) {
-		await Promise.race([whenRefMounted(opts.slots, index, () => !!opts.slots.get(index)), tick()]);
+		await Promise.race([whenRefMounted(opts.slots, index), tick()]);
 	}
 }
 
@@ -142,12 +141,8 @@ const mountWaiters = new WeakMap<object, Map<number, Array<() => void>>>();
  * be spurious within one scope: a mount that unpublishes in the same flush leaves the slot
  * empty, so the caller re-checks.
  */
-export function whenRefMounted<T>(
-	slots: RefSlots<T>,
-	index: number,
-	isPresent: () => boolean
-): Promise<void> {
-	if (isPresent()) return Promise.resolve();
+export function whenRefMounted<T>(slots: RefSlots<T>, index: number): Promise<void> {
+	if (slots.get(index) !== undefined) return Promise.resolve();
 	return new Promise((resolve) => {
 		let byIndex = mountWaiters.get(slots);
 		if (!byIndex) {

@@ -6,6 +6,7 @@
 import type { InlineNode } from '../core/nodes';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { isGapSelection, type UndoEntry } from '../undo/types';
+import type { OperationKind } from '../schema/operations';
 import type { OperationsLog, OperationEntry } from './operations-log';
 import type { InteractionTraceEntry } from './interaction-trace';
 
@@ -116,32 +117,22 @@ function renderTraceEntry(e: InteractionTraceEntry, now: number): string {
 	return detail ? `${base} ${detail}` : base;
 }
 
+/** Detail fields worth printing, per op. An op whose detail carries nothing a reader needs
+ *  is simply absent; a variant missing any listed field prints none of them. */
+const DETAIL_FIELDS: Partial<Record<OperationKind, readonly string[]>> = {
+	split: ['at'],
+	merge: ['direction'],
+	updateContent: ['length'],
+	replaceBlock: ['count'],
+	tableInsertRow: ['rowIdx', 'side'],
+	tableDeleteRow: ['rowIdx'],
+	tableInsertColumn: ['colIdx', 'side'],
+	tableDeleteColumn: ['colIdx'],
+	tableCycleAlignment: ['colIdx']
+};
+
 function renderDetail(e: OperationEntry): string {
-	const d = e.detail;
-	switch (e.op) {
-		case 'split':
-			return typeof d.at === 'number' ? `at=${d.at}` : '';
-		case 'merge':
-			return d.direction ? `direction=${d.direction}` : '';
-		case 'updateContent':
-			return typeof d.length === 'number' ? `length=${d.length}` : '';
-		case 'replaceBlock':
-			return typeof d.count === 'number' ? `count=${d.count}` : '';
-		case 'tableInsertRow':
-			return typeof d.rowIdx === 'number' && typeof d.side === 'string'
-				? `rowIdx=${d.rowIdx} side=${d.side}`
-				: '';
-		case 'tableDeleteRow':
-			return typeof d.rowIdx === 'number' ? `rowIdx=${d.rowIdx}` : '';
-		case 'tableInsertColumn':
-			return typeof d.colIdx === 'number' && typeof d.side === 'string'
-				? `colIdx=${d.colIdx} side=${d.side}`
-				: '';
-		case 'tableDeleteColumn':
-			return typeof d.colIdx === 'number' ? `colIdx=${d.colIdx}` : '';
-		case 'tableCycleAlignment':
-			return typeof d.colIdx === 'number' ? `colIdx=${d.colIdx}` : '';
-		default:
-			return '';
-	}
+	const fields = DETAIL_FIELDS[e.op];
+	if (!fields || fields.some((f) => e.detail[f] === undefined)) return '';
+	return fields.map((f) => `${f}=${e.detail[f]}`).join(' ');
 }

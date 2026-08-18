@@ -70,19 +70,16 @@ export interface ListWindowingDeps {
 	deactivateBelowPx: number;
 }
 
-/** A measurable child in a scope's batched measure pass. The scope reads ALL pending
- *  children before applying ANY write, so a fling that mounts many costs one reflow. */
-export type MeasurableChild = MeasureEntry;
-
 export interface ListWindowing {
 	readonly window: WindowResult;
 	/** A DIRECTLY-MEASURED leaf: oracle (by id) + model slot. Passive — no scrollTop write. */
 	recordMeasuredChild(index: number, id: string, height: number): void;
 	/** A PROPAGATED child-container subtotal: oracle + model slot, addressed by index. No anchor correction. */
 	setChildSubtotal(index: number, total: number): void;
-	/** Enroll a child in this scope's batched measure pass; returns an unregister fn
-	 *  to call on the child's unmount. The child is measured on the next pass. */
-	registerChild(id: string, child: MeasurableChild): () => void;
+	/** Enroll a child in this scope's batched measure pass; returns an unregister fn to call on
+	 *  the child's unmount. The scope reads ALL pending children before applying ANY write, so a
+	 *  fling that mounts many costs one reflow. */
+	registerChild(id: string, child: MeasureEntry): () => void;
 	/** Re-measure ONE registered child immediately (its content height changed on edit). */
 	measureChildNow(id: string): void;
 	/** ResizeObserver path: O(1)-gate `observedHeight` against the recorded height and
@@ -160,7 +157,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// One scope-owned batched pass rather than a per-child effect, which would interleave a
 	// layout read with the prior child's write → one forced reflow per mounted block on a
 	// fling. `pending` holds ids awaiting their first measure; the batch effect drains it.
-	const registry = new Map<string, MeasurableChild>();
+	const registry = new Map<string, MeasureEntry>();
 	const pending = new Set<string>();
 
 	/**
@@ -381,7 +378,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	// one inside an outer `mutate` double-counts the delta.
 	function drainMeasurements(): void {
 		if (pending.size === 0) return;
-		const entries: MeasurableChild[] = [];
+		const entries: MeasureEntry[] = [];
 		for (const id of pending) {
 			const child = registry.get(id);
 			if (child) entries.push(child);
@@ -480,7 +477,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 			const port = deps.getPort();
 			const listEl = deps.getListEl();
 			if (!port || !listEl) return;
-			port.setScrollTop(listTopInPort(port, listEl) + model.offsetOf(Math.min(index, model.size)));
+			port.setScrollTop(listTopInPort(port, listEl) + model.offsetOf(index));
 			win.syncScrollTop();
 			await tick();
 		},

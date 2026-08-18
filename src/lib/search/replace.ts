@@ -7,8 +7,7 @@ export function expandReplacement(template: string, groups: string[] | undefined
 		if (esc) return esc === 'n' ? '\n' : esc === 't' ? '\t' : '\\';
 		if (token === '$') return '$';
 		if (token === '&') return groups[0] ?? '';
-		const n = Number(token);
-		return n === 0 ? (groups[0] ?? '') : (groups[n] ?? '');
+		return groups[Number(token)] ?? '';
 	});
 }
 

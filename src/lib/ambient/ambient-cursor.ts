@@ -128,40 +128,36 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		// No snap-target fallback here, unlike `getRaw`: a single caret intent cannot stand
 		// in for one end of a pair, and the clamp below already maps the marker interior to
 		// raw 0 — the right boundary for a drag that began inside the marker.
-		const ambientLength = deps.getAmbientLength();
-		const { el, range } = live;
-		return {
-			start: toClampedRawOffset(
-				domTextOffsetAtNode(el, range.startContainer, range.startOffset),
-				ambientLength
-			),
-			end: toClampedRawOffset(
-				domTextOffsetAtNode(el, range.endContainer, range.endOffset),
-				ambientLength
-			)
-		};
+		return rawEndpointsOf(live.el, live.range, deps.getAmbientLength());
 	}
 
 	function rawRangeOf(range: AbstractRange): { start: RawOffset; end: RawOffset } | null {
 		const el = deps.getEl();
 		if (!el || !el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
-		const ambientLength = deps.getAmbientLength();
-		return {
-			start: toClampedRawOffset(
-				domTextOffsetAtNode(el, range.startContainer, range.startOffset),
-				ambientLength
-			),
-			end: toClampedRawOffset(
-				domTextOffsetAtNode(el, range.endContainer, range.endOffset),
-				ambientLength
-			)
-		};
+		return rawEndpointsOf(el, range, deps.getAmbientLength());
 	}
 
 	return { getRaw, setRaw, getRawSelection, rawRangeOf, clampOutOfAmbient, setToAmbientBoundary };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+function rawEndpointsOf(
+	el: HTMLElement,
+	range: AbstractRange,
+	ambientLength: number
+): { start: RawOffset; end: RawOffset } {
+	return {
+		start: toClampedRawOffset(
+			domTextOffsetAtNode(el, range.startContainer, range.startOffset),
+			ambientLength
+		),
+		end: toClampedRawOffset(
+			domTextOffsetAtNode(el, range.endContainer, range.endOffset),
+			ambientLength
+		)
+	};
+}
 
 /**
  * The preamble every reader of the live native selection shares. A dropped range is its

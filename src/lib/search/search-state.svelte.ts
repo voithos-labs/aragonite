@@ -9,7 +9,6 @@ import type {
 	MarkDecoration,
 	ProvideContext
 } from '../decorations/types';
-import { createBoundedMemo } from '../bounded-memo';
 
 const EMPTY_MATCHES: IndexedMatch[] = [];
 
@@ -60,7 +59,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	let options = $state<SearchOptions>({ caseSensitive: false, wholeWord: false, regex: false });
 	let matches = $state<Match[]>([]);
 	// One grouping per rescan, shared by every matchesForPath read.
-	const matchesByPath = $derived(groupByPath(matches));
+	const matchesByPath = $derived(groupByPathKey(matches, (match, index) => ({ match, index })));
 	let activeIndex = $state(0);
 	let error = $state<string | null>(null);
 	// Cleared on the next search ACTION, not in rescan — the engine's post-commit re-run
@@ -79,21 +78,21 @@ export function createSearchState(deps: SearchDeps): SearchState {
 
 	let handle: DecorationSourceHandle | null = null;
 
-	// Cap 1: the scan runs for its side effects, so only the CURRENT key may hit — a deeper
-	// cache could hit an older key whose side effects no longer hold. Re-minted on close(),
-	// so a reopen at the same key misses and rescans rather than serving the empty set.
-	let scanMemo = createBoundedMemo<string, null>({ cap: 1 });
+	// The scan runs for its side effects, so only the CURRENT key may skip it; cleared on
+	// close() so a reopen at the same key rescans rather than serving the empty set.
+	let lastScanKey: string | null = null;
 
 	// Keyed on editEpoch, NEVER doc.children identity: typing mutates children in place, so
 	// identity only changes on structural commits and would serve stale matches.
 	function provide(doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
 		const { caseSensitive, wholeWord, regex } = options;
-		scanMemo(`${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`, () => {
+		const key = `${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`;
+		if (key !== lastScanKey) {
 			// Scan the document the registry is providing FOR, not whatever the deps getter
 			// resolves to — the plugin guide points decoration authors at this file.
 			rescan(doc);
-			return null;
-		});
+			lastScanKey = key;
+		}
 		return matches.map((m, i): MarkDecoration => ({
 			type: 'mark',
 			path: m.path,
@@ -118,9 +117,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 
 		const r = compileMatcher(query, options);
 		if (!r.ok) {
-			error = r.error;
-			matches = [];
-			activeIndex = 0;
+			failScan(r.error);
 			return;
 		}
 		error = null;
@@ -171,6 +168,15 @@ export function createSearchState(deps: SearchDeps): SearchState {
 	function refresh(): void {
 		if (handle) handle.invalidate();
 		else rescan();
+	}
+
+	/** Walk the match list, wrapping at either end. */
+	function step(delta: 1 | -1): void {
+		replacedCount = null;
+		if (!matches.length) return;
+		activeIndex = (activeIndex + delta + matches.length) % matches.length;
+		refresh();
+		void revealActive();
 	}
 
 	async function revealActive(): Promise<void> {
@@ -226,7 +232,7 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			scanning = false;
 			pendingScan = null;
 			regexExecutor.release();
-			scanMemo = createBoundedMemo<string, null>({ cap: 1 });
+			lastScanKey = null;
 			deps.onClose();
 		},
 		setQuery(q: string) {
@@ -246,22 +252,8 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			refresh();
 			void revealActive();
 		},
-		next() {
-			replacedCount = null;
-			if (matches.length) {
-				activeIndex = (activeIndex + 1) % matches.length;
-				refresh();
-				void revealActive();
-			}
-		},
-		prev() {
-			replacedCount = null;
-			if (matches.length) {
-				activeIndex = (activeIndex - 1 + matches.length) % matches.length;
-				refresh();
-				void revealActive();
-			}
-		},
+		next: () => step(1),
+		prev: () => step(-1),
 		async replaceCurrent() {
 			await pendingScan; // regex matches land async; replacing needs the settled set
 			const m = matches[activeIndex];
@@ -282,10 +274,6 @@ export function createSearchState(deps: SearchDeps): SearchState {
 			replacedCount = n;
 		}
 	};
-}
-
-function groupByPath(list: readonly Match[]): Map<string, IndexedMatch[]> {
-	return groupByPathKey(list, (match, index) => ({ match, index }));
 }
 
 /** Public controller surface — what `editor.getSearch()` exposes. Deliberately minimal:

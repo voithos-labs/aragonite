@@ -30,21 +30,24 @@ describe('mount-await registry', () => {
 	it('resolves a pending wait when the ref slot is later published', async () => {
 		const slots = makeSlots();
 
-		const wait = whenRefMounted(slots, 0, () => false);
+		const wait = whenRefMounted(slots, 0);
 		expect(await isSettled(wait)).toBe(false);
 
 		publishRefSlot(slots, 0, {});
 		await expect(wait).resolves.toBeUndefined();
 	});
 
-	it('resolves immediately when the slot is already present (isPresent-first)', async () => {
-		expect(await isSettled(whenRefMounted(makeSlots(), 0, () => true))).toBe(true);
+	it('resolves immediately when the slot is already filled', async () => {
+		const slots = makeSlots();
+		slots.set(0, {});
+
+		expect(await isSettled(whenRefMounted(slots, 0))).toBe(true);
 	});
 
 	it('does not resolve a waiter when an undefined ref is published', async () => {
 		const slots = makeSlots();
 
-		const wait = whenRefMounted(slots, 0, () => false);
+		const wait = whenRefMounted(slots, 0);
 		publishRefSlot(slots, 0, undefined);
 		expect(await isSettled(wait)).toBe(false);
 
@@ -56,7 +59,7 @@ describe('mount-await registry', () => {
 	it('wakes every waiter registered on the same index', async () => {
 		const slots = makeSlots();
 
-		const waits = [whenRefMounted(slots, 0, () => false), whenRefMounted(slots, 0, () => false)];
+		const waits = [whenRefMounted(slots, 0), whenRefMounted(slots, 0)];
 		expect(await isSettled(Promise.all(waits))).toBe(false);
 
 		publishRefSlot(slots, 0, {});
@@ -66,7 +69,7 @@ describe('mount-await registry', () => {
 	it('does not wake a waiter on a different index', async () => {
 		const slots = makeSlots();
 
-		const wait = whenRefMounted(slots, 0, () => false);
+		const wait = whenRefMounted(slots, 0);
 		publishRefSlot(slots, 1, {});
 		expect(await isSettled(wait)).toBe(false);
 	});
@@ -76,7 +79,7 @@ describe('mount-await registry', () => {
 		const mine = makeSlots();
 		const foreign = makeSlots();
 
-		const wait = whenRefMounted(mine, 0, () => !!mine.get(0));
+		const wait = whenRefMounted(mine, 0);
 		publishRefSlot(foreign, 0, {});
 
 		expect(await isSettled(wait)).toBe(false);
@@ -85,8 +88,8 @@ describe('mount-await registry', () => {
 	it('wakes each scope from its own publish when both wait on the same index', async () => {
 		const first = makeSlots();
 		const second = makeSlots();
-		const firstWait = whenRefMounted(first, 0, () => false);
-		const secondWait = whenRefMounted(second, 0, () => false);
+		const firstWait = whenRefMounted(first, 0);
+		const secondWait = whenRefMounted(second, 0);
 
 		publishRefSlot(second, 0, {});
 		expect(await isSettled(secondWait)).toBe(true);
