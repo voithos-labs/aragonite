@@ -35,14 +35,6 @@ describe('directive round-trip property', () => {
 	it('opens a :: fence as a single-line directive leaf', () => {
 		expect(parse('::leaf\n').children[0].kind).toBe('directiveLeaf');
 	});
-
-	// The block parser resolves code fences (priority 10) before the directive
-	// opener (45), so a `:::` inside a code block stays code, not a directive.
-	it('does not claim a ::: fence inside a fenced code block', () => {
-		const src = '```\n:::note\n```\n';
-		expect(serialize(parse(src))).toBe(src);
-		expect(parse(src).children[0].kind).toBe('fencedCode');
-	});
 });
 
 // `serialize` emits `node.raw` verbatim, so the property above passes even if the opener

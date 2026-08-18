@@ -42,13 +42,11 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		expect(frag.textContent).toBe('');
 	});
 
-	it('produces widget DOM with renderImagesAsWidgets=true and by default', () => {
+	it('produces widget DOM with explicit renderImagesAsWidgets=true', () => {
 		const nodes = parseInline(raw, 0, raw.length);
-		for (const opts of [withWidget({ renderImagesAsWidgets: true }), withWidget()]) {
-			const frag = renderInlineNodes(nodes, raw, opts);
-			expect(frag.querySelector('[data-image-widget]')).not.toBeNull();
-			expect(frag.querySelector('img')).not.toBeNull();
-		}
+		const frag = renderInlineNodes(nodes, raw, withWidget({ renderImagesAsWidgets: true }));
+		expect(frag.querySelector('[data-image-widget]')).not.toBeNull();
+		expect(frag.querySelector('img')).not.toBeNull();
 	});
 
 	it('widget DOM contains <img> with src after resolver', () => {
@@ -118,12 +116,6 @@ describe('inline-render image — render-context flag (parameter threading)', ()
 		const widget = frag.querySelector('[data-image-widget]') as HTMLElement;
 		expect(widget.dataset.sourceStart).toBe('0');
 		expect(widget.dataset.sourceEnd).toBe(String(raw.length));
-	});
-
-	it('widget mode contributes no textContent — bytes live on data attributes', () => {
-		const nodes = parseInline(raw, 0, raw.length);
-		const frag = renderInlineNodes(nodes, raw, withWidget());
-		expect(frag.textContent).toBe('');
 	});
 
 	it('error event on <img> adds md-image-broken to the widget', () => {

@@ -8,14 +8,14 @@ import { parseInline } from '../../../core/inline/index';
 import { metadataOf } from '../../../core/nodes';
 import { describeRoundTrips } from '$lib/test/support/round-trip';
 
+function parseOne(source: string) {
+	const lines = splitLines(source);
+	return parseLinkReferenceDefinition(lines, 0, lines.length, '');
+}
+
 // ── Escaped brackets in labels (CommonMark §4.7) ────────────────────────────
 
 describe('parseLinkReferenceDefinition — escaped brackets in label', () => {
-	function parseOne(source: string) {
-		const lines = splitLines(source);
-		return parseLinkReferenceDefinition(lines, 0, lines.length, '');
-	}
-
 	it('parses a label containing \\]', () => {
 		const result = parseOne('[foo\\]bar]: /url\n');
 		expect(result).not.toBeNull();
@@ -55,11 +55,6 @@ describe('parseLinkReferenceDefinition — escaped brackets in label', () => {
 // ── Destination parsing ─────────────────────────────────────────────────────
 
 describe('parseLinkReferenceDefinition — destination', () => {
-	function parseOne(source: string) {
-		const lines = splitLines(source);
-		return parseLinkReferenceDefinition(lines, 0, lines.length, '');
-	}
-
 	it('returns null for an unclosed angle-bracket destination', () => {
 		expect(parseOne('[foo]: <bar\n')).toBeNull();
 	});
@@ -73,11 +68,6 @@ describe('parseLinkReferenceDefinition — destination', () => {
 // ── Trailing garbage + block-opener interruption (CommonMark §4.7) ───────────
 
 describe('parseLinkReferenceDefinition — invalidating tails and interruptions', () => {
-	function parseOne(source: string) {
-		const lines = splitLines(source);
-		return parseLinkReferenceDefinition(lines, 0, lines.length, '');
-	}
-
 	it('rejects non-whitespace after the destination that is not a title', () => {
 		expect(parseOne('[foo]: /url junk\n')).toBeNull();
 	});
@@ -132,11 +122,6 @@ describe('parseLinkReferenceDefinition — invalidating tails and interruptions'
 // is not about brackets — §4.7's "at least one non-whitespace character" — was never asked.
 // Expected shapes verified against cmark-gfm via api.github.com/markdown.
 describe('parseLinkReferenceDefinition — whitespace-only label', () => {
-	function parseOne(source: string) {
-		const lines = splitLines(source);
-		return parseLinkReferenceDefinition(lines, 0, lines.length, '');
-	}
-
 	for (const label of [' ', '\t', '   ']) {
 		it(`rejects the label ${JSON.stringify(label)}`, () => {
 			expect(parseOne(`[${label}]: /url\n`)).toBeNull();

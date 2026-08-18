@@ -8,172 +8,76 @@ import { splitLines } from '../../../core/lines';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
 
-describe('matchHtmlBlock — types 1-6 detection', () => {
-	describe('type 1 (script/pre/style/textarea)', () => {
-		it('detects <script> as type 1', () => {
-			expect(matchHtmlBlock('<script>')).toBe(1);
-		});
-		it('detects <pre> as type 1', () => {
-			expect(matchHtmlBlock('<pre>')).toBe(1);
-		});
-		it('detects <style> as type 1', () => {
-			expect(matchHtmlBlock('<style>')).toBe(1);
-		});
-		it('detects <textarea> as type 1 (previously fell through)', () => {
-			expect(matchHtmlBlock('<textarea>')).toBe(1);
-		});
-		it('is case-insensitive', () => {
-			expect(matchHtmlBlock('<SCRIPT>')).toBe(1);
-			expect(matchHtmlBlock('<Pre>')).toBe(1);
-		});
-		it('matches with space after tag name', () => {
-			expect(matchHtmlBlock('<script lang="js">')).toBe(1);
-		});
-		it('matches at end-of-line after tag name', () => {
-			expect(matchHtmlBlock('<script')).toBe(1);
-		});
-		it('matches with self-closing tag', () => {
-			expect(matchHtmlBlock('<script/>')).toBe(1);
-		});
-		it('does NOT match <scripting>', () => {
-			expect(matchHtmlBlock('<scripting>')).not.toBe(1);
+function describeMatchCases(family: string, cases: Array<[string, string, number | null]>): void {
+	describe(family, () => {
+		it.each(cases)('%s', (_label, line, expected) => {
+			expect(matchHtmlBlock(line)).toBe(expected);
 		});
 	});
+}
 
-	describe('type 2 (comment)', () => {
-		it('detects <!-- as type 2', () => {
-			expect(matchHtmlBlock('<!-- comment')).toBe(2);
-		});
-		it('detects <!-- with same-line close', () => {
-			expect(matchHtmlBlock('<!-- inline -->')).toBe(2);
-		});
-	});
+describeMatchCases('matchHtmlBlock — type 1 (script/pre/style/textarea)', [
+	['detects <script> as type 1', '<script>', 1],
+	['detects <pre> as type 1', '<pre>', 1],
+	['detects <style> as type 1', '<style>', 1],
+	['detects <textarea> as type 1', '<textarea>', 1],
+	['case-insensitive: <SCRIPT>', '<SCRIPT>', 1],
+	['case-insensitive: <Pre>', '<Pre>', 1],
+	['matches with space after tag name', '<script lang="js">', 1],
+	['matches at end-of-line after tag name', '<script', 1],
+	['matches with self-closing tag', '<script/>', 1],
+	['<scripting> is not type 1 (falls to type 7)', '<scripting>', 7]
+]);
 
-	describe('type 3 (processing instruction)', () => {
-		it('detects <? as type 3', () => {
-			expect(matchHtmlBlock('<?xml version="1.0"?>')).toBe(3);
-		});
-	});
+describeMatchCases('matchHtmlBlock — types 2-5 (comment/PI/declaration/CDATA)', [
+	['detects <!-- as type 2', '<!-- comment', 2],
+	['detects <!-- with same-line close', '<!-- inline -->', 2],
+	['detects <? as type 3', '<?xml version="1.0"?>', 3],
+	['detects <! followed by ASCII letter as type 4', '<!DOCTYPE html>', 4],
+	['does NOT match <!1>', '<!1>', null],
+	['does NOT match <!> with nothing after', '<!>', null],
+	['detects <![CDATA[ as type 5', '<![CDATA[ data ]]>', 5],
+	['CDATA is case-sensitive — <![cdata[ does NOT match', '<![cdata[ data ]]>', null]
+]);
 
-	describe('type 4 (declaration)', () => {
-		it('detects <! followed by ASCII letter as type 4', () => {
-			expect(matchHtmlBlock('<!DOCTYPE html>')).toBe(4);
-		});
-		it('does NOT match <!1>', () => {
-			expect(matchHtmlBlock('<!1>')).toBeNull();
-		});
-		it('does NOT match <!> with nothing after', () => {
-			expect(matchHtmlBlock('<!>')).toBeNull();
-		});
-	});
+describeMatchCases('matchHtmlBlock — type 6 (listed tag)', [
+	['detects <div> as type 6', '<div>', 6],
+	['detects </div> (close tag) as type 6', '</div>', 6],
+	['detects <table> with attributes', '<table class="x">', 6],
+	['detects <h1>', '<h1>', 6],
+	['detects <h6>', '<h6>', 6],
+	['is case-insensitive', '<DIV>', 6],
+	['matches at end-of-line', '<div', 6],
+	['unknown tag is not type 6 (falls to type 7)', '<custom>', 7]
+]);
 
-	describe('type 5 (CDATA)', () => {
-		it('detects <![CDATA[ as type 5', () => {
-			expect(matchHtmlBlock('<![CDATA[ data ]]>')).toBe(5);
-		});
-		it('is case-sensitive — <![cdata[ does NOT match', () => {
-			expect(matchHtmlBlock('<![cdata[ data ]]>')).not.toBe(5);
-		});
-	});
+describeMatchCases('matchHtmlBlock — indentation', [
+	['allows 1 leading space', ' <div>', 6],
+	['allows 2 leading spaces', '  <div>', 6],
+	['allows 3 leading spaces', '   <div>', 6],
+	['rejects 4+ space indent (indented-code territory)', '    <div>', null]
+]);
 
-	describe('type 6 (listed tag)', () => {
-		it('detects <div> as type 6', () => {
-			expect(matchHtmlBlock('<div>')).toBe(6);
-		});
-		it('detects </div> (close tag) as type 6', () => {
-			expect(matchHtmlBlock('</div>')).toBe(6);
-		});
-		it('detects <table> with attributes', () => {
-			expect(matchHtmlBlock('<table class="x">')).toBe(6);
-		});
-		it('detects <h1> through <h6>', () => {
-			expect(matchHtmlBlock('<h1>')).toBe(6);
-			expect(matchHtmlBlock('<h6>')).toBe(6);
-		});
-		it('is case-insensitive', () => {
-			expect(matchHtmlBlock('<DIV>')).toBe(6);
-		});
-		it('matches at end-of-line', () => {
-			expect(matchHtmlBlock('<div')).toBe(6);
-		});
-		it('does NOT match unknown tags (e.g. <custom>)', () => {
-			expect(matchHtmlBlock('<custom>')).not.toBe(6);
-		});
-		it('script/pre/style/textarea are NOT type 6 (priority handled)', () => {
-			expect(matchHtmlBlock('<script>')).not.toBe(6);
-			expect(matchHtmlBlock('<pre>')).not.toBe(6);
-			expect(matchHtmlBlock('<style>')).not.toBe(6);
-			expect(matchHtmlBlock('<textarea>')).not.toBe(6);
-		});
-	});
+describeMatchCases('matchHtmlBlock — non-HTML lines', [
+	['returns null for plain text', 'hello world', null],
+	['returns null for blank line', '', null],
+	['returns null for lone <', '<', null]
+]);
 
-	describe('indentation', () => {
-		it('allows 0-3 leading spaces', () => {
-			expect(matchHtmlBlock('<div>')).toBe(6);
-			expect(matchHtmlBlock(' <div>')).toBe(6);
-			expect(matchHtmlBlock('  <div>')).toBe(6);
-			expect(matchHtmlBlock('   <div>')).toBe(6);
-		});
-		it('rejects 4+ space indent (falls into indented-code territory)', () => {
-			expect(matchHtmlBlock('    <div>')).toBeNull();
-		});
-	});
-
-	describe('non-HTML lines', () => {
-		it('returns null for plain text', () => {
-			expect(matchHtmlBlock('hello world')).toBeNull();
-		});
-		it('returns null for blank line', () => {
-			expect(matchHtmlBlock('')).toBeNull();
-		});
-		it('returns null for lone <', () => {
-			expect(matchHtmlBlock('<')).toBeNull();
-		});
-	});
-});
-
-describe('matchHtmlBlock — type 7 (complete-tag catch-all)', () => {
-	it('detects <custom> as type 7', () => {
-		expect(matchHtmlBlock('<custom>')).toBe(7);
-	});
-	it('detects <custom-element> as type 7', () => {
-		expect(matchHtmlBlock('<custom-element>')).toBe(7);
-	});
-	it('detects </custom> close tag as type 7', () => {
-		expect(matchHtmlBlock('</custom>')).toBe(7);
-	});
-	it('detects self-closing <custom /> as type 7', () => {
-		expect(matchHtmlBlock('<custom />')).toBe(7);
-	});
-	it('detects <custom> with unquoted attribute value', () => {
-		expect(matchHtmlBlock('<custom data-x=foo>')).toBe(7);
-	});
-	it('detects <custom> with double-quoted attribute value', () => {
-		expect(matchHtmlBlock('<custom data-x="foo bar">')).toBe(7);
-	});
-	it('detects <custom> with single-quoted attribute value', () => {
-		expect(matchHtmlBlock("<custom data-x='foo bar'>")).toBe(7);
-	});
-	it('detects <custom> with multiple attributes', () => {
-		expect(matchHtmlBlock('<custom a="1" b=2 c=\'3\'>')).toBe(7);
-	});
-	it('does NOT match when tag is followed by non-whitespace', () => {
-		expect(matchHtmlBlock('<custom>foo')).toBeNull();
-	});
-	it('does NOT match when tag is not at line start', () => {
-		expect(matchHtmlBlock('text <custom>')).toBeNull();
-	});
-	it('allows trailing whitespace', () => {
-		expect(matchHtmlBlock('<custom>   ')).toBe(7);
-		expect(matchHtmlBlock('<custom>\t')).toBe(7);
-	});
-	it('priority: <script> still matches type 1, not type 7', () => {
-		expect(matchHtmlBlock('<script>')).toBe(1);
-	});
-	it('priority: <div> still matches type 6, not type 7', () => {
-		expect(matchHtmlBlock('<div>')).toBe(6);
-	});
-});
+describeMatchCases('matchHtmlBlock — type 7 (complete-tag catch-all)', [
+	['detects <custom> as type 7', '<custom>', 7],
+	['detects <custom-element> as type 7', '<custom-element>', 7],
+	['detects </custom> close tag as type 7', '</custom>', 7],
+	['detects self-closing <custom /> as type 7', '<custom />', 7],
+	['detects unquoted attribute value', '<custom data-x=foo>', 7],
+	['detects double-quoted attribute value', '<custom data-x="foo bar">', 7],
+	['detects single-quoted attribute value', "<custom data-x='foo bar'>", 7],
+	['detects multiple attributes', '<custom a="1" b=2 c=\'3\'>', 7],
+	['does NOT match when tag is followed by non-whitespace', '<custom>foo', null],
+	['does NOT match when tag is not at line start', 'text <custom>', null],
+	['allows trailing spaces', '<custom>   ', 7],
+	['allows a trailing tab', '<custom>\t', 7]
+]);
 
 function parseHtmlBlockFromSource(src: string) {
 	const lines = splitLines(src);
@@ -285,7 +189,13 @@ describe('canInterruptParagraph', () => {
 	});
 });
 
-describe('paragraph interruption by HTML blocks', () => {
+describe('parse-level dispatch and interruption', () => {
+	it('type 7 at document start opens and closes on the blank line', () => {
+		const doc = parse('<custom-tag>\n\nfoo\n');
+		expect(doc.children).toHaveLength(2);
+		expect(doc.children[0].kind).toBe('htmlBlock');
+		expect(doc.children[1].kind).toBe('paragraph');
+	});
 	it('paragraph splits when <div> appears on the next line', () => {
 		const doc = parse('Hello world\n<div>\ncontent\n');
 		expect(doc.children).toHaveLength(2);

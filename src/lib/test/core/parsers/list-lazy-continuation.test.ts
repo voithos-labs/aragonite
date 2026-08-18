@@ -5,7 +5,7 @@ import { rebuildListItemRaw } from '../../../schema/container-rebuilders';
 import type { Document } from '../../../core/nodes';
 
 // CommonMark §5.2 lazy continuation for list items, mirroring the blockquote laziness pins
-// in parser-metadata.test.ts. Every fixture asserts the byte round-trip, because the
+// in parser-structure.test.ts. Every fixture asserts the byte round-trip, because the
 // container `raw` keeps the un-indented source verbatim.
 
 function topKinds(doc: Document): string[] {

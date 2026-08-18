@@ -43,6 +43,13 @@ describe('adversarial scan bounds', () => {
 		expect(tiles(source)).toBe(source);
 	}, 300_000);
 
+	// Totality is the pin (the DoS guard), not tree shape: the §6.3 links-in-links
+	// deactivation shape is pinned in the scan suite.
+	it('parses 2000-deep bracket nesting without throwing and covers all bytes', () => {
+		const source = '['.repeat(2000) + 'a' + '](u)'.repeat(2000);
+		expect(tiles(source)).toBe(source);
+	});
+
 	it('backtick-run ladder scans within a bounded growth ratio, output unchanged', () => {
 		// Runs of strictly increasing length never close (no equal-length partner), so a
 		// per-opener forward rescan to EOF is O(runs·n) — the O(n^1.5) ladder.
