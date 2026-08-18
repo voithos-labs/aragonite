@@ -281,11 +281,4 @@ describe('createHeightOracle', () => {
 		const node: CstNode = { kind: collapsible, leadingTrivia: '', raw: 'x'.repeat(2000) };
 		expect(o.estimate(node, 600)).toBe(opts.lineHeight + opts.blockChrome);
 	});
-
-	it('clear() empties the measured cache', () => {
-		const o = createHeightOracle(opts);
-		o.recordMeasured('id-1', 99);
-		o.clear();
-		expect(o.measured('id-1')).toBeUndefined();
-	});
 });

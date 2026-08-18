@@ -30,7 +30,6 @@ export interface HeightOracle {
 	height(id: string, node: NodeView, width: number): number;
 	/** Drop measured heights (call on container width change — wrap depends on width). */
 	invalidateWidth(): void;
-	clear(): void;
 }
 
 export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
@@ -111,7 +110,6 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			measuredById.set(id, height);
 		},
 		height: (id, node, width) => measuredById.get(id) ?? estimate(node, width),
-		invalidateWidth: () => measuredById.clear(),
-		clear: () => measuredById.clear()
+		invalidateWidth: () => measuredById.clear()
 	};
 }

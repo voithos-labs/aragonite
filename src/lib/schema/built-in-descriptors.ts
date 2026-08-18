@@ -48,11 +48,6 @@ function setextHeadingContentRange(node: NodeView): { start: number; end: number
 	return { start: 0, end: contentEnd };
 }
 
-// Cells have no markers; the entire raw is content.
-function tableCellContentRange(node: NodeView): { start: number; end: number } {
-	return { start: 0, end: displayLength(node.raw) };
-}
-
 // ── Keymaps ───────────────────────────────────────────────────────────────
 
 // Shared by every kind TextEditableBlock renders — prose and the raw-editable fallback alike —
@@ -437,7 +432,6 @@ export function registerBuiltInDescriptors(): void {
 		supportsInline: true,
 		contextDependentKind: true,
 		normalizeRawWrite: normalizeCellRaw,
-		getContentRange: tableCellContentRange,
 		renderImagesAsWidgets: false,
 		keymap: TABLE_CELL_KEYMAP,
 		// No conformanceFixture: the table opener mints cells, so one never stands alone as the

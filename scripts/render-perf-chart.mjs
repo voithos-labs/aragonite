@@ -96,8 +96,8 @@ function chart(theme, spec) {
 	text(24, 34, spec.title, { size: 15, weight: 600, fill: t.inkPrimary });
 	text(24, 54, spec.subtitle, { size: 12.5, fill: t.inkSecondary });
 	const legend = [
-		[t.bundle, spec.bundleName(otherCount)],
-		[t.accent, spec.exceptionName]
+		[t.bundle, bundleName(otherCount)],
+		[t.accent, spec.exceptionLabel[0]]
 	];
 	let lx = 24;
 	for (const [color, label] of legend) {
@@ -208,6 +208,9 @@ function chart(theme, spec) {
 
 // ── The two charts ───────────────────────────────────────────────────────────
 
+/** @param {number} otherCount */
+const bundleName = (otherCount) => `${otherCount} other fixture shapes`;
+
 const keystroke = {
 	metric: 'keystrokeP50Ms',
 	exceptionShape: 'single-giant-paragraph',
@@ -215,8 +218,6 @@ const keystroke = {
 	yTicks: [1, 10, 100, 1000],
 	title: 'Keystroke latency (p50) vs document size',
 	subtitle: 'typing cost stays flat as the document grows, except inside one giant block',
-	bundleName: (otherCount) => `${otherCount} other fixture shapes`,
-	exceptionName: 'single giant paragraph',
 	exceptionLabel: [
 		'single giant paragraph',
 		'the whole file as one block,',
@@ -226,7 +227,7 @@ const keystroke = {
 		const lo = Math.min(...band.map((b) => b.min));
 		const hi = Math.max(...band.map((b) => b.max));
 		return [
-			`${otherCount} other fixture shapes`,
+			bundleName(otherCount),
 			`band and median, ${fmtMs(lo)}`,
 			`to ${fmtMs(hi)} at every size`
 		];
@@ -242,13 +243,11 @@ const load = {
 	yTicks: [10, 100, 1000, 10000],
 	title: 'Document load vs document size',
 	subtitle: 'materializing the tree is O(document): linear in block count',
-	bundleName: (otherCount) => `${otherCount} other fixture shapes`,
-	exceptionName: 'many small blocks',
 	exceptionLabel: ['many small blocks', '392k blocks at 10 MB,', 'the block count extreme'],
 	bundleLabel: (band, otherCount) => {
 		const last = band[band.length - 1];
 		return [
-			`${otherCount} other fixture shapes`,
+			bundleName(otherCount),
 			`band and median,`,
 			`${fmtMs(last.min)} to ${fmtMs(last.max)} at 10 MB`
 		];

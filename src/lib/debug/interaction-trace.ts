@@ -18,7 +18,6 @@ const CAPACITY = 200;
 
 let enabled = false;
 let buf: InteractionTraceEntry[] = [];
-const listeners = new Set<(entry: InteractionTraceEntry) => void>();
 
 // ── Switch and readout ──────────────────────────────────────────────────────
 
@@ -43,25 +42,9 @@ export function interactionTraceSnapshot(): InteractionTraceEntry[] {
 	return buf.slice();
 }
 
-export function subscribeInteractionTrace(
-	listener: (entry: InteractionTraceEntry) => void
-): () => void {
-	listeners.add(listener);
-	return () => listeners.delete(listener);
-}
-
 function record(site: string, kind: string, detail?: InteractionTraceEntry['detail']): void {
-	const entry: InteractionTraceEntry = { t: performance.now(), site, kind, detail };
-	buf.push(entry);
+	buf.push({ t: performance.now(), site, kind, detail });
 	if (buf.length > CAPACITY) buf.splice(0, buf.length - CAPACITY);
-	// Snapshot before iterating so a self-disposing subscriber doesn't abort the loop.
-	for (const l of [...listeners]) {
-		try {
-			l(entry);
-		} catch (err) {
-			console.error('[InteractionTrace] subscriber threw while handling entry:', err);
-		}
-	}
 }
 
 // ── Recorders (one per transition family) ────────────────────────────────────

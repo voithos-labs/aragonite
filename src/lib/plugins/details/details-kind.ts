@@ -77,8 +77,6 @@ function createTagScanner(tagLine: (text: string) => TagVerdict) {
 	};
 }
 
-const createDetailsTagScanner = () => createTagScanner(canonicalTagLine);
-
 function unpairedTagLines(
 	lines: readonly string[],
 	tagLine: (text: string) => TagVerdict,
@@ -238,7 +236,7 @@ export function registerDetailsKind(): void {
 			// Depth-counted so nested details recurse via parse rather than closing early.
 			let depth = 1;
 			let closeIdx = -1;
-			const classify = createDetailsTagScanner();
+			const classify = createTagScanner(canonicalTagLine);
 			for (let i = summaryIdx + 1; i < ctx.end; i++) {
 				const tag = classify(ctx.lines[i].text);
 				if (tag === 'open') {

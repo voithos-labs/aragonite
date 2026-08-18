@@ -30,8 +30,7 @@ function seededOracle(): HeightOracle {
 			measured.set(id, height);
 		},
 		height: (id) => measured.get(id) ?? ESTIMATE,
-		invalidateWidth: () => measured.clear(),
-		clear: () => measured.clear()
+		invalidateWidth: () => measured.clear()
 	};
 }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { BlockKind } from '../../core/nodes';
 import { ALL_BLOCK_KINDS } from '../../core/nodes';
+import { getContentRange } from '../../core/inline';
 import {
 	getBlockKindDescriptor,
 	registerBlockKind,
@@ -102,7 +103,7 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(getBlockKindDescriptor('tableRow').supportsInline).toBe(false);
 	});
 
-	it('marks tableCell with supportsInline: true and exposes a whole-raw content range', () => {
+	it('marks tableCell with supportsInline: true and resolves a whole-raw content range', () => {
 		const d = getBlockKindDescriptor('tableCell');
 		expect(d.supportsInline).toBe(true);
 		expect(d.editable).toBe(true);
@@ -110,11 +111,11 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(d.mergeRole).toBe('not-mergeable');
 
 		const sampleCell = { kind: 'tableCell', leadingTrivia: '', raw: 'hello' } as const;
-		expect(d.getContentRange!(sampleCell)).toEqual({ start: 0, end: 5 });
+		expect(getContentRange(sampleCell)).toEqual({ start: 0, end: 5 });
 
 		// Empty cell — happens when buildRow pads short body rows.
 		const emptyCell = { kind: 'tableCell', leadingTrivia: '', raw: '' } as const;
-		expect(d.getContentRange!(emptyCell)).toEqual({ start: 0, end: 0 });
+		expect(getContentRange(emptyCell)).toEqual({ start: 0, end: 0 });
 	});
 
 	it('only paragraph/heading/setextHeading/tableCell support inline', () => {

@@ -20,9 +20,9 @@ const MEMO_CAP = 256;
  * Memoizes the render work, not the node: `cloneOnRead` is what lets `inner` run once
  * per key while each caller still gets its own detached node to mount.
  */
-export function createMemoizedRenderer(inner: MathRenderer, cap = MEMO_CAP): MathRenderer {
+export function createMemoizedRenderer(inner: MathRenderer): MathRenderer {
 	const memo = createBoundedMemo<string, { dom: HTMLElement; error?: string }>({
-		cap,
+		cap: MEMO_CAP,
 		cloneOnRead: (entry) => ({ dom: entry.dom.cloneNode(true) as HTMLElement, error: entry.error })
 	});
 	return (source, opts) => memo(`${source}\x00${opts.display}`, () => inner(source, opts));
