@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { ImageFields } from '../../core/nodes';
-	import type { WidgetTarget } from './widget-selection-state.svelte';
+	import { IMAGE_CHROME_SELECTOR, type WidgetTarget } from './widget-selection-state.svelte';
 	import { IMAGE_PROPERTIES_LABEL } from '../../a11y-strings';
 
 	let {
@@ -49,7 +49,7 @@
 		if (!popoverEl) return;
 		const handler = (e: PointerEvent) => {
 			const target = e.target as Element | null;
-			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
+			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
 			onDismiss();
 		};
 		document.addEventListener('pointerdown', handler, true);

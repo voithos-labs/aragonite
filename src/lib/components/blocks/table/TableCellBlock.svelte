@@ -91,7 +91,6 @@
 		index,
 		myPath = [],
 		rowIdx,
-		colIdx,
 		columnCount,
 		rowCount,
 		alignment = 'none',
@@ -101,12 +100,14 @@
 		index: number;
 		myPath?: number[];
 		rowIdx: number;
-		colIdx: number;
 		columnCount: number;
 		rowCount: number;
 		alignment?: TableAlignment;
 		slots?: RefSlots<BlockComponent>;
 	} = $props();
+
+	// A cell's position among its row's children IS its column.
+	const colIdx = $derived(index);
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
@@ -556,15 +557,9 @@
 		return () => document.removeEventListener('selectionchange', handler);
 	});
 
-	// Walk children rather than reading textContent: a rendered widget carries zero
-	// textContent but several raw bytes, so textContent would undercount the offsets.
+	// Not textContent: a rendered widget carries zero textContent but several raw bytes.
 	function readCellText(): string {
-		if (!el) return '';
-		let out = '';
-		for (const child of Array.from(el.childNodes)) {
-			out += rawTextOfNode(child, node.raw);
-		}
-		return out;
+		return el ? rawTextOfNode(el, node.raw) : '';
 	}
 
 	// Zero-ambient cell: the walk offset IS the raw offset, minted across here.
@@ -991,12 +986,16 @@
 		// and `sel` was captured in the REVEALED DOM's coordinates — a fold before any of it.
 		const fold = widgetInteraction.foldRevealBeforeMutation();
 		if (fold) await fold.settled;
+		// A rectangle has no cell-local range to restore: refocusing keeps it live in
+		// SelectionState, and the onCopy/onCut rect arms do the rest.
+		const hasRect = action !== 'paste' && intraTableRectPayload({ selection, getDoc }) !== null;
+		if (action !== 'paste' && !hasRect && sel.start === sel.end) return;
 		// Clicking the menu item moved focus off the cell, so every branch refocuses before
 		// mutating: execCommand needs the restored range, paste needs a focused caret.
+		stickyColumn.reset();
+		edgeAffinity.reset();
+		el.focus();
 		if (action === 'paste') {
-			stickyColumn.reset();
-			edgeAffinity.reset();
-			el.focus();
 			let raw: string;
 			try {
 				// Fired un-awaited from the menu onclick, so a denied read would surface as
@@ -1009,20 +1008,11 @@
 			if (text) await applyCellPaste(text, sel);
 			return;
 		}
-		// A rectangle has no cell-local range to restore: refocusing keeps it live in
-		// SelectionState, and the onCopy/onCut rect arms do the rest.
-		if (intraTableRectPayload({ selection, getDoc }) !== null) {
-			stickyColumn.reset();
-			edgeAffinity.reset();
-			el.focus();
+		if (hasRect) {
 			document.execCommand('copy');
 			if (action === 'cut') await crossBlock.performCrossBlockDeleteFromEvent();
 			return;
 		}
-		if (sel.start === sel.end) return;
-		stickyColumn.reset();
-		edgeAffinity.reset();
-		el.focus();
 		setSelection(sel.start, sel.end);
 		document.execCommand('copy');
 		if (action === 'cut') deleteCellRange(sel.start, sel.end);

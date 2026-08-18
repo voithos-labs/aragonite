@@ -8,11 +8,7 @@ import { SELECTION_END } from '../../../block-component';
 import { cellRowCol } from '../../../cursor/coordinate-spaces';
 import { pathsEqual } from '../../../selection/path-math';
 import type { IntraTableRect } from './cell-clipboard';
-
-export interface CellCoord {
-	rowIdx: number;
-	colIdx: number;
-}
+import type { CellCoord } from './table-navigation';
 
 export interface SelectedCellsInput {
 	/** The live rectangle from anywhere in the document, or null. */

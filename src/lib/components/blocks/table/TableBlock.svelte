@@ -80,15 +80,13 @@
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		widthVersion: getWidthVersion,
-		lifetime: editorLifetime
+		lifetime: editorLifetime,
+		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const getPresentationMode = getContext<EditorPolicies | undefined>(
-		EDITOR_POLICIES_KEY
-	)?.presentationMode;
-	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
+	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item mutates the table, so reading mode declines to open it and the
 	// native context menu (with Copy) shows instead.
-	const readOnly = $derived(getPresentationMode?.() === 'reading');
+	const readOnly = $derived(getPresentationMode() === 'reading');
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -313,13 +311,8 @@
 	);
 
 	function openMenu(axis: MenuAxis, axisIdx: number, e: MouseEvent): void {
-		const grip = e.currentTarget as HTMLElement | null;
-		const rect = grip?.getBoundingClientRect();
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		const target: MenuTarget = axis === 'column' ? { colIdx: axisIdx } : { rowIdx: axisIdx };
-		if (!rect) {
-			menu = { target, x: e.clientX, y: e.clientY, clipboardSel: null };
-			return;
-		}
 		// A row grip opens beside itself rather than below, so the menu clears the left edge.
 		menu =
 			axis === 'column'
@@ -328,7 +321,7 @@
 	}
 
 	function cellRefAt(rowIdx: number, colIdx: number): BlockComponent | null {
-		return rowRefAt(rowIdx)?.getBlockComponentByPath?.([colIdx]) ?? null;
+		return getBlockComponentByPath([rowIdx, colIdx]);
 	}
 
 	// Capture the cell's selection now, before a menu-item click moves focus off it, so
@@ -505,21 +498,26 @@
 	// 2D surface — one integer can't address a cell, so both caret doors mirror
 	// `createContainerBlockComponent`'s 0-or-last collapse and cell callers use
 	// `focusByPath`.
+	function tableLanding(offset: number): {
+		rowIdx: number;
+		colIdx: number;
+		position: CellPosition;
+	} {
+		return offset === 0 || offset === CURSOR_START
+			? { rowIdx: 0, colIdx: 0, position: 'start' }
+			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, position: 'end' };
+	}
+
 	export const focus = placeCaret(selection, (offset: number) => {
 		if (rowCount === 0) return;
-		if (offset === 0 || offset === CURSOR_START) {
-			focusCell(0, 0, 'start');
-			return;
-		}
-		focusCell(rowCount - 1, columnCount - 1, 'end');
+		const { rowIdx, colIdx, position } = tableLanding(offset);
+		focusCell(rowIdx, colIdx, position);
 	});
 
 	export function parkCaret(offset: number): void {
 		if (rowCount === 0) return;
-		const atStart = offset === 0 || offset === CURSOR_START;
-		const rowIdx = atStart ? 0 : rowCount - 1;
-		const colIdx = atStart ? 0 : columnCount - 1;
-		cellRefAt(rowIdx, colIdx)?.parkCaret?.(atStart ? CURSOR_START : CURSOR_END);
+		const { rowIdx, colIdx, position } = tableLanding(offset);
+		cellRefAt(rowIdx, colIdx)?.parkCaret?.(position === 'start' ? CURSOR_START : CURSOR_END);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -667,17 +665,16 @@
 	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
-		<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key carry the absolute row index
+		<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key carry the absolute row index
 		     (bounds.start + localIndex), never the local loop index. -->
 		{@const rowIdx = bounds.start + localIndex}
 		<TableRowBlock
 			node={rowNode}
 			index={rowIdx}
 			id={rowsState.innerBlockIds[rowIdx]}
-			{rowIdx}
 			{columnCount}
 			{rowCount}
-			alignments={meta?.alignments ?? []}
+			alignments={meta.alignments ?? []}
 			myPath={[...myPath, rowIdx]}
 			slots={rowsState.refSlots}
 			onOpenRowMenu={(r, e) => {

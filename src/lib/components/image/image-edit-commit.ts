@@ -87,7 +87,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function resolveEdit(
 		target: WidgetTarget,
 		newFields: ImageFields
-	): { paragraph: NodeView; image: InlineNode; bytes: string } | null {
+	): { image: InlineNode; bytes: string } | null {
 		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
 		if (!paragraph) return null;
 		const image = findImageInParagraph(paragraph, target.sourceStart);
@@ -99,7 +99,7 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 				? { ...newFields, label: image.label }
 				: newFields;
 		const bytes = buildImageEditBytes(image, paragraph.raw, fields);
-		return bytes === null ? null : { paragraph, image, bytes };
+		return bytes === null ? null : { image, bytes };
 	}
 
 	function buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null {

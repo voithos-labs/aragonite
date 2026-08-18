@@ -11,7 +11,10 @@
 	import ImageResizeHandles from './ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image-edit-commit';
 	import { imageFieldsFromInline } from './image-source-bytes';
-	import type { WidgetSelectionState } from './widget-selection-state.svelte';
+	import {
+		IMAGE_CHROME_SELECTOR,
+		type WidgetSelectionState
+	} from './widget-selection-state.svelte';
 
 	// Mounted unconditionally by Editor: the effects below must observe
 	// widget-selection changes, so the selected-widget {#if} lives here.
@@ -59,7 +62,7 @@
 		if (!root) return;
 		const handlePointerDown = (e: PointerEvent) => {
 			const target = e.target as Element | null;
-			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
+			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
 			widgetSelection.clear();
 		};
 		root.addEventListener('pointerdown', handlePointerDown);

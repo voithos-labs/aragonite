@@ -36,7 +36,6 @@
 		node,
 		index,
 		id,
-		rowIdx,
 		columnCount,
 		rowCount,
 		alignments = [],
@@ -48,7 +47,6 @@
 		node: NodeView;
 		index: number;
 		id: string;
-		rowIdx: number;
 		columnCount: number;
 		rowCount: number;
 		alignments?: readonly TableAlignment[];
@@ -57,6 +55,9 @@
 		onOpenRowMenu?: (rowIdx: number, e: MouseEvent) => void;
 		onRowGripPointerDown?: (rowIdx: number, e: PointerEvent) => void;
 	} = $props();
+
+	// A row's position among the table's children IS its row index.
+	const rowIdx = $derived(index);
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
@@ -213,7 +214,6 @@
 			index={colIdx}
 			myPath={[...myPath, colIdx]}
 			{rowIdx}
-			{colIdx}
 			{columnCount}
 			{rowCount}
 			alignment={alignments[colIdx] ?? 'none'}

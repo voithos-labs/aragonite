@@ -105,12 +105,14 @@
 
 	function endDrag(e: PointerEvent) {
 		if (!dragState) return;
-		const finalWidth = dragState.currentWidth;
-		const startWidth = dragState.startWidth;
-		const aspectLocked = dragState.aspectLocked;
-		const naturalW = dragState.naturalWidth;
-		const startHeight = dragState.startHeight;
-		const startX = dragState.startX;
+		const {
+			currentWidth: finalWidth,
+			startWidth,
+			startHeight,
+			startX,
+			aspectLocked,
+			naturalWidth
+		} = dragState;
 		dragState = null;
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		// Click-and-release with no drag: skip commit so undo stack stays clean.
@@ -123,7 +125,7 @@
 				finalWidth,
 				dx: e.clientX - startX,
 				editorContentWidth,
-				naturalWidth: naturalW,
+				naturalWidth,
 				imgRectWidth: imgEl()?.getBoundingClientRect().width,
 				imgWidthAttr: imgEl()?.getAttribute('width')
 			});

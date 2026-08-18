@@ -18,7 +18,10 @@ export const QUOTE_CHARS: ReadonlySet<string> = new Set(["'", '"', '`']);
  * Opening brackets are deliberately excluded: typing `(` when the next char
  * is `(` should produce nesting, not a skip.
  */
-export const SKIP_CLOSE_CHARS: ReadonlySet<string> = new Set([')', ']', '}', "'", '"', '`']);
+export const SKIP_CLOSE_CHARS: ReadonlySet<string> = new Set([
+	...Object.values(BRACKET_PAIRS),
+	...QUOTE_CHARS
+]);
 
 const IDENTIFIER_RE = /[\w$]/;
 
