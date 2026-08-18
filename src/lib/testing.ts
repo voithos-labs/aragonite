@@ -69,10 +69,10 @@ export {
 	runContainerConformance,
 	reversedAncestryLeavesRootStale
 } from './testing/container-conformance';
+export type { ConformanceCoverage } from './testing/conformance-core';
 export type {
 	ConformanceCell,
 	ConformanceCellReport,
-	ConformanceCoverage,
 	ContainerConformanceProfile,
 	ContainerConformanceReport,
 	LocalIndexFixture

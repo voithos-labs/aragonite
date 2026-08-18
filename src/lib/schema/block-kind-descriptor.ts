@@ -3,7 +3,7 @@ import type { NodeView } from '../core/node-views';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
-import { registerOnce } from './register-once';
+import { deletePluginEntries, registerOnce } from './register-once';
 import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 
@@ -441,7 +441,5 @@ export function getAllRegisteredKinds(): AnyBlockKind[] {
 
 /** Test-only. Removes every non-built-in descriptor; built-ins survive. */
 export function __removePluginBlockKindsForTests(): void {
-	for (const kind of registry.keys()) {
-		if (!isBuiltinBlockKind(kind)) registry.delete(kind);
-	}
+	deletePluginEntries(registry, isBuiltinBlockKind);
 }

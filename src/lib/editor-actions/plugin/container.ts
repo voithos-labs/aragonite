@@ -46,7 +46,7 @@ import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
-import { createBlockquoteOverrides } from '../blockquote-overrides';
+import { createContainerExitOverrides } from '../container-exit-overrides';
 import {
 	createContainerBlockComponent,
 	focusAcrossBlockEdge,
@@ -358,12 +358,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode, getPresentationMode);
 
-	const blockquoteOverrides = createBlockquoteOverrides({ scope, parentBlockEdit });
+	const containerExitOverrides = createContainerExitOverrides({ scope, parentBlockEdit });
 
 	// All three override the same `defaults`, so they coexist; for a non-collapsing
 	// container the gates are inert.
 	const overrideFactory: NestedActionsOverrideFactory = (defaults) =>
-		composeCollapseGates(blockquoteOverrides(defaults), {
+		composeCollapseGates(containerExitOverrides(defaults), {
 			descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
 			moveFocus: gateMoveFocusOnCollapse(
 				collapsed,

@@ -12,7 +12,7 @@ import type { NodeView } from '../core/node-views';
 import type { LinkReferenceResolver } from '../core/inline/link-reference-resolver';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
-import { registerOnce } from './register-once';
+import { deletePluginEntries, registerOnce } from './register-once';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
 
@@ -223,9 +223,7 @@ export function getLiveJoinSeamCleaner(): LiveJoinSeamCleaner | undefined {
 /** Test-only. Drops every plugin-registered row; built-in rows and the rebalancer survive,
  *  being built-in registrations. */
 export function __resetInlineConstructPoliciesForTests(): void {
-	for (const kind of policies.keys()) {
-		if (!isBuiltinInlineKind(kind)) policies.delete(kind);
-	}
+	deletePluginEntries(policies, isBuiltinInlineKind);
 }
 
 /** Test-only, and separate on purpose: only a suite testing the SLOT wants it emptied, and the

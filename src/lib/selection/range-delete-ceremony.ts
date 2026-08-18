@@ -12,8 +12,8 @@ import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
 import { parse } from '../core/parser';
-import { displayLength, trailingLineEnding } from '../core/lines';
-import { walkBetween } from './primitives';
+import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
+import { charOffsetOf, walkBetween } from './primitives';
 import {
 	comparePaths,
 	isStrictAncestorOf,
@@ -25,6 +25,7 @@ import {
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
 import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
 import {
+	blockNodeAt,
 	cleanJoinedRaw,
 	emptyParagraph,
 	nodeAt,
@@ -86,7 +87,7 @@ export interface LiveSeamContext {
  * (live-mode.md § 4.5), expressed as a join with the block's own edge. Identity outside live;
  * a chrome child's raw write never routes here — the wall stays byte-literal.
  */
-export function cleanTruncatedProse(
+function cleanTruncatedProse(
 	node: CstNode,
 	kept: 'head' | 'tail',
 	cut: number,
@@ -142,9 +143,65 @@ export function installTruncatedEndpoint(
 	replaceAtPath(doc, path, replacement, sharing);
 }
 
+/**
+ * Truncate the start endpoint in place, after the planned deletion: a chrome start keeps its
+ * bytes literal by raw write; a prose head crosses the unpaired-run cleanup, then reinstalls
+ * through the endpoint reparse. Returns the seam the collapsed caret lands on. `isChrome` is
+ * the caller's own derivation, read before any splice moved the tree.
+ */
+export function truncateStartInPlace(
+	doc: Document,
+	start: SelectionPoint,
+	startBlock: CstNode,
+	isChrome: boolean,
+	live: LiveSeamContext,
+	sharing: SharingState,
+	tag: string
+): number {
+	const cut = charOffsetOf(start, tag);
+	const head = isChrome
+		? { raw: startBlock.raw.slice(0, cut), seam: cut }
+		: cleanTruncatedProse(startBlock, 'head', cut, live);
+	if (isChrome) {
+		startBlock.raw = terminateLine(head.raw, startBlock.raw);
+	} else {
+		installTruncatedEndpoint(
+			doc,
+			start.path,
+			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, startBlock.raw)),
+			sharing
+		);
+	}
+	return head.seam;
+}
+
+/**
+ * Truncate the end endpoint in place, before the planned deletion (its path is still live):
+ * chrome by raw write, prose through the cleanup + reparse. Returns the surviving tail node
+ * re-read through the tree (design rule 5), for a caller that must locate it after splices.
+ */
+export function truncateEndInPlace(
+	doc: Document,
+	end: SelectionPoint,
+	endBlock: CstNode,
+	isChrome: boolean,
+	live: LiveSeamContext,
+	sharing: SharingState,
+	tag: string
+): CstNode | null {
+	const cut = charOffsetOf(end, tag);
+	if (isChrome) {
+		endBlock.raw = endBlock.raw.slice(cut) || trailingLineEnding(endBlock.raw);
+		return endBlock;
+	}
+	const tail = cleanTruncatedProse(endBlock, 'tail', cut, live).raw;
+	installTruncatedEndpoint(doc, end.path, reparseTruncatedEndpoint(endBlock, tail), sharing);
+	return blockNodeAt(doc, end.path);
+}
+
 // ── Cross-block deletion plan (chrome + table branches) ─────────────────────
-// The cross-block branches interleave their endpoint replaceAtPath differently, so the steps
-// stay separate atoms the callers sequence explicitly.
+// The branches interleave endpoint truncation with applyPlannedDeletion differently (end
+// before, start after), so the truncation atoms take their call position from the caller.
 
 export interface EndWall {
 	container: ChromeContainer;

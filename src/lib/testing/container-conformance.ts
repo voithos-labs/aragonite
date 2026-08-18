@@ -6,7 +6,7 @@
  * checks drive the real per-kind action path, stopping at the nested-action default and at a DOM.
  */
 
-import type { ContainerEditActions } from '../action-contracts';
+import type { ContainerEditActions, FocusActions } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import { splitLines, trailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
@@ -52,9 +52,6 @@ import {
 	pathPassesThroughKind,
 	type ConformanceCoverage
 } from './conformance-core';
-
-// The container-structural cells' test imports these two through this module.
-export { assertExemptionDocumented, type ConformanceCoverage };
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -152,7 +149,7 @@ export const CONTAINER_CONFORMANCE_CELLS: readonly ContainerConformanceCell[] = 
 	{
 		cell: 'multiScope',
 		coverage: (profile) => profile.multiScope,
-		run: (kind) => checkOneUndoPerMultiScope(kind)
+		run: checkOneUndoPerMultiScope
 	},
 	{
 		cell: 'focusBubble',
@@ -320,35 +317,8 @@ export async function checkStripLocalIndexAddressing(
  */
 export async function checkGridLocalIndexAddressing(): Promise<void> {
 	const parsed = parse('lead para\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n');
-	const table = parsed.children[1];
-	assertIs(table.kind, 'table', 'table at non-zero doc index');
-
-	const { deps, doc, events } = createHeadlessActions(parsed.children);
-	const controller = createUndoController(deps);
-	const rootContainerEdit = createContainerEditActions(deps, controller);
-
-	const rowsState = mountBlockListState(() => table);
-	// commitColumnEdit resolves each row via expectStateForNode — register them.
-	for (const row of table.children!) mountBlockListState(() => row);
-
-	const ctx = createTableMutationsContext({
-		get node() {
-			return table;
-		},
-		get myPath() {
-			return [1];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return { rowIdx: 0, colIdx: 0 };
-		},
-		parentContainerEdit: rootContainerEdit,
-		controller,
-		focusCell: () => {},
-		announceReorder: () => {}
-	});
+	assertIs(parsed.children[1].kind, 'table', 'table at non-zero doc index');
+	const { ctx, deps, doc, events } = mountTableMutations(parsed.children, 1);
 
 	const seen: EditEvent[] = [];
 	events.on('edit', (e) => seen.push(e));
@@ -372,6 +342,38 @@ export async function checkGridLocalIndexAddressing(): Promise<void> {
 	// The strip twin's oracle, which the grid arm went without: a column op leaving a stale
 	// table raw or a row the delimiter no longer describes fires here, not at a byte round-trip.
 	assertParseConverged(doc, 'doc converges after a grid column op');
+}
+
+/** The table-mutations mount both grid cells share: headless deps, controller, row states, ctx. */
+function mountTableMutations(children: CstNode[], tableIndex: number) {
+	const table = children[tableIndex];
+	const { deps, doc, events } = createHeadlessActions(children);
+	const controller = createUndoController(deps);
+	const rootContainerEdit = createContainerEditActions(deps, controller);
+
+	const rowsState = mountBlockListState(() => table);
+	// commitColumnEdit resolves each row via expectStateForNode — register them.
+	for (const row of table.children!) mountBlockListState(() => row);
+
+	const ctx = createTableMutationsContext({
+		get node() {
+			return table;
+		},
+		get myPath() {
+			return [tableIndex];
+		},
+		get rowsState() {
+			return rowsState;
+		},
+		get focusedCell() {
+			return { rowIdx: 0, colIdx: 0 };
+		},
+		parentContainerEdit: rootContainerEdit,
+		controller,
+		focusCell: () => {},
+		announceReorder: () => {}
+	});
+	return { ctx, deps, doc, events };
 }
 
 // ── (b) innermost-first ancestry rebuild ─────────────────────────────────────
@@ -479,31 +481,7 @@ async function checkListIndentOneUndo(): Promise<void> {
 
 async function checkTableColumnOneUndo(): Promise<void> {
 	const table = firstChildOfKind('| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n', 'table');
-	const { deps } = createHeadlessActions([table]);
-	const controller = createUndoController(deps);
-	const rootContainerEdit = createContainerEditActions(deps, controller);
-
-	const rowsState = mountBlockListState(() => table);
-	for (const row of table.children!) mountBlockListState(() => row);
-
-	const ctx = createTableMutationsContext({
-		get node() {
-			return table;
-		},
-		get myPath() {
-			return [0];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return { rowIdx: 0, colIdx: 0 };
-		},
-		parentContainerEdit: rootContainerEdit,
-		controller,
-		focusCell: () => {},
-		announceReorder: () => {}
-	});
+	const { ctx, deps } = mountTableMutations([table], 0);
 
 	const before = deps.undoManager.getStacks().undo.length;
 	await ctx.insertColumnRight(0);
@@ -534,37 +512,26 @@ export async function checkFocusBubbleTermination(
 
 	const rootFocus = recordingFocus();
 
+	const focusRung = (node: CstNode, index: number, focus: FocusActions) =>
+		createNestedFocus(
+			mountBlockListState(() => node),
+			{
+				index,
+				get node() {
+					return node;
+				},
+				path: [index],
+				stickyColumn: stubStickyColumn(),
+				getPresentationMode: undefined,
+				linkRef: undefined,
+				parent: { blockEdit: stubBlockEdit(), focus, containerEdit: {} as never }
+			}
+		);
+
 	// At its own top edge, so moveFocus(-1) must delegate to root rather than re-enter.
 	const outerNode = parse('> a\n>\n> b\n').children[0];
-	const outerFocus = createNestedFocus(
-		mountBlockListState(() => outerNode),
-		{
-			index: 3,
-			get node() {
-				return outerNode;
-			},
-			path: [3],
-			stickyColumn: stubStickyColumn(),
-			getPresentationMode: undefined,
-			linkRef: undefined,
-			parent: { blockEdit: stubBlockEdit(), focus: rootFocus, containerEdit: {} as never }
-		}
-	);
-
-	const innerFocus = createNestedFocus(
-		mountBlockListState(() => innerNode),
-		{
-			index: 0,
-			get node() {
-				return innerNode;
-			},
-			path: [0],
-			stickyColumn: stubStickyColumn(),
-			getPresentationMode: undefined,
-			linkRef: undefined,
-			parent: { blockEdit: stubBlockEdit(), focus: outerFocus, containerEdit: {} as never }
-		}
-	);
+	const outerFocus = focusRung(outerNode, 3, rootFocus);
+	const innerFocus = focusRung(innerNode, 0, outerFocus);
 
 	// Inner delegates to outer.moveFocus(-1); outer is at its own top (index 3), so the
 	// root sees index 2 exactly once.

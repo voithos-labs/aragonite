@@ -4,7 +4,7 @@
  * cross-block range delete. Subset (cell) coverage returns null for the caller's cell-clear.
  */
 
-import type { SelectionPoint } from './primitives';
+import { deleteSnapshot, type SelectionPoint } from './primitives';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
@@ -20,7 +20,6 @@ import {
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { cellRowCol, docPathFrom } from '../cursor/coordinate-spaces';
-import { deleteSnapshot } from './cross-block/ops';
 import type { CrossBlockDeleteOptions, CrossBlockMutationContext } from './cross-block/ops';
 
 // ── Coverage classification ──────────────────────────────────────────────────

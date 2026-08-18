@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { isBuiltinBlockKind } from '$lib/core/nodes';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
+import { assertExemptionDocumented } from '$lib/testing/conformance-core';
 import {
-	assertExemptionDocumented,
 	assertProfileCoverageFloor,
 	CONTAINER_CONFORMANCE_CELLS,
 	reversedAncestryLeavesRootStale

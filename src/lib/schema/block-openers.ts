@@ -14,7 +14,7 @@ import {
 	__resetRegistrationChecksForTests
 } from './registration-pending';
 import { flushPendingRegistrationChecks } from './registration-checks';
-import { registerOnce } from './register-once';
+import { deletePluginEntries, registerOnce } from './register-once';
 
 /** Minted fresh per block and read synchronously; never a handle to keep past the return. */
 export interface OpenContext {
@@ -214,8 +214,6 @@ export function __resetBlockOpenersForTests(): void {
 
 // The unified schema reset preserves built-ins for tests that merely add plugin kinds.
 export function __removePluginOpenersForTests(): void {
-	for (const kind of openers.keys()) {
-		if (!isBuiltinBlockKind(kind)) openers.delete(kind);
-	}
+	deletePluginEntries(openers, isBuiltinBlockKind);
 	invalidateGrammarCaches();
 }
