@@ -56,7 +56,7 @@ export function createEdgeAffinityState(deps: EdgeAffinityDeps = {}): EdgeAffini
 		deps.onInvalidate?.();
 	}
 
-	const state: EdgeAffinityState = {
+	return {
 		get: () => affinity,
 		noteTyping: () => settle('near'),
 		noteExtreme: () => settle('outside'),
@@ -71,8 +71,6 @@ export function createEdgeAffinityState(deps: EdgeAffinityDeps = {}): EdgeAffini
 			settle(action === 'reset' ? null : action);
 		}
 	};
-
-	return state;
 }
 
 /** What a keydown does to the affinity. */

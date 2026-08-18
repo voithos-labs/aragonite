@@ -45,14 +45,10 @@ export type DecorationEngine = {
 	blockDecorationsForPath(path: number[]): BlockDecoration[];
 };
 
-interface SourceSlot {
-	source: DecorationSource;
-}
-
 export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEngine {
-	// Non-reactive registry state, index-aligned with `results`. Handles close over the slot
+	// Non-reactive registry state, index-aligned with `results`. Handles close over the source
 	// object, not its index, so a dispose mid-list never staleness-shifts a surviving handle.
-	const slots: SourceSlot[] = [];
+	const sources: DecorationSource[] = [];
 	const names = new Set<string>();
 	const warnedUnrenderableIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
@@ -64,18 +60,18 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	const byPath = $derived(groupDecorationsByPath(merged));
 	const byAncestor = $derived(groupDecorationsByAncestor(merged));
 
-	function runSlot(slot: SourceSlot): void {
-		const i = slots.indexOf(slot);
+	function runSource(source: DecorationSource): void {
+		const i = sources.indexOf(source);
 		if (i < 0) return; // disposed between schedule and run
 		recordDecorationRun();
 		let next: Decoration[];
 		try {
-			next = slot.source.provide(deps.getDoc(), { editEpoch });
+			next = source.provide(deps.getDoc(), { editEpoch });
 		} catch (error) {
-			deps.onSourceError?.(slot.source.name, error);
-			return; // keep the slot's prior decorations — a throw never blanks the view
+			deps.onSourceError?.(source.name, error);
+			return; // keep the source's prior decorations — a throw never blanks the view
 		}
-		warnUnrenderableIslands(slot.source.name, next);
+		warnUnrenderableIslands(source.name, next);
 		// An empty→empty re-run must not reassign `results`, or every keystroke would
 		// republish the derived buckets for sources that never emit.
 		if (results[i].length === 0 && next.length === 0) return;
@@ -135,7 +131,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 
 	function runAll(): void {
 		assertNotInCommit();
-		for (const slot of slots) runSlot(slot);
+		for (const source of sources) runSource(source);
 	}
 
 	function addSource(source: DecorationSource): DecorationSourceHandle {
@@ -145,17 +141,16 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			);
 		}
 		names.add(source.name);
-		const slot: SourceSlot = { source };
-		slots.push(slot);
+		sources.push(source);
 		results = [...results, []];
-		runSlot(slot);
+		runSource(source);
 		return {
-			invalidate: () => runSlot(slot),
+			invalidate: () => runSource(source),
 			dispose: () => {
-				const i = slots.indexOf(slot);
+				const i = sources.indexOf(source);
 				if (i < 0) return; // idempotent
-				slots.splice(i, 1);
-				names.delete(slot.source.name);
+				sources.splice(i, 1);
+				names.delete(source.name);
 				results = results.filter((_, idx) => idx !== i);
 			}
 		};
@@ -168,7 +163,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	return {
 		addSource,
 		get sourceCount() {
-			return slots.length;
+			return sources.length;
 		},
 		notifyEdit() {
 			assertNotInCommit();

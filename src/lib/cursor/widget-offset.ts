@@ -160,19 +160,13 @@ export function widgetSpanContainingOffset(
 /** Raw bytes a DOM subtree stands for: text nodes verbatim, widgets via their source range. */
 export function rawTextOfNode(domNode: Node, raw: string): string {
 	if (domNode.nodeType === Node.TEXT_NODE) return domNode.textContent ?? '';
-	if (domNode.nodeType === Node.ELEMENT_NODE) {
-		const el = domNode as Element;
-		if (el.matches?.(WIDGET_SELECTOR)) {
-			const range = widgetSourceRange(el);
-			return range ? raw.slice(range.start, range.end) : '';
-		}
-		let out = '';
-		for (const child of Array.from(el.childNodes)) out += rawTextOfNode(child, raw);
-		return out;
+	if (isAtomicInlineWidget(domNode)) {
+		const range = widgetSourceRange(domNode as Element);
+		return range ? raw.slice(range.start, range.end) : '';
 	}
-	if (domNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+	if (domNode.nodeType === Node.ELEMENT_NODE || domNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
 		let out = '';
-		for (const child of Array.from(domNode.childNodes)) out += rawTextOfNode(child, raw);
+		for (const child of domNode.childNodes) out += rawTextOfNode(child, raw);
 		return out;
 	}
 	return '';
@@ -528,6 +522,13 @@ type LandingSegment =
 			len: number;
 	  };
 
+type OpaqueSegment = Extract<LandingSegment, { kind: 'opaque' }>;
+
+/** An opaque span at birth: one element, so it is its own first and last until a run extends it. */
+function opaqueSegment(el: Element, start: number, len: number, hidden: boolean): OpaqueSegment {
+	return { kind: 'opaque', hidden, first: el, last: el, start, len };
+}
+
 /**
  * The same walk as the caret sees it: landable text, and opaque spans it may not enter —
  * atomic widgets, plus MAXIMAL runs of hidden marker text, coalesced because snapping out of
@@ -537,7 +538,7 @@ function* landingSegments(
 	root: ParentNode,
 	mode: PresentationMode | null
 ): Generator<LandingSegment> {
-	let run: Extract<LandingSegment, { kind: 'opaque' }> | null = null;
+	let run: OpaqueSegment | null = null;
 	for (const seg of walkSegments(root, mode)) {
 		// A zero-contribution node cannot end a run: Chromium leaves empty text nodes between
 		// spans, and splitting the run there would mint a landable seam nothing paints.
@@ -547,14 +548,7 @@ function* landingSegments(
 				run.len += seg.len;
 				run.last = seg.hiddenRoot;
 			} else {
-				run = {
-					kind: 'opaque',
-					hidden: true,
-					first: seg.hiddenRoot,
-					last: seg.hiddenRoot,
-					start: seg.start,
-					len: seg.len
-				};
+				run = opaqueSegment(seg.hiddenRoot, seg.start, seg.len, true);
 			}
 			continue;
 		}
@@ -563,16 +557,7 @@ function* landingSegments(
 			run = null;
 		}
 		if (seg.kind === 'text') yield seg;
-		else {
-			yield {
-				kind: 'opaque',
-				hidden: false,
-				first: seg.el,
-				last: seg.el,
-				start: seg.start,
-				len: seg.len
-			};
-		}
+		else yield opaqueSegment(seg.el, seg.start, seg.len, false);
 	}
 	if (run) yield run;
 }

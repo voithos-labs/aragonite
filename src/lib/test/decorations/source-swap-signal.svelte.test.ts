@@ -77,7 +77,7 @@ describe('a `source` prop swap signals the decoration engine', () => {
 		expect(seen.at(-1)).toEqual({ blocks: 1, epoch: 1 });
 	});
 
-	// The buckets, not the counter: `runSlot`'s idle-source guard skips reassignment on
+	// The buckets, not the counter: `runSource`'s idle-source guard skips reassignment on
 	// an empty→empty run, so an epoch-only assertion would pass over a stale bucket.
 	it('replaces the published buckets, leaving nothing at a path the new document lacks', async () => {
 		const { editor, props } = mountEditor('one\n\ntwo\n\nthree\n');

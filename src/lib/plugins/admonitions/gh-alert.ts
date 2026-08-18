@@ -11,13 +11,6 @@ const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
 
 const CANONICAL_COLONS = 3;
 
-/** Fence lengthened past any colon run in the body, which would otherwise read as the
- *  container's own closer once this output is written into the document. */
-function wrapAsDirective(name: string, body: string[]): string[] {
-	const colons = ':'.repeat(escalatedColonCount(body.join('\n'), CANONICAL_COLONS));
-	return [`${colons}${name}`, ...body, colons];
-}
-
 /** Every `>` pattern here caps indent at CommonMark's 0–3 spaces: past that the line is
  *  indented code, and claiming it would promote a literal `>` to a marker on rebuild. */
 const MARKER = /^ {0,3}>[ \t]*\[!([A-Za-z]+)\][ \t]*$/;
@@ -53,13 +46,14 @@ function emitDirective(name: string, source: ParsedLine[]): string {
 		.map((line) => stripQuoteMarker(line.text) + (line.lineEnding || fallback))
 		.join('');
 	const body = splitLines(convertGithubAlerts(stripped).converted);
-	const wrapped = wrapAsDirective(
-		name,
-		body.map((line) => line.text)
+	// Fence lengthened past any colon run in the body, which would otherwise read as the
+	// container's own closer once this output is written into the document.
+	const colons = ':'.repeat(
+		escalatedColonCount(body.map((line) => line.text).join('\n'), CANONICAL_COLONS)
 	);
-	let out = `${wrapped[0]}${source[0].lineEnding || fallback}`;
+	let out = `${colons}${name}${source[0].lineEnding || fallback}`;
 	for (let i = 0; i < body.length; i++) out += body[i].text + (body[i].lineEnding || fallback);
-	return out + wrapped[wrapped.length - 1] + source[source.length - 1].lineEnding;
+	return out + colons + source[source.length - 1].lineEnding;
 }
 
 /** GitHub honors `[!TYPE]` only on the blockquote's first line; everything after,
