@@ -7,7 +7,7 @@
 
 import {
 	INLINE_PRIORITIES,
-	createBoundedMemo,
+	createScanIndex,
 	declarePluginInlineKind,
 	isInlineKindDeclared,
 	registerInlineSyntax,
@@ -20,13 +20,6 @@ import { FOOTNOTE_REF_KIND } from './constants';
 
 const isWhitespace = (ch: string) => /\s/.test(ch);
 
-/**
- * Materialized once per block, not searched per consultation: an unterminated `[^` declines
- * only by reaching the end, so a paragraph full of them would cost a block scan each.
- * Bounded rather than weak-keyed because a string cannot key a WeakMap.
- */
-const terminatorIndex = createBoundedMemo<string, Int32Array>({ cap: 2 });
-
 function indexLabelTerminators(raw: string): Int32Array {
 	const positions: number[] = [];
 	for (let i = 0; i < raw.length; i++) {
@@ -35,17 +28,9 @@ function indexLabelTerminators(raw: string): Int32Array {
 	return Int32Array.from(positions);
 }
 
-function firstTerminatorFrom(raw: string, from: number): number {
-	const positions = terminatorIndex(raw, () => indexLabelTerminators(raw));
-	let lo = 0;
-	let hi = positions.length;
-	while (lo < hi) {
-		const mid = (lo + hi) >>> 1;
-		if (positions[mid] < from) lo = mid + 1;
-		else hi = mid;
-	}
-	return lo < positions.length ? positions[lo] : -1;
-}
+// Indexed once per block, not searched per consultation: an unterminated `[^` declines
+// only by reaching the end, so a paragraph full of them would cost a block scan each.
+const firstTerminatorFrom = createScanIndex(indexLabelTerminators);
 
 /**
  * Every decline falls through to the built-in bracket handler byte-identically. The reference
