@@ -242,6 +242,12 @@ export { DIRECTIVE_BODY_WRAP } from './core/directive/kinds';
 export { createBoundedMemo } from './bounded-memo';
 export type { BoundedMemoOptions } from './bounded-memo';
 
+// ── Recognizer scan index (pre-freeze) ───────────────────────────────────────
+// The bounded decline for a grammar with no early-stop byte (the guide's inline-kinds
+// section): a per-block position collector becomes a memoized lookup answering the first
+// candidate at or after `from` (-1 when none), one scan per block behind a cap-2 memo.
+export { createScanIndex } from './scan-index';
+
 // ── Paste transforms (pre-freeze) ────────────────────────────────────────────
 // A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline
 // (null). Transforms run in install order at every paste site — never on load or typing.

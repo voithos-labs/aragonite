@@ -645,7 +645,7 @@ The scanner consults the rung ahead of the built-in `[` case, but only when `[^`
 
 A rung on `!` is consulted ahead of the built-in `!` case, so it outranks the image grammar wherever its prefix matches — and the two grammars do overlap: an image whose alt text opens with `[` starts on `![[` as well, so `![[a.png]]` carrying a parenthesized destination after it is a built-in image with the alt text `[a.png]`, not an embed. Deciding that overlap is your recognizer's job. Decline it (return `null`) and the built-in image reads the bytes unchanged. **Getting it wrong fails silently.** An ungated `![[` recognizer swallows the image with no throw and no dev-warn, and since the raw bytes are untouched the document still round-trips byte for byte — so no round-trip check and no conformance cell in your own suite will see it. The first report comes from a reader whose picture stopped rendering.
 
-**Bound the decline, not just the claim.** Your recognizer is consulted at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger — quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar cannot contain, the way the emoji recognizer stops at the first non-shortcode byte; where the grammar has no such character, materialize the predicate once per block behind `createBoundedMemo` and look it up, the way the bundled math and footnote recognizers index their closers.
+**Bound the decline, not just the claim.** Your recognizer is consulted at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger — quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar cannot contain, the way the emoji recognizer stops at the first non-shortcode byte; where the grammar has no such character, index the candidate positions once per block with `createScanIndex` (hand it your position collector, get back a "first candidate at or after this offset" lookup), the way the bundled math and footnote recognizers index their closers.
 
 The bundled **footnotes** plugin (`aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^`-prefix rung at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` walk memoized on `getContentVersion`, so the number re-derives when a reference is added elsewhere while every mounted widget in a flush shares one walk), and reveals its source to edit. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
 
@@ -1217,6 +1217,12 @@ Every `aragonite/plugin` export, grouped by job. Values are the calls you make; 
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `createBoundedMemo`  | A bounded LRU memo for per-source work — a renderer's render, a recognizer's scan index — sync (with an optional `cloneOnRead`) or async (the render promise is the cached value) |
 | `BoundedMemoOptions` | The memo's options — the entry `cap` and the optional `cloneOnRead`                                                                                                               |
+
+**Recognizer scan index** _(pre-freeze / unstable)_
+
+| Export            | Role                                                                                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createScanIndex` | Turn a per-block position collector into a memoized "first candidate at or after this offset" lookup (-1 when none), so a decline costs one block scan instead of one per trigger |
 
 **Fence grammar** _(pre-freeze / unstable)_
 
