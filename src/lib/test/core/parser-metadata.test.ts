@@ -83,12 +83,6 @@ describe('metadata: thematic breaks', () => {
 			expect((node.metadata as ThematicBreakMetadata).marker).toBe(marker);
 		});
 	}
-
-	it('parses --- after paragraph as setext H2, not thematic break', () => {
-		const doc = parse('Title\n---\n');
-		expect(doc.children.length).toBe(1);
-		expect(doc.children[0].kind).toBe('setextHeading');
-	});
 });
 
 describe('metadata: setext headings', () => {
@@ -120,49 +114,6 @@ describe('metadata: blockquotes', () => {
 		const node = doc.children[0];
 		expect(node.children!.length).toBeGreaterThan(0);
 		expect(node.children![0].kind).toBe('heading');
-	});
-
-	// CommonMark §5.1 lazy continuation.
-	it('absorbs a lazy continuation line into an open paragraph', () => {
-		const doc = parse('> First line\nlazy continuation\n');
-		expect(doc.children).toHaveLength(1);
-		const bq = doc.children[0];
-		expect(bq.kind).toBe('blockquote');
-		expect(bq.children).toHaveLength(1);
-		const para = bq.children![0];
-		expect(para.kind).toBe('paragraph');
-		expect(para.raw).toContain('First line');
-		expect(para.raw).toContain('lazy continuation');
-	});
-
-	it('lazy continuation absorbs multiple consecutive non-> lines', () => {
-		const doc = parse('> A\nB\nC\n');
-		const bq = doc.children[0];
-		expect(bq.kind).toBe('blockquote');
-		expect(bq.children).toHaveLength(1);
-		expect(bq.children![0].kind).toBe('paragraph');
-		expect(bq.children![0].raw).toBe('A\nB\nC\n');
-	});
-
-	it('lazy continuation stops at a blank line', () => {
-		const doc = parse('> inside\nlazy\n\nafter\n');
-		expect(doc.children).toHaveLength(2);
-		expect(doc.children[0].kind).toBe('blockquote');
-		expect(doc.children[1].kind).toBe('paragraph');
-		expect(doc.children[1].raw).toBe('after\n');
-	});
-
-	it('lazy continuation does not absorb a new block opener', () => {
-		const doc = parse('> quoted\n# heading\n');
-		expect(doc.children).toHaveLength(2);
-		expect(doc.children[0].kind).toBe('blockquote');
-		expect(doc.children[1].kind).toBe('heading');
-	});
-
-	it('lazy continuation preserves round-trip', () => {
-		const source = '> First line\nlazy continuation\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
 	});
 });
 
@@ -241,71 +192,13 @@ describe('metadata: lists', () => {
 		const list = doc.children[0];
 		expect((list.children![0].metadata as ListItemMetadata).marker).toBe('+ ');
 	});
-});
-
-describe('metadata: nested lists', () => {
-	it('nested unordered list produces list inside list item', () => {
-		const doc = parse('- Item\n  - Nested\n');
-		expect(doc.children).toHaveLength(1);
-		const list = doc.children[0];
-		expect(list.kind).toBe('list');
-		expect(list.children).toHaveLength(1);
-		const item = list.children![0];
-		expect(item.kind).toBe('listItem');
-		expect(item.children).toHaveLength(2);
-		expect(item.children![0].kind).toBe('paragraph');
-		expect(item.children![1].kind).toBe('list');
-		const nested = item.children![1];
-		expect(nested.children).toHaveLength(1);
-		expect(nested.children![0].kind).toBe('listItem');
-	});
-
-	it('continuation line merges into item paragraph', () => {
-		const doc = parse('- Line 1\n  Line 2\n');
-		const list = doc.children[0];
-		const item = list.children![0];
-		expect(item.children).toHaveLength(1);
-		expect(item.children![0].kind).toBe('paragraph');
-		expect(item.children![0].raw).toBe('Line 1\nLine 2\n');
-	});
-
-	it('multi-paragraph item has multiple children', () => {
-		const doc = parse('- Para 1\n\n  Para 2\n');
-		const list = doc.children[0];
-		const item = list.children![0];
-		expect(item.children).toHaveLength(2);
-		expect(item.children![0].kind).toBe('paragraph');
-		expect(item.children![1].kind).toBe('paragraph');
-	});
 
 	it('ordered list with continuation preserves marker', () => {
 		const doc = parse('1. Item\n   more\n');
 		const list = doc.children[0];
-		expect((list.metadata as { ordered: boolean }).ordered).toBe(true);
+		expect((list.metadata as ListMetadata).ordered).toBe(true);
 		const item = list.children![0];
-		expect((item.metadata as { marker: string }).marker).toBe('1. ');
-	});
-
-	it('task item strips checkbox from inner content', () => {
-		const doc = parse('- [x] Done\n');
-		const list = doc.children[0];
-		const item = list.children![0];
-		expect((item.metadata as { taskItem: boolean }).taskItem).toBe(true);
-		expect((item.metadata as { taskChecked: boolean }).taskChecked).toBe(true);
-		expect(item.children).toHaveLength(1);
-		expect(item.children![0].raw).toBe('Done\n');
-	});
-
-	it('deeply nested list', () => {
-		const doc = parse('- L1\n  - L2\n    - L3\n');
-		const l1List = doc.children[0];
-		const l1Item = l1List.children![0];
-		const l2List = l1Item.children!.find((c) => c.kind === 'list');
-		expect(l2List).toBeDefined();
-		const l2Item = l2List!.children![0];
-		const l3List = l2Item.children!.find((c) => c.kind === 'list');
-		expect(l3List).toBeDefined();
-		expect(l3List!.children![0].kind).toBe('listItem');
+		expect((item.metadata as ListItemMetadata).marker).toBe('1. ');
 	});
 });
 

@@ -42,6 +42,12 @@ describeScanCases('recognition boundaries and trimming', [
 		[autolinkNode(0, 21, 'http://www.example.com/a(b)c'), textNode(21, 22, ')')]
 	],
 	[
+		'trailing matched paren pair is kept',
+		'www.x.com/a_(b)',
+		[autolinkNode(0, 15, 'http://www.x.com/a_(b)')]
+	],
+	['a dotless www stays text', 'www x', [textNode(0, 5, 'www x')]],
+	[
 		'open paren is a valid leading boundary',
 		'(www.x.com)',
 		[textNode(0, 1, '('), autolinkNode(1, 10, 'http://www.x.com'), textNode(10, 11, ')')]
@@ -70,6 +76,12 @@ describeScanCases('urls stop where claimed constructs start', [
 		'entity reference ends the url',
 		'https://x.com&amp;y',
 		[autolinkNode(0, 13, 'https://x.com'), entityNode(13, 18, '&'), textNode(18, 19, 'y')]
+	],
+	// Sibling-path parity with the `&amp;` arm: a fix to one must not skip the other.
+	[
+		'named entity ends the url',
+		'https://x.com&copy;y',
+		[autolinkNode(0, 13, 'https://x.com'), entityNode(13, 19, '©'), textNode(19, 20, 'y')]
 	],
 	[
 		'code span ends the url',

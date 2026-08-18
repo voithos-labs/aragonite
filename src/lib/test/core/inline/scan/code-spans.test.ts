@@ -18,7 +18,17 @@ describeScanCases('matched spans', [
 	['entities and escapes are literal inside', '`&amp; \\*`', [codeNode(0, 10, '&amp; \\*')]],
 	['shorter runs inside a longer fence are content', '`` `a` ``', [codeNode(0, 9, ' `a` ')]],
 	['a longer run inside does not close', '`a```b`', [codeNode(0, 7, 'a```b')]],
-	['closing search ignores backslashes (§6.5)', '`a\\`', [codeNode(0, 4, 'a\\')]]
+	['closing search ignores backslashes (§6.5)', '`a\\`', [codeNode(0, 4, 'a\\')]],
+	[
+		'two matched spans with text between',
+		'`a` and `b`',
+		[codeNode(0, 3, 'a'), textNode(3, 8, ' and '), codeNode(8, 11, 'b')]
+	],
+	[
+		'double backslash escapes itself: the span opens',
+		'\\\\`a`',
+		[escapeNode(0), codeNode(2, 5, 'a')]
+	]
 ]);
 
 describeScanCases('unmatched runs stay literal text', [
@@ -38,7 +48,13 @@ describeScanCases('interleaving', [
 		'backticks bind before the emphasis pass sees the interior',
 		'*`a`*',
 		[emphasisNode(0, 5, [codeNode(1, 4, 'a')])]
-	]
+	],
+	[
+		'a delimiter inside a code span cannot pair',
+		'*a `b* c` d*',
+		[emphasisNode(0, 12, [textNode(1, 3, 'a '), codeNode(3, 9, 'b* c'), textNode(9, 11, ' d')])]
+	],
+	['an html tag inside a code span is content', '`<br>`', [codeNode(0, 6, '<br>')]]
 ]);
 
 describe('ranges', () => {
