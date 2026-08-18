@@ -79,7 +79,7 @@ describe('createHeightOracle', () => {
 	});
 
 	// Containers use a child-count-aware arm: at least one line + chrome per child, and at least the
-	// blob-wrap of the materialized raw. The prior blob-only fall-through undercounted several-fold.
+	// blob-wrap of the materialized raw — a blob-only estimate undercounts a several-child container.
 	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
 		const quote: CstNode = {

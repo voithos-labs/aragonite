@@ -1,34 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { createSearchState } from '../../search/search-state.svelte';
-import type { Match } from '../../search/document-scan';
+import { makeSearchHarness, type ReplaceStub } from './harness';
 
-interface ReplaceStub {
-	replaceOne(m: Match, text: string): Promise<number>;
-	replaceAll(ms: Match[], text: string): Promise<number>;
-}
-
-const stubReplace: ReplaceStub = { replaceOne: async () => 0, replaceAll: async () => 0 };
-
-function makeHarness(source: string, replace: ReplaceStub = stubReplace) {
-	const doc = parse(source);
+function makeHarness(source: string, replace?: ReplaceStub) {
 	let scans = 0;
-	const engine = createDecorationEngine({ getDoc: () => doc });
-	const state = createSearchState({
-		getDoc: () => doc,
+	const h = makeSearchHarness(source, {
+		replace,
 		// rescan reads the generation exactly once at its top, and scans the doc the
 		// registry hands `provide` rather than this getter — so this read counts rescans.
 		getDocumentGeneration: () => {
 			scans++;
 			return 0;
-		},
-		decorations: engine,
-		replace,
-		reveal: async () => null,
-		onClose: () => {}
+		}
 	});
-	return { doc, engine, state, scanCount: () => scans };
+	return { ...h, scanCount: () => scans };
 }
 
 describe('search as decoration source', () => {

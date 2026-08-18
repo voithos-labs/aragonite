@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { createSearchState } from '../../search/search-state.svelte';
 import {
 	createRegexExecutor,
 	type RegexExecutor,
 	type RegexScanOutcome,
 	type RegexScanRequest
 } from '../../search/regex-executor';
+import { makeSearchHarness, type ReplaceStub } from './harness';
 
 // Regex scans leave the main thread, so their results land after the call that
 // asked for them. These pin what the find bar does in that window.
@@ -25,17 +23,8 @@ function makeHeldExecutor() {
 	return { executor, held };
 }
 
-function makeState(source: string, regexExecutor?: RegexExecutor) {
-	const doc = parse(source);
-	const state = createSearchState({
-		getDoc: () => doc,
-		getDocumentGeneration: () => 0,
-		decorations: createDecorationEngine({ getDoc: () => doc }),
-		replace: { replaceOne: async () => 0, replaceAll: async () => 0 },
-		reveal: async () => null,
-		regexExecutor,
-		onClose: () => {}
-	});
+function makeState(source: string, regexExecutor?: RegexExecutor, replace?: ReplaceStub) {
+	const { state } = makeSearchHarness(source, { regexExecutor, replace });
 	state.open();
 	state.setOptions({ regex: true });
 	return { state };
@@ -154,25 +143,14 @@ describe('SearchState — off-thread regex scans', () => {
 	it('replaceAll waits for the pending scan instead of reading an empty set', async () => {
 		// Without the await, replaceAll's `if (!matches.length) return` fires on the
 		// scan window and the click silently does nothing.
-		const doc = parse('cat cat\n');
 		let replacedWith: number | null = null;
-		const state = createSearchState({
-			getDoc: () => doc,
-			getDocumentGeneration: () => 0,
-			decorations: createDecorationEngine({ getDoc: () => doc }),
-			replace: {
-				replaceOne: async () => 0,
-				replaceAll: async (ms) => {
-					replacedWith = ms.length;
-					return ms.length;
-				}
-			},
-			reveal: async () => null,
-			regexExecutor: createRegexExecutor(),
-			onClose: () => {}
+		const { state } = makeState('cat cat\n', createRegexExecutor(), {
+			replaceOne: async () => 0,
+			replaceAll: async (ms) => {
+				replacedWith = ms.length;
+				return ms.length;
+			}
 		});
-		state.open();
-		state.setOptions({ regex: true });
 		state.setQuery('c.t');
 		expect(state.matches).toHaveLength(0); // still scanning
 

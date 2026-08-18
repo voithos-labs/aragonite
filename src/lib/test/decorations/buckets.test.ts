@@ -50,7 +50,7 @@ describe('collapseCellMarks', () => {
 
 	it('collapses two same-cell marks of different classes into one unioned rect', () => {
 		// The active class already contains the base token, so the union is one active
-		// rect (the retired MatchOverlay behaviour), not two stacked full-cell rects.
+		// rect, not two stacked full-cell rects.
 		const cells = collapseCellMarks(
 			[
 				cellMark([3, 0, 1], 'match-overlay', 0),

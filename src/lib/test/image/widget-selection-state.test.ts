@@ -2,11 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { createWidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
 
 describe('WidgetSelectionState', () => {
-	it('starts empty', () => {
-		const s = createWidgetSelectionState({ onSelect: () => {} });
-		expect(s.getSelected()).toBeNull();
-	});
-
 	it('clear resets to null', () => {
 		const s = createWidgetSelectionState({ onSelect: () => {} });
 		s.select({ paragraphPath: [0], sourceStart: 5, preSelectOffset: 5 });

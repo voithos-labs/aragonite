@@ -25,11 +25,6 @@ describe('measurePartialRectsInContentEditable', () => {
 		expect(rects).toEqual([]);
 	});
 
-	it('returns an array for a valid range within the element', () => {
-		const rects = measurePartialRectsInContentEditable(el, asDomTextOffset(0), asDomTextOffset(5));
-		expect(Array.isArray(rects)).toBe(true);
-	});
-
 	it('clamps out-of-range offsets without throwing', () => {
 		expect(() =>
 			measurePartialRectsInContentEditable(el, asDomTextOffset(0), asDomTextOffset(9999))

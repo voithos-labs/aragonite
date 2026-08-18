@@ -6,16 +6,13 @@
  */
 
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageWidgetOnSelectedKey } from '../../components/image/image-widget-editing';
 import { parse } from '../../core/parser';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { __resetInlineSyntaxForTests } from '../../core/inline/scan/plugin-syntax';
 import type { InlineWidgetEditingContext } from '../../core/inline/inline-widgets';
 import type { CstNode, InlineNode } from '../../core/nodes';
-import type { UndoController } from '../../editor-actions/deps';
-import type { EditorEvents } from '../../editor-events';
-import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { committerFor } from './committer-harness';
 import { registerWikiRung, rewriteWikiImage } from './wiki-image-rung';
 import { takeDevWarns } from '../support/warn-gate';
 
@@ -95,31 +92,6 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 });
 
 // ── The drag-resize / properties-popover commit path ─────────────────────────
-
-function committerFor(raw: string) {
-	const doc = parse(raw);
-	const controller = {
-		commitStructural: vi.fn(),
-		commitContainerStructural: vi.fn(),
-		commitMultiScope: vi.fn(),
-		pushUndoSnapshot: vi.fn(),
-		pushUndoSnapshotDebounced: vi.fn(),
-		getDocScope: vi.fn(),
-		captureCurrentState: vi.fn()
-	} as unknown as UndoController;
-	const committer = createImageEditCommitter({
-		getDoc: () => doc,
-		getEditorEl: () => null,
-		widgetSelection: { getSelected: () => null } as unknown as WidgetSelectionState,
-		controller,
-		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents
-	});
-	return {
-		committer,
-		controller,
-		target: { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 }
-	};
-}
 
 describe('a popover or drag commit on an image a rung claimed', () => {
 	it('builds the rung’s bytes and commits them', async () => {
