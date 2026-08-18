@@ -14,9 +14,9 @@ import { cleanJoinedRaw } from '../node-ops';
 import type { SharingState } from '../sharing';
 import { cloneMetadata, cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
-import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-rebuilders';
+import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
-import { renumberOrderedList } from './ordered-markers';
+import { orderedBaseOf, renumberOrderedList, renumberOrderedListFrom } from './ordered-markers';
 import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
 import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
@@ -89,14 +89,8 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		innerSuffix: clonedList.innerSuffix ?? ''
 	};
 
-	// Preserve the original list's starting number: seed item 0, then continue from item 1.
-	if (parentOrdered) {
-		const base = parseInt(metadataOf(firstItem, 'listItem').marker, 10) || 1;
-		const firstMeta = metadataOf(remainingItems[0], 'listItem');
-		firstMeta.marker = String(base) + firstMeta.marker.replace(/^\d+/, '');
-		rebuildListItemRaw(remainingItems[0]);
-		renumberOrderedList(remainingList, 1);
-	}
+	// Preserve the original list's starting number.
+	renumberOrderedListFrom(remainingList, orderedBaseOf(firstItem));
 
 	rebuildListRaw(remainingList);
 
@@ -112,6 +106,27 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 	const startItem = list.children[targetItemIndex];
 	const result = walkToDeepestMergeLeaf(startItem, [targetItemIndex]);
 	return result ? result.path : null;
+}
+
+/**
+ * The depth-1 sibling list that "preserve absolute indent" promotes into: the last list
+ * child of the merge target's top-level item, only when the target sits deep enough
+ * (path length >= 4). Unshares the list it resolves.
+ */
+function depthOneListFor(
+	list: CstNode,
+	targetPath: number[],
+	sharing?: SharingState
+): CstNode | null {
+	if (targetPath.length < 4) return null;
+	const depthOneParent = list.children![targetPath[0]];
+	if (!depthOneParent.children) return null;
+	const idx = depthOneParent.children.findLastIndex((c) => c.kind === 'list');
+	if (idx === -1) return null;
+	const depthOneList = sharing
+		? ensureUnsharedChild(depthOneParent, idx, sharing)
+		: depthOneParent.children[idx];
+	return depthOneList.children ? depthOneList : null;
 }
 
 /**
@@ -135,30 +150,16 @@ function relocateRemainingChildren(
 
 	for (const child of remainingChildren) {
 		if (child.kind === 'list' && child.children) {
-			if (targetPath.length >= 4) {
-				const depthOneParent = list.children![targetPath[0]];
-				if (depthOneParent.children) {
-					let depthOneIdx = -1;
-					for (let i = 0; i < depthOneParent.children.length; i++) {
-						if (depthOneParent.children[i].kind === 'list') depthOneIdx = i;
-					}
-					const depthOneList =
-						depthOneIdx === -1
-							? undefined
-							: sharing
-								? ensureUnsharedChild(depthOneParent, depthOneIdx, sharing)
-								: depthOneParent.children[depthOneIdx];
-					if (depthOneList && depthOneList.children) {
-						for (let i = 0; i < child.children.length; i++) {
-							const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
-							item.leadingTrivia = '';
-							// discovered-descendant mutation, see node-ops.ts header
-							pushChild(depthOneList, item);
-						}
-						rebuildListRaw(depthOneList);
-						continue;
-					}
+			const depthOneList = depthOneListFor(list, targetPath, sharing);
+			if (depthOneList) {
+				for (let i = 0; i < child.children.length; i++) {
+					const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
+					item.leadingTrivia = '';
+					// discovered-descendant mutation, see node-ops.ts header
+					pushChild(depthOneList, item);
 				}
+				rebuildListRaw(depthOneList);
+				continue;
 			}
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);

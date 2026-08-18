@@ -4,7 +4,8 @@ import { metadataOf } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
 import { cloneNode } from '../clone';
 import { emptyParagraph } from '../node-ops';
-import { assembleListHalf, orderedBaseOf } from './list-builders';
+import { assembleListHalf } from './list-builders';
+import { orderedBaseOf } from './ordered-markers';
 
 /**
  * The parent-level replacement when a list item exits its list, laid out as

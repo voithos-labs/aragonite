@@ -6,7 +6,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import { devWarn } from '../../dev-warn';
-import { metadataOf, type CstNode, type Document } from '../../core/nodes';
+import type { CstNode, Document } from '../../core/nodes';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import {
 	nodeAt,
@@ -17,7 +17,6 @@ import {
 } from '../node-ops';
 import { containerPasteFor } from './container-paste';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
-import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { ensureUnsharedNode, ensureUnsharedPath, rebuildUnsharedChain } from '../unshare';
 import { containerScopeState } from './parent-scope';
 import {
@@ -25,8 +24,7 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../structural-change';
-import { normalizeItemMarkerToList, renumberOrderedList } from '../list/ordered-markers';
-import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
+import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
@@ -129,33 +127,6 @@ function singleParagraphChildOf(node: CstNode): CstNode | null {
 	return child.kind === 'paragraph' ? child : null;
 }
 
-/**
- * Template pasted items' bullet glyph to a matching unordered `list` ancestor, so a `*`
- * paste into a `- ` list serializes as one list to reference parsers, not two. Markers
- * are set before the splice (precompute-before-splice, see `list-absorb`).
- */
-function normalizePastedListMarkers(items: CstNode[], outer: CstNode): void {
-	if (outer.kind !== 'list' || metadataOf(outer, 'list')?.ordered) return;
-	for (const item of items) normalizeItemMarkerToList(item, outer);
-}
-
-/**
- * Ordered counterpart of `normalizePastedListMarkers`: continue the ancestor's sequence
- * from `firstIndex`. Markers are set before the splice (precompute-before-splice, see
- * `list-absorb`); the caller renumbers the already-proxied tail afterward.
- */
-function renumberPastedOrderedMarkers(items: CstNode[], outer: CstNode, firstIndex: number): void {
-	if (outer.kind !== 'list' || !metadataOf(outer, 'list')?.ordered) return;
-	const suffix = readOrderedSuffix(outer);
-	const base = orderedBaseOf(outer.children?.[0]);
-	items.forEach((item, i) => {
-		const meta = metadataOf(item, 'listItem');
-		if (!meta) return;
-		meta.marker = String(base + firstIndex + i) + suffix;
-		rebuildListItemRaw(item);
-	});
-}
-
 export async function applyContainerMatchingPaste(
 	unwrap: ContainerUnwrap,
 	ctx: PasteDispatchContext
@@ -169,8 +140,7 @@ export async function applyContainerMatchingPaste(
 		return;
 	}
 
-	normalizePastedListMarkers(unwrap.items, outer);
-	renumberPastedOrderedMarkers(unwrap.items, outer, unwrap.spliceIndex);
+	templatePastedItemMarkers(unwrap.items, outer, unwrap.spliceIndex);
 
 	const snapshot =
 		ctx.undoEntry === 'join'
@@ -242,8 +212,7 @@ async function applyContainerMatchingMerge(
 	const remainingItems = unwrap.items.slice(1);
 	// The first item merges into the target leaf, keeping its marker; only the trailing
 	// siblings splice in, landing after the target.
-	normalizePastedListMarkers(remainingItems, outer);
-	renumberPastedOrderedMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
+	templatePastedItemMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
 	const snapshot =
 		ctx.undoEntry === 'join'

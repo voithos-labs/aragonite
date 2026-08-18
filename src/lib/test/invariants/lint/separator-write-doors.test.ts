@@ -19,13 +19,13 @@ const TRIVIA_WRITERS: Record<string, string> = {
 		'trivia is positional, so a rotation carries each slot’s line rather than its node’s',
 	'src/lib/tree-operations/blockquote.ts':
 		'head normalization inside a built subtree: a body head separates from nothing',
-	'src/lib/tree-operations/list/list-builders.ts': 'same head normalization, per assembled half',
+	'src/lib/tree-operations/list/list-builders.ts':
+		'same head normalization, per assembled half and per split-built trailing half',
 	'src/lib/tree-operations/list/sublist-separator.ts':
 		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
 	'src/lib/tree-operations/list/unwrap-merge.ts': 'same head normalization, per lifted body',
 	'src/lib/tree-operations/list/exit-replacement.ts':
 		'head normalization, plus the exit paragraph’s own line: a minted block between two halves owes one on both sides, which no splice probe can infer',
-	'src/lib/tree-operations/paste/list-absorb.ts': 'head normalization of the trailing residue',
 	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
 		'positional: the before/after slots around an inline paste each answer for their own line',

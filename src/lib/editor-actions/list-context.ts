@@ -28,11 +28,7 @@ import {
 	normalizeItemMarkerToList,
 	bumpOrderedMarker
 } from '../tree-operations/list/ordered-markers';
-import {
-	buildListItem,
-	buildListShell,
-	readOrderedSuffix
-} from '../tree-operations/list/list-builders';
+import { buildListItem, buildListShell } from '../tree-operations/list/list-builders';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import { settleSublistSeparator } from '../tree-operations/list/sublist-separator';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
@@ -115,12 +111,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						// Adopt the destination sublist's marker style, matching paste-absorb.
 						// A fresh shell (the else branch) has no convention to adopt.
 						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
-						if (ordered) {
-							const meta = metadataOf(moved, 'listItem');
-							meta.marker = meta.marker.replace(/\D.*$/, '') + readOrderedSuffix(destList);
-						} else {
-							normalizeItemMarkerToList(moved, destList);
-						}
+						normalizeItemMarkerToList(moved, destList);
 					} else {
 						const shell = buildListShell(ordered, [movedItem]);
 						sharing.stamp(shell);
@@ -336,12 +327,6 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					}
 
 					normalizeItemMarkerToList(item, outerScope.node);
-					// normalizeItemMarkerToList only reconciles the glyph, so adopt the
-					// destination's punctuation suffix too, matching paste-absorb.
-					if (metadataOf(outerScope.node, 'list').ordered) {
-						const meta = metadataOf(item, 'listItem');
-						meta.marker = meta.marker.replace(/\D.*$/, '') + readOrderedSuffix(outerScope.node);
-					}
 
 					outerScope.children.splice(parentItemIdx + 1, 0, item);
 					changes[0] = { op: 'insert', at: parentItemIdx + 1, count: 1 };
