@@ -42,10 +42,9 @@ export interface AlertConversion {
 }
 
 /**
- * Each emitted line keeps its source line's ending so CRLF survives; the synthesized closer runs
- * one line past the source, which is what the fallback covers. The body converts in the SAME pass
- * (#171): stripping one quote level promotes a nested `> [!TIP]` to a top-level marker, so a
- * transform that left it would convert further every time it saw its own output.
+ * Each emitted line keeps its source line ending so CRLF survives; the closer runs one line past
+ * the source, which is what the fallback covers. The body converts in the same pass: stripping a
+ * quote level promotes a nested `> [!TIP]` to a top-level marker a later pass would convert again.
  */
 function emitDirective(name: string, source: ParsedLine[]): string {
 	const fallback = source.find((line) => line.lineEnding !== '')?.lineEnding ?? '\n';

@@ -16,7 +16,7 @@ export interface MarkerCompletion {
 	 * content. `parent` is the block's NEAREST ancestor container — a nested quote completes at
 	 * its own depth — or null at the document root. One claim per child: a claimed space writes
 	 * nothing, so only this memory tells press 2 from press 1, and press 2 is the only way to
-	 * type a leading space inside an empty quoted line (GH #143).
+	 * type a leading space inside an empty quoted line.
 	 */
 	claimSpace(node: NodeView, parent: NodeView | null, caretOffset: number): boolean;
 }

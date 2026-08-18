@@ -5,6 +5,7 @@
  */
 
 import type { InlineNode } from '../../nodes';
+import type { BacktickRunIndex } from '../backticks';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
 
 export interface ScanContext {
@@ -17,11 +18,8 @@ export interface ScanContext {
 	delimiters: Delimiter[];
 	brackets: Bracket[];
 	resolver?: LinkReferenceResolver;
-	/**
-	 * Backtick-run positions by length, built lazily on the first code-span probe and reused by
-	 * every later opener so a flood stays linear (backticks.ts).
-	 */
-	backtickRuns?: Map<number, number[]>;
+	/** Built on the first code-span probe and reused by later openers, so a flood stays linear. */
+	backtickRuns?: BacktickRunIndex;
 }
 
 export interface Delimiter {

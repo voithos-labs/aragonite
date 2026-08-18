@@ -216,7 +216,7 @@ function bodyWindowOf(slice: FencedCodeSlice, displayEnd: number): CodeRange {
  * own trailing ending through `displayLength`, so a CRLF document's boundary does not
  * land between the `\r` and the `\n`.
  */
-function fenceBodyBounds(slice: ReturnType<typeof sliceFencedCode>): CodeRange {
+function fenceBodyBounds(slice: FencedCodeSlice): CodeRange {
 	const start = slice.openerLine.length;
 	return { start, end: start + displayLength(slice.body) };
 }
