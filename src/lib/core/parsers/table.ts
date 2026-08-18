@@ -13,17 +13,16 @@ export function splitRowCells(rowText: string): string[] {
 	const inner = head.endsWith('|') ? head.slice(0, -1) : head;
 	const cells: string[] = [];
 	let current = '';
-	let i = 0;
-	while (i < inner.length) {
+	let escaped = false;
+	for (let i = 0; i < inner.length; i++) {
 		const ch = inner[i];
-		if (ch === '|' && !isEscaped(inner, i)) {
+		if (ch === '|' && !escaped) {
 			cells.push(current.trim());
 			current = '';
-			i++;
 			continue;
 		}
 		current += ch;
-		i++;
+		escaped = ch === '\\' && !escaped;
 	}
 	cells.push(current.trim());
 	return cells;
@@ -37,16 +36,6 @@ export function splitRowCells(rowText: string): string[] {
 export function tableHeaderCells(text: string): string[] | null {
 	if (!text.includes('|')) return null;
 	return splitRowCells(text);
-}
-
-function isEscaped(s: string, index: number): boolean {
-	let backslashes = 0;
-	let j = index - 1;
-	while (j >= 0 && s[j] === '\\') {
-		backslashes++;
-		j--;
-	}
-	return backslashes % 2 === 1;
 }
 
 // ── Delimiter row ──────────────────────────────────────────────────────────

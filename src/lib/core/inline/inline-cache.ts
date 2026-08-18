@@ -10,9 +10,15 @@ import type { NodeView } from '../node-views';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { computeInlineContent, isProseKind } from './index';
 
+interface CacheSlot {
+	raw: string;
+	signature: string;
+	content: InlineNode[];
+}
+
 interface CacheEntry {
-	plain?: { raw: string; content: InlineNode[] };
-	resolved?: { raw: string; signature: string; content: InlineNode[] };
+	plain?: CacheSlot;
+	resolved?: CacheSlot;
 }
 
 const cache = new WeakMap<NodeView, CacheEntry>();
@@ -30,18 +36,12 @@ export function getInlineContent(
 	const effectiveResolver = hasRef ? resolver : undefined;
 	const entry = cache.get(node);
 
-	if (sig === '') {
-		const hit = entry?.plain;
-		if (hit && hit.raw === node.raw) return hit.content;
-		const content = computeInlineContent(node, effectiveResolver);
-		cache.set(node, { plain: { raw: node.raw, content }, resolved: entry?.resolved });
-		return content;
-	}
-
-	const hit = entry?.resolved;
+	const slot = sig === '' ? 'plain' : 'resolved';
+	const hit = entry?.[slot];
 	if (hit && hit.raw === node.raw && hit.signature === sig) return hit.content;
 	const content = computeInlineContent(node, effectiveResolver);
-	cache.set(node, { plain: entry?.plain, resolved: { raw: node.raw, signature: sig, content } });
+	// Spread, so refilling one slot carries the other one through untouched.
+	cache.set(node, { ...entry, [slot]: { raw: node.raw, signature: sig, content } });
 	return content;
 }
 
