@@ -87,6 +87,13 @@
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
+	import {
+		installModActiveTracker,
+		installSelectionChangeBridge,
+		installViewportHeightWatcher,
+		onRoot,
+		removeAll
+	} from './editor-root-listeners';
 	import { collectReservedChords, chordIsClaimed } from '../schema/reserved-chords';
 	import { portalInto } from './portal';
 	import {
@@ -324,7 +331,7 @@
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
-			operationsLog?.record({
+			operationsLog.record({
 				op: e.op,
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
@@ -341,6 +348,7 @@
 					signatureEpoch = next.epoch;
 				}
 			}
+			notifyDocumentChanged();
 		});
 		return () => dispose();
 	});
@@ -351,11 +359,6 @@
 	function notifyDocumentChanged(): void {
 		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
 	}
-
-	$effect(() => {
-		const dispose = events.on('edit', () => notifyDocumentChanged());
-		return () => dispose();
-	});
 
 	// Counts whole-document REPLACEMENTS, which the edit epoch cannot tell from a
 	// keystroke. Deliberately NOT $state: its readers run inside decoration `provide`,
@@ -397,29 +400,6 @@
 			notifyDocumentChanged();
 		}
 	});
-
-	// ── Root listener helpers ───────────────────────────────────────────
-	//
-	// Every root listener installs on an $effect and removes on its teardown; these two capture
-	// that pair once rather than per site. Typed off `Event`, not the per-target event maps: those
-	// names are type-only, and this file runs on ESLint's untyped net.
-
-	function onRoot<E extends Event>(
-		target: EventTarget,
-		type: string,
-		handler: (event: E) => void,
-		options?: { capture?: boolean; passive?: boolean }
-	): () => void {
-		const listener = handler as (event: Event) => void;
-		target.addEventListener(type, listener, options);
-		// Removal matches on capture alone: `passive` is an add-time hint the remove
-		// signature rejects.
-		return () => target.removeEventListener(type, listener, options?.capture);
-	}
-
-	function removeAll(...removers: (() => void)[]): () => void {
-		return () => removers.forEach((remove) => remove());
-	}
 
 	/**
 	 * The host's own chrome, mounted inside this root. Every rule meaning "this is the
@@ -718,8 +698,7 @@
 		revealAnchor,
 		// A navigation holds its pin, unlike the consumer restore door: nothing follows
 		// it that wants the viewport back, and the band should outlive a late decode.
-		landCaretAt: async (path) =>
-			(await restoreThroughRevealRoad(caretAt(path), 'hold')) === 'applied'
+		landCaretAt: (path) => landCaretAtOffset(path, 0)
 	});
 
 	// After getDoc so it reuses that one live-doc closure: a second getDoc would be a
@@ -957,32 +936,9 @@
 		}
 	});
 
-	// Only Ctrl/Cmd+click activates a link, so CSS switches links to a pointer cursor
-	// off `data-mod-active`. Reset on blur and visibility loss, or a modifier released
-	// while the page is unfocused sticks the cursor on.
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
-		// Track the last reflected state so ordinary typing never touches the DOM,
-		// keeping the attribute write off the keystroke hot path (perf:check).
-		let active = false;
-		const apply = (next: boolean) => {
-			if (next === active) return;
-			active = next;
-			if (next) root.setAttribute('data-mod-active', '');
-			else root.removeAttribute('data-mod-active');
-		};
-		const onKey = (e: KeyboardEvent) => apply(e.ctrlKey || e.metaKey);
-		const reset = () => apply(false);
-		const onVisibility = () => {
-			if (document.visibilityState === 'hidden') apply(false);
-		};
-		return removeAll(
-			onRoot(document, 'keydown', onKey),
-			onRoot(document, 'keyup', onKey),
-			onRoot(window, 'blur', reset),
-			onRoot(document, 'visibilitychange', onVisibility)
-		);
+		return installModActiveTracker(editorEl);
 	});
 
 	// A delegated handle-drag on the root, torn down on unmount via the lifetime signal.
@@ -1001,23 +957,13 @@
 		return () => handle.dispose();
 	});
 
-	// Single-block caret motion never goes through SelectionState, so without this
-	// bridge subscribers miss every intra-block move. Scoped to this root to avoid
-	// noise from selections elsewhere on the page.
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
-		const handler = () => {
-			const sel = window.getSelection();
-			if (!sel || sel.rangeCount === 0) return;
-			const anchorNode = sel.anchorNode;
-			if (!anchorNode || !root.contains(anchorNode)) return;
-			// A selection in host chrome is not a document selection: emitting there
-			// reports this editor's own unchanged selection on every header caret move.
-			if (isHostChrome(anchorNode)) return;
-			events.emit('selectionChange', getSelection());
-		};
-		return onRoot(document, 'selectionchange', handler);
+		return installSelectionChangeBridge({
+			root: editorEl,
+			isHostChrome,
+			emit: () => events.emit('selectionChange', getSelection())
+		});
 	});
 
 	// ── Editor-root keydown routing ──────────────────────────────────────
@@ -1175,27 +1121,7 @@
 		if (!editorEl) return;
 		const target = getScrollHost();
 		if (!target) return;
-		const bump = () => viewportHeightVersion++;
-		if (target === window) {
-			// The page viewport has no box to observe, and a visualViewport move (a mobile URL
-			// bar retracting) never touches documentElement's height — hence both, ungated.
-			const visual = window.visualViewport;
-			return removeAll(
-				onRoot(window, 'resize', bump),
-				visual ? onRoot(visual, 'resize', bump) : () => {}
-			);
-		}
-		// Cast, not a narrowing: `UserScrollport` is a union of object types, which `=== window`
-		// does not narrow — the same cast `createScrollport` makes on the same split.
-		const el = target as HTMLElement;
-		let lastHeight = el.clientHeight;
-		const observer = new ResizeObserver(() => {
-			if (el.clientHeight === lastHeight) return;
-			lastHeight = el.clientHeight;
-			bump();
-		});
-		observer.observe(el);
-		return () => observer.disconnect();
+		return installViewportHeightWatcher(target, () => viewportHeightVersion++);
 	});
 
 	// ── Type scale ──────────────────────────────────────────────────────

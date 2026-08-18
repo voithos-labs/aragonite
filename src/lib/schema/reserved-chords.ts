@@ -29,7 +29,13 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/Editor.svelte',
 		chords: [],
 		keys: [],
-		note: 'Mod-click link activation and the Mod-held `data-mod-active` affordance — no keystroke is consumed.'
+		note: 'Mod-click link activation — no keystroke is consumed.'
+	},
+	{
+		file: 'components/editor-root-listeners.ts',
+		chords: [],
+		keys: [],
+		note: 'The Mod-held `data-mod-active` affordance tracks flag state only — no keystroke is consumed.'
 	},
 	{
 		file: 'components/GapCaret.svelte',
