@@ -1,6 +1,6 @@
 /** Inline parser entry. See docs/design/inline-parsing.md. */
 
-import type { CstNode, InlineNode } from '../nodes';
+import type { AnyInlineKind, CstNode, InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
 import { displayLength } from '../lines';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -96,4 +96,22 @@ export function parseInline(
 		);
 	}
 	return scanInline(raw, start, end, resolver);
+}
+
+// ── Inline Tree Walks ──────────────────────────────────────────────────────
+
+/** Pre-order over an inline tree, descending unconditionally: each node, then its children.
+ *  Yields nodes only — what a reader SEES stays the render path's question (G4.33). */
+export function* inlineDescendants(nodes: readonly InlineNode[]): Generator<InlineNode> {
+	for (const node of nodes) {
+		yield node;
+		if (node.children) yield* inlineDescendants(node.children);
+	}
+}
+
+/** Every construct kind anywhere in a parse, at any depth. */
+export function constructKinds(nodes: readonly InlineNode[]): Set<AnyInlineKind> {
+	const kinds = new Set<AnyInlineKind>();
+	for (const node of inlineDescendants(nodes)) if (node.kind !== 'text') kinds.add(node.kind);
+	return kinds;
 }

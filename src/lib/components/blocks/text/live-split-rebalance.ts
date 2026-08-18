@@ -6,7 +6,9 @@
 
 import {
 	constructContentRange,
+	constructKinds,
 	getContentRange,
+	inlineDescendants,
 	isProseKind,
 	parseInline
 } from '../../../core/inline';
@@ -18,11 +20,11 @@ import {
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
-import { parse } from '../../../core/parser';
 import {
 	getInlineConstructPolicy,
 	type LiveSplitRebalancer
 } from '../../../schema/inline-construct-policy';
+import { soleProseReparse } from './screen-diff';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -125,18 +127,14 @@ interface ChainLink {
  */
 function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): number | null {
 	let found: number | null = null;
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			const childless = node.kind !== 'text' && constructContentRange(node) === null;
-			const takesWhole =
-				childless && getInlineConstructPolicy(node.kind)?.edgeAffinity === 'never-extend';
-			if (takesWhole && offset > node.start && offset < node.end) {
-				found = offset - node.start <= node.end - offset ? node.start : node.end;
-			}
-			if (node.children) visit(node.children);
+	for (const node of inlineDescendants(inlines)) {
+		const childless = node.kind !== 'text' && constructContentRange(node) === null;
+		const takesWhole =
+			childless && getInlineConstructPolicy(node.kind)?.edgeAffinity === 'never-extend';
+		if (takesWhole && offset > node.start && offset < node.end) {
+			found = offset - node.start <= node.end - offset ? node.start : node.end;
 		}
-	};
-	visit(inlines);
+	}
 	return found;
 }
 
@@ -313,25 +311,10 @@ export function parsesBack(
 const isWhitespaceOnly = (visible: string): boolean => visible !== '' && visible.trim() === '';
 
 function soleProseBlock(raw: string, resolver: LinkReferenceResolver | undefined): HalfRead | null {
-	const blocks = parse(raw, { scope: 'fragment' }).children;
-	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
-	const block = blocks[0];
-	const range = getContentRange(block);
-	const nodes = parseInline(block.raw, range.start, range.end, resolver);
+	const sole = soleProseReparse(raw, resolver);
+	if (sole === null) return null;
 	return {
-		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY),
-		kinds: constructKinds(nodes)
+		visible: renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY),
+		kinds: constructKinds(sole.nodes)
 	};
-}
-
-function constructKinds(nodes: readonly InlineNode[]): Set<AnyInlineKind> {
-	const kinds = new Set<AnyInlineKind>();
-	const visit = (level: readonly InlineNode[]): void => {
-		for (const node of level) {
-			if (node.kind !== 'text') kinds.add(node.kind);
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(nodes);
-	return kinds;
 }

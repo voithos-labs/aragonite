@@ -40,7 +40,7 @@
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { hidesStructuralSuffix } from './hidden-suffix';
-	import { resolveLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
+	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
@@ -59,7 +59,8 @@
 		rawTextOfNode,
 		createRangeAtDomTextOffsets,
 		revealsNoMarkers,
-		screenVisibilityOf
+		screenVisibilityOf,
+		selectionFocusWalkOffset
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
 	import {
@@ -211,13 +212,7 @@
 		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
 		getPresentationMode: () => presentationMode,
-		getFocusOffset: () => {
-			if (!el) return null;
-			const sel = window.getSelection();
-			if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-			const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-			return toClampedRawOffset(content, ambientLength);
-		},
+		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
 		getTextLen: () => liveDisplayLength(),
 		readText: () => readRawText(),
 		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
@@ -789,21 +784,19 @@
 	 * behavior.
 	 */
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
-		if (widgetInteraction.isRevealing()) return false;
-		const edit = resolveLiveRangeEdit(
+		return applyLiveRangeEdit(
 			e,
 			node,
 			cursor,
 			presentationMode,
 			linkRef,
-			ambientPrefixText
+			ambientPrefixText,
+			widgetInteraction.isRevealing,
+			(edit) => {
+				void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
+				setPendingCursorOffset(edit.caret, 'live-selection-edit');
+			}
 		);
-		if (!edit) return false;
-		e.preventDefault();
-		if (edit.kind === 'swallow') return true;
-		void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
-		setPendingCursorOffset(edit.caret, 'live-selection-edit');
-		return true;
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {

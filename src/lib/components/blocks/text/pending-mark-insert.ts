@@ -5,7 +5,7 @@
  * (`**hello**X** world**` renders literal stars), so every candidate is re-parsed and checked.
  */
 
-import { constructContentRange, parseInline } from '../../../core/inline';
+import { constructContentRange, constructKinds, parseInline } from '../../../core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
@@ -52,7 +52,7 @@ export function resolveMarkedInsertion(
 		...applied
 	]);
 
-	const before = { visible: visibleText(display), kinds: kindsAnywhere(inlines) };
+	const before = { visible: visibleText(display), kinds: constructKinds(inlines) };
 	for (const candidate of candidateInsertions(
 		display,
 		caretOffset,
@@ -192,22 +192,9 @@ function parsesAsIntended(
 	const around = enclosingKinds(nodes, candidate.textAt, candidate.textAt + text.length);
 	if (around.size !== intended.size) return false;
 	for (const kind of intended) if (!around.has(kind)) return false;
-	const after = kindsAnywhere(nodes);
+	const after = constructKinds(nodes);
 	for (const kind of before.kinds) if (!after.has(kind)) return false;
 	return insertsExactly(before.visible, visibleText(candidate.raw, nodes), text);
-}
-
-/** Every construct kind anywhere in a parse, at any depth. */
-function kindsAnywhere(nodes: readonly InlineNode[]): Set<AnyInlineKind> {
-	const kinds = new Set<AnyInlineKind>();
-	const visit = (level: readonly InlineNode[]): void => {
-		for (const node of level) {
-			if (node.kind !== 'text') kinds.add(node.kind);
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(nodes);
-	return kinds;
 }
 
 /** The construct kinds covering `[start, end)`; `text` is content, not a construct. */
@@ -234,7 +221,7 @@ function enclosingKinds(
  *  the diff above would read that fold as bytes lost. This arm only ADDS bytes, so no reading of
  *  it licenses dropping one the reader saw. */
 function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
-	return renderedText([...(parsed ?? parseInline(raw, 0, raw.length))], raw, CONTENT_VISIBILITY);
+	return renderedText(parsed ?? parseInline(raw, 0, raw.length), raw, CONTENT_VISIBILITY);
 }
 
 // ── The chain ────────────────────────────────────────────────────────────────

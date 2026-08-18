@@ -12,9 +12,9 @@ import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/te
 import type { PresentationMode } from '$lib/presentation-mode';
 import {
 	createConstructReveal,
-	CONSTRUCT_REVEAL_CLASS,
 	type ConstructReveal
 } from '$lib/components/blocks/text/construct-reveal';
+import { CONSTRUCT_REVEAL_CLASS } from '$lib/cursor/widget-offset';
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,

@@ -7,7 +7,7 @@
 
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
-import { constructContentRange, parseInline } from '../../../core/inline';
+import { constructContentRange, inlineDescendants, parseInline } from '../../../core/inline';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
@@ -137,20 +137,15 @@ function markerRunAt(
 	screen: VisibilityContext
 ): MarkerRun | null {
 	let found: MarkerRun | null = null;
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
-			if (content) {
-				if (node.start < content.start && offset >= node.start && offset <= content.start) {
-					found = { start: node.start, end: content.start, leading: true, kind: node.kind };
-				} else if (content.end < node.end && offset >= content.end && offset <= node.end) {
-					found = { start: content.end, end: node.end, leading: false, kind: node.kind };
-				}
-			}
-			if (node.children) visit(node.children);
+	for (const node of inlineDescendants(inlines)) {
+		const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
+		if (!content) continue;
+		if (node.start < content.start && offset >= node.start && offset <= content.start) {
+			found = { start: node.start, end: content.start, leading: true, kind: node.kind };
+		} else if (content.end < node.end && offset >= content.end && offset <= node.end) {
+			found = { start: content.end, end: node.end, leading: false, kind: node.kind };
 		}
-	};
-	visit(inlines);
+	}
 	return found;
 }
 

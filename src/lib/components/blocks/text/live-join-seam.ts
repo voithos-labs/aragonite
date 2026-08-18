@@ -25,6 +25,7 @@ import {
 	type JoinEndpoint,
 	type LiveJoinSeamCleaner
 } from '../../../schema/inline-construct-policy';
+import { soleProseReparse } from './screen-diff';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -368,11 +369,9 @@ function readCandidate(
 	join: { ambientPrefix?: string }
 ): { visible: string; residue: number } | null {
 	if (!keepsContainerMarker(join.ambientPrefix ?? '', raw)) return null;
-	const blocks = parse(raw, { scope: 'fragment' }).children;
-	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
-	const block = blocks[0];
-	const range = getContentRange(block);
-	const nodes = parseInline(block.raw, range.start, range.end, resolver);
+	const sole = soleProseReparse(raw, resolver);
+	if (sole === null) return null;
+	const { block, nodes } = sole;
 	return {
 		visible: renderedText(nodes, block.raw, CONTENT_VISIBILITY),
 		// Chrome standing over nothing is all on screen (§ 4.1), so a block that paints hides no pair.

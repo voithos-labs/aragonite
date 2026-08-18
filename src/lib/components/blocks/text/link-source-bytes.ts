@@ -5,7 +5,7 @@
  * a private walk over the parse cannot see.
  */
 
-import { parseInline } from '../../../core/inline';
+import { inlineDescendants, parseInline } from '../../../core/inline';
 import { encodeDestination, escapeTitle } from '../../../core/inline/destination-bytes';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
@@ -230,6 +230,4 @@ function escapeTrigger(candidate: string, [start, end]: [number, number]): strin
 	return null;
 }
 
-function flattenInline(nodes: InlineNode[]): InlineNode[] {
-	return nodes.flatMap((n) => [n, ...flattenInline(n.children ?? [])]);
-}
+const flattenInline = (nodes: InlineNode[]): InlineNode[] => [...inlineDescendants(nodes)];

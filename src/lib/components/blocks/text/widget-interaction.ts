@@ -25,7 +25,11 @@ import {
 	toClampedRawOffset,
 	toDomTextOffset
 } from '../../../cursor/coordinate-spaces';
-import { domTextOffsetAtNode, createRangeAtDomTextOffsets } from '../../../cursor/widget-offset';
+import {
+	domTextOffsetAtNode,
+	createRangeAtDomTextOffsets,
+	selectionFocusWalkOffset
+} from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import {
 	traceRevealOpen,
@@ -522,42 +526,38 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			e.preventDefault();
 			return true;
 		}
-		if (e.key === 'ArrowLeft') {
+		if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
 			e.preventDefault();
-			if (rawHasNoTextBefore(node.raw, widget.start)) {
+			const left = e.key === 'ArrowLeft';
+			const blankSide = left
+				? rawHasNoTextBefore(node.raw, widget.start)
+				: rawHasNoTextAfter(node.raw, widget.end);
+			if (blankSide) {
 				deps.widgetSelection.clear();
-				await deps.focusActions.moveFocus(deps.index - 1, 'end');
+				await deps.focusActions.moveFocus(deps.index + (left ? -1 : 1), left ? 'end' : 'start');
 			} else {
-				deps.cursor.setRaw(asRawOffset(widget.start));
+				deps.cursor.setRaw(asRawOffset(left ? widget.start : widget.end));
 				deps.widgetSelection.clear();
 			}
 			return true;
 		}
-		if (e.key === 'ArrowRight') {
-			e.preventDefault();
-			if (rawHasNoTextAfter(node.raw, widget.end)) {
-				deps.widgetSelection.clear();
-				await deps.focusActions.moveFocus(deps.index + 1, 'start');
-			} else {
-				deps.cursor.setRaw(asRawOffset(widget.end));
-				deps.widgetSelection.clear();
-			}
-			return true;
-		}
-		if (e.key === 'Backspace' || e.key === 'Delete') {
-			e.preventDefault();
-			// Reading mode still swallows — a selected widget owns its keys — but commits nothing.
-			if (isReading()) return true;
-			const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
-			// Undo anchored at the pre-select caret, so Ctrl+Z restores the caret where the
-			// user actually was when selection took over.
+		// Reading mode still swallows — a selected widget owns its keys — but commits nothing.
+		// Undo anchored at the pre-select caret, so Ctrl+Z restores the caret where the user
+		// actually was when selection took over.
+		const spliceWidget = (text: string): void => {
+			if (isReading()) return;
+			const newRaw = node.raw.slice(0, widget.start) + text + node.raw.slice(widget.end);
 			void deps.blockEdit.updateBlockContent(
 				deps.index,
 				newRaw,
 				selectedWidget.preSelectOffset,
-				widget.start
+				widget.start + text.length
 			);
 			deps.widgetSelection.clear();
+		};
+		if (e.key === 'Backspace' || e.key === 'Delete') {
+			e.preventDefault();
+			spliceWidget('');
 			return true;
 		}
 		if (e.key === 'Escape') {
@@ -568,16 +568,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (isPlainTypingKey(e)) {
 			e.preventDefault();
-			if (isReading()) return true;
-			const typed = e.key;
-			const newRaw = node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
-			void deps.blockEdit.updateBlockContent(
-				deps.index,
-				newRaw,
-				selectedWidget.preSelectOffset,
-				widget.start + typed.length
-			);
-			deps.widgetSelection.clear();
+			spliceWidget(e.key);
 			return true;
 		}
 		// Every remaining key is swallowed, so navigation can't leak into the shared pipeline
@@ -652,33 +643,23 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
-			if (clickX > rect.right) {
-				el.focus();
-				deps.cursor.setRaw(asRawOffset(inline.end));
-				// `setRaw`'s walker may have landed in a trailing text node, where native renders.
-				if (!caretIsInTextContent(el, window.getSelection())) {
-					deps.setSnapTarget(inline.end);
-				}
-				return;
+			const snapTo = clickX > rect.right ? inline.end : clickX < rect.left ? inline.start : null;
+			if (snapTo === null) continue;
+			el.focus();
+			deps.cursor.setRaw(asRawOffset(snapTo));
+			// `setRaw`'s walker may have landed in a trailing text node, where native renders.
+			if (!caretIsInTextContent(el, window.getSelection())) {
+				deps.setSnapTarget(snapTo);
 			}
-			if (clickX < rect.left) {
-				el.focus();
-				deps.cursor.setRaw(asRawOffset(inline.start));
-				if (!caretIsInTextContent(el, window.getSelection())) {
-					deps.setSnapTarget(inline.start);
-				}
-				return;
-			}
+			return;
 		}
 	}
 
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
 		const el = deps.getEl();
 		if (!el) return null;
-		const sel = window.getSelection();
-		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-		const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-		const focus = toClampedRawOffset(content, deps.getAmbientLength());
+		const focus = selectionFocusWalkOffset(el, deps.getAmbientLength());
+		if (focus === null) return null;
 		for (const inline of inlinesOf(deps.node)) {
 			if (!isInlineWidget(inline, deps.node.raw)) continue;
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {

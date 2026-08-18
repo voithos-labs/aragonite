@@ -22,16 +22,16 @@
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
-	import { resolveLiveRangeEdit } from '../text/live-selection-edit';
+	import { applyLiveRangeEdit } from '../text/live-selection-edit';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
-		domTextOffsetAtNode,
 		rawTextOfNode,
 		containerDomTextLength,
 		landableDomTextBounds,
 		createRangeAtDomTextOffsets,
-		screenVisibilityOf
+		screenVisibilityOf,
+		selectionFocusWalkOffset
 	} from '../../../cursor/widget-offset';
 	import { asRawOffset, toDomTextOffset, type RawOffset } from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
@@ -531,12 +531,9 @@
 		return el ? rawTextOfNode(el, node.raw) : '';
 	}
 
-	// Zero-ambient cell: the walk offset IS the raw offset, minted across here.
+	// Zero-ambient cell: the walk offset IS the raw offset.
 	function getRawFocusOffset(): RawOffset | null {
-		if (!el) return null;
-		const sel = window.getSelection();
-		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-		return asRawOffset(domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset));
+		return el ? selectionFocusWalkOffset(el, 0) : null;
 	}
 
 	// ── Event handlers ─────────────────────────────────────────────────────
@@ -734,14 +731,19 @@
 	// The cell at the prose surface's live ranged-edit arm: a native edit over a range spanning
 	// hidden delimiters is the destructive family with no seam offsets of its own.
 	function handleLiveSelectionEdit(e: InputEvent): boolean {
-		if (widgetInteraction.isRevealing()) return false;
-		const edit = resolveLiveRangeEdit(e, node, cursor, presentationMode, linkRef);
-		if (!edit) return false;
-		e.preventDefault();
-		if (edit.kind === 'swallow') return true;
-		void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
-		parkCursor(edit.caret, edit.raw);
-		return true;
+		return applyLiveRangeEdit(
+			e,
+			node,
+			cursor,
+			presentationMode,
+			linkRef,
+			'',
+			widgetInteraction.isRevealing,
+			(edit) => {
+				void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
+				parkCursor(edit.caret, edit.raw);
+			}
+		);
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
