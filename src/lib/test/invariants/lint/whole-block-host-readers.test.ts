@@ -42,8 +42,6 @@ const ACTIVE_IDENTITY_READERS: Record<string, string> = {
 		'the prose surface this cursor was constructed over; a whole-block kind has none',
 	'src/lib/components/blocks/editable-surface.ts':
 		'the pending-restore guard, reachable only from an editable leaf surface',
-	'src/lib/components/blocks/table/TableCellBlock.svelte':
-		'its own cell surface; the host never holds a cell caret',
 	'src/lib/cursor/content-offsets.ts':
 		'the caller supplies a block text surface, never the chrome host',
 	'src/lib/cursor/reveal-source.ts':

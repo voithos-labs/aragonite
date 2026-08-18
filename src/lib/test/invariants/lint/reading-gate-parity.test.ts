@@ -35,11 +35,7 @@ const LOCAL_GATE_SITES: Record<string, RegExp> = {
 // Set equality trips the day a new editable surface is born — the dominant future-site
 // risk, since a new block kind is a new component file.
 const DISPATCH_SITE_FILES = [
-	'src/lib/components/blocks/editable-leaf.ts',
-	'src/lib/components/blocks/ThematicBreakBlock.svelte',
-	'src/lib/components/blocks/code/CodeBlock.svelte',
-	'src/lib/components/blocks/text/TextEditableBlock.svelte',
-	'src/lib/components/blocks/table/TableCellBlock.svelte',
+	'src/lib/components/blocks/surface-wiring.svelte.ts',
 	'src/lib/editor-actions/plugin/container.ts',
 	'src/lib/editor-actions/container-block-component.ts',
 	'src/lib/selection/cross-block/keydown.ts',

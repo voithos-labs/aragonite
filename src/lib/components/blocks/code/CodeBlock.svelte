@@ -1,17 +1,10 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
-	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
-	import { emitCommandError } from '../../../editor-events';
 	import {
-		BLOCK_EDIT_KEY,
-		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
-		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
@@ -30,8 +23,8 @@
 		createClipboardHandlers,
 		consumePendingRestore
 	} from '../editable-surface';
+	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
-	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import { renderCodeBlock } from './code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -64,42 +57,29 @@
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
-	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
+	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
-	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const wiring = wireSurfaceContexts();
 	const {
+		blockEdit,
+		focusActions,
 		controller,
 		pasteCoordinator,
 		stickyColumn,
 		edgeAffinity,
-		reorder,
 		selection,
-		registryView,
+		getDoc,
+		getEditorRoot,
 		events: editorEvents
-	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		keybindingOverrides,
-		presentationMode: getPresentationMode,
-		onPasteImage
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const {
-		blockElLookup: getBlockElByPath,
-		doc: getDoc,
-		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
-		lifetime: editorLifetime,
-		pluginEditor,
-		linkRef
-	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+	} = wiring.deps;
+	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { presentationMode: getPresentationMode, onPasteImage } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 	let el: HTMLDivElement | undefined = $state();
@@ -117,7 +97,7 @@
 	);
 
 	const editableSurface = createEditableSurface({
-		linkRef,
+		...wiring.deps,
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
 		backend,
@@ -134,25 +114,7 @@
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		},
-		selection,
-		getDoc,
-		getBlockElByPath,
-		focusActions,
-		getEditorRoot,
-		getScrollHost,
-		getEditorLifetime: () => editorLifetime ?? null,
-		stickyColumn,
-		edgeAffinity,
-		blockEdit,
-		controller,
-		history,
-		pluginEditor,
 		getPresentationMode,
-		onCommandError,
-		getKeybindingOverrides: keybindingOverrides,
-		pasteCoordinator,
-		grammar: registryView.grammar,
-		events: editorEvents,
 		getFocusOffset,
 		getTextLen,
 		readText,
@@ -258,12 +220,7 @@
 		}
 	});
 
-	// Windowed out while focused: hand focus to the editor root so the next keystroke
-	// routes through its document-level listener instead of falling to <body>.
-	$effect(() => {
-		const blockEl = el;
-		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
-	});
+	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
 	// ── The language chip ─────────────────────────────────────────────────────
 
@@ -444,30 +401,13 @@
 
 		if (await handleSharedKeydown(e, sharedCtx)) return;
 
-		const chord = eventToChord(e);
-		if (
-			chord &&
-			dispatchKeyCommand(
-				chord,
-				{ kind: node.kind, runCommand },
-				{
-					history,
-					pluginEditor,
-					getPresentationMode,
-					isCrossBlockRange: () => selection.isCrossBlock
-				},
-				keybindingOverrides(),
-				onCommandError
-			)
-		) {
-			e.preventDefault();
-			return;
-		}
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 	}
 
 	// ── Commands ────────────────────────────────────────────────────────
 
 	export function runCommand(id: CommandId): boolean {
+		if (reorderRunCommand(id, reorder, () => myPath)) return true;
 		switch (id) {
 			case 'format.toggleStrong':
 			case 'format.toggleEmphasis':
@@ -487,12 +427,6 @@
 				return codeBackspace();
 			case 'code.delete':
 				return codeDelete();
-			case 'block.moveUp':
-				reorder.nudgeReorderUnit(myPath, -1);
-				return true;
-			case 'block.moveDown':
-				reorder.nudgeReorderUnit(myPath, 1);
-				return true;
 			default:
 				return false;
 		}

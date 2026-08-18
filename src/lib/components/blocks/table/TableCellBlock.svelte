@@ -1,28 +1,18 @@
 <script lang="ts">
 	import { getContext, tick } from 'svelte';
-	import type {
-		BlockEditActions,
-		FocusActions,
-		HistoryActions,
-		TableContext
-	} from '../../../action-contracts';
+	import type { BlockEditActions, TableContext } from '../../../action-contracts';
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { toggleInlineFormat } from '../text/format-toggle';
 	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
 	import type { InlineMarkKind } from '../../../cursor/pending-marks';
 	import type { NodeView } from '../../../core/node-views';
-	import { emitCommandError } from '../../../editor-events';
 	import {
-		BLOCK_EDIT_KEY,
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
 		TABLE_CONTEXT_KEY,
 		type EditorDoc,
 		type EditorPolicies,
@@ -47,8 +37,12 @@
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { getCurrentCursorEditorRelativeX } from '../../../cursor/sticky-measure';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
-	import { createEditableSurface, createClipboardHandlers } from '../editable-surface';
-	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
+	import {
+		createEditableSurface,
+		createClipboardHandlers,
+		consumePendingRestore
+	} from '../editable-surface';
+	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
 	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import {
@@ -109,44 +103,39 @@
 	// A cell's position among its row's children IS its column.
 	const colIdx = $derived(index);
 
-	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
-	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
+	const wiring = wireSurfaceContexts();
 	const {
+		blockEdit: parentBlockEdit,
+		focusActions,
 		controller,
 		pasteCoordinator,
 		stickyColumn,
 		edgeAffinity,
-		pendingMarks,
 		selection,
+		getDoc,
+		getBlockElByPath,
+		getEditorRoot,
+		events: editorEvents,
+		linkRef
+	} = wiring.deps;
+	const tableContext = getContext<TableContext>(TABLE_CONTEXT_KEY);
+	const {
+		pendingMarks,
 		widgetSelection,
 		linkCard,
-		registryView,
 		reorder,
-		events: editorEvents,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
-		keybindingOverrides,
 		presentationMode: getPresentationMode,
 		theme: getTheme,
 		resolveLinkUrl,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const {
-		blockElLookup: getBlockElByPath,
-		doc: getDoc,
-		contentVersion: getContentVersion,
-		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
-		lifetime: editorLifetime,
-		pluginEditor,
-		linkRef
-	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { contentVersion: getContentVersion, lifetime: editorLifetime } =
+		getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
-	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
 	// A constant fallback keeps an empty island set out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
@@ -201,7 +190,10 @@
 	});
 
 	const editableSurface = createEditableSurface({
-		linkRef,
+		...wiring.deps,
+		// The wiring's blockEdit is the parent door; this surface writes through the
+		// cell's escaping one above.
+		blockEdit,
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
 		isInputSuppressed: () => revealing,
@@ -222,25 +214,7 @@
 			preEditOffset = offset;
 		},
 		setPendingCursor: (offset) => parkCursor(offset),
-		selection,
-		getDoc,
-		getBlockElByPath,
-		focusActions,
-		getEditorRoot,
-		getScrollHost,
-		getEditorLifetime: () => editorLifetime ?? null,
-		stickyColumn,
-		edgeAffinity,
-		blockEdit,
-		controller,
-		history,
-		pluginEditor,
 		getPresentationMode,
-		onCommandError,
-		getKeybindingOverrides: keybindingOverrides,
-		pasteCoordinator,
-		grammar: registryView.grammar,
-		events: editorEvents,
 		getFocusOffset: () => getRawFocusOffset(),
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		readText: () => readCellText(),
@@ -528,21 +502,16 @@
 			carryCaret: pendingCursorOffset === null
 		});
 		if (pendingCursorOffset !== null) {
-			// Only while this cell still owns focus: an unguarded restore would yank the
-			// global selection back into a blurred cell.
-			if (document.activeElement === el) cursor.setRaw(asRawOffset(pendingCursorOffset));
+			consumePendingRestore(el, pendingCursorOffset, (offset) =>
+				cursor.setRaw(asRawOffset(offset))
+			);
 			pendingCursorOffset = null;
 		}
 	});
 
 	$effect(() => () => cellRender.dispose());
 
-	// Windowed out while focused: hand focus to the editor root so the next keystroke
-	// routes through its document-level listener instead of falling to `<body>`.
-	$effect(() => {
-		const blockEl = el;
-		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
-	});
+	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
 	// A selection move that leaves a revealed source but stays inside the cell folds the
 	// reveal; blur owns the focus-leaving fold. Composition suppresses it like onInput.
@@ -636,24 +605,7 @@
 		// FIRST, because neither the navigation plan's boundary branches nor the shared
 		// prelude's ArrowLeft@0 hop tests modifiers: either would eat the column reorder at
 		// a cell's left edge. Also the only point a consumer `keybindings` override reaches.
-		if (
-			chord &&
-			dispatchKeyCommand(
-				chord,
-				{ kind: node.kind, runCommand },
-				{
-					history,
-					pluginEditor,
-					getPresentationMode,
-					isCrossBlockRange: () => selection.isCrossBlock
-				},
-				keybindingOverrides(),
-				onCommandError
-			)
-		) {
-			e.preventDefault();
-			return;
-		}
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 
 		const plan = cellKeydownPlan(
 			{ key: e.key, ctrlOrMeta: e.ctrlKey || e.metaKey, shiftKey: e.shiftKey, altKey: e.altKey },

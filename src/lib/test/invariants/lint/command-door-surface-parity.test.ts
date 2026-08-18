@@ -9,8 +9,10 @@
 import { describe, it, expect } from 'vitest';
 import { collectEditorSources } from './scan-source';
 
-/** A component owning a command surface: a surface factory, or its own leaf chord dispatch. */
-const COMMAND_SURFACE_RE = /\bcreateEditable(?:Surface|Leaf)\s*\(|\bdispatchKeyCommand\s*\(/;
+/** A component owning a command surface: a surface factory, or its own leaf chord dispatch
+ *  (direct, or through the shared wiring's `dispatchChord`). */
+const COMMAND_SURFACE_RE =
+	/\bcreateEditable(?:Surface|Leaf)\s*\(|\bdispatchKeyCommand\s*\(|\bdispatchChord\s*\(/;
 
 /** The published hop — an instance export, not a mention. */
 const PUBLISHES_DOOR_RE = /\bexport\s+(?:const|function)\s+runCommand\b/;
@@ -49,6 +51,9 @@ describe('G4.39 command-door surface parity', () => {
 		expect(COMMAND_SURFACE_RE.test('const s = createEditableSurface({')).toBe(true);
 		expect(COMMAND_SURFACE_RE.test('const leaf = createEditableLeaf({')).toBe(true);
 		expect(COMMAND_SURFACE_RE.test('if (chord && dispatchKeyCommand(chord, target, ctx))')).toBe(
+			true
+		);
+		expect(COMMAND_SURFACE_RE.test('if (wiring.dispatchChord(e, { kind, runCommand }))')).toBe(
 			true
 		);
 		// Containers are door-unreachable by design: no container component publishes runCommand.
