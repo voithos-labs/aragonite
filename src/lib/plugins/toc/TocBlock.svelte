@@ -96,7 +96,7 @@
 	<div
 		bind:this={sourceEl}
 		{...leaf.surfaceProps}
-		class="toc-block-source"
+		class="toc-block-source md-source-surface"
 		aria-label="TOC source"
 	></div>
 {:else}
@@ -131,21 +131,11 @@
 {/if}
 
 <style>
+	/* Deltas over the shared .md-source-surface (editor.css). */
 	.toc-block-source {
-		display: block;
-		width: 100%;
 		outline: none;
 		padding: 8px 12px;
-		font-family: var(--font-editor, ui-monospace, monospace);
-		font-size: 0.9em;
-		line-height: 1.5;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-accent, #567b67);
-		border-radius: 4px;
-		color: inherit;
 		white-space: pre;
-		box-sizing: border-box;
-		min-height: 1.4em;
 	}
 
 	.toc-block-render {
