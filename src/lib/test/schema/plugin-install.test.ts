@@ -1,5 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins, isPluginInstalled } from '$lib/schema/plugin-install';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+	definePlugin,
+	installPlugins,
+	isPluginInstalled,
+	owningPluginEditor,
+	recordPluginKindOwner,
+	type EditorContext
+} from '$lib/schema/plugin-install';
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -166,6 +173,17 @@ describe('installPlugins', () => {
 		expect(isPluginInstalled('resettable')).toBe(false);
 		installPlugins([plugin]);
 		expect(calls).toBe(2);
+	});
+});
+
+describe('owningPluginEditor', () => {
+	it("resolves the owner's context; an unowned kind takes the base-context '' arm", () => {
+		const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
+		recordPluginKindOwner('owned-kind', 'plug-a');
+
+		expect(owningPluginEditor(lookup, 'owned-kind')?.editorId).toBe('plug-a');
+		expect(owningPluginEditor(lookup, 'unowned-kind')?.editorId).toBe('');
+		expect(owningPluginEditor(undefined, 'owned-kind')).toBeUndefined();
 	});
 });
 

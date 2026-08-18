@@ -1,46 +1,40 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import { emitCommandError } from '../../editor-events';
 	import {
-		BLOCK_EDIT_KEY,
-		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
-		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../editor-keys';
 	import { eventToChord } from '../../schema/keybindings';
 	import { type CommandId } from '../../schema/commands';
-	import { dispatchKeyCommand, type CommandErrorSink } from '../../schema/block-commands';
 	import {
 		handleEditorGlobalChord,
 		handleWholeBlockKeys
 	} from '../../editor-actions/container-block-component';
+	import { reorderRunCommand } from '../../editor-actions/reorder-action';
 	import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface';
 	import { placeCaret } from '../../selection/caret-doors';
+	import { wireSurfaceContexts } from './surface-wiring.svelte';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
-	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const wiring = wireSurfaceContexts();
 	const {
-		reorder,
+		blockEdit,
+		focusActions,
+		history,
+		pluginEditor,
+		onCommandError,
+		getKeybindingOverrides,
 		stickyColumn,
 		edgeAffinity,
-		selection,
-		events: editorEvents
-	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { keybindingOverrides, presentationMode: getPresentationMode } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
-	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+		selection
+	} = wiring.deps;
+	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
 	const isReading = () => getPresentationMode?.() === 'reading';
@@ -76,16 +70,7 @@
 	}
 
 	export function runCommand(id: CommandId): boolean {
-		switch (id) {
-			case 'block.moveUp':
-				reorder.nudgeReorderUnit(myPath, -1);
-				return true;
-			case 'block.moveDown':
-				reorder.nudgeReorderUnit(myPath, 1);
-				return true;
-			default:
-				return false;
-		}
+		return reorderRunCommand(id, reorder, () => myPath);
 	}
 	void ({
 		editable,
@@ -105,7 +90,7 @@
 		history,
 		pluginEditor,
 		onCommandError,
-		getKeybindingOverrides: keybindingOverrides,
+		getKeybindingOverrides,
 		isReading
 	};
 
@@ -117,24 +102,7 @@
 		}
 
 		// Kind keymap (Alt+↑/↓ reorder) must precede the plain-arrow navigation below.
-		if (
-			chord &&
-			dispatchKeyCommand(
-				chord,
-				{ kind: node.kind, runCommand },
-				{
-					history,
-					pluginEditor,
-					getPresentationMode,
-					isCrossBlockRange: () => selection.isCrossBlock
-				},
-				keybindingOverrides(),
-				onCommandError
-			)
-		) {
-			e.preventDefault();
-			return;
-		}
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 
 		// The whole-block-focus key tail, shared with the plugin container factory.
 		handleWholeBlockKeys(e, {

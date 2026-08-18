@@ -8,22 +8,16 @@
 
 import { getContext } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
-import type { BlockEditActions, FocusActions, HistoryActions } from '../../action-contracts';
+import type { BlockEditActions } from '../../action-contracts';
 import type { StickyColumnDirection } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
 import {
-	BLOCK_EDIT_KEY,
-	EDITOR_DOC_KEY,
 	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
-	FOCUS_KEY,
-	HISTORY_KEY,
-	type EditorDoc,
 	type EditorPolicies,
 	type EditorServices,
 	type PluginEditorLookup
 } from '../../editor-keys';
-import { emitCommandError } from '../../editor-events';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
 	setCursorOffset,
@@ -36,6 +30,7 @@ import {
 	createClipboardHandlers,
 	consumePendingRestore
 } from './editable-surface';
+import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
@@ -44,14 +39,10 @@ import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
-import { eventToChord } from '../../schema/keybindings';
 import { type CommandId } from '../../schema/commands';
-import {
-	dispatchKeyCommand,
-	type BlockCommandContext,
-	type CommandErrorSink
-} from '../../schema/block-commands';
-import { pluginKindOwner } from '../../schema/plugin-install';
+import { type BlockCommandContext } from '../../schema/block-commands';
+import { owningPluginEditor } from '../../schema/plugin-install';
+import { reorderRunCommand } from '../../editor-actions/reorder-action';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
@@ -181,7 +172,7 @@ export function buildLeafCommandContext(
 		node: deps.getNode(),
 		updateMetadata: (patch) => void blockEdit.updateBlockMetadata(deps.getIndex(), patch),
 		hooks: deps.commandHooks?.(),
-		editor: pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')
+		editor: owningPluginEditor(pluginEditor, deps.getNode().kind)
 	};
 }
 
@@ -193,41 +184,29 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// Plain mode's source is always the editable view.
 	const isRevealed = mode === 'render-primary' ? deps.isRevealed! : () => true;
 
-	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const wiring = wireSurfaceContexts();
 	const {
-		controller,
-		pasteCoordinator,
+		blockEdit,
 		stickyColumn,
 		edgeAffinity,
-		reorder,
 		selection,
-		registryView,
+		getDoc,
+		getBlockElByPath,
+		getEditorRoot,
+		pluginEditor,
 		events: editorEvents
-	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	} = wiring.deps;
+	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
-		keybindingOverrides,
 		presentationMode: getPresentationModeCtx,
 		theme: getThemeCtx,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const {
-		blockElLookup: getBlockElByPath,
-		doc: getDoc,
-		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
-		lifetime: editorLifetime,
-		pluginEditor,
-		linkRef
-	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const getPresentationMode = (): PresentationMode => getPresentationModeCtx?.() ?? 'source';
 	const getTheme = (): string => getThemeCtx?.() ?? 'dark';
 	// Resolved by the kind's recorded owner, like the command context's `editor`.
-	const getOptions = (): unknown =>
-		pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')?.options;
+	const getOptions = (): unknown => owningPluginEditor(pluginEditor, deps.getNode().kind)?.options;
 	const isReading = () => getPresentationMode() === 'reading';
-	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
 	let composing = false;
 	let preEditOffset = 0;
@@ -242,7 +221,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	);
 
 	const editableSurface = createEditableSurface({
-		linkRef,
+		...wiring.deps,
 		getEl: () => deps.getEl(),
 		getAmbientLength: () => 0,
 		// render-primary edits are ephemeral (one commit on blur); plain commits per keystroke.
@@ -263,25 +242,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setPendingCursor: (offset) => {
 			if (mode === 'plain') pendingCursor = offset;
 		},
-		selection,
-		getDoc,
-		getBlockElByPath,
-		focusActions,
-		getEditorRoot,
-		getScrollHost,
-		getEditorLifetime: () => editorLifetime ?? null,
-		stickyColumn,
-		edgeAffinity,
-		blockEdit,
-		controller,
-		history,
-		pluginEditor,
 		getPresentationMode,
-		onCommandError,
-		getKeybindingOverrides: keybindingOverrides,
-		pasteCoordinator,
-		grammar: registryView.grammar,
-		events: editorEvents,
 		getFocusOffset,
 		getTextLen,
 		readText,
@@ -398,16 +359,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	function runCommand(id: CommandId): boolean {
-		switch (id) {
-			case 'block.moveUp':
-				void reorder.nudgeReorderUnit(deps.getPath(), -1);
-				return true;
-			case 'block.moveDown':
-				void reorder.nudgeReorderUnit(deps.getPath(), 1);
-				return true;
-			default:
-				return false;
-		}
+		return reorderRunCommand(id, reorder, deps.getPath);
 	}
 
 	const getCommandContext = () => buildLeafCommandContext(deps, blockEdit, pluginEditor);
@@ -479,28 +431,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	/** Resolve a chord at this leaf's kind and report whether it was consumed. Both views spend
 	 *  it: undo belongs to the block whatever half of the swap holds focus. */
-	function dispatchChord(e: KeyboardEvent): boolean {
-		const chord = eventToChord(e);
-		if (
-			!chord ||
-			!dispatchKeyCommand(
-				chord,
-				{ kind: deps.getNode().kind, runCommand, getCommandContext },
-				{
-					history,
-					pluginEditor,
-					getPresentationMode,
-					isCrossBlockRange: () => selection.isCrossBlock
-				},
-				keybindingOverrides(),
-				onCommandError
-			)
-		) {
-			return false;
-		}
-		e.preventDefault();
-		return true;
-	}
+	const dispatchChord = (e: KeyboardEvent): boolean =>
+		wiring.dispatchChord(e, { kind: deps.getNode().kind, runCommand, getCommandContext });
 
 	async function handleKeydown(e: KeyboardEvent): Promise<void> {
 		const el = deps.getEl();

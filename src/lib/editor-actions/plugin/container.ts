@@ -41,7 +41,7 @@ import {
 	type PluginEditorLookup
 } from '../../editor-keys';
 import { emitCommandError } from '../../editor-events';
-import { pluginKindOwner } from '../../schema/plugin-install';
+import { owningPluginEditor } from '../../schema/plugin-install';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
 import type { RefSlots } from '../../reactivity/publish-ref.svelte';
@@ -288,8 +288,7 @@ export function composeCollapseGates(
 /**
  * The kind-command target a plugin container bubbles into `dispatchKindCommand`.
  * `runCommand` is inert — a plugin container owns no built-in kind commands, so a
- * chord resolves only through a registered one. The `?? ''` arm gives an unowned kind
- * the base per-instance EditorContext.
+ * chord resolves only through a registered one.
  */
 export function buildContainerKindTarget(
 	deps: Pick<ContainerBlockDeps, 'getNode' | 'commandHooks'>,
@@ -307,7 +306,7 @@ export function buildContainerKindTarget(
 				void updateOwnMetadata(patch);
 			},
 			hooks: deps.commandHooks?.(),
-			editor: pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')
+			editor: owningPluginEditor(pluginEditor, deps.getNode().kind)
 		})
 	};
 }
@@ -337,8 +336,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const linkRef = editorDoc?.linkRef;
 
 	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
-	const getOptions = (): unknown =>
-		pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')?.options;
+	const getOptions = (): unknown => owningPluginEditor(pluginEditor, deps.getNode().kind)?.options;
 
 	const listState = createBlockListState(deps.getNode);
 

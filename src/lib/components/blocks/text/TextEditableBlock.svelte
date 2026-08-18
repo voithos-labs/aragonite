@@ -1,18 +1,13 @@
 <script lang="ts">
 	import { getContext, tick, untrack } from 'svelte';
-	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
-	import { emitCommandError } from '../../../editor-events';
 	import { enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 	import {
-		BLOCK_EDIT_KEY,
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
 		LIST_CONTEXT_KEY,
 		type EditorDoc,
 		type EditorPolicies,
@@ -57,7 +52,7 @@
 		handleSharedBeforeInput
 	} from '../../../selection/shared-keydown';
 	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
-	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
+	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
 		domTextOffsetAtNode,
 		landableStartAbutsIsland,
@@ -73,9 +68,8 @@
 		toDomTextOffset
 	} from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
-	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
+	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 	import {
 		perfEnabled,
 		recordBlockRender,
@@ -111,27 +105,30 @@
 		typeof ambientPrefix === 'string' ? ambientPrefix : ambientPrefix.text
 	);
 
-	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
-	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
-	const listContext = getContext(LIST_CONTEXT_KEY);
+	const wiring = wireSurfaceContexts();
 	const {
-		reorder,
+		blockEdit,
+		focusActions,
 		controller,
 		pasteCoordinator,
 		stickyColumn,
 		edgeAffinity,
-		pendingMarks,
 		selection,
+		getDoc,
+		getEditorRoot,
+		events: editorEvents,
+		linkRef
+	} = wiring.deps;
+	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
+	const listContext = getContext(LIST_CONTEXT_KEY);
+	const {
+		reorder,
+		pendingMarks,
 		widgetSelection,
 		linkCard,
-		registryView,
-		events: editorEvents,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
-		keybindingOverrides,
 		resolveImageUrl,
 		resolveLinkUrl,
 		imageLoadPolicy,
@@ -140,19 +137,9 @@
 		theme: getTheme,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const {
-		blockElLookup: getBlockElByPath,
-		doc: getDoc,
-		contentVersion: getContentVersion,
-		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
-		lifetime: editorLifetime,
-		pluginEditor,
-		linkRef
-	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
-	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
 
 	const linkCardQuery = () => ({
 		contentEl: el!,
@@ -198,7 +185,7 @@
 	});
 
 	const editableSurface = createEditableSurface({
-		linkRef,
+		...wiring.deps,
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
 		isInputSuppressed: () => revealing,
@@ -223,25 +210,7 @@
 			preEditOffset = offset;
 		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
-		selection,
-		getDoc,
-		getBlockElByPath,
-		focusActions,
-		getEditorRoot,
-		getScrollHost,
-		getEditorLifetime: () => editorLifetime ?? null,
-		stickyColumn,
-		edgeAffinity,
-		blockEdit,
-		controller,
-		history,
-		pluginEditor,
 		getPresentationMode: () => presentationMode,
-		onCommandError,
-		getKeybindingOverrides: keybindingOverrides,
-		pasteCoordinator,
-		grammar: registryView.grammar,
-		events: editorEvents,
 		getFocusOffset: () => {
 			if (!el) return null;
 			const sel = window.getSelection();
@@ -581,9 +550,9 @@
 					}
 				};
 			case 'block.moveUp':
-				return always(() => reorder.nudgeReorderUnit(myPath, -1));
 			case 'block.moveDown':
-				return always(() => reorder.nudgeReorderUnit(myPath, 1));
+				// Through `always`, not a bare opener line: every perform here rides the reveal fold.
+				return always(() => void reorderRunCommand(id, reorder, () => myPath));
 			default: {
 				// The format chords are rows, not arms: a construct that declares a mark names the
 				// command that toggles it, so a new markable kind costs a row here and nothing else.
@@ -682,12 +651,7 @@
 		markKeystrokeSettle();
 	});
 
-	// Windowed out while focused: hand focus to the editor root so the next keystroke
-	// routes through its document-level listener instead of falling to `<body>`.
-	$effect(() => {
-		const blockEl = el;
-		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
-	});
+	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
 	// Asymmetric: clears only. The synthetic indicator is click-intent, armed nowhere but
 	// `snapClickToWidgetEdge`, so a caret reaching a boundary by other means never sets it.
@@ -815,25 +779,7 @@
 			return;
 		}
 
-		const chord = eventToChord(e);
-		if (
-			chord &&
-			dispatchKeyCommand(
-				chord,
-				{ kind: node.kind, runCommand },
-				{
-					history,
-					pluginEditor,
-					getPresentationMode: () => presentationMode,
-					isCrossBlockRange: () => selection.isCrossBlock
-				},
-				keybindingOverrides(),
-				onCommandError
-			)
-		) {
-			e.preventDefault();
-			return;
-		}
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 	}
 
 	/**
