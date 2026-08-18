@@ -118,12 +118,11 @@ export function registerDirectiveOpeners(): void {
 // A closer is an all-colon line, closing any opener whose colon count is <= its length.
 // Positions are indexed once per line array, keyed by array identity, because an
 // unclosed-opener flood otherwise rescans to EOF per opener (O(n^2)). `maxCounts` is a max-tree
-// over `counts`, so "first closer at or after k with a long enough run" is a descent, at a cost
-// indifferent to how the run lengths are distributed.
+// over the closer run lengths, so "first closer at or after k with a long enough run" is a
+// descent, at a cost indifferent to how the run lengths are distributed.
 interface CloserIndex {
 	positions: Int32Array;
-	counts: Int32Array;
-	/** Heap-layout max-tree over `counts`, padded to `leafBase` leaves. */
+	/** Heap-layout max-tree over the closer run lengths, padded to `leafBase` leaves. */
 	maxCounts: Int32Array;
 	leafBase: number;
 }
@@ -149,12 +148,7 @@ function closerIndex(lines: ParsedLine[]): CloserIndex {
 	for (let i = leafBase - 1; i >= 1; i--) {
 		maxCounts[i] = Math.max(maxCounts[2 * i], maxCounts[2 * i + 1]);
 	}
-	const index: CloserIndex = {
-		positions: Int32Array.from(positions),
-		counts: Int32Array.from(counts),
-		maxCounts,
-		leafBase
-	};
+	const index: CloserIndex = { positions: Int32Array.from(positions), maxCounts, leafBase };
 	closerIndexCache.set(lines, index);
 	return index;
 }
@@ -191,6 +185,6 @@ function findDirectiveCloser(
 		else hi = mid;
 	}
 	const slot = firstCloserAtLeast(index, lo, colonCount);
-	if (slot === -1 || slot >= positions.length || positions[slot] >= end) return -1;
+	if (slot === -1 || positions[slot] >= end) return -1;
 	return positions[slot];
 }

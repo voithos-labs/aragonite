@@ -41,7 +41,6 @@ function makeController(): UndoController & PasteCommitCoordinator {
 		),
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn(),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode
 	} as unknown as UndoController & PasteCommitCoordinator;

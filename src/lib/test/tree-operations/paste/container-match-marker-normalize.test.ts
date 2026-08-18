@@ -37,7 +37,6 @@ function runningController(): UndoController & PasteCommitCoordinator {
 		commitContainerStructural: vi.fn(),
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn(),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode,
 		commitMultiScope: vi.fn(

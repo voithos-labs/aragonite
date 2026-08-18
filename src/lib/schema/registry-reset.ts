@@ -8,7 +8,6 @@ import {
 	__resetPluginGlobalKeymapForTests
 } from './commands';
 import { __resetBlockCommandsForTests } from './block-commands';
-import { __resetPluginGlobalCommandsForTests } from './global-commands';
 import { __clearDeclaredPluginKindsForTests } from './plugin-kind';
 import { __resetRegistrationChecksForTests } from './registration-checks';
 import { __resetInstalledPluginsForTests } from './plugin-install';
@@ -28,7 +27,6 @@ export function __resetSchemaRegistriesForTests(): void {
 	__removePluginCommandsForTests();
 	__resetBlockCommandsForTests();
 	__resetInlineConstructPoliciesForTests();
-	__resetPluginGlobalCommandsForTests();
 	__resetPluginGlobalKeymapForTests();
 	__resetCommandWarningsForTests();
 	__clearDeclaredPluginKindsForTests();

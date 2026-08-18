@@ -85,8 +85,8 @@ export function parseBlockquote(
 		isDocumentParse
 	);
 
-	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)?.[0] ?? '';
-	const quoteDepth = (quotePrefix.match(/>/g) ?? []).length || 1;
+	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)![0];
+	const quoteDepth = quotePrefix.match(/>/g)!.length;
 
 	return {
 		node: {

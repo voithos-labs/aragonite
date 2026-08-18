@@ -131,7 +131,7 @@ export function createNestedBlockEdit(
 			postEditFocusOffset?: number
 		): Promise<void> {
 			// The batch's pause window opens once this keystroke's own work is done, throw
-			// included: an unarmed batch never ends by pause (#71).
+			// included: an unarmed batch never ends by pause.
 			try {
 				await applyContentUpdate(innerIndex, text, preEditOffset, postEditFocusOffset);
 			} finally {

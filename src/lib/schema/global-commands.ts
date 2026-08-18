@@ -14,8 +14,6 @@ import {
 import { currentInstallingPlugin } from './plugin-install';
 import type { EditorContext } from './plugin-install';
 
-const owners = new Map<string, string | null>();
-
 export function registerGlobalCommand(
 	name: string,
 	handler: (editor: EditorContext) => boolean,
@@ -28,7 +26,6 @@ export function registerGlobalCommand(
 	// Owner-attributed: it is what lets a plugin re-mint its own name, and what names the prior
 	// owner in a cross-plugin collision.
 	const id = mintCommandId(name, owner);
-	owners.set(id, owner);
 	registerCommand(id, (ctx) => {
 		const editor = ctx.pluginEditor?.(owner ?? '');
 		if (!editor) {
@@ -44,8 +41,4 @@ export function registerGlobalCommand(
 	});
 	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id });
 	return id;
-}
-
-export function __resetPluginGlobalCommandsForTests(): void {
-	owners.clear();
 }

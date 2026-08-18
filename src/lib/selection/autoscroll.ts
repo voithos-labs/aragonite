@@ -7,7 +7,7 @@
  */
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 
-const DEFAULT_THRESHOLD = 30;
+const EDGE_THRESHOLD_PX = 30;
 
 /** The four edges the pointer is compared against. `getBoundingClientRect()` is one. */
 interface EdgeBox {
@@ -33,7 +33,6 @@ export interface AutoScrollDeps {
 	getPointer: () => { clientX: number; clientY: number } | null;
 	getTargets: (clientX: number, clientY: number) => UserScrollport[];
 	onScrolled?: () => void;
-	threshold?: number;
 	/**
 	 * Restrict scrolling to one axis (default both). The column reorder drag pins the pointer in
 	 * the table's top band, where vertical evaluation would spin on a horizontal-only scroller.
@@ -47,20 +46,19 @@ export interface AutoScrollHandle {
 }
 
 export function createAutoScroll(deps: AutoScrollDeps): AutoScrollHandle {
-	const threshold = deps.threshold ?? DEFAULT_THRESHOLD;
 	const axis = deps.axis ?? 'both';
 	let rafId: number | null = null;
 
 	function dxFor(port: EdgeBox, x: number): number {
 		if (axis === 'vertical') return 0;
-		if (x < port.left + threshold) return -((port.left + threshold - x) / 2);
-		if (x > port.right - threshold) return (x - (port.right - threshold)) / 2;
+		if (x < port.left + EDGE_THRESHOLD_PX) return -((port.left + EDGE_THRESHOLD_PX - x) / 2);
+		if (x > port.right - EDGE_THRESHOLD_PX) return (x - (port.right - EDGE_THRESHOLD_PX)) / 2;
 		return 0;
 	}
 	function dyFor(port: EdgeBox, y: number): number {
 		if (axis === 'horizontal') return 0;
-		if (y < port.top + threshold) return -((port.top + threshold - y) / 2);
-		if (y > port.bottom - threshold) return (y - (port.bottom - threshold)) / 2;
+		if (y < port.top + EDGE_THRESHOLD_PX) return -((port.top + EDGE_THRESHOLD_PX - y) / 2);
+		if (y > port.bottom - EDGE_THRESHOLD_PX) return (y - (port.bottom - EDGE_THRESHOLD_PX)) / 2;
 		return 0;
 	}
 

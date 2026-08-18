@@ -152,7 +152,7 @@ export function createBlockEditActions(
 				deps.blockIds[blockIndex]
 			);
 			// The pause window opens once this keystroke's own work is done, throw included: an
-			// unarmed batch never ends by pause and would swallow every later keystroke (#71).
+			// unarmed batch never ends by pause and would swallow every later keystroke.
 			try {
 				await applyContentUpdate(blockIndex, text, preEditOffset, postEditFocusOffset);
 			} finally {

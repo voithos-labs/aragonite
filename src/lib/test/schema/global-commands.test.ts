@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
-import {
-	registerGlobalCommand,
-	__resetPluginGlobalCommandsForTests
-} from '$lib/schema/global-commands';
+import { registerGlobalCommand } from '$lib/schema/global-commands';
 import {
 	getCommand,
 	resolveBinding,
@@ -37,7 +34,6 @@ const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 });
 
 beforeEach(() => {
-	__resetPluginGlobalCommandsForTests();
 	__resetPluginGlobalKeymapForTests();
 	__removePluginCommandsForTests();
 	__resetMintedCommandIdsForTests();

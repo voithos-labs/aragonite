@@ -155,8 +155,7 @@ export function parseList(
 }
 
 function getIndent(text: string): number {
-	const m = text.match(/^( *)/);
-	return m ? m[1].length : 0;
+	return text.match(/^ */)![0].length;
 }
 
 /**

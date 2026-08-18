@@ -707,7 +707,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		commitMultiScope,
 		getDocScope,
 		captureCurrentState,
-		collapsedSelectionAt,
 		historyGeneration: () => historyGeneration,
 		noteHistorySwap: () => {
 			historyGeneration++;

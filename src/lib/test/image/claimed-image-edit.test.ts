@@ -105,8 +105,7 @@ function committerFor(raw: string) {
 		pushUndoSnapshot: vi.fn(),
 		pushUndoSnapshotDebounced: vi.fn(),
 		getDocScope: vi.fn(),
-		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn()
+		captureCurrentState: vi.fn()
 	} as unknown as UndoController;
 	const committer = createImageEditCommitter({
 		getDoc: () => doc,
