@@ -8,7 +8,7 @@ import { parse } from '$lib/core/parser';
 import { concatChildren, serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import type { EditorError } from '$lib/editor-events';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 

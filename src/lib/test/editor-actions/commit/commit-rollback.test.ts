@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import { concatChildren, serialize } from '$lib/core/serializer';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { UndoEntry } from '$lib/undo/types';

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';

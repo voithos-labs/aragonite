@@ -11,14 +11,6 @@ import type { CommitController } from '../action-contracts';
 import type { GrammarView } from '../schema/block-openers';
 import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { RefSlots } from '../reactivity/publish-ref.svelte';
-export type {
-	CommitController,
-	CommitStructuralArgs,
-	CommitContainerStructuralArgs,
-	CommitMultiScopeArgs,
-	MultiScopeTarget,
-	ContainerScope
-} from '../action-contracts';
 
 export interface EditorActionsDeps {
 	get doc(): Document;

@@ -29,17 +29,14 @@ import {
 } from '../../tree-operations/unshare';
 import { foldLandingFor, publishAncestryFolds, type FoldLanding } from '../ancestry-folds';
 import { createTextBatch } from './text-batch';
-import type {
-	CommitContainerStructuralArgs,
-	CommitStructuralArgs,
-	ContainerScope,
-	EditorActionsDeps,
-	UndoController
-} from '../deps';
+import type { EditorActionsDeps, UndoController } from '../deps';
 import type {
 	CommitAfterTick,
+	CommitContainerStructuralArgs,
 	CommitMultiScopeArgs,
 	CommitSnapshotArg,
+	CommitStructuralArgs,
+	ContainerScope,
 	MultiScopeTarget
 } from '../../action-contracts';
 import type { ScopedOpDescriptor } from '../../schema/operations';

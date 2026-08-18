@@ -20,6 +20,7 @@ import {
 } from '../tree-operations/table-mutations';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { cellRowCol, docPathFrom } from '../cursor/coordinate-spaces';
+import { deleteSnapshot } from './cross-block/ops';
 import type { CrossBlockDeleteOptions, CrossBlockMutationContext } from './cross-block/ops';
 
 // ── Coverage classification ──────────────────────────────────────────────────
@@ -115,10 +116,7 @@ async function commitFullTableDelete(
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom([tableIdx]), offset: 0 };
+	const snapshot = deleteSnapshot(options, [tableIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitStructural({
@@ -166,10 +164,7 @@ async function commitRowDelete(
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom([tableIdx, rowIdx]), offset: 0 };
+	const snapshot = deleteSnapshot(options, [tableIdx, rowIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -220,10 +215,7 @@ async function commitColumnDelete(
 		{ node: table, state: rowsState, path: [tableIdx] },
 		...mountedRowScopes
 	];
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom([tableIdx]), offset: 0 };
+	const snapshot = deleteSnapshot(options, [tableIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({

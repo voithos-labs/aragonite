@@ -41,6 +41,31 @@ const bodyParentOf = (view: MutationView) => ({
 	owner: view.owner
 });
 
+/** The ineligible-merge cascade both directions share; `dir` names the neighbour side. */
+async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 | 1): Promise<void> {
+	const neighbor = i + dir;
+	const neighborKind = scope.children()[neighbor].kind;
+	// A whole-block-focus neighbor is focused, not deleted: press one highlights it, a second
+	// press deletes it. Ordered first so a not-mergeable-but-editable kind never dead-ends here.
+	if (getBlockKindDescriptor(neighborKind).blockFocus === 'whole-block') {
+		scope.refAt(neighbor)?.focus(0);
+		return;
+	}
+	if (isBlockEditable(neighborKind)) {
+		scope.refAt(neighbor)?.focus(dir < 0 ? CURSOR_END : CURSOR_START);
+		return;
+	}
+	await scope.commit({
+		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
+		eventTarget: neighbor,
+		op: { kind: 'delete' },
+		mutate: (view) => performDelete(bodyParentOf(view), neighbor, view.sharing),
+		afterTick: () =>
+			scope.refAt(dir < 0 ? neighbor : i)?.focus(dir < 0 ? CURSOR_START : CURSOR_END),
+		discardIfNoop: true
+	});
+}
+
 export interface BlockEditCore {
 	split(i: number, offset: number): Promise<void>;
 	descendToBody(i: number): Promise<void>;
@@ -159,25 +184,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const currKind = children[i].kind;
 
 			if (!isMergeEligible(prevKind, currKind)) {
-				// A whole-block-focus neighbor is focused, not deleted: press one
-				// highlights it, a second press on the now-focused block deletes it.
-				// Ordered first so a not-mergeable-but-editable kind never dead-ends here.
-				if (getBlockKindDescriptor(prevKind).blockFocus === 'whole-block') {
-					scope.refAt(i - 1)?.focus(0);
-					return;
-				}
-				if (!isBlockEditable(prevKind)) {
-					await scope.commit({
-						snapshot: { index: i, offset: 0 },
-						eventTarget: i - 1,
-						op: { kind: 'delete' },
-						mutate: (view) => performDelete(bodyParentOf(view), i - 1, view.sharing),
-						afterTick: () => scope.refAt(i - 1)?.focus(CURSOR_START),
-						discardIfNoop: true
-					});
-				} else {
-					scope.refAt(i - 1)?.focus(CURSOR_END);
-				}
+				await handleIneligibleNeighbor(scope, i, -1);
 				return;
 			}
 
@@ -216,24 +223,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const nextKind = children[i + 1].kind;
 
 			if (!isMergeEligible(currKind, nextKind)) {
-				// Forward twin of the whole-block-focus fallback: Delete at the end of
-				// the block above focuses the opaque neighbor instead of deleting it.
-				if (getBlockKindDescriptor(nextKind).blockFocus === 'whole-block') {
-					scope.refAt(i + 1)?.focus(0);
-					return;
-				}
-				if (!isBlockEditable(nextKind)) {
-					await scope.commit({
-						snapshot: { index: i, offset: CURSOR_END },
-						eventTarget: i + 1,
-						op: { kind: 'delete' },
-						mutate: (view) => performDelete(bodyParentOf(view), i + 1, view.sharing),
-						afterTick: () => scope.refAt(i)?.focus(CURSOR_END),
-						discardIfNoop: true
-					});
-				} else {
-					scope.refAt(i + 1)?.focus(CURSOR_START);
-				}
+				await handleIneligibleNeighbor(scope, i, 1);
 				return;
 			}
 
