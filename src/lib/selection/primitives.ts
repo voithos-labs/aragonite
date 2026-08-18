@@ -1,13 +1,16 @@
 /**
  * Pure primitives for cross-block selection: types, document-order walking, overlay
- * classification. No DOM, no state. Path-level predicates live in `./path-math`.
+ * classification, the delete-commit snapshot rule. No DOM, no state. Path-level predicates
+ * live in `./path-math`.
  */
 
+import type { CommitSnapshotArg, UndoEntryMode } from '../action-contracts';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { comparePaths, isPathBetween, pathHasPrefix } from './path-math';
 import {
 	asCellIndex,
 	asRawOffset,
+	docPathFrom,
 	type CellIndex,
 	type RawOffset
 } from '../cursor/coordinate-spaces';
@@ -99,6 +102,17 @@ export function normalize(selection: EditorSelection): {
 	if (cmp > 0) return { start: focus, end: anchor };
 	if (anchor.offset <= focus.offset) return { start: anchor, end: focus };
 	return { start: focus, end: anchor };
+}
+
+// ── Undo snapshot ──────────────────────────────────────────────────────────
+
+/** A join delete rides the caller's snapshot; every other one seats undo at its own coordinate. */
+export function deleteSnapshot(
+	options: { undoEntry?: UndoEntryMode } | undefined,
+	path: number[],
+	offset = 0
+): CommitSnapshotArg {
+	return options?.undoEntry === 'join' ? 'skip' : { path: docPathFrom(path), offset };
 }
 
 // ── Range walk ─────────────────────────────────────────────────────────────

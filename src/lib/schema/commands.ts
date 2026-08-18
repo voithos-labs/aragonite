@@ -8,7 +8,7 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '../dev-warn';
-import { registerOnce, devReplacesRegistration } from './register-once';
+import { deletePluginEntries, registerOnce, devReplacesRegistration } from './register-once';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { normalizeChord, isChordWellFormed, type KeyBinding } from './keybindings';
 import {
@@ -133,9 +133,7 @@ export function isBuiltinCommandId(id: string): boolean {
  * chord keymap resets separately (`__resetPluginGlobalKeymapForTests`).
  */
 export function __removePluginCommandsForTests(): void {
-	for (const id of globalCommands.keys()) {
-		if (!BUILTIN_COMMAND_IDS.has(id)) globalCommands.delete(id);
-	}
+	deletePluginEntries(globalCommands, (id) => BUILTIN_COMMAND_IDS.has(id));
 }
 
 /** Which seam found the command dead. Half the memo key below: a no-op at one seam must not

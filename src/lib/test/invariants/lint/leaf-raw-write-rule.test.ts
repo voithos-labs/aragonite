@@ -46,14 +46,14 @@ const PRE_REPARSE_SITES: Record<string, string> = {
 /**
  * A branch inherits the rule by routing through that shared endpoint reparse rather than naming
  * a reader, which the per-file scan above cannot see. Rebuilding the reparse locally drops the
- * rule silently, so the inheritance is pinned on the helper's own name.
+ * rule silently, so the inheritance is pinned on the helper's own name. The chrome and table
+ * branches inherit one level higher, through the ceremony's whole-truncation atoms; a local
+ * reparse regrown there re-enters this exact-set scan and fails it.
  */
 const PRE_REPARSE_INHERITORS: Record<string, string> = {
-	'src/lib/selection/range-delete-ceremony.ts': 'defines it',
-	'src/lib/selection/range-delete.ts': 'the generic merge installs its survivor through it',
-	'src/lib/selection/range-delete-chrome.ts': 'both endpoints of a wall range',
-	'src/lib/selection/range-delete-table.ts':
-		'both prose endpoints of a table range route through it'
+	'src/lib/selection/range-delete-ceremony.ts':
+		'defines it; the truncation atoms route every wall-branch endpoint through it',
+	'src/lib/selection/range-delete.ts': 'the generic merge installs its survivor through it'
 };
 
 /** The fence rule has one implementation, shared by the display funnel and the byte sink. */
@@ -172,16 +172,12 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the rollback restores raws the tree already held; nothing new is minted'
 	},
 	'src/lib/selection/range-delete-ceremony.ts': {
-		count: 2,
-		why: 'the chrome-clear, a reserved-chrome slot no leaf kind declaring a rule can occupy; and the endpoint reparse re-attaching the blank line that parse peeled off (GH #97)'
-	},
-	'src/lib/selection/range-delete-chrome.ts': {
-		count: 2,
-		why: "both endpoints' chrome-clear arms, same reserved slot"
+		count: 4,
+		why: 'the chrome-clear and the truncation atoms’ two chrome-endpoint arms, reserved-chrome slots no leaf kind declaring a rule can occupy; and the endpoint reparse re-attaching the blank line that parse peeled off (GH #97)'
 	},
 	'src/lib/selection/range-delete-table.ts': {
-		count: 4,
-		why: 'two chrome-clear arms plus two cell clears; a cleared cell is empty, which `tableCell`’s own rule already returns unchanged'
+		count: 2,
+		why: 'two cell clears; a cleared cell is empty, which `tableCell`’s own rule already returns unchanged'
 	},
 	'src/lib/tree-operations/list/reconcile-task.ts': {
 		count: 2,

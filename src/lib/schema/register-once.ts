@@ -27,3 +27,10 @@ export function registerOnce(isDuplicate: boolean, apply: () => void, conflict: 
 	}
 	apply();
 }
+
+/** The test-reset primitive the schema registries share: drop every non-built-in key. */
+export function deletePluginEntries<K>(map: Map<K, unknown>, isBuiltin: (key: K) => boolean): void {
+	for (const key of map.keys()) {
+		if (!isBuiltin(key)) map.delete(key);
+	}
+}

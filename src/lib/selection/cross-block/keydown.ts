@@ -59,6 +59,12 @@ async function handleKeyDown(
 	ctx.stickyColumn.noteKey(e);
 	ctx.edgeAffinity.note(e);
 
+	// Mode-independent: the doc-edge extend behaves identically from a caret and an active range,
+	// so it dispatches once, ahead of the mode split.
+	if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'End' || e.key === 'Home')) {
+		return handleDocEdgeExtend(ctx, e, e.key === 'End' ? 'end' : 'start');
+	}
+
 	if (selection.isCrossBlock) {
 		const handled = await handleCrossBlockActive(ctx, mutCtx, e);
 		if (handled) return true;
@@ -130,11 +136,6 @@ async function handleCrossBlockActive(
 		return true;
 	}
 
-	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'End')
-		return handleDocEdgeExtend(ctx, e, 'end');
-	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Home')
-		return handleDocEdgeExtend(ctx, e, 'start');
-
 	// Intra-table rectangle: Shift+Arrow grows the rect cell-by-cell and exits at the vertical
 	// edge. Must precede the generic extend, which snaps the focus back to cellIdx 0.
 	if (
@@ -204,8 +205,7 @@ async function handleCrossBlockActive(
 	return false;
 }
 
-/** The first-press arm; `handleCrossBlockActive` carries the identical chord set for the
- *  already-cross-block case, so a chord added here is owed there too. */
+/** The first-press arm: chords that start a selection from a collapsed caret. */
 async function handleCrossBlockEntry(
 	ctx: CrossBlockDispatchContext,
 	e: KeyboardEvent
@@ -213,11 +213,6 @@ async function handleCrossBlockEntry(
 	const el = ctx.getEl();
 	if (!el) return false;
 	const { selection, getDoc } = ctx;
-
-	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'End')
-		return handleDocEdgeExtend(ctx, e, 'end');
-	if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Home')
-		return handleDocEdgeExtend(ctx, e, 'start');
 
 	if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !e.shiftKey) {
 		e.preventDefault();

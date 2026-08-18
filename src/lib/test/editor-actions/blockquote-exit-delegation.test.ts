@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { createBlockquoteOverrides } from '$lib/editor-actions/blockquote-overrides';
+import { createContainerExitOverrides } from '$lib/editor-actions/container-exit-overrides';
 import { makeStubBlockEdit, makeStubFocus } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
@@ -9,7 +9,7 @@ import type { CstNode } from '$lib/core/nodes';
 // minted gap, caret on the gap, input untouched.
 
 function overridesOver(node: CstNode, parentBlockEdit: ReturnType<typeof makeStubBlockEdit>) {
-	return createBlockquoteOverrides({
+	return createContainerExitOverrides({
 		scope: {
 			get index() {
 				return 0;
@@ -54,7 +54,7 @@ describe('blockquote exit delegates one parent replaceBlock', () => {
 		const parentBlockEdit = makeStubBlockEdit();
 		const defaults = { blockEdit: makeStubBlockEdit(), focus: makeStubFocus() };
 
-		const overrides = createBlockquoteOverrides({
+		const overrides = createContainerExitOverrides({
 			scope: {
 				get index() {
 					return 0;

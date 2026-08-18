@@ -134,7 +134,7 @@ Pass the node **as a getter, never by value.** A by-value argument freezes on th
 
 **`createStandardNestedActions(state, deps, overrideFactory?)`** — a complete `{ blockEdit, focus, containerEdit }` bundle. Its methods handle the split/merge/delete/content/replace ceremony uniformly, and Backspace-at-start dispatches by the kind's declared `unwrapRole`. Containers needing custom behavior pass an `overrideFactory`: it receives the fully-built default bundle and returns per-sub-interface partial overrides, which chain back by calling `defaults.blockEdit.splitBlock(...)` directly. The override set is visible at the call site and type-checked against each sub-interface — no post-construction method reassignment.
 
-A trivial container (a collapsible section, say) calls `createStandardNestedActions(state, deps)` with no overrides and is done. A non-trivial one passes an override factory returning only the methods it customizes — `list-overrides.ts` and `blockquote-overrides.ts` under `editor-actions/` are the canonical examples.
+A trivial container (a collapsible section, say) calls `createStandardNestedActions(state, deps)` with no overrides and is done. A non-trivial one passes an override factory returning only the methods it customizes — `list-overrides.ts` and `container-exit-overrides.ts` under `editor-actions/` are the canonical examples.
 
 **`dispatchFocusByPath` / `dispatchFocusAtColumn`** — the pure dispatchers your `focusByPath` / `focusAtColumn` exports delegate to.
 

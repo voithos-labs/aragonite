@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // The blockquote's ONE behavioral override: Enter on an empty trailing paragraph leaves
-// the quote. `createContainerBlock` wires `createBlockquoteOverrides` into the nested
+// the quote. `createContainerBlock` wires `createContainerExitOverrides` into the nested
 // bundle and the component names nothing to select it, so its arrival is invisible from
 // the source — which is why both presses are driven here rather than seeded.
 import { describe, it, expect, afterEach, beforeAll } from 'vitest';

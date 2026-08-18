@@ -7,7 +7,7 @@ import type { Component } from 'svelte';
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockComponentExports, BlockComponentProps } from '../block-component';
-import { registerOnce } from './register-once';
+import { deletePluginEntries, registerOnce } from './register-once';
 
 export interface BlockComponentEntry {
 	/**
@@ -58,7 +58,5 @@ export function isBlockComponentRegistered(kind: string): boolean {
 
 /** Test-only. Removes every non-built-in component entry; built-ins survive. */
 export function __removePluginComponentsForTests(): void {
-	for (const kind of registry.keys()) {
-		if (!isBuiltinBlockKind(kind)) registry.delete(kind);
-	}
+	deletePluginEntries(registry, isBuiltinBlockKind);
 }

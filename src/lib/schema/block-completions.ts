@@ -6,7 +6,7 @@
  */
 
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
-import { registerOnce } from './register-once';
+import { deletePluginEntries, registerOnce } from './register-once';
 
 /**
  * The replacement, as lines WITHOUT endings — the seam attaches the block's own (G4.20) — plus
@@ -71,8 +71,6 @@ export function __resetBlockCompletersForTests(): void {
 
 // The unified schema reset preserves built-ins for tests that merely add plugin kinds.
 export function __removePluginCompletersForTests(): void {
-	for (const kind of completers.keys()) {
-		if (!isBuiltinBlockKind(kind)) completers.delete(kind);
-	}
+	deletePluginEntries(completers, isBuiltinBlockKind);
 	orderedCache = null;
 }

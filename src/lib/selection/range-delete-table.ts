@@ -14,17 +14,16 @@ import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
+import { displayLength, trailingLineEnding } from '../core/lines';
 import { cellRowCol } from '../cursor/coordinate-spaces';
-import { charOffsetOf, cellIndexOf } from './primitives';
+import { cellIndexOf } from './primitives';
 import {
-	cleanTruncatedProse,
 	resolveEndWall,
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
-	installTruncatedEndpoint,
 	rebuildSharedAncestries,
-	reparseTruncatedEndpoint,
+	truncateEndInPlace,
+	truncateStartInPlace,
 	type LiveSeamContext
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
@@ -149,21 +148,8 @@ function deleteFromProseIntoTable(
 	grammar: GrammarView | undefined,
 	live: LiveSeamContext
 ): RangeDeleteResult {
-	const startChar = charOffsetOf(start, 'deleteFromProseIntoTable:start');
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
-	// The chrome wall keeps its bytes literal; a prose head crosses the unpaired-run cleanup.
-	const head = startIsChrome
-		? { raw: startBlock.raw.slice(0, startChar), seam: startChar }
-		: cleanTruncatedProse(startBlock, 'head', startChar, live);
-	const startHead = head.raw;
-	let truncatedReplacement: CstNode[] | null = null;
-	if (!startIsChrome) {
-		truncatedReplacement = reparseTruncatedEndpoint(
-			startBlock,
-			terminateLine(startHead, startBlock.raw)
-		);
-	}
 
 	// The snapped end cell is the whole-row inclusive last cell; deleteCellsAndCollapse takes an
 	// exclusive end, so +1 clears the same rows the clipboard copied.
@@ -184,12 +170,15 @@ function deleteFromProseIntoTable(
 	);
 
 	applyPlannedDeletion(doc, plan, lcaPath);
-	if (startIsChrome) {
-		// The wall: a chrome start truncates by raw write — kind and node kept.
-		startBlock.raw = terminateLine(startHead, startBlock.raw);
-	} else {
-		installTruncatedEndpoint(doc, start.path, truncatedReplacement!, sharing);
-	}
+	const seam = truncateStartInPlace(
+		doc,
+		start,
+		startBlock,
+		startIsChrome,
+		live,
+		sharing,
+		'deleteFromProseIntoTable:start'
+	);
 
 	const tableSurvives = result === 'tableSurvives';
 	if (tableSurvives) rebuildOwnedContainer(table, sharing);
@@ -199,7 +188,7 @@ function deleteFromProseIntoTable(
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: head.seam },
+		collapsedCaret: { path: start.path.slice(), offset: seam },
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
@@ -228,19 +217,6 @@ function deleteFromTableIntoProse(
 	const consumed = wall?.consumed ?? false;
 	const endIsChrome = wall !== null && !consumed && isChromeChild(wall.container, end.path);
 
-	let tailReplacement: CstNode[] | null = null;
-	let endTail = '';
-	if (!consumed) {
-		const endChar = charOffsetOf(end, 'deleteFromTableIntoProse:end');
-		// The chrome wall keeps its bytes literal; a prose tail crosses the unpaired-run cleanup.
-		endTail = endIsChrome
-			? endBlock.raw.slice(endChar)
-			: cleanTruncatedProse(endBlock, 'tail', endChar, live).raw;
-		if (!endIsChrome) {
-			tailReplacement = reparseTruncatedEndpoint(endBlock, endTail);
-		}
-	}
-
 	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
 		start,
@@ -250,19 +226,19 @@ function deleteFromTableIntoProse(
 		sharing
 	);
 
-	// Replace/truncate end first: its path is later in doc order, so deleting strictly-between
-	// doesn't shift it. Skipped when the container dies whole.
-	let tailNode: CstNode | null = null;
-	if (endIsChrome) {
-		// The wall: a chrome end keeps its tail by raw write — kind and node kept.
-		endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
-		tailNode = endBlock;
-	} else if (!consumed) {
-		installTruncatedEndpoint(doc, end.path, tailReplacement!, sharing);
-		// Re-read through the tree (design rule 5): the replacement node is proxy-wrapped by
-		// the live $state doc, so the identity search below would miss the raw copy.
-		tailNode = blockNodeAt(doc, end.path);
-	}
+	// Truncate end first: its path is later in doc order, so deleting strictly-between doesn't
+	// shift it. Skipped when the container dies whole.
+	const tailNode = consumed
+		? null
+		: truncateEndInPlace(
+				doc,
+				end,
+				endBlock,
+				endIsChrome,
+				live,
+				sharing,
+				'deleteFromTableIntoProse:end'
+			);
 	applyPlannedDeletion(doc, plan, lcaPath);
 
 	const tailPath = tailNode ? survivorPath(doc, tailNode) : null;
