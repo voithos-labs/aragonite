@@ -19,10 +19,10 @@
 	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
 	import {
 		createRangeFromOffsets,
-		setCursorOffset as setCursorOffsetHelper,
-		getRangeOffsets as getRangeOffsetsHelper,
-		getSelectionOffsets as getSelectionOffsetsHelper,
-		hasSelection as hasSelectionHelper
+		setCursorOffset,
+		getRangeOffsets,
+		getSelectionOffsets,
+		hasSelection
 	} from '../../../cursor/content-offsets';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import {
@@ -252,7 +252,7 @@
 			pendingCursorOffset = null;
 		} else if (pendingCursorOffset !== null) {
 			consumePendingRestore(el, pendingCursorOffset, (offset) =>
-				setCursorOffsetHelper(el!, asDomTextOffset(offset))
+				setCursorOffset(el!, asDomTextOffset(offset))
 			);
 			pendingCursorOffset = null;
 		}
@@ -305,7 +305,7 @@
 	// insertCompositionText is not cancelable — so a fence-crossing selection shrinks
 	// onto its body span here, before the composition owns the surface.
 	function onCompositionStart(): void {
-		const sel = el ? getSelectionOffsetsHelper(el) : null;
+		const sel = el ? getSelectionOffsets(el) : null;
 		if (sel && crossesFenceBoundary(node, sel)) {
 			const span = fenceEditSpan(node, sel);
 			setSelection(span.start, span.end);
@@ -336,7 +336,7 @@
 		if (!data || data.length !== 1) return;
 
 		const text = getDisplayText();
-		const selOffsets = getSelectionOffsetsHelper(el);
+		const selOffsets = getSelectionOffsets(el);
 		const offset = selOffsets ? selOffsets.start : (backend.getRaw() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
@@ -350,7 +350,7 @@
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
-			setCursorOffsetHelper(el, asDomTextOffset(result.caretOffset));
+			setCursorOffset(el, asDomTextOffset(result.caretOffset));
 			return;
 		}
 		if (result.kind === 'wrap') {
@@ -405,8 +405,8 @@
 	 */
 	function pendingEditRange(e: InputEvent, surface: HTMLElement): CodeRange | null {
 		const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
-		if (targets.length > 0) return getRangeOffsetsHelper(surface, targets[0]);
-		const selected = getSelectionOffsetsHelper(surface);
+		if (targets.length > 0) return getRangeOffsets(surface, targets[0]);
+		const selected = getSelectionOffsets(surface);
 		if (selected) return selected;
 		const caret = backend.getRaw();
 		return caret === null ? null : { start: caret, end: caret };
@@ -499,7 +499,7 @@
 	}
 
 	function codeBackspace(): boolean {
-		if (!el || hasSelectionHelper()) return false;
+		if (!el || hasSelection()) return false;
 		const offset = backend.getRaw() ?? 0;
 		// offset===0 is the universal contract; the classifyFenceBoundary check catches the
 		// fence boundary, where a native Backspace would delete the opener's terminating `\n`.
@@ -524,7 +524,7 @@
 	}
 
 	function codeDelete(): boolean {
-		if (!el || hasSelectionHelper()) return false;
+		if (!el || hasSelection()) return false;
 		const offset = backend.getRaw() ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
 			// The root's forward asymmetry (past-end appends a paragraph) would strand a
@@ -628,7 +628,7 @@
 
 	function currentRange(): { start: number; end: number } {
 		if (!el) return { start: 0, end: 0 };
-		const sel = getSelectionOffsetsHelper(el);
+		const sel = getSelectionOffsets(el);
 		if (sel) return sel;
 		const cursor = backend.getRaw() ?? 0;
 		return { start: cursor, end: cursor };
@@ -685,7 +685,7 @@
 		cutTail: (e) => {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 			if (!el) return;
-			const selOffsets = getSelectionOffsetsHelper(el);
+			const selOffsets = getSelectionOffsets(el);
 			if (!selOffsets) return;
 			const edit = computeFenceRangedEdit(node, selOffsets, '');
 			if (!edit) return;

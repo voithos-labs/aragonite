@@ -274,9 +274,8 @@ function deleteFromTableIntoProse(
 	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing, null, grammar);
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
-	// Case 2 of `e2e/requirements/blocks/table/cross-block-delete.md`: a fully consumed table
-	// lands the caret at the start of the surviving tail, never the deleted table; otherwise in
-	// the table's surviving anchor cell, or the nearest survivor when the tail went too.
+	// A fully consumed table lands the caret at the start of the surviving tail; otherwise in the
+	// table's surviving anchor cell, or the nearest survivor when the tail went too.
 	const collapsedCaret: SelectionPoint =
 		tableResult === 'tableEmpty'
 			? tailPath

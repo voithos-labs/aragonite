@@ -366,14 +366,14 @@ _Legend: ✓ closed (defined + covered) · n/a structurally absent · ◐ partia
 | Container                | ✓          | ✓     | ✓                 | ✓               | ✓            | ✓       | ✓    | ◐¹        | ✓          |
 | Chrome leaf              | ✓          | ✓     | ✓                 | ✓               | ✓            | n/a²    | ✓    | ◐¹        | ✓          |
 | Editable leaf            | ✓          | ✓     | ✓                 | ✓               | ✓            | ✓       | ✓    | ✓         | ✓          |
-| Whole-block-focus opaque | ✓          | ✓     | ✓                 | ✓               | ◐³           | ✓       | ✓    | ✓         | ✓          |
+| Whole-block-focus opaque | ✓          | ✓     | ✓                 | ✓               | ✓³           | ✓       | ✓    | ✓         | ✓          |
 | Inline widget            | ✓          | ✓     | ✓⁴                | ✓               | ✓            | n/a⁵    | ✓    | ✓         | ✓          |
 | Decoration island        | ✓⁶         | ✓     | ✓⁷                | ✓⁸              | ✓            | n/a⁵    | ✓⁷   | ✓⁹        | ✓¹⁰        |
 | Block decoration         | ✓⁶         | ✓¹¹   | ✓¹²               | ✓               | n/a¹³        | ✓¹²     | ✓¹²  | ✓⁹        | ✓¹⁴        |
 
 1. **◐ Clipboard.** Both chrome directions round-trip the container: an end landing mid-chrome yields a chrome-only container, a start landing mid-chrome reopens the container around the collected body and closes it where the walk leaves the subtree. What remains partial is the generic case the chrome pair sits inside: an endpoint landing in a container's body is skipped as an endpoint ancestor, so unless one of the four recovery seams applies, that container's wrapper is lost (issue #42; folded into the post-1.0 clipboard generalization).
 2. **n/a Reorder.** A chrome leaf is the container's reserved child 0 — no independent block identity to move.
-3. **◐ Search.** A match inside a childless opaque container is found (the block's raw scans as a leaf), painted through the container shim's `measurePartialRects`, and navigable. Replace skips it — the opaque raw is metadata-derived, and a generic substitution would drift from metadata (issue #41; folded into the post-1.0 opaque-write work).
+3. **✓ Search.** A match inside a childless opaque container is found (the block's raw scans as a leaf), painted through the container shim's `measurePartialRects`, and navigable. Replace rewrites it too: the substitution lands in a private clone's raw and reparses, so the kind re-derives its own metadata. The one decline is kind-stability — bytes that break the opener line come back as a different kind, and a diagram must not silently become a plain code block.
 4. **✓ Merge / backspace.** A caret-edge Backspace/Delete reveals the widget's source or atomically deletes it; block-level merge stays the host prose block's concern.
 5. **n/a Reorder.** An inline widget is not a block; reorder is a block-level gesture. A decoration island is the same shape: view-only inline DOM, no block identity.
 6. **✓ Round-trip.** Decorations never enter the CST, so byte round-trip holds by construction — the bytes a replace island displaces stay in the document and never leave `getSource()` (property-pinned over arbitrary island placements).

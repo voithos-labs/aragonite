@@ -235,8 +235,8 @@ class SelectionStateImpl implements SelectionState {
 		this.#notify();
 	}
 
-	// G1.29 at the storing seam: #normalizePoint is meant to make this unfireable, and did
-	// not for a length-1 table path. Both entries carry it because both store an endpoint pair.
+	// G1.29 at the storing seam, the belt behind #normalizePoint: both entries carry it because
+	// both store an endpoint pair.
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;

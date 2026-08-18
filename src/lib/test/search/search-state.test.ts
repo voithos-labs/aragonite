@@ -69,8 +69,8 @@ describe('SearchState', () => {
 		expect(s.matches.length).toBe(0);
 	});
 	it('replacedCount reports the replace path’s real count, not the match count', async () => {
-		// The replace path may skip matches (childless opaque containers), so the
-		// count comes from its return value — 2 matches here, only 1 replaced.
+		// The replace path may skip matches (a substitution that would reparse as a different
+		// kind), so the count comes from its return value — 2 matches here, only 1 replaced.
 		const s = makeState('cat cat\n', () => {}, {
 			replaceOne: async () => 0,
 			replaceAll: async () => 1
