@@ -2,12 +2,11 @@
 
 import type { CstNode, ListItemMetadata, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import { metadataOf } from '../../core/nodes';
 import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
-import { cloneMetadata } from '../clone';
+import { cloneMetadata, cloneNode } from '../clone';
 import { parseFirstBlock } from '../parse-block';
-import { renumberOrderedList } from './ordered-markers';
+import { renumberOrderedListFrom } from './ordered-markers';
 import { assignIds } from '../../block-id';
 
 // ── List / item construction ─────────────────────────────────────────────────
@@ -35,17 +34,7 @@ export function assembleListHalf(
 	};
 	if (items[0]) items[0].leadingTrivia = '';
 	for (const item of items) rebuildListItemRaw(item);
-
-	// renumberOrderedList's fromIndex=0 path always restarts at 1, so seed items[0]
-	// manually to renumber from an arbitrary base.
-	const ordered = metadataOf(half, 'list')?.ordered ?? false;
-	if (ordered && items.length > 0) {
-		const firstMeta = metadataOf(items[0], 'listItem');
-		const suffix = firstMeta.marker.replace(/^\d+/, '') || '. ';
-		firstMeta.marker = String(startNumber) + suffix;
-		rebuildListItemRaw(items[0]);
-		renumberOrderedList(half, 1);
-	}
+	renumberOrderedListFrom(half, startNumber);
 	rebuildListRaw(half);
 	return half;
 }
@@ -55,21 +44,10 @@ export function assembleListHalf(
  * clone before passing if they are still referenced from the source tree.
  */
 export function buildListItemWithContent(template: NodeView, children: CstNode[]): CstNode {
-	const item: CstNode = {
-		kind: 'listItem',
-		leadingTrivia: '',
-		raw: '',
-		metadata: template.metadata
-			? (cloneMetadata(template.metadata) as ListItemMetadata)
-			: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-		innerPrefix: template.innerPrefix ?? '',
-		children,
-		childIds: assignIds(children),
-		innerSuffix: template.innerSuffix ?? ''
-	};
-	if (children[0]) children[0].leadingTrivia = '';
-	rebuildListItemRaw(item);
-	return item;
+	const metadata = template.metadata
+		? (cloneMetadata(template.metadata) as ListItemMetadata)
+		: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null };
+	return mintListItem(metadata, template.innerPrefix ?? '', template.innerSuffix ?? '', children);
 }
 
 /**
@@ -77,15 +55,25 @@ export function buildListItemWithContent(template: NodeView, children: CstNode[]
  * rather than mirroring a source item. `children` are placed verbatim.
  */
 export function buildListItem(metadata: ListItemMetadata, children: CstNode[]): CstNode {
+	return mintListItem(metadata, '', '', children);
+}
+
+// Affixes are set before the rebuild, which derives the item's raw from them.
+function mintListItem(
+	metadata: ListItemMetadata,
+	innerPrefix: string,
+	innerSuffix: string,
+	children: CstNode[]
+): CstNode {
 	const item: CstNode = {
 		kind: 'listItem',
 		leadingTrivia: '',
 		raw: '',
 		metadata,
-		innerPrefix: '',
+		innerPrefix,
 		children,
 		childIds: assignIds(children),
-		innerSuffix: ''
+		innerSuffix
 	};
 	if (children[0]) children[0].leadingTrivia = '';
 	rebuildListItemRaw(item);
@@ -107,24 +95,6 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 		children,
 		childIds: assignIds(children)
 	};
-}
-
-// ── Marker helpers ───────────────────────────────────────────────────────────
-
-/** Read an item's marker as an integer base, defaulting to 1 for non-numeric markers. */
-export function orderedBaseOf(item: NodeView | undefined): number {
-	if (!item) return 1;
-	const marker = metadataOf(item, 'listItem')?.marker ?? '';
-	const n = parseInt(marker, 10);
-	return Number.isFinite(n) && n > 0 ? n : 1;
-}
-
-/** The punctuation suffix (`. ` or `) `) from a list's first item; defaults to `. `. */
-export function readOrderedSuffix(list: NodeView): string {
-	const first = list.children?.[0];
-	if (!first) return '. ';
-	const marker = metadataOf(first, 'listItem')?.marker ?? '1. ';
-	return marker.replace(/^\d+/, '') || '. ';
 }
 
 // ── Paste split ──────────────────────────────────────────────────────────────
@@ -152,4 +122,41 @@ export function splitLeafForPaste(
 	const trailingNode = trailingText.length > 0 ? parseFirstBlock(trailingText + lineEnding) : null;
 
 	return { leadingNode, trailingNode, lineEnding };
+}
+
+/**
+ * The leading and trailing items replacing `item` when a paste splits it at
+ * `(innerIndex, offset)`. Either side is null when the caret sits flush against a
+ * boundary. `targetRaw` overrides the target leaf's bytes, as in `splitLeafForPaste`.
+ */
+export function buildSplitItems(
+	item: CstNode,
+	innerIndex: number,
+	offset: number,
+	targetRaw?: string
+): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
+	if (!item.children) return { leadingItem: null, trailingItem: null };
+	const targetLeaf = item.children[innerIndex];
+	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
+
+	const { leadingNode, trailingNode } = splitLeafForPaste(
+		targetLeaf,
+		offset,
+		targetRaw ?? targetLeaf.raw
+	);
+
+	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);
+	if (leadingNode) leadingChildren.push(leadingNode);
+
+	const trailingChildren: CstNode[] = [];
+	if (trailingNode) trailingChildren.push(trailingNode);
+	for (const c of item.children.slice(innerIndex + 1)) trailingChildren.push(cloneNode(c));
+	if (trailingChildren[0]) trailingChildren[0].leadingTrivia = '';
+
+	return {
+		leadingItem:
+			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren) : null,
+		trailingItem:
+			trailingChildren.length > 0 ? buildListItemWithContent(item, trailingChildren) : null
+	};
 }

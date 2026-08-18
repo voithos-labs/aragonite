@@ -13,12 +13,8 @@ import { containerPasteFor } from './container-paste';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { newlineTerminateListItems } from '../list/terminator';
 import { trailingLineEnding } from '../../core/lines';
-import {
-	assembleListHalf,
-	buildListItemWithContent,
-	orderedBaseOf,
-	splitLeafForPaste
-} from '../list/list-builders';
+import { assembleListHalf, buildSplitItems } from '../list/list-builders';
+import { orderedBaseOf } from '../list/ordered-markers';
 import { findEnclosingListForPaste } from './find-enclosing-list';
 import { focusIndexBeforeResidue, landedPasteOffset, trackedPasteCaret } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -162,40 +158,18 @@ export function buildListBreakOutReplacement(
 	const items = list.children ?? [];
 	const item = items[itemIndex];
 	if (!item?.children) return { replacement: [], hasTrailingResidue: false };
-	const targetLeaf = item.children[innerIndex];
-	if (!targetLeaf) return { replacement: [], hasTrailingResidue: false };
+	if (!item.children[innerIndex]) return { replacement: [], hasTrailingResidue: false };
 
-	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } = splitLeafForPaste(
-		targetLeaf,
-		offset,
-		targetRaw ?? targetLeaf.raw
-	);
-
-	const itemChildrenBefore = item.children.slice(0, innerIndex).map(cloneNode);
-	const itemChildrenAfter = item.children.slice(innerIndex + 1).map(cloneNode);
-
-	const firstHalfItemChildren: CstNode[] = [...itemChildrenBefore];
-	if (leadingSliceNode) firstHalfItemChildren.push(leadingSliceNode);
-
-	const secondHalfItemChildren: CstNode[] = [];
-	if (trailingSliceNode) secondHalfItemChildren.push(trailingSliceNode);
-	for (const child of itemChildrenAfter) secondHalfItemChildren.push(child);
-	if (secondHalfItemChildren[0]) secondHalfItemChildren[0].leadingTrivia = '';
+	const { leadingItem, trailingItem } = buildSplitItems(item, innerIndex, offset, targetRaw);
 
 	const itemsBefore = items.slice(0, itemIndex).map(cloneNode);
 	const itemsAfter = items.slice(itemIndex + 1).map(cloneNode);
 	if (itemsAfter[0]) itemsAfter[0].leadingTrivia = '';
 
 	const firstHalfItems: CstNode[] = [...itemsBefore];
-	if (firstHalfItemChildren.length > 0) {
-		firstHalfItems.push(buildListItemWithContent(item, firstHalfItemChildren));
-	}
+	if (leadingItem) firstHalfItems.push(leadingItem);
 
-	const secondHalfItems: CstNode[] = [];
-	if (secondHalfItemChildren.length > 0) {
-		secondHalfItems.push(buildListItemWithContent(item, secondHalfItemChildren));
-	}
-	secondHalfItems.push(...itemsAfter);
+	const secondHalfItems: CstNode[] = trailingItem ? [trailingItem, ...itemsAfter] : [...itemsAfter];
 
 	const base = orderedBaseOf(items[0]);
 	const replacement: CstNode[] = [];
