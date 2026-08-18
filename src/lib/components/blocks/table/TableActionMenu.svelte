@@ -106,13 +106,13 @@
 		const last = stops.length - 1;
 		switch (e.key) {
 			case 'ArrowDown':
-				e.preventDefault();
-				focusStop(current === -1 ? 0 : current + 1);
-				return;
 			case 'ArrowUp':
+			case 'Tab': {
 				e.preventDefault();
-				focusStop(current === -1 ? last : current - 1);
+				const back = e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey);
+				focusStop(current === -1 ? (back ? last : 0) : current + (back ? -1 : 1));
 				return;
+			}
 			case 'Home':
 				e.preventDefault();
 				focusStop(0);
@@ -120,11 +120,6 @@
 			case 'End':
 				e.preventDefault();
 				focusStop(last);
-				return;
-			case 'Tab':
-				e.preventDefault();
-				if (e.shiftKey) focusStop(current === -1 ? last : current - 1);
-				else focusStop(current === -1 ? 0 : current + 1);
 				return;
 			case 'ArrowRight':
 			case 'ArrowLeft':

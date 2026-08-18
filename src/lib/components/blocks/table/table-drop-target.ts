@@ -2,7 +2,7 @@
 // row/column boundaries in pointer space, so N tracks yield N+1 edges. The result is a
 // gap index, not the occupied cell `table-drag-hit-test` returns.
 
-function nearestEdgeIndex(pointer: number, edges: number[]): number {
+export function dropGapIndex(pointer: number, edges: number[]): number {
 	let nearest = 0;
 	let nearestDistance = Infinity;
 	for (let i = 0; i < edges.length; i++) {
@@ -14,12 +14,4 @@ function nearestEdgeIndex(pointer: number, edges: number[]): number {
 		}
 	}
 	return nearest;
-}
-
-export function rowDropIndex(pointerY: number, rowEdges: number[]): number {
-	return nearestEdgeIndex(pointerY, rowEdges);
-}
-
-export function columnDropIndex(pointerX: number, colEdges: number[]): number {
-	return nearestEdgeIndex(pointerX, colEdges);
 }

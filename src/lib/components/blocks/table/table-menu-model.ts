@@ -68,44 +68,26 @@ function clipboardGroup(hasContent: boolean): TableMenuItem[] {
 	];
 }
 
+type AxisEntry = readonly [action: TableAxisAction, label: string, enabled: boolean];
+
+function axisItems(index: number, entries: readonly AxisEntry[]): TableMenuItem[] {
+	return entries.map(([action, label, enabled]) => ({
+		kind: 'action',
+		action,
+		label,
+		enabled,
+		index
+	}));
+}
+
 function rowGroup(rowIdx: number, rowCount: number): TableMenuItem[] {
-	return [
-		{
-			kind: 'action',
-			action: 'insertRowAbove',
-			label: 'Insert row above',
-			enabled: true,
-			index: rowIdx
-		},
-		{
-			kind: 'action',
-			action: 'insertRowBelow',
-			label: 'Insert row below',
-			enabled: true,
-			index: rowIdx
-		},
-		{
-			kind: 'action',
-			action: 'moveRowUp',
-			label: 'Move row up',
-			enabled: tableRowReorderTarget(rowIdx, -1, rowCount) !== null,
-			index: rowIdx
-		},
-		{
-			kind: 'action',
-			action: 'moveRowDown',
-			label: 'Move row down',
-			enabled: tableRowReorderTarget(rowIdx, 1, rowCount) !== null,
-			index: rowIdx
-		},
-		{
-			kind: 'action',
-			action: 'deleteRow',
-			label: 'Delete row',
-			enabled: canDeleteRow(rowIdx, rowCount),
-			index: rowIdx
-		}
-	];
+	return axisItems(rowIdx, [
+		['insertRowAbove', 'Insert row above', true],
+		['insertRowBelow', 'Insert row below', true],
+		['moveRowUp', 'Move row up', tableRowReorderTarget(rowIdx, -1, rowCount) !== null],
+		['moveRowDown', 'Move row down', tableRowReorderTarget(rowIdx, 1, rowCount) !== null],
+		['deleteRow', 'Delete row', canDeleteRow(rowIdx, rowCount)]
+	]);
 }
 
 function columnGroup(
@@ -114,41 +96,21 @@ function columnGroup(
 	alignments: readonly TableAlignment[]
 ): TableMenuItem[] {
 	return [
-		{
-			kind: 'action',
-			action: 'insertColumnLeft',
-			label: 'Insert column left',
-			enabled: true,
-			index: colIdx
-		},
-		{
-			kind: 'action',
-			action: 'insertColumnRight',
-			label: 'Insert column right',
-			enabled: true,
-			index: colIdx
-		},
-		{
-			kind: 'action',
-			action: 'moveColumnLeft',
-			label: 'Move column left',
-			enabled: tableColumnReorderTarget(colIdx, -1, colCount) !== null,
-			index: colIdx
-		},
-		{
-			kind: 'action',
-			action: 'moveColumnRight',
-			label: 'Move column right',
-			enabled: tableColumnReorderTarget(colIdx, 1, colCount) !== null,
-			index: colIdx
-		},
-		{
-			kind: 'action',
-			action: 'deleteColumn',
-			label: 'Delete column',
-			enabled: canDeleteColumn(colCount),
-			index: colIdx
-		},
+		...axisItems(colIdx, [
+			['insertColumnLeft', 'Insert column left', true],
+			['insertColumnRight', 'Insert column right', true],
+			[
+				'moveColumnLeft',
+				'Move column left',
+				tableColumnReorderTarget(colIdx, -1, colCount) !== null
+			],
+			[
+				'moveColumnRight',
+				'Move column right',
+				tableColumnReorderTarget(colIdx, 1, colCount) !== null
+			],
+			['deleteColumn', 'Delete column', canDeleteColumn(colCount)]
+		]),
 		{ kind: 'alignment', current: alignments[colIdx] }
 	];
 }

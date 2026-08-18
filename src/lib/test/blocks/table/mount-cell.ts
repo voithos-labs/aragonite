@@ -105,7 +105,6 @@ export function mountCell(raw: string, policies: Partial<EditorPolicies> = {}): 
 			index: 0,
 			myPath: [0, 1, 0],
 			rowIdx: 1,
-			colIdx: 0,
 			columnCount: 2,
 			rowCount: 2,
 			slots: refSlotsOver(refs)

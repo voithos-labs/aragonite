@@ -51,8 +51,7 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 
 	const lineStarts = collectLineStarts(text, selection);
 	let newText = text;
-	let removedBeforeStart = 0;
-	let removedWithin = 0;
+	let removedTotal = 0;
 	let removedOnFirstLine = 0;
 	for (let i = lineStarts.length - 1; i >= 0; i--) {
 		const idx = lineStarts[i];
@@ -60,8 +59,7 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 		if (removed === 0) continue;
 		newText = newText.slice(0, idx) + newText.slice(idx + removed);
 		if (i === 0) removedOnFirstLine = removed;
-		if (idx < selection.start) removedBeforeStart += removed;
-		else removedWithin += removed;
+		removedTotal += removed;
 	}
 
 	const firstLineStart = lineStarts[0];
@@ -69,7 +67,7 @@ export function dedentLines(text: string, selection: Selection): IndentResult {
 		text: newText,
 		selection: {
 			start: Math.max(firstLineStart, selection.start - removedOnFirstLine),
-			end: selection.end - (removedBeforeStart + removedWithin)
+			end: selection.end - removedTotal
 		}
 	};
 }

@@ -522,7 +522,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	function onPointerDown(e: PointerEvent): void {
-		if (crossBlock.handlePointerDown(e)) return;
+		void crossBlock.handlePointerDown(e);
 	}
 
 	function onRenderPointerDown(e: PointerEvent): void {

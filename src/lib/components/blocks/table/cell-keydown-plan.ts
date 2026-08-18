@@ -4,7 +4,7 @@
  * the command dispatcher claims first: an unclaimed modified arrow must still navigate, and
  * `native` hands it to the prose prelude, which moves among siblings by index.
  */
-import { cellAbove, cellBelow, nextCell, prevCell, type CellMove } from './table-navigation';
+import { cellAbove, cellBelow, nextCell, prevCell, type CellCoord } from './table-navigation';
 
 export interface CellKeyInput {
 	key: string;
@@ -64,19 +64,11 @@ export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 	if (e.key === 'ArrowUp' && !e.shiftKey) return verticalMove(cellAbove(pos), 'up');
 	if (e.key === 'ArrowDown' && !e.shiftKey) return verticalMove(cellBelow(pos, s.rowCount), 'down');
 	if (e.key === 'Tab' && !e.shiftKey) {
-		const move = nextCell(pos, s.columnCount, s.rowCount);
-		return move.kind === 'cell'
-			? { kind: 'focus-cell', rowIdx: move.rowIdx, colIdx: move.colIdx, position: 'start' }
-			: { kind: 'insert-row-below' };
+		return orAppendRow(nextCell(pos, s.columnCount, s.rowCount));
 	}
 	if (e.key === 'Tab' && e.shiftKey)
 		return horizontalMove(prevCell(pos, s.columnCount), 'end', 'up');
-	if (e.key === 'Enter' && !e.shiftKey) {
-		const move = cellBelow(pos, s.rowCount);
-		return move.kind === 'cell'
-			? { kind: 'focus-cell', rowIdx: move.rowIdx, colIdx: move.colIdx, position: 'start' }
-			: { kind: 'insert-row-below' };
-	}
+	if (e.key === 'Enter' && !e.shiftKey) return orAppendRow(cellBelow(pos, s.rowCount));
 	if (e.key === 'Backspace' && s.offset <= s.contentStart && s.collapsed) {
 		return horizontalMove(prevCell(pos, s.columnCount), 'end', 'up');
 	}
@@ -86,18 +78,24 @@ export function cellKeydownPlan(e: CellKeyInput, s: CellKeyState): CellKeyPlan {
 	return { kind: 'native' };
 }
 
+function orAppendRow(move: CellCoord | null): CellKeyPlan {
+	return move
+		? { kind: 'focus-cell', rowIdx: move.rowIdx, colIdx: move.colIdx, position: 'start' }
+		: { kind: 'insert-row-below' };
+}
+
 function horizontalMove(
-	move: CellMove,
+	move: CellCoord | null,
 	position: 'start' | 'end',
 	exit: 'up' | 'down'
 ): CellKeyPlan {
-	return move.kind === 'cell'
+	return move
 		? { kind: 'focus-cell', rowIdx: move.rowIdx, colIdx: move.colIdx, position }
 		: { kind: 'exit', direction: exit };
 }
 
-function verticalMove(move: CellMove, exit: 'up' | 'down'): CellKeyPlan {
-	return move.kind === 'cell'
+function verticalMove(move: CellCoord | null, exit: 'up' | 'down'): CellKeyPlan {
+	return move
 		? {
 				kind: 'focus-cell',
 				rowIdx: move.rowIdx,

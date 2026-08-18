@@ -665,7 +665,7 @@
 	// ── Pointer + clipboard ─────────────────────────────────────────────
 
 	function onPointerDown(e: PointerEvent): void {
-		if (crossBlock.handlePointerDown(e)) return;
+		void crossBlock.handlePointerDown(e);
 	}
 
 	// Code has no ambient markers, so its DOM-text selection IS its raw slice: copy falls

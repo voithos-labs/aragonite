@@ -28,6 +28,12 @@
 
 	const { search } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 
+	const OPTION_TOGGLES = [
+		{ key: 'caseSensitive', glyph: 'Aa', text: SEARCH_MATCH_CASE },
+		{ key: 'wholeWord', glyph: 'W', text: SEARCH_WHOLE_WORD },
+		{ key: 'regex', glyph: '.*', text: SEARCH_REGEX }
+	] as const;
+
 	let findInput = $state<HTMLInputElement>();
 	$effect(() => {
 		if (search.isOpen) findInput?.focus();
@@ -75,34 +81,18 @@
 				onkeydown={onFindKeydown}
 				aria-label={SEARCH_FIND}
 			/>
-			<button
-				type="button"
-				class="search-tog"
-				class:on={search.options.caseSensitive}
-				title={SEARCH_MATCH_CASE}
-				aria-label={SEARCH_MATCH_CASE}
-				aria-pressed={search.options.caseSensitive}
-				onclick={() => search.setOptions({ caseSensitive: !search.options.caseSensitive })}
-				>Aa</button
-			>
-			<button
-				type="button"
-				class="search-tog"
-				class:on={search.options.wholeWord}
-				title={SEARCH_WHOLE_WORD}
-				aria-label={SEARCH_WHOLE_WORD}
-				aria-pressed={search.options.wholeWord}
-				onclick={() => search.setOptions({ wholeWord: !search.options.wholeWord })}>W</button
-			>
-			<button
-				type="button"
-				class="search-tog"
-				class:on={search.options.regex}
-				title={SEARCH_REGEX}
-				aria-label={SEARCH_REGEX}
-				aria-pressed={search.options.regex}
-				onclick={() => search.setOptions({ regex: !search.options.regex })}>.*</button
-			>
+			{#each OPTION_TOGGLES as toggle (toggle.key)}
+				<button
+					type="button"
+					class="search-tog"
+					class:on={search.options[toggle.key]}
+					title={toggle.text}
+					aria-label={toggle.text}
+					aria-pressed={search.options[toggle.key]}
+					onclick={() => search.setOptions({ [toggle.key]: !search.options[toggle.key] })}
+					>{toggle.glyph}</button
+				>
+			{/each}
 			<span class="search-count" class:error={!!search.error}>
 				{#if search.error}
 					{search.error}
