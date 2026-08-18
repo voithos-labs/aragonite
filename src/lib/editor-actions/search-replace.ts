@@ -89,7 +89,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 	/**
 	 * The one hazard the reparse cannot absorb: a substitution that breaks a container's opener
 	 * line comes back as a different kind entirely — a diagram silently becoming a plain code
-	 * block. Accepted for leaves, declined here (#41).
+	 * block. Accepted for leaves, declined here.
 	 */
 	function keepsItsKind(before: CstNode, after: CstNode[]): boolean {
 		// Only where the substitution wrote the container's OWN raw — a childless one, scanned as a

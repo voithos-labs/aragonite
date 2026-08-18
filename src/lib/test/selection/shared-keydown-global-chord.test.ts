@@ -5,10 +5,7 @@ import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 import type { FocusActions } from '$lib/action-contracts';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
-import {
-	registerGlobalCommand,
-	__resetPluginGlobalCommandsForTests
-} from '$lib/schema/global-commands';
+import { registerGlobalCommand } from '$lib/schema/global-commands';
 import {
 	__resetPluginGlobalKeymapForTests,
 	__removePluginCommandsForTests
@@ -53,7 +50,6 @@ const keydown = (over: KeyboardEventInit): KeyboardEvent =>
 	new KeyboardEvent('keydown', { cancelable: true, ...over });
 
 beforeEach(() => {
-	__resetPluginGlobalCommandsForTests();
 	__resetPluginGlobalKeymapForTests();
 	__removePluginCommandsForTests();
 	__resetMintedCommandIdsForTests();

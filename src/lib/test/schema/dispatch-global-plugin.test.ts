@@ -1,9 +1,6 @@
 import { it, expect, beforeEach } from 'vitest';
 import { dispatchKeyCommand } from '$lib/schema/block-commands';
-import {
-	registerGlobalCommand,
-	__resetPluginGlobalCommandsForTests
-} from '$lib/schema/global-commands';
+import { registerGlobalCommand } from '$lib/schema/global-commands';
 import {
 	__resetPluginGlobalKeymapForTests,
 	__removePluginCommandsForTests
@@ -12,7 +9,6 @@ import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import type { EditorContext } from '$lib/schema/plugin-install';
 
 beforeEach(() => {
-	__resetPluginGlobalCommandsForTests();
 	__resetPluginGlobalKeymapForTests();
 	__removePluginCommandsForTests();
 	__resetMintedCommandIdsForTests();

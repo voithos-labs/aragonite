@@ -3,10 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { collectReservedChords, chordIsClaimed } from '$lib/schema/reserved-chords';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import {
-	registerGlobalCommand,
-	__resetPluginGlobalCommandsForTests
-} from '$lib/schema/global-commands';
+import { registerGlobalCommand } from '$lib/schema/global-commands';
 import {
 	__resetPluginGlobalKeymapForTests,
 	__removePluginCommandsForTests
@@ -16,7 +13,6 @@ import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 registerBuiltInDescriptors();
 
 beforeEach(() => {
-	__resetPluginGlobalCommandsForTests();
 	__resetPluginGlobalKeymapForTests();
 	__removePluginCommandsForTests();
 	__resetMintedCommandIdsForTests();

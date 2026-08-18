@@ -170,7 +170,6 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 		commitMultiScope: vi.fn(),
 		getDocScope: vi.fn(),
 		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn(),
 		resolveState: getStateForNode,
 		expectState: expectStateForNode,
 		focusByPath: vi.fn()

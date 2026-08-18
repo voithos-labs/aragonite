@@ -9,7 +9,6 @@ import type {
 	FocusActions,
 	HistoryActions
 } from '../action-contracts';
-import type { UndoEntry } from '../undo/types';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { createUndoController } from './commit/undo-controller';
 import { createBlockEditActions } from './block-edit';
@@ -22,7 +21,6 @@ export interface EditorActionsBundle {
 	focus: FocusActions;
 	history: HistoryActions;
 	containerEdit: ContainerEditActions;
-	captureCurrentState(): UndoEntry;
 	controller: UndoController;
 }
 
@@ -33,9 +31,8 @@ export function createEditorActions(deps: EditorActionsDeps): EditorActionsBundl
 		focus: createFocusActions(deps, controller),
 		history: createHistoryActions(deps, controller),
 		containerEdit: createContainerEditActions(deps, controller),
-		captureCurrentState: controller.captureCurrentState,
 		controller
 	};
 }
 
-export type { ContainerScope, EditorActionsDeps, MultiScopeTarget } from './deps';
+export type { EditorActionsDeps } from './deps';

@@ -53,7 +53,7 @@ export function createContainerEditActions(
 			// The ANCESTRY settle's folds — a container's own slot in its PARENT, not the write's
 			// scope published above. Their unwind is discarded on purpose: nothing rolls back at a
 			// door that is not a ceremony. Their caret landing (`foldLandingFor`) wants a tick this
-			// synchronous door has not got, and no producer reaches one — GH #184.
+			// synchronous door has not got, and no producer reaches one.
 			const folds: AncestrySeamFold[] = [];
 			const replacements = rebuildUnsharedChain(deps.doc, chain, deps.sharing, folds, deps.grammar);
 			publishAncestryFolds(deps, folds);

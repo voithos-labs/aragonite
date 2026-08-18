@@ -22,7 +22,7 @@ export interface TextBatch {
 	 * `keystroke` because the window measures the gap the user leaves, not the gap plus the
 	 * editor's own work: armed before the settle, a keystroke whose processing approaches the
 	 * window opens a fresh batch every time and undo granularity collapses to one entry per
-	 * character (#71). A no-op with no live batch.
+	 * character. A no-op with no live batch.
 	 */
 	armPause(): void;
 	/**

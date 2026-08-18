@@ -46,7 +46,7 @@ import {
 } from './range-delete-chrome';
 
 /** Subtree roots only: one splice per covered subtree, never a child-by-child emptying. */
-export function filterToSubtreeRoots(paths: number[][]): number[][] {
+function filterToSubtreeRoots(paths: number[][]): number[][] {
 	return paths.filter((p) => !paths.some((q) => isStrictAncestorOf(q, p)));
 }
 

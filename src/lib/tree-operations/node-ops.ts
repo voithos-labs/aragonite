@@ -88,8 +88,6 @@ export type BodyParentArg = BodyParent | Document;
 export type SeparatorParent = {
 	kind?: string;
 	ownerKind?: AnyBlockKind;
-	innerPrefix?: string;
-	innerSuffix?: string;
 	suffix?: string;
 	children?: CstNode[];
 	owner?: CstNode;

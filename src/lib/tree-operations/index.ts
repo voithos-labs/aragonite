@@ -52,5 +52,3 @@ export {
 export { buildPastedReplacement } from './paste/paste-replacement';
 
 export { cloneDocument, cloneNode } from './clone';
-
-export { generateBlockId, assignIds } from '../block-id';

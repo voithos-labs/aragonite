@@ -73,36 +73,39 @@ export async function maybeCommitTableCoverageDelete(
 	// Same-path intra-table endpoints are context-established, not flagged, so they read directly.
 	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
 
-	if (coverage.kind === 'cells') return null;
-
-	if (coverage.kind === 'table') {
-		const caret = await commitFullTableDelete(ctx, start, options, caretRestore);
-		return { caret };
+	switch (coverage.kind) {
+		case 'cells':
+			return null;
+		case 'table':
+			return { caret: await commitFullTableDelete(ctx, start, options, caretRestore) };
+		case 'row': {
+			// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a silent no-op, since
+			// falling through to a cell-clear would rewrite the user's intent.
+			if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
+			const caret = await commitRowDelete(
+				ctx,
+				table,
+				start,
+				coverage.rowIdx,
+				options,
+				caretRestore
+			);
+			return { caret };
+		}
+		case 'column': {
+			// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
+			if (!canDeleteColumn(columnCount)) return { caret: null };
+			const caret = await commitColumnDelete(
+				ctx,
+				table,
+				start,
+				coverage.colIdx,
+				options,
+				caretRestore
+			);
+			return { caret };
+		}
 	}
-
-	if (coverage.kind === 'row') {
-		// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a silent no-op, since
-		// falling through to a cell-clear would rewrite the user's intent.
-		if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
-		const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx, options, caretRestore);
-		return { caret };
-	}
-
-	if (coverage.kind === 'column') {
-		// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
-		if (!canDeleteColumn(columnCount)) return { caret: null };
-		const caret = await commitColumnDelete(
-			ctx,
-			table,
-			start,
-			coverage.colIdx,
-			options,
-			caretRestore
-		);
-		return { caret };
-	}
-
-	return null;
 }
 
 async function commitFullTableDelete(

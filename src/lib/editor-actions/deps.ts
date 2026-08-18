@@ -3,7 +3,6 @@ import type { Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { BlockElLookup, PresentationModeGetter } from '../editor-keys';
-import type { EditorSelection } from '../selection/primitives';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
@@ -58,12 +57,11 @@ export interface EditorActionsDeps {
 }
 
 /**
- * The two selection-typed members added to the contracts-leaf `CommitController`.
- * They stay here so that leaf keeps no edge to `selection/` or `undo/`.
+ * The history-typed members added to the contracts-leaf `CommitController`. They stay here so
+ * that leaf keeps no edge to `undo/`.
  */
 export interface UndoController extends CommitController {
 	captureCurrentState(): UndoEntry;
-	collapsedSelectionAt(blockIndex: number, offset: number): EditorSelection;
 	/** Monotonic stamp of the last history swap. A caret landing captures it before its
 	 *  reveal and declines when it moved: the tree it was aimed at is no longer on screen. */
 	historyGeneration(): number;
