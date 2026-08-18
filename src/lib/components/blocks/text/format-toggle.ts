@@ -7,7 +7,12 @@
  * Every write clamps to the CONTENT range: a marker in `# ` or a setext underline changes the kind.
  */
 
-import { constructContentRange, parseInline, type ContentRange } from '../../../core/inline';
+import {
+	constructContentRange,
+	inlineDescendants,
+	parseInline,
+	type ContentRange
+} from '../../../core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import type { InlineMarkKind } from '../../../cursor/pending-marks';
@@ -256,16 +261,11 @@ function enclosingSpanOf(
 	format: InlineMarkKind
 ): FormatSpan | null {
 	let found: FormatSpan | null = null;
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			if (node.kind === format) {
-				const span = spanOf(node);
-				if (span && span.contentStart <= start && end <= span.contentEnd) found = span;
-			}
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(inlines);
+	for (const node of inlineDescendants(inlines)) {
+		if (node.kind !== format) continue;
+		const span = spanOf(node);
+		if (span && span.contentStart <= start && end <= span.contentEnd) found = span;
+	}
 	return found;
 }
 

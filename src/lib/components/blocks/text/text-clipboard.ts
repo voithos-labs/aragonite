@@ -18,7 +18,6 @@ import type { PasteCommitCoordinator } from '../../../tree-operations/paste/past
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
 import type { EdgeAffinityState } from '../../../cursor/edge-affinity';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import {
@@ -28,7 +27,7 @@ import {
 	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-import { resolveSelectionEdit } from './live-selection-edit';
+import { deleteRangeRaw } from './live-selection-edit';
 import type { PresentationMode } from '../../../presentation-mode';
 
 export interface TextClipboardDeps {
@@ -162,22 +161,15 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (!selOffsets) return;
 			// A cut is a delete, so it crosses the same join seam: in live the range can span
 			// delimiter runs the reader never saw, and a raw splice would print them.
-			const cleaned = resolveSelectionEdit(
+			const edit = deleteRangeRaw(
 				deps.node,
 				selOffsets,
-				'',
 				deps.getPresentationMode(),
 				deps.linkRef,
 				deps.getAmbientPrefix()
 			);
-			const displayText = trimTrailingLineEnding(deps.node.raw);
-			const newRaw =
-				cleaned?.raw ??
-				displayText.slice(0, selOffsets.start) +
-					displayText.slice(selOffsets.end) +
-					trailingLineEnding(deps.node.raw);
-			void deps.blockEdit.updateBlockContent(deps.index, newRaw, selOffsets.start);
-			deps.setPendingCursor(cleaned?.caret ?? selOffsets.start);
+			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, selOffsets.start);
+			deps.setPendingCursor(edit.caret);
 		},
 
 		pasteTail: async (pastedText, foldedCaret) => {

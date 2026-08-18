@@ -9,7 +9,11 @@
 import type { NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { InlineResolverRef } from '../../../schema/inline-construct-policy';
-import { snapToScalarBoundary } from '../../../core/lines';
+import {
+	snapToScalarBoundary,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '../../../core/lines';
 import { cleanJoinedRaw } from '../../../tree-operations/node-ops';
 
 export interface SelectionEdit {
@@ -26,9 +30,14 @@ export interface LiveEditCursor {
 
 /** Rewrite the block's bytes, or SWALLOW the press: an input this seam owns whose payload it may
  *  not read writes nothing, since the engine's version would splice the hidden runs literally. */
-export type LiveRangeEdit =
-	| { kind: 'rewrite'; range: { start: number; end: number }; raw: string; caret: number }
-	| { kind: 'swallow' };
+export type LiveRangeEdit = LiveRangeRewrite | { kind: 'swallow' };
+
+export interface LiveRangeRewrite {
+	kind: 'rewrite';
+	range: { start: number; end: number };
+	raw: string;
+	caret: number;
+}
 
 /**
  * What a prose surface does with a `beforeinput` in live mode. Null wherever the press is not this
@@ -59,6 +68,29 @@ export function resolveLiveRangeEdit(
 	return insert === null
 		? { kind: 'swallow' }
 		: { kind: 'rewrite', range, raw: edit.raw, caret: edit.caret };
+}
+
+/**
+ * The whole surface arm around {@link resolveLiveRangeEdit}: stand down while a source reveal has
+ * outrun the CST, resolve, preventDefault what the seam owns, then swallow or hand the rewrite to
+ * the surface's own `commit`. Shared so a new precondition lands on every surface at once.
+ */
+export function applyLiveRangeEdit(
+	e: InputEvent,
+	node: NodeView,
+	cursor: LiveEditCursor,
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined,
+	ambientPrefix: string,
+	isRevealing: () => boolean,
+	commit: (edit: LiveRangeRewrite) => void
+): boolean {
+	if (isRevealing()) return false;
+	const edit = resolveLiveRangeEdit(e, node, cursor, presentationMode, linkRef, ambientPrefix);
+	if (!edit) return false;
+	e.preventDefault();
+	if (edit.kind === 'rewrite') commit(edit);
+	return true;
 }
 
 /**
@@ -100,6 +132,25 @@ export function resolveSelectionEdit(
 	return {
 		raw: joined.raw.slice(0, joined.seam) + typed + joined.raw.slice(joined.seam),
 		caret: joined.seam + typed.length
+	};
+}
+
+/** The delete of `[start, end)` a destructive gesture installs: the seam's cleaned rewrite where
+ *  it has one, else the literal display splice with the caret at the cut — the fallback's one
+ *  home, so no arm carrying it can drift. */
+export function deleteRangeRaw(
+	node: NodeView,
+	range: { start: number; end: number },
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined,
+	ambientPrefix: string
+): SelectionEdit {
+	const cleaned = resolveSelectionEdit(node, range, '', presentationMode, linkRef, ambientPrefix);
+	if (cleaned) return cleaned;
+	const display = trimTrailingLineEnding(node.raw);
+	return {
+		raw: display.slice(0, range.start) + display.slice(range.end) + trailingLineEnding(node.raw),
+		caret: range.start
 	};
 }
 

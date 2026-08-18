@@ -21,7 +21,8 @@ const READS_INLINE_POLICY =
 
 const SEAM_HOME = 'src/lib/components/blocks/text/live-selection-edit.ts';
 
-const ROUTES_THROUGH_SEAM = /(?<![\w.])resolveLiveRangeEdit\s*\(/;
+// Either door into the seam: the resolver itself, or the shared surface arm wrapping it.
+const ROUTES_THROUGH_SEAM = /(?<![\w.])(?:resolveLiveRangeEdit|applyLiveRangeEdit)\s*\(/;
 
 const callsSeam = (file: SourceFile): boolean =>
 	file.relPath !== SEAM_HOME && ROUTES_THROUGH_SEAM.test(stripComments(file.text));

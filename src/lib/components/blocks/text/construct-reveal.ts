@@ -13,14 +13,12 @@ import type { LinkReferenceResolverRef } from '../../../editor-keys';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
 import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
-import { domTextOffsetAtNode } from '../../../cursor/widget-offset';
+import { CONSTRUCT_REVEAL_CLASS, domTextOffsetAtNode } from '../../../cursor/widget-offset';
 import {
 	isInteractionTraceEnabled,
 	traceRevealOpen,
 	traceRevealFold
 } from '../../../debug/interaction-trace';
-
-export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
 
 // ── Chain math (pure) ────────────────────────────────────────────────────────
 

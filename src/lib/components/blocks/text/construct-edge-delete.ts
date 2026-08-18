@@ -7,12 +7,10 @@
 
 import {
 	constructContentRange,
-	getContentRange,
-	isProseKind,
+	inlineDescendants,
 	parseInline,
 	type ContentRange
 } from '../../../core/inline';
-import { parse } from '../../../core/parser';
 import {
 	CONTENT_VISIBILITY,
 	renderedText,
@@ -20,7 +18,7 @@ import {
 } from '../../../core/inline/visibility';
 import type { InlineNode } from '../../../core/nodes';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
-import { removesExactly } from './screen-diff';
+import { removesExactly, soleProseReparse } from './screen-diff';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -207,20 +205,15 @@ interface PolicyConstruct {
  *  ordinary content, which is what native already treats them as. */
 function policyConstructs(inlines: readonly InlineNode[]): PolicyConstruct[] {
 	const found: PolicyConstruct[] = [];
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			const policy = getInlineConstructPolicy(node.kind);
-			if (policy) {
-				found.push({
-					node,
-					content: constructContentRange(node),
-					autoUnwrapOnEmpty: policy.autoUnwrapOnEmpty
-				});
-			}
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(inlines);
+	for (const node of inlineDescendants(inlines)) {
+		const policy = getInlineConstructPolicy(node.kind);
+		if (!policy) continue;
+		found.push({
+			node,
+			content: constructContentRange(node),
+			autoUnwrapOnEmpty: policy.autoUnwrapOnEmpty
+		});
+	}
 	return found;
 }
 
@@ -253,13 +246,7 @@ function visibleText(raw: string, surface: EdgeDeletionSurface): string | null {
 	if (raw === '') return '';
 	// A candidate that re-reads as another block is not what the caller is about to install: a cut
 	// can abut two literal runs into a fence opener, which on reload swallows every block below.
-	const blocks = parse(raw, { scope: 'fragment' }).children;
-	if (blocks.length !== 1 || !isProseKind(blocks[0].kind)) return null;
-	const block = blocks[0];
-	const range = getContentRange(block);
-	return renderedText(
-		parseInline(block.raw, range.start, range.end),
-		block.raw,
-		CONTENT_VISIBILITY
-	);
+	const sole = soleProseReparse(raw);
+	if (sole === null) return null;
+	return renderedText(sole.nodes, sole.block.raw, CONTENT_VISIBILITY);
 }

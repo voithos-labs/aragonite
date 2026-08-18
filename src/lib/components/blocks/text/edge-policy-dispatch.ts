@@ -35,7 +35,7 @@ import {
 } from './construct-edge-delete';
 import { hidesStructuralSuffix } from './hidden-suffix';
 import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
-import { resolveSelectionEdit } from './live-selection-edit';
+import { deleteRangeRaw } from './live-selection-edit';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
 
@@ -167,7 +167,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			id: 'ambient-marker',
 			reason:
 				'a selection into the ambient span blocks native delete silently, with no beforeinput',
-			claims: (e) => handleAmbient(e)
+			claims: handleAmbient
 		},
 		// The four below claim only what would otherwise reach native editing or the block-merge
 		// command; the more specific families above still own a key aimed at one of theirs.
@@ -493,21 +493,15 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (range && range.start < range.end) {
 			// Consumed at KEYDOWN, so no `beforeinput` carries this range to the shared seam: the arm
 			// asks it here, or a literal splice prints the runs the cut stranded (live-mode.md § 4.5).
-			const cleaned = resolveSelectionEdit(
+			const edit = deleteRangeRaw(
 				deps.node,
 				range,
-				'',
 				joinSeamMode(el),
 				deps.linkRef,
 				deps.getAmbientPrefix?.() ?? ''
 			);
-			const shown = display();
-			const newRaw =
-				cleaned?.raw ??
-				shown.slice(0, range.start) + shown.slice(range.end) + trailingLineEnding(deps.node.raw);
-			const caret = cleaned?.caret ?? range.start;
-			void deps.blockEdit.updateBlockContent(deps.index, newRaw, range.start, caret);
-			deps.setPendingCursor(caret, 'ambient-delete');
+			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, range.start, edit.caret);
+			deps.setPendingCursor(edit.caret, 'ambient-delete');
 		}
 		return true;
 	}
@@ -524,13 +518,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (e.shiftKey || hasModifier(e)) return false;
 		if (caretOffset === null || hasSelectionHelper()) return false;
 		if (caretOffset !== getContentRange(deps.node).end) return false;
-		return hidesStructuralSuffix(deps.getEl(), deps.node, display().length) && preventing(e);
-	}
-
-	const preventing = (e: KeyboardEvent): true => {
+		if (!hidesStructuralSuffix(deps.getEl(), deps.node, display().length)) return false;
 		e.preventDefault();
 		return true;
-	};
+	}
 
 	// ── Hidden construct edge (the destructive arm) ────────────────────────────
 

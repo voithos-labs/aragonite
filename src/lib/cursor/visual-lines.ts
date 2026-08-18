@@ -12,12 +12,8 @@ import { isHiddenMarkerText } from './widget-offset';
 // sub-line, so sub/superscript or inline-image jitter doesn't read as a different line.
 const SAME_LINE_TOLERANCE = 0.8;
 
-/**
- * The first rect that can position a caret: the leading client rect when it has real
- * height, else the bounding rect. `widthTolerant` also accepts a zero-height rect with
- * width; only `getRangeTop` passes false, keeping its test-pinned "null on a zero-height
- * rect" contract (behavior-neutral — its collapsed-caret inputs never produce that shape).
- */
+/** The first rect that can position a caret: the leading client rect when it has real
+ *  height, else the bounding rect. `widthTolerant` also accepts a zero-height rect with width. */
 export function firstUsefulRect(range: Range, widthTolerant = true): DOMRect | null {
 	const rects = range.getClientRects();
 	if (rects.length > 0 && rects[0].height > 0) return rects[0] as DOMRect;
@@ -51,11 +47,11 @@ export function getCharRangeTop(container: Node, offset: number, atEnd: boolean)
 /** Skips non-text children (dimmed marker spans) that would otherwise leave the block's
  *  first line unmeasurable, and hidden marker text, which measures to no rect at all. */
 export function findFirstTextNode(root: Node): Text | null {
-	return firstMeasurableText(root, containerOf(root));
+	return measurableText(root, containerOf(root), false);
 }
 
 export function findLastTextNode(root: Node): Text | null {
-	return lastMeasurableText(root, containerOf(root));
+	return measurableText(root, containerOf(root), true);
 }
 
 /**
@@ -70,35 +66,14 @@ export function isAtFirstVisualLine(
 	fallbackOffset: number,
 	contentStart: number
 ): boolean {
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return fallbackOffset <= contentStart;
-	if ((el.textContent ?? '').length === 0) return true;
-
-	const cursorRange = sel.getRangeAt(0);
-	const cursorTop = getRangeTop(cursorRange);
-
-	if (cursorTop === null && cursorRange.collapsed) {
-		return fallbackOffset <= contentStart;
-	}
-	if (cursorTop === null) return true;
-
-	const firstText = findFirstTextNode(el);
-	let startTop: number | null = null;
-	if (firstText) {
-		startTop = getCharRangeTop(firstText, 0, false);
-	}
-	if (startTop === null) {
-		const startRange = document.createRange();
-		startRange.selectNodeContents(el);
-		startRange.collapse(true);
-		startTop = getRangeTop(startRange);
-	}
-	if (startTop === null) {
-		return fallbackOffset <= contentStart;
-	}
-
-	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
-	return Math.abs(cursorTop - startTop) < lineHeight * SAME_LINE_TOLERANCE;
+	return isAtEdgeVisualLine(el, () => fallbackOffset <= contentStart, {
+		isEmpty: (el.textContent ?? '').length === 0,
+		boundaryTop: () => {
+			const firstText = findFirstTextNode(el);
+			const top = firstText ? getCharRangeTop(firstText, 0, false) : null;
+			return top ?? collapsedContentsTop(el, true);
+		}
+	});
 }
 
 export function isAtLastVisualLine(
@@ -106,63 +81,62 @@ export function isAtLastVisualLine(
 	fallbackOffset: number,
 	contentEnd: number
 ): boolean {
-	const sel = window.getSelection();
-	// See isAtFirstVisualLine — a dropped range resolves via the snapped fallback.
-	if (!sel || sel.rangeCount === 0) return fallbackOffset >= contentEnd;
-	if (contentEnd === 0) return true;
-
-	const cursorRange = sel.getRangeAt(0);
-	const cursorTop = getRangeTop(cursorRange);
-
-	if (cursorTop === null && cursorRange.collapsed) {
-		return fallbackOffset >= contentEnd;
-	}
-	if (cursorTop === null) return true;
-
-	const lastText = findLastTextNode(el);
-	let endTop: number | null = null;
-	if (lastText) {
-		const len = lastText.textContent!.length;
-		endTop = getCharRangeTop(lastText, len, true);
-	}
-	if (endTop === null) {
-		const endRange = document.createRange();
-		endRange.selectNodeContents(el);
-		endRange.collapse(false);
-		endTop = getRangeTop(endRange);
-	}
-	if (endTop === null) {
-		return fallbackOffset >= contentEnd;
-	}
-
-	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
-	return Math.abs(cursorTop - endTop) < lineHeight * SAME_LINE_TOLERANCE;
+	return isAtEdgeVisualLine(el, () => fallbackOffset >= contentEnd, {
+		isEmpty: contentEnd === 0,
+		boundaryTop: () => {
+			const lastText = findLastTextNode(el);
+			const top = lastText ? getCharRangeTop(lastText, lastText.textContent!.length, true) : null;
+			return top ?? collapsedContentsTop(el, false);
+		}
+	});
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+/** The shared skeleton of the two edge predicates: `fallback` answers where geometry cannot — a
+ *  dropped range, an unmeasurable collapsed caret, an unmeasurable boundary line — and
+ *  `boundaryTop` measures the edge line each side's own way. */
+function isAtEdgeVisualLine(
+	el: HTMLElement,
+	fallback: () => boolean,
+	edge: { isEmpty: boolean; boundaryTop: () => number | null }
+): boolean {
+	const sel = window.getSelection();
+	if (!sel || sel.rangeCount === 0) return fallback();
+	if (edge.isEmpty) return true;
+
+	const cursorRange = sel.getRangeAt(0);
+	const cursorTop = getRangeTop(cursorRange);
+	if (cursorTop === null) return cursorRange.collapsed ? fallback() : true;
+
+	const edgeTop = edge.boundaryTop();
+	if (edgeTop === null) return fallback();
+
+	const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || FALLBACK_LINE_HEIGHT;
+	return Math.abs(cursorTop - edgeTop) < lineHeight * SAME_LINE_TOLERANCE;
+}
+
+/** The boundary line's collapsed-contents fallback measurement. */
+function collapsedContentsTop(el: HTMLElement, toStart: boolean): number | null {
+	const range = document.createRange();
+	range.selectNodeContents(el);
+	range.collapse(toStart);
+	return getRangeTop(range);
+}
 
 /** Hidden-run classification needs the walk container; a bare text-node root has none. */
 function containerOf(root: Node): HTMLElement | null {
 	return root instanceof HTMLElement ? root : null;
 }
 
-function firstMeasurableText(node: Node, container: HTMLElement | null): Text | null {
+function measurableText(node: Node, container: HTMLElement | null, fromEnd: boolean): Text | null {
 	if (node.nodeType === Node.TEXT_NODE) {
 		return isMeasurableText(node as Text, container) ? (node as Text) : null;
 	}
-	for (let i = 0; i < node.childNodes.length; i++) {
-		const found = firstMeasurableText(node.childNodes[i], container);
-		if (found) return found;
-	}
-	return null;
-}
-
-function lastMeasurableText(node: Node, container: HTMLElement | null): Text | null {
-	if (node.nodeType === Node.TEXT_NODE) {
-		return isMeasurableText(node as Text, container) ? (node as Text) : null;
-	}
-	for (let i = node.childNodes.length - 1; i >= 0; i--) {
-		const found = lastMeasurableText(node.childNodes[i], container);
+	const children = node.childNodes;
+	for (let i = 0; i < children.length; i++) {
+		const child = children[fromEnd ? children.length - 1 - i : i];
+		const found = measurableText(child, container, fromEnd);
 		if (found) return found;
 	}
 	return null;

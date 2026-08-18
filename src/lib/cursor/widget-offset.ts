@@ -21,7 +21,12 @@ import {
 	type MarkerFamily,
 	type VisibilityContext
 } from '../core/inline/visibility';
-import { asDomTextOffset, toClampedRawOffset, type DomTextOffset } from './coordinate-spaces';
+import {
+	asDomTextOffset,
+	toClampedRawOffset,
+	type DomTextOffset,
+	type RawOffset
+} from './coordinate-spaces';
 
 const WIDGET_SELECTOR = '[data-inline-widget]';
 
@@ -29,6 +34,10 @@ const WIDGET_SELECTOR = '[data-inline-widget]';
  *  holds. Both consumers of the hiding rule — this walk and `styles/editor.css` — read it.
  *  Written in every mode on purpose: it is a content fact, so a flip never finds it stale. */
 export const CONTENT_EMPTY_ATTR = 'data-content-empty';
+
+/** The class the preview-inline reveal trigger stamps and this walk's hiding rule reads. One home,
+ *  so the stamping and classifying sides cannot drift. */
+export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
 
 /**
  * Walk-space offset of a live `(node, offset)` DOM position. A position inside an atomic
@@ -68,6 +77,14 @@ export function domTextOffsetAtNode(
 		total = seg.start + seg.len;
 	}
 	return asDomTextOffset(total);
+}
+
+/** Raw offset of the live selection's focus inside `el` through the walk above, or null when
+ *  there is no selection or its focus is anchored outside `el`. */
+export function selectionFocusWalkOffset(el: HTMLElement, ambientLength: number): RawOffset | null {
+	const sel = window.getSelection();
+	if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
+	return toClampedRawOffset(domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset), ambientLength);
 }
 
 export interface DomPosition {
@@ -384,7 +401,6 @@ export function isAtomicInlineWidget(node: Node): boolean {
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
 const FOCUSED_HOST_SELECTOR = '.block-host[data-focused]';
 
 /** The editor root's effective mode when it hides markers; null in source mode, which
