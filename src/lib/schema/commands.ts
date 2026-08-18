@@ -222,9 +222,7 @@ export function assertPluginGlobalChordAvailable(
 			`plugin global chord "${rawChord}" is reserved by the editor UI (search) — pick another chord`
 		);
 	}
-	const collision =
-		GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ??
-		pluginGlobalKeymap.find((b) => normalizeChord(b.chord) === chord);
+	const collision = builtinGlobalBinding(chord);
 	if (collision) {
 		if (devReplacesRegistration() && collision.command === candidateCommand) return;
 		throw new Error(
@@ -244,7 +242,7 @@ export function registerPluginGlobalBinding(binding: KeyBinding): void {
 }
 
 export function pluginGlobalBinding(chord: string): KeyBinding | null {
-	return pluginGlobalKeymap.find((b) => normalizeChord(b.chord) === chord) ?? null;
+	return findByChord(pluginGlobalKeymap, chord);
 }
 
 /** Every chord the plugin-global tier binds right now. Registration is process-global, so
@@ -257,9 +255,16 @@ export function __resetPluginGlobalKeymapForTests(): void {
 	pluginGlobalKeymap.length = 0;
 }
 
+/** First binding in `bindings` whose chord normalizes to the already-normalized `chord`. */
+function findByChord(
+	bindings: readonly KeyBinding[] | undefined,
+	chord: string
+): KeyBinding | null {
+	return bindings?.find((b) => normalizeChord(b.chord) === chord) ?? null;
+}
+
 function builtinKindBinding(chord: string, kind: AnyBlockKind): KeyBinding | null {
-	const keymap = tryGetBlockKindDescriptor(kind)?.keymap;
-	return keymap?.find((b) => normalizeChord(b.chord) === chord) ?? null;
+	return findByChord(tryGetBlockKindDescriptor(kind)?.keymap, chord);
 }
 
 /**
@@ -279,7 +284,7 @@ function overrideTier(
 /** The built-in global keymap tier, then the plugin-global tier — the shared tail of
  *  leaf resolution and both global-only resolvers. */
 function builtinGlobalBinding(chord: string): KeyBinding | null {
-	return GLOBAL_KEYMAP.find((b) => normalizeChord(b.chord) === chord) ?? pluginGlobalBinding(chord);
+	return findByChord(GLOBAL_KEYMAP, chord) ?? pluginGlobalBinding(chord);
 }
 
 /**

@@ -30,6 +30,7 @@ import { orderedBaseOf, readOrderedSuffix } from '../list/list-builders';
 import { spliceTerminatedItems } from '../list/terminator';
 import type { PasteDispatchContext } from './dispatch';
 import type { MultiScopeTarget } from './paste-deps';
+import type { SharingState } from '../sharing';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 
 interface ContainerUnwrap {
@@ -171,10 +172,14 @@ export async function applyContainerMatchingPaste(
 	normalizePastedListMarkers(unwrap.items, outer);
 	renumberPastedOrderedMarkers(unwrap.items, outer, unwrap.spliceIndex);
 
+	const snapshot =
+		ctx.undoEntry === 'join'
+			? ('skip' as const)
+			: { path: docPathFrom(unwrap.outerPath), offset: 0 };
+
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot:
-			ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(unwrap.outerPath), offset: 0 },
+		snapshot,
 		mutate: ([scopeView]) => {
 			spliceTerminatedItems(scopeView.children, unwrap.spliceIndex, 1, unwrap.items);
 			const change: StructuralChange = {
@@ -240,16 +245,23 @@ async function applyContainerMatchingMerge(
 	normalizePastedListMarkers(remainingItems, outer);
 	renumberPastedOrderedMarkers(remainingItems, outer, unwrap.spliceIndex + 1);
 
+	const snapshot =
+		ctx.undoEntry === 'join'
+			? ('skip' as const)
+			: { path: docPathFrom(unwrap.outerPath), offset: 0 };
+	/** The merged leaf sits BELOW the scope node — own its full spine. */
+	const ownMergedLeafSpine = (sharing: SharingState) => {
+		const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
+		return { chain, ownedLeaf: chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing) };
+	};
+
 	if (remainingItems.length === 0) {
 		await ctx.controller.commitMultiScope({
 			scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-			snapshot:
-				ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(unwrap.outerPath), offset: 0 },
+			snapshot,
 			mutate: ([scopeView]) => {
 				const sharing = scopeView.sharing;
-				// The merged leaf sits BELOW the scope node — own its full spine.
-				const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
-				const ownedLeaf = chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing);
+				const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
 				writeOwnRaw(
 					ownedLeaf,
 					displayBefore + firstItemText + displayAfter + targetLineEnding,
@@ -278,13 +290,10 @@ async function applyContainerMatchingMerge(
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: unwrap.outerPath }],
-		snapshot:
-			ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(unwrap.outerPath), offset: 0 },
+		snapshot,
 		mutate: ([scopeView]) => {
 			const sharing = scopeView.sharing;
-			// The merged leaf sits BELOW the scope node — own its full spine.
-			const chain = ensureUnsharedPath(ctx.doc, merge.targetLeafPath, sharing);
-			const ownedLeaf = chain[chain.length - 1] ?? ensureUnsharedNode(targetLeaf, sharing);
+			const { chain, ownedLeaf } = ownMergedLeafSpine(sharing);
 			writeOwnRaw(ownedLeaf, displayBefore + firstItemText + targetLineEnding, ctx.grammar);
 			// The residue can cross a kind boundary (a fence closer landing in a paragraph),
 			// so it reattaches through the reparse funnel, never a bare write.

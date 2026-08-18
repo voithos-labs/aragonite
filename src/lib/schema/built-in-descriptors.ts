@@ -110,7 +110,7 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 // ── Closure blocks ────────────────────────────────────────────────────────────
 
 // Shared by the not-mergeable, non-inline raw-text leaves — byte-identical rows, hoisted rather
-// than triplicated. fencedCode and unrecognized diverge, so they stay inline.
+// than triplicated. fencedCode diverges too widely to spread, so it stays inline.
 const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 	roundTrip: { mode: 'inherit-default' },
 	focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
@@ -472,17 +472,12 @@ export function registerBuiltInDescriptors(): void {
 		// No conformanceFixture: it is the reserved fallback for content no opener claimed, so a
 		// document scan never yields it in isolation.
 		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
+			...RAW_TEXT_LEAF_CLOSURE,
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=self-merge — concatenates with an adjacent unrecognized block'
 			},
-			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
 			searchPaint: { mode: 'implemented', via: 'raw scanned; matches painted as marks' },
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
 			simOracle: { mode: 'inherit-default' }
 		}
 	});

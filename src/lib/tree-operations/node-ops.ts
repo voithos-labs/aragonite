@@ -23,6 +23,7 @@ import type { PresentationMode } from '../presentation-mode';
 import {
 	displayLength,
 	snapToScalarBoundary,
+	terminateLine,
 	trailingLineEnding,
 	trimTrailingLineEnding
 } from '../core/lines';
@@ -248,13 +249,8 @@ export function splitNode(
 	let firstRaw = forBody(parent, suffixSplit ? suffixSplit.firstRaw : rawText.slice(0, cut));
 	let secondRaw = forBody(parent, suffixSplit ? suffixSplit.secondRaw : rawText.slice(cut));
 
-	if (!firstRaw.endsWith('\n')) {
-		firstRaw += lineEnding;
-	}
-
-	if (!secondRaw.endsWith('\n')) {
-		secondRaw += lineEnding;
-	}
+	firstRaw = terminateLine(firstRaw, rawText);
+	secondRaw = terminateLine(secondRaw, rawText);
 
 	// Live alone rebalances: there the delimiters around the cut are unpainted, so a byte-literal
 	// half would surface runs the reader never saw. The rebalancer verifies its own bytes and
@@ -266,8 +262,8 @@ export function splitNode(
 			secondRaw = rebalanced.secondRaw;
 			// The rewrite verifies its halves STANDALONE, where a missing final ending is
 			// legal; at the seam the halves would share a line and rejoin on reload.
-			if (!firstRaw.endsWith('\n')) firstRaw += lineEnding;
-			if (!secondRaw.endsWith('\n')) secondRaw += lineEnding;
+			firstRaw = terminateLine(firstRaw, rawText);
+			secondRaw = terminateLine(secondRaw, rawText);
 		}
 	}
 
@@ -591,6 +587,20 @@ function mergedLeafFor(
 	return blocks.length > 1 ? null : { written, blocks };
 }
 
+/**
+ * Refresh a node in place from its own reparse, keeping its object identity. The id resync is
+ * unconditional: the reparse can change the child count while the caller reports `noop`, and the
+ * fresh children carry no `childIds` of their own.
+ */
+function adoptReparsedFields(target: CstNode, parsed: CstNode | undefined): void {
+	target.metadata = parsed?.metadata;
+	target.children = parsed?.children;
+	resyncChildIds(target);
+	assignChildIdsDeep(target);
+	target.innerPrefix = parsed?.innerPrefix;
+	target.innerSuffix = parsed?.innerSuffix;
+}
+
 /** {@link mergedLeafFor}'s write, over the unshared spine the verdict was taken ahead of. */
 function installMergedLeaf(
 	holderChildren: CstNode[],
@@ -614,13 +624,7 @@ function installMergedLeaf(
 	}
 	target.raw = written;
 	if (!parsed) return;
-	target.metadata = parsed.metadata;
-	target.children = parsed.children;
-	resyncChildIds(target);
-	// The reparsed children are fresh nodes, so their own containers carry no `childIds`.
-	assignChildIdsDeep(target);
-	target.innerPrefix = parsed.innerPrefix;
-	target.innerSuffix = parsed.innerSuffix;
+	adoptReparsedFields(target, parsed);
 }
 
 /**
@@ -786,15 +790,10 @@ export function settleSeparatorOnBlank(
 	// Under the wrap the run keeps exactly the one peel line — in `innerPrefix` or still
 	// standing; elsewhere a run with no LINE above it (the document head, a plain container's
 	// body head) separates from nothing and materializes in full.
-	const wanted = twoPeelBody
-		? 0
-		: headUnderWrap
-			? slots?.innerPrefix
-				? 0
-				: 1
-			: start > 0 || wrap?.afterOpenerLine
-				? 1
-				: 0;
+	let wanted: number;
+	if (twoPeelBody) wanted = 0;
+	else if (headUnderWrap) wanted = slots?.innerPrefix ? 0 : 1;
+	else wanted = start > 0 || wrap?.afterOpenerLine ? 1 : 0;
 	if (standing.length < wanted) {
 		mintSeparator(parent, start, sharing);
 	} else {
@@ -1040,9 +1039,7 @@ function absorbSeamReading(
 		if (window.some((node) => tryGetBlockKindDescriptor(node.kind)?.contextDependentKind)) break;
 		if (probe !== undefined && declinesOnHeadLine(window, probe - at)) break;
 		probe = undefined;
-		let joined = window[0].raw;
-		for (let i = 1; i < window.length; i++) joined += window[i].leadingTrivia + window[i].raw;
-		const reparsed = parse(joined, { scope: 'fragment' });
+		const reparsed = parse(joinedWindowBytes(window, window.length), { scope: 'fragment' });
 		const blocks = reparsed.children;
 		if (blocks.length === 0 || blocks.length >= window.length) break;
 		// A legitimate fold EXTENDS the window's head block, so its kind survives its own
@@ -1075,12 +1072,21 @@ function absorbSeamReading(
  */
 function declinesOnHeadLine(window: readonly CstNode[], member: number): boolean {
 	if (member <= 0 || member !== window.length - 1) return false;
-	let joined = window[0].raw;
-	for (let i = 1; i < member; i++) joined += window[i].leadingTrivia + window[i].raw;
 	const raw = window[member].raw;
 	const nl = raw.indexOf('\n');
-	joined += window[member].leadingTrivia + (nl < 0 ? raw : raw.slice(0, nl + 1));
+	const joined =
+		joinedWindowBytes(window, member) +
+		window[member].leadingTrivia +
+		(nl < 0 ? raw : raw.slice(0, nl + 1));
 	return parse(joined, { scope: 'fragment' }).children.length >= window.length;
+}
+
+/** How a fold reads a window: the head's raw, then each of the next `count - 1` members'
+ *  leading trivia and raw. */
+function joinedWindowBytes(window: readonly CstNode[], count: number): string {
+	let joined = window[0].raw;
+	for (let i = 1; i < count; i++) joined += window[i].leadingTrivia + window[i].raw;
+	return joined;
 }
 
 /**
@@ -1099,7 +1105,7 @@ function retrackThroughFold(
 		tracked.index -= window.length - blocks.length;
 		return;
 	}
-	// The window joins as `window[0].raw` then each follower's trivia and raw.
+	// The offset walk mirrors {@link joinedWindowBytes}.
 	let joined = tracked.offset;
 	for (let i = 0; i < member; i++) {
 		joined += (i === 0 ? 0 : window[i].leadingTrivia.length) + window[i].raw.length;
@@ -1622,15 +1628,7 @@ function writeParsedContent(
 	// cache are all keyed on it.
 	if (newKind === oldKind) {
 		node.raw = newText;
-		node.metadata = first?.metadata;
-		node.children = first?.children;
-		// The reparse can change the child count while this branch reports `noop`, so
-		// nothing downstream resyncs the parallel id array — and a wrong length is permanent.
-		resyncChildIds(node);
-		// The reparsed children are fresh nodes, so their own containers carry no `childIds`.
-		assignChildIdsDeep(node);
-		node.innerPrefix = first?.innerPrefix;
-		node.innerSuffix = first?.innerSuffix;
+		adoptReparsedFields(node, first);
 		if (firstBackfilled) reconcileBackfilledRaw(node);
 		return { op: 'noop' };
 	}

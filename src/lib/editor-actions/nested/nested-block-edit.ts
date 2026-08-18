@@ -20,7 +20,7 @@ import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { assertInvariant } from '../../assert';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
-import { createContainerScope } from '../block-edit-scope';
+import { createContainerScope, scopeParentOf } from '../block-edit-scope';
 import { createBlockEditCore } from '../block-edit-core';
 import { previewContentReparse, focusAfterContentReplace } from '../replacement-focus';
 import { extendDocPath } from '../../cursor/coordinate-spaces';
@@ -173,7 +173,7 @@ export function createNestedBlockEdit(
 				mutate: (scope) => {
 					ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
 					settled = performUpdate(
-						{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
+						scopeParentOf(scope),
 						innerIndex,
 						text,
 						deps.grammar,

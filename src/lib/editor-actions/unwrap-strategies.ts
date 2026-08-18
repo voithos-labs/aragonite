@@ -17,11 +17,33 @@ import {
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import { mergedElseFocusPrevious } from './merge-fallback';
+import { scopeParentOf } from './block-edit-scope';
 import { extendDocPath } from '../cursor/coordinate-spaces';
 
 export interface UnwrapStrategyDeps {
 	deps: NestedActionsDeps;
 	state: BlockListState;
+}
+
+/** Drop a user-empty item and renumber from its slot; `land` seats the caret the strategy chose. */
+async function deleteEmptyItem(
+	{ deps, state }: UnwrapStrategyDeps,
+	itemIndex: number,
+	land: () => void
+): Promise<void> {
+	await deps.parent.containerEdit.commitContainer({
+		containerNode: deps.node,
+		path: deps.path,
+		state,
+		snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
+		mutate: (scope) => {
+			const change = performDelete(scopeParentOf(scope), itemIndex, scope.sharing);
+			renumberOrderedList(scope.node, itemIndex, scope.sharing);
+			return change;
+		},
+		op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
+		afterTick: land
+	});
 }
 
 // ── First-child strategies ──────────────────────────────────────────────────
@@ -39,7 +61,8 @@ async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
 }
 
 /** List first-item cascade: nested promote / empty delete / empty-sole delete-list / Rule U1. */
-async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promise<void> {
+async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void> {
+	const { deps, state } = strategy;
 	const node = deps.node;
 	const index = deps.index;
 	if (!node.children) return;
@@ -57,24 +80,8 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 	const firstChildEmpty = isItemUserEmpty(item);
 
 	if (firstChildEmpty && node.children.length > 1) {
-		await deps.parent.containerEdit.commitContainer({
-			containerNode: node,
-			path: deps.path,
-			state,
-			snapshot: { path: extendDocPath(deps.path, 0), offset: 0 },
-			mutate: (scope) => {
-				const change = performDelete(
-					{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
-					0,
-					scope.sharing
-				);
-				renumberOrderedList(scope.node, 0, scope.sharing);
-				return change;
-			},
-			op: { kind: 'delete', eventPath: extendDocPath(deps.path, 0) },
-			afterTick: () => {
-				state.innerBlockRefs[0]?.focus(CURSOR_START);
-			}
+		await deleteEmptyItem(strategy, 0, () => {
+			state.innerBlockRefs[0]?.focus(CURSOR_START);
 		});
 	} else if (firstChildEmpty && node.children.length === 1) {
 		await deps.parent.blockEdit.deleteBlock(index);
@@ -93,32 +100,17 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 
 /** List middle-item: empty delete+renumber, else Rule M1 merge into deepest text above. */
 async function listItemCascadeMiddle(
-	{ deps, state }: UnwrapStrategyDeps,
+	strategy: UnwrapStrategyDeps,
 	itemIndex: number
 ): Promise<void> {
+	const { deps, state } = strategy;
 	const node = deps.node;
 	if (!node.children) return;
 
 	const item = node.children[itemIndex];
 	if (isItemUserEmpty(item)) {
-		await deps.parent.containerEdit.commitContainer({
-			containerNode: node,
-			path: deps.path,
-			state,
-			snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
-			mutate: (scope) => {
-				const change = performDelete(
-					{ children: scope.children, ownerKind: scope.node.kind, owner: scope.node },
-					itemIndex,
-					scope.sharing
-				);
-				renumberOrderedList(scope.node, itemIndex, scope.sharing);
-				return change;
-			},
-			op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
-			afterTick: () => {
-				state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
-			}
+		await deleteEmptyItem(strategy, itemIndex, () => {
+			state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
 		});
 		return;
 	}

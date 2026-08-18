@@ -557,14 +557,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 		// Alt-arrow reorder is inline because `runCommand` is inert here, so unlike
 		// ThematicBreak it cannot come from dispatchKindCommand.
-		if (e.key === 'ArrowUp' && e.altKey) {
+		if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
 			e.preventDefault();
-			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), -1);
-			return;
-		}
-		if (e.key === 'ArrowDown' && e.altKey) {
-			e.preventDefault();
-			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), 1);
+			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), e.key === 'ArrowUp' ? -1 : 1);
 			return;
 		}
 

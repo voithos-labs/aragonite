@@ -4,7 +4,7 @@
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
-import { comparePaths, isPathBetween } from './path-math';
+import { comparePaths, isPathBetween, pathHasPrefix } from './path-math';
 import {
 	asCellIndex,
 	asRawOffset,
@@ -116,11 +116,9 @@ export function walkBetween(doc: DocumentView, start: number[], end: number[]): 
 		if (!node.children) return;
 		for (let i = 0; i < node.children.length; i++) {
 			const childPath = [...path, i];
-			// Skip subtrees that are entirely before start or after end.
-			const firstDescendant = [...childPath];
-			const lastDescendant = [...childPath, ...Array(8).fill(Number.MAX_SAFE_INTEGER)];
-			if (comparePaths(lastDescendant, start) <= 0) continue;
-			if (comparePaths(firstDescendant, end) >= 0) break;
+			// Skip subtrees entirely before start (an ancestor of start still holds it) or after end.
+			if (!pathHasPrefix(start, childPath) && comparePaths(childPath, start) < 0) continue;
+			if (comparePaths(childPath, end) >= 0) break;
 			visit(node.children[i], childPath);
 		}
 	}

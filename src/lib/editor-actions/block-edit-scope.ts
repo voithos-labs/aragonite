@@ -6,7 +6,7 @@
  */
 
 import type { OpDescriptor } from '../schema/operations';
-import type { CommitAfterTick } from '../action-contracts';
+import type { CommitAfterTick, ContainerScope } from '../action-contracts';
 import type { AnyBlockKind, CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
@@ -73,6 +73,13 @@ export interface CommitScope {
 	collapseEmptyReplaceToDelete: boolean;
 	commit(args: ScopeCommitArgs): Promise<void>;
 }
+
+/** The byte/settle sinks' owner answer for a container commit's own scope — {@link MutationView}'s twin. */
+export const scopeParentOf = (scope: ContainerScope) => ({
+	children: scope.children,
+	ownerKind: scope.node.kind,
+	owner: scope.node
+});
 
 // ── Top-level adapter ────────────────────────────────────────────────────────
 

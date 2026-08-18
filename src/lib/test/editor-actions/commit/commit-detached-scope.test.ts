@@ -10,7 +10,7 @@ import { asDocPath } from '$lib/selection/path-math';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { trackChildIds } from '$lib/tree-operations/structural-change';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
 import {
 	makeBlockListState,

@@ -6,14 +6,15 @@
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
 import { CURSOR_EXACT_START, CURSOR_START, FOCUS_LAST_START } from '../block-component';
-import type { CstNode } from '../core/nodes';
+import type { CstNode, ListItemMetadata } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { trailingLineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
 import type { PresentationModeGetter } from '../editor-keys';
 import type { InlineResolverRef } from '../schema/inline-construct-policy';
-import type { MultiScopeTarget, UndoController } from './deps';
+import type { MultiScopeTarget } from '../action-contracts';
+import type { UndoController } from './deps';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
@@ -50,6 +51,20 @@ export interface ListContextDeps {
 	getPresentationMode: PresentationModeGetter | undefined;
 	/** The instance's link-reference resolver, required-nullable beside the mode. */
 	linkRef: InlineResolverRef | undefined;
+}
+
+/** The Enter-minted follower: the previous item's marker bumped, its task-ness inherited unchecked. */
+function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstNode[]): CstNode {
+	const inheritTask = prevMeta?.taskItem === true;
+	return buildListItem(
+		{
+			marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
+			taskItem: inheritTask,
+			taskChecked: false,
+			taskMarker: inheritTask ? '[ ] ' : null
+		},
+		children
+	);
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
@@ -153,16 +168,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			if (!newItem) {
 				const prevItem = node.children[itemIndex];
-				const prevMeta = prevItem ? metadataOf(prevItem, 'listItem') : undefined;
-				const prevMarker = prevMeta?.marker ?? '- ';
-				const inheritTask = prevMeta?.taskItem === true;
-				newItem = buildListItem(
-					{
-						marker: bumpOrderedMarker(prevMarker),
-						taskItem: inheritTask,
-						taskChecked: false,
-						taskMarker: inheritTask ? '[ ] ' : null
-					},
+				newItem = mintFollowerItem(
+					prevItem ? metadataOf(prevItem, 'listItem') : undefined,
 					// The new item's body IS a line ending, so it takes the list's (G4.20);
 					// rebuildListItemRaw derives the item's raw from it.
 					[emptyParagraph('', trailingLineEnding(node.raw))]
@@ -233,17 +240,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const prevMeta = metadataOf(itemScope.node, 'listItem');
-					const inheritTask = prevMeta?.taskItem === true;
-					const newItem = buildListItem(
-						{
-							marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
-							taskItem: inheritTask,
-							taskChecked: false,
-							taskMarker: inheritTask ? '[ ] ' : null
-						},
-						secondHalf
-					);
+					const newItem = mintFollowerItem(metadataOf(itemScope.node, 'listItem'), secondHalf);
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);

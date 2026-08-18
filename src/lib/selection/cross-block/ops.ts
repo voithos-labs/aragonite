@@ -13,7 +13,7 @@ import type { LinkReferenceResolverRef, PresentationModeGetter } from '../../edi
 import type { SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
-import type { CommitController, MultiScopeTarget } from '../../action-contracts';
+import type { CommitController, CommitSnapshotArg, MultiScopeTarget } from '../../action-contracts';
 import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
 import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
@@ -56,6 +56,15 @@ export interface CrossBlockDeleteOptions {
 	 * type-replace/paste/cut stay on cell-clear so the follow-up insert lands in the anchor cell.
 	 */
 	tableCoverageDelete?: boolean;
+}
+
+/** A join delete rides the caller's snapshot; every other one seats undo at its own coordinate. */
+export function deleteSnapshot(
+	options: Pick<CrossBlockDeleteOptions, 'undoEntry'> | undefined,
+	path: number[],
+	offset = 0
+): CommitSnapshotArg {
+	return options?.undoEntry === 'join' ? 'skip' : { path: docPathFrom(path), offset };
 }
 
 /**
@@ -164,10 +173,7 @@ async function commitPureTopLevelDelete(
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
 
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom(start.path), offset: start.offset };
+	const snapshot = deleteSnapshot(options, start.path, start.offset);
 
 	const doc = ctx.getDoc();
 	await ctx.controller.commitStructural({
@@ -238,10 +244,7 @@ async function commitCrossContainerDelete(
 		scopes,
 		// The selection start survives the delete (start-wins collapse), so its deep path is a
 		// resolving restore coordinate.
-		snapshot:
-			options?.undoEntry === 'join'
-				? 'skip'
-				: { path: docPathFrom(start.path), offset: start.offset },
+		snapshot: deleteSnapshot(options, start.path, start.offset),
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
 			// Opened BEFORE the mutation: paths go stale as rangeDelete splices, while the owned

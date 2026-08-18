@@ -8,7 +8,7 @@ import { parse } from '$lib/core/parser';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import type { CstNode } from '$lib/core/nodes';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { drainDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
