@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 // Pinned to a commit, not `master`: a moving ref makes a regen unreproducible and lets an
 // upstream glyph or alias change arrive unreviewed. Bump, regenerate, and review together.
-export const GEMOJI_DB_URL =
+const GEMOJI_DB_URL =
 	'https://raw.githubusercontent.com/github/gemoji/0eca75db9301421efc8710baf7a7576793ae452a/db/emoji.json';
 export const EMOJI_TABLE_PATH = 'src/lib/plugins/emoji/emoji-table.ts';
 
@@ -67,22 +67,19 @@ export async function loadGemojiDb(input) {
 // ── CLI ────────────────────────────────────────────────────────────────────────
 
 /** @param {string[]} argv */
-function parseArgs(argv) {
+function parseInput(argv) {
 	let input;
-	let output = EMOJI_TABLE_PATH;
 	for (let i = 0; i < argv.length; i++) {
 		if (argv[i] === '--input') input = argv[++i];
-		else if (argv[i] === '--output') output = argv[++i];
 	}
-	return { input, output };
+	return input;
 }
 
 async function main() {
-	const { input, output } = parseArgs(process.argv.slice(2));
-	const db = await loadGemojiDb(input);
+	const db = await loadGemojiDb(parseInput(process.argv.slice(2)));
 	const entries = emojiTableEntries(db);
-	await writeFile(path.resolve(output), renderEmojiTable(entries), 'utf8');
-	console.log(`wrote ${entries.length} shortcodes to ${output}`);
+	await writeFile(path.resolve(EMOJI_TABLE_PATH), renderEmojiTable(entries), 'utf8');
+	console.log(`wrote ${entries.length} shortcodes to ${EMOJI_TABLE_PATH}`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {

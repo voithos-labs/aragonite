@@ -155,23 +155,6 @@ export interface EditableLeaf {
 	measurePartialRects(startOffset: number, endOffset: number): DOMRect[];
 	runCommand(id: CommandId): boolean;
 
-	// ── Source-element event handlers ─────────────────────────────────────────
-	onInput(): void;
-	onCompositionStart(): void;
-	onCompositionEnd(): void;
-	/**
-	 * Clipboard interception with sibling-surface parity (editor.md § Clipboard). Bind on
-	 * the source element only — a render-primary folded view has no source to slice, so
-	 * it falls to native copy.
-	 */
-	onCopy(e: ClipboardEvent): void;
-	onCut(e: ClipboardEvent): Promise<void>;
-	onPaste(e: ClipboardEvent): Promise<void>;
-	handleKeydown(e: KeyboardEvent): Promise<void>;
-	onPointerDown(e: PointerEvent): void;
-	/** render-primary: commit-on-blur (fold + one CST commit). Plain: no-op. */
-	onFocusOut(): void;
-
 	// ── Programmatic edits ─────────────────────────────────────────────────────
 	/** Insert markdown at the caret exactly as pasting it here would, minus the clipboard —
 	 *  publish it as the component's `insertMarkdown` so `editor.insertMarkdown()` reaches
@@ -181,16 +164,6 @@ export interface EditableLeaf {
 	reveal(offset?: number): Promise<void>;
 	/** Commit edited source as one undo entry; the parse decides update / kind change / structural split. */
 	commitSource(edited: string): void;
-
-	// ── View hooks ─────────────────────────────────────────────────────────────
-	/**
-	 * Sync `sourceText` into the source element as a single text node, restoring the caret
-	 * when the text changed under a live one. Call from a `$effect` — reading `sourceText`
-	 * inside tracks the node's raw.
-	 */
-	syncSource(): void;
-	/** Effect-cleanup hook: park focus on the editor root when the source unmounts while focused. */
-	parkFocus(el: HTMLElement | null): void;
 }
 
 /**
@@ -647,24 +620,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		runCommand,
 
-		onInput: editableSurface.onInput,
-		onCompositionStart: editableSurface.onCompositionStart,
-		onCompositionEnd: editableSurface.onCompositionEnd,
-		onCopy: clipboard.onCopy,
-		onCut: clipboard.onCut,
-		onPaste: clipboard.onPaste,
 		insertMarkdown: clipboard.insertMarkdown,
-		handleKeydown,
-		onPointerDown,
-		onFocusOut: commitReveal,
 
 		reveal: (offset = 0) => {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
 			return isReading() ? Promise.resolve() : revealKernel.reveal(offset);
 		},
-		commitSource,
-
-		syncSource,
-		parkFocus: (el) => parkFocusOnEditorRoot(el, getEditorRoot())
+		commitSource
 	};
 }

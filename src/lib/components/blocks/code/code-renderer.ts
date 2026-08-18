@@ -292,7 +292,7 @@ function findClosingFenceStart(
 	fenceMarker: '`' | '~',
 	fenceLength: number
 ): number {
-	const fencePattern = new RegExp(`^ {0,3}${escapeRegex(fenceMarker)}{${fenceLength},}\\s*$`);
+	const fencePattern = new RegExp(`^ {0,3}${fenceMarker}{${fenceLength},}\\s*$`);
 
 	let lineEnd = raw.length;
 	while (lineEnd > searchStart) {
@@ -307,8 +307,4 @@ function findClosingFenceStart(
 
 	// Unreachable when the parser's `closed` flag is consistent with raw.
 	return raw.length;
-}
-
-function escapeRegex(s: string): string {
-	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

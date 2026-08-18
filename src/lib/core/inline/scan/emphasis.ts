@@ -46,7 +46,7 @@ function codePointBefore(raw: string, pos: number): string {
  * CommonMark §6.2 flanking over code points. Neighbors are read from raw unclamped: context
  * outside [start, end) still counts, as the spec's source-text reading implies.
  */
-export function classifyDelimiterRun(
+function classifyDelimiterRun(
 	raw: string,
 	runStart: number,
 	runEnd: number,

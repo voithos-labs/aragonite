@@ -1,11 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,
 	isInteractionTraceEnabled,
 	resetInteractionTrace,
 	interactionTraceSnapshot,
-	subscribeInteractionTrace,
 	traceRebuild,
 	traceCompositionStart,
 	traceRevealFold
@@ -73,41 +72,5 @@ describe('interaction-trace ring buffer', () => {
 		resetInteractionTrace();
 		expect(interactionTraceSnapshot()).toHaveLength(0);
 		expect(isInteractionTraceEnabled()).toBe(true);
-	});
-});
-
-describe('interaction-trace subscribers', () => {
-	it('notifies on each record and stops after unsubscribe', () => {
-		const listener = vi.fn();
-		const unsub = subscribeInteractionTrace(listener);
-		traceCompositionStart();
-		traceCompositionStart();
-		expect(listener).toHaveBeenCalledTimes(2);
-		unsub();
-		traceCompositionStart();
-		expect(listener).toHaveBeenCalledTimes(2);
-	});
-
-	it('keeps notifying the rest when one subscriber throws', () => {
-		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-		const second = vi.fn();
-		subscribeInteractionTrace(() => {
-			throw new Error('boom');
-		});
-		subscribeInteractionTrace(second);
-		traceCompositionStart();
-		expect(second).toHaveBeenCalledTimes(1);
-		expect(errSpy).toHaveBeenCalled();
-		errSpy.mockRestore();
-	});
-
-	it('tolerates a subscriber that unsubscribes itself mid-notification', () => {
-		const second = vi.fn();
-		const unsubFirst = subscribeInteractionTrace(() => unsubFirst());
-		subscribeInteractionTrace(second);
-		traceCompositionStart();
-		traceCompositionStart();
-		expect(second).toHaveBeenCalledTimes(2);
-		unsubFirst();
 	});
 });

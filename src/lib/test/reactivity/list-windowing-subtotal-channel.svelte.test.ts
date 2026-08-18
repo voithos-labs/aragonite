@@ -20,8 +20,7 @@ function countingOracle(): { oracle: HeightOracle; recordMeasured: ReturnType<ty
 			measured: () => undefined,
 			recordMeasured,
 			height: () => 100,
-			invalidateWidth: () => {},
-			clear: () => {}
+			invalidateWidth: () => {}
 		}
 	};
 }

@@ -1,13 +1,14 @@
 import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
 import type { Document, ImageFields, InlineNode } from '../../core/nodes';
-import type { DocumentView, NodeView } from '../../core/node-views';
+import type { NodeView } from '../../core/node-views';
 import type { LinkReferenceResolverRef } from '../../editor-keys';
 import type { UndoController } from '../../editor-actions/deps';
 import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
+import { blockNodeAt } from '../../tree-operations/node-ops';
 import { buildImageEditBytes } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
@@ -25,10 +26,8 @@ export interface ImageEditCommitterDeps {
 }
 
 export interface SelectedImageFields {
-	paragraph: NodeView;
 	image: InlineNode;
 	widgetEl: HTMLElement | null;
-	parent: DocumentView | NodeView;
 }
 
 export interface ImageEditCommitter {
@@ -52,23 +51,6 @@ export interface ImageEditCommitter {
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
 	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
 	const inlineRange = createInlineRangeCommit({ getDoc, controller, grammar: deps.grammar });
-
-	function resolvePathToParagraph(path: number[]): {
-		paragraph: NodeView;
-		parent: DocumentView | NodeView;
-	} | null {
-		if (path.length === 0) return null;
-		let parent: DocumentView | NodeView = getDoc();
-		for (let i = 0; i < path.length - 1; i++) {
-			// Annotated: the `parent` reassignment otherwise cycles inference.
-			const next: NodeView | undefined = parent.children?.[path[i]];
-			if (!next) return null;
-			parent = next;
-		}
-		const paragraph = parent.children?.[path[path.length - 1]];
-		if (!paragraph) return null;
-		return { paragraph, parent };
-	}
 
 	function findImageInParagraph(para: NodeView, sourceStart: number): InlineNode | null {
 		// Resolver-aware so a reference-style image resolves as the render path saw it,
@@ -95,25 +77,20 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function getSelectedImageFields(): SelectedImageFields | null {
 		const sel = widgetSelection.getSelected();
 		if (!sel) return null;
-		const resolved = resolvePathToParagraph(sel.paragraphPath);
-		if (!resolved) return null;
-		const image = findImageInParagraph(resolved.paragraph, sel.sourceStart);
+		const paragraph = blockNodeAt(getDoc(), sel.paragraphPath);
+		if (!paragraph) return null;
+		const image = findImageInParagraph(paragraph, sel.sourceStart);
 		if (!image) return null;
-		return {
-			paragraph: resolved.paragraph,
-			image,
-			widgetEl: queryWidgetEl(sel.paragraphPath, sel.sourceStart),
-			parent: resolved.parent
-		};
+		return { image, widgetEl: queryWidgetEl(sel.paragraphPath, sel.sourceStart) };
 	}
 
 	function resolveEdit(
 		target: WidgetTarget,
 		newFields: ImageFields
 	): { paragraph: NodeView; image: InlineNode; bytes: string } | null {
-		const resolved = resolvePathToParagraph(target.paragraphPath);
-		if (!resolved) return null;
-		const image = findImageInParagraph(resolved.paragraph, target.sourceStart);
+		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
+		if (!paragraph) return null;
+		const image = findImageInParagraph(paragraph, target.sourceStart);
 		if (!image) return null;
 		// Preserve the reference form when url/title are untouched: inlining the
 		// resolved url would orphan the LRD. Changing either is the user opting in.
@@ -121,8 +98,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 			image.label !== undefined && newFields.url === image.url && newFields.title === image.title
 				? { ...newFields, label: image.label }
 				: newFields;
-		const bytes = buildImageEditBytes(image, resolved.paragraph.raw, fields);
-		return bytes === null ? null : { paragraph: resolved.paragraph, image, bytes };
+		const bytes = buildImageEditBytes(image, paragraph.raw, fields);
+		return bytes === null ? null : { paragraph, image, bytes };
 	}
 
 	function buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null {

@@ -18,8 +18,7 @@ const oracle: HeightOracle = {
 	measured: () => undefined,
 	recordMeasured: () => {},
 	height: (id: string) => HEIGHTS[id] ?? 10,
-	invalidateWidth: () => {},
-	clear: () => {}
+	invalidateWidth: () => {}
 };
 
 const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
