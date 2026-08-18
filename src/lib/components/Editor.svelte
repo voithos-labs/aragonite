@@ -331,24 +331,29 @@
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
-			operationsLog.record({
-				op: e.op,
-				path: e.path,
-				detail: ('detail' in e ? e.detail : undefined) ?? {}
-			});
-			// The shell maintains only the LRD resolver (inline content computes lazily
-			// on read — core/inline/inline-cache), and hands out a fresh identity only on
-			// a real signature change: one per edit re-renders every block that read it.
-			if (lrdMapCouldChange(doc, e)) {
-				const newMap = buildLinkReferenceMap(doc.children);
-				const next = advanceSignatureEpoch(currentSignature, signatureEpoch, newMap.signature);
-				if (next.epoch !== signatureEpoch) {
-					currentResolver = newMap.resolve;
-					currentSignature = next.signature;
-					signatureEpoch = next.epoch;
+			// try/finally: the log/LRD half and the notify were separate listeners once,
+			// so a throwing first half must still reach the notify (and the error event).
+			try {
+				operationsLog.record({
+					op: e.op,
+					path: e.path,
+					detail: ('detail' in e ? e.detail : undefined) ?? {}
+				});
+				// The shell maintains only the LRD resolver (inline content computes lazily
+				// on read — core/inline/inline-cache), and hands out a fresh identity only on
+				// a real signature change: one per edit re-renders every block that read it.
+				if (lrdMapCouldChange(doc, e)) {
+					const newMap = buildLinkReferenceMap(doc.children);
+					const next = advanceSignatureEpoch(currentSignature, signatureEpoch, newMap.signature);
+					if (next.epoch !== signatureEpoch) {
+						currentResolver = newMap.resolve;
+						currentSignature = next.signature;
+						signatureEpoch = next.epoch;
+					}
 				}
+			} finally {
+				notifyDocumentChanged();
 			}
-			notifyDocumentChanged();
 		});
 		return () => dispose();
 	});
