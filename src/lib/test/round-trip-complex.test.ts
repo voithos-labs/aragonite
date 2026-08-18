@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '../core/serializer';
 import { parse } from '../core/parser';
-import { describeRoundTrips } from '$lib/test/support/round-trip';
+import { describeRoundTrips, roundTripCases } from '$lib/test/support/round-trip';
 
 // ── Complex Document Round-Trip Tests ───────────────────────────────────────
 
-describe('round-trip: complex documents', () => {
-	it('round-trips a project README', () => {
-		const source = `# Limestone
+describeRoundTrips('round-trip: complex documents', [
+	{
+		name: 'a project README',
+		source: `# Limestone
 
 A local-first desktop notes app.
 
@@ -35,13 +36,11 @@ npm run tauri dev
 ---
 
 Built with Tauri 2, SvelteKit, and Rust.
-`;
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
-	it('round-trips a meeting notes document', () => {
-		const source = `# Sprint Planning — 2026-03-21
+`
+	},
+	{
+		name: 'a meeting notes document',
+		source: `# Sprint Planning — 2026-03-21
 
 ## Action Items
 
@@ -72,13 +71,11 @@ WHERE d.deleted_at IS NULL;
 ---
 
 Next meeting: Monday 10am.
-`;
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
-	it('round-trips a document with dense block transitions', () => {
-		const source = `# Heading
+`
+	},
+	{
+		name: 'a document with dense block transitions',
+		source: `# Heading
 Paragraph right after heading.
 
 > Blockquote
@@ -97,13 +94,11 @@ code block
 > > Nested blockquote
 
 Final paragraph.
-`;
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
-	it('round-trips a document with irregular whitespace', () => {
-		const source = `
+`
+	},
+	{
+		name: 'a document with irregular whitespace',
+		source: `
 
 # Title after two blank lines
 
@@ -117,13 +112,11 @@ Paragraph after three blank lines.
 - Item
 
 
-`;
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
-	it('round-trips a document with mixed deferred and supported syntax', () => {
-		const source = `# API Reference
+`
+	},
+	{
+		name: 'a document with mixed deferred and supported syntax',
+		source: `# API Reference
 
 ## Endpoints
 
@@ -155,22 +148,18 @@ Authorization: Bearer <token>
 ---
 
 See [full docs](https://example.com) for details.
-`;
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
-	it('round-trips a document with CRLF throughout', () => {
-		const source =
+`
+	},
+	{
+		name: 'a document with CRLF throughout',
+		source:
 			'# Title\r\n\r\nParagraph one.\r\nContinuation line.\r\n\r\n' +
 			'> Blockquote\r\n> line two\r\n\r\n' +
 			'- Item A\r\n- Item B\r\n\r\n' +
 			'```js\r\nconsole.log("hello");\r\n```\r\n\r\n' +
-			'---\r\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-});
+			'---\r\n'
+	}
+]);
 
 // ── Edge Case Round-Trip Tests ──────────────────────────────────────────────
 
@@ -222,12 +211,6 @@ describe('construct-boundary edge cases', () => {
 		expect(doc.children[0].kind).toBe('paragraph');
 	});
 
-	it('round-trips setext inside blockquote', () => {
-		const source = '> Title\n> ---\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
 	it('round-trips indented code at document start', () => {
 		const source = '    code at start\n';
 		const doc = parse(source);
@@ -235,21 +218,9 @@ describe('construct-boundary edge cases', () => {
 		expect(doc.children[0].kind).toBe('indentedCode');
 	});
 
-	it('round-trips HTML block after heading with no blank line', () => {
-		const source = '# Title\n<div>\nContent\n</div>\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
 	it('delimiter row alone is not a table', () => {
 		const doc = parse('| --- | --- |\n');
 		expect(doc.children[0].kind).not.toBe('table');
-	});
-
-	it('round-trips table immediately after heading', () => {
-		const source = '# Title\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
 	});
 
 	it('link ref def at document start', () => {
@@ -262,23 +233,26 @@ describe('construct-boundary edge cases', () => {
 		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
 	});
 
-	it('round-trips setext heading then table', () => {
-		const source = 'Title\n===\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
-	it('round-trips indented code then HTML block', () => {
-		const source = '    code\n\n<div>\nhtml\n</div>\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
-
-	it('round-trips link ref def then setext heading', () => {
-		const source = '[ref]: https://example.com\n\nTitle\n---\n';
-		const doc = parse(source);
-		expect(serialize(doc)).toBe(source);
-	});
+	roundTripCases([
+		{ name: 'setext inside blockquote', source: '> Title\n> ---\n' },
+		{
+			name: 'HTML block after heading with no blank line',
+			source: '# Title\n<div>\nContent\n</div>\n'
+		},
+		{
+			name: 'table immediately after heading',
+			source: '# Title\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+		},
+		{
+			name: 'setext heading then table',
+			source: 'Title\n===\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
+		},
+		{ name: 'indented code then HTML block', source: '    code\n\n<div>\nhtml\n</div>\n' },
+		{
+			name: 'link ref def then setext heading',
+			source: '[ref]: https://example.com\n\nTitle\n---\n'
+		}
+	]);
 });
 
 // ── Reference-Style Links and Images ────────────────────────────────────────

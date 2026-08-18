@@ -1,25 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { createSearchState } from '../../search/search-state.svelte';
+import { makeSearchHarness, type ReplaceStub } from './harness';
 
-const stubReplace = { replaceOne: async () => 0, replaceAll: async () => 0 };
-
-function makeState(
-	source: string,
-	onClose: () => void = () => {},
-	replace: typeof stubReplace = stubReplace
-) {
-	const doc = parse(source);
-	return createSearchState({
-		getDoc: () => doc,
-		getDocumentGeneration: () => 0,
-		decorations: createDecorationEngine({ getDoc: () => doc }),
-		replace,
-		reveal: async () => null,
-		onClose
-	});
-}
+const makeState = (source: string, onClose?: () => void, replace?: ReplaceStub) =>
+	makeSearchHarness(source, { onClose, replace }).state;
 
 describe('SearchState', () => {
 	it('rescans on query change and counts matches', () => {

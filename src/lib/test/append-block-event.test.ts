@@ -5,68 +5,17 @@ import type { EditEvent } from '$lib/editor-events';
 // default 5s cap is blown by any battery contention. A hang guard, not a budget.
 describe('moveFocus past the last block', { timeout: 20_000 }, () => {
 	it('emits op=appendBlock and no op=split', async () => {
-		const { createEditorEvents } = await import('$lib/editor-events');
 		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
 		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');
-		const { createUndoManager } = await import('$lib/undo/manager');
-		const { createSharingState } = await import('$lib/tree-operations/sharing');
-		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
-		const { makeEdgeAffinity } = await import('./harness/editor-actions');
+		const { makeEditorActionsDeps } = await import('./harness/editor-actions');
 
-		const events = createEditorEvents();
+		const { deps, doc, events } = makeEditorActionsDeps([
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' } as any
+		]);
 		const captured: EditEvent[] = [];
 		events.on('edit', (e) => captured.push(e));
 
-		const doc: any = {
-			kind: 'document',
-			prefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' }],
-			suffix: ''
-		};
-		const blockIds = ['id0'];
-		const blockRefs: any[] = [undefined];
-
-		const deps: any = {
-			get doc() {
-				return doc;
-			},
-			get blockIds() {
-				return blockIds;
-			},
-			get blockRefs() {
-				return blockRefs;
-			},
-			setDoc: (v: any) => Object.assign(doc, v),
-			setBlockIds: (ids: string[]) => {
-				blockIds.length = 0;
-				blockIds.push(...ids);
-			},
-			setBlockRefs: (refs: any[]) => {
-				blockRefs.length = 0;
-				blockRefs.push(...refs);
-			},
-			// This env asserts on the edit-event channel; the door census owns the version.
-			bumpContentVersion: () => {},
-			undoManager: createUndoManager(),
-			sharing: createSharingState(),
-			stickyColumn: {
-				reset() {},
-				capture() {},
-				get current() {
-					return null;
-				},
-				get() {
-					return null;
-				}
-			},
-			edgeAffinity: makeEdgeAffinity(),
-			selectionState: createSelectionState(),
-			getBlockElByPath: () => null,
-			events
-		};
-
-		const controller = createUndoController(deps);
-		const focus = createFocusActions(deps, controller);
+		const focus = createFocusActions(deps, createUndoController(deps));
 
 		await focus.moveFocus(doc.children.length, 'start');
 

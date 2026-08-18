@@ -78,10 +78,6 @@ describe('createEdgeAffinityState', () => {
 		expect(b.get()).toBeNull();
 	});
 
-	it('starts with no opinion', () => {
-		expect(createEdgeAffinityState().get()).toBeNull();
-	});
-
 	it('records the side each arrival means', () => {
 		const s = createEdgeAffinityState();
 		s.note(key('ArrowRight'));

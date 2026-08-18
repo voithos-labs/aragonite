@@ -72,7 +72,8 @@ describe('findDomTextOffsetTarget — widget boundary placement', () => {
 	});
 
 	it('falls back to parent-level position when no text node neighbors the widget', () => {
-		// Layout without sentinels: [widget(0..10)] — backward-compat.
+		// A widget may render with no neighbouring text node; the parent-level position is
+		// the fallback seat. Layout without sentinels: [widget(0..10)].
 		const w = widget(0, 10);
 		el.appendChild(w);
 

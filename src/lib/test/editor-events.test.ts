@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
 import { asDocPath } from '$lib/selection/path-math';
-import { makeEdgeAffinity } from './harness/editor-actions';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import { allowDevWarns } from '$lib/test/support/warn-gate';
-
-// The container fixture is hand-built, not parser output, so the container-raw oracle reads it as
-// stale.
-afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 describe('createEditorEvents', () => {
 	it('subscribes and fires edit events to registered handlers', () => {
@@ -91,74 +85,21 @@ describe('createEditorEvents', () => {
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
-		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
-		const { createUndoManager } = await import('$lib/undo/manager');
-		const { createSharingState } = await import('$lib/tree-operations/sharing');
-		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
-
-		const events = createEditorEvents();
+		const { makeNestedHarness } = await import('./harness/editor-actions');
+		const h = makeNestedHarness('- a\n- b\n');
 		let editCount = 0;
-		events.on('edit', (e) => {
+		h.events.on('edit', (e) => {
 			if (e.op !== 'input') editCount++;
 		});
 
-		const containerNode: any = {
-			kind: 'list',
-			leadingTrivia: '',
-			raw: '- a\n- b\n',
-			children: [
-				{ kind: 'listItem', leadingTrivia: '', raw: '- a\n' },
-				{ kind: 'listItem', leadingTrivia: '', raw: '- b\n' }
-			]
-		};
-		const doc: any = { kind: 'document', prefix: '', children: [containerNode], suffix: '' };
-		const blockIds = ['id0'];
-		const blockRefs: any[] = [undefined];
-
-		const deps: any = {
-			get doc() {
-				return doc;
-			},
-			get blockIds() {
-				return blockIds;
-			},
-			get blockRefs() {
-				return blockRefs;
-			},
-			setDoc: (v: any) => Object.assign(doc, v),
-			setBlockIds: () => {},
-			setBlockRefs: () => {},
-			// This env asserts on the edit-event channel; the door census owns the version.
-			bumpContentVersion: () => {},
-			undoManager: createUndoManager(),
-			sharing: createSharingState(),
-			stickyColumn: {
-				reset() {},
-				capture() {},
-				get current() {
-					return null;
-				}
-			},
-			edgeAffinity: makeEdgeAffinity(),
-			selectionState: createSelectionState(),
-			getBlockElByPath: () => null,
-			operationsLog: undefined,
-			events
-		};
-
-		const controller = createUndoController(deps);
-		const state = {
-			innerBlockIds: ['li0', 'li1'],
-			innerBlockRefs: [undefined, undefined] as (any | undefined)[]
-		};
-
-		await controller.commitContainerStructural({
-			containerNode,
+		await h.controller.commitContainerStructural({
+			containerNode: h.getNode(),
 			path: [0],
-			state,
+			state: h.state,
 			snapshot: { path: asDocPath([0, 1]), offset: 0 },
-			mutate: ({ children }) => {
+			mutate: ({ node, children }) => {
 				children.splice(1, 1);
+				node.raw = '- a\n';
 				return { op: 'delete', at: 1, count: 1 };
 			},
 			op: { kind: 'delete', eventPath: asDocPath([0, 1]) }

@@ -21,6 +21,7 @@ import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps
 import { refSlotsOver, replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createListContext } from '$lib/editor-actions/list-context';
 import { createListOverrides } from '$lib/editor-actions/list-overrides';
@@ -34,7 +35,7 @@ import {
 import type { PresentationMode } from '$lib/presentation-mode';
 import type { GrammarView } from '$lib/schema/block-openers';
 import { parse } from '$lib/core/parser';
-import type { EditorEvents } from '$lib/editor-events';
+import type { EditEvent, EditorEvents } from '$lib/editor-events';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import {
@@ -43,7 +44,8 @@ import {
 	expectStateForNode
 } from '$lib/reactivity/state-registry';
 import { createUndoManager } from '$lib/undo/manager';
-import { createSharingState } from '$lib/tree-operations/sharing';
+import { createSharingState, type SharingState } from '$lib/tree-operations/sharing';
+import { rebuildOwnedContainer } from '$lib/tree-operations/unshare';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { GapStopScope } from '$lib/selection/gap-caret';
 import { createEditorEvents } from '$lib/editor-events';
@@ -176,6 +178,42 @@ export function makeStubController(): UndoController & PasteCommitCoordinator {
 	} as unknown as UndoController & PasteCommitCoordinator;
 }
 
+// ── Paste-dispatch stubs ─────────────────────────────────────────────────────
+
+/** The minimal registered state the paste router resolves for a container scope. */
+export function registerStubBlockListState(node: CstNode): void {
+	registerBlockListState(node, {
+		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
+		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined)
+	} as unknown as Parameters<typeof registerBlockListState>[1]);
+}
+
+// Mirrors the real primitive's owned-scope protocol: attach working children, run
+// mutate, rebuild scope raws.
+export function makeRunningPasteController(): UndoController & PasteCommitCoordinator {
+	return {
+		...makeStubController(),
+		commitMultiScope: vi.fn(
+			async ({
+				scopes,
+				mutate
+			}: {
+				scopes: { node: CstNode }[];
+				mutate: (v: { children: CstNode[]; node: CstNode; sharing: SharingState }[]) => unknown;
+			}) => {
+				const sharing = createSharingState();
+				const views = scopes.map((s) => {
+					const children = [...(s.node.children ?? [])];
+					s.node.children = children;
+					return { children, node: s.node, sharing };
+				});
+				mutate(views);
+				for (const s of scopes) rebuildOwnedContainer(s.node, sharing);
+			}
+		)
+	} as unknown as UndoController & PasteCommitCoordinator;
+}
+
 // ── EditorActionsDeps factory ────────────────────────────────────────────────
 
 export interface EditorActionsHarness {
@@ -265,6 +303,29 @@ export function makeEditorActionsDeps(
 		getBlockRefs: () => blockRefs,
 		contentVersion: () => contentVersion
 	};
+}
+
+// ── Top-level action-bundle harness ──────────────────────────────────────────
+
+export interface TopHarness extends EditorActionsHarness {
+	controller: UndoController;
+	actions: BlockEditActions;
+	/** Every emitted edit event, in order. */
+	edits: EditEvent[];
+}
+
+/** makeNestedHarness's top-level twin: deps + controller + block-edit actions over `input`. */
+export function makeTopHarness(
+	input: string | CstNode[] | Document,
+	options: Parameters<typeof makeEditorActionsDeps>[1] = {}
+): TopHarness {
+	const source = typeof input === 'string' ? parse(input) : input;
+	const harness = makeEditorActionsDeps(source, options);
+	const controller = createUndoController(harness.deps);
+	const actions = createBlockEditActions(harness.deps, controller);
+	const edits: EditEvent[] = [];
+	harness.events.on('edit', (e) => edits.push(e));
+	return { ...harness, controller, actions, edits };
 }
 
 // ── ListContext harness ──────────────────────────────────────────────────────
@@ -369,6 +430,7 @@ export interface NestedHarnessOptions {
 	/** Wire the standard list-item overrides (unwrap/merge/delete) onto the bundle. */
 	listOverrides?: boolean;
 	grammar?: GrammarView;
+	presentationMode?: PresentationMode;
 }
 
 // Full nested-container setup over `source` (parsed) or an explicit node list. The
@@ -381,7 +443,10 @@ export function makeNestedHarness(
 	const source = typeof input === 'string' ? parse(input) : input;
 	const nodes = Array.isArray(source) ? source : source.children;
 	const index = opts.index ?? nodes.length - 1;
-	const { deps, events, contentVersion } = makeEditorActionsDeps(source);
+	const { deps, events, contentVersion } = makeEditorActionsDeps(
+		source,
+		opts.presentationMode ? { presentationMode: opts.presentationMode } : {}
+	);
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];
@@ -409,6 +474,7 @@ export function makeNestedHarness(
 			getNode,
 			path: [index],
 			grammar: opts.grammar,
+			getPresentationMode: deps.getPresentationMode,
 			parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
 		}),
 		overrides
