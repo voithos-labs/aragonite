@@ -64,26 +64,19 @@ describe('installDragListener — lifetime cleanup', () => {
 		expect(() => handle.dispose()).not.toThrow();
 	});
 
-	it('pointercancel disposes listeners just like pointerup', () => {
-		const before = countDocListeners();
-		installDragListener(makeCtx(), { path: [0], offset: 0 }, down());
-		expect(countDocListeners()).toBeGreaterThan(before);
+	// The signal and no-signal teardown paths differ in source, so both arms stay named.
+	for (const withSignal of [false, true]) {
+		it(`pointercancel disposes listeners just like pointerup (${withSignal ? 'lifetime signal' : 'no signal'})`, () => {
+			const signal = withSignal ? new AbortController().signal : undefined;
+			const before = countDocListeners();
+			installDragListener(makeCtx(signal), { path: [0], offset: 0 }, down());
+			expect(countDocListeners()).toBeGreaterThan(before);
 
-		document.dispatchEvent(new Event('pointercancel'));
+			document.dispatchEvent(new Event('pointercancel'));
 
-		expect(countDocListeners()).toBe(before);
-	});
-
-	it('pointercancel teardown is symmetric across signal/no-signal contexts', () => {
-		const controller = new AbortController();
-		const before = countDocListeners();
-		installDragListener(makeCtx(controller.signal), { path: [0], offset: 0 }, down());
-		expect(countDocListeners()).toBeGreaterThan(before);
-
-		document.dispatchEvent(new Event('pointercancel'));
-
-		expect(countDocListeners()).toBe(before);
-	});
+			expect(countDocListeners()).toBe(before);
+		});
+	}
 
 	// The shared session filters up/cancel to the pointer that opened the drag, but only
 	// table-reorder-drag pinned it; the cross-block, reorder and cell lifecycles carried no test.
@@ -102,7 +95,7 @@ describe('installDragListener — lifetime cleanup', () => {
 	});
 });
 
-// Miss (Sel-F3): the drag suite only ever counted listeners. The park is the drag's one
+// Miss-analysis: the drag suite only ever counted listeners. The park is the drag's one
 // coordinate-space consumer and the only sibling of four that never translated a cell endpoint,
 // because nothing asserted WHERE it parks — only that the drag tore down cleanly.
 describe('installDragListener — where the drag parks its dispatch caret', () => {

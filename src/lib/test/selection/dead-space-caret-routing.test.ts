@@ -9,6 +9,7 @@ import { CURSOR_END } from '$lib/block-component';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { createDeadSpaceCaret } from '$lib/selection/dead-space-caret';
 import { makeEmptyGapScope } from '../harness/editor-actions';
+import { mountTableGrid } from './table-grid';
 
 registerBuiltInBlocks();
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -17,7 +18,6 @@ const TABLE_BOX = { left: 100, right: 400, top: 50, bottom: 90 };
 
 describe('createDeadSpaceCaret routing', () => {
 	let root: HTMLElement;
-	let wrapper: HTMLElement;
 	let component: BlockComponent & { focus: ReturnType<typeof vi.fn> };
 	let focusByPath: Mock<(path: number[], offset: number) => void>;
 	let resetSelectionForClick: Mock<() => void>;
@@ -27,30 +27,13 @@ describe('createDeadSpaceCaret routing', () => {
 
 	beforeEach(() => {
 		root = document.createElement('div');
-		wrapper = document.createElement('div');
-		wrapper.setAttribute('data-block-path', '[0]');
-		wrapper.setAttribute('data-block-kind', 'table');
-		wrapper.getBoundingClientRect = () => TABLE_BOX as DOMRect;
-		const table = document.createElement('div');
-		table.setAttribute('role', 'table');
-		wrapper.appendChild(table);
-		// One row of two 150-wide cells filling the block's box.
-		const row = document.createElement('div');
-		row.setAttribute('data-table-row-idx', '0');
-		table.appendChild(row);
-		for (let c = 0; c < 2; c++) {
-			const cell = document.createElement('div');
-			cell.setAttribute('role', 'cell');
-			const left = TABLE_BOX.left + c * 150;
-			cell.getBoundingClientRect = () =>
-				({ left, right: left + 150, top: TABLE_BOX.top, bottom: TABLE_BOX.bottom }) as DOMRect;
-			row.appendChild(cell);
-		}
+		// One row of two cells tiling the block's box.
+		const mounted = mountTableGrid({ path: [0], rows: 1, cols: 2, box: TABLE_BOX });
 		document.body.appendChild(root);
-		root.appendChild(wrapper);
+		root.appendChild(mounted.host);
 		// The click is in the root's own padding; the clamp puts the probe in the box,
 		// where the topmost element is the table grid.
-		document.elementFromPoint = (() => table) as typeof document.elementFromPoint;
+		document.elementFromPoint = (() => mounted.grid) as typeof document.elementFromPoint;
 
 		focusByPath = vi.fn(() => {});
 		leafSnap = vi.fn(() => {});

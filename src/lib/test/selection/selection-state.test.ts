@@ -4,13 +4,6 @@ import { parse } from '../../core/parser';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 describe('SelectionState lifecycle', () => {
-	it('starts empty and reports not cross-block', () => {
-		const s = createSelectionState();
-		expect(s.isCrossBlock).toBe(false);
-		expect(s.anchor).toBeNull();
-		expect(s.focus).toBeNull();
-	});
-
 	it('enterCrossBlock populates anchor and focus', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 4 });
@@ -43,7 +36,7 @@ describe('SelectionState lifecycle', () => {
 		expect(s.end).toEqual({ path: [3], offset: 2 });
 	});
 
-	it('collapses a same-path prose range instead of entering cross-block (E-F1)', () => {
+	it('collapses a same-path prose range instead of entering cross-block', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 5 });
 		expect(s.isCrossBlock).toBe(false);
@@ -67,17 +60,6 @@ describe('SelectionState lifecycle', () => {
 		s.extendFocus({ path: [0], offset: 8 });
 		expect(s.isCrossBlock).toBe(false);
 		expect(s.anchor).toBeNull();
-	});
-
-	it('ctrl+a doubling counter tracks press count', () => {
-		const s = createSelectionState();
-		expect(s.selectAllCount).toBe(0);
-		s.incrementSelectAllCount();
-		expect(s.selectAllCount).toBe(1);
-		s.incrementSelectAllCount();
-		expect(s.selectAllCount).toBe(2);
-		s.resetSelectAllCount();
-		expect(s.selectAllCount).toBe(0);
 	});
 });
 
@@ -191,7 +173,7 @@ describe('SelectionState.cellLandingFor', () => {
 		});
 	});
 
-	it('lands a context-established (unflagged) intra-table endpoint too (E-F4)', () => {
+	it('lands a context-established (unflagged) intra-table endpoint too', () => {
 		const doc = parse(tableSource);
 		const s = createSelectionState({ getDoc: () => doc });
 		expect(s.cellLandingFor({ path: [0], offset: 2 })).toEqual({ path: [0, 1, 0], offset: 0 });

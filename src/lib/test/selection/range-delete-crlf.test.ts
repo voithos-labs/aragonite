@@ -6,9 +6,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
 import { createSharingState } from '../../tree-operations/sharing';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
 
@@ -67,13 +65,7 @@ describe('rangeDelete keeps CRLF when both endpoints are consumed whole', () => 
 // Paths: [0]=Above, [1]=note ([1,0]=title, [1,1]=Body1, [1,2]=Body2), [2]=Below. Both endpoints
 // are prose and both surviving slices are empty, so both take the minted-paragraph fallback.
 describe('chromeAwareRangeDelete keeps CRLF on both truncated endpoints', () => {
-	beforeEach(() => {
-		// registerChromeLeaf registers a paste surface; the schema reset alone leaves
-		// it orphaned, so a re-register would collide.
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
-		registerCalloutKind();
-	});
+	beforeEach(registerCalloutForTests);
 
 	it('start inside the callout body, end at the last prose block', () => {
 		expect(

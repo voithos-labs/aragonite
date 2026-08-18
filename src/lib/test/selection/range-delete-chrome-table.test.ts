@@ -3,9 +3,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
 import { createSharingState } from '../../tree-operations/sharing';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
@@ -52,16 +50,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-function registerCallout() {
-	// registerChromeLeaf (inside registerCalloutKind) registers a paste surface;
-	// the schema reset alone leaves it orphaned, so a re-register would collide.
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
-	registerCalloutKind();
-}
-
 describe('chrome wall × table branch — table endpoint inside the container', () => {
-	beforeEach(registerCallout);
+	beforeEach(registerCalloutForTests);
 
 	it('pins the fixture parse: title + table body child', () => {
 		const note = parse(TBL_FIXTURE).children[1];
@@ -111,7 +101,7 @@ describe('chrome wall × table branch — table endpoint inside the container', 
 });
 
 describe('chrome wall × table branch — table endpoint outside the container', () => {
-	beforeEach(registerCallout);
+	beforeEach(registerCalloutForTests);
 
 	it('chrome-end endpoint: table above → mid-title keeps the tail in the chrome leaf', () => {
 		// start.offset 2 = row-start of body row (1,2) → that row removed, header kept.
@@ -166,7 +156,7 @@ describe('chrome wall × table branch — table endpoint outside the container',
 });
 
 describe('chrome wall × table branch — consumed container unit-deletes', () => {
-	beforeEach(registerCallout);
+	beforeEach(registerCalloutForTests);
 
 	it('prose end at the container last byte: one splice, children intact', () => {
 		const doc = parse(TBL_ABOVE_FIXTURE);

@@ -1,19 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createSelectionState } from '../../selection/selection-state.svelte';
 import { extendFocusToDocEdge } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
-import type { Document } from '../../core/nodes';
-
-// Anchor cross-block up front so the doc-edge walk runs without a DOM caret; the
-// element argument is only read on cross-block entry.
-function stateAt(doc: Document, path: number[]) {
-	const s = createSelectionState({ getDoc: () => doc });
-	s.enterCrossBlock({ path: path.slice(), offset: 0 }, { path: path.slice(), offset: 0 });
-	return s;
-}
-
-const el = () => document.createElement('div');
+import { stateAt, el } from './extend-walk-env';
 
 describe('extendFocusToDocEdge', () => {
 	it("Ctrl+Shift+End extends to the END offset of the document's last leaf", () => {

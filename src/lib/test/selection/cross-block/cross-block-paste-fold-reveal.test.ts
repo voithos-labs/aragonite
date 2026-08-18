@@ -1,20 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { serialize } from '$lib/core/serializer';
-import { makeEnv, makeHandlers, selectAcross } from './typed-char-env';
+import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
 
 // GH #21's fourth caret door: a cross-block paste whose bytes demote the survivor folds the
 // paragraph above into it, so the landing names a slot the gesture never mounted — the door has
 // to reveal that slot before reading it for an element.
 // Miss-analysis: the settled landing was pinned at the primitive that derives it, never at the
 // door that spends it, so both the landing and its reveal could regress with the suite green.
-
-function pasteEvent(text: string): ClipboardEvent {
-	return {
-		clipboardData: { getData: () => text },
-		preventDefault: () => {}
-	} as unknown as ClipboardEvent;
-}
 
 /** The render window as the door sees it: a slot answers an element only once revealed. */
 function makeWindowedEnv() {
@@ -44,7 +37,7 @@ describe('cross-block paste — a fold above the pasted bytes', () => {
 		const { env, handlers, offsets } = makeWindowedEnv();
 
 		selectAcross(env.selectionState, [1], [2]);
-		await handlers.handlePaste(pasteEvent('x'));
+		await handlers.handlePaste(makePasteEvent('x'));
 
 		expect(serialize(env.doc)).toBe('a\nx# kkk\n');
 		expect(env.doc.children).toHaveLength(1);

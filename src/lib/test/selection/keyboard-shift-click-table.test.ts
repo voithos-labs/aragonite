@@ -14,6 +14,7 @@ import { handleShiftClick } from '../../selection/keyboard-extend';
 import { offsetFromViewportPoint, readNativeCaretInBlock } from '../../selection/native-bridge';
 import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';
+import { mountTableGrid } from './table-grid';
 
 const clickOffset = vi.mocked(offsetFromViewportPoint);
 const anchorCaret = vi.mocked(readNativeCaretInBlock);
@@ -26,28 +27,13 @@ function stateOver(doc: Document) {
 
 /** A mounted 3-column table at `[0]`, matching the grid's selector contract. */
 function mountTable(tablePath: number[], rowCount: number, colCount: number): HTMLElement[][] {
-	const host = document.createElement('div');
-	host.setAttribute('data-block-path', JSON.stringify(tablePath));
-	const grid = document.createElement('div');
-	grid.setAttribute('role', 'table');
-	host.appendChild(grid);
+	const { host, cells } = mountTableGrid({
+		path: tablePath,
+		rows: rowCount,
+		cols: colCount,
+		editableCells: true
+	});
 	document.body.appendChild(host);
-
-	const cells: HTMLElement[][] = [];
-	for (let r = 0; r < rowCount; r++) {
-		const rowEl = document.createElement('div');
-		rowEl.setAttribute('data-table-row-idx', String(r));
-		grid.appendChild(rowEl);
-		const rowCells: HTMLElement[] = [];
-		for (let c = 0; c < colCount; c++) {
-			const cellEl = document.createElement('div');
-			cellEl.setAttribute('role', 'cell');
-			cellEl.setAttribute('contenteditable', 'true');
-			rowEl.appendChild(cellEl);
-			rowCells.push(cellEl);
-		}
-		cells.push(rowCells);
-	}
 	return cells;
 }
 

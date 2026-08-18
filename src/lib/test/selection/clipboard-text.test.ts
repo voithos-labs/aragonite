@@ -86,7 +86,7 @@ describe('collectCrossBlockText', () => {
 			expect(text).toBe('');
 		});
 
-		it('keeps the focus cell row when the intra-table focus lands on a row-start cell (E-F5)', () => {
+		it('keeps the focus cell row when the intra-table focus lands on a row-start cell', () => {
 			// Anchor cell 0 (row 0, col 0), focus cell 3 (row 1, col 0). The end cell is
 			// inclusive — its row must be captured; an exclusive end drops row 1.
 			const doc = parse(fixture);

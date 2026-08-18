@@ -4,9 +4,7 @@ import { serialize } from '../../core/serializer';
 import { rangeDelete } from '../../selection/range-delete';
 import { involvesReservedChrome } from '../../selection/range-delete-chrome';
 import { createSharingState } from '../../tree-operations/sharing';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '../../selection/primitives';
 
@@ -32,16 +30,8 @@ function run(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return { doc: result.newDoc, source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
-function registerCallout() {
-	// registerChromeLeaf (inside registerCalloutKind) registers a paste surface;
-	// the schema reset alone leaves it orphaned, so a re-register would collide.
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
-	registerCalloutKind();
-}
-
 describe('involvesReservedChrome — gate tightness', () => {
-	beforeEach(registerCallout);
+	beforeEach(registerCalloutForTests);
 
 	const cases: Array<[string, SelectionPoint, SelectionPoint, boolean]> = [
 		['end in chrome', point([0], 2), point([1, 0], 5), true],
@@ -67,7 +57,7 @@ describe('involvesReservedChrome — gate tightness', () => {
 });
 
 describe('chrome wall — rangeDelete post-states', () => {
-	beforeEach(registerCallout);
+	beforeEach(registerCalloutForTests);
 
 	it('pins the fixture parse: title + two body paragraphs', () => {
 		const note = parse(FIXTURE).children[1];
@@ -173,7 +163,7 @@ describe('chrome wall — rangeDelete post-states', () => {
 });
 
 describe('chrome wall — generic-path parity (gate stays out of the way)', () => {
-	beforeEach(registerCallout);
+	beforeEach(registerCalloutForTests);
 
 	it('body-only range merges exactly like a blockquote', () => {
 		const callout = run(FIXTURE, point([1, 1], 2), point([1, 2], 3));

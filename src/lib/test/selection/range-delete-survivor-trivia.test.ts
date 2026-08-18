@@ -3,9 +3,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { SelectionPoint } from '$lib/selection/primitives';
 
@@ -99,11 +97,7 @@ describe('cross-block merge keeps the start block’s separator', () => {
 // The wall branches install their endpoints through the shared reparse, which always carried the
 // slot's trivia. Pinned here so the generic branch's fix and theirs stay one rule.
 describe('the wall branches keep it too', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
-		registerCalloutKind();
-	});
+	beforeEach(registerCalloutForTests);
 
 	it('chrome: a start endpoint outside the container keeps its separator', () => {
 		const doc = del(

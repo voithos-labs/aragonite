@@ -49,7 +49,7 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.landed).toBe(7);
 	});
 
-	// The T5 rule: subscribers read the editor back on notify, so an emission between the state write
+	// Subscribers read the editor back on notify, so an emission between the state write
 	// and the DOM landing reports a caret the landing is about to move.
 	it('notifies once, after the caret has landed', () => {
 		const h = liveRange();

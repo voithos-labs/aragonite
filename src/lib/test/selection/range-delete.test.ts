@@ -78,6 +78,17 @@ describe('rangeDelete — cross-container start-wins', () => {
 		);
 		expect(source).toBe('> first bq\n');
 	});
+
+	it('rangeDelete across two list items collapses to a single empty item', () => {
+		// The other list cases all keep content; this pins the fully-emptied-item boundary.
+		const { source, caret } = run(
+			'1. one\n2. two\n',
+			{ path: [0, 0, 0], offset: 0 },
+			{ path: [0, 1, 0], offset: 3 }
+		);
+		expect(source).toBe('1. \n');
+		expect(caret).toEqual({ path: [0, 0, 0], offset: 0 });
+	});
 });
 
 describe('rangeDelete — end-container post-end siblings preservation', () => {

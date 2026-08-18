@@ -10,27 +10,9 @@ import {
 	findCellPathForElement
 } from '../../selection/path-lookup';
 import { nodeAt } from '../../tree-operations/node-ops';
-import type { CstNode, Document } from '../../core/nodes';
-
-function para(raw: string): CstNode {
-	return { kind: 'paragraph', leadingTrivia: '', raw };
-}
-
-function bq(children: CstNode[]): CstNode {
-	return {
-		kind: 'blockquote',
-		leadingTrivia: '',
-		raw: '',
-		metadata: { quoteDepth: 1 },
-		children,
-		innerPrefix: '',
-		innerSuffix: ''
-	};
-}
-
-function doc(children: CstNode[]): Document {
-	return { kind: 'document', prefix: '', children, suffix: '' };
-}
+import type { CstNode } from '../../core/nodes';
+import { mountTableGrid } from './table-grid';
+import { para, bq, doc } from './cst-builders';
 
 describe('nodeAt', () => {
 	it('resolves shallow and deep paths', () => {
@@ -166,20 +148,8 @@ describe('findBlockPathForElement', () => {
 // data-block-path, so a plain walk stops at the table and hands back cell-index offsets where the
 // caret's are characters. Every null arm matters — "not a cell" read as "cell 0" corrupts too.
 describe('findCellPathForElement', () => {
-	function grid(rowCount: number, colCount: number, tablePath = '[3]') {
-		const host = document.createElement('div');
-		host.setAttribute('data-block-path', tablePath);
-		for (let r = 0; r < rowCount; r++) {
-			const rowEl = document.createElement('div');
-			rowEl.setAttribute('data-table-row-idx', String(r));
-			host.appendChild(rowEl);
-			for (let c = 0; c < colCount; c++) {
-				const cellEl = document.createElement('div');
-				cellEl.setAttribute('role', 'cell');
-				rowEl.appendChild(cellEl);
-			}
-		}
-		return host;
+	function grid(rowCount: number, colCount: number) {
+		return mountTableGrid({ path: [3], rows: rowCount, cols: colCount }).host;
 	}
 
 	const cellAt = (host: HTMLElement, row: number, col: number) =>

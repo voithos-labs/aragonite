@@ -16,10 +16,11 @@ import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { parse } from '$lib/core/parser';
 import { mockRef, makeStickyColumn, makeEdgeAffinity } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
+import type { GrammarView } from '$lib/schema/block-openers';
 import type { SelectionState } from '$lib/selection/selection-state.svelte';
 
 /** Override focus to vi.fn() so cross-block dispatch tests can assert calls. */
-export const makeRef = (): BlockComponent => mockRef({ focus: vi.fn() });
+const makeRef = (): BlockComponent => mockRef({ focus: vi.fn() });
 
 export function makeEnv(source: string) {
 	const doc = parse(source);
@@ -67,6 +68,10 @@ export interface HandlerOptions {
 	getCursorOffset?: () => number | null;
 	/** The caret-landing door: the dispatch places its post-commit caret through this. */
 	getBlockElByPath?: (path: number[]) => HTMLElement | null;
+	/** Instance grammar the dispatch must forward onto its commit contexts. */
+	grammar?: GrammarView;
+	/** Substitute dispatch reveal (e.g. gated); the paste coordinator keeps the env's own. */
+	revealPath?: (path: number[]) => Promise<BlockComponent | null>;
 }
 
 export function makeHandlers(
@@ -82,7 +87,7 @@ export function makeHandlers(
 		selection: env.selectionState,
 		getDoc: () => env.doc,
 		getBlockElByPath: opts.getBlockElByPath ?? (() => null),
-		revealPath: env.deps.revealPath,
+		revealPath: opts.revealPath ?? env.deps.revealPath,
 		getEditorRoot: () => null,
 		getScrollHost: () => null,
 		getEditorLifetime: () => null,
@@ -97,7 +102,7 @@ export function makeHandlers(
 		onCommandError: undefined,
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
-		grammar: undefined,
+		grammar: opts.grammar,
 		events: env.events,
 		getCursorOffset: opts.getCursorOffset ?? (() => 0),
 		afterReactivity: async () => {}
@@ -114,4 +119,11 @@ export function makeBeforeInputEvent(typed: string): InputEvent {
 		data: typed,
 		cancelable: true
 	});
+}
+
+export function makePasteEvent(text: string): ClipboardEvent {
+	return {
+		clipboardData: { getData: () => text },
+		preventDefault: () => {}
+	} as unknown as ClipboardEvent;
 }

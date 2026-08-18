@@ -12,7 +12,8 @@ import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
 // A range delete leaves its survivor beside an absorbing neighbour ABOVE the selection, so the
-// settle folds a seam outside `[startTop, endTop]` — the window a length-diff descriptor names.
+// settle folds a seam outside the selected endpoints — a fold the id ledger the commit composes
+// its structural descriptor from must observe too.
 // Miss-analysis: every cross-block delete pin asserted the scope's own children and bytes, and the
 // descriptor's own pins called `computeScopeDescriptor` with hand-written lengths, so no case ever
 // compared the published id array against the children a settle-folded delete actually left.
