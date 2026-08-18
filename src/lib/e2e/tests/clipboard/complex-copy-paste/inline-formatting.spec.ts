@@ -1,7 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
-import { waitForClipboardContains } from './helpers';
 
 test.describe('clipboard — inline formatting preservation', () => {
 	let editor: EditorPage;
@@ -18,9 +17,9 @@ test.describe('clipboard — inline formatting preservation', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await waitForClipboardContains(editor, '**bold text**');
+		await editor.waitForClipboardContains('**bold text**');
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('**bold text**');
 		expect(clip).toContain('*italic text*');
 		expect(clip).toContain('`inline code`');
@@ -33,9 +32,9 @@ test.describe('clipboard — inline formatting preservation', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await waitForClipboardContains(editor, '### Heading 3');
+		await editor.waitForClipboardContains('### Heading 3');
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('### Heading 3');
 		expect(clip).toContain('**bold text**');
 	});

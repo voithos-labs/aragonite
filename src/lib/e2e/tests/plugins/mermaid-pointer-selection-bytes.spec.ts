@@ -47,7 +47,7 @@ test.describe('pointer drag into a rendered diagram', () => {
 		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`text\n\n${DIAGRAM}`);
+		expect(await editor.readClipboard()).toBe(`text\n\n${DIAGRAM}`);
 	});
 
 	test('Mod+X removes the diagram whole, leaving no fence remnant', async ({ page }) => {

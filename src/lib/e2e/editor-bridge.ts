@@ -88,6 +88,12 @@ export class EditorBridge {
 		return this.page.evaluate(() => (window as any).__test.isCrossBlockActive());
 	}
 
+	// Narrower than isCrossBlockActive: an intra-table rectangle activates that mode while
+	// both endpoints keep the table's own path, which this still reports false for.
+	async isCrossBlockSelection(): Promise<boolean> {
+		return this.page.evaluate(() => (window as any).__test.isCrossBlockSelection());
+	}
+
 	// The third selection mode, same state-not-DOM rule as above: the gap's own surface
 	// mounts a render later than the state write.
 	async getGapCaret(): Promise<GapCaretPosition | null> {

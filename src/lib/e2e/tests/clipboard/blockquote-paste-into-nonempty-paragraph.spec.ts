@@ -11,12 +11,12 @@ test.describe('clipboard: blockquote paste into a non-empty blockquote paragraph
 
 	test('pasting a blockquote at the end of "hello" keeps "hello"', async () => {
 		await editor.loadContent('> hello\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('> world\n'));
+		await editor.seedClipboard('> world\n');
 
 		// Caret at end of "hello" inside the blockquote's paragraph leaf [0, 0].
 		await editor.focusBlockAtPath([0, 0], 'hello'.length);
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('world');
 
 		const src = await editor.bridge.getSource();

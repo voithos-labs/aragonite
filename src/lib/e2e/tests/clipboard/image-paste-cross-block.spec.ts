@@ -154,8 +154,8 @@ test.describe('image paste: cross-block replacement', () => {
 		await editor.goto('?imagePaste=on');
 		await editor.loadContent(TABLE);
 		await selectOutOfCell();
-		await page.evaluate((md) => navigator.clipboard.writeText(md), MARKDOWN);
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.seedClipboard(MARKDOWN);
+		await editor.paste(`${primaryModifier}+v`);
 		await editor.bridge.waitForSourceContains('shot.png');
 
 		expect(await editor.bridge.getSource()).toBe(viaHook);

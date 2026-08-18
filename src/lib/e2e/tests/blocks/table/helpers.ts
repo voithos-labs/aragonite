@@ -1,14 +1,10 @@
 import { type Locator, type Page } from '@playwright/test';
 
-// Shared pointer + clipboard helpers for the table block e2e specs. The drag gesture IS the real
+// Shared pointer helpers for the table block e2e specs. The drag gesture IS the real
 // mouse path (down → interpolated moves → up); the 10-step interpolation matches EditorPage's own
 // dragMouseTo.
 
 type Box = { x: number; y: number; width: number; height: number };
-
-export async function readClipboard(page: Page): Promise<string> {
-	return page.evaluate(() => navigator.clipboard.readText());
-}
 
 export async function boxesOf(a: Locator, b: Locator): Promise<readonly [Box, Box]> {
 	const ab = await a.boundingBox();

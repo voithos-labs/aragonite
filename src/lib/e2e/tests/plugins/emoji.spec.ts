@@ -83,7 +83,7 @@ test.describe('plugin inline emoji shortcodes', () => {
 		await page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const copied = await page.evaluate(() => navigator.clipboard.readText());
+		const copied = await editor.readClipboard();
 		expect(copied).toContain(':smile:');
 		expect(copied).not.toContain('😄');
 		expect(await capturedErrors(page)).toEqual([]);

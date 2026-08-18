@@ -19,7 +19,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.waitForClipboardWrite();
 
 		await editor.focusBlockAtPath([1], 'target para'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('target parainside bq');
 
 		const src = await editor.bridge.getSource();
@@ -37,7 +37,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.waitForClipboardWrite();
 
 		await editor.focusBlockAtPath([1, 0], 'target inside bq'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceMatches(/> target inside bqouter para/);
 
 		const src = await editor.bridge.getSource();
@@ -56,7 +56,7 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 
 		await editor.loadContent('destination\n');
 		await editor.focusBlockAtPath([0], 'destination'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceMatches(/destination[\s\S]*outer para/);
 
 		const src = await editor.bridge.getSource();

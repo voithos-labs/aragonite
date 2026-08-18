@@ -46,6 +46,16 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'four hard-invariant bullets asserted in EVERY scenario, and the two tests are one parametrized loop over the atomic variants'
 	},
 	{
+		spec: 'clipboard/list-copy-paste-roundtrip.spec.ts',
+		reason:
+			'six of seven tests are one parametrized loop over the ROUNDTRIPS rows, invisible to the literal test counter'
+	},
+	{
+		spec: 'clipboard/list-paste-absorbs-same-type.spec.ts',
+		reason:
+			'nine of ten tests are one parametrized loop over the absorb ROWS, invisible to the literal test counter'
+	},
+	{
 		spec: 'blocks/code/fence-content-validity.spec.ts',
 		reason:
 			'the write rule reaches most of its doors headlessly (the byte sinks, find/replace, the range-delete arms), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'

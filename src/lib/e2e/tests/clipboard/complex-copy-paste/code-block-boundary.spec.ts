@@ -1,7 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage, BLOCK_CONTENT_SELECTOR } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
-import { waitForClipboardContains } from './helpers';
 
 test.describe('clipboard — code block boundary and direction', () => {
 	let editor: EditorPage;
@@ -18,9 +17,9 @@ test.describe('clipboard — code block boundary and direction', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await waitForClipboardContains(editor, 'A final paragraph');
+		await editor.waitForClipboardContains('A final paragraph');
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('const x = 42');
 		expect(clip).toContain('A final paragraph');
 	});
@@ -48,9 +47,9 @@ test.describe('clipboard — code block boundary and direction', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await waitForClipboardContains(editor, 'Heading 1');
+		await editor.waitForClipboardContains('Heading 1');
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('Heading 1');
 		expect(clip).not.toContain('Heading 2');
 	});

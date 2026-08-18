@@ -44,13 +44,11 @@ test.describe('fold fixture', () => {
 });
 
 test.describe('fold fixture: islands in table cells', () => {
+	// "Never dev-warns" rides the shared fixture: the retired cells-unsupported warning is a
+	// `[aragonite:decorations]` sentinel fire, which the teardown watch fails undeclared.
 	test('a fold range in a cell renders one … island, never dev-warns, and stays byte-safe', async ({
 		page
 	}) => {
-		const warnings: string[] = [];
-		page.on('console', (msg) => {
-			if (msg.type() === 'warning') warnings.push(msg.text());
-		});
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('fold-table');
 		await editor.bridge.waitForSourceContains('SECRET');
@@ -60,10 +58,6 @@ test.describe('fold fixture: islands in table cells', () => {
 		await expect(page.locator(`${ISLAND} .fold-ellipsis`)).toHaveText('…');
 		await expect(page.getByRole('cell').first()).not.toContainText('SECRET');
 		expect(await editor.bridge.getSource()).toBe(FOLD_TABLE_SEED);
-		// The retired cells-unsupported warning must not fire for a cell path.
-		const islandWarn = (w: string) =>
-			w.includes('places a replace island on a non-prose tableCell');
-		expect(warnings.filter(islandWarn)).toHaveLength(0);
 	});
 
 	test.describe('after the covered range is gone', () => {

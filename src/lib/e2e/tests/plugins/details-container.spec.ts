@@ -267,7 +267,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.press('End');
-		await page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('<summary>Sum</summary>');
 
 		const pasted = await page.evaluate(() => {

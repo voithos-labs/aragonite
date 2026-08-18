@@ -55,12 +55,12 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 			'container windowing is not active — the fixture no longer clears the watermark'
 		).toBeGreaterThan(0);
 
-		await page.evaluate((text) => navigator.clipboard.writeText(text), CLIPBOARD);
+		await editor.seedClipboard(CLIPBOARD);
 
 		// Paste into an item near the top of the mounted window, so the landing index
 		// (here + 40) is far below anything mounted.
 		await editor.clickBlockAtPath([0, TARGET_ITEM, 0], 'item 2'.length);
-		await page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains(LAST_PASTED_TEXT);
 
 		// The source is final at commit time, before the reveal has mounted the landing

@@ -271,11 +271,6 @@ export class EditorPage {
 		await this.page.keyboard.type(text);
 	}
 
-	async typeInBlock(index: number, text: string) {
-		await this.clickBlock(index);
-		await this.page.keyboard.insertText(text);
-	}
-
 	// macOS binds undo/redo/select-all to Cmd; every other platform uses Ctrl.
 	async undo() {
 		await this.page.keyboard.press(`${primaryModifier}+z`);
@@ -287,6 +282,21 @@ export class EditorPage {
 
 	async selectAll() {
 		await this.page.keyboard.press(`${primaryModifier}+a`);
+	}
+
+	// ── Clipboard ───────────────────────────────────────────────────────
+
+	/** Callers spell their own chord: three modifier conventions coexist in the suite. */
+	async paste(chord: string): Promise<void> {
+		await this.page.keyboard.press(chord);
+	}
+
+	async seedClipboard(text: string): Promise<void> {
+		await this.page.evaluate((t) => navigator.clipboard.writeText(t), text);
+	}
+
+	async readClipboard(): Promise<string> {
+		return this.page.evaluate(() => navigator.clipboard.readText());
 	}
 
 	// ── Drag & Shift+Click ──────────────────────────────────────────────
@@ -476,5 +486,13 @@ export class EditorPage {
 	 */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);
+	}
+
+	async waitForClipboardContains(expected: string, timeout = 2000): Promise<void> {
+		await this.page.waitForFunction(
+			async (e) => (await navigator.clipboard.readText()).includes(e),
+			expected,
+			{ timeout, polling: 32 }
+		);
 	}
 }

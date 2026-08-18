@@ -88,7 +88,7 @@ test.describe('inline math: clipboard during an active source reveal', () => {
 		await page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		// The clipboard holds exactly what the user selected and SEES — the live DOM
 		// edit — not the stale raw slice, which never carried `QQ` (uncommitted edit).
 		expect(clip).toBe('QQ');

@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { dragBetweenCells, readClipboard } from './helpers';
+import { dragBetweenCells } from './helpers';
 
 const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_ALIGNED = '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -12,7 +12,7 @@ test.describe('table block: clipboard cut', () => {
 		editor = new EditorPage(page);
 		await editor.goto();
 		// Reset clipboard so leakage between tests cannot mask a missing write.
-		await page.evaluate(() => navigator.clipboard.writeText(''));
+		await editor.seedClipboard('');
 	});
 
 	test('intra-cell Ctrl+X removes selected text from cell and writes it to clipboard', async ({
@@ -24,7 +24,7 @@ test.describe('table block: clipboard cut', () => {
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('Control+x');
 
-		await expect.poll(() => readClipboard(page)).toBe('hello');
+		await expect.poll(() => editor.readClipboard()).toBe('hello');
 		await editor.bridge.waitForSourceContains('|  | 2 |');
 		await editor.bridge.waitForSourceNotContains('hello');
 	});
@@ -53,7 +53,9 @@ test.describe('table block: clipboard cut', () => {
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Control+x');
 
-		await expect.poll(() => readClipboard(page)).toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
+		await expect
+			.poll(() => editor.readClipboard())
+			.toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
 		await editor.bridge.waitForSourceContains('|  |  | C |');
 		await editor.bridge.waitForSourceContains('|  |  | 3 |');
 		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
@@ -89,7 +91,7 @@ test.describe('table block: clipboard cut', () => {
 
 		await page.keyboard.press('Control+x');
 
-		const clip = await readClipboard(page);
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('1');
 		expect(clip).toContain('follow paragraph');
 
@@ -132,7 +134,7 @@ test.describe('table block: clipboard cut', () => {
 		await page.keyboard.press('Control+x');
 		await editor.bridge.waitForSourceNotContains('a1');
 
-		const clip = await readClipboard(page);
+		const clip = await editor.readClipboard();
 		const surviving = await editor.bridge.getSource();
 		for (const value of ['a1', 'a2', 'a3', 'b1', 'b2', 'b3']) {
 			const copied = clip.includes(value);
@@ -174,7 +176,7 @@ test.describe('table block: clipboard cut', () => {
 		await page.keyboard.press('Control+x');
 		await editor.bridge.waitForSourceNotContains('a1');
 
-		const clip = await readClipboard(page);
+		const clip = await editor.readClipboard();
 		const surviving = await editor.bridge.getSource();
 		for (const value of ['a1', 'a2', 'a3', 'b1', 'b2', 'b3']) {
 			const copied = clip.includes(value);

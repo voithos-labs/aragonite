@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { waitForClipboardContains } from '../clipboard/complex-copy-paste/helpers';
 
 const CODE_FIXTURE = 'before alpha\n\n```\nconst x = 42;\n```\n\nafter omega\n';
 const BREAK_FIXTURE = 'before alpha\n\n---\n\nafter omega\n';
@@ -76,8 +75,8 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 			await editor.page.keyboard.press('Control+x');
 			await editor.bridge.waitForSourceNotContains(variant.body);
 
-			await waitForClipboardContains(editor, variant.body);
-			const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+			await editor.waitForClipboardContains(variant.body);
+			const clip = await editor.readClipboard();
 			expect(clip).toContain(variant.body);
 
 			await assertSoundProse(editor, variant.body);

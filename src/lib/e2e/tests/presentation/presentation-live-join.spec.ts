@@ -53,7 +53,7 @@ test.describe('live mode — a selection out of one construct and into another',
 		await ep.bridge.waitForSourceContains('Some boalic words');
 		expect(await ep.bridge.getSource()).not.toContain('**bo');
 		// Live copy writes SOURCE bytes (raw 9-21), not the visible text — the consumer guide's contract.
-		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('ld** and *it');
+		expect(await ep.readClipboard()).toBe('ld** and *it');
 	});
 
 	test('typing over the selection lands the character at the cleaned seam', async ({ page }) => {
@@ -103,8 +103,8 @@ test.describe('live mode — the join across a block boundary', () => {
 		const ep = await enterMode(page, 'live');
 		await selectAcrossBlocks(ep, page);
 
-		await page.evaluate(() => navigator.clipboard.writeText('JOINED'));
-		await page.keyboard.press('ControlOrMeta+v');
+		await ep.seedClipboard('JOINED');
+		await ep.paste('ControlOrMeta+v');
 		await ep.bridge.waitForSourceContains('Alpha beJOINEDdelta *epsilon* zeta');
 		expect(await ep.bridge.getSource()).not.toContain('Alpha **be');
 	});

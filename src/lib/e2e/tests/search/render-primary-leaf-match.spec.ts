@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
-import { primaryModifier } from '../../platform';
 import { PluginsPage } from '../plugins/helpers';
+import { count, openFind, typeQuery } from './helpers';
 
 /**
  * Search inside a folded render-primary leaf widget
@@ -11,15 +11,11 @@ import { PluginsPage } from '../plugins/helpers';
  * render-primary leaf inherits the highlight with no per-kind code.
  */
 
-const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
-const count = (page: Page) => page.locator('.search-count');
 const hostFor = (page: Page, kind: string) => page.locator(`[data-block-kind='${kind}']`);
 
 async function search(editor: PluginsPage, token: string): Promise<void> {
-	await editor.clickBlock(0);
-	await editor.page.keyboard.press(`${primaryModifier}+f`);
-	await findInput(editor.page).waitFor({ state: 'visible' });
-	await editor.page.keyboard.type(token);
+	await openFind(editor);
+	await typeQuery(editor, token);
 }
 
 // The token lives only inside the leaf's source, so finding it (count 1 / 1) is the

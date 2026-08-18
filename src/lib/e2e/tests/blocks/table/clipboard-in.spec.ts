@@ -9,7 +9,7 @@ test.describe('table block: paste in', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await page.evaluate(() => navigator.clipboard.writeText(''));
+		await editor.seedClipboard('');
 	});
 
 	// ── Inline ──────────────────────────────────────────────────────────
@@ -18,8 +18,8 @@ test.describe('table block: paste in', () => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('End');
-		await page.evaluate(() => navigator.clipboard.writeText('hello'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('hello');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('| Ahello | B |');
 	});
 
@@ -27,8 +27,8 @@ test.describe('table block: paste in', () => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
-		await page.evaluate(() => navigator.clipboard.writeText('a|b|c'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('a|b|c');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('| 1a\\|b\\|c | 2 |');
 	});
 
@@ -38,8 +38,8 @@ test.describe('table block: paste in', () => {
 		await page.keyboard.press('Home');
 		// One content paragraph: the blank lines the copy wrapped around it are packaging, so the
 		// cell keeps the inline path rather than breaking the table around them.
-		await page.evaluate(() => navigator.clipboard.writeText('  \nhello\nworld\n  '));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('  \nhello\nworld\n  ');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('| 1 | hello world2 |');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
@@ -53,10 +53,8 @@ test.describe('table block: paste in', () => {
 	test('pasting a markdown table breaks and splices around the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.evaluate(() =>
-			navigator.clipboard.writeText('| X | Y |\n| --- | --- |\n| 9 | 8 |\n')
-		);
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('| X | Y |\n| --- | --- |\n| 9 | 8 |\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('| X | Y |');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			[
@@ -75,8 +73,8 @@ test.describe('table block: paste in', () => {
 	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.evaluate(() => navigator.clipboard.writeText('# Hello\n'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('# Hello\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('# Hello');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['| A | B |', '| --- | --- |', '| 1 | 2 |', '# Hello', '| 3 | 4 |', '| --- | --- |'].join(
@@ -90,8 +88,8 @@ test.describe('table block: paste in', () => {
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.evaluate(() => navigator.clipboard.writeText('Para one.\n\n## Two\n'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('Para one.\n\n## Two\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('## Two');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			[
@@ -114,8 +112,8 @@ test.describe('table block: paste in', () => {
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(0).click();
-		await page.evaluate(() => navigator.clipboard.writeText('# Sandwiched\n'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('# Sandwiched\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('# Sandwiched');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			[
@@ -134,8 +132,8 @@ test.describe('table block: paste in', () => {
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(4).click();
-		await page.evaluate(() => navigator.clipboard.writeText('# Tail\n'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('# Tail\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('# Tail');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['| A | B |', '| --- | --- |', '| 1 | 2 |', '| 3 | 4 |', '# Tail'].join('\n')
@@ -149,8 +147,8 @@ test.describe('table block: paste in', () => {
 		const before = await editor.bridge.getSource();
 		await page.locator('[role="cell"]').nth(0).click();
 		await page.keyboard.press('End');
-		await page.evaluate(() => navigator.clipboard.writeText('xyz'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('xyz');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('| Axyz | B |');
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains('Axyz');
@@ -182,8 +180,8 @@ test.describe('table block: paste in', () => {
 		await page.mouse.up();
 		await editor.waitForCrossBlock(true);
 
-		await page.evaluate(() => navigator.clipboard.writeText('hello'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('hello');
+		await editor.paste('Control+v');
 
 		// "hello" in the anchor cell is the only shape the pre-paste document does not
 		// already have, so it is the one predicate that can settle on the paste.
@@ -203,8 +201,8 @@ test.describe('table block: paste in', () => {
 		await page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);
 
-		await page.evaluate(() => navigator.clipboard.writeText('replaced text\n'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('replaced text\n');
+		await editor.paste('Control+v');
 
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
 		await editor.bridge.waitForSourceContains('replaced text');
@@ -220,8 +218,8 @@ test.describe('table block: paste in', () => {
 		await page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);
 
-		await page.evaluate(() => navigator.clipboard.writeText('replaced text\n'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('replaced text\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('replaced text');
 
 		await editor.undo();

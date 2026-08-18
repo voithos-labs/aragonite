@@ -90,8 +90,8 @@ test.describe('reading mode — inertness', () => {
 
 	test('paste and cut change nothing (cut degrades to copy)', async ({ page }) => {
 		await ep.clickBlock(1);
-		await page.evaluate(() => navigator.clipboard.writeText('PASTED'));
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await ep.seedClipboard('PASTED');
+		await ep.paste(`${primaryModifier}+v`);
 		await ep.dragFromTo([1], 0, [1], 4);
 		await page.keyboard.press(`${primaryModifier}+x`);
 		await ep.waitForNoSourceMutation();
@@ -173,7 +173,7 @@ test.describe('reading mode — what stays live', () => {
 		await ep.dragFromTo([1], 0, [1], 11);
 		await page.keyboard.press(`${primaryModifier}+c`);
 		await ep.waitForClipboardWrite();
-		const copied = await page.evaluate(() => navigator.clipboard.readText());
+		const copied = await ep.readClipboard();
 		expect(copied).toBe('Some bold');
 	});
 

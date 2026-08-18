@@ -18,4 +18,5 @@
 ## Edge cases
 
 - Hotkey pressed while focus is in the editor (contenteditable): panel still toggles; editor does not receive a 'D' character.
-- Panel opens with all six sections rendering in document order and the CST tree section populated for the default document.
+- Panel opens with every section rendering in document order and the CST tree section populated for the default document.
+- The inline tree populates whether the block gains focus before or after the section expands.

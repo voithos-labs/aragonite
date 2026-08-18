@@ -47,15 +47,11 @@ test('Shift+Ctrl+End extends to an off-window endpoint and scrolls it into view,
 	// Poll the mount+scroll the reveal performs rather than a fixed wait; the
 	// endpoint must land mounted AND in view.
 	await expect.poll(() => markerInView(page)).toEqual({ mounted: true, inView: true });
-	expect(await page.evaluate(() => (window as any).__test.isCrossBlockSelection?.() ?? false)).toBe(
-		true
-	);
+	expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 
 	// A following unshifted arrow collapses the selection (focus routing intact).
 	await page.keyboard.press('ArrowLeft');
 	await editor.waitForRenderFlush();
-	expect(await page.evaluate(() => (window as any).__test.isCrossBlockSelection?.() ?? false)).toBe(
-		false
-	);
+	expect(await editor.bridge.isCrossBlockSelection()).toBe(false);
 	expect(pageErrors).toEqual([]);
 });

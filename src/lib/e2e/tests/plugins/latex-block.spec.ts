@@ -145,7 +145,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 				})
 			]);
 		});
-		await page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 
 		// The ephemeral source edit takes the text/plain payload, not the HTML markup: without the
 		// render-primary leaf's own onpaste the native paste drops live <b> into the reveal.

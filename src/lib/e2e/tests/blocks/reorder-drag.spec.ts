@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { pollAutoscrollPast } from '../../autoscroll';
 
 // Drop index is direction-dependent (removing the dragged block shifts later indices), so DOWN, UP,
 // and a within-container drag are all covered to catch an off-by-one.
@@ -154,18 +155,14 @@ test.describe('drag to reorder', () => {
 		await editor.page.mouse.down();
 		await editor.page.mouse.move(edgeX, edgeY, { steps: 8 });
 
-		// Autoscroll is a self-driving rAF loop; poll scrollTop until it advances past a full
-		// viewport height, jittering the pointer each iteration to keep Playwright's pointer state
-		// fresh. Never waitForTimeout.
-		await expect
-			.poll(
-				async () => {
-					await editor.page.mouse.move(edgeX, edgeY);
-					return editorEl.evaluate((el) => el.scrollTop);
-				},
-				{ intervals: [16], timeout: 5000 }
-			)
-			.toBeGreaterThan(startScroll + edgeBox.height);
+		// Poll scrollTop past a full viewport height so the deep region mounts.
+		await pollAutoscrollPast(
+			editor.page,
+			{ x: edgeX, y: edgeY },
+			() => editorEl.evaluate((el) => el.scrollTop),
+			startScroll + edgeBox.height,
+			5000
+		);
 
 		// Move out of the threshold band so autoscroll halts and geometry stabilizes: a boundingBox
 		// read while the loop still scrolls is stale by the time of the drop.

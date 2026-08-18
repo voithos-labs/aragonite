@@ -17,22 +17,11 @@ test.describe('cross-block delete — Ctrl+Z restores content + selection', () =
 		await editor.page.keyboard.press('Control+Shift+End');
 
 		await editor.page.keyboard.press('Delete');
-		await editor.page.waitForFunction(() => {
-			const src = (window as any).__test.getSource() as string;
-			return !src.includes('Alpha') && !src.includes('Gamma');
-		});
+		await editor.bridge.waitForSource((s) => !s.includes('Alpha') && !s.includes('Gamma'));
 
 		await editor.undo();
+		await editor.bridge.waitForSourceWith((s, e) => s.trim() === e.trim(), original);
 
-		await editor.page.waitForFunction(
-			(expected) => (window as any).__test.getSource().trim() === expected.trim(),
-			original
-		);
-		expect((await editor.bridge.getSource()).trim()).toBe(original.trim());
-
-		const isCrossBlock = await editor.page.evaluate(
-			() => (window as any).__test.isCrossBlockSelection?.() ?? false
-		);
-		expect(isCrossBlock).toBe(true);
+		expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 	});
 });

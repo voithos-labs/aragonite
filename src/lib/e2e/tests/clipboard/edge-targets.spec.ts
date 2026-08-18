@@ -11,22 +11,19 @@ test.describe('clipboard exploration: edge targets', () => {
 
 	test('paste into empty document places pasted content', async () => {
 		await editor.loadContent('');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('hello world\n'));
+		await editor.seedClipboard('hello world\n');
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('hello world');
-
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('hello world');
 	});
 
 	test('paste multi-block content into empty document', async () => {
 		await editor.loadContent('');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\npara\n'));
+		await editor.seedClipboard('# Heading\n\npara\n');
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSource((s) => s.includes('Heading') && s.includes('para'));
 
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
@@ -39,11 +36,11 @@ test.describe('clipboard exploration: edge targets', () => {
 	// the surrounding list scope gets corrupted.
 	test('paste heading into list item replaces item content (structural path)', async () => {
 		await editor.loadContent('- list item\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('# Big Heading\n'));
+		await editor.seedClipboard('# Big Heading\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 0], 'list item'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('Big Heading');
 
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('- # Big Heading');
@@ -66,7 +63,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		expect(afterCut).not.toContain('two');
 		expect(afterCut).toContain('three');
 
-		const clipContent = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clipContent = await editor.readClipboard();
 		expect(clipContent).toContain('one');
 		expect(clipContent).toContain('two');
 	});
@@ -85,7 +82,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		const afterCut = await editor.bridge.getSource();
 		expect(afterCut.trim()).toBe('alpha  gamma');
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSource((s) => s.trim() === 'alpha beta gamma');
 
 		const afterPaste = await editor.bridge.getSource();
@@ -94,23 +91,20 @@ test.describe('clipboard exploration: edge targets', () => {
 
 	test('paste at end of last block in document appends correctly', async () => {
 		await editor.loadContent('line one\n\nline two\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText(' APPENDED'));
+		await editor.seedClipboard(' APPENDED');
 
 		await editor.focusBlockAtPath([1], 'line two'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('line two APPENDED');
-
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('line two APPENDED');
 	});
 
 	test('paste empty clipboard is no-op', async () => {
 		await editor.loadContent('unchanged\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText(''));
+		await editor.seedClipboard('');
 		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.waitForNoSourceMutation();
 
 		// Byte-exact: a stray newline or a duplicated block would still "contain

@@ -94,7 +94,7 @@ test.describe('preview-block — selection, search, mode flips', () => {
 		await expect(ep.getBlock(2).locator('.md-marker').first()).toBeHidden();
 		await page.keyboard.press(`${primaryModifier}+c`);
 		await ep.waitForClipboardWrite();
-		expect((await page.evaluate(() => navigator.clipboard.readText())).length).toBeGreaterThan(0);
+		expect((await ep.readClipboard()).length).toBeGreaterThan(0);
 	});
 
 	test('search highlights land on a marker-hidden block', async ({ page }) => {

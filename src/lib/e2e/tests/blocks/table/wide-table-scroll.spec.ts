@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { pollAutoscrollPast } from '../../../autoscroll';
 
 const COLS = 12;
 // Long header content forces each column past the 80px floor (~150px each), so the table exceeds
@@ -90,18 +91,13 @@ test.describe('table block: wide-table horizontal scroll', () => {
 		await page.mouse.move(tableBox.x + tableBox.width - 5, firstBox.y + firstBox.height / 2, {
 			steps: 5
 		});
-		// Autoscroll is a self-driving rAF loop once the pointer is held near the threshold; poll
-		// scrollLeft until it advances, jittering the pointer each iteration to keep Playwright's
-		// pointer state fresh.
-		await expect
-			.poll(
-				async () => {
-					await page.mouse.move(tableBox.x + tableBox.width - 5, firstBox.y + firstBox.height / 2);
-					return tableEl.evaluate((el) => el.scrollLeft);
-				},
-				{ intervals: [16] }
-			)
-			.toBeGreaterThan(0);
+		// Poll scrollLeft until the held pointer's autoscroll advances it at all.
+		await pollAutoscrollPast(
+			page,
+			{ x: tableBox.x + tableBox.width - 5, y: firstBox.y + firstBox.height / 2 },
+			() => tableEl.evaluate((el) => el.scrollLeft),
+			0
+		);
 		await page.mouse.up();
 	});
 

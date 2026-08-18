@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { dragBetweenCells, readClipboard } from './helpers';
+import { dragBetweenCells } from './helpers';
 
 // Cells render row-major: 0=A 1=B (header) · 2="hello" 3="world" (body row).
 const TABLE = '| A | B |\n| --- | --- |\n| hello | world |\n';
@@ -11,7 +11,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await page.evaluate(() => navigator.clipboard.writeText(''));
+		await editor.seedClipboard('');
 		await editor.loadContent(TABLE);
 	});
 
@@ -35,7 +35,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		await page.keyboard.press('Control+a');
 		await cell.click({ button: 'right' }); // right-click inside the selection
 		await page.getByRole('menuitem', { name: /^copy$/i }).click();
-		await expect.poll(() => readClipboard(page)).toBe('hello');
+		await expect.poll(() => editor.readClipboard()).toBe('hello');
 		// Copy is non-destructive.
 		expect(await editor.bridge.getSource()).toContain('| hello | world |');
 	});
@@ -48,7 +48,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		await page.keyboard.press('Control+a');
 		await cell.click({ button: 'right' });
 		await page.getByRole('menuitem', { name: /^cut$/i }).click();
-		await expect.poll(() => readClipboard(page)).toBe('hello');
+		await expect.poll(() => editor.readClipboard()).toBe('hello');
 		await editor.bridge.waitForSourceContains('|  | world |');
 		await editor.bridge.waitForSourceNotContains('hello');
 	});
@@ -81,7 +81,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		// Empty target cell: the caret is at offset 0 wherever the right-click lands,
 		// so the paste position is deterministic (a right-click repositions the caret).
 		await editor.loadContent('| A | B |\n| --- | --- |\n|  | world |\n');
-		await page.evaluate(() => navigator.clipboard.writeText('pasted'));
+		await editor.seedClipboard('pasted');
 		await page.locator('[role="cell"]').nth(2).click({ button: 'right' }); // empty body cell
 		await page.getByRole('menuitem', { name: /^paste$/i }).click();
 		await editor.bridge.waitForSourceContains('| pasted | world |');
@@ -105,7 +105,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		await expect(page.getByRole('menuitem', { name: /^copy$/i })).toBeEnabled();
 
 		await page.getByRole('menuitem', { name: /^copy$/i }).click();
-		const copied = await readClipboard(page);
+		const copied = await editor.readClipboard();
 		expect(copied).toContain('1');
 		expect(copied).toContain('4');
 		// Copy is non-destructive.
@@ -113,7 +113,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	});
 
 	test('Paste over a selection replaces the selected text', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('bye'));
+		await editor.seedClipboard('bye');
 		const cell = page.locator('[role="cell"]').nth(2); // "hello"
 		await cell.click();
 		await page.keyboard.press('Control+a');

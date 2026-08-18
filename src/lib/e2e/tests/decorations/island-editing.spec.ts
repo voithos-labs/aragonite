@@ -239,7 +239,7 @@ test.describe('decoration island editing', () => {
 		await page.keyboard.press(`${primaryModifier}+c`);
 		await editor.waitForClipboardWrite();
 
-		const clip = await page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toBe('hello');
 	});
 });

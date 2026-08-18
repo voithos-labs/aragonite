@@ -3,6 +3,7 @@ import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 import { capturePageErrors } from '../../../page-probes';
+import { pollAutoscrollPast, settleScroll } from '../../../autoscroll';
 
 // Header + N distinguishable body rows; row k's first cell is `rk`. Tall enough
 // that body rows window out, so a deep target is unmounted at drag start.
@@ -69,37 +70,18 @@ test.describe('table block: row drag on a windowed table', () => {
 		await page.mouse.down();
 		await page.mouse.move(edgeX, edgeY, { steps: 6 });
 
-		// The autoscroll rAF loop self-drives on the held pointer; poll scrollTop past 1.5
-		// viewports so the deep region mounts, jittering the pointer each iteration to keep
-		// Playwright's pointer state fresh. Never waitForTimeout.
-		await expect
-			.poll(
-				async () => {
-					await page.mouse.move(edgeX, edgeY);
-					return scrollTopOf(page);
-				},
-				{ intervals: [16], timeout: 15_000 }
-			)
-			.toBeGreaterThan(startScroll + box.height * 1.5);
+		// Poll scrollTop past 1.5 viewports so the deep region mounts.
+		await pollAutoscrollPast(
+			page,
+			{ x: edgeX, y: edgeY },
+			() => scrollTopOf(page),
+			startScroll + box.height * 1.5,
+			15_000
+		);
 
-		// Leave the band so autoscroll halts, then wait for scrollTop to settle across two frames
-		// before reading the target — a rect read mid-scroll would be stale on drop.
+		// Leave the band so autoscroll halts, then settle before reading the target.
 		await page.mouse.move(edgeX, box.y + box.height / 2);
-		await expect
-			.poll(
-				() =>
-					editorEl.evaluate(
-						(el) =>
-							new Promise<boolean>((res) => {
-								const before = el.scrollTop;
-								requestAnimationFrame(() =>
-									requestAnimationFrame(() => res(el.scrollTop === before))
-								);
-							})
-					),
-				{ intervals: [0], timeout: 5000 }
-			)
-			.toBe(true);
+		await settleScroll(editorEl, 'scrollTop');
 
 		// A mounted body row clear of both autoscroll bands and not the last, so r(idx+1) exists
 		// for the order assertion; dropping on its bottom edge lands r1 just after it.
