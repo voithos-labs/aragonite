@@ -98,6 +98,20 @@ describe('createDecorationEngine', () => {
 		expect(() => engine.addSource({ name: 'd', provide: () => [] })).not.toThrow();
 	});
 
+	// Miss-analysis: dispose idempotence was pinned only by re-registering a DIFFERENT literal
+	// under the freed name, so a registry keyed on the source object itself looked identical.
+	it('leaves a disposed handle inert over a re-registration of the same source object', () => {
+		const engine = makeEngine();
+		const source = { name: 'toggled', provide: () => [mark([0])] };
+		const stale = engine.addSource(source);
+		stale.dispose();
+
+		engine.addSource(source);
+		stale.dispose();
+		expect(engine.sourceCount).toBe(1);
+		expect(engine.marksForPath([0])).toHaveLength(1);
+	});
+
 	it('contains a throwing source and preserves siblings', () => {
 		const errors: string[] = [];
 		const engine = createDecorationEngine({
