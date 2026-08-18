@@ -205,6 +205,47 @@ export interface BlockKindDescriptor {
 }
 
 /**
+ * The descriptor's fields as data, for the census that holds the published field reference
+ * (`docs/design/plugin-contract.md`) to this type. Complete in both directions below, so the
+ * manifest cannot drift from the shape it enumerates.
+ */
+export const DESCRIPTOR_FIELDS = [
+	'mergeRole',
+	'editable',
+	'closure',
+	'conformanceFixture',
+	'blockFocus',
+	'gapEdges',
+	'isContainer',
+	'containerContract',
+	'bodyWrap',
+	'contextDependentKind',
+	'normalizeRawWrite',
+	'bodyWrite',
+	'reservedChrome',
+	'containerPaste',
+	'unwrapRole',
+	'contentStartSpace',
+	'reorderChildren',
+	'keymap',
+	'supportsInline',
+	'getContentRange',
+	'contentStartBackspace',
+	'rebuildRaw',
+	'renderImagesAsWidgets',
+	'foreignDragHitTest',
+	'caretTargetAtPoint',
+	'estimateHeight'
+] as const satisfies readonly (keyof BlockKindDescriptor)[];
+
+type MissingDescriptorField = Exclude<
+	keyof BlockKindDescriptor,
+	(typeof DESCRIPTOR_FIELDS)[number]
+>;
+const _descriptorFieldsAreComplete: MissingDescriptorField extends never ? true : never = true;
+void _descriptorFieldsAreComplete;
+
+/**
  * Container-only fields as one unit: `contract` and `rebuildRaw` are required together, and a
  * leaf has no way to carry any of them. Field semantics live on `BlockKindDescriptor`, the flat
  * read-side shape the group normalizes into.
@@ -223,7 +264,7 @@ export interface ContainerDescriptorGroup {
 
 // One source for both the type-level Omit and the runtime strip: excess-property checks bite
 // only fresh literals, so a widened value can structurally smuggle these keys past the types.
-const CONTAINER_ONLY_KEYS = [
+export const CONTAINER_ONLY_KEYS = [
 	'isContainer',
 	'containerContract',
 	'bodyWrap',

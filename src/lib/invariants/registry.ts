@@ -347,6 +347,50 @@ function markClashOf(
 	return null;
 }
 
+export interface DescriptorFieldEntry {
+	kind: AnyBlockKind;
+	declaresWholeBlockFocus: boolean;
+	supportsInline: boolean;
+	declaresReservedChrome: boolean;
+	contextDependentKind: boolean;
+	hasOpener: boolean;
+}
+
+/**
+ * G1.37 — descriptor-vs-descriptor coherence: field pairs the type can represent and the kind
+ * cannot mean together. Each is silently inert rather than loud, so nothing fails until a
+ * gesture reaches the kind. G1.24 is the sibling over closure cells; this one reads the
+ * declarations alone.
+ */
+export function checkDescriptorFieldCoherence(
+	entries: readonly DescriptorFieldEntry[]
+): InvariantViolation | null {
+	for (const entry of entries) {
+		if (entry.contextDependentKind && entry.hasOpener) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares contextDependentKind but registers an opener — the field suppresses the reparse that would re-derive the kind, so a kind the parser CAN recognize stops re-deriving; drop one`,
+				detail: { kind: entry.kind, fields: ['contextDependentKind', 'opener'] }
+			};
+		}
+		if (entry.declaresWholeBlockFocus && entry.supportsInline) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and supportsInline — a whole-block unit's only addressable offsets are 0 and its display length, so inline constructs parsed from its raw have no caret positions to live at`,
+				detail: { kind: entry.kind, fields: ['blockFocus', 'supportsInline'] }
+			};
+		}
+		if (entry.declaresWholeBlockFocus && entry.declaresReservedChrome) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and reservedChrome — the chrome slot is always present, so the kind is never childless and the focus-then-delete model it declares can never engage`,
+				detail: { kind: entry.kind, fields: ['blockFocus', 'reservedChrome'] }
+			};
+		}
+	}
+	return null;
+}
+
 export interface ContentStartBackspaceEntry {
 	kind: AnyBlockKind;
 	demotesFirst: boolean;
