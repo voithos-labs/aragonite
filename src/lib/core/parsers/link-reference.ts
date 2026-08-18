@@ -117,20 +117,21 @@ function parseUrl(s: string): { url: string; consumed: number } | null {
 	return { url: m[1], consumed: m[1].length };
 }
 
+const TITLE_CLOSER: Record<string, string> = { '"': '"', "'": "'", '(': ')' };
+
 function matchTitleSingleLine(s: string): { title: string; consumed: number } | null {
-	if (s.length === 0) return null;
-	const ch = s[0];
-	if (ch === '"' || ch === "'") {
-		const close = s.indexOf(ch, 1);
-		if (close === -1) return null;
-		return { title: s.slice(1, close), consumed: close + 1 };
-	}
-	if (ch === '(') {
-		const close = s.indexOf(')', 1);
-		if (close === -1) return null;
-		return { title: s.slice(1, close), consumed: close + 1 };
-	}
-	return null;
+	const closer = TITLE_CLOSER[s[0]];
+	if (!closer) return null;
+	const close = s.indexOf(closer, 1);
+	if (close === -1) return null;
+	return { title: s.slice(1, close), consumed: close + 1 };
+}
+
+/** A title iff `s` holds one well-formed title and nothing but spaces after it. */
+function wholeLineTitle(s: string): { title: string } | null {
+	const t = matchTitleSingleLine(s);
+	if (!t) return null;
+	return stripLeadingSpaces(s.slice(t.consumed)).length === 0 ? { title: t.title } : null;
 }
 
 /**
@@ -145,33 +146,13 @@ function resolveTitle(
 	endIndex: number
 ): { title: string | undefined; titleLine: number | null } | null {
 	if (afterUrl.length > 0) {
-		const parsed = parseTrailingTitle(afterUrl);
-		if (parsed === undefined) return null;
-		return { title: parsed, titleLine: null };
+		const trailing = wholeLineTitle(afterUrl);
+		if (!trailing) return null;
+		return { title: trailing.title, titleLine: null };
 	}
-	const next = consumeContinuationTitle(lines, continuationLine, endIndex);
-	if (next) return { title: next.title, titleLine: next.lineIndex };
+	if (continuationLine < endIndex) {
+		const next = wholeLineTitle(stripLeadingSpaces(lines[continuationLine].text));
+		if (next) return { title: next.title, titleLine: continuationLine };
+	}
 	return { title: undefined, titleLine: null };
-}
-
-function parseTrailingTitle(afterUrl: string): string | undefined {
-	const t = matchTitleSingleLine(afterUrl);
-	if (!t) return undefined;
-	const trailing = stripLeadingSpaces(afterUrl.slice(t.consumed));
-	return trailing.length === 0 ? t.title : undefined;
-}
-
-function consumeContinuationTitle(
-	lines: ParsedLine[],
-	lineIndex: number,
-	endIndex: number
-): { title: string; lineIndex: number } | null {
-	if (lineIndex >= endIndex) return null;
-	const stripped = stripLeadingSpaces(lines[lineIndex].text);
-	if (stripped.length === 0) return null;
-	const t = matchTitleSingleLine(stripped);
-	if (!t) return null;
-	const trailing = stripLeadingSpaces(stripped.slice(t.consumed));
-	if (trailing.length !== 0) return null;
-	return { title: t.title, lineIndex };
 }

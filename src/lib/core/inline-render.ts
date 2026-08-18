@@ -365,15 +365,6 @@ function renderNode(
 			container.appendChild(document.createTextNode(raw.slice(node.start + 1, node.end)));
 			return null;
 
-		case 'entityReference':
-			// An invisible reference is not a widget, so the builder returns null and it keeps
-			// its literal-source span.
-			container.appendChild(
-				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-					sourceSpan(raw, node, 'md-entity')
-			);
-			return null;
-
 		case 'unresolvedReference':
 			container.appendChild(
 				sourceSpan(
@@ -386,19 +377,23 @@ function renderNode(
 			);
 			return null;
 
+		case 'entityReference':
 		case 'rawHtml':
-			container.appendChild(
-				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-					sourceSpan(raw, node, 'md-raw-html')
-			);
-			return null;
-
 		default:
-			// Anything the registry does not claim falls back to raw source, mirroring the
-			// unknown-block fallback so every byte round-trips.
+			// An invisible entity is not a widget, so the builder returns null and it keeps its
+			// literal-source span; anything the registry does not claim falls back the same way,
+			// mirroring the unknown-block fallback so every byte round-trips.
 			container.appendChild(
 				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-					sourceSpan(raw, node, 'md-unknown-inline')
+					sourceSpan(
+						raw,
+						node,
+						node.kind === 'entityReference'
+							? 'md-entity'
+							: node.kind === 'rawHtml'
+								? 'md-raw-html'
+								: 'md-unknown-inline'
+					)
 			);
 			return null;
 	}

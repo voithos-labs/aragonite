@@ -17,25 +17,13 @@ import {
 export function matchListItem(
 	text: string
 ): { marker: string; ordered: boolean; indent: number } | null {
-	const m = text.match(/^( {0,3})([-*+]\s+)/);
-	if (m) {
-		return {
-			marker: m[2],
-			ordered: false,
-			indent: m[0].length
-		};
-	}
-
-	const om = text.match(/^( {0,3})(\d{1,9}[.)]\s+)/);
-	if (om) {
-		return {
-			marker: om[2],
-			ordered: true,
-			indent: om[0].length
-		};
-	}
-
-	return null;
+	const m = text.match(/^( {0,3})((?:[-*+]|\d{1,9}[.)])\s+)/);
+	if (!m) return null;
+	return {
+		marker: m[2],
+		ordered: /^\d/.test(m[2]),
+		indent: m[0].length
+	};
 }
 
 function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string } | null {
