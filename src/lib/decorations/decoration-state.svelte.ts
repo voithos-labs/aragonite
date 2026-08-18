@@ -144,11 +144,17 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		sources.push(source);
 		results = [...results, []];
 		runSource(source);
+		// Not `sources.indexOf`: dispose frees the name, so the same source object may be
+		// registered again, and this handle must stay inert over that second registration.
+		let live = true;
 		return {
-			invalidate: () => runSource(source),
+			invalidate: () => {
+				if (live) runSource(source);
+			},
 			dispose: () => {
+				if (!live) return;
+				live = false;
 				const i = sources.indexOf(source);
-				if (i < 0) return; // idempotent
 				sources.splice(i, 1);
 				names.delete(source.name);
 				results = results.filter((_, idx) => idx !== i);
