@@ -56,35 +56,39 @@
 <style>
 	/* A gutter rail, not a card: a document, not a boxed callout. */
 	.admonition {
-		--adm-accent: var(--adm-note);
-		/* Fixed hex, not theme tokens: GitHub's alert palette is canonically one color
-		   per kind, so admonitions read identically across host themes. */
-		--adm-note: #1f6feb;
-		--adm-tip: #2da44e;
-		--adm-important: #8250df;
-		--adm-warning: #d29922;
-		--adm-caution: #e5534b;
-
 		position: relative;
 		margin: 0.8em 0;
 		padding: 0.15em 0 0.15em 1em;
 		border-left: 3px solid var(--adm-accent);
 	}
 
+	/* One block per kind carries the whole axis: accent, icon glyph, untitled label. Fixed hex,
+	   not theme tokens: GitHub's alert palette is canonically one color per kind, so admonitions
+	   read identically across host themes. */
 	.admonition[data-kind='note'] {
-		--adm-accent: var(--adm-note);
+		--adm-accent: #1f6feb;
+		--adm-label: 'Note';
+		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.9 3.3a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0zM7.1 7h1.8v5.2H7.1z'/%3E%3C/svg%3E");
 	}
 	.admonition[data-kind='tip'] {
-		--adm-accent: var(--adm-tip);
+		--adm-accent: #2da44e;
+		--adm-label: 'Tip';
+		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1a4.5 4.5 0 0 0-2.7 8.1c.4.3.7.8.7 1.3v.6h4v-.6c0-.5.3-1 .7-1.3A4.5 4.5 0 0 0 8 1zM6 12.5h4v.8H6zm.5 1.7h3l-.6.6a1 1 0 0 1-.7.3h-.4a1 1 0 0 1-.7-.3z'/%3E%3C/svg%3E");
 	}
 	.admonition[data-kind='important'] {
-		--adm-accent: var(--adm-important);
+		--adm-accent: #8250df;
+		--adm-label: 'Important';
+		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 2h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6l-3 2.6V11H2.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM7.1 4.2h1.8v3.6H7.1zm0 4.4h1.8v1.6H7.1z'/%3E%3C/svg%3E");
 	}
 	.admonition[data-kind='warning'] {
-		--adm-accent: var(--adm-warning);
+		--adm-accent: #d29922;
+		--adm-label: 'Warning';
+		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.3 15 14H1zM7.1 6h1.8v4H7.1zm0 5h1.8v1.6H7.1z'/%3E%3C/svg%3E");
 	}
 	.admonition[data-kind='caution'] {
-		--adm-accent: var(--adm-caution);
+		--adm-accent: #e5534b;
+		--adm-label: 'Caution';
+		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 1.3h6l4 4v6l-4 4H5l-4-4V5.3zM7.1 4h1.8v5H7.1zm0 6h1.8v1.6H7.1z'/%3E%3C/svg%3E");
 	}
 
 	/* Positioned so the icon and untitled-name pseudo-elements anchor to the row. */
@@ -118,22 +122,6 @@
 		user-select: none;
 	}
 
-	.admonition[data-kind='note'] {
-		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.9 3.3a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0zM7.1 7h1.8v5.2H7.1z'/%3E%3C/svg%3E");
-	}
-	.admonition[data-kind='tip'] {
-		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1a4.5 4.5 0 0 0-2.7 8.1c.4.3.7.8.7 1.3v.6h4v-.6c0-.5.3-1 .7-1.3A4.5 4.5 0 0 0 8 1zM6 12.5h4v.8H6zm.5 1.7h3l-.6.6a1 1 0 0 1-.7.3h-.4a1 1 0 0 1-.7-.3z'/%3E%3C/svg%3E");
-	}
-	.admonition[data-kind='important'] {
-		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 2h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6l-3 2.6V11H2.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM7.1 4.2h1.8v3.6H7.1zm0 4.4h1.8v1.6H7.1z'/%3E%3C/svg%3E");
-	}
-	.admonition[data-kind='warning'] {
-		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.3 15 14H1zM7.1 6h1.8v4H7.1zm0 5h1.8v1.6H7.1z'/%3E%3C/svg%3E");
-	}
-	.admonition[data-kind='caution'] {
-		--adm-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 1.3h6l4 4v6l-4 4H5l-4-4V5.3zM7.1 4h1.8v5H7.1zm0 6h1.8v1.6H7.1z'/%3E%3C/svg%3E");
-	}
-
 	/* The empty title leaf holds a lone <br>, which pre-wrap paints as a trailing empty
 	   line; capping to one row keeps the title-to-body gap equal to the titled variants. */
 	.admonition[data-title-empty='true'] :global(.admonition-title) {
@@ -143,6 +131,7 @@
 	/* Absolute, not inline: the empty leaf's <br> would wrap generated content onto a
 	   second row and break titled/untitled geometry parity. */
 	.admonition[data-title-empty='true'] :global(.admonition-title)::after {
+		content: var(--adm-label);
 		position: absolute;
 		left: 1.7em;
 		top: 2px;
@@ -151,20 +140,5 @@
 		line-height: 1.4em;
 		pointer-events: none;
 		user-select: none;
-	}
-	.admonition[data-kind='note'][data-title-empty='true'] :global(.admonition-title)::after {
-		content: 'Note';
-	}
-	.admonition[data-kind='tip'][data-title-empty='true'] :global(.admonition-title)::after {
-		content: 'Tip';
-	}
-	.admonition[data-kind='important'][data-title-empty='true'] :global(.admonition-title)::after {
-		content: 'Important';
-	}
-	.admonition[data-kind='warning'][data-title-empty='true'] :global(.admonition-title)::after {
-		content: 'Warning';
-	}
-	.admonition[data-kind='caution'][data-title-empty='true'] :global(.admonition-title)::after {
-		content: 'Caution';
 	}
 </style>

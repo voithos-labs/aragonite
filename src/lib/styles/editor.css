@@ -206,13 +206,19 @@
 	width: fit-content;
 }
 
-:where(.editor) .md-image-broken {
-	/* Keeps the inherited display:block: image widgets always force a visual line break,
-	   broken or not, so trailing text wraps to the next line. */
+/* An image with no pixels (broken, scheme-refused, or deferred by `imageLoadPolicy:
+   'placeholder'`) lays out 0×0 without this floor, unless a `|WxH` hint reserves its own box.
+   Display:block stays inherited: image widgets always force a visual line break. */
+:where(.editor) .md-image-broken,
+:where(.editor) .md-image-blocked,
+:where(.editor) .md-image-placeholder {
 	min-width: 100px;
 	min-height: 60px;
 	border: 1px dashed var(--color-ui-muted, #a4a4a4);
 	background: var(--color-bg-muted, #2a2a2a);
+}
+
+:where(.editor) .md-image-broken {
 	padding: 8px;
 	color: var(--color-text-muted, #aaa);
 	font-style: italic;
@@ -222,15 +228,9 @@
 	display: none;
 }
 
-/* An image the editor deliberately did not fetch — refused by the scheme allowlist, or deferred
-   by `imageLoadPolicy: 'placeholder'`. Both leave `src` unset, and an <img> with no bytes and no
-   `|WxH` hint lays out 0×0; a dimensioned one keeps its own larger box. */
+/* Not on `.md-image-broken`: it has padding, and border-box would change its box. */
 :where(.editor) .md-image-blocked,
 :where(.editor) .md-image-placeholder {
-	min-width: 100px;
-	min-height: 60px;
-	border: 1px dashed var(--color-ui-muted, #a4a4a4);
-	background: var(--color-bg-muted, #2a2a2a);
 	box-sizing: border-box;
 }
 
@@ -360,6 +360,22 @@
 	background: var(--vr-spacer-bg, rgba(128, 128, 128, 0.03));
 }
 
+/* One revealed-source identity for render-primary blocks (math, toc, mermaid): a plugin
+   component adds this class and keeps only its padding/overflow deltas. */
+:where(.editor) .md-source-surface {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 1.4em;
+	font-family: var(--font-editor, ui-monospace, monospace);
+	font-size: 0.9em;
+	line-height: 1.5;
+	color: inherit;
+	background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+	border: 1px solid var(--color-accent, #567b67);
+	border-radius: 4px;
+}
+
 /* ── Semantic syntax-token wiring ─────────────────────────────────────────────
    Defaults in editor-theme.css are neutral, so these rules change nothing until a consumer
    overrides a token. Rules whose construct is also colored by a component <style> shorthand
@@ -415,26 +431,21 @@
    structural omission would desync the DOM↔raw coordinate space. Keyed on an
    equal-specificity :is() so the per-mode rules below win by source order. */
 
-/* Inline markers and block-own prefixes are pure syntax in normal flow, so dropping them from
-   paint and native copy joins the text up rendered-style. Ambient container markers carry
-   layout and are handled below. */
-:where(.editor):is(
-		[data-presentation='reading'],
-		[data-presentation^='preview-'],
-		[data-presentation='live']
-	)
-	.md-marker:not([contenteditable='false']) {
-	display: none;
-}
-
-/* A fence line's `\n` is a bare text node CSS can't reach; the `.md-fence-line` wrapper
+/* .md-marker: inline markers and block-own prefixes are pure syntax in normal flow, so
+   dropping them from paint and native copy joins the text up rendered-style; ambient
+   container markers carry layout and keep their box below. */
+/* .md-fence-line: a fence line's `\n` is a bare text node CSS can't reach; the wrapper
    owns marker + newline, so collapsing it leaves no blank line at the box's edge. */
+/* .md-ref-label: resolution metadata, not content; a rendered document shows only the
+   link text. */
+/* .directive-marker: the container chrome (border/gutter) is the rendered form of a
+   directive fence; it never reveals, belonging to the container, not the focused leaf. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
 		[data-presentation='live']
 	)
-	.md-fence-line {
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line, .md-ref-label, .directive-marker) {
 	display: none;
 }
 
@@ -448,27 +459,6 @@
 	[contenteditable][data-content-empty]
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
-}
-
-/* Resolution metadata, not content: a rendered document shows only the link text. */
-:where(.editor):is(
-		[data-presentation='reading'],
-		[data-presentation^='preview-'],
-		[data-presentation='live']
-	)
-	.md-ref-label {
-	display: none;
-}
-
-/* The container chrome (border/gutter) is the rendered form of a directive fence. It never
-   reveals, belonging to the container rather than the focused leaf. */
-:where(.editor):is(
-		[data-presentation='reading'],
-		[data-presentation^='preview-'],
-		[data-presentation='live']
-	)
-	.directive-marker {
-	display: none;
 }
 
 /* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's

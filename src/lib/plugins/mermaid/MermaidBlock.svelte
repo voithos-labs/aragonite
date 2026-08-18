@@ -83,6 +83,28 @@
 		};
 	});
 
+	const surfaceState = $derived(
+		isEmpty
+			? 'empty'
+			: !hasMermaidRenderer()
+				? 'no-renderer'
+				: rendered?.error
+					? 'error'
+					: rendered?.svg
+						? 'rendered'
+						: 'loading'
+	);
+
+	const surfaceLabel = $derived(
+		surfaceState === 'empty'
+			? 'Empty diagram'
+			: surfaceState === 'no-renderer'
+				? 'Mermaid source (renderer not configured)'
+				: surfaceState === 'error'
+					? 'Mermaid render error'
+					: 'Mermaid diagram loading'
+	);
+
 	// ── Pan / zoom ──────────────────────────────────────────────────────────────
 
 	function createPanZoom() {
@@ -146,8 +168,8 @@
 		overlayView.zoomBy(e.deltaY);
 	}
 
-	// The non-rendered cards mirror the viewport's click contract, so dblclick stays the
-	// recovery path out of a broken diagram.
+	// One click contract for the viewport and the non-rendered cards, so dblclick stays
+	// the recovery path out of a broken diagram.
 	function onSurfacePointerDown(e: PointerEvent): void {
 		e.stopPropagation();
 	}
@@ -289,7 +311,7 @@
 		<textarea
 			bind:this={textareaEl}
 			bind:value={draft}
-			class="mermaid-source"
+			class="mermaid-source md-source-surface"
 			data-testid="mermaid-source"
 			spellcheck="false"
 			aria-label="Mermaid source"
@@ -304,46 +326,7 @@
 				Reset view
 			</button>
 		</div>
-		{#if isEmpty}
-			<!-- Reading mode only: everywhere else an empty diagram renders its edit surface. -->
-			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-			<div
-				class="mermaid-surface"
-				tabindex="0"
-				role="group"
-				aria-label="Empty diagram"
-				onpointerdown={onSurfacePointerDown}
-				ondblclick={onSurfaceDblClick}
-			>
-				<div class="mermaid-empty">Empty diagram</div>
-			</div>
-		{:else if !hasMermaidRenderer()}
-			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-			<div
-				class="mermaid-surface"
-				tabindex="0"
-				role="group"
-				aria-label="Mermaid source (renderer not configured)"
-				onpointerdown={onSurfacePointerDown}
-				ondblclick={onSurfaceDblClick}
-			>
-				<pre class="mermaid-static">{displayCode}</pre>
-				<div class="mermaid-note">Mermaid renderer not configured</div>
-			</div>
-		{:else if rendered?.error}
-			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-			<div
-				class="mermaid-surface"
-				tabindex="0"
-				role="group"
-				aria-label="Mermaid render error"
-				onpointerdown={onSurfacePointerDown}
-				ondblclick={onSurfaceDblClick}
-			>
-				<div class="mermaid-error">Mermaid error: {rendered.error}</div>
-				<pre class="mermaid-static">{displayCode}</pre>
-			</div>
-		{:else if rendered?.svg}
+		{#if surfaceState === 'rendered'}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<div
 				class="mermaid-viewport"
@@ -354,28 +337,40 @@
 				onpointerdown={onViewportPointerDown}
 				onpointermove={(e) => view.movePan(e)}
 				onpointerup={(e) => view.endPan(e)}
-				ondblclick={(e) => {
-					e.stopPropagation();
-					openEdit();
-				}}
+				ondblclick={onSurfaceDblClick}
 			>
 				<div class="mermaid-canvas" style:transform={view.transform}>
 					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html rendered.svg}
+					{@html rendered?.svg ?? ''}
 				</div>
 			</div>
 		{:else}
-			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-			<div
-				class="mermaid-surface"
-				tabindex="0"
-				role="group"
-				aria-label="Mermaid diagram loading"
-				onpointerdown={onSurfacePointerDown}
-				ondblclick={onSurfaceDblClick}
-			>
-				<div class="mermaid-loading">Rendering diagram…</div>
-			</div>
+			<!-- {#key} keeps the per-arm remount: a state flip replaces the surface element,
+			     and its focus/blur timing with it. -->
+			{#key surfaceState}
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div
+					class="mermaid-surface"
+					tabindex="0"
+					role="group"
+					aria-label={surfaceLabel}
+					onpointerdown={onSurfacePointerDown}
+					ondblclick={onSurfaceDblClick}
+				>
+					{#if surfaceState === 'empty'}
+						<!-- Reading mode only: everywhere else an empty diagram renders its edit surface. -->
+						<div class="mermaid-empty">Empty diagram</div>
+					{:else if surfaceState === 'no-renderer'}
+						<pre class="mermaid-static">{displayCode}</pre>
+						<div class="mermaid-note">Mermaid renderer not configured</div>
+					{:else if surfaceState === 'error'}
+						<div class="mermaid-error">Mermaid error: {rendered?.error}</div>
+						<pre class="mermaid-static">{displayCode}</pre>
+					{:else}
+						<div class="mermaid-loading">Rendering diagram…</div>
+					{/if}
+				</div>
+			{/key}
 		{/if}
 	{/if}
 
@@ -509,21 +504,10 @@
 		justify-content: center;
 	}
 
-	/* Height is written by the fit-to-content effect; `overflow-y: hidden` keeps the grow
-	   visible instead of scrolled. */
+	/* Deltas over the shared .md-source-surface (editor.css). Height is written by the
+	   fit-to-content effect; `overflow-y: hidden` keeps the grow visible instead of scrolled. */
 	.mermaid-source {
-		display: block;
-		width: 100%;
-		min-height: 1.4em;
-		box-sizing: border-box;
 		padding: 8px;
-		font-family: var(--font-editor, ui-monospace, monospace);
-		font-size: 0.9em;
-		line-height: 1.5;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-accent, #567b67);
-		border-radius: 4px;
-		color: inherit;
 		overflow-y: hidden;
 		resize: none;
 	}
