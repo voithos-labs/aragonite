@@ -3,16 +3,10 @@ import { parse } from '../../core/parser';
 import { getPluginMetadata, type AnyBlockKind, type CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { augmentBlockKind } from '../../schema/block-kind-descriptor';
 import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
-import {
-	CALLOUT,
-	registerCalloutKind,
-	rebuildCalloutRaw
-} from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { CALLOUT, rebuildCalloutRaw } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 
 // A cross-block copy whose START lands inside a container's reserved chrome must keep the chrome
@@ -22,18 +16,11 @@ function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
 }
 
-function registerPlugins() {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
-	registerCalloutKind();
-	registerDetailsKind();
-}
-
 const bodies = (node: CstNode) => node.children!.slice(1).map((c) => trimTrailingLineEnding(c.raw));
 const title = (node: CstNode) => trimTrailingLineEnding(node.children![0].raw);
 
 describe('cross-block copy starting in reserved chrome', () => {
-	beforeEach(registerPlugins);
+	beforeEach(registerChromePluginsForTests);
 
 	it('re-emits the truncated title as the opener and closes past the container', () => {
 		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');

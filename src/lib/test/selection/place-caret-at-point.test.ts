@@ -13,6 +13,7 @@ import { createStickyColumnState } from '$lib/cursor/sticky-column';
 import { makeEmptyGapScope } from '../harness/editor-actions';
 import { resetForPointerDown } from '$lib/selection/cross-block/pointer';
 import { makeEdgeAffinity } from '../harness/editor-actions';
+import { mountTableGrid } from './table-grid';
 
 registerBuiltInBlocks();
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
@@ -30,28 +31,11 @@ describe('placeCaretAtPoint landing walk', () => {
 
 	beforeEach(() => {
 		root = document.createElement('div');
-		const wrapper = document.createElement('div');
-		wrapper.setAttribute('data-block-path', '[0]');
-		wrapper.setAttribute('data-block-kind', 'table');
-		wrapper.getBoundingClientRect = () => TABLE_BOX as DOMRect;
-		const table = document.createElement('div');
-		table.setAttribute('role', 'table');
-		wrapper.appendChild(table);
-		const row = document.createElement('div');
-		row.setAttribute('data-table-row-idx', '0');
-		table.appendChild(row);
-		for (let c = 0; c < 2; c++) {
-			const cell = document.createElement('div');
-			cell.setAttribute('role', 'cell');
-			const left = TABLE_BOX.left + c * 150;
-			cell.getBoundingClientRect = () =>
-				({ left, right: left + 150, top: TABLE_BOX.top, bottom: TABLE_BOX.bottom }) as DOMRect;
-			row.appendChild(cell);
-		}
+		const { host, grid } = mountTableGrid({ path: [0], rows: 1, cols: 2, box: TABLE_BOX });
 		document.body.appendChild(root);
-		root.appendChild(wrapper);
+		root.appendChild(host);
 		// The probe point is clamped into the box, where the topmost element is the grid.
-		document.elementFromPoint = (() => table) as typeof document.elementFromPoint;
+		document.elementFromPoint = (() => grid) as typeof document.elementFromPoint;
 
 		focusByPath = vi.fn(() => {});
 		leafSnap = vi.fn(() => {});

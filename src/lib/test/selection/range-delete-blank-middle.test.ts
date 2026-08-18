@@ -3,9 +3,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 import type { SelectionPoint } from '$lib/selection/primitives';
@@ -51,11 +49,7 @@ describe('a deleted blank middle hands its line to the block below', () => {
 });
 
 describe('the chrome wall branch keeps it too', () => {
-	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
-		__resetPasteSurfacesForTests();
-		registerCalloutKind();
-	});
+	beforeEach(registerCalloutForTests);
 
 	it('separates a surviving container from the prose start', () => {
 		const doc = del(

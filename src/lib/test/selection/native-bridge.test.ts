@@ -110,7 +110,7 @@ describe('applyCollapsedCaret — the landable clamp lives in the door', () => {
 describe('applySelectionToDom — restore routing', () => {
 	const TABLE_ONLY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
-	it('single-block-range restore fires one onChange and never enters cross-block (E-F8)', () => {
+	it('single-block-range restore fires one onChange and never enters cross-block', () => {
 		const doc = parse('paragraph one\n');
 		let onChangeCount = 0;
 		let sawCrossBlock = false;
@@ -133,7 +133,7 @@ describe('applySelectionToDom — restore routing', () => {
 		expect(s.isCrossBlock).toBe(false);
 	});
 
-	it('parks the restore caret in the focus cell for an intra-table rect (E-F4)', () => {
+	it('parks the restore caret in the focus cell for an intra-table rect', () => {
 		const doc = parse(TABLE_ONLY);
 		const s = createSelectionState({ getDoc: () => doc });
 		const requested: number[][] = [];
@@ -153,7 +153,7 @@ describe('applySelectionToDom — restore routing', () => {
 		expect(requested).toEqual([[0, 1, 1]]);
 	});
 
-	// Miss (Sel-F2): the restore road's table coverage all came in through the cross-block arm,
+	// Miss-analysis: the restore road's table coverage all came in through the cross-block arm,
 	// where a cell endpoint HAD to be translated to paint anything. The collapsed arm looks like
 	// prose from the outside, so nothing ever asked which space its offset was in.
 	it('lands a COLLAPSED cell selection in the cell, not at a char offset on the table', () => {

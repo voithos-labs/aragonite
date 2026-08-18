@@ -3,9 +3,7 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { rangeDelete } from '$lib/selection/range-delete';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutForTests } from './chrome-plugins';
 import { expectParseConverged } from '../harness/parse-converged';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
@@ -173,13 +171,7 @@ describe('range delete that consumes a fenced code opener', () => {
 	});
 
 	describe('through the chrome wall', () => {
-		beforeEach(() => {
-			// registerChromeLeaf registers a paste surface; the schema reset alone leaves it
-			// orphaned, so a re-register would collide.
-			__resetSchemaRegistriesForTests();
-			__resetPasteSurfacesForTests();
-			registerCalloutKind();
-		});
+		beforeEach(registerCalloutForTests);
 
 		it('drops it on the end truncation, which takes the opener and not the closer', () => {
 			const doc = parse(':::callout Title\nInside\n:::\n\n```js\nbody\n```\n\ntail\n');

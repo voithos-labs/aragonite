@@ -17,17 +17,11 @@ import {
 } from '../../schema/inline-construct-policy';
 import { rangeDelete } from '../../selection/range-delete';
 import { createSharingState } from '../../tree-operations/sharing';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 
 beforeEach(() => {
-	// registerChromeLeaf (inside registerCalloutKind) registers a paste surface; the schema
-	// reset alone leaves it orphaned, so a re-register would collide.
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
-	registerCalloutKind();
+	registerCalloutForTests();
 	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
 });
 afterEach(() => __resetLiveJoinSeamCleanerForTests());

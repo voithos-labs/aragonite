@@ -9,6 +9,7 @@ import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { createDeadSpaceCaret } from '$lib/selection/dead-space-caret';
 import type { GapStopScope } from '$lib/selection/gap-caret';
 import { makeGapScope } from '../harness/editor-actions';
+import { mountTableGrid, type TableGridBox } from './table-grid';
 
 registerBuiltInBlocks();
 
@@ -31,22 +32,9 @@ describe('a dead-space y between two root bands', () => {
 	let gapWhenReset: unknown;
 	const origFromPoint = document.elementFromPoint;
 
-	function addBand(index: number, box: typeof BAND_0): HTMLElement {
-		const wrapper = document.createElement('div');
-		wrapper.setAttribute('data-block-path', `[${index}]`);
-		wrapper.setAttribute('data-block-kind', 'table');
-		wrapper.getBoundingClientRect = () => box as DOMRect;
-		const grid = document.createElement('div');
-		grid.setAttribute('role', 'table');
-		const row = document.createElement('div');
-		row.setAttribute('data-table-row-idx', '0');
-		const cell = document.createElement('div');
-		cell.setAttribute('role', 'cell');
-		cell.getBoundingClientRect = () => box as DOMRect;
-		row.appendChild(cell);
-		grid.appendChild(row);
-		wrapper.appendChild(grid);
-		root.appendChild(wrapper);
+	function addBand(index: number, box: TableGridBox): HTMLElement {
+		const { host, grid } = mountTableGrid({ path: [index], rows: 1, cols: 1, box });
+		root.appendChild(host);
 		return grid;
 	}
 
