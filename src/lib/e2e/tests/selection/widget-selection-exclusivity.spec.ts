@@ -19,7 +19,7 @@ test.describe('widget selection ends when a cross-block range opens', () => {
 		await editor.loadContent(DOC);
 		// The clipboard outlives the browser context, so a chord that writes nothing would
 		// otherwise read back the previous case's payload.
-		await editor.page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));
+		await editor.seedClipboard('SENTINEL');
 	});
 
 	const overlay = () => editor.page.locator('[data-image-overlay]');
@@ -44,7 +44,7 @@ test.describe('widget selection ends when a cross-block range opens', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		expect(await editor.page.evaluate(() => navigator.clipboard.readText())).toContain('lead');
+		expect(await editor.readClipboard()).toContain('lead');
 	});
 
 	test('Backspace deletes the document, not just the widget', async () => {

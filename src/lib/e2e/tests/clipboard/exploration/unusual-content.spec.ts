@@ -11,10 +11,10 @@ test.describe('clipboard exploration: unusual content', () => {
 
 	test('paste content with CRLF line endings preserves block structure', async () => {
 		await editor.loadContent('target\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('one\r\n\r\ntwo\r\n'));
+		await editor.seedClipboard('one\r\n\r\ntwo\r\n');
 
 		await editor.focusBlockAtPath([0], 'target'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('one');
 
 		const src = await editor.bridge.getSource();
@@ -26,10 +26,10 @@ test.describe('clipboard exploration: unusual content', () => {
 	// copied, so they arrive as empty paragraphs rather than being dropped on the way in.
 	test('paste content with leading blank lines keeps them as empty blocks', async () => {
 		await editor.loadContent('target\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('\n\nactual content\n'));
+		await editor.seedClipboard('\n\nactual content\n');
 
 		await editor.focusBlockAtPath([0], 'target'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('actual content');
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -45,12 +45,12 @@ test.describe('clipboard exploration: unusual content', () => {
 
 	test('paste into thematic break (non-editable) — either no-op or creates paragraph', async () => {
 		await editor.loadContent('above\n\n---\n\nbelow\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted'));
+		await editor.seedClipboard('pasted');
 
 		const hr = editor.getBlock(1);
 		await hr.click();
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		// Thematic break paste may no-op or materialize a paragraph; neither
 		// outcome has a settle predicate to poll. Keep a small fixed wait so the
 		// post-paste source read sees whichever branch resolved.
@@ -63,11 +63,11 @@ test.describe('clipboard exploration: unusual content', () => {
 
 	test('paste markdown containing backtick runs into a code block bumps the outer fence', async () => {
 		await editor.loadContent('```\ncontent\n```\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('```\ninner fence\n```'));
+		await editor.seedClipboard('```\ninner fence\n```');
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceMatches(/^````/m);
 
 		const src = await editor.bridge.getSource();
@@ -78,7 +78,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		page: _page
 	}) => {
 		await editor.loadContent('existing para one\n\nexisting para two\n\nexisting para three\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('replacement content\n'));
+		await editor.seedClipboard('replacement content\n');
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('Control+a');
@@ -90,7 +90,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.page.keyboard.press('Control+a');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('replacement content');
 
 		const src = await editor.bridge.getSource();

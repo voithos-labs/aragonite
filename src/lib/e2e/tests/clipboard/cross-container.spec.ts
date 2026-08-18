@@ -85,7 +85,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceMatches(/quoted text[\s\S]*quoted text/);
 
 		const source = await editor.bridge.getSource();

@@ -21,9 +21,6 @@ function makeCtx(page: Page, editor: EditorPage): Promise<SimContext> {
 	return makeSimContext(page, editor, 'reach');
 }
 
-const isCrossBlockSelection = (page: Page) =>
-	page.evaluate(() => (window as any).__test.isCrossBlockSelection());
-
 // Build a cross-block range whose interior is 'pha'..'be': offset 2 in each of the two
 // paragraphs, so a real destroy removes those substrings (a boundary-only range would
 // merely merge). Returns the ctx the destroy gesture runs on.
@@ -47,14 +44,14 @@ test.describe('sim gesture reachability: cross-block', () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		await editor.focusBlockStart(0);
 		await extendSelectionAcross(await makeCtx(page, editor), 'down');
-		expect(await isCrossBlockSelection(page)).toBe(true);
+		expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 	});
 
 	test('Shift+Click into another block engages cross-block', async ({ page }) => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		await editor.focusBlockAtPath([0], 2);
 		await shiftClickAcross(await makeCtx(page, editor), [1], 2);
-		expect(await isCrossBlockSelection(page)).toBe(true);
+		expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 	});
 
 	test('double select-all escalates to a whole-document cross-block selection', async ({

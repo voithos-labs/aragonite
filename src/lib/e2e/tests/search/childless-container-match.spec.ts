@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
-import { primaryModifier } from '../../platform';
 import { PluginsPage } from '../plugins/helpers';
+import { count, findInput, openFind, openReplace, replaceInput, typeQuery } from './helpers';
 
 /**
  * Search inside a childless opaque container
@@ -11,9 +11,6 @@ import { PluginsPage } from '../plugins/helpers';
  * declining only the substitution that would come back as a different kind (#41).
  */
 
-const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
-const replaceInput = (page: Page) => page.getByRole('textbox', { name: 'Replace' });
-const count = (page: Page) => page.locator('.search-count');
 const mermaidHost = (page: Page) => page.locator("[data-block-kind='mermaid']");
 
 const MERMAID_FENCE = '```mermaid\ngraph TD\n\tZZNEEDLE --> B\n```\n';
@@ -41,10 +38,8 @@ test.describe('search — childless opaque container', () => {
 		await expect(mermaidHost(page)).toHaveCount(1);
 		expect(await mermaidInViewport(page), 'mermaid must start off-screen').toBe(false);
 
-		await editor.clickBlock(0);
-		await page.keyboard.press(`${primaryModifier}+f`);
-		await findInput(page).waitFor({ state: 'visible' });
-		await page.keyboard.type('ZZNEEDLE');
+		await openFind(editor);
+		await typeQuery(editor, 'ZZNEEDLE');
 
 		// The query exists only inside the mermaid source; finding it at all is the
 		// scan half of the fix, painting it inside the host is the overlay half.
@@ -61,11 +56,9 @@ test.describe('search — childless opaque container', () => {
 
 	/** Type `query` into a freshly opened replace bar and wait for the match tally to settle. */
 	async function openReplaceOn(page: Page, query: string, tally: RegExp): Promise<void> {
-		await editor.clickBlock(0);
-		await page.keyboard.press(`${primaryModifier}+h`);
-		await replaceInput(page).waitFor({ state: 'visible' });
+		await openReplace(editor);
 		await findInput(page).click();
-		await page.keyboard.type(query);
+		await typeQuery(editor, query);
 		await expect(count(page)).toHaveText(tally);
 	}
 

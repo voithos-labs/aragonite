@@ -16,7 +16,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toBe('```\n1\n2\n```');
 	});
 
@@ -30,7 +30,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('```');
 		expect(clip).toContain('1');
 		expect(clip).toContain('2');
@@ -46,7 +46,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('```');
 		expect(clip).toContain('1');
 		expect(clip).toContain('2');
@@ -62,7 +62,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toBe('```');
 	});
 
@@ -77,7 +77,7 @@ test.describe('code block partial copy: literal clipboard', () => {
 		await editor.getBlock(1).click();
 		await editor.focusBlockStart(1);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('````\n```\nhello\n```\n````');
 
 		const source = await editor.bridge.getSource();

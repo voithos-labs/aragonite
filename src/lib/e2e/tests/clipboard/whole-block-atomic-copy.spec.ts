@@ -20,7 +20,6 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 	});
 
 	const breakBlock = () => editor.page.locator('.thematic-break-block');
-	const readClipboard = () => editor.page.evaluate(() => navigator.clipboard.readText());
 
 	async function focusBreakByArrow(): Promise<void> {
 		await editor.focusBlockEnd(0);
@@ -33,7 +32,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 		const before = await editor.bridge.getSource();
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
@@ -43,7 +42,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 		await focusBreakByArrow();
 		await editor.page.keyboard.press('Control+x');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		await editor.bridge.waitForSourceNotContains('---');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		await editor.undo();
@@ -59,11 +58,11 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 
 		await page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 
 		await page.keyboard.press('Control+x');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

@@ -40,7 +40,8 @@ test.describe('per-block error boundary', () => {
 		// An undoable edit to the block we then break, so a single undo restores BOTH
 		// the healthy bytes and the pre-break (paragraph) kind to the SAME mounted host
 		// — a small doc never windows the block out, so the boundary can't self-heal.
-		await editor.typeInBlock(1, 'X');
+		await editor.clickBlock(1);
+		await editor.typeText('X');
 		await page.evaluate(() => (window as any).__test.makeBlockThrowOnRender(1));
 		await editor.waitForRenderFlush();
 		await expect(page.locator('[data-failed-block]')).toHaveCount(1);

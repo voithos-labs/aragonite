@@ -78,7 +78,7 @@ test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
 		await editor.waitForClipboardWrite();
 		await editor.clickBlock(1);
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('targetHello world');
 		expect(await editor.bridge.getSource()).toContain('targetHello world');
 	});

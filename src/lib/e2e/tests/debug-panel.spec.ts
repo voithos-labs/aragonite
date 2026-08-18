@@ -7,6 +7,13 @@ function toggleKey(): string {
 	return `${primaryModifier}+Shift+D`;
 }
 
+async function reloadHarness(editor: EditorPage): Promise<void> {
+	await editor.page.reload();
+	await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
+		timeout: 10_000
+	});
+}
+
 test.describe('debug panel', () => {
 	let editor: EditorPage;
 
@@ -14,10 +21,7 @@ test.describe('debug panel', () => {
 		editor = new EditorPage(page);
 		await editor.goto();
 		await editor.page.evaluate(() => localStorage.removeItem('aragonite.debug-panel.state.v1'));
-		await editor.page.reload();
-		await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
+		await reloadHarness(editor);
 		await editor.loadContent(DEFAULT_CONTENT);
 	});
 
@@ -35,10 +39,7 @@ test.describe('debug panel', () => {
 		await editor.page.keyboard.press(toggleKey());
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 
-		await editor.page.reload();
-		await editor.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
-		});
+		await reloadHarness(editor);
 
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 	});
@@ -85,7 +86,7 @@ test.describe('debug panel', () => {
 		await editor.page.keyboard.press(toggleKey());
 		await editor.page.locator('.debug-panel .copy-all').click();
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('# Debug snapshot —');
 		expect(clip).toContain('### CST');
 		expect(clip).toContain('### Raw source');
@@ -93,37 +94,29 @@ test.describe('debug panel', () => {
 		expect(clip).toContain('### Interaction trace');
 	});
 
-	test('inline tree populates when user clicks block FIRST, then expands the section', async () => {
-		await editor.page.keyboard.press(toggleKey());
-		await editor.clickBlock(3);
-		await editor.page
-			.locator(
+	// The order IS the subject: the tree must populate whether the block gains focus
+	// before or after the section expands.
+	for (const order of ['click-first', 'expand-first'] as const) {
+		test(`inline tree populates when the block is focused ${order === 'click-first' ? 'before' : 'after'} the section expands`, async () => {
+			await editor.page.keyboard.press(toggleKey());
+			const header = editor.page.locator(
 				'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-header'
-			)
-			.click();
-		const body = editor.page.locator(
-			'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-body'
-		);
-		await expect(body).toContainText('strong');
-		await expect(body).toContainText('emphasis');
-	});
-
-	test('inline tree populates with inline-node kinds when caret is placed in a formatted prose block', async () => {
-		await editor.page.keyboard.press(toggleKey());
-		await editor.page
-			.locator(
-				'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-header'
-			)
-			.click();
-		await editor.clickBlock(3);
-		const body = editor.page.locator(
-			'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-body'
-		);
-		await expect(body).toContainText('strong');
-		await expect(body).toContainText('emphasis');
-		await expect(body).toContainText('strikethrough');
-		await expect(body).toContainText('inlineCode');
-	});
+			);
+			if (order === 'click-first') {
+				await editor.clickBlock(3);
+				await header.click();
+			} else {
+				await header.click();
+				await editor.clickBlock(3);
+			}
+			const body = editor.page.locator(
+				'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-body'
+			);
+			for (const kind of ['strong', 'emphasis', 'strikethrough', 'inlineCode']) {
+				await expect(body).toContainText(kind);
+			}
+		});
+	}
 
 	test('selection section shows the focused block path when user clicks in a block', async () => {
 		await editor.page.keyboard.press(toggleKey());

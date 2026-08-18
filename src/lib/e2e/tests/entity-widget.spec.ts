@@ -114,7 +114,7 @@ test.describe('decoded-entity atomic widget', () => {
 		await editor.selectAll();
 		await page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
-		const clip = await page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('&copy;');
 		expect(clip).not.toContain('©');
 	});

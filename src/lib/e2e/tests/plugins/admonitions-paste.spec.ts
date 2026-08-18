@@ -25,8 +25,8 @@ test.describe('plugin admonitions — native alert paste', () => {
 		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
-		await page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Handy note.\n'));
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.seedClipboard('> [!TIP]\n> Handy note.\n');
+		await editor.paste(`${primaryModifier}+v`);
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		expect((await readDoc(page)).kinds).toContain('githubAlert');
@@ -43,12 +43,10 @@ test.describe('plugin admonitions — native alert paste', () => {
 	}) => {
 		await editor.loadContent('Intro paragraph.\n');
 		await editor.focusBlockEnd(0);
-		await page.evaluate(() =>
-			navigator.clipboard.writeText(
-				'> [!TIP]\n> Top-level alert.\n\n```md\n> [!NOTE]\n> Inside a fence.\n```\n'
-			)
+		await editor.seedClipboard(
+			'> [!TIP]\n> Top-level alert.\n\n```md\n> [!NOTE]\n> Inside a fence.\n```\n'
 		);
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.paste(`${primaryModifier}+v`);
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		const source = await editor.bridge.getSource();
@@ -70,8 +68,8 @@ test.describe('plugin admonitions — native alert paste', () => {
 		await page.keyboard.press(`${primaryModifier}+a`);
 		await editor.waitForCrossBlock(true);
 
-		await page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Replaced table.\n'));
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.seedClipboard('> [!TIP]\n> Replaced table.\n');
+		await editor.paste(`${primaryModifier}+v`);
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');

@@ -32,9 +32,9 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 
 	test('pasted: a lone blank-line separator stays a separator, as it does on load', async () => {
 		await editor.loadContent('');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo'));
+		await editor.seedClipboard('one\n\ntwo');
 		await editor.focusBlockAtPath([0], 0);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('two');
 
 		const pastedSource = asLf(await editor.bridge.getSource());
@@ -50,9 +50,9 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 
 	test('pasted: a two-line blank run carries its empty block across the clipboard', async () => {
 		await editor.loadContent('');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\n\ntwo'));
+		await editor.seedClipboard('one\n\n\ntwo');
 		await editor.focusBlockAtPath([0], 0);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('two');
 
 		const pastedSource = asLf(await editor.bridge.getSource());
@@ -68,9 +68,9 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 	// the pasted content, not the trailing residue. Typing appends to the paste.
 	test('mid-paragraph multi-block paste lands the caret at the end of the pasted content', async () => {
 		await editor.loadContent('helloworld\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo'));
+		await editor.seedClipboard('one\n\ntwo');
 		await editor.focusBlockAtPath([0], 5); // between "hello" and "world"
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('two');
 
 		await editor.typeText('Z');

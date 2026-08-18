@@ -45,7 +45,7 @@ test.describe('live mode — destructive edits inside a table cell', () => {
 		await ep.bridge.waitForSourceContains('| Some bot x | y |');
 
 		expect(await visibleCellText(page)).not.toContain('*');
-		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('ld** *i');
+		expect(await ep.readClipboard()).toBe('ld** *i');
 	});
 
 	test('typing over the selection lands the character at the cleaned seam', async ({ page }) => {

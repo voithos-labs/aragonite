@@ -9,7 +9,7 @@ test.describe('code block paste — fence bumping', () => {
 		await editor.goto();
 	});
 
-	test('paste containing ``` into a code block bumps outer fence to ````', async ({ page }) => {
+	test('paste containing ``` into a code block bumps outer fence to ````', async () => {
 		await editor.loadContent('```\nfirst\n```\n');
 		await editor.getBlock(0).click();
 		// End of the body line, not of the block: the block's last offset sits inside the closer,
@@ -18,8 +18,8 @@ test.describe('code block paste — fence bumping', () => {
 
 		// The run has to be a LINE to threaten the fence, so an inline `` ```pasted code``` `` is
 		// ordinary body text.
-		await page.evaluate((text) => navigator.clipboard.writeText(text), '\n```\npasted code\n');
-		await editor.page.keyboard.press('Control+v');
+		await editor.seedClipboard('\n```\npasted code\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('pasted code');
 
 		const source = await editor.bridge.getSource();
@@ -28,16 +28,13 @@ test.describe('code block paste — fence bumping', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});
 
-	test('paste of multi-block markdown stays literal inside a code block', async ({ page }) => {
+	test('paste of multi-block markdown stays literal inside a code block', async () => {
 		await editor.loadContent('```\ncontent\n```\n');
 		await editor.getBlock(0).click();
 		await editor.focusBlock(0, 11);
 
-		await page.evaluate(
-			(text) => navigator.clipboard.writeText(text),
-			'\n# Heading\n\n- list item\n\nparagraph\n'
-		);
-		await editor.page.keyboard.press('Control+v');
+		await editor.seedClipboard('\n# Heading\n\n- list item\n\nparagraph\n');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('# Heading');
 
 		expect(await editor.bridge.getBlockCount()).toBe(1);

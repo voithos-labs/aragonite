@@ -219,10 +219,7 @@ test.describe('mermaid whole-block focus', () => {
 	// (pinned in clipboard/whole-block-atomic-copy). navigator.clipboard.writeText normalizes line
 	// endings to the OS convention (CRLF on Windows) and the block markdown is authored LF, so
 	// compare LF-normalized.
-	const readClipboardLF = () =>
-		editor.page
-			.evaluate(() => navigator.clipboard.readText())
-			.then((t) => t.replaceAll('\r\n', '\n'));
+	const readClipboardLF = () => editor.readClipboard().then((t) => t.replaceAll('\r\n', '\n'));
 
 	test('Mod+C while focused copies the diagram markdown; the document is unchanged', async ({
 		page

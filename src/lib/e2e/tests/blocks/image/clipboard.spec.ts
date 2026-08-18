@@ -19,13 +19,12 @@ test.describe('selected image-widget copy/cut', () => {
 	});
 
 	const overlay = () => editor.page.locator('[data-image-overlay]');
-	const readClipboard = () => editor.page.evaluate(() => navigator.clipboard.readText());
 
 	async function open(doc: string): Promise<void> {
 		await editor.loadContent(doc);
 		// The clipboard outlives the browser context, so a chord that writes NOTHING would
 		// otherwise read back the previous case's payload and pass.
-		await editor.page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));
+		await editor.seedClipboard('SENTINEL');
 	}
 
 	// Stepping OUT of the paragraph above, so the landing runs the cross-block edge entry. A
@@ -55,7 +54,7 @@ test.describe('selected image-widget copy/cut', () => {
 			await editor.page.keyboard.press('Control+c');
 			await editor.waitForClipboardWrite();
 
-			expect(await readClipboard()).toBe(IMG_MD);
+			expect(await editor.readClipboard()).toBe(IMG_MD);
 			expect(await editor.bridge.getSource()).toBe(before);
 			await expect(overlay()).toBeVisible();
 		});
@@ -68,7 +67,7 @@ test.describe('selected image-widget copy/cut', () => {
 			await editor.page.keyboard.press('Control+x');
 			await editor.waitForClipboardWrite();
 
-			expect(await readClipboard()).toBe(IMG_MD);
+			expect(await editor.readClipboard()).toBe(IMG_MD);
 			await editor.bridge.waitForSourceNotContains('sample.png');
 			await expect(overlay()).toHaveCount(0);
 			await editor.undo();
@@ -79,10 +78,10 @@ test.describe('selected image-widget copy/cut', () => {
 	// The third arm of the same body route: paste over a selected widget replaces its slice.
 	test('widget-only paragraph, click-selected: Mod+V replaces the widget with the pasted text', async () => {
 		await open(WIDGET_ONLY);
-		await editor.page.evaluate(() => navigator.clipboard.writeText('REPLACED'));
+		await editor.seedClipboard('REPLACED');
 		await selectByClick();
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('REPLACED');
 
 		expect((await editor.bridge.getSource()).trim()).toBe('lead\n\nREPLACED\n\ntail');
@@ -100,7 +99,7 @@ test.describe('selected image-widget copy/cut', () => {
 		await editor.page.keyboard.press('Control+x');
 		await editor.waitForClipboardWrite();
 
-		expect(await readClipboard()).toBe(IMG_MD);
+		expect(await editor.readClipboard()).toBe(IMG_MD);
 		expect((await editor.bridge.getSource()).trim()).toBe('lead');
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);

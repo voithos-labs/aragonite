@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
 import { capturePageErrors } from '../../../page-probes';
+import { pollAutoscrollPast, settleScroll } from '../../../autoscroll';
 
 // 12 columns at ~150px each overflow `.table-block`'s overflow-x in an 800px viewport, so the late
 // columns start scrolled off the right edge. Header is row 0 (the parser strips the alignment row).
@@ -59,38 +60,19 @@ test.describe('table block: column drag on a wide (overflowing) table', () => {
 		await page.mouse.down();
 		await page.mouse.move(bandX, bandY, { steps: 6 });
 
-		// The autoscroll rAF loop self-drives on the held pointer; poll scrollLeft past half the
-		// max so late columns scroll into view, jittering the pointer each iteration to keep
-		// Playwright's pointer state fresh. Never waitForTimeout.
+		// Poll scrollLeft past half the max so late columns scroll into view.
 		const maxScroll = await tableEl.evaluate((el) => el.scrollWidth - el.clientWidth);
-		await expect
-			.poll(
-				async () => {
-					await page.mouse.move(bandX, bandY);
-					return tableEl.evaluate((el) => el.scrollLeft);
-				},
-				{ intervals: [16], timeout: 15_000 }
-			)
-			.toBeGreaterThan(maxScroll * 0.5);
+		await pollAutoscrollPast(
+			page,
+			{ x: bandX, y: bandY },
+			() => tableEl.evaluate((el) => el.scrollLeft),
+			maxScroll * 0.5,
+			15_000
+		);
 
-		// Leave the band so autoscroll halts; settle scrollLeft across two frames
-		// before reading the target — a mid-scroll rect would be stale on drop.
+		// Leave the band so autoscroll halts; settle before reading the target.
 		await page.mouse.move(tableBox.x + tableBox.width / 2, bandY);
-		await expect
-			.poll(
-				() =>
-					tableEl.evaluate(
-						(el) =>
-							new Promise<boolean>((res) => {
-								const before = el.scrollLeft;
-								requestAnimationFrame(() =>
-									requestAnimationFrame(() => res(el.scrollLeft === before))
-								);
-							})
-					),
-				{ intervals: [0], timeout: 5000 }
-			)
-			.toBe(true);
+		await settleScroll(tableEl, 'scrollLeft');
 
 		// A header column now fully visible, clear of both autoscroll bands, past the start-visible
 		// set, and not the last column (so its +1 neighbor exists). Read its label from text rather

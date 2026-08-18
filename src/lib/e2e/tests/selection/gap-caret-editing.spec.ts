@@ -74,9 +74,9 @@ test.describe('minting a paragraph at the gap', () => {
 	// rule for yet, so it is declined rather than guessed at.
 	test('a paste at the gap changes nothing and keeps the gap', async () => {
 		await arriveAtBoundary();
-		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted\n'));
+		await editor.seedClipboard('pasted\n');
 
-		await editor.page.keyboard.press(`${primaryModifier}+v`);
+		await editor.paste(`${primaryModifier}+v`);
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(TABLE_THEN_FENCE);

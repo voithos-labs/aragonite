@@ -17,7 +17,7 @@ test.describe('one edit event per op — nested paste', () => {
 		await first.click();
 		await editor.page.keyboard.press('End');
 
-		await editor.page.evaluate(() => navigator.clipboard.writeText('one\n\ntwo\n'));
+		await editor.seedClipboard('one\n\ntwo\n');
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
@@ -43,7 +43,7 @@ test.describe('one edit event per op — container-matching paste', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Shift+End');
 
-		await editor.page.evaluate(() => navigator.clipboard.writeText('- one\n- two\n'));
+		await editor.seedClipboard('- one\n- two\n');
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);
@@ -71,7 +71,7 @@ test.describe('one edit event per op — container-matching merge', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.evaluate(() => navigator.clipboard.writeText('- x\n- y\n'));
+		await editor.seedClipboard('- x\n- y\n');
 
 		const count = await countEditEvents(editor, async () => {
 			await editor.page.keyboard.press(`${primaryModifier}+KeyV`);

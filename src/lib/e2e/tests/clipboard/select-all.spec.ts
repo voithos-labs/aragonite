@@ -24,7 +24,7 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceMatches(/first para[\s\S]*first para/);
 
 		const source = await editor.bridge.getSource();
@@ -125,7 +125,7 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceNotContains('one');
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('one');
 
 		const source = await editor.bridge.getSource();

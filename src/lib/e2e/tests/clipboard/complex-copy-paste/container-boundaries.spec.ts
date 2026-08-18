@@ -1,7 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { DEFAULT_CONTENT } from '../../../test-content';
-import { waitForClipboardContains } from './helpers';
 
 test.describe('clipboard — container boundary scenarios', () => {
 	let editor: EditorPage;
@@ -18,9 +17,9 @@ test.describe('clipboard — container boundary scenarios', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await waitForClipboardContains(editor, 'Item three');
+		await editor.waitForClipboardContains('Item three');
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('Item three');
 		expect(clip).toContain('First');
 		expect(clip).not.toContain('Item one');
@@ -34,9 +33,9 @@ test.describe('clipboard — container boundary scenarios', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await waitForClipboardContains(editor, 'A final paragraph');
+		await editor.waitForClipboardContains('A final paragraph');
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('Second blockquote paragraph');
 		expect(clip).toContain('- Item one');
 		expect(clip).toContain('1. First');
@@ -49,9 +48,9 @@ test.describe('clipboard — container boundary scenarios', () => {
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.keyboard.press('Control+c');
-		await waitForClipboardContains(editor, 'A final paragraph');
+		await editor.waitForClipboardContains('A final paragraph');
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('Third');
 		expect(clip).toContain('const x = 42');
 		expect(clip).toContain('A final paragraph');

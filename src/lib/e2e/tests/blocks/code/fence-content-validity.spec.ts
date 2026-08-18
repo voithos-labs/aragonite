@@ -36,20 +36,20 @@ test.describe('code block — content the fence cannot hold', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	test('a paste lands in the info string without the backticks it carried', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('x`y'));
+	test('a paste lands in the info string without the backticks it carried', async () => {
+		await editor.seedClipboard('x`y');
 		await editor.focusBlock(0, 5);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('jsxy');
 
 		expect(await editor.bridge.getSource()).toBe('```jsxy\nconst x = 1\n```\n\n# Heading\n');
 	});
 
-	test('a pasted fence run on a body line grows the fence', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('```'));
+	test('a pasted fence run on a body line grows the fence', async () => {
+		await editor.seedClipboard('```');
 		await editor.focusBlock(0, 17);
 		await editor.page.keyboard.press('Enter');
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('````');
 
 		expect(await editor.bridge.getSource()).toBe('````js\nconst x = 1\n```\n````\n\n# Heading\n');

@@ -68,14 +68,14 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 		// The clipboard keeps the literal bytes the user selected, including the fence characters
 		// the delete refused.
-		expect(await editor.page.evaluate(() => navigator.clipboard.readText())).toBe('x = 1\n``');
+		expect(await editor.readClipboard()).toBe('x = 1\n``');
 		expect(await editor.bridge.getSource()).toBe('```js\nconst \n```\n');
 	});
 
-	test('paste over a body-into-closer selection replaces only the body part', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('Y'));
+	test('paste over a body-into-closer selection replaces only the body part', async () => {
+		await editor.seedClipboard('Y');
 		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceContains('const Y');
 
 		expect(await editor.bridge.getSource()).toBe('```js\nconst Y\n```\n');
@@ -83,22 +83,22 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 	// Paste follows the same refusal as typing: a target confined to structure has nowhere to
 	// write.
-	test('paste with the caret inside a fence run is inert', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('Y'));
+	test('paste with the caret inside a fence run is inert', async () => {
+		await editor.seedClipboard('Y');
 
 		for (const offset of [19, 1]) {
 			await editor.focusBlock(0, offset);
-			await editor.page.keyboard.press('Control+v');
+			await editor.paste('Control+v');
 			await editor.waitForNoSourceMutation();
 
 			expect(await editor.bridge.getSource()).toBe(SOURCE);
 		}
 	});
 
-	test('paste over a closer-only selection is inert', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('Y'));
+	test('paste over a closer-only selection is inert', async () => {
+		await editor.seedClipboard('Y');
 		await selectFrom(editor, 18, 3);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -177,7 +177,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 		await editor.page.keyboard.press('Control+x');
 		await editor.waitForClipboardWrite();
 
-		expect(await editor.page.evaluate(() => navigator.clipboard.readText())).toBe('```');
+		expect(await editor.readClipboard()).toBe('```');
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 

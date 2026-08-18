@@ -19,7 +19,7 @@ test.describe('cross-block clipboard: list marker preservation on copy', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clipText = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clipText = await editor.readClipboard();
 
 		expect(clipText).toContain('1.');
 		expect(clipText).toContain('2.');
@@ -39,7 +39,7 @@ test.describe('cross-block clipboard: list marker preservation on copy', () => {
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 
 		expect(clip).toContain('1. first');
 		expect(clip).toContain('2. second');
@@ -71,7 +71,7 @@ test.describe('cross-block clipboard: list duplication regression', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockAtPath([2], 5);
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceWith((s) => s.split('Item two').length - 1 === 2, null);
 
 		const source = await editor.bridge.getSource();
@@ -104,7 +104,7 @@ test.describe('cross-block clipboard: partial list promotion regression', () => 
 		await editor.page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
 
-		const clipText = await editor.page.evaluate(() => navigator.clipboard.readText());
+		const clipText = await editor.readClipboard();
 
 		expect(clipText).toContain('Third');
 		expect(clipText).not.toContain('First');

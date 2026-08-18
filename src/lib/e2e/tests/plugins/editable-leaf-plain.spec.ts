@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
 import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './helpers';
 
 /**
@@ -8,9 +7,6 @@ import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './hel
  * parity — typing, traversal, undo batching, cross-block selection, and clipboard — through the
  * public factory alone.
  */
-
-const readClipboard = (page: Page): Promise<string> =>
-	page.evaluate(() => navigator.clipboard.readText());
 
 class MemoPage extends PluginsPage {
 	get memo() {
@@ -110,7 +106,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 				})
 			]);
 		});
-		await page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 
 		// The text/plain payload lands verbatim — its newline re-splits the second line off as a
 		// paragraph, so the document carries `a\nb`. Without the leaf's own onpaste the native
@@ -128,12 +124,12 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.keyboard.press('Shift+End'); // select the memo line (single-block, native)
 		await page.keyboard.press('Shift+ArrowDown'); // extend into After → cross-block
 		await editor.waitForCrossBlock(true);
-		await page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));
+		await editor.seedClipboard('SENTINEL');
 		await page.keyboard.press('Control+c');
 
 		// The memo (leaf) is the focused anchor: its copy handler must reach the shared cross-block
 		// collector, which reads the memo's own raw. Without one the clipboard keeps the sentinel.
-		await expect.poll(() => readClipboard(page)).toContain('memo text');
+		await expect.poll(() => editor.readClipboard()).toContain('memo text');
 	});
 
 	test('cross-block cut anchored in the memo writes the payload and collapses the range', async ({
@@ -144,12 +140,12 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.keyboard.press('Shift+End');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await page.evaluate(() => navigator.clipboard.writeText('SENTINEL'));
+		await editor.seedClipboard('SENTINEL');
 		await page.keyboard.press('Control+x');
 
 		// The leaf's cut handler writes the cross-block payload and deletes the swept range; with
 		// no handler reached, the clipboard keeps the sentinel and nothing is removed.
-		await expect.poll(() => readClipboard(page)).toContain('memo text');
+		await expect.poll(() => editor.readClipboard()).toContain('memo text');
 		await editor.waitForCrossBlock(false);
 		expect(await roundTripStable(page)).toBe(true);
 	});
@@ -164,8 +160,8 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 			await page.keyboard.press('End');
 			await page.keyboard.press('Shift+ArrowDown');
 			await editor.waitForCrossBlock(true);
-			await page.evaluate(() => navigator.clipboard.writeText('INSERTED'));
-			await page.keyboard.press('Control+v');
+			await editor.seedClipboard('INSERTED');
+			await editor.paste('Control+v');
 
 			// The leaf's paste handler routes the swept range through the cross-block delete + paste,
 			// so the selection collapses and the text lands; unreached, the cross-block state sticks.

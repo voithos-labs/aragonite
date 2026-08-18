@@ -13,7 +13,7 @@ test.describe('cross-block list paste merge: caret at end of pasted content', ()
 
 	test('merge with a reattached residue lands the caret before the residue', async () => {
 		await editor.loadContent('- alpha\n\nbeta gamma\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('- x\n- y\n'));
+		await editor.seedClipboard('- x\n- y\n');
 
 		// Cross-block select from the end of the list item into the paragraph below.
 		// The delete merges the paragraph tail ("gamma") into the list item; on paste,
@@ -21,7 +21,7 @@ test.describe('cross-block list paste merge: caret at end of pasted content', ()
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.shiftClickBlock([1], 'beta '.length);
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceMatches(/- ygamma/);
 
 		await editor.page.keyboard.type('Z');
@@ -35,7 +35,7 @@ test.describe('cross-block list paste merge: caret at end of pasted content', ()
 
 	test('single-item merge lands the caret before the residue (singleton path)', async () => {
 		await editor.loadContent('- alpha\n\nbeta gamma\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('- x\n'));
+		await editor.seedClipboard('- x\n');
 
 		// A single-item clipboard hits the singleton merge branch: the one pasted
 		// item merges into the target leaf, residue reattaches after it in the SAME
@@ -43,7 +43,7 @@ test.describe('cross-block list paste merge: caret at end of pasted content', ()
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.shiftClickBlock([1], 'beta '.length);
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste('Control+v');
 		await editor.bridge.waitForSourceMatches(/- alphaxgamma/);
 
 		await editor.page.keyboard.type('Z');
