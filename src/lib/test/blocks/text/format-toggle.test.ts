@@ -1,12 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { MARK_FORMATS, markersOf, toggleFormat } from './format-toggle-fixture';
+import { MARK_FORMATS, markersOf, toggleFormat, whole } from './format-toggle-fixture';
 import { parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
 
 const leafText = (nodes: InlineNode[]): string =>
 	nodes.map((n) => (n.children ? leafText(n.children) : (n.text ?? ''))).join('');
-
-const whole = (raw: string) => ({ start: 0, end: raw.length });
 
 // Wrap-then-strip is the contract every format owes, whatever its delimiter run: the three fixed
 // pairs and inline code's content-sized fence go round the same way.

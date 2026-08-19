@@ -6,23 +6,18 @@
 // DOM re-seat past the run is normalized away before the native insertion.
 // Miss-analysis: the seat's inputs (policy row + arrival side) both shipped consumer-free, so
 // nothing could disagree with them; this is the level where the two meet.
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
+import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
-
-interface Harness {
-	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
-	/** `updateBlockContent` argument tuples, newest last. */
-	edits: [number, string, number, number][];
-}
+import {
+	at,
+	installEdgeDispatchCleanup,
+	key,
+	makeEdgeDispatch,
+	mountSurface,
+	type EdgeDispatchHarness
+} from './edge-policy-fixture';
 
 /** `source` as one block under a presentation root, with `affinity` on record. */
 function mount(
@@ -30,58 +25,16 @@ function mount(
 	mode: string,
 	affinity: EdgeAffinity | null,
 	isReading = false
-): Harness {
-	const node: CstNode = parse(source).children[0];
-	const root = document.createElement('div');
-	root.setAttribute('data-presentation', mode);
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.textContent = node.raw.replace(/\n$/, '');
-	root.appendChild(el);
-	document.body.appendChild(root);
-
-	const edits: Harness['edits'] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		hasIslands: () => false,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args as Harness['edits'][number])
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: () => {},
+): EdgeDispatchHarness {
+	const node = parse(source).children[0];
+	const el = mountSurface(trimTrailingLineEnding(node.raw), mode);
+	return makeEdgeDispatch(node, el, {
 		isReading: () => isReading,
-		getEdgeAffinity: () => affinity,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
-	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
+		getEdgeAffinity: () => affinity
+	});
 }
 
-const key = (name: string, modifiers: Partial<KeyboardEvent> = {}) =>
-	new KeyboardEvent('keydown', { key: name, cancelable: true, ...modifiers });
-
-const at = (offset: number) => asRawOffset(offset) as RawOffset;
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	window.getSelection()?.removeAllRanges();
-});
+installEdgeDispatchCleanup();
 
 const BOLD = 'Some **bold** text\n';
 

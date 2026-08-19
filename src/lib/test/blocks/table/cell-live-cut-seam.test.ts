@@ -6,13 +6,12 @@
 // (live-mode.md § 4.5), on
 // every destructive path — event cut, menu cut, and the native type-over/delete of a selection.
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
-import { tick } from 'svelte';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
-import { mountCell, type MountedCell } from './mount-cell';
+import { mountCell, settleTicks, type MountedCell } from './mount-cell';
 
 beforeAll(() => registerLiveJoinSeamCleaner(cleanLiveJoinSeam));
 afterAll(() => __resetLiveJoinSeamCleanerForTests());
@@ -36,7 +35,7 @@ function committedCalls(cell: MountedCell): unknown[][] {
 // The cut/beforeinput handlers await the shared prelude before committing, so the
 // commit lands several microtasks after dispatch.
 async function settleCommit(cell: MountedCell): Promise<void> {
-	for (let i = 0; i < 8 && committedCalls(cell).length === 0; i++) await tick();
+	await settleTicks(() => committedCalls(cell).length > 0);
 }
 
 function dispatchCut(el: HTMLElement): Map<string, string> {
@@ -135,7 +134,7 @@ describe('source mode: the same cuts stay byte-literal', () => {
 		mounted.instance.setSelection(4, 11);
 
 		const e = dispatchBeforeInput(mounted.el, 'insertText', 'X');
-		for (let i = 0; i < 8; i++) await tick();
+		await settleTicks();
 
 		expect(e.defaultPrevented).toBe(false);
 		expect(committedCalls(mounted)).toEqual([]);

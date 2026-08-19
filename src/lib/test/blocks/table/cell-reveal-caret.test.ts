@@ -6,10 +6,9 @@
 // it. Scope is the commit half only: `focusCell` is stubbed here, so the "Enter stays put" half
 // is guarded on exact bytes by e2e/tests/blocks/table/cell-inline-reveal.spec.ts — do not thin it.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { tick } from 'svelte';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState } from '../text/math-widget-fixture';
-import { mountCell } from './mount-cell';
+import { mountCell, settleTicks } from './mount-cell';
 
 // `x $a$ yz`: a math widget at raw [2,5) with prose on both sides, so every caret
 // offset this test names sits OUTSIDE the widget span and reads back unambiguously.
@@ -17,12 +16,6 @@ const CELL = 'x $a$ yz';
 
 function press(el: HTMLElement, key: string): void {
 	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-}
-
-/** The keydown handlers await the shared prelude, so a commit lands several
- *  microtasks after dispatch — and the render effect one more after that. */
-async function settle(): Promise<void> {
-	for (let i = 0; i < 8; i++) await tick();
 }
 
 /** The ephemeral source text node the reveal swapped the widget island for. */
@@ -52,10 +45,10 @@ describe('a reveal commit in a cell parks its caret in escaped space', () => {
 		// ArrowLeft at the widget's trailing edge opens its source reveal; the edit
 		// inside it is ephemeral DOM by design (onInput is suppressed while revealed).
 		press(el, 'ArrowLeft');
-		await settle();
+		await settleTicks();
 		revealedSource(el).textContent = '$a|$';
 		press(el, 'Enter');
-		await settle();
+		await settleTicks();
 
 		// The door escaped the free `|`, so the commit caret is 7 — past `$a\|$`.
 		const [, , , committedCaret] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
@@ -73,10 +66,10 @@ describe('a reveal commit in a cell parks its caret in escaped space', () => {
 		instance.setSelection(5, 5);
 
 		press(el, 'ArrowLeft');
-		await settle();
+		await settleTicks();
 		revealedSource(el).textContent = '$ab$';
 		press(el, 'Enter');
-		await settle();
+		await settleTicks();
 
 		// Non-vacuity: the mapping is identity when the sink inserts nothing, so the
 		// escape path cannot be a blanket offset shift.

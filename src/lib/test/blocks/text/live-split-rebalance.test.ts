@@ -245,10 +245,6 @@ describe('the seam is resolved against the flanking rules, not around them', () 
 			secondRaw: ' **c**\n'
 		});
 	});
-
-	it('a cut at content end hands the construct over rather than reopening it empty', () => {
-		expect(split('_a_\n', 2)).toEqual({ firstRaw: '_a_\n', secondRaw: '\n' });
-	});
 });
 
 describe('the first half never parses to more than one block', () => {

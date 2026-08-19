@@ -3,7 +3,7 @@
 // way it does in the editor. Bare-cell mounts (cell-write-escape, cell-reveal-
 // caret) stub that context; these tests are about what the table does with it.
 
-import { mount, unmount, flushSync, tick } from 'svelte';
+import { mount, unmount, flushSync } from 'svelte';
 import TableBlock from '$lib/components/blocks/table/TableBlock.svelte';
 import type { BlockComponent } from '$lib/block-component';
 import type { CstNode, Document } from '$lib/core/nodes';
@@ -12,6 +12,8 @@ import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import { parse } from '$lib/core/parser';
 import { makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';
 import { editorMountContext, type MountContextOverrides } from '../../harness/mount-context';
+import { blockHostAt, type MountedEditor } from '../editor-mount';
+import { settleTicks } from './mount-cell';
 
 /** jsdom implements neither the caret geometry an exit gesture measures nor a windowed scope's
  *  observer. Range rect measurement THROWS, so an exit without this takes down the handler. */
@@ -92,5 +94,33 @@ export function mountTable(source: string, overrides: MountContextOverrides = {}
 /** A keydown on `el`; the cell's handler awaits its widget intercepts first. */
 export async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
 	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	for (let i = 0; i < 10; i++) await tick();
+	await settleTicks();
+}
+
+/** The mounted cell at (rowIdx, colIdx) of the table block at `tablePath` in a full
+ *  Editor mount — the one selector contract for "cell of a mounted editor". */
+export function cellAt(
+	mounted: MountedEditor,
+	rowIdx: number,
+	colIdx: number,
+	tablePath: number[] = [0]
+): HTMLElement {
+	const row = blockHostAt(mounted, tablePath).querySelector(`[data-table-row-idx="${rowIdx}"]`);
+	const found = row?.querySelectorAll(':scope > .table-cell')[colIdx] as HTMLElement | undefined;
+	if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
+	return found;
+}
+
+/** Focus the cell and send it a key, settling the commit it may start. */
+export async function pressInCell(
+	mounted: MountedEditor,
+	rowIdx: number,
+	colIdx: number,
+	init: KeyboardEventInit,
+	tablePath: number[] = [0]
+): Promise<void> {
+	const el = cellAt(mounted, rowIdx, colIdx, tablePath);
+	el.focus();
+	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+	await mounted.settle();
 }

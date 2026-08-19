@@ -1,59 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
-import type { PresentationMode } from '$lib/presentation-mode';
-import type { CstNode } from '$lib/core/nodes';
-
-function makeDeps(node: CstNode, el: HTMLElement) {
-	let mode: PresentationMode = 'source';
-	const deps: TextRenderDeps = {
-		get el() {
-			return el;
-		},
-		get node() {
-			return node;
-		},
-		get ambientPrefix() {
-			return '';
-		},
-		get ambientPrefixText() {
-			return '';
-		},
-		getDisplayText: () => node.raw,
-		resolveImageUrl: (u) => u,
-		resolveLinkUrl: (u) => u,
-		get imageLoadPolicy() {
-			return 'auto' as const;
-		},
-		get presentationMode() {
-			return mode;
-		},
-		get linkResolver() {
-			return undefined;
-		},
-		get linkStamp() {
-			return '0';
-		},
-		get islands() {
-			return [];
-		},
-		getDocument: () => undefined,
-		brokenUrlCache: new Set<string>()
-	};
-	return {
-		deps,
-		setMode(next: PresentationMode) {
-			mode = next;
-		}
-	};
-}
+import { createTextRender } from '$lib/components/blocks/text/text-render';
+import { blockNode, makeRenderHarness } from './render-fixture';
 
 describe('text-render presentation-mode key segment', () => {
 	it('a mode flip rebuilds the block and the markers stay in the DOM', () => {
-		const el = document.createElement('div');
-		const node = parse('**bold**\n').children[0]!;
-		const { deps, setMode } = makeDeps(node, el);
+		const { el, deps, setMode } = makeRenderHarness(blockNode('**bold**\n'));
 		const render = createTextRender(deps);
 
 		render.render();
@@ -70,9 +22,7 @@ describe('text-render presentation-mode key segment', () => {
 	});
 
 	it('preview-block carries its own mode segment (rebuilds, markers kept for CSS)', () => {
-		const el = document.createElement('div');
-		const node = parse('**bold**\n').children[0]!;
-		const { deps, setMode } = makeDeps(node, el);
+		const { el, deps, setMode } = makeRenderHarness(blockNode('**bold**\n'));
 		const render = createTextRender(deps);
 
 		render.render();
@@ -88,9 +38,7 @@ describe('text-render presentation-mode key segment', () => {
 	});
 
 	it('the same mode never rebuilds (source stays the zero-cost path)', () => {
-		const el = document.createElement('div');
-		const node = parse('hello\n').children[0]!;
-		const { deps } = makeDeps(node, el);
+		const { el, deps } = makeRenderHarness(blockNode('hello\n'));
 		const render = createTextRender(deps);
 
 		render.render();
@@ -100,9 +48,7 @@ describe('text-render presentation-mode key segment', () => {
 	});
 
 	it('preview-inline carries its own segment and stamps construct markers; other modes stay unstamped', () => {
-		const el = document.createElement('div');
-		const node = parse('**bold** `code`\n').children[0]!;
-		const { deps, setMode } = makeDeps(node, el);
+		const { el, deps, setMode } = makeRenderHarness(blockNode('**bold** `code`\n'));
 		const render = createTextRender(deps);
 
 		// The stamp is mode-gated: source/reading/preview-block DOM is attribute-free.

@@ -4,21 +4,20 @@
 // an empty child is the marker the opener already minted, so it is consumed and no byte moves.
 // Miss-analysis: the opener minted `>` on one keystroke and the suite only ever LOADED quotes, so
 // the second keystroke of the two-press marker had no test at any level.
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
+import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { CstNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import {
+	at,
+	installEdgeDispatchCleanup,
+	key,
+	makeEdgeDispatch,
+	mountSurface,
+	type EdgeDispatchHarness
+} from './edge-policy-fixture';
 
-interface Harness {
-	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
-	/** `updateBlockContent` argument tuples — empty is the consume contract. */
-	edits: unknown[];
+interface Harness extends EdgeDispatchHarness {
 	/** Repoint the same dispatch at another child of the mounted container, as a windowed
 	 *  surface re-used for a different block does. */
 	useChild: (index: number) => void;
@@ -34,58 +33,20 @@ function mount(source: string, path: number[], isReading = false): Harness {
 		node = node.children![index];
 	}
 
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.textContent = node.raw.replace(/\n$/, '');
-	document.body.appendChild(el);
-
-	const edits: unknown[] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return path[path.length - 1];
-		},
-		get containerParent() {
-			return parent;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		hasIslands: () => false,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args)
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: () => {},
-		isReading: () => isReading,
-		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
+	const el = mountSurface(trimTrailingLineEnding(node.raw));
 	return {
-		handleKeydown: createEdgePolicyDispatch(deps).handleKeydown,
-		edits,
+		...makeEdgeDispatch(() => node, el, {
+			index: path[path.length - 1],
+			containerParent: parent,
+			isReading: () => isReading
+		}),
 		useChild: (index) => {
 			node = parent!.children![index];
 		}
 	};
 }
 
-const key = (name: string, modifiers: Partial<KeyboardEvent> = {}) =>
-	new KeyboardEvent('keydown', { key: name, cancelable: true, ...modifiers });
-
-const at = (offset: number) => asRawOffset(offset) as RawOffset;
-
-afterEach(() => {
-	document.body.innerHTML = '';
-});
+installEdgeDispatchCleanup();
 
 describe('a container declaring contentStartSpace completes its marker', () => {
 	it('consumes the space at the content start of an empty child, writing nothing', () => {

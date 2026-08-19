@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { toggleFormat } from './format-toggle-fixture';
+import { toggleFormat, whole } from './format-toggle-fixture';
 import { parseInline } from '$lib/core/inline';
 
 // Inline code is the only format whose delimiter run is content-dependent, in BOTH directions: a
 // wrap sizes its fence past the longest run it encloses, and a strip reads the run the parsed
 // span actually carries. Every case here asserts the bytes reparse as one code span holding the
 // intended text — the fence length alone proves nothing.
-
-const whole = (raw: string) => ({ start: 0, end: raw.length });
 
 /** The content of the one code span the bytes must parse as, or null if they parse as anything
  *  else — which is the whole question for a fence the wrap sized itself. */

@@ -1,7 +1,6 @@
-// Shared scaffolding for the widget-reveal unit suites (reveal-commit,
-// reveal-collapse). The stamped wrapper is a faithful stand-in for the render
-// layer's portal island: the interaction layer reads only the marker attributes
-// and the source text between flanking prose. Mounting the real MathInline
+// Shared scaffolding for the inline-widget unit suites. The stamped wrapper is a faithful
+// stand-in for the render layer's portal island: the interaction layer reads only the marker
+// attributes and the source text between flanking prose. Mounting the real MathInline
 // (Svelte + KaTeX) is the e2e's job.
 import { afterEach, beforeEach } from 'vitest';
 import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
@@ -43,6 +42,17 @@ export function installMathInline(): void {
 		document.body.innerHTML = '';
 		resetInlineState();
 	});
+}
+
+/** Collapse the selection to a caret at (node, offset). */
+export function placeCaretAt(node: Node, offset: number): Selection {
+	const range = document.createRange();
+	range.setStart(node, offset);
+	range.collapse(true);
+	const sel = window.getSelection()!;
+	sel.removeAllRanges();
+	sel.addRange(range);
+	return sel;
 }
 
 // ── Widget-block mount + interaction deps ────────────────────────────────────

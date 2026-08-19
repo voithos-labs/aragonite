@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { MARK_FORMATS, markersOf, toggleFormat } from './format-toggle-fixture';
+import { MARK_FORMATS, markersOf, toggleFormat, whole } from './format-toggle-fixture';
 
 // The collapsed-caret contract: insert the empty pair and land the caret between its halves,
 // unless it already sits inside such a span or between the halves.
-
-const whole = (raw: string) => ({ start: 0, end: raw.length });
 
 describe.each(MARK_FORMATS)('toggleInlineFormat at a collapsed caret (%s)', (format) => {
 	const markers = markersOf(format);

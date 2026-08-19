@@ -5,23 +5,15 @@
 // the reveal kernel — and the legal reveal→commit / reveal→cancel cycles pinned
 // silent, because a false-firing invariant poisons the channel every e2e spec
 // watches.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { createSourceReveal } from '$lib/cursor/reveal-source';
-import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { resetInlineState, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
+import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
+import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
 
-beforeEach(() => {
-	resetInlineState();
-	registerMathInline();
-});
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	resetInlineState();
-});
+installMathInline();
 
 const REVEAL_TRANSITION = ['invariant:reveal-transition'];
 

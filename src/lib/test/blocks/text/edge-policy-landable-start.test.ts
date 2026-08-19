@@ -6,65 +6,21 @@
 // glyph (GH #108).
 // Miss-analysis: the arm's suite drove presses beside and inside constructs but never AT the
 // landable start, the one offset where the press belongs to the block, not the construct.
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
-
-interface Harness {
-	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
-	/** `updateBlockContent` argument tuples, newest last. */
-	edits: [number, string, number, number][];
-}
+import {
+	at,
+	installEdgeDispatchCleanup,
+	key,
+	makeEdgeDispatch,
+	mountSurface,
+	type EdgeDispatchHarness
+} from './edge-policy-fixture';
 
 /** One live block whose DOM carries the marker spans the landable walk reads. */
-function mount(source: string, parts: Node[]): Harness {
-	const node: CstNode = parse(source).children[0];
-	const root = document.createElement('div');
-	root.setAttribute('data-presentation', 'live');
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.append(...parts);
-	root.appendChild(el);
-	document.body.appendChild(root);
-
-	const edits: Harness['edits'] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		hasIslands: () => false,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args as Harness['edits'][number])
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: () => {},
-		isReading: () => false,
-		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
-	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
+function mount(source: string, parts: Node[]): EdgeDispatchHarness {
+	const node = parse(source).children[0];
+	return makeEdgeDispatch(node, mountSurface(parts, 'live'));
 }
 
 function marker(text: string): HTMLElement {
@@ -80,13 +36,7 @@ const text = (s: string) => document.createTextNode(s);
 const mountEscapes = () =>
 	mount('\\*a\\*\n', [marker('\\'), text('*'), text('a'), marker('\\'), text('*')]);
 
-const key = (name: string) => new KeyboardEvent('keydown', { key: name, cancelable: true });
-const at = (offset: number) => asRawOffset(offset) as RawOffset;
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	window.getSelection()?.removeAllRanges();
-});
+installEdgeDispatchCleanup();
 
 describe('the destructive arm at the block’s landable start', () => {
 	it('declines Backspace at the landable start inside a leading escape', () => {

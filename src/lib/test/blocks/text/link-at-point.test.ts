@@ -7,13 +7,14 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
 import type { CstNode } from '$lib/core/nodes';
-import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
+import { createTextRender } from '$lib/components/blocks/text/text-render';
 import {
 	LINK_ELEMENT_SELECTOR,
 	linkConstructAt,
 	resolveLinkAtPoint
 } from '$lib/components/blocks/text/link-at-point';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
+import { makeRenderHarness } from './render-fixture';
 
 function mount(source: string): {
 	el: HTMLElement;
@@ -24,43 +25,13 @@ function mount(source: string): {
 	const node = doc.children[0];
 	const map = buildLinkReferenceMap(doc.children);
 	const linkRef: LinkReferenceResolverRef = { current: map.resolve, signature: map.signature };
-	const el = document.createElement('div');
-	document.body.appendChild(el);
-	createTextRender({
-		get el() {
-			return el;
-		},
-		get node() {
-			return node;
-		},
-		get ambientPrefix() {
-			return '';
-		},
-		get ambientPrefixText() {
-			return '';
-		},
-		getDisplayText: () => node.raw,
-		resolveImageUrl: (u: string) => u,
-		resolveLinkUrl: (u: string) => u,
-		get imageLoadPolicy() {
-			return 'auto' as const;
-		},
-		get presentationMode() {
-			return 'live' as const;
-		},
-		get linkResolver() {
-			return map.resolve;
-		},
-		get linkStamp() {
-			return '1';
-		},
-		get islands() {
-			return [];
-		},
-		getDocument: () => undefined,
-		brokenUrlCache: new Set<string>()
-	} as unknown as TextRenderDeps).render();
-	return { el, node, linkRef };
+	const harness = makeRenderHarness(node, {
+		mode: 'live',
+		linkResolver: map.resolve,
+		linkStamp: '1'
+	});
+	createTextRender(harness.deps).render();
+	return { el: harness.el, node, linkRef };
 }
 
 /** A real caret seat inside the rendered link, the way a click leaves one. */

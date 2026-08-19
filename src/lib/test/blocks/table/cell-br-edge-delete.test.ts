@@ -6,8 +6,7 @@
 // affordance it does have is the one-press atomic delete — and each arm has its navigation twin,
 // because arrows must keep the step-over.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { tick } from 'svelte';
-import { mountCell } from './mount-cell';
+import { mountCell, settleTicks } from './mount-cell';
 
 // `<br>` at raw [4,8) with text on both sides, so both its edges are mid-cell — at a
 // cell's text boundaries the navigation plan owns the key and never reaches here.
@@ -17,10 +16,6 @@ const BR_END = 8;
 
 function press(el: HTMLElement, key: string): void {
 	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
-}
-
-async function settle(): Promise<void> {
-	for (let i = 0; i < 8; i++) await tick();
 }
 
 let mounted: ReturnType<typeof mountCell>;
@@ -43,7 +38,7 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			instance.setSelection(caret, caret);
 
 			press(el, key);
-			await settle();
+			await settleTicks();
 
 			expect(vi.mocked(blockEdit.updateBlockContent).mock.calls).toHaveLength(1);
 			const [index, text, , caretAfter] = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
@@ -59,7 +54,7 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			instance.setSelection(caret, caret);
 
 			press(el, key === 'Backspace' ? 'ArrowLeft' : 'ArrowRight');
-			await settle();
+			await settleTicks();
 
 			expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 			// The caret crossed the widget rather than resting against it.
@@ -82,7 +77,7 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 			instance.setSelection(caret, caret);
 
 			press(el, key);
-			await settle();
+			await settleTicks();
 
 			// jsdom leaves this key to native contenteditable, so an absent commit means "not
 			// claimed"; e2e/tests/blocks/table/cell-inline-rendering.spec.ts owns the browser outcome.
@@ -103,7 +98,7 @@ describe('a destructive key at a mid-cell `<br>` edge deletes it whole, in one p
 		instance.setSelection(withImage.indexOf(')') + 1, withImage.indexOf(')') + 1);
 
 		press(el, 'Backspace');
-		await settle();
+		await settleTicks();
 
 		expect(blockEdit.updateBlockContent).not.toHaveBeenCalled();
 	});

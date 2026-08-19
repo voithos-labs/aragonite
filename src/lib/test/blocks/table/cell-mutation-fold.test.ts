@@ -5,10 +5,9 @@
 // drove it with no reveal open — so the rule read as enforced while three sibling mutation seams
 // ran straight past it, and the table rebuild that discards the edit leaves the bytes well formed.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { tick } from 'svelte';
 import { registerMathInline } from '$lib/plugins/latex/latex-kind';
 import { resetInlineState } from '../text/math-widget-fixture';
-import { mountCell } from './mount-cell';
+import { mountCell, settleTicks } from './mount-cell';
 
 const CELL = 'x $a$ yz';
 
@@ -16,15 +15,11 @@ function press(el: HTMLElement, key: string): void {
 	el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
 }
 
-async function settle(): Promise<void> {
-	for (let i = 0; i < 8; i++) await tick();
-}
-
 /** Open the widget's source reveal and type into it — an edit that lives in ephemeral DOM until
  *  something folds it, exactly as the user's does. */
 async function revealAndEdit(el: HTMLElement, edited: string): Promise<void> {
 	press(el, 'ArrowLeft');
-	await settle();
+	await settleTicks();
 	const source = Array.from(el.childNodes).find(
 		(c) => c.nodeType === Node.TEXT_NODE && c.textContent === '$a$'
 	);
@@ -51,7 +46,7 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		await revealAndEdit(el, '$a_n$');
 
 		expect(instance.runCommand('table.insertRowBelow')).toBe(true);
-		await settle();
+		await settleTicks();
 
 		const commits = vi.mocked(blockEdit.updateBlockContent).mock.calls;
 		expect(commits.map((c) => c[1])).toEqual(['x $a_n$ yz']);
@@ -72,7 +67,7 @@ describe('a cell mutation folds the open reveal before it runs', () => {
 		await revealAndEdit(el, '$a_n$');
 
 		instance.runCommand('format.toggleStrong');
-		await settle();
+		await settleTicks();
 
 		expect(vi.mocked(blockEdit.updateBlockContent).mock.calls[0][1]).toBe('x $a_n$ yz');
 	});

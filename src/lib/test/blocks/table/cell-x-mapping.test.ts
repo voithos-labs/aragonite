@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { columnNearestX } from '../../../components/blocks/table/cell-x-mapping';
-import { asEditorX } from '../../../cursor/coordinate-spaces';
+import { columnNearestX } from '$lib/components/blocks/table/cell-x-mapping';
+import { asEditorX } from '$lib/cursor/coordinate-spaces';
 
 describe('columnNearestX', () => {
 	const rects: { left: number; right: number }[] = [
@@ -24,8 +24,8 @@ describe('columnNearestX', () => {
 		expect(at(400)).toBe(2);
 	});
 
-	it('falls back to nearest by center when x is between columns (boundary cases)', () => {
-		// Exactly at the boundary between columns 0 and 1: x=100 → column 1 (range [100, 200) contains 100).
+	it('an exact column boundary belongs to the right-hand column', () => {
+		// x=100 sits on the 0/1 boundary; column 1's range [100, 200) contains it.
 		expect(at(100)).toBe(1);
 	});
 });

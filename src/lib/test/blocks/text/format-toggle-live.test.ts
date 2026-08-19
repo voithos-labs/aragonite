@@ -4,7 +4,7 @@ import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import type { InlineMarkKind } from '$lib/cursor/pending-marks';
-import { MARK_FORMATS, markersOf } from './format-toggle-fixture';
+import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
 
 // What a toggle may write where the delimiters do not paint: the bytes are a candidate until the
 // render path agrees the screen still reads the same (live-mode.md § 2). Markdown opens and closes
@@ -12,8 +12,6 @@ import { MARK_FORMATS, markersOf } from './format-toggle-fixture';
 // literal wrap fails that check. Miss-analysis: every toggle case selected a bare word, so none
 // ever handed the seam a slice markdown refuses to wrap — and the seam verified nothing, so the
 // suite had nothing to catch it with.
-
-const whole = (raw: string) => ({ start: 0, end: raw.length });
 
 const live = (raw: string, selection: { start: number; end: number }, format: InlineMarkKind) =>
 	toggleInlineFormat({ display: raw, content: whole(raw), selection }, format, 'live');

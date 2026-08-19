@@ -6,31 +6,13 @@
 // that path (a keystroke and an IME composition end) reconcile the bytes before they
 // reach the CST, rather than committing whatever the browser left in the DOM.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
-import { parse } from '$lib/core/parser';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { setCursorOffset } from '$lib/cursor/content-offsets';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountCode, type MountedCode } from './mount-code';
 
 const SOURCE = '```js\nconst x = 1\n```\n';
 
-function mountCodeBlock(source = SOURCE) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-	const instance = mount(CodeBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({ blockEdit, doc: { doc: () => doc } })
-	});
-	flushSync();
-	return { instance, el: target.querySelector('.code-block') as HTMLElement, blockEdit };
-}
-
-let mounted: ReturnType<typeof mountCodeBlock>;
+let mounted: MountedCode;
 
 /** What the browser leaves behind after a native edit: new text, caret in it. */
 function nativeEdit(display: string, caret: number): void {
@@ -46,10 +28,10 @@ function committed(): string {
 }
 
 beforeEach(() => {
-	mounted = mountCodeBlock();
+	mounted = mountCode(SOURCE);
 });
 afterEach(async () => {
-	await unmount(mounted.instance);
+	await mounted.dispose();
 	document.body.innerHTML = '';
 });
 

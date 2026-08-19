@@ -4,29 +4,24 @@
 // the shared SelectionState. The counter's keydown reset must stay reachable from every arm the
 // cell claims, not from the 'native' plan arm alone, or a key the cell handles leaves the stage
 // armed and the next Ctrl+A skips a stage.
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { tick } from 'svelte';
-import { mountCell } from './mount-cell';
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import { mountCell, settleTicks } from './mount-cell';
+import { installTableLayoutStubs } from './mount-table';
 
 // onKeyDown awaits the widget-reveal intercepts before it reaches the plan.
 async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
 	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	for (let i = 0; i < 10; i++) await tick();
+	await settleTicks();
 }
 
 let mounted: ReturnType<typeof mountCell>;
-// The arrow exit captures a sticky X, which measures the caret; jsdom leaves
-// Range rect measurement unimplemented, so it throws rather than reporting zeros.
-const originalRangeRects = Range.prototype.getClientRects;
-const originalRangeBox = Range.prototype.getBoundingClientRect;
-beforeEach(() => {
-	Range.prototype.getClientRects = () =>
-		({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }) as unknown as DOMRectList;
-	Range.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 0, 0);
+// The arrow exit captures a sticky X, which measures the caret through Range rects.
+let restoreLayout: () => void;
+beforeAll(() => {
+	restoreLayout = installTableLayoutStubs();
+	return () => restoreLayout();
 });
 afterEach(async () => {
-	Range.prototype.getClientRects = originalRangeRects;
-	Range.prototype.getBoundingClientRect = originalRangeBox;
 	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 });
