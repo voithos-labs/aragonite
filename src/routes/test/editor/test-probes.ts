@@ -496,11 +496,9 @@ export function installTestProbes({
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
-		// ── Edit-event capture / counting probes ──────────────────────────
-		// startEditCount and startEditOpCapture share one accumulator (a count is its
-		// length), so no spec may run both at once; a second start replaces the first.
-		startEditCount: (): void => editOpProbe.start(subscribeEditOps),
-		stopEditCount: (): number => editOpProbe.stop().length,
+		// ── Edit-event capture probe ──────────────────────────────────────
+		// One accumulator; a second start replaces the first. A caller wanting a count
+		// takes the capture's length.
 		startEditOpCapture: (): void => editOpProbe.start(subscribeEditOps),
 		stopEditOpCapture: (): string[] => editOpProbe.stop(),
 		// ── Error-event capture probe ─────────────────────────────────────

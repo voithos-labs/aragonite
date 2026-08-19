@@ -36,7 +36,7 @@ test.describe('reading mode — transient details disclosure', () => {
 		const before = await editor.bridge.getSource();
 		const stackBefore = await undoStackDump(page);
 		await page.evaluate(() =>
-			(window as never as { __test: { startEditCount(): void } }).__test.startEditCount()
+			(window as never as { __test: { startEditOpCapture(): void } }).__test.startEditOpCapture()
 		);
 
 		await page.locator('.details-toggle').click();
@@ -54,8 +54,11 @@ test.describe('reading mode — transient details disclosure', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await undoStackDump(page)).toBe(stackBefore);
 		expect(
-			await page.evaluate(() =>
-				(window as never as { __test: { stopEditCount(): number } }).__test.stopEditCount()
+			await page.evaluate(
+				() =>
+					(
+						window as never as { __test: { stopEditOpCapture(): string[] } }
+					).__test.stopEditOpCapture().length
 			)
 		).toBe(0);
 		// In particular the collapse-probe cross-check must stay quiet while the view
