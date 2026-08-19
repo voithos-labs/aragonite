@@ -3,7 +3,7 @@ import { EditorPage } from '../../../editor-page';
 import { primaryModifier } from '../../../platform';
 import { countEditEvents } from './helpers';
 
-test.describe('one edit event per op — nested paste', () => {
+test.describe('edit events per paste op', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -11,7 +11,7 @@ test.describe('one edit event per op — nested paste', () => {
 		await editor.goto();
 	});
 
-	test('paste multi-block content inside a list item emits exactly one edit event', async () => {
+	test('nested paste of multi-block content inside a list item emits exactly one edit event', async () => {
 		await editor.loadContent('- Item 1\n- Item 2\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Item 1' });
 		await first.click();
@@ -26,17 +26,8 @@ test.describe('one edit event per op — nested paste', () => {
 
 		expect(count).toBe(1);
 	});
-});
 
-test.describe('one edit event per op — container-matching paste', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
-	test('paste matching list into list with empty target emits exactly one edit event', async () => {
+	test('container-matching paste into list with empty target emits exactly one edit event', async () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const second = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
 		await second.click();
@@ -52,17 +43,8 @@ test.describe('one edit event per op — container-matching paste', () => {
 
 		expect(count).toBe(1);
 	});
-});
 
-test.describe('one edit event per op — container-matching merge', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
-	test('cross-block paste of matching list over non-empty target emits exactly two edit events', async () => {
+	test('container-matching merge over a non-empty cross-block target emits exactly two edit events', async () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const before = await editor.bridge.getSource();
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'alpha' });

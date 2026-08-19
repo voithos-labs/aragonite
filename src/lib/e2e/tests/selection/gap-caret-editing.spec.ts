@@ -1,33 +1,28 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
+import {
+	AT_BOUNDARY,
+	CLOSER_BOUNDARY,
+	FENCE,
+	LAST_CELL,
+	TABLE,
+	TABLE_THEN_FENCE,
+	WINDOWED,
+	loadThenArrive
+} from './gap-caret-fixtures';
 
 // What the gap caret does to the DOCUMENT: minting, and the undo road back
 // (requirements/selection/gap-caret-editing.md). The surface itself — paint, mode flips,
 // the ways out — is gap-caret-surface.spec.ts. Bytes are the oracle here: a boundary the
 // editing surfaces cannot reach is exactly where a separator bug would hide.
 
-const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
-const FENCE = '```\ncode\n```\n';
-/** paragraph, table, fencedCode, paragraph — the eligible boundary is 2. */
-const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
 /** paragraph, blockquote[paragraph, fencedCode] — the quote's scope end is boundary 2. */
 const QUOTED_FENCE = `para\n\n> quoted\n>\n> \`\`\`\n> code\n> \`\`\`\n`;
-const LAST_CELL = 3;
-/** End of the fence body — the offset whose forward Delete crosses the closer. */
-const CLOSER_BOUNDARY = 8;
-const AT_BOUNDARY = { parentPath: [], index: 2 };
 const AT_QUOTE_END = { parentPath: [1], index: 2 };
 
 test.describe('minting a paragraph at the gap', () => {
 	let editor: EditorPage;
-
-	async function arriveAtBoundary(): Promise<void> {
-		await editor.loadContent(TABLE_THEN_FENCE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
-	}
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
@@ -35,7 +30,7 @@ test.describe('minting a paragraph at the gap', () => {
 	});
 
 	test('typing mints a paragraph carrying the text, with the caret after it', async () => {
-		await arriveAtBoundary();
+		await loadThenArrive(editor);
 
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForGapCaret(null);
@@ -46,7 +41,7 @@ test.describe('minting a paragraph at the gap', () => {
 	});
 
 	test('Enter mints an empty paragraph and lands the caret in it', async () => {
-		await arriveAtBoundary();
+		await loadThenArrive(editor);
 
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForGapCaret(null);
@@ -73,7 +68,7 @@ test.describe('minting a paragraph at the gap', () => {
 	// v1 refuses every input type but text: a paste has block structure the boundary has no
 	// rule for yet, so it is declined rather than guessed at.
 	test('a paste at the gap changes nothing and keeps the gap', async () => {
-		await arriveAtBoundary();
+		await loadThenArrive(editor);
 		await editor.seedClipboard('pasted\n');
 
 		await editor.paste(`${primaryModifier}+v`);
@@ -88,10 +83,7 @@ test.describe('undo and redo across a mint', () => {
 	let editor: EditorPage;
 
 	async function mintAtBoundary(): Promise<void> {
-		await editor.loadContent(TABLE_THEN_FENCE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
+		await loadThenArrive(editor);
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('\nx\n');
 	}
@@ -147,9 +139,6 @@ test.describe('undo and redo across a mint', () => {
 // The unit harness cannot see a windowing flush, so a document long enough to window is the
 // only oracle for the restore's reveal.
 test.describe('undo onto a windowed-out boundary', () => {
-	const filler = (count: number, from: number) =>
-		Array.from({ length: count }, (_, i) => `para ${from + i}\n`).join('\n');
-	const WINDOWED = `${filler(100, 0)}\n${TABLE}\n${FENCE}\n${filler(100, 100)}`;
 	const AT_MID = { parentPath: [], index: 101 };
 
 	test('the restore reveals the boundary and parks the caret there', async ({ page }) => {

@@ -1,23 +1,12 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { AT_BOUNDARY, LAST_CELL, TABLE_THEN_FENCE, arriveAtBoundary } from './gap-caret-fixtures';
 
 // The gap caret's SURFACE: what it paints, and every way the caret leaves it that is not a
 // mint (requirements/selection/gap-caret-surface.md). Minting and undo are
 // gap-caret-editing.spec.ts.
 
-const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
-const FENCE = '```\ncode\n```\n';
-const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
-const LAST_CELL = 3;
-const AT_BOUNDARY = { parentPath: [], index: 2 };
-
 const LINE = '[data-gap-caret] .gap-caret-line';
-
-async function arriveAtBoundary(editor: EditorPage): Promise<void> {
-	await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
-	await editor.page.keyboard.press('ArrowDown');
-	await editor.bridge.waitForGapCaret(AT_BOUNDARY);
-}
 
 test.describe('the gap caret paints a line at the boundary', () => {
 	let editor: EditorPage;

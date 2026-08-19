@@ -34,8 +34,7 @@ test.describe('selection — keyboard: backward-selection cross-block entry (E-F
 
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('first world');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('first world');
-		expect(source).not.toContain('Hello');
+
+		expect(await editor.bridge.getSource()).not.toContain('Hello');
 	});
 });

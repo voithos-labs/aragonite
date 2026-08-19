@@ -4,9 +4,8 @@ Editing inside or around inline formatting; split-created blocks correctly carry
 
 ## Happy paths
 
-- typing after inline formatting preserves it: type at end of a bold span, bold remains intact
-- source round-trips after editing formatted content: type inside a paragraph with formatting, getSource matches expected
-- editing does not corrupt inline markers: type near ** markers, source still has correct ** delimiters
+- typing after inline formatting preserves it: type at the end of a paragraph ending in a bold span, and of one ending in a code span; both constructs remain intact
+- editing does not corrupt inline markers: type at the start of a formatted paragraph, source still has correct ** and * delimiters
 
 ## Edge cases
 
@@ -16,5 +15,4 @@ Editing inside or around inline formatting; split-created blocks correctly carry
 
 ## User interactions
 
-- click into formatted paragraph and type: click block with bold text, focusBlockEnd, typeText, verify source
 - split paragraph with inline formatting: Enter in middle of formatted paragraph, both halves render correctly

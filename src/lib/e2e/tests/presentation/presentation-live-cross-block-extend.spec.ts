@@ -1,7 +1,14 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickBlockSettled, enterPresentationMode, extendTo, focusOffset } from './helpers';
+import {
+	clickBlockSettled,
+	enterPresentationMode,
+	extendTo,
+	focusOffset,
+	focusPath,
+	visibleText
+} from './helpers';
 
 // A block that ends in a construct ends in a run live paints nothing for, so a cross-block
 // endpoint taken from the raw length sits past it. The paint, the collapse and the type-over
@@ -21,10 +28,6 @@ const LEADS_BOLD = 2;
 const CONTENT_END = 22;
 const RAW_END = 24;
 
-async function focusPath(ep: EditorPage): Promise<number[]> {
-	return (await ep.bridge.getSelectionPaths())?.focus.path ?? [];
-}
-
 /** The overlay rects the editor painted in `block`, in the block box's own coordinates. */
 async function endpointRects(
 	page: Page,
@@ -43,23 +46,6 @@ async function endpointRects(
 				boxWidth: box.width
 			};
 		});
-	}, block);
-}
-
-/** What the block shows: its text minus every span a marker-hiding mode paints nothing for. */
-async function visibleText(page: Page, block: number): Promise<string> {
-	return page.evaluate((index) => {
-		const host = document.querySelector(`[data-block-path='[${index}]']`);
-		if (!host) return '';
-		const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-		let out = '';
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			if (!node.parentElement?.closest('.md-marker, .md-ref-label, .md-fence-line')) {
-				out += node.textContent ?? '';
-			}
-		}
-		return out;
 	}, block);
 }
 
@@ -142,7 +128,7 @@ test.describe('live mode — extending across a construct-ending block', () => {
 
 		// The runs the cut stranded went with it: no `*` survives into the visible text, and
 		// the construct the range did not reach still renders as one.
-		expect(await visibleText(page, ENDS_BOLD)).not.toContain('*');
+		expect(await visibleText(ep, ENDS_BOLD)).not.toContain('*');
 		expect(await ep.bridge.getSource()).not.toContain('****');
 	});
 });

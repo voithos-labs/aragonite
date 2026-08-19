@@ -25,23 +25,17 @@ test.describe('inline editing — entity references', () => {
 		expect((await editor.bridge.getSource()).trim()).toBe('a &copy; b');
 	});
 
-	test('decimal numeric entity renders its glyph', async () => {
-		await editor.typeText('quote &#39; here');
-		await editor.bridge.waitForSourceContains('quote &#39; here');
-		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
-	});
-
-	test('hex numeric entity (lowercase x) renders its glyph', async () => {
-		await editor.typeText('quote &#x22; here');
-		await editor.bridge.waitForSourceContains('quote &#x22; here');
-		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
-	});
-
-	test('hex numeric entity (uppercase X) renders its glyph', async () => {
-		await editor.typeText('quote &#X22; here');
-		await editor.bridge.waitForSourceContains('quote &#X22; here');
-		await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
-	});
+	for (const [form, sample] of [
+		['decimal', '&#39;'],
+		['hex (lowercase x)', '&#x22;'],
+		['hex (uppercase X)', '&#X22;']
+	]) {
+		test(`${form} numeric entity renders its glyph`, async () => {
+			await editor.typeText(`quote ${sample} here`);
+			await editor.bridge.waitForSourceContains(`quote ${sample} here`);
+			await expect(editor.getBlock(0).locator('[data-inline-widget]')).toHaveCount(1);
+		});
+	}
 
 	test('partial entity stays as text and renders its glyph once closed', async () => {
 		await editor.typeText('&am');

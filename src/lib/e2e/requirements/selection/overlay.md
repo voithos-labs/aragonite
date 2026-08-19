@@ -11,7 +11,6 @@
 - Overlay has pointer-events: none so clicks pass through
 - Endpoint overlays appear on start and end blocks during cross-block selection
 - Container blocks (blockquote, list) do not render their own overlay — their children handle it; no double-layering
-- Start endpoint block renders partial overlay rects from the anchor offset to end of block content
 
 ## Error / degenerate cases
 

@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { centerOfWord, enterPresentationMode, focusPath } from './helpers';
 
 // The seat after a caret is placed by a MUTATION rather than by a step. The source is the
 // oracle: the caret reports the same offset on either side of a hidden closer, so only the
@@ -25,17 +25,7 @@ const DOC = [
 const BOLD = 0;
 const PLAIN = 2;
 
-async function enterLive(page: Page): Promise<EditorPage> {
-	const ep = new EditorPage(page);
-	await ep.goto('?presentationMode=live');
-	await ep.loadContent(DOC);
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
-	return ep;
-}
-
-async function focusPath(ep: EditorPage): Promise<number[]> {
-	return (await ep.bridge.getSelectionPaths())?.focus.path ?? [];
-}
+const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 /** Exit a fence upward the way a user does: click its body, Home, Backspace. */
 async function exitFenceUpward(ep: EditorPage, page: Page, word: string): Promise<void> {

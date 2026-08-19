@@ -1,7 +1,8 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
-import { centerOfWord } from './helpers';
+import type { EditorPage } from '../../editor-page';
+import { enterPresentationMode } from './helpers';
+import { URL_FIELD, commitUrl, openCardOn } from './link-card-helpers';
 
 // The card over links that do not live in a top-level paragraph.
 // Requirements: e2e/requirements/presentation/live-link-card-containers.md.
@@ -15,30 +16,7 @@ const DOC = [
 	'  - nested [beta](https://two.test)'
 ].join('\n');
 
-const CARD = '[data-link-card]';
-const URL_FIELD = `${CARD} input`;
-
-async function enterLive(page: Page): Promise<EditorPage> {
-	const ep = new EditorPage(page);
-	await ep.goto('?presentationMode=live');
-	await ep.loadContent(DOC);
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
-	return ep;
-}
-
-async function openCardOn(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
-	await page.mouse.click(point.x, point.y);
-	await ep.waitForRenderFlush();
-	await expect(page.locator(CARD)).toBeVisible();
-}
-
-async function commitUrl(page: Page, url: string): Promise<void> {
-	await page.locator(URL_FIELD).click();
-	await page.keyboard.press('ControlOrMeta+a');
-	await page.keyboard.type(url);
-	await page.keyboard.press('Enter');
-}
+const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 test.describe('live-mode link card — inside containers', () => {
 	let ep: EditorPage;

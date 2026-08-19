@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { clickBlockSettled, enterPresentationMode, focusOffset } from './helpers';
+import { clickBlockSettled, enterPresentationMode, focusOffset, focusPath, press } from './helpers';
 
 // A hidden run at a block's edge puts the raw edge out of the caret's reach, so the horizontal
 // exit gates fire at the walk's landable bound instead (#103). The selection bridge is the
@@ -34,16 +34,6 @@ const BOLD_LEAD = 2;
 const CODE = 3;
 const LIST = 4;
 const TABLE = 5;
-
-async function focusPath(ep: EditorPage): Promise<number[]> {
-	return (await ep.bridge.getSelectionPaths())?.focus.path ?? [];
-}
-
-async function press(ep: EditorPage, page: Page, key: string): Promise<number> {
-	await page.keyboard.press(key);
-	await ep.waitForRenderFlush();
-	return focusOffset(ep);
-}
 
 async function clickCell(ep: EditorPage, page: Page, text: string): Promise<void> {
 	const cell = page.locator("[role='table'] [contenteditable='true']").filter({ hasText: text });

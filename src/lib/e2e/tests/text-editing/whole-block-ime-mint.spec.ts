@@ -3,20 +3,9 @@ import { EditorPage } from '../../editor-page';
 import { attachIme } from '../../simulation/ime';
 import { primaryModifier } from '../../platform';
 import { wholeBlockInput } from '../../whole-block-input';
+import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
 // Requirements: e2e/requirements/text-editing/whole-block-ime-mint.md.
-
-const DOC = 'Before\n\n---\n\nAfter\n';
-
-const rule = (editor: EditorPage) => editor.page.locator('.thematic-break-block');
-
-/** Focus the rule the way a user reaches it, then assert the block holds focus through whatever
- *  element the whole-block model puts it on. */
-async function focusTheRule(editor: EditorPage): Promise<void> {
-	await editor.focusBlockStart(2);
-	await editor.page.keyboard.press('Backspace');
-	await expect(wholeBlockInput(rule(editor))).toBeFocused();
-}
 
 /** The shape an AltGr production arrives in: `insertText` on the editing host, with no keydown
  *  branch that would admit it (`e.key` under ctrl+alt). */
@@ -31,7 +20,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await editor.loadContent(DOC);
+		await editor.loadContent(RULE_DOC);
 	});
 
 	test('an AltGr-shaped insert of `€` mints a paragraph carrying it', async () => {
@@ -82,7 +71,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 	test('reading mode: an AltGr-shaped insert changes no byte', async ({ page }) => {
 		const readingEditor = new EditorPage(page);
 		await readingEditor.goto('?presentationMode=reading');
-		await readingEditor.loadContent(DOC);
+		await readingEditor.loadContent(RULE_DOC);
 		const original = await readingEditor.bridge.getSource();
 
 		await rule(readingEditor).click();

@@ -1,6 +1,19 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
+const HEADINGS = '# Heading 1\n\n## Heading 2\n\n### Heading 3\n';
+const PARAGRAPHS = 'Para one.\n\nPara two.\n\nPara three.\n';
+const MARKER_LEAD =
+	'**bold one** rest of para.\n\n**bold two** rest of para.\n\n**bold three** rest of para.\n';
+const MARKER_TAIL =
+	'rest of para **bold one**\n\nrest of para **bold two**\n\nrest of para **bold three**\n';
+
+/** Start at the far block and press twice, so the second press is the one that must cross. */
+const DIRECTIONS = [
+	{ key: 'ArrowUp', edge: 'first', start: 2, line: 0 },
+	{ key: 'ArrowDown', edge: 'last', start: 0, line: 4 }
+] as const;
+
 test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 	let editor: EditorPage;
 
@@ -12,106 +25,38 @@ test.describe('sticky column: rapid cross-block navigation (timing)', () => {
 	// Regression: isAtFirstVisualLine / isAtLastVisualLine missed the boundary signal
 	// under rapid input when firstChild/lastChild is a non-text node (heading markers,
 	// inline markup spans), causing the native arrow to clamp within the same block.
-
-	test('rapid ArrowUp across headings crosses to the first heading', async () => {
-		await editor.loadContent('# Heading 1\n\n## Heading 2\n\n### Heading 3\n');
-		const h3 = editor.page.locator('[contenteditable="true"]').nth(2);
-		await h3.click();
+	async function crossesRapidly(
+		doc: string,
+		{ key, start, line }: (typeof DIRECTIONS)[number]
+	): Promise<void> {
+		await editor.loadContent(doc);
+		await editor.page.locator('[contenteditable="true"]').nth(start).click();
 		await editor.page.keyboard.press('End');
 
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.keyboard.press('ArrowUp');
+		await editor.page.keyboard.press(key);
+		await editor.page.keyboard.press(key);
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 
-		const source = await editor.bridge.getSource();
-		const lines = source.split('\n');
-		expect(lines[0]).toContain('X');
-	});
+		const lines = (await editor.bridge.getSource()).split('\n');
+		expect(lines[line]).toContain('X');
+	}
 
-	test('rapid ArrowDown across headings crosses to the last heading', async () => {
-		await editor.loadContent('# Heading 1\n\n## Heading 2\n\n### Heading 3\n');
-		const h1 = editor.page.locator('[contenteditable="true"]').nth(0);
-		await h1.click();
-		await editor.page.keyboard.press('End');
+	for (const direction of DIRECTIONS) {
+		test(`rapid ${direction.key} across headings crosses to the ${direction.edge} heading`, () =>
+			crossesRapidly(HEADINGS, direction));
+	}
 
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('X');
+	// The control: plain text on both ends, where the boundary signal was never in doubt.
+	for (const direction of DIRECTIONS) {
+		test(`rapid ${direction.key} across plain paragraphs crosses to the ${direction.edge}`, () =>
+			crossesRapidly(PARAGRAPHS, direction));
+	}
 
-		const source = await editor.bridge.getSource();
-		const lines = source.split('\n');
-		expect(lines[4]).toContain('X');
-	});
-
-	test('rapid ArrowUp across plain paragraphs crosses to the first', async () => {
-		await editor.loadContent('Para one.\n\nPara two.\n\nPara three.\n');
-		const p3 = editor.page.locator('[contenteditable="true"]').nth(2);
-		await p3.click();
-		await editor.page.keyboard.press('End');
-
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('X');
-
-		const source = await editor.bridge.getSource();
-		const lines = source.split('\n');
-		expect(lines[0]).toContain('X');
-	});
-
-	test('rapid ArrowDown across plain paragraphs crosses to the last', async () => {
-		await editor.loadContent('Para one.\n\nPara two.\n\nPara three.\n');
-		const p1 = editor.page.locator('[contenteditable="true"]').nth(0);
-		await p1.click();
-		await editor.page.keyboard.press('End');
-
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('X');
-
-		const source = await editor.bridge.getSource();
-		const lines = source.split('\n');
-		expect(lines[4]).toContain('X');
-	});
-
-	test('rapid ArrowUp across paragraphs whose first child is a markup span', async () => {
-		// firstChild is the dimmed `**` marker span — exercises the same isAtFirstVisualLine path as headings.
-		await editor.loadContent(
-			'**bold one** rest of para.\n\n**bold two** rest of para.\n\n**bold three** rest of para.\n'
-		);
-		const p3 = editor.page.locator('[contenteditable="true"]').nth(2);
-		await p3.click();
-		await editor.page.keyboard.press('End');
-
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('X');
-
-		const source = await editor.bridge.getSource();
-		const lines = source.split('\n');
-		expect(lines[0]).toContain('X');
-	});
-
-	test('rapid ArrowDown across paragraphs whose last child is a markup span', async () => {
-		// lastChild is the dimmed `**` marker span — exercises the isAtLastVisualLine path.
-		await editor.loadContent(
-			'rest of para **bold one**\n\nrest of para **bold two**\n\nrest of para **bold three**\n'
-		);
-		const p1 = editor.page.locator('[contenteditable="true"]').nth(0);
-		await p1.click();
-		await editor.page.keyboard.press('End');
-
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.typeText('X');
-		await editor.bridge.waitForSourceContains('X');
-
-		const source = await editor.bridge.getSource();
-		const lines = source.split('\n');
-		expect(lines[4]).toContain('X');
-	});
+	// The dimmed `**` marker span as firstChild/lastChild — the same non-text edge headings have,
+	// reached through inline markup instead of a block marker.
+	for (const direction of DIRECTIONS) {
+		test(`rapid ${direction.key} across paragraphs whose ${direction.edge} child is a markup span`, () =>
+			crossesRapidly(direction.edge === 'first' ? MARKER_LEAD : MARKER_TAIL, direction));
+	}
 });

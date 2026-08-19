@@ -1,16 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
+import { focusOffset } from './helpers';
 
 // The caret-affinity contract: the caret is a raw offset, a revealed construct's bytes are
 // visible, and typing lands at that offset — no stored-marks machinery.
 // Requirements: e2e/requirements/presentation/presentation-preview-inline-affinity.md.
 
 const togglePreviewInline = (page: Page) => page.getByTestId('preview-inline-toggle').click();
-
-async function focusOffset(ep: EditorPage): Promise<number> {
-	return (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
-}
 
 // Real keyboard walk to a target raw offset (a click can't target hidden markers).
 // Asserts the exact landing so a skipped byte fails loudly rather than typing blind.

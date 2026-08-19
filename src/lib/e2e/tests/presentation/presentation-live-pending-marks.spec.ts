@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
 import { primaryModifier } from '../../platform';
-import { centerOfWord } from './helpers';
+import { clickBlockSettled, clickWordSettled, enterPresentationMode, stepTo } from './helpers';
 import { attachIme } from '../../simulation/ime';
 
 // A collapsed-caret toggle in live mode writes no bytes; the next insertion carries the mark.
@@ -34,46 +34,7 @@ const STRUCK = 4;
  *  after a letter is neither). */
 const GAP = 5;
 
-async function enterLive(page: Page): Promise<EditorPage> {
-	const ep = new EditorPage(page);
-	await ep.goto('?presentationMode=live');
-	await ep.loadContent(DOC);
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
-	return ep;
-}
-
-async function focusOffset(ep: EditorPage): Promise<number> {
-	return (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
-}
-
-/** A click's caret is what every scenario starts from, and the bridge reporting NO selection is
- *  the shape a lost click takes — so settle on the caret existing rather than on the click. */
-async function settleCaret(ep: EditorPage): Promise<void> {
-	await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
-}
-
-async function clickBlock(ep: EditorPage, index: number): Promise<void> {
-	await ep.clickBlock(index);
-	await settleCaret(ep);
-}
-
-async function clickWord(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
-	await page.mouse.click(point.x, point.y);
-	await ep.waitForRenderFlush();
-	await settleCaret(ep);
-}
-
-/** Step with `key` until the caret reports `target` — the arrival is a real gesture, never a
- *  programmatic seat. */
-async function stepTo(ep: EditorPage, page: Page, key: string, target: number): Promise<void> {
-	for (let i = 0; i < 12; i++) {
-		if ((await focusOffset(ep)) === target) return;
-		await page.keyboard.press(key);
-		await ep.waitForRenderFlush();
-	}
-	throw new Error(`stepTo: ${key} never reached offset ${target} (at ${await focusOffset(ep)})`);
-}
+const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 const bold = (page: Page) => page.keyboard.press(`${primaryModifier}+b`);
 const italic = (page: Page) => page.keyboard.press(`${primaryModifier}+i`);
@@ -88,7 +49,7 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 	});
 
 	test('Mod+B then a keystroke writes a wrapped byte that renders bold', async ({ page }) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
@@ -100,7 +61,7 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 	});
 
 	test('Mod+B then Mod+I put both marks on one insertion', async ({ page }) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
@@ -113,7 +74,7 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 	// `Some **bold** text`: `bold` is [7,11). A mark the chain already carries REMOVES, so the
 	// byte escapes the construct rather than nesting a second pair inside it.
 	test('a mark pended inside bold unbolds the next insertion', async ({ page }) => {
-		await clickWord(ep, page, 'bold');
+		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowRight', 9);
 
 		await bold(page);
@@ -124,13 +85,13 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 	// The whole reason the byte-pair strategy cannot ship in live: an abandoned toggle would
 	// leave `****` the user can see the effect of but never explain.
 	test('Mod+B then a click away leaves the bytes untouched', async ({ page }) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
 		const before = await ep.bridge.getSource();
 		await bold(page);
-		await clickBlock(ep, BOLD);
+		await clickBlockSettled(ep, BOLD);
 		await ep.waitForNoSourceMutation();
 
 		expect(await ep.bridge.getSource()).toBe(before);
@@ -149,14 +110,14 @@ test.describe('live mode — the marks beyond bold and italic', () => {
 	});
 
 	const atEndOfPlain = async (page: Page): Promise<void> => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 	};
 
 	/** Between the two spaces of `gap  here`, reached by real presses from the line start. */
 	const atGap = async (page: Page): Promise<void> => {
-		await clickBlock(ep, GAP);
+		await clickBlockSettled(ep, GAP);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowRight', 4);
@@ -200,7 +161,7 @@ test.describe('live mode — the marks beyond bold and italic', () => {
 	// escape bold takes, on the run whose delimiters are two bytes rather than two asterisks.
 	test('a mark pended inside a struck phrase splits it open', async ({ page }) => {
 		// Home lands past the hidden opener, so the two presses are counted from content start.
-		await clickBlock(ep, STRUCK);
+		await clickBlockSettled(ep, STRUCK);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowRight', 4);
@@ -227,7 +188,7 @@ test.describe('live mode — a removal that would show delimiters steps outside 
 	test('un-bolding at the space inside a bold phrase never surfaces a delimiter', async ({
 		page
 	}) => {
-		await clickWord(ep, page, 'hello');
+		await clickWordSettled(ep, page, 'hello');
 		await stepTo(ep, page, 'ArrowRight', 7);
 
 		await bold(page);
@@ -255,7 +216,7 @@ test.describe('live mode — a mark inside a URL declines rather than destroy th
 	test('Mod+B inside an autolink’s URL types plain and leaves the link intact', async ({
 		page
 	}) => {
-		await clickBlock(ep, AUTOLINK);
+		await clickBlockSettled(ep, AUTOLINK);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowRight', 10);
@@ -284,7 +245,7 @@ test.describe('live mode — a mark is spent once and cleared by any caret move'
 	test('the second keystroke extends what the first one made, not a second pair', async ({
 		page
 	}) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
@@ -299,7 +260,7 @@ test.describe('live mode — a mark is spent once and cleared by any caret move'
 	});
 
 	test('an arrow step drops the mark', async ({ page }) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
@@ -313,12 +274,12 @@ test.describe('live mode — a mark is spent once and cleared by any caret move'
 	});
 
 	test('a click drops the mark', async ({ page }) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
 		await bold(page);
-		await clickWord(ep, page, 'plain');
+		await clickWordSettled(ep, page, 'plain');
 		await page.keyboard.type('X');
 
 		await ep.bridge.waitForSourceContains('X');
@@ -336,7 +297,7 @@ test.describe('live mode — the insertion that spends a mark owns its undo entr
 	// The toggle flushes the keystroke batch, so the insertion that spends it owns its own undo
 	// entry rather than coalescing with the words typed before it.
 	test('one Mod+Z after a burst, a toggle and a keystroke returns the burst', async ({ page }) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
@@ -359,7 +320,7 @@ test.describe('live mode — an IME commit spends a mark like a keystroke', () =
 	});
 
 	test('a composition committed after Mod+B lands wrapped', async ({ page }) => {
-		await clickBlock(ep, PLAIN);
+		await clickBlockSettled(ep, PLAIN);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 

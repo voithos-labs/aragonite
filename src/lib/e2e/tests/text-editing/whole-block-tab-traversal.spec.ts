@@ -1,12 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { wholeBlockInput } from '../../whole-block-input';
+import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
 // Requirements: e2e/requirements/text-editing/whole-block-tab-traversal.md.
-
-const DOC = 'Before\n\n---\n\nAfter\n';
-
-const rule = (editor: EditorPage) => editor.page.locator('.thematic-break-block');
 
 /** The block path behind DOM focus — a tab landing INSIDE the block still reports `[1]`. */
 function focusedBlockPath(editor: EditorPage): Promise<string | null> {
@@ -16,19 +13,13 @@ function focusedBlockPath(editor: EditorPage): Promise<string | null> {
 	);
 }
 
-async function focusTheRule(editor: EditorPage): Promise<void> {
-	await editor.focusBlockStart(2);
-	await editor.page.keyboard.press('Backspace');
-	await expect(wholeBlockInput(rule(editor))).toBeFocused();
-}
-
 test.describe('whole-block focus — the block is one tab stop', () => {
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await editor.loadContent(DOC);
+		await editor.loadContent(RULE_DOC);
 	});
 
 	test('Shift+Tab leaves the block in one press', async ({ page }) => {

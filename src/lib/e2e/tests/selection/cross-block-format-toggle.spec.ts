@@ -11,7 +11,13 @@ import { clickWordSettled, landAt } from '../presentation/helpers';
 
 const DOC = 'First block here\n\nSecond block here\n\nThird block here\n';
 
-const CHORDS = ['b', 'i', 'e'] as const;
+// The chord as pressed beside the name it goes by: `Shift+X` is one press, not a key letter.
+const CHORDS = [
+	{ key: 'b', name: 'Mod+B' },
+	{ key: 'i', name: 'Mod+I' },
+	{ key: 'e', name: 'Mod+E' },
+	{ key: 'Shift+X', name: 'Mod+Shift+X' }
+] as const;
 
 async function selectWholeDocument(ep: EditorPage, page: Page): Promise<void> {
 	await ep.focusBlock(0, 3);
@@ -31,8 +37,8 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			await ep.waitForRenderFlush();
 		});
 
-		for (const key of CHORDS) {
-			test(`Mod+${key.toUpperCase()} over the whole document writes nothing`, async ({ page }) => {
+		for (const { key, name } of CHORDS) {
+			test(`${name} over the whole document writes nothing`, async ({ page }) => {
 				const before = await ep.bridge.getSource();
 				await selectWholeDocument(ep, page);
 				await page.keyboard.press(`${primaryModifier}+${key}`);
@@ -41,15 +47,6 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 				expect(await ep.bridge.getSource()).toBe(before);
 			});
 		}
-
-		test('Mod+Shift+X over the whole document writes nothing', async ({ page }) => {
-			const before = await ep.bridge.getSource();
-			await selectWholeDocument(ep, page);
-			await page.keyboard.press(`${primaryModifier}+Shift+X`);
-			await ep.waitForRenderFlush();
-			await ep.waitForNoSourceMutation();
-			expect(await ep.bridge.getSource()).toBe(before);
-		});
 
 		test('the declined chord is consumed and adds no undo entry', async ({ page }) => {
 			const before = await ep.bridge.getSource();

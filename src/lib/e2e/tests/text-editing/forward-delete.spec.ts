@@ -16,8 +16,6 @@ test.describe('forward delete', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForSourceContains('# HelloWorld');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('# HelloWorld');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 
@@ -26,8 +24,6 @@ test.describe('forward delete', () => {
 		await editor.focusBlock(0, 5);
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForSourceContains('Helloworld');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Helloworld');
 	});
 
 	// Forward twin of the Backspace two-step (text-editing/edge-cases.spec.ts): the
