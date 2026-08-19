@@ -2,24 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import {
-	getInlineWidgetComponent,
-	getInlineWidgetEditing,
-	__resetInlineWidgetsForTests
-} from '$lib/core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { getInlineWidgetComponent, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
 import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
 
-function resetInlineState(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-
-beforeEach(resetInlineState);
-afterEach(resetInlineState);
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 const isRef = (n: InlineNode) => n.kind === FOOTNOTE_REF_KIND;
 const refsIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isRef);
@@ -32,9 +21,7 @@ describe('footnote reference is dormant until registered', () => {
 	it('leaves [^1] to the built-in bracket reading with nothing registered', () => {
 		const clean = scan('see [^1] here');
 		registerFootnoteReference();
-		__resetInlineSyntaxForTests();
-		__resetInlineWidgetsForTests();
-		__clearDeclaredPluginInlineKindsForTests();
+		resetPluginPlatformForTests();
 		expect(scan('see [^1] here')).toEqual(clean);
 		expect(clean.some(isRef)).toBe(false);
 	});
@@ -61,9 +48,7 @@ describe('[^label] recognizer grammar', () => {
 	];
 	for (const [name, raw] of declines) {
 		it(`declines ${name} (${raw}) and falls back byte-identically`, () => {
-			__resetInlineSyntaxForTests();
-			__resetInlineWidgetsForTests();
-			__clearDeclaredPluginInlineKindsForTests();
+			resetPluginPlatformForTests();
 			const clean = scan(raw);
 			registerFootnoteReference();
 			expect(scan(raw)).toEqual(clean);

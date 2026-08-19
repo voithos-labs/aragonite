@@ -16,11 +16,7 @@ function readRepo(rel: string): string {
 }
 
 function readEditorCss(rel: string): string {
-	try {
-		return stripComments(readEditorFile(rel).text);
-	} catch {
-		return '';
-	}
+	return stripComments(readEditorFile(rel).text);
 }
 
 // ── Token families ────────────────────────────────────────────────────────────

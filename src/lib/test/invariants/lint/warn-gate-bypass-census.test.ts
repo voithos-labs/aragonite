@@ -2,7 +2,7 @@
  * G4.41 — nothing under `src/lib` reads dev warnings around the fail-on-warn gate. A file that
  * mocks `dev-warn` replaces the function the sink lives in, and a file that spies `console.warn`
  * reads a channel a registered sink silences: either way the gate is blind for that whole file,
- * and a guard firing there passes unnoticed. Two files pin the arms themselves and say so below.
+ * and a guard firing there passes unnoticed. One file pins the arm itself and says so below.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -41,7 +41,7 @@ describe('G4.41 warn-gate bypass census', () => {
 		).toEqual([]);
 	});
 
-	it('the console.warn spies are exactly the two files that pin a warning channel', () => {
+	it('the console.warn spies are exactly the files that pin a warning channel', () => {
 		expect(
 			paths(sources, spiesConsoleWarn),
 			'a registered sink takes reporting over, so a console spy sees nothing a dev warning ' +

@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { declarePluginKind } from '../../schema/plugin-kind';
-import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import {
 	getBlockComponent,
 	isBlockComponentRegistered
-} from '../../schema/block-component-registry';
-import { registerChromeLeaf } from '../../editor-actions/plugin/chrome-leaf';
-import TextEditableBlock from '../../components/blocks/text/TextEditableBlock.svelte';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import type { KeyBinding } from '../../schema/keybindings';
+} from '$lib/schema/block-component-registry';
+import { registerChromeLeaf } from '$lib/editor-actions/plugin/chrome-leaf';
+import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.svelte';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+import type { KeyBinding } from '$lib/schema/keybindings';
 
 function keymapByChord(keymap: KeyBinding[] | undefined): Record<string, string> {
 	return Object.fromEntries((keymap ?? []).map((b) => [b.chord, b.command]));

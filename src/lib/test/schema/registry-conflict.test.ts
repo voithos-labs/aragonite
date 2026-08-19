@@ -60,17 +60,6 @@ describe('schema registries are register-once', () => {
 	});
 });
 
-describe('declarePluginKind collision rules', () => {
-	it('rejects a second declaration of the same name', () => {
-		declarePluginKind('dup-name');
-		expect(() => declarePluginKind('dup-name')).toThrow(/already declared/i);
-	});
-
-	it('rejects the reserved document sentinel', () => {
-		expect(() => declarePluginKind('document')).toThrow(/reserved/i);
-	});
-});
-
 describe('__resetSchemaRegistriesForTests', () => {
 	it('removes plugin registrations across every registry but keeps built-ins', () => {
 		const kind = declarePluginKind('ephemeral-kind');

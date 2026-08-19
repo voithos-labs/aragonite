@@ -4,27 +4,19 @@
 // outpaces delta compensation while off-window images still measure ~0.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
+import type { RevealAnchorPlacement } from '../../reactivity/list-windowing.svelte';
 import {
-	createListWindowing,
-	type ListWindowing,
-	type RevealAnchorPlacement
-} from '../../reactivity/list-windowing.svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
-import type { Scrollport } from '../../cursor/scrollport';
-import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
+	heightsOracle,
+	makePara,
+	mountListWindowing,
+	type MountListWindowingOptions,
+	type MountedListWindowing
+} from '../harness/list-windowing.svelte';
 
 const HEIGHTS: Record<string, number> = { b0: 10, b1: 20, b2: 30, b3: 40, b4: 50, b5: 60 };
 
-const oracle: HeightOracle = {
-	estimate: () => 10,
-	measured: () => undefined,
-	recordMeasured: () => {},
-	height: (id: string) => HEIGHTS[id] ?? 10,
-	invalidateWidth: () => {}
-};
-
-const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
+const sixParas = () => [0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`));
+const sixIds = () => ['b0', 'b1', 'b2', 'b3', 'b4', 'b5'];
 
 const topLevel = (index: number): RevealAnchorPlacement => ({
 	index,
@@ -33,52 +25,28 @@ const topLevel = (index: number): RevealAnchorPlacement => ({
 	height: null
 });
 
-/** Mount a root scope over six blocks with heights b0..b5 = 10..60. */
-function mountScope(
-	children: CstNode[],
-	ids: string[],
-	port: Scrollport,
-	listEl: HTMLElement,
-	getRevealAnchorTarget: () => RevealAnchorPlacement | null
-): { windowing: ListWindowing; cleanup: () => void } {
-	let windowing!: ListWindowing;
-	const cleanup = $effect.root(() => {
-		windowing = createListWindowing({
-			oracle,
-			getChildren: () => children,
-			getChildIds: () => ids,
-			getListEl: () => listEl,
-			getPort: () => port,
-			correctsScroll: () => true,
-			getFocusPath: () => null,
-			getRevealAnchorTarget,
-			getWidthVersion: () => 0,
-			getViewportHeightVersion: () => 0,
-			getParentPath: () => [],
-			overscan: 2,
-			pinExtensionCap: 100,
-			activateAbovePx: 1000,
-			deactivateBelowPx: 800
-		});
+/** A root scope over six blocks with heights b0..b5 = 10..60. */
+function mountScope(overrides: Partial<MountListWindowingOptions> = {}): MountedListWindowing {
+	return mountListWindowing({
+		oracle: heightsOracle(HEIGHTS),
+		children: sixParas(),
+		ids: sixIds(),
+		listHeight: 200,
+		...overrides
 	});
-	flushSync();
-	return { windowing, cleanup };
 }
 
 describe('list-windowing reveal anchor', () => {
 	it('re-asserts the reveal target through a structural rebuild', async () => {
-		const children = $state(
-			[0, 1, 2, 3, 4, 5].map((i) =>
-				makePara(`p${i}
-`)
-			)
-		);
-		const ids = $state(['b0', 'b1', 'b2', 'b3', 'b4', 'b5']);
-		const port = stubScrollport({ viewportHeight: 500 });
-		const listEl = stubListEl(port, 200);
+		const children = $state(sixParas());
+		const ids = $state(sixIds());
 		let revealTarget: RevealAnchorPlacement | null = null;
 
-		const { windowing, cleanup } = mountScope(children, ids, port, listEl, () => revealTarget);
+		const { windowing, cleanup, port } = mountScope({
+			children,
+			ids,
+			getRevealAnchorTarget: () => revealTarget
+		});
 
 		// Offsets: b0@0 b1@10 b2@30 b3@60 b4@100 b5@150. Park b1 at the viewport top,
 		// so the top-of-viewport anchor is NOT the reveal target.
@@ -102,12 +70,9 @@ describe('list-windowing reveal anchor', () => {
 	// fail when growth inside the target's own container displaced it (#32).
 	describe('growth reported upward by a nested scope', () => {
 		function mountWithTarget() {
-			const children = [0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`));
-			const ids = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5'];
-			const port = stubScrollport({ viewportHeight: 500 });
 			let revealTarget: RevealAnchorPlacement | null = null;
-			const scope = mountScope(children, ids, port, stubListEl(port, 200), () => revealTarget);
-			return { ...scope, port, claim: (t: RevealAnchorPlacement | null) => (revealTarget = t) };
+			const scope = mountScope({ getRevealAnchorTarget: () => revealTarget });
+			return { ...scope, claim: (t: RevealAnchorPlacement | null) => (revealTarget = t) };
 		}
 
 		// b2 grows 30 → 130, entirely above the target: b4's offset moves 100 → 200.
@@ -149,18 +114,17 @@ describe('list-windowing reveal anchor', () => {
 	];
 	for (const [block, viewport, expected] of NESTED_CASES) {
 		it(`re-asserts a nested '${block}' target at its own position inside the ancestor`, async () => {
-			const children = $state(
-				[0, 1, 2, 3, 4, 5].map((i) =>
-					makePara(`p${i}
-`)
-				)
-			);
-			const ids = $state(['b0', 'b1', 'b2', 'b3', 'b4', 'b5']);
-			const port = stubScrollport({ viewportHeight: viewport });
-			const listEl = stubListEl(port, 80);
+			const children = $state(sixParas());
+			const ids = $state(sixIds());
 			let revealTarget: RevealAnchorPlacement | null = null;
 
-			const { windowing, cleanup } = mountScope(children, ids, port, listEl, () => revealTarget);
+			const { windowing, cleanup, port } = mountScope({
+				children,
+				ids,
+				viewportHeight: viewport,
+				listHeight: 80,
+				getRevealAnchorTarget: () => revealTarget
+			});
 
 			await windowing.revealChild(1);
 			expect(port.scrollTop()).toBe(10);
@@ -190,20 +154,15 @@ describe('revealHoldsScroll — the orderings a second writer can land in', () =
 	const HELD = HEADER_AFTER + TARGET_OFFSET;
 
 	function mount(maxScrollTop = Infinity) {
-		const children = [0, 1, 2, 3, 4, 5].map((i) => makePara(`p${i}\n`));
-		const ids = ['b0', 'b1', 'b2', 'b3', 'b4', 'b5'];
-		const port = stubScrollport({ viewportHeight: 500, maxScrollTop });
+		let revealTarget: RevealAnchorPlacement | null = null;
 		// Post-resize layout: the callback that asks this question runs after the header
 		// has already grown, so the taller header is what the predicate measures against.
-		const listEl = stubListEl(port, 200, HEADER_AFTER);
-		let revealTarget: RevealAnchorPlacement | null = null;
-		const { windowing, cleanup } = mountScope(children, ids, port, listEl, () => revealTarget);
-		return {
-			windowing,
-			cleanup,
-			port,
-			claim: (t: RevealAnchorPlacement | null) => (revealTarget = t)
-		};
+		const scope = mountScope({
+			maxScrollTop,
+			chromeAbove: HEADER_AFTER,
+			getRevealAnchorTarget: () => revealTarget
+		});
+		return { ...scope, claim: (t: RevealAnchorPlacement | null) => (revealTarget = t) };
 	}
 
 	it('answers true only where the target already sits at its placement', () => {

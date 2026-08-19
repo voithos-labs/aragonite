@@ -1,6 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import type { InvariantViolation } from '$lib/assert';
 import { checkLateOpenerRegistration } from '$lib/invariants/registry';
 import {
 	flushPendingRegistrationChecks,
@@ -20,6 +19,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { testClosure } from '$lib/test/support/closure';
 import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { collector } from '$lib/test/harness/violation-collector';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 
@@ -48,16 +48,6 @@ const opener = (priority: number): BlockOpener => ({
 	tryOpen: () => null,
 	interruptsParagraph: false
 });
-
-function collector() {
-	const violations: { tag: string; violation: InvariantViolation }[] = [];
-	const report = (tag: string, check: () => InvariantViolation | null): void => {
-		const violation = check();
-		if (violation) violations.push({ tag, violation });
-	};
-	const byTag = (tag: string) => violations.filter((v) => v.tag === tag);
-	return { violations, report, byTag };
-}
 
 // registerChromeLeaf also registers a register-once paste surface, which the
 // schema reset does not clear; reset it so chrome-leaf batches don't accumulate.

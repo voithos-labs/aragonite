@@ -8,186 +8,51 @@ import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 
+/** Blank the slot the rebuilder writes: a parse-built node arrives with the right bytes
+ *  already there, so a rebuild that wrote nothing would pass silently. */
+function cleared(node: CstNode): CstNode {
+	node.raw = '';
+	return node;
+}
+
 describe('rebuildBlockquoteRaw', () => {
-	it('rebuilds single paragraph blockquote', () => {
-		const node: CstNode = {
-			kind: 'blockquote',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { quoteDepth: 1 },
-			innerPrefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' }],
-			innerSuffix: ''
-		};
+	it.each([
+		['a single paragraph', '> Hello\n'],
+		['two paragraphs split by a blank quote line', '> Hello\n>\n> World\n'],
+		['a multi-line paragraph', '> Line 1\n> Line 2\n'],
+		['an empty paragraph', '>\n']
+	])('re-emits a blockquote holding %s', (_case, source) => {
+		const node = cleared(parse(source).children[0]);
 		rebuildBlockquoteRaw(node);
-		expect(node.raw).toBe('> Hello\n');
-	});
-
-	it('rebuilds multi-paragraph blockquote with blank line', () => {
-		const node: CstNode = {
-			kind: 'blockquote',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { quoteDepth: 1 },
-			innerPrefix: '',
-			children: [
-				{ kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' },
-				{ kind: 'paragraph', leadingTrivia: '\n', raw: 'World\n' }
-			],
-			innerSuffix: ''
-		};
-		rebuildBlockquoteRaw(node);
-		expect(node.raw).toBe('> Hello\n>\n> World\n');
-	});
-
-	it('handles multi-line paragraph inside blockquote', () => {
-		const node: CstNode = {
-			kind: 'blockquote',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { quoteDepth: 1 },
-			innerPrefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }],
-			innerSuffix: ''
-		};
-		rebuildBlockquoteRaw(node);
-		expect(node.raw).toBe('> Line 1\n> Line 2\n');
-	});
-
-	it('handles empty paragraph inside blockquote', () => {
-		const node: CstNode = {
-			kind: 'blockquote',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { quoteDepth: 1 },
-			innerPrefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: '\n' }],
-			innerSuffix: ''
-		};
-		rebuildBlockquoteRaw(node);
-		expect(node.raw).toBe('>\n');
+		expect(node.raw).toBe(source);
 	});
 });
 
 describe('rebuildListItemRaw', () => {
-	it('rebuilds simple list item', () => {
-		const node: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Item text\n' }],
-			innerSuffix: ''
-		};
+	it.each([
+		['a one-line paragraph', '- Item text\n'],
+		['a multi-line paragraph indented to the marker', '- Line 1\n  Line 2\n'],
+		['an ordered marker', '1. First\n'],
+		['two paragraphs split by an unindented blank line', '- Para 1\n\n  Para 2\n'],
+		['a nested list', '- Item\n  - Nested a\n  - Nested b\n']
+	])('re-emits an item holding %s', (_case, source) => {
+		const node = cleared(parse(source).children[0].children![0]);
 		rebuildListItemRaw(node);
-		expect(node.raw).toBe('- Item text\n');
-	});
-
-	it('rebuilds list item with multi-line paragraph', () => {
-		const node: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'Line 1\nLine 2\n' }],
-			innerSuffix: ''
-		};
-		rebuildListItemRaw(node);
-		expect(node.raw).toBe('- Line 1\n  Line 2\n');
-	});
-
-	it('rebuilds ordered list item', () => {
-		const node: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { marker: '1. ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'First\n' }],
-			innerSuffix: ''
-		};
-		rebuildListItemRaw(node);
-		expect(node.raw).toBe('1. First\n');
-	});
-
-	it('rebuilds list item with two paragraphs separated by blank line', () => {
-		const node: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '',
-			children: [
-				{ kind: 'paragraph', leadingTrivia: '', raw: 'Para 1\n' },
-				{ kind: 'paragraph', leadingTrivia: '\n', raw: 'Para 2\n' }
-			],
-			innerSuffix: ''
-		};
-		rebuildListItemRaw(node);
-		expect(node.raw).toBe('- Para 1\n\n  Para 2\n');
+		expect(node.raw).toBe(source);
 	});
 });
 
 describe('rebuildListRaw', () => {
-	it('rebuilds list from items', () => {
-		const item1: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '- A\n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '',
-			children: [],
-			innerSuffix: ''
-		};
-		const item2: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '- B\n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '',
-			children: [],
-			innerSuffix: ''
-		};
-		const node: CstNode = {
-			kind: 'list',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { ordered: false },
-			innerPrefix: '',
-			children: [item1, item2],
-			innerSuffix: ''
-		};
-		rebuildListRaw(node);
-		expect(node.raw).toBe('- A\n- B\n');
-	});
-});
+	it("concatenates each item's own bytes without descending into it", () => {
+		const source = '- A\n- B\n';
+		const list = cleared(parse(source).children[0]);
+		// Grandchild left stale: the list rebuild reads item.raw, and callers rebuild
+		// bottom-up, so a rebuilder that recursed would emit 'A2' here.
+		list.children![0].children![0].raw = 'A2\n';
 
-describe('rebuildListItemRaw: nested content', () => {
-	it('rebuilds item with nested list', () => {
-		const item: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '',
-			children: [
-				{ kind: 'paragraph', leadingTrivia: '', raw: 'Item\n' },
-				{
-					kind: 'list',
-					leadingTrivia: '',
-					raw: '- Nested a\n- Nested b\n',
-					metadata: { ordered: false },
-					innerPrefix: '',
-					children: [],
-					innerSuffix: ''
-				}
-			],
-			innerSuffix: ''
-		};
-		rebuildListItemRaw(item);
-		expect(item.raw).toBe('- Item\n  - Nested a\n  - Nested b\n');
+		rebuildListRaw(list);
+
+		expect(list.raw).toBe(source);
 	});
 });
 
@@ -201,7 +66,7 @@ describe('the wrap-less rebuilders ignore innerPrefix', () => {
 		['listItem', '- item\n', (n: CstNode) => rebuildListItemRaw(n)]
 	] as const)('%s re-emits its own bytes with a stray slot filled', (_kind, source, rebuild) => {
 		const top = parse(source).children[0];
-		const node = top.kind === 'list' ? top.children![0] : top;
+		const node = cleared(top.kind === 'list' ? top.children![0] : top);
 
 		node.innerPrefix = '\n';
 		rebuild(node);
@@ -214,8 +79,8 @@ describe('parse + rebuild round-trip', () => {
 	it('parse nested list then rebuild preserves raw', () => {
 		const source = '- Item 1\n  - Nested\n- Item 2\n';
 		const doc = parse(source);
-		const list = doc.children[0];
-		const item1 = list.children![0];
+		const list = cleared(doc.children[0]);
+		const item1 = cleared(list.children![0]);
 
 		rebuildListItemRaw(item1);
 		rebuildListRaw(list);
@@ -225,39 +90,16 @@ describe('parse + rebuild round-trip', () => {
 });
 
 describe('rebuildListItemRaw: task items', () => {
-	it('emits taskMarker between list marker and content', () => {
-		const doc = parse('- [x] hello\n');
-		const item = doc.children[0].children![0];
+	it.each([
+		['the marker between the list marker and the content', '- [x] hello\n'],
+		['an uppercase X', '- [X] upper\n'],
+		['the extra space after the box', '- [x]  extra\n'],
+		['no task fragment at all on a plain item', '- plain\n']
+	])('re-emits %s', (_case, source) => {
+		const item = cleared(parse(source).children[0].children![0]);
 
 		rebuildListItemRaw(item);
 
-		expect(item.raw).toBe('- [x] hello\n');
-	});
-
-	it('preserves uppercase X across rebuild', () => {
-		const doc = parse('- [X] upper\n');
-		const item = doc.children[0].children![0];
-
-		rebuildListItemRaw(item);
-
-		expect(item.raw).toBe('- [X] upper\n');
-	});
-
-	it('preserves multi-space across rebuild', () => {
-		const doc = parse('- [x]  extra\n');
-		const item = doc.children[0].children![0];
-
-		rebuildListItemRaw(item);
-
-		expect(item.raw).toBe('- [x]  extra\n');
-	});
-
-	it('non-task list item rebuild emits no task fragment', () => {
-		const doc = parse('- plain\n');
-		const item = doc.children[0].children![0];
-
-		rebuildListItemRaw(item);
-
-		expect(item.raw).toBe('- plain\n');
+		expect(item.raw).toBe(source);
 	});
 });

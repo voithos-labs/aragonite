@@ -1,24 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseInline } from '$lib/core/inline';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
 import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
 import { BOUNDED_GROWTH_CEILING, measureScanGrowth } from '../../harness/scan-growth';
 
-function resetInlineState(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-
 beforeEach(() => {
-	resetInlineState();
+	resetPluginPlatformForTests();
 	registerFootnoteReference();
 });
-afterEach(resetInlineState);
+afterEach(resetPluginPlatformForTests);
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const refsIn = (raw: string) => scan(raw).filter((n) => n.kind === FOOTNOTE_REF_KIND);

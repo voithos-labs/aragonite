@@ -8,7 +8,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { balancedCall, collectEditorSources, stripComments } from './scan-source';
+import {
+	callArguments,
+	callsAnywhere,
+	callsTo,
+	collectEditorSources,
+	stripComments
+} from './scan-source';
 
 const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
 
@@ -37,60 +43,31 @@ interface ModelessCall {
 
 /** The mode rides SECOND to last, the resolver last: a sink is told both or neither, and only the
  *  mode's `undefined` is a skipped thread — a harness with no definitions has no resolver to give. */
-function modeArgument(args: string): string {
-	const parts: string[] = [];
-	let depth = 0;
-	let at = 0;
-	for (let i = 0; i < args.length; i++) {
-		const ch = args[i];
-		if (ch === '(' || ch === '[' || ch === '{') depth++;
-		else if (ch === ')' || ch === ']' || ch === '}') depth--;
-		else if (ch === ',' && depth === 0) {
-			parts.push(args.slice(at, i).trim());
-			at = i + 1;
-		}
-	}
-	parts.push(args.slice(at).trim());
+function modeArgument(call: string): string {
+	const parts = callArguments(call);
 	return parts[parts.length - 2] ?? '';
 }
 
-/** Seam calls whose trailing mode argument is the literal `undefined`. */
-function findModelessSeams(relPath: string, rawText: string): ModelessCall[] {
-	const code = stripComments(rawText);
-	const hits: ModelessCall[] = [];
-	for (const sink of MODE_TRAILING_CALLS) {
-		const callRe = new RegExp(`(?<![\\w.])${sink}\\s*\\(`, 'g');
-		let m: RegExpExecArray | null;
-		while ((m = callRe.exec(code)) !== null) {
-			if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
-			const call = balancedCall(code, m.index + m[0].length);
-			if (call === null) continue;
-			if (modeArgument(call) === 'undefined') hits.push({ relPath, call });
-		}
-	}
-	return hits;
+/** Seam calls whose trailing mode argument is the literal `undefined`. Pass comment-stripped code. */
+function findModelessSeams(relPath: string, code: string): ModelessCall[] {
+	return MODE_TRAILING_CALLS.flatMap((sink) =>
+		callsTo(code, sink)
+			.filter((call) => modeArgument(call) === 'undefined')
+			.map((call) => ({ relPath, call }))
+	);
 }
 
 /** Factory calls that omit `getPresentationMode` or answer it with the literal `undefined`. */
-function findModelessBundles(relPath: string, rawText: string): ModelessCall[] {
-	const code = stripComments(rawText);
-	const hits: ModelessCall[] = [];
-	for (const factory of MODE_BEARING_FACTORIES) {
-		const callRe = new RegExp(`(?<![\\w.])${factory}\\s*\\(`, 'g');
-		let m: RegExpExecArray | null;
-		while ((m = callRe.exec(code)) !== null) {
-			if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
-			const call = balancedCall(code, m.index + m[0].length);
-			if (call === null) continue;
-			for (const axis of THREADED_AXES) {
-				if (!new RegExp(`\\b${axis}\\s*[,:}]`).test(call)) hits.push({ relPath, call });
-				else if (new RegExp(`\\b${axis}\\s*:\\s*undefined\\b`).test(call)) {
-					hits.push({ relPath, call });
-				}
-			}
-		}
-	}
-	return hits;
+function findModelessBundles(relPath: string, code: string): ModelessCall[] {
+	return MODE_BEARING_FACTORIES.flatMap((factory) =>
+		callsTo(code, factory).flatMap((call) =>
+			THREADED_AXES.filter(
+				(axis) =>
+					!new RegExp(`\\b${axis}\\s*[,:}]`).test(call) ||
+					new RegExp(`\\b${axis}\\s*:\\s*undefined\\b`).test(call)
+			).map(() => ({ relPath, call }))
+		)
+	);
 }
 
 describe('live-mode thread source-scan', () => {
@@ -98,10 +75,10 @@ describe('live-mode thread source-scan', () => {
 
 	it('found the seam sinks and the bundle factories to validate', () => {
 		const seamSites = sources.filter((f) =>
-			MODE_TRAILING_CALLS.some((sink) => new RegExp(`(?<![\\w.])${sink}\\s*\\(`).test(f.code))
+			MODE_TRAILING_CALLS.some((sink) => callsAnywhere(f.code, sink))
 		);
 		const bundleSites = sources.filter((f) =>
-			MODE_BEARING_FACTORIES.some((factory) => new RegExp(`${factory}\\s*\\(`).test(f.code))
+			MODE_BEARING_FACTORIES.some((factory) => callsAnywhere(f.code, factory))
 		);
 		// The shared block-edit core, the list mid-item split, the cross-block delete, node-ops.
 		expect(seamSites.length).toBeGreaterThan(3);
@@ -110,19 +87,24 @@ describe('live-mode thread source-scan', () => {
 	});
 
 	it('every seam sink is told which mode the bytes are being moved in', () => {
-		expect(sources.flatMap((f) => findModelessSeams(f.relPath, f.text))).toEqual([]);
+		expect(sources.flatMap((f) => findModelessSeams(f.relPath, f.code))).toEqual([]);
 	});
 
 	it('every mode-bearing bundle threads a real getter on both axes', () => {
-		expect(sources.flatMap((f) => findModelessBundles(f.relPath, f.text))).toEqual([]);
+		expect(sources.flatMap((f) => findModelessBundles(f.relPath, f.code))).toEqual([]);
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
+	// Through `stripComments` as the scan itself is, so a token in a comment is unreachable here
+	// for the same reason it is in production.
+
+	const seamsIn = (source: string) => findModelessSeams('synthetic.ts', stripComments(source));
+	const bundlesIn = (source: string) => findModelessBundles('synthetic.ts', stripComments(source));
 
 	it('matcher flags a split and a join whose MODE slot answers undefined', () => {
 		const bad =
 			'splitNode(parent, i, offset, undefined, linkRef);\nmergeWithNext(parent, i, undefined, ref);';
-		expect(findModelessSeams('synthetic.ts', bad)).toEqual([
+		expect(seamsIn(bad)).toEqual([
 			{ relPath: 'synthetic.ts', call: 'parent, i, offset, undefined, linkRef' },
 			{ relPath: 'synthetic.ts', call: 'parent, i, undefined, ref' }
 		]);
@@ -132,28 +114,28 @@ describe('live-mode thread source-scan', () => {
 		const good =
 			'splitNode(parent, i, offset, mode, undefined);\nperformSplit(p, i, o, deps.getPresentationMode?.());\n' +
 			'rangeDelete(doc, s, e, sharing, grammar, ctx.getPresentationMode?.(), undefined);';
-		expect(findModelessSeams('synthetic.ts', good)).toEqual([]);
+		expect(seamsIn(good)).toEqual([]);
 	});
 
 	it('matcher ignores the declaration and tokens in comments', () => {
 		const decl =
 			'export function splitNode(parent, blockIndex, offset, presentationMode, undefined) {}\n' +
 			'// performSplit(p, i, o, undefined, undefined) would be wrong';
-		expect(findModelessSeams('synthetic.ts', decl)).toEqual([]);
+		expect(seamsIn(decl)).toEqual([]);
 	});
 
 	it('matcher flags a bundle that omits an axis and one that nulls it', () => {
 		const omitted = 'createStandardNestedActions(state, { scope, stickyColumn, parent });';
 		const nulled =
 			'createListContext({ scope, controller, getPresentationMode: undefined, linkRef });';
-		expect(findModelessBundles('synthetic.ts', omitted)).toHaveLength(2);
-		expect(findModelessBundles('synthetic.ts', nulled)).toHaveLength(1);
+		expect(bundlesIn(omitted)).toHaveLength(2);
+		expect(bundlesIn(nulled)).toHaveLength(1);
 	});
 
 	it('matcher accepts a bundle threading both axes by shorthand or by key', () => {
 		const good =
 			'createStandardNestedActions(state, { scope, getPresentationMode, linkRef, parent });\n' +
 			'createListContext({ scope, getPresentationMode: policies.presentationMode, linkRef });';
-		expect(findModelessBundles('synthetic.ts', good)).toEqual([]);
+		expect(bundlesIn(good)).toEqual([]);
 	});
 });

@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTextRender } from '$lib/components/blocks/text/text-render';
 import type { CstNode } from '$lib/core/nodes';
-import { blockNode, makeRenderHarness } from './render-fixture';
+import { blockNode, makeRenderHarness } from '$lib/test/harness/text-render';
 
 describe('text-render key across a prose→non-prose flip', () => {
 	it('rebuilds the DOM when undo returns a matched-DOM non-prose block to prose', () => {

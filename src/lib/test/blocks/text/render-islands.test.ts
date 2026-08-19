@@ -11,7 +11,7 @@ import {
 import type { CstNode } from '$lib/core/nodes';
 import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
 import { placeCaretAt } from './math-widget-fixture';
-import { blockNode, makeRenderHarness, type Island } from './render-fixture';
+import { blockNode, makeRenderHarness, type Island } from '$lib/test/harness/text-render';
 
 const widgetIsland = (offset: number, buildDom?: () => HTMLElement): Island => ({
 	index: 0,

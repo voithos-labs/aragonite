@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources } from './scan-source';
+import { balancedCall, collectEditorSources } from './scan-source';
 
 const DISPATCH_TOKENS = [
 	'dispatchKeyCommand(',
@@ -45,21 +45,13 @@ const DISPATCH_SITE_FILES = [
 	'src/lib/components/Editor.svelte'
 ];
 
-/** Balanced-paren argument substring of the call whose opening `(` is at `openIdx`. */
-function callArgs(code: string, openIdx: number): string {
-	let depth = 0;
-	for (let i = openIdx; i < code.length; i++) {
-		if (code[i] === '(') depth++;
-		else if (code[i] === ')' && --depth === 0) return code.slice(openIdx + 1, i);
-	}
-	return code.slice(openIdx + 1);
-}
-
 interface DispatchSite {
 	relPath: string;
 	args: string;
 }
 
+/** Sites are collected by substring, not `callsTo`: a method-spelled dispatch
+ *  (`ctx.dispatchKeyCommand(`) is one, and the shared matcher's lookbehind rejects it. */
 function collectDispatchSites(): DispatchSite[] {
 	const sites: DispatchSite[] = [];
 	for (const file of collectEditorSources()) {
@@ -69,7 +61,10 @@ function collectDispatchSites(): DispatchSite[] {
 			for (;;) {
 				const at = file.code.indexOf(token, from);
 				if (at < 0) break;
-				sites.push({ relPath: file.relPath, args: callArgs(file.code, at + token.length - 1) });
+				sites.push({
+					relPath: file.relPath,
+					args: balancedCall(file.code, at + token.length) ?? ''
+				});
 				from = at + token.length;
 			}
 		}
@@ -146,9 +141,9 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('callArgs returns the balanced argument list, nested parens included', () => {
+	it('the argument walker returns the balanced argument list, nested parens included', () => {
 		const code = 'dispatchKeyCommand(chord, ctx(), { getPresentationMode })';
-		expect(callArgs(code, 'dispatchKeyCommand'.length)).toBe(
+		expect(balancedCall(code, 'dispatchKeyCommand'.length + 1)).toBe(
 			'chord, ctx(), { getPresentationMode }'
 		);
 	});

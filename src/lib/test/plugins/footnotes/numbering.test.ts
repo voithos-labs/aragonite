@@ -28,9 +28,9 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	});
 
 	it('reuses the first number for a repeated reference', () => {
-		const refs = collectFootnoteReferences(parse('One [^x], two [^y], again [^x].\n'));
-		expect(refs.map((r) => r.label)).toEqual(['x', 'y', 'x']);
-		const numbers = assignFootnoteNumbers(parse('One [^x], two [^y], again [^x].\n'));
+		const doc = parse('One [^x], two [^y], again [^x].\n');
+		expect(collectFootnoteReferences(doc).map((r) => r.label)).toEqual(['x', 'y', 'x']);
+		const numbers = assignFootnoteNumbers(doc);
 		expect(numbers.size).toBe(2);
 		expect(numbers.get('x')).toBe(1);
 	});

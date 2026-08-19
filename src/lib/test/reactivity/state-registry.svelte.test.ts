@@ -58,8 +58,7 @@ describe('contested-claim suppression over real scopes', () => {
 		winner.stop();
 	});
 
-	it('still warns when the loser keeps a live publish', async () => {
-		if (!DEV) return;
+	it.runIf(DEV)('still warns when the loser keeps a live publish', async () => {
 		const node = makeNode();
 		const loser = mountScope(node);
 		const winner = mountScope(node);

@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerEmoji } from '$lib/plugins/emoji/emoji-recognizer';
 import { projectInlineText } from '$lib/plugins/toc/heading-outline';
 
@@ -33,13 +31,8 @@ describe('projectInlineText — clean heading labels', () => {
 // The brief's mandated case: an emoji shortcode in a heading renders as its glyph,
 // not its `:shortcode:` bytes — the "widget → rendered text" arm of the rule.
 describe('projectInlineText — emoji glyph projection', () => {
-	function resetInlineState(): void {
-		__resetInlineSyntaxForTests();
-		__resetInlineWidgetsForTests();
-		__clearDeclaredPluginInlineKindsForTests();
-	}
-	beforeEach(resetInlineState);
-	afterEach(resetInlineState);
+	beforeEach(resetPluginPlatformForTests);
+	afterEach(resetPluginPlatformForTests);
 
 	it('renders an emoji shortcode as its glyph when the emoji plugin is registered', () => {
 		registerEmoji();

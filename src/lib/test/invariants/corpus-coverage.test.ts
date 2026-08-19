@@ -64,14 +64,7 @@ const NO_LINE = 'an inline-fragment lane draws no line ending at all: its source
 
 /** The composed plugin lanes draw a built-in arm too, so their non-ASCII and line-ending shapes
  *  can be met without one plugin byte carrying either — the construct-only lanes are what bind. */
-const PLUGIN_CONSTRUCT_FLOOR: Record<Shape, number | string> = {
-	'non-ASCII': 100,
-	'accented Latin': 20,
-	CJK: 20,
-	'an astral pair': 20,
-	CRLF: 100,
-	LF: 100
-};
+const PLUGIN_CONSTRUCT_FLOOR: Record<Shape, number | string> = DOC_FLOOR;
 
 const LANES: Lane[] = [
 	{ name: 'arbGfmDoc', arbitrary: arbGfmDoc, floors: DOC_FLOOR },

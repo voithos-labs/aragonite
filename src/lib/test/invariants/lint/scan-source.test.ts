@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC, REPO_WIDE_ROOTS } from './scan-source';
+import { balancedCall, collectEditorSources, EDITOR_SRC, REPO_WIDE_ROOTS } from './scan-source';
 
 describe('repo-wide scan roots', () => {
 	const sources = collectEditorSources();
@@ -55,5 +55,24 @@ describe('repo-wide scan roots', () => {
 	it('REPO_WIDE_ROOTS is the declared set the default scan walks', () => {
 		expect(REPO_WIDE_ROOTS).toHaveLength(3);
 		expect(REPO_WIDE_ROOTS[0]).toBe(EDITOR_SRC);
+	});
+});
+
+describe('balancedCall', () => {
+	// The argument walker under every callsTo-based scan: a `)` inside a string argument
+	// truncates the answer, and each of them then reads its slot off a short list.
+	it('balances nested parens and skips those inside a string argument', () => {
+		const nested = 'splitNode(node, at(i), mode)';
+		expect(balancedCall(nested, nested.indexOf('(') + 1)).toBe('node, at(i), mode');
+
+		const quoted = "splitNode(node, ')', mode)";
+		expect(balancedCall(quoted, quoted.indexOf('(') + 1)).toBe("node, ')', mode");
+	});
+
+	// Three runtime files spell one, and the string skip runs to EOF on each: a null here would
+	// drop the site from callsTo's population, which every consumer then asserts is empty.
+	it('falls back to the string-blind read when a regex literal opens an unclosed quote', () => {
+		const regexArg = 'encode(title.replace(/"/g, "x"))';
+		expect(balancedCall(regexArg, regexArg.indexOf('(') + 1)).toBe('title.replace(/"/g, "x")');
 	});
 });

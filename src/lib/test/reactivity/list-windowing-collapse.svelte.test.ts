@@ -4,52 +4,19 @@
 // isInWindow/revealChild so reveal-into-collapsed degrades instead of hanging (VR-5).
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
-import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
+import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const BLOCK_PX = 50;
 
-const oracle: HeightOracle = {
-	estimate: () => BLOCK_PX,
-	measured: () => undefined,
-	recordMeasured: () => {},
-	height: () => BLOCK_PX,
-	invalidateWidth: () => {}
-};
-
-function makePara(raw: string): CstNode {
-	return { kind: 'paragraph', leadingTrivia: '', raw };
-}
-
 function setup(childCount: number, isCollapsed?: () => boolean) {
 	const children = Array.from({ length: childCount }, (_, i) => makePara(`p${i}\n`));
-	const ids = children.map((_, i) => `b${i}`);
-	const port = stubScrollport({ viewportHeight: 500 });
-	const listEl = stubListEl(port, childCount * BLOCK_PX);
-	let windowing!: ListWindowing;
-	const cleanup = $effect.root(() => {
-		windowing = createListWindowing({
-			oracle,
-			getChildren: () => children,
-			getChildIds: () => ids,
-			getListEl: () => listEl,
-			getPort: () => port,
-			correctsScroll: () => true,
-			getFocusPath: () => null,
-			getWidthVersion: () => 0,
-			getViewportHeightVersion: () => 0,
-			getParentPath: () => [],
-			isCollapsed,
-			overscan: 2,
-			pinExtensionCap: 100,
-			activateAbovePx: 1000,
-			deactivateBelowPx: 800
-		});
+	return mountListWindowing({
+		children,
+		ids: children.map((_, i) => `b${i}`),
+		oracle: fixedOracle(BLOCK_PX),
+		listHeight: childCount * BLOCK_PX,
+		isCollapsed
 	});
-	flushSync();
-	return { windowing, cleanup, port };
 }
 
 const CLAMP = { active: true, start: 0, end: 1, topSpacerPx: 0, bottomSpacerPx: 0 };

@@ -10,6 +10,12 @@ import { runGlobalChord, runGlobalChordOnKind } from '$lib/schema/commands';
 import { takeDevWarns } from '../support/warn-gate';
 
 describe('leaf-path dispatch of an unresolved plugin command', () => {
+	const ctx = {
+		history: { requestUndo() {}, requestRedo() {} },
+		getPresentationMode: () => 'source' as const,
+		isCrossBlockRange: () => false
+	};
+
 	afterEach(() => {
 		__resetBlockCommandsForTests();
 		vi.restoreAllMocks();
@@ -24,12 +30,6 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		]);
 		const runCommand = vi.fn(() => false);
 		const target = { kind: 'paragraph' as const, runCommand };
-		const ctx = {
-			history: { requestUndo() {}, requestRedo() {} },
-			getPresentationMode: () => 'source' as const,
-			isCrossBlockRange: () => false
-		};
-
 		const first = dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides);
 		const second = dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides);
 
@@ -48,12 +48,6 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 		]);
 		const runCommand = vi.fn(() => false);
 		const target = { kind: 'paragraph' as const, runCommand };
-		const ctx = {
-			history: { requestUndo() {}, requestRedo() {} },
-			getPresentationMode: () => 'source' as const,
-			isCrossBlockRange: () => false
-		};
-
 		expect(runCommandById(id, undefined, target, ctx)).toBe(false);
 		expect(dispatchKeyCommand('Mod+Shift+K', target, ctx, overrides)).toBe(false);
 

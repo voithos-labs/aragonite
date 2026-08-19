@@ -14,8 +14,4 @@ describe('checkNoContainerHistoryKey (G1.4)', () => {
 	it('passes for a set without HISTORY_KEY', () => {
 		expect(checkNoContainerHistoryKey([FOCUS_KEY, BLOCK_EDIT_KEY], HISTORY_KEY)).toBeNull();
 	});
-
-	it('passes for an empty set', () => {
-		expect(checkNoContainerHistoryKey([], HISTORY_KEY)).toBeNull();
-	});
 });

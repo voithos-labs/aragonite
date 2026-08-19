@@ -4,13 +4,8 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { completeTypedLine } from '$lib/schema/block-completions';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import {
-	__clearDeclaredPluginInlineKindsForTests,
-	declaredPluginKind
-} from '$lib/schema/plugin-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
+import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import {
 	registerMathBlockCompleter,
@@ -20,15 +15,8 @@ import {
 // The `$$` completer's line predicate, the bytes it answers, and what the seam makes of them. The
 // registry's own semantics live in test/schema; the seam's gates in test/editor-actions.
 
-function resetLatexState(): void {
-	__resetSchemaRegistriesForTests();
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-
-beforeEach(resetLatexState);
-afterEach(resetLatexState);
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 describe('block math Enter completer — which lines it claims', () => {
 	it.each([

@@ -193,18 +193,29 @@ export function callsAnywhere(code: string, name: string): boolean {
 	return callSiteRegex(name).test(code);
 }
 
-/** The text from just after a call's opening paren to its matching close, parens balanced. */
+/**
+ * Just after a call's opening paren to its matching close, parens balanced. Strings are skipped, so
+ * a `)` inside an argument cannot truncate the slot a census then reads by position; the
+ * string-blind read is the fallback, because `stripComments` leaves regex literals intact and a
+ * lone quote in one runs the skip to EOF — dropping the site from the population entirely.
+ */
 export function balancedCall(code: string, openParenIndex: number): string | null {
+	return matchingParen(code, openParenIndex, true) ?? matchingParen(code, openParenIndex, false);
+}
+
+function matchingParen(code: string, from: number, skipStrings: boolean): string | null {
 	let depth = 1;
-	let i = openParenIndex;
-	while (i < code.length) {
+	let quote: string | null = null;
+	for (let i = from; i < code.length; i++) {
 		const ch = code[i];
-		if (ch === '(') depth++;
-		else if (ch === ')') {
-			depth--;
-			if (depth === 0) return code.slice(openParenIndex, i);
+		if (quote) {
+			if (ch === '\\') i++;
+			else if (ch === quote) quote = null;
+			continue;
 		}
-		i++;
+		if (skipStrings && (ch === "'" || ch === '"' || ch === '`')) quote = ch;
+		else if (ch === '(') depth++;
+		else if (ch === ')' && --depth === 0) return code.slice(from, i);
 	}
 	return null;
 }

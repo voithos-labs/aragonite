@@ -14,7 +14,7 @@ import {
 	resolveLinkAtPoint
 } from '$lib/components/blocks/text/link-at-point';
 import type { LinkReferenceResolverRef } from '$lib/editor-keys';
-import { makeRenderHarness } from './render-fixture';
+import { makeRenderHarness } from '$lib/test/harness/text-render';
 
 function mount(source: string): {
 	el: HTMLElement;

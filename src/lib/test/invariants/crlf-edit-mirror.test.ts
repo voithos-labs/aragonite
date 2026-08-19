@@ -26,6 +26,7 @@ import {
 } from '../../schema/container-rebuilders';
 import { insertEmptyRow } from '../../tree-operations/table-mutations';
 import { rangeDelete } from '../../selection/range-delete';
+import type { SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureEditableContainers } from '../../tree-operations/node-ops';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
@@ -81,6 +82,13 @@ async function pasteInto(
 	);
 	return deps.doc;
 }
+
+/** A range delete's emitted bytes. The grammar/mode/resolver slots stay `undefined`: this oracle
+ *  reads the line ending, and none of the three moves one. */
+const deleteBetween = (doc: Document, start: SelectionPoint, end: SelectionPoint) =>
+	serialize(
+		rangeDelete(doc, start, end, createSharingState(), undefined, undefined, undefined).newDoc
+	);
 
 const GESTURES: EditGesture[] = [
 	{
@@ -147,48 +155,30 @@ const GESTURES: EditGesture[] = [
 		name: 'range delete consuming two prose endpoints whole',
 		source: 'aaa\n\nbbb\n\nccc\n',
 		apply: (doc) =>
-			serialize(
-				rangeDelete(
-					doc,
-					{ path: [0], offset: 0 },
-					{ path: [1], offset: displayLength(doc.children[1].raw) },
-					createSharingState(),
-					undefined,
-					undefined,
-					undefined
-				).newDoc
+			deleteBetween(
+				doc,
+				{ path: [0], offset: 0 },
+				{ path: [1], offset: displayLength(doc.children[1].raw) }
 			)
 	},
 	{
 		name: 'range delete out of a blockquote (reserved-chrome branch)',
 		source: '> q\n\nafter\n',
 		apply: (doc) =>
-			serialize(
-				rangeDelete(
-					doc,
-					{ path: [0, 0], offset: 0 },
-					{ path: [1], offset: displayLength(doc.children[1].raw) },
-					createSharingState(),
-					undefined,
-					undefined,
-					undefined
-				).newDoc
+			deleteBetween(
+				doc,
+				{ path: [0, 0], offset: 0 },
+				{ path: [1], offset: displayLength(doc.children[1].raw) }
 			)
 	},
 	{
 		name: 'range delete out of a table (table branch)',
 		source: '| a | b |\n| --- | --- |\n| 1 | 2 |\n\nafter\n',
 		apply: (doc) =>
-			serialize(
-				rangeDelete(
-					doc,
-					{ path: [0], offset: 0, cellCoordinate: true },
-					{ path: [1], offset: displayLength(doc.children[1].raw) },
-					createSharingState(),
-					undefined,
-					undefined,
-					undefined
-				).newDoc
+			deleteBetween(
+				doc,
+				{ path: [0], offset: 0, cellCoordinate: true },
+				{ path: [1], offset: displayLength(doc.children[1].raw) }
 			)
 	},
 	{
@@ -197,16 +187,10 @@ const GESTURES: EditGesture[] = [
 		name: 'range delete emptying the document across two tables',
 		source: '| a |\n| --- |\n| 1 |\n\n| b |\n| --- |\n| 2 |\n',
 		apply: (doc) =>
-			serialize(
-				rangeDelete(
-					doc,
-					{ path: [0], offset: 0, cellCoordinate: true },
-					{ path: [1], offset: 1, cellCoordinate: true },
-					createSharingState(),
-					undefined,
-					undefined,
-					undefined
-				).newDoc
+			deleteBetween(
+				doc,
+				{ path: [0], offset: 0, cellCoordinate: true },
+				{ path: [1], offset: 1, cellCoordinate: true }
 			)
 	},
 	{
