@@ -94,12 +94,12 @@ test.describe('the rebound chord — the only gesture that reaches the seam with
 
 		// The edit counter, not an undo round-trip: undo-then-compare restores the pair a
 		// leaked toggle would have written, so it passes either way.
-		await page.evaluate(() => (window as any).__test.startEditCount());
+		await page.evaluate(() => (window as any).__test.startEditOpCapture());
 		await page.keyboard.press(`${primaryModifier}+Alt+g`);
 		await ep.waitForRenderFlush();
 		await ep.waitForNoSourceMutation();
 
-		expect(await page.evaluate(() => (window as any).__test.stopEditCount())).toBe(0);
+		expect(await page.evaluate(() => (window as any).__test.stopEditOpCapture().length)).toBe(0);
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 });
