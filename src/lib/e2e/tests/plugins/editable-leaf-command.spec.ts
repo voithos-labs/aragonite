@@ -38,8 +38,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 
 		// The handler's `updateMetadata` lands on the focused memo node (index 1).
 		await page.waitForFunction(
-			() =>
-				(window as unknown as any).__test.getDocument().children[1]?.metadata?.memoTagged === true,
+			() => (window as any).__test.getDocument().children[1]?.metadata?.memoTagged === true,
 			null,
 			{ timeout: 2000 }
 		);
@@ -51,14 +50,14 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		page
 	}) => {
 		const pageErrors = capturePageErrors(page);
-		await page.evaluate(() => (window as unknown as any).__test.startErrorCapture());
+		await page.evaluate(() => (window as any).__test.startErrorCapture());
 
 		await editor.memo.click();
 		await page.keyboard.press('End');
 		await page.keyboard.press(`${primaryModifier}+Shift+J`);
 
 		await page.waitForFunction(
-			() => (window as unknown as any).__test.getCapturedErrors().includes('command'),
+			() => (window as any).__test.getCapturedErrors().includes('command'),
 			null,
 			{ timeout: 2000 }
 		);

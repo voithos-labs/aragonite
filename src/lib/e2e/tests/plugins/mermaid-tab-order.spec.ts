@@ -1,29 +1,10 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage } from './helpers';
-import { wholeBlockInput } from '../../whole-block-input';
+import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 // Requirements: e2e/requirements/plugins/mermaid-tab-order.md.
 
-const DOC = 'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
-
-class MermaidTabPage extends PluginsPage {
-	async setup(): Promise<void> {
-		await this.gotoPlugins('mermaid');
-		await this.loadContent(DOC);
-		await expect(this.viewport.locator('svg')).toHaveCount(1, { timeout: 30_000 });
-	}
-
-	get viewport() {
-		return this.page.locator('.mermaid-viewport');
-	}
-
-	get inputHost() {
-		return wholeBlockInput(this.page.locator('.mermaid-block'));
-	}
-}
-
 /** Where each tab press parked: the diagram surface, some other stop inside the block, or out. */
-function focusedStop(page: MermaidTabPage['page']): Promise<'viewport' | 'in-block' | 'outside'> {
+function focusedStop(page: MermaidPage['page']): Promise<'viewport' | 'in-block' | 'outside'> {
 	return page.evaluate(() => {
 		const active = document.activeElement;
 		if (active?.classList.contains('mermaid-viewport')) return 'viewport' as const;
@@ -32,11 +13,11 @@ function focusedStop(page: MermaidTabPage['page']): Promise<'viewport' | 'in-blo
 }
 
 test.describe('a plugin whole-block kind is one EDITING tab stop', () => {
-	let editor: MermaidTabPage;
+	let editor: MermaidPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new MermaidTabPage(page);
-		await editor.setup();
+		editor = new MermaidPage(page);
+		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
 	});
 
 	test('Shift+Tab from below lands on the editing host, not on the diagram', async ({ page }) => {

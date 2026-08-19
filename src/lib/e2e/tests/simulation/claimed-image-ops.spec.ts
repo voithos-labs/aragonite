@@ -1,19 +1,15 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertCoreOracles,
-	assertParseConvergence
-} from '../../simulation/invariants';
+import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // The image gestures under a rung that CLAIMED the image's bytes: `?seed=wiki-embed`
 // installs a `![[` rung minting built-in `image` nodes, so every existing image gesture runs
 // against bytes the editor is forbidden to re-serialize — the borrow-a-built-in-kind class,
-// which ran outside the oracle stack entirely (`docs/contributing/culture.md` § Testing
+// which ran outside the oracle stack entirely (`docs/contributing/rules.md` § Testing
 // shape). What this adds over the wiki-embed e2e battery is convergence after every move, so
 // a resize writing plausible bytes that no longer reparse fails here, not at the next edit.
 
@@ -39,8 +35,7 @@ test.describe('claimed-image-ops simulation', () => {
 		const loaded = await editor.bridge.getSource();
 		expect(loaded).toContain(EMBED);
 
-		const tracker = new ExpectationTracker(loaded);
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'claimed-image-ops' };
+		const ctx = await makeSimContext(page, editor, 'claimed-image-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		// The embed's bytes are literal in the raw and round-trip cleanly, so

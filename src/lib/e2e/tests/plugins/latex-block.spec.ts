@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable } from './helpers';
+import { roundTripStable } from './helpers';
+import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
  * Block `$$…$$` display math: render-primary, source-on-focus (design §"Block math", flagship axes
@@ -10,45 +11,7 @@ import { PluginsPage, roundTripStable } from './helpers';
  * Seed: `Before` / `$$x^2$$` / `After`.
  */
 
-class BlockMathPage extends PluginsPage {
-	async gotoMathBlock(seed: 'mathblock' | 'mathblock-multiline' = 'mathblock'): Promise<void> {
-		await this.gotoPlugins(seed);
-		await expect(this.render).toHaveCount(1);
-	}
-
-	get render() {
-		return this.page.locator('.math-block-render');
-	}
-
-	get source() {
-		return this.page.locator('.math-block-source');
-	}
-
-	get renderedKatex() {
-		return this.page.locator('.math-block-render .katex');
-	}
-
-	/**
-	 * Click the folded render to reveal its source. Block math swaps in a distinct
-	 * `.math-block-source` element rather than removing the widget, so it settles on that element's
-	 * arrival — not on the shared `revealWidget` count-to-zero.
-	 */
-	async revealByClick(): Promise<void> {
-		await this.render.click();
-		await expect(this.source).toHaveCount(1);
-		await this.waitForRenderFlush();
-	}
-
-	/** Enter the math block from the paragraph above via a real ArrowRight, so the
-	 *  caret lands through `focus(0)` — no click mouseup competing for the caret. */
-	async revealFromBefore(): Promise<void> {
-		await this.getBlock(0).click();
-		await this.page.keyboard.press('End');
-		await this.page.keyboard.press('ArrowRight');
-		await expect(this.source).toHaveCount(1);
-		await this.waitForRenderFlush();
-	}
-
+class BlockMathCaretPage extends BlockMathPage {
 	/** Collapsed caret offset within the single-text-node source, or null. */
 	async sourceCaretOffset(): Promise<number | null> {
 		return this.page.evaluate(() => {
@@ -59,10 +22,6 @@ class BlockMathPage extends PluginsPage {
 			if (!el.contains(range.startContainer)) return null;
 			return range.startOffset;
 		});
-	}
-
-	async sourceText(): Promise<string> {
-		return (await this.source.textContent()) ?? '';
 	}
 
 	/** Shape of the revealed source's DOM — a single text node whose text carries any
@@ -90,11 +49,11 @@ class BlockMathPage extends PluginsPage {
 }
 
 test.describe('plugin block math: render-primary, source-on-focus', () => {
-	let editor: BlockMathPage;
+	let editor: BlockMathCaretPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new BlockMathPage(page);
-		await editor.gotoMathBlock();
+		editor = new BlockMathCaretPage(page);
+		await editor.gotoMathSeed('mathblock');
 	});
 
 	test('renders the KaTeX display by default without exposing the source', async () => {
@@ -175,7 +134,7 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 	});
 
 	test('A7: a multiline aligned fence renders and reveals as a single text node', async () => {
-		await editor.gotoMathBlock('mathblock-multiline');
+		await editor.gotoMathSeed('mathblock-multiline');
 		// Renders despite the internal newlines.
 		await expect(editor.renderedKatex).toHaveCount(1);
 

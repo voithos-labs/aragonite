@@ -11,9 +11,7 @@ test.describe('plugin editable leaf under live mode: the %% memo kind', () => {
 	test('arrowing into the memo and typing lands the bytes in the source', async ({ page }) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('memo');
-		await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
-		// An ineffective flip falls back to source, where every assertion below passes anyway.
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'live');
+		await editor.setPresentationMode('live');
 
 		// Arrow entry, not a click: a click seats the caret natively, and only the structural
 		// route reaches the leaf's `parkCaret` door.

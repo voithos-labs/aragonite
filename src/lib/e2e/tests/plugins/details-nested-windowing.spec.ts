@@ -33,7 +33,6 @@ test.describe('plugin container: <details> nested windowing × clamp', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
 		await editor.gotoDetails();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('toggling a nested-windowed details closed→open→closed keeps CST and refs in sync', async ({

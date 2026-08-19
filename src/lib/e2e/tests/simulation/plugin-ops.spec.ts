@@ -1,11 +1,10 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
 import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
-import { topLevelIndexOf } from './helpers';
+import { makeSimContext, topLevelIndexOf } from './helpers';
 import { PluginsPage, activeBlockPath } from '../plugins/helpers';
 
 // Ungated plugin-container ops oracle. The three opaque-only invariants (opaque-stale-raw,
@@ -113,8 +112,7 @@ test.describe('plugin-container ops simulation', () => {
 		await expect(page.locator('.callout-block')).toHaveCount(1);
 		await expect(page.locator('.details-block')).toHaveCount(1);
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'plugin-ops' };
+		const ctx = await makeSimContext(page, editor, 'plugin-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
@@ -230,7 +228,7 @@ test.describe('plugin-container ops simulation', () => {
 		await g.copySelection();
 
 		tailIdx = (await rootCount(page)) - 1;
-		await g.clickToReposition([tailIdx], 0);
+		await g.clickToReposition([tailIdx]);
 		await page.keyboard.press('End');
 		await g.pasteHere();
 		await checkOracles('cross-container-paste');
@@ -245,7 +243,7 @@ test.describe('plugin-container ops simulation', () => {
 		// bringing the native alert paste path under the
 		// round-trip/nested-state/no-errors oracles.
 		tailIdx = (await rootCount(page)) - 1;
-		await g.clickToReposition([tailIdx], 0);
+		await g.clickToReposition([tailIdx]);
 		await page.keyboard.press('End');
 		await g.pasteGithubAlert();
 		await checkOracles('github-alert-paste');

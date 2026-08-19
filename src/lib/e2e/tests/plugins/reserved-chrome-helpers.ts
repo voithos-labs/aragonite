@@ -9,6 +9,7 @@ export {
 	PluginsPage,
 	activeBlockPath,
 	capturedErrors,
+	dragBetweenPoints,
 	readContainer as readCallout
 } from './helpers';
 

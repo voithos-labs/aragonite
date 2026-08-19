@@ -3,6 +3,7 @@ import { type Page } from '@playwright/test';
 import {
 	UNWINDOWED_ENTRY_BLOCKS,
 	gotoPageScroll,
+	settleFrames,
 	scrollPageTo,
 	spacerCount,
 	topVisibleBlockInViewport
@@ -49,9 +50,7 @@ async function decodedHeight(page: Page, selector: string): Promise<number> {
 		(sel) => ((document.querySelector(sel) as HTMLImageElement | null)?.naturalHeight ?? 0) > 0,
 		selector
 	);
-	await page.evaluate(
-		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-	);
+	await settleFrames(page);
 	return page.evaluate(
 		(sel) => document.querySelector(sel)!.getBoundingClientRect().height,
 		selector

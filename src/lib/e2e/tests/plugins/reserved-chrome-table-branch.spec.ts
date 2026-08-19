@@ -5,6 +5,7 @@ import {
 	readCallout,
 	activeBlockPath,
 	capturedErrors,
+	dragBetweenPoints,
 	stateConsistencyViolations
 } from './reserved-chrome-helpers';
 
@@ -15,13 +16,12 @@ import {
  * branch, and the wall must hold there too — covered chrome clears, chrome endpoints truncate in
  * place, and a consumed container unit-deletes.
  */
-test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', () => {
+test.describe('reserved child-0 chrome: wall × table branch', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	// ── Gate 6 — chrome wall × table branch ─────────────────────────────
@@ -41,20 +41,6 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		const box = await page.locator('[role="cell"]').nth(nth).boundingBox();
 		if (!box) throw new Error(`Gate 6: cell ${nth} has no bounding box`);
 		return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-	}
-
-	async function dragPoints(
-		page: Page,
-		from: { x: number; y: number },
-		to: { x: number; y: number }
-	): Promise<void> {
-		await page.mouse.move(from.x, from.y);
-		await page.mouse.down();
-		for (let i = 1; i <= 10; i++) {
-			const t = i / 10;
-			await page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
-		}
-		await page.mouse.up();
 	}
 
 	test('Gate 6 substrate: a table parses as a real callout body child', async ({ page }) => {
@@ -142,7 +128,11 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
 		// Anchor in body cell "1" (row 1): the whole-row snap removes that row and
 		// the header survives; the chrome end must keep "le" in the chrome leaf.
-		await dragPoints(page, await cellCenter(page, 2), await editor.pointForOffset([1, 0], 3));
+		await dragBetweenPoints(
+			page,
+			await cellCenter(page, 2),
+			await editor.pointForOffset([1, 0], 3)
+		);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
@@ -163,7 +153,7 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.loadContent(TBL_BOTH_FIXTURE);
 		// Outer body cell "1" → inner header cell "c": both endpoints ride the
 		// two-table case, and the title sits strictly between — shared-helper coverage.
-		await dragPoints(page, await cellCenter(page, 2), await cellCenter(page, 4));
+		await dragBetweenPoints(page, await cellCenter(page, 2), await cellCenter(page, 4));
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
@@ -189,7 +179,11 @@ test.describe('Fork-A spike — reserved child-0 chrome: wall × table branch', 
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
 		// Body cell "1" → the container's last byte (end of "Body"): the whole subtree is covered
 		// from outside, so the container dies as ONE unit — never a husk with the title deleted.
-		await dragPoints(page, await cellCenter(page, 2), await editor.pointForOffset([1, 1], 4));
+		await dragBetweenPoints(
+			page,
+			await cellCenter(page, 2),
+			await editor.pointForOffset([1, 1], 4)
+		);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);

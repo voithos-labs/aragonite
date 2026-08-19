@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './helpers';
+import { roundTripStable, waitForDoc, activeBlockPath } from './helpers';
+import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
  * Block math commit kernel (requirements/plugins/latex-block-commit-split.md): a revealed source
@@ -8,37 +9,12 @@ import { PluginsPage, roundTripStable, waitForDoc, activeBlockPath } from './hel
  * live), so the split happens at blur-commit time.
  */
 
-class BlockMathCommitPage extends PluginsPage {
-	get render() {
-		return this.page.locator('.math-block-render');
-	}
-
-	get source() {
-		return this.page.locator('.math-block-source');
-	}
-
-	get renderedKatex() {
-		return this.page.locator('.math-block-render .katex');
-	}
-
-	async gotoSeed(): Promise<void> {
-		await this.gotoPlugins('mathblock');
-		await expect(this.render).toHaveCount(1);
-	}
-
-	async revealByClick(): Promise<void> {
-		await this.render.click();
-		await expect(this.source).toHaveCount(1);
-		await this.waitForRenderFlush();
-	}
-}
-
 test.describe('block math commit kernel: multi-block source re-splits', () => {
-	let editor: BlockMathCommitPage;
+	let editor: BlockMathPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new BlockMathCommitPage(page);
-		await editor.gotoSeed();
+		editor = new BlockMathPage(page);
+		await editor.gotoMathSeed('mathblock');
 	});
 
 	test('editing past the fence re-splits into math + paragraph on blur — no stuck error', async ({

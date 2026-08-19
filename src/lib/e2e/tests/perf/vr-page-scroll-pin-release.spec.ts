@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
-import { gotoPageScroll } from './vr-helpers';
+import { gotoPageScroll, settleFrames, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // A reveal pin is released by the next user-intent gesture. Under `scrollMode="host"` the
@@ -36,9 +36,7 @@ test('a wheel outside the editor releases the reveal pin and the page scrolls', 
 	await gotoPageScroll(page);
 
 	// Windowing must be active, or nothing re-asserts the pin and the test proves nothing.
-	expect(await page.evaluate(() => document.querySelectorAll('.vr-spacer').length)).toBeGreaterThan(
-		0
-	);
+	expect(await spacerCount(page)).toBeGreaterThan(0);
 
 	// Default opts: 'nearest' HOLDS the pin by contract, which is the state under test.
 	expect(await page.evaluate((i) => (window as any).__test.rects.scrollTo([i]), TARGET_BLOCK)).toBe(
@@ -55,9 +53,7 @@ test('a wheel outside the editor releases the reveal pin and the page scrolls', 
 	// And it must STAY moved: the pin snapping the reader back is the filed failure, and it
 	// lands on the next measure pass rather than immediately.
 	const moved = await scrollY(page);
-	await page.evaluate(
-		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-	);
+	await settleFrames(page);
 	await page.mouse.wheel(0, 600);
 	await page.waitForFunction((from) => window.scrollY > from, moved, { timeout: 5000 });
 
@@ -77,9 +73,7 @@ test('the reveal pin holds when no gesture follows it', async ({ page }) => {
 	const pinned = await scrollY(page);
 
 	for (let i = 0; i < 5; i++) {
-		await page.evaluate(
-			() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-		);
+		await settleFrames(page);
 	}
 
 	expect(Math.abs((await scrollY(page)) - pinned)).toBeLessThan(4);

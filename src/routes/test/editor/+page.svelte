@@ -9,6 +9,10 @@
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
+	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
+	const param = (name: string): string | null =>
+		typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(name);
+
 	let source = $state(HARNESS_SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	// $state so the {#key} remount on toggle re-points the test probes and debug
@@ -17,10 +21,7 @@
 
 	// `?dragHandles=false` starts with the hover drag handle disabled. blockDragHandles is
 	// set-once-at-mount, so the header checkbox remounts via {#key}, carrying the content across.
-	let dragHandlesOn = $state(
-		typeof window === 'undefined' ||
-			new URLSearchParams(window.location.search).get('dragHandles') !== 'false'
-	);
+	let dragHandlesOn = $state(param('dragHandles') !== 'false');
 
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();
@@ -29,31 +30,21 @@
 
 	// The prop is set-once at mount, so the opt-in is a URL param and the per-image response
 	// is swapped behind this stable function. Off by default — that is the no-hook arm.
-	const onPasteImage =
-		typeof window !== 'undefined' &&
-		new URLSearchParams(window.location.search).get('imagePaste') === 'on'
-			? harnessPasteImage
-			: undefined;
+	const onPasteImage = param('imagePaste') === 'on' ? harnessPasteImage : undefined;
 
 	// `?header=on` mounts a host header inside the editor's scroll container, off by default
 	// because a preamble shifts the block geometry specs across the suite measure. Its toggle
 	// sits OUTSIDE that container, so clicking it cannot scroll the position under test.
-	const headerOn =
-		typeof window !== 'undefined' &&
-		new URLSearchParams(window.location.search).get('header') === 'on';
+	const headerOn = param('header') === 'on';
 	let headerTall = $state(false);
 
 	// `?paddedList=on` reproduces the documented host layout that pads the block list itself, so
 	// the visible side gutter reports the LIST as the click target rather than the editor root.
-	const paddedListOn =
-		typeof window !== 'undefined' &&
-		new URLSearchParams(window.location.search).get('paddedList') === 'on';
+	const paddedListOn = param('paddedList') === 'on';
 
 	// `?searchAnchor=on` mounts a fixed pane OUTSIDE `.aragonite-editor-theme` as the find/replace
 	// bar's home. Off by default: it would overlay geometry the rest of the suite measures.
-	const searchAnchorOn =
-		typeof window !== 'undefined' &&
-		new URLSearchParams(window.location.search).get('searchAnchor') === 'on';
+	const searchAnchorOn = param('searchAnchor') === 'on';
 	let searchAnchorEl = $state<HTMLElement>();
 	let anchorAttached = $state(true);
 	let editorTheme = $state('dark');
@@ -62,11 +53,7 @@
 	// toggles need no remount (unlike blockDragHandles).
 	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline', 'live'];
 	let presentationMode = $state<PresentationMode>(
-		(typeof window !== 'undefined' &&
-			(PARAM_MODES.find(
-				(m) => m === new URLSearchParams(window.location.search).get('presentationMode')
-			) as PresentationMode | undefined)) ||
-			'source'
+		PARAM_MODES.find((m) => m === param('presentationMode')) ?? 'source'
 	);
 
 	// The testids are pinned by the presentation e2e.

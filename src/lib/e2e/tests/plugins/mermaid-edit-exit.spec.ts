@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, activeBlockPath } from './helpers';
+import { activeBlockPath } from './helpers';
+import { MermaidPage } from './mermaid-helpers';
 
 /**
  * Boundary arrow exits out of the diagram's edit box (requirements/plugins/mermaid-edit-exit.md).
@@ -10,15 +11,7 @@ import { PluginsPage, activeBlockPath } from './helpers';
 const ONE_DIAGRAM = 'Above\n\n```mermaid\ngraph TD\n```\n\ntail\n';
 const EDITED_CODE = 'graph LR\nX --> Y';
 
-class EditExitPage extends PluginsPage {
-	get block() {
-		return this.page.locator('.mermaid-block');
-	}
-
-	get textarea() {
-		return this.page.getByTestId('mermaid-source');
-	}
-
+class EditExitPage extends MermaidPage {
 	/** Open the box and replace its whole code, leaving the caret at the end of the draft. */
 	async editDiagram(code: string): Promise<void> {
 		await this.block.hover();

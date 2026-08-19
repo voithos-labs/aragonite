@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { editorScrollHeight, progressiveScrollTo } from './vr-helpers';
+import { editorScrollHeight, progressiveScrollTo, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // Measured heights must survive a structural rebuild. List items and table rows aren't
@@ -38,9 +38,7 @@ test('structural edit in a windowed non-uniform list keeps the viewport stable',
 		) + '\n';
 	await editor.loadContent(md);
 
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.list-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.list-block >')).toBeGreaterThan(0);
 	const itemCount = await childCount(editor);
 
 	// Progressive, not a direct jump: list items reach the model only while mounted, so
@@ -105,9 +103,7 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 		).join('\n') + '\n';
 	await editor.loadContent(header + body);
 
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 	const rowCount = await childCount(editor);
 
 	await progressiveScrollTo(editor, Math.round((await editorScrollHeight(page)) / 2));

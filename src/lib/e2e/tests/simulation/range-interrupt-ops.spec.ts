@@ -3,11 +3,11 @@ import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { assertCoreOracles } from '../../simulation/invariants';
 import type { RangeInterruptGesture } from '../../simulation/gestures/range-interrupt';
+import { makeSimContext } from './helpers';
 
 // Deterministic reachability for the select-all → gesture → keystroke family: every gesture
 // fires once over a document shaped to reach it, so coverage never depends on which seed drew
@@ -131,8 +131,7 @@ async function runProbe(
 	if (probe.ready) await page.locator(probe.ready).first().waitFor({ state: 'visible' });
 	await editor.waitForRenderFlush();
 
-	const tracker = new ExpectationTracker(await editor.bridge.getSource());
-	const ctx: SimContext = { page, editor, tracker, errors, label: gesture };
+	const ctx = await makeSimContext(page, editor, gesture, { errors });
 	const g = new Gestures(ctx, makeRng(1));
 
 	await assertCoreOracles(ctx, `${gesture}: loaded`);

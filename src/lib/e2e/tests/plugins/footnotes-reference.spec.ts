@@ -19,7 +19,6 @@ test.describe('plugin inline footnote references', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('footnotes-ref');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('renders each reference as a superscript numbered by first-reference order', async () => {

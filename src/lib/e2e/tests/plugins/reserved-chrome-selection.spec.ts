@@ -14,13 +14,12 @@ import {
  * selection machinery (the title carries a char offset, so none of the `kind === 'table'`
  * coordinate gates fire).
  */
-test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () => {
+test.describe('reserved child-0 chrome: selection parity', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('substrate: the title parses as a reserved child-0 callout-title leaf', async ({ page }) => {

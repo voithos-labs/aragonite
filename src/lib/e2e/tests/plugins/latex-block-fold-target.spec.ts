@@ -1,22 +1,14 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage } from './helpers';
+import { BlockMathPage } from './latex-reveal-helpers';
 
 // Requirements: e2e/requirements/plugins/latex-block-fold-target.md.
 
 const DOC = '$$\nold\n$$\n\ntail\n';
 
-class MathFoldPage extends PluginsPage {
+class MathFoldPage extends BlockMathPage {
 	async setup(source = DOC): Promise<void> {
 		await this.gotoPlugins('mathblock');
 		await this.loadContent(source);
-	}
-
-	get rendered() {
-		return this.page.locator('.math-block-render');
-	}
-
-	get source() {
-		return this.page.locator('.math-block-source');
 	}
 }
 
@@ -29,7 +21,7 @@ test.describe('a render-primary block folds onto the document it opened over', (
 	});
 
 	test('a revealed edit commits on blur as one undo entry', async ({ page }) => {
-		await editor.rendered.click();
+		await editor.render.click();
 		await expect(editor.source).toBeFocused();
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.typeSlowly('$$\nnew\n$$');
@@ -41,14 +33,14 @@ test.describe('a render-primary block folds onto the document it opened over', (
 	// The confirmed swallow: with the FOLDED view holding focus the block had no keydown door at
 	// all, so Mod+Z reached neither the leaf nor the editor root arm.
 	test('Mod+Z reaches the stack while the folded view holds focus', async ({ page }) => {
-		await editor.rendered.click();
+		await editor.render.click();
 		await expect(editor.source).toBeFocused();
 		await page.keyboard.press('ControlOrMeta+a');
 		await editor.typeSlowly('$$\nnew\n$$');
 		await editor.clickBlock(1);
 		await editor.bridge.waitForSourceEquals('$$\nnew\n$$\n\ntail\n');
 
-		await editor.rendered.focus();
+		await editor.render.focus();
 		await page.keyboard.press('ControlOrMeta+z');
 
 		await editor.bridge.waitForSourceEquals(DOC);

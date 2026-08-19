@@ -6,6 +6,7 @@ import {
 	cstBlockCount,
 	editorScrollHeight,
 	progressiveScrollTo,
+	spacerCount,
 	topVisibleHostTop
 } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
@@ -34,9 +35,7 @@ test('inserting a block above the fold holds the viewport via anchor remap (F4)'
 	// occupant and the numeric delta comes out accidentally correct.
 	await editor.loadContent(buildNonUniformBlockquoteDoc());
 	expect(await cstBlockCount(page)).toBe(1);
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
 	// Progressive: the reseed is only observable where measured heights around the anchor
 	// diverge from the reseed estimate.
@@ -99,9 +98,7 @@ test('a column does not shrink when its widest cell scrolls out of the window (F
 	await editor.loadContent(`${header}| ${wide} | y | z |\n${body}`);
 
 	// Without row windowing the wide cell never unmounts and the test is vacuous.
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 
 	// Any mounted row reports the shared track width; the wide row is in the initial window.
 	const firstCellWidth = () =>

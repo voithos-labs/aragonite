@@ -2,18 +2,13 @@ import { test, expect } from '../../fixtures';
 import { type Locator, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
-import { spacerCount } from './vr-helpers';
+import { gotoFlow, settleFrames, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // Host-scroll (flow) mode: several entries in one ancestor scroller, plus a pane that clips
 // rather than scrolls. The root spans the whole document here, so measuring or scrolling IT
 // would call an unreachable block visible and leave a drag stranded — every seam has to
 // resolve against whatever actually scrolls the editor — windowing included.
-
-async function gotoFlow(page: Page): Promise<void> {
-	await page.goto('/test/flow');
-	await page.waitForFunction(() => (window as any).__flow !== undefined, null, { timeout: 10_000 });
-}
 
 const entry = (page: Page, id: string): Locator => page.locator(`[data-testid="entry-${id}"]`);
 
@@ -25,12 +20,6 @@ const flowSource = (page: Page, id: string): Promise<string> =>
 
 const blockCount = (page: Page, id: string): Promise<number> =>
 	page.evaluate((i) => (window as any).__flow.blockCount(i) as number, id);
-
-function settleFrames(page: Page): Promise<void> {
-	return page.evaluate(
-		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-	);
-}
 
 async function scrollHostTo(page: Page, top: number): Promise<void> {
 	await page.evaluate((t) => {

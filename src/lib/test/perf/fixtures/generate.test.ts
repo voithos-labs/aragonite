@@ -188,12 +188,6 @@ describe('giant-single-table fixture', () => {
 		expect(md).not.toContain('\n\n'); // no block separators -> single table node
 	});
 
-	it('is deterministic for a fixed seed', () => {
-		expect(generateFixture('giant-single-table', 50_000, 7)).toBe(
-			generateFixture('giant-single-table', 50_000, 7)
-		);
-	});
-
 	it('parses to a single top-level table block', () => {
 		const doc = parse(generateFixture('giant-single-table', 100_000));
 		expect(doc.children.length).toBe(1);

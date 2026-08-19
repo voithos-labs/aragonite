@@ -15,7 +15,6 @@ test.describe('plugin container: <details> terminator escape on paste', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
 		await editor.gotoDetails();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('pasting a clipboard bearing </details> into the body keeps the container, escaped', async ({

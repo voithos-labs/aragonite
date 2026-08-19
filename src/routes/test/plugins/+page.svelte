@@ -71,66 +71,6 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const CALLOUT_SEED = ':::callout Title\nFirst\n:::\n';
-	const DETAILS_SEED = '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n';
-	const MATH_SEED = 'Before $x^2$ after\n\nNext\n';
-	// Two inline equations in ONE paragraph: a same-block click-away must fold the revealed
-	// source, and clicking the second widget while the first is revealed must switch.
-	const MATH_TWO_SEED = 'Sum $E=mc^2$ and $a^2+b^2=c^2$ tail\n\nNext\n';
-	// A second visual line column-aligns real text beneath the widget, giving the reveal
-	// hit-test both X and Y coverage.
-	const MATH_MULTILINE_SEED = '$x^2$ first line padding\nsecond visual line here\n\nNext\n';
-	// Paragraphs either side, so the block-math e2e can drive arrow nav in and out.
-	const MATH_BLOCK_SEED = 'Before\n\n$$x^2$$\n\nAfter\n';
-	// GitHub's third math form: a distinct `mathFence` kind that still renders through the
-	// shared BlockMath component.
-	const MATH_FENCE_SEED = 'Before\n\n```math\nx^2\n```\n\nAfter\n';
-	// Inline math inside a table cell: the cell render surface pools component widgets,
-	// so the mount id stays stable while typing.
-	const MATH_TABLE_SEED = '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n';
-	// A multi-line `aligned` fence: the render must survive internal `\n`s (A7), and
-	// the revealed source must stay a single text node so the offset walk is exact.
-	const MATH_BLOCK_MULTILINE_SEED =
-		'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n';
-	// A plain-mode `%%` memo leaf between two paragraphs — the editable-leaf surface.
-	const MEMO_SEED = 'Before\n\n%% memo text\n\nAfter\n';
-	// A deterministic block count, plus a root-level Enter split + undo for the
-	// attach-survives-a-structural-edit pin.
-	const DOC_STATS_SEED = 'First\n\nSecond\n';
-	// Both heading syntaxes above a top-level `[[toc]]`, with a trailing paragraph as a
-	// blur target; the toc dogfood reads its heading list off the `document` prop.
-	const TOC_SEED = '# Overview\n\n## Details\n\nAppendix\n========\n\n[[toc]]\n\nFooter\n';
-	// A `[[toc]]` nested inside a blockquote below the headings: the prop reaches a
-	// nested block only through editor context, so this pins the container render path.
-	const TOC_NESTED_SEED = '# Chapter One\n\n## Section A\n\n> [[toc]]\n\nAfter\n';
-	// 'cat' twice in block 0 and once in block 1; 'catalog' pins the whole-word scan.
-	const HLOCCUR_SEED =
-		'the cat sat on a mat and a cat ran\n\na cat sleeps\n\nthe catalog is here.\n';
-	// 'alpha' twice in the paragraph, once in a table body cell (highlights), once inside
-	// a fenced code block (skipped, a non-prose leaf).
-	const HLOCCUR_MEMO_SEED =
-		'alpha beta alpha\n\n| head | note |\n| --- | --- |\n| alpha | ok |\n\n```\nalpha in code\n```\n';
-	// Two plain paragraphs: the ghost island follows focus between them, and an
-	// Enter split provides the empty-paragraph caret-anchor case.
-	const GHOST_SEED = 'Hello world\n\nSecond paragraph\n';
-	// One `[>…<]` fold range mid-paragraph; the trailing paragraph is a blur target.
-	const FOLD_SEED = 'abc [>HIDDEN SECRET<] def\n\nplain text\n';
-	// A fold range inside a table cell — the islands-in-cells gap pin.
-	const FOLD_TABLE_SEED = '| a [>SECRET<] b | c |\n| --- | --- |\n| d | e |\n';
-	// Two headings among paragraphs for the badge predicate's positive and negative.
-	const BADGE_SEED = '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n';
-	// A footnote definition whose body is one editable paragraph — the container's
-	// edit/backspace/undo surface.
-	const FOOTNOTES_SEED = 'A note reference [^a] in prose.\n\n[^a]: The note body.\n';
-	// The references sit in block 1, so typing an EARLIER reference into block 0 renumbers
-	// block 1's widgets while block 1 is never edited — the renumber a pool key can't deliver.
-	const FOOTNOTES_REF_SEED =
-		'Intro line here.\n\nBody has [^a] and [^b] here.\n\n[^a]: First note.\n\n[^b]: Second note.\n';
-	// A `:smile:` mid-prose (block 0) plus a plain typing target (block 1).
-	const EMOJI_SEED = 'Mood :smile: today\n\nType here\n';
-	// The rung mints a built-in image; the explicit size makes one resize step visible in
-	// the bytes, with prose either side as blur and caret targets.
-	const WIKI_EMBED_SEED = 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n';
 	// The fenced `> [!NOTE]` is the convert affordance's negative — it must stay literal.
 	const ADMONITIONS_SEED = [
 		'# Admonitions',
@@ -191,35 +131,72 @@
 	// arrives via load data so server and client render the same document, once: the harness
 	// never re-navigates, and the probes then own `source`.
 	const SEEDS: Record<string, string> = {
-		details: DETAILS_SEED,
+		callout: ':::callout Title\nFirst\n:::\n',
+		details: '<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n',
 		admonitions: ADMONITIONS_SEED,
-		math: MATH_SEED,
-		'math-two': MATH_TWO_SEED,
-		'math-multiline': MATH_MULTILINE_SEED,
-		mathblock: MATH_BLOCK_SEED,
-		mathfence: MATH_FENCE_SEED,
-		'mathblock-multiline': MATH_BLOCK_MULTILINE_SEED,
-		mathtable: MATH_TABLE_SEED,
+		math: 'Before $x^2$ after\n\nNext\n',
+		// Two inline equations in ONE paragraph: a same-block click-away must fold the revealed
+		// source, and clicking the second widget while the first is revealed must switch.
+		'math-two': 'Sum $E=mc^2$ and $a^2+b^2=c^2$ tail\n\nNext\n',
+		// A second visual line column-aligns real text beneath the widget, giving the reveal
+		// hit-test both X and Y coverage.
+		'math-multiline': '$x^2$ first line padding\nsecond visual line here\n\nNext\n',
+		// Paragraphs either side, so the block-math e2e can drive arrow nav in and out.
+		mathblock: 'Before\n\n$$x^2$$\n\nAfter\n',
+		// GitHub's third math form: a distinct `mathFence` kind that still renders through the
+		// shared BlockMath component.
+		mathfence: 'Before\n\n```math\nx^2\n```\n\nAfter\n',
+		// A multi-line `aligned` fence: the render must survive internal `\n`s (A7), and
+		// the revealed source must stay a single text node so the offset walk is exact.
+		'mathblock-multiline':
+			'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n',
+		// Inline math inside a table cell: the cell render surface pools component widgets,
+		// so the mount id stays stable while typing.
+		mathtable: '| Formula | Note |\n| --- | --- |\n| $x^2$ | ok |\n\nAfter\n',
 		mermaid: MERMAID_SEED,
-		memo: MEMO_SEED,
-		docstats: DOC_STATS_SEED,
-		toc: TOC_SEED,
-		'toc-nested': TOC_NESTED_SEED,
-		hloccur: HLOCCUR_SEED,
-		'hloccur-memo': HLOCCUR_MEMO_SEED,
-		ghost: GHOST_SEED,
-		fold: FOLD_SEED,
-		'fold-table': FOLD_TABLE_SEED,
-		badge: BADGE_SEED,
-		footnotes: FOOTNOTES_SEED,
-		'footnotes-ref': FOOTNOTES_REF_SEED,
-		emoji: EMOJI_SEED,
-		'wiki-embed': WIKI_EMBED_SEED
+		// A plain-mode `%%` memo leaf between two paragraphs — the editable-leaf surface.
+		memo: 'Before\n\n%% memo text\n\nAfter\n',
+		// A deterministic block count, plus a root-level Enter split + undo for the
+		// attach-survives-a-structural-edit pin.
+		docstats: 'First\n\nSecond\n',
+		// Both heading syntaxes above a top-level `[[toc]]`, with a trailing paragraph as a
+		// blur target; the toc dogfood reads its heading list off the `document` prop.
+		toc: '# Overview\n\n## Details\n\nAppendix\n========\n\n[[toc]]\n\nFooter\n',
+		// A `[[toc]]` nested inside a blockquote below the headings: the prop reaches a
+		// nested block only through editor context, so this pins the container render path.
+		'toc-nested': '# Chapter One\n\n## Section A\n\n> [[toc]]\n\nAfter\n',
+		// 'cat' twice in block 0 and once in block 1; 'catalog' pins the whole-word scan.
+		hloccur: 'the cat sat on a mat and a cat ran\n\na cat sleeps\n\nthe catalog is here.\n',
+		// 'alpha' twice in the paragraph, once in a table body cell (highlights), once inside
+		// a fenced code block (skipped, a non-prose leaf).
+		'hloccur-memo':
+			'alpha beta alpha\n\n| head | note |\n| --- | --- |\n| alpha | ok |\n\n```\nalpha in code\n```\n',
+		// Two plain paragraphs: the ghost island follows focus between them, and an
+		// Enter split provides the empty-paragraph caret-anchor case.
+		ghost: 'Hello world\n\nSecond paragraph\n',
+		// One `[>…<]` fold range mid-paragraph; the trailing paragraph is a blur target.
+		fold: 'abc [>HIDDEN SECRET<] def\n\nplain text\n',
+		// A fold range inside a table cell — the islands-in-cells gap pin.
+		'fold-table': '| a [>SECRET<] b | c |\n| --- | --- |\n| d | e |\n',
+		// Two headings among paragraphs for the badge predicate's positive and negative.
+		badge: '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n',
+		// A footnote definition whose body is one editable paragraph — the container's
+		// edit/backspace/undo surface.
+		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',
+		// The references sit in block 1, so typing an EARLIER reference into block 0 renumbers
+		// block 1's widgets while block 1 is never edited — the renumber a pool key can't deliver.
+		'footnotes-ref':
+			'Intro line here.\n\nBody has [^a] and [^b] here.\n\n[^a]: First note.\n\n[^b]: Second note.\n',
+		// A `:smile:` mid-prose (block 0) plus a plain typing target (block 1).
+		emoji: 'Mood :smile: today\n\nType here\n',
+		// The rung mints a built-in image; the explicit size makes one resize step visible in
+		// the bytes, with prose either side as blur and caret targets.
+		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n'
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];
 	// svelte-ignore state_referenced_locally
-	let source = $state(SEEDS[data.seed ?? ''] ?? CALLOUT_SEED);
+	let source = $state(SEEDS[data.seed ?? ''] ?? SEEDS.callout);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	let presentationMode = $state<PresentationMode>('source');
 	// Seeds whose batteries drive a real mode flip / theme flip through the header

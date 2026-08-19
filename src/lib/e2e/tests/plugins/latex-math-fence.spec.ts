@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable } from './helpers';
+import { roundTripStable } from './helpers';
+import { BlockMathPage } from './latex-reveal-helpers';
 
 /**
  * GitHub's third math form: a ```math fence parsed as the distinct `mathFence` kind, not
@@ -10,41 +11,12 @@ import { PluginsPage, roundTripStable } from './helpers';
  * `mathfence`: the fence block sits at index 1.
  */
 
-class MathFencePage extends PluginsPage {
-	get render() {
-		return this.page.locator('.math-block-render');
-	}
-
-	get source() {
-		return this.page.locator('.math-block-source');
-	}
-
-	get renderedKatex() {
-		return this.page.locator('.math-block-render .katex');
-	}
-
-	async sourceText(): Promise<string> {
-		return (await this.source.textContent()) ?? '';
-	}
-
-	/** Enter the fence from the paragraph above via a real ArrowRight, landing the caret
-	 *  at source offset 0 (no click mouseup competing for the caret). */
-	async revealFromBefore(): Promise<void> {
-		await this.getBlock(0).click();
-		await this.page.keyboard.press('End');
-		await this.page.keyboard.press('ArrowRight');
-		await expect(this.source).toHaveCount(1);
-		await this.waitForRenderFlush();
-	}
-}
-
 test.describe('plugin math fence: distinct kind, shared render', () => {
-	let editor: MathFencePage;
+	let editor: BlockMathPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new MathFencePage(page);
-		await editor.gotoPlugins('mathfence');
-		await expect(editor.render).toHaveCount(1);
+		editor = new BlockMathPage(page);
+		await editor.gotoMathSeed('mathfence');
 	});
 
 	test('renders the ```math fence through the shared BlockMath component as its own kind', async () => {

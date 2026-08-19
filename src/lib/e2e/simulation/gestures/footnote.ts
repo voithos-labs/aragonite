@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
+import { waitForNodeCount } from './node-count';
 
 // Footnote gestures (plugins route, `?seed=footnotes`), spanning two tiers: the `[^label]: `
 // strip-container definition and the `[^label]` inline reference widget. Each gates on the
@@ -245,12 +246,4 @@ async function containerAndRootCounts(
 		const doc = (window as any).__test.getDocument();
 		return { children: doc.children[i]?.children?.length ?? 0, root: doc.children.length };
 	}, defIndex);
-}
-
-async function waitForNodeCount(ctx: SimContext, selector: string, count: number): Promise<void> {
-	await ctx.page.waitForFunction(
-		({ sel, n }) => document.querySelectorAll(sel).length === n,
-		{ sel: selector, n: count },
-		{ timeout: 2000, polling: 16 }
-	);
 }

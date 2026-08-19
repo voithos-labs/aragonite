@@ -28,6 +28,6 @@ export async function lateCorrection(
 	g: Gestures,
 	targetBlockPath: number[]
 ): Promise<void> {
-	await g.clickToReposition(targetBlockPath, 0);
+	await g.clickToReposition(targetBlockPath);
 	await cancellingEditAtCaret(ctx);
 }

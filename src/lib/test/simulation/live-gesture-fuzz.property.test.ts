@@ -19,8 +19,8 @@ import '$lib/components/built-in-blocks';
 
 // The § 4 catalog's edge cases are a searchable space, and the simulation drives scripted flows
 // through it. This searches between them: a seeded stream of typing and destructive gestures at
-// hidden-edge positions, every one checked against § 2's license. The oracles and the three
-// violation categories live in `live-gesture-fuzz.ts`; this file owns the budget and the pins.
+// hidden-edge positions, every one checked against § 2's license. The oracles and the violation
+// categories live in `live-gesture-fuzz.ts`; this file owns the budget and the pins.
 
 // Miss-analysis for the defect this net landed with (the fence-minting cut, pinned in
 // `blocks/text/construct-edge-delete.test.ts`): every suite over that arm fed it a fixture and read

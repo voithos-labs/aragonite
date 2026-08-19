@@ -1,6 +1,6 @@
 import type { Gestures } from '../gestures';
 import { primaryModifier } from '../../platform';
-import { clickInlineWidget } from './math';
+import { clickInlineWidget, escapeRevealToCommit } from './math';
 import {
 	type SimContext,
 	assertParseConvergence,
@@ -139,7 +139,7 @@ export async function rangeInterrupt(
 	if (spec.consumes === 'reveal-escape' || spec.consumes === 'reveal-blur') {
 		await assertRevealEphemeral(ctx, gesture, before);
 		if (spec.consumes === 'reveal-blur') await commitRevealByBlur(ctx, before, landing);
-		else await commitRevealByEscape(ctx, before);
+		else await escapeRevealToCommit(ctx, before);
 	}
 	await settleTypedSource(ctx, predicted);
 
@@ -470,15 +470,6 @@ async function assertRevealEphemeral(
 				`EXPECTED (ephemeral): ${JSON.stringify(before)}\nACTUAL: ${JSON.stringify(now)}`
 		);
 	}
-}
-
-/** Walk the caret out of an inline reveal, which is what commits it. */
-async function commitRevealByEscape(ctx: SimContext, before: string): Promise<void> {
-	for (let i = 0; i < 40; i++) {
-		await ctx.page.keyboard.press('ArrowRight');
-		if ((await ctx.editor.bridge.getSource()) !== before) return;
-	}
-	throw new Error(`[${ctx.label}] the revealed source never committed on a caret escape`);
 }
 
 /** Click a sibling leaf, which is what commits a render-primary block's reveal. */

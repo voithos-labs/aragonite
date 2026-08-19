@@ -18,7 +18,6 @@ test.describe('block commands against a revealed inline source', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new MathRevealPage(page);
 		await editor.gotoPlugins('math');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('backspace-merging an emptied reveal does not resurrect the deleted math', async ({
@@ -163,7 +162,6 @@ test.describe('the fold seam is core, not latex-local', () => {
 	}) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('footnotes-ref');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 		await editor.loadContent('above\n\n[^a]\n\n[^a]: note\n');
 		const ref = page.locator('.footnote-ref');
 		await expect(ref).toHaveCount(1);
@@ -188,7 +186,6 @@ test.describe('the fold seam is core, not latex-local', () => {
 	}) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 		await editor.loadContent('above\n\n:abbr[HTML]\n');
 		const widget = page.locator('.directive-text-widget');
 		await expect(widget).toHaveCount(1);

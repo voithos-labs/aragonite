@@ -92,9 +92,7 @@ test('a deep jump into a giant blockquote holds the viewport via the nested scop
 	await editor.loadContent(buildNonUniformBlockquoteDoc());
 
 	expect(await cstBlockCount(page)).toBe(1);
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
 	const { target, estimate } = await jumpAndSettle(editor);
 	// Comma-path only: proves the visible content is the blockquote's windowed children,

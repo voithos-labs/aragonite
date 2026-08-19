@@ -11,7 +11,39 @@ export class PluginsPage extends EditorPage {
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
 			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
+		// Armed for every spec, not per-spec: capture is passive, and a `capturedErrors() === []`
+		// assertion against a capture nobody started passes vacuously.
+		await this.page.evaluate(() => (window as any).__test.startErrorCapture());
 	}
+
+	/** Settles on the ATTRIBUTE, not the call: an unapplied mode falls back to source, where
+	 *  most assertions pass anyway and the run reports green without ever entering the rung. */
+	async setPresentationMode(mode: string): Promise<void> {
+		await this.page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
+		if (mode === 'source') {
+			await expect(this.editorContainer).not.toHaveAttribute('data-presentation');
+			return;
+		}
+		await expect(this.editorContainer).toHaveAttribute('data-presentation', mode);
+	}
+}
+
+export interface Point {
+	x: number;
+	y: number;
+}
+
+/** One HELD drag between two measured points. Interpolated rather than jumped: the editor's
+ *  drag seams read pointermove, and a single hop past them lands as a click. */
+export async function dragBetweenPoints(page: Page, from: Point, to: Point): Promise<void> {
+	const steps = 10;
+	await page.mouse.move(from.x, from.y);
+	await page.mouse.down();
+	for (let i = 1; i <= steps; i++) {
+		const t = i / steps;
+		await page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+	}
+	await page.mouse.up();
 }
 
 export async function roundTripStable(page: Page): Promise<boolean> {
@@ -25,6 +57,28 @@ export async function activeBlockPath(page: Page): Promise<number[] | null> {
 		const attr = el?.getAttribute('data-block-path');
 		return attr ? (JSON.parse(attr) as number[]) : null;
 	});
+}
+
+// A `[[toc]]` entry by its visible label. The list lives in the top-level toc block.
+export function tocEntry(page: Page, label: string): Locator {
+	return page.locator("[data-block-path='[0]'] .toc-block-item").filter({ hasText: label });
+}
+
+// In-view = the block's box intersects the editor viewport, measured independently of
+// `scrollTo`'s own report so the assertion isn't tautological.
+export function blockView(
+	page: Page,
+	path: number[]
+): Promise<{ mounted: boolean; inView: boolean }> {
+	return page.evaluate((p) => {
+		const er = (document.querySelector('.editor') as HTMLElement).getBoundingClientRect();
+		const block = document.querySelector(
+			`[data-block-path='${JSON.stringify(p)}']`
+		) as HTMLElement | null;
+		if (!block) return { mounted: false, inView: false };
+		const br = block.getBoundingClientRect();
+		return { mounted: true, inView: br.top < er.bottom && br.bottom > er.top };
+	}, path);
 }
 
 export async function capturedErrors(page: Page): Promise<string[]> {
@@ -66,20 +120,28 @@ export interface ContainerState {
 	raw: string;
 }
 
+// Serialized into the page by both the read and the wait, so it must stay CLOSURE-FREE:
+// `toString()` carries the body across, not the scope it was written in.
+function containerStateInPage(index: number): ContainerState {
+	const doc = (window as any).__test.getDocument();
+	const node = doc.children[index];
+	return {
+		rootCount: doc.children.length,
+		kind: node?.kind ?? '',
+		childCount: node?.children?.length ?? 0,
+		childKinds: (node?.children ?? []).map((c: { kind?: string }) => c.kind ?? ''),
+		childTexts: (node?.children ?? []).map((c: { raw?: string }) =>
+			(c.raw ?? '').replace(/\n+$/, '')
+		),
+		raw: node?.raw ?? ''
+	};
+}
+
 export async function readContainer(page: Page, index = 0): Promise<ContainerState> {
-	return page.evaluate((i) => {
-		const node = (window as any).__test.getDocument().children[i];
-		return {
-			rootCount: (window as any).__test.getDocument().children.length,
-			kind: node?.kind ?? '',
-			childCount: node?.children?.length ?? 0,
-			childKinds: (node?.children ?? []).map((c: { kind?: string }) => c.kind ?? ''),
-			childTexts: (node?.children ?? []).map((c: { raw?: string }) =>
-				(c.raw ?? '').replace(/\n+$/, '')
-			),
-			raw: node?.raw ?? ''
-		};
-	}, index);
+	return page.evaluate(
+		({ i, src }) => new Function('i', `return (${src})(i);`)(i) as ContainerState,
+		{ i: index, src: containerStateInPage.toString() }
+	);
 }
 
 export async function waitForContainer(
@@ -89,21 +151,8 @@ export async function waitForContainer(
 	timeout = 2000
 ): Promise<ContainerState> {
 	await page.waitForFunction(
-		({ i, predSrc }) => {
-			const node = (window as any).__test.getDocument().children[i];
-			const state = {
-				rootCount: (window as any).__test.getDocument().children.length,
-				kind: node?.kind ?? '',
-				childCount: node?.children?.length ?? 0,
-				childKinds: (node?.children ?? []).map((c: { kind?: string }) => c.kind ?? ''),
-				childTexts: (node?.children ?? []).map((c: { raw?: string }) =>
-					(c.raw ?? '').replace(/\n+$/, '')
-				),
-				raw: node?.raw ?? ''
-			};
-			return new Function('s', `return (${predSrc})(s);`)(state);
-		},
-		{ i: index, predSrc: predicate.toString() },
+		({ i, src, predSrc }) => new Function('i', `return (${predSrc})((${src})(i));`)(i) as boolean,
+		{ i: index, src: containerStateInPage.toString(), predSrc: predicate.toString() },
 		{ timeout, polling: 16 }
 	);
 	return readContainer(page, index);
@@ -118,18 +167,24 @@ export interface DocState {
 	texts: string[];
 }
 
+// Closure-free for the same reason as `containerStateInPage`.
+function docStateInPage(): DocState {
+	const children = (window as any).__test.getDocument().children as {
+		kind: string;
+		raw?: string;
+	}[];
+	return {
+		rootCount: children.length,
+		kinds: children.map((c) => c.kind),
+		texts: children.map((c) => (c.raw ?? '').replace(/\n+$/, ''))
+	};
+}
+
 export async function readDoc(page: Page): Promise<DocState> {
-	return page.evaluate(() => {
-		const children = (window as any).__test.getDocument().children as {
-			kind: string;
-			raw?: string;
-		}[];
-		return {
-			rootCount: children.length,
-			kinds: children.map((c) => c.kind),
-			texts: children.map((c) => (c.raw ?? '').replace(/\n+$/, ''))
-		};
-	});
+	return page.evaluate(
+		(src) => new Function(`return (${src})();`)() as DocState,
+		docStateInPage.toString()
+	);
 }
 
 export async function waitForDoc(
@@ -138,19 +193,8 @@ export async function waitForDoc(
 	timeout = 2000
 ): Promise<DocState> {
 	await page.waitForFunction(
-		(predSrc) => {
-			const children = (window as any).__test.getDocument().children as {
-				kind: string;
-				raw?: string;
-			}[];
-			const state = {
-				rootCount: children.length,
-				kinds: children.map((c) => c.kind),
-				texts: children.map((c) => (c.raw ?? '').replace(/\n+$/, ''))
-			};
-			return new Function('s', `return (${predSrc})(s);`)(state);
-		},
-		predicate.toString(),
+		({ src, predSrc }) => new Function(`return (${predSrc})((${src})());`)() as boolean,
+		{ src: docStateInPage.toString(), predSrc: predicate.toString() },
 		{ timeout, polling: 16 }
 	);
 	return readDoc(page);

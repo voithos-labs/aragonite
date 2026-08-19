@@ -22,7 +22,7 @@ async function waitForWidgetCount(page: Page, expected: number, timeout = 2000):
  * Walking the caret out is what commits a reveal. Enter is the block's split key, not a
  * commit gesture (see `latex-inline-reveal-commands`), so every reveal→edit gesture escapes.
  */
-async function escapeRevealToCommit(ctx: SimContext, before: string): Promise<void> {
+export async function escapeRevealToCommit(ctx: SimContext, before: string): Promise<void> {
 	for (let i = 0; i < 40; i++) {
 		await ctx.page.keyboard.press('ArrowRight');
 		if ((await ctx.editor.bridge.getSource()) !== before) return;
