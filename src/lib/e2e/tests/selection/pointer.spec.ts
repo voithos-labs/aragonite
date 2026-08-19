@@ -23,8 +23,9 @@ test.describe('selection — pointer: happy paths', () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.dragFromTo([0], 0, [2], 3);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		const middleOverlay = await editor.page.$("[data-block-path='[1]'] .selection-overlay-middle");
-		expect(middleOverlay).not.toBeNull();
+		await expect(
+			editor.page.locator("[data-block-path='[1]'] .selection-overlay-middle").first()
+		).toBeAttached();
 	});
 
 	test('shift+click in a different block enters cross-block mode', async () => {
@@ -79,8 +80,9 @@ test.describe('selection — pointer: edge cases', () => {
 		await editor.dragFromToThenTo([0], 2, [2], 5, [0], 6);
 		await editor.waitForCrossBlock(false);
 
-		const middleOverlay = await editor.page.$("[data-block-path='[1]'] .selection-overlay-middle");
-		expect(middleOverlay).toBeNull();
+		await expect(
+			editor.page.locator("[data-block-path='[1]'] .selection-overlay-middle")
+		).toHaveCount(0);
 
 		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
 		expect(selectedText).not.toContain('beta');

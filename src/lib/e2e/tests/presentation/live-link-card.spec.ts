@@ -1,18 +1,13 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
-import {
-	centerOfWord,
-	clickWordSettled,
-	enterPresentationMode,
-	extendTo,
-	landAt,
-	trailingEdgeOfWord
-} from './helpers';
+import { centerOfWord, enterPresentationMode, landAt, trailingEdgeOfWord } from './helpers';
+import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
 
-// The anchored chrome that replaces the destination live mode hides.
+// The anchored chrome that replaces the destination live mode hides. The chord's create half
+// rides `live-link-card-create.spec.ts`, its consumption contract `live-link-card-chord.spec.ts`.
 // Requirements: e2e/requirements/presentation/live-link-card.md.
 
 const DOC = [
@@ -27,21 +22,6 @@ const DOC = [
 	'[ref]: https://example.com/docs'
 ].join('\n');
 
-const CARD = '[data-link-card]';
-const URL_FIELD = `${CARD} input`;
-
-/** A real click on the rendered link text — the only gesture that opens the card. */
-async function clickLink(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
-	await page.mouse.click(point.x, point.y);
-	await ep.waitForRenderFlush();
-}
-
-async function openCardOn(ep: EditorPage, page: Page, word: string): Promise<void> {
-	await clickLink(ep, page, word);
-	await expect(page.locator(CARD)).toBeVisible();
-}
-
 /** Walk the caret to the start of an EARLIER block with arrows alone: a click there would dismiss
  *  the card before the edit could land. */
 async function stepToBlockStart(ep: EditorPage, page: Page, index: number): Promise<void> {
@@ -55,14 +35,6 @@ async function stepToBlockStart(ep: EditorPage, page: Page, index: number): Prom
 		await ep.waitForRenderFlush();
 	}
 	throw new Error(`stepToBlockStart: never reached block ${index}`);
-}
-
-/** Step into the card's field the way a user does — the caret stays in the document until then. */
-async function editUrl(page: Page, url: string): Promise<void> {
-	await page.locator(URL_FIELD).click();
-	await expect(page.locator(URL_FIELD)).toBeFocused();
-	await page.keyboard.press('ControlOrMeta+a');
-	await page.keyboard.type(url);
 }
 
 test.describe('live-mode link card', () => {
@@ -381,227 +353,5 @@ test.describe('live-mode link card', () => {
 		await expect(page.locator(URL_FIELD)).toBeFocused();
 		await page.keyboard.press('Shift+Tab');
 		await expect(page.getByRole('button', { name: 'Remove link' })).toBeFocused();
-	});
-});
-
-// ── The chord's create half (#119) ──────────────────────────────────────────
-
-const CREATE_DOC = [
-	'Alpha bravo charlie',
-	'',
-	'Visit [example](https://example.com) now',
-	'',
-	'| alpha | beta |',
-	'| --- | --- |',
-	'| plain cell | word |'
-].join('\n');
-
-/** Shift-extend `count` glyphs right — a real selection gesture, the create target's shape. */
-async function selectRight(ep: EditorPage, page: Page, count: number): Promise<void> {
-	for (let i = 0; i < count; i++) {
-		await page.keyboard.press('Shift+ArrowRight');
-	}
-	await ep.waitForRenderFlush();
-}
-
-/** Land at raw offset 6 of block 0 and select `bravo` — the create rows' shared range. */
-async function selectBravo(ep: EditorPage, page: Page): Promise<void> {
-	await clickWordSettled(ep, page, 'Alpha');
-	await landAt(ep, page, 6);
-	await selectRight(ep, page, 5);
-}
-
-test.describe('live-mode link card — the create half of Mod+K', () => {
-	let ep: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		ep = await enterPresentationMode(page, 'live', CREATE_DOC);
-	});
-
-	test('the chord over a selected word opens an empty card; Enter mints ONE undo entry', async ({
-		page
-	}) => {
-		await selectBravo(ep, page);
-		const before = await ep.bridge.getSource();
-
-		await page.keyboard.press('ControlOrMeta+k');
-
-		// Entered, empty, and the document untouched: the construct is minted only on commit.
-		await expect(page.locator(CARD)).toBeVisible();
-		await expect(page.locator(URL_FIELD)).toBeFocused();
-		await expect(page.locator(URL_FIELD)).toHaveValue('');
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-
-		await page.keyboard.type('https://new.test/b');
-		await page.keyboard.press('Enter');
-
-		await ep.bridge.waitForSourceContains('Alpha [bravo](https://new.test/b) charlie');
-		await expect(page.locator(CARD)).toHaveCount(0);
-		// The card-commit caret rule: the construct's own start.
-		await expect
-			.poll(async () => (await ep.bridge.getSelectionPaths())?.focus)
-			.toEqual({ path: [0], offset: 6 });
-
-		await ep.undo();
-		await ep.bridge.waitForSourceEquals(before, 3000);
-	});
-
-	test('Escape leaves the document byte-identical and the selection live', async ({ page }) => {
-		await selectBravo(ep, page);
-		const before = await ep.bridge.getSource();
-
-		await page.keyboard.press('ControlOrMeta+k');
-		await expect(page.locator(URL_FIELD)).toBeFocused();
-		await page.keyboard.type('https://never.test');
-
-		await page.keyboard.press('Escape');
-
-		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-		// The range rides the caret-restore slot while the card borrows focus; Escape re-arms it.
-		await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('bravo');
-		expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
-	});
-
-	test('a selection crossing a link declines create: no card, not a byte', async ({ page }) => {
-		await clickWordSettled(ep, page, 'Visit');
-		await landAt(ep, page, 2);
-		const before = await ep.bridge.getSource();
-		// Extend until the focus sits inside the link text — raw 10 of block 1 is in `example`.
-		await extendTo(ep, page, 'ArrowRight', [1], 10);
-
-		await page.keyboard.press('ControlOrMeta+k');
-		await ep.waitForRenderFlush();
-
-		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-	});
-
-	// Three guards deep by design, and this is the user-visible outcome all three owe: the
-	// cross-block keydown swallows Mod+K, the dispatch seam declines `link.openCard` over a range,
-	// and the card's own create door refuses. The unit pins say which one answered.
-	test('a selection spanning two blocks declines create: no card, not a byte', async ({ page }) => {
-		await clickWordSettled(ep, page, 'Alpha');
-		await landAt(ep, page, 6);
-		const before = await ep.bridge.getSource();
-		// Extend by real presses until the range leaves block 0 — the byte the focus stops on is
-		// the walk's business, and this case is about the range spanning blocks at all.
-		for (let i = 0; i < 30 && !(await ep.bridge.isCrossBlockActive()); i++) {
-			await page.keyboard.press('Shift+ArrowRight');
-			await ep.waitForRenderFlush();
-		}
-		expect(await ep.bridge.isCrossBlockActive()).toBe(true);
-
-		await page.keyboard.press('ControlOrMeta+k');
-		await ep.waitForRenderFlush();
-
-		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-	});
-
-	test('a selection inside a table cell declines create', async ({ page }) => {
-		await clickWordSettled(ep, page, 'plain');
-		await selectRight(ep, page, 3);
-		expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
-		const before = await ep.bridge.getSource();
-
-		await page.keyboard.press('ControlOrMeta+k');
-		await ep.waitForRenderFlush();
-
-		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-	});
-});
-
-// ── The chord's consumption contract ────────────────────────────────────────
-
-const CHORD_DOC = [
-	'Visit [example](https://example.com) now',
-	'',
-	'plain words here',
-	'',
-	'```',
-	'fenced',
-	'```'
-].join('\n');
-
-/**
- * `defaultPrevented` read at a document BUBBLE listener, where every editor handler has already
- * run: `false` means the press reached the browser's own Mod+K defaults — Chrome's omnibox, and
- * on macOS the contenteditable kill-to-end-of-line the `Mod` fold routes here — on a chord
- * `reservedChords()` reports as consumed.
- */
-async function modKConsumed(ep: EditorPage, page: Page): Promise<boolean | null> {
-	await page.evaluate(() => {
-		const probe = window as Window & { __modK?: { consumed: boolean | null } };
-		if (!probe.__modK) {
-			const slot: { consumed: boolean | null } = { consumed: null };
-			probe.__modK = slot;
-			document.addEventListener('keydown', (e) => {
-				if (e.key === 'k' || e.key === 'K') slot.consumed = e.defaultPrevented;
-			});
-		}
-		probe.__modK.consumed = null;
-	});
-	await page.keyboard.press('ControlOrMeta+k');
-	await ep.waitForRenderFlush();
-	return page.evaluate(
-		() => (window as Window & { __modK?: { consumed: boolean | null } }).__modK?.consumed ?? null
-	);
-}
-
-test.describe('live-mode link card — Mod+K is consumed wherever it is bound', () => {
-	test('a caret outside every link consumes the press and opens no card', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', CHORD_DOC);
-		await ep.clickBlock(1);
-		const before = await ep.bridge.getSource();
-
-		expect(await modKConsumed(ep, page)).toBe(true);
-
-		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-	});
-
-	// The same caret that ENTERS the card in live mode: source paints the destination already, so
-	// the chord has nothing to do here — which is not the same as handing the key back.
-	test('source mode consumes the press with the caret inside a link', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'source', CHORD_DOC);
-		await clickWordSettled(ep, page, 'example');
-		const before = await ep.bridge.getSource();
-
-		expect(await modKConsumed(ep, page)).toBe(true);
-
-		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-	});
-
-	test('a fenced code block consumes the press', async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', CHORD_DOC);
-		await ep.clickBlock(2);
-		const before = await ep.bridge.getSource();
-
-		expect(await modKConsumed(ep, page)).toBe(true);
-
-		await ep.waitForNoSourceMutation();
-		expect(await ep.bridge.getSource()).toBe(before);
-	});
-
-	test("the open card's own URL field consumes the press", async ({ page }) => {
-		const ep = await enterPresentationMode(page, 'live', CHORD_DOC);
-		await openCardOn(ep, page, 'example');
-		await page.locator(URL_FIELD).click();
-		await expect(page.locator(URL_FIELD)).toBeFocused();
-
-		expect(await modKConsumed(ep, page)).toBe(true);
-
-		await expect(page.locator(CARD)).toBeVisible();
-		await expect(page.locator(URL_FIELD)).toBeFocused();
 	});
 });

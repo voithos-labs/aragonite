@@ -1,15 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { CLOSER_BOUNDARY, LAST_CELL, WINDOWED } from './gap-caret-fixtures';
 
 // Arrival at boundaries the root's own flat slice does not answer: inside a container, and
 // at the seam a render window cuts (requirements/selection/gap-caret-arrival-scopes.md).
 // Root arrival and the exit keys are gap-caret-arrival.spec.ts.
-
-const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
-const FENCE = '```\ncode\n```\n';
-const LAST_CELL = 3;
-// End of the fence body, the offset whose forward Delete crosses the closer.
-const CLOSER_BOUNDARY = 8;
 
 // A nested boundary is addressed in its CONTAINER's index space. A stop computed against
 // the root would name a boundary one scope too high, and the discriminator is where the
@@ -46,10 +41,6 @@ test.describe('gap caret arrival inside a container', () => {
 // The unit harness cannot see a windowing flush, so the only proof that the gap renders
 // inside a live slice is a document long enough to window.
 test.describe('gap caret under virtual rendering', () => {
-	const filler = (count: number, from: number) =>
-		Array.from({ length: count }, (_, i) => `para ${from + i}\n`).join('\n');
-	const WINDOWED = `${filler(100, 0)}\n${TABLE}\n${FENCE}\n${filler(100, 100)}`;
-
 	test('a mid-document boundary parks the caret once revealed', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto();

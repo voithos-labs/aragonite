@@ -15,7 +15,6 @@ test.describe('blockquote editing', () => {
 		await bq.click();
 		await editor.typeText(' again');
 		await editor.bridge.waitForSourceMatches(/^> .*Hello world again/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> .*Hello world again/m);
 	});
 
 	test('blockquote source round-trips after editing', async () => {
@@ -26,7 +25,6 @@ test.describe('blockquote editing', () => {
 		await editor.bridge.waitForSourceContains('First line appended');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> ');
-		expect(source).toContain('First line appended');
 		expect(source).toContain('Second line');
 	});
 
@@ -37,9 +35,7 @@ test.describe('blockquote editing', () => {
 		await editables.nth(1).click();
 		await editor.typeText(' plus');
 		await editor.bridge.waitForSourceContains('Para two plus');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Para two plus');
-		expect(source).toMatch(/^> /m);
+		expect(await editor.bridge.getSource()).toMatch(/^> /m);
 	});
 
 	test('blockquote exit via double-Enter keeps caret visible', async () => {
@@ -54,6 +50,5 @@ test.describe('blockquote editing', () => {
 		await editor.bridge.waitForSourceMatches(/> Line two\.\n\n/);
 		await editor.typeText('After quote');
 		await editor.bridge.waitForSourceContains('After quote');
-		expect(await editor.bridge.getSource()).toContain('After quote');
 	});
 });

@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { centerOfWord, enterPresentationMode } from './helpers';
 import { PluginsPage } from '../plugins/helpers';
 
 // Live mode: reading's marker-hiding CSS families over an editable surface, and no
@@ -40,15 +40,7 @@ const DIRECTIVE_DOC = ':::foo\nBody with **bold** here.\n:::\n';
 
 const AMBIENT_MARKER = ".md-marker[contenteditable='false']";
 
-// The attribute check is load-bearing, not ceremony: an unwhitelisted query param falls back
-// to source, where the editability scenarios below would pass without live existing at all.
-async function enterLive(page: Page): Promise<EditorPage> {
-	const ep = new EditorPage(page);
-	await ep.goto('?presentationMode=live');
-	await ep.loadContent(DOC);
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
-	return ep;
-}
+const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 test.describe('live mode — markers never reveal', () => {
 	let ep: EditorPage;

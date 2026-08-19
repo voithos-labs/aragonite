@@ -17,9 +17,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSource((s) => !s.includes('> '));
 
-		const source = await editor.bridge.getSource();
-		expect(source).not.toContain('> ');
-		expect(source).toContain('Hello world');
+		expect(await editor.bridge.getSource()).toContain('Hello world');
 	});
 
 	test('multi-paragraph blockquote: Backspace at start lifts only the first paragraph', async () => {
@@ -30,9 +28,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/^First/m);
 
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^First/m);
-		expect(source).toMatch(/^> Second/m);
+		expect(await editor.bridge.getSource()).toMatch(/^> Second/m);
 	});
 
 	test('nested blockquote: Backspace inside inner lifts content one level', async () => {
@@ -44,10 +40,6 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSource((s) => s.includes('> Deep') && !s.includes('> > '));
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('> Deep');
-		expect(source).not.toContain('> > ');
 	});
 
 	test('blockquote preceded by paragraph: no auto-merge', async () => {
@@ -58,11 +50,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/Above paragraph\.\n\s*\nHello/);
 
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Above paragraph.');
-		expect(source).toContain('Hello');
-		expect(source).not.toContain('Above paragraph.Hello');
-		expect(source).toMatch(/Above paragraph\.\n\s*\nHello/);
+		expect(await editor.bridge.getSource()).not.toContain('Above paragraph.Hello');
 	});
 
 	test('blockquote containing a list: Backspace at start of list item unwraps inside blockquote', async () => {
@@ -73,9 +61,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('> Item');
 
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('> Item');
-		expect(source).not.toContain('- Item');
+		expect(await editor.bridge.getSource()).not.toContain('- Item');
 	});
 
 	test('Backspace at non-zero offset inside blockquote does character delete, not unwrap (U2 negative)', async () => {
@@ -85,8 +71,7 @@ test.describe('blockquote unwrap on Backspace (Rule U2)', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/^> Hello worl$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^> Hello worl$/m);
-		expect(source).not.toMatch(/^Hello/m);
+
+		expect(await editor.bridge.getSource()).not.toMatch(/^Hello/m);
 	});
 });

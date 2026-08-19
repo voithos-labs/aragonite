@@ -10,28 +10,15 @@ const PIXEL_TOLERANCE = 2;
 const PARAGRAPH_TEXT = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const CURSOR_COL = 20;
 
-async function captureEntryFromAbove(editor: EditorPage, codeBlockIndex: number) {
-	const above = editor.page.locator('[contenteditable="true"]').nth(codeBlockIndex - 1);
-	await above.click();
+/** Enter the code block from the neighbour `from`, capturing the column on both sides of the move. */
+async function captureEntry(editor: EditorPage, codeBlockIndex: number, from: 'above' | 'below') {
+	const neighbour = from === 'above' ? codeBlockIndex - 1 : codeBlockIndex + 1;
+	await editor.page.locator('[contenteditable="true"]').nth(neighbour).click();
 	await editor.page.keyboard.press('Home');
 	for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
 	const sourceX = await editor.getCaretPixelX();
 
-	await editor.page.keyboard.press('ArrowDown');
-	await editor.waitForRenderFlush();
-
-	const landingX = await editor.getCaretPixelX();
-	return { sourceX, landingX };
-}
-
-async function captureEntryFromBelow(editor: EditorPage, codeBlockIndex: number) {
-	const below = editor.page.locator('[contenteditable="true"]').nth(codeBlockIndex + 1);
-	await below.click();
-	await editor.page.keyboard.press('Home');
-	for (let i = 0; i < CURSOR_COL; i++) await editor.page.keyboard.press('ArrowRight');
-	const sourceX = await editor.getCaretPixelX();
-
-	await editor.page.keyboard.press('ArrowUp');
+	await editor.page.keyboard.press(from === 'above' ? 'ArrowDown' : 'ArrowUp');
 	await editor.waitForRenderFlush();
 
 	const landingX = await editor.getCaretPixelX();
@@ -46,6 +33,30 @@ async function resetStickyByClickingOutside(editor: EditorPage) {
 	await editor.waitForRenderFlush();
 }
 
+const fenced = (body: string, info = '') =>
+	`${PARAGRAPH_TEXT}\n\n\`\`\`${info}\n${body}\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`;
+
+const SINGLE_BODY_LINE = fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+
+const SHAPES = [
+	{ name: 'single-body-line code block', doc: SINGLE_BODY_LINE },
+	{
+		name: 'multi-body-line code block',
+		doc: fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccc\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+	},
+	{
+		// Opener (```javascript) is wider than closer (```); interior body offsets must still
+		// dominate the nearest-X search.
+		name: 'code block with info string (```javascript)',
+		doc: fenced('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'javascript')
+	},
+	{
+		// Guards against rect discontinuity at token-span boundaries in findOffsetNearestX.
+		name: 'js-highlighted body (token spans split the line)',
+		doc: fenced('const xxxxxxxxxx = 1234567890 + 9876543210;', 'js')
+	}
+];
+
 test.describe('sticky column: code block entry symmetry', () => {
 	let editor: EditorPage;
 
@@ -54,65 +65,22 @@ test.describe('sticky column: code block entry symmetry', () => {
 		await editor.goto();
 	});
 
-	test('single-body-line code block: same landing X both directions', async () => {
-		await editor.loadContent(
-			`${PARAGRAPH_TEXT}\n\n\`\`\`\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
-		);
+	for (const { name, doc } of SHAPES) {
+		test(`${name}: same landing X both directions`, async () => {
+			await editor.loadContent(doc);
 
-		const fromAbove = await captureEntryFromAbove(editor, 1);
-		await resetStickyByClickingOutside(editor);
-		const fromBelow = await captureEntryFromBelow(editor, 1);
+			const fromAbove = await captureEntry(editor, 1, 'above');
+			await resetStickyByClickingOutside(editor);
+			const fromBelow = await captureEntry(editor, 1, 'below');
 
-		expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
-		expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
-	});
-
-	test('multi-body-line code block: same landing X both directions', async () => {
-		const body = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccc\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
-		await editor.loadContent(`${PARAGRAPH_TEXT}\n\n\`\`\`\n${body}\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`);
-
-		const fromAbove = await captureEntryFromAbove(editor, 1);
-		await resetStickyByClickingOutside(editor);
-		const fromBelow = await captureEntryFromBelow(editor, 1);
-
-		expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
-		expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
-	});
-
-	test('code block with info string (```javascript): same landing X both directions', async () => {
-		// Opener (```javascript) is wider than closer (```); interior body offsets must still dominate the nearest-X search.
-		await editor.loadContent(
-			`${PARAGRAPH_TEXT}\n\n\`\`\`javascript\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
-		);
-
-		const fromAbove = await captureEntryFromAbove(editor, 1);
-		await resetStickyByClickingOutside(editor);
-		const fromBelow = await captureEntryFromBelow(editor, 1);
-
-		expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
-		expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
-	});
-
-	test('js-highlighted body (token spans split the line): same landing X both directions', async () => {
-		// Guards against rect discontinuity at token-span boundaries in findOffsetNearestX.
-		const body = 'const xxxxxxxxxx = 1234567890 + 9876543210;';
-		await editor.loadContent(
-			`${PARAGRAPH_TEXT}\n\n\`\`\`js\n${body}\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
-		);
-
-		const fromAbove = await captureEntryFromAbove(editor, 1);
-		await resetStickyByClickingOutside(editor);
-		const fromBelow = await captureEntryFromBelow(editor, 1);
-
-		expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
-		expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
-	});
+			expect(Math.abs(fromAbove.sourceX - fromBelow.sourceX)).toBeLessThan(PIXEL_TOLERANCE);
+			expect(Math.abs(fromAbove.landingX - fromBelow.landingX)).toBeLessThan(PIXEL_TOLERANCE);
+		});
+	}
 
 	test('landing body offset (not just X) matches from both directions', async () => {
 		// A 2px X-match could still hide a one-offset discrepancy; compare byte positions instead.
-		await editor.loadContent(
-			`${PARAGRAPH_TEXT}\n\n\`\`\`\nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n\`\`\`\n\n${PARAGRAPH_TEXT}\n`
-		);
+		await editor.loadContent(SINGLE_BODY_LINE);
 
 		const above = editor.page.locator('[contenteditable="true"]').nth(0);
 		await above.click();

@@ -51,9 +51,6 @@ test.describe('focus traversal after block insertion', () => {
 
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/- .*Item one.*Z|Z.*Item one/m);
-
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/- .*Item one.*Z|Z.*Item one/m);
 	});
 
 	test('ArrowDown exits list to correct next block after splitBlock', async () => {
@@ -89,9 +86,7 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/Z```|```Z|codeZ|Zcode/);
 
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/Z```|```Z|codeZ|Zcode/);
-		expect(source).not.toMatch(/ZAfter code/);
+		expect(await editor.bridge.getSource()).not.toMatch(/ZAfter code/);
 	});
 
 	test('ArrowDown traverses correctly after M1 list merge near a container', async () => {
@@ -125,9 +120,7 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/Z```|```Z|codeZ|Zcode/);
 
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/Z```|```Z|codeZ|Zcode/);
-		expect(source).not.toMatch(/ZFinal/);
+		expect(await editor.bridge.getSource()).not.toMatch(/ZFinal/);
 	});
 
 	test('ArrowDown traverses correctly after cross-container merge into blockquote', async () => {
@@ -153,7 +146,6 @@ test.describe('focus traversal after block insertion', () => {
 		await editor.bridge.waitForSourceMatches(/Z```|```Z|codeZ|Zcode/);
 
 		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/Z```|```Z|codeZ|Zcode/);
 		expect(source).not.toMatch(/ZFinal/);
 		expect(source).toContain('> quote linetext');
 	});

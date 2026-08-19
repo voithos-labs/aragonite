@@ -17,9 +17,8 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/^> texttext2$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^> texttext2$/m);
-		expect(source).not.toMatch(/^text2$/m);
+
+		expect(await editor.bridge.getSource()).not.toMatch(/^text2$/m);
 	});
 
 	test('flat blockquote: caret lands at the join point after merge', async () => {
@@ -31,7 +30,6 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.bridge.waitForSourceMatches(/^> texttext2$/m);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> textZtext2$/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> textZtext2$/m);
 	});
 
 	test('multi-paragraph blockquote: only the last inner paragraph receives the merge', async () => {
@@ -43,7 +41,6 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.bridge.waitForSourceMatches(/^> secondtext$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^> first$/m);
-		expect(source).toMatch(/^> secondtext$/m);
 		expect(source).not.toMatch(/^text$/m);
 	});
 
@@ -54,9 +51,8 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('> > deeptext');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('> > deeptext');
-		expect(source).not.toMatch(/^text$/m);
+
+		expect(await editor.bridge.getSource()).not.toMatch(/^text$/m);
 	});
 
 	test('blockquote with heading as last inner child: merge into heading raw', async () => {
@@ -66,9 +62,8 @@ test.describe('cross-container merge on Backspace (blockquote prev)', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceMatches(/^> # Headingtext$/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^> # Headingtext$/m);
-		expect(source).not.toMatch(/^text$/m);
+
+		expect(await editor.bridge.getSource()).not.toMatch(/^text$/m);
 	});
 
 	test('blockquote with opaque deepest leaf (fenced code): fall back to move-focus', async () => {

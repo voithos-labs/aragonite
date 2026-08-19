@@ -2,14 +2,14 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { countEditEvents } from './helpers';
 
+let editor: EditorPage;
+
+test.beforeEach(async ({ page }) => {
+	editor = new EditorPage(page);
+	await editor.goto();
+});
+
 test.describe('one edit event per op — cross-block delete', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
 	test('Backspace on cross-block selection spanning two paragraphs emits one edit event', async () => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(0);
@@ -42,13 +42,6 @@ test.describe('one edit event per op — cross-block delete', () => {
 });
 
 test.describe('cross-block delete — list item id identity', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
 	test('surviving list item keeps start-item id after mixed cross-scope delete', async () => {
 		await editor.loadContent('- alpha\n- beta\n\nfollow\n');
 		const before = await editor.bridge.getSource();

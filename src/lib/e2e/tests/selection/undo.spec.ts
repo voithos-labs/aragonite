@@ -21,7 +21,6 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.page.keyboard.press('Control+x');
 		await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
-		expect(await editor.bridge.getSource()).not.toBe(before);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
@@ -43,7 +42,6 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
-		expect(await editor.bridge.getSource()).not.toBe(before);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
@@ -81,9 +79,6 @@ test.describe('selection undo — cross-block restore', () => {
 
 		await editor.typeText('xyz');
 		await editor.bridge.waitForSourceContains('xyz');
-		const afterType = await editor.bridge.getSource();
-		expect(afterType).toContain('xyz');
-		expect(afterType).not.toBe(before);
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);

@@ -1,24 +1,20 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import {
+	AT_BOUNDARY,
+	AT_DOC_START,
+	CLOSER_BOUNDARY,
+	FENCE,
+	FENCE_THEN_TABLE,
+	LAST_CELL,
+	LEADING_TABLE,
+	TABLE_THEN_FENCE,
+	loadThenArrive
+} from './gap-caret-fixtures';
 
 // Arrival at a between-blocks caret and the pure exits back out
 // (requirements/selection/gap-caret-arrival.md). Blocks are addressed by CST path through the
 // bridge: the chained block locator costs minutes on the windowed fixture below.
-
-const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
-const FENCE = '```\ncode\n```\n';
-// paragraph, table, fencedCode, paragraph — the eligible boundary is 2.
-const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
-// paragraph, fencedCode, table, paragraph — same boundary, mirrored.
-const FENCE_THEN_TABLE = `para\n\n${FENCE}\n${TABLE}\ntail\n`;
-// A leading table: the document's own start boundary, the one a click can reach.
-const LEADING_TABLE = `${TABLE}\n${FENCE}\ntail\n`;
-// A table is ONE `data-block-path`; its cells are addressed row-major, so `d` is 3.
-const LAST_CELL = 3;
-// End of the fence body, the offset whose forward Delete crosses the closer.
-const CLOSER_BOUNDARY = 8;
-const AT_BOUNDARY = { parentPath: [], index: 2 };
-const AT_DOC_START = { parentPath: [], index: 0 };
 
 // Root blocks tile flush, so the one band-less strip a click can reach is the editor's
 // leading padding — the document's own start boundary.
@@ -185,13 +181,6 @@ test.describe('gap caret arrival', () => {
 test.describe('gap caret keys', () => {
 	let editor: EditorPage;
 
-	async function arriveAtBoundary(): Promise<void> {
-		await editor.loadContent(TABLE_THEN_FENCE);
-		await editor.page.locator('[role="cell"]').nth(LAST_CELL).click();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
-	}
-
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
@@ -210,7 +199,7 @@ test.describe('gap caret keys', () => {
 
 	for (const exit of EXITS) {
 		test(`${exit.key} leaves the gap for ${exit.lands}`, async () => {
-			await arriveAtBoundary();
+			await loadThenArrive(editor);
 
 			await editor.page.keyboard.press(exit.key);
 			await editor.bridge.waitForGapCaret(null);

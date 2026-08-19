@@ -29,125 +29,103 @@ test.describe('sticky column: reset triggers', () => {
 		return baseColumnX;
 	}
 
-	test('typing resets sticky column', async () => {
-		await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		await editor.typeText('x');
-		await editor.waitForRenderFlush();
-
-		const preArrowX = await editor.getCaretPixelX();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		const targetX = await editor.getCaretPixelX();
-		expect(Math.abs(targetX - preArrowX)).toBeLessThan(PIXEL_TOLERANCE * 3);
-	});
-
-	test('click resets sticky column', async () => {
-		await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		const second = editor.page.locator('[contenteditable="true"]').nth(1);
-		await second.click();
-		await editor.page.keyboard.press('Home');
-
-		const postClickX = await editor.getCaretPixelX();
-
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		const targetX = await editor.getCaretPixelX();
-		expect(Math.abs(targetX - postClickX)).toBeLessThan(PIXEL_TOLERANCE * 3);
-	});
-
-	test('ArrowLeft resets sticky column', async () => {
-		await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		await editor.page.keyboard.press('ArrowLeft');
-		await editor.waitForRenderFlush();
-
-		const postArrowLeftX = await editor.getCaretPixelX();
-
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		const targetX = await editor.getCaretPixelX();
-		expect(Math.abs(targetX - postArrowLeftX)).toBeLessThan(PIXEL_TOLERANCE * 3);
-	});
-
-	test('ArrowRight resets sticky column', async () => {
+	/** Park the high column on the short line, where every reset gesture below fires. */
+	async function clampOntoShortLine(): Promise<number> {
 		const baseColumnX = await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown'); // high sticky X clamps onto the short line
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.waitForRenderFlush();
+		return baseColumnX;
+	}
+
+	// Each gesture leaves the caret where the next ArrowDown must land, so the reference is the
+	// gesture's own caret and the tolerance is the measurement's.
+	const CASES = [
+		{
+			name: 'typing',
+			reset: async () => {
+				await editor.typeText('x');
+				await editor.waitForRenderFlush();
+			},
+			tolerance: PIXEL_TOLERANCE * 3
+		},
+		{
+			name: 'click',
+			reset: async () => {
+				await editor.page.locator('[contenteditable="true"]').nth(1).click();
+				await editor.page.keyboard.press('Home');
+			},
+			tolerance: PIXEL_TOLERANCE * 3
+		},
+		{
+			name: 'ArrowLeft',
+			reset: async () => {
+				await editor.page.keyboard.press('ArrowLeft');
+				await editor.waitForRenderFlush();
+			},
+			tolerance: PIXEL_TOLERANCE * 3
+		},
+		{
+			name: 'End',
+			reset: async () => {
+				await editor.page.keyboard.press('End');
+				await editor.waitForRenderFlush();
+			},
+			tolerance: PIXEL_TOLERANCE * 3
+		},
+		{
+			name: 'undo',
+			reset: async () => {
+				await editor.page.keyboard.press('Enter');
+				await editor.waitForRenderFlush();
+				await editor.undo();
+				await editor.waitForRenderFlush();
+			},
+			tolerance: PIXEL_TOLERANCE * 5
+		}
+	];
+
+	for (const { name, reset, tolerance } of CASES) {
+		test(`${name} resets sticky column`, async () => {
+			await clampOntoShortLine();
+
+			await reset();
+			const resetColumnX = await editor.getCaretPixelX();
+
+			await editor.page.keyboard.press('ArrowDown');
+			await editor.waitForRenderFlush();
+
+			const targetX = await editor.getCaretPixelX();
+			expect(Math.abs(targetX - resetColumnX)).toBeLessThan(tolerance);
+		});
+	}
+
+	// The two gestures whose own caret is not a usable reference, so the landing answers to the
+	// document's left column instead. Reset → ~0 gap; no reset → ~280.
+	test('ArrowRight resets sticky column', async () => {
+		const baseColumnX = await clampOntoShortLine();
+
+		await editor.page.keyboard.press('ArrowRight');
 		await editor.waitForRenderFlush();
 
-		await editor.page.keyboard.press('ArrowRight'); // must reset the sticky column
+		await editor.page.keyboard.press('ArrowDown');
 		await editor.waitForRenderFlush();
 
-		await editor.page.keyboard.press('ArrowDown'); // lands at the reset column, not the high one
-		await editor.waitForRenderFlush();
-
-		// Sticky reset → the downward move lands back at the document's left column.
-		// Were it NOT reset, it would land ~280px in, at the remembered high column.
 		const targetX = await editor.getCaretPixelX();
 		expect(Math.abs(targetX - baseColumnX)).toBeLessThan(PIXEL_TOLERANCE * 2);
-	});
-
-	test('End resets sticky column', async () => {
-		await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		await editor.page.keyboard.press('End');
-		await editor.waitForRenderFlush();
-
-		const postEndX = await editor.getCaretPixelX();
-
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
-		const targetX = await editor.getCaretPixelX();
-		expect(Math.abs(targetX - postEndX)).toBeLessThan(PIXEL_TOLERANCE * 3);
 	});
 
 	test('Enter (split) resets sticky column', async () => {
-		const baseColumnX = await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown'); // high sticky X clamps onto the short line
-		await editor.waitForRenderFlush();
+		const baseColumnX = await clampOntoShortLine();
 
-		await editor.page.keyboard.press('Enter'); // split must reset the sticky column
-		await editor.waitForRenderFlush();
-
-		await editor.page.keyboard.press('ArrowDown'); // lands at the reset column, not the high one
-		await editor.waitForRenderFlush();
-
-		// The post-Enter caret sits in the new empty paragraph (no client rect → x≈0),
-		// so assert the downward landing against the reliably-measured left column
-		// rather than that degenerate reference. Reset → ~0 gap; no reset → ~280.
-		const targetX = await editor.getCaretPixelX();
-		expect(Math.abs(targetX - baseColumnX)).toBeLessThan(PIXEL_TOLERANCE * 2);
-	});
-
-	test('undo resets sticky column', async () => {
-		await setupHighColumn();
-		await editor.page.keyboard.press('ArrowDown');
-		await editor.waitForRenderFlush();
-
+		// The post-Enter caret sits in the new empty paragraph (no client rect → x≈0), which is
+		// why the landing is measured against the left column rather than that degenerate caret.
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForRenderFlush();
-		await editor.undo();
-		await editor.waitForRenderFlush();
-
-		const postUndoX = await editor.getCaretPixelX();
 
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.waitForRenderFlush();
 
 		const targetX = await editor.getCaretPixelX();
-		expect(Math.abs(targetX - postUndoX)).toBeLessThan(PIXEL_TOLERANCE * 5);
+		expect(Math.abs(targetX - baseColumnX)).toBeLessThan(PIXEL_TOLERANCE * 2);
 	});
 });

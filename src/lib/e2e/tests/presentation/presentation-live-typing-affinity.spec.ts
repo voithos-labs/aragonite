@@ -1,7 +1,14 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord, trailingEdgeOfWord } from './helpers';
+import {
+	clickBlockSettled,
+	clickWordSettled,
+	enterPresentationMode,
+	focusOffset,
+	stepTo,
+	trailingEdgeOfWord
+} from './helpers';
 import { attachIme } from '../../simulation/ime';
 
 // Which side of a hidden delimiter run a typed byte lands on. The source is the oracle: the
@@ -31,47 +38,7 @@ const ESCAPE = 2;
 const HARD_BREAK = 3;
 const LEAD = 4;
 
-async function enterLive(page: Page): Promise<EditorPage> {
-	const ep = new EditorPage(page);
-	await ep.goto('?presentationMode=live');
-	await ep.loadContent(DOC);
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
-	return ep;
-}
-
-async function focusOffset(ep: EditorPage): Promise<number> {
-	return (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
-}
-
-/** Step with `key` until the caret reports `target`. The arrival that lands there is the
- *  seat's input, so every scenario reaches its edge by real stepping. */
-async function stepTo(ep: EditorPage, page: Page, key: string, target: number): Promise<void> {
-	for (let i = 0; i < 12; i++) {
-		if ((await focusOffset(ep)) === target) return;
-		await page.keyboard.press(key);
-		await ep.waitForRenderFlush();
-	}
-	throw new Error(`stepTo: ${key} never reached offset ${target} (at ${await focusOffset(ep)})`);
-}
-
-async function clickWord(ep: EditorPage, page: Page, word: string): Promise<void> {
-	const point = await centerOfWord(page, word);
-	await page.mouse.click(point.x, point.y);
-	await ep.waitForRenderFlush();
-	await settleCaret(ep);
-}
-
-async function clickBlock(ep: EditorPage, index: number): Promise<void> {
-	await ep.clickBlock(index);
-	await settleCaret(ep);
-}
-
-/** A click's caret is what every scenario steps from, and the bridge reporting NO selection
- *  is the shape a lost click takes — so settle on the caret existing rather than on the click
- *  returning, or the first `stepTo` reports a bare -1 and says nothing about why. */
-async function settleCaret(ep: EditorPage): Promise<void> {
-	await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
-}
+const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 test.describe('live mode — a symmetric pair extends by arrival', () => {
 	let ep: EditorPage;
@@ -85,7 +52,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	test('typing at bold’s trailing content edge extends it, and keeps extending', async ({
 		page
 	}) => {
-		await clickWord(ep, page, 'bold');
+		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowRight', 11);
 
 		await page.keyboard.type('X');
@@ -100,7 +67,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	test('a caret that arrived at bold’s trailing edge from outside types past it', async ({
 		page
 	}) => {
-		await clickBlock(ep, BOLD);
+		await clickBlockSettled(ep, BOLD);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowLeft', 11);
@@ -114,7 +81,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	test('a caret that stepped left out of bold’s leading edge still types inside', async ({
 		page
 	}) => {
-		await clickWord(ep, page, 'bold');
+		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowLeft', 5);
 
 		await page.keyboard.type('X');
@@ -122,7 +89,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	});
 
 	test('a caret that stepped right up to bold’s leading edge types before it', async ({ page }) => {
-		await clickBlock(ep, BOLD);
+		await clickBlockSettled(ep, BOLD);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowRight', 5);
@@ -134,7 +101,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 	// A line extreme is construct-relative, not directional: `Home` on a line that OPENS with
 	// a pair means before its opener, the opposite walk-order side from `End` after a closer.
 	test('Home on a line opening with bold types before the construct', async ({ page }) => {
-		await clickBlock(ep, LEAD);
+		await clickBlockSettled(ep, LEAD);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		expect(await focusOffset(ep)).toBe(2);
@@ -149,8 +116,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 		const point = await trailingEdgeOfWord(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
-		await settleCaret(ep);
-		expect(await focusOffset(ep)).toBe(11);
+		await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBe(11);
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Some **boldX** text');
@@ -173,7 +139,7 @@ test.describe('live mode — the other symmetric pairs seat the same way', () =>
 		['a code span', 'code', 7, 'A `codeX` tail']
 	] as const) {
 		test(`${name} extends from an arrival inside it`, async ({ page }) => {
-			await clickWord(ep, page, word);
+			await clickWordSettled(ep, page, word);
 			await stepTo(ep, page, 'ArrowRight', contentEnd);
 
 			await page.keyboard.type('X');
@@ -194,12 +160,12 @@ test.describe('live mode — a never-extend construct ignores the arrival', () =
 	test('a link’s trailing content edge never extends, whichever arrival seated the caret', async ({
 		page
 	}) => {
-		await clickWord(ep, page, 'link');
+		await clickWordSettled(ep, page, 'link');
 		await stepTo(ep, page, 'ArrowRight', 7);
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('A [link](https://example.com)X tail');
 
-		await clickBlock(ep, LINK);
+		await clickBlockSettled(ep, LINK);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowLeft', 7);
@@ -208,7 +174,7 @@ test.describe('live mode — a never-extend construct ignores the arrival', () =
 	});
 
 	test('a link’s leading content edge never extends either', async ({ page }) => {
-		await clickWord(ep, page, 'link');
+		await clickWordSettled(ep, page, 'link');
 		await stepTo(ep, page, 'ArrowLeft', 2);
 
 		await page.keyboard.type('X');
@@ -226,7 +192,7 @@ test.describe('live mode — unstamped marker runs are never typed into', () => 
 	// `x \* y`: the backslash is unpainted, the `*` is the glyph. Neither side of the pair
 	// admits a byte between them.
 	test('an escape’s two bytes stay adjacent whichever side is typed at', async ({ page }) => {
-		await clickBlock(ep, ESCAPE);
+		await clickBlockSettled(ep, ESCAPE);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowRight', 2);
@@ -240,7 +206,7 @@ test.describe('live mode — unstamped marker runs are never typed into', () => 
 
 	// `end  \nnext`: the two spaces before the newline are the break's markers.
 	test('a hard break’s trailing spaces survive a byte typed at the line end', async ({ page }) => {
-		await clickBlock(ep, HARD_BREAK);
+		await clickBlockSettled(ep, HARD_BREAK);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowLeft', 3);
@@ -273,16 +239,13 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 	let ep: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
-		ep = new EditorPage(page);
-		await ep.goto('?presentationMode=live');
-		await ep.loadContent(CHILDLESS_DOC);
-		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+		ep = await enterPresentationMode(page, 'live', CHILDLESS_DOC);
 	});
 
 	test('a click at the left edge of an escaped line types before the backslash', async ({
 		page
 	}) => {
-		await clickBlock(ep, ESCAPE_LEAD);
+		await clickBlockSettled(ep, ESCAPE_LEAD);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 
@@ -293,7 +256,7 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 	});
 
 	test('Home on a line opening with an autolink types before its bracket', async ({ page }) => {
-		await clickBlock(ep, AUTOLINK_LEAD);
+		await clickBlockSettled(ep, AUTOLINK_LEAD);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 
@@ -306,7 +269,7 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 	// bracket, and a byte there rewrites where the link goes. A link never extends at either
 	// edge (live-mode.md § 4.2), and the angle form is a link.
 	test('End after a trailing autolink types past its closing bracket', async ({ page }) => {
-		await clickBlock(ep, AUTOLINK_TAIL);
+		await clickBlockSettled(ep, AUTOLINK_TAIL);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 
@@ -318,7 +281,7 @@ test.describe('live mode — a childless construct is all delimiters', () => {
 	// The discriminating twin: the bold control was correct throughout, so a fix that moved the
 	// symmetric pair too would show up here.
 	test('the bold control is unchanged by the same gesture', async ({ page }) => {
-		await clickBlock(ep, BOLD_LEAD);
+		await clickBlockSettled(ep, BOLD_LEAD);
 		await page.keyboard.press('Home');
 		await ep.waitForRenderFlush();
 
@@ -340,7 +303,7 @@ test.describe('live mode — an IME commit takes the same seat as a keystroke', 
 	test('a composition at a link’s trailing content edge commits past the closer', async ({
 		page
 	}) => {
-		await clickWord(ep, page, 'link');
+		await clickWordSettled(ep, page, 'link');
 		await stepTo(ep, page, 'ArrowRight', 7);
 
 		const ime = await attachIme(page);
@@ -352,7 +315,7 @@ test.describe('live mode — an IME commit takes the same seat as a keystroke', 
 	test('a composition at bold’s trailing edge extends it when the arrival was from inside', async ({
 		page
 	}) => {
-		await clickWord(ep, page, 'bold');
+		await clickWordSettled(ep, page, 'bold');
 		await stepTo(ep, page, 'ArrowRight', 11);
 
 		const ime = await attachIme(page);
@@ -364,7 +327,7 @@ test.describe('live mode — an IME commit takes the same seat as a keystroke', 
 	test('a composition at bold’s trailing edge arrived from outside commits past it', async ({
 		page
 	}) => {
-		await clickBlock(ep, BOLD);
+		await clickBlockSettled(ep, BOLD);
 		await page.keyboard.press('End');
 		await ep.waitForRenderFlush();
 		await stepTo(ep, page, 'ArrowLeft', 11);

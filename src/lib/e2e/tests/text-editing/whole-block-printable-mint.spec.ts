@@ -2,20 +2,9 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 import { wholeBlockInput } from '../../whole-block-input';
+import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
 // Requirements: e2e/requirements/text-editing/whole-block-printable-mint.md.
-
-const DOC = 'Before\n\n---\n\nAfter\n';
-
-const rule = (editor: EditorPage) => editor.page.locator('.thematic-break-block');
-
-/** Focus the rule the way a user reaches it: Backspace at the start of the paragraph below,
- *  which the whole-block model answers by focusing the block instead of deleting it. */
-async function focusTheRule(editor: EditorPage): Promise<void> {
-	await editor.focusBlockStart(2);
-	await editor.page.keyboard.press('Backspace');
-	await expect(wholeBlockInput(rule(editor))).toBeFocused();
-}
 
 test.describe('whole-block focus — a typed character mints a paragraph below', () => {
 	let editor: EditorPage;
@@ -23,7 +12,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await editor.loadContent(DOC);
+		await editor.loadContent(RULE_DOC);
 	});
 
 	test('typing `x` then `y` leaves a paragraph `xy` between the rule and the block below', async ({
@@ -36,7 +25,6 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		await page.keyboard.press('y');
 
 		await editor.bridge.waitForSourceMatches(/---\n\nxy\n\nAfter/);
-		expect(await editor.bridge.getSource()).toMatch(/---\n\nxy\n\nAfter/);
 	});
 
 	test('a space mints too, and the rule itself is unchanged', async ({ page }) => {
@@ -61,7 +49,6 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		await page.keyboard.press(`${primaryModifier}+z`);
 
 		await editor.bridge.waitForSourceEquals(original);
-		expect(await editor.bridge.getSource()).toBe(original);
 	});
 
 	test('Mod+C while the block is focused mints nothing', async ({ page }) => {
@@ -77,7 +64,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 	test('reading mode: a printable at whole-block focus changes no byte', async ({ page }) => {
 		const readingEditor = new EditorPage(page);
 		await readingEditor.goto('?presentationMode=reading');
-		await readingEditor.loadContent(DOC);
+		await readingEditor.loadContent(RULE_DOC);
 		const original = await readingEditor.bridge.getSource();
 
 		await rule(readingEditor).click();

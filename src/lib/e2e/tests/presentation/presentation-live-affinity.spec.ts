@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
-import { EditorPage } from '../../editor-page';
+import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { centerOfWord } from './helpers';
+import { centerOfWord, enterPresentationMode, focusOffset, focusPath, press } from './helpers';
 
 // Live-mode caret edges: no caret reports from inside a hidden marker run, and the block's
 // exits and destructive keys read its content bounds. jsdom cannot see where Chromium drops
@@ -31,29 +31,7 @@ const BOLD_MID = 1;
 const BOLD_LEAD = 2;
 const CODE = 3;
 
-// The attribute check is load-bearing: an unwhitelisted query param falls back to source,
-// where every offset below is the ordinary one and the spec would pass without live.
-async function enterLive(page: Page): Promise<EditorPage> {
-	const ep = new EditorPage(page);
-	await ep.goto('?presentationMode=live');
-	await ep.loadContent(DOC);
-	await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
-	return ep;
-}
-
-async function focusOffset(ep: EditorPage): Promise<number> {
-	return (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
-}
-
-async function focusPath(ep: EditorPage): Promise<number[]> {
-	return (await ep.bridge.getSelectionPaths())?.focus.path ?? [];
-}
-
-async function press(ep: EditorPage, page: Page, key: string, times = 1): Promise<number> {
-	for (let i = 0; i < times; i++) await page.keyboard.press(key);
-	await ep.waitForRenderFlush();
-	return focusOffset(ep);
-}
+const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
 test.describe('live mode — the caret never reports from inside a hidden run', () => {
 	let ep: EditorPage;

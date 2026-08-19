@@ -23,8 +23,15 @@ export async function focusOffset(ep: EditorPage): Promise<number> {
 	return (await ep.bridge.getSelectionPaths())?.focus.offset ?? -1;
 }
 
-async function focusPath(ep: EditorPage): Promise<number[]> {
+export async function focusPath(ep: EditorPage): Promise<number[]> {
 	return (await ep.bridge.getSelectionPaths())?.focus.path ?? [];
+}
+
+/** Press `key` `times` over, and report where the caret landed. */
+export async function press(ep: EditorPage, page: Page, key: string, times = 1): Promise<number> {
+	for (let i = 0; i < times; i++) await page.keyboard.press(key);
+	await ep.waitForRenderFlush();
+	return focusOffset(ep);
 }
 
 /** A click's caret is what every scenario starts from, and the bridge reporting NO selection is
@@ -91,6 +98,23 @@ export async function extendTo(
 	throw new Error(
 		`extendTo: Shift+${key} never reached [${path}]@${offset} (at [${focus?.path}]@${focus?.offset})`
 	);
+}
+
+/** What a block SHOWS: its content text minus every span a marker-hiding mode paints nothing
+ *  for. Read off the page object's own block-content element, never the host — the chrome
+ *  between the wrapper's children contributes whitespace text nodes of its own. */
+export async function visibleText(ep: EditorPage, block: number): Promise<string> {
+	return ep.getBlock(block).evaluate((el) => {
+		const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+		let out = '';
+		let node: Node | null;
+		while ((node = walker.nextNode())) {
+			if (!node.parentElement?.closest('.md-marker, .md-ref-label, .md-fence-line')) {
+				out += node.textContent ?? '';
+			}
+		}
+		return out;
+	});
 }
 
 // Center pixel of the first visible text node containing `word` — clicks a

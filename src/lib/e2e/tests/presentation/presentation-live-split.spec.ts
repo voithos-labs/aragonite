@@ -7,7 +7,8 @@ import {
 	enterPresentationMode,
 	focusOffset,
 	landAt,
-	stepTo
+	stepTo,
+	visibleText
 } from './helpers';
 
 // What Enter inside a construct writes in live mode: a closed pair above, a reopened one below,
@@ -39,23 +40,6 @@ const REF = 4;
 const BLOCKS = DOC.split('\n\n').length;
 
 const enterMode = (page: Page, mode: 'live' | 'source') => enterPresentationMode(page, mode, DOC);
-
-/** What a block SHOWS: its content text minus every span a marker-hiding mode paints nothing
- *  for. Read off the page object's own block-content element, never the host — the chrome
- *  between the wrapper's children contributes whitespace text nodes of its own. */
-async function visibleText(ep: EditorPage, block: number): Promise<string> {
-	return ep.getBlock(block).evaluate((el) => {
-		const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-		let out = '';
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			if (!node.parentElement?.closest('.md-marker, .md-ref-label, .md-fence-line')) {
-				out += node.textContent ?? '';
-			}
-		}
-		return out;
-	});
-}
 
 test.describe('live mode — Enter inside a construct closes and reopens it', () => {
 	let ep: EditorPage;
