@@ -7,6 +7,14 @@
 - axis3 cdp split: ScriptDuration vs LayoutDuration vs RecalcStyleDuration across N keystrokes at a fixed large block count.
 - axis4 harness overhead: outer (harness) keystroke time vs in-page settle time; delta = polling/IPC.
 - axis5 intra-block: keystroke p50 vs single-paragraph length (50KB/200KB/800KB).
+- axisN nested headline: harness p50 vs in-page p50, block-render count/total, and the CDP script/layout/recalc split over 20 keystrokes on a 1MB nested-containers document.
+- axisM which blocks: one keystroke's block-render paths bucketed by top-level subtree and by depth (total, distinct, edited-block renders, top renderers). Records the fan-out shape; asserts only that paths were captured.
+- axisP per-keystroke distribution: renders, in-page ms and harness ms for six consecutive keystrokes — the spread the p50 rows hide.
+- axisQ steady-state cdp: task/script/layout/recalc per keystroke over 15 keystrokes, after a warm-up keystroke absorbs the one-time full-document re-render.
+- axisR steady-state instruments: renders, parse count/ms/blocks, inline computes, snapshots and rebuild depths per keystroke, post-warmup.
+- axisS flat block count: steady-state p50, in-page p50, CDP script per keystroke, mounted top-level hosts and renders-per-keystroke at 1000/10000/30000 uniform blocks.
+- axisLoad flat load: load ms, top-level child count vs mounted host count, renders during load, and the script/layout split at 1MB/4MB/10MB of many small blocks. Separates first-render-mounts-all from O(count) materialization.
+- axisT first edit: the full instrument profile of the FIRST keystroke after load. The one row with a pin — block renders ≤ 50, since a document-wide fan-out reads in the tens of thousands.
 
 ## Notes
 
