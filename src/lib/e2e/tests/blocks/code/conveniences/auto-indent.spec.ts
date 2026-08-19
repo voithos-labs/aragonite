@@ -1,6 +1,6 @@
 import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { expectBody, focusCodeBlockAtEnd } from './helpers';
+import { expectBody, focusCodeBlockAtEnd, focusCodeBody } from './helpers';
 
 test.describe('code block auto-indent on Enter', () => {
 	let editor: EditorPage;
@@ -36,9 +36,7 @@ test.describe('code block auto-indent on Enter', () => {
 
 	test('Enter in the middle of an indented line carries the indent to the remainder', async () => {
 		await editor.loadContent('```\n    foo\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 10; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor, 6);
 		await editor.page.keyboard.press('Enter');
 		await expectBody(editor, '    fo\n    o');
 	});

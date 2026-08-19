@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { focusCodeBody } from './conveniences/helpers';
 
 test.describe('code block creation — Enter after typing ```', () => {
 	let editor: EditorPage;
@@ -65,11 +66,7 @@ test.describe('code block creation — backtick auto-pair in unclosed fence', ()
 
 	test('backtick inside a closed fence still auto-pairs', async () => {
 		await editor.loadContent('```\n\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 4; i++) {
-			await editor.page.keyboard.press('ArrowRight');
-		}
+		await focusCodeBody(editor);
 		await editor.typeSlowly('`');
 		await editor.bridge.waitForSourceMatches(/^```\n``\n```/);
 

@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 import { boxesOf, dragBetweenBoxes } from './helpers';
 import { capturePageErrors } from '../../../page-probes';
+import { roundTripStable } from '../../plugins/helpers';
 
 const TABLE_2x3 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -319,7 +320,7 @@ test.describe('table block: cross-block delete', () => {
 		expect(src).not.toContain('| 1 | 2 |');
 		expect(src).not.toContain('| 3 | 4 |');
 		expect(src).toMatch(/^>.*text/m);
-		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(page)).toBe(true);
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		expect(await editor.bridge.getBlockKind(1)).toBe('blockquote');
 

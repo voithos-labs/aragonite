@@ -21,6 +21,5 @@ test.describe('list marker — empty item rendering and typing', () => {
 		await item.click();
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceEquals('- X\n');
-		expect(await editor.bridge.getSource()).toBe('- X\n');
 	});
 });

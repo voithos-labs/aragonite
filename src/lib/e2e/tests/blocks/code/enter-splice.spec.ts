@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { roundTripStable } from '../../plugins/helpers';
 
 // A splice inside the opener renders a phantom fence; one inside the closer breaks the fence
 // outright. Requirements: enter-splice.md.
@@ -51,7 +52,7 @@ test.describe('code block — Enter on the opener fence line', () => {
 		await editor.bridge.waitForSourceEquals('```js\n\n\nconst x = 1;\n```\n');
 
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	test('Enter at the end of the opener line keeps its behavior — caret on the new blank line', async ({
@@ -82,7 +83,7 @@ test.describe('code block — Enter on the closer fence line', () => {
 		await editor.bridge.waitForSourceEquals('```js\nconst x = 1\n\n```\n');
 
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	test('Enter at the start of the closer line keeps its blank-line behavior', async () => {

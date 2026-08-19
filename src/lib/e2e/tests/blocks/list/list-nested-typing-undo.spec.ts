@@ -23,11 +23,7 @@ test.describe('nested list item — typing + undo', () => {
 		expect(await editor.bridge.getSource()).toContain('item one extra');
 
 		await editor.undo();
-		await editor.page.waitForFunction(
-			(expected) => (window as any).__test.getSource() === expected,
-			before
-		);
-		expect(await editor.bridge.getSource()).toBe(before);
+		await editor.bridge.waitForSourceEquals(before);
 	});
 
 	test('typing in two different items produces two batches', async () => {
@@ -43,19 +39,16 @@ test.describe('nested list item — typing + undo', () => {
 		await secondItem.click();
 		await editor.page.keyboard.press('End');
 		await editor.typeSlowly(' B');
+		await editor.bridge.waitForSourceContains('item two B');
 		await editor.waitForUndoBatchFlush();
 
 		await editor.undo();
-		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
+		await editor.bridge.waitForSourceNotContains(' B');
 		expect((await editor.bridge.getSource()).includes(' B')).toBe(false);
 		expect((await editor.bridge.getSource()).includes(' A')).toBe(true);
 
 		await editor.undo();
-		await editor.page.waitForFunction(
-			(expected) => (window as any).__test.getSource() === expected,
-			before
-		);
-		expect(await editor.bridge.getSource()).toBe(before);
+		await editor.bridge.waitForSourceEquals(before);
 	});
 
 	// A focus change between sibling items must break the debounce batch even before the 250ms
@@ -74,18 +67,15 @@ test.describe('nested list item — typing + undo', () => {
 		await secondItem.click();
 		await editor.page.keyboard.press('End');
 		await editor.typeSlowly(' B');
+		await editor.bridge.waitForSourceContains('item two B');
 		await editor.waitForUndoBatchFlush();
 
 		await editor.undo();
-		await editor.page.waitForFunction(() => !(window as any).__test.getSource().includes(' B'));
+		await editor.bridge.waitForSourceNotContains(' B');
 		expect((await editor.bridge.getSource()).includes(' B')).toBe(false);
 		expect((await editor.bridge.getSource()).includes(' A')).toBe(true);
 
 		await editor.undo();
-		await editor.page.waitForFunction(
-			(expected) => (window as any).__test.getSource() === expected,
-			before
-		);
-		expect(await editor.bridge.getSource()).toBe(before);
+		await editor.bridge.waitForSourceEquals(before);
 	});
 });

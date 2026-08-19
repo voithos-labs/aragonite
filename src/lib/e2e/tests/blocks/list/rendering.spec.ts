@@ -20,9 +20,7 @@ test.describe('list rendering', () => {
 		await first.click();
 		await editor.typeText(' ok');
 		await editor.bridge.waitForSourceContains('- Item A ok');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('- Item A ok');
-		expect(source).toContain('- Item B');
+		expect(await editor.bridge.getSource()).toContain('- Item B');
 	});
 
 	test('nested item editing preserves indentation', async () => {
@@ -33,7 +31,6 @@ test.describe('list rendering', () => {
 		await nested.first().click();
 		await editor.typeText(' more');
 		await editor.bridge.waitForSourceContains('  - Nested more');
-		expect(await editor.bridge.getSource()).toContain('  - Nested more');
 	});
 
 	test('ordered list displays correct markers', async () => {
@@ -59,7 +56,6 @@ test.describe('list arrow navigation', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^[^-].*Z/m);
-		expect(await editor.bridge.getSource()).toMatch(/^[^-].*Z/m);
 	});
 
 	test('ArrowUp from first item exits list to previous block', async () => {
@@ -70,7 +66,6 @@ test.describe('list arrow navigation', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('Before.Z');
-		expect(await editor.bridge.getSource()).toContain('Before.Z');
 	});
 
 	test('ArrowLeft at start of item content moves to end of previous item', async () => {
@@ -81,7 +76,6 @@ test.describe('list arrow navigation', () => {
 		await editor.page.keyboard.press('ArrowLeft');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('- AlphaZ\n- Beta');
-		expect(await editor.bridge.getSource()).toContain('- AlphaZ\n- Beta');
 	});
 
 	test('ArrowRight at end of item content moves to start of next item', async () => {
@@ -92,6 +86,5 @@ test.describe('list arrow navigation', () => {
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('- Alpha\n- ZBeta');
-		expect(await editor.bridge.getSource()).toContain('- Alpha\n- ZBeta');
 	});
 });

@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { undoDepth } from './helpers';
 
 // An image nested inside a link (`[![alt][ref]][repo]`) is click-selectable and keyboard-resizable
 // only where the paths walk past top-level inlines, and a reference-style image keeps its `[ref]:`
@@ -36,20 +37,18 @@ test.describe('image inside a link + reference-style images', () => {
 
 	// Fail-fast guard: without the harness's LRD resolver these render as plain text and every
 	// assertion below would mis-report as "click selects nothing".
-	test('BUG 1: a reference image nested in a link renders as a widget', async ({ page }) => {
+	test('a reference image nested in a link renders as a widget', async ({ page }) => {
 		await editor.loadContent(NESTED);
 		await expect(page.locator('[data-image-widget]').first()).toBeVisible();
 	});
 
-	test('BUG 1: clicking an image inside a link enters selected state', async ({ page }) => {
+	test('clicking an image inside a link enters selected state', async ({ page }) => {
 		await editor.loadContent(NESTED);
 		await page.locator('[data-image-widget]').first().click();
 		await expect(overlay(page)).toBeVisible();
 	});
 
-	test('BUG 1 + 2: resizing an image inside a link keeps the link wrapper and reference', async ({
-		page
-	}) => {
+	test('resizing an image inside a link keeps the link wrapper and reference', async ({ page }) => {
 		await editor.loadContent(NESTED_SIZED);
 		await page.locator('[data-image-widget]').first().click();
 		await expect(overlay(page)).toBeVisible();
@@ -61,7 +60,7 @@ test.describe('image inside a link + reference-style images', () => {
 		expect(src).not.toContain('![cat|320](');
 	});
 
-	test('BUG 2: resizing a standalone reference image stays a reference and keeps the LRD', async ({
+	test('resizing a standalone reference image stays a reference and keeps the LRD', async ({
 		page
 	}) => {
 		await editor.loadContent(REFERENCE);
@@ -76,9 +75,7 @@ test.describe('image inside a link + reference-style images', () => {
 		expect(src).not.toContain('![cat|420](');
 	});
 
-	test('BUG 2: changing the url in the popover inlines a reference image (intended)', async ({
-		page
-	}) => {
+	test('changing the url in the popover inlines a reference image (intended)', async ({ page }) => {
 		// Lead with a non-image paragraph so the dismiss click lands outside the widget.
 		await editor.loadContent(
 			['outside.', '', '![cat|400][ref]', '', '[ref]: /test-fixtures/sample.png', ''].join('\n')
@@ -93,7 +90,7 @@ test.describe('image inside a link + reference-style images', () => {
 		expect(src).not.toContain('![cat|400][ref]');
 	});
 
-	test('BUG 2: a no-op popover dismiss preserves the reference and adds no undo entry', async ({
+	test('a no-op popover dismiss preserves the reference and adds no undo entry', async ({
 		page
 	}) => {
 		await editor.loadContent(
@@ -101,15 +98,10 @@ test.describe('image inside a link + reference-style images', () => {
 		);
 		await page.locator('[data-image-widget]').first().click();
 		await expect(page.locator('.md-image-properties')).toBeVisible();
-		const undoBefore = await page.evaluate(
-			() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0
-		);
+		const undoBefore = await undoDepth(page);
 		await page.locator('.paragraph-block').first().click();
 		await editor.waitForNoSourceMutation();
-		const undoAfter = await page.evaluate(
-			() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0
-		);
-		expect(undoAfter).toBe(undoBefore);
+		expect(await undoDepth(page)).toBe(undoBefore);
 		const src = await editor.bridge.getSource();
 		expect(src).toContain('![cat|400][ref]');
 		expect(src).toContain('[ref]: /test-fixtures/sample.png');

@@ -1,29 +1,10 @@
 import { test, expect } from '../../../fixtures';
-import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { boxesOf, dragBetweenBoxes } from './helpers';
 
 // head paragraph above a 3-col table with distinct body cells.
 const FIXTURE =
 	'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n';
-
-async function dragFromTextToCell(page: Page, text: string, cellIdx: number): Promise<void> {
-	const from = page.getByText(text);
-	const to = page.locator('[role="cell"]').nth(cellIdx);
-	const fromBox = await from.boundingBox();
-	const toBox = await to.boundingBox();
-	if (!fromBox || !toBox) throw new Error('missing bounding box');
-	const sx = fromBox.x + fromBox.width / 2;
-	const sy = fromBox.y + fromBox.height / 2;
-	const ex = toBox.x + toBox.width / 2;
-	const ey = toBox.y + toBox.height / 2;
-	await page.mouse.move(sx, sy);
-	await page.mouse.down();
-	for (let i = 1; i <= 12; i++) {
-		const t = i / 12;
-		await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-	}
-	await page.mouse.up();
-}
 
 function overlayCovers(
 	rects: { x: number; y: number; width: number; height: number }[],
@@ -49,7 +30,8 @@ test.describe('table block: cross-block whole-row selection snap', () => {
 		// Drag into a2 (row 1, col 1): the snap pulls the highlight to the whole row, so a3 — past
 		// the drag endpoint — must be painted. Pre-snap the overlay stopped before the dragged
 		// cell.
-		await dragFromTextToCell(page, 'head', 4);
+		const [head, a2] = await boxesOf(page.getByText('head'), page.locator('[role="cell"]').nth(4));
+		await dragBetweenBoxes(page, head, a2);
 		await editor.waitForCrossBlock(true);
 
 		const a3Box = await page.locator('[role="cell"]').nth(5).boundingBox();

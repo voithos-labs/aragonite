@@ -1,4 +1,4 @@
-import { test, expect } from '../../../../fixtures';
+import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 test.describe('list Backspace — nested item promote', () => {
@@ -15,7 +15,5 @@ test.describe('list Backspace — nested item promote', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceContains('- Parent\n- Nested\n');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('- Parent\n- Nested\n');
 	});
 });

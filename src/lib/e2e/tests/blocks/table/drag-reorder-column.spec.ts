@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
+import { capturePageErrors } from '../../../page-probes';
 
 // Header + 1 body row, 3 columns. Cells render row-major, header first: nth 0,1,2 = header A,B,C
 // and nth 3,4,5 = body 1,2,3; one grip per column, so nth(0) is column A's. Small and fully mounted
@@ -71,8 +72,7 @@ test.describe('table block: mouse drag column reorder', () => {
 	});
 
 	test('column drag is single-undo and parity-clean (keyed permute safe)', async ({ page }) => {
-		const errs: string[] = [];
-		page.on('pageerror', (e) => errs.push(e.message));
+		const errs = capturePageErrors(page);
 		await editor.loadContent(C3);
 		await dragColGripPast(page, 0, 1);
 		await editor.bridge.waitForSourceMatches(/\| B \| A \| C \|/);

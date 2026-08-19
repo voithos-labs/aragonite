@@ -16,7 +16,6 @@ test.describe('list Shift+Tab', () => {
 		await nested.first().click();
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.bridge.waitForSourceContains('- Item 1\n- Nested\n- Item 2\n');
-		expect(await editor.bridge.getSource()).toContain('- Item 1\n- Nested\n- Item 2\n');
 	});
 
 	test('Shift+Tab on top-level item is no-op', async () => {
@@ -24,8 +23,7 @@ test.describe('list Shift+Tab', () => {
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
 		await items.nth(0).click();
 		await editor.page.keyboard.press('Shift+Tab');
-		// no-op assertion — yield for any potential structural change to fire and reach the source.
-		await editor.page.waitForTimeout(200);
+		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
 	});
 
@@ -38,7 +36,6 @@ test.describe('list Shift+Tab', () => {
 		await editor.bridge.waitForSourceMatches(/^2\. Nested$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^1\. First$/m);
-		expect(source).toMatch(/^2\. Nested$/m);
 		expect(source).toMatch(/^3\. Second$/m);
 		expect(source).not.toMatch(/^\s+\d+\./m);
 	});
@@ -54,7 +51,6 @@ test.describe('list Shift+Tab', () => {
 		expect(source).toMatch(/^1\. P A$/m);
 		expect(source).toMatch(/^\s+1\. N B$/m);
 		expect(source).not.toMatch(/^\s+2\. N B$/m);
-		expect(source).toMatch(/^2\. N A$/m);
 		expect(source).toMatch(/^3\. P B$/m);
 	});
 
@@ -66,7 +62,6 @@ test.describe('list Shift+Tab', () => {
 		await editor.page.keyboard.press('Shift+Tab');
 		await editor.bridge.waitForSourceMatches(/^\s+1\. N2$/m);
 		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^\s+1\. N2$/m);
 		expect(source).not.toMatch(/^\s+2\. N2$/m);
 		expect(source).toMatch(/^- N1$/m);
 		expect(source).not.toMatch(/^\d+\. N1$/m);
@@ -83,7 +78,6 @@ test.describe('list Shift+Tab', () => {
 		await editor.bridge.waitForSourceMatches(/^2\. N1$/m);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/^\s+- N2$/m);
-		expect(source).toMatch(/^2\. N1$/m);
 		expect(source).not.toMatch(/^- N1$/m);
 		expect(source).toMatch(/^3\. P B$/m);
 	});
@@ -98,13 +92,37 @@ test.describe('list Shift+Tab', () => {
 		await editor.bridge.waitForSourceMatches(/^2\. two$/m);
 		const afterPromote = await editor.bridge.getSource();
 		expect(afterPromote).toMatch(/^1\. one$/m);
-		expect(afterPromote).toMatch(/^2\. two$/m);
 		expect(afterPromote).toMatch(/^3\. three$/m);
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^1\. .*Z.*one|^1\. oneZ/m);
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^1\. .*Z.*one|^1\. oneZ/m);
-		expect(source).not.toMatch(/^2\. .*Z.*two|^2\. Ztwo/m);
+		expect(await editor.bridge.getSource()).not.toMatch(/^2\. .*Z.*two|^2\. Ztwo/m);
+	});
+
+	// Focus must follow the item THROUGH the container mutation: the promoted item's ref is the one
+	// `promoteNestedItem` focuses, and typing is the only oracle that tells it from a stale ref.
+	test('Shift+Tab promoting one of several nested items focuses the promoted item', async () => {
+		await editor.loadContent('- one\n  - nested a\n  - nested b\n- three\n');
+
+		const nestedA = editor.page.locator('[contenteditable="true"]', { hasText: 'nested a' });
+		await nestedA.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceMatches(/- one\n.*- Xnested a\n/s);
+	});
+
+	test('Shift+Tab of the only nested item removes the nested list and focuses the promoted item', async () => {
+		await editor.loadContent('- one\n  - lonely nested\n- three\n');
+
+		const lonely = editor.page.locator('[contenteditable="true"]', { hasText: 'lonely nested' });
+		await lonely.click();
+		await editor.page.keyboard.press('Home');
+		await editor.page.keyboard.press('Shift+Tab');
+
+		await editor.typeText('X');
+		await editor.bridge.waitForSourceMatches(/- one\n- Xlonely nested\n- three/);
+		expect(await editor.bridge.getSource()).not.toMatch(/- one\n {2}-\s*\n/);
 	});
 });

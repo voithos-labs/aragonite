@@ -1,4 +1,4 @@
-import { test, expect } from '../../../../fixtures';
+import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 test.describe('blockquote navigation — basic traversal', () => {
@@ -17,7 +17,6 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> Zsecond$/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> Zsecond$/m);
 	});
 
 	test('ArrowUp between two inner paragraphs', async () => {
@@ -28,7 +27,6 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> firstZ$/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> firstZ$/m);
 	});
 
 	test('ArrowDown from last inner paragraph exits blockquote', async () => {
@@ -39,7 +37,6 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^[^>].*Z/m);
-		expect(await editor.bridge.getSource()).toMatch(/^[^>].*Z/m);
 	});
 
 	test('ArrowUp from first inner paragraph exits blockquote', async () => {
@@ -50,7 +47,6 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^beforeZ$/m);
-		expect(await editor.bridge.getSource()).toMatch(/^beforeZ$/m);
 	});
 
 	test('ArrowDown from paragraph before blockquote enters the blockquote', async () => {
@@ -61,7 +57,6 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> Zquote$/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> Zquote$/m);
 	});
 
 	test('ArrowUp from paragraph after blockquote enters the blockquote', async () => {
@@ -72,6 +67,5 @@ test.describe('blockquote navigation — basic traversal', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> .*Z/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> .*Z/m);
 	});
 });

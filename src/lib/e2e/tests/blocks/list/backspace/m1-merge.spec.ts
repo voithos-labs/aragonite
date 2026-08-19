@@ -16,11 +16,8 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('Item oneItem two');
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Item oneItem two');
-		expect((source.match(/^- /gm) ?? []).length).toBe(1);
+		// Byte-exact: equality pins the surviving single marker the way a count cannot.
+		await editor.bridge.waitForSourceEquals('- Item oneItem two\n');
 	});
 
 	test('M1 row 2: current item has nested sub-list; nested absorbed into target', async () => {

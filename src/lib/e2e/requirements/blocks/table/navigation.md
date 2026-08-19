@@ -12,6 +12,10 @@
 - Enter in a non-last row moves to the cell directly below in the same column.
 - Enter in the last row creates a new empty row and focuses its first cell.
 
+## Miss-analysis
+
+- Horizontal table ENTRY: when the arrival branch moved `start` arrivals from a literal 0 to CURSOR_START, no spec pinned entry into a table from a horizontal arrow, so TableBlock's unconverted doors stayed green. The class is a shared arrival contract whose per-kind doors are converted one at a time — every kind's entry needs its own pin, not just the kind the change was written against.
+
 ## Behavior pinned outside this spec
 
 These ship and are guarded, but by other sinks: the cell keydown plan is unit-owned by

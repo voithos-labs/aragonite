@@ -103,6 +103,5 @@ test.describe('blockquote — the space that completes the `> ` marker', () => {
 		await page.keyboard.press('Space');
 
 		await editor.bridge.waitForSourceContains('>  abc');
-		expect(await editor.bridge.getSource()).toContain('>  abc');
 	});
 });

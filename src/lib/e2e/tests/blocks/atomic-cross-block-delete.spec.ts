@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
+import { roundTripStable } from '../plugins/helpers';
 
 const CODE_FIXTURE = 'before alpha\n\n```\nconst x = 42;\n```\n\nafter omega\n';
 const BREAK_FIXTURE = 'before alpha\n\n---\n\nafter omega\n';
@@ -90,7 +91,7 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 // is blind.
 async function assertSoundProse(editor: EditorPage, body: string): Promise<void> {
 	const source = await editor.bridge.getSource();
-	expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+	expect(await roundTripStable(editor.page)).toBe(true);
 	expect(await editor.parseConverged()).toBe(true);
 	expect(source).not.toContain(body);
 	expect(source).not.toContain('```');

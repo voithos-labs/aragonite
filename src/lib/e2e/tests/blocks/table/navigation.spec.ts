@@ -22,8 +22,6 @@ test.describe('table block: navigation', () => {
 		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
 	});
 
-	// Miss-analysis: the branch moved 'start' arrivals from literal 0 to CURSOR_START and no
-	// spec pinned horizontal table ENTRY, so TableBlock's unconverted doors stayed green.
 	test('ArrowRight from the block above enters the FIRST cell at its start', async ({ page }) => {
 		await editor.loadContent('Text before.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 		await page.getByText('Text before.').click();
