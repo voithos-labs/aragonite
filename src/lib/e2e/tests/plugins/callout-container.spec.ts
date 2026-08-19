@@ -90,7 +90,7 @@ test.describe('plugin container: :::callout editability', () => {
 		// Drag-select from the prose above into the middle of the title, then copy.
 		await editor.dragFromTo([0], 2, [1, 0], 3);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		// Paste into "Below": wrapper-less bytes would reparse to a paragraph; the
@@ -98,7 +98,7 @@ test.describe('plugin container: :::callout editability', () => {
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.press('End');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/:::callout[\s\S]*:::callout/);
 
 		const noteCount = await page.evaluate(

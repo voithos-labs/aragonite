@@ -13,10 +13,10 @@ test.describe('clipboard — code block boundary and direction', () => {
 
 	test('Ctrl+Shift+End from inside a code block extends to the final paragraph', async () => {
 		await editor.focusBlockAtPath([9], 0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardContains('A final paragraph');
 
 		const clip = await editor.readClipboard();
@@ -46,7 +46,7 @@ test.describe('clipboard — code block boundary and direction', () => {
 		await editor.page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardContains('Heading 1');
 
 		const clip = await editor.readClipboard();

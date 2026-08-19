@@ -21,7 +21,7 @@ test.describe('cross-block list paste merge: caret at end of pasted content', ()
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.shiftClickBlock([1], 'beta '.length);
 		await editor.waitForCrossBlock(true);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/- ygamma/);
 
 		await editor.page.keyboard.type('Z');
@@ -43,7 +43,7 @@ test.describe('cross-block list paste merge: caret at end of pasted content', ()
 		await editor.focusBlockAtPath([0, 0, 0], 'alpha'.length);
 		await editor.shiftClickBlock([1], 'beta '.length);
 		await editor.waitForCrossBlock(true);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/- alphaxgamma/);
 
 		await editor.page.keyboard.type('Z');

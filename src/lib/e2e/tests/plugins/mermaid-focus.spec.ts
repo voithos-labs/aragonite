@@ -118,7 +118,7 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.bridge.waitForSourceContains('Q');
 		await editor.viewport.click();
 		await expect(editor.inputHost).toBeFocused();
-		await page.keyboard.press('Control+Alt+u');
+		await page.keyboard.press('ControlOrMeta+Alt+u');
 		await editor.bridge.waitForSourceEquals(original);
 	});
 
@@ -201,7 +201,7 @@ test.describe('mermaid whole-block focus', () => {
 		await editor.viewport.click();
 		await expect(editor.inputHost).toBeFocused();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		expect(await readClipboardLF()).toBe(MERMAID_FENCE);
 		expect(await editor.bridge.getSource()).toBe(before);
@@ -213,7 +213,7 @@ test.describe('mermaid whole-block focus', () => {
 		const original = await editor.bridge.getSource();
 		await editor.viewport.click();
 		await expect(editor.inputHost).toBeFocused();
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 		expect(await readClipboardLF()).toBe(MERMAID_FENCE);
 		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));

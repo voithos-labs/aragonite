@@ -85,7 +85,7 @@ test.describe('inline math: clipboard during an active source reveal', () => {
 		await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('Shift+ArrowLeft');
 
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		const clip = await editor.readClipboard();

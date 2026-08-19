@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import { capturePageErrors } from '../../page-probes';
 
 // A windowed doc: many short paragraphs with a unique marker as the last block,
@@ -41,7 +40,7 @@ test('Shift+Ctrl+End extends to an off-window endpoint and scrolls it into view,
 
 	// Extend a cross-block selection to the document end (the off-window last block).
 	await editor.clickBlock(0);
-	await page.keyboard.press(`${primaryModifier}+Shift+End`);
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForRenderFlush();
 
 	// Poll the mount+scroll the reveal performs rather than a fixed wait; the

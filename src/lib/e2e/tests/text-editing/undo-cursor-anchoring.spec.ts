@@ -1,6 +1,5 @@
 import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 
 test.describe('undo cursor anchoring', () => {
 	let editor: EditorPage;
@@ -24,7 +23,7 @@ test.describe('undo cursor anchoring', () => {
 	test('C3: undo after Ctrl+1 heading returns caret to pre-edit position', async () => {
 		await editor.loadContent('Title\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press(`${primaryModifier}+1`);
+		await editor.page.keyboard.press('ControlOrMeta+1');
 		await editor.bridge.waitForSourceMatches(/^# Title$/m);
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('Title\n');

@@ -65,9 +65,9 @@ test.describe('copy-paste round-trip: list selections preserve structure', () =>
 			await editor.shiftClickBlock(...to);
 			await editor.waitForCrossBlock(true);
 
-			await editor.page.keyboard.press('Control+c');
+			await editor.page.keyboard.press('ControlOrMeta+c');
 			await editor.waitForClipboardWrite();
-			await editor.paste('Control+v');
+			await editor.paste();
 			// The round-trip's end state IS its start state, so no source predicate can
 			// observe the paste. The selection collapsing is the one real transition.
 			await editor.waitForCrossBlock(false);
@@ -84,7 +84,7 @@ test.describe('copy-paste round-trip: list selections preserve structure', () =>
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/- pasted a\n- pasted b/);
 
 		const src = await editor.bridge.getSource();

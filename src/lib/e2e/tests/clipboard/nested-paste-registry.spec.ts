@@ -21,7 +21,7 @@ test.describe('nested structural paste — ref alignment via registry', () => {
 		await editor.shiftClickBlock([0, 1], 'second para'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('gamma');
 
 		// Caret should land at the end of "gamma" (the last pasted block).

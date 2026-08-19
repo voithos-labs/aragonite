@@ -258,7 +258,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		// Drag-select from the prose above into the middle of the summary, then copy.
 		await editor.dragFromTo([0], 2, [1, 0], 3);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		// Paste into "Below": the synthesized closer makes the bytes reparse to a
@@ -266,7 +266,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.press('End');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('<summary>Sum</summary>');
 
 		const pasted = await page.evaluate(() => {

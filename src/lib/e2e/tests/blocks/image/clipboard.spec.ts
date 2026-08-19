@@ -51,7 +51,7 @@ test.describe('selected image-widget copy/cut', () => {
 			await selectWidget();
 			const before = await editor.bridge.getSource();
 
-			await editor.page.keyboard.press('Control+c');
+			await editor.page.keyboard.press('ControlOrMeta+c');
 			await editor.waitForClipboardWrite();
 
 			expect(await editor.readClipboard()).toBe(IMG_MD);
@@ -64,7 +64,7 @@ test.describe('selected image-widget copy/cut', () => {
 			const before = await editor.bridge.getSource();
 			await selectWidget();
 
-			await editor.page.keyboard.press('Control+x');
+			await editor.page.keyboard.press('ControlOrMeta+x');
 			await editor.waitForClipboardWrite();
 
 			expect(await editor.readClipboard()).toBe(IMG_MD);
@@ -81,7 +81,7 @@ test.describe('selected image-widget copy/cut', () => {
 		await editor.seedClipboard('REPLACED');
 		await selectByClick();
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('REPLACED');
 
 		expect((await editor.bridge.getSource()).trim()).toBe('lead\n\nREPLACED\n\ntail');
@@ -96,7 +96,7 @@ test.describe('selected image-widget copy/cut', () => {
 		await editor.page.keyboard.press('ArrowLeft');
 		await expect(overlay()).toBeVisible();
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 
 		expect(await editor.readClipboard()).toBe(IMG_MD);

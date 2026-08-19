@@ -1,6 +1,5 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
-import { primaryModifier } from '../../platform';
 import { EditorPage } from '../../editor-page';
 import { findInput, openFind, overlays, replaceInput, typeQuery } from './helpers';
 
@@ -40,7 +39,7 @@ test.describe('search bar — consumer anchor', () => {
 
 	test('Ctrl+H opens the anchored bar with the replace row expanded', async ({ page }) => {
 		await editor.clickBlock(0);
-		await page.keyboard.press(`${primaryModifier}+h`);
+		await page.keyboard.press('ControlOrMeta+h');
 		await expect(replaceInput(page)).toBeVisible();
 		await expect(anchoredBar(page)).toBeVisible();
 	});
@@ -77,7 +76,7 @@ test.describe('search bar — consumer anchor', () => {
 	}) => {
 		await editor.clickBlock(0);
 		await page.keyboard.press('End');
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await expect(findInput(page)).toBeFocused();
 
 		await page.keyboard.press('Escape');

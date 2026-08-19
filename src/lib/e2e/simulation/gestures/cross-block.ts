@@ -1,4 +1,3 @@
-import { primaryModifier } from '../../platform';
 import { type SimContext, assertStructuralIntegrity } from '../invariants';
 
 /**
@@ -97,7 +96,7 @@ export function deleteSelection(ctx: SimContext, key: 'Backspace' | 'Delete'): P
 }
 
 export function cutSelection(ctx: SimContext): Promise<void> {
-	return destroyThenSweep(ctx, () => ctx.page.keyboard.press(`${primaryModifier}+x`), 'cut');
+	return destroyThenSweep(ctx, () => ctx.page.keyboard.press('ControlOrMeta+x'), 'cut');
 }
 
 export function typeOverSelection(ctx: SimContext, text: string): Promise<void> {
@@ -109,5 +108,5 @@ export function typeOverSelection(ctx: SimContext, text: string): Promise<void> 
 }
 
 export function pasteOverSelection(ctx: SimContext): Promise<void> {
-	return destroyThenSweep(ctx, () => ctx.page.keyboard.press(`${primaryModifier}+v`), 'paste-over');
+	return destroyThenSweep(ctx, () => ctx.page.keyboard.press('ControlOrMeta+v'), 'paste-over');
 }

@@ -1,6 +1,5 @@
 import { test, expect } from '../fixtures';
 import { waitForEditorHydrated } from '../page-probes';
-import { primaryModifier } from '../platform';
 
 // The `/` showcase header: theme, drag handles, the debug panel, and the toc as navigation.
 // No `window.__test` bridge on this route, so assertions read rendered DOM only. The mode
@@ -72,7 +71,7 @@ test.describe('/ showcase chrome', () => {
 		const panel = page.locator('.debug-panel');
 		await expect(panel).toHaveCount(0);
 
-		await page.keyboard.press(`${primaryModifier}+Shift+D`);
+		await page.keyboard.press('ControlOrMeta+Shift+D');
 		await expect(panel).toBeVisible();
 		// The panel is the "under the hood" pitch element: its CST section must show the
 		// showcase document's own tree, not an empty or stale one.

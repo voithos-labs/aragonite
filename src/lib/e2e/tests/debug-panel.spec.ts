@@ -1,11 +1,8 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 import { DEFAULT_CONTENT } from '../test-content';
-import { primaryModifier } from '../platform';
 
-function toggleKey(): string {
-	return `${primaryModifier}+Shift+D`;
-}
+const TOGGLE_CHORD = 'ControlOrMeta+Shift+D';
 
 async function reloadHarness(editor: EditorPage): Promise<void> {
 	await editor.page.reload();
@@ -28,15 +25,15 @@ test.describe('debug panel', () => {
 	test('hotkey opens panel from closed state then closes it again', async () => {
 		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
 
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
 	});
 
 	test('panel open state survives a page reload', async () => {
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 
 		await reloadHarness(editor);
@@ -45,7 +42,7 @@ test.describe('debug panel', () => {
 	});
 
 	test('all seven sections render in document order and CST body is populated', async () => {
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 
 		const titles = await editor.page
 			.locator('.debug-section')
@@ -67,14 +64,14 @@ test.describe('debug panel', () => {
 	});
 
 	test('Esc while panel is focused closes the panel', async () => {
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await editor.page.locator('.debug-panel').focus();
 		await editor.page.keyboard.press('Escape');
 		await expect(editor.page.locator('.debug-panel')).toHaveCount(0);
 	});
 
 	test('raw-source section is not a textarea (read-only by design)', async () => {
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		const rawBody = editor.page.locator(
 			'.debug-section[data-section-title="Raw source"] .debug-section-body'
 		);
@@ -83,7 +80,7 @@ test.describe('debug panel', () => {
 	});
 
 	test('copy-all button writes a fenced snapshot to the clipboard', async () => {
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await editor.page.locator('.debug-panel .copy-all').click();
 
 		const clip = await editor.readClipboard();
@@ -98,7 +95,7 @@ test.describe('debug panel', () => {
 	// before or after the section expands.
 	for (const order of ['click-first', 'expand-first'] as const) {
 		test(`inline tree populates when the block is focused ${order === 'click-first' ? 'before' : 'after'} the section expands`, async () => {
-			await editor.page.keyboard.press(toggleKey());
+			await editor.page.keyboard.press(TOGGLE_CHORD);
 			const header = editor.page.locator(
 				'.debug-section[data-section-title="Inline tree (focused block)"] .debug-section-header'
 			);
@@ -119,7 +116,7 @@ test.describe('debug panel', () => {
 	}
 
 	test('selection section shows the focused block path when user clicks in a block', async () => {
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await editor.page
 			.locator('.debug-section[data-section-title="Selection"] .debug-section-header')
 			.click();
@@ -175,7 +172,7 @@ test.describe('debug panel', () => {
 	test('hotkey with focus in the editor toggles panel without inserting a character', async () => {
 		await editor.clickBlock(0);
 
-		await editor.page.keyboard.press(toggleKey());
+		await editor.page.keyboard.press(TOGGLE_CHORD);
 		await expect(editor.page.locator('.debug-panel')).toBeVisible();
 
 		const source = await editor.bridge.getSource();

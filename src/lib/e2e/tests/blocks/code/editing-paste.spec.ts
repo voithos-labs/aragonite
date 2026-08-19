@@ -19,7 +19,7 @@ test.describe('code block paste — fence bumping', () => {
 		// The run has to be a LINE to threaten the fence, so an inline `` ```pasted code``` `` is
 		// ordinary body text.
 		await editor.seedClipboard('\n```\npasted code\n');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('pasted code');
 
 		const source = await editor.bridge.getSource();
@@ -34,7 +34,7 @@ test.describe('code block paste — fence bumping', () => {
 		await editor.focusBlock(0, 11);
 
 		await editor.seedClipboard('\n# Heading\n\n- list item\n\nparagraph\n');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Heading');
 
 		expect(await editor.bridge.getBlockCount()).toBe(1);

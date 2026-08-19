@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { primaryModifier } from '../../platform';
 import { DetailsPage, capturedErrors, readDetails, OPEN } from './details-helpers';
 import { readDoc, roundTripStable } from './helpers';
 
@@ -23,7 +22,7 @@ test.describe('plugin container: <details> terminator escape on paste', () => {
 		await editor.loadContent(OPEN);
 		await editor.focusBlockAtPath([0, 1], 4); // end of "Body"
 		await editor.seedClipboard('steps:\n\n</details>\n\nafter\n');
-		await editor.paste(`${primaryModifier}+v`);
+		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('&lt;/details>');
 		expect((await readDoc(page)).kinds).toEqual(['details']);
@@ -35,7 +34,7 @@ test.describe('plugin container: <details> terminator escape on paste', () => {
 		await editor.loadContent(OPEN);
 		await editor.focusBlockAtPath([0, 1], 4);
 		await editor.seedClipboard('<details>\n<summary>inner</summary>\n\nnested\n\n</details>\n');
-		await editor.paste(`${primaryModifier}+v`);
+		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('<summary>inner</summary>');
 		expect((await readDetails(page, 0)).childKinds).toContain('details');

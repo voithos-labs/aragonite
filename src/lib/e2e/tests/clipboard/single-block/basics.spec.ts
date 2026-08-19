@@ -18,9 +18,9 @@ test.describe('single-block clipboard: basics', () => {
 			await editor.loadContent('Start\n');
 			await editor.focusBlockStart(0);
 			for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-			await editor.page.keyboard.press('Control+c');
+			await editor.page.keyboard.press('ControlOrMeta+c');
 			await editor.page.keyboard.press(key);
-			await editor.paste('Control+v');
+			await editor.paste();
 			await editor.bridge.waitForSourceContains(expected);
 		});
 	}
@@ -29,10 +29,10 @@ test.describe('single-block clipboard: basics', () => {
 		await editor.loadContent('AAABBB\n');
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.page.keyboard.press('ArrowRight');
 		for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('AAAAAA');
 		expect(await editor.bridge.getSource()).not.toContain('BBB');
 	});
@@ -51,7 +51,7 @@ test.describe('single-block clipboard: basics', () => {
 		const before = await editor.bridge.getSource();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('Restore');
 
 		await editor.undo();
@@ -63,7 +63,7 @@ test.describe('single-block clipboard: basics', () => {
 		const sourceBefore = await editor.bridge.getSource();
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		expect(await editor.bridge.getSource()).toBe(sourceBefore);
@@ -73,7 +73,7 @@ test.describe('single-block clipboard: basics', () => {
 		await editor.loadContent('NoChange\n');
 		const sourceBefore = await editor.bridge.getSource();
 		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 
 		expect(await editor.bridge.getSource()).toBe(sourceBefore);
@@ -83,7 +83,7 @@ test.describe('single-block clipboard: basics', () => {
 		await editor.loadContent('Hello \n');
 		await editor.focusBlock(0, 6);
 		await editor.seedClipboard('world');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('Hello world');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
@@ -92,11 +92,11 @@ test.describe('single-block clipboard: basics', () => {
 		await editor.loadContent('First\n\nSecond\n');
 		await editor.focusBlockStart(0);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSource((s) => !s.includes('First'));
 
 		await editor.focusBlockEnd(1);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('SecondFirst');
 	});
 

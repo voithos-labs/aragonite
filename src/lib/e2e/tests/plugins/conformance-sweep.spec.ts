@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { PluginsPage, activeBlockPath } from './helpers';
-import { primaryModifier } from '../../platform';
 
 // The three DOM-only closure columns, executed per registered kind. One test per COLUMN iterates
 // the live registry entries, soft-collects a failure line per kind, and rolls them into a final
@@ -129,7 +128,7 @@ async function matchOverlaysIn(page: Page, topIndex: number): Promise<number> {
 
 async function openSearch(page: Page, plugins: PluginsPage, find: Locator): Promise<void> {
 	await plugins.clickBlock(0);
-	await page.keyboard.press(`${primaryModifier}+f`);
+	await page.keyboard.press('ControlOrMeta+f');
 	await find.waitFor({ state: 'visible' });
 }
 

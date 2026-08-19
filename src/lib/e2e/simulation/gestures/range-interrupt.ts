@@ -1,5 +1,4 @@
 import type { Gestures } from '../gestures';
-import { primaryModifier } from '../../platform';
 import { clickInlineWidget, escapeRevealToCommit } from './math';
 import {
 	type SimContext,
@@ -357,7 +356,7 @@ async function pressEscape(ctx: SimContext): Promise<undefined> {
  * it back: focus leaves for the find input and returns on Escape.
  */
 async function searchRoundTrip(ctx: SimContext): Promise<undefined> {
-	await ctx.page.keyboard.press(`${primaryModifier}+f`);
+	await ctx.page.keyboard.press('ControlOrMeta+f');
 	const input = ctx.page.locator('.search-bar input').first();
 	await input.waitFor({ state: 'visible' });
 	await input.click();

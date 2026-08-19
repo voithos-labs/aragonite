@@ -16,7 +16,7 @@ test.describe('clipboard — container boundary scenarios', () => {
 		await editor.shiftClickBlock([8, 0, 0], 5);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardContains('Item three');
 
 		const clip = await editor.readClipboard();
@@ -29,10 +29,10 @@ test.describe('clipboard — container boundary scenarios', () => {
 
 	test('copy from blockquote second paragraph to end collects list markers', async () => {
 		await editor.focusBlockAtPath([6, 1], 0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardContains('A final paragraph');
 
 		const clip = await editor.readClipboard();
@@ -44,10 +44,10 @@ test.describe('clipboard — container boundary scenarios', () => {
 
 	test('copy from ordered list last item across code block to final paragraph', async () => {
 		await editor.focusBlockAtPath([8, 2, 0], 0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardContains('A final paragraph');
 
 		const clip = await editor.readClipboard();

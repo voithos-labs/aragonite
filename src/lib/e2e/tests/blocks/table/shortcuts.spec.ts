@@ -27,7 +27,7 @@ test.describe('table block: keyboard vocabulary', () => {
 
 	test('Ctrl+Enter inserts a new row below and focuses its first cell', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('Control+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains('| 1 | 2 |\n|  |  |\n');
 		await expect(page.locator('[role="cell"]')).toHaveCount(6);
 		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
@@ -35,7 +35,7 @@ test.describe('table block: keyboard vocabulary', () => {
 
 	test('Ctrl+Shift+Enter inserts a new row above and focuses its first cell', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('Control+Shift+Enter');
+		await page.keyboard.press('ControlOrMeta+Shift+Enter');
 		await editor.bridge.waitForSourceContains('| --- | --- |\n|  |  |\n| 1 | 2 |\n');
 		await expect(page.locator('[role="cell"]').nth(2)).toBeFocused();
 	});
@@ -60,7 +60,7 @@ test.describe('table block: keyboard vocabulary', () => {
 	test('Ctrl+Shift+Backspace deletes a body row when ≥2 body rows remain', async ({ page }) => {
 		await editor.loadContent(TABLE_3ROW);
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('Control+Shift+Backspace');
+		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceContains('| 3 | 4 |');
 	});
@@ -80,23 +80,23 @@ test.describe('table block: keyboard vocabulary', () => {
 	}) => {
 		await page.locator('[role="cell"]').nth(0).click();
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('ControlOrMeta+Shift+A');
 		await editor.bridge.waitForSourceContains('| :---: | --- |');
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('ControlOrMeta+Shift+A');
 		await editor.bridge.waitForSourceContains('| ---: | --- |');
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('ControlOrMeta+Shift+A');
 		await editor.bridge.waitForSourceContains('| :--- | --- |');
 
-		await page.keyboard.press('Control+Shift+A');
+		await page.keyboard.press('ControlOrMeta+Shift+A');
 		await editor.bridge.waitForSourceContains('| :---: | --- |');
 	});
 
 	test('Ctrl+Shift+Backspace is a no-op when only one body row remains', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('Control+Shift+Backspace');
+		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
@@ -113,7 +113,7 @@ test.describe('table block: keyboard vocabulary', () => {
 	test('Deleting the header row promotes the next row to be the new header', async ({ page }) => {
 		await editor.loadContent(TABLE_3ROW);
 		await page.locator('[role="cell"]').nth(0).click();
-		await page.keyboard.press('Control+Shift+Backspace');
+		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
 		await editor.bridge.waitForSourceContains('| 1 | 2 |\n| --- | --- |\n| 3 | 4 |\n');
 		await editor.bridge.waitForSourceNotContains('| A | B |');
 	});
@@ -123,7 +123,7 @@ test.describe('table block: keyboard vocabulary', () => {
 	}) => {
 		await page.locator('[role="cell"]').nth(2).click();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('Control+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains('|  |  |');
 		await editor.undo();
 		await editor.bridge.waitForSourceNotContains('|  |  |');
@@ -136,7 +136,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.loadContent(`lead\n\n${TABLE_2x2}`);
 		await page.locator('[role="cell"]').nth(2).click();
 
-		await page.keyboard.press('Control+Alt+ArrowUp');
+		await page.keyboard.press('ControlOrMeta+Alt+ArrowUp');
 
 		await editor.bridge.waitForSourceEquals(`${TABLE_2x2}\nlead\n`);
 		// The row reorder still owns the bare chord — the two must not collide.
@@ -251,7 +251,7 @@ test.describe('table block: delete-last-row / delete-last-column focus landing',
 		await page.locator('[role="cell"]').nth(4).click();
 		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
 
-		await page.keyboard.press('Control+Shift+Backspace');
+		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
 		await expect(page.locator('[role="cell"]')).toHaveCount(4);
 

@@ -73,7 +73,7 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 			await selectAcrossAtomic(editor);
 			await editor.waitForCrossBlock(true);
 			errors.clear();
-			await editor.page.keyboard.press('Control+x');
+			await editor.page.keyboard.press('ControlOrMeta+x');
 			await editor.bridge.waitForSourceNotContains(variant.body);
 
 			await editor.waitForClipboardContains(variant.body);

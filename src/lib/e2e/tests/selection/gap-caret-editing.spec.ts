@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import {
 	AT_BOUNDARY,
 	CLOSER_BOUNDARY,
@@ -71,7 +70,7 @@ test.describe('minting a paragraph at the gap', () => {
 		await loadThenArrive(editor);
 		await editor.seedClipboard('pasted\n');
 
-		await editor.paste(`${primaryModifier}+v`);
+		await editor.paste();
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(TABLE_THEN_FENCE);

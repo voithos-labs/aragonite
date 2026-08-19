@@ -60,7 +60,7 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
 		await selectWorld();
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('**world**');
 		expect(await editor.bridge.getSource()).toBe(viaDoor);
 	});
@@ -78,7 +78,7 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
 		await selectWorld();
-		await editor.page.keyboard.press('Control+Alt+g');
+		await editor.page.keyboard.press('ControlOrMeta+Alt+g');
 		await editor.bridge.waitForSourceContains('Hello **world**');
 	});
 

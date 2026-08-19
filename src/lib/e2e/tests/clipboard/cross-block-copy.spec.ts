@@ -15,7 +15,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
@@ -32,11 +32,11 @@ test.describe('cross-block clipboard: copy', () => {
 			null,
 			{ timeout: 2000, polling: 16 }
 		);
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.focusBlockEnd(2);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/third\s*st/);
 		const source = await editor.bridge.getSource();
 		expect(source).toMatch(/third\s*st/);
@@ -51,13 +51,13 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.focusBlockAtPath([0], 0);
 		await editor.shiftClickBlock([1], 3);
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await editor.page.keyboard.press('End');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/target[\s\S]*\n\s*\n\s*two/);
 
 		const source = await editor.bridge.getSource();
@@ -69,17 +69,17 @@ test.describe('cross-block clipboard: copy', () => {
 		const beforeSource = await editor.bridge.getSource();
 
 		await editor.focusBlock(0, 0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await editor.page.keyboard.press('End');
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/first block[\s\S]*first block/);
 
 		const afterSource = await editor.bridge.getSource();

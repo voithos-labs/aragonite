@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import type { Page } from '@playwright/test';
 
 // preview-block is an EDITING mode: no edit path is gated, and the focus mark follows the
@@ -92,14 +91,14 @@ test.describe('preview-block — selection, search, mode flips', () => {
 		await ep.waitForCrossBlock(true);
 		// Block 2 stays unfocused (markers-hidden) yet the overlay paints across it.
 		await expect(ep.getBlock(2).locator('.md-marker').first()).toBeHidden();
-		await page.keyboard.press(`${primaryModifier}+c`);
+		await page.keyboard.press('ControlOrMeta+c');
 		await ep.waitForClipboardWrite();
 		expect((await ep.readClipboard()).length).toBeGreaterThan(0);
 	});
 
 	test('search highlights land on a marker-hidden block', async ({ page }) => {
 		await ep.clickBlock(0);
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await page.getByRole('textbox', { name: 'Find' }).waitFor({ state: 'visible' });
 		await page.keyboard.type('beta'); // lives in the unfocused block 1
 		await expect(page.locator('.match-overlay').first()).toBeVisible();

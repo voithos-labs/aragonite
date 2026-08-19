@@ -51,7 +51,7 @@ test.describe('single-block paste over a construct edge', () => {
 
 		await copyPayload(ep, page);
 		await selectAcrossTheCloser(ep, page);
-		await ep.paste('ControlOrMeta+v');
+		await ep.paste();
 		// The construct is what the cut consumes, so its disappearance is the transition to
 		// wait on — the seam's own bytes are the thing under test and cannot be the predicate.
 		await ep.bridge.waitForSourceNotContains('**bold**');
@@ -69,7 +69,7 @@ test.describe('single-block paste over a construct edge', () => {
 
 		await copyPayload(ep, page);
 		await selectAcrossTheCloser(ep, page);
-		await ep.paste('ControlOrMeta+v');
+		await ep.paste();
 		await ep.bridge.waitForSourceContains('Some **bX');
 
 		// Every marker is painted here, so the cut is the user's own bytes and nothing is dropped.
@@ -102,7 +102,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		await copyPayload(ep, page);
 		await selectAcrossTheCellCloser(ep, page);
 
-		await ep.paste('ControlOrMeta+v');
+		await ep.paste();
 		await ep.bridge.waitForSourceNotContains('**bold**');
 		await ep.waitForRenderFlush();
 
@@ -119,7 +119,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		await copyPayload(ep, page);
 		await selectAcrossTheCellCloser(ep, page);
 
-		await ep.paste('ControlOrMeta+v');
+		await ep.paste();
 		await ep.bridge.waitForSourceNotContains('**bold** text');
 		await ep.waitForRenderFlush();
 
@@ -143,7 +143,7 @@ test.describe('table-cell paste over a construct edge', () => {
 		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowLeft');
 		await ep.waitForRenderFlush();
 
-		await ep.paste('ControlOrMeta+v');
+		await ep.paste();
 		await ep.bridge.waitForSourceNotContains('**z**');
 		await ep.waitForRenderFlush();
 

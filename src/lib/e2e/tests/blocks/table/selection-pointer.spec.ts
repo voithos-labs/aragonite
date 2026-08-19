@@ -157,7 +157,7 @@ test.describe('table block: pointer selection', () => {
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowRight'); // collapse to the end (last cell)
 		// The collapse is async; settle before typing so the marker is a plain caret
@@ -181,7 +181,7 @@ test.describe('table block: pointer selection', () => {
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowLeft'); // collapse to the start (anchor cell)
 		await editor.waitForCrossBlock(false);
@@ -201,7 +201,7 @@ test.describe('table block: pointer selection', () => {
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowDown'); // collapse to the end (last cell)
 		await editor.waitForCrossBlock(false);
@@ -221,9 +221,9 @@ test.describe('table block: pointer selection', () => {
 		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR + '\nAfter.\n');
 
 		await page.locator('[role="cell"]').nth(3).click();
-		await page.keyboard.press('Control+a'); // stage 1: cell
-		await page.keyboard.press('Control+a'); // stage 2: table (enters cross-block)
-		await page.keyboard.press('Control+a'); // stage 3: whole document
+		await page.keyboard.press('ControlOrMeta+a'); // stage 1: cell
+		await page.keyboard.press('ControlOrMeta+a'); // stage 2: table (enters cross-block)
+		await page.keyboard.press('ControlOrMeta+a'); // stage 3: whole document
 		await editor.waitForCrossBlock(true);
 
 		const sel = await editor.bridge.getSelectionPaths();

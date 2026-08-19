@@ -61,7 +61,7 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 		// Paste into an item near the top of the mounted window, so the landing index
 		// (here + 40) is far below anything mounted.
 		await editor.clickBlockAtPath([0, TARGET_ITEM, 0], 'item 2'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains(LAST_PASTED_TEXT);
 
 		// The source is final at commit time, before the reveal has mounted the landing

@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { attachIme } from '../../simulation/ime';
-import { primaryModifier } from '../../platform';
 import { wholeBlockInput } from '../../whole-block-input';
 import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
@@ -41,7 +40,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 
 		await editor.bridge.waitForSourceMatches(/---\n\n日本\n\nAfter/);
 
-		await editor.page.keyboard.press(`${primaryModifier}+z`);
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceEquals(original);
 	});
 

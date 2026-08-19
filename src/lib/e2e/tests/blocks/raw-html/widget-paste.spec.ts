@@ -50,7 +50,7 @@ test.describe('live raw-HTML widget paste-while-selected', () => {
 		});
 		await editor.bridge.waitForSourceContains('beforeREPLACEDafter');
 
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('<br>');
 
 		// Typing must land at offset 6 (preSelectOffset), not at the far widget boundary;

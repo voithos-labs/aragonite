@@ -43,7 +43,7 @@ test.describe('mermaid empty diagram', () => {
 
 		// The landed caret is the diagram's own: typing continues into the code.
 		await page.keyboard.type('graph TD');
-		await page.keyboard.press('Control+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains('```mermaid\ngraph TD');
 		expect(await roundTripStable(page)).toBe(true);
 	});
@@ -58,7 +58,7 @@ test.describe('mermaid empty diagram', () => {
 
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.press('Backspace');
-		await page.keyboard.press('Control+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
 
 		await editor.bridge.waitForSourceEquals('Above\n\n```mermaid\n```\n\ntail\n');
 		await expect(editor.textarea).toBeFocused();

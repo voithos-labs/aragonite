@@ -12,7 +12,7 @@ test.describe('selection — overlay: happy paths', () => {
 	test('middle block overlay renders for strictly-between blocks', async () => {
 		await editor.loadContent('aaa\n\nbbb\n\nccc\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await expect(
 			editor.page.locator("[data-block-path='[1]'] .selection-overlay-middle").first()
@@ -77,7 +77,7 @@ test.describe('selection — overlay: edge cases', () => {
 	test('container block does not render its own overlay when children already have overlays', async () => {
 		await editor.loadContent('before\n\n> quote line 1\n> quote line 2\n\nafter\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
 		await expect(

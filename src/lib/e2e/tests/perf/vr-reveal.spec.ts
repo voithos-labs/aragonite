@@ -33,7 +33,7 @@ test('Ctrl+Shift+End reveals and edits the off-window last block', async ({ page
 	expect(await topLevelHostPresent(page, last)).toBe(false);
 
 	await editor.focusBlockStart(0);
-	await page.keyboard.press('Control+Shift+End');
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 	await page.keyboard.press('ArrowRight'); // collapse the range to its end
 	await editor.typeText('VR_MARKER');
@@ -112,7 +112,7 @@ test('reveals a deep off-window nested item and lands the caret there', async ({
 	// Click the content leaf, not focusBlockStart(0): path [0] is the non-focusable
 	// .list-block container, whose programmatic focus never routes the keydown.
 	await editor.clickBlockAtPath([0, 0, 0], 0);
-	await page.keyboard.press('Control+Shift+End');
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 	await page.keyboard.press('ArrowRight'); // collapse the range to the revealed end
 	await editor.typeText('DEEP_VR_MARKER');
@@ -141,7 +141,7 @@ test('collapsing a Ctrl+Shift+End list selection to start lands the caret in the
 	expect(await spacerCount(page)).toBeGreaterThan(0);
 
 	await editor.clickBlockAtPath([0, 0, 0], 0);
-	await page.keyboard.press('Control+Shift+End');
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 	// Unmounted now, so the collapse below must re-reveal rather than reuse a mounted block.
 	expect(
@@ -244,7 +244,7 @@ test('Ctrl+Shift+End in a table reveals and mounts the off-window focus cell (ph
 	// The focus normalizes to a cell-coordinate endpoint at the table block; an extend that
 	// ignores the cell coordinate scrolls the table top and never mounts the last row.
 	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
-	await page.keyboard.press('Control+Shift+End');
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 
 	// [data-cross-block] attaches at enterCrossBlock, BEFORE the awaited reveal —
@@ -278,7 +278,7 @@ test('collapsing a Ctrl+Shift+End table selection lands the caret in the reveale
 	).toBe(false);
 
 	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
-	await page.keyboard.press('Control+Shift+End');
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 	await page.keyboard.press('ArrowRight'); // collapse to the revealed end
 	await editor.typeText('TABLE_END_MARKER');
@@ -318,7 +318,7 @@ test('collapsing a Ctrl+Shift+End table selection to start does not wipe the tab
 	// The collapse is async: typing on the keypress alone would race the still-active
 	// selection into a destructive type-replace.
 	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
-	await page.keyboard.press('Control+Shift+End');
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForCrossBlock(true);
 	await page.keyboard.press('ArrowLeft'); // collapse to the start
 	await editor.waitForCrossBlock(false);

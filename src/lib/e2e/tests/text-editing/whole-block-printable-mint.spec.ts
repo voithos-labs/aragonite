@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import { wholeBlockInput } from '../../whole-block-input';
 import { RULE_DOC, focusTheRule, rule } from './whole-block-rule';
 
@@ -46,7 +45,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		await page.keyboard.press('x');
 		await editor.bridge.waitForSourceContains('x');
 
-		await page.keyboard.press(`${primaryModifier}+z`);
+		await page.keyboard.press('ControlOrMeta+z');
 
 		await editor.bridge.waitForSourceEquals(original);
 	});
@@ -55,7 +54,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		const original = await editor.bridge.getSource();
 		await focusTheRule(editor);
 
-		await page.keyboard.press(`${primaryModifier}+c`);
+		await page.keyboard.press('ControlOrMeta+c');
 
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);

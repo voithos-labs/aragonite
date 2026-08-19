@@ -99,8 +99,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('the click ends a live cross-block selection', async () => {
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
 		const root = await rootBox(editor);
@@ -158,8 +158,8 @@ test.describe('dead-space clicks place a caret', () => {
 	test('a click beside a table lands in that row and ends a live range', async () => {
 		await editor.loadContent('lead\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
 		const root = await rootBox(editor);

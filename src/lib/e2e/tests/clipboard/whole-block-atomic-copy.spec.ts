@@ -30,7 +30,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 	test('Mod+C copies the block markdown and leaves the document unchanged', async () => {
 		await focusBreakByArrow();
 		const before = await editor.bridge.getSource();
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		expect(await editor.bridge.getSource()).toBe(before);
@@ -40,7 +40,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 	test('Mod+X copies the markdown, deletes the block, and one undo restores it', async () => {
 		const before = await editor.bridge.getSource();
 		await focusBreakByArrow();
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		await editor.bridge.waitForSourceNotContains('---');
@@ -56,11 +56,11 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 		await expect(wholeBlockInput(breakBlock())).toBeFocused();
 		const before = await editor.bridge.getSource();
 
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		expect(await editor.readClipboard()).toBe(BREAK_MD);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		await editor.waitForNoSourceMutation();

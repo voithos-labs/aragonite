@@ -1,5 +1,4 @@
 import { type Page, type Locator } from '@playwright/test';
-import { primaryModifier } from './platform';
 import { EditorBridge } from './editor-bridge';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
 import {
@@ -271,24 +270,22 @@ export class EditorPage {
 		await this.page.keyboard.type(text);
 	}
 
-	// macOS binds undo/redo/select-all to Cmd; every other platform uses Ctrl.
 	async undo() {
-		await this.page.keyboard.press(`${primaryModifier}+z`);
+		await this.page.keyboard.press('ControlOrMeta+z');
 	}
 
 	async redo() {
-		await this.page.keyboard.press(`${primaryModifier}+Shift+z`);
+		await this.page.keyboard.press('ControlOrMeta+Shift+z');
 	}
 
 	async selectAll() {
-		await this.page.keyboard.press(`${primaryModifier}+a`);
+		await this.page.keyboard.press('ControlOrMeta+a');
 	}
 
 	// ── Clipboard ───────────────────────────────────────────────────────
 
-	/** Callers spell their own chord: three modifier conventions coexist in the suite. */
-	async paste(chord: string): Promise<void> {
-		await this.page.keyboard.press(chord);
+	async paste(): Promise<void> {
+		await this.page.keyboard.press('ControlOrMeta+v');
 	}
 
 	async seedClipboard(text: string): Promise<void> {

@@ -14,11 +14,11 @@ test.describe('cross-block paste over selection — undo / redo', () => {
 		await editor.loadContent(original);
 
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 
 		const pasteMd = 'One\n\nTwo\n';
 		await editor.seedClipboard(pasteMd);
-		await editor.paste('Control+v');
+		await editor.paste();
 
 		await editor.bridge.waitForSourceWith((s, e) => s.trim() === e.trim(), pasteMd);
 		const postPasteSource = (await editor.bridge.getSource()).trim();
@@ -37,10 +37,10 @@ test.describe('cross-block paste over selection — undo / redo', () => {
 		await editor.loadContent(original);
 
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 
 		await editor.seedClipboard('replacement');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('replacement');
 
 		await editor.undo();
@@ -57,7 +57,7 @@ test.describe('cross-block paste over selection — undo / redo', () => {
 		await editor.shiftClickBlock([1], 'world'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('alpha');
 
 		const afterPaste = await editor.bridge.getSource();
@@ -65,7 +65,7 @@ test.describe('cross-block paste over selection — undo / redo', () => {
 		expect(afterPaste).not.toContain('hello');
 		expect(afterPaste).not.toContain('world');
 
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceWith((s, b) => s.trim() === b.trim(), before);
 	});
 
@@ -78,12 +78,12 @@ test.describe('cross-block paste over selection — undo / redo', () => {
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('alpha');
 
 		expect(await editor.bridge.getSource()).toContain('beta');
 
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceWith((s, b) => s.trim() === b.trim(), before);
 	});
 });

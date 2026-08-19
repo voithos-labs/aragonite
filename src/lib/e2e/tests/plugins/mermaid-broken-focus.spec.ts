@@ -98,7 +98,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 
 		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.type(FIXED_CODE);
-		await page.keyboard.press('Control+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
 
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 		await expect(editor.inputHost).toBeFocused();

@@ -137,7 +137,7 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 			await editor.seedClipboard(row.clip);
 
 			await editor.focusBlockAtPath(row.focus, row.offset);
-			await editor.paste('Control+v');
+			await editor.paste();
 			if (row.settle instanceof RegExp) await editor.bridge.waitForSourceMatches(row.settle);
 			else await editor.bridge.waitForSource(row.settle);
 
@@ -155,7 +155,7 @@ test.describe('paste: same-type list into list item flattens into enclosing list
 		await editor.seedClipboard('1. first\n2. Ordered second\n3. Ordered\n');
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Ordered'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.waitForListItemCount(7);
 
 		const domMarkers = await editor.page.evaluate(() => {

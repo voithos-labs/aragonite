@@ -98,7 +98,7 @@ test.describe('mermaid reference plugin', () => {
 
 	test('edit → Ctrl+Enter commits the new code byte-exactly into the fence', async ({ page }) => {
 		await editor.editFirstDiagram(EDITED_CODE);
-		await page.keyboard.press('Control+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
 
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 		expect(await editor.bridge.getSource()).toBe(EDITED_SEED);
@@ -108,7 +108,7 @@ test.describe('mermaid reference plugin', () => {
 
 	test('one undo after a commit restores the previous source byte-exactly', async () => {
 		await editor.editFirstDiagram(EDITED_CODE);
-		await editor.page.keyboard.press('Control+Enter');
+		await editor.page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 
 		// Undo rides the focused leaf's global chord tier, so land the caret first.
@@ -120,7 +120,7 @@ test.describe('mermaid reference plugin', () => {
 
 	test('undo works from the diagram’s own focus surface, with no caret elsewhere', async () => {
 		await editor.editFirstDiagram(EDITED_CODE);
-		await editor.page.keyboard.press('Control+Enter');
+		await editor.page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 
 		// A keyboard commit hands focus back to the diagram, which is where a user presses
@@ -198,7 +198,7 @@ test.describe('mermaid reference plugin', () => {
 
 	test('round-trip stability after the full edit + focus-view flow', async ({ page }) => {
 		await editor.editFirstDiagram(EDITED_CODE);
-		await page.keyboard.press('Control+Enter');
+		await page.keyboard.press('ControlOrMeta+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 
 		await editor.clickToolbar('mermaid-focus');

@@ -17,8 +17,8 @@ test.describe('table block: clipboard out', () => {
 	test('Ctrl+A inside a cell + Ctrl+C copies the cell text', async ({ page }) => {
 		await editor.loadContent(TABLE_ALIGNED);
 		await page.locator('[role="cell"]').nth(3).click();
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+c');
 		await expect.poll(() => editor.readClipboard()).toBe('1');
 	});
 
@@ -29,8 +29,8 @@ test.describe('table block: clipboard out', () => {
 	}) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| a<br>b | world |\n');
 		await page.locator('[role="cell"]').nth(2).click(); // "a<br>b"
-		await page.keyboard.press('Control+a'); // stage-1 select-all selects the cell content
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+a'); // stage-1 select-all selects the cell content
+		await page.keyboard.press('ControlOrMeta+c');
 		// The browser default would copy rendered textContent ("ab"), losing the `<br>` source.
 		await expect.poll(() => editor.readClipboard()).toBe('a<br>b');
 	});
@@ -38,8 +38,8 @@ test.describe('table block: clipboard out', () => {
 	test('Ctrl+A in an empty cell copies an empty string', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n|  | 2 |\n');
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+c');
 		await expect.poll(() => editor.readClipboard()).toBe('');
 	});
 
@@ -48,9 +48,9 @@ test.describe('table block: clipboard out', () => {
 	}) => {
 		await editor.loadContent('Before.\n\n| A | B |\n| :--- | :---: |\n| 1 | 2 |\n\nAfter.\n');
 		await editor.focusBlockStart(0);
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await expect.poll(() => editor.readClipboard()).toContain('Before.');
 		const clip = await editor.readClipboard();
 		expect(clip).toContain('| A | B |');
@@ -63,7 +63,7 @@ test.describe('table block: clipboard out', () => {
 		await editor.loadContent(TABLE_ALIGNED);
 		await dragBetweenCells(page, 0, 4);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await expect
 			.poll(() => editor.readClipboard())
 			.toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
@@ -73,7 +73,7 @@ test.describe('table block: clipboard out', () => {
 		await editor.loadContent(TABLE_ALIGNED);
 		await dragBetweenCells(page, 0, 2);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await expect
 			.poll(() => editor.readClipboard())
 			.toBe('| A | B | C |\n| :--- | :---: | ---: |\n');
@@ -85,7 +85,7 @@ test.describe('table block: clipboard out', () => {
 		await editor.loadContent(TABLE_ALIGNED);
 		await dragBetweenCells(page, 1, 5);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		const clip = await editor.readClipboard();
 		expect(clip).toContain('| :---: | ---: |');
 		expect(clip).not.toContain(':---|');
@@ -95,10 +95,10 @@ test.describe('table block: clipboard out', () => {
 	test('whole table copy after Ctrl+A 2nd press emits table raw', async ({ page }) => {
 		await editor.loadContent(TABLE_ALIGNED);
 		await page.locator('[role="cell"]').nth(3).click();
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await expect.poll(() => editor.readClipboard()).toBe(TABLE_ALIGNED);
 	});
 });

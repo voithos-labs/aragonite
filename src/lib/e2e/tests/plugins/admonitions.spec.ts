@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { primaryModifier } from '../../platform';
 import { PluginsPage, readContainer, readDoc, roundTripStable } from './helpers';
 
 /**
@@ -74,7 +73,7 @@ test.describe('plugin admonitions', () => {
 		// A real chord on the tip admonition's body cycles it forward to important.
 		await editor.focusBlockAtPath([2, 1], 0);
 		await page.evaluate(() => (window as any).__test.startEditOpCapture());
-		await page.keyboard.press(`${primaryModifier}+7`);
+		await page.keyboard.press('ControlOrMeta+7');
 
 		await editor.bridge.waitForSourceContains(':::important Pro tip');
 		await editor.bridge.waitForSourceNotContains(':::tip');

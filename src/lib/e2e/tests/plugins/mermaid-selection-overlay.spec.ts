@@ -71,7 +71,7 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 	}) => {
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockStart(0);
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
 		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(0);

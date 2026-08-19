@@ -1,6 +1,5 @@
 import { type Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
-import { primaryModifier } from '../../platform';
 
 // Plugin-container gestures. A live `<details>` renders its `.details-toggle` only on the
 // plugins route, so sessions driving these must start from a loaded document holding one.
@@ -38,7 +37,7 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
 	const chord = next === 'aside' ? '8' : '7';
 
 	await ctx.editor.clickBlockAtPath([calloutIdx, 1], 0);
-	await ctx.page.keyboard.press(`${primaryModifier}+${chord}`);
+	await ctx.page.keyboard.press(`ControlOrMeta+${chord}`);
 	await ctx.editor.bridge.waitForSourceContains(`:::${next}`);
 	await ctx.editor.waitForRenderFlush();
 	ctx.tracker.resync(await ctx.editor.bridge.getSource());
@@ -52,7 +51,7 @@ export async function setCalloutKind(ctx: SimContext): Promise<void> {
  */
 export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 	await ctx.page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Pasted alert.\n'));
-	await ctx.page.keyboard.press(`${primaryModifier}+v`);
+	await ctx.page.keyboard.press('ControlOrMeta+v');
 	await ctx.page.waitForFunction(
 		() => {
 			const t = (window as any).__test;
@@ -79,7 +78,7 @@ export async function publishDocStats(ctx: SimContext): Promise<void> {
 		const stats = (window as any).__docStats as Record<string, { blocks: number }> | undefined;
 		for (const record of Object.values(stats ?? {})) record.blocks = -1;
 	});
-	await ctx.page.keyboard.press(`${primaryModifier}+Shift+S`);
+	await ctx.page.keyboard.press('ControlOrMeta+Shift+S');
 	await ctx.page.waitForFunction(
 		() => {
 			const stats = (window as any).__docStats as Record<string, { blocks: number }> | undefined;

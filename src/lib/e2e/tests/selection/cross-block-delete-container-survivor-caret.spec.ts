@@ -22,7 +22,7 @@ test.describe('cross-block delete: container survivor caret', () => {
 		// tables are fully consumed and the blockquote is the only survivor.
 		await page.locator('[role="cell"]').first().click();
 		await page.keyboard.press('Home');
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('Backspace');

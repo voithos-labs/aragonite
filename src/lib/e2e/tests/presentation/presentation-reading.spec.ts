@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import type { Page } from '@playwright/test';
 
 // Reading mode on /test/editor: markers hidden by CSS (DOM intact), surface
@@ -91,9 +90,9 @@ test.describe('reading mode — inertness', () => {
 	test('paste and cut change nothing (cut degrades to copy)', async ({ page }) => {
 		await ep.clickBlock(1);
 		await ep.seedClipboard('PASTED');
-		await ep.paste(`${primaryModifier}+v`);
+		await ep.paste();
 		await ep.dragFromTo([1], 0, [1], 4);
-		await page.keyboard.press(`${primaryModifier}+x`);
+		await page.keyboard.press('ControlOrMeta+x');
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(baseline);
 	});
@@ -145,7 +144,7 @@ test.describe('reading mode — inertness', () => {
 	}) => {
 		await toggleReadingMode(page); // back to source
 		const replaceInput = page.getByRole('textbox', { name: 'Replace' });
-		await page.keyboard.press(`${primaryModifier}+h`); // opens the bar, replace row expanded
+		await page.keyboard.press('ControlOrMeta+h'); // opens the bar, replace row expanded
 		await expect(replaceInput).toBeVisible();
 
 		// Reading mode disables replace (it is an edit), so the inert row must not linger.
@@ -171,7 +170,7 @@ test.describe('reading mode — what stays live', () => {
 	test('selection + copy yield the rendered text (markers excluded)', async ({ page }) => {
 		// Raw "Some **bold** text": endpoints in visible text segments.
 		await ep.dragFromTo([1], 0, [1], 11);
-		await page.keyboard.press(`${primaryModifier}+c`);
+		await page.keyboard.press('ControlOrMeta+c');
 		await ep.waitForClipboardWrite();
 		const copied = await ep.readClipboard();
 		expect(copied).toBe('Some bold');

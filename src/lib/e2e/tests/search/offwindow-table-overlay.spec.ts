@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import { capturePageErrors } from '../../page-probes';
 import { count, openFind, typeQuery } from './helpers';
 
@@ -138,7 +137,7 @@ test('a cross-block selection repaints over a deep off-window table row after sc
 	// Cross-block select from the intro paragraph to the end of the document, so the
 	// table is the focus endpoint and its cells are part of the selection.
 	await editor.clickBlock(0);
-	await page.keyboard.press(`${primaryModifier}+Shift+End`);
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForRenderFlush();
 	expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 

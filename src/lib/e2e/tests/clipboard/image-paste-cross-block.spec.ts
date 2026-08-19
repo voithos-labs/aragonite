@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import {
 	PARAGRAPH,
 	PNG,
@@ -68,7 +67,7 @@ test.describe('image paste: cross-block replacement', () => {
 		// ONE press has to undo the delete AND the insertion together — otherwise the
 		// user is left staring at a document whose selection is gone and whose image
 		// never arrived.
-		await page.keyboard.press(`${primaryModifier}+z`);
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceNotContains('shot.png');
 		const restored = await editor.bridge.getSource();
 		expect(restored).toContain('second');
@@ -107,8 +106,8 @@ test.describe('image paste: cross-block replacement', () => {
 		await editor.loadContent(`${PARAGRAPH}\nsecond\n\n![cat](/test-fixtures/sample.png)\n`);
 		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
 		await editor.focusBlockEnd(0);
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
 		await pasteFiles(page, [PNG], '', 'body');
@@ -155,7 +154,7 @@ test.describe('image paste: cross-block replacement', () => {
 		await editor.loadContent(TABLE);
 		await selectOutOfCell();
 		await editor.seedClipboard(MARKDOWN);
-		await editor.paste(`${primaryModifier}+v`);
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('shot.png');
 
 		expect(await editor.bridge.getSource()).toBe(viaHook);

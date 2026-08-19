@@ -15,7 +15,7 @@ test.describe('cross-block clipboard: paste basics', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.seedClipboard('PASTED');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('PASTED');
 		expect(await editor.bridge.getSource()).toContain('aaa');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
@@ -26,13 +26,13 @@ test.describe('cross-block clipboard: paste basics', () => {
 		await editor.seedClipboard('alpha\n\nbeta\n');
 		await editor.focusBlock(0, 6);
 		for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('alpha');
 		const afterPaste = await editor.bridge.getSource();
 		expect(afterPaste).toContain('beta');
 		expect(afterPaste).not.toContain('world');
 
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceWith((s) => s.trim() === 'hello world', null);
 	});
 });
@@ -52,7 +52,7 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.seedClipboard('# Heading\n\nNew paragraph\n');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('# Heading');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['Hello', '', '# Heading', '', 'New paragraph'].join('\n')
@@ -69,7 +69,7 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 			await editor.page.keyboard.press('Shift+ArrowRight');
 		}
 		await editor.seedClipboard('First\n\nSecond');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('Second');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['Hello ', '', 'First', '', 'Second'].join('\n')
@@ -89,7 +89,7 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.seedClipboard('- foo\n- bar\n');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('foo');
 		expect(await editor.bridge.getSource()).toContain('bar');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
@@ -99,7 +99,7 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.loadContent('1. one\n2. two\n3. three\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'one'.length);
 		await editor.seedClipboard('- foo\n- bar\n');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('foo');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('bar');
@@ -111,7 +111,7 @@ test.describe('cross-block clipboard: structural paste discriminator', () => {
 		await editor.loadContent('Hello\n');
 		await editor.focusBlockEnd(0);
 		await editor.seedClipboard('## A heading\n');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('## A heading');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});

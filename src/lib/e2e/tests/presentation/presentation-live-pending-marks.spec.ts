@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { primaryModifier } from '../../platform';
 import { clickBlockSettled, clickWordSettled, enterPresentationMode, stepTo } from './helpers';
 import { attachIme } from '../../simulation/ime';
 
@@ -36,10 +35,10 @@ const GAP = 5;
 
 const enterLive = (page: Page) => enterPresentationMode(page, 'live', DOC);
 
-const bold = (page: Page) => page.keyboard.press(`${primaryModifier}+b`);
-const italic = (page: Page) => page.keyboard.press(`${primaryModifier}+i`);
-const struck = (page: Page) => page.keyboard.press(`${primaryModifier}+Shift+X`);
-const code = (page: Page) => page.keyboard.press(`${primaryModifier}+e`);
+const bold = (page: Page) => page.keyboard.press('ControlOrMeta+b');
+const italic = (page: Page) => page.keyboard.press('ControlOrMeta+i');
+const struck = (page: Page) => page.keyboard.press('ControlOrMeta+Shift+X');
+const code = (page: Page) => page.keyboard.press('ControlOrMeta+e');
 
 test.describe('live mode — a pended mark rides the next insertion', () => {
 	let ep: EditorPage;
@@ -348,7 +347,7 @@ test.describe('live mode — a pending mark beside an inline widget', () => {
 		await ep.waitForRenderFlush();
 
 		await ep.focusBlock(0, 4);
-		await page.keyboard.press(`${primaryModifier}+b`);
+		await page.keyboard.press('ControlOrMeta+b');
 		await ep.waitForRenderFlush();
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');
@@ -369,7 +368,7 @@ test.describe('live mode — a pending mark beside an inline widget', () => {
 		await ep.waitForRenderFlush();
 		for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
 		await ep.waitForRenderFlush();
-		await page.keyboard.press(`${primaryModifier}+b`);
+		await page.keyboard.press('ControlOrMeta+b');
 		await ep.waitForRenderFlush();
 		await page.keyboard.type('Z');
 		await ep.bridge.waitForSourceContains('Z');

@@ -1,4 +1,3 @@
-import { primaryModifier } from '../../platform';
 import { settleTypedSource, undoStackDepth, type SimContext } from '../invariants';
 
 /**
@@ -14,9 +13,9 @@ const CARD = '[data-link-card]';
 export type LiveFormat = 'strong' | 'strikethrough' | 'inlineCode';
 
 const FORMAT_CHORD: Record<LiveFormat, string> = {
-	strong: `${primaryModifier}+b`,
-	strikethrough: `${primaryModifier}+Shift+X`,
-	inlineCode: `${primaryModifier}+e`
+	strong: 'ControlOrMeta+b',
+	strikethrough: 'ControlOrMeta+Shift+X',
+	inlineCode: 'ControlOrMeta+e'
 };
 
 const FORMAT_DELIMITER: Record<LiveFormat, string> = {
@@ -344,7 +343,7 @@ export async function liveLinkCardEdit(
 		await page.locator(CARD).waitFor({ state: 'visible', timeout: 2000 });
 		const field = page.locator(`${CARD} input`);
 		await field.click();
-		await page.keyboard.press(`${primaryModifier}+a`);
+		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.type(url);
 		await page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceContains(url);

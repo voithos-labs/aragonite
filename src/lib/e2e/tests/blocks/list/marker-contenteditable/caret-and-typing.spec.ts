@@ -1,6 +1,5 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { primaryModifier } from '../../../../platform';
 
 test.describe('list marker — caret placement and typing', () => {
 	let editor: EditorPage;
@@ -35,7 +34,7 @@ test.describe('list marker — caret placement and typing', () => {
 		await editor.loadContent('- Hello\n');
 		const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Hello' });
 		await first.click();
-		await editor.page.keyboard.press(`${primaryModifier}+KeyA`);
+		await editor.page.keyboard.press('ControlOrMeta+KeyA');
 
 		const selectedText = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
 		expect(selectedText).toBe('Hello');
