@@ -1016,7 +1016,8 @@ function absorbSeamReading(
 	floor: number,
 	sharing?: SharingState,
 	tracked?: TrackedPosition,
-	headProbe?: number
+	headProbe?: number,
+	onBeforeSplice?: () => void
 ): SeamAbsorption {
 	const children = parent.children;
 	if (seamLeft < 0) return { at: 0, span: 0, eaten: 0, spliced: false };
@@ -1046,6 +1047,7 @@ function absorbSeamReading(
 		// reparse. A structured container's children fail this by construction — two items'
 		// joined bytes read as a nested LIST — and the seam is not askable there.
 		if (blocks[0].kind !== window[0].kind) break;
+		onBeforeSplice?.();
 		absorbFragmentPeel(parent, at + window.length, reparsed.suffix, blocks, sharing);
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
 		for (const block of blocks) {
@@ -1138,7 +1140,8 @@ export function absorbWindowSeams(
 	change: StructuralChange,
 	sharing?: SharingState,
 	tracked?: TrackedPosition,
-	headProbe?: number
+	headProbe?: number,
+	onBeforeSplice?: () => void
 ): SettledSplice {
 	let settled: SeamAbsorption | null = null;
 	let moved = landing;
@@ -1151,7 +1154,8 @@ export function absorbWindowSeams(
 			0,
 			sharing,
 			tracked,
-			settled ? undefined : headProbe
+			settled ? undefined : headProbe,
+			onBeforeSplice
 		);
 		if (!seam.spliced) {
 			seamLeft++;
