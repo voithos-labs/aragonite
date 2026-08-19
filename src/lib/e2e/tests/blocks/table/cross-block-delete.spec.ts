@@ -20,7 +20,7 @@ test.describe('table block: cross-block delete', () => {
 	}) => {
 		await editor.loadContent(`head text\n\n${TABLE_2x3}\ntail text\n`);
 		await editor.focusBlockAtPath([0], 4);
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
@@ -35,7 +35,7 @@ test.describe('table block: cross-block delete', () => {
 		const source = `head text\n\n${TABLE_2x3}\ntail text\n`;
 		await editor.loadContent(source);
 		await editor.focusBlockAtPath([0], 4);
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
@@ -106,8 +106,8 @@ test.describe('table block: cross-block delete', () => {
 	test('whole-table Ctrl+A 2nd press + Backspace deletes the table block', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
 		await page.locator('[role="cell"]').nth(4).click();
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
@@ -119,8 +119,8 @@ test.describe('table block: cross-block delete', () => {
 	}) => {
 		await editor.loadContent(TABLE_3x3);
 		await page.locator('[role="cell"]').nth(4).click();
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');
@@ -137,8 +137,8 @@ test.describe('table block: cross-block delete', () => {
 	test('emptying a single-table doc keeps the delete in one undo entry', async ({ page }) => {
 		await editor.loadContent(TABLE_3x3);
 		await page.locator('[role="cell"]').nth(4).click();
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('| --- | --- | --- |');

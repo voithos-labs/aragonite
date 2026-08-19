@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { primaryModifier } from '../../platform';
 import { clickBlockSettled, enterPresentationMode, extendTo, landAt } from './helpers';
 
 // A block whose only bytes are its own chrome has nothing to stand behind it, so the chrome
@@ -245,7 +244,7 @@ test.describe('painted inline chrome — the live rewrites leave what the reader
 	});
 
 	test('a pending bold mark writes no delimiter into the chrome', async ({ page }) => {
-		await page.keyboard.press(`${primaryModifier}+b`);
+		await page.keyboard.press('ControlOrMeta+b');
 		await ep.waitForRenderFlush();
 
 		await page.keyboard.type('x');
@@ -253,10 +252,10 @@ test.describe('painted inline chrome — the live rewrites leave what the reader
 	});
 
 	test('the card still rewrites the destination the chrome is showing', async ({ page }) => {
-		await page.keyboard.press(`${primaryModifier}+k`);
+		await page.keyboard.press('ControlOrMeta+k');
 		await expect(page.locator(`${CARD} input`)).toBeFocused();
 
-		await page.keyboard.press(`${primaryModifier}+a`);
+		await page.keyboard.press('ControlOrMeta+a');
 		await page.keyboard.type('v');
 		await page.keyboard.press('Enter');
 

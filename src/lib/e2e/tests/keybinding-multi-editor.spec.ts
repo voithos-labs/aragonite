@@ -1,7 +1,6 @@
 import { test, expect } from '../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { EditorPage } from '../editor-page';
-import { primaryModifier } from '../platform';
 
 // Each editor installs its OWN document-level keydown listener on the shared document, so
 // these pin that every chord stays contained to one instance — and that a lone editor still
@@ -40,7 +39,7 @@ test.describe('multi-editor document-chord containment', () => {
 	test('Ctrl+F with focus outside every editor opens no search bar', async ({ page }) => {
 		await gotoMulti(page);
 		await page.locator('[data-testid="outside-input"]').focus();
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('ControlOrMeta+f');
 		await page.waitForTimeout(150); // absence check — no shape to poll for
 		await expect(page.locator('.search-bar')).toHaveCount(0);
 	});
@@ -49,7 +48,7 @@ test.describe('multi-editor document-chord containment', () => {
 		const { left } = await gotoMulti(page);
 		await left.locator('[contenteditable]').first().click();
 		await expect.poll(() => activeEditorIndex(page)).toBe(0);
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('ControlOrMeta+f');
 
 		// Exactly one bar opens, and it belongs to the focused (left) editor: a search arm that
 		// ignores focus opens both.
@@ -63,7 +62,7 @@ test.describe('multi-editor document-chord containment', () => {
 		await editEditor(page, left, 'LEFTMARK'); // left last — it owns a body chord
 
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 
 		// Dropping the body arm leaves the windowed-out caret's undo dead (perf/vr-reveal F2);
 		// accepting body unconditionally is the overreach the last-interacted gate closes.
@@ -99,7 +98,7 @@ test.describe('single-editor document-chord claim', () => {
 			)
 			.toBe(true);
 
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await expect(page.getByRole('textbox', { name: 'Find' })).toBeVisible();
 	});
 
@@ -119,7 +118,7 @@ test.describe('single-editor document-chord claim', () => {
 		await foreign.focus();
 		await expect(foreign).toBeFocused();
 
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await page.waitForTimeout(150); // absence check — no shape to poll for
 
 		// No Find bar opens, and focus stays in the consumer's field: a sole editor claiming
@@ -134,7 +133,7 @@ test.describe('single-editor document-chord claim', () => {
 		await editor.loadContent('# Title\n\nAlpha paragraph\n');
 		await editor.focusBlockEnd(1);
 
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await expect(page.getByRole('textbox', { name: 'Find' })).toBeVisible();
 	});
 });

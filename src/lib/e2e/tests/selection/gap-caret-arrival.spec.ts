@@ -165,8 +165,8 @@ test.describe('gap caret arrival', () => {
 		// From the trailing paragraph: a select-all seeded in a table CELL leaves a live
 		// native range behind, which the walk's drag guard declines before any of this.
 		await editor.focusBlockStart(2);
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		const point = await leadingPaddingPoint(editor);
 

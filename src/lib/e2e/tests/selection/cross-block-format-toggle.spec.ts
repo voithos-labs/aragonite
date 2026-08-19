@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { primaryModifier } from '../../platform';
 import { clickWordSettled, landAt } from '../presentation/helpers';
 
 // #107: a format toggle over a cross-block range fell through to the type-replace arm, which
@@ -21,8 +20,8 @@ const CHORDS = [
 
 async function selectWholeDocument(ep: EditorPage, page: Page): Promise<void> {
 	await ep.focusBlock(0, 3);
-	await page.keyboard.press(`${primaryModifier}+a`);
-	await page.keyboard.press(`${primaryModifier}+a`);
+	await page.keyboard.press('ControlOrMeta+a');
+	await page.keyboard.press('ControlOrMeta+a');
 	await ep.waitForCrossBlock(true);
 }
 
@@ -41,7 +40,7 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 			test(`${name} over the whole document writes nothing`, async ({ page }) => {
 				const before = await ep.bridge.getSource();
 				await selectWholeDocument(ep, page);
-				await page.keyboard.press(`${primaryModifier}+${key}`);
+				await page.keyboard.press(`ControlOrMeta+${key}`);
 				await ep.waitForRenderFlush();
 				await ep.waitForNoSourceMutation();
 				expect(await ep.bridge.getSource()).toBe(before);
@@ -60,7 +59,7 @@ for (const mode of ['source', 'live', 'preview-inline'] as const) {
 					if (e.key === 'b' || e.key === 'B') (window as any).__chordPrevented = e.defaultPrevented;
 				});
 			});
-			await page.keyboard.press(`${primaryModifier}+b`);
+			await page.keyboard.press('ControlOrMeta+b');
 			await ep.waitForRenderFlush();
 			expect(await page.evaluate(() => (window as any).__chordPrevented)).toBe(true);
 
@@ -95,7 +94,7 @@ test.describe('the rebound chord — the only gesture that reaches the seam with
 		// The edit counter, not an undo round-trip: undo-then-compare restores the pair a
 		// leaked toggle would have written, so it passes either way.
 		await page.evaluate(() => (window as any).__test.startEditOpCapture());
-		await page.keyboard.press(`${primaryModifier}+Alt+g`);
+		await page.keyboard.press('ControlOrMeta+Alt+g');
 		await ep.waitForRenderFlush();
 		await ep.waitForNoSourceMutation();
 
@@ -128,7 +127,7 @@ test.describe('the sibling chord the sweep missed — Mod+K over a cross-block r
 		}
 		await ep.waitForCrossBlock(true);
 
-		await page.keyboard.press(`${primaryModifier}+k`);
+		await page.keyboard.press('ControlOrMeta+k');
 		await ep.waitForRenderFlush();
 
 		await expect(page.locator('[data-link-card]')).toHaveCount(0);

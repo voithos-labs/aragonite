@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { primaryModifier } from '../../platform';
 import { PluginsPage, roundTripStable } from './helpers';
 
 /**
@@ -25,7 +24,7 @@ test.describe('callout.setKind — mint → keymap → bubble dispatch → metad
 	test('Mod+8 from the body sets calloutType to aside and round-trips', async ({ page }) => {
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockAtPath([0, 1], 0); // callout body paragraph
-		await page.keyboard.press(`${primaryModifier}+8`);
+		await page.keyboard.press('ControlOrMeta+8');
 
 		await editor.bridge.waitForSourceContains(':::aside');
 		expect((await editor.bridge.getSource()).trim()).toBe(':::aside\nbody\n:::');
@@ -36,7 +35,7 @@ test.describe('callout.setKind — mint → keymap → bubble dispatch → metad
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockAtPath([0, 1], 0);
 		await page.evaluate(() => (window as any).__test.startEditOpCapture());
-		await page.keyboard.press(`${primaryModifier}+8`);
+		await page.keyboard.press('ControlOrMeta+8');
 		await editor.bridge.waitForSourceContains(':::aside');
 		const ops = await page.evaluate(() => (window as any).__test.stopEditOpCapture());
 		expect(ops).toEqual(['metadataUpdate']);
@@ -45,7 +44,7 @@ test.describe('callout.setKind — mint → keymap → bubble dispatch → metad
 	test('Ctrl+Z restores the prior type', async ({ page }) => {
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockAtPath([0, 1], 0);
-		await page.keyboard.press(`${primaryModifier}+8`);
+		await page.keyboard.press('ControlOrMeta+8');
 		await editor.bridge.waitForSourceContains(':::aside');
 
 		await editor.undo();
@@ -58,7 +57,7 @@ test.describe('callout.setKind — mint → keymap → bubble dispatch → metad
 	}) => {
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockAtPath([0, 0], 0); // callout-title chrome leaf (child 0)
-		await page.keyboard.press(`${primaryModifier}+8`);
+		await page.keyboard.press('ControlOrMeta+8');
 
 		await editor.bridge.waitForSourceContains(':::aside');
 		expect((await editor.bridge.getSource()).trim()).toBe(':::aside\nbody\n:::');
@@ -69,7 +68,7 @@ test.describe('callout.setKind — mint → keymap → bubble dispatch → metad
 	}) => {
 		await editor.loadContent(WARNING_DOC);
 		await editor.focusBlockAtPath([0, 1], 0);
-		await page.keyboard.press(`${primaryModifier}+7`);
+		await page.keyboard.press('ControlOrMeta+7');
 
 		await editor.bridge.waitForSourceContains(':::callout');
 		expect((await editor.bridge.getSource()).trim()).toBe(':::callout\nbody\n:::');

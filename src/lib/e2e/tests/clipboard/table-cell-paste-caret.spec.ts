@@ -18,7 +18,7 @@ test.describe('table cell paste: caret at end of pasted content', () => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
 		await editor.seedClipboard('Para one.\n\n## Two\n');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('## Two');
 
 		// Splits into [halfA, "Para one.", "## Two", halfB]. Typing must land at the

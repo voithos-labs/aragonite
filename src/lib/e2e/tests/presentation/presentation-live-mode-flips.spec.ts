@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import type { EditorPage } from '../../editor-page';
 import type { Page } from '@playwright/test';
-import { primaryModifier } from '../../platform';
 import { clickBlockSettled, enterPresentationMode } from './helpers';
 
 // The flip family's byte-stability contract, now including live: a mode change is CSS over
@@ -88,7 +87,7 @@ test.describe('mode flips — the bytes never move', () => {
 		const baseline = await ep.bridge.getSource();
 		await clickBlockSettled(ep, PROSE);
 		await page.keyboard.press('End');
-		await page.keyboard.press(`${primaryModifier}+b`);
+		await page.keyboard.press('ControlOrMeta+b');
 		await ep.waitForRenderFlush();
 
 		await page.getByTestId('live-toggle').click();

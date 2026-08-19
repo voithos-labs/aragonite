@@ -66,13 +66,15 @@ Four facts, and then the manifest.
 
 **`Mod` folds Ctrl and Cmd, unconditionally.** `src/lib/schema/keybindings.ts` :: `eventToChord`
 turns a `KeyboardEvent` into a normalized chord, and `e.ctrlKey || e.metaKey` becomes the single
-token `Mod`. There is no platform detection in the library, deliberately: no `navigator.platform`
-read, no `isMac`, nowhere. A Mac user's Cmd and a Windows user's Ctrl produce the identical chord
-string, so no branch downstream ever needs to know which one was pressed. The one platform read in
-the tree is `src/lib/e2e/platform.ts`, in the Playwright harness, which has to press a real OS key.
-That asymmetry is load-bearing: a bug where some branch reads `ctrlKey` alone and drops Cmd is
-invisible to e2e (on a Linux runner, Meta _is_ the wrong key), so its regression guard belongs in
-the unit suite, driven through a synthetic event.
+token `Mod`. There is no platform detection anywhere in the tree, deliberately: no
+`navigator.platform` read, no `isMac`, nowhere. A Mac user's Cmd and a Windows user's Ctrl produce
+the identical chord string, so no branch downstream ever needs to know which one was pressed. The
+Playwright harness has to press a real OS key, so it spells every editor chord `ControlOrMeta` and
+lets Playwright resolve it; a chord the editor does not claim (native word-jump, word-delete) stays
+literal `Control`, because macOS binds those gestures to a different key. The fold still owes a unit
+guard: a branch that reads `ctrlKey` alone and drops Cmd is invisible to e2e (on a Linux runner,
+Meta _is_ the wrong key), so its regression test belongs in the unit suite, driven through a
+synthetic event.
 
 **Three keymap tiers, and where a new branch goes.** A chord resolves through
 `src/lib/schema/commands.ts` :: `resolveBinding`: the kind's own `keymap` (declared on its

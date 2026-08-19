@@ -14,7 +14,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.seedClipboard('one\r\n\r\ntwo\r\n');
 
 		await editor.focusBlockAtPath([0], 'target'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('one');
 
 		const src = await editor.bridge.getSource();
@@ -29,7 +29,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.seedClipboard('\n\nactual content\n');
 
 		await editor.focusBlockAtPath([0], 'target'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('actual content');
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -50,7 +50,7 @@ test.describe('clipboard exploration: unusual content', () => {
 		const hr = editor.getBlock(1);
 		await hr.click();
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		// Thematic break paste may no-op or materialize a paragraph; neither
 		// outcome has a settle predicate to poll. Keep a small fixed wait so the
 		// post-paste source read sees whichever branch resolved.
@@ -67,7 +67,7 @@ test.describe('clipboard exploration: unusual content', () => {
 
 		await editor.focusBlockAtPath([0], 0);
 		await editor.page.keyboard.press('End');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^````/m);
 
 		const src = await editor.bridge.getSource();
@@ -81,16 +81,16 @@ test.describe('clipboard exploration: unusual content', () => {
 		await editor.seedClipboard('replacement content\n');
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.page.waitForFunction(
 			() => (window.getSelection()?.toString().length ?? 0) > 0,
 			null,
 			{ timeout: 2000, polling: 16 }
 		);
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('replacement content');
 
 		const src = await editor.bridge.getSource();

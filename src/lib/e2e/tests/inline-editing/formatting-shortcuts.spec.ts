@@ -10,7 +10,7 @@ const TOGGLES = [
 		doc: 'Hello world\n',
 		offset: 6,
 		extend: 5,
-		press: 'Control+b',
+		press: 'ControlOrMeta+b',
 		expected: 'Hello **world**'
 	},
 	{
@@ -19,7 +19,7 @@ const TOGGLES = [
 		doc: 'Hello **world**\n',
 		offset: 6,
 		extend: 9,
-		press: 'Control+b',
+		press: 'ControlOrMeta+b',
 		expected: 'Hello world',
 		forbidden: '**'
 	},
@@ -29,7 +29,7 @@ const TOGGLES = [
 		doc: 'Hello world\n',
 		offset: 6,
 		extend: 5,
-		press: 'Control+i',
+		press: 'ControlOrMeta+i',
 		expected: 'Hello *world*'
 	},
 	{
@@ -38,7 +38,7 @@ const TOGGLES = [
 		doc: 'Hello *world*\n',
 		offset: 6,
 		extend: 7,
-		press: 'Control+i',
+		press: 'ControlOrMeta+i',
 		expected: 'Hello world',
 		forbidden: '*'
 	}
@@ -77,7 +77,7 @@ test.describe('inline editing — formatting shortcuts', () => {
 
 	// Regression: Ctrl+B on the inner word of `**word**` must strip, not reach `****word****`.
 	test('Ctrl+B on word flanked by markers strips them rather than double-wrapping', async () => {
-		await selectAndPress('Hello **world** today\n', 8, 5, 'Control+b');
+		await selectAndPress('Hello **world** today\n', 8, 5, 'ControlOrMeta+b');
 
 		await editor.bridge.waitForSourceContains('Hello world today');
 		expect(await editor.bridge.getSource()).not.toContain('****');

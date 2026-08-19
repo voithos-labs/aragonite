@@ -79,7 +79,7 @@ test.describe('plugin inline emoji shortcodes', () => {
 	test('copying a range containing the reference yields the :name: bytes', async ({ page }) => {
 		await editor.focusBlockStart(0);
 		await editor.selectAll();
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		const copied = await editor.readClipboard();

@@ -63,7 +63,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 	test('cut copies the selection verbatim and deletes only the body part', async () => {
 		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceContains('const \n');
 
 		// The clipboard keeps the literal bytes the user selected, including the fence characters
@@ -75,7 +75,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	test('paste over a body-into-closer selection replaces only the body part', async () => {
 		await editor.seedClipboard('Y');
 		await selectFrom(editor, BODY_MID, INTO_CLOSER);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('const Y');
 
 		expect(await editor.bridge.getSource()).toBe('```js\nconst Y\n```\n');
@@ -88,7 +88,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 		for (const offset of [19, 1]) {
 			await editor.focusBlock(0, offset);
-			await editor.paste('Control+v');
+			await editor.paste();
 			await editor.waitForNoSourceMutation();
 
 			expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -98,7 +98,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	test('paste over a closer-only selection is inert', async () => {
 		await editor.seedClipboard('Y');
 		await selectFrom(editor, 18, 3);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -120,7 +120,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	});
 
 	test('select-all then Backspace empties the body and keeps the code block', async () => {
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('const x = 1');
 
@@ -137,7 +137,8 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 	});
 
 	// The browser ranges this one: the caret is collapsed, but the pending edit's target covers the
-	// opener's line ending.
+	// opener's line ending. Literal `Control`, not `ControlOrMeta`: word-delete is the OS's gesture
+	// and macOS spells it with another key, so folding the modifier would change what is tested.
 	test('word-delete at the body start is inert', async () => {
 		await editor.focusBlock(0, 6);
 		await editor.page.keyboard.press('Control+Backspace');
@@ -174,7 +175,7 @@ test.describe('code block — ranged edits spanning a fence line', () => {
 
 	test('cut of a closer-only selection copies it but deletes nothing', async () => {
 		await selectFrom(editor, 18, 3);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 
 		expect(await editor.readClipboard()).toBe('```');

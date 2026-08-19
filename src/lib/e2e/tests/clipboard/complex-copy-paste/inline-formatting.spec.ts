@@ -16,7 +16,7 @@ test.describe('clipboard — inline formatting preservation', () => {
 		await editor.shiftClickBlock([4], 67);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardContains('**bold text**');
 
 		const clip = await editor.readClipboard();
@@ -31,7 +31,7 @@ test.describe('clipboard — inline formatting preservation', () => {
 		await editor.shiftClickBlock([3], 70);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardContains('### Heading 3');
 
 		const clip = await editor.readClipboard();

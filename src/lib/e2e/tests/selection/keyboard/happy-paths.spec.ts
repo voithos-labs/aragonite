@@ -42,7 +42,7 @@ test.describe('selection — keyboard: happy paths', () => {
 	test('Ctrl+Shift+End extends selection to document end', async () => {
 		await editor.loadContent('start\n\nmid\n\nend\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();
@@ -52,16 +52,16 @@ test.describe('selection — keyboard: happy paths', () => {
 	test('Ctrl+Shift+Home extends selection to document start', async () => {
 		await editor.loadContent('start\n\nmid\n\nend\n');
 		await editor.focusBlockEnd(2);
-		await editor.page.keyboard.press('Control+Shift+Home');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+Home');
 		await editor.waitForCrossBlock(true);
 	});
 
 	test('double Ctrl+A: first selects block, second selects document', async () => {
 		await editor.loadContent('one\n\ntwo\n\nthree\n');
 		await editor.focusBlockStart(1);
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel).not.toBeNull();

@@ -17,7 +17,7 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('alpha');
 
 		const src = await editor.bridge.getSource();
@@ -43,7 +43,7 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 		await page.keyboard.up('Shift');
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('alpha');
 
 		const src = await editor.bridge.getSource();
@@ -60,7 +60,7 @@ test.describe('clipboard: silent drop — multi-item list paste over multi-item 
 		await editor.shiftClickBlock([0, 1, 0], 'target two'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('outer a');
 
 		const src = await editor.bridge.getSource();

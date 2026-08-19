@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import type { Locator } from '@playwright/test';
-import { primaryModifier } from '../../platform';
 import { DetailsPage, bodyHostCount, capturedErrors } from './details-helpers';
 import { blockView, tocEntry } from './helpers';
 
@@ -105,7 +104,7 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 
 	test('search navigation into the collapsed body expands it the same way', async ({ page }) => {
 		await editor.clickBlock(1);
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await page.getByRole('textbox', { name: 'Find' }).click();
 		await page.keyboard.type('Zebra');
 

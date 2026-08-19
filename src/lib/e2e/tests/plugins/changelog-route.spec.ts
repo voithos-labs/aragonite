@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { waitForEditorHydrated } from '../../page-probes';
-import { primaryModifier } from '../../platform';
 import { findInput } from '../search/helpers';
 import type { Page } from '@playwright/test';
 
@@ -112,7 +111,7 @@ test.describe('/changelog route', () => {
 	test('the Find chord opens the search bar over the reading-mode document', async ({ page }) => {
 		// Reading mode parks no caret in a block, so the chord reaches the sole mounted editor
 		// through its body-chord claim rather than through a focused surface.
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await expect(findInput(page)).toBeFocused();
 	});
 

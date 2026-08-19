@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { primaryModifier } from '../../platform';
 import { capturePageErrors } from '../../page-probes';
 import { EditorPage } from '../../editor-page';
 import {
@@ -34,13 +33,13 @@ test.describe('search — open and close', () => {
 	// letter reproduces exactly that event shape.
 	test('Ctrl+F and Ctrl+H still open with CapsLock on', async ({ page }) => {
 		await editor.clickBlock(0);
-		await page.keyboard.press(`${primaryModifier}+F`);
+		await page.keyboard.press('ControlOrMeta+F');
 		await expect(findInput(page)).toBeVisible();
 
 		await page.keyboard.press('Escape');
 		await expect(findInput(page)).toHaveCount(0);
 
-		await page.keyboard.press(`${primaryModifier}+H`);
+		await page.keyboard.press('ControlOrMeta+H');
 		await expect(replaceInput(page)).toBeVisible();
 	});
 

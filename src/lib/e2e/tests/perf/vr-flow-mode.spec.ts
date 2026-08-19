@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Locator, type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import { gotoFlow, settleFrames, spacerCount } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
@@ -95,7 +94,7 @@ test('typing and undo in a host-scroll entry behave as in self mode', async ({ p
 	await expect.poll(() => flowSource(page, 'a')).toContain('FLOW_MARK');
 
 	await page.waitForTimeout(300); // past the ~250ms undo-batch debounce
-	await page.keyboard.press(`${primaryModifier}+z`);
+	await page.keyboard.press('ControlOrMeta+z');
 	await expect.poll(() => flowSource(page, 'a')).not.toContain('FLOW_MARK');
 	expect(pageErrors).toEqual([]);
 });
@@ -218,7 +217,7 @@ test('the find bar rides the entry top edge, not the ancestor scrollport', async
 	// The entry starts below the fold; scroll it into reach before focusing a block.
 	await scrollHostTo(page, 1100);
 	await entry(page, 'a').locator('[contenteditable]').first().click();
-	await page.keyboard.press(`${primaryModifier}+f`);
+	await page.keyboard.press('ControlOrMeta+f');
 	await expect(page.locator('.search-bar')).toHaveCount(1);
 	await expect(entry(page, 'a').locator('.search-bar')).toHaveCount(1);
 

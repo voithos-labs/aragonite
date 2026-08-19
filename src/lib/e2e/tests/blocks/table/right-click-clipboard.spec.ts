@@ -32,7 +32,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	test('Copy writes the cell selection to the clipboard', async ({ page }) => {
 		const cell = page.locator('[role="cell"]').nth(2); // "hello"
 		await cell.click();
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' }); // right-click inside the selection
 		await page.getByRole('menuitem', { name: /^copy$/i }).click();
 		await expect.poll(() => editor.readClipboard()).toBe('hello');
@@ -45,7 +45,7 @@ test.describe('table block: cell right-click clipboard', () => {
 	}) => {
 		const cell = page.locator('[role="cell"]').nth(2); // "hello"
 		await cell.click();
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' });
 		await page.getByRole('menuitem', { name: /^cut$/i }).click();
 		await expect.poll(() => editor.readClipboard()).toBe('hello');
@@ -57,7 +57,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		const before = await editor.bridge.getSource();
 		const cell = page.locator('[role="cell"]').nth(2);
 		await cell.click();
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' });
 		await page.getByRole('menuitem', { name: /^cut$/i }).click();
 		await editor.bridge.waitForSourceNotContains('hello');
@@ -116,7 +116,7 @@ test.describe('table block: cell right-click clipboard', () => {
 		await editor.seedClipboard('bye');
 		const cell = page.locator('[role="cell"]').nth(2); // "hello"
 		await cell.click();
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await cell.click({ button: 'right' });
 		await page.getByRole('menuitem', { name: /^paste$/i }).click();
 		await editor.bridge.waitForSourceContains('| bye | world |');

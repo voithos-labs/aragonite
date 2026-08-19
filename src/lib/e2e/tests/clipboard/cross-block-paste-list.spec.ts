@@ -20,7 +20,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource(
 			(s) => s.includes('HELLO') && !s.includes('one') && !s.includes('two')
 		);
@@ -35,7 +35,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource((s) => s.includes('HELLO') && !s.includes('one'));
 
 		const source = await editor.bridge.getSource();
@@ -54,7 +54,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([0, 2, 0], 'three'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource((s) => s.includes('HELLO') && !s.includes('two'));
 
 		const source = await editor.bridge.getSource();
@@ -73,7 +73,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource((s) => s.includes('alpha') && s.includes('beta'));
 
 		const source = await editor.bridge.getSource();
@@ -87,7 +87,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.focusBlockAtPath([0, 0, 0], 1);
 		await editor.shiftClickBlock([0, 1, 0], 2);
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		// Dismiss the copy-time cross-block selection so the next shift-click
@@ -98,7 +98,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([0, 2, 0], 5);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource((s) => s.includes('ne') && s.includes('tw'));
 
 		const source = await editor.bridge.getSource();
@@ -117,7 +117,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.dragFromTo([0, 0, 0], 0, [0, 1, 0], 3);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource((s) => s.includes('text') && !s.includes('one'));
 
 		const source = await editor.bridge.getSource();
@@ -135,7 +135,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([0, 1, 0], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^1\. oHELLOo$/m);
 
 		const source = await editor.bridge.getSource();
@@ -151,7 +151,7 @@ test.describe('cross-block clipboard: paste into list selections', () => {
 		await editor.shiftClickBlock([1, 2, 0], 'Item three'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('REPLACEMENT');
 
 		const source = await editor.bridge.getSource();

@@ -13,7 +13,7 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.loadContent('```js\nconst x = 42;\n```\n');
 		await editor.getBlock(0).click();
 		const sourceBefore = await editor.bridge.getSource();
-		await page.keyboard.press('Control+b');
+		await page.keyboard.press('ControlOrMeta+b');
 		// The marker flushes any async edit Ctrl+B might trigger, so the no-op assertion can't pass
 		// vacuously.
 		await editor.typeText('X');
@@ -28,7 +28,7 @@ test.describe('code block keyboard — beyond parity', () => {
 		await editor.loadContent('```js\nconst x = 42;\n```\n');
 		await editor.getBlock(0).click();
 		const sourceBefore = await editor.bridge.getSource();
-		await page.keyboard.press('Control+i');
+		await page.keyboard.press('ControlOrMeta+i');
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
 		const sourceAfter = (await editor.bridge.getSource()).replace('X', '');

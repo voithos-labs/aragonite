@@ -1,6 +1,5 @@
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 
 // Shared find/replace bar locators and open helpers for the search e2e specs.
 
@@ -15,13 +14,13 @@ export const activeOverlays = (page: Page) => page.locator('.match-overlay-activ
 // the find input, so typing lands there.
 export async function openFind(editor: EditorPage): Promise<void> {
 	await editor.clickBlock(0);
-	await editor.page.keyboard.press(`${primaryModifier}+f`);
+	await editor.page.keyboard.press('ControlOrMeta+f');
 	await findInput(editor.page).waitFor({ state: 'visible' });
 }
 
 export async function openReplace(editor: EditorPage): Promise<void> {
 	await editor.clickBlock(0);
-	await editor.page.keyboard.press(`${primaryModifier}+h`);
+	await editor.page.keyboard.press('ControlOrMeta+h');
 	await replaceInput(editor.page).waitFor({ state: 'visible' });
 }
 

@@ -15,8 +15,8 @@ test.describe('public caret doors with a cross-block range live', () => {
 		await editor.goto();
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 	});
 

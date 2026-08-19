@@ -1,4 +1,3 @@
-import { primaryModifier } from '../../platform';
 import type { SimContext } from '../invariants';
 
 /**
@@ -34,25 +33,25 @@ export async function selectAndDelete(ctx: SimContext, count: number): Promise<v
 
 /** Copy mutates nothing, so it settles on the clipboard write and skips the resync. */
 export async function copySelection(ctx: SimContext): Promise<void> {
-	await ctx.page.keyboard.press(`${primaryModifier}+c`);
+	await ctx.page.keyboard.press('ControlOrMeta+c');
 	await ctx.editor.waitForClipboardWrite();
 }
 
 /** Paste at the caret, settle on the source delta, resync. */
 export async function pasteHere(ctx: SimContext): Promise<void> {
-	await mutateThenResync(ctx, () => ctx.page.keyboard.press(`${primaryModifier}+v`));
+	await mutateThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+v'));
 }
 
 // ── Inline format ───────────────────────────────────────────────────────────
 
 /** Wrap (or unwrap) the current selection in `**`, settle on the source delta, resync. */
 export async function applyBold(ctx: SimContext): Promise<void> {
-	await mutateThenResync(ctx, () => ctx.page.keyboard.press(`${primaryModifier}+b`));
+	await mutateThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+b'));
 }
 
 /** Wrap (or unwrap) the current selection in `*`, settle on the source delta, resync. */
 export async function applyItalic(ctx: SimContext): Promise<void> {
-	await mutateThenResync(ctx, () => ctx.page.keyboard.press(`${primaryModifier}+i`));
+	await mutateThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+i'));
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

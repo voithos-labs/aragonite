@@ -14,7 +14,7 @@ test.describe('clipboard exploration: deeply nested', () => {
 		await editor.seedClipboard('pasted one\n\npasted two\n');
 
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 'nested target'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('pasted one');
 
 		const src = await editor.bridge.getSource();
@@ -28,7 +28,7 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0, 0], 0);
 		await editor.page.keyboard.press('End');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('Heading');
 
 		const src = await editor.bridge.getSource();
@@ -44,7 +44,7 @@ test.describe('clipboard exploration: deeply nested', () => {
 		await editor.shiftClickBlock([0, 0, 1, 2, 0], 'B3'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('X1');
 
 		const src = await editor.bridge.getSource();

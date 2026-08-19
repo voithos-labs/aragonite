@@ -17,8 +17,8 @@ test.describe('render-primary reveal click vs a live cross-block range', () => {
 		await editor.gotoPlugins('latex');
 		await editor.loadContent(DOC);
 		await editor.page.locator('[contenteditable="true"]').first().click();
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 	});
 

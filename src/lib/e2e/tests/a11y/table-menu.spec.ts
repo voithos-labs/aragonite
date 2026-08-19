@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
@@ -123,7 +122,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 
 	test('deleting a row announces it in the live region', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click(); // first body row
-		await page.keyboard.press(`${primaryModifier}+Shift+Backspace`);
+		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
 
 		await expect(page.locator('.editor-sr-live-reorder')).toHaveText(/delet/i);
 	});

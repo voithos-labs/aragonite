@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import type { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import { centerOfWord, enterPresentationMode, landAt, trailingEdgeOfWord } from './helpers';
 import { CARD, URL_FIELD, clickLink, editUrl, openCardOn } from './link-card-helpers';
 import { findInput } from '../search/helpers';
@@ -324,7 +323,7 @@ test.describe('live-mode link card', () => {
 		await page.keyboard.press('Home');
 		const preSearch = (await ep.bridge.getSelectionPaths())!.focus;
 
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await expect(findInput(page)).toBeFocused();
 		await page.keyboard.type('later');
 

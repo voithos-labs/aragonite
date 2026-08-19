@@ -34,7 +34,7 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		await editor.loadContent('');
 		await editor.seedClipboard('one\n\ntwo');
 		await editor.focusBlockAtPath([0], 0);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('two');
 
 		const pastedSource = asLf(await editor.bridge.getSource());
@@ -52,7 +52,7 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		await editor.loadContent('');
 		await editor.seedClipboard('one\n\n\ntwo');
 		await editor.focusBlockAtPath([0], 0);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('two');
 
 		const pastedSource = asLf(await editor.bridge.getSource());
@@ -70,7 +70,7 @@ test.describe('a pasted blank line is the block a typed or loaded one is', () =>
 		await editor.loadContent('helloworld\n');
 		await editor.seedClipboard('one\n\ntwo');
 		await editor.focusBlockAtPath([0], 5); // between "hello" and "world"
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('two');
 
 		await editor.typeText('Z');

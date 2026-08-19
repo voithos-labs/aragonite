@@ -15,7 +15,7 @@ test.describe('inline formatting at a collapsed caret', () => {
 	test('Ctrl+B inserts the pair and the next character lands inside it', async () => {
 		await editor.loadContent('Hello \n');
 		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('****');
 
 		await editor.typeSlowly('bold');
@@ -26,7 +26,7 @@ test.describe('inline formatting at a collapsed caret', () => {
 	test('Ctrl+I inserts the single-marker pair and the next character lands inside it', async () => {
 		await editor.loadContent('Hello \n');
 		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Control+i');
+		await editor.page.keyboard.press('ControlOrMeta+i');
 		await editor.bridge.waitForSourceContains('**');
 
 		await editor.typeSlowly('em');
@@ -37,10 +37,10 @@ test.describe('inline formatting at a collapsed caret', () => {
 	test('a second Ctrl+B removes the pair it just inserted', async () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 5);
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('Hello**** world');
 
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceNotContains('****');
 		expect((await editor.bridge.getSource()).trim()).toBe('Hello world');
 	});
@@ -48,7 +48,7 @@ test.describe('inline formatting at a collapsed caret', () => {
 	test('one undo removes the inserted pair', async () => {
 		await editor.loadContent('Hello world\n');
 		await editor.focusBlock(0, 5);
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('****');
 
 		await editor.undo();
@@ -62,7 +62,7 @@ test.describe('inline formatting at a collapsed caret', () => {
 	test('text typed inside the pair unwinds before the toggle does', async ({ page }) => {
 		await editor.loadContent('Hello \n');
 		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('****');
 		await editor.typeSlowly('bold');
 		await editor.bridge.waitForSourceContains('**bold**');
@@ -81,7 +81,7 @@ test.describe('inline formatting at a collapsed caret', () => {
 	test('Ctrl+B with the caret inside bold text removes the bold', async () => {
 		await editor.loadContent('a **bold** b\n');
 		await editor.focusBlock(0, 6);
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceNotContains('**');
 		expect((await editor.bridge.getSource()).trim()).toBe('a bold b');
 	});
@@ -91,7 +91,7 @@ test.describe('inline formatting at a collapsed caret', () => {
 	test('Ctrl+B mid-word inserts the pair at the caret rather than bolding the word', async () => {
 		await editor.loadContent('wordy\n');
 		await editor.focusBlock(0, 2);
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('****');
 		expect((await editor.bridge.getSource()).trim()).toBe('wo****rdy');
 	});

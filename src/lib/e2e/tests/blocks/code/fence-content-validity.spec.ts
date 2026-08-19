@@ -39,7 +39,7 @@ test.describe('code block — content the fence cannot hold', () => {
 	test('a paste lands in the info string without the backticks it carried', async () => {
 		await editor.seedClipboard('x`y');
 		await editor.focusBlock(0, 5);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('jsxy');
 
 		expect(await editor.bridge.getSource()).toBe('```jsxy\nconst x = 1\n```\n\n# Heading\n');
@@ -49,7 +49,7 @@ test.describe('code block — content the fence cannot hold', () => {
 		await editor.seedClipboard('```');
 		await editor.focusBlock(0, 17);
 		await editor.page.keyboard.press('Enter');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('````');
 
 		expect(await editor.bridge.getSource()).toBe('````js\nconst x = 1\n```\n````\n\n# Heading\n');

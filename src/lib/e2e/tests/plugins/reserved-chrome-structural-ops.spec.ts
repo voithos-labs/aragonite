@@ -194,7 +194,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await editor.loadContent(FIXTURE);
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await editor.seedClipboard('x\n\ny');
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains(':::callout Titlex y');
 
 		// Newlines collapse to a single space; the chrome stays one callout-title node

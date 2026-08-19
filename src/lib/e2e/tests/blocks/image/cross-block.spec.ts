@@ -46,7 +46,7 @@ test.describe('image cross-block selection', () => {
 		// Observe the delete before undoing: otherwise the restore predicate is satisfied by the
 		// document as loaded, and a Backspace that never fired passes.
 		await editor.bridge.waitForSourceNotContains('![cat]');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 

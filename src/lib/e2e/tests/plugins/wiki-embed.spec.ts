@@ -55,7 +55,7 @@ test.describe('plugin wiki embed minted as a built-in image', () => {
 		await page.locator('[data-image-widget]').first().click();
 		await page.keyboard.press('Shift+ArrowRight');
 		await editor.bridge.waitForSourceContains('|420');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains(EMBED);
 	});
 });

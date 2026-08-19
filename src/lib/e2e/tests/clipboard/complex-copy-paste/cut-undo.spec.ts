@@ -18,7 +18,7 @@ test.describe('clipboard — cut three blocks then undo', () => {
 		await editor.shiftClickBlock([2], 13);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSource((s) => !s.includes('# Heading 1'));
 
 		const afterCut = await editor.bridge.getSource();

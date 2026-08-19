@@ -132,7 +132,7 @@ test('structural edit in a windowed non-uniform table keeps the viewport stable'
 
 	// Ctrl+Enter inserts a row, which is what triggers the TableBlock rebuild.
 	await page.locator(`[data-table-row-idx="${view.editIdx}"] [role="cell"]`).first().click();
-	await page.keyboard.press('Control+Enter');
+	await page.keyboard.press('ControlOrMeta+Enter');
 	await waitForChildCount(editor, rowCount + 1);
 	await editor.waitForRenderFlush();
 

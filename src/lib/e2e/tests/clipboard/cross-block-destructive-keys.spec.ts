@@ -56,7 +56,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.shiftClickBlock([1], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+b');
+		await editor.page.keyboard.press('ControlOrMeta+b');
 		await editor.waitForRenderFlush();
 		await editor.waitForNoSourceMutation();
 
@@ -71,7 +71,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.shiftClickBlock([1], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+2');
+		await editor.page.keyboard.press('ControlOrMeta+2');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains('## ');
 
@@ -88,7 +88,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.shiftClickBlock([1], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+0');
+		await editor.page.keyboard.press('ControlOrMeta+0');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceNotContains('# ');
 

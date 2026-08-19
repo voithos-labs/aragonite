@@ -45,9 +45,9 @@ test.describe('selection — keyboard: edge cases', () => {
 	test('Ctrl+A counter resets on non-Ctrl+A keystroke', async () => {
 		await editor.loadContent('one\n\ntwo\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.page.keyboard.press('ArrowRight');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(false);
 	});
 
@@ -69,8 +69,8 @@ test.describe('selection — keyboard: edge cases', () => {
 		await editor.loadContent('\n');
 		await editor.focusBlockStart(0);
 
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('X');
@@ -84,7 +84,7 @@ test.describe('selection — keyboard: edge cases', () => {
 	test('thematic break between endpoints gets overlay, no crash', async () => {
 		await editor.loadContent('above\n\n---\n\nbelow\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		expect(await editor.bridge.getBlockCount()).toBe(3);
 	});

@@ -28,8 +28,8 @@ test.describe('widget selection ends when a cross-block range opens', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowRight');
 		await expect(overlay()).toBeVisible();
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	}
 
@@ -41,7 +41,7 @@ test.describe('widget selection ends when a cross-block range opens', () => {
 	test('Mod+C copies the document, not the widget slice', async () => {
 		await selectWidgetThenWholeDocument();
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		expect(await editor.readClipboard()).toContain('lead');

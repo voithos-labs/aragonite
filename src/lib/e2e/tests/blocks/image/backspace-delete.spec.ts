@@ -56,7 +56,7 @@ test.describe('image backspace/delete + type-replace', () => {
 		await widget.click();
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('![cat]');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 
@@ -68,7 +68,7 @@ test.describe('image backspace/delete + type-replace', () => {
 		await expect(page.locator('[data-image-overlay]')).toBeVisible();
 		await page.keyboard.press('Delete');
 		await editor.bridge.waitForSourceNotContains('![cat]');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 		// Use keyboard.press so the CST keydown intercept fires (insertText
 		// skips keydown and lands the char natively past the widget).

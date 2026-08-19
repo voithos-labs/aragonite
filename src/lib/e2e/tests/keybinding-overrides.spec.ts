@@ -21,7 +21,7 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type(' world');
 		await expect.poll(() => editor.bridge.getSource()).toContain('hello world');
-		await editor.page.keyboard.press('Control+y');
+		await editor.page.keyboard.press('ControlOrMeta+y');
 		await expect.poll(() => editor.bridge.getSource()).not.toContain('world');
 	});
 
@@ -31,12 +31,12 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.locator('.text-editable-block').first().click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('X');
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await expect.poll(() => editor.bridge.getSource()).toContain('helloX');
 
 		// Clearing the prop restores the built-in undo, proving overrides never mutated the keymap.
 		await setKeybindings(editor, undefined);
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await expect.poll(() => editor.bridge.getSource()).not.toContain('helloX');
 	});
 
@@ -68,7 +68,7 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('Z');
 		await expect.poll(() => editor.bridge.getSource()).toContain('titleZ');
-		await editor.page.keyboard.press('Control+Alt+y');
+		await editor.page.keyboard.press('ControlOrMeta+Alt+y');
 		await expect.poll(() => editor.bridge.getSource()).not.toContain('titleZ');
 
 		const para = editor.page.locator('.text-editable-block', { hasText: 'para' });
@@ -76,7 +76,7 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('Z');
 		await expect.poll(() => editor.bridge.getSource()).toContain('paraZ');
-		await editor.page.keyboard.press('Control+Alt+y'); // unbound here — no undo
+		await editor.page.keyboard.press('ControlOrMeta+Alt+y'); // unbound here — no undo
 		await editor.bridge.waitForSourceContains('paraZ');
 		expect(await editor.bridge.getSource()).toContain('paraZ');
 	});
@@ -131,7 +131,7 @@ test.describe('override fires where no block holds focus', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.bridge.waitForGapCaret({ parentPath: [], index: 1 });
 
-		await editor.page.keyboard.press('Control+Alt+u');
+		await editor.page.keyboard.press('ControlOrMeta+Alt+u');
 		await expect.poll(() => editor.bridge.getSource()).not.toContain('dZ');
 	});
 });
@@ -158,7 +158,7 @@ test.describe('override fires on every leaf dispatch surface', () => {
 			await editor.page.keyboard.press('End');
 			await editor.page.keyboard.type('Z');
 			await expect.poll(() => editor.bridge.getSource()).toContain('Z');
-			await editor.page.keyboard.press('Control+Alt+u');
+			await editor.page.keyboard.press('ControlOrMeta+Alt+u');
 			await expect.poll(() => editor.bridge.getSource()).not.toContain('Z');
 		});
 	}

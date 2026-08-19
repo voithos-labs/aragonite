@@ -40,7 +40,7 @@ test.describe('keyboard reorder', () => {
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'b' }).click();
 		await editor.page.keyboard.press('Alt+ArrowUp');
 		await editor.bridge.waitForSourceMatches(/> b[\s\S]*> a/);
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceEquals('> a\n>\n> b\n');
 	});
 
@@ -51,7 +51,7 @@ test.describe('keyboard reorder', () => {
 		await editor.getBlock(0).click(); // caret inside the code block
 		await editor.page.keyboard.press('Alt+ArrowDown');
 		await editor.bridge.waitForSourceMatches(/tail[\s\S]*```[\s\S]*code[\s\S]*```/);
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceEquals('```\ncode\n```\n\ntail\n');
 	});
 
@@ -76,7 +76,7 @@ test.describe('keyboard reorder', () => {
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe('XA\n\nB\n');
 
-		await editor.page.keyboard.press('Control+z'); // undoes the typing, not a phantom reorder
+		await editor.page.keyboard.press('ControlOrMeta+z'); // undoes the typing, not a phantom reorder
 		await editor.bridge.waitForSourceEquals('A\n\nB\n');
 	});
 

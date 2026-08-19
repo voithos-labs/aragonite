@@ -15,7 +15,7 @@ test.describe('cross-block clipboard: cut', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForCrossBlock(false);
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('bbb');
@@ -28,7 +28,7 @@ test.describe('cross-block clipboard: cut', () => {
 		await editor.loadContent('alpha\n\nbravo\n\ncharlie\n');
 		await editor.dragFromTo([1], 0, [2], 4);
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceEquals('alpha\n\nlie\n');
 
 		// The symptom was a reload artifact: the bytes reparse as ONE paragraph without it.
@@ -42,7 +42,7 @@ test.describe('cross-block clipboard: cut', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
 		expect(await editor.bridge.getSource()).not.toBe(before);
 		await editor.undo();
@@ -84,7 +84,7 @@ test.describe('cross-block clipboard: delete/backspace', () => {
 	test('cross-block delete spanning three blocks leaves merged result', async () => {
 		await editor.loadContent('AAA\n\nBBB\n\nCCC\n');
 		await editor.focusBlock(0, 1);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('BBB');
@@ -129,7 +129,7 @@ test.describe('cross-block clipboard: type-replace', () => {
 		expect(afterType).not.toBe(before);
 		expect(afterType).toContain('Z');
 
-		await editor.page.keyboard.press('Control+z');
+		await editor.page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceWith((s, b) => s.trim() === b.trim(), before);
 		const afterUndo = await editor.bridge.getSource();
 		expect(afterUndo.trim()).toBe(before.trim());

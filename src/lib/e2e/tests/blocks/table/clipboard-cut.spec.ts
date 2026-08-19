@@ -22,7 +22,7 @@ test.describe('table block: clipboard cut', () => {
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 
 		await expect.poll(() => editor.readClipboard()).toBe('hello');
 		await editor.bridge.waitForSourceContains('|  | 2 |');
@@ -37,7 +37,7 @@ test.describe('table block: clipboard cut', () => {
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('hello');
 
 		await editor.undo();
@@ -51,7 +51,7 @@ test.describe('table block: clipboard cut', () => {
 		// 2x2 rectangle: cells 0..4 spans rows 0..1 cols 0..1 — header "A,B" + body "1,2".
 		await dragBetweenCells(page, 0, 4);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 
 		await expect
 			.poll(() => editor.readClipboard())
@@ -78,7 +78,7 @@ test.describe('table block: clipboard cut', () => {
 		await dragBetweenBoxes(page, cell, paragraph);
 		await editor.waitForCrossBlock(true);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 
 		const clip = await editor.readClipboard();
 		expect(clip).toContain('1');
@@ -106,7 +106,7 @@ test.describe('table block: clipboard cut', () => {
 		await dragBetweenBoxes(page, head, a2);
 		await editor.waitForCrossBlock(true);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('a1');
 
 		const clip = await editor.readClipboard();
@@ -137,7 +137,7 @@ test.describe('table block: clipboard cut', () => {
 		await dragBetweenBoxes(page, a2, head);
 		await editor.waitForCrossBlock(true);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('a1');
 
 		const clip = await editor.readClipboard();
@@ -162,7 +162,7 @@ test.describe('table block: clipboard cut', () => {
 		);
 		await dragBetweenBoxes(page, cell, paragraph);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 
 		await editor.undo();

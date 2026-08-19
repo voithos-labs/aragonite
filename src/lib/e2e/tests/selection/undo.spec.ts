@@ -19,7 +19,7 @@ test.describe('selection undo — cross-block restore', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
 
 		await editor.undo();
@@ -56,7 +56,7 @@ test.describe('selection undo — cross-block restore', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
 		const afterCut = await editor.bridge.getSource();
 

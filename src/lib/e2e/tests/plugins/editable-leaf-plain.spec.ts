@@ -106,7 +106,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 				})
 			]);
 		});
-		await editor.paste('Control+v');
+		await editor.paste();
 
 		// The text/plain payload lands verbatim — its newline re-splits the second line off as a
 		// paragraph, so the document carries `a\nb`. Without the leaf's own onpaste the native
@@ -125,7 +125,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.keyboard.press('Shift+ArrowDown'); // extend into After → cross-block
 		await editor.waitForCrossBlock(true);
 		await editor.seedClipboard('SENTINEL');
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 
 		// The memo (leaf) is the focused anchor: its copy handler must reach the shared cross-block
 		// collector, which reads the memo's own raw. Without one the clipboard keeps the sentinel.
@@ -141,7 +141,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 		await editor.seedClipboard('SENTINEL');
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 
 		// The leaf's cut handler writes the cross-block payload and deletes the swept range; with
 		// no handler reached, the clipboard keeps the sentinel and nothing is removed.
@@ -161,7 +161,7 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 			await page.keyboard.press('Shift+ArrowDown');
 			await editor.waitForCrossBlock(true);
 			await editor.seedClipboard('INSERTED');
-			await editor.paste('Control+v');
+			await editor.paste();
 
 			// The leaf's paste handler routes the swept range through the cross-block delete + paste,
 			// so the selection collapses and the text lands; unreached, the cross-block state sticks.

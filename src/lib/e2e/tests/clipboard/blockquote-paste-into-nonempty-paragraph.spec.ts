@@ -16,7 +16,7 @@ test.describe('clipboard: blockquote paste into a non-empty blockquote paragraph
 		// Caret at end of "hello" inside the blockquote's paragraph leaf [0, 0].
 		await editor.focusBlockAtPath([0, 0], 'hello'.length);
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('world');
 
 		const src = await editor.bridge.getSource();

@@ -14,7 +14,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.seedClipboard('hello world\n');
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('hello world');
 	});
 
@@ -23,7 +23,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.seedClipboard('# Heading\n\npara\n');
 
 		await editor.focusBlockAtPath([0], 0);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource((s) => s.includes('Heading') && s.includes('para'));
 
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
@@ -40,7 +40,7 @@ test.describe('clipboard exploration: edge targets', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 0], 'list item'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('Big Heading');
 
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('- # Big Heading');
@@ -53,7 +53,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.shiftClickBlock([0, 1, 0], 'two'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSource(
 			(s) => !s.includes('one') && !s.includes('two') && s.includes('three')
 		);
@@ -76,13 +76,13 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.focusBlockAtPath([0], betaStart);
 		await editor.shiftClickBlock([0], betaEnd);
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSource((s) => s.trim() === 'alpha  gamma');
 
 		const afterCut = await editor.bridge.getSource();
 		expect(afterCut.trim()).toBe('alpha  gamma');
 
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSource((s) => s.trim() === 'alpha beta gamma');
 
 		const afterPaste = await editor.bridge.getSource();
@@ -94,7 +94,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		await editor.seedClipboard(' APPENDED');
 
 		await editor.focusBlockAtPath([1], 'line two'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('line two APPENDED');
 	});
 
@@ -104,7 +104,7 @@ test.describe('clipboard exploration: edge targets', () => {
 		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.waitForNoSourceMutation();
 
 		// Byte-exact: a stray newline or a duplicated block would still "contain

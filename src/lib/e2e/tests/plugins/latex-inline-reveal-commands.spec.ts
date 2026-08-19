@@ -102,7 +102,7 @@ test.describe('block commands against a revealed inline source', () => {
 		// collapse the range out from under the toggle.
 		await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('Shift+ArrowLeft');
-		await page.keyboard.press('Control+b');
+		await page.keyboard.press('ControlOrMeta+b');
 
 		await editor.bridge.waitForSourceContains('**');
 		expect(await editor.bridge.getSource()).toBe('$x**^q**2$ tail\n');
@@ -118,7 +118,7 @@ test.describe('block commands against a revealed inline source', () => {
 
 		// The always-applicable arms must see the edit too: a heading prefix written
 		// onto node.raw would drop the `q` the CST has not been told about.
-		await page.keyboard.press('Control+1');
+		await page.keyboard.press('ControlOrMeta+1');
 		await editor.bridge.waitForSourceContains('# ');
 		expect(await editor.bridge.getSource()).toBe('# $x^q2$ tail\n');
 		expect(await capturedErrors(page)).toEqual([]);

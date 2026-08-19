@@ -102,7 +102,7 @@ test.describe('sim gesture reachability: cross-block', () => {
 		await editor.loadContent('alpha\n\nbeta\n\nCLIP\n');
 		await editor.focusBlockAtPath([2], 0);
 		await editor.page.keyboard.press('Shift+End');
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		const ctx = await selectAcrossContent(page, editor);
 		await pasteOverSelection(ctx);

@@ -26,8 +26,8 @@ test.describe('table block: delete + undo + arrow navigation', () => {
 		// Three Ctrl+A presses: cell, table (cross-block intra-table), document.
 		// Two presses gets us the table-coverage selection that Backspace deletes.
 		await page.locator('[role="cell"]').nth(4).click();
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 
 		await page.keyboard.press('Backspace');

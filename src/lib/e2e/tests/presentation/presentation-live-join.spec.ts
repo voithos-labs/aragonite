@@ -104,7 +104,7 @@ test.describe('live mode — the join across a block boundary', () => {
 		await selectAcrossBlocks(ep, page);
 
 		await ep.seedClipboard('JOINED');
-		await ep.paste('ControlOrMeta+v');
+		await ep.paste();
 		await ep.bridge.waitForSourceContains('Alpha beJOINEDdelta *epsilon* zeta');
 		expect(await ep.bridge.getSource()).not.toContain('Alpha **be');
 	});

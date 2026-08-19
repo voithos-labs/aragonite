@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage, roundTripStable, capturedErrors } from './helpers';
-import { primaryModifier } from '../../platform';
 import { capturePageErrors } from '../../page-probes';
 
 /**
@@ -34,7 +33,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 		page
 	}) => {
 		await editor.memo.click();
-		await page.keyboard.press(`${primaryModifier}+Shift+K`);
+		await page.keyboard.press('ControlOrMeta+Shift+K');
 
 		// The handler's `updateMetadata` lands on the focused memo node (index 1).
 		await page.waitForFunction(
@@ -54,7 +53,7 @@ test.describe('minted block commands on the editable-leaf tier: the %% memo kind
 
 		await editor.memo.click();
 		await page.keyboard.press('End');
-		await page.keyboard.press(`${primaryModifier}+Shift+J`);
+		await page.keyboard.press('ControlOrMeta+Shift+J');
 
 		await page.waitForFunction(
 			() => (window as any).__test.getCapturedErrors().includes('command'),

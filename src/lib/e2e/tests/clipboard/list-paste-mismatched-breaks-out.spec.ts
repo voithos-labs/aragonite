@@ -17,7 +17,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.seedClipboard('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 9);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- three$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -37,7 +37,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.seedClipboard('1. a\n2. b\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 'Unordered'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^2\. b$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -53,7 +53,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.seedClipboard('1. a\n2. b\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^2\. b$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -72,7 +72,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.seedClipboard('1. first\n2. Ordered second\n3. Ordered');
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Unordered'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- third$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -89,7 +89,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		// trailing second-half list. The caret must land at the end of the last
 		// PASTED item, never on the residue.
 		await editor.focusBlockAtPath([0, 0, 0], 9);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- three$/m);
 
 		await editor.page.keyboard.type('X');
@@ -107,7 +107,7 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.seedClipboard('- paste one\n- paste two\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 'First'.length);
-		await editor.paste('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^2\. target$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');

@@ -99,8 +99,8 @@ test.describe('placeCaretAtPoint is the host shell’s caret door', () => {
 	test('the landing ends a live cross-block range', async () => {
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
 		const root = await rootBox();

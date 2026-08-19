@@ -1,6 +1,5 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { primaryModifier } from '../../../platform';
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_1COL = '| A |\n| --- |\n| 1 |\n';
@@ -115,7 +114,7 @@ test.describe('table block: column affordance menu', () => {
 		await page.getByRole('menuitem', { name: /insert column right/i }).click();
 		await editor.bridge.waitForSourceContains('| A |  | B |');
 
-		await page.keyboard.press(`${primaryModifier}+z`);
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceNotContains('| A |  | B |');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

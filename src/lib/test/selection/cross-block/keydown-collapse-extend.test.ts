@@ -16,7 +16,7 @@ function envAcrossFirstTwo(presentationMode?: 'reading') {
 }
 
 // Ctrl and Cmd fold to one Mod, and `reservedChords()` publishes the folded chord, so both arms
-// owe both forms. Miss-analysis: the e2e cover presses `primaryModifier`, which is Meta only on
+// owe both forms. Miss-analysis: the e2e cover presses `ControlOrMeta`, which is Meta only on
 // darwin and no runner is darwin, so half the chord went untested (#69).
 const DOC_EDGE_CHORDS = [
 	['Ctrl', { ctrlKey: true, shiftKey: true }],

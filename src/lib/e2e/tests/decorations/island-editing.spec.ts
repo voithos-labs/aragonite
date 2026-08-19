@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 
 /**
  * Decoration island editing (requirements/decorations/island-editing.md). Islands are atomic
@@ -236,7 +235,7 @@ test.describe('decoration island editing', () => {
 
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('Shift+End');
-		await page.keyboard.press(`${primaryModifier}+c`);
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		const clip = await editor.readClipboard();

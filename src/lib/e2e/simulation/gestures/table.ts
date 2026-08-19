@@ -42,13 +42,13 @@ export async function deleteColumn(ctx: SimContext, cellIndex: number): Promise<
 /** Insert a row below the row holding the cell at `cellIndex` (Ctrl+Enter). */
 export async function insertRowBelow(ctx: SimContext, cellIndex: number): Promise<void> {
 	await clickCell(ctx, cellIndex);
-	await actThenResync(ctx, () => ctx.page.keyboard.press('Control+Enter'));
+	await actThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+Enter'));
 }
 
 /** Delete the body row holding the cell at `cellIndex` (Ctrl+Shift+Backspace). */
 export async function deleteRow(ctx: SimContext, cellIndex: number): Promise<void> {
 	await clickCell(ctx, cellIndex);
-	await actThenResync(ctx, () => ctx.page.keyboard.press('Control+Shift+Backspace'));
+	await actThenResync(ctx, () => ctx.page.keyboard.press('ControlOrMeta+Shift+Backspace'));
 }
 
 /**

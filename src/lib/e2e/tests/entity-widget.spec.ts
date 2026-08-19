@@ -112,7 +112,7 @@ test.describe('decoded-entity atomic widget', () => {
 		await expect(glyph(page)).toHaveText('©');
 		await editor.focusBlock(0, 0);
 		await editor.selectAll();
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		const clip = await editor.readClipboard();
 		expect(clip).toContain('&copy;');
