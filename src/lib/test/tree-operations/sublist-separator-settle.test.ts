@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { describeConvergence } from '$lib/testing/parse-convergence';
+import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';

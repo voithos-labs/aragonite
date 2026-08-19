@@ -1,12 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createTableMutationsContext } from '$lib/editor-actions/table-context';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
-import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeTableMutations } from './table-mutations-harness';
+
+afterEach(() => vi.restoreAllMocks());
 
 // A row windowed out of the table's mounted slice has no BlockListState, so scoping
 // every row unconditionally throws on the first unmounted one. Only mounted rows are
@@ -15,38 +12,12 @@ import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-act
 const TALL = '| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n';
 
 /** A table where only `mountedRows` carry a BlockListState, as windowing leaves it. */
-function makeWindowedTable(mountedRows: number[] = [0]) {
-	const { deps } = makeEditorActionsDeps([parse(TALL).children[0]]);
-	const liveTable = () => deps.doc.children[0];
-	const rowsState = makeBlockListState(liveTable, ['row-0', 'row-1', 'row-2']);
-	registerBlockListState(liveTable(), rowsState);
-	for (const rowIdx of mountedRows) {
-		registerBlockListState(
-			liveTable().children![rowIdx],
-			makeBlockListState(() => liveTable().children![rowIdx])
-		);
-	}
-	const controller = createUndoController(deps);
-	const mutations = createTableMutationsContext({
-		get node() {
-			return liveTable();
-		},
-		get myPath() {
-			return [0];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return { rowIdx: 0, colIdx: 0 };
-		},
-		parentContainerEdit: createContainerEditActions(deps, controller),
-		controller,
-		focusCell: vi.fn(),
-		announceReorder: vi.fn()
+const makeWindowedTable = (mountedRows: number[] = [0]) =>
+	makeTableMutations(TALL, {
+		mountedRows,
+		rowIds: ['row-0', 'row-1', 'row-2'],
+		focusedCell: { rowIdx: 0, colIdx: 0 }
 	});
-	return { deps, mutations };
-}
 
 describe('column ops on a row-windowed table', () => {
 	it('insertColumnRight adds the cell to the unmounted rows too', async () => {
@@ -126,5 +97,3 @@ describe('column ops pair each row scope with its own change', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 });
-
-afterEach(() => vi.restoreAllMocks());

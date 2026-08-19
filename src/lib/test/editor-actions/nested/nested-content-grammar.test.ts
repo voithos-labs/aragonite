@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { createGrammarView } from '$lib/schema/block-openers';
-import { makeNestedHarness } from '../../harness/editor-actions';
+import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 
 // Sibling-path parity with the top-level factory (which threads deps.grammar): without
 // it, a disabled kind's opener typed inside a container materializes that kind anyway.

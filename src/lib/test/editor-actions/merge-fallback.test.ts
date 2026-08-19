@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { mergedElseFocusNext, mergedElseFocusPrevious } from '$lib/editor-actions/merge-fallback';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { mockRef } from '../harness/editor-actions';
+import { mockRef } from '$lib/test/harness/editor-actions';
 
 // The single owner of the interior-merge fallbacks, shared by block-edit-core's two merge
 // interiors and unwrap-strategies.listItemCascadeMiddle. Pinned here so a dropped focus call

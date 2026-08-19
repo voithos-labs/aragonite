@@ -4,11 +4,8 @@
 // ends the gap anyway; a mutation arriving from elsewhere (search replace-all, a host edit, a
 // plugin) has no test at all, so nothing observed the gap surviving one.
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { isGapSelection } from '$lib/undo/types';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeTopHarness } from '$lib/test/harness/editor-actions';
 
 const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
 const FENCE = '```\ncode\n```\n';
@@ -17,9 +14,8 @@ const TABLE_THEN_FENCE = `para\n\n${TABLE}\n${FENCE}\ntail\n`;
 const GAP = { parentPath: [], index: 2 };
 
 function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const actions = createBlockEditActions(harness.deps, createUndoController(harness.deps));
-	return { ...harness, actions, selection: harness.deps.selectionState };
+	const harness = makeTopHarness(source);
+	return { ...harness, selection: harness.deps.selectionState };
 }
 
 describe('a structural commit invalidates the gap caret it edits under', () => {

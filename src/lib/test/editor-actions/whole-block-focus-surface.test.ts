@@ -4,8 +4,7 @@ import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import { composeWholeBlockFocusSurface } from '$lib/editor-actions/whole-block-focus-surface';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import { makeShimDeps } from '$lib/test/harness/editor-actions';
 
 // A kind whose declared focus element is absent (a render-error state the plugin forgot
 // to cover) must degrade to a focusable box, never a no-op that strands the caret.
@@ -130,24 +129,16 @@ describe('container shim through a composed fallback surface', () => {
 	afterEach(() => allowDevWarns(['container-block']));
 
 	function shim(boxEl: HTMLElement, declared: HTMLElement | null = null) {
-		return createContainerBlockComponent({
-			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return [];
-			},
-			refSlots: refSlotsOver([]),
-			get nodeChildrenLength() {
-				return 0;
-			},
-			get node() {
-				return mermaidNode();
-			},
-			getFocusEl: composeWholeBlockFocusSurface(
-				() => declared,
-				() => boxEl,
-				() => 'mermaid'
-			)
-		});
+		return createContainerBlockComponent(
+			makeShimDeps([], {
+				node: mermaidNode(),
+				getFocusEl: composeWholeBlockFocusSurface(
+					() => declared,
+					() => boxEl,
+					() => 'mermaid'
+				)
+			})
+		);
 	}
 
 	it('focus() lands DOM focus on the box, minting tabindex for a plain div', () => {

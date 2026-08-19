@@ -6,20 +6,11 @@ import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
 import { concatChildren, serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
 import type { EditorError } from '$lib/editor-events';
 import type { MultiScopeTarget } from '$lib/action-contracts';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
-
-function listItemNode(raw: string): CstNode {
-	return {
-		kind: 'listItem',
-		leadingTrivia: '',
-		raw,
-		metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
-	} as CstNode;
-}
+import { makeListItem } from '$lib/test/harness/list-fixtures';
 
 function harness(scopePath: number[]) {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);
@@ -33,7 +24,7 @@ function harness(scopePath: number[]) {
 			scopes,
 			snapshot: 'skip',
 			mutate: ([scope]) => {
-				scope.children.push(listItemNode('- c\n'));
+				scope.children.push(makeListItem('- c\n'));
 				return [{ op: 'insert', at: scope.children.length - 1, count: 1 }];
 			}
 		});

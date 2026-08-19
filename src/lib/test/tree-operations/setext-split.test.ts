@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { splitNode } from '../../tree-operations';
-import { describeConvergence } from '../../testing/parse-convergence';
+import { describeConvergence } from '../harness/parse-converged';
 
 // The setext underline sits AFTER the title, so a plain raw cut strands it in the second
 // half, where `=====` reparses as a junk paragraph and `-----` demotes the heading.

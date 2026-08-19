@@ -4,12 +4,12 @@
 // classifier and the collapse door, and nothing asked what a moveFocus landing answers — an
 // absent call at a seat is invisible to tests written against the calls that exist.
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '../../../core/parser';
-import { createFocusActions } from '../../../editor-actions/focus/focus';
-import { createUndoController } from '../../../editor-actions/commit/undo-controller';
-import { createEdgeAffinityState } from '../../../cursor/edge-affinity';
-import { makeEditorActionsDeps, mockRef } from '../../harness/editor-actions';
-import type { FocusPosition } from '../../../block-component';
+import { parse } from '$lib/core/parser';
+import { createFocusActions } from '$lib/editor-actions/focus/focus';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
+import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
+import type { FocusPosition } from '$lib/block-component';
 
 // `**bold**` above a fence: the landing lands in the closer's hidden run, where 'near' reads as
 // inside the construct and 'outside' as after it (docs/design/live-mode.md § 4.2).

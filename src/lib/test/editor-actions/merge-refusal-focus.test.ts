@@ -1,10 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { CURSOR_END, CURSOR_START } from '$lib/block-component';
-import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
+import { makeTopHarness, mockRef } from '$lib/test/harness/editor-actions';
 
 // GH #166. Miss-analysis: no case drove Delete/Backspace across a boundary whose joined bytes
 // read as two blocks, so the doors' behaviour there was only ever the sinks' — and both sinks
@@ -14,17 +11,12 @@ import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions
 const HEADING_OVER_TWO_LINES = '# h\ntext\nmore\n';
 
 function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source));
-	const controller = createUndoController(harness.deps);
+	const harness = makeTopHarness(source);
 	const focuses = harness.deps.doc.children.map(() => vi.fn());
 	focuses.forEach((focus, i) => {
 		harness.getBlockRefs()[i] = mockRef({ focus });
 	});
-	return {
-		...harness,
-		focuses,
-		actions: createBlockEditActions(harness.deps, controller)
-	};
+	return { ...harness, focuses };
 }
 
 describe('a refused join moves the caret instead of merging', () => {

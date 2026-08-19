@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createStandardNestedActions } from '../../../editor-actions/nested/nested-actions';
-import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
-import type { CstNode } from '../../../core/nodes';
+import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
+import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
+import type { CstNode } from '$lib/core/nodes';
 import {
-	makeStickyColumn,
+	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
-} from '../../harness/editor-actions';
+} from '$lib/test/harness/editor-actions';
 
 // listItem is the container WITHOUT an unwrapRole: kinds that declare one dispatch
 // mergeWithPrevious(0) to an unwrap strategy instead of delegating upward.
@@ -68,19 +68,10 @@ describe('createStandardNestedActions', () => {
 		const state = createBlockListState(() => node);
 		const parent = fakeParentBundles();
 
-		const bundle = createStandardNestedActions(state, {
-			scope: {
-				index: 7,
-				get node() {
-					return node;
-				},
-				path: [7]
-			},
-			stickyColumn: makeStickyColumn(),
-			getPresentationMode: undefined,
-			linkRef: undefined,
-			parent
-		});
+		const bundle = createStandardNestedActions(
+			state,
+			makeNestedActionsDeps({ index: 7, getNode: () => node, path: [7], parent })
+		);
 
 		await bundle.focus.moveFocus(-1, 'end');
 		expect(parent.focus.moveFocus).toHaveBeenCalledWith(6, 'end');
@@ -96,19 +87,10 @@ describe('createStandardNestedActions', () => {
 				const state = createBlockListState(() => node);
 				const { deferred, parent } = makeParentDeferring(method);
 
-				const bundle = createStandardNestedActions(state, {
-					scope: {
-						index: 3,
-						get node() {
-							return node;
-						},
-						path: [3]
-					},
-					stickyColumn: makeStickyColumn(),
-					getPresentationMode: undefined,
-					linkRef: undefined,
-					parent
-				});
+				const bundle = createStandardNestedActions(
+					state,
+					makeNestedActionsDeps({ index: 3, getNode: () => node, path: [3], parent })
+				);
 
 				let continuationRan = false;
 				const pending = Promise.resolve(bundle.blockEdit[method](innerIndex)).then(() => {

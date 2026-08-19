@@ -3,9 +3,7 @@ import { installPlugins } from '$lib';
 import { parse } from '$lib/core/parser';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 
 // The gesture the tree-level arms model (`tree-operations/emptied-block-reload.test.ts`), driven
@@ -15,15 +13,9 @@ import { expectParseConverged } from '$lib/test/harness/parse-converged';
 // gesture's bundle path only, so no bundle case ever emptied a block — the door the defect
 // reached the consumer through had no case at all.
 
-function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createUndoController(harness.deps);
-	return { ...harness, actions: createBlockEditActions(harness.deps, controller) };
-}
-
 describe('emptying a block through the top-level bundle', () => {
 	it('leaves bytes that reload as the blocks still on screen', async () => {
-		const h = makeTop('alpha\n\nx\n\ndelta\n');
+		const h = makeTopHarness('alpha\n\nx\n\ndelta\n');
 
 		await h.actions.updateBlockContent(1, '\n');
 
@@ -35,7 +27,7 @@ describe('emptying a block through the top-level bundle', () => {
 	// The separator the run gives up sits two slots below the block the gesture names, because a
 	// split leaves it on the follower.
 	it('reaches the separator a split left below the blank line it opened', async () => {
-		const h = makeTop('Hello\n\nSecond\n');
+		const h = makeTopHarness('Hello\n\nSecond\n');
 		await h.actions.splitBlock(0, 5);
 		await h.actions.splitBlock(1, 0);
 		await h.actions.updateBlockContent(1, 'x\n');
@@ -78,8 +70,9 @@ describe('emptying a block inside a container', () => {
 // and blockIds must grow with the tree.
 describe('emptying the tail block of a suffix-folded document', () => {
 	it('materializes the folded line structurally and keeps blockIds in step', async () => {
-		const h = makeTop('alpha\n\n');
-		h.doc.suffix = parse('alpha\n\n').suffix;
+		// The whole-document parse keeps the folded suffix line the fixture depends on.
+		const h = makeTopHarness('alpha\n\n');
+		expect(h.doc.suffix).toBe('\n');
 
 		await h.actions.updateBlockContent(0, '\n');
 

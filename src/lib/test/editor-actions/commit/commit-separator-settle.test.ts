@@ -3,10 +3,13 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { performCrossBlockDeleteSync } from '$lib/selection/cross-block/ops';
 import { splitNode } from '$lib/tree-operations/node-ops';
-import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import {
+	makeBlockListState,
+	makeEditorActionsDeps,
+	makeTopHarness
+} from '$lib/test/harness/editor-actions';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import { asDocPath } from '$lib/selection/path-math';
@@ -17,15 +20,9 @@ import { asDocPath } from '$lib/selection/path-math';
 // settle over the same window does, nor whether a probe reading post-splice state could still
 // see was-blank. Both only became askable when the rule moved into the seam.
 
-function makeTop(source: string | ReturnType<typeof parse>) {
-	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
-	const controller = createUndoController(harness.deps);
-	return { ...harness, controller, actions: createBlockEditActions(harness.deps, controller) };
-}
-
 describe('the ceremony settle over a window its mutate already settled', () => {
 	it('leaves an emptied block alone rather than settling its run twice', async () => {
-		const h = makeTop('alpha\n\nx\n\ndelta\n');
+		const h = makeTopHarness('alpha\n\nx\n\ndelta\n');
 
 		await h.actions.updateBlockContent(1, '\n');
 
@@ -36,7 +33,7 @@ describe('the ceremony settle over a window its mutate already settled', () => {
 	// A multi-block fill returns a `replace` window covering the filled slot, so the funnel sees
 	// the same transition `updateNodeContent` just answered for.
 	it('leaves a multi-block fill of a blank slot alone', async () => {
-		const h = makeTop('alpha\n\n\ndelta\n');
+		const h = makeTopHarness('alpha\n\n\ndelta\n');
 
 		await h.actions.updateBlockContent(1, 'p\n\nq\n');
 
@@ -118,7 +115,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 	// Miss-analysis: `makeEditorActionsDeps` hardcoded `suffix: ''`, so a top-level fixture built
 	// the natural way could not hold a folded trailing line — unreachable, not merely untested.
 	it('keeps blockIds and refs in step with the tree', async () => {
-		const h = makeTop(parse('alpha\n\n'));
+		const h = makeTopHarness(parse('alpha\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
 
 		await h.actions.insertParagraph(1, '');
@@ -136,7 +133,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 	// `settleSeparatorOnBlank`, which a delete window at the tail never reaches — it probes the
 	// slot the delete just vacated — so the funnel had no tail arm for the whole delete family.
 	it('keeps them in step when a delete leaves the tail blank against the folded line', async () => {
-		const h = makeTop(parse('alpha\n\n\nbeta\n\n'));
+		const h = makeTopHarness(parse('alpha\n\n\nbeta\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
 
 		await h.actions.deleteBlock(2);
@@ -158,7 +155,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 
 describe('the ceremony settle reads was-blank off the pre-mutate children', () => {
 	it('hands both ends back the line a blank slot was holding for them', async () => {
-		const h = makeTop('alpha\n\n\ndelta\n');
+		const h = makeTopHarness('alpha\n\n\ndelta\n');
 
 		await h.controller.commitStructural({
 			snapshot: { path: asDocPath([1]), offset: 0 },

@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createSearchReplace } from '$lib/editor-actions/search-replace';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 
 // `docs/design/editor.md` §10: a replacement into a table cell escapes the delimiters the
 // cell's raw reserves so it cannot split the row. Escaping the replacement string alone
@@ -28,11 +26,6 @@ function scanCells(doc: Document, needle: string) {
 	return out;
 }
 
-function makeTable(source: string) {
-	const { deps } = makeEditorActionsDeps(parse(source).children);
-	return { deps, replace: createSearchReplace(deps, createUndoController(deps)) };
-}
-
 /** Cell raws of the first table's body row, as the document round-trips. */
 function bodyCells(deps: { doc: Document }): string[] {
 	const reparsed = parse(serialize(deps.doc));
@@ -43,17 +36,17 @@ const TABLE = '| h1 | h2 |\n| --- | --- |\n| X | keep |\n';
 
 describe('search/replace into a table cell', () => {
 	it('keeps an already-escaped pipe in the replacement escaped exactly once', async () => {
-		const { deps, replace } = makeTable(TABLE);
+		const { deps, sr } = makeSearchReplace(TABLE);
 
-		await replace.replaceAll(scanCells(deps.doc, 'X'), 'a\\|b');
+		await sr.replaceAll(scanCells(deps.doc, 'X'), 'a\\|b');
 
 		expect(bodyCells(deps)).toEqual(['a\\|b', 'keep']);
 	});
 
 	it('escapes a bare pipe in the replacement', async () => {
-		const { deps, replace } = makeTable(TABLE);
+		const { deps, sr } = makeSearchReplace(TABLE);
 
-		await replace.replaceAll(scanCells(deps.doc, 'X'), 'a|b');
+		await sr.replaceAll(scanCells(deps.doc, 'X'), 'a|b');
 
 		expect(bodyCells(deps)).toEqual(['a\\|b', 'keep']);
 	});
@@ -61,34 +54,36 @@ describe('search/replace into a table cell', () => {
 	// The freeing backslash comes from the cell, not the replacement, so the escape has to
 	// see the whole substituted raw.
 	it('does not double-escape a pipe that follows a backslash already in the cell', async () => {
-		const { deps, replace } = makeTable('| h1 | h2 |\n| --- | --- |\n| a\\X | keep |\n');
+		const { deps, sr } = makeSearchReplace('| h1 | h2 |\n| --- | --- |\n| a\\X | keep |\n');
 
-		await replace.replaceAll(scanCells(deps.doc, 'X'), '|');
+		await sr.replaceAll(scanCells(deps.doc, 'X'), '|');
 
 		expect(bodyCells(deps)).toEqual(['a\\|', 'keep']);
 	});
 
 	it('is idempotent — replacing into an already-escaped cell adds no backslashes', async () => {
-		const { deps, replace } = makeTable('| h1 | h2 |\n| --- | --- |\n| a\\|X | keep |\n');
+		const { deps, sr } = makeSearchReplace('| h1 | h2 |\n| --- | --- |\n| a\\|X | keep |\n');
 
-		await replace.replaceAll(scanCells(deps.doc, 'X'), 'Y');
+		await sr.replaceAll(scanCells(deps.doc, 'X'), 'Y');
 
 		expect(bodyCells(deps)).toEqual(['a\\|Y', 'keep']);
 	});
 
 	it('collapses a newline in the replacement so it cannot spill into the next row', async () => {
-		const { deps, replace } = makeTable(TABLE);
+		const { deps, sr } = makeSearchReplace(TABLE);
 
-		await replace.replaceAll(scanCells(deps.doc, 'X'), 'a\nb');
+		await sr.replaceAll(scanCells(deps.doc, 'X'), 'a\nb');
 
 		expect(bodyCells(deps)).toEqual(['a b', 'keep']);
 	});
 
+	// The real scanner, not `scanCells`: a paragraph has no cells to address, so the
+	// cell-addressed driver hands this arm an empty match set and pins nothing.
 	it('leaves a non-cell leaf’s replacement unescaped', async () => {
-		const { deps, replace } = makeTable('para X here\n');
+		const { deps, sr } = makeSearchReplace('para X here\n');
 
-		await replace.replaceAll(scanCells(deps.doc, 'X'), 'a|b');
+		await sr.replaceAll(scanCompiled(deps.doc, 'X', { caseSensitive: true }), 'a|b');
 
-		expect(serialize(deps.doc)).toBe('para X here\n');
+		expect(serialize(deps.doc)).toBe('para a|b here\n');
 	});
 });

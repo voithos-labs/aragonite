@@ -9,7 +9,7 @@ import { testClosure } from '$lib/test/support/closure';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createSearchReplace } from '$lib/editor-actions/search-replace';
 import type { EditEvent, EditorError } from '$lib/editor-events';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 
 // The subtree rebuild dispatches into plugin `rebuildRaw` outside any commit and after
 // the batch's single undo snapshot was pushed, so an unattributed throw leaves the

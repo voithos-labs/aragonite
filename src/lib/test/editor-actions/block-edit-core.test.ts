@@ -1,7 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
-import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
-import { createSharingState } from '$lib/tree-operations/sharing';
 import type { CstNode } from '$lib/core/nodes';
 import { CURSOR_EXACT_START, CURSOR_START, type BlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
@@ -12,10 +10,7 @@ import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surface
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
-
-function leaf(raw: string): CstNode {
-	return parse(raw).children[0];
-}
+import { makeCommitScopeStub, parseLeaf as leaf } from '$lib/test/harness/editor-actions';
 
 function focusSpy() {
 	const calls: number[] = [];
@@ -23,39 +18,9 @@ function focusSpy() {
 	return { calls, ref };
 }
 
-/** Runs the REAL mutate against a live children array, recording commits. */
-function stubScope(
-	children: CstNode[],
-	collapseEmptyReplaceToDelete = true,
-	refs: (BlockComponent | undefined)[] = [],
-	owner?: CstNode
-) {
-	const commits: ScopeCommitArgs[] = [];
-	const sharing = createSharingState();
-	const scope: CommitScope = {
-		children: () => children,
-		refAt: (i) => refs[i],
-		collapseEmptyReplaceToDelete,
-		async commit(args) {
-			commits.push(args);
-			args.mutate({
-				children,
-				sharing,
-				ownerKind: owner?.kind,
-				owner,
-				getPresentationMode: undefined,
-				linkRef: undefined,
-				unshareChild: (i) => children[i]
-			});
-			await args.afterTick?.();
-		}
-	};
-	return { scope, commits, children };
-}
-
 describe('block-edit core — shared structural decisions', () => {
 	it('split at a mid offset produces two blocks and a split op', async () => {
-		const { scope, commits, children } = stubScope([leaf('hello world\n')]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('hello world\n')]);
 		await createBlockEditCore(scope).split(0, 5);
 		expect(children).toHaveLength(2);
 		expect(commits[0].op.kind).toBe('split');
@@ -65,10 +30,9 @@ describe('block-edit core — shared structural decisions', () => {
 
 	it('split at offset 0 puts an empty block above and keeps the caret on the content', async () => {
 		const content = focusSpy();
-		const { scope, commits, children } = stubScope([leaf('hello\n')], true, [
-			undefined,
-			content.ref
-		]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('hello\n')], {
+			refs: [undefined, content.ref]
+		});
 		await createBlockEditCore(scope).split(0, 0);
 		expect(children).toHaveLength(2);
 		expect(children[0].raw).toBe('\n');
@@ -86,11 +50,9 @@ describe('block-edit core — shared structural decisions', () => {
 		// [code, blank], so the second half sits at i + 2.
 		const secondHalf = focusSpy();
 		const firstHalfTail = focusSpy();
-		const { scope, children } = stubScope([leaf('    a\n\n\n    b\n')], true, [
-			undefined,
-			firstHalfTail.ref,
-			secondHalf.ref
-		]);
+		const { scope, children } = makeCommitScopeStub([leaf('    a\n\n\n    b\n')], {
+			refs: [undefined, firstHalfTail.ref, secondHalf.ref]
+		});
 		await createBlockEditCore(scope).split(0, 7);
 		expect(children.map((c) => c.raw)).toEqual(['    a\n', '\n', '    b\n']);
 		expect(secondHalf.calls).toEqual([CURSOR_EXACT_START]);
@@ -99,7 +61,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('merge-prev of two paragraphs is eligible and concatenates', async () => {
-		const { scope, commits, children } = stubScope([leaf('a\n'), leaf('b\n')]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('a\n'), leaf('b\n')]);
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(1);
 		expect(children[0].raw).toContain('a');
@@ -109,7 +71,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('merge-next of two paragraphs is eligible and concatenates onto the current block', async () => {
-		const { scope, commits, children } = stubScope([leaf('a\n'), leaf('b\n')]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('a\n'), leaf('b\n')]);
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
 		expect(children).toHaveLength(1);
 		expect(children[0].raw).toContain('a');
@@ -121,7 +83,7 @@ describe('block-edit core — shared structural decisions', () => {
 
 	it('merge-prev into an editable-but-unmergeable previous block moves focus without committing', async () => {
 		// fencedCode is the not-mergeable-yet-editable fixture: the else branch only moves focus.
-		const { scope, commits, children } = stubScope([leaf('```\n'), leaf('text\n')]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('```\n'), leaf('text\n')]);
 		expect(children[0].kind).toBe('fencedCode');
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(2);
@@ -129,7 +91,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('merge-next into an editable-but-unmergeable next block moves focus without committing', async () => {
-		const { scope, commits, children } = stubScope([leaf('text\n'), leaf('```\n')]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('text\n'), leaf('```\n')]);
 		expect(children[1].kind).toBe('fencedCode');
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
 		expect(children).toHaveLength(2);
@@ -137,7 +99,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('deleteInterior removes the block and emits a delete op targeting it', async () => {
-		const { scope, commits, children } = stubScope([leaf('a\n'), leaf('b\n')]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('a\n'), leaf('b\n')]);
 		await createBlockEditCore(scope).deleteInterior(1);
 		expect(children).toHaveLength(1);
 		expect(children[0].raw).toContain('a');
@@ -146,7 +108,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('replaceBlock with nodes emits replaceBlock with its count', async () => {
-		const rep = stubScope([leaf('x\n')]);
+		const rep = makeCommitScopeStub([leaf('x\n')]);
 		await createBlockEditCore(rep.scope).replaceBlock(0, [leaf('a\n'), leaf('b\n')]);
 		expect(rep.commits[0].op.kind).toBe('replaceBlock');
 		expect(rep.commits[0].op.detail).toEqual({ count: 2 });
@@ -154,12 +116,12 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('empty replaceBlock removes the block but emits a per-scope op-kind', async () => {
-		const collapsed = stubScope([leaf('x\n'), leaf('y\n')], true);
+		const collapsed = makeCommitScopeStub([leaf('x\n'), leaf('y\n')]);
 		await createBlockEditCore(collapsed.scope).replaceBlock(0, []);
 		expect(collapsed.children).toHaveLength(1);
 		expect(collapsed.commits[0].op.kind).toBe('delete');
 
-		const labelled = stubScope([leaf('x\n'), leaf('y\n')], false);
+		const labelled = makeCommitScopeStub([leaf('x\n'), leaf('y\n')], { collapse: false });
 		await createBlockEditCore(labelled.scope).replaceBlock(0, []);
 		expect(labelled.children).toHaveLength(1);
 		expect(labelled.commits[0].op.kind).toBe('replaceBlock');
@@ -167,7 +129,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('updateBlockMetadata merges fields and emits metadataUpdate', async () => {
-		const { scope, commits, children } = stubScope([leaf('- [ ] task\n').children![0]]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('- [ ] task\n').children![0]]);
 		await createBlockEditCore(scope).updateBlockMetadata(0, { taskChecked: true });
 		expect(commits[0].op.kind).toBe('metadataUpdate');
 		expect(commits[0].op.detail).toEqual({ fields: ['taskChecked'] });
@@ -175,7 +137,7 @@ describe('block-edit core — shared structural decisions', () => {
 	});
 
 	it('updateBlockMetadata with an empty patch is a no-op (no commit)', async () => {
-		const { scope, commits } = stubScope([leaf('hello\n')]);
+		const { scope, commits } = makeCommitScopeStub([leaf('hello\n')]);
 		await createBlockEditCore(scope).updateBlockMetadata(0, {});
 		expect(commits).toHaveLength(0);
 	});
@@ -201,10 +163,10 @@ describe('block-edit core — whole-block-focus fallback', () => {
 
 	it('merge-prev focuses a non-editable whole-block previous block instead of deleting it', async () => {
 		const focus = focusSpy();
-		const { scope, commits, children } = stubScope([wholeBlockNode(false), leaf('text\n')], true, [
-			focus.ref,
-			undefined
-		]);
+		const { scope, commits, children } = makeCommitScopeStub(
+			[wholeBlockNode(false), leaf('text\n')],
+			{ refs: [focus.ref, undefined] }
+		);
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
@@ -213,10 +175,10 @@ describe('block-edit core — whole-block-focus fallback', () => {
 
 	it('merge-next focuses a non-editable whole-block next block instead of deleting it', async () => {
 		const focus = focusSpy();
-		const { scope, commits, children } = stubScope([leaf('text\n'), wholeBlockNode(false)], true, [
-			undefined,
-			focus.ref
-		]);
+		const { scope, commits, children } = makeCommitScopeStub(
+			[leaf('text\n'), wholeBlockNode(false)],
+			{ refs: [undefined, focus.ref] }
+		);
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
 		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
@@ -225,10 +187,10 @@ describe('block-edit core — whole-block-focus fallback', () => {
 
 	it('merge-prev into an editable whole-block block (mermaid) focuses it at 0, not CURSOR_END', async () => {
 		const focus = focusSpy();
-		const { scope, commits, children } = stubScope([wholeBlockNode(true), leaf('text\n')], true, [
-			focus.ref,
-			undefined
-		]);
+		const { scope, commits, children } = makeCommitScopeStub(
+			[wholeBlockNode(true), leaf('text\n')],
+			{ refs: [focus.ref, undefined] }
+		);
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
@@ -253,7 +215,7 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 	}
 
 	it('merge-prev deletes the non-editable previous block, targeting the neighbor', async () => {
-		const { scope, commits, children } = stubScope([inertNode(), leaf('text\n')]);
+		const { scope, commits, children } = makeCommitScopeStub([inertNode(), leaf('text\n')]);
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('delete');
@@ -263,7 +225,7 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 	});
 
 	it('merge-next deletes the non-editable next block, targeting the neighbor', async () => {
-		const { scope, commits, children } = stubScope([leaf('text\n'), inertNode()]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('text\n'), inertNode()]);
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
 		expect(children).toHaveLength(1);
 		expect(commits[0].op.kind).toBe('delete');
@@ -278,10 +240,9 @@ describe('block-edit core — thematicBreak focus-then-delete', () => {
 
 	it('merge-prev focuses the rule above instead of deleting it', async () => {
 		const focus = focusSpy();
-		const { scope, commits, children } = stubScope([rule(), leaf('text\n')], true, [
-			focus.ref,
-			undefined
-		]);
+		const { scope, commits, children } = makeCommitScopeStub([rule(), leaf('text\n')], {
+			refs: [focus.ref, undefined]
+		});
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
 		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
@@ -290,10 +251,9 @@ describe('block-edit core — thematicBreak focus-then-delete', () => {
 
 	it('merge-next focuses the rule below instead of deleting it', async () => {
 		const focus = focusSpy();
-		const { scope, commits, children } = stubScope([leaf('text\n'), rule()], true, [
-			undefined,
-			focus.ref
-		]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('text\n'), rule()], {
+			refs: [undefined, focus.ref]
+		});
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
 		expect(children).toHaveLength(2);
 		expect(commits).toHaveLength(0);
@@ -316,7 +276,7 @@ describe('block-edit core — wrap-owner threading', () => {
 	it('deleteInterior hands the owner to the settle, so the wrap absorbs the freed line', async () => {
 		const doc = parse(':::callout\nA\n\nB\n:::\n');
 		const callout = doc.children[0];
-		const { scope, children } = stubScope(callout.children!, true, [], callout);
+		const { scope, children } = makeCommitScopeStub(callout.children!, { owner: callout });
 
 		await createBlockEditCore(scope).deleteInterior(1);
 
@@ -328,10 +288,9 @@ describe('block-edit core — wrap-owner threading', () => {
 describe('block-edit core — chrome.descendToBody', () => {
 	it('focuses the existing body sibling without minting or committing', async () => {
 		const body = focusSpy();
-		const { scope, commits, children } = stubScope([leaf('Title\n'), leaf('Body\n')], true, [
-			undefined,
-			body.ref
-		]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n'), leaf('Body\n')], {
+			refs: [undefined, body.ref]
+		});
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(commits).toHaveLength(0);
 		expect(children).toHaveLength(2);
@@ -341,7 +300,9 @@ describe('block-edit core — chrome.descendToBody', () => {
 
 	it('mints and focuses an empty body paragraph when the chrome has no body child', async () => {
 		const body = focusSpy();
-		const { scope, commits, children } = stubScope([leaf('Title\n')], true, [undefined, body.ref]);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n')], {
+			refs: [undefined, body.ref]
+		});
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(children).toHaveLength(2);
 		expect(children[1].kind).toBe('paragraph');
@@ -354,14 +315,14 @@ describe('block-edit core — chrome.descendToBody', () => {
 	// The minted body IS a line ending, so a defaulted `\n` strands a lone LF
 	// inside a CRLF container (G4.20).
 	it('the minted body paragraph takes the chrome sibling’s line ending', async () => {
-		const { scope, children } = stubScope([leaf('Title\r\n')], true, []);
+		const { scope, children } = makeCommitScopeStub([leaf('Title\r\n')]);
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(children[1].raw).toBe('\r\n');
 	});
 
 	it('consumes the key without minting when the body ref is windowed out', async () => {
 		// Empty refs: the body child exists in the array but is windowed out.
-		const { scope, commits, children } = stubScope([leaf('Title\n'), leaf('Body\n')], true, []);
+		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n'), leaf('Body\n')]);
 		await createBlockEditCore(scope).descendToBody(0);
 		expect(commits).toHaveLength(0);
 		expect(children).toHaveLength(2);

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { consumeStickyLanding } from '../../../editor-actions/focus/focus-landing';
-import { CURSOR_END, CURSOR_START } from '../../../block-component';
-import { asEditorX } from '../../../cursor/coordinate-spaces';
-import { createStickyColumnState, type StickyColumnState } from '../../../cursor/sticky-column';
-import { mockRef } from '../../harness/editor-actions';
+import { consumeStickyLanding } from '$lib/editor-actions/focus/focus-landing';
+import { CURSOR_END, CURSOR_START } from '$lib/block-component';
+import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
+import { mockRef } from '$lib/test/harness/editor-actions';
 
 function capturedSticky(x: number): StickyColumnState {
 	const sticky = createStickyColumnState();

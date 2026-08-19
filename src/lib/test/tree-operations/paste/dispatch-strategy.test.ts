@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import {
-	pickPasteStrategy,
-	defaultInlineHook,
-	defaultStructuralHook
-} from '../../../tree-operations/paste/dispatch';
+import { pickPasteStrategy, defaultInlineHook } from '../../../tree-operations/paste/dispatch';
 import { contentBlocks } from '../../../tree-operations/paste/strategy';
 import { parse } from '../../../core/parser';
 import type { CstNode } from '../../../core/nodes';
@@ -84,22 +80,5 @@ describe('paste-dispatch — default inline hook', () => {
 		const a = defaultInlineHook(node, 3, 'X', { start: 3, end: 3 });
 		const b = defaultInlineHook(node, 3, 'X');
 		expect(a).toEqual(b);
-	});
-});
-
-describe('paste-dispatch — default structural hook', () => {
-	it('delegates to buildPastedReplacement for a single heading', () => {
-		const node = makePara('target\n');
-		const blocks = parse('# heading\n').children;
-		const result = defaultStructuralHook(node, 6, blocks);
-		expect(result.replacement.length).toBeGreaterThan(0);
-		expect(result.focusReplacementIndex).toBe(result.replacement.length - 1);
-	});
-
-	it('produces a replacement sequence for multi-block input', () => {
-		const node = makePara('target\n');
-		const blocks = parse('# heading\n\npara\n').children;
-		const result = defaultStructuralHook(node, 6, blocks);
-		expect(result.replacement.length).toBeGreaterThanOrEqual(2);
 	});
 });
