@@ -1,84 +1,68 @@
 import { describe, it, expect } from 'vitest';
-import { isMergeEligible, findMergeTarget } from '../../schema/merge-rules';
+import { isMergeEligible, findMergeTarget, getMergeRole } from '../../schema/merge-rules';
+import type { MergeRole } from '../../schema/block-kind-descriptor';
 import { parse } from '../../core/parser';
-import type { BlockKind, CstNode } from '../../core/nodes';
+import { ALL_BLOCK_KINDS, type BlockKind, type CstNode } from '../../core/nodes';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { serialize } from '../../core/serializer';
 
-describe('isMergeEligible', () => {
-	const eligible: [string, string][] = [
-		['paragraph', 'paragraph'],
-		['heading', 'paragraph'],
-		['setextHeading', 'paragraph'],
-		['blockquote', 'paragraph'],
-		['list', 'paragraph'],
-		['listItem', 'paragraph'],
-		['unrecognized', 'unrecognized']
-	];
+function parseBlock(src: string): CstNode {
+	const doc = parse(src);
+	return doc.children[0];
+}
 
-	for (const [a, b] of eligible) {
-		it(`${a} + ${b} are mergeable`, () => {
-			expect(isMergeEligible(a as BlockKind, b as BlockKind)).toBe(true);
-		});
-	}
+// Eligibility is a role-pair rule, never a kind rule (schema/merge-rules.ts), so one kind per
+// role covers the whole matrix; which role each kind carries is pinned exhaustively in
+// block-kind-descriptor.test.ts. `satisfies` fails a new role that gets no representative here.
+const ROLE_SAMPLE = {
+	prose: 'paragraph',
+	'prose-absorber': 'heading',
+	container: 'blockquote',
+	'self-merge': 'unrecognized',
+	'not-mergeable': 'fencedCode'
+} as const satisfies Record<MergeRole, BlockKind>;
 
-	const ineligible: [string, string][] = [
-		['paragraph', 'heading'],
-		['paragraph', 'setextHeading'],
-		['heading', 'heading'],
-		['heading', 'setextHeading'],
-		['setextHeading', 'heading'],
-		['paragraph', 'blockquote'],
-		['paragraph', 'list'],
-		['heading', 'blockquote'],
-		['blockquote', 'blockquote'],
-		['blockquote', 'list'],
-		['list', 'list'],
-		['list', 'blockquote'],
-		['list', 'listItem'],
-		['blockquote', 'heading'],
-		['list', 'heading'],
-		['list', 'setextHeading'],
-		['fencedCode', 'paragraph'],
-		['fencedCode', 'fencedCode'],
-		['thematicBreak', 'paragraph'],
-		['indentedCode', 'paragraph'],
-		['htmlBlock', 'paragraph'],
-		['linkReferenceDefinition', 'paragraph'],
-		['table', 'paragraph'],
-		['tableRow', 'paragraph'],
-		['tableCell', 'paragraph'],
-		['paragraph', 'fencedCode'],
-		['paragraph', 'thematicBreak'],
-		['paragraph', 'table'],
-		['paragraph', 'tableRow'],
-		['paragraph', 'tableCell'],
-		['table', 'table'],
-		['tableRow', 'tableRow'],
-		['tableCell', 'tableCell'],
-		['table', 'tableRow'],
-		['tableRow', 'tableCell'],
-		['heading', 'fencedCode'],
-		['blockquote', 'fencedCode'],
-		['unrecognized', 'paragraph'],
-		['paragraph', 'unrecognized'],
-		['unrecognized', 'heading'],
-		['unrecognized', 'blockquote']
-	];
+const MERGEABLE: ReadonlyArray<[MergeRole, MergeRole]> = [
+	['prose', 'prose'],
+	['prose-absorber', 'prose'],
+	['container', 'prose'],
+	['self-merge', 'self-merge']
+];
 
-	for (const [a, b] of ineligible) {
-		it(`${a} + ${b} are NOT mergeable`, () => {
-			expect(isMergeEligible(a as BlockKind, b as BlockKind)).toBe(false);
-		});
+describe('isMergeEligible — every ordered role pair', () => {
+	const roles = Object.keys(ROLE_SAMPLE) as MergeRole[];
+
+	// Non-vacuity: the matrix below is only about roles if its samples still carry them.
+	it('each sample kind still carries the role it stands for', () => {
+		for (const role of roles) {
+			expect(getMergeRole(ROLE_SAMPLE[role]), ROLE_SAMPLE[role]).toBe(role);
+		}
+	});
+
+	// Every real kind pair, answered against its role representative: a kind-keyed branch
+	// inside the function diverges here by name, where the role matrix alone cannot see it.
+	it('answers every built-in kind pair from its roles alone', () => {
+		for (const prev of ALL_BLOCK_KINDS) {
+			for (const curr of ALL_BLOCK_KINDS) {
+				expect(isMergeEligible(prev, curr), `${prev}+${curr}`).toBe(
+					isMergeEligible(ROLE_SAMPLE[getMergeRole(prev)], ROLE_SAMPLE[getMergeRole(curr)])
+				);
+			}
+		}
+	});
+
+	for (const prev of roles) {
+		for (const curr of roles) {
+			const expected = MERGEABLE.some(([p, c]) => p === prev && c === curr);
+			const verdict = expected ? 'mergeable' : 'NOT mergeable';
+			it(`${prev} (${ROLE_SAMPLE[prev]}) + ${curr} (${ROLE_SAMPLE[curr]}) are ${verdict}`, () => {
+				expect(isMergeEligible(ROLE_SAMPLE[prev], ROLE_SAMPLE[curr])).toBe(expected);
+			});
+		}
 	}
 });
 
 describe('findMergeTarget', () => {
-	function parseBlock(src: string): CstNode {
-		const doc = parse(src);
-		return doc.children[0];
-	}
-
 	it('prose prev (paragraph) returns prev itself with empty path', () => {
 		const prev = parseBlock('hello\n');
 		const result = findMergeTarget(prev);
@@ -152,11 +136,6 @@ describe('findMergeTarget', () => {
 });
 
 describe('findMergeTarget + rebuildAncestryRaw round-trip', () => {
-	function parseBlock(src: string): CstNode {
-		const doc = parse(src);
-		return doc.children[0];
-	}
-
 	function simulateMerge(prevSrc: string, currText: string): string {
 		const prev = parseBlock(prevSrc);
 		const result = findMergeTarget(prev);

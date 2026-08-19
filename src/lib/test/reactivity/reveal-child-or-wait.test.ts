@@ -8,17 +8,7 @@ import {
 	publishRefSlot,
 	type RefSlots
 } from '../../reactivity/publish-ref.svelte';
-
-// Racing a fixed microtask budget rather than awaiting `p`: the termination tests
-// below would otherwise stall the whole suite on the hang they exist to catch.
-async function settlesWithin(p: Promise<unknown>, turns = 50): Promise<boolean> {
-	let settled = false;
-	void p.then(() => {
-		settled = true;
-	});
-	for (let i = 0; i < turns && !settled; i++) await Promise.resolve();
-	return settled;
-}
+import { settlesWithin } from '../harness/microtask-settle';
 
 // A windowed scope whose revealChild publishes a fresh ref one microtask later,
 // mirroring a row/item mounting after a scroll. A fresh scope per test IS the

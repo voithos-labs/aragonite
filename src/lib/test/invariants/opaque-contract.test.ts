@@ -5,6 +5,7 @@ import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { registerBlockOpener } from '../../schema/block-openers';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { registerOpaque } from '$lib/test/harness/opaque-kind';
 import { parse } from '../../core/parser';
 import { concatChildren } from '../../core/serializer';
 import { trimTrailingLineEnding } from '../../core/lines';
@@ -26,7 +27,6 @@ function rebuildNoteRaw(node: CstNode): void {
 }
 
 function registerNoteKind(opts: { declareChrome?: boolean } = {}): AnyBlockKind {
-	const note = declarePluginKind('spec-note');
 	const title = declarePluginKind('spec-note-title');
 	registerBlockKind(title, {
 		mergeRole: 'not-mergeable',
@@ -35,16 +35,9 @@ function registerNoteKind(opts: { declareChrome?: boolean } = {}): AnyBlockKind 
 		closure: testClosure,
 		contextDependentKind: true
 	});
-	registerBlockKind(note, {
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		closure: testClosure,
-		container: {
-			contract: 'opaque',
-			rebuildRaw: rebuildNoteRaw,
-			...(opts.declareChrome ? { reservedChrome: { kind: title } } : {})
-		}
+	const note = registerOpaque('spec-note', {
+		rebuildRaw: rebuildNoteRaw,
+		...(opts.declareChrome ? { reservedChrome: { kind: title } } : {})
 	});
 	registerBlockOpener(note, {
 		priority: 45,
@@ -96,14 +89,7 @@ describe('containerContract opaque — checkStaleRaw exemption', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
 
 	it('exempts an opaque container whose raw is not a strip of its children', () => {
-		const kind = declarePluginKind('spec-opaque');
-		registerBlockKind(kind, {
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container: { contract: 'opaque', rebuildRaw: () => {} }
-		});
+		const kind = registerOpaque('spec-opaque', { rebuildRaw: () => {} });
 		// raw deliberately diverges from serialize(children) — the opaque contract.
 		const node: CstNode = {
 			kind,
@@ -214,14 +200,7 @@ describe('checkOpaqueStaleRaw (opaque containers)', () => {
 	// Without a registered opener the raw reparses to a paragraph, so the check cannot
 	// validate the kind at all — even genuinely stale children must not fire.
 	it('bails for a kind whose raw does not reparse standalone (no opener)', () => {
-		const kind = declarePluginKind('spec-openerless');
-		registerBlockKind(kind, {
-			mergeRole: 'container',
-			editable: true,
-			supportsInline: false,
-			closure: testClosure,
-			container: { contract: 'opaque', rebuildRaw: () => {} }
-		});
+		const kind = registerOpaque('spec-openerless', { rebuildRaw: () => {} });
 		const node: CstNode = {
 			kind,
 			leadingTrivia: '',

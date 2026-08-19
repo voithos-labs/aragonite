@@ -27,16 +27,21 @@ function topLevelFunctions(code: string): Map<string, string> {
 	return out;
 }
 
-/** The inline kinds whose render path stamps a construct range on its marker spans. */
-function stampedKinds(): Set<string> {
+/**
+ * The kinds whose `renderNode` arm reaches `helper`, called in the arm itself or through another
+ * top-level render helper that calls it. `excludeHelper` drops the helper's own definition from
+ * that set, for a helper the arms also call directly.
+ */
+function kindsWhoseArmReaches(helper: string, excludeHelper?: string): Set<string> {
+	const token = `${helper}(`;
 	const { code } = readEditorFile(RENDER);
 	const functions = topLevelFunctions(code);
-	const stamping = [...functions]
-		.filter(([, body]) => body.includes('tagConstruct('))
-		.map(([n]) => n);
+	const reaching = [...functions]
+		.filter(([name, body]) => name !== excludeHelper && body.includes(token))
+		.map(([name]) => name);
 	expect(
-		stamping.length,
-		'no render helper calls tagConstruct — the scan has drifted'
+		reaching.length,
+		`no render helper calls ${helper} — the scan has drifted`
 	).toBeGreaterThan(0);
 
 	const dispatch = functions.get('renderNode');
@@ -48,41 +53,18 @@ function stampedKinds(): Set<string> {
 
 	const kinds = new Set<string>();
 	for (const [, kind, body] of arms) {
-		// `tagConstruct` reached through a helper OR called in the arm itself; either stamps.
 		const reaches =
-			body.includes('tagConstruct(') ||
-			stamping.some((fn) => fn !== 'renderNode' && body.includes(`${fn}(`));
+			body.includes(token) || reaching.some((fn) => fn !== 'renderNode' && body.includes(`${fn}(`));
 		if (reaches) kinds.add(kind);
 	}
 	return kinds;
 }
 
-/** The inline kinds whose render path mints a marker span, stamped or not. */
-function markerKinds(): Set<string> {
-	const { code } = readEditorFile(RENDER);
-	const functions = topLevelFunctions(code);
-	const minting = [...functions]
-		.filter(([name, body]) => name !== 'markerSpan' && body.includes('markerSpan('))
-		.map(([name]) => name);
-	expect(
-		minting.length,
-		'no render helper calls markerSpan — the scan has drifted'
-	).toBeGreaterThan(0);
+/** The inline kinds whose render path stamps a construct range on its marker spans. */
+const stampedKinds = (): Set<string> => kindsWhoseArmReaches('tagConstruct');
 
-	const dispatch = functions.get('renderNode');
-	if (!dispatch) throw new Error('stamp-revealable-parity: renderNode not found');
-	const arms = [
-		...dispatch.matchAll(/case\s+'([A-Za-z]+)'\s*:([\s\S]*?)(?=\n\t\tcase\s+'|\n\t\tdefault:)/g)
-	];
-	const kinds = new Set<string>();
-	for (const [, kind, body] of arms) {
-		const mints =
-			body.includes('markerSpan(') ||
-			minting.some((fn) => fn !== 'renderNode' && body.includes(`${fn}(`));
-		if (mints) kinds.add(kind);
-	}
-	return kinds;
-}
+/** The inline kinds whose render path mints a marker span, stamped or not. */
+const markerKinds = (): Set<string> => kindsWhoseArmReaches('markerSpan', 'markerSpan');
 
 function rowedKinds(): Set<string> {
 	return new Set(listInlineConstructPolicies().map((p) => p.kind));

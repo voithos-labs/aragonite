@@ -6,6 +6,7 @@ import { renderInlineNodes } from '../../core/inline-render';
 import { resolveEdgeSeat } from '../../components/blocks/text/edge-seat';
 import { MARKER_FAMILY_SELECTOR, screenVisibility } from '../../core/inline/visibility';
 import type { EdgeAffinity } from '../../cursor/edge-affinity';
+import { caretPositions, countOnScreen } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
 
@@ -36,40 +37,6 @@ const DELIMITERS = '*~`<>\\';
 
 /** Every fixture is a block holding content, so its chrome hides: the live reading. */
 const LIVE = screenVisibility('live', { chromePaints: false });
-
-/**
- * The DOM the block actually paints, marker subtrees skipped. Deliberately the painter rather
- * than `renderedText`: the seams under test call that themselves, and an oracle that shares the
- * check echoes it instead of contesting it. The FAMILIES are the model's, since a private list of
- * them is the drift this net cannot also be the guard against.
- */
-function paintedText(raw: string): string {
-	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
-	const host = document.createElement('div');
-	host.appendChild(fragment);
-	const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-	let out = '';
-	let node: Node | null;
-	while ((node = walker.nextNode())) {
-		if (!node.parentElement?.closest(MARKER_FAMILY_SELECTOR)) out += node.textContent ?? '';
-	}
-	return out;
-}
-
-function delimitersOnScreen(raw: string): number {
-	let count = 0;
-	for (const char of paintedText(raw)) if (DELIMITERS.includes(char)) count++;
-	return count;
-}
-
-/** Code-point boundaries only, for the ORACLE's sake rather than the caret's: this net judges
- *  delimiters on screen and has no claim about a slice through a scalar, so a mid-pair stop would
- *  pass here while its class went unwatched. The gesture fuzzer's well-formedness oracle owns it. */
-function caretPositions(text: string): number[] {
-	const stops = [0];
-	for (const char of text) stops.push(stops[stops.length - 1] + char.length);
-	return stops;
-}
 
 /**
  * Which raw bytes the painter does NOT show, read off the rendered DOM rather than the parse: a
@@ -155,11 +122,11 @@ describe('the typing seat over generated inline fixtures', () => {
 					);
 					if (stops.length === 0) return;
 					const caret = stops[caretPick % stops.length];
-					const before = delimitersOnScreen(display);
+					const before = countOnScreen(display, DELIMITERS);
 					const { after, relocated: moved } = typeThroughSeat(display, caret, affinity);
 					if (moved) relocated++;
 					else declined++;
-					const now = delimitersOnScreen(after);
+					const now = countOnScreen(after, DELIMITERS);
 					if (now > before) {
 						throw new Error(
 							`${JSON.stringify(display)} @${caret} (${affinity}) → ${JSON.stringify(after)}: ` +

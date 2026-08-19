@@ -1,6 +1,6 @@
-// Shared TextRenderDeps harness for the text-render suites: one passive deps object over a
-// mutable state bag, read through getters so a knob flipped between renders is what the memo
-// key sees. Every behaviour a test asserts on must come from its own knob or overrides.
+// Shared TextRenderDeps harness: one passive deps object over a mutable state bag, read
+// through getters so a knob flipped between renders is what the memo key sees. Every
+// behaviour a test asserts on must come from its own knob or overrides.
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { TextRenderDeps } from '$lib/components/blocks/text/text-render';

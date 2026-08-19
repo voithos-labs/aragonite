@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { composeMetadataDoor } from '../../editor-actions/plugin/container';
-import { configureEditorEnv } from '../../env';
-import { takeDevWarns } from '../support/warn-gate';
-import type { NodeView } from '../../core/node-views';
-import type { PresentationMode } from '../../presentation-mode';
+import { composeMetadataDoor } from '$lib/editor-actions/plugin/container';
+import { configureEditorEnv } from '$lib/env';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
+import type { NodeView } from '$lib/core/node-views';
+import type { PresentationMode } from '$lib/presentation-mode';
 
 // Miss-analysis: reading-mode inertness was pinned only at the dispatch seams G4.19 scans;
 // `updateOwnMetadata` is handed straight to plugin components, and no test drove that one

@@ -6,11 +6,11 @@
  * properties, so params check contravariantly rather than bivariantly.
  */
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import type { CstNode, Document } from '../../core/nodes';
-import type { DecorationSource, MarkDecoration } from '../../decorations/types';
-import type { EditorContext } from '../../schema/plugin-install';
-import type { BlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { parse } from '$lib/core/parser';
+import type { CstNode, Document } from '$lib/core/nodes';
+import type { DecorationSource, MarkDecoration } from '$lib/decorations/types';
+import type { EditorContext } from '$lib/schema/plugin-install';
+import type { BlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 export function compileTimePins(editor: EditorContext): void {
 	// @ts-expect-error raw is serialized bytes — readonly through EditorContext.document

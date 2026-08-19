@@ -4,9 +4,9 @@ import { installPlugins } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { getInlineRungs, __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
+import { resetPluginPlatformForTests } from '$lib/testing';
+import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
@@ -15,18 +15,11 @@ import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
 // no-op stub satisfies the required option without pulling a math engine in.
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
-// The block opener and the inline `$` trigger register through independent
-// registries, so both are reset — else a `latexPlugin()` install would leave
-// inline live and the gating test would pass for the wrong reason.
-function resetLatexState(): void {
-	__resetSchemaRegistriesForTests();
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-
-beforeEach(resetLatexState);
-afterEach(resetLatexState);
+// The block opener and the inline `$` trigger register through independent registries, and
+// the platform reset clears both — a schema-only reset would leave inline live and the
+// gating test would pass for the wrong reason.
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 // Recognition is gated on the opener registering — with no extension loaded a
 // `$$` fence is ordinary GFM text (a paragraph), byte-identical to bare GFM.
@@ -83,7 +76,7 @@ describe('block math recognition', () => {
 describe('block math round-trip', () => {
 	beforeEach(registerMathBlock);
 
-	const roundTrip = [
+	roundTripCases([
 		'$$\nx^2\n$$\n',
 		'$$x^2$$\n',
 		'$$ x^2 $$\n',
@@ -94,12 +87,7 @@ describe('block math round-trip', () => {
 		'$$\nx^2\n',
 		'$$x^2$$',
 		'$$\nx^2\n$$'
-	];
-	for (const src of roundTrip) {
-		it(`round-trips ${JSON.stringify(src)}`, () => {
-			expect(serialize(parse(src))).toBe(src);
-		});
-	}
+	]);
 });
 
 describe('latexPlugin wires the block opener', () => {

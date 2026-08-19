@@ -79,17 +79,19 @@ describe('state-registry', () => {
 			return { innerBlockIds: ['a'], innerBlockRefs, refSlots: refSlotsOver(innerBlockRefs) };
 		}
 
-		it('warns when a second LIVE component claims a node the first still renders', async () => {
-			if (!DEV) return;
-			const node = makeFakeNode();
-			registerBlockListState(node, stateWithRefs(true));
-			registerBlockListState(node, stateWithRefs(true));
+		it.runIf(DEV)(
+			'warns when a second LIVE component claims a node the first still renders',
+			async () => {
+				const node = makeFakeNode();
+				registerBlockListState(node, stateWithRefs(true));
+				registerBlockListState(node, stateWithRefs(true));
 
-			await tick();
-			const fires = takeDevWarns();
-			expect(fires).toHaveLength(1);
-			expect(fires[0].message).toContain('two live components');
-		});
+				await tick();
+				const fires = takeDevWarns();
+				expect(fires).toHaveLength(1);
+				expect(fires[0].message).toContain('two live components');
+			}
+		);
 
 		// The remount handoff: the loser is torn down within the same flush, so by the
 		// time the claim is re-asked it holds no refs to orphan. Warning here would fire
@@ -128,6 +130,25 @@ describe('state-registry', () => {
 	});
 
 	describe('createBlockListState ↔ registry integration', () => {
+		it('seeds innerBlockIds to one unique id per child', () => {
+			const node: CstNode = {
+				kind: 'blockquote',
+				leadingTrivia: '',
+				raw: '',
+				metadata: { quoteDepth: 1 },
+				innerPrefix: '',
+				children: ['a\n', 'b\n', 'c\n'].map((raw) => ({
+					kind: 'paragraph',
+					leadingTrivia: '',
+					raw
+				})),
+				innerSuffix: ''
+			};
+			const state = createBlockListState(() => node);
+			expect(state.innerBlockIds).toHaveLength(3);
+			expect(new Set(state.innerBlockIds).size).toBe(3);
+		});
+
 		it('registers the state for the node on creation', () => {
 			const node: CstNode = {
 				kind: 'list',

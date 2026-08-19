@@ -3,11 +3,14 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
 import { parseInline } from '../../core/inline';
-import { renderInlineNodes } from '../../core/inline-render';
-import { MARKER_FAMILY_SELECTOR } from '../../core/inline/visibility';
 import { constructContentRange } from '../../core/inline';
-import { resolveMarkedInsertion } from '../../components/blocks/text/pending-mark-insert';
+import {
+	resolveMarkedInsertion,
+	type MarkedInsertion
+} from '../../components/blocks/text/pending-mark-insert';
 import type { InlineMarkKind } from '../../cursor/pending-marks';
+import { isSubsequence } from '$lib/test/harness/live-oracles';
+import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 
 // A pending mark rewrites bytes the user never sees, so the only honest oracle is what the RENDER
@@ -31,32 +34,9 @@ const MARK_SUBSETS: InlineMarkKind[][] = [
 	['strikethrough', 'inlineCode']
 ];
 
-/**
- * The DOM the block actually paints, read text node by text node with marker subtrees skipped.
- * Deliberately NOT `renderedText`, which the resolver's own check calls: sharing the PAINTER is
- * the point, sharing the traversal would make this echo the check instead of contesting it. The
- * FAMILIES are the model's, though — a private list of them went stale on the ref label once.
- */
-function paintedText(raw: string): string {
-	const fragment = renderInlineNodes(parseInline(raw, 0, raw.length), raw);
-	const host = document.createElement('div');
-	host.appendChild(fragment);
-	const walker = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-	let out = '';
-	let node: Node | null;
-	while ((node = walker.nextNode())) {
-		if (!node.parentElement?.closest(MARKER_FAMILY_SELECTOR)) out += node.textContent ?? '';
-	}
-	return out;
-}
-
-/** Delimiter bytes left on screen once the marker spans are gone. Every marker byte any kind can
- *  paint, not just the two this resolver writes — a `_` pair it kills surfaces the same way. */
-function delimitersOnScreen(raw: string): number {
-	let count = 0;
-	for (const char of paintedText(raw)) if ('*_~`<>'.includes(char)) count++;
-	return count;
-}
+/** Every marker byte any kind can paint, not just the two this resolver writes — a `_` pair it
+ *  kills surfaces the same way. */
+const DELIMITERS = '*_~`<>';
 
 /**
  * The chain a toggle is resolved against, from the spec's two containment rules: a construct with
@@ -111,17 +91,26 @@ function kindsPresent(raw: string): Set<string> {
 	return kinds;
 }
 
-/** Code-point boundaries only, for the ORACLE's sake rather than the caret's: this net judges
- *  painted text and construct kinds, neither of which can see a slice through a scalar, so a
- *  mid-pair stop would pass here. The gesture fuzzer's well-formedness oracle owns that class. */
-function caretPositions(text: string): number[] {
-	const stops = [0];
-	for (const char of text) stops.push(stops[stops.length - 1] + char.length);
-	return stops;
-}
-
 function sorted(kinds: Iterable<string>): string[] {
 	return [...kinds].sort();
+}
+
+/** The caret a draw picks, and what the resolver answered there; `null` where it declined. */
+function resolveDraw(
+	display: string,
+	caretPick: number,
+	marks: InlineMarkKind[]
+): { caret: number; result: MarkedInsertion } | null {
+	const stops = caretPositions(display);
+	const caret = stops[caretPick % stops.length];
+	const result = resolveMarkedInsertion(
+		display,
+		caret,
+		'X',
+		new Set(marks),
+		parseInline(display, 0, display.length)
+	);
+	return result === null ? null : { caret, result };
 }
 
 describe('pending-mark insertion over generated formatted fixtures', () => {
@@ -137,20 +126,13 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 				fc.nat(),
 				fc.constantFrom(...MARK_SUBSETS),
 				(display, caretPick, marks) => {
-					const stops = caretPositions(display);
-					const caret = stops[caretPick % stops.length];
-					const result = resolveMarkedInsertion(
-						display,
-						caret,
-						'X',
-						new Set(marks),
-						parseInline(display, 0, display.length)
-					);
-					if (result === null) {
+					const hit = resolveDraw(display, caretPick, marks);
+					if (hit === null) {
 						declined++;
 						return;
 					}
 					written++;
+					const { caret, result } = hit;
 
 					// The toggle's own definition: a kind the chain carried is gone, a kind it
 					// lacked is there, and every construct the caret was inside otherwise survives.
@@ -178,16 +160,9 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 				fc.nat(),
 				fc.constantFrom(...MARK_SUBSETS),
 				(display, caretPick, marks) => {
-					const stops = caretPositions(display);
-					const caret = stops[caretPick % stops.length];
-					const result = resolveMarkedInsertion(
-						display,
-						caret,
-						'X',
-						new Set(marks),
-						parseInline(display, 0, display.length)
-					);
-					if (result === null) return;
+					const hit = resolveDraw(display, caretPick, marks);
+					if (hit === null) return;
+					const { result } = hit;
 
 					// Exactly one character appeared on screen, and it is the one that was typed. A
 					// delimiter that stopped being a delimiter shows up here as extra painted text.
@@ -200,9 +175,9 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 					// Independent of the equality above: a rewrite may never put a delimiter on screen
 					// that was not already there, whichever kind painted it.
 					expect(
-						delimitersOnScreen(result.raw),
+						countOnScreen(result.raw, DELIMITERS),
 						`a delimiter surfaced in ${JSON.stringify(result.raw)}`
-					).toBe(delimitersOnScreen(display));
+					).toBe(countOnScreen(display, DELIMITERS));
 				}
 			),
 			PARAMS
@@ -216,16 +191,9 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 				fc.nat(),
 				fc.constantFrom(...MARK_SUBSETS),
 				(display, caretPick, marks) => {
-					const stops = caretPositions(display);
-					const caret = stops[caretPick % stops.length];
-					const result = resolveMarkedInsertion(
-						display,
-						caret,
-						'X',
-						new Set(marks),
-						parseInline(display, 0, display.length)
-					);
-					if (result === null) return;
+					const hit = resolveDraw(display, caretPick, marks);
+					if (hit === null) return;
+					const { result } = hit;
 
 					// A rewrite only splices: every original byte is still there, in order.
 					expect(isSubsequence(display, result.raw), `${JSON.stringify(display)} was cut`).toBe(
@@ -246,16 +214,9 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 				fc.nat(),
 				fc.constantFrom(...MARK_SUBSETS),
 				(display, caretPick, marks) => {
-					const stops = caretPositions(display);
-					const caret = stops[caretPick % stops.length];
-					const result = resolveMarkedInsertion(
-						display,
-						caret,
-						'X',
-						new Set(marks),
-						parseInline(display, 0, display.length)
-					);
-					if (result === null) return;
+					const hit = resolveDraw(display, caretPick, marks);
+					if (hit === null) return;
+					const { result } = hit;
 
 					// A rewrite splits and reopens constructs; it never spends one. A kind that was in
 					// the block and is not in it afterwards was destroyed by the splice.
@@ -273,12 +234,3 @@ describe('pending-mark insertion over generated formatted fixtures', () => {
 		expect(declined, 'no case declined — the fallback path is unexercised').toBeGreaterThan(0);
 	});
 });
-
-function isSubsequence(needle: string, haystack: string): boolean {
-	let i = 0;
-	for (const char of haystack) {
-		if (i < needle.length && needle.startsWith(char, i)) i += char.length;
-		if (i >= needle.length) return true;
-	}
-	return i >= needle.length;
-}

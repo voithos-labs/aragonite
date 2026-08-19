@@ -17,10 +17,11 @@ import { handleSharedKeydown, type SharedKeydownContext } from '../../selection/
 import { extendFocusToPreviousBlock } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
-import { createTextRender, type TextRenderDeps } from '../../components/blocks/text/text-render';
+import { createTextRender } from '../../components/blocks/text/text-render';
 import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
 import { createStickyColumnState } from '../../cursor/sticky-column';
 import { createEdgeAffinityState } from '../../cursor/edge-affinity';
+import { makeRenderHarness } from '$lib/test/harness/text-render';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -31,55 +32,20 @@ interface Env {
 
 /** The block's OWN renderer paints the fixture: the bounds read the DOM, so a hand-built tree
  *  would answer for a document that never rendered. */
-function render(node: CstNode, el: HTMLElement): void {
-	if (node.kind === 'fencedCode') {
-		el.replaceChildren(renderCodeBlock(node));
-		return;
-	}
-	createTextRender({
-		get el() {
-			return el;
-		},
-		get node() {
-			return node;
-		},
-		get ambientPrefix() {
-			return '';
-		},
-		get ambientPrefixText() {
-			return '';
-		},
-		getDisplayText: () => node.raw,
-		resolveImageUrl: (u: string) => u,
-		resolveLinkUrl: (u: string) => u,
-		get imageLoadPolicy() {
-			return 'auto' as const;
-		},
-		get presentationMode() {
-			return 'live' as const;
-		},
-		get linkResolver() {
-			return undefined;
-		},
-		get linkStamp() {
-			return '0';
-		},
-		get islands() {
-			return [];
-		},
-		getDocument: () => undefined,
-		brokenUrlCache: new Set<string>()
-	} as unknown as TextRenderDeps).render();
+function render(node: CstNode): HTMLElement {
+	const { el, deps } = makeRenderHarness(node, { mode: 'live' });
+	if (node.kind === 'fencedCode') el.replaceChildren(renderCodeBlock(node));
+	else createTextRender(deps).render();
+	return el;
 }
 
 function makeEnv(source: string, offset: number | null, mode?: string): Env {
 	const doc = parse(source);
 	const root = document.createElement('div');
 	if (mode) root.setAttribute('data-presentation', mode);
-	const el = document.createElement('div');
+	const el = render(doc.children[0]);
 	root.appendChild(el);
 	document.body.replaceChildren(root);
-	render(doc.children[0], el);
 	const moveFocus = vi.fn();
 	return {
 		moveFocus,

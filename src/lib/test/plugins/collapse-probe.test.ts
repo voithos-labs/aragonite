@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { composeCollapseProbe } from '../../editor-actions/plugin/container';
-import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
-import { declarePluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { composeCollapseProbe } from '$lib/editor-actions/plugin/container';
+import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
-import { takeDevWarns } from '../support/warn-gate';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 // The dogfood details declaration shape without its rendering: a `reservedChrome`
 // collapse probe reading an `open` metadata flag.

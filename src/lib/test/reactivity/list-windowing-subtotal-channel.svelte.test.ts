@@ -4,25 +4,12 @@
 // invisible, and the id sourcing self-corrects on the very next rebuild.
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
-import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
-
-const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
+import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 function countingOracle(): { oracle: HeightOracle; recordMeasured: ReturnType<typeof vi.fn> } {
 	const recordMeasured = vi.fn();
-	return {
-		recordMeasured,
-		oracle: {
-			estimate: () => 100,
-			measured: () => undefined,
-			recordMeasured,
-			height: () => 100,
-			invalidateWidth: () => {}
-		}
-	};
+	return { recordMeasured, oracle: { ...fixedOracle(100), recordMeasured } };
 }
 
 function stubOwnEl(height: number): HTMLElement {
@@ -36,32 +23,17 @@ interface ScopeOpts {
 	reportSelfHeight?: (height: number) => void;
 }
 
-function mountScope(opts: ScopeOpts): { windowing: ListWindowing; cleanup: () => void } {
-	const children = opts.ids.map((_, i) => makePara(`p${i}\n`));
-	const port = stubScrollport({ viewportHeight: 500 });
-	let windowing!: ListWindowing;
-	const cleanup = $effect.root(() => {
-		windowing = createListWindowing({
-			oracle: opts.oracleRef.oracle,
-			getChildren: () => children,
-			getChildIds: () => opts.ids,
-			getListEl: () => stubListEl(port, 2000),
-			getPort: () => port,
-			getOwnEl: opts.getOwnEl,
-			reportSelfHeight: opts.reportSelfHeight,
-			correctsScroll: () => true,
-			getFocusPath: () => null,
-			getWidthVersion: () => 0,
-			getViewportHeightVersion: () => 0,
-			getParentPath: () => [0],
-			overscan: 2,
-			pinExtensionCap: 100,
-			activateAbovePx: 1000,
-			deactivateBelowPx: 800
-		});
+function mountScope(opts: ScopeOpts) {
+	return mountListWindowing({
+		children: opts.ids.map((_, i) => makePara(`p${i}\n`)),
+		ids: opts.ids,
+		oracle: opts.oracleRef.oracle,
+		listHeight: 2000,
+		getOwnEl: opts.getOwnEl,
+		reportSelfHeight: opts.reportSelfHeight,
+		// A nested scope: the subtotal channel only exists below the top level.
+		getParentPath: () => [0]
 	});
-	flushSync();
-	return { windowing, cleanup };
 }
 
 describe('list-windowing subtotal channel', () => {

@@ -281,17 +281,9 @@ describe('roundTrip reds a claim that reads past the range the block offered', (
 
 describe('editingPolicy reds a declaration the caret-edge dispatch cannot read', () => {
 	it('fails a deleteGranularity outside the dispatch vocabulary', () => {
-		const kind = declarePluginInlineKind(MARKER);
-		registerInlineSyntax('@', (raw, pos, end) => {
-			const close = raw.indexOf('@', pos + 1);
-			if (close < 0 || close + 1 > end || close === pos + 1) return null;
-			return { kind, start: pos, end: close + 1 };
-		});
-		registerInlineWidgetKind(kind, {
-			isWidget: () => true,
-			buildWidget: (node) => mintWidgetShell('marker', node),
+		const kind = registerMarkerRung((node) => mintWidgetShell('marker', node), {
 			// Read as absent by the dispatch, so the kind silently takes the image default.
-			editing: { deleteGranularity: 'whole' as 'atomic' }
+			deleteGranularity: 'whole' as 'atomic'
 		});
 		expect(run(markerProfile(kind))).toThrow(/editingPolicy: .*deleteGranularity is one of/s);
 	});

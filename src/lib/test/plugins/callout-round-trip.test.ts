@@ -7,6 +7,10 @@ import {
 	rebuildCalloutRaw
 } from '../../../routes/test/plugins/callout/callout-kind';
 
+const TWO_PARA = ':::callout\nHello **world**\n\nSecond para\n:::\n';
+const TITLED = ':::callout My Title\nBody\n:::\n';
+const UNTITLED = ':::callout\nBody\n:::\n';
+
 describe('callout kind round-trip', () => {
 	beforeEach(() => {
 		resetPluginPlatformForTests();
@@ -14,13 +18,11 @@ describe('callout kind round-trip', () => {
 	});
 
 	it('round-trips a note container byte-for-byte', () => {
-		const src = ':::callout\nHello **world**\n\nSecond para\n:::\n';
-		expect(serialize(parse(src))).toBe(src);
+		expect(serialize(parse(TWO_PARA))).toBe(TWO_PARA);
 	});
 
 	it('parses to a note container: reserved title child 0 + its body blocks', () => {
-		const src = ':::callout\nHello **world**\n\nSecond para\n:::\n';
-		const note = parse(src).children[0];
+		const note = parse(TWO_PARA).children[0];
 		expect(note.kind).toBe('callout');
 		// Child 0 is the reserved (here empty) callout-title; the body follows.
 		expect(note.children?.length).toBe(3);
@@ -37,7 +39,7 @@ describe('callout kind round-trip', () => {
 	});
 
 	it('parses an opener-line title into a reserved callout-title child', () => {
-		const note = parse(':::callout My Title\nBody\n:::\n').children[0];
+		const note = parse(TITLED).children[0];
 		expect(note.kind).toBe('callout');
 		expect(note.children?.[0].kind).toBe('callout-title');
 		expect(note.children?.[0].raw).toBe('My Title\n');
@@ -45,15 +47,14 @@ describe('callout kind round-trip', () => {
 	});
 
 	it('round-trips a titled callout byte-for-byte', () => {
-		const src = ':::callout My Title\nBody\n:::\n';
-		expect(serialize(parse(src))).toBe(src);
+		expect(serialize(parse(TITLED))).toBe(TITLED);
 	});
 
 	it('reserves an empty callout-title child when the opener carries no title', () => {
-		const note = parse(':::callout\nBody\n:::\n').children[0];
+		const note = parse(UNTITLED).children[0];
 		expect(note.children?.[0].kind).toBe('callout-title');
 		expect(note.children?.[0].raw).toBe('\n');
-		expect(serialize(parse(':::callout\nBody\n:::\n'))).toBe(':::callout\nBody\n:::\n');
+		expect(serialize(parse(UNTITLED))).toBe(UNTITLED);
 	});
 
 	it('declines an unterminated fence, leaving it as a paragraph', () => {
@@ -73,15 +74,15 @@ describe('callout rebuildRaw is the opener inverse', () => {
 	});
 
 	it('reproduces the parsed raw, including the inner blank-line separator', () => {
-		const note = parse(':::callout\nHello **world**\n\nSecond para\n:::\n').children[0];
+		const note = parse(TWO_PARA).children[0];
 		rebuildCalloutRaw(note);
-		expect(note.raw).toBe(':::callout\nHello **world**\n\nSecond para\n:::\n');
+		expect(note.raw).toBe(TWO_PARA);
 	});
 
 	it('re-emits an opener-line title from child 0', () => {
-		const note = parse(':::callout My Title\nBody\n:::\n').children[0];
+		const note = parse(TITLED).children[0];
 		rebuildCalloutRaw(note);
-		expect(note.raw).toBe(':::callout My Title\nBody\n:::\n');
+		expect(note.raw).toBe(TITLED);
 	});
 
 	it('preserves a non-note fence label from metadata (no hardcoded type)', () => {

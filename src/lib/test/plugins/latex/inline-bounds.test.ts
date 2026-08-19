@@ -1,23 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { BOUNDED_GROWTH_CEILING, measureScanGrowth } from '../../harness/scan-growth';
 
-function resetInlineState(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-
 beforeEach(() => {
-	resetInlineState();
+	resetPluginPlatformForTests();
 	registerMathInline();
 });
-afterEach(resetInlineState);
+afterEach(resetPluginPlatformForTests);
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
 const mathIn = (raw: string) => scan(raw).filter((n) => n.kind === MATH_INLINE);

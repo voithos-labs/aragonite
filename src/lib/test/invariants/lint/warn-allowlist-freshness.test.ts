@@ -1,6 +1,6 @@
 /**
  * The fail-on-warn gate's allowlist only shrinks. A row waives a tag at a site for the whole
- * run, so a row whose file moved or whose site stopped warming that tag is a hole nothing else
+ * run, so a row whose file moved or whose site stopped warning that tag is a hole nothing else
  * would report. Per-run bidirectionality (proving each row actually fires) is not reachable
  * across isolated Vitest workers; this scan is the reachable half.
  */

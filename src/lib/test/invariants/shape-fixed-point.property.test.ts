@@ -34,7 +34,7 @@ const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(424242) } as const;
 /**
  * The corpus plus the trailing blank line the parse folds into `doc.suffix`. Drawn here rather
  * than in the shared arbitrary, which every suite's seeds ride on: no source it produces carries
- * one, so every tail-materialization arm in the settle was dead by construction (findings R2-F1).
+ * one, so every tail-materialization arm in the settle was dead by construction.
  */
 const arbDoc = arbBlankSeparatedGfmDoc.chain((source) => fc.constantFrom(source, source + '\n'));
 

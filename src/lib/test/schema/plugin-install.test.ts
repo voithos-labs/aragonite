@@ -13,6 +13,16 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
+/** The thrown error itself, where `toThrow` only proves that something threw. */
+function captureThrow(run: () => void): unknown {
+	try {
+		run();
+	} catch (err) {
+		return err;
+	}
+	return undefined;
+}
+
 const minimalRegistration = {
 	mergeRole: 'not-mergeable',
 	editable: false,
@@ -71,12 +81,7 @@ describe('installPlugins', () => {
 			}
 		});
 
-		let thrown: unknown;
-		try {
-			installPlugins([plugin]);
-		} catch (err) {
-			thrown = err;
-		}
+		const thrown = captureThrow(() => installPlugins([plugin]));
 		expect(thrown).toBeInstanceOf(Error);
 		expect((thrown as Error).message).toMatch(/^plugin 'broken':/);
 		expect((thrown as Error).message).toContain('kaboom');
@@ -99,12 +104,7 @@ describe('installPlugins', () => {
 			}
 		});
 
-		let firstThrow: unknown;
-		try {
-			installPlugins([plugin]);
-		} catch (err) {
-			firstThrow = err;
-		}
+		const firstThrow = captureThrow(() => installPlugins([plugin]));
 		// The setup-wrap throw carries the version so a two-version collision is legible.
 		expect((firstThrow as Error).message).toMatch(/^plugin 'broken-v@1\.2\.0':/);
 
@@ -130,12 +130,7 @@ describe('installPlugins', () => {
 
 		installPlugins([first]);
 
-		let thrown: unknown;
-		try {
-			installPlugins([second]);
-		} catch (err) {
-			thrown = err;
-		}
+		const thrown = captureThrow(() => installPlugins([second]));
 		expect((thrown as Error).message).toContain("first declared by plugin 'plugin-a'");
 	});
 

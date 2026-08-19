@@ -153,16 +153,7 @@ describe('createEditorPluginContexts', () => {
 				}
 			})
 		]);
-		const ctxs = createEditorPluginContexts({
-			editorId: 'ed-1',
-			getDoc: () => doc as never,
-			events,
-			optionsFor: () => undefined,
-			decorations: registry,
-			rects: noopRects,
-			getPresentationMode: () => 'source',
-			getTheme: () => 'dark'
-		});
+		const ctxs = createEditorPluginContexts({ ...deps(doc), events, decorations: registry });
 		ctxs.attachAll(() => {});
 
 		expect(received).toBe(registry);
@@ -176,14 +167,8 @@ describe('createEditorPluginContexts', () => {
 	});
 
 	it('threads editor.rects: the same registry instance reaches every context', () => {
-		const rects: EditorRects = {
-			blockRect: () => null,
-			rangeRects: () => [],
-			caretRect: () => null,
-			reveal: async () => true,
-			scrollTo: async () => true,
-			navigateTo: async () => true
-		};
+		// A distinct instance from the deps default, so the assert below reads the passed one.
+		const rects: EditorRects = { ...noopRects };
 		let received: EditorRects | undefined;
 		installPlugins([
 			definePlugin({

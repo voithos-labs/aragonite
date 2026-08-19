@@ -7,10 +7,10 @@
  * so nothing but the thunk shape can reject a value capture.
  */
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import type { NodeView } from '../../core/node-views';
-import type { ContainerBlockDeps } from '../../editor-actions/plugin/container';
-import type { EditableLeafDeps } from '../../components/blocks/editable-leaf';
+import { parse } from '$lib/core/parser';
+import type { NodeView } from '$lib/core/node-views';
+import type { ContainerBlockDeps } from '$lib/editor-actions/plugin/container';
+import type { EditableLeafDeps } from '$lib/components/blocks/editable-leaf';
 
 // Load-bearing: a value under the CORRECT new name. Fails only because `NodeView` is
 // not `() => NodeView` — value-capture of a live field, now uncompilable.

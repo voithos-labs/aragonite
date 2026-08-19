@@ -21,7 +21,7 @@ import {
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
 import { placeCaretAt } from './math-widget-fixture';
-import { makeRenderHarness, type RenderHarness } from './render-fixture';
+import { makeRenderHarness, type RenderHarness } from '$lib/test/harness/text-render';
 
 // 'alpha **bold** tail' — strong spans [6,14); its two `**` spans carry the stamp.
 const RAW = 'alpha **bold** tail\n';

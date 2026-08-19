@@ -9,6 +9,20 @@
 import type { BlockKind } from '$lib/core/nodes';
 import type { ContainerConformanceProfile } from '$lib/testing';
 
+type TerminatorCell = NonNullable<ContainerConformanceProfile['terminatorCollision']>;
+
+const STRIP_TERMINATOR_EXEMPT: TerminatorCell = {
+	mode: 'exempt',
+	reason:
+		'strip containerContract: rebuildRaw prefixes every emitted body line with the quote/indent marker, so no body byte reaches column 0 and the container has no terminator token a body line could reproduce'
+};
+
+const GRID_TERMINATOR_BOUNDARY: TerminatorCell = {
+	mode: 'boundary',
+	reason:
+		'grid containerContract: cells are re-emitted through the pipe/escape writer rather than wrapped between an opener and a terminator, so there is no terminator line to reproduce; cell-level delimiter escaping is covered by the table escaping suite'
+};
+
 export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceProfile>> = {
 	blockquote: {
 		// outer bq > inner bq (local index 1) > [paragraph, paragraph].
@@ -27,11 +41,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 				'blockquote inner ops (split/merge/delete) are single-scope; no ≥2-scope author op exists'
 		},
 		focusBubble: { mode: 'assert' },
-		terminatorCollision: {
-			mode: 'exempt',
-			reason:
-				'strip containerContract: rebuildRaw prefixes every emitted body line with the quote/indent marker, so no body byte reaches column 0 and the container has no terminator token a body line could reproduce'
-		}
+		terminatorCollision: STRIP_TERMINATOR_EXEMPT
 	},
 	list: {
 		// outer list > item 1 > nested list (local index 1) > [item, item].
@@ -50,11 +60,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 		// indentItem / splitItemAtOffset / promoteNestedItem span ≥2 scopes via commitMultiScope.
 		multiScope: { mode: 'assert' },
 		focusBubble: { mode: 'assert' },
-		terminatorCollision: {
-			mode: 'exempt',
-			reason:
-				'strip containerContract: rebuildRaw prefixes every emitted body line with the quote/indent marker, so no body byte reaches column 0 and the container has no terminator token a body line could reproduce'
-		}
+		terminatorCollision: STRIP_TERMINATOR_EXEMPT
 	},
 	listItem: {
 		// list > item 1 (the listItem under test) > [paragraph, nested list].
@@ -79,11 +85,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 				'listItem author ops route through the parent list context; the listItem itself owns no ≥2-scope op'
 		},
 		focusBubble: { mode: 'assert' },
-		terminatorCollision: {
-			mode: 'exempt',
-			reason:
-				'strip containerContract: rebuildRaw prefixes every emitted body line with the quote/indent marker, so no body byte reaches column 0 and the container has no terminator token a body line could reproduce'
-		}
+		terminatorCollision: STRIP_TERMINATOR_EXEMPT
 	},
 	table: {
 		deepNesting: {
@@ -108,11 +110,7 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 				'strip focus-bubble dispatcher is not on the table path. Exercising grid cell-to-cell ' +
 				'bubbling would require mounting the table component under jsdom.'
 		},
-		terminatorCollision: {
-			mode: 'boundary',
-			reason:
-				'grid containerContract: cells are re-emitted through the pipe/escape writer rather than wrapped between an opener and a terminator, so there is no terminator line to reproduce; cell-level delimiter escaping is covered by the table escaping suite'
-		}
+		terminatorCollision: GRID_TERMINATOR_BOUNDARY
 	},
 	tableRow: {
 		deepNesting: { source: '| h1 |\n| --- |\n| a |\n', leafPath: [0, 1, 0] },
@@ -142,10 +140,6 @@ export const CONTAINER_PROFILES: Partial<Record<BlockKind, ContainerConformanceP
 			reason:
 				'grid focus is cell-addressed; tableRow is not on the strip focus-bubble (innerIndex) path'
 		},
-		terminatorCollision: {
-			mode: 'boundary',
-			reason:
-				'grid containerContract: cells are re-emitted through the pipe/escape writer rather than wrapped between an opener and a terminator, so there is no terminator line to reproduce; cell-level delimiter escaping is covered by the table escaping suite'
-		}
+		terminatorCollision: GRID_TERMINATOR_BOUNDARY
 	}
 };

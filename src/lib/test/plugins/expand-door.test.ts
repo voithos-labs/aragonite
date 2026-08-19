@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { composeExpandDoor } from '../../editor-actions/plugin/container';
-import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
-import { declarePluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { composeExpandDoor } from '$lib/editor-actions/plugin/container';
+import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 // What a reveal into a collapsed body commits, and when it declines. The door is

@@ -4,24 +4,11 @@
 // anchor off a stale id — a one-shot scroll jump.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
-import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
-import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
+import { heightsOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 // Height BY ID, so a permutation the model tracks changes each index's offset — the
 // observable that proves the rebuild followed the reorder.
 const HEIGHTS: Record<string, number> = { b0: 10, b1: 20, b2: 30, b3: 40 };
-
-const oracle: HeightOracle = {
-	estimate: () => 10,
-	measured: () => undefined,
-	recordMeasured: () => {},
-	height: (id: string) => HEIGHTS[id] ?? 10,
-	invalidateWidth: () => {}
-};
-
-const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
 describe('list-windowing structural rebuild', () => {
 	it('rebuilds the model on a same-length reorder, not only on a count change', async () => {
@@ -32,29 +19,12 @@ describe('list-windowing structural rebuild', () => {
 			makePara('p3\n')
 		]);
 		const ids = $state(['b0', 'b1', 'b2', 'b3']);
-		const port = stubScrollport({ viewportHeight: 500 });
-		const listEl = stubListEl(port, 200);
-
-		let windowing!: ListWindowing;
-		const cleanup = $effect.root(() => {
-			windowing = createListWindowing({
-				oracle,
-				getChildren: () => children,
-				getChildIds: () => ids,
-				getListEl: () => listEl,
-				getPort: () => port,
-				correctsScroll: () => true,
-				getFocusPath: () => null,
-				getWidthVersion: () => 0,
-				getViewportHeightVersion: () => 0,
-				getParentPath: () => [],
-				overscan: 2,
-				pinExtensionCap: 100,
-				activateAbovePx: 1000,
-				deactivateBelowPx: 800
-			});
+		const { windowing, cleanup, port } = mountListWindowing({
+			children,
+			ids,
+			oracle: heightsOracle(HEIGHTS),
+			listHeight: 200
 		});
-		flushSync();
 
 		// Move b3 (height 40) to the front — same length, so a count-keyed rebuild
 		// never fires and the model keeps the old-order offsets.

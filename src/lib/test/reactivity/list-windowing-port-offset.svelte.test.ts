@@ -4,53 +4,23 @@
 // Miss-analysis: nothing pinned this before, because every scope stub put the editor AT the
 // scrollport origin — where the two terms are both zero and any arithmetic passes.
 import { describe, it, expect } from 'vitest';
-import { flushSync } from 'svelte';
-import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
-import type { HeightOracle } from '../../cursor/height-oracle';
-import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
+import { fixedOracle, makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const BLOCK_PX = 50;
 const COUNT = 100;
 /** Page chrome between the scrollport's content origin and this editor's first block. */
 const EDITOR_OFFSET = 400;
 
-const oracle: HeightOracle = {
-	estimate: () => BLOCK_PX,
-	measured: () => undefined,
-	recordMeasured: () => {},
-	height: () => BLOCK_PX,
-	invalidateWidth: () => {}
-};
-
-const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
-
 function mountScope(opts: { viewportTop?: number; editorOffset?: number }) {
 	const children = Array.from({ length: COUNT }, (_, i) => makePara(`p${i}\n`));
-	const ids = children.map((_, i) => `b${i}`);
-	const port = stubScrollport({ viewportHeight: 500, viewportTop: opts.viewportTop ?? 0 });
-	const listEl = stubListEl(port, COUNT * BLOCK_PX, opts.editorOffset ?? 0);
-	let windowing!: ListWindowing;
-	const cleanup = $effect.root(() => {
-		windowing = createListWindowing({
-			oracle,
-			getChildren: () => children,
-			getChildIds: () => ids,
-			getListEl: () => listEl,
-			getPort: () => port,
-			correctsScroll: () => true,
-			getFocusPath: () => null,
-			getWidthVersion: () => 0,
-			getViewportHeightVersion: () => 0,
-			getParentPath: () => [],
-			overscan: 2,
-			pinExtensionCap: 100,
-			activateAbovePx: 1000,
-			deactivateBelowPx: 800
-		});
+	return mountListWindowing({
+		children,
+		ids: children.map((_, i) => `b${i}`),
+		oracle: fixedOracle(BLOCK_PX),
+		listHeight: COUNT * BLOCK_PX,
+		viewportTop: opts.viewportTop,
+		chromeAbove: opts.editorOffset
 	});
-	flushSync();
-	return { windowing, cleanup, port };
 }
 
 describe('windowing against a scrollport the editor sits inside', () => {

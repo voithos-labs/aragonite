@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { publishRefSlot, whenRefMounted, type RefSlots } from '../../reactivity/publish-ref.svelte';
-
-// Distinguishes "resolved through the registry" from "still waiting on a mount".
-// Microtask drains only, no wall-clock timer (Design Rule #2 / G4.4).
-async function isSettled(p: Promise<unknown>): Promise<boolean> {
-	let settled = false;
-	void p.then(() => {
-		settled = true;
-	});
-	for (let i = 0; i < 5; i++) await Promise.resolve();
-	return settled;
-}
+import { settlesWithin } from '../harness/microtask-settle';
 
 // One scope: the editor's blockRefs slots behind the accessors it publishes through.
 // A fresh pair per test IS the isolation — the registry keys on this object, so no
@@ -31,7 +21,7 @@ describe('mount-await registry', () => {
 		const slots = makeSlots();
 
 		const wait = whenRefMounted(slots, 0);
-		expect(await isSettled(wait)).toBe(false);
+		expect(await settlesWithin(wait)).toBe(false);
 
 		publishRefSlot(slots, 0, {});
 		await expect(wait).resolves.toBeUndefined();
@@ -41,7 +31,7 @@ describe('mount-await registry', () => {
 		const slots = makeSlots();
 		slots.set(0, {});
 
-		expect(await isSettled(whenRefMounted(slots, 0))).toBe(true);
+		expect(await settlesWithin(whenRefMounted(slots, 0))).toBe(true);
 	});
 
 	it('does not resolve a waiter when an undefined ref is published', async () => {
@@ -49,7 +39,7 @@ describe('mount-await registry', () => {
 
 		const wait = whenRefMounted(slots, 0);
 		publishRefSlot(slots, 0, undefined);
-		expect(await isSettled(wait)).toBe(false);
+		expect(await settlesWithin(wait)).toBe(false);
 
 		// A real mount afterward still wakes it.
 		publishRefSlot(slots, 0, {});
@@ -60,7 +50,7 @@ describe('mount-await registry', () => {
 		const slots = makeSlots();
 
 		const waits = [whenRefMounted(slots, 0), whenRefMounted(slots, 0)];
-		expect(await isSettled(Promise.all(waits))).toBe(false);
+		expect(await settlesWithin(Promise.all(waits))).toBe(false);
 
 		publishRefSlot(slots, 0, {});
 		await expect(Promise.all(waits)).resolves.toEqual([undefined, undefined]);
@@ -71,7 +61,7 @@ describe('mount-await registry', () => {
 
 		const wait = whenRefMounted(slots, 0);
 		publishRefSlot(slots, 1, {});
-		expect(await isSettled(wait)).toBe(false);
+		expect(await settlesWithin(wait)).toBe(false);
 	});
 
 	// The multi-instance / nesting collision: a bare-index registry woke both.
@@ -82,7 +72,7 @@ describe('mount-await registry', () => {
 		const wait = whenRefMounted(mine, 0);
 		publishRefSlot(foreign, 0, {});
 
-		expect(await isSettled(wait)).toBe(false);
+		expect(await settlesWithin(wait)).toBe(false);
 	});
 
 	it('wakes each scope from its own publish when both wait on the same index', async () => {
@@ -92,8 +82,8 @@ describe('mount-await registry', () => {
 		const secondWait = whenRefMounted(second, 0);
 
 		publishRefSlot(second, 0, {});
-		expect(await isSettled(secondWait)).toBe(true);
-		expect(await isSettled(firstWait)).toBe(false);
+		expect(await settlesWithin(secondWait)).toBe(true);
+		expect(await settlesWithin(firstWait)).toBe(false);
 
 		publishRefSlot(first, 0, {});
 		await expect(firstWait).resolves.toBeUndefined();

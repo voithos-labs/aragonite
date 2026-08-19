@@ -4,10 +4,10 @@
 // estimate-poisoned intermediate model name a DIFFERENT block at the viewport top.
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
-import { createListWindowing, type ListWindowing } from '../../reactivity/list-windowing.svelte';
 import type { HeightOracle } from '../../cursor/height-oracle';
-import type { CstNode } from '../../core/nodes';
-import { stubListEl, stubScrollport } from '../harness/stub-scrollport';
+import type { Scrollport } from '../../cursor/scrollport';
+import type { ListWindowing } from '../../reactivity/list-windowing.svelte';
+import { makePara, mountListWindowing } from '../harness/list-windowing.svelte';
 
 const BLOCKS = 20;
 const ESTIMATE = 100;
@@ -17,7 +17,6 @@ const SCROLLED_THROUGH = 12;
 /** Mounted at the width change, so only these re-measure afterwards. */
 const MOUNTED = [10, 11, 12, 13, 14];
 
-const makePara = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 const idOf = (i: number) => `b${i}`;
 
 function seededOracle(): HeightOracle {
@@ -36,33 +35,15 @@ function seededOracle(): HeightOracle {
 
 describe('list-windowing width re-measure', () => {
 	it('holds the anchor block on screen across a width change (#188)', async () => {
-		const children = Array.from({ length: BLOCKS }, (_, i) => makePara(`p${i}\n`));
-		const ids = Array.from({ length: BLOCKS }, (_, i) => idOf(i));
 		const oracle = seededOracle();
-		const port = stubScrollport({ viewportHeight: 500 });
-		const listEl = stubListEl(port, BLOCKS * REAL);
 		let widthVersion = $state(0);
-
-		let windowing!: ListWindowing;
-		const cleanup = $effect.root(() => {
-			windowing = createListWindowing({
-				oracle,
-				getChildren: () => children,
-				getChildIds: () => ids,
-				getListEl: () => listEl,
-				getPort: () => port,
-				correctsScroll: () => true,
-				getFocusPath: () => null,
-				getWidthVersion: () => widthVersion,
-				getViewportHeightVersion: () => 0,
-				getParentPath: () => [],
-				overscan: 2,
-				pinExtensionCap: 100,
-				activateAbovePx: 1000,
-				deactivateBelowPx: 800
-			});
+		const { windowing, cleanup, port } = mountListWindowing({
+			children: Array.from({ length: BLOCKS }, (_, i) => makePara(`p${i}\n`)),
+			ids: Array.from({ length: BLOCKS }, (_, i) => idOf(i)),
+			oracle,
+			listHeight: BLOCKS * REAL,
+			getWidthVersion: () => widthVersion
 		});
-		flushSync();
 
 		// The mounted band reads its REAL height, which the width rebuild's estimate reseed
 		// does not know — the error the anchor delta must not absorb.
@@ -91,7 +72,7 @@ describe('list-windowing width re-measure', () => {
  *  `model.offsetOf` the surface exposes, so it doubles as the probe and is undone after. */
 async function screenOffsetOf(
 	windowing: ListWindowing,
-	port: ReturnType<typeof stubScrollport>,
+	port: Scrollport,
 	index: number
 ): Promise<number> {
 	const scrollTop = port.scrollTop();

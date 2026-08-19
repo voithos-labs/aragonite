@@ -1,6 +1,6 @@
 /**
  * G4.20 — trailing-line-ending reconstruction parity across keystroke-commit sites
- * (`docs/contributing/culture.md` § The bug shape to fear): a site that reads a block's
+ * (`docs/contributing/rules.md` § The bug shape to fear): a site that reads a block's
  * text back rebuilds the ending as `trailingLineEnding(<node>.raw)`, never a literal
  * newline, which downgrades a CRLF block and breaks round-trip. Reconstruction stays a
  * call-site duty because a block at EOF may legitimately lack an ending. Five arms, all
@@ -9,11 +9,17 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, rawAssignments, type SourceFile } from './scan-source';
+import {
+	callArguments,
+	collectEditorSources,
+	rawAssignments,
+	type SourceFile
+} from './scan-source';
 
 // ── Source extraction ────────────────────────────────────────────────────────
 
-/** From the bracket at `openIdx`, the balanced `(...)`/`{...}` region; strings skipped. */
+/** From the bracket at `openIdx`, the balanced `(...)`/`{...}` region; strings skipped. Local to
+ *  this file for the BRACE case — the shared walker reads call parens only. */
 function balancedRegion(code: string, openIdx: number): string {
 	const open = code[openIdx];
 	const close = open === '(' ? ')' : '}';
@@ -33,34 +39,6 @@ function balancedRegion(code: string, openIdx: number): string {
 	return code.slice(openIdx);
 }
 
-/** Split a call's argument list (no surrounding parens) on top-level commas. */
-function splitTopLevelArgs(argList: string): string[] {
-	const args: string[] = [];
-	let depth = 0;
-	let quote: string | null = null;
-	let cur = '';
-	for (let i = 0; i < argList.length; i++) {
-		const c = argList[i];
-		if (quote) {
-			cur += c;
-			if (c === '\\') cur += argList[++i] ?? '';
-			else if (c === quote) quote = null;
-			continue;
-		}
-		if (c === "'" || c === '"' || c === '`') quote = c;
-		else if (c === '(' || c === '[' || c === '{') depth++;
-		else if (c === ')' || c === ']' || c === '}') depth--;
-		if (c === ',' && depth === 0) {
-			args.push(cur);
-			cur = '';
-			continue;
-		}
-		cur += c;
-	}
-	if (cur.trim().length > 0) args.push(cur);
-	return args.map((a) => a.trim());
-}
-
 /** The content (2nd) argument of every `updateBlockContent(` call in `code`. */
 function contentArgs(code: string): string[] {
 	const out: string[] = [];
@@ -68,7 +46,7 @@ function contentArgs(code: string): string[] {
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(code)) !== null) {
 		const region = balancedRegion(code, code.indexOf('(', m.index));
-		const args = splitTopLevelArgs(region.slice(1, -1));
+		const args = callArguments(region.slice(1, -1));
 		if (args.length >= 2) out.push(args[1]);
 	}
 	return out;

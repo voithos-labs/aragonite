@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { configureEditorEnv } from '$lib/env';
 import { takeDevWarns } from '../support/warn-gate';
 import { INLINE_KIND_TABLE, type AnyInlineKind } from '$lib/core/nodes';
-import type { InvariantViolation } from '$lib/assert';
 import {
 	declarePluginInlineKind,
 	__clearDeclaredPluginInlineKindsForTests
@@ -29,6 +28,7 @@ import {
 } from '$lib/schema/registration-checks';
 import { mintCommandId } from '$lib/schema/command-id';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { collector } from '$lib/test/harness/violation-collector';
 
 const atomic: InlineConstructPolicy = {
 	edgeAffinity: 'never-extend',
@@ -38,15 +38,6 @@ const atomic: InlineConstructPolicy = {
 };
 
 const rebalancer = (): LiveSplitRebalancer => () => null;
-
-function collector() {
-	const violations: { tag: string; violation: InvariantViolation }[] = [];
-	const report = (tag: string, check: () => InvariantViolation | null): void => {
-		const violation = check();
-		if (violation) violations.push({ tag, violation });
-	};
-	return { report, byTag: (tag: string) => violations.filter((v) => v.tag === tag) };
-}
 
 afterEach(() => {
 	__resetInlineConstructPoliciesForTests();

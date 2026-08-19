@@ -70,6 +70,9 @@ function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string
 	});
 }
 
+/** The plugin whose own `parkCaret` is the bypass under test, in both modes. */
+const ROGUE_CARET_DOOR = markerLinePlugin('rogue-caret-door', ROGUE_MARKER, RogueCaretDoorBlock);
+
 function blockComponentAt(mounted: MountedEditor, path: number[]): BlockComponent {
 	const probe = mounted.instance as unknown as {
 		__test: { getBlockComponent(path: number[]): BlockComponent | null };
@@ -117,11 +120,7 @@ afterEach(async () => {
 
 describe('G1.33 fires from the focus seam', () => {
 	it('fires when a plugin caret door of its own seats a caret in a marker-only surface', async () => {
-		const editor = await mountWith(
-			ROGUE_MARKER,
-			markerLinePlugin('rogue-caret-door', ROGUE_MARKER, RogueCaretDoorBlock),
-			'live'
-		);
+		const editor = await mountWith(ROGUE_MARKER, ROGUE_CARET_DOOR, 'live');
 		expect(takeDevWarns(), 'a block nothing has focused traps no caret').toEqual([]);
 
 		blockComponentAt(editor, [0]).parkCaret?.(0);
@@ -132,11 +131,7 @@ describe('G1.33 fires from the focus seam', () => {
 
 	// Source paints every byte, so the same door over the same chrome traps nothing.
 	it('stands down for the same door in source mode', async () => {
-		const editor = await mountWith(
-			ROGUE_MARKER,
-			markerLinePlugin('rogue-caret-door', ROGUE_MARKER, RogueCaretDoorBlock),
-			'source'
-		);
+		const editor = await mountWith(ROGUE_MARKER, ROGUE_CARET_DOOR, 'source');
 
 		blockComponentAt(editor, [0]).parkCaret?.(0);
 		await editor.settle();

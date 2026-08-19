@@ -68,7 +68,7 @@ function mountOpaque(): MountedOpaque {
 		containerApi: instance.containerApi,
 		box: target.querySelector('.opaque-container') as HTMLElement,
 		surface: target.querySelector('.opaque-surface') as HTMLElement,
-		blockEdit: blockEdit as ReturnType<typeof makeStubBlockEdit>,
+		blockEdit,
 		dispose: async () => {
 			await unmount(instance);
 			target.remove();

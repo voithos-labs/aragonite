@@ -128,6 +128,8 @@ describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
 		// Alt+Arrow is the row reorder here, so the whole-block move takes Mod+Alt.
 		['Mod+Alt+ArrowUp', 'block.moveUp'],
 		['Mod+Alt+ArrowDown', 'block.moveDown'],
+		// The three below also carry cross-block dispatch: it routes a post-delete chord
+		// to the focused cell's runCommand, which resolves against this keymap.
 		['Enter', 'cell.enter'],
 		['Tab', 'cell.tab'],
 		['Shift+Tab', 'cell.shiftTab']
@@ -171,16 +173,6 @@ describe('listItem keymap', () => {
 	it('resolves Tab/Shift+Tab to indent/unindent', () => {
 		expect(resolveBinding('Tab', 'listItem')?.command).toBe('list.indent');
 		expect(resolveBinding('Shift+Tab', 'listItem')?.command).toBe('list.unindent');
-	});
-});
-
-describe('tableCell keymap', () => {
-	// Enter/Tab/Shift+Tab resolve to cell commands so the cross-block dispatch
-	// can route a post-delete chord to a focused cell's runCommand.
-	it('resolves Enter/Tab/Shift+Tab to cell commands', () => {
-		expect(resolveBinding('Enter', 'tableCell')?.command).toBe('cell.enter');
-		expect(resolveBinding('Tab', 'tableCell')?.command).toBe('cell.tab');
-		expect(resolveBinding('Shift+Tab', 'tableCell')?.command).toBe('cell.shiftTab');
 	});
 });
 

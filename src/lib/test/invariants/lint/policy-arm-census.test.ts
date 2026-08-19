@@ -1,9 +1,9 @@
 /**
  * Every live gesture rule is a row in the inline-construct policy table, or an arm that names a
  * construct itself and says why (live-mode.md § 3). This census holds both sets: the arms reading
- * rows, and the ones still answering by hand — the second only ever shrinks, which the ratchet
- * below is. It also asserts the two-table boundary: rows answer hidden delimiter RUNS, the inline
- * widget registry answers atomic ISLANDS, and a file asking both states why.
+ * rows, and the ones still answering by hand, each with a decided fate. It also asserts the
+ * two-table boundary: rows answer hidden delimiter RUNS, the inline widget registry answers
+ * atomic ISLANDS, and a file asking both states why.
  */
 
 import path from 'node:path';
@@ -103,7 +103,7 @@ interface HandWrittenArm {
 	path: string;
 	/** How the census sees it: a kind literal the scan finds, or a shape only a reader can. */
 	detection: 'kind-literal' | 'declared';
-	/** `backlog` is the ratchet's count. `deferred` names what blocks the row. `outside` is a
+	/** `backlog` is undecided, and forbidden. `deferred` names what blocks the row. `outside` is a
 	 *  decision: the question is not the table's to answer. */
 	fate: 'backlog' | 'deferred' | 'outside';
 	reason: string;
@@ -166,13 +166,7 @@ const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 	}
 ];
 
-/**
- * The backlog's high-water mark, now empty: every live gesture rule is a row, a decided `outside`,
- * or a `deferred` with what blocks it. It only ever decrements, so a commit that adds a
- * hand-written arm has to argue for it in review rather than absorb it into slack.
- */
-const BACKLOG_CEILING = 0;
-
+/** Empty: every live gesture rule is a row, a decided `outside`, or a `deferred` naming its blocker. */
 const backlog = HAND_WRITTEN_ARMS.filter((arm) => arm.fate === 'backlog');
 const kindLiteralArms = HAND_WRITTEN_ARMS.filter((arm) => arm.detection === 'kind-literal');
 
@@ -209,11 +203,11 @@ describe('inline-construct policy arm census', () => {
 		).toEqual(unique(kindLiteralArms.map((arm) => arm.path)));
 	});
 
-	it('the hand-written backlog only ever shrinks', () => {
+	it('no hand-written arm is an undecided backlog entry', () => {
 		expect(
-			backlog.length,
-			'the backlog grew: a new hand-written arm needs a row, not a bigger ceiling'
-		).toBeLessThanOrEqual(BACKLOG_CEILING);
+			backlog,
+			'a hand-written arm needs a row, a decided `outside`, or a `deferred` naming its blocker'
+		).toEqual([]);
 	});
 
 	it('every declared arm carries a reason', () => {
