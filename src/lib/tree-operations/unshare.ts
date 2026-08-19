@@ -257,7 +257,9 @@ interface ChainSlot {
  */
 function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: AncestrySeamFold[]): void {
 	const { siblings, index, openerMoved, closerMoved } = slot;
-	const before = siblings.slice();
+	// The rollback snapshot is captured only once a fold is certain: an eager copy here cost
+	// O(children) reactive reads on every keystroke inside a large container.
+	let before: CstNode[] | null = null;
 	const landing: TrackedPosition = { index, offset: 0 };
 	const settled = absorbWindowSeams(
 		{ children: siblings },
@@ -267,7 +269,10 @@ function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: Ancestry
 		{ op: 'noop' },
 		sharing,
 		landing,
-		index
+		index,
+		() => {
+			before ??= siblings.slice();
+		}
 	);
 	if (settled.change.op === 'noop') return;
 	folds.push({
@@ -275,7 +280,8 @@ function settleSlotSeams(slot: ChainSlot, sharing: SharingState, folds: Ancestry
 		siblings,
 		owner: slot.owner,
 		change: settled.change,
-		before,
+		// A non-noop change means a splice ran, so the capture ran first.
+		before: before!,
 		landing
 	});
 }
