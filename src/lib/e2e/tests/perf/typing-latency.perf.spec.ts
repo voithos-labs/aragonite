@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from '../plugins/helpers';
 import {
@@ -13,7 +12,8 @@ import {
 	measureContainerHeadTyping,
 	measureDeepNestedTyping,
 	measureTypingIntoDocument,
-	measureTypingLatency
+	measureTypingLatency,
+	writePerfResult
 } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
@@ -46,10 +46,7 @@ function round(ms: number): number {
 }
 
 function writeResult(shape: string, sizeLabel: string, result: object): void {
-	const line = JSON.stringify(result);
-	console.log(`PERF ${line}`);
-	mkdirSync('perf-results', { recursive: true });
-	writeFileSync(`perf-results/e2e-${shape}-${sizeLabel}.json`, line + '\n');
+	writePerfResult('PERF', `e2e-${shape}-${sizeLabel}`, result);
 }
 
 // ── Latency rows ────────────────────────────────────────────────────────────

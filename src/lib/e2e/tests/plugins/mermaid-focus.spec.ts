@@ -1,46 +1,20 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, readDoc, waitForDoc, activeBlockPath, roundTripStable } from './helpers';
-import { wholeBlockInput } from '../../whole-block-input';
+import { readDoc, waitForDoc, activeBlockPath, roundTripStable } from './helpers';
+import { MERMAID_FENCE, MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
  * Mermaid whole-block focus + two-step delete (requirements/plugins/mermaid-focus.md). The opaque
  * childless diagram opts into `blockFocus: 'whole-block'`, so arrows stop on it, a caret-adjacent
  * Backspace/Delete focuses before a second press deletes, Enter inserts a paragraph below, and
- * Alt+arrows reorder — all through real keyboard/mouse gestures. The SVG wait is generous: the
- * engine loads through a dynamic import the dev server transforms on first hit.
+ * Alt+arrows reorder — all through real keyboard/mouse gestures.
  */
 
-const DOC = 'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
-const MERMAID_MD = '```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```';
-
-class MermaidFocusPage extends PluginsPage {
-	async setup(): Promise<void> {
-		await this.gotoPlugins('mermaid');
-		await this.loadContent(DOC);
-		await expect(this.viewport.locator('svg')).toHaveCount(1, { timeout: 30_000 });
-	}
-
-	get viewport() {
-		return this.page.locator('.mermaid-viewport');
-	}
-
-	/** Where whole-block focus lands: the diagram's declared surface is replaced on every
-	 *  redraw, so the editing host lives in the chrome box beside it. */
-	get inputHost() {
-		return wholeBlockInput(this.page.locator('.mermaid-block'));
-	}
-
-	get textarea() {
-		return this.page.getByTestId('mermaid-source');
-	}
-}
-
 test.describe('mermaid whole-block focus', () => {
-	let editor: MermaidFocusPage;
+	let editor: MermaidPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new MermaidFocusPage(page);
-		await editor.setup();
+		editor = new MermaidPage(page);
+		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
 	});
 
 	test('ArrowUp from below focuses the block; a second ArrowUp exits to the block above', async ({
@@ -229,7 +203,7 @@ test.describe('mermaid whole-block focus', () => {
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Control+c');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboardLF()).toBe(MERMAID_MD);
+		expect(await readClipboardLF()).toBe(MERMAID_FENCE);
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -241,7 +215,7 @@ test.describe('mermaid whole-block focus', () => {
 		await expect(editor.inputHost).toBeFocused();
 		await page.keyboard.press('Control+x');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboardLF()).toBe(MERMAID_MD);
+		expect(await readClipboardLF()).toBe(MERMAID_FENCE);
 		await waitForDoc(page, (s) => !s.kinds.includes('mermaid'));
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(original);

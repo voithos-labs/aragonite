@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable, activeBlockPath } from './helpers';
+import { roundTripStable, activeBlockPath } from './helpers';
+import { MermaidPage } from './mermaid-helpers';
 import { wholeBlockInput } from '../../whole-block-input';
 
 /**
@@ -39,22 +40,14 @@ const FIRST_CODE = 'graph TD\n\tA[Start] --> B[Finish]';
 const EDITED_CODE = 'graph LR\nX --> Y';
 const EDITED_SEED = SEED.replace(FIRST_CODE, EDITED_CODE);
 
-class MermaidPage extends PluginsPage {
+class MermaidSeedPage extends MermaidPage {
 	async gotoMermaid(): Promise<void> {
 		await this.gotoPlugins('mermaid');
 		await expect(this.svgs).toHaveCount(2, { timeout: 30_000 });
 	}
 
-	get blocks() {
-		return this.page.locator('.mermaid-block');
-	}
-
 	get svgs() {
 		return this.page.locator('.mermaid-viewport svg');
-	}
-
-	get textarea() {
-		return this.page.getByTestId('mermaid-source');
 	}
 
 	get overlay() {
@@ -62,19 +55,19 @@ class MermaidPage extends PluginsPage {
 	}
 
 	get firstViewport() {
-		return this.page.locator('.mermaid-viewport').first();
+		return this.viewport.first();
 	}
 
 	/** Where whole-block focus lands on the first diagram, scoped to it: a document-wide
 	 *  locator would pass on either of the seed's two. */
 	get firstInputHost() {
-		return wholeBlockInput(this.blocks.first());
+		return wholeBlockInput(this.block.first());
 	}
 
 	/** Toolbar buttons stay hidden until the block is hovered/focused; a real user
 	 *  hovers to reveal them, so reveal then click. */
 	async clickToolbar(testId: string): Promise<void> {
-		const block = this.blocks.first();
+		const block = this.block.first();
 		await block.hover();
 		await block.getByTestId(testId).click();
 	}
@@ -89,15 +82,15 @@ class MermaidPage extends PluginsPage {
 }
 
 test.describe('mermaid reference plugin', () => {
-	let editor: MermaidPage;
+	let editor: MermaidSeedPage;
 
 	test.beforeEach(async ({ page }) => {
-		editor = new MermaidPage(page);
+		editor = new MermaidSeedPage(page);
 		await editor.gotoMermaid();
 	});
 
 	test('seed renders both diagrams as the mermaid kind with SVG; ```js stays fencedCode', async () => {
-		await expect(editor.blocks).toHaveCount(3);
+		await expect(editor.block).toHaveCount(3);
 		for (const i of [1, 2, 3]) expect(await editor.bridge.getBlockKind(i)).toBe('mermaid');
 		expect(await editor.bridge.getBlockKind(4)).toBe('fencedCode');
 		expect(await roundTripStable(editor.page)).toBe(true);
@@ -156,7 +149,7 @@ test.describe('mermaid reference plugin', () => {
 	});
 
 	test('invalid code renders a legible error and the editor keeps working', async ({ page }) => {
-		const error = editor.blocks.nth(2).locator('.mermaid-error');
+		const error = editor.block.nth(2).locator('.mermaid-error');
 		await expect(error).toBeVisible({ timeout: 30_000 });
 		await expect(error).toContainText('Mermaid error');
 
@@ -208,7 +201,7 @@ test.describe('mermaid reference plugin', () => {
 		await page.keyboard.press('Control+Enter');
 		await editor.bridge.waitForSourceContains(EDITED_CODE);
 
-		await editor.blocks.first().getByTestId('mermaid-focus').click();
+		await editor.clickToolbar('mermaid-focus');
 		await expect(editor.overlay).toHaveCount(1);
 		await page.keyboard.press('Escape');
 		await expect(editor.overlay).toHaveCount(0);

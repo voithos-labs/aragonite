@@ -55,7 +55,6 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 		editor = new DetailsPage(page);
 		pageErrors = capturePageErrors(page);
 		await editor.gotoDetails();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test.afterEach(() => {
@@ -81,6 +80,8 @@ test.describe('plugin container: <details> collapsed height estimate at scale', 
 
 		const drift = estimated - measured;
 		const perDetails = drift / COUNT;
+		// A meter, not a gate: the assertion below pins only the direction, so the magnitude is
+		// reported for the run log rather than bounded.
 		console.log(
 			`details collapsed-estimate drift ${JSON.stringify({ estimated, measured, drift, perDetails })}`
 		);

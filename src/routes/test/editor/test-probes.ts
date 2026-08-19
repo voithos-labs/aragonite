@@ -188,6 +188,15 @@ const errorProbe = createSessionProbe<string[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
 
+/** A container whose registered BlockListState has drifted from its children. */
+interface StateDrift {
+	path: number[];
+	kind: string;
+	childrenLen: number;
+	idsLen: number;
+	refsLen: number;
+}
+
 /** One `selectionChange` payload, flattened so it survives `page.evaluate`. */
 interface SelectionChangeRecord {
 	anchor: { path: number[]; offset: number } | null;
@@ -571,21 +580,9 @@ export function installTestProbes({
 		 * none resolved a state: call sites assert `toEqual([])`, which a registration
 		 * regression would otherwise turn vacuously green.
 		 */
-		auditBlockListStateConsistency: (): Array<{
-			path: number[];
-			kind: string;
-			childrenLen: number;
-			idsLen: number;
-			refsLen: number;
-		}> => {
+		auditBlockListStateConsistency: (): StateDrift[] => {
 			const doc = editor.__test.getDocument();
-			const violations: Array<{
-				path: number[];
-				kind: string;
-				childrenLen: number;
-				idsLen: number;
-				refsLen: number;
-			}> = [];
+			const violations: StateDrift[] = [];
 			let containers = 0;
 			let resolved = 0;
 			function walk(node: CstNode, path: number[]): void {

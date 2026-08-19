@@ -14,7 +14,6 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new MathRevealPage(page);
 		await editor.gotoPlugins('math');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('at the revealed leading edge it splits and keeps the caret before the math', async ({

@@ -156,9 +156,7 @@ test('giant single blockquote windows its children (phase 3 spike)', async ({ pa
 
 	// Spacers inside the blockquote (the top scope has one child, so it emits none —
 	// every spacer comes from the nested scope).
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
 	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
 	// paragraph count. getDomBlockCount excludes nested hosts, so census all paths.
@@ -183,9 +181,7 @@ test('giant single list windows its items (phase 3)', async ({ page }) => {
 
 	// Windowed INSIDE the list itself — spacers come from the .list-block scope
 	// (the top scope has one child, so it emits none).
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.list-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.list-block >')).toBeGreaterThan(0);
 
 	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
 	// item count.
@@ -208,9 +204,7 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 	expect(doc.children[0].children.length).toBeGreaterThan(2000);
 
 	// Spacers INSIDE the table grid (the top scope has one child, so it emits none).
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 
 	// Mounted rows bounded to viewport + overscan + pin, NOT the row count.
 	expect(

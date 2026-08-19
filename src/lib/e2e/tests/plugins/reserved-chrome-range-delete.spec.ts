@@ -15,13 +15,12 @@ import {
  * the container dies only when the range consumes its whole subtree from outside. Body-only ranges
  * stay on the generic path.
  */
-test.describe('Fork-A spike — reserved child-0 chrome: rangeDelete wall', () => {
+test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	// ── Gate 4 — rangeDelete chrome wall ─────────────────────────────────────

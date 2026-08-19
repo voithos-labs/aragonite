@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, readDoc, waitForDoc, activeBlockPath } from './helpers';
-import { wholeBlockInput } from '../../whole-block-input';
+import { readDoc, waitForDoc, activeBlockPath } from './helpers';
+import { MermaidPage } from './mermaid-helpers';
 
 /**
  * Whole-block focus on a BROKEN mermaid fence (requirements/plugins/mermaid-broken-focus.md). The
@@ -13,25 +13,9 @@ const DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
 const BROKEN_CODE = 'notadiagram broken';
 const FIXED_CODE = 'graph TD\nA --> B';
 
-class BrokenMermaidPage extends PluginsPage {
-	async setup(): Promise<void> {
-		await this.gotoPlugins('mermaid');
-		await this.loadContent(DOC);
-		await expect(this.page.locator('.mermaid-error')).toBeVisible({ timeout: 30_000 });
-	}
-
+class BrokenMermaidPage extends MermaidPage {
 	get surface() {
 		return this.page.locator('.mermaid-surface');
-	}
-
-	/** Where whole-block focus lands: the error card is a declared surface a redraw replaces,
-	 *  so the editing host lives in the chrome box beside it. */
-	get inputHost() {
-		return wholeBlockInput(this.page.locator('.mermaid-block'));
-	}
-
-	get textarea() {
-		return this.page.getByTestId('mermaid-source');
 	}
 }
 
@@ -40,7 +24,7 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new BrokenMermaidPage(page);
-		await editor.setup();
+		await editor.loadDiagram(DOC, 'error');
 	});
 
 	test('ArrowUp from below stops on the broken block and focuses its error surface; a second ArrowUp exits above', async ({

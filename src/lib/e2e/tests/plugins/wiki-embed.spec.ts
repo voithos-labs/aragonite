@@ -17,7 +17,6 @@ test.describe('plugin wiki embed minted as a built-in image', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('wiki-embed');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('renders the embed as an image widget with its bytes intact', async () => {

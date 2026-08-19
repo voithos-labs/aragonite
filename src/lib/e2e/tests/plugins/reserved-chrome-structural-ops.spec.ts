@@ -15,13 +15,12 @@ import {
  * title moves focus instead of merging; typing keeps the kind; Enter descends into the body
  * (chrome never splits). Gate 5 — a multi-block paste into the title flattens to one line.
  */
-test.describe('Fork-A spike — reserved child-0 chrome: structural ops + paste', () => {
+test.describe('reserved child-0 chrome: structural ops + paste', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	// ── Gate 2 — reserved-index-0 structural ops ─────────────────────────────

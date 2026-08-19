@@ -1,4 +1,5 @@
 import { type SimContext } from '../invariants';
+import { arrowRightToOffset } from './caret-walk';
 
 // Decoded-entity atomic-widget gestures. The widget contributes its GLYPH, not its raw, so
 // the tracker's end-of-doc append rule can predict neither a mid-prose insert nor the
@@ -16,13 +17,6 @@ async function entitySpan(ctx: SimContext, blockIndex: number): Promise<{ end: n
 		throw new Error(`[${ctx.label}] no entity widget in block ${blockIndex}`);
 	}
 	return span;
-}
-
-async function cursorOffset(ctx: SimContext, blockIndex: number): Promise<number | null> {
-	return ctx.page.evaluate(
-		(i) => (window as any).__test.getBlockCursorSurface([i]).cursorOffset,
-		blockIndex
-	);
 }
 
 /**
@@ -58,15 +52,7 @@ export async function atomicDeleteEntityWidget(ctx: SimContext, blockIndex: numb
 	const before = await editor.bridge.getSource();
 	const glyphsBefore = await page.locator(ENTITY).count();
 
-	await editor.focusBlockStart(blockIndex);
-	for (let guard = 0; guard <= end + 8; guard++) {
-		if ((await cursorOffset(ctx, blockIndex)) === end) break;
-		await page.keyboard.press('ArrowRight');
-	}
-	if ((await cursorOffset(ctx, blockIndex)) !== end) {
-		throw new Error(`[${ctx.label}] could not reach the entity's trailing edge (offset ${end})`);
-	}
-
+	await arrowRightToOffset(ctx, blockIndex, end);
 	await page.keyboard.press('Backspace');
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	if ((await page.locator(ENTITY).count()) !== glyphsBefore - 1) {

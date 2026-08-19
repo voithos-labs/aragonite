@@ -1,4 +1,5 @@
 import { type SimContext } from '../invariants';
+import { arrowRightToOffset, cursorOffset } from './caret-walk';
 
 // Decoration-tier gestures (plugins route, `?seed=sim`). Decorations are view-only, so
 // painting never changes the source — only the replace delete and the transparent widget
@@ -33,31 +34,6 @@ async function readIsland(ctx: SimContext, blockIndex: number): Promise<IslandSp
 
 async function islandCount(ctx: SimContext, blockIndex: number): Promise<number> {
 	return ctx.page.locator(`[data-block-path='${JSON.stringify([blockIndex])}'] ${ISLAND}`).count();
-}
-
-async function cursorOffset(ctx: SimContext, blockIndex: number): Promise<number | null> {
-	return ctx.page.evaluate(
-		(i) => (window as any).__test.getBlockCursorSurface([i]).cursorOffset,
-		blockIndex
-	);
-}
-
-// The atomic step-over lands the caret exactly on a far edge, so every reachable offset is
-// hit exactly and an over-step past `target` trips the guard rather than looping forever.
-async function arrowRightToOffset(
-	ctx: SimContext,
-	blockIndex: number,
-	target: number
-): Promise<void> {
-	await ctx.editor.focusBlockStart(blockIndex);
-	for (let guard = 0; guard <= target + 8; guard++) {
-		if ((await cursorOffset(ctx, blockIndex)) === target) return;
-		await ctx.page.keyboard.press('ArrowRight');
-	}
-	throw new Error(
-		`[${ctx.label}] could not land the caret at raw offset ${target} in block ${blockIndex} ` +
-			`(reached ${await cursorOffset(ctx, blockIndex)})`
-	);
 }
 
 // ── Gestures ─────────────────────────────────────────────────────────────────

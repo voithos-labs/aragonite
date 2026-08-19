@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from './helpers';
 
@@ -9,14 +8,6 @@ import { PluginsPage } from './helpers';
 // Requirements: e2e/requirements/plugins/latex-typed-formation.md.
 
 const COMPLETED = '$$\n\n$$\n';
-
-interface ModeProbe {
-	__test: { setPresentationMode(mode: string): void };
-}
-
-async function setMode(page: Page, mode: 'live' | 'reading' | 'source'): Promise<void> {
-	await page.evaluate((m) => (window as unknown as ModeProbe).__test.setPresentationMode(m), mode);
-}
 
 /** Type `text` at the end of block `index` and press Enter there. */
 async function typeAndEnter(editor: EditorPage, index: number, text: string): Promise<void> {
@@ -92,7 +83,7 @@ test.describe('block math: typed formation', () => {
 
 	test('live mode mints the same block and lands the expression in its body', async ({ page }) => {
 		await editor.loadContent('Before\n\n\n');
-		await setMode(page, 'live');
+		await editor.setPresentationMode('live');
 		await editor.waitForRenderFlush();
 		await typeAndEnter(editor, 1, '$$');
 		await editor.bridge.waitForSourceContains(COMPLETED);
@@ -107,7 +98,7 @@ test.describe('block math: typed formation', () => {
 	// key that never reached the editor would pass it. The completion afterwards is that proof.
 	test('reading mode declines the completion until the mode lifts', async ({ page }) => {
 		await editor.loadContent('$$\n');
-		await setMode(page, 'reading');
+		await editor.setPresentationMode('reading');
 		await editor.waitForRenderFlush();
 		await editor.clickBlock(0);
 		await page.keyboard.press('Enter');
@@ -116,7 +107,7 @@ test.describe('block math: typed formation', () => {
 		expect(await editor.bridge.getSource()).toBe('$$\n');
 		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 
-		await setMode(page, 'source');
+		await editor.setPresentationMode('source');
 		await editor.waitForRenderFlush();
 		await editor.clickBlock(0);
 		await page.keyboard.press('End');

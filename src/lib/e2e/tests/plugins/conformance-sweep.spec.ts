@@ -222,13 +222,6 @@ function expectSweepClean({ failures, unreachable }: SweepResult): void {
 	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
 }
 
-/** The attribute, not the call: an unapplied mode paints every marker and the pass would
- *  report green without ever running under live. */
-async function enterLiveMode(page: Page, plugins: PluginsPage): Promise<void> {
-	await page.evaluate(() => (window as any).__test.setPresentationMode('live'));
-	await expect(plugins.editorContainer).toHaveAttribute('data-presentation', 'live');
-}
-
 async function sweepFocusWalk(page: Page, plugins: PluginsPage): Promise<SweepResult> {
 	const entries: SweepEntry[] = await page.evaluate(() =>
 		(window as any).__test.getConformanceEntries()
@@ -301,7 +294,7 @@ test('focus walk under live mode enters and exits each kind, tripping no invaria
 }) => {
 	const plugins = new PluginsPage(page);
 	await plugins.gotoPlugins();
-	await enterLiveMode(page, plugins);
+	await plugins.setPresentationMode('live');
 	expectSweepClean(await sweepFocusWalk(page, plugins));
 });
 
@@ -339,9 +332,7 @@ test('cross-block selection paints within each kind', async ({ page }) => {
 		await page.keyboard.press('ArrowRight');
 	}
 
-	// Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar.
-	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
-	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+	expectSweepClean({ failures, unreachable });
 });
 
 // ── Search paint ───────────────────────────────────────────────────────────────
@@ -418,7 +409,5 @@ test('search paints or degrades per kind', async ({ page }) => {
 		await closeSearch(page, find);
 	}
 
-	// Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar.
-	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
-	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+	expectSweepClean({ failures, unreachable });
 });

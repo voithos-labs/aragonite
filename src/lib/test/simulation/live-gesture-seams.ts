@@ -140,15 +140,6 @@ export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
 	);
 }
 
-/** Where a gesture lands, resolved once so the draw's bias and the classifier's questions address
- *  the very bytes the applier will touch. A range gesture answers with both endpoints. */
-export function gestureSites(doc: Document, gesture: Gesture): { node: CstNode; offset: number }[] {
-	return drawnSites(doc, gesture).map(({ node, offset }) => ({
-		node,
-		offset: throughDoor(node, offset, gesture.kind)
-	}));
-}
-
 /** Whether a drawn offset landed inside a surrogate pair, read before any door: the shape a
  *  caller's arithmetic can produce and the one this harness used to snap away unseen. */
 export function drawsMidScalar(doc: Document, gesture: Gesture): boolean {

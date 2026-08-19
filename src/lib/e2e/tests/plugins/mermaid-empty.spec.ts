@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable } from './helpers';
+import { roundTripStable } from './helpers';
+import { MermaidPage } from './mermaid-helpers';
 
 /**
  * An empty mermaid fence (requirements/plugins/mermaid-empty.md): the edit surface IS the
@@ -9,25 +10,13 @@ import { PluginsPage, roundTripStable } from './helpers';
 
 const EMPTY_FENCE = 'Above\n\n```mermaid\n```\n\ntail\n';
 
-class EmptyMermaidPage extends PluginsPage {
-	get block() {
-		return this.page.locator('.mermaid-block');
-	}
-
-	get textarea() {
-		return this.page.getByTestId('mermaid-source');
-	}
-
+class EmptyMermaidPage extends MermaidPage {
 	get error() {
 		return this.page.locator('.mermaid-error');
 	}
 
 	get placeholder() {
 		return this.page.locator('.mermaid-empty');
-	}
-
-	async setPresentationMode(mode: string): Promise<void> {
-		await this.page.evaluate((m) => (window as any).__test.setPresentationMode(m), mode);
 	}
 }
 

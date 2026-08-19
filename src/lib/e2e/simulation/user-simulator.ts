@@ -204,7 +204,7 @@ async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Pro
 /**
  * Drives a reorder BETWEEN edits and undo/redo — the interleaving that surfaces the
  * aliasing/unshare/stamp corruption a reorder can introduce, which the simulation is the only
- * oracle for (`docs/contributing/culture.md` § Testing shape). Block 0 is a heading or
+ * oracle for (`docs/contributing/rules.md` § Testing shape). Block 0 is a heading or
  * paragraph with a sibling below it in every note, so the move is never a no-op.
  */
 async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
@@ -225,7 +225,7 @@ async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	await g.pause();
-	await g.clickToReposition([0], 0);
+	await g.clickToReposition([0]);
 	await ctx.page.keyboard.press('End');
 	await g.selectAndDelete(rng.int(3, 6));
 	await g.pause();
@@ -241,7 +241,7 @@ async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): P
 async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	await g.pause();
-	await g.clickToReposition([0], 0);
+	await g.clickToReposition([0]);
 	await ctx.page.keyboard.press('End');
 	await g.selectChars(4);
 	await g.copySelection();
@@ -266,13 +266,13 @@ async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rn
 	// paste-over needs a primed clipboard; copy from block 0 before the range is built
 	// (the copy collapses whatever is selected, so it must precede the cross-block build).
 	if (destroy === 'paste-over') {
-		await g.clickToReposition([0], 0);
+		await g.clickToReposition([0]);
 		await ctx.page.keyboard.press('End');
 		await g.selectChars(3);
 		await g.copySelection();
 	}
 
-	await g.clickToReposition([0], 0);
+	await g.clickToReposition([0]);
 	await ctx.page.keyboard.press('End');
 
 	const build = rng.pick(['shift-down', 'shift-click', 'select-all'] as const);

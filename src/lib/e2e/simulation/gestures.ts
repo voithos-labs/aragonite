@@ -130,7 +130,7 @@ export interface GestureOpts {
 export class Gestures {
 	private readonly typoRate: number;
 	private readonly onCheckpoint?: (label: string, gesture: string) => Promise<void>;
-	/** Set by a gesture that parks the caret away from the document end (see `hardBreakAt`). */
+	/** Set by a gesture that parks the caret away from the document end. */
 	private caretParkedMidBlock = false;
 
 	constructor(
@@ -158,9 +158,9 @@ export class Gestures {
 		// surface as a source mismatch naming the wrong culprit. Fail at the real cause.
 		if (this.caretParkedMidBlock) {
 			throw new Error(
-				`[${this.ctx.label}] typeText after hardBreakAt: the caret is parked mid-block, ` +
-					`which the tracker's document-end model cannot predict. hardBreakAt must be a ` +
-					`note's last build gesture.`
+				`[${this.ctx.label}] typeText after hardBreakAt or mintAtGap: the caret is parked ` +
+					`mid-document, which the tracker's document-end model cannot predict. Both must ` +
+					`be a note's last build gesture.`
 			);
 		}
 		for (const ch of text) {
@@ -188,7 +188,7 @@ export class Gestures {
 	 * assertion; the offset resyncs to whatever the click produced. Offset-precise or nested
 	 * clicks go through `editor.clickBlockAtPath`.
 	 */
-	async clickToReposition(targetBlockPath: number[], _offset: number): Promise<void> {
+	async clickToReposition(targetBlockPath: number[]): Promise<void> {
 		const { editor, tracker } = this.ctx;
 		await editor.clickBlock(targetBlockPath[0]);
 		await editor.waitForRenderFlush();
@@ -312,12 +312,13 @@ export class Gestures {
 	 * commit path no other gesture reaches, since the boundary belongs to no block's surface.
 	 * Empty `text` presses Enter. Leaves the caret mid-document — a note's LAST gesture.
 	 */
-	mintAtGap(
+	async mintAtGap(
 		boundaryIndex: number,
 		text: string,
 		options?: { arrival?: 'backspace' | 'arrow-up' }
 	): Promise<void> {
-		return mintAtGap(this.ctx, boundaryIndex, text, options);
+		await mintAtGap(this.ctx, boundaryIndex, text, options);
+		this.caretParkedMidBlock = true;
 	}
 
 	insertImage(alt: string, url: string): Promise<void> {

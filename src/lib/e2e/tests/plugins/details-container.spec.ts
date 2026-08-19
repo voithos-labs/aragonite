@@ -23,7 +23,6 @@ test.describe('plugin container: <details> collapsible', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
 		await editor.gotoDetails();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('substrate: ?seed=details mounts the DetailsBlock component, not a raw fallback', async ({

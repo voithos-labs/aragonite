@@ -1,32 +1,11 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, readDoc, waitForDoc } from './helpers';
+import { readDoc, waitForDoc } from './helpers';
 import { attachIme } from '../../simulation/ime';
-import { wholeBlockInput } from '../../whole-block-input';
+import { MermaidPage, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
-// Requirements: e2e/requirements/plugins/mermaid-ime-mint.md. The SVG wait is generous: the
-// engine loads through a dynamic import the dev server transforms on first hit.
+// Requirements: e2e/requirements/plugins/mermaid-ime-mint.md.
 
-const DOC = 'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
-
-class MermaidImePage extends PluginsPage {
-	async setup(): Promise<void> {
-		await this.gotoPlugins('mermaid');
-		await this.loadContent(DOC);
-		await expect(this.viewport.locator('svg')).toHaveCount(1, { timeout: 30_000 });
-	}
-
-	get box() {
-		return this.page.locator('.mermaid-block');
-	}
-
-	get viewport() {
-		return this.page.locator('.mermaid-viewport');
-	}
-
-	get inputHost() {
-		return wholeBlockInput(this.box);
-	}
-
+class MermaidImePage extends MermaidPage {
 	async focusDiagram(): Promise<void> {
 		await this.viewport.click();
 		await expect(this.inputHost).toBeFocused();
@@ -38,7 +17,7 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new MermaidImePage(page);
-		await editor.setup();
+		await editor.loadDiagram(STANDARD_DIAGRAM_DOC);
 	});
 
 	test('an AltGr-shaped insert of `€` mints a paragraph below, leaving the diagram intact', async ({
@@ -113,8 +92,8 @@ test.describe('mermaid whole-block focus — AltGr and IME input', () => {
 	// leaves the next click on the diagram sitting on the declared surface — where IME is dropped
 	// exactly as before the fix, with the keydown mint still working so nothing else reds.
 	test('a click after a toolbar button still reaches the editing host', async ({ page }) => {
-		await editor.box.hover();
-		await editor.box.getByTestId('mermaid-reset').click();
+		await editor.block.hover();
+		await editor.block.getByTestId('mermaid-reset').click();
 
 		await editor.viewport.click();
 

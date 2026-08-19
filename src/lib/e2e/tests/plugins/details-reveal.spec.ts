@@ -21,7 +21,6 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
 		await editor.gotoDetails();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('search navigation into a collapsed body expands it and leaves a live caret', async ({

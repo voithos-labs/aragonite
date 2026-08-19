@@ -1,13 +1,13 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { generateUniformBlocks, generateFixture } from '../../../test/perf/fixtures/generate';
 import {
 	docLengthInPage,
 	waitForDocLength,
 	waitForBlock0Len,
-	percentileMs
+	percentileMs,
+	writePerfResult
 } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
@@ -22,10 +22,7 @@ test('perf bridge: a keystroke records a block render and an in-page sample', as
 	const editor = new EditorPage(page);
 	await editor.goto();
 	await editor.loadContent('hello world\n');
-	await page.evaluate(() => {
-		(window as any).__test.perf.enable();
-		(window as any).__test.perf.reset();
-	});
+	await armPerf(page);
 	await editor.focusBlockEnd(0);
 	await editor.typeSlowly('x');
 	await editor.bridge.waitForSourceContains('worldx');
@@ -77,10 +74,32 @@ async function cdpDurationDelta(page: Page, run: () => Promise<void>): Promise<D
 }
 
 function write(name: string, result: object): void {
-	const line = JSON.stringify(result);
-	console.log(`ATTR ${name} ${line}`);
-	mkdirSync('perf-results', { recursive: true });
-	writeFileSync(`perf-results/attr-${name}.json`, line + '\n');
+	writePerfResult(`ATTR ${name}`, `attr-${name}`, result);
+}
+
+/** Arm the in-page instruments for a fresh window: enable is sticky, reset is what makes the
+ *  snapshot read only what follows. */
+async function armPerf(page: Page): Promise<void> {
+	await page.evaluate(() => {
+		(window as any).__test.perf.enable();
+		(window as any).__test.perf.reset();
+	});
+}
+
+/** N keystrokes, each timed to the settle the axis reads its rows from. */
+async function timedKeystrokes(
+	editor: EditorPage,
+	keystrokes: number,
+	settleAt: (i: number) => Promise<void>
+): Promise<number[]> {
+	const harness: number[] = [];
+	for (let i = 1; i <= keystrokes; i++) {
+		const t0 = performance.now();
+		await editor.typeSlowly('x');
+		await settleAt(i);
+		harness.push(performance.now() - t0);
+	}
+	return harness;
 }
 
 // Block 0 is the only block guaranteed mounted under windowing. Focusing the LAST block of
@@ -108,10 +127,7 @@ test('axis1: renders-per-keystroke vs block count', async ({ page }) => {
 		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
 		await loadAndFocusBlock0(page, editor, src);
 		const base = await page.evaluate(docLengthInPage);
-		await page.evaluate(() => {
-			(window as any).__test.perf.enable();
-			(window as any).__test.perf.reset();
-		});
+		await armPerf(page);
 		await editor.typeSlowly('x');
 		await settle(page, base + 1);
 		const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
@@ -154,18 +170,9 @@ test('axis4: in-page settle vs harness latency', async ({ page }) => {
 	const src = generateUniformBlocks(1000, 6) + '\nperf cursor target\n';
 	await loadAndFocusBlock0(page, editor, src);
 	const base = await page.evaluate(docLengthInPage);
-	await page.evaluate(() => {
-		(window as any).__test.perf.enable();
-		(window as any).__test.perf.reset();
-	});
-	const harness: number[] = [];
+	await armPerf(page);
 	const N = 20;
-	for (let i = 1; i <= N; i++) {
-		const t0 = performance.now();
-		await editor.typeSlowly('x');
-		await settle(page, base + i);
-		harness.push(performance.now() - t0);
-	}
+	const harness = await timedKeystrokes(editor, N, (i) => settle(page, base + i));
 	const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
 	write('axis4-harness', {
 		harnessP50Ms: p50(harness),
@@ -181,24 +188,11 @@ test('axis5: latency vs single-paragraph length', async ({ page }) => {
 	const rows: object[] = [];
 	for (const bytes of [50_000, 200_000, 800_000]) {
 		const src = generateFixture('single-giant-paragraph', bytes);
-		await editor.goto();
-		await page.evaluate((c) => (window as any).__test.setSource(c), src);
-		await settle(page, src.replace(/\s+$/, '').length);
-		await editor.waitForRenderFlush();
-		await editor.focusBlockEnd(0);
+		await loadAndFocusBlock0(page, editor, src);
 		const base = await page.evaluate(docLengthInPage);
-		await page.evaluate(() => {
-			(window as any).__test.perf.enable();
-			(window as any).__test.perf.reset();
-		});
-		const harness: number[] = [];
+		await armPerf(page);
 		const N = 20;
-		for (let i = 1; i <= N; i++) {
-			const t0 = performance.now();
-			await editor.typeSlowly('x');
-			await settle(page, base + i);
-			harness.push(performance.now() - t0);
-		}
+		const harness = await timedKeystrokes(editor, N, (i) => settle(page, base + i));
 		const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
 		rows.push({ bytes, p50Ms: p50(harness), blockRenderMsTotal: snap.blockRenderMsTotal });
 	}
@@ -212,20 +206,12 @@ test('axisN: nested-containers 1MB direct attribution', async ({ page }) => {
 	const editor = new EditorPage(page);
 	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
 	await loadAndFocusBlock0(page, editor, src);
-	await page.evaluate(() => {
-		(window as any).__test.perf.enable();
-		(window as any).__test.perf.reset();
-	});
+	await armPerf(page);
 	const harness: number[] = [];
 	const N = 20;
 	const { scriptMs, layoutMs, recalcStyleMs } = await cdpDurationDelta(page, async () => {
 		const base = await page.evaluate(docLengthInPage);
-		for (let i = 1; i <= N; i++) {
-			const t0 = performance.now();
-			await editor.typeSlowly('x');
-			await settle(page, base + i);
-			harness.push(performance.now() - t0);
-		}
+		harness.push(...(await timedKeystrokes(editor, N, (i) => settle(page, base + i))));
 	});
 	const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
 	write('axisN-nested', {
@@ -248,10 +234,7 @@ test('axisM: which blocks re-render on one keystroke (nested 1MB)', async ({ pag
 	await loadAndFocusBlock0(page, editor, src);
 	const editedIndex = 0; // loadAndFocusBlock0 focuses the prepended prose block 0
 	const base = await page.evaluate(docLengthInPage);
-	await page.evaluate(() => {
-		(window as any).__test.perf.enable();
-		(window as any).__test.perf.reset();
-	});
+	await armPerf(page);
 	await editor.typeSlowly('x');
 	await settle(page, base + 1);
 	const paths: string[] = await page.evaluate(
@@ -318,12 +301,7 @@ test('axisQ: steady-state CDP breakdown (nested 1MB)', async ({ page }) => {
 	const harness: number[] = [];
 	const N = 15;
 	const delta = await cdpDurationDelta(page, async () => {
-		for (let i = 1; i <= N; i++) {
-			const t0 = performance.now();
-			await editor.typeSlowly('x');
-			await settle(page, base + i);
-			harness.push(performance.now() - t0);
-		}
+		harness.push(...(await timedKeystrokes(editor, N, (i) => settle(page, base + i))));
 	});
 	write('axisQ-steadystate-cdp', {
 		keystrokes: N,
@@ -375,12 +353,7 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 	const rows: object[] = [];
 	for (const blockCount of [1000, 10000, 30000]) {
 		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
-		// Block 0 for the same reason as `loadAndFocusBlock0`, and to match the gated harness.
-		await editor.goto();
-		await page.evaluate((c) => (window as any).__test.setSource(c), src);
-		await settle(page, src.replace(/\s+$/, '').length);
-		await editor.waitForRenderFlush();
-		await editor.focusBlockEnd(0);
+		await loadAndFocusBlock0(page, editor, src);
 		let b0 = await page.evaluate(() => {
 			const c = (window as any).__test.getDocument().children[0];
 			return c.leadingTrivia.length + c.raw.length;
@@ -388,21 +361,15 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 		await editor.typeSlowly('x'); // warm up past the first-edit re-render
 		await waitForBlock0Len(page, b0 + 1, 60_000);
 		b0 += 1;
-		await page.evaluate(() => {
-			(window as any).__test.perf.enable();
-			(window as any).__test.perf.reset();
-		});
+		await armPerf(page);
 		// CDP ScriptDuration is the airtight measure: immune to where the in-page mark and
 		// the block-0 poll each fire, and with the O(1) settle the poll script is negligible.
 		const harness: number[] = [];
 		const N = 10;
 		const delta = await cdpDurationDelta(page, async () => {
-			for (let i = 1; i <= N; i++) {
-				const t0 = performance.now();
-				await editor.typeSlowly('x');
-				await waitForBlock0Len(page, b0 + i, 60_000);
-				harness.push(performance.now() - t0);
-			}
+			harness.push(
+				...(await timedKeystrokes(editor, N, (i) => waitForBlock0Len(page, b0 + i, 60_000)))
+			);
 		});
 		// Mounted top-level host count from the DOM — robust to perf-enable timing
 		// (the net mountedBlockCount counter needs enabling before any block mounts).
@@ -434,10 +401,7 @@ test('axisLoad: flat load mounted-count + script/layout split', async ({ page })
 	for (const bytes of [1_000_000, 4_000_000, 10_000_000]) {
 		const src = generateFixture('many-small-blocks', bytes);
 		await editor.goto();
-		await page.evaluate(() => {
-			(window as any).__test.perf.enable();
-			(window as any).__test.perf.reset();
-		});
+		await armPerf(page);
 		let loadMs = 0;
 		const { scriptMs, layoutMs } = await cdpDurationDelta(page, async () => {
 			const t0 = performance.now();
@@ -476,10 +440,7 @@ test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) 
 	const src = 'perf cursor target\n\n' + generateFixture('nested-containers', 1_000_000);
 	await loadAndFocusBlock0(page, editor, src);
 	const base = await page.evaluate(docLengthInPage);
-	await page.evaluate(() => {
-		(window as any).__test.perf.enable();
-		(window as any).__test.perf.reset();
-	});
+	await armPerf(page);
 	await editor.typeSlowly('x'); // the FIRST edit after load
 	await settle(page, base + 1);
 	const s = await page.evaluate(() => (window as any).__test.perf.snapshot());

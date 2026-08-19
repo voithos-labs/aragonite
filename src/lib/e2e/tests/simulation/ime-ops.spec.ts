@@ -1,16 +1,12 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { attachIme } from '../../simulation/ime';
 import { makeRng } from '../../simulation/rng';
 import type { CompositionCase } from '../../simulation/gestures/ime';
-import {
-	type SimContext,
-	assertCoreOracles,
-	assertParseConvergence
-} from '../../simulation/invariants';
+import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated IME-composition oracle: the multibyte insert path the state-accumulating watcher
 // never reached, where the other harnesses pin the composition contract in isolation. The CDP
@@ -49,11 +45,9 @@ test.describe('ime-ops simulation', () => {
 
 			await editor.loadContent(IME_DOC);
 			await editor.waitForRenderFlush();
-			const loaded = await editor.bridge.getSource();
 
-			const tracker = new ExpectationTracker(loaded);
 			const ime = await attachIme(page);
-			const ctx: SimContext = { page, editor, tracker, errors, label: 'ime-ops', ime };
+			const ctx = await makeSimContext(page, editor, 'ime-ops', { errors, ime });
 			const rng = makeRng(seed);
 			const g = new Gestures(ctx, rng);
 
@@ -80,7 +74,7 @@ test.describe('ime-ops simulation', () => {
 
 			await editor.undo();
 			await editor.bridge.waitForSourceEquals(beforeThird);
-			tracker.resync(beforeThird);
+			ctx.tracker.resync(beforeThird);
 			await checkOracles('compose-undo');
 
 			// The undone commit is gone; the first paragraph's commit survives.

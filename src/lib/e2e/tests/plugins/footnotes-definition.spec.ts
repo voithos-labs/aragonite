@@ -16,7 +16,6 @@ test.describe('plugin container: footnote definition', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('footnotes');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('substrate: mounts the FootnoteDefinition container with a paragraph body', async ({

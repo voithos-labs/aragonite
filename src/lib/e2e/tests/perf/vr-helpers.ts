@@ -24,11 +24,21 @@ export function cstBlockCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test.getDocument().children.length);
 }
 
-export function spacerCount(page: Page): Promise<number> {
-	return page.evaluate(() => document.querySelectorAll('.vr-spacer').length);
+/** Spacers the window emits, document-wide or inside one scope. `scope` is a selector PREFIX,
+ *  so `'.table-block >'` counts a grid's own and `'.blockquote-block'` its descendants' too —
+ *  the "container windowing is active in this scope" precondition, named. */
+export function spacerCount(page: Page, scope = ''): Promise<number> {
+	return page.evaluate((s) => document.querySelectorAll(`${s} .vr-spacer`.trim()).length, scope);
 }
 
 // ── Geometry & scroll ───────────────────────────────────────────────
+
+/** Two frames: the write lands in one, the measure pass it schedules runs in the next. */
+export function settleFrames(page: Page): Promise<void> {
+	return page.evaluate(
+		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+	);
+}
 
 export function editorScrollHeight(page: Page): Promise<number> {
 	return page.evaluate(() => (document.querySelector('.editor') as HTMLElement).scrollHeight);
@@ -40,7 +50,7 @@ export function editorScrollHeight(page: Page): Promise<number> {
  * BlockHosts enrolled in the scope's `correctAnchor`-wrapped measure pass, whereas list items
  * report through the deliberately-uncorrected subtotal channel.
  */
-export const NESTED_NON_UNIFORM_CHILDREN = 1000;
+const NESTED_NON_UNIFORM_CHILDREN = 1000;
 export function buildNonUniformBlockquoteDoc(): string {
 	const tall = `line${'<br>line'.repeat(30)}`;
 	return (
@@ -124,6 +134,12 @@ export async function gotoPageScroll(page: Page, blocks?: number): Promise<void>
 	);
 }
 
+/** The host shape where several editor entries share one ancestor scroller. */
+export async function gotoFlow(page: Page): Promise<void> {
+	await page.goto('/test/flow');
+	await page.waitForFunction(() => (window as any).__flow !== undefined, null, { timeout: 10_000 });
+}
+
 /** Below the activation watermark, yet tall enough that a scroll can put nothing but entry
  *  content in the viewport — the same embedding, rendered whole. */
 export const UNWINDOWED_ENTRY_BLOCKS = 60;
@@ -140,9 +156,7 @@ export function mountedTopLevelCount(page: Page): Promise<number> {
 
 export async function scrollPageTo(page: Page, top: number): Promise<void> {
 	await page.evaluate((t) => window.scrollTo(0, t), top);
-	await page.evaluate(
-		() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-	);
+	await settleFrames(page);
 }
 
 /** Measured against the WINDOW viewport, unlike `topVisibleHostTop`: in host mode the

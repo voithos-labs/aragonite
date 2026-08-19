@@ -18,7 +18,6 @@ test.describe('plugin inline emoji shortcodes', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('emoji');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('renders a seeded shortcode as a glyph widget, bytes preserved', async () => {

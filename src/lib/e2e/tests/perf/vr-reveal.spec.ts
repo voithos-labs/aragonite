@@ -106,8 +106,8 @@ test('reveals a deep off-window nested item and lands the caret there', async ({
 	expect(await spacerCount(page)).toBeGreaterThan(0);
 	const deepHostPath = JSON.stringify([0, lastItem, 0]);
 	expect(
-		await page.evaluate((p) => document.querySelector(`[data-block-path='${p}']`), deepHostPath)
-	).toBeNull();
+		await page.evaluate((p) => !!document.querySelector(`[data-block-path='${p}']`), deepHostPath)
+	).toBe(false);
 
 	// Click the content leaf, not focusBlockStart(0): path [0] is the non-focusable
 	// .list-block container, whose programmatic focus never routes the keydown.
@@ -145,10 +145,10 @@ test('collapsing a Ctrl+Shift+End list selection to start lands the caret in the
 	await editor.waitForCrossBlock(true);
 	// Unmounted now, so the collapse below must re-reveal rather than reuse a mounted block.
 	expect(
-		await page.evaluate(() =>
-			document.querySelector(`[data-block-path='${JSON.stringify([0, 0, 0])}']`)
+		await page.evaluate(
+			() => !!document.querySelector(`[data-block-path='${JSON.stringify([0, 0, 0])}']`)
 		)
-	).toBeNull();
+	).toBe(false);
 
 	// The collapse is async: typing on the keypress alone would race the still-active
 	// selection into a destructive type-replace.
@@ -189,9 +189,7 @@ test('reveals an off-window table cell by scroll and edits it (phase 4)', async 
 	);
 
 	// Without windowing there is no off-window row and the assertions below are vacuous.
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 	const scrollHeight = await page.evaluate(
 		() => (document.querySelector('.editor') as HTMLElement).scrollHeight
 	);
@@ -238,12 +236,10 @@ test('Ctrl+Shift+End in a table reveals and mounts the off-window focus cell (ph
 	);
 
 	// If the last row is already mounted the reveal assertion below is vacuous.
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
-	expect(
-		await page.evaluate((r) => document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
-	).toBeNull();
+		await page.evaluate((r) => !!document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
+	).toBe(false);
 
 	// The focus normalizes to a cell-coordinate endpoint at the table block; an extend that
 	// ignores the cell coordinate scrolls the table top and never mounts the last row.
@@ -259,8 +255,8 @@ test('Ctrl+Shift+End in a table reveals and mounts the off-window focus cell (ph
 		{ timeout: 10_000, polling: 16 }
 	);
 	expect(
-		await page.evaluate((r) => document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
-	).not.toBeNull();
+		await page.evaluate((r) => !!document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
+	).toBe(true);
 	expect(pageErrors).toEqual([]);
 });
 
@@ -276,12 +272,10 @@ test('collapsing a Ctrl+Shift+End table selection lands the caret in the reveale
 		() => (window as any).__test.getDocument().children[0].children.length - 1
 	);
 
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
-	expect(
-		await page.evaluate((r) => document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
-	).toBeNull();
+		await page.evaluate((r) => !!document.querySelector(`[data-table-row-idx="${r}"]`), lastRow)
+	).toBe(false);
 
 	await page.locator('[data-table-row-idx="0"] [role="cell"]').first().click();
 	await page.keyboard.press('Control+Shift+End');
@@ -313,15 +307,13 @@ test('collapsing a Ctrl+Shift+End table selection to start does not wipe the tab
 		() => (window as any).__test.getDocument().children[0].children.length
 	);
 
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 	expect(
 		await page.evaluate(
-			(r) => document.querySelector(`[data-table-row-idx="${r}"]`),
+			(r) => !!document.querySelector(`[data-table-row-idx="${r}"]`),
 			rowCountBefore - 1
 		)
-	).toBeNull();
+	).toBe(false);
 
 	// The collapse is async: typing on the keypress alone would race the still-active
 	// selection into a destructive type-replace.

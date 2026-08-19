@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, roundTripStable } from './helpers';
+import { PluginsPage, activeBlockPath, roundTripStable } from './helpers';
 
 // Gap caret on the opaque-container tier (#93): callout|callout, details|callout, and the
 // strip negative (requirements/plugins/gap-caret-opaque-containers.md). The generic
@@ -22,13 +22,6 @@ const AT_DOC_START = { parentPath: [], index: 0 };
 
 test.describe('gap caret between opaque containers', () => {
 	let editor: PluginsPage;
-
-	const focusedBlockPath = () =>
-		editor.page.evaluate(
-			() =>
-				document.activeElement?.closest('[data-block-path]')?.getAttribute('data-block-path') ??
-				null
-		);
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
@@ -82,7 +75,7 @@ test.describe('gap caret between opaque containers', () => {
 
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.bridge.waitForGapCaret(null);
-		await expect.poll(focusedBlockPath).toBe('[0,1]');
+		await expect.poll(() => activeBlockPath(editor.page)).toEqual([0, 1]);
 	});
 
 	test('the details|callout boundary parks and mints the same way', async () => {
@@ -132,6 +125,6 @@ test.describe('gap caret between opaque containers', () => {
 		await editor.waitForRenderFlush();
 
 		expect(await editor.bridge.getGapCaret()).toBeNull();
-		await expect.poll(focusedBlockPath).toBe('[1,0]');
+		await expect.poll(() => activeBlockPath(editor.page)).toEqual([1, 0]);
 	});
 });

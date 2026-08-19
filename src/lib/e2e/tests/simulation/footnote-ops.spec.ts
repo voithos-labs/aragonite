@@ -1,14 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertCoreOracles,
-	assertParseConvergence
-} from '../../simulation/invariants';
+import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated footnote-ops oracle, spanning two tiers the oracle stack had never seen under a
 // state-accumulating watcher: the `[^label]: ` strip-container definition (whose Enter-in-body
@@ -43,8 +39,7 @@ test.describe('footnote-ops simulation', () => {
 		await expect(page.locator('.footnote-ref')).toHaveCount(1);
 		await expect(page.locator('.footnote-def')).toHaveCount(1);
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'footnote-ops' };
+		const ctx = await makeSimContext(page, editor, 'footnote-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = async (label: string) => {

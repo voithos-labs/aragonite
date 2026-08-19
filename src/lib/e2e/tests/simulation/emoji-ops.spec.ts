@@ -1,14 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertCoreOracles,
-	assertParseConvergence
-} from '../../simulation/invariants';
+import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated emoji-ops oracle. The `:shortcode:` rung renders an atomic glyph widget whose
 // literal bytes stay in the raw, so its byte survival and mount/unmount churn are the
@@ -36,8 +32,7 @@ test.describe('emoji-ops simulation', () => {
 		await editor.waitForRenderFlush();
 		const loaded = await editor.bridge.getSource();
 
-		const tracker = new ExpectationTracker(loaded);
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'emoji-ops' };
+		const ctx = await makeSimContext(page, editor, 'emoji-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		// Emoji bytes stay literal in the raw and round-trip cleanly, so convergence

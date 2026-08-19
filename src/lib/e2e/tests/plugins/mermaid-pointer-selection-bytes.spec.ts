@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage } from './helpers';
+import { PluginsPage, dragBetweenPoints } from './helpers';
+import { MERMAID_FENCE, STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
  * Cross-block BYTES for a pointer drag ending inside a rendered diagram
@@ -8,16 +9,13 @@ import { PluginsPage } from './helpers';
  * keyboard mint (offset 0 / end) never produces the interior offset a drag does.
  */
 
-const DIAGRAM = '```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```';
-const DOC = `Above text\n\n${DIAGRAM}\n\ntail text\n`;
-
 test.describe('pointer drag into a rendered diagram', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('mermaid');
-		await editor.loadContent(DOC);
+		await editor.loadContent(STANDARD_DIAGRAM_DOC);
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 	});
 
@@ -28,16 +26,7 @@ test.describe('pointer drag into a rendered diagram', () => {
 		if (!box) throw new Error('the rendered diagram has no bounding box');
 		const target = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 
-		await editor.page.mouse.move(start.x, start.y);
-		await editor.page.mouse.down();
-		for (let step = 1; step <= 10; step++) {
-			const t = step / 10;
-			await editor.page.mouse.move(
-				start.x + (target.x - start.x) * t,
-				start.y + (target.y - start.y) * t
-			);
-		}
-		await editor.page.mouse.up();
+		await dragBetweenPoints(editor.page, start, target);
 		await editor.waitForCrossBlock(true);
 	}
 
@@ -47,7 +36,7 @@ test.describe('pointer drag into a rendered diagram', () => {
 		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		expect(await editor.readClipboard()).toBe(`text\n\n${DIAGRAM}`);
+		expect(await editor.readClipboard()).toBe(`text\n\n${MERMAID_FENCE}`);
 	});
 
 	test('Mod+X removes the diagram whole, leaving no fence remnant', async ({ page }) => {

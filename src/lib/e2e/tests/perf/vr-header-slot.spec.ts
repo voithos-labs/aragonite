@@ -4,8 +4,10 @@ import { EditorPage } from '../../editor-page';
 import { primaryModifier } from '../../platform';
 import {
 	FIXTURE_BYTES,
+	gotoFlow,
 	progressiveScrollTo,
 	spacerCount,
+	TOP_LEVEL_HOSTS,
 	topVisibleHostTop,
 	UNWINDOWED_PROSE
 } from './vr-helpers';
@@ -16,7 +18,6 @@ import { capturePageErrors } from '../../page-probes';
 // while the title still scrolls away. The live hazard is a slot that CHANGES height while
 // the reader is scrolled deep, which routes through its own scroll compensation.
 
-const TOP_LEVEL_HOSTS = '[data-block-path]:not([data-block-path*=","])';
 // Enough to window several screens deep without paying the headline gate's
 // multi-MB load in every scroll case.
 const WINDOWED_BYTES = 500_000;
@@ -240,11 +241,6 @@ test('the find bar overlays the header at the top of the document', async ({ pag
 });
 
 // ── Host mode ───────────────────────────────────────────────────────────
-
-async function gotoFlow(page: Page): Promise<void> {
-	await page.goto('/test/flow');
-	await page.waitForFunction(() => (window as any).__flow !== undefined, null, { timeout: 10_000 });
-}
 
 const flowScrollTop = (page: Page): Promise<number> =>
 	page.evaluate(
