@@ -39,6 +39,8 @@ asserted through the `window.__test` bridge.
 - typing printable characters in reading mode: source unchanged
 - Enter / Backspace / Delete with a caret or selection: source unchanged,
   block count unchanged
+- Enter / Tab in a focused code block: source unchanged — a code block is its own dispatch
+  site and supplies the mode getter itself, so its kind commands dead-key like the paragraph's
 - paste (Ctrl+V) into a focused block: source unchanged
 - cut (Ctrl+X) over a selection: source unchanged (degrades to copy)
 - undo chord (Ctrl+Z) after a pre-flip edit: source unchanged (history is inert

@@ -9,6 +9,7 @@ Typing and Enter behavior inside fenced code blocks (contenteditable editing sur
 - Enter at end of a closed fence places caret on the new body line: typed text after the Enter lands on the new line, not on the previous line
 - Enter at end of an unclosed fence adds a body line and caret lands on it: typed text follows the Enter on the new line (regression for the trailing-newline Chromium quirk)
 - Enter mid-line splits at the cursor: cursor between two characters of a body line, Enter moves the trailing portion (and the caret) to a new line
+- Enter at the end of a body line inserts a blank line before the closer; a second Enter exits via the blank-line path, taking the blank line with it so typed text lands after the closing fence
 - code block content round-trips: editing then checking getSource() produces valid fenced code
 
 ## Edge cases

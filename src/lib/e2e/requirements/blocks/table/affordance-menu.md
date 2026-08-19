@@ -54,4 +54,4 @@ action items dispatch the committed table mutations.
 ## Notes
 
 - Row grips live in a zero-width leading gutter track; the grid stays unshifted so caret geometry is untouched (the grip's dots overflow into the first cell's left padding).
-- Full menu keyboard navigation is a later task; this slice covers mouse open/close, row/column action dispatch, and the column alignment control.
+- Menu keyboard navigation is owned by `a11y/table-menu.md` (Shift+F10 open, roving arrows, wrap, disabled-skip, Tab trapping, Escape); this file covers mouse open/close, row/column action dispatch, and the column alignment control.

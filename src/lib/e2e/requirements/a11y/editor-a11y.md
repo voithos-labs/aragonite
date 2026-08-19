@@ -13,6 +13,8 @@ any violation outside the committed baseline allowlist fails the gate.
   marker hiding plus rendered bullet chrome on unfocused list items.
 - Preview-inline (`data-presentation='preview-inline'`) has no new violations — the
   construct-marker stamps and folded/revealed spans get their own pass.
+- The live-mode link card has no new violations while open — anchored chrome inside `.editor`, so
+  its dialog role and name, labelled field, and named buttons ride the same `include('.editor')` scan.
 - An active cross-block selection exposes an ARIA live region announcing the span, and has no new violations.
 - A keyboard block reorder (Alt+Arrow) announces the new position via a live region, and has no new violations.
 
