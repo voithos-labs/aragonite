@@ -11,8 +11,7 @@ import {
 	type WholeBlockInputProxy
 } from '$lib/editor-actions/whole-block-focus-surface';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
+import { makeShimDeps } from '$lib/test/harness/editor-actions';
 
 // The hidden editing host is contenteditable, so every gate that asks "is a plugin's own
 // editable surface holding this?" would answer yes about the editor's own chrome. These are the
@@ -90,21 +89,13 @@ describe('holdsWholeBlockFocus', () => {
 
 describe('container shim routing through the host', () => {
 	function shim(boxEl: HTMLElement, inputProxy?: WholeBlockInputProxy) {
-		return createContainerBlockComponent({
-			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return [];
-			},
-			refSlots: refSlotsOver([]),
-			get nodeChildrenLength() {
-				return 0;
-			},
-			get node() {
-				return { kind: 'mermaid' as AnyBlockKind, leadingTrivia: '', raw: '' } as CstNode;
-			},
-			getFocusEl: () => boxEl,
-			inputProxy
-		});
+		return createContainerBlockComponent(
+			makeShimDeps([], {
+				node: { kind: 'mermaid' as AnyBlockKind, leadingTrivia: '', raw: '' } as CstNode,
+				getFocusEl: () => boxEl,
+				inputProxy
+			})
+		);
 	}
 
 	it('hands both caret entries to the host instead of focusing the declared surface', () => {

@@ -8,37 +8,30 @@ import {
 import { parse } from '../../../core/parser';
 import { createGrammarView } from '../../../schema/block-openers';
 import { createSharingState } from '../../../tree-operations/sharing';
-import { registerBlockListState } from '../../../reactivity/state-registry';
 import { createUndoController } from '../../../editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '../../../editor-actions/paste-coordinator';
 import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit,
-	makeStubController
+	makeStubController,
+	registerStubBlockListState
 } from '../../harness/editor-actions';
 import type { CstNode } from '../../../core/nodes';
-import type { BlockComponent } from '../../../block-component';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
 
 // ── Container-matching merge runs its raw mutation inside commitMultiScope ────
 
-function makeStubBlockListState(node: CstNode) {
-	const state: any = {
-		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
-		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined)
-	};
-	registerBlockListState(node, state);
-	return state;
+function makeMergeFixture() {
+	const doc = parse('1. one\n2. two\n');
+	const list = doc.children[0] as CstNode;
+	const targetLeaf = list.children![0].children![0] as CstNode;
+	registerStubBlockListState(list);
+	return { doc, targetLeaf, rawBefore: targetLeaf.raw };
 }
 
 describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit invariant', () => {
 	it('singleton-merge: targetLeaf.raw is unchanged until commitMultiScope.mutate runs', async () => {
-		const doc = parse('1. one\n2. two\n');
-		const list = doc.children[0] as CstNode;
-		const firstItem = list.children![0] as CstNode;
-		const targetLeaf = firstItem.children![0] as CstNode;
-		const rawBefore = targetLeaf.raw;
-		makeStubBlockListState(list);
+		const { doc, targetLeaf, rawBefore } = makeMergeFixture();
 
 		const pastedText = '1. INSERTED\n';
 
@@ -73,12 +66,7 @@ describe('paste-dispatch — applyContainerMatchingMerge mutate-inside-commit in
 	});
 
 	it('multi-item merge: target and last leaves unchanged until commitMultiScope.mutate runs', async () => {
-		const doc = parse('1. one\n2. two\n');
-		const list = doc.children[0] as CstNode;
-		const firstItem = list.children![0] as CstNode;
-		const targetLeaf = firstItem.children![0] as CstNode;
-		const rawBefore = targetLeaf.raw;
-		makeStubBlockListState(list);
+		const { doc, targetLeaf, rawBefore } = makeMergeFixture();
 
 		const pastedText = '1. ALPHA\n2. BETA\n';
 

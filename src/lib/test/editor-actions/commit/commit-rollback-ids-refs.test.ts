@@ -6,16 +6,10 @@ import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
+import { makeListNode } from '$lib/test/harness/list-fixtures';
 
-function makeContainer(childRaws: string[]): CstNode {
-	return {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: childRaws.join(''),
-		children: childRaws.map((r) => ({ kind: 'listItem', leadingTrivia: '', raw: r })),
-		childIds: childRaws.map((_, i) => `c-${i}`)
-	} as CstNode;
-}
+const makeContainer = (childRaws: string[]): CstNode =>
+	makeListNode(childRaws, { childIds: childRaws.map((_, i) => `c-${i}`) });
 
 // publishScopeView writes each scope's ids/refs into reactive state BEFORE the
 // ancestor-raw rebuild, so a later throw leaves them reflecting a rolled-back mutation.

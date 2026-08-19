@@ -48,6 +48,8 @@ describe('the list-item merge crosses the live join seam', () => {
 
 	// The primitive can only clean what its caller hands it the mode for, so the gesture is
 	// pinned too: Backspace at a middle item's start is the one door into M1.
+	// Hand-built rather than `makeNestedHarness`: this suite needs jsdom for the visibility
+	// read, where the harness's production block-list state is an orphaned `$effect`.
 	it('the middle-item Backspace hands the mode down', async () => {
 		const { deps } = makeEditorActionsDeps(parse(SPLIT_BOLD), { presentationMode: 'live' });
 		const controller = createUndoController(deps);

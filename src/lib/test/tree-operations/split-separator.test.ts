@@ -12,7 +12,7 @@ import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { registerBlockOpener } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { describeConvergence } from '../../testing/parse-convergence';
+import { describeConvergence } from '../harness/parse-converged';
 import { testClosure } from '$lib/test/support/closure';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 

@@ -1,8 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createInlineRangeCommit } from '$lib/editor-actions/inline-range-commit';
-import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
+import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { EditEvent } from '$lib/editor-events';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
@@ -15,16 +13,10 @@ afterEach(() => allowDevWarns(['invariant:stale-raw']));
 // raw range in the leaf at `path`, as ONE undo entry, at any depth.
 
 function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createUndoController(harness.deps);
-	const edits: EditEvent[] = [];
-	harness.events.on('edit', (e) => edits.push(e));
+	const harness = makeTopHarness(source);
 	return {
-		deps: harness.deps,
-		doc: harness.doc,
-		controller,
-		edits,
-		commit: createInlineRangeCommit({ getDoc: () => harness.doc, controller })
+		...harness,
+		commit: createInlineRangeCommit({ getDoc: () => harness.doc, controller: harness.controller })
 	};
 }
 

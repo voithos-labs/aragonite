@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
-import { makeNestedHarness } from '../harness/editor-actions';
+import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
 
 // The list bundle's item replace falls through to the shared block-edit core rather than

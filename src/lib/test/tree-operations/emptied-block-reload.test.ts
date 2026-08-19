@@ -3,8 +3,8 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '$lib/tree-operations/node-ops';
 import { trailingLineEnding } from '$lib/core/lines';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import type { CstNode, Document } from '$lib/core/nodes';
+import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
+import type { Document } from '$lib/core/nodes';
 
 // The reverse of the typed-blank-line spine (`typed-blank-lines-reload.test.ts`): a block that
 // BECOMES blank joins the blank run around it, and a run carries exactly the one separating line
@@ -12,9 +12,6 @@ import type { CstNode, Document } from '$lib/core/nodes';
 // head into the block above.
 // Miss-analysis: every blank-line case drove the FILL direction — a blank block gaining content —
 // so nothing emptied a block, and `updateNodeContent` settled one direction of the transition.
-
-const layout = (nodes: readonly CstNode[]): [string, string, string][] =>
-	nodes.map((n) => [n.kind, n.leadingTrivia, n.raw]);
 
 /** The gesture: `TextEditableBlock.commitInput` sends `text + trailingLineEnding(raw)`, so an
  *  emptied block sends the line ending alone. */

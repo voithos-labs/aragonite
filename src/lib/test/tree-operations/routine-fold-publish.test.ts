@@ -1,18 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { registerBlockListState } from '$lib/reactivity/state-registry';
-import {
-	makeBlockListState,
-	makeEditorActionsDeps,
-	makeNestedActionsDeps,
-	makeStubBlockEdit,
-	makeStubFocus
-} from '$lib/test/harness/editor-actions';
+import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 // The door B-F1's settle opens: routine typing writes OUTSIDE the commit ceremony, so a settle
@@ -27,12 +15,10 @@ const SOURCE = '- a\n\n\nzz\n';
 
 describe('a routine content write whose settle folds', () => {
 	it('publishes the fold at the document scope', async () => {
-		const h = makeEditorActionsDeps(parse(SOURCE));
-		const controller = createUndoController(h.deps);
-		const actions = createBlockEditActions(h.deps, controller);
+		const h = makeTopHarness(SOURCE);
 		const before = h.getBlockIds();
 
-		await actions.updateBlockContent(1, '  b\n', 0);
+		await h.actions.updateBlockContent(1, '  b\n', 0);
 
 		expect(serialize(h.deps.doc)).toBe('- a\n\n  b\n\nzz\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();
@@ -42,28 +28,14 @@ describe('a routine content write whose settle folds', () => {
 	});
 
 	it('publishes the fold at a container scope', async () => {
-		const h = makeEditorActionsDeps(parse('> - a\n>\n>\n> zz\n'));
-		const controller = createUndoController(h.deps);
-		const containerEdit = createContainerEditActions(h.deps, controller);
-		const getNode = () => h.deps.doc.children[0];
-		const state = makeBlockListState(getNode);
-		registerBlockListState(getNode(), state);
-		const bundle = createStandardNestedActions(
-			state,
-			makeNestedActionsDeps({
-				index: 0,
-				getNode,
-				path: [0],
-				parent: { blockEdit: makeStubBlockEdit(), focus: makeStubFocus(), containerEdit }
-			})
-		);
-		const before = [...state.innerBlockIds];
+		const h = makeNestedHarness('> - a\n>\n>\n> zz\n', { index: 0 });
+		const before = [...h.state.innerBlockIds];
 
-		await bundle.blockEdit.updateBlockContent(1, '  b\n', 0);
+		await h.bundle.blockEdit.updateBlockContent(1, '  b\n', 0);
 
 		expect(serialize(h.deps.doc)).toBe('> - a\n>\n>   b\n>\n> zz\n');
 		expect(describeConvergence(h.deps.doc)).toBeNull();
-		expect(state.innerBlockIds).toHaveLength(getNode().children!.length);
-		expect(state.innerBlockIds[1]).toBe(before[2]);
+		expect(h.state.innerBlockIds).toHaveLength(h.getNode().children!.length);
+		expect(h.state.innerBlockIds[1]).toBe(before[2]);
 	});
 });

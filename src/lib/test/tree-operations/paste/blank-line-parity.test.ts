@@ -14,6 +14,7 @@ import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { splitNode } from '$lib/tree-operations/node-ops';
 import { makeEditorActionsDeps, makeStubBlockEdit } from '$lib/test/harness/editor-actions';
+import { triviaRawOf } from '$lib/test/harness/parse-converged';
 
 // A pasted blank line must reach the same shape the same bytes reach by loading or typing
 // (GH #20). Paste parses the clipboard, so the parser's separator rule is the whole answer.
@@ -72,8 +73,7 @@ async function pasteLive(
 
 const raws = (doc: Document): string[] => doc.children.map((n) => n.raw);
 
-const layout = (doc: Document): [string, string][] =>
-	doc.children.map((n) => [n.leadingTrivia, n.raw]);
+const layout = (doc: Document) => triviaRawOf(doc.children);
 
 describe('a pasted blank line follows the parser rule', () => {
 	it('pastes one separating blank as a separator, not a row', async () => {

@@ -11,22 +11,14 @@ import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
-	makeStubFocus
-} from '../harness/editor-actions';
-import { CURSOR_START, type BlockComponent } from '$lib/block-component';
+	makeStubFocus,
+	mockRef
+} from '$lib/test/harness/editor-actions';
+import { CURSOR_START } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
 
 // The delete's afterTick must clamp against the LIVE post-commit children: a node
 // captured by value is stale by +1, so deleting the LAST item indexes past the refs.
-
-function focusSpyRef(): BlockComponent {
-	return {
-		focus: vi.fn(),
-		getCursorOffset: () => null,
-		editable: true,
-		focusable: true
-	} as BlockComponent;
-}
 
 describe('list-overrides deleteBlock — focus after deleting the last item', () => {
 	it('lands the caret on the new last item, not a stale index past the refs', async () => {
@@ -38,7 +30,11 @@ describe('list-overrides deleteBlock — focus after deleting the last item', ()
 			listState as unknown as Parameters<typeof registerBlockListState>[1]
 		);
 
-		const refs = [focusSpyRef(), focusSpyRef(), focusSpyRef()];
+		const refs = [
+			mockRef({ focus: vi.fn() }),
+			mockRef({ focus: vi.fn() }),
+			mockRef({ focus: vi.fn() })
+		];
 		replaceRefs(listState.innerBlockRefs, refs);
 
 		const controller = createUndoController(deps);

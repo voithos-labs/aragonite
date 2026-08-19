@@ -17,6 +17,7 @@ describe('splitNode', () => {
 		expect(doc.children[1].raw).toBe(' World\n');
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(doc.children[1].kind).toBe('paragraph');
+		expect(serialize(doc)).toBe('Hello\n\n World\n');
 	});
 
 	it('preserves the original ID and assigns a new one', () => {
@@ -66,14 +67,6 @@ describe('splitNode', () => {
 		expect(doc.children[1].raw).toBe('Line two.\n');
 	});
 
-	it('produces correct serialization after split', () => {
-		const source = 'Hello World\n';
-		const doc = parse(source);
-		splitNode(doc, 0, 5, undefined, undefined, undefined);
-		const result = serialize(doc);
-		expect(result).toBe('Hello\n\n World\n');
-	});
-
 	it('handles CRLF line endings correctly', () => {
 		const source = 'Hello World\r\n';
 		const doc = parse(source);
@@ -92,14 +85,6 @@ describe('splitNode edge cases', () => {
 		expect(secondHalfIndex).toBe(2);
 		expect(doc.children[secondHalfIndex].raw).toBe('    b\n');
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['tree-ops']);
-	});
-
-	it('splits the only node in the document', () => {
-		const source = 'Hello World\n';
-		const doc = parse(source);
-		splitNode(doc, 0, 5, undefined, undefined, undefined);
-		expect(doc.children).toHaveLength(2);
-		expect(serialize(doc)).toBe('Hello\n\n World\n');
 	});
 
 	it('split at offset beyond raw length produces empty second block', () => {

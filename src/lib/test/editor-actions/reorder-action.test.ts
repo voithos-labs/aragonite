@@ -5,9 +5,8 @@ import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
 import { createReorderAction } from '$lib/editor-actions/reorder-action';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
-import { mockRef, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeReorderContainer } from './reorder-harness';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -34,40 +33,6 @@ function makeTop(raws: string[]) {
 			expect(harness.getBlockIds()).toHaveLength(n);
 			expect(harness.getBlockRefs()).toHaveLength(n);
 			expect(new Set(harness.getBlockIds()).size).toBe(n);
-		}
-	};
-}
-
-// ── Container harness ─────────────────────────────────────────────────────────
-
-// Seeds innerBlockRefs to mimic a mounted container ({#each} never runs in node env)
-// and registers the live node's state so the action's expectStateForNode resolves.
-function makeContainer(source: string) {
-	const initial = parse(source).children[0];
-	const harness = makeEditorActionsDeps([initial]);
-	const node = () => harness.doc.children[0];
-	const controller = createUndoController(harness.deps);
-	const history = createHistoryActions(harness.deps, controller);
-	const reorder = createReorderAction(harness.deps, controller);
-	const state = createBlockListState(node);
-	replaceRefs(
-		state.innerBlockRefs,
-		(initial.children ?? []).map(() => mockRef())
-	);
-	return {
-		doc: harness.doc,
-		node,
-		state,
-		reorder,
-		deps: harness.deps,
-		undo: history.requestUndo,
-		ids: () => state.innerBlockIds,
-		// Convergence, not just a byte round-trip: the round trip is blind to a stale
-		// container raw or a renumber-desynced marker the permutation left behind.
-		assertStable() {
-			expectParseConverged(harness.doc);
-			const live = serialize(harness.doc);
-			expect(serialize(parse(live))).toBe(live);
 		}
 	};
 }
@@ -123,17 +88,17 @@ describe('reorder action — top level', () => {
 
 describe('reorder action — list', () => {
 	it('nudge moves a list item up and down (down at the tail clamps)', async () => {
-		const up = makeContainer('- one\n- two\n- three\n');
+		const up = makeReorderContainer('- one\n- two\n- three\n');
 		await up.reorder.nudgeReorderUnit([0, 2, 0], -1);
 		expect(serialize(up.doc)).toBe('- one\n- three\n- two\n');
 
-		const down = makeContainer('- one\n- two\n- three\n');
+		const down = makeReorderContainer('- one\n- two\n- three\n');
 		await down.reorder.nudgeReorderUnit([0, 2, 0], 1);
 		expect(serialize(down.doc)).toBe('- one\n- two\n- three\n');
 	});
 
 	it('moving a list item keeps its keyed id (idMap, not recreate)', async () => {
-		const h = makeContainer('- one\n- two\n- three\n');
+		const h = makeReorderContainer('- one\n- two\n- three\n');
 		const idsBefore = h.ids().slice();
 		await h.reorder.nudgeReorderUnit([0, 2, 0], -1);
 		expect(h.ids()[1]).toBe(idsBefore[2]);
@@ -141,7 +106,7 @@ describe('reorder action — list', () => {
 	});
 
 	it('ordered list renumbers and stays byte-stable', async () => {
-		const h = makeContainer('1. one\n2. two\n3. three\n');
+		const h = makeReorderContainer('1. one\n2. two\n3. three\n');
 		await h.reorder.nudgeReorderUnit([0, 2, 0], -1);
 		expect(serialize(h.doc)).toBe('1. one\n2. three\n3. two\n');
 		h.assertStable();
@@ -150,7 +115,7 @@ describe('reorder action — list', () => {
 
 describe('reorder action — blockquote', () => {
 	it('drag move (absolute toIndex) reorders and undoes in one byte-exact step', async () => {
-		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
+		const h = makeReorderContainer('> a\n>\n> b\n>\n> c\n');
 		await h.reorder.moveReorderUnit([0, 0], 2);
 		expect(serialize(h.doc)).toBe('> b\n>\n> c\n>\n> a\n');
 		await h.undo();
@@ -158,7 +123,7 @@ describe('reorder action — blockquote', () => {
 	});
 
 	it('drag move clamps an out-of-range toIndex to the last slot', async () => {
-		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
+		const h = makeReorderContainer('> a\n>\n> b\n>\n> c\n');
 		await h.reorder.moveReorderUnit([0, 0], 99);
 		expect(serialize(h.doc)).toBe('> b\n>\n> c\n>\n> a\n');
 	});
@@ -166,7 +131,7 @@ describe('reorder action — blockquote', () => {
 	// A drag carries no live caret, so the snapshot synthesizes the restore path; a
 	// top-level index there strands the caret on an unrelated block after undo.
 	it('a no-caret container reorder snapshots a deep restore path', async () => {
-		const h = makeContainer('> a\n>\n> b\n>\n> c\n');
+		const h = makeReorderContainer('> a\n>\n> b\n>\n> c\n');
 		await h.reorder.moveReorderUnit([0, 0], 2);
 		const { undo } = h.deps.undoManager.getStacks();
 		expect(rangeSelectionOf(undo.at(-1)!).focus.path).toEqual([0, 0]);

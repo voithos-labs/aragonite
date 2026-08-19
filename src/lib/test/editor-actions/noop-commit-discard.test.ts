@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
@@ -14,8 +13,9 @@ import {
 	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
-	makeStubFocus
-} from '../harness/editor-actions';
+	makeStubFocus,
+	makeTopHarness
+} from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
 // A structural op that changes nothing must mint no undo entry and emit no edit event.
@@ -68,19 +68,13 @@ describe('noop structural commit discards its snapshot', () => {
 
 	// Positive control: a "discard everything" regression fails here.
 	it('a real paragraph split still mints one undo entry and one edit event', async () => {
-		const doc = parse('hello world\n');
-		const { deps, events } = makeEditorActionsDeps(doc.children);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const h = makeTopHarness('hello world\n');
 
-		const edits: EditEvent[] = [];
-		events.on('edit', (e) => edits.push(e));
+		await h.actions.splitBlock(0, 5);
 
-		await actions.splitBlock(0, 5);
-
-		expect(deps.undoManager.getStacks().undo).toHaveLength(1);
-		expect(edits.filter((e) => e.op === 'split')).toHaveLength(1);
-		expect(deps.doc.children).toHaveLength(2);
+		expect(h.deps.undoManager.getStacks().undo).toHaveLength(1);
+		expect(h.edits.filter((e) => e.op === 'split')).toHaveLength(1);
+		expect(h.deps.doc.children).toHaveLength(2);
 	});
 });
 

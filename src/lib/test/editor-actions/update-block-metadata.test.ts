@@ -1,11 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { createHistoryActions } from '$lib/editor-actions/commit/history';
-import { makeEditorActionsDeps, makeNestedHarness } from '$lib/test/harness/editor-actions';
-function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): any {
-	return { kind, leadingTrivia: '', raw, metadata };
-}
+import { makeNestedHarness, makeNode, makeTopHarness } from '$lib/test/harness/editor-actions';
 
 // rebuildListItemRaw no-ops without `children`, so raw-assertion cases need a child.
 function makeTaskListItem(text: string, taskMarker: string): any {
@@ -26,9 +21,7 @@ function makeTaskListItem(text: string, taskMarker: string): any {
 describe('updateBlockMetadata', () => {
 	it('merges patch into node.metadata and emits one metadataUpdate event', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, events } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, events, actions } = makeTopHarness([node]);
 
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
@@ -47,9 +40,7 @@ describe('updateBlockMetadata', () => {
 
 	it('pushes exactly one undo snapshot, and undo/redo flip metadata back and forth', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, controller, actions } = makeTopHarness([node]);
 		const history = createHistoryActions(deps, controller);
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
@@ -67,9 +58,7 @@ describe('updateBlockMetadata', () => {
 
 	it("undoEntry: 'join' — no undo snapshot pushed", async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, actions } = makeTopHarness([node]);
 
 		await actions.updateBlockMetadata(0, { taskChecked: true }, { undoEntry: 'join' });
 
@@ -79,9 +68,7 @@ describe('updateBlockMetadata', () => {
 
 	it('empty patch — no snapshot, no event, metadata unchanged', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps, events } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, events, actions } = makeTopHarness([node]);
 
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
@@ -97,10 +84,8 @@ describe('updateBlockMetadata', () => {
 	// top-level scope must name it or the resync gets zero G1.1/G1.12/G1.13 validation.
 	it('names the resynced node for the dev oracle (parity with the container scope)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
+		const { deps, controller, actions } = makeTopHarness([node]);
 		const spy = vi.spyOn(controller, 'commitStructural');
-		const actions = createBlockEditActions(deps, controller);
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
@@ -111,9 +96,7 @@ describe('updateBlockMetadata', () => {
 
 	it('runs the afterTick callback after committing (post-commit caret placement)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, actions } = makeTopHarness([node]);
 
 		const afterTick = vi.fn(() => {
 			expect(deps.doc.children[0].metadata).toEqual({ taskChecked: true });
@@ -125,9 +108,7 @@ describe('updateBlockMetadata', () => {
 
 	it('skips afterTick when the patch is empty (no commit runs)', async () => {
 		const node = makeNode('paragraph', 'hello\n', { taskChecked: false });
-		const { deps } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { actions } = makeTopHarness([node]);
 
 		const afterTick = vi.fn();
 		await actions.updateBlockMetadata(0, {}, { afterTick });
@@ -143,9 +124,7 @@ describe('updateBlockMetadata', () => {
 			taskItem: true,
 			taskChecked: false
 		});
-		const { deps } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, actions } = makeTopHarness([node]);
 
 		await actions.updateBlockMetadata(0, { taskChecked: true });
 
@@ -158,9 +137,7 @@ describe('updateBlockMetadata', () => {
 
 	it('multi-field patch updates taskChecked and taskMarker atomically', async () => {
 		const node = makeTaskListItem('pending', '[ ] ');
-		const { deps, events } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, events, actions } = makeTopHarness([node]);
 
 		const editHandler = vi.fn();
 		events.on('edit', editHandler);
@@ -181,9 +158,7 @@ describe('updateBlockMetadata', () => {
 
 	it('undo after multi-field task patch restores both fields', async () => {
 		const node = makeTaskListItem('pending', '[ ] ');
-		const { deps } = makeEditorActionsDeps([node]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { deps, controller, actions } = makeTopHarness([node]);
 		const history = createHistoryActions(deps, controller);
 
 		await actions.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
@@ -199,31 +174,46 @@ describe('updateBlockMetadata', () => {
 
 // ── Container scope ───────────────────────────────────────────────────────────
 
-function makeContainerSetup(containerIndex: number) {
-	const innerNode = makeNode('paragraph', 'hello\n', {
-		marker: '- ',
-		taskItem: true,
-		taskChecked: false
-	});
-	const containerNode: any = {
+const CONTAINERS = {
+	blockquote: () => ({
+		inner: makeNode('paragraph', 'hello\n', { marker: '- ', taskItem: true, taskChecked: false }),
 		kind: 'blockquote',
+		raw: '> hello\n'
+	}),
+	list: () => ({
+		inner: makeTaskListItem('pending', '[ ] '),
+		kind: 'list',
+		raw: '- [ ] pending\n',
+		metadata: { ordered: false }
+	})
+} as const;
+
+function makeContainerSetup(
+	containerIndex: number,
+	container: keyof typeof CONTAINERS = 'blockquote'
+) {
+	const spec = CONTAINERS[container]();
+	const containerNode: any = {
+		kind: spec.kind,
 		leadingTrivia: '',
-		raw: '> hello\n',
-		children: [innerNode],
+		raw: spec.raw,
+		...('metadata' in spec ? { metadata: spec.metadata } : {}),
+		children: [spec.inner],
 		innerPrefix: '',
 		innerSuffix: ''
 	};
-
 	const padNode = makeNode('paragraph', 'pad\n', {});
 	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
 
-	const { deps, events, controller, bundle } = makeNestedHarness(docNodes, {
-		index: containerIndex
-	});
+	const { deps, events, bundle } = makeNestedHarness(docNodes, { index: containerIndex });
 
-	const liveInner = () => deps.doc.children[containerIndex].children![0];
-	const liveContainer = () => deps.doc.children[containerIndex];
-	return { bundle, innerNode, containerNode, liveInner, liveContainer, deps, events, controller };
+	return {
+		bundle,
+		deps,
+		events,
+		liveInner: () => deps.doc.children[containerIndex].children![0],
+		liveContainer: () => deps.doc.children[containerIndex]
+	};
 }
 
 describe('updateBlockMetadata — container scope', () => {
@@ -277,7 +267,7 @@ describe('updateBlockMetadata — container scope', () => {
 	it('task taskMarker patch rebuilds inner listItem raw AND parent list raw', async () => {
 		// Without the ceremony's ancestry rebuild the inner listItem.raw updates while the
 		// list's composite raw stays stale.
-		const { bundle, liveInner, liveContainer } = makeListContainerSetup(1);
+		const { bundle, liveInner, liveContainer } = makeContainerSetup(1, 'list');
 
 		await bundle.blockEdit.updateBlockMetadata(0, { taskChecked: true, taskMarker: '[x] ' });
 
@@ -285,29 +275,3 @@ describe('updateBlockMetadata — container scope', () => {
 		expect(liveContainer().raw).toBe('- [x] pending\n');
 	});
 });
-
-// ── List-container scope helper ──────────────────────────────────────────────
-
-function makeListContainerSetup(containerIndex: number) {
-	const innerNode = makeTaskListItem('pending', '[ ] ');
-	const containerNode: any = {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: '- [ ] pending\n',
-		metadata: { ordered: false },
-		innerPrefix: '',
-		innerSuffix: '',
-		children: [innerNode]
-	};
-
-	const padNode = makeNode('paragraph', 'pad\n', {});
-	const docNodes = Array.from({ length: containerIndex }, () => padNode).concat([containerNode]);
-
-	const { deps, events, controller, bundle } = makeNestedHarness(docNodes, {
-		index: containerIndex
-	});
-
-	const liveInner = () => deps.doc.children[containerIndex].children![0];
-	const liveContainer = () => deps.doc.children[containerIndex];
-	return { bundle, innerNode, containerNode, liveInner, liveContainer, deps, events, controller };
-}

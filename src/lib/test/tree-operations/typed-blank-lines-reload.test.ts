@@ -2,14 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { splitNode, updateNodeContent } from '$lib/tree-operations/node-ops';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
-import type { CstNode, Document } from '$lib/core/nodes';
+import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
+import type { Document } from '$lib/core/nodes';
 
 // The typing ≡ loading spine at tree level: the simulation compares source BYTES across the
 // two paths, so a shape that only the typed side holds survived it.
-
-const layout = (nodes: readonly CstNode[]): [string, string, string][] =>
-	nodes.map((n) => [n.kind, n.leadingTrivia, n.raw]);
 
 /** "1", Enter, Enter, "2" — the Enter-split byte policy, driven through the ops. */
 function typeOneEnterEnterTwo(): Document {

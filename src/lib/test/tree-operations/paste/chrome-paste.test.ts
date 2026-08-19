@@ -11,8 +11,11 @@ import { declarePluginKind } from '../../../schema/plugin-kind';
 import { registerBlockKind } from '../../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../../schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
-import { registerBlockListState } from '../../../reactivity/state-registry';
-import { makeStubBlockEdit, makeStubController } from '../../harness/editor-actions';
+import {
+	makeStubBlockEdit,
+	makeStubController,
+	registerStubBlockListState
+} from '../../harness/editor-actions';
 import type { AnyBlockKind, CstNode, Document } from '../../../core/nodes';
 
 // The shape registerChromeLeaf produces: reserved chrome at child 0 plus the leaf's
@@ -57,45 +60,26 @@ function makeTitledContainerDoc(container: AnyBlockKind, chrome: AnyBlockKind): 
 	};
 }
 
-function registerListState(node: CstNode) {
-	registerBlockListState(node, {
-		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
-		innerBlockRefs: (node.children ?? []).map(() => undefined)
-	} as never);
-}
-
 describe('paste into a reserved-chrome leaf', () => {
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		__resetPasteSurfacesForTests();
 	});
 
-	it('flattens a multi-block clipboard inline, keeping the chrome one node', async () => {
+	// A `\r\n\r\n` break is one run: flattening per-`\n` double-spaces it.
+	it.each([
+		['LF', 'one\n\ntwo\n'],
+		['CRLF (Windows clipboard)', 'one\r\n\r\ntwo\r\n']
+	])('flattens a multi-block %s clipboard inline, keeping the chrome one node', async (_, text) => {
 		const { container, chrome } = registerChromeContainer();
 		const doc = makeTitledContainerDoc(container, chrome);
 		const blockEdit = makeStubBlockEdit();
 
 		await pasteDispatch(
-			{ pastedText: 'one\n\ntwo\n', targetPath: [0, 0], offset: 5 },
+			{ pastedText: text, targetPath: [0, 0], offset: 5 },
 			{ doc, blockEdit, controller: makeStubController() }
 		);
 
-		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
-		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Titleone two\n', 12);
-		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
-	});
-
-	it('collapses a CRLF paragraph break to a single space (Windows clipboard)', async () => {
-		const { container, chrome } = registerChromeContainer();
-		const doc = makeTitledContainerDoc(container, chrome);
-		const blockEdit = makeStubBlockEdit();
-
-		await pasteDispatch(
-			{ pastedText: 'one\r\n\r\ntwo\r\n', targetPath: [0, 0], offset: 5 },
-			{ doc, blockEdit, controller: makeStubController() }
-		);
-
-		// A `\r\n\r\n` break is one run: flattening per-`\n` double-spaces it.
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledOnce();
 		expect(blockEdit.updateBlockContent).toHaveBeenCalledWith(0, 'Titleone two\n', 12);
 		expect(blockEdit.replaceBlock).not.toHaveBeenCalled();
@@ -123,7 +107,7 @@ describe('paste into a reserved-chrome leaf', () => {
 			]
 		};
 		const doc: Document = { kind: 'document', prefix: '', suffix: '', children: [list] };
-		registerListState(list);
+		registerStubBlockListState(list);
 		const blockEdit = makeStubBlockEdit();
 		const controller = makeStubController();
 
@@ -143,7 +127,7 @@ describe('paste into a reserved-chrome leaf', () => {
 		registerChromeContainer();
 		const doc = parse('- a\n- b\n');
 		const list = doc.children[0] as CstNode;
-		registerListState(list);
+		registerStubBlockListState(list);
 		const blockEdit = makeStubBlockEdit();
 		const controller = makeStubController();
 

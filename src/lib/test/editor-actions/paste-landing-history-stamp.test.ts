@@ -2,9 +2,9 @@
 // touching the stack, so the one interleaving that misplaces the caret — a history swap
 // resolving inside the landing's own reveal await — had no arm at any layer (#31).
 import { describe, it, expect, vi } from 'vitest';
-import { createPasteCoordinator } from '../../editor-actions/paste-coordinator';
-import type { UndoController } from '../../editor-actions/deps';
-import type { BlockComponent } from '../../block-component';
+import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
+import type { UndoController } from '$lib/editor-actions/deps';
+import type { BlockComponent } from '$lib/block-component';
 
 /** Only the two members the landing reads; the rest of the controller never runs here. */
 function stubController(): UndoController {

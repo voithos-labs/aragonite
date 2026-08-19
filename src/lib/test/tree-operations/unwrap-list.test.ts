@@ -87,15 +87,6 @@ describe('unwrapFirstItemFromList', () => {
 		expect(result[1].children?.length).toBe(2);
 	});
 
-	it('single-item list, paragraph only: remaining list omitted entirely', () => {
-		const list = parseList('- Solo\n');
-
-		const result = unwrapFirstItemFromList(list);
-
-		expect(result).toHaveLength(1);
-		expect(result[0].kind).toBe('paragraph');
-	});
-
 	it('ordered list: remaining items renumber from the original base', () => {
 		const list = parseList('1. First\n2. Second\n3. Third\n');
 

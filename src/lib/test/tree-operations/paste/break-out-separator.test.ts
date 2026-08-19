@@ -12,7 +12,7 @@ import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-import { expectParseConverged } from '$lib/test/harness/parse-converged';
+import { expectParseConverged, triviaRawOf } from '$lib/test/harness/parse-converged';
 
 // A break-out splices the enclosing list's slot for a first-half list, the pasted blocks and a
 // residue half, and the slot's own separating line has to survive that swap like every other
@@ -40,8 +40,7 @@ async function pasteInto(doc: Document, targetPath: number[], offset: number, cl
 	return deps.doc;
 }
 
-const layout = (doc: Document): [string, string][] =>
-	doc.children.map((n) => [n.leadingTrivia, n.raw]);
+const layout = (doc: Document) => triviaRawOf(doc.children);
 
 describe('a paste that breaks a list out settles the slot it spliced', () => {
 	it('keeps the separating line the broken-out list stood below', async () => {

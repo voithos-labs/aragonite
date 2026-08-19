@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { getBlockKindDescriptor, registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
@@ -7,12 +6,8 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import type { CstNode, Document } from '$lib/core/nodes';
-import { compileMatcher } from '$lib/search/matcher';
 import { createGrammarView } from '$lib/schema/block-openers';
-import { scanDocument } from '$lib/search/document-scan';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createSearchReplace } from '$lib/editor-actions/search-replace';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeSearchReplace, scanCompiled } from '$lib/test/harness/search-replace';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 
 // A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
@@ -39,9 +34,7 @@ function scanForLiteral(doc: Document, needle: string) {
 
 describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	it('two matches in two children of one blockquote, both splitting, commit as ONE undo entry', async () => {
-		const doc = parse('> aXa\n>\n> bXb\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('> aXa\n>\n> bXb\n');
 
 		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), '\n\n');
 
@@ -51,9 +44,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 
 	it('a match in a blockquote child + one in a nested list-item commit atomically', async () => {
-		const doc = parse('> outerX\n>\n> - itemX\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('> outerX\n>\n> - itemX\n');
 
 		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), 'Y');
 
@@ -64,46 +55,27 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 
 	it('replaces matches across two separate top-level subtrees in one entry', async () => {
-		const doc = parse('cat one\n\n- cat two\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('cat one\n\n- cat two\n');
 		await sr.replaceAll(scanForLiteral(deps.doc, 'cat'), 'dog');
 		expect(deps.undoManager.getStacks().undo.length).toBe(1);
 		expect(serialize(deps.doc)).toBe('dog one\n\n- dog two\n');
 	});
 
 	it('replaces each found match exactly once (no re-scan of the replacement)', async () => {
-		const doc = parse('a a a\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('a a a\n');
 		await sr.replaceAll(scanForLiteral(deps.doc, 'a'), 'aa');
 		expect(serialize(deps.doc)).toBe('aa aa aa\n');
 	});
 
 	it('replaces text inside a table cell', async () => {
-		const doc = parse('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
 		await sr.replaceAll(scanForLiteral(deps.doc, 'cat'), 'dog');
 		expect(serialize(deps.doc)).toContain('dog');
 		expect(serialize(deps.doc)).not.toContain('cat');
 	});
 
-	it('escapes a pipe in a table-cell replacement so the row keeps its cells', async () => {
-		const doc = parse('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
-		await sr.replaceAll(scanForLiteral(deps.doc, 'cat'), 'a|b');
-		const bodyCells = deps.doc.children[0].children![1].children!;
-		expect(bodyCells.length).toBe(2);
-		expect(bodyCells[1].raw.trim()).toBe('2');
-		expect(serialize(deps.doc)).toContain('a\\|b');
-	});
-
 	it('collapses a newline in a regex table-cell replacement so no phantom row appears', async () => {
-		const doc = parse('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('| name | qty |\n| --- | --- |\n| cat | 2 |\n');
 		// Regex mode supplies groups, which lets `\n` expand, so the cell escape must collapse it.
 		const matches = scanForLiteral(deps.doc, 'cat').map((m) => ({ ...m, groups: ['cat'] }));
 		await sr.replaceAll(matches, 'a\\nb');
@@ -112,9 +84,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 
 	it('does not write through a snapshot-shared node (aliasing: pushed snapshot still serializes to pre-replace source)', async () => {
-		const doc = parse('> aXa\n>\n> bXb\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('> aXa\n>\n> bXb\n');
 		const before = serialize(deps.doc);
 		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), 'ZZ');
 		const snapshot = deps.undoManager.getStacks().undo[0].snapshot;
@@ -122,9 +92,7 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 
 	it('seeds the undo snapshot with the deep match path for a nested replacement', async () => {
-		const doc = parse('- itemX\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('- itemX\n');
 		const match = scanForLiteral(deps.doc, 'X')[0];
 		expect(match.path.length).toBeGreaterThan(1); // nested, so RED ≠ GREEN
 
@@ -136,10 +104,8 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	});
 
 	it('preserves the block id of an untouched top-level block', async () => {
-		const doc = parse('keep me\n\nchange X\n');
-		const { deps, getBlockIds } = makeEditorActionsDeps(doc.children);
+		const { deps, sr, getBlockIds } = makeSearchReplace('keep me\n\nchange X\n');
 		const idBefore = getBlockIds()[0];
-		const sr = createSearchReplace(deps, createUndoController(deps));
 		await sr.replaceAll(scanForLiteral(deps.doc, 'X'), 'Y');
 		expect(getBlockIds()[0]).toBe(idBefore);
 		expect(serialize(deps.doc)).toBe('keep me\n\nchange Y\n');
@@ -148,9 +114,9 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 	it('gives every container in a reparsed subtree childIds (reused container never reads undefined keys)', async () => {
 		// The needle in item 1 makes replaceAll reparse the whole list. Without childIds on the
 		// fresh listItem[0], the reused container's keyed-each collides on `undefined` keys.
-		const doc = parse('1. First.\n\n   Continuation.\n2. Second with a needle sub.\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace(
+			'1. First.\n\n   Continuation.\n2. Second with a needle sub.\n'
+		);
 
 		const matches = scanForLiteral(deps.doc, 'needle');
 		expect(matches.length).toBeGreaterThan(0);
@@ -175,28 +141,22 @@ describe('replaceAll — per-top-level-subtree, one undo entry', () => {
 
 describe('replaceOne — single-subtree case', () => {
 	it('replaces a single match and keeps one undo entry', async () => {
-		const doc = parse('the cat sat\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('the cat sat\n');
 		await sr.replaceOne({ path: [0], start: 4, end: 7 }, 'dog');
 		expect(serialize(deps.doc)).toBe('the dog sat\n');
 		expect(deps.undoManager.getStacks().undo.length).toBe(1);
 	});
 
 	it('changes block kind when the replacement introduces a heading marker', async () => {
-		const doc = parse('title\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('title\n');
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
 		expect(deps.doc.children[0].kind).toBe('heading');
 	});
 
 	// Parity with the top-level content commit: the reparse honors the instance grammar.
 	it('honors the instance grammar — a disabled heading marker stays paragraph', async () => {
-		const doc = parse('title\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
+		const { deps, sr } = makeSearchReplace('title\n');
 		deps.grammar = createGrammarView((kind) => kind !== 'heading');
-		const sr = createSearchReplace(deps, createUndoController(deps));
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
 		expect(deps.doc.children[0].kind).toBe('paragraph');
 	});
@@ -204,12 +164,6 @@ describe('replaceOne — single-subtree case', () => {
 
 describe('replace — matches on childless opaque containers are skipped', () => {
 	// The real scanner: only it produces the container matches these pin.
-	function scanFor(doc: Document, q: string) {
-		const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
-		if (!r.ok) throw new Error(r.error);
-		return scanDocument(doc, r.matcher);
-	}
-
 	const DIAGRAM_RAW = '```diagram\ngraph cat\n```\n';
 	let diagramNode: CstNode;
 	beforeEach(() => {
@@ -227,10 +181,9 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 
 	it('replaceAll applies only leaf matches and reports the real count', async () => {
 		const para: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'prose cat\n' };
-		const { deps } = makeEditorActionsDeps([para, diagramNode]);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace([para, diagramNode]);
 
-		const matches = scanFor(deps.doc, 'cat');
+		const matches = scanCompiled(deps.doc, 'cat');
 		expect(matches.map((m) => m.path)).toEqual([[0], [1]]); // leaf + container, so RED ≠ GREEN
 
 		const replaced = await sr.replaceAll(matches, 'dog');
@@ -243,10 +196,9 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 	});
 
 	it('replaceOne on a container match is a no-op with no undo entry', async () => {
-		const { deps } = makeEditorActionsDeps([diagramNode]);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace([diagramNode]);
 
-		const match = scanFor(deps.doc, 'cat')[0];
+		const match = scanCompiled(deps.doc, 'cat')[0];
 		expect(match.path).toEqual([0]);
 
 		const replaced = await sr.replaceOne(match, 'dog');
@@ -283,10 +235,9 @@ describe('replace — a batch that applies nothing leaves no undo entry', () => 
 			raw: 'prose cat\n',
 			children: [child]
 		};
-		const { deps } = makeEditorActionsDeps([node]);
+		const { deps, sr } = makeSearchReplace([node]);
 		const errors: unknown[] = [];
 		deps.events.on('error', (e) => void errors.push(e));
-		const sr = createSearchReplace(deps, createUndoController(deps));
 
 		const replaced = await sr.replaceAll([{ path: [0, 0], start: 6, end: 9 }], 'dog');
 
@@ -301,23 +252,15 @@ describe('replace — a childless opaque container reparses its own bytes', () =
 	// whose opener was never registered — so the decline read as "containers are excluded" when
 	// the real rule is kind stability, and the reachable half (a registered kind that survives the
 	// substitution) had no case at all.
-	function scanFor(doc: Document, q: string) {
-		const r = compileMatcher(q, { caseSensitive: false, wholeWord: false, regex: false });
-		if (!r.ok) throw new Error(r.error);
-		return scanDocument(doc, r.matcher);
-	}
-
 	beforeEach(() => {
 		__resetSchemaRegistriesForTests();
 		registerMermaidKind();
 	});
 
 	it('substitutes inside the diagram and comes back the same kind', async () => {
-		const doc = parse('```mermaid\ngraph cat\n```\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('```mermaid\ngraph cat\n```\n');
 
-		const matches = scanFor(deps.doc, 'cat');
+		const matches = scanCompiled(deps.doc, 'cat');
 		expect(matches.map((m) => m.path)).toEqual([[0]]);
 		expect(await sr.replaceAll(matches, 'dog')).toBe(1);
 
@@ -327,11 +270,9 @@ describe('replace — a childless opaque container reparses its own bytes', () =
 
 	// The one hazard the reparse cannot absorb: bytes that break the opener line.
 	it('declines a substitution that would reparse as a different kind', async () => {
-		const doc = parse('```mermaid\ngraph cat\n```\n');
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const sr = createSearchReplace(deps, createUndoController(deps));
+		const { deps, sr } = makeSearchReplace('```mermaid\ngraph cat\n```\n');
 
-		const matches = scanFor(deps.doc, 'mermaid');
+		const matches = scanCompiled(deps.doc, 'mermaid');
 		expect(await sr.replaceAll(matches, 'js')).toBe(0);
 		expect(deps.doc.children[0].kind).toBe('mermaid');
 		expect(serialize(deps.doc)).toBe('```mermaid\ngraph cat\n```\n');

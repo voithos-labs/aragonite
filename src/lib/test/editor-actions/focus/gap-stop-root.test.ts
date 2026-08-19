@@ -2,13 +2,13 @@
 //
 // Which root-scope moves park in a gap instead of entering the target block.
 import { describe, it, expect, vi } from 'vitest';
-import { parse } from '../../../core/parser';
-import { createFocusActions } from '../../../editor-actions/focus/focus';
-import { createUndoController } from '../../../editor-actions/commit/undo-controller';
-import { makeEditorActionsDeps, mockRef } from '../../harness/editor-actions';
-import type { FocusPosition } from '../../../block-component';
-import type { MoveFocusOptions } from '../../../action-contracts';
-import type { PresentationMode } from '../../../presentation-mode';
+import { parse } from '$lib/core/parser';
+import { createFocusActions } from '$lib/editor-actions/focus/focus';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { makeEditorActionsDeps, mockRef } from '$lib/test/harness/editor-actions';
+import type { FocusPosition } from '$lib/block-component';
+import type { MoveFocusOptions } from '$lib/action-contracts';
+import type { PresentationMode } from '$lib/presentation-mode';
 
 const TABLE = '| a | b |\n| - | - |\n';
 const FENCE = '```\ncode\n```\n';

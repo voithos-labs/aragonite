@@ -18,6 +18,8 @@ import {
 	type PendingMarksState
 } from '$lib/cursor/pending-marks';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
+import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
+import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';
 import { refSlotsOver, replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
@@ -53,8 +55,13 @@ import { createEditorEvents } from '$lib/editor-events';
 // ── CST node factory ─────────────────────────────────────────────────────────
 
 /** A minimal leaf CST node for editor-action and invariant unit fixtures. */
-export function makeNode(kind: string, raw: string): CstNode {
-	return { kind, leadingTrivia: '', raw } as CstNode;
+export function makeNode(kind: string, raw: string, metadata?: Record<string, unknown>): CstNode {
+	return { kind, leadingTrivia: '', raw, ...(metadata ? { metadata } : {}) } as CstNode;
+}
+
+/** The first parsed block of `raw` — the leaf shape the block-edit-core suites drive. */
+export function parseLeaf(raw: string): CstNode {
+	return parse(raw).children[0];
 }
 
 // ── BlockComponent / sticky-column stubs ─────────────────────────────────────
@@ -125,6 +132,75 @@ export function makeBlockListState(getNode: () => CstNode, ids?: string[]): Bloc
 		innerBlockRefs,
 		refSlots: refSlotsOver(innerBlockRefs)
 	};
+}
+
+// ── CommitScope stub ─────────────────────────────────────────────────────────
+
+/** Runs the REAL mutate against a live children array, recording commits. */
+export function makeCommitScopeStub(
+	children: CstNode[],
+	opts: { refs?: (BlockComponent | undefined)[]; collapse?: boolean; owner?: CstNode } = {}
+): { scope: CommitScope; commits: ScopeCommitArgs[]; children: CstNode[] } {
+	const refs = opts.refs ?? [];
+	const commits: ScopeCommitArgs[] = [];
+	const sharing = createSharingState();
+	const scope: CommitScope = {
+		children: () => children,
+		refAt: (i) => refs[i],
+		collapseEmptyReplaceToDelete: opts.collapse ?? true,
+		async commit(args) {
+			commits.push(args);
+			args.mutate({
+				children,
+				sharing,
+				ownerKind: opts.owner?.kind,
+				owner: opts.owner,
+				getPresentationMode: undefined,
+				linkRef: undefined,
+				unshareChild: (i) => children[i]
+			});
+			await args.afterTick?.();
+		}
+	};
+	return { scope, commits, children };
+}
+
+// ── Container-shim deps ──────────────────────────────────────────────────────
+
+function paragraphListNode(childCount: number): CstNode {
+	return {
+		kind: 'list',
+		leadingTrivia: '',
+		raw: '',
+		metadata: { ordered: false },
+		children: Array.from({ length: childCount }, () => ({
+			kind: 'paragraph' as const,
+			leadingTrivia: '',
+			raw: 'text\n'
+		}))
+	};
+}
+
+/** The five members every container-shim assembly repeats; `over` layers a test's own axis.
+ *  Copied by descriptor, so a getter in `over` stays live rather than freezing at call time. */
+export function makeShimDeps(
+	refs: (BlockComponent | undefined)[],
+	over: Partial<ContainerBlockComponentDeps> = {}
+): ContainerBlockComponentDeps {
+	const deps: ContainerBlockComponentDeps = {
+		selection: createSelectionState(),
+		get innerBlockRefs() {
+			return refs;
+		},
+		refSlots: refSlotsOver(refs),
+		get nodeChildrenLength() {
+			return refs.length;
+		},
+		get node() {
+			return paragraphListNode(refs.length);
+		}
+	};
+	return Object.defineProperties(deps, Object.getOwnPropertyDescriptors(over));
 }
 
 // ── Action-bundle stubs ──────────────────────────────────────────────────────

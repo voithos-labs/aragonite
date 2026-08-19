@@ -14,6 +14,7 @@ import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { makeListItem } from '$lib/test/harness/list-fixtures';
 
 // The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
 // oracle reads them as stale.
@@ -50,15 +51,6 @@ function throwListRebuildAfter(okCalls: number): void {
 	});
 }
 
-function listItemNode(raw: string): CstNode {
-	return {
-		kind: 'listItem',
-		leadingTrivia: '',
-		raw,
-		metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
-	} as CstNode;
-}
-
 /** Outer list whose first item holds a nested list: two scopes, two chain depths. */
 function nestedListHarness(): {
 	deps: EditorActionsDeps;
@@ -91,7 +83,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 			scopes: scopes(),
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([, innerScope]) => {
-				innerScope.children.push(listItemNode('  - y\n'));
+				innerScope.children.push(makeListItem('  - y\n'));
 				return [{ op: 'noop' }, { op: 'insert', at: 1, count: 1 }];
 			}
 		});
@@ -107,7 +99,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 				scopes: scopes(),
 				snapshot: 'skip',
 				mutate: ([, innerScope]) => {
-					innerScope.children.push(listItemNode('  - z\n'));
+					innerScope.children.push(makeListItem('  - z\n'));
 					return [{ op: 'noop' }, { op: 'insert', at: 2, count: 1 }];
 				}
 			})
@@ -126,7 +118,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 			scopes: scopes(),
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([, innerScope]) => {
-				innerScope.children.push(listItemNode('  - y\n'));
+				innerScope.children.push(makeListItem('  - y\n'));
 				return [{ op: 'noop' }, { op: 'insert', at: 1, count: 1 }];
 			}
 		});

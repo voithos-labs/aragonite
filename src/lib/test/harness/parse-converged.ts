@@ -4,8 +4,18 @@
 // the e2e bridge all share one implementation; see that module's header for the
 // tautology it replaces and the transients it tolerates.
 
+import type { CstNode } from '$lib/core/nodes';
+
 export {
 	assertParseConverged as expectParseConverged,
 	parseConverges,
 	describeConvergence
 } from '$lib/testing/parse-convergence';
+
+// ── Projections the separator/settle suites assert against ───────────────────
+
+export const layoutOf = (nodes: readonly CstNode[]): [string, string, string][] =>
+	nodes.map((n) => [n.kind, n.leadingTrivia, n.raw]);
+
+export const triviaRawOf = (nodes: readonly CstNode[]): [string, string][] =>
+	nodes.map((n) => [n.leadingTrivia, n.raw]);

@@ -17,7 +17,7 @@ import {
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
-} from '../../harness/editor-actions';
+} from '$lib/test/harness/editor-actions';
 
 const CONTAINER_PATH = [2, 1];
 

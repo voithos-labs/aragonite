@@ -110,9 +110,8 @@ describe("cross-block inline paste ('join') — commit ceremony participation", 
 	});
 
 	it('top-level target syncs the document-scope block ids', async () => {
-		const { deps, events } = makeEditorActionsDeps(parse('# Head\n').children);
+		const { deps } = makeEditorActionsDeps(parse('# Head\n').children);
 		const coordinator = createPasteCoordinator(createUndoController(deps), deps.revealPath);
-		void events;
 
 		await pasteDispatch(
 			{ pastedText: 'foo\nbar', targetPath: [0], offset: 'Head'.length + 2 },

@@ -1,14 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
 import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
-import {
-	mockRef,
-	makeEditorActionsDeps,
-	makeNestedHarness
-} from '$lib/test/harness/editor-actions';
+import { mockRef, makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 import type { BlockComponent } from '$lib/block-component';
 
 // GH #21's caret half: once the write's settle absorbs the join ABOVE it, the surviving block is
@@ -30,11 +23,10 @@ function labelledRefs(count: number, calls: FocusCall[]): BlockComponent[] {
 
 describe('caret after a fold above the edited block — top level', () => {
 	function makeTop(source: string) {
-		const harness = makeEditorActionsDeps(parse(source));
+		const harness = makeTopHarness(source);
 		const calls: FocusCall[] = [];
 		harness.deps.setBlockRefs(labelledRefs(harness.doc.children.length, calls));
-		const actions = createBlockEditActions(harness.deps, createUndoController(harness.deps));
-		return { harness, actions, calls };
+		return { harness, actions: harness.actions, calls };
 	}
 
 	it('lands the caret past the absorbed predecessor rather than on the vacated slot', async () => {

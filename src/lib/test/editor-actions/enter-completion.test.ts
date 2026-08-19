@@ -1,24 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { planEnterCompletion, withEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
+import type { CommitScope } from '$lib/editor-actions/block-edit-scope';
 import { registerBlockCompleter } from '$lib/schema/block-completions';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
-import { createSharingState } from '$lib/tree-operations/sharing';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import type { CstNode } from '$lib/core/nodes';
 import type { BlockComponent } from '$lib/block-component';
 import type { BlockEditActions } from '$lib/action-contracts';
-import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
+import {
+	makeCommitScopeStub,
+	makeNestedHarness,
+	makeTopHarness,
+	parseLeaf as leaf
+} from '$lib/test/harness/editor-actions';
 
 // The split command's one completion arm: which presses reach a completer at all, and what the
 // commit it routes to writes. The registry's own semantics live in test/schema, the table
 // completer's line predicate in test/blocks/table.
-
-const leaf = (raw: string): CstNode => parse(raw).children[0];
 
 function pathFocusSpy() {
 	const calls: { path: number[]; offset: number }[] = [];
@@ -29,28 +29,8 @@ function pathFocusSpy() {
 	return { calls, ref };
 }
 
-function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = []) {
-	const commits: ScopeCommitArgs[] = [];
-	const sharing = createSharingState();
-	const scope: CommitScope = {
-		children: () => children,
-		refAt: (i) => refs[i],
-		collapseEmptyReplaceToDelete: false,
-		async commit(args) {
-			commits.push(args);
-			args.mutate({
-				children,
-				sharing,
-				owner: undefined,
-				getPresentationMode: undefined,
-				linkRef: undefined,
-				unshareChild: (i) => children[i]
-			});
-			await args.afterTick?.();
-		}
-	};
-	return { scope, commits, children };
-}
+const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = []) =>
+	makeCommitScopeStub(children, { refs, collapse: false });
 
 /** The composed shape both wiring sites build: the consult wrapped around the core's split, with
  *  the core reachable underneath as the no-claim fallthrough. */
@@ -211,16 +191,15 @@ describe('Enter completion — the document it leaves behind', () => {
 		const doc = parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| a | b |\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['table', 'paragraph']);
 
-		const { deps } = makeEditorActionsDeps(doc.children);
-		const controller = createUndoController(deps);
-		await createBlockEditActions(deps, controller).splitBlock(1, 9);
+		const h = makeTopHarness(doc.children);
+		await h.actions.splitBlock(1, 9);
 
-		expect(deps.doc.children.map((c) => c.kind)).toEqual(['table', 'table']);
-		expect(serialize(deps.doc)).toBe(
+		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['table', 'table']);
+		expect(serialize(h.deps.doc)).toBe(
 			'| A | B |\n| --- | --- |\n| 1 | 2 |\n\n| a | b |\n| --- | --- |\n|  |  |\n'
 		);
 		// The separating blank line survived on the mint, so a reload sees two tables.
-		expect(parse(serialize(deps.doc)).children).toHaveLength(2);
+		expect(parse(serialize(h.deps.doc)).children).toHaveLength(2);
 	});
 
 	// In-container policy: complete in place; the blockquote rebuild reparses the mint as a

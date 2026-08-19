@@ -1,43 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createTableMutationsContext } from '$lib/editor-actions/table-context';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { parse } from '$lib/core/parser';
-import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
-import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { describe, it, expect } from 'vitest';
+import { makeTableMutations } from './table-mutations-harness';
 
 // a11y: an alignment choice must refocus the originating cell and announce via the live
 // region, rather than dropping keyboard focus to <body> silently.
 
 const TABLE = '| a | b |\n| --- | --- |\n| c | d |\n';
 
-function mutationsFor(focusedCell: { rowIdx: number; colIdx: number } | null) {
-	const { deps } = makeEditorActionsDeps([parse(TABLE).children[0]]);
-	const liveTable = () => deps.doc.children[0];
-	const rowsState = makeBlockListState(liveTable, ['row-0', 'row-1']) as unknown as BlockListState;
-	const controller = createUndoController(deps);
-	const focusCell = vi.fn();
-	const announceReorder = vi.fn();
-	const mutations = createTableMutationsContext({
-		get node() {
-			return liveTable();
-		},
-		get myPath() {
-			return [0];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return focusedCell;
-		},
-		parentContainerEdit: createContainerEditActions(deps, controller),
-		controller,
-		focusCell,
-		announceReorder
-	});
-	return { mutations, focusCell, announceReorder };
-}
+const mutationsFor = (focusedCell: { rowIdx: number; colIdx: number } | null) =>
+	makeTableMutations(TABLE, { focusedCell, rowIds: ['row-0', 'row-1'] });
 
 describe('setColumnAlignment — focus restore + announcement', () => {
 	it('refocuses the originating cell in the aligned column and announces', async () => {
