@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { dragBetweenCells } from './helpers';
+import { boxesOf, dragBetweenBoxes, dragBetweenCells } from './helpers';
 
 const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_ALIGNED = '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -71,22 +71,11 @@ test.describe('table block: clipboard cut', () => {
 		await page.keyboard.press('End');
 		// Drag rather than Shift+ArrowDown: keyboard entry from inside a cell routes through the
 		// table's keyboard-extend path, which is not what this test is about.
-		const from = page.locator('[role="cell"]').nth(2);
-		const to = page.getByText('follow paragraph');
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [cell, paragraph] = await boxesOf(
+			page.locator('[role="cell"]').nth(2),
+			page.getByText('follow paragraph')
+		);
+		await dragBetweenBoxes(page, cell, paragraph);
 		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('Control+x');
@@ -113,22 +102,8 @@ test.describe('table block: clipboard cut', () => {
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
-		const from = page.getByText('head');
-		const to = page.locator('[role="cell"]').nth(4); // a2
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [head, a2] = await boxesOf(page.getByText('head'), page.locator('[role="cell"]').nth(4));
+		await dragBetweenBoxes(page, head, a2);
 		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('Control+x');
@@ -155,22 +130,11 @@ test.describe('table block: clipboard cut', () => {
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
-		const from = page.locator('[role="cell"]').nth(4); // a2 (mid-column)
-		const to = page.getByText('head');
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [a2, head] = await boxesOf(
+			page.locator('[role="cell"]').nth(4), // a2 (mid-column)
+			page.getByText('head')
+		);
+		await dragBetweenBoxes(page, a2, head);
 		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('Control+x');
@@ -192,22 +156,11 @@ test.describe('table block: clipboard cut', () => {
 		await editor.loadContent(original);
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
-		const from = page.locator('[role="cell"]').nth(2);
-		const to = page.getByText('follow paragraph');
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [cell, paragraph] = await boxesOf(
+			page.locator('[role="cell"]').nth(2),
+			page.getByText('follow paragraph')
+		);
+		await dragBetweenBoxes(page, cell, paragraph);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Control+x');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');

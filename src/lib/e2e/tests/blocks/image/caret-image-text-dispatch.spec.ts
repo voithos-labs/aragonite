@@ -1,12 +1,11 @@
 import { test, expect } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
+import { waitForFirstImageLoaded } from './helpers';
 
 async function setupStaleInlineParagraph(editor: EditorPage, page: Page): Promise<void> {
 	await editor.loadContent('text1\n\n![pic](/test-fixtures/sample.png)\n\ntext2\n');
-	await page.waitForFunction(
-		() => !!(document.querySelector('[data-image-widget] img') as HTMLImageElement)?.complete
-	);
+	await waitForFirstImageLoaded(page);
 	// Click-based placement: a programmatic element-level caret bypasses the snap state the
 	// intercept needs.
 	const widget = page.locator('[data-image-widget]').first();

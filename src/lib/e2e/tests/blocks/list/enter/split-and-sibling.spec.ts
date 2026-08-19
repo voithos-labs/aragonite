@@ -47,6 +47,5 @@ test.describe('list Enter — sibling creation and mid-item split', () => {
 		expect(await editor.bridge.getSource()).toContain('- Hello');
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
-		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

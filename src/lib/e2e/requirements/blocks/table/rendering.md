@@ -14,6 +14,10 @@
 - A single-column table renders without breaking the grid.
 - A table with escaped pipes (`\|`) in cells renders the escaped pipe as visible text in that cell.
 
+## Structural invariants
+
+- The table grid containers (`.table-block`, `.table-row`) have no whitespace-only direct child text nodes. Such a node joins the raw-offset walk (cursor/widget-offset.ts counts every text node, including aria-hidden grip markup) and shifts a parked cross-block caret, so the grip markup's block boundaries must stay adjacent.
+
 ## User interactions
 
 - Typing in a cell mutates the cell's raw and the document round-trips with the new content.

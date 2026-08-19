@@ -1,4 +1,4 @@
-import { test, expect } from '../../../../fixtures';
+import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 // The typed marker once raced the merge, landing on a stale block before the parent merge
@@ -18,8 +18,6 @@ test.describe('list Backspace — race-free merge then type', () => {
 		await editor.page.keyboard.press('Backspace');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('Inner oneZInner two');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Inner oneZInner two');
 	});
 
 	test('Backspace at start of non-first item then immediate type lands at merge boundary (no settle wait)', async () => {
@@ -30,7 +28,5 @@ test.describe('list Backspace — race-free merge then type', () => {
 		await editor.page.keyboard.press('Backspace');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('AlphaZBeta');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('AlphaZBeta');
 	});
 });

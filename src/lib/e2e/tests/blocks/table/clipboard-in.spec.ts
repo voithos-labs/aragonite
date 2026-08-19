@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { dragBetweenCells } from './helpers';
 
 const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
@@ -162,22 +163,7 @@ test.describe('table block: paste in', () => {
 	}) => {
 		await editor.loadContent(TABLE_2BODY);
 		// Drag from cell 2 (row 1, col 0 = "1") to cell 5 (row 2, col 1 = "4").
-		const from = page.locator('[role="cell"]').nth(2);
-		const to = page.locator('[role="cell"]').nth(5);
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding boxes');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 10; i++) {
-			const t = i / 10;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		await dragBetweenCells(page, 2, 5);
 		await editor.waitForCrossBlock(true);
 
 		await editor.seedClipboard('hello');

@@ -17,7 +17,6 @@ test.describe('list marker — caret placement and typing', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceEquals('- XHello\n');
-		expect(await editor.bridge.getSource()).toBe('- XHello\n');
 	});
 
 	test('click in marker region lands cursor at raw offset 0', async () => {
@@ -30,7 +29,6 @@ test.describe('list marker — caret placement and typing', () => {
 		await editor.page.mouse.click(box.x + 1, box.y + box.height / 2);
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceEquals('- XHello\n');
-		expect(await editor.bridge.getSource()).toBe('- XHello\n');
 	});
 
 	test('Ctrl+A selects content only, marker preserved on replace', async () => {
@@ -44,7 +42,6 @@ test.describe('list marker — caret placement and typing', () => {
 
 		await editor.typeText('World');
 		await editor.bridge.waitForSourceEquals('- World\n');
-		expect(await editor.bridge.getSource()).toBe('- World\n');
 	});
 
 	// Typing `- ` in an empty paragraph live-promotes to a list, and `focus(CURSOR_END)` on the new
@@ -56,7 +53,6 @@ test.describe('list marker — caret placement and typing', () => {
 		await editor.page.keyboard.type('- ');
 		await editor.page.keyboard.type('a');
 		await editor.bridge.waitForSourceContains('- a');
-		expect(await editor.bridge.getSource()).toContain('- a');
 	});
 
 	test('multi-digit ordered marker cursor math works', async () => {
@@ -68,6 +64,5 @@ test.describe('list marker — caret placement and typing', () => {
 		await editor.page.keyboard.press('Home');
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('10. Xten');
-		expect(await editor.bridge.getSource()).toContain('10. Xten');
 	});
 });

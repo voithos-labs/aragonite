@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { undoDepth, waitForAllImagesLoaded } from './helpers';
 
 test.describe('image popover commit', () => {
 	let editor: EditorPage;
@@ -81,11 +82,7 @@ test.describe('image popover commit', () => {
 		await editor.loadContent(
 			'![alt1|400](/test-fixtures/sample.png) ![alt2|600](/test-fixtures/sample.png)\n\nbelow.\n'
 		);
-		await page.waitForFunction(() =>
-			Array.from(document.querySelectorAll('[data-image-widget] img')).every(
-				(img) => (img as HTMLImageElement).complete
-			)
-		);
+		await waitForAllImagesLoaded(page);
 		const widgets = page.locator('[data-image-widget]');
 		const w1Box = await widgets.nth(0).boundingBox();
 		const w2Box = await widgets.nth(1).boundingBox();
@@ -107,11 +104,7 @@ test.describe('image popover commit', () => {
 		await editor.loadContent(
 			'![alt1|400](/test-fixtures/sample.png) ![alt2|600](/test-fixtures/sample.png)\n\nbelow.\n'
 		);
-		await page.waitForFunction(() =>
-			Array.from(document.querySelectorAll('[data-image-widget] img')).every(
-				(img) => (img as HTMLImageElement).complete
-			)
-		);
+		await waitForAllImagesLoaded(page);
 		const widgets = page.locator('[data-image-widget]');
 		const w1Box = await widgets.nth(0).boundingBox();
 		const w2Box = await widgets.nth(1).boundingBox();
@@ -129,13 +122,8 @@ test.describe('image popover commit', () => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
-		const undoLengthBefore = await page.evaluate(() => {
-			return (window as any).__test?.dumpUndoStack?.()?.length ?? 0;
-		});
+		const undoLengthBefore = await undoDepth(page);
 		await page.locator('.paragraph-block').first().click();
-		const undoLengthAfter = await page.evaluate(() => {
-			return (window as any).__test?.dumpUndoStack?.()?.length ?? 0;
-		});
-		expect(undoLengthAfter).toBe(undoLengthBefore);
+		expect(await undoDepth(page)).toBe(undoLengthBefore);
 	});
 });

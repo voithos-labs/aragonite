@@ -1,5 +1,6 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
+import { roundTripStable } from '../../../plugins/helpers';
 
 // The exited source must collapse the empty continuation marker at every nesting depth: ancestor
 // quotes must rebuild too, or their stale raw leaks a stranded `> >` / `> > >` line.
@@ -38,7 +39,7 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		// A bare `>` BETWEEN quoted lines is the paragraph separator Enter mints;
 		// the stranded marker this guards is one the quote ends on.
 		expect(source).not.toMatch(/^>[ \t]*\n(?!>)/m);
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	// Exiting a NESTED quote once rebuilt the inner quote's raw but left the outer's stale,
@@ -58,7 +59,7 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> > Inner');
 		expect(source).not.toMatch(/^> >\s*$/m);
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	// Depth-3 discriminates a full ancestor-chain rebuild from a one-level patch:
@@ -78,6 +79,6 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> > > Deep');
 		expect(source).not.toMatch(/^> >(?: >)?\s*$/m);
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 });

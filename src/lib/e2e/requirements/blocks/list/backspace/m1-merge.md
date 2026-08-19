@@ -6,6 +6,8 @@ Backspace at offset 0 of a non-empty non-first item merges the current item's fi
 
 - Backspace at start of non-empty non-first item: the current item's first-paragraph text is appended to the "deepest visible text above" — the rightmost/deepest text-bearing paragraph reachable by descending into the preceding item's trailing nested lists. The current item's remaining children are placed at their original absolute list-nesting depth along the target's ancestry chain: listItem children slot into the container at their original depth; non-listItem children (extra paragraphs) absorb into the target item's inner children. Ordered markers renumber. Cursor lands at the merge point (end of target's original text, before appended content).
 
+- Backspace with the caret at raw offset 0 dispatches M1 through the rendered ambient marker: the `contenteditable="false"` marker span translates the DOM offset to raw 0, so a two-item list merges byte-exactly (`- Item one` + `- Item two` → `- Item oneItem two`) with one surviving marker.
+
 ### M1 worked examples (preserve absolute indent)
 
 | Input                                             | Backspace at | Result                                    | Rule applied                                                                    |

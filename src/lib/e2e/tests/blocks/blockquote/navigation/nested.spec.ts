@@ -1,4 +1,4 @@
-import { test, expect } from '../../../../fixtures';
+import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
 
 test.describe('blockquote navigation — nested blockquote', () => {
@@ -17,7 +17,6 @@ test.describe('blockquote navigation — nested blockquote', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> > .*Z/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> > .*Z/m);
 	});
 
 	test('ArrowDown from nested inner paragraph to outer inner paragraph', async () => {
@@ -28,6 +27,5 @@ test.describe('blockquote navigation — nested blockquote', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceMatches(/^> [^>].*Z/m);
-		expect(await editor.bridge.getSource()).toMatch(/^> [^>].*Z/m);
 	});
 });

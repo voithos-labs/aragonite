@@ -83,4 +83,29 @@ test.describe('table block: rendering', () => {
 		await expect(cells.nth(5)).toHaveText('Column C');
 		await expect(cells.nth(8)).toHaveText('$100');
 	});
+
+	// A whitespace-only text node directly under a raw-walk container joins the raw-offset walk
+	// (cursor/widget-offset.ts counts every text node, incl. aria-hidden) and shifts a parked
+	// cross-block caret.
+	test('no whitespace-only direct text nodes under the table containers (raw-offset-walk contract)', async ({
+		page
+	}) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
+		await expect(page.locator('.table-row').first()).toBeVisible();
+
+		const offenders = await page.evaluate(() => {
+			const out: string[] = [];
+			document.querySelectorAll('.table-block, .table-row').forEach((el) => {
+				el.childNodes.forEach((n) => {
+					const text = n.textContent ?? '';
+					if (n.nodeType === Node.TEXT_NODE && text.length > 0 && text.trim() === '') {
+						out.push((el as HTMLElement).className);
+					}
+				});
+			});
+			return out;
+		});
+
+		expect(offenders).toEqual([]);
+	});
 });

@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { undoDepth } from './helpers';
 
 test.describe('image resize', () => {
 	let editor: EditorPage;
@@ -85,15 +86,10 @@ test.describe('image resize', () => {
 		await editor.loadContent('![cat|400](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();
-		const undoBefore = await page.evaluate(
-			() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0
-		);
+		const undoBefore = await undoDepth(page);
 		const handle = page.locator('.md-resize-handle-right').first();
 		await handle.click();
-		const undoAfter = await page.evaluate(
-			() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0
-		);
-		expect(undoAfter).toBe(undoBefore);
+		expect(await undoDepth(page)).toBe(undoBefore);
 	});
 
 	test('broken image shows popover but no resize handles', async ({ page }) => {
