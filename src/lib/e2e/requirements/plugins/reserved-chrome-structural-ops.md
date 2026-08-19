@@ -1,4 +1,4 @@
-# Feature: Fork-A Spike — Reserved-child-0 Chrome Structural Ops + Paste
+# Feature: Reserved-child-0 Chrome Structural Ops + Paste
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
 leaf. This gate characterizes the reserved-index structural ops (merge, Backspace,

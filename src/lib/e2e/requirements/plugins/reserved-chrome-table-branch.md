@@ -1,4 +1,4 @@
-# Feature: Fork-A Spike — Reserved-child-0 Chrome Wall × Table Branch
+# Feature: Reserved-child-0 Chrome Wall × Table Branch
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
 leaf. This gate proves the rangeDelete wall holds when a range endpoint is a table

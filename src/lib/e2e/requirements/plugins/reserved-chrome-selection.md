@@ -1,4 +1,4 @@
-# Feature: Fork-A Spike — Reserved-child-0 Chrome Selection Parity
+# Feature: Reserved-child-0 Chrome Selection Parity
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
 leaf, rendered inside the callout's sole `.block-list`. This de-risking spike

@@ -1,4 +1,4 @@
-# Feature: Fork-A Spike — Reserved-child-0 Chrome rangeDelete Wall
+# Feature: Reserved-child-0 Chrome rangeDelete Wall
 
 The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
 leaf. This gate proves the rangeDelete chrome wall. Behavioral gate: CST/selection

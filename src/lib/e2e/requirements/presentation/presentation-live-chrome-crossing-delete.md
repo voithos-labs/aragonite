@@ -29,8 +29,6 @@ bridge is the oracle.
 
 ## Error cases
 
-- zero `[invariant:…]` console fires (automatic via the shared e2e fixture)
-
 ## Miss analysis
 
 The table branch's fix pinned its own prose truncations, but no spec selected
