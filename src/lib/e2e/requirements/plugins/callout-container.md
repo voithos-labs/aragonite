@@ -2,7 +2,7 @@
 
 The `:::callout` callout is a plugin-authored container built by mirroring the
 built-in blockquote (WS-B Cycle 1). It reserves child 0 as an editable
-`callout-title` chrome leaf (Fork-A spike), so its children are `[title, ...body]`.
+`callout-title` chrome leaf, so its children are `[title, ...body]`.
 Editing inside it must mutate the callout's own children through the
 nested-container wiring — never the document root — and never break byte-for-byte
 round-trip fidelity. This gate is behavioral: it asserts the CST read by path via

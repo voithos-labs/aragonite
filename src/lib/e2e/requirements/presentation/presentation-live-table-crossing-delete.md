@@ -26,8 +26,6 @@ cleaner's unpaired-run half. Driven on `/test/editor` via
 
 ## Error cases
 
-- zero `[invariant:…]` console fires (automatic via the shared e2e fixture)
-
 ## Miss analysis
 
 The live-join pins all crossed prose→prose merges, where the cleaner runs; no

@@ -25,8 +25,6 @@ image's bytes. Driven on `/test/editor`; the source bridge is the oracle.
 
 ## Error cases
 
-- zero `[invariant:…]` console fires (automatic via the shared e2e fixture)
-
 ## Miss analysis
 
 The image caret suites pinned clicks, arrows and typing around the widget, but
