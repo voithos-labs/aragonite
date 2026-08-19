@@ -44,7 +44,7 @@ describe('thematic break — the whole-block focus surface', () => {
 	});
 
 	// Where the park LANDS is pinned finer in thematic-break-input-proxy (activeElement IS the host).
-	it('reports no cursor offset until the caret is parked', () => {
+	it('reports no cursor offset before the caret is parked', () => {
 		mounted = mountBreak();
 		expect(mounted.instance.getCursorOffset()).toBeNull();
 	});
