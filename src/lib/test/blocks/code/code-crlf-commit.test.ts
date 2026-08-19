@@ -6,27 +6,8 @@
 // Driven through the mounted component's real handlers — the commit closures live there,
 // where the G4.20 source-scan lint cannot observe runtime output.
 import { describe, it, expect, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
-import { parse } from '$lib/core/parser';
 import { vi } from 'vitest';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
-
-function mountCode(source: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-	const instance = mount(CodeBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({ blockEdit, doc: { doc: () => doc } })
-	});
-	flushSync();
-	const el = target.querySelector('.code-block') as HTMLElement;
-	return { instance, el, blockEdit };
-}
+import { mountCode, type MountedCode } from './mount-code';
 
 /** Collapse the DOM selection at the end of the block's display text. */
 function selectEnd(el: HTMLElement): void {
@@ -38,9 +19,9 @@ function selectEnd(el: HTMLElement): void {
 	selection?.addRange(range);
 }
 
-let mounted: ReturnType<typeof mountCode>;
+let mounted: MountedCode;
 afterEach(async () => {
-	if (mounted) await unmount(mounted.instance);
+	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 });
 

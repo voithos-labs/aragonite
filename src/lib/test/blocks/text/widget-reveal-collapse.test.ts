@@ -8,7 +8,12 @@
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
+import {
+	installMathInline,
+	mountWidgetBlock,
+	placeCaretAt,
+	widgetInteractionDeps
+} from './math-widget-fixture';
 
 installMathInline();
 
@@ -62,15 +67,6 @@ function mountTwoMathBlock() {
 		await new Promise((r) => setTimeout(r));
 	}
 
-	function placeCaretIn(target: Node, offset: number): void {
-		const range = document.createRange();
-		range.setStart(target, offset);
-		range.collapse(true);
-		const sel = window.getSelection()!;
-		sel.removeAllRanges();
-		sel.addRange(range);
-	}
-
 	return {
 		el,
 		interaction,
@@ -79,7 +75,6 @@ function mountTwoMathBlock() {
 		firstWidget,
 		secondWidget,
 		revealFirst,
-		placeCaretIn,
 		sourceNode: () => el.childNodes[1] as Text,
 		trailingText: () => el.childNodes[4] as Text,
 		setCrossBlock: (v: boolean) => {
@@ -97,7 +92,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		await b.revealFirst();
 		expect(b.interaction.isRevealing()).toBe(true);
 
-		b.placeCaretIn(b.trailingText(), 2);
+		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
 		await new Promise((r) => setTimeout(r));
 
@@ -113,7 +108,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		await b.revealFirst();
 		b.pendingCursors.length = 0;
 
-		b.placeCaretIn(b.trailingText(), 2);
+		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
 		await new Promise((r) => setTimeout(r));
 
@@ -127,7 +122,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		const b = mountTwoMathBlock();
 		await b.revealFirst();
 
-		b.placeCaretIn(b.sourceNode(), 2);
+		placeCaretAt(b.sourceNode(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
 		await new Promise((r) => setTimeout(r));
 
@@ -139,7 +134,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		await b.revealFirst();
 		b.setCrossBlock(true);
 
-		b.placeCaretIn(b.trailingText(), 1);
+		placeCaretAt(b.trailingText(), 1);
 		b.interaction.foldRevealIfSelectionEscaped();
 		await new Promise((r) => setTimeout(r));
 
@@ -147,29 +142,11 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		expect(b.commits).toEqual([]);
 	});
 
-	it('switches to the second widget through the click dispatch as one gesture', async () => {
-		const b = mountTwoMathBlock();
-		await b.revealFirst();
-		expect(b.interaction.isRevealing()).toBe(true);
-
-		// Click on widget B while A is revealed: the owned click path folds A in place and reveals B.
-		// Pointerdown preventDefault means no selectionchange competes with the sequence.
-		b.interaction.snapClickToWidgetEdge(110, 5);
-		await new Promise((r) => setTimeout(r));
-		await new Promise((r) => setTimeout(r));
-
-		expect(b.interaction.isRevealing()).toBe(true);
-		expect(b.commits).toEqual([]);
-		// A's widget element is back in the DOM (identity restore); B's is swapped
-		// out for its source text node.
-		expect(b.el.querySelectorAll('[data-inline-widget]').length).toBe(1);
-	});
-
 	it('holds a reveal still settling — the fold window between showSource and placeCaret', async () => {
 		const b = mountTwoMathBlock();
 		// The click's own queued selectionchange lands after showSource swapped but before placeCaret
 		// moves into the source, so an unguarded containment check folds the opening reveal.
-		b.placeCaretIn(b.trailingText(), 2);
+		placeCaretAt(b.trailingText(), 2);
 		const settling = b.revealFirst(); // NOT awaited: parked at the pre-placeCaret tick
 
 		b.interaction.foldRevealIfSelectionEscaped();
@@ -181,7 +158,7 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 		expect(b.el.childNodes[1].textContent).toBe('$a^1$');
 
 		// Settled: the same escape folds normally again.
-		b.placeCaretIn(b.trailingText(), 2);
+		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
 		await new Promise((r) => setTimeout(r));
 		expect(b.interaction.isRevealing()).toBe(false);
@@ -189,7 +166,9 @@ describe('foldRevealIfSelectionEscaped — containment scope', () => {
 });
 
 describe('reveal switch — clicking widget B while A is revealed', () => {
-	it('folds A and reveals B in one sequenced gesture', async () => {
+	// The owned click dispatch folds A in place and reveals B as one sequence,
+	// instead of dying on the active guard; no selectionchange competes with it.
+	it('folds A and reveals B in one sequenced gesture through the click dispatch', async () => {
 		const b = mountTwoMathBlock();
 		await b.revealFirst();
 

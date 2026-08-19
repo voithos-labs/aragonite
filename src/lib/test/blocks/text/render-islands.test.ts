@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
+import { createTextRender } from '$lib/components/blocks/text/text-render';
 import { islandRenderKeyPart } from '$lib/decorations/island-dom';
 import {
 	disableInteractionTrace,
@@ -10,66 +9,9 @@ import {
 	resetInteractionTrace
 } from '$lib/debug/interaction-trace';
 import type { CstNode } from '$lib/core/nodes';
-import type { IndexedDecoration } from '$lib/decorations/buckets';
-import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
-import { trimTrailingLineEnding } from '$lib/core/lines';
 import { domTextOffsetAtNode } from '$lib/cursor/widget-offset';
-
-type Island = IndexedDecoration<WidgetDecoration | ReplaceDecoration>;
-
-function blockNode(source: string): CstNode {
-	const node = parse(source).children[0];
-	if (!node) throw new Error('expected a block node');
-	return node;
-}
-
-function makeHarness(initialNode: CstNode) {
-	const el = document.createElement('div');
-	el.tabIndex = 0;
-	document.body.appendChild(el);
-	let node = initialNode;
-	let islands: Island[] = [];
-	const deps: TextRenderDeps = {
-		get el() {
-			return el;
-		},
-		get node() {
-			return node;
-		},
-		get ambientPrefix() {
-			return '';
-		},
-		get ambientPrefixText() {
-			return '';
-		},
-		getDisplayText: () => trimTrailingLineEnding(node.raw),
-		resolveImageUrl: (u) => u,
-		resolveLinkUrl: (u) => u,
-		get imageLoadPolicy() {
-			return 'auto' as const;
-		},
-		get linkResolver() {
-			return undefined;
-		},
-		get linkStamp() {
-			return '0';
-		},
-		get islands() {
-			return islands;
-		},
-		get presentationMode() {
-			return 'source' as const;
-		},
-		getDocument: () => undefined,
-		brokenUrlCache: new Set<string>()
-	};
-	return {
-		el,
-		deps,
-		setIslands: (next: Island[]) => (islands = next),
-		setNode: (next: CstNode) => (node = next)
-	};
-}
+import { placeCaretAt } from './math-widget-fixture';
+import { blockNode, makeRenderHarness, type Island } from './render-fixture';
 
 const widgetIsland = (offset: number, buildDom?: () => HTMLElement): Island => ({
 	index: 0,
@@ -87,7 +29,7 @@ describe('text-render island wiring', () => {
 	});
 
 	it('an empty island set never rebuilds, even across fresh array identities', () => {
-		const { el, deps, setIslands } = makeHarness(blockNode('hello world\n'));
+		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		render.render();
 		const firstChild = el.firstChild;
@@ -97,7 +39,7 @@ describe('text-render island wiring', () => {
 	});
 
 	it('an island set renders islands; an unchanged signature does not rebuild', () => {
-		const { el, deps, setIslands } = makeHarness(blockNode('hello world\n'));
+		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		setIslands([widgetIsland(5)]);
 		render.render();
@@ -114,7 +56,7 @@ describe('text-render island wiring', () => {
 			builds++;
 			return document.createElement('span');
 		};
-		const { el, deps, setIslands } = makeHarness(blockNode('hello world\n'));
+		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		setIslands([widgetIsland(5, buildDom)]);
 		render.render();
@@ -130,17 +72,11 @@ describe('text-render island wiring', () => {
 	});
 
 	it('the caret survives an island-signature rebuild of the focused block', () => {
-		const { el, deps, setIslands } = makeHarness(blockNode('hello world\n'));
+		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		render.render();
 		el.focus();
-		const textNode = el.firstChild!;
-		const range = document.createRange();
-		range.setStart(textNode, 7);
-		range.collapse(true);
-		const sel = window.getSelection()!;
-		sel.removeAllRanges();
-		sel.addRange(range);
+		placeCaretAt(el.firstChild!, 7);
 
 		setIslands([widgetIsland(2)]);
 		render.render();
@@ -153,7 +89,7 @@ describe('text-render island wiring', () => {
 
 	it("an island widget's own <br> does not satisfy the empty block's caret anchor", () => {
 		const emptyParagraph: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: '\n' };
-		const { el, deps, setIslands } = makeHarness(emptyParagraph);
+		const { el, deps, setIslands } = makeRenderHarness(emptyParagraph);
 		const render = createTextRender(deps);
 		setIslands([
 			widgetIsland(0, () => {
@@ -170,7 +106,7 @@ describe('text-render island wiring', () => {
 	});
 
 	it('a prose→non-prose kind change destroys stranded islands', () => {
-		const { el, deps, setIslands, setNode } = makeHarness(blockNode('hello world\n'));
+		const { el, deps, setIslands, setNode } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		setIslands([widgetIsland(5)]);
 		render.render();
@@ -197,12 +133,7 @@ describe('caret-carry gate', () => {
 
 	function focusCaretAt(el: HTMLElement, offset: number): void {
 		el.focus();
-		const range = document.createRange();
-		range.setStart(el.firstChild!, offset);
-		range.collapse(true);
-		const sel = window.getSelection()!;
-		sel.removeAllRanges();
-		sel.addRange(range);
+		placeCaretAt(el.firstChild!, offset);
 	}
 
 	const renderTraceKinds = () =>
@@ -211,7 +142,7 @@ describe('caret-carry gate', () => {
 			.map((e) => e.kind);
 
 	it('carryCaret:false skips the capture/restore pair on the edit path', () => {
-		const { el, deps } = makeHarness(blockNode('hello world\n'));
+		const { el, deps } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		render.render();
 		focusCaretAt(el, 7);
@@ -222,7 +153,7 @@ describe('caret-carry gate', () => {
 	});
 
 	it('the default carry re-anchors the caret across an island-signature rebuild', () => {
-		const { el, deps, setIslands } = makeHarness(blockNode('hello world\n'));
+		const { el, deps, setIslands } = makeRenderHarness(blockNode('hello world\n'));
 		const render = createTextRender(deps);
 		render.render();
 		focusCaretAt(el, 7);

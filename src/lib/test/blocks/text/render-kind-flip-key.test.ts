@@ -1,55 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
-import { trimTrailingLineEnding } from '$lib/core/lines';
+import { createTextRender } from '$lib/components/blocks/text/text-render';
 import type { CstNode } from '$lib/core/nodes';
-
-function blockNode(source: string): CstNode {
-	const node = parse(source).children[0];
-	if (!node) throw new Error('expected a block node');
-	return node;
-}
-
-function makeHarness(initial: CstNode) {
-	const el = document.createElement('div');
-	let node = initial;
-	const deps: TextRenderDeps = {
-		get el() {
-			return el;
-		},
-		get node() {
-			return node;
-		},
-		get ambientPrefix() {
-			return '';
-		},
-		get ambientPrefixText() {
-			return '';
-		},
-		getDisplayText: () => trimTrailingLineEnding(node.raw),
-		resolveImageUrl: (u) => u,
-		resolveLinkUrl: (u) => u,
-		get imageLoadPolicy() {
-			return 'auto' as const;
-		},
-		get presentationMode() {
-			return 'source' as const;
-		},
-		get linkResolver() {
-			return undefined;
-		},
-		get linkStamp() {
-			return '0';
-		},
-		get islands() {
-			return [];
-		},
-		getDocument: () => undefined,
-		brokenUrlCache: new Set<string>()
-	};
-	return { el, deps, setNode: (next: CstNode) => (node = next) };
-}
+import { blockNode, makeRenderHarness } from './render-fixture';
 
 describe('text-render key across a prose→non-prose flip', () => {
 	it('rebuilds the DOM when undo returns a matched-DOM non-prose block to prose', () => {
@@ -60,7 +13,7 @@ describe('text-render key across a prose→non-prose flip', () => {
 		expect(paragraph.kind).toBe('paragraph');
 		expect(htmlBlock.kind).toBe('htmlBlock');
 
-		const { el, deps, setNode } = makeHarness(paragraph);
+		const { el, deps, setNode } = makeRenderHarness(paragraph);
 		const render = createTextRender(deps);
 
 		render.render();
@@ -84,7 +37,7 @@ describe('text-render key across a prose→prose flip', () => {
 		expect(heading.kind).toBe('heading');
 		const paragraph = { kind: 'paragraph', raw: '# a\n' } as CstNode;
 
-		const { el, deps, setNode } = makeHarness(paragraph);
+		const { el, deps, setNode } = makeRenderHarness(paragraph);
 		const render = createTextRender(deps);
 
 		render.render();

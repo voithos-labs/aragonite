@@ -6,45 +6,8 @@
 //
 // Miss-analysis: `whole-block-keys.test.ts` pinned every branch of the keydown tail, and the tail
 // IS the whole mint; no test asked whether the other input door existed at all.
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import ThematicBreakBlock from '$lib/components/blocks/ThematicBreakBlock.svelte';
-import type { EditorServices } from '$lib/editor-keys';
-import type { PresentationMode } from '$lib/presentation-mode';
-import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
-import { parse } from '$lib/core/parser';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { makeStubBlockEdit, makeStubFocus } from '../harness/editor-actions';
-import { editorMountContext } from '../harness/mount-context';
-
-const INDEX = 1;
-
-function mountBreak(presentationMode: PresentationMode = 'source') {
-	const doc = parse('a\n\n---\n\nb\n');
-	expect(doc.children[INDEX].kind).toBe('thematicBreak');
-	const blockEdit = makeStubBlockEdit();
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const instance = mount(ThematicBreakBlock, {
-		target,
-		props: { node: doc.children[INDEX], index: INDEX, myPath: [INDEX] },
-		context: editorMountContext({
-			blockEdit,
-			focus: makeStubFocus(),
-			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
-			doc: { doc: () => doc },
-			services: {
-				reorder: { nudgeReorderUnit: vi.fn() } as unknown as EditorServices['reorder'],
-				selection: createSelectionState()
-			},
-			policies: { presentationMode: () => presentationMode }
-		})
-	});
-	flushSync();
-	const el = target.querySelector('.thematic-break-block') as HTMLElement;
-	const host = el.querySelector(`[${WHOLE_BLOCK_INPUT_ATTR}]`) as HTMLElement;
-	return { instance, el, host, blockEdit };
-}
+import { describe, it, expect, afterEach } from 'vitest';
+import { BREAK_INDEX as INDEX, mountBreak, type MountedBreak } from './mount-break';
 
 /** The shape an AltGr production arrives in: no keydown branch admits it, so the editing host is
  *  the only door it has. */
@@ -65,9 +28,9 @@ function compose(host: HTMLElement, text: string): void {
 	host.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: text }));
 }
 
-let mounted: ReturnType<typeof mountBreak>;
+let mounted: MountedBreak;
 afterEach(async () => {
-	if (mounted) await unmount(mounted.instance);
+	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 });
 

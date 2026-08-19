@@ -1,65 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
-import type { ImageLoadPolicy } from '$lib/core/inline-render';
-import type { CstNode } from '$lib/core/nodes';
-
-function paragraphNode(source: string): CstNode {
-	const node = parse(source).children[0];
-	if (!node) throw new Error('expected a block node');
-	return node;
-}
-
-function makeDeps(node: CstNode, el: HTMLElement, initialPolicy: ImageLoadPolicy) {
-	let policy = initialPolicy;
-	const deps: TextRenderDeps = {
-		get el() {
-			return el;
-		},
-		get node() {
-			return node;
-		},
-		get ambientPrefix() {
-			return '';
-		},
-		get ambientPrefixText() {
-			return '';
-		},
-		getDisplayText: () => node.raw,
-		resolveImageUrl: (u) => u,
-		resolveLinkUrl: (u) => u,
-		get imageLoadPolicy() {
-			return policy;
-		},
-		get linkResolver() {
-			return undefined;
-		},
-		get linkStamp() {
-			return '0';
-		},
-		get islands() {
-			return [];
-		},
-		get presentationMode() {
-			return 'source' as const;
-		},
-		getDocument: () => undefined,
-		brokenUrlCache: new Set<string>()
-	};
-	return {
-		deps,
-		setPolicy(next: ImageLoadPolicy) {
-			policy = next;
-		}
-	};
-}
+import { createTextRender } from '$lib/components/blocks/text/text-render';
+import { blockNode, makeRenderHarness } from './render-fixture';
 
 describe('text-render image-load-policy memo key', () => {
 	it('repaints an image block when imageLoadPolicy flips at runtime', () => {
-		const el = document.createElement('div');
-		const node = paragraphNode('![cat](/x.png)\n');
-		const { deps, setPolicy } = makeDeps(node, el, 'auto');
+		const { el, deps, setPolicy } = makeRenderHarness(blockNode('![cat](/x.png)\n'));
 		const render = createTextRender(deps);
 
 		render.render();
@@ -77,9 +23,7 @@ describe('text-render image-load-policy memo key', () => {
 	});
 
 	it('does not rebuild an image-free block when imageLoadPolicy flips', () => {
-		const el = document.createElement('div');
-		const node = paragraphNode('hello\n');
-		const { deps, setPolicy } = makeDeps(node, el, 'auto');
+		const { el, deps, setPolicy } = makeRenderHarness(blockNode('hello\n'));
 		const render = createTextRender(deps);
 
 		render.render();

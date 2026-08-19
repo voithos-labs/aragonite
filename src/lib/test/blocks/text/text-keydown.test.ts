@@ -48,22 +48,14 @@ describe('insertHardBreak', () => {
 });
 
 describe('insertLiteralTab', () => {
-	it('inserts \\t at offset', () => {
-		const r = insertLiteralTab('foo\n', 3);
-		expect(r.newRaw).toBe('foo\t\n');
-		expect(r.caretOffset).toBe(4);
-	});
-
-	it('inserts at start', () => {
-		const r = insertLiteralTab('foo\n', 0);
-		expect(r.newRaw).toBe('\tfoo\n');
-		expect(r.caretOffset).toBe(1);
-	});
-
-	it('inserts in the middle', () => {
-		const r = insertLiteralTab('foo\n', 2);
-		expect(r.newRaw).toBe('fo\to\n');
-		expect(r.caretOffset).toBe(3);
+	it.each([
+		[0, '\tfoo\n', 1],
+		[2, 'fo\to\n', 3],
+		[3, 'foo\t\n', 4]
+	])('inserts at offset %i', (offset, newRaw, caretOffset) => {
+		const r = insertLiteralTab('foo\n', offset);
+		expect(r.newRaw).toBe(newRaw);
+		expect(r.caretOffset).toBe(caretOffset);
 	});
 
 	it('preserves trailing CRLF', () => {

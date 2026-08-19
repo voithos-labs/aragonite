@@ -6,48 +6,14 @@
 // show is this component's own wiring — the focus surface it publishes, and the three-tier
 // keydown order (editor-global chord → kind keymap → tail) with its local reading gate.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import ThematicBreakBlock from '$lib/components/blocks/ThematicBreakBlock.svelte';
-import type { EditorServices } from '$lib/editor-keys';
-import type { PresentationMode } from '$lib/presentation-mode';
 import { displayLength } from '$lib/core/lines';
 import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
-import { parse } from '$lib/core/parser';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { makeStubBlockEdit, makeStubFocus } from '../harness/editor-actions';
-import { editorMountContext } from '../harness/mount-context';
-
-const RAW = '---\n';
-const INDEX = 1;
-
-function mountBreak(presentationMode: PresentationMode = 'source') {
-	const doc = parse(`a\n\n${RAW}\nb\n`);
-	// Kind dispatch reads the node, so a fixture drift would silently mount this component
-	// over a paragraph and leave every assertion below still passing.
-	expect(doc.children[INDEX].kind).toBe('thematicBreak');
-	const blockEdit = makeStubBlockEdit();
-	const focus = makeStubFocus();
-	const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
-	const reorder = { nudgeReorderUnit: vi.fn() } as unknown as EditorServices['reorder'];
-	const selection = createSelectionState();
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const instance = mount(ThematicBreakBlock, {
-		target,
-		props: { node: doc.children[INDEX], index: INDEX, myPath: [INDEX] },
-		context: editorMountContext({
-			blockEdit,
-			focus,
-			history,
-			doc: { doc: () => doc },
-			services: { reorder, selection },
-			policies: { presentationMode: () => presentationMode }
-		})
-	});
-	flushSync();
-	const el = target.querySelector('.thematic-break-block') as HTMLElement;
-	return { instance, el, blockEdit, focus, history, reorder, selection };
-}
+import {
+	BREAK_INDEX as INDEX,
+	BREAK_RAW as RAW,
+	mountBreak,
+	type MountedBreak
+} from './mount-break';
 
 function press(el: HTMLElement, init: KeyboardEventInit): KeyboardEvent {
 	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
@@ -55,9 +21,9 @@ function press(el: HTMLElement, init: KeyboardEventInit): KeyboardEvent {
 	return event;
 }
 
-let mounted: ReturnType<typeof mountBreak>;
+let mounted: MountedBreak;
 afterEach(async () => {
-	if (mounted) await unmount(mounted.instance);
+	if (mounted) await mounted.dispose();
 	document.body.innerHTML = '';
 });
 
@@ -77,16 +43,10 @@ describe('thematic break — the whole-block focus surface', () => {
 		expect(mounted.instance.focusable).toBe(true);
 	});
 
-	// Focus lands on the block's hidden editing host, so containment is the assertion — the
-	// host's own wiring is `thematic-break-input-proxy.test.ts`.
-	it('parks the caret inside the block, and reports an offset only while it holds focus', () => {
+	// Where the park LANDS is pinned finer in thematic-break-input-proxy (activeElement IS the host).
+	it('reports no cursor offset until the caret is parked', () => {
 		mounted = mountBreak();
 		expect(mounted.instance.getCursorOffset()).toBeNull();
-
-		mounted.instance.parkCaret(0);
-
-		expect(mounted.el.contains(document.activeElement)).toBe(true);
-		expect(mounted.instance.getCursorOffset()).toBe(0);
 	});
 
 	// `focus` owes the range-ending `parkCaret` skips: a whole-block landing seats no DOM

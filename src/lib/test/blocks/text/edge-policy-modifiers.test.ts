@@ -5,76 +5,23 @@
 // read only shiftKey, so Ctrl+ArrowLeft entered the widget instead of moving the caret — modal for
 // an image, so the next printable key replaced the construct's bytes. Pinned at the dispatch's own
 // decision (declined, entry seam untouched) rather than through the modal state it would open.
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
-import { parse } from '$lib/core/parser';
-import { computeInlineContent } from '$lib/core/inline';
+import { describe, expect, it } from 'vitest';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { CstNode, InlineNode } from '$lib/core/nodes';
-import { stampMathWidget } from './math-widget-fixture';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { mountWidgetBlock } from './math-widget-fixture';
+import { installEdgeDispatchCleanup, key, makeEdgeDispatch } from './edge-policy-fixture';
 
 /** Mount [prose][atomic island][prose] around `source`'s first widget of `kind` and
  *  wire the dispatch with a recording entry seam. */
 function mount(source: string, kind: string) {
-	const node: CstNode = parse(source).children[0];
-	const widget = computeInlineContent(node).find((n: InlineNode) => n.kind === kind)!;
-
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.append(
-		document.createTextNode(node.raw.slice(0, widget.start)),
-		stampMathWidget(widget),
-		document.createTextNode(node.raw.slice(widget.end).replace(/\n$/, ''))
-	);
-	document.body.appendChild(el);
-
+	const { node, el, inlineWidgets } = mountWidgetBlock(source, kind);
 	const entered: { start: number; fromTrailingEdge: boolean }[] = [];
-	const edits: unknown[] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		hasIslands: () => false,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => edits.push(args)
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: (w, fromTrailingEdge) => entered.push({ start: w.start, fromTrailingEdge }),
-		isReading: () => false,
-		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
-	return { dispatch: createEdgePolicyDispatch(deps), widget, entered, edits };
+	const { dispatch, edits } = makeEdgeDispatch(node, el, {
+		enterWidget: (w, fromTrailingEdge) => entered.push({ start: w.start, fromTrailingEdge })
+	});
+	return { dispatch, widget: inlineWidgets[0], entered, edits };
 }
 
-function key(name: string, modifiers: Partial<KeyboardEvent> = {}): KeyboardEvent {
-	return new KeyboardEvent('keydown', { key: name, cancelable: true, ...modifiers });
-}
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	window.getSelection()?.removeAllRanges();
-});
+installEdgeDispatchCleanup();
 
 describe('a modifier chord at a widget edge is not a widget entry', () => {
 	const chords: Partial<KeyboardEvent>[] = [{ ctrlKey: true }, { metaKey: true }, { altKey: true }];

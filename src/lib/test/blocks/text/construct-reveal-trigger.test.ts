@@ -8,8 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { tick } from 'svelte';
 import { parse } from '$lib/core/parser';
 import type { CstNode } from '$lib/core/nodes';
-import { createTextRender, type TextRenderDeps } from '$lib/components/blocks/text/text-render';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { createTextRender } from '$lib/components/blocks/text/text-render';
 import {
 	createConstructReveal,
 	type ConstructReveal
@@ -21,6 +20,8 @@ import {
 	resetInteractionTrace,
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
+import { placeCaretAt } from './math-widget-fixture';
+import { makeRenderHarness, type RenderHarness } from './render-fixture';
 
 // 'alpha **bold** tail' — strong spans [6,14); its two `**` spans carry the stamp.
 const RAW = 'alpha **bold** tail\n';
@@ -28,51 +29,16 @@ const RAW = 'alpha **bold** tail\n';
 describe('createConstructReveal — trigger', () => {
 	let el: HTMLElement;
 	let node: CstNode;
-	let mode: PresentationMode;
+	let harness: RenderHarness;
 	let crossBlock: boolean;
 	let reveal: ConstructReveal;
 
 	beforeEach(() => {
 		node = parse(RAW).children[0];
-		mode = 'preview-inline';
 		crossBlock = false;
-		el = document.createElement('div');
-		document.body.appendChild(el);
-		const renderDeps = {
-			get el() {
-				return el;
-			},
-			get node() {
-				return node;
-			},
-			get ambientPrefix() {
-				return '';
-			},
-			get ambientPrefixText() {
-				return '';
-			},
-			getDisplayText: () => node.raw,
-			resolveImageUrl: (u: string) => u,
-			resolveLinkUrl: (u: string) => u,
-			get imageLoadPolicy() {
-				return 'auto' as const;
-			},
-			get presentationMode() {
-				return mode;
-			},
-			get linkResolver() {
-				return undefined;
-			},
-			get linkStamp() {
-				return '0';
-			},
-			get islands() {
-				return [];
-			},
-			getDocument: () => undefined,
-			brokenUrlCache: new Set<string>()
-		} as TextRenderDeps;
-		createTextRender(renderDeps).render();
+		harness = makeRenderHarness(node, { mode: 'preview-inline' });
+		el = harness.el;
+		createTextRender(harness.deps).render();
 		reveal = createConstructReveal({
 			get node() {
 				return node;
@@ -82,7 +48,7 @@ describe('createConstructReveal — trigger', () => {
 			},
 			getEl: () => el,
 			getAmbientLength: () => 0,
-			getPresentationMode: () => mode,
+			getPresentationMode: () => harness.deps.presentationMode,
 			isCrossBlock: () => crossBlock
 		});
 	});
@@ -105,12 +71,7 @@ describe('createConstructReveal — trigger', () => {
 			}
 		}
 		if (!target) throw new Error(`setCaret: text node "${text}" not found`);
-		const range = document.createRange();
-		range.setStart(target, offset);
-		range.collapse(true);
-		const sel = window.getSelection()!;
-		sel.removeAllRanges();
-		sel.addRange(range);
+		placeCaretAt(target, offset);
 	}
 
 	const revealedSpans = () => el.querySelectorAll(`.${CONSTRUCT_REVEAL_CLASS}`);
@@ -176,7 +137,7 @@ describe('createConstructReveal — trigger', () => {
 		setCaret('bold', 2);
 		reveal.update();
 		expect(revealedSpans().length).toBe(2);
-		mode = 'source';
+		harness.setMode('source');
 		reveal.update(true);
 		expect(revealedSpans().length).toBe(0);
 	});

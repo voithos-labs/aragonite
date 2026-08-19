@@ -5,78 +5,45 @@
 // silently — no beforeinput fires — so the dispatch commits the delete through the CST instead.
 // This branch lived inside the Svelte component and never had a unit test; the extraction lets
 // one pin it at its own level (culture.md: dispatch layers get tests at their own level).
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import {
+	at,
+	installEdgeDispatchCleanup,
+	key,
+	makeEdgeDispatch,
+	mountSurface,
+	type EdgeDispatchHarness
+} from './edge-policy-fixture';
 
-interface Harness {
-	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
+interface Harness extends EdgeDispatchHarness {
 	text: Text;
 	marker: HTMLElement;
-	edits: { index: number; content: string; start: number; end: number }[];
 }
 
 /** Mount `[md-marker][content]` — the shape a list item's ambient-prefixed prose child renders.
  *  `rawSelection` is the content range the (mocked) DOM→raw walk yields. */
 function mount(source: string, rawSelection: { start: number; end: number } | null): Harness {
-	const node: CstNode = parse(source).children[0];
-	const display = node.raw.replace(/\n$/, '');
+	const node = parse(source).children[0];
 
 	const marker = document.createElement('span');
 	marker.className = 'md-marker';
 	marker.setAttribute('contenteditable', 'false');
 	marker.textContent = '- ';
-	const text = document.createTextNode(display);
+	const text = document.createTextNode(trimTrailingLineEnding(node.raw));
+	const el = mountSurface([marker, text]);
 
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.append(marker, text);
-	document.body.appendChild(el);
-
-	const edits: Harness['edits'] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
+	const harness = makeEdgeDispatch(node, el, {
 		getAmbientLength: () => marker.textContent!.length,
-		hasIslands: () => false,
 		getRawSelection: () =>
 			rawSelection && {
 				start: asRawOffset(rawSelection.start),
 				end: asRawOffset(rawSelection.end)
-			},
-		blockEdit: {
-			updateBlockContent: (index: number, content: string, start: number, end: number) => {
-				edits.push({ index, content, start, end });
 			}
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: () => {},
-		isReading: () => false,
-		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
-	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, text, marker, edits };
+	});
+	return { ...harness, text, marker };
 }
 
 /** Select from `anchor` to `focus`; endpoints are (node, offset). */
@@ -89,14 +56,7 @@ function select(anchor: [Node, number], focus: [Node, number]): void {
 	sel.addRange(range);
 }
 
-function key(name: string, modifiers: Partial<KeyboardEvent> = {}): KeyboardEvent {
-	return new KeyboardEvent('keydown', { key: name, cancelable: true, ...modifiers });
-}
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	window.getSelection()?.removeAllRanges();
-});
+installEdgeDispatchCleanup();
 
 describe('ambient-marker selection delete', () => {
 	it('Backspace over a selection reaching into the marker deletes the range via the CST', () => {
@@ -106,17 +66,17 @@ describe('ambient-marker selection delete', () => {
 		select([h.marker.firstChild!, 1], [h.text, 2]);
 
 		const e = key('Backspace');
-		expect(h.handleKeydown(e, asRawOffset(2) as RawOffset)).toBe(true);
+		expect(h.handleKeydown(e, at(2))).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
-		expect(h.edits).toEqual([{ index: 0, content: 'cd\n', start: 0, end: 0 }]);
+		expect(h.edits).toEqual([[0, 'cd\n', 0, 0]]);
 	});
 
 	it('Delete over the same marker-touching selection deletes the range too', () => {
 		const h = mount('abcd\n', { start: 0, end: 2 });
 		select([h.marker.firstChild!, 1], [h.text, 2]);
 
-		expect(h.handleKeydown(key('Delete'), asRawOffset(2) as RawOffset)).toBe(true);
-		expect(h.edits).toEqual([{ index: 0, content: 'cd\n', start: 0, end: 0 }]);
+		expect(h.handleKeydown(key('Delete'), at(2))).toBe(true);
+		expect(h.edits).toEqual([[0, 'cd\n', 0, 0]]);
 	});
 
 	// The sibling arms decline modifier chords so the platform word-delete runs natively; this arm
@@ -127,8 +87,8 @@ describe('ambient-marker selection delete', () => {
 			const h = mount('abcd\n', { start: 0, end: 2 });
 			select([h.marker.firstChild!, 1], [h.text, 2]);
 
-			expect(h.handleKeydown(key('Backspace', mods), asRawOffset(2) as RawOffset)).toBe(true);
-			expect(h.edits).toEqual([{ index: 0, content: 'cd\n', start: 0, end: 0 }]);
+			expect(h.handleKeydown(key('Backspace', mods), at(2))).toBe(true);
+			expect(h.edits).toEqual([[0, 'cd\n', 0, 0]]);
 		}
 	);
 
@@ -137,7 +97,7 @@ describe('ambient-marker selection delete', () => {
 		select([h.text, 1], [h.text, 3]);
 
 		const e = key('Backspace');
-		expect(h.handleKeydown(e, asRawOffset(3) as RawOffset)).toBe(false);
+		expect(h.handleKeydown(e, at(3))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 		expect(h.edits).toHaveLength(0);
 	});
@@ -147,7 +107,7 @@ describe('ambient-marker selection delete', () => {
 		select([h.text, 0], [h.text, 0]);
 
 		const e = key('Backspace');
-		expect(h.handleKeydown(e, asRawOffset(0) as RawOffset)).toBe(false);
+		expect(h.handleKeydown(e, at(0))).toBe(false);
 		expect(e.defaultPrevented).toBe(false);
 		expect(h.edits).toHaveLength(0);
 	});

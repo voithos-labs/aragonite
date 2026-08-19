@@ -5,35 +5,13 @@
 // Miss-analysis: every commit test typed a new language, so no test ever pressed Enter on
 // an untouched field, and the byte comparison passed for the unpadded fence they all used.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
-import { parse } from '$lib/core/parser';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { flushSync } from 'svelte';
+import { mountCode, type MountedCode } from './mount-code';
 
 // Trailing spaces the parser trims out of `meta.info` and keeps in the block's bytes.
 const PADDED = '```js  \nconst x = 1\n```\n';
 
-function mountCodeBlock(source: string) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-	const instance = mount(CodeBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({
-			blockEdit,
-			doc: { doc: () => doc },
-			// The chip renders only where the mode paints no fence.
-			policies: { presentationMode: () => 'live' }
-		})
-	});
-	flushSync();
-	return { instance, target, blockEdit };
-}
-
-let mounted: ReturnType<typeof mountCodeBlock>;
+let mounted: MountedCode;
 
 /** Click the chip, returning the field it swapped itself for. */
 function openField(): HTMLInputElement {
@@ -55,10 +33,10 @@ function commits(): string[] {
 }
 
 beforeEach(() => {
-	mounted = mountCodeBlock(PADDED);
+	mounted = mountCode(PADDED, { policies: { presentationMode: () => 'live' } });
 });
 afterEach(async () => {
-	await unmount(mounted.instance);
+	await mounted.dispose();
 	document.body.innerHTML = '';
 });
 

@@ -6,13 +6,12 @@
 // menu Cut. Each committed text is read through the write sink, where the kind's escape runs —
 // measuring at the component's own call would only prove the gesture escaped its own bytes.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { tick } from 'svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { splitRowCells } from '$lib/core/parsers/table';
 import { updateNodeContent } from '$lib/tree-operations/node-ops';
 import { rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { mountCell } from './mount-cell';
+import { mountCell, settleTicks } from './mount-cell';
 
 // The cell holds `a\|b` — an escaped pipe. The renderer emits the backslash as a marker span and
 // the `|` as text, so both bytes are in textContent and the caret can sit between them.
@@ -28,9 +27,7 @@ function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
 // The before-input handler awaits the shared prelude before committing, so the
 // commit lands several microtasks after dispatch.
 async function settleCommit(blockEdit: ReturnType<typeof makeStubBlockEdit>): Promise<void> {
-	for (let i = 0; i < 8 && vi.mocked(blockEdit.updateBlockContent).mock.calls.length === 0; i++) {
-		await tick();
-	}
+	await settleTicks(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
 }
 
 /** Cells the row reparses into once the sink has written the gesture's text. */

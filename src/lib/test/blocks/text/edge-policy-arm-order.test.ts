@@ -5,56 +5,24 @@
 // tests can see. Miss-analysis: the order lived as nine literal `if` lines with no test naming it,
 // so a reordering read as a refactor.
 import { describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import { installEdgeDispatchCleanup, makeEdgeDispatch, mountSurface } from './edge-policy-fixture';
 
 function mount(reading: boolean, source = 'hello world\n') {
 	const node = parse(source).children[0];
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.textContent = trimTrailingLineEnding(node.raw);
-	document.body.appendChild(el);
-
-	const commits: string[] = [];
+	const el = mountSurface(trimTrailingLineEnding(node.raw));
 	const entered: { start: number; end: number }[] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
+	const harness = makeEdgeDispatch(node, el, {
 		hasIslands: () => true,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (_index: number, raw: string) => commits.push(raw)
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: (widget) => entered.push({ start: widget.start, end: widget.end }),
 		isReading: () => reading,
-		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
-	return { dispatch: createEdgePolicyDispatch(deps), node, commits, entered };
+		enterWidget: (widget) => entered.push({ start: widget.start, end: widget.end })
+	});
+	return { ...harness, node, entered };
 }
+
+installEdgeDispatchCleanup();
 
 describe('the declared arm order', () => {
 	const { dispatch } = mount(false);
@@ -93,7 +61,7 @@ describe('the declared arm order', () => {
 		const e = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true });
 		expect(b.dispatch.handleKeydown(e, asRawOffset(7))).toBe(true);
 		expect(b.entered).toEqual([{ start: 1, end: 7 }]);
-		expect(b.commits).toEqual([]);
+		expect(b.edits).toEqual([]);
 		expect(e.defaultPrevented).toBe(true);
 		expect(b.node.raw).toBe('a&copy;b\n');
 	});

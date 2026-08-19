@@ -14,13 +14,7 @@ import {
 } from '$lib/components/blocks/text/text-clipboard';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
-
-interface Commit {
-	index: number;
-	raw: string;
-	before: number;
-	after: number;
-}
+import type { Commit } from './widget-selected-fixture';
 
 function capturingEvent() {
 	const store = new Map<string, string>();

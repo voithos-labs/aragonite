@@ -6,17 +6,13 @@
 // is that the surface CLAIMS the native gesture (preventDefault) and commits the
 // clamped text instead of letting the browser splice the fence away.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
-import { parse } from '$lib/core/parser';
 import { asDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import {
 	createRangeFromOffsets,
 	getRangeOffsets,
 	getSelectionOffsets
 } from '$lib/cursor/content-offsets';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountCode, type MountedCode } from './mount-code';
 
 // Async handlers finish after the dispatch returns; one macrotask drains the await
 // chain (handleSharedBeforeInput) before the guard's commit is observable.
@@ -25,22 +21,7 @@ const settle = () => new Promise((r) => setTimeout(r));
 // display "```js\nconst x = 1\n```": opener text [0,5) · body [6,17] · closer text [18,21).
 const SOURCE = '```js\nconst x = 1\n```\n';
 
-function mountCodeBlock(source = SOURCE) {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse(source);
-	const blockEdit = makeStubBlockEdit();
-
-	const instance = mount(CodeBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({ blockEdit, doc: { doc: () => doc } })
-	});
-	flushSync();
-	return { instance, el: target.querySelector('.code-block') as HTMLElement, blockEdit };
-}
-
-let mounted: ReturnType<typeof mountCodeBlock>;
+let mounted: MountedCode;
 
 function select(start: number, end: number): void {
 	const range = createRangeFromOffsets(mounted.el, asDomTextOffset(start), asDomTextOffset(end));
@@ -80,10 +61,10 @@ function committedText(): string {
 }
 
 beforeEach(() => {
-	mounted = mountCodeBlock();
+	mounted = mountCode(SOURCE);
 });
 afterEach(async () => {
-	await unmount(mounted.instance);
+	await mounted.dispose();
 	document.body.innerHTML = '';
 });
 
@@ -129,8 +110,8 @@ describe('CodeBlock — fence-crossing ranged edits', () => {
 	// The keydown path auto-indents (computeCodeEnter 'normal'); a mobile/IME
 	// insertParagraph is the same gesture and keeps the indent.
 	it('claims a paragraph break and keeps the body line indent', async () => {
-		await unmount(mounted.instance);
-		mounted = mountCodeBlock('```js\n  const x = 1\n```\n');
+		await mounted.dispose();
+		mounted = mountCode('```js\n  const x = 1\n```\n');
 		select(14, 22);
 		const e = beforeInput('insertParagraph');
 		await settle();

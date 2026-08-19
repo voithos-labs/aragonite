@@ -6,75 +6,25 @@
 // arm with the demote (`merge-prev-demote.test.ts`) — the last row here is what pins that it did.
 // Miss-analysis: the edge-policy suites mount bare containers with no presentation root, so
 // the marker-hiding modes had no fixture to fail in.
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { CstNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
-
-interface Harness {
-	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
-	edits: unknown[];
-}
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import {
+	at,
+	installEdgeDispatchCleanup,
+	key,
+	makeEdgeDispatch,
+	mountSurface,
+	type EdgeDispatchHarness
+} from './edge-policy-fixture';
 
 /** `source` as one block under an optional presentation root; markers ride their own spans. */
-function mount(source: string, mode?: string): Harness {
-	const node: CstNode = parse(source).children[0];
-	const root = document.createElement('div');
-	if (mode) root.setAttribute('data-presentation', mode);
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	el.textContent = node.raw.replace(/\n$/, '');
-	root.appendChild(el);
-	document.body.appendChild(root);
-
-	const edits: unknown[] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		hasIslands: () => false,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args)
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: () => {},
-		isReading: () => false,
-		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
-	return { handleKeydown: createEdgePolicyDispatch(deps).handleKeydown, edits };
+function mount(source: string, mode?: string): EdgeDispatchHarness {
+	const node = parse(source).children[0];
+	return makeEdgeDispatch(node, mountSurface(trimTrailingLineEnding(node.raw), mode));
 }
 
-const key = (name: string, modifiers: Partial<KeyboardEvent> = {}) =>
-	new KeyboardEvent('keydown', { key: name, cancelable: true, ...modifiers });
-
-const at = (offset: number) => asRawOffset(offset) as RawOffset;
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	window.getSelection()?.removeAllRanges();
-});
+installEdgeDispatchCleanup();
 
 describe('a hidden structural suffix swallows Delete at content end', () => {
 	// `Title\n===`: the underline is structural, so content ends at 5.

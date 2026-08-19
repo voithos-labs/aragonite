@@ -6,10 +6,6 @@
 // native typing can mask byte-for-byte in a real browser. A third describe pins the observable
 // precedence: a CST widget wins the shared caret edge over an island.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { parse } from '$lib/core/parser';
 import { computeInlineContent } from '$lib/core/inline';
@@ -20,103 +16,30 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '$lib/perf/instruments';
-import type { BlockEditActions } from '$lib/action-contracts';
-import type { CstNode, InlineNode } from '$lib/core/nodes';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
+import type { InlineNode } from '$lib/core/nodes';
+import {
+	caretAfter,
+	decorationIsland,
+	installEdgeDispatchCleanup,
+	key,
+	makeEdgeDispatch,
+	mountIslandBlock,
+	mountSurface,
+	type EdgeDispatchHarness
+} from './edge-policy-fixture';
 
-interface Harness {
-	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
-	el: HTMLElement;
+interface Harness extends EdgeDispatchHarness {
 	island: HTMLElement;
-	edits: { index: number; content: string; start: number; end: number }[];
 }
 
-/** Common dispatch deps for the island tests: no CST widget, no reveal, editing mode.
+/** Island block wired to the dispatch: no CST widget, no reveal, editing mode.
  *  `hasIslands` defaults true; the scan-gate tests pass false for the island-free early return. */
-function islandDeps(
-	node: CstNode,
-	el: HTMLElement,
-	edits: Harness['edits'],
-	hasIslands = true
-): EdgePolicyDispatchDeps {
-	return {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
-		getAmbientLength: () => 0,
-		hasIslands: () => hasIslands,
-		getRawSelection: () => null,
-		blockEdit: {
-			updateBlockContent: (index: number, content: string, start: number, end: number) => {
-				edits.push({ index, content, start, end });
-			}
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: () => {},
-		isReading: () => false,
-		getEdgeAffinity: () => null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
+function mount(source: string, start: number, end: number, hasIslands = true): Harness {
+	const { node, el, island } = mountIslandBlock(source, start, end);
+	return { ...makeEdgeDispatch(node, el, { hasIslands: () => hasIslands }), island };
 }
 
-/** Mount [text before][island][text after] for `source`'s first block and wire
- *  the dispatch around it. Zero-width `start === end` mounts a widget island. */
-function mount(source: string, start: number, end: number): Harness {
-	const node = parse(source).children[0];
-	const display = node.raw.replace(/\n$/, '');
-
-	const island = document.createElement('span');
-	island.dataset.decorationIsland = '';
-	island.dataset.sourceStart = String(start);
-	island.dataset.sourceEnd = String(end);
-	island.setAttribute('contenteditable', 'false');
-
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	if (start > 0) el.append(document.createTextNode(display.slice(0, start)));
-	el.append(island);
-	if (end < display.length) el.append(document.createTextNode(display.slice(end)));
-	document.body.appendChild(el);
-
-	const edits: Harness['edits'] = [];
-	return {
-		handleKeydown: createEdgePolicyDispatch(islandDeps(node, el, edits)).handleKeydown,
-		el,
-		island,
-		edits
-	};
-}
-
-function key(name: string, modifiers: Partial<KeyboardEvent> = {}): KeyboardEvent {
-	return new KeyboardEvent('keydown', { key: name, cancelable: true, ...modifiers });
-}
-
-function caretAfter(island: HTMLElement): void {
-	const range = document.createRange();
-	range.setStartAfter(island);
-	range.collapse(true);
-	const sel = window.getSelection()!;
-	sel.removeAllRanges();
-	sel.addRange(range);
-}
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	window.getSelection()?.removeAllRanges();
-});
+installEdgeDispatchCleanup();
 
 describe('modifier chords stay native near islands', () => {
 	const chords: Partial<KeyboardEvent>[] = [{ ctrlKey: true }, { altKey: true }, { metaKey: true }];
@@ -161,12 +84,12 @@ describe('typing at an element-level caret against a widget island', () => {
 		const e = key('z');
 		expect(h.handleKeydown(e, asRawOffset(5))).toBe(true);
 		expect(e.defaultPrevented).toBe(true);
-		expect(h.edits).toEqual([{ index: 0, content: 'helloz\n', start: 5, end: 6 }]);
+		expect(h.edits).toEqual([[0, 'helloz\n', 5, 6]]);
 	});
 
 	it('leaves a text-node caret to native typing', () => {
 		const h = mount('hello\n', 5, 5);
-		const textNode = h.el.firstChild as Text;
+		const textNode = h.island.previousSibling as Text;
 		const range = document.createRange();
 		range.setStart(textNode, 5);
 		range.collapse(true);
@@ -183,47 +106,29 @@ describe('typing at an element-level caret against a widget island', () => {
 // ── Precedence: CST widget wins the shared caret edge over an island ───────────
 
 describe('a CST widget outranks a decoration island at the same caret edge', () => {
-	beforeEach(() => {
-		document.body.innerHTML = '';
-	});
-
 	it('Backspace at an offset both claim enters the widget, never selects the island', () => {
 		// `a![c](x)` — the image widget occupies raw 1..8 and the replace island ends at 8 too.
 		// The dispatch tries the widget class first, so its select-then-delete wins.
 		const node = parse('a![c](x)\n').children[0];
 		const image = computeInlineContent(node).find((n: InlineNode) => n.kind === 'image')!;
-
-		const el = document.createElement('div');
-		el.setAttribute('contenteditable', 'true');
-		const island = document.createElement('span');
-		island.dataset.decorationIsland = '';
-		island.dataset.sourceStart = '6';
-		island.dataset.sourceEnd = String(image.end);
-		island.setAttribute('contenteditable', 'false');
-		el.append(document.createTextNode('a![c]('), island);
-		document.body.appendChild(el);
+		const el = mountSurface([document.createTextNode('a![c]('), decorationIsland(6, image.end)]);
 		window.getSelection()?.removeAllRanges();
 
 		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
-		const edits: Harness['edits'] = [];
-		const deps: EdgePolicyDispatchDeps = {
-			...islandDeps(node, el, edits),
+		const h = makeEdgeDispatch(node, el, {
+			hasIslands: () => true,
 			enterWidget: (widget, fromTrailingEdge) =>
 				widgetSelection.select({
 					paragraphPath: [0],
 					sourceStart: widget.start,
 					preSelectOffset: fromTrailingEdge ? widget.end : widget.start
 				})
-		};
+		});
 
-		const consumed = createEdgePolicyDispatch(deps).handleKeydown(
-			key('Backspace'),
-			asRawOffset(image.end)
-		);
-		expect(consumed).toBe(true);
+		expect(h.handleKeydown(key('Backspace'), asRawOffset(image.end))).toBe(true);
 		expect(widgetSelection.getSelected()).toMatchObject({ sourceStart: image.start });
 		// The island's select-whole never ran: no native range wraps it, no edit fired.
-		expect(edits).toHaveLength(0);
+		expect(h.edits).toHaveLength(0);
 		expect(window.getSelection()!.rangeCount).toBe(0);
 	});
 });
@@ -239,10 +144,7 @@ describe('island-free typing skips the DOM scan', () => {
 
 	// A plain paragraph with a text-node caret and no island span — the common block.
 	function plainBlock(): HTMLElement {
-		const el = document.createElement('div');
-		el.setAttribute('contenteditable', 'true');
-		el.append(document.createTextNode('hello'));
-		document.body.appendChild(el);
+		const el = mountSurface([document.createTextNode('hello')]);
 		const range = document.createRange();
 		range.setStart(el.firstChild!, 3);
 		range.collapse(true);
@@ -254,8 +156,7 @@ describe('island-free typing skips the DOM scan', () => {
 
 	it('a printable keydown runs zero DOM scans when the block has no islands', () => {
 		const node = parse('hello\n').children[0];
-		const el = plainBlock();
-		const dispatch = createEdgePolicyDispatch(islandDeps(node, el, [], false));
+		const dispatch = makeEdgeDispatch(node, plainBlock());
 		expect(dispatch.handleKeydown(key('z'), asRawOffset(3))).toBe(false);
 		expect(perfSnapshot().islandKeyScans).toBe(0);
 	});

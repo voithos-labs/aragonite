@@ -6,29 +6,10 @@
 // commit pushing a dead undo entry, a post-commit caret taken off the widget's stale end, and the
 // cross-block rule moving off the BLUR caller into the commit itself.
 import { describe, it, expect } from 'vitest';
-import {
-	createWidgetInteraction,
-	type WidgetInteractionDeps
-} from '$lib/components/blocks/text/widget-interaction';
-import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
-import { parse } from '$lib/core/parser';
-import { computeInlineContent } from '$lib/core/inline';
-import { trimTrailingLineEnding } from '$lib/core/lines';
-import type { CstNode, InlineNode } from '$lib/core/nodes';
+import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import {
-	stampMathWidget,
-	installMathInline,
-	mountWidgetBlock,
-	widgetInteractionDeps
-} from './math-widget-fixture';
-
-interface Commit {
-	index: number;
-	raw: string;
-	before: number;
-	after: number;
-}
+import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
+import type { Commit } from './widget-selected-fixture';
 
 installMathInline();
 
@@ -220,50 +201,23 @@ describe('cancelReveal — identity-exact fold-back', () => {
 	// Two byte-identical widgets: the cancel swap must restore the EXACT element it detached. A
 	// rebuild-by-lookup (the pool keys on `${kind} ${source}`) would MOVE the other instance.
 	it('Escape restores the same element it swapped out, leaving its twin untouched', async () => {
-		const node: CstNode = parse('Twice $x^2$ and $x^2$ again').children[0];
-		const [first, second] = computeInlineContent(node).filter(
-			(n: InlineNode) => n.kind === MATH_INLINE
+		const { el, node, widgets, inlineWidgets } = mountWidgetBlock(
+			'Twice $x^2$ and $x^2$ again',
+			MATH_INLINE
 		);
-		const firstWidget = stampMathWidget(first);
-		const secondWidget = stampMathWidget(second);
-		const display = trimTrailingLineEnding(node.raw);
+		const [firstWidget, secondWidget] = widgets;
+		const second = inlineWidgets[1];
 
-		const el = document.createElement('div');
-		el.setAttribute('contenteditable', 'true');
-		el.append(
-			document.createTextNode(node.raw.slice(0, first.start)),
-			firstWidget,
-			document.createTextNode(node.raw.slice(first.end, second.start)),
-			secondWidget,
-			document.createTextNode(display.slice(second.end))
+		const interaction = createWidgetInteraction(
+			widgetInteractionDeps(
+				{ node, el },
+				{
+					setPendingCursor: () => {},
+					setRevealing: () => {},
+					isCrossBlock: () => false
+				}
+			)
 		);
-		document.body.appendChild(el);
-		el.focus();
-
-		const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
-		const interaction = createWidgetInteraction({
-			get node() {
-				return node;
-			},
-			get index() {
-				return 0;
-			},
-			get myPath() {
-				return [0];
-			},
-			getEl: () => el,
-			getAmbientLength: () => 0,
-			getEditorContentWidth: () => 800,
-			widgetSelection,
-			setSnapTarget: () => {},
-			setPendingCursor: () => {},
-			readRawText: () => '',
-			setRevealing: () => {},
-			isCrossBlock: () => false,
-			get linkRef() {
-				return undefined;
-			}
-		} as unknown as WidgetInteractionDeps);
 
 		interaction.enterWidget(second, false);
 		await new Promise((r) => setTimeout(r));

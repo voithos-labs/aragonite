@@ -6,8 +6,7 @@
 // chord dispatcher and the navigation plan. A regression is silent until an IME user confirms a
 // candidate and the table grows a row. The commit half is pinned in cell-typing-commit.
 import { describe, it, expect, afterEach } from 'vitest';
-import { tick } from 'svelte';
-import { mountCell, type MountedCell } from './mount-cell';
+import { mountCell, settleTicks, type MountedCell } from './mount-cell';
 
 let mounted: MountedCell | null = null;
 afterEach(async () => {
@@ -25,7 +24,7 @@ function compose(m: MountedCell): void {
 async function press(m: MountedCell, init: KeyboardEventInit): Promise<boolean> {
 	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
 	m.el.dispatchEvent(event);
-	for (let i = 0; i < 10; i++) await tick();
+	await settleTicks();
 	return event.defaultPrevented;
 }
 
@@ -70,7 +69,7 @@ describe('a composing table cell claims no keys', () => {
 		mounted.el.focus();
 		compose(mounted);
 		mounted.el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: 'x' }));
-		for (let i = 0; i < 10; i++) await tick();
+		await settleTicks();
 
 		expect(await press(mounted, { key: 'Tab' })).toBe(true);
 		expect(mounted.tableContext.focusCell).toHaveBeenCalled();

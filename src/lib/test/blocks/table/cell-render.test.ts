@@ -259,14 +259,6 @@ describe('createCellRender', () => {
 		expect(el.textContent).not.toContain('SECRET');
 	});
 
-	it('an empty island set contributes nothing to the render key (zero-cost parity)', () => {
-		const { el, render } = mount('plain');
-		render.render();
-		const firstChild = el.firstChild;
-		render.render();
-		expect(el.firstChild).toBe(firstChild);
-	});
-
 	it('a signature change rebuilds; an equal signature does not', () => {
 		const { el, render, setIslands } = mount('a SECRET b');
 		setIslands([replaceIsland(2, 8)]);

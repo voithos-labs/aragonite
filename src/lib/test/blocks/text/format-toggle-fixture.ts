@@ -25,6 +25,9 @@ export function toggleFormat(
 	return result;
 }
 
+/** The selection covering all of `raw`. */
+export const whole = (raw: string) => ({ start: 0, end: raw.length });
+
 /** The bare delimiter run of a rowed kind. */
 export function markersOf(format: InlineMarkKind): string {
 	const mark = getInlineMarkPolicy(format);

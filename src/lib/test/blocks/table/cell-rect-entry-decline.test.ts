@@ -4,49 +4,34 @@
 // that leaves the table can land. Miss (Sel-F1): the keyboard requirement file pins the declining
 // gesture with a PARAGRAPH as the last block, where the seed is never minted at all; the table
 // sibling mints one first and then hears the extend decline, and no test covered it.
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
-import { tick } from 'svelte';
-import {
-	blockHostAt,
-	installLayoutStubs,
-	mountEditor,
-	placeCaret,
-	type MountedEditor
-} from '../editor-mount';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { installLayoutStubs, mountEditor, placeCaret, type MountedEditor } from '../editor-mount';
+import { cellAt, installTableLayoutStubs } from './mount-table';
 
-beforeAll(installLayoutStubs);
+// Without the Range stubs the visual-line probe throws instead of falling back to the
+// offset comparison the cell's edge gate reads.
+let restoreLayout: () => void;
+beforeAll(() => {
+	installLayoutStubs();
+	restoreLayout = installTableLayoutStubs();
+	return () => restoreLayout();
+});
 
 // The report's repro byte for byte: the table is the LAST block, so a downward exit from its
 // last row has nowhere to land.
 const TABLE_LAST = 'intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n';
 
 let mounted: MountedEditor | null = null;
-// jsdom leaves Range rect measurement unimplemented; without these the visual-line probe throws
-// instead of falling back to the offset comparison the cell's edge gate reads.
-const originalRangeRects = Range.prototype.getClientRects;
-const originalRangeBox = Range.prototype.getBoundingClientRect;
-beforeEach(() => {
-	Range.prototype.getClientRects = () =>
-		({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }) as unknown as DOMRectList;
-	Range.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 0, 0);
-});
 afterEach(async () => {
-	Range.prototype.getClientRects = originalRangeRects;
-	Range.prototype.getBoundingClientRect = originalRangeBox;
 	if (mounted) await mounted.destroy();
 	mounted = null;
 });
 
-function cell(rowIdx: number, colIdx: number): HTMLElement {
-	const row = blockHostAt(mounted!, [1]).querySelector(`[data-table-row-idx="${rowIdx}"]`);
-	const found = row?.querySelectorAll(':scope > .table-cell')[colIdx] as HTMLElement | undefined;
-	if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
-	return found;
-}
+const cell = (rowIdx: number, colIdx: number) => cellAt(mounted!, rowIdx, colIdx, [1]);
 
 async function press(el: HTMLElement, init: KeyboardEventInit): Promise<void> {
 	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	for (let i = 0; i < 12; i++) await tick();
+	await mounted!.settle();
 }
 
 describe('a rectangle entry that cannot leave the table leaves nothing behind', () => {

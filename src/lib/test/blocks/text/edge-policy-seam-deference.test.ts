@@ -5,31 +5,31 @@
 // delete consumes its keydown before any `beforeinput` reaches the join seam.
 // Miss-analysis: these arms' suites feed them plain prose, so no fixture put an unpainted run
 // beside the byte they splice; and a keydown-consuming arm is invisible to inputType-shaped suites.
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import {
-	createEdgePolicyDispatch,
-	type EdgePolicyDispatchDeps
-} from '$lib/components/blocks/text/edge-policy-dispatch';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import {
 	registerLiveJoinSeamCleaner,
 	__resetLiveJoinSeamCleanerForTests
 } from '$lib/schema/inline-construct-policy';
 import { parse } from '$lib/core/parser';
-import { asRawOffset, type RawOffset } from '$lib/cursor/coordinate-spaces';
-import type { BlockEditActions } from '$lib/action-contracts';
+import { asRawOffset } from '$lib/cursor/coordinate-spaces';
+import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { CstNode } from '$lib/core/nodes';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import '$lib/schema/built-in-descriptors';
+import {
+	at,
+	installEdgeDispatchCleanup,
+	key,
+	makeEdgeDispatch,
+	mountIslandBlock,
+	mountSurface,
+	type EdgeDispatchHarness
+} from './edge-policy-fixture';
 
-type Edit = [number, string, number, number];
-
-interface Surface {
+interface Surface extends EdgeDispatchHarness {
 	node: CstNode;
 	el: HTMLElement;
-	edits: Edit[];
-	handleKeydown: ReturnType<typeof createEdgePolicyDispatch>['handleKeydown'];
 }
 
 interface Options {
@@ -43,28 +43,12 @@ interface Options {
 /** One prose block under a presentation root; the caller fills `el` with the shape it needs. */
 function surface(source: string, options: Options): Surface {
 	const node: CstNode = parse(source).children[0];
-	const root = document.createElement('div');
-	root.setAttribute('data-presentation', options.mode);
-	const el = document.createElement('div');
-	el.setAttribute('contenteditable', 'true');
-	root.appendChild(el);
-	document.body.appendChild(root);
+	const el = mountSurface([], options.mode);
+	return { node, el, ...wire(node, el, options) };
+}
 
-	const edits: Edit[] = [];
-	const deps: EdgePolicyDispatchDeps = {
-		get node() {
-			return node;
-		},
-		get index() {
-			return 0;
-		},
-		get containerParent() {
-			return null;
-		},
-		get linkRef() {
-			return undefined;
-		},
-		getEl: () => el,
+function wire(node: CstNode, el: HTMLElement, options: Options): EdgeDispatchHarness {
+	return makeEdgeDispatch(node, el, {
 		getAmbientLength: () => options.ambientLength ?? 0,
 		hasIslands: () => options.hasIslands ?? false,
 		getRawSelection: () =>
@@ -74,44 +58,18 @@ function surface(source: string, options: Options): Surface {
 						end: asRawOffset(options.rawSelection.end)
 					}
 				: null,
-		blockEdit: {
-			updateBlockContent: (...args: unknown[]) => void edits.push(args as Edit)
-		} as unknown as BlockEditActions,
-		setPendingCursor: () => {},
-		setSnapTarget: () => {},
-		isRevealing: () => false,
-		enterWidget: () => {},
-		isReading: () => false,
-		getEdgeAffinity: () => options.affinity ?? null,
-		pendingMarks: makePendingMarks(),
-		installedAs: 'block'
-	};
-	return { node, el, edits, handleKeydown: createEdgePolicyDispatch(deps).handleKeydown };
+		getEdgeAffinity: () => options.affinity ?? null
+	});
 }
 
-const key = (name: string) => new KeyboardEvent('keydown', { key: name, cancelable: true });
-const at = (offset: number) => asRawOffset(offset) as RawOffset;
-const display = (node: CstNode) => node.raw.replace(/\n$/, '');
-
-afterEach(() => {
-	document.body.innerHTML = '';
-	window.getSelection()?.removeAllRanges();
-});
+installEdgeDispatchCleanup();
 
 // ── The island step-over delete ──────────────────────────────────────────────
 
 /** `[text][zero-width island][text]` — the shape a plugin widget decoration paints. */
 function withWidgetIsland(source: string, mode: string, islandAt: number): Surface {
-	const s = surface(source, { mode, hasIslands: true });
-	const text = display(s.node);
-	const island = document.createElement('span');
-	island.dataset.decorationIsland = '';
-	island.dataset.sourceStart = String(islandAt);
-	island.dataset.sourceEnd = String(islandAt);
-	island.setAttribute('contenteditable', 'false');
-	s.el.append(document.createTextNode(text.slice(0, islandAt)), island);
-	s.el.append(document.createTextNode(text.slice(islandAt)));
-	return s;
+	const { node, el } = mountIslandBlock(source, islandAt, islandAt, mode);
+	return { node, el, ...wire(node, el, { mode, hasIslands: true }) };
 }
 
 describe('a step-over island beside an unpainted run defers to the construct-edge rule', () => {
@@ -150,7 +108,7 @@ function withAmbientSelection(source: string, mode: string, range: { start: numb
 	marker.className = 'md-marker';
 	marker.setAttribute('contenteditable', 'false');
 	marker.textContent = '- ';
-	const text = document.createTextNode(display(s.node));
+	const text = document.createTextNode(trimTrailingLineEnding(s.node.raw));
 	s.el.append(marker, text);
 	const dom = document.createRange();
 	dom.setStart(marker.firstChild!, 1);
