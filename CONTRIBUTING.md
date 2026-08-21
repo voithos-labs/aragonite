@@ -134,7 +134,7 @@ Review is root-cause first, and it will ask for the test alongside the fix. The 
 
 ## Filing defects
 
-Defects and proposals go straight to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), each labelled with one `severity:` and one `area:` label. The issue forms ask for the shape we want, so filling one in is the whole job: what is wrong, how to reproduce it, and where it seems to live.
+Defects and proposals go straight to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues). The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it is a defect. The issue forms ask for the shape we want, so filling one in is the whole job: what is wrong, how to reproduce it, and where it seems to live.
 
 A note on reading the ledger: it is deliberately a memory, not a scoreboard. `severity: watch` entries record observed signals with no confirmed defect, and small true things stay open until fixed rather than being tidied away, so the open count runs higher than the defect count. The labels are the sort order.
 

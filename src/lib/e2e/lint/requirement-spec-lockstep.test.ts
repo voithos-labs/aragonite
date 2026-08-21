@@ -31,6 +31,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'seeded gesture family: one seeded session drives every gesture, so the requirement enumerates gesture coverage and oracle checkpoints, not tests'
 	},
 	{
+		spec: 'capture/',
+		reason:
+			'docs-asset capture: one run publishes the whole image, so the requirement enumerates what the picture must show rather than tests'
+	},
+	{
 		spec: 'plugins/details-terminator-paste.spec.ts',
 		reason:
 			'four of six scenarios are pinned at the unit sink (terminator-collision-paste.test.ts); e2e carries the two browser-visible rows'

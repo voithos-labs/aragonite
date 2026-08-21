@@ -60,8 +60,15 @@ export default defineConfig({
 				...PROJECT_DIRS.map((dir) => `${dir}/**`),
 				'clipboard/**',
 				'simulation/**',
-				'perf/**'
+				'perf/**',
+				'capture/**'
 			]
+		},
+		{
+			// Docs-asset capture, not a test: env-gated, and it writes into docs/assets.
+			name: 'e2e-capture',
+			testMatch: 'capture/**/*.spec.ts',
+			use: { viewport: { width: 620, height: 900 }, deviceScaleFactor: 2 }
 		},
 		{
 			name: 'e2e-simulation',
