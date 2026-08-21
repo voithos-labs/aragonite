@@ -243,7 +243,7 @@ Two grammars that look like candidates are not. Front matter is position-blind t
 
 **Delete** — remove the node from its children array, then settle the join that removal opened (below).
 
-**Reorder** — move a node among its siblings; IDs don't change, and both edges of the moved window are settled (below). Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle (an insertion line marks the drop, one commit on release, autoscroll for off-screen targets). The hover handle is consumer-toggleable (`blockDragHandles`); keyboard reorder is always available.
+**Reorder** — move a node among its siblings; IDs don't change, and both edges of the moved window are settled (below). Two gestures, one operation: keyboard (Alt+↑/↓ on the focused block, with a screen-reader announcement) and a mouse drag from the block's hover handle (an insertion line marks the drop, one commit on release, autoscroll for off-screen targets). The hover handle is opt-in (`blockDragHandles`, default off); keyboard reorder is always available.
 
 **Kind change** — when a re-parse of a block's updated `raw` yields a different kind, the node is replaced with one of the correct kind and keeps its ID. When the re-parse yields several blocks, the first keeps the slot's ID and leading trivia and the rest splice in with fresh IDs, exactly as a split does. The same rule runs a level up for **containers**: an edit inside one changes what the container's own rebuilt `raw` parses to (typing the rest of a `> [!TIP]` marker), so the ancestry rebuild re-derives the container's kind and swaps the slot the same way (§ 9). A demotion also settles the joins it disturbed (below).
 

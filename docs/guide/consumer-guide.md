@@ -33,8 +33,8 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 
 ```svelte
 <script>
-	import { Editor } from 'aragonite';
-	import 'aragonite/styles/editor-theme.css';
+	import { Editor } from '@voithos-labs/aragonite';
+	import '@voithos-labs/aragonite/styles/editor-theme.css';
 
 	let editor;
 </script>
@@ -47,12 +47,12 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 
 Two things your build needs. Both are already true in a SvelteKit app.
 
-- **TypeScript `moduleResolution` must be `bundler`, `node16`, or `nodenext`.** The subpath types (`aragonite/plugin`, `aragonite/plugins/*`, `aragonite/testing`) resolve through the package's `exports` map, which classic `node` resolution never reads: the root `aragonite` import still typechecks, while every subpath import reports "Cannot find module". A SvelteKit-generated `tsconfig.json` is already on `bundler`.
-- **The package ships uncompiled `.svelte` components and `.svelte.js` rune modules**, which your Vite Svelte plugin compiles out of `node_modules`. That is `vite-plugin-svelte`'s default behavior, so it needs no configuration. If you hand-tune `optimizeDeps` or `ssr.noExternal`, keep `aragonite` on the Svelte plugin's side of those lists rather than pre-bundling it.
+- **TypeScript `moduleResolution` must be `bundler`, `node16`, or `nodenext`.** The subpath types (`@voithos-labs/aragonite/plugin`, `@voithos-labs/aragonite/plugins/*`, `@voithos-labs/aragonite/testing`) resolve through the package's `exports` map, which classic `node` resolution never reads: the root `@voithos-labs/aragonite` import still typechecks, while every subpath import reports "Cannot find module". A SvelteKit-generated `tsconfig.json` is already on `bundler`.
+- **The package ships uncompiled `.svelte` components and `.svelte.js` rune modules**, which your Vite Svelte plugin compiles out of `node_modules`. That is `vite-plugin-svelte`'s default behavior, so it needs no configuration. If you hand-tune `optimizeDeps` or `ssr.noExternal`, keep `@voithos-labs/aragonite` on the Svelte plugin's side of those lists rather than pre-bundling it.
 
 ## Public API
 
-Everything supported is re-exported from the package barrel (`aragonite`). Adding an export is non-breaking; removing one is breaking — so the surface is kept small and grows on demand. The barrel itself (`src/lib/index.ts` in the repository) is the authoritative list; this is the map.
+Everything supported is re-exported from the package barrel (`@voithos-labs/aragonite`). Adding an export is non-breaking; removing one is breaking — so the surface is kept small and grows on demand. The barrel itself (`src/lib/index.ts` in the repository) is the authoritative list; this is the map.
 
 | Group                  | What you get                                                                                                                                                                                                                                                                                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -80,7 +80,7 @@ Everything supported is re-exported from the package barrel (`aragonite`). Addin
   - **`setSelection(snapshot)`** — put a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)).
   - **`placeCaretAtPoint(x, y)`** — land the caret at a viewport point exactly as a click there would, and report whether one landed. For a shell that owns chrome beside the document: the shell decides whether to answer a click on its own territory, the editor decides where the caret goes — a click below the last entry lands at the document end. `false` means nothing focusable resolved and the click is still yours. Points resolve against the blocks currently rendered, with one deliberate exception: a point below the whole document resolves against the **parsed** document, so it lands at the real end even when virtual rendering has the tail unmounted. That landing reveals its target first, so the call returns `true` and the caret arrives a frame or two later — which is why your own below-the-editor handler and this one agree on which block they mean. A point can also land the caret **between** two blocks, at a boundary no block's own surface can reach: above a document that opens with a table, the answer is the document-start boundary rather than a clamp into that first block. Such a landing is real (typing there inserts a paragraph) but sits outside the public selection shape in this version, so the call returns `true` while `getSelection()` reports `null`.
   - **`insertMarkdown(md)`** — insert Markdown at the caret exactly as pasting it would. Registered paste transforms run first, then the same strategy a paste picks: a table splices structurally, a one-line snippet splices inline at the caret offset, list items absorb into a matching list. A live selection is deleted first, the whole insertion is one undo entry, and focus lands at its end. `false`, and nothing mutates, when this editor holds no caret, in reading mode, or at a between-blocks caret. `true` means the pipeline took the text, not that the commit has flushed — read the result back on the `edit` channel. See [Recipe: an insert toolbar](#recipe-an-insert-toolbar).
-  - **`runCommand(id)`** — run an editor command by name at the focused surface, no keystroke involved. This is what a formatting button calls: pressing it means "toggle bold", not "press Ctrl+B", so a consumer who rebinds the chord moves the shortcut without rewiring the button. `TOOLBAR_COMMANDS` (exported from `aragonite`) names the ids a selection toolbar needs — strong, emphasis, strikethrough, inline code, and the link editor; the rest of the built-in vocabulary stays internal for now. A plugin's **global** command name is a valid id here too: `registerGlobalCommand` mints it process-wide and this door resolves it ahead of the focused block, so a host can fire a plugin's editor-scope affordance without a keystroke. A plugin's per-block command is the one that stays chord-only. `editLink` belongs to `'live'` mode, where the destination is out of sight: in every other editable mode the bytes are already on screen, so the call is consumed (`true`) and no card opens, exactly as pressing Mod+K there is. Semantics are identical to the same command arriving as a chord: same behavior, one undo entry, the caret and selection left where the chord leaves them. As with `insertMarkdown`, `true` means the editor claimed the command, not that its commit has flushed — a toggle inside a revealed widget settles the reveal first, so read the result back on the `edit` channel rather than polling `getSource()` on the next line. `false`, and nothing mutates, for an unknown id, in reading mode, when the command needs a focused block and none is focused, and for a single-block rewrite over a selection that spans blocks — the format toggles and the link editor alike, since no single block can host that rewrite. `canRunCommand(id)`, below, answers that same question before the click. See [Recipe: a selection toolbar](#recipe-a-selection-toolbar).
+  - **`runCommand(id)`** — run an editor command by name at the focused surface, no keystroke involved. This is what a formatting button calls: pressing it means "toggle bold", not "press Ctrl+B", so a consumer who rebinds the chord moves the shortcut without rewiring the button. `TOOLBAR_COMMANDS` (exported from `@voithos-labs/aragonite`) names the ids a selection toolbar needs — strong, emphasis, strikethrough, inline code, and the link editor; the rest of the built-in vocabulary stays internal for now. A plugin's **global** command name is a valid id here too: `registerGlobalCommand` mints it process-wide and this door resolves it ahead of the focused block, so a host can fire a plugin's editor-scope affordance without a keystroke. A plugin's per-block command is the one that stays chord-only. `editLink` belongs to `'live'` mode, where the destination is out of sight: in every other editable mode the bytes are already on screen, so the call is consumed (`true`) and no card opens, exactly as pressing Mod+K there is. Semantics are identical to the same command arriving as a chord: same behavior, one undo entry, the caret and selection left where the chord leaves them. As with `insertMarkdown`, `true` means the editor claimed the command, not that its commit has flushed — a toggle inside a revealed widget settles the reveal first, so read the result back on the `edit` channel rather than polling `getSource()` on the next line. `false`, and nothing mutates, for an unknown id, in reading mode, when the command needs a focused block and none is focused, and for a single-block rewrite over a selection that spans blocks — the format toggles and the link editor alike, since no single block can host that rewrite. `canRunCommand(id)`, below, answers that same question before the click. See [Recipe: a selection toolbar](#recipe-a-selection-toolbar).
   - **`canRunCommand(id)`** — whether `runCommand(id)` would reach that command's arm right now, asked at the seam that would run it. It is what greys a toolbar button out instead of hiding the affordance: `false` wherever the door declines before dispatch — an unknown id, reading mode, a block-local id with nothing focused, and a single-block rewrite while the selection spans blocks. `true` is reachability, not success: the focused block's own arm still decides whether it writes, so keep reading `runCommand`'s boolean as well.
   - **`getEvents()`** — the observer surface (see [Events](#events)).
   - **`getSearch()`** — the find/replace controller (see [Search](#search)).
@@ -112,7 +112,7 @@ Optional props customize URL and image handling and the editor's affordances.
 | `onPasteImage`     | Import hook for an image-bearing paste — return the Markdown to insert (see [Image paste](#image-paste))                                  |
 | `header`           | Host chrome rendered inside the scroll container, above the first block (see [The header slot](#the-header-slot))                         |
 | `scrollMode`       | `'self'` (default — the editor owns its scrollport) or `'host'` (an ancestor scrolls it; see [Host scroll mode](#host-scroll-mode))       |
-| `blockDragHandles` | Toggle the mouse-only hover drag handle (default on); keyboard reorder (Alt+Arrow) is always available                                    |
+| `blockDragHandles` | Opt into the mouse-only hover drag handle (default off); keyboard reorder (Alt+Arrow) is always available                                 |
 | `searchBar`        | Toggle the in-document find/replace bar and its Ctrl+F / Ctrl+H shortcuts (default on)                                                    |
 | `searchBarAnchor`  | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives))    |
 | `theme`            | Theme name reflected to `data-editor-theme` on the editor root; `'dark'` (default), `'light'`, or a custom name (see [Theming](#theming)) |
@@ -326,14 +326,14 @@ Per-route variation belongs in per-instance options, not in per-route plugin set
 Eight first-party plugins ship in the package as subpath exports — install them like any other unit:
 
 ```ts
-import { admonitionsPlugin } from 'aragonite/plugins/admonitions';
-import { detailsPlugin } from 'aragonite/plugins/details';
-import { tocPlugin } from 'aragonite/plugins/toc';
-import { footnotesPlugin } from 'aragonite/plugins/footnotes';
-import { emojiPlugin } from 'aragonite/plugins/emoji';
-import { highlightOccurrencesPlugin } from 'aragonite/plugins/highlight-occurrences';
-import { latexPlugin } from 'aragonite/plugins/latex';
-import { mermaidPlugin } from 'aragonite/plugins/mermaid';
+import { admonitionsPlugin } from '@voithos-labs/aragonite/plugins/admonitions';
+import { detailsPlugin } from '@voithos-labs/aragonite/plugins/details';
+import { tocPlugin } from '@voithos-labs/aragonite/plugins/toc';
+import { footnotesPlugin } from '@voithos-labs/aragonite/plugins/footnotes';
+import { emojiPlugin } from '@voithos-labs/aragonite/plugins/emoji';
+import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite/plugins/highlight-occurrences';
+import { latexPlugin } from '@voithos-labs/aragonite/plugins/latex';
+import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
 ```
 
 `admonitionsPlugin()` renders `:::name` directive callouts and native GitHub alerts (`> [!NOTE]` blockquotes) as styled boxes, GitHub bytes untouched. Pass `{ convertAlertsOnPaste: true }` to rewrite pasted alerts to directive source instead of rendering them natively.
@@ -351,8 +351,8 @@ import { mermaidPlugin } from 'aragonite/plugins/mermaid';
 latex and mermaid render through **injected engines** that never ride the main bundle: each has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
 ```ts
-import { katexRenderer } from 'aragonite/plugins/latex/renderer'; // imports katex + its CSS
-import { mermaidRenderer } from 'aragonite/plugins/mermaid/renderer'; // dynamic-imports mermaid
+import { katexRenderer } from '@voithos-labs/aragonite/plugins/latex/renderer'; // imports katex + its CSS
+import { mermaidRenderer } from '@voithos-labs/aragonite/plugins/mermaid/renderer'; // dynamic-imports mermaid
 
 latexPlugin({ renderer: katexRenderer });
 mermaidPlugin({ renderer: mermaidRenderer });

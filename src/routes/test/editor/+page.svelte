@@ -19,8 +19,9 @@
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
 
-	// `?dragHandles=false` starts with the hover drag handle disabled. blockDragHandles is
-	// set-once-at-mount, so the header checkbox remounts via {#key}, carrying the content across.
+	// On by default here, unlike the library (opt-in), so the handle specs get it without a param;
+	// `?dragHandles=false` turns it off. Set-once-at-mount, so the header checkbox remounts via
+	// {#key}, carrying the content across.
 	let dragHandlesOn = $state(param('dragHandles') !== 'false');
 
 	function toggleDragHandles() {

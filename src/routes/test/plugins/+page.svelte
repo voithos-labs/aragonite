@@ -285,7 +285,15 @@
 			</button>
 		</div>
 	{/if}
-	<Editor bind:this={editor} {source} {keybindings} {plugins} {presentationMode} {theme} />
+	<Editor
+		bind:this={editor}
+		{source}
+		{keybindings}
+		{plugins}
+		{presentationMode}
+		{theme}
+		blockDragHandles
+	/>
 </div>
 
 <style>

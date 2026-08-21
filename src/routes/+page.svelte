@@ -32,7 +32,7 @@
 	// blockDragHandles is set-once at mount, so its toggle remounts the editor via {#key},
 	// carrying the live content across so a visitor's edits survive the flip.
 	let source = $state(SHOWCASE_DOCUMENT);
-	let dragHandles = $state(true);
+	let dragHandles = $state(false);
 
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();
