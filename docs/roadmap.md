@@ -183,18 +183,8 @@ Convergent capabilities the field survey (`docs/research/plugin-extension-surfac
 answered-by-omission rather than by decision. All are **additive-later** by the freeze criterion —
 none _must_ ship before freeze — so each decision is _direction + validator_, not _build-now_:
 
-- **Plugin-local state** (ProseMirror `StateField`/`PluginKey`, TipTap `addStorage`) — every other
-  ecosystem has one; aragonite should **not**. **Decided: no state API.** Half the need is already
-  met better — state belonging to a node goes _on_ the node, where it undoes, redoes and (if it
-  feeds `rebuildRaw`) round-trips for free, none of which a `StateField` gives you. The other half
-  evaporates: the dominant use of a state field elsewhere is holding a decoration set and **mapping
-  it forward** through changes, which is forced by positions being integers into a flat sequence.
-  aragonite's positions are `(path, offset)` into a CST re-derived on every edit — there is nothing
-  to map forward, so a decoration source is a pure `doc → Range[]`, memoized. The extension
-  surface's three primitives — the document, an editor identity, a change signal — let a plugin
-  build any state it wants in its own `WeakMap`, while the platform stores nothing and owns no
-  lifecycle. Recorded as a
-  decision so it is not cargo-culted back in later.
+- **Plugin-local state** — settled and permanent, so it lives with the other exclusions in
+  `plugin-contract.md` § Explicitly excluded rather than here.
 - **Normalize-on-commit / veto seam** (ProseMirror `appendTransaction`/`filterTransaction`) — the
   highest-leverage lever for plugin _quality_: derived content, linked edits, auto-fix, structural
   guards. **Decided: yes, post-1.0.** No pre-freeze dogfood driver needs it, and the ceremony is
@@ -202,18 +192,12 @@ none _must_ ship before freeze — so each decision is _direction + validator_, 
   doesn't foreclose it; the freeze cut's commit-seam litmus guards it; designed-ahead in
   `plugin-contract.md` § Target shapes. Invariant enforcement stays editor-owned — this augments a
   commit, it does not bypass the invariants.
-- **First-class plugin paste** — the paste-surface mechanism is built and used internally by the
-  chrome/container seams; only the `registerPasteSurface` export is withheld. **Decided at the
-  clean-room build: stays internal at 1.0.** The driver (GitHub-alert → admonition conversion)
-  needed a content-keyed pre-parse clipboard transform, which the target-kind-keyed surface cannot
-  express — registering for prose kinds collides with the built-in default surfaces, and the type
-  closure drags commit-coordinator machinery public. Exposing it would have frozen an export that
-  fails its own driving use case. The conversion-config seam (Editor.js `pasteConfig` analog) —
-  content-keyed and paste-scoped, distinct from the target-keyed surface — **shipped pre-1.0 as
+- **First-class plugin paste** — the content-keyed half **shipped pre-1.0 as
   `registerPasteTransform`**: pasted text runs through named, install-ordered transforms before the
-  parse, and the GitHub-alert → admonition driver migrated onto it (the document-rewrite pattern,
-  `getSource()` → transform → `source` re-sync, stays the consumer-side answer for whole-document
-  migration). `registerPasteSurface` stays internal, unchanged.
+  parse, and the GitHub-alert → admonition driver rides it. The document-rewrite pattern
+  (`getSource()` → transform → `source` re-sync) stays the consumer-side answer for whole-document
+  migration. Why `registerPasteSurface` itself stays internal is in `plugin-contract.md`
+  § Explicitly excluded.
 - **Generic `:::name` directive primitive** (remark-directive) — **shipped 0.9.11**: one opener owning
   all `:::`/`::`/`:` syntax, dispatch by name, three tiers, a lossless generic fallback, and a public
   `activateDirectives()`. Byte-losslessness is confirmed (adversarial round-trip property), so the one

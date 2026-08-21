@@ -48,7 +48,8 @@
 	const searchAnchorOn = param('searchAnchor') === 'on';
 	let searchAnchorEl = $state<HTMLElement>();
 	let anchorAttached = $state(true);
-	let editorTheme = $state('dark');
+	// `?theme=light` starts in the light tokens; the header toggle still flips it live.
+	let editorTheme = $state(param('theme') === 'light' ? 'light' : 'dark');
 
 	// `?presentationMode=…` starts in that mode; the prop reads live, so the header
 	// toggles need no remount (unlike blockDragHandles).
@@ -119,7 +120,9 @@
 	</div>
 {/snippet}
 
-<div class="test-harness aragonite-editor-theme">
+<!-- The host-chrome token block keys on the attribute sitting WITH the class, so a wrapper that
+     carries only the class gets editor tokens and stale chrome — the showcase route's shape. -->
+<div class="test-harness aragonite-editor-theme" data-editor-theme={editorTheme}>
 	<header class="demo-header">
 		<div class="demo-heading">
 			<h1 class="demo-title">aragonite</h1>
