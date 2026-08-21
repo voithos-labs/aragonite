@@ -8,7 +8,7 @@ For the deeper material: [`docs/design/editor.md`](docs/design/editor.md) is the
 
 ## Setup
 
-Node 22 (an `.nvmrc` pins it), then:
+Node 24 (an `.nvmrc` pins it), then:
 
 ```bash
 npm install
