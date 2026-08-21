@@ -32,47 +32,7 @@
 <script lang="ts">
 	import { Editor, type EditorInstance } from '@voithos-labs/aragonite';
 	import '@voithos-labs/aragonite/styles/editor-theme.css';
-
-	const SEED = [
-		'# Consumer plugins',
-		'',
-		'[[toc]]',
-		'',
-		':::note Title',
-		'Callout body',
-		':::',
-		'',
-		'<details open>',
-		'<summary>Summary</summary>',
-		'',
-		'Details body',
-		'',
-		'</details>',
-		'',
-		'Math $x^2$ inline',
-		'',
-		'$$e^{i\\pi} + 1 = 0$$',
-		'',
-		':::tip Consumer tip',
-		'Admonition body',
-		':::',
-		'',
-		'```mermaid',
-		'graph TD',
-		'  A --> B',
-		'```',
-		'',
-		':::mystery',
-		'Unregistered directive body',
-		':::',
-		'',
-		'Emoji :sparkles: inline',
-		'',
-		'Footnote reference[^1] in prose',
-		'',
-		'[^1]: Footnote definition body',
-		''
-	].join('\n');
+	import { PLUGINS_SEED } from './seed';
 
 	let editor = $state<EditorInstance>();
 
@@ -85,4 +45,4 @@
 	});
 </script>
 
-<Editor bind:this={editor} source={SEED} theme="light" {plugins} />
+<Editor bind:this={editor} source={PLUGINS_SEED} theme="light" {plugins} />

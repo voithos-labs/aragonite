@@ -585,7 +585,7 @@ Plugin kinds sit alongside these in the same registries, keyed by their own stri
 
 Everything above is reachable by a plugin without touching an editor internal. The surface itself is specified in `design/plugin-contract.md`; `guide/plugin-guide.md` is the authoring guide.
 
-`plugin.ts` is a **facade** over `components/` and `schema/`, not a layer sitting above them: the built-in directive container imports its own factory back through the barrel, which is the dogfooding working as designed. So the barrel and the component tree form a directory-level cycle on purpose. Read it as the curated public face of those directories rather than a top-of-DAG node.
+`plugin.ts` is a **facade** over `components/` and `schema/`, not a layer sitting above them. Read it as the curated public face of those directories rather than a top-of-DAG node. It is also a **sink**: nothing it re-exports may import it back, because Rollup assigns the two sides of such a re-export cycle to different chunks and breaks execution order in a consumer's build (G4.54). The dogfood proof that the surface is complete is `plugins/`, whose bundled packages import the barrel and nothing else (G4.16).
 
 In architecture terms there are five seams:
 

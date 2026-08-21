@@ -39,6 +39,13 @@ the wrong content for a first contribution: the reader cannot tell which file to
 are done. The convention worth writing down is that an entry-level body names one concrete edit
 site and one acceptance signal, with the shape as background rather than as the task.
 
+**`consumer-smoke` is the one gate no `dev` commit runs.** It is correct and it catches what nothing
+else can, but CI triggers it on `pull_request` and `push: main` only, while the working branch is
+`dev`. A break introduced there surfaces weeks later on whatever dependabot PR happens next, wearing
+that PR's name: a stale fixture in the consumer example sat red for a fortnight that way. Closing it
+means either a `dev` trigger (the matrix is long) or a cheap subset a contributor is told to run
+before pushing anything that touches `examples/consumer` or a published barrel.
+
 ## Retired
 
 | Friction                                                                                       | Retired by                            |

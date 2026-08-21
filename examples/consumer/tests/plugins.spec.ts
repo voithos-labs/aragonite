@@ -25,7 +25,7 @@ test('callout mounts as a container and round-trips an edit', async ({ page }) =
 	await body.press('End');
 	await page.keyboard.type('!');
 	await expect.poll(() => getSource(page)).toContain('Callout body!');
-	expect(await getSource(page)).toContain(':::note Title');
+	expect(await getSource(page)).toContain(':::callout Title');
 });
 
 test('details renders its summary chrome and body', async ({ page }) => {

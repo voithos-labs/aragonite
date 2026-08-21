@@ -1,8 +1,9 @@
 <script lang="ts">
 	// The generic render surface for an unregistered `:::name` directive, built on the
-	// public `createContainerBlock` seam. Chrome stays a dimmed marker over a gutter
-	// rail, not a card box — a document should feel like a document.
-	import { BlockList, createContainerBlock } from '$lib/plugin';
+	// same `createContainerBlock` seam a plugin reaches through the barrel. Chrome stays a
+	// dimmed marker over a gutter rail, not a card box — a document should feel like a document.
+	import { createContainerBlock } from '$lib/editor-actions/plugin/container';
+	import BlockList from '$lib/components/BlockList.svelte';
 	import type { NodeView } from '$lib/core/node-views';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
