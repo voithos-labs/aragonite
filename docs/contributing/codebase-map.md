@@ -67,7 +67,7 @@ first and the one whose shape is least guessable from the code.
 
 ## Keyboard and chords
 
-Four facts, and then the manifest.
+The facts, and then the manifest.
 
 **`Mod` folds Ctrl and Cmd, unconditionally.** `src/lib/schema/keybindings.ts` :: `eventToChord`
 turns a `KeyboardEvent` into a normalized chord, and `e.ctrlKey || e.metaKey` becomes the single
