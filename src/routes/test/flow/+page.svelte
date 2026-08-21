@@ -82,7 +82,7 @@
 	<div class="flow-scroller" data-testid="scroller">
 		<div class="filler" data-testid="filler-top">Above the journal</div>
 		<div class="entry card" data-testid="entry-a">
-			<Editor bind:this={editors.a} source={ENTRY_A} scrollMode="host" />
+			<Editor bind:this={editors.a} source={ENTRY_A} scrollMode="host" blockDragHandles />
 		</div>
 		<div class="entry card" data-testid="entry-b">
 			<Editor bind:this={editors.b} source={ENTRY_B} scrollMode="host" />

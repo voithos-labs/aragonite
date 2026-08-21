@@ -33,6 +33,8 @@ export interface EditorProps {
 	 *  (a title, properties panel, tag row). It scrolls away with the document rather than
 	 *  pinning, which is what lets the editor keep its own scrollport and windowing. */
 	header?: Snippet;
+	/** Opt into the mouse-only hover drag handle (default off, so the surface stays gutter-free).
+	 *  Keyboard reorder (Alt+Arrow) is always available and needs no opt-in. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** Where the editor's own find/replace bar renders. Default (absent) keeps it pinned inside

@@ -24,3 +24,5 @@ This task adds presence + gating only — no drag behavior yet.
 ## Toggle
 
 - `blockDragHandles=false` (via `?dragHandles=false`): no handle renders anywhere, even on hover
+- the prop is opt-in: an `<Editor>` that omits it renders no handle (unit-pinned in
+  `test/components/drag-handle-default.svelte.test.ts`, since this route always passes it explicitly)

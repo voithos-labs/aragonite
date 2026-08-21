@@ -74,6 +74,7 @@
 			{presentationMode}
 			{imageLoadPolicy}
 			scrollMode="host"
+			blockDragHandles
 		/>
 	</div>
 	<div class="filler" data-testid="filler-bottom">Below the entry</div>

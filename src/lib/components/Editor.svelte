@@ -144,7 +144,7 @@
 		onLinkActivate,
 		onPasteImage,
 		header,
-		blockDragHandles = true,
+		blockDragHandles = false,
 		searchBar = true,
 		searchBarAnchor,
 		keybindings,
