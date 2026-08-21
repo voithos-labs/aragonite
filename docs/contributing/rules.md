@@ -107,9 +107,11 @@ behavior that does not exist.
 
 ## Records
 
-- **The GitHub issue tracker is the defect ledger.** An issue carries one `severity:` label and one
-  `area:` label, and a body holding the defect and nothing else: what is wrong, the repro, the
-  files, the fix direction, and why it is deferred. No provenance, no process notes.
+- **The GitHub issue tracker is the defect ledger.** An issue's **type** says what it is (`Bug`,
+  `Feature`, `Task`; the issue forms set the first two). Every issue carries one `area:` label, and
+  a `Bug` additionally carries one `severity:` — severity reads blast radius, which only a defect
+  has. The body holds the thing and nothing else: what is wrong, the repro, the files, the fix
+  direction, and why it is deferred. No provenance, no process notes.
 - **Labels come from the existing set** (`gh label list`, where the described ones are canonical). A
   label that seems missing is usually a duplicate spelling of one that exists; only mint a genuinely
   new label with a description matching the set's voice.

@@ -1,5 +1,6 @@
 name: Proposal
 description: Something aragonite should be able to do and can't yet
+type: Feature
 body:
   - type: textarea
     id: what-you-want

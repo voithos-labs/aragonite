@@ -1,5 +1,6 @@
 name: Defect
 description: Something in the editor is wrong and you can show it
+type: Bug
 body:
   - type: markdown
     attributes:
@@ -54,7 +55,6 @@ body:
         - 'minor: real defect, bounded harm'
         - 'watch: observed signal, no confirmed defect or no repro'
         - 'nit: cosmetic or hygiene'
-        - 'trivial: smallest tier'
     validations:
       required: true
 
@@ -65,7 +65,10 @@ body:
       description: Optional. Where in the codebase it sits.
       options:
         - 'code-structure: internal structure and ergonomics'
-        - 'core-editing: editing surfaces, commits, selection, clipboard'
+        - 'core-editing: parser, round-trip, tree ops, commits, undo, merge/split'
         - 'virtual-rendering: windowing, reveal, scroll'
         - 'plugin-containers: bundled plugins and container kinds'
         - 'test-coverage: suite shape and coverage gaps'
+        - 'selection-caret: caret doors, gap caret, affinity, cross-block selection'
+        - 'clipboard-paste: copy, cut, paste pipeline and transforms'
+        - 'presentation: live, preview, reading paint and editing rules'
