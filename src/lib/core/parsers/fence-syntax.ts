@@ -6,7 +6,7 @@
 import { escalateTerminatorRun } from '../terminator-escalation';
 
 /**
- * The fence-open shape, re-exported on `aragonite/plugin` for fence-claiming openers:
+ * The fence-open shape, re-exported on `@voithos-labs/aragonite/plugin` for fence-claiming openers:
  * `info` is the trimmed dispatch string; `indent`/`infoRaw` are the verbatim rebuild bytes.
  */
 export interface FenceOpen {

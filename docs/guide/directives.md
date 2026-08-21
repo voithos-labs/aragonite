@@ -102,11 +102,11 @@ Directives ship inert. `activateDirectives()` turns the grammar on: the generic 
 
 Call it once at startup, **before the editor first parses**. The opener must register before a parse consumes the grammar, or an already-parsed document will not re-parse (a dev-mode warn flags a late call).
 
-Activation is a **call, not an import side effect**: importing an `aragonite/plugin` authoring symbol does not claim `:::`. A plugin calls `activateDirectives()` _and_ registers its directives; a pure-GFM consumer that does neither keeps `:::` unclaimed. The call is idempotent, so multiple plugins — and HMR re-runs — can each make it safely.
+Activation is a **call, not an import side effect**: importing an `@voithos-labs/aragonite/plugin` authoring symbol does not claim `:::`. A plugin calls `activateDirectives()` _and_ registers its directives; a pure-GFM consumer that does neither keeps `:::` unclaimed. The call is idempotent, so multiple plugins — and HMR re-runs — can each make it safely.
 
 ## Public authoring surface
 
-On `aragonite/plugin`, labelled **pre-freeze / unstable** (refined against real consumers until the open-source release):
+On `@voithos-labs/aragonite/plugin`, labelled **pre-freeze / unstable** (refined against real consumers until the open-source release):
 
 | Entry                      | Role                                                                                                                   |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |

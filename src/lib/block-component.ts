@@ -113,7 +113,7 @@ export interface BlockComponent {
 	 * Place the caret at `offset`, focusing the surface, and end any live cross-block range — the
 	 * safe default door over {@link parkCaret}, since the range-ending batches with the landing.
 	 * Also takes the four caret sentinels above, which stay internal (none is on
-	 * `aragonite/plugin`). Clamping is required; never throw.
+	 * `@voithos-labs/aragonite/plugin`). Clamping is required; never throw.
 	 */
 	focus(offset: number): void;
 	/**

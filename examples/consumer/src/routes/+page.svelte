@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Editor } from 'aragonite';
-	import type { EditorInstance } from 'aragonite';
-	import 'aragonite/styles/editor-theme.css';
+	import { Editor } from '@voithos-labs/aragonite';
+	import type { EditorInstance } from '@voithos-labs/aragonite';
+	import '@voithos-labs/aragonite/styles/editor-theme.css';
 	import '../plugin-probe';
 
 	let editor = $state<EditorInstance>();

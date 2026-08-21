@@ -1,7 +1,7 @@
 /**
  * Headless editor-actions environment for the published conformance kit. These stubs
  * restate rather than reuse the in-repo `test/harness` mocks, which are `vi.fn()`-based:
- * `aragonite/testing` is imported into an author's own suite, so a static runner import
+ * `@voithos-labs/aragonite/testing` is imported into an author's own suite, so a static runner import
  * would load Vitest for anyone reaching for `resetPluginPlatformForTests` alone.
  */
 

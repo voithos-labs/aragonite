@@ -114,10 +114,10 @@ describe('resetPluginPlatformForTests aggregate', () => {
 });
 
 // ── Published conformance surface ───────────────────────────────────────────────
-// The seams a third-party suite imports from `aragonite/testing`. A rename or a
+// The seams a third-party suite imports from `@voithos-labs/aragonite/testing`. A rename or a
 // dropped re-export fails to resolve here rather than in a downstream author's suite.
 
-describe('aragonite/testing conformance surface', () => {
+describe('@voithos-labs/aragonite/testing conformance surface', () => {
 	it('publishes both conformance runners and the byte-slice guard', () => {
 		expect(typeof runContainerConformance).toBe('function');
 		expect(typeof runKindConformance).toBe('function');
@@ -148,9 +148,9 @@ describe('aragonite/testing conformance surface', () => {
 	});
 });
 
-// ── What the published `aragonite/testing` surface may depend on ────────────────
+// ── What the published `@voithos-labs/aragonite/testing` surface may depend on ────────────────
 
-/** `testing.ts` plus every module behind it — the code that ships as `aragonite/testing`. */
+/** `testing.ts` plus every module behind it — the code that ships as `@voithos-labs/aragonite/testing`. */
 function testingSurfaceSources(): { relPath: string; specifiers: string[] }[] {
 	const dir = path.resolve('src/lib/testing');
 	const files = readdirSync(dir)
@@ -172,7 +172,7 @@ const offendersMatching = (
 		s.specifiers.filter((spec) => pattern.test(spec)).map((spec) => `${s.relPath} → ${spec}`)
 	);
 
-describe('aragonite/testing dependency rules', () => {
+describe('@voithos-labs/aragonite/testing dependency rules', () => {
 	const sources = testingSurfaceSources();
 
 	it('sees the whole surface — the barrel plus the modules behind it, with their imports', () => {

@@ -12,7 +12,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
 
 ## Pre-1.0 — the plugin platform (freeze at the open-source release)
 
-**1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and the limestone integration, which ran in 2026-07. Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
+**1.0 ships the editor as a plugin platform.** The plugin-authoring API is exposed _pre-freeze_ on the `@voithos-labs/aragonite/plugin` subpath and refined against real extensions; it freezes only at the public open-source release. Validation before the freeze: at least two real container consumers, the in-repo dogfood extensions, and the limestone integration, which ran in 2026-07. Build ≠ freeze — nothing external binds until release. The pre-freeze surface, the editable-content tiers, and the plugin may/may-not boundary live in `docs/design/plugin-contract.md`.
 
 1. **Limestone integration — remaining scope.** The integration ran (2026-07) and paid
    as predicted: the editor is the app's editor, the findings landed as 0.9.36 refinements, and
@@ -51,7 +51,7 @@ The long-term goal is a fully open-source notes platform that surpasses Obsidian
      consumer barrel carries the same markers since the command door landed). The
      pending owner decisions this bullet used to carry landed in the 2026-08 prep: the env
      seam's split is deliberate and lint-enforced (G4.25; the override door ships on
-     `aragonite/testing`), `BlockComponent` members stay flat with the three-layer grouping as
+     `@voithos-labs/aragonite/testing`), `BlockComponent` members stay flat with the three-layer grouping as
      documentation, the a11y strings table shipped for core chrome (bundled plugins own their
      strings, the import-boundary lint makes a shared table unrepresentable), and the shipped
      `.d.ts` surface is documented as contract in `plugin-contract.md` rather than pruned.

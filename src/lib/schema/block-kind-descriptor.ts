@@ -405,7 +405,7 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentati
 /**
  * Internal seam for augmenting a BUILT-IN descriptor: top-of-DAG wire-up
  * (`components/built-in-blocks.ts`) patches in behavior this file cannot import. Kept off the
- * public `aragonite/plugin` surface so a plugin can't rewrite a built-in.
+ * public `@voithos-labs/aragonite/plugin` surface so a plugin can't rewrite a built-in.
  */
 export function augmentBuiltin(kind: AnyBlockKind, fields: BlockKindAugmentation): void {
 	mergeBlockKindFields('augmentBuiltin', kind, fields);

@@ -1,4 +1,4 @@
-// The plugin-authoring surface, published at the `aragonite/plugin` subpath. Only the
+// The plugin-authoring surface, published at the `@voithos-labs/aragonite/plugin` subpath. Only the
 // authoring API belongs here — not the `<Editor>` embedding barrel (index.ts), no test
 // helpers, no internal dispatch. Sections tagged (pre-freeze) may change until the 1.0
 // freeze.

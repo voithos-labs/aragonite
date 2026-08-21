@@ -1,0 +1,11 @@
+# Assets-only Worker: no `main`, so Cloudflare serves the adapter-static build straight
+# from its edge and never bills a Worker invocation for it.
+name = "aragonite"
+compatibility_date = "2026-08-20"
+
+[assets]
+directory = "./build"
+# The adapter's SPA fallback is 404.html, and an unknown path must keep answering 404 so
+# crawlers don't index client-routed pages. `single-page-application` would serve it 200,
+# and index.html is the prerendered showcase rather than an empty shell.
+not_found_handling = "404-page"

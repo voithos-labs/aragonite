@@ -1,5 +1,5 @@
 /**
- * The engine adapter behind the `aragonite/plugins/latex/renderer` subpath. Importing
+ * The engine adapter behind the `@voithos-labs/aragonite/plugins/latex/renderer` subpath. Importing
  * it is how a consumer opts into `katex`, an optional peer the engine-free core never
  * pulls.
  */

@@ -96,7 +96,7 @@ under test.
 dev server a duplicate registration replaces with a note instead of throwing, so a re-evaluated
 registrar survives instead of 500-ing every route (the SSR poison class); the contract is unchanged
 where it is observed, since prod and test still throw. This reaches the public API: a plugin
-author's suite cannot re-install between cases without a sanctioned seam, so `aragonite/testing`
+author's suite cannot re-install between cases without a sanctioned seam, so `@voithos-labs/aragonite/testing`
 exports `resetPluginPlatformForTests()`, and every new registration reachable from the public plugin
 surface must wire its reset into it, or the next author hits the dup-throw on their second
 `beforeEach`.

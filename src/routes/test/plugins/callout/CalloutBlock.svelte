@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A plugin container on the public `aragonite/plugin` seam: `createContainerBlock` hides
+	// A plugin container on the public `@voithos-labs/aragonite/plugin` seam: `createContainerBlock` hides
 	// every editor internal, so this component supplies only chrome around the BlockList props.
 	import { BlockList, createContainerBlock, type NodeView } from '$lib/plugin';
 

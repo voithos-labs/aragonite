@@ -1,5 +1,5 @@
 // F4: a registered paste transform's effect must be observable from the published surface.
-// Everything below imports only `aragonite/plugin` and `aragonite/testing`, so it is exactly
+// Everything below imports only `@voithos-labs/aragonite/plugin` and `@voithos-labs/aragonite/testing`, so it is exactly
 // the suite a third-party author can write.
 //
 // Miss-analysis: `registerPasteTransform` was pinned by e2e paste specs alone, so nothing at

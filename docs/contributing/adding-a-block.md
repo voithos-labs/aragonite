@@ -4,7 +4,7 @@
 
 You want the editor to understand a new kind of Markdown block — a callout, a footnote, a spoiler. This doc walks you through it.
 
-**It is for built-in blocks — block kinds that ship inside aragonite.** If you're writing a plugin against the published library, you want `docs/guide/plugin-guide.md` instead: plugins build blocks through the `aragonite/plugin` surface (`createContainerBlock`, `createEditableLeaf`), which wraps most of what's below and hides the rest. Everything here is internal machinery. Reach for it only when the block genuinely belongs in the editor core.
+**It is for built-in blocks — block kinds that ship inside aragonite.** If you're writing a plugin against the published library, you want `docs/guide/plugin-guide.md` instead: plugins build blocks through the `@voithos-labs/aragonite/plugin` surface (`createContainerBlock`, `createEditableLeaf`), which wraps most of what's below and hides the rest. Everything here is internal machinery. Reach for it only when the block genuinely belongs in the editor core.
 
 Orient from `docs/design/editor.md` first if you haven't.
 

@@ -12,20 +12,29 @@ The maintainer's runbook: version cut, npm publish, and (once) the flip to publi
 
 Publishing from CI with `--provenance` (an `id-token: write` job keyed to release tags) is the intended end state; set it up before habit makes the manual path permanent.
 
+## Deploying the site
+
+Not flip-gated: Cloudflare deploys from the private repo, so the site can be live and spot-checked long before anyone can see the source. Doing it early also keeps the flip's own sequence short.
+
+The build is `adapter-static`, and `wrangler.toml` binds `./build` as an assets-only Worker with no script, so Cloudflare serves it from the edge and bills no invocation. `.github/workflows/deploy.yml` runs it; it needs `CLOUDFLARE_API_TOKEN` (scoped to Workers-edit on that account alone) and `CLOUDFLARE_ACCOUNT_ID` as repo secrets. It is `workflow_dispatch`-only until the first deploy is verified; add a `push` trigger on `main` after.
+
+On the first deploy, spot-check four things: `_app/` assets load, a deep link into an unprerendered route (`/test/editor`) boots through the 404.html fallback rather than dead-ending, the `og:image` URL in `src/app.html` resolves, and a shared link's preview card looks acceptable (og.jpg is a purpose-cut 1200x630 derivative of the README header). Confirm `www` redirects to the apex, since the README links the apex and the domain answers both.
+
 ## The flip to public (once)
 
 Pre-flip, in order:
 
-1. **Name decision.** `aragonite` on npm is squatted by a dormant unrelated package. Either the dispute has resolved in our favor or the package publishes as `@voithos-labs/aragonite`; a scope rename touches the exports subpaths in every doc and example, and requires `"publishConfig": { "access": "public" }`, so it lands as its own reviewed commit before the release cut.
-2. **History secrets scan.** The whole history goes public at once. Run a real scanner (e.g. `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source /repo --log-opts=--all`) and clear or triage every hit. The tracked tree was pattern-clean at the 2026-08 audit; the scanner is the belt.
-3. **Freeze paperwork** (if the flip is the 1.0 freeze): pre-freeze labels resolved in **both** published barrels (`grep -rc pre-freeze src/lib/plugin.ts src/lib/index.ts` returns 0 for each; the consumer barrel carries the markers too, so clearing only the plugin one reads green while the API still says unstable), the freeze litmuses in `docs/roadmap.md` checked off, the external-author gate run.
+1. **Name — decided.** The bare `aragonite` on npm is a dormant unrelated package, so we publish as `@voithos-labs/aragonite`. The rename has landed across the barrel, every doc, and the example consumer, and `publishConfig.access` is `public` because a scoped package is private by default. Nothing here blocks; the first publish is the owner's to run.
+2. **History secrets scan.** The whole history goes public at once, and that includes more than the branches. Run a real scanner (e.g. `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source /repo --log-opts=--all`) and clear or triage every hit. Fetch `refs/pull/*/head` into the clone first: those refs survive a history rewrite and stay fetchable by SHA once public, so a scan of branches alone misses them. If a pre-rewrite object is genuinely sensitive, a GitHub-support GC request takes time you want to spend while still private.
+3. **Prune the remote.** Delete stale branches — the integration branch and any dependabot leftovers — before the flip. After it, anyone may have fetched them.
+4. **Freeze paperwork** (if the flip is the 1.0 freeze): pre-freeze labels resolved in **both** published barrels (`grep -rc pre-freeze src/lib/plugin.ts src/lib/index.ts` returns 0 for each; the consumer barrel carries the markers too, so clearing only the plugin one reads green while the API still says unstable), the freeze litmuses in `docs/roadmap.md` checked off, the external-author gate run.
 
 The flip itself:
 
-4. Make the repository public (Settings → General → Danger Zone).
-5. **Immediately** run `node scripts/apply-branch-protection.mjs` (protection is API-blocked on private free-plan repos, which is why this waits). Confirm the required contexts match ci.yml's job names.
-6. Enable secret scanning + push protection (Settings → Code security). Free on public repos, off by default on the flip.
-7. Enable GitHub Pages (the deploy workflow is in `.github/workflows/pages.yml`; first run via workflow_dispatch), then set the repo homepage URL to the Pages address. On that first deploy, spot-check four things: `_app/` assets load (the artifact-based Pages flow serves underscore directories as-is, but confirm), a deep link into an unprerendered route (`/aragonite/test/editor`) boots through the 404.html fallback rather than dead-ending, the `og:image` URL in `src/app.html` resolves, and a shared link's preview card looks acceptable (og.jpg is a purpose-cut 1200x630 derivative of the README header). Local base-path builds on Windows Git Bash need `MSYS_NO_PATHCONV=1` in front of `BASE_PATH=/aragonite npm run build`, or MSYS rewrites the path.
-8. Verify the community-health page (repo → Insights → Community Standards) reads complete: license, CoC, contributing, security policy, templates.
+5. Make the repository public (Settings → General → Danger Zone).
+6. **Immediately** run `node scripts/apply-branch-protection.mjs` (protection is API-blocked on private free-plan repos, which is why this waits). Confirm the required contexts match ci.yml's job names.
+7. Enable secret scanning + push protection, and private vulnerability reporting (Settings → Code security). All three are free on public repos and off by default; private reporting cannot be enabled while the repo is private, which is why it waits until here rather than shipping as a file.
+8. Confirm Actions' fork policy requires approval for first-time contributors. Note the inversion the flip brings: public repos get unlimited Actions minutes, so CI stops being a budget concern the moment this lands.
+9. Set the repo homepage URL to the site, and verify the community-health page (repo → Insights → Community Standards) reads complete: license, CoC, contributing, templates. It only tests that files exist, so it will read green on a CoC with no reporting contact — check the contents, not the checkmarks.
 
-Post-flip week: watch the first issues against the forms, confirm Discussions categories fit the question traffic, and treat any stranger's friction report as a defect in this runbook.
+Post-flip week: watch the first issues against the forms, confirm Discussions categories fit the question traffic, and treat any stranger's friction report as a defect in this runbook. Nothing else belongs in that week — not a scope rename, not taxonomy changes, not a host change.
