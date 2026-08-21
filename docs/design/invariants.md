@@ -2,11 +2,13 @@
 
 ## What this is
 
-Some rules in this editor are load-bearing. Raw Markdown round-trips byte-for-byte. A block's DOM text equals its ambient prefix plus its raw bytes. Every block kind has a descriptor. Break one of those and nothing shouts — the damage surfaces three layers downstream, in a component that did nothing wrong, hours after the commit that caused it.
+Most rules in a codebase are preferences. A handful of the ones here will cost somebody their file, and this is the list of the second kind.
 
-This catalog is the fix. Every load-bearing rule gets a **G-number**, a place where it is checked, and something that fails when it breaks. The point is not ceremony; it is that a violation fails **loudly** (you see it) and **locally** (at the seam that broke it, not the one that noticed).
+Raw Markdown round-trips byte-for-byte. A block's DOM text equals its ambient prefix plus its raw bytes. Every block kind has a descriptor. Break one of those and nothing shouts at you. The damage surfaces three layers downstream, in a component that did nothing wrong, hours after the commit that caused it, and by then good luck.
 
-The rule set matters more now than it used to: the plugin API freezes at 1.0, and external code will bind to these contracts.
+So every load-bearing rule gets a **G-number**, a place where it is checked, and something that fails when it breaks. Not for ceremony. The whole point is that a violation fails **loudly** (you see it) and **locally** (at the seam that broke it, not the poor seam that noticed).
+
+This matters more than it used to: the plugin API freezes at 1.0, and other people's code is about to bind to these.
 
 ## The enforcement ladder
 
@@ -159,7 +161,7 @@ The top rung: the violation doesn't compile. Enforced by `npm run check`; no run
 
 Source-scan tests, in TWO homes, and the split decides which script runs a scan. They catch what a type can't express and a runtime seam can't see: a pattern anywhere in the tree, or a published table drifting from the code that backs it.
 
-Scans over the LIBRARY source live in `test/invariants/lint/` and ride `npm run test:editor:invariants`. Scans over the E2E TREE live in `e2e/lint/` (G4.22, G4.23) and do **not** — that script is path-scoped, so they ride `npm test` through vitest's second include glob and are iterated with `npx vitest run src/lib/e2e/lint/`.
+Scans over the LIBRARY source live in `test/invariants/lint/` and ride `npm run test:editor:invariants`. Scans over the E2E TREE live in `e2e/lint/` (G4.22, G4.23, G4.49) and do **not** — that script is path-scoped, so they ride `npm test` through vitest's second include glob and are iterated with `npx vitest run src/lib/e2e/lint/`.
 
 The table below is the catalogued set, not the whole of `test/invariants/lint/`: a scan guarding one seam's own local rule earns a file without earning a G-number, so read the directory as well as this table before assuming a rule is unguarded.
 

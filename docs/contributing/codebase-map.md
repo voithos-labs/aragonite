@@ -1,10 +1,15 @@
 # The codebase map
 
-Where things live, and what you must not do once you get there.
+You watched the editor do something wrong. You have no idea which of four hundred files did it. That
+is the entire reason this page exists.
 
-The design docs say how each subsystem works, and `docs/README.md` maps them by audience. This says
-where a **behavior** lives: you know the editor did something wrong, and you need the one file to
-open. Read it once end to end (about fifteen minutes), then come back to the table.
+The design docs tell you how a subsystem works, and `docs/README.md` sorts them by audience. Neither
+of those helps at 2am when a list item has eaten its own marker. This one runs the other direction:
+from the behavior you just saw break, to the one file to open. Read it end to end once, which costs
+about fifteen minutes, then come back to the table forever after.
+
+Fair warning, it also tells you what not to do once you get there, and those parts are not
+suggestions.
 
 **Altitude.** Seams and responsibilities only. No line numbers, no signatures, no code. A file is
 named by path; a symbol only where the symbol _is_ the seam, written `path :: Symbol`. That

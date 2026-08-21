@@ -1,6 +1,6 @@
 # Plugin Extension Surfaces
 
-What a plugin system has to expose, what the field converges on, and where aragonite stands.
+Before deciding what our plugin system should do, I went and read everyone else's. This is what came back: what a plugin system has to expose, what the field quietly converges on, and where aragonite stands against it.
 
 This is **evidence**, not a plan and not a contract. The plan is `docs/roadmap.md`; the shapes that freeze at 1.0 are `docs/design/plugin-contract.md`. This doc is what those two rest on.
 

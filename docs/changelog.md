@@ -1,6 +1,8 @@
 # Changelog
 
-Editor version history (CST block editor). **Style:** one tight entry per released version, newest first; the entries live in a per-family file under `changelog/`, and this page is the index. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
+Everything this editor has actually shipped, newest first. The README sends people here to experience my suffering, and it is not entirely joking: read a few families back and you can watch the same three problems get solved properly on the fourth attempt.
+
+**Style:** one tight entry per released version, newest first; the entries live in a per-family file under `changelog/`, and this page is the index. **Product changes only:** behavior, API, plugins; never repo meta-work (conventions, comment or docs hygiene, tooling, process).
 
 ## [0.10](changelog/0.10.md)
 

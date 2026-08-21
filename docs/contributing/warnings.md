@@ -2,10 +2,13 @@
 
 ## What this is
 
-The editor talks to you through the console in dev builds, and almost none of it is chatter. This
-page says which channel is which, what fails on it, and how a test claims a fire it provokes on
-purpose. The catalog of individual guards is `docs/design/invariants.md`; this is the taxonomy above
-it.
+The editor talks to you through the console in dev builds, and almost none of it is chatter. If you
+are used to scrolling past console output, unlearn that here: most of what appears is a guard telling
+you something is already wrong.
+
+So this page says which channel is which, what fails on which one, and how a test claims a fire it
+lit on purpose. The catalog of individual guards is `docs/design/invariants.md`; this is the taxonomy
+sitting above it.
 
 ## The sentinel
 

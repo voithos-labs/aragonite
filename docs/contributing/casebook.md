@@ -1,12 +1,16 @@
 # The casebook
 
-Eight incidents, each headed by the rule it bought. These are the ways this codebase actually gets
-corrupted, so read them before your first structural change. [`rules.md`](rules.md) is the short
-version and the thing to read first; this file is its evidence.
+Eight times this editor corrupted something, or came close enough that the difference was luck. Each
+one is headed by the rule it bought, because that is what an incident is worth: a rule nobody would
+have believed without it.
 
-Every entry names the guard that now catches it (G-numbers are entries in
-`docs/design/invariants.md`) and the spec that owns the full statement. "The audit" is the 2026-07
-internal review that produced most of them.
+These are the ways this codebase actually breaks, not the ways I imagined it might, so read them
+before your first structural change. [`rules.md`](rules.md) is the short version and the one to read
+first. This file is the evidence behind it, and it is here so the rules do not read as superstition.
+
+Every entry names the guard that now catches it (G-numbers live in `docs/design/invariants.md`) and
+the spec that owns the full statement. "The audit" is the 2026-07 internal review that turned up most
+of them, which was a humbling fortnight.
 
 ## Node copies are re-read through the `$state` tree
 
