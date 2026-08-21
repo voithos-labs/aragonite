@@ -11,7 +11,7 @@ Two layers, both living inside `src/lib/` next to the code they test.
 
 The whole editor module is self-contained — components, core logic, and both test layers under one root. That's the property that made extracting aragonite from limestone a file move rather than a project.
 
-Beside them sits `src/lib/testing/`, which is not a test layer but **shipped code**: the published `aragonite/testing` seam, holding the plugin-platform reset and the kind, container and inline conformance kits a plugin author runs inside their own case. Its own suites live under `src/lib/test/invariants/` (the built-in sweeps) and `src/lib/test/plugins/` (the kits driven as an author drives them).
+Beside them sits `src/lib/testing/`, which is not a test layer but **shipped code**: the published `@voithos-labs/aragonite/testing` seam, holding the plugin-platform reset and the kind, container and inline conformance kits a plugin author runs inside their own case. Its own suites live under `src/lib/test/invariants/` (the built-in sweeps) and `src/lib/test/plugins/` (the kits driven as an author drives them).
 
 ```bash
 npm test               # full suite — the commit gate

@@ -1,5 +1,5 @@
 /**
- * G4.3 — container conformance kit, published at `aragonite/testing`. Register your kind, then
+ * G4.3 — container conformance kit, published at `@voithos-labs/aragonite/testing`. Register your kind, then
  * point the kit at it with fixtures plus a coverage matrix declaring per invariant whether it
  * asserts or is excused (never a silent skip; a thin reason fails the run). Which answer a
  * container owes each cell is in the plugin guide's "Conformance-testing a container". Asserted

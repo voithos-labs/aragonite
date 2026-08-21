@@ -1,5 +1,5 @@
 /**
- * The inline-rung conformance kit, published at `aragonite/testing` — sibling of the block
+ * The inline-rung conformance kit, published at `@voithos-labs/aragonite/testing` — sibling of the block
  * layer's `runKindConformance` and the container kit. Reads the LIVE registry, so it
  * composes with `resetPluginPlatformForTests()` cycles. The four profile-declared cells are
  * required, not optional, since every one is invisible to byte round-trip; an exemption the

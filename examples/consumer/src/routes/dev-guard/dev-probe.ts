@@ -21,7 +21,7 @@ import {
 	type CstNode,
 	type EditorPlugin,
 	type ParsedDirective
-} from 'aragonite/plugin';
+} from '@voithos-labs/aragonite/plugin';
 import DevProbeBlock from './DevProbeBlock.svelte';
 
 export const DEVPROBE = 'devprobe';

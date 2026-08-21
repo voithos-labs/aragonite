@@ -26,7 +26,7 @@ for (const [plugin, files] of Object.entries(MANIFEST)) {
 	for (const file of files) {
 		const text = readFileSync(join(SRC, plugin, file), 'utf8').replace(
 			BARREL_SPECIFIER,
-			(_match, quote, subpath) => `${quote}aragonite${subpath ?? ''}${quote}`
+			(_match, quote, subpath) => `${quote}@voithos-labs/aragonite${subpath ?? ''}${quote}`
 		);
 		for (const line of text.split('\n')) {
 			if (line.includes('$lib/')) offenders.push(`${plugin}/${file}: ${line.trim()}`);

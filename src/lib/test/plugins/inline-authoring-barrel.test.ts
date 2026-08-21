@@ -20,9 +20,9 @@ import type {
 } from '$lib/plugin';
 
 // The inline authoring surface is unstable (pre-freeze). This probe pins the
-// symbols a plugin imports from `aragonite/plugin` to their core implementations,
+// symbols a plugin imports from `@voithos-labs/aragonite/plugin` to their core implementations,
 // so a dropped or mis-wired re-export fails here rather than in a downstream plugin.
-describe('aragonite/plugin inline authoring surface', () => {
+describe('@voithos-labs/aragonite/plugin inline authoring surface', () => {
 	it('re-exports the inline registration functions from their core modules', () => {
 		expect(pluginBarrel.registerInlineSyntax).toBe(registerInlineSyntax);
 		expect(pluginBarrel.registerInlineWidgetKind).toBe(registerInlineWidgetKind);

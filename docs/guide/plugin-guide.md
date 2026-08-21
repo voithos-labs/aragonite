@@ -1,6 +1,6 @@
 # Plugin Author Guide
 
-Everything you need to extend the editor with your own block or inline content. The whole authoring surface lives on one import path — the `aragonite/plugin` subpath — separate from the `aragonite` embedding barrel a consumer uses.
+Everything you need to extend the editor with your own block or inline content. The whole authoring surface lives on one import path — the `@voithos-labs/aragonite/plugin` subpath — separate from the `@voithos-labs/aragonite` embedding barrel a consumer uses.
 
 Start here. The `:::name` directive grammar has its own [directives guide](directives.md); embedding, theming, and events are the [consumer guide](consumer-guide.md)'s subject. Every export named in this guide is cataloged in the [API reference](#api-reference) at the bottom.
 
@@ -56,12 +56,12 @@ Install by passing units to the editor's **`plugins` prop** — set once at moun
 
 Definitions are process-global — two editors passing the same plugin share one registration — but per-instance _configuration_ is not: an editor may pass `{ plugin, options }` and the plugin reads its own `options` off each instance's context ([Per-instance context](#per-instance-context)). Reserve the factory argument for a process-global dependency; route anything two editors would vary through the prop's options.
 
-For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call `installPlugins(units)` from the `aragonite` barrel — same once-per-process semantics. `isPluginInstalled(name)` probes an install, for the rare setup that must branch on it; the prop and `installPlugins` are already idempotent, so most consumers never reach for it.
+For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call `installPlugins(units)` from the `@voithos-labs/aragonite` barrel — same once-per-process semantics. `isPluginInstalled(name)` probes an install, for the rare setup that must branch on it; the prop and `installPlugins` are already idempotent, so most consumers never reach for it.
 
 ### What is stable, what is not
 
 - **Registration base — stable.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the idempotence probes. These shapes will not change in a breaking way. (One exception landed pre-freeze: an opener's return became a line count in 0.9.36, see [What an opener returns](#what-an-opener-returns).)
-- **Pre-freeze / unstable.** Everything else, and the [API reference](#api-reference) below carries the list rather than this sentence: **a section labelled _(pre-freeze / unstable)_ may still change shape until the freeze.** Those labels mirror the section headers of the `aragonite/plugin` entry point (`src/lib/plugin.ts` in the repository), so the two cannot drift apart. The big families are the plugin unit itself, the authoring tiers (container, editable leaf, inline, directive), the grammar hooks, paste transforms, and the view surfaces (decorations, rects, selection geometry). Each is being refined against real consumers and freezes at the public release.
+- **Pre-freeze / unstable.** Everything else, and the [API reference](#api-reference) below carries the list rather than this sentence: **a section labelled _(pre-freeze / unstable)_ may still change shape until the freeze.** Those labels mirror the section headers of the `@voithos-labs/aragonite/plugin` entry point (`src/lib/plugin.ts` in the repository), so the two cannot drift apart. The big families are the plugin unit itself, the authoring tiers (container, editable leaf, inline, directive), the grammar hooks, paste transforms, and the view surfaces (decorations, rects, selection geometry). Each is being refined against real consumers and freezes at the public release.
 
 ## Per-instance context
 
@@ -85,7 +85,7 @@ Return a disposer from the callback and the editor runs it at unmount. Registrat
 There is no plugin-state field, and none is needed: keep your own map keyed on `editorId`, seed it when the editor mounts, recompute on the `edit` event, and delete the entry in the disposer.
 
 ```ts
-import { definePlugin, type EditorContext } from 'aragonite/plugin';
+import { definePlugin, type EditorContext } from '@voithos-labs/aragonite/plugin';
 
 interface WordCountOptions {
 	live: boolean; // recount on every edit, or only at mount
@@ -167,7 +167,7 @@ import {
 	type CstNode,
 	type EditorPlugin,
 	type ParsedDirective
-} from 'aragonite/plugin';
+} from '@voithos-labs/aragonite/plugin';
 import NoteBlock from './NoteBlock.svelte'; // the component built in the next section
 
 const NOTE = 'note';
@@ -353,7 +353,7 @@ The component supplies only its own chrome; `createContainerBlock` hides the chi
 ```svelte
 <!-- NoteBlock.svelte -->
 <script lang="ts">
-	import { BlockList, createContainerBlock, type NodeView } from 'aragonite/plugin';
+	import { BlockList, createContainerBlock, type NodeView } from '@voithos-labs/aragonite/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let boxEl: HTMLElement | undefined = $state();
@@ -407,8 +407,8 @@ Pass the plugin to the editor's `plugins` prop — it installs before the seed p
 </script>
 
 <script lang="ts">
-	import { Editor } from 'aragonite';
-	import 'aragonite/styles/editor-theme.css';
+	import { Editor } from '@voithos-labs/aragonite';
+	import '@voithos-labs/aragonite/styles/editor-theme.css';
 
 	const SEED = ':::note My Title\nBody paragraph\n:::\n';
 	let editor = $state();
@@ -453,7 +453,7 @@ That single text node carries every newline your source holds, which makes **`wh
 
 **Per-instance configuration.** `leaf.getOptions()` returns this editor instance's options for the plugin owning your kind, typed `unknown` for you to narrow — the container factory's `getOptions()` is the same door one tier up. Prefer it over a value your plugin factory captures: installation is process-global and first-wins, so a factory argument is fixed by whichever editor mounts first, while two editors on one page each read their own entry here. The bundled toc block resolves `maxDepth` this way and falls back to the factory argument, which then serves as the default for an instance declaring none.
 
-Block math (`$$…$$` in the bundled `aragonite/plugins/latex` plugin) is the worked example: its component script is the factory call, one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe — `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`.
+Block math (`$$…$$` in the bundled `@voithos-labs/aragonite/plugins/latex` plugin) is the worked example: its component script is the factory call, one render effect (KaTeX), a `{...leaf.surfaceProps}` spread on the source, and one-line re-exports of the returned surface. Registration is the ordinary leaf recipe — `registerBlockKind` (no container group), `registerBlockOpener`, `registerBlockComponent`.
 
 ## Presentation modes
 
@@ -522,7 +522,7 @@ A block component gets its own node — but a table-of-contents block needs the 
 
 ```svelte
 <script lang="ts">
-	import { getContentRange, type DocumentView } from 'aragonite/plugin';
+	import { getContentRange, type DocumentView } from '@voithos-labs/aragonite/plugin';
 
 	// A component receives its own node too; this block needs only the document.
 	let { document }: { document?: DocumentView } = $props();
@@ -628,7 +628,7 @@ An inline kind is minted with `declarePluginInlineKind`, recognized by hooking t
 
 **A bare trigger must be a character no built-in scanner claims.** Registering a bare recognizer on a reserved trigger (`` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline) throws: built-in dispatch runs first, so a bare recognizer there would never fire, and a silent no-op is the one failure a public API must not have.
 
-The bundled **emoji** plugin (`aragonite/plugins/emoji`) is this bare-rung recipe end to end and the worked reference for an inline kind on an unreserved trigger: `:shortcode:` recognizes on the bare `:` trigger, renders as an atomic glyph widget through `buildWidget` + `mintWidgetShell`, and carries the `{ deleteGranularity: 'atomic', onEdge: 'step-over' }` edge policy so a caret-adjacent Backspace removes the whole `:name:` in one press and a plain arrow steps over it. It shares the `:` trigger with the directive text tier — disjoint grammars coexist on one trigger, so a table-lookup miss declines and falls through byte for byte. The literal `:name:` bytes stay in the raw, so an uninstalled document round-trips as ordinary prose.
+The bundled **emoji** plugin (`@voithos-labs/aragonite/plugins/emoji`) is this bare-rung recipe end to end and the worked reference for an inline kind on an unreserved trigger: `:shortcode:` recognizes on the bare `:` trigger, renders as an atomic glyph widget through `buildWidget` + `mintWidgetShell`, and carries the `{ deleteGranularity: 'atomic', onEdge: 'step-over' }` edge policy so a caret-adjacent Backspace removes the whole `:name:` in one press and a plain arrow steps over it. It shares the `:` trigger with the directive text tier — disjoint grammars coexist on one trigger, so a table-lookup miss declines and falls through byte for byte. The literal `:name:` bytes stay in the raw, so an uninstalled document round-trips as ordinary prose.
 
 **To claim syntax that begins on a reserved trigger, register a prefix rung.** A GFM `[^label]` footnote reference starts on `[`, which the link scanner owns. Pass a `prefix` that begins with the trigger and a `priority` below `INLINE_PRIORITIES.builtin`, the inline mirror of an opener pricing below a built-in:
 
@@ -647,7 +647,7 @@ A rung on `!` is consulted ahead of the built-in `!` case, so it outranks the im
 
 **Bound the decline, not just the claim.** Your recognizer is consulted at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger — quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar cannot contain, the way the emoji recognizer stops at the first non-shortcode byte; where the grammar has no such character, index the candidate positions once per block with `createScanIndex` (hand it your position collector, get back a "first candidate at or after this offset" lookup), the way the bundled math and footnote recognizers index their closers.
 
-The bundled **footnotes** plugin (`aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^`-prefix rung at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` walk memoized on `getContentVersion`, so the number re-derives when a reference is added elsewhere while every mounted widget in a flush shares one walk), and reveals its source to edit. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
+The bundled **footnotes** plugin (`@voithos-labs/aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^`-prefix rung at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` walk memoized on `getContentVersion`, so the number re-derives when a reference is added elsewhere while every mounted widget in a flush shares one walk), and reveals its source to edit. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
 
 **If your rung mints a built-in kind, it owns writing those bytes back.** A rung may return a node of a kind the editor already has — an `![[cat.png|300]]` that is a real `image`, so the widget renders it, the caret addresses it, and the resize handles appear. Every _read_ path then treats it as an image, which is the point. The _write_ paths cannot: the editor's inverse for a built-in kind emits that kind's built-in grammar, so re-serializing your node's fields brings `![[cat.png|300]]` back as a GFM image — bracketed alt, parenthesized destination — and your syntax is gone. Supply a `rewriteImage` hook and the edit comes back to you instead:
 
@@ -746,7 +746,7 @@ editor.events.on('selectionChange', (sel) => {
 });
 ```
 
-Keying the cache on an index (word → marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`aragonite/plugins/highlight-occurrences`) is this recipe end to end, plus one capability gate: it indexes only inline-prose leaves (`isProseKind` — the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor a valid anchor.
+Keying the cache on an index (word → marks) rather than a flat list makes the per-invalidate step a map read, not a re-filter of every mark. The bundled `highlight-occurrences` plugin (`@voithos-labs/aragonite/plugins/highlight-occurrences`) is this recipe end to end, plus one capability gate: it indexes only inline-prose leaves (`isProseKind` — the descriptor's `supportsInline`), so a fenced code block's bytes are neither scanned nor a valid anchor.
 
 A source that throws is contained: the editor emits an `error` event attributed to your source name and keeps the previous decorations on screen — a throw never blanks the view. Pair a source with `editor.rects` when you need geometry (anchor a popup to a decorated range, say): `rects.rangeRects(path, start, end)` returns viewport-space rects for any measurable range, one per visual line.
 
@@ -855,10 +855,10 @@ Why the dev build is where plugin development belongs — what each mistake does
 
 ## Verifying your plugin
 
-**Round-trip is the contract.** The headless form needs no editor — `parse` and `serialize` both ship on `aragonite/plugin`:
+**Round-trip is the contract.** The headless form needs no editor — `parse` and `serialize` both ship on `@voithos-labs/aragonite/plugin`:
 
 ```
-import { parse, serialize } from 'aragonite/plugin';
+import { parse, serialize } from '@voithos-labs/aragonite/plugin';
 
 expect(serialize(parse(MY_SOURCE))).toBe(MY_SOURCE);
 ```
@@ -869,10 +869,10 @@ Then read the live document back with `editor.getSource()` and confirm it equals
 
 ### Testing your plugin
 
-The platform is register-once: a plugin's setup writes into process-global registries that throw on a duplicate and never unregister. A test runner reuses one process across cases, so a plugin installed in a second `beforeEach` would collide with the first. The `aragonite/testing` subpath exists for exactly this:
+The platform is register-once: a plugin's setup writes into process-global registries that throw on a duplicate and never unregister. A test runner reuses one process across cases, so a plugin installed in a second `beforeEach` would collide with the first. The `@voithos-labs/aragonite/testing` subpath exists for exactly this:
 
 ```
-import { resetPluginPlatformForTests } from 'aragonite/testing';
+import { resetPluginPlatformForTests } from '@voithos-labs/aragonite/testing';
 
 beforeEach(() => {
 	resetPluginPlatformForTests(); // empty the registries
@@ -900,7 +900,7 @@ The rest of the subpath, at a glance:
 **Testing a paste transform.** `registerPasteTransform` writes into a registry nothing else on the public surface reads, so `applyPasteTransforms(text)` ships beside the reset. It is the very function every clipboard→parse route runs, which is what makes driving it proof that your transform is _wired_ rather than proof that your pure function works:
 
 ```
-import { applyPasteTransforms, resetPluginPlatformForTests } from 'aragonite/testing';
+import { applyPasteTransforms, resetPluginPlatformForTests } from '@voithos-labs/aragonite/testing';
 
 it('converts on paste', () => {
 	registerMyPlugin();
@@ -913,8 +913,8 @@ it('converts on paste', () => {
 ```
 // @vitest-environment jsdom
 import { mount, flushSync } from 'svelte';
-import { Editor } from 'aragonite';
-import { installEditorDomStubsForTests } from 'aragonite/testing';
+import { Editor } from '@voithos-labs/aragonite';
+import { installEditorDomStubsForTests } from '@voithos-labs/aragonite/testing';
 
 installEditorDomStubsForTests(); // ResizeObserver + scrollIntoView, installed only where absent
 
@@ -928,7 +928,7 @@ flushSync(); // the first render has to land before you can assert on it
 **Failing on a dev warning.** The editor reports contract violations it can contain rather than throw through dev warnings, which reach the console under an `[aragonite:…]` head. A suite that wants those to fail rather than scroll past registers a sink:
 
 ```
-import { setDevWarnSink } from 'aragonite/testing';
+import { setDevWarnSink } from '@voithos-labs/aragonite/testing';
 
 const fires = [];
 beforeEach(() => setDevWarnSink((entry) => fires.push(entry)));
@@ -947,7 +947,7 @@ One prerequisite, or the gate is green because it is blind: warnings emit only w
 `runKindConformance(kind)` executes the headless half of your kind's `closure` block. It derives one cell per cross-cutting system from the block and your `conformanceFixture`, and runs the part that needs no browser now: it round-trips the fixture (and, for a container, checks `rebuildRaw` is deterministic), holds Backspace-merge eligibility to your `mergeRole`, confirms an `inherit-default` clipboard copies as a plain byte slice, checks one structural op is one undo entry, and asserts a `not-supported` search cell genuinely finds nothing. Cells whose mechanism only exists in the browser — focus, selection and search paint, reorder, the simulation oracle — are recorded `boundary`, run by the e2e sweep rather than stubbed green.
 
 ```
-import { runKindConformance } from 'aragonite/testing';
+import { runKindConformance } from '@voithos-labs/aragonite/testing';
 
 it('my kind conforms', async () => {
 	await runKindConformance(declaredPluginKind(MY_KIND));
@@ -962,7 +962,7 @@ The mounted-DOM cells — focus, selection paint, search paint — are executed 
 
 ### Conformance-testing a container
 
-If your plugin registers a **container** kind, `aragonite/testing` also publishes the harness the built-in containers are held to — the same checks, pointed at your kind. It is the fastest way to find out whether your container behaves like a first-class one:
+If your plugin registers a **container** kind, `@voithos-labs/aragonite/testing` also publishes the harness the built-in containers are held to — the same checks, pointed at your kind. It is the fastest way to find out whether your container behaves like a first-class one:
 
 | Cell                  | What it holds you to                                                                                                                                                                                                                                                                                          |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -978,7 +978,7 @@ If your plugin registers a **container** kind, `aragonite/testing` also publishe
 You supply the fixtures, because the kit parses its way to your kind — so register the plugin first, then hand it Markdown that produces your container:
 
 ```
-import { runContainerConformance } from 'aragonite/testing';
+import { runContainerConformance } from '@voithos-labs/aragonite/testing';
 
 it('my container conforms', async () => {
 	await runContainerConformance(declaredPluginKind(MY_KIND), {
@@ -1031,7 +1031,7 @@ container: {
 
 `normalize` is applied to every byte destined for the body, at the tree-op write sinks — **ahead of the reparse that decides the child's kind**, which is what makes it work where a rebuild-time rewrite cannot: the kind a write lands on is the kind its committed bytes describe. It must be **idempotent** (a re-commit of already-legal bytes changes nothing) and **line-local** (it may read the whole raw to decide _which_ lines to rewrite, but never moves bytes across a line boundary). `mapOffset` is its caret image, so a surface whose committed bytes differ from what the user typed still seats the caret on the bytes; the pair ships as one object because a rewrite without its caret image strands the caret.
 
-Two rules of thumb from the bundled `details` container. Ask the **grammar**, not your own spelling: what breaks the container is everything the Markdown spec hands to raw-HTML passthrough — indented, upper-cased and trailing-space spellings included — which is looser than the canonical form your `rebuildRaw` emits, and `htmlBlockTagLineMatcher` from `aragonite/plugin` answers that question for a tag name. And rewrite the **minimum**: `details` escapes one `<` to `&lt;`, which renders as the literal tag both in the editor and on GitHub while matching no tag line, so the author sees what they typed.
+Two rules of thumb from the bundled `details` container. Ask the **grammar**, not your own spelling: what breaks the container is everything the Markdown spec hands to raw-HTML passthrough — indented, upper-cased and trailing-space spellings included — which is looser than the canonical form your `rebuildRaw` emits, and `htmlBlockTagLineMatcher` from `@voithos-labs/aragonite/plugin` answers that question for a tag name. And rewrite the **minimum**: `details` escapes one `<` to `&lt;`, which renders as the literal tag both in the editor and on GitHub while matching no tag line, so the author sees what they typed.
 
 ### Conformance-testing an inline rung
 
@@ -1048,7 +1048,7 @@ If your plugin registers inline syntax, `runInlineKindConformance` is the same i
 | `registration`   | Your rung is actually registered where your profile says it is                                    |
 
 ```
-import { runInlineKindConformance } from 'aragonite/testing';
+import { runInlineKindConformance } from '@voithos-labs/aragonite/testing';
 
 it('my rung conforms', () => {
 	runInlineKindConformance({
@@ -1079,7 +1079,7 @@ Run it under a DOM (`// @vitest-environment jsdom` for Vitest). Without one the 
 
 ## API reference
 
-Every `aragonite/plugin` export, grouped by job. Values are the calls you make; the accompanying types describe their inputs and outputs.
+Every `@voithos-labs/aragonite/plugin` export, grouped by job. Values are the calls you make; the accompanying types describe their inputs and outputs.
 
 **Plugin unit** _(pre-freeze / unstable)_
 

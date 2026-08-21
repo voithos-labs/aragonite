@@ -23,7 +23,7 @@ npm install        # links the local library + the example's own deps
 npm run dev        # http://localhost:5173
 ```
 
-The example depends on `aragonite` as `file:../..`, a link to this working tree —
+The example depends on `@voithos-labs/aragonite` as `file:../..`, a link to this working tree —
 no tarball to pin or refresh, so it never drifts from the source you cloned. The
 plugin sources under `consumer/src/plugins/` are generated from the dev-harness
 dogfood plugins (`scripts/sync-consumer-plugins.mjs`) before every `dev`, `build`,

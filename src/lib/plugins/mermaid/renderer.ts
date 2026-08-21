@@ -1,5 +1,5 @@
 /**
- * The engine adapter behind the `aragonite/plugins/mermaid/renderer` subpath, the
+ * The engine adapter behind the `@voithos-labs/aragonite/plugins/mermaid/renderer` subpath, the
  * consumer half of the injection seam. The dynamic import keeps the engine off module
  * eval, so nothing touches `document` until a diagram actually renders.
  */

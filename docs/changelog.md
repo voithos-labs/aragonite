@@ -30,7 +30,7 @@ Editor version history (CST block editor). **Style:** one tight entry per releas
 - [0.9.23](changelog/0.9.md#0923--demo-groundwork-bundled-plugins-ship-as-package-subpaths--is-the-showcase): bundled plugins ship as package subpaths, and `/` becomes the showcase
 - [0.9.22](changelog/0.9.md#0922--decorations--the-public-rect-api-the-extension-surface-completes): decorations as view-only annotations, and the public rect API
 - [0.9.21](changelog/0.9.md#0921--the-plugin-context-spine-per-instance-editor-handle): the per-instance editor handle a plugin's `setup` finally receives
-- [0.9.20](changelog/0.9.md#0920--plugin-platform-hardening): ownership gates, the `aragonite/testing` subpath, the command-to-component channel
+- [0.9.20](changelog/0.9.md#0920--plugin-platform-hardening): ownership gates, the `@voithos-labs/aragonite/testing` subpath, the command-to-component channel
 - [0.9.19](changelog/0.9.md#0919--selection-and-focus-completeness): selection and focus completeness for opaque and childless blocks
 - [0.9.18](changelog/0.9.md#0918--caret-entry-ux-widgets-reveal-opaque-blocks-focus): horizontal caret entry reveals widgets; opaque blocks take whole-block focus
 - [0.9.17](changelog/0.9.md#0917--editor-fixes-and-showcase-quality): editor fixes, plus admonition, details and mermaid showcase quality

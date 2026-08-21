@@ -1,7 +1,7 @@
 # Feature: Plugin Command Mint — callout.setKind
 
 The `:::callout` callout mints a `callout.setKind` block-command on the public
-`aragonite/plugin` seam and binds it to two arg-bearing chords on the callout
+`@voithos-labs/aragonite/plugin` seam and binds it to two arg-bearing chords on the callout
 descriptor's `keymap`. This is the command-mint batch's dogfood driver: it proves
 the whole chain end-to-end — a real keypress on an inner leaf, declined there
 without `preventDefault`, bubbles to the container's `handleKeydown`, resolves

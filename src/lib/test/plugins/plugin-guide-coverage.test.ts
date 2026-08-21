@@ -7,7 +7,7 @@ import path from 'node:path';
 // prose cannot stand in for an entry. Each section is keyed by its heading, which makes the
 // heading load-bearing: rename it in both.
 const CATALOG_HEADING = '\n## API reference';
-// `aragonite/testing` has no catalog table of its own — its section IS the catalog, and only
+// `@voithos-labs/aragonite/testing` has no catalog table of its own — its section IS the catalog, and only
 // its callables are enrolled; the kits' report types are read off the calls that return them.
 const TESTING_HEADING = '\n## Verifying your plugin';
 

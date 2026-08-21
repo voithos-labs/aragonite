@@ -1,5 +1,5 @@
 {
-	"name": "aragonite",
+	"name": "@voithos-labs/aragonite",
 	"version": "0.10.0",
 	"description": "Svelte 5 block editor for GFM Markdown with byte-for-byte lossless round-trip and a plugin platform",
 	"keywords": [
@@ -17,7 +17,7 @@
 		"commonmark",
 		"svelte5"
 	],
-	"homepage": "https://github.com/voithos-labs/aragonite#readme",
+	"homepage": "https://aragonite.dev",
 	"bugs": {
 		"url": "https://github.com/voithos-labs/aragonite/issues"
 	},
@@ -168,6 +168,7 @@
 		"lint:eslint": "eslint .",
 		"docs:pack:check": "node scripts/build-docs-pack.mjs",
 		"docs:map:check": "node scripts/check-codebase-map.mjs",
+		"docs:capture:modes": "node scripts/run-with-env.mjs DOCS_CAPTURE=1 -- playwright test --project=e2e-capture",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
 		"prepack": "npm run package && node scripts/verify-pack.mjs"
 	},
@@ -215,9 +216,13 @@
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.66.0",
 		"vite": "^8.2.1",
-		"vitest": "^4.1.0"
+		"vitest": "^4.1.0",
+		"wrangler": "4.125.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.2"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

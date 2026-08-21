@@ -5,7 +5,7 @@ import {
 	escalatedFenceLength
 } from '$lib/core/parsers/fence-syntax';
 
-// Re-exported on `aragonite/plugin`, so the shape is pinned directly: a byte-exact rebuild
+// Re-exported on `@voithos-labs/aragonite/plugin`, so the shape is pinned directly: a byte-exact rebuild
 // needs verbatim `indent` and `infoRaw` alongside the trimmed `info` openers dispatch on.
 
 describe('matchFenceOpen', () => {

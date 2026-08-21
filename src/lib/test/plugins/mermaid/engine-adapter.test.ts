@@ -1,5 +1,5 @@
 /**
- * The engine adapter behind `aragonite/plugins/mermaid/renderer`. The engine is stubbed at
+ * The engine adapter behind `@voithos-labs/aragonite/plugins/mermaid/renderer`. The engine is stubbed at
  * its module boundary because the adapter's `import('mermaid')` is its only seam, and the
  * real engine draws through SVG layout that no node run provides.
  */
