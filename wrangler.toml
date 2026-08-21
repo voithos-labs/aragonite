@@ -5,7 +5,6 @@ compatibility_date = "2026-08-20"
 
 [assets]
 directory = "./build"
-# The adapter's SPA fallback is 404.html, and an unknown path must keep answering 404 so
-# crawlers don't index client-routed pages. `single-page-application` would serve it 200,
-# and index.html is the prerendered showcase rather than an empty shell.
+# Not `single-page-application`: that answers 200 and would have crawlers index every
+# client-routed path, and index.html is the prerendered showcase, not an empty shell.
 not_found_handling = "404-page"

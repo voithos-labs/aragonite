@@ -1,8 +1,14 @@
 # Presentation-mode strip capture
 
-Regenerates `docs/assets/presentation-modes.png`, the README's side-by-side of three presentation
-modes. Not a behavioural test: what it asserts is what the published image shows, so the bullets
-below are the picture's contract.
+Regenerates `docs/assets/presentation-modes-{light,dark}.png`, the README's side-by-side of three
+presentation modes. Not a behavioural test: what it asserts is what the published image shows, so
+the bullets below are the picture's contract.
+
+## Light and dark
+
+- one strip per page theme, so the README's `<picture>` can pair them like the charts do
+- the editor keeps its default theme in both; what flips is the page around the panels
+- both strips share the chart palette (`scripts/chart-common.mjs`), so the assets read as one set
 
 ## The panels
 

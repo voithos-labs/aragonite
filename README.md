@@ -319,7 +319,10 @@ Oh, live preview? You think I forgot about it? nah. By default, markdown syntax 
 
 Check out some screenshots of the actual app:
 
-<img alt="The same markdown note in three presentation modes, side by side: source shows every marker dimmed but visible; preview-inline hides all syntax except the bold markers around the word the caret sits in; live keeps every marker hidden with the caret in that same word, and is still fully editable." src="docs/assets/presentation-modes.png">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/presentation-modes-dark.png">
+  <img alt="The same markdown note in three presentation modes, side by side: source shows every marker dimmed but visible; preview-inline hides all syntax except the bold markers around the word the caret sits in; live keeps every marker hidden with the caret in that same word, and is still fully editable." src="docs/assets/presentation-modes-light.png">
+</picture>
 
 One last snarky remark to make... All these - all five styles, follow one render path. There is never a second rendering, never a derived raw tree, never a rich text model swapped in behind the scenes. I never exactly planned for inline preview or live mode, it just so happened that I valued the right promises and made the right decisions that made features like this buildable.
 
