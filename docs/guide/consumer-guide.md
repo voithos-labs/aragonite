@@ -45,7 +45,9 @@ The editor owns the caret, the tree, and the undo stack. **You own load, save, a
 
 ## Toolchain requirements
 
-Two things your build needs. Both are already true in a SvelteKit app.
+Three things your build needs. All are already true in a SvelteKit app.
+
+- **Node `^20.19.0 || >=22.12.0`**, which `engines` declares. That floor is Vite's own, not an extra ask: the package ships uncompiled Svelte (below), so your bundler's requirement is the real one.
 
 - **TypeScript `moduleResolution` must be `bundler`, `node16`, or `nodenext`.** The subpath types (`@voithos-labs/aragonite/plugin`, `@voithos-labs/aragonite/plugins/*`, `@voithos-labs/aragonite/testing`) resolve through the package's `exports` map, which classic `node` resolution never reads: the root `@voithos-labs/aragonite` import still typechecks, while every subpath import reports "Cannot find module". A SvelteKit-generated `tsconfig.json` is already on `bundler`.
 - **The package ships uncompiled `.svelte` components and `.svelte.js` rune modules**, which your Vite Svelte plugin compiles out of `node_modules`. That is `vite-plugin-svelte`'s default behavior, so it needs no configuration. If you hand-tune `optimizeDeps` or `ssr.noExternal`, keep `@voithos-labs/aragonite` on the Svelte plugin's side of those lists rather than pre-bundling it.
