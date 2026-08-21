@@ -54,13 +54,13 @@ Every block exposes the `BlockComponent` shape: two boolean flags (`editable`, `
 
 Your block pulls what it needs from concern-specific Svelte contexts. Take only the ones you use.
 
-| Context                 | Gives you                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------- |
-| `BLOCK_EDIT_KEY`        | `BlockEditActions` — split, merge, delete, content/metadata edits, replace        |
-| `FOCUS_KEY`             | `FocusActions` — `moveFocus`, `revealPath`                                        |
-| `HISTORY_KEY`           | `HistoryActions` — `requestUndo` / `requestRedo`                                  |
-| `CONTAINER_EDIT_KEY`    | `ContainerEditActions` — the container commit surface (below)                     |
-| `EDITOR_SERVICES` facet | `.controller` is the multi-scope commit primitive, for cross-container operations |
+| Context                     | Gives you                                                                         |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `BLOCK_EDIT_KEY`            | `BlockEditActions` — split, merge, delete, content/metadata edits, replace        |
+| `FOCUS_KEY`                 | `FocusActions` — `moveFocus`, `revealPath`                                        |
+| `HISTORY_KEY`               | `HistoryActions` — `requestUndo` / `requestRedo`                                  |
+| `CONTAINER_EDIT_KEY`        | `ContainerEditActions` — the container commit surface (below)                     |
+| `EDITOR_SERVICES_KEY` facet | `.controller` is the multi-scope commit primitive, for cross-container operations |
 
 `src/lib/action-contracts.ts` is the authority on every member, so read it rather than trusting a list in a doc. This one included. The keys themselves live next door in `src/lib/editor-keys.ts`, which is where you go when you grep the contracts file for `BLOCK_EDIT_KEY` and come up empty. Two are worth calling out because they are easy to miss:
 
