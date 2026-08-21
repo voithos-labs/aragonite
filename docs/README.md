@@ -2,7 +2,7 @@
 
 aragonite is a block editor for GFM Markdown. The raw Markdown is the source of truth: it's parsed into a lossless syntax tree, rendered as styled blocks with the markers left visible but dimmed, and written back byte-for-byte. It ships as an embeddable Svelte library.
 
-New to the repo? Run it with the root [`README.md`](../README.md), work in it with [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+New here? Run it with the root [`README.md`](../README.md), work in it with [`CONTRIBUTING.md`](../CONTRIBUTING.md). This page is just the map.
 
 ## Start here
 
@@ -13,11 +13,11 @@ New to the repo? Run it with the root [`README.md`](../README.md), work in it wi
 | **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md)                                                  |
 | **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md), then [`contributing/rules.md`](contributing/rules.md) |
 
-Everything else hangs off those four. `CONTRIBUTING.md` gets you set up, oriented, and through the gates; `rules.md` is the second step, and the one to take before your first edit. The folders are split by **audience**, not by topic.
+Everything else hangs off those four. `CONTRIBUTING.md` gets you set up, oriented, and through the gates; `rules.md` is the second step, and the one to take before your first edit. The folders split by **audience**, not by topic, which is why the same subsystem shows up in two of them wearing different hats.
 
 ## `design/` — how it works
 
-The system's shape and its load-bearing contracts. `editor.md` is the orientation point; read the rest only when your task touches that subsystem.
+The system's shape and its load-bearing contracts. `editor.md` is the orientation point. Read the rest only when your task touches that subsystem: working through all eight up front is a great way to feel productive without becoming useful, so let the other seven be somebody else's afternoon.
 
 | Doc                                                          | Scope                                                    |
 | ------------------------------------------------------------ | -------------------------------------------------------- |
@@ -40,7 +40,7 @@ The published docs pack: `docs/guide` is listed in the package's `files`, so thi
 | [`guide/plugin-guide.md`](guide/plugin-guide.md)     | Plugin authoring: the unit, the tiers, recipes           |
 | [`guide/directives.md`](guide/directives.md)         | The `:::name` directive grammar                          |
 
-Because the pack ships flat, a markdown link inside `guide/` may only point at another file in `guide/`. Name any other doc as inline code instead — `npm run lint` fails on a link that would dangle once the pack leaves the repo.
+Because the pack ships flat, a markdown link inside `guide/` may only point at another file in `guide/`. Name any other doc as inline code instead. `npm run lint` fails on a link that would dangle once the pack leaves the repo, and hearing it from the linter is faster than hearing it from a reader with a 404.
 
 ## `contributing/` — how we work
 

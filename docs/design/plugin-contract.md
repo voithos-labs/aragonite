@@ -2,24 +2,24 @@
 
 ## What this document is
 
-At 1.0, aragonite becomes a plugin platform and its plugin API stops moving. This document is the list of what stops moving — plus what is still soft, and what was left out on purpose.
+At 1.0, aragonite becomes a plugin platform and its plugin API stops moving. This document is the list of what stops moving, plus what is still soft, and what got left out on purpose.
 
-It is not a tutorial. `docs/guide/plugin-guide.md` teaches you how to write a plugin; this tells you what you can safely build on.
+It is not a tutorial. `docs/guide/plugin-guide.md` teaches you how to write a plugin; this one tells you what you can safely build on, which is a different question and the one that bites later.
 
-One idea drives all of it: **structure is cheapest to fix before external code binds to it.** The moment a third-party plugin imports a type or relies on a behavior, changing that type or behavior breaks the plugin. So the shapes plugins bind to get settled first, and everything downstream binds to a foundation that has stopped moving instead of one that hasn't.
+One idea drives all of it: **structure is cheapest to fix before external code binds to it.** The moment a third-party plugin imports a type or relies on a behavior, changing that type or behavior breaks the plugin. So the shapes plugins bind to get settled first, and everything downstream binds to a foundation that has stopped moving rather than one that hasn't.
 
 ## Two freeze layers
 
-The contract freezes in two stages, because the two halves matured at different times.
+The contract freezes in two stages, because the two halves grew up at different times.
 
 | Layer                 | What's in it                                                                                                                                                                                                                        | Frozen                                        |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | **Registration base** | Node identity (`AnyBlockKind`), the register-once/conflict-on-duplicate registry model, plugin-kind naming (`declarePluginKind`), the no-node-field inline-content shape (a kind declares `supportsInline`), the `getEvents()` seam | **Since 0.8.3.** No breaking change from here |
 | **Authoring surface** | Everything on the `@voithos-labs/aragonite/plugin` subpath: the container and editable-leaf factories, chrome leaves, directives, inline authoring, commands, paste transforms (see § The pre-freeze authoring surface)             | **At the public 1.0 release** — not before    |
 
-The authoring surface stays unstable-labeled until the release cut. It freezes only once it has been validated by at least two real container consumers, the in-repo dogfood extensions, an internal limestone integration, **and at least one genuinely external author** — a developer who is not the project owner, building from the tarball and the docs pack unassisted, their friction log treated as blocking input (the 0.9.28 third-party audit's finding: every prior validation artifact was owner-authored, which validates discoverability but not the API in outside hands). Until then it may change without notice — nothing external binds to it yet.
+The authoring surface stays unstable-labeled until the release cut. It freezes only once it has been validated by at least two real container consumers, the in-repo dogfood extensions, an internal limestone integration, **and at least one genuinely external author**, meaning a developer who is not the project owner, building from the tarball and the docs pack unassisted, with their friction log treated as blocking input (the 0.9.28 third-party audit's finding: every prior validation artifact was owner-authored, which validates discoverability but not the API in outside hands). Until then it may change without notice, and since nothing external binds to it yet, that costs nobody anything.
 
-The rest of the DX system — declarative manifest, scaffold, hot-reload dev loop, packaged reference fleet — stays 1.2 (see the roadmap).
+The rest of the DX system (declarative manifest, scaffold, hot-reload dev loop, packaged reference fleet) stays 1.2, see the roadmap.
 
 ## The freeze criterion
 
@@ -30,22 +30,22 @@ A surface belongs in the freeze if, and only if, **changing it later would force
 | **Breaking-if-deferred** | A later change breaks bound external code                                               | Finalize now, even with no consumer yet                                                               |
 | **Additive-later**       | A later change only _adds_ (new field on a payload consumers receive, new optional API) | No freeze pressure — safe to change later; **whether to build it now is a separate call** (see below) |
 
-The distinction is sharper than "does it have a consumer today." A required field added to an event payload, for instance, never breaks a _receiver_ — so an event-payload extension is additive-later even though it sounds like a contract change.
+The distinction is sharper than "does it have a consumer today." A required field added to an event payload, for instance, never breaks a _receiver_, so an event-payload extension is additive-later even though it sounds like a contract change. That one catches people.
 
 ### Freeze-scope is not build-scope
 
-"Additive-later" answers one question — _must this be frozen now?_ → **no.** It does **not** answer _should this be built now?_ Those are separate axes; collapsing them into a flat "defer" is a trap (it under-scoped a batch once — a surface read as "don't build" when it was only "need not freeze").
+"Additive-later" answers exactly one question, _must this be frozen now?_ → **no.** It does **not** answer _should this be built now?_ Those are separate axes, and collapsing them into a flat "defer" is a trap. It under-scoped a batch once: a surface got read as "don't build" when all it ever said was "need not freeze".
 
 Deciding whether to build an additive-later surface pre-freeze:
 
-- **Build now** when it rides machinery already being built (marginal cost), **or** a dogfood/in-repo consumer can validate the _mechanism_ pre-freeze. "A shape with no consumer can't be validated" has an escape hatch — writing a dogfood consumer _is_ the validation, which is what the dogfood plugins exist for.
-- **Defer** when neither holds and building it would expose a _bound shape you would only be guessing at_ — the `EditEvent` snapshot/real-delta discriminant is the canonical case: its semantic needs its real post-v1 consumer.
+- **Build now** when it rides machinery already being built (marginal cost), **or** a dogfood/in-repo consumer can validate the _mechanism_ pre-freeze. "A shape with no consumer can't be validated" has an escape hatch, because writing a dogfood consumer _is_ the validation, which is what the dogfood plugins exist for.
+- **Defer** when neither holds and building it would expose a _bound shape you would only be guessing at_. The `EditEvent` snapshot/real-delta discriminant is the canonical case: its semantic needs its real post-v1 consumer.
 
-The rule both branches serve: **get the shapes plugins _bind to_ exact before freeze; keep _additive capability surfaces_ minimal, so later growth stays an _add_, never a _restructure_.** Adding a field to a payload or context a consumer receives is safe; changing a signature or shape they bind to is the breaking restructure.
+The rule both branches serve: **get the shapes plugins _bind to_ exact before freeze; keep _additive capability surfaces_ minimal, so later growth stays an _add_, never a _restructure_.** Adding a field to a payload or context a consumer receives is safe; changing a signature or shape they bind to is the breaking restructure, and by then it is somebody else's build going red, not yours.
 
 ## Decision table
 
-> The durable content is the verdict column — breaking-if-deferred versus additive-later, the 0.8.3 scoping logic. The status column reads current: where each surface actually landed.
+> The durable content is the verdict column, meaning breaking-if-deferred versus additive-later, the 0.8.3 scoping logic. The status column reads current: where each surface actually landed.
 
 | Surface                                                                  | Verdict              | In the freeze?                                                                                                             | Reason                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -82,7 +82,7 @@ A **descriptor** is different: it is required infrastructure (`getBlockKindDescr
 
 `CstNode` carries no `inlineContent` field. A prose node's inline tree is derived from `raw`: the render path computes it locally, and the editor's non-render internals read it through an internal, non-reactive accessor — not a surface a plugin calls. What a plugin binds to is a single descriptor flag: an inline-bearing kind declares `supportsInline` and gets lazy inline for free, with no node-field cache to assume.
 
-This narrows the frozen contract — `inlineContent` was a public member of the node type. It is done now by the freeze's own criterion: a derived-cache field leaking into the node shape is exactly the thing to remove while it is still cheap. After binding the removal would be breaking; before binding it is free.
+This narrows the frozen contract, since `inlineContent` was a public member of the node type. It happens now by the freeze's own criterion: a derived-cache field leaking into the node shape is exactly the thing you remove while it is still cheap. After binding, the removal is breaking. Before binding, it is free.
 
 ### Schema registries — global, register-once, conflict-on-duplicate
 
@@ -99,7 +99,7 @@ Registration model
 └─────────────────────────────────────────────┘
 ```
 
-- **Register-once.** Registering a kind that is already registered is a **conflict** — it throws — not a silent override. A plugin colliding with a built-in (or another plugin) is a loud, immediate error instead of last-writer-wins corruption. It also makes the code match what `docs/guide/consumer-guide.md` already promises.
+- **Register-once.** Registering a kind that is already registered is a **conflict**, so it throws, rather than silently overriding. A plugin colliding with a built-in (or another plugin) is a loud, immediate error instead of last-writer-wins corruption. It also makes the code match what `docs/guide/consumer-guide.md` already promises.
 - **Augmentation is distinct from registration.** `augmentBlockKind` merges fields into an _existing_ registration (the top-of-DAG wire-up uses it to patch in behavior that can't live in the schema layer without a downstream import). Augmenting an unregistered kind throws. Augmentation is deliberate and idempotent-by-intent; registration is once.
 - **No unregister, no replace.** A static registry has no runtime unload. Runtime plugin loading/unloading with sandboxing is Plugin System II, explicitly out of this contract.
 - **A global opener means global syntax recognition — resolved through a per-instance view.** A plugin that registers a block opener teaches the _parser_ to recognize that syntax process-wide, so by default a second editor in the process parses plugin blocks even if its consumer did not pass the plugin. Definitions stay global; each instance now _resolves_ them through a `RegistryView` (`schema/registry-view.ts`) whose default reads every definition verbatim (behavior-preserving) — the designed-ahead infrastructure for the per-instance **enablement** policy layer this contract always named as "above." `parse` gained an additive `parse(source, { grammar })` slot that threads an instance's grammar view (the default is the global grammar), so a filtered instance can skip a disabled kind's opener. The enablement _predicate_ has no public prop yet — it firms up with limestone; the seam and its semantics (built-ins never disableable, a disabled kind's component resolves to the raw-editable fallback, the descriptor is never filtered) are frozen-safe because they are additive over the global definitions.
@@ -117,7 +117,7 @@ Three layers stack, and each answers differently. This table is the whole answer
 
 The asymmetry is deliberate: installing a unit is a declaration of intent, so repeating it is not an error; registering a name is a definition, so two of them are. A directive name is the one collision the platform cannot resolve for you, since both claimants are plugins, which is why the convention is opt-in rather than built in.
 
-**Why global, given the per-instance `plugins` prop?** The tension resolves cleanly: kind _definitions_ are global because, like custom elements, a kind cannot be defined differently for two editors in one process. The `plugins` prop is a registration _trigger and declaration of intent_ — passing the same plugin to two editors registers once. Per-instance _enablement_ (editor A renders callouts, editor B does not) is the policy layer _over_ the global definitions, not per-instance registration — and its structural seam is now built (the `RegistryView`, 0.9.27, concern #1). What is deferred is only the public prop that sources the enablement predicate; it firms up with limestone rather than being guessed at now.
+_Why global, given the per-instance `plugins` prop?_ The tension resolves cleanly: kind _definitions_ are global because, like custom elements, a kind cannot be defined differently for two editors in one process. The `plugins` prop is a registration _trigger and declaration of intent_, so passing the same plugin to two editors registers once. Per-instance _enablement_ (editor A renders callouts, editor B does not) is the policy layer _over_ the global definitions, not per-instance registration, and its structural seam is now built (the `RegistryView`, 0.9.27, concern #1). What is deferred is only the public prop that sources the enablement predicate; it firms up with limestone rather than being guessed at now.
 
 ### Plugin-kind naming + collision rules
 
@@ -135,13 +135,13 @@ Everything a plugin author reaches today comes through the `@voithos-labs/aragon
 
 ### What the package ships
 
-The tarball carries every internal module's `.d.ts`, on purpose. Encapsulation is **exports-map-level**: the map lists the barrels and nothing else, so a deep runtime import does not resolve, while the shipped declarations stay a greppable types reference (the clean-room author read them as exactly that). Pruning them was considered and declined — a graph-derived pruner would put the published types at risk of a broken build to save a few hundred kilobytes of text nobody downloads twice.
+The tarball carries every internal module's `.d.ts`, on purpose. Encapsulation is **exports-map-level**: the map lists the barrels and nothing else, so a deep runtime import does not resolve, while the shipped declarations stay a greppable types reference (the clean-room author read them as exactly that). Pruning them was considered and declined. A graph-derived pruner would put the published types at risk of a broken build to save a few hundred kilobytes of text nobody downloads twice.
 
 ### Plugin unit + `plugins` prop
 
 `definePlugin({ name, setup })` packages a plugin's global registrations into one installable unit; the editor's set-once `plugins` prop installs each once per process, before the instance's first parse. `installPlugins` on the main barrel is the editor-less entry for `parse()` pipelines; `isPluginInstalled` probes an install. `definePluginBlock` is the single-block shorthand — one kind, one component, one register step — for the common case that needn't touch `definePlugin` and `registerBlockComponent` directly.
 
-The decided shape is an **imperative `setup(ctx)`** unit; a declarative manifest stays **additive-later** (a `definePlugin` overload, not a restructure). Install is once-per-process keyed by name: same-identity re-install no-ops, same-name/different-identity is first-wins with a dev-warn, a setup that throws stays failed. Kind declarations made during a setup are attributed to their plugin, so a duplicate-registration error names the first declarer. All four dogfood extensions and the consumer examples install through it.
+The decided shape is an **imperative `setup(ctx)`** unit; a declarative manifest stays **additive-later** (a `definePlugin` overload, not a restructure). Install is once-per-process keyed by name: same-identity re-install no-ops, same-name/different-identity is first-wins with a dev-warn, a setup that throws stays failed. Kind declarations made during a setup are attributed to their plugin, so a duplicate-registration error names the first declarer. The in-repo dogfood extensions and the consumer examples install through it.
 
 **The per-instance context spine.** `setup` receives a `PluginSetupContext`; its `ctx.onEditor(cb)` registers a callback fired once per `<Editor>` instance, receiving an **`EditorContext`** — instance identity (`editorId`, stable per mount), a live `document` getter, the subscribe-only `events` view, and typed `options`. The callback may return a disposer, run at unmount. This is what makes derived state, edit reaction, and per-instance configuration possible without a plugin-state field: a plugin keys its own `Map` on `editorId`. `definePlugin<Options>` carries the option type through to `editor.options`. Registration is **synchronous-only** — a context leaked past `setup` throws, the same boundary as kind attribution.
 
@@ -153,7 +153,7 @@ _Freeze litmus._ The unit's frozen shape must leave additive room for (a) a per-
 
 Kind declaration (plus `declaredPluginKind`, the checked accessor that recovers a declared brand in another module without a cast); descriptor, component, and opener registration; `defineBlockComponent`, which types a Svelte component as a `BlockComponent` without an `as unknown as` cast; idempotent-registration probes for the registries that publish one, which a module-scope registrar guards on so a re-import does not throw; and typed per-node plugin metadata (`setPluginMetadata` / `getPluginMetadata`), which stores a plugin kind's own shape without casting through the built-in metadata union.
 
-On `BlockComponent` itself, caret placement is two verbs. `focus` places a caret AND ends any live cross-block range — the safe default, and the one an author reaches for by writing nothing special. `parkCaret` is optional and does the same landing without the range-ending, for the editor's selection-extend paths; a block built on either factory gets both from the surface it publishes, and G2.12 guards which callers may reach the second. The asymmetry is deliberate: one verb carrying both meanings cost two whole-document data losses pre-1.0.
+On `BlockComponent` itself, caret placement is two verbs. `focus` places a caret AND ends any live cross-block range, which is the safe default and the one an author reaches for by writing nothing special. `parkCaret` is optional and does the same landing without the range-ending, for the editor's selection-extend paths; a block built on either factory gets both from the surface it publishes, and G2.12 guards which callers may reach the second. The asymmetry is deliberate: one verb carrying both meanings cost two whole-document data losses pre-1.0.
 
 The surface's optional members stay **flat**. Grouping the capability probes into named facets was considered and declined: the caret members' three layers are documentation (`docs/design/editor.md` § The editing surface), and `ContainerBlockComponent`, the container members promoted to required, is the one tier the types themselves carry.
 
@@ -268,7 +268,7 @@ _Tier_ is the kind class that can meaningfully declare the field. `container` ma
 3. `EditorContext.presentationMode` (live getter) plus the `presentationModeChange` event;
 4. the leaf and widget tiers — `EditableLeaf.getPresentationMode()`, the live `getPresentationMode` getter mounted beside an inline-widget component's frozen snapshot, and `InlineWidgetEditingContext.presentationMode`.
 
-**Mode litmus: handle non-exhaustively.** The union is five values today and has grown once already; a plugin that switches exhaustively over it is wrong by construction, because the next rung is an addition to the union rather than an API break. Read the one property the rendering actually depends on — most often "does this mode paint markers" or "does it write bytes" — and default the rest. The platform's own read sites are written that way, which is why the live rung activated with zero plugin-facing change.
+**Mode litmus: handle non-exhaustively.** The union is five values today and has grown once already, so a plugin that switches exhaustively over it is wrong by construction: the next rung is an addition to the union, not an API break. Read the one property your rendering actually depends on (most often "does this mode paint markers" or "does it write bytes") and default the rest. The platform's own read sites are written that way, which is why the live rung activated with zero plugin-facing change.
 
 The editor's THEME travels the same four doors (`EditorContext.theme` plus a `themeChange` event, the container and leaf factories' `getTheme()`, the inline-widget `getTheme` prop). It exists for the one thing CSS cannot reach: content whose colors a rendering engine paints into its own markup, which must be redrawn rather than restyled.
 
@@ -346,19 +346,19 @@ Every mechanism for plugin content that is _itself editable_ falls in one of fou
 | Editable leaf | a recognizer-backed standalone text block with native caret/IME/undo/clipboard parity | shipped (pre-freeze) |
 | Atomic widget | opaque non-text embed, caret-addressable at its edges                                 | shipped              |
 
-A _general_ editable leaf shipped pre-1.0 as `createEditableLeaf`, pre-freeze beside the container factory; the chrome leaf stays narrower on purpose. **Rejected permanently:** nested-editor interiors (a second editor state serialized as a blob) — they break byte-lossless round-trip.
+A _general_ editable leaf shipped pre-1.0 as `createEditableLeaf`, pre-freeze beside the container factory; the chrome leaf stays narrower on purpose. **Rejected permanently:** nested-editor interiors (a second editor state serialized as a blob). They break byte-lossless round-trip, which ends the conversation.
 
 ## The tier × subsystem closure matrix
 
-The standing lesson is the 0.9.18 whole-block-focus incident: the tier shipped **closed under 2 of ~9 cross-cutting systems and leaked 4 holes, found across three fix waves.** A new extension tier meets every editor subsystem whether or not its author considered them, so "it renders and round-trips" is a fraction of done.
+The standing lesson is the 0.9.18 whole-block-focus incident: the tier shipped **closed under 2 of ~9 cross-cutting systems and leaked 4 holes, found across three fix waves.** A new extension tier meets every editor subsystem whether or not its author considered them, so "it renders and round-trips" is a fraction of done, and a much smaller fraction than it feels like at the time.
 
-**The rule.** Every extension tier — and every new per-kind capability on an existing tier — must define its behavior under each cross-cutting system _before it ships_: it fills its matrix row, a ✓ or a ledgered gap, never a blank. A blank cell is an unasked question, which is exactly how the 0.9.18 holes shipped.
+**The rule.** Every extension tier, and every new per-kind capability on an existing tier, must define its behavior under each cross-cutting system _before it ships_: it fills its matrix row, a ✓ or a ledgered gap, never a blank. A blank cell is an unasked question, which is exactly how the 0.9.18 holes shipped.
 
 **The row is a type.** The matrix is no longer a doc checklist a reviewer might skip — it is a required `closure` block on every block-kind registration (a `ClosureCell` per `ClosureColumn`: `implemented` with a named `via`, `inherit-default` for the generic ceremony, or `not-supported` with a named `reason`). `Record<ClosureColumn, …>` makes a missing column a compile error and the required field makes a missing block one, so a blank cell can no longer reach the tree. The `simpleLeafClosure` preset is sugar over this same field, not a hole in it: for a not-mergeable, source-editable leaf it bakes the five structurally-fixed columns and still demands the four the leaf's component determines (omitting one is a compile error), so the matrix is unchanged — `containerClosure` is the sibling sugar for a strip container (baking the structurally fixed cells, demanding the per-kind ones), and the novel-tier row is always hand-written. G1.24 cross-checks the cells against the rest of the descriptor — a container's `roundTrip` must name its `rebuildRaw` rather than inherit the default, a `not-mergeable` kind's `mergeBackspace` cannot inherit a default merge it does not have — and validates each declared `conformanceFixture` parses to its kind. What is declared here is now _executed_: registering a kind enrolls it in a generic per-cell behavioral battery — the headless cells (round-trip, merge eligibility, byte-slice clipboard, undo, search degradation) run at registration, and the mounted-DOM cells run in a real browser: the conformance sweep drives focus, selection paint, and search paint per registered kind (a matrix row run, not declared, and a new fixtured kind enrolled the moment it registers), while reorder and the simulation oracle run in their own e2e — the drag/keyboard reorder specs and the note-taking simulation battery.
 
 **The inline rung has its own battery.** A block kind's row is a type it must fill; an inline rung carries no descriptor to hang one on, so its equivalent is the `@voithos-labs/aragonite/testing` kit an author points at a registered rung — the third harness on that subpath, beside the per-kind closure battery and the container one. It drives what a rung breaks without moving a byte: what it claims, that its claims tile the scan range it was given, that it declines the grammar overlap its prefix shadows, that its widget is one atomic unit the caret walk can measure, that its editing declaration is in the vocabulary the dispatch reads, and that a rung minting a built-in kind can re-serialize the bytes it borrowed. Four cells are declared per rung rather than derived, following the container kit's `terminatorCollision` precedent — required declarations, because every one is invisible to byte round-trip and an optional cell is left undeclared by exactly the rungs that need it. Two rules keep it from hollowing: fixtures are required and an unclaimed one fails rather than skips, and an excuse the kit can falsify it falsifies. A rung on a reserved trigger cannot excuse the overlap cell at all, since being consulted ahead of a built-in case is what creates the overlap.
 
-The rows are the five interaction-tiers a caret meets; they refine the editable-content tiers above. The block-level **whole-block-focus opaque** tier — a childless opaque block that is its own focus target, e.g. a diagram — is split out from the **inline widget**, the atomic embed inside prose; the editable-content table folds that block-level case under Container.
+The rows are the interaction-tiers a caret meets; they refine the editable-content tiers above. The block-level **whole-block-focus opaque** tier — a childless opaque block that is its own focus target, e.g. a diagram — is split out from the **inline widget**, the atomic embed inside prose; the editable-content table folds that block-level case under Container.
 
 _Legend: ✓ closed (defined + covered) · n/a structurally absent · ◐ partial (ledgered edge) · gap (ledgered hole)._
 
@@ -410,11 +410,11 @@ The rule: a surface that **reads** hands out a view (`NodeView` / `DocumentView`
 | Write hooks (`rebuildRaw`, `setPluginMetadata`) — the ceremony hands them owned nodes                                  | mutable |
 | Byte rules (`normalizeRawWrite`, `bodyWrite`) — text in, text out; they see no node at all                             | strings |
 
-Most of the boundary is enforced by **shape** (the factories never expose raw context keys or mutation handles) and the rest by **dev-mode invariants** that tree-shake out of production — so plugin development against a production build gets no signal. **Develop plugins against a dev build.**
+Most of the boundary is enforced by **shape** (the factories never expose raw context keys or mutation handles) and the rest by **dev-mode invariants** that tree-shake out of production, so plugin development against a production build gets no signal whatsoever. **Develop plugins against a dev build.**
 
 ### Misuse outcomes
 
-What each misuse does in dev versus production — the reason the dev build is where plugin development belongs:
+What each misuse does in dev versus production, which is the whole reason the dev build is where plugin development belongs:
 
 | Misuse                                 | Dev                                                                                                                                | Production                                                                                 |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -443,19 +443,19 @@ Sketched so later work builds toward a known direction. None is frozen: each is 
 
 ### Deferred: the `EditEvent` snapshot/real-delta discriminant
 
-Persistent version history (post-v1 app-infra) needs `EditEvent` to distinguish a real structural delta from a ceremony-borrow commit. It is deferred from this freeze on purpose:
+Persistent version history (post-v1 app-infra) needs `EditEvent` to distinguish a real structural delta from a ceremony-borrow commit. It is deferred from this freeze on purpose, for three reasons:
 
-1. **It is additive-later** — adding a field to `EditEvent` never breaks a receiver, so it does not need to be frozen before plugins bind.
-2. **Its binding consumer is a different milestone** — version history, not the plugin contract.
-3. **Its semantic is unpinned and must be designed _with_ that consumer.** The naive derivations are wrong: a normal content keystroke commits with the undo snapshot _skipped_ (it is debounce-batched) and carries an internal `noop` structural-change descriptor, yet it _is_ a real document change. So neither "an undo snapshot was pushed" nor "the structural-change was non-noop" identifies a real delta. The correct signal is a caller-declared "the user-visible document changed" flag at the commit sites — a design owned with the version-history layer.
+1. **It is additive-later.** Adding a field to `EditEvent` never breaks a receiver, so it does not need to be frozen before plugins bind.
+2. **Its binding consumer is a different milestone**, namely version history, not the plugin contract.
+3. **Its semantic is unpinned and must be designed _with_ that consumer.** The naive derivations are wrong, and wrong in the quiet way you would not catch until it mattered: a normal content keystroke commits with the undo snapshot _skipped_ (it is debounce-batched) and carries an internal `noop` structural-change descriptor, yet it _is_ a real document change. So neither "an undo snapshot was pushed" nor "the structural-change was non-noop" identifies a real delta. The correct signal is a caller-declared "the user-visible document changed" flag at the commit sites, and that design is owned with the version-history layer.
 
 ## Explicitly excluded
 
-- **Inline-parser _stage_ hook.** A hook that inserts a plugin stage into the inline parse _pipeline_ — distinct from `registerInlineSyntax`, which shipped and which hands the scanner a trigger character and a recognizer (see § Inline authoring). The stage hook remains excluded: widget-ness is a render+model decision, not a parse-pipeline one, so no built-in validates it. Its real consumer is the 1.3 inline-syntax work.
-- **Per-hook 1.2 seams** — selection coordinate-addressing, and the component registry replacing `BlockHost` dispatch. Both additive over this foundation. (The component-portal widget seam already shipped additively, pre-1.0.)
-- **Runtime unregister / replace** — Plugin System II.
-- **Plugin-local state** (ProseMirror `StateField`/`PluginKey`, TipTap `addStorage`). Every other ecosystem has one; this one does not, and the omission is a decision rather than a gap. State belonging to a node goes _on_ the node, where it undoes, redoes, and — if it feeds `rebuildRaw` — round-trips. The other half of the need evaporates: a state field elsewhere mostly holds a decoration set and maps it forward through edits, which is forced by positions being integers into a flat sequence. Positions here are `(path, offset)` into a tree re-derived every edit, so a decoration source is a pure `doc → Decoration[]` and there is nothing to map. A plugin wanting state keeps its own `WeakMap` keyed on the editor id; the platform stores nothing and owns no lifecycle.
-- **`registerPasteSurface`** — built, used internally by the chrome and container seams, and withheld. The driving use case (GitHub-alert → admonition) needs a content-keyed pre-parse transform, which a target-kind-keyed surface cannot express: registering for prose kinds collides with the built-in defaults, and its type closure drags the commit coordinator public. Exposing it would freeze an export that fails the case that motivated it. The content-keyed half shipped instead as `registerPasteTransform`.
+- **Inline-parser _stage_ hook.** A hook that inserts a plugin stage into the inline parse _pipeline_, which is a different thing from `registerInlineSyntax`, the one that shipped and that hands the scanner a trigger character and a recognizer (see § Inline authoring). The stage hook remains excluded: widget-ness is a render+model decision, not a parse-pipeline one, so no built-in validates it. Its real consumer is the 1.3 inline-syntax work.
+- **Per-hook 1.2 seams**, meaning selection coordinate-addressing, and the component registry replacing `BlockHost` dispatch. Both additive over this foundation. (The component-portal widget seam already shipped additively, pre-1.0.)
+- **Runtime unregister / replace.** Plugin System II.
+- **Plugin-local state** (ProseMirror `StateField`/`PluginKey`, TipTap `addStorage`). Every other ecosystem has one; this one does not, and the omission is a decision rather than a gap. State belonging to a node goes _on_ the node, where it undoes, redoes, and, if it feeds `rebuildRaw`, round-trips. The other half of the need simply evaporates: a state field elsewhere mostly holds a decoration set and maps it forward through edits, which is forced on it by positions being integers into a flat sequence. Positions here are `(path, offset)` into a tree re-derived every edit, so a decoration source is a pure `doc → Decoration[]` and there is nothing to map. A plugin wanting state keeps its own `WeakMap` keyed on the editor id; the platform stores nothing and owns no lifecycle.
+- **`registerPasteSurface`.** Built, used internally by the chrome and container seams, and withheld. The driving use case (GitHub-alert → admonition) needs a content-keyed pre-parse transform, which a target-kind-keyed surface cannot express: registering for prose kinds collides with the built-in defaults, and its type closure drags the commit coordinator public. Exposing it would freeze an export that fails the very case that motivated it. The content-keyed half shipped instead as `registerPasteTransform`.
 
 ## Enforcement
 

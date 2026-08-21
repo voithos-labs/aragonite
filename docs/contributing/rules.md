@@ -2,12 +2,18 @@
 
 ## What this is
 
-The rules you can't get from reading the code. Every one of them was paid for by a real bug, and
-[`casebook.md`](casebook.md) holds the bug.
+The rules you cannot get from reading the code. Every single one was paid for with a real bug, and
+[`casebook.md`](casebook.md) still has the receipt.
 
-aragonite keeps a mutable tree that is simultaneously the undo history and the source of truth for
-the DOM. That combination goes wrong in a small number of specific ways, and these are they. **Read
-this file before your first edit; read the casebook before your first structural change.**
+Here is the shape of the problem. aragonite keeps one mutable tree that is simultaneously the undo
+history and the source of truth for the DOM. That is a good design and it goes wrong in a small
+number of very specific ways, which are the ways below. Nobody guessed these in advance; we found
+them the expensive way.
+
+**Read this before your first edit, and read the casebook before your first structural change.** It
+The five rules are five on purpose, because five is about what anyone actually retains on the way to
+touching something. The sections after them (the ladder, the bug shape, fixing, testing, gates,
+records) are how the five get applied, so budget for the whole page rather than the list.
 
 Where a mechanism is specified elsewhere, this doc carries the rule and points at the spec.
 

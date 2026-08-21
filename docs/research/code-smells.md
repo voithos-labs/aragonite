@@ -1,5 +1,7 @@
 # Code Smells Reference
 
+Shared vocabulary for reviews, so that "this feels wrong" can become a sentence with a name in it and stop being a matter of taste. Nothing here is an instruction to go rewrite anything.
+
 ## What is a code smell?
 
 A **code smell** is a surface pattern in source code — naming, shape, or structure — that often points to a deeper design problem. The term was coined by Kent Beck and popularized by Martin Fowler's _Refactoring_ (1999).
