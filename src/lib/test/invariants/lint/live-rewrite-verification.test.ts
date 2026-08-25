@@ -14,11 +14,11 @@ import { collectEditorSources, stripComments, type SourceFile } from './scan-sou
 const REWRITE_MODULES = [
 	'src/lib/components/blocks/text/construct-edge-delete.ts',
 	'src/lib/components/blocks/text/edge-seat.ts',
-	'src/lib/components/blocks/text/format-toggle.ts',
 	'src/lib/components/blocks/text/link-source-bytes.ts',
 	'src/lib/components/blocks/text/live-join-seam.ts',
 	'src/lib/components/blocks/text/live-split-rebalance.ts',
-	'src/lib/components/blocks/text/pending-mark-insert.ts'
+	'src/lib/components/blocks/text/pending-mark-insert.ts',
+	'src/lib/core/inline/format-toggle.ts'
 ];
 
 /** The one home for "what the reader sees", the module DECLARING the slots, and their one reader. */

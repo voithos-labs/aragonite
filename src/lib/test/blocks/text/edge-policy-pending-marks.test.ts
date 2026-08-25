@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { trimTrailingLineEnding } from '$lib/core/lines';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
-import type { InlineMarkKind, PendingMarksState } from '$lib/cursor/pending-marks';
+import type { PendingMarksState } from '$lib/cursor/pending-marks';
+import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
 import {
 	at,

@@ -7,7 +7,7 @@
 import type { InlineNode } from '../../../core/nodes';
 import type { VisibilityContext } from '../../../core/inline/visibility';
 import type { EdgeAffinity } from '../../../cursor/edge-affinity';
-import type { InlineMarkKind } from '../../../cursor/pending-marks';
+import type { InlineMarkKind } from '../../../schema/inline-construct-policy';
 import { plainInsertionAt, relocateComposedRun } from './edge-seat';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 

@@ -1,0 +1,126 @@
+// @vitest-environment jsdom
+//
+// G2.14 — over a RANGE, the pressed-state read and the toggle's direction decide by the same
+// guards: an active range unapplies. Two arms sit outside, each anchored on an open gap: the
+// aligned strip sheds one delimiter layer (#216), and the bare wrap is never coverage-verified —
+// a painting mode writes it literally (live-mode.md § 4.3), a hiding mode checks only the screen
+// (#217). Miss-analysis: the equivalence was load-bearing for the cross-block direction and lived
+// only in prose, so a fourth arm on one side and not the other would misroute writes in silence.
+import { describe, it, expect } from 'vitest';
+import { parseInline } from '$lib/core/inline';
+import {
+	isInlineFormatActive,
+	isInlineFormatActiveAfter,
+	toggleInlineFormat,
+	type InlineFormatEdit,
+	type ToggleInlineFormatResult
+} from '$lib/core/inline/format-toggle';
+import type { PresentationMode } from '$lib/presentation-mode';
+import { listInlineMarks } from '$lib/schema/inline-construct-policy';
+
+/** Shapes the naive reading breaks on: nesting, non-canonical runs, a literal delimiter, a code
+ *  span's opaque bytes, an escape, and whitespace at both edges. */
+const CORPUS = [
+	'alpha beta',
+	'**bold** tail',
+	'*em* and **st**',
+	'***both*** x',
+	'__under__ run',
+	'_it_ and __b__',
+	'~~del~~ ~sub~',
+	'`code` span',
+	'`a**b**c` x',
+	'a *b* c *d* e',
+	'* literal star',
+	'x ** y ** z',
+	'  padded  ',
+	'a\\*escaped\\* b',
+	'**a `c` b**',
+	'~~**mix**~~ t'
+];
+
+const MODES: (PresentationMode | undefined)[] = ['source', 'live'];
+
+interface Range {
+	start: number;
+	end: number;
+}
+
+/** The trim the cross-block decomposition applies before it ever asks (`format-range.ts`): a run
+ *  opens and closes against a word, never a space, so an untrimmed edge is a different question. */
+function trimmed(display: string, from: number, to: number): Range | null {
+	let start = from;
+	let end = to;
+	while (start < end && /\s/.test(display[start])) start++;
+	while (end > start && /\s/.test(display[end - 1])) end--;
+	return start === end ? null : { start, end };
+}
+
+/** Every trimmed range the line offers, collapsed pairs excluded: a caret takes the seam's own
+ *  arm, which inserts an empty pair no parse can see, and that is a different ladder. */
+function rangesOf(display: string): Range[] {
+	const seen = new Set<string>();
+	const ranges: Range[] = [];
+	for (let from = 0; from <= display.length; from++)
+		for (let to = from + 1; to <= display.length; to++) {
+			const range = trimmed(display, from, to);
+			if (!range || seen.has(`${range.start}:${range.end}`)) continue;
+			seen.add(`${range.start}:${range.end}`);
+			ranges.push(range);
+		}
+	return ranges;
+}
+
+/** The selection reads standalone as this mark while the delimiter run continues outside it, so
+ *  the aligned strip sheds one layer onto a shorter run — `soleStripCandidate`'s own reading (#216). */
+function cutsIntoOwnRun(display: string, { start, end }: Range, kind: string): boolean {
+	const slice = display.slice(start, end);
+	const nodes = parseInline(slice, 0, slice.length);
+	if (nodes.length !== 1 || nodes[0].kind !== kind) return false;
+	return display[start - 1] === display[start] || display[end] === display[end - 1];
+}
+
+/** The result is the selection, or its whitespace trim, with bytes spliced around it and nothing
+ *  else touched: the bare wrap, which NO mode coverage-verifies — a painting mode writes it
+ *  literally, a hiding mode checks only the screen (#217). */
+function isBareWrap(display: string, selection: Range, result: ToggleInlineFormatResult): boolean {
+	const wrapped = result.newDisplay.slice(result.newSelStart, result.newSelEnd);
+	return [selection, trimmed(display, selection.start, selection.end)].some(
+		(core) =>
+			core !== null &&
+			result.newDisplay === display.slice(0, core.start) + wrapped + display.slice(core.end)
+	);
+}
+
+describe('G2.14 — the pressed-state read and the toggle direction', () => {
+	for (const { kind } of listInlineMarks()) {
+		it(`${kind}: an active range unapplies, an inactive one applies`, () => {
+			const violations: string[] = [];
+			let flips = 0;
+			for (const display of CORPUS) {
+				const content = { start: 0, end: display.length };
+				for (const selection of rangesOf(display)) {
+					const edit: InlineFormatEdit = { display, content, selection };
+					const active = isInlineFormatActive(edit, kind);
+					if (active && cutsIntoOwnRun(display, selection, kind)) continue;
+					for (const mode of MODES) {
+						const result = toggleInlineFormat(edit, kind, mode);
+						// Declining is sound in both directions: a toggle's fallback is not writing.
+						if (!result) continue;
+						if (isInlineFormatActiveAfter(edit, result, kind) !== active) {
+							flips++;
+						} else if (active || !isBareWrap(display, selection, result)) {
+							violations.push(
+								`${mode} ${JSON.stringify(display)} [${selection.start},${selection.end}] ` +
+									`was ${active ? 'active' : 'inactive'} and wrote ${JSON.stringify(result.newDisplay)}`
+							);
+						}
+					}
+				}
+			}
+			expect(violations).toEqual([]);
+			// The sweep proves nothing if every case declined or took an escape.
+			expect(flips).toBeGreaterThan(50);
+		});
+	}
+});

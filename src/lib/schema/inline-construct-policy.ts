@@ -16,6 +16,11 @@ import { deletePluginEntries, registerOnce } from './register-once';
 
 // ── Policy rows ─────────────────────────────────────────────────────────────
 
+/** The constructs a format chord addresses: whichever rows below declare a mark. An alias rather
+ *  than a union, so a plugin's markable kind needs no edit here — the membership test is the row
+ *  lookup, at runtime. */
+export type InlineMarkKind = AnyInlineKind;
+
 /**
  * The vocabulary a format chord needs to write a construct's own delimiters. Whole or absent, so a
  * kind cannot declare itself markable without saying what a mark on it writes.

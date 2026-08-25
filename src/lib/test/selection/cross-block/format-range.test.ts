@@ -9,7 +9,7 @@ import { serialize } from '$lib/core/serializer';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import {
 	applyCrossBlockFormat,
-	crossBlockFormatIsActive,
+	crossBlockActiveFormats,
 	planCrossBlockFormat
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
@@ -92,7 +92,7 @@ describe('direction is the whole range’s coverage, not each block’s', () => 
 
 describe('the pressed-state read', () => {
 	const active = (source: string, start: SelectionPoint, end: SelectionPoint) =>
-		crossBlockFormatIsActive(parse(source), start, end, 'strong');
+		crossBlockActiveFormats(parse(source), start, end).has('strong');
 
 	it('is true only when every participating span carries the mark', () => {
 		expect(active('**alpha**\n\n**beta**\n', at([0], 0), at([1], 8))).toBe(true);

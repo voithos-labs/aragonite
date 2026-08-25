@@ -9,11 +9,10 @@ import type { BlockComponent } from '../../block-component';
 import type { CommitController } from '../../action-contracts';
 import { trailingLineEnding } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
-import type { InlineMarkKind } from '../../cursor/pending-marks';
 import type { BlockElLookup, DocumentGetter, PresentationModeGetter } from '../../editor-keys';
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
-import { inlineMarkForCommand } from '../../schema/inline-construct-policy';
+import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';
 import { blockNodeAt } from '../../tree-operations/node-ops';
 import { comparePaths } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
@@ -21,7 +20,7 @@ import { restoreSelection } from '../selection-restore';
 import type { SelectionState } from '../selection-state.svelte';
 import {
 	applyCrossBlockFormat,
-	crossBlockFormatIsActive,
+	crossBlockActiveFormats,
 	planCrossBlockFormat,
 	type CrossBlockFormatPlan
 } from './format-range';
@@ -40,9 +39,13 @@ export interface CrossBlockCommandDeps {
 	 *  dispatch context's own threads; `undefined` reads as source. */
 	getPresentationMode: PresentationModeGetter | undefined;
 	grammar: GrammarView | undefined;
+	/** The pressed-state memo's key alongside the range: the document is mutated in place, so its
+	 *  identity witnesses nothing (`docs/design/editor.md` § 7). */
+	getContentVersion: () => number;
 }
 
 export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBlockCommandRouter {
+	const activeFormats = createActiveFormatMemo(deps);
 	return {
 		// Reachability of the arm, not participation: whether any block joins is only known once
 		// the range is decomposed, and a press that reaches no block writes nothing.
@@ -55,12 +58,35 @@ export function createCrossBlockCommands(deps: CrossBlockCommandDeps): CrossBloc
 		},
 		isActive: (id) => {
 			const mark = inlineMarkForCommand(id);
-			const { start, end } = deps.selection;
-			if (!mark || !start || !end) return false;
-			return crossBlockFormatIsActive(deps.getDoc(), start, end, mark.kind);
+			return mark !== null && activeFormats().has(mark.kind);
 		}
 	};
 }
+
+// ── The pressed-state memo ─────────────────────────────────────────────────
+
+const NO_MARKS: ReadonlySet<InlineMarkKind> = new Set();
+
+/** One slot rather than a cache: a toolbar asks once per button against one range, and the previous
+ *  key is dead the moment the selection moves. Outside reactive state like `inline-cache.ts`, since
+ *  a derived read that wrote `$state` would be a write during a read. */
+function createActiveFormatMemo(deps: CrossBlockCommandDeps): () => ReadonlySet<InlineMarkKind> {
+	let slot: { key: string; marks: ReadonlySet<InlineMarkKind> } | null = null;
+	return () => {
+		const { start, end } = deps.selection;
+		if (!start || !end) return NO_MARKS;
+		const key = `${deps.getContentVersion()}|${pointKey(start)}|${pointKey(end)}`;
+		if (slot?.key !== key) {
+			slot = { key, marks: crossBlockActiveFormats(deps.getDoc(), start, end) };
+		}
+		return slot.marks;
+	};
+}
+
+/** The offset's SPACE is part of the identity: a cell point counts cells where a char point
+ *  counts bytes, so the flag rides the key. */
+const pointKey = (point: SelectionPoint): string =>
+	`${point.path.join(',')}@${point.offset}${point.cellCoordinate ? 'c' : ''}`;
 
 // ── The commit ─────────────────────────────────────────────────────────────
 

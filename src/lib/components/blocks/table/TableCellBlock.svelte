@@ -4,10 +4,12 @@
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { isInlineFormatActive, toggleInlineFormat } from '../text/format-toggle';
+	import { isInlineFormatActive, toggleInlineFormat } from '../../../core/inline/format-toggle';
 	import { paintsFocusedMarkers } from '../../../presentation-mode';
-	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
-	import type { InlineMarkKind } from '../../../cursor/pending-marks';
+	import {
+		inlineMarkForCommand,
+		type InlineMarkKind
+	} from '../../../schema/inline-construct-policy';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		EDITOR_DOC_KEY,

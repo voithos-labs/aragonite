@@ -14,7 +14,7 @@ import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
 import { trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
 import { renderInlineNodes } from '$lib/core/inline-render';
 import { listInlineMarks, type InlineMark } from '$lib/schema/inline-construct-policy';
-import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
+import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import {
 	CONTENT_EMPTY_ATTR,
 	holdsOnlyMarkerChrome,

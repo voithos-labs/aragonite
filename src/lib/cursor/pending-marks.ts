@@ -6,12 +6,7 @@
  * by the typing and composition seats, INVALIDATED by the edge affinity (live-mode.md § 4.3).
  */
 
-import type { AnyInlineKind } from '../core/nodes';
-
-/** The constructs a toggle chord can pend: whichever policy rows declare a mark
- *  (`schema/inline-construct-policy.ts`). An alias rather than a union, so a plugin's markable
- *  kind needs no edit here — the membership test is the row lookup, at runtime. */
-export type InlineMarkKind = AnyInlineKind;
+import type { InlineMarkKind } from '../schema/inline-construct-policy';
 
 export interface PendingMarksState {
 	/** Null when nothing is pending; never an empty set, so a read is the whole question. */

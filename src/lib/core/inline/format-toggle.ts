@@ -8,20 +8,16 @@
  * write clamps to the CONTENT range: a marker in `# ` or a setext underline changes the kind.
  */
 
-import {
-	constructContentRange,
-	inlineDescendants,
-	parseInline,
-	type ContentRange
-} from '../../../core/inline';
-import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
-import type { InlineNode } from '../../../core/nodes';
-import type { InlineMarkKind } from '../../../cursor/pending-marks';
-import { paintsFocusedMarkers, type PresentationMode } from '../../../presentation-mode';
+import { paintsFocusedMarkers, type PresentationMode } from '../../presentation-mode';
 import {
 	getInlineMarkPolicy,
+	listInlineMarks,
+	type InlineMarkKind,
 	type InlineMarkPolicy
-} from '../../../schema/inline-construct-policy';
+} from '../../schema/inline-construct-policy';
+import type { InlineNode } from '../nodes';
+import { constructContentRange, inlineDescendants, parseInline, type ContentRange } from './index';
+import { CONTENT_VISIBILITY, renderedText } from './visibility';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -100,13 +96,92 @@ export function toggleInlineFormat(
  *  the toggle routes by, asked without emitting: a caret inside the construct, a selection
  *  carrying its own markers, flanked by them, or covered by a same-format construct. */
 export function isInlineFormatActive(edit: InlineFormatEdit, format: InlineMarkKind): boolean {
-	if (!getInlineMarkPolicy(format)) return false;
+	return coverageCarries(coverageOf(edit), format);
+}
+
+/** The pressed state a result would paint: the same read, over the bytes and range it hands back.
+ *  One home for the after-read, so the seam's own direction check and the ladder guard cannot
+ *  drift on the content-end arithmetic. */
+export function isInlineFormatActiveAfter(
+	edit: InlineFormatEdit,
+	result: ToggleInlineFormatResult,
+	format: InlineMarkKind
+): boolean {
+	return isInlineFormatActive(
+		{
+			display: result.newDisplay,
+			content: shiftedContent(edit.content, edit.display, result),
+			selection: { start: result.newSelStart, end: result.newSelEnd }
+		},
+		format
+	);
+}
+
+/** Every registered mark the edit's range already carries. */
+export function activeInlineFormats(edit: InlineFormatEdit): Set<InlineMarkKind> {
+	return inlineFormatsCovering(
+		edit,
+		listInlineMarks().map((entry) => entry.kind)
+	);
+}
+
+/** Which of `candidates` the range carries, off ONE parse of the block. A toolbar asks once per
+ *  button on every selection change and every answer is the same walk; taking candidates rather
+ *  than the vocabulary is what lets a range's running intersection stop re-asking ruled-out marks. */
+export function inlineFormatsCovering(
+	edit: InlineFormatEdit,
+	candidates: Iterable<InlineMarkKind>
+): Set<InlineMarkKind> {
+	const coverage = coverageOf(edit);
+	const carried = new Set<InlineMarkKind>();
+	for (const kind of candidates) if (coverageCarries(coverage, kind)) carried.add(kind);
+	return carried;
+}
+
+// ── Coverage ─────────────────────────────────────────────────────────────────
+
+/** The block and the selected slice, each parsed once, so asking mark after mark costs the walks
+ *  rather than the parses. */
+interface Coverage {
+	display: string;
+	start: number;
+	end: number;
+	inlines: readonly InlineNode[];
+	/** The slice parsed standalone; empty at a caret, where the aligned arm never asks. */
+	sliceNodes: readonly InlineNode[];
+}
+
+function coverageOf(edit: InlineFormatEdit): Coverage {
 	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
 	const inlines = parseInline(display, content.start, content.end);
+	// A selection spanning the whole display is the same parse, byte bounds included — which is
+	// every middle block of a cross-block range, so the second parse is worth not making.
+	const sliceIsDisplay = start === 0 && end === display.length;
+	return {
+		display,
+		start,
+		end,
+		inlines,
+		sliceNodes:
+			start === end
+				? []
+				: sliceIsDisplay
+					? inlines
+					: parseInline(display.slice(start, end), 0, end - start)
+	};
+}
+
+/** The one home for "does this range carry this mark", so every reader asks the same guards —
+ *  including the mark-row test, which a kind with no vocabulary has to fail rather than parse. */
+function coverageCarries(
+	{ display, start, end, inlines, sliceNodes }: Coverage,
+	format: InlineMarkKind
+): boolean {
+	if (!getInlineMarkPolicy(format)) return false;
 	if (start === end) return enclosingSpanOf(inlines, start, start, format) !== null;
-	if (soleSpanOf(display.slice(start, end), format)) return true;
+	if (soleSpanIn(sliceNodes, end - start, format)) return true;
 	const enclosing = enclosingSpanOf(inlines, start, end, format);
 	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) return true;
 	return coveringSpanOf(inlines, start, end, format) !== null;
@@ -548,10 +623,17 @@ function coveringSpanOf(
 
 /** Exactly one span of this kind covering the whole slice, parsed standalone. */
 function soleSpanOf(slice: string, format: InlineMarkKind): FormatSpan | null {
-	const nodes = parseInline(slice, 0, slice.length);
+	return soleSpanIn(parseInline(slice, 0, slice.length), slice.length, format);
+}
+
+function soleSpanIn(
+	nodes: readonly InlineNode[],
+	length: number,
+	format: InlineMarkKind
+): FormatSpan | null {
 	if (nodes.length !== 1 || nodes[0].kind !== format) return null;
 	const span = spanOf(nodes[0]);
-	return span && span.start === 0 && span.end === slice.length ? span : null;
+	return span && span.start === 0 && span.end === length ? span : null;
 }
 
 /** Whether the bytes flanking the selection are the enclosing construct's own delimiters, rather

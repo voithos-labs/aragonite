@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
+import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
-import type { InlineMarkKind } from '$lib/cursor/pending-marks';
+import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { MARK_FORMATS, markersOf, whole } from './format-toggle-fixture';
 
 // What a toggle may write where the delimiters do not paint: the bytes are a candidate until the

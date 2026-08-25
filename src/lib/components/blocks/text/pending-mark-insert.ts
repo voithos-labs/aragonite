@@ -8,12 +8,12 @@
 import { constructContentRange, constructKinds, parseInline } from '../../../core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
-import type { InlineMarkKind } from '../../../cursor/pending-marks';
 import {
 	getInlineConstructPolicy,
 	getInlineMarkPolicy,
 	listInlineMarks,
-	type InlineMark
+	type InlineMark,
+	type InlineMarkKind
 } from '../../../schema/inline-construct-policy';
 import { insertsExactly } from './screen-diff';
 

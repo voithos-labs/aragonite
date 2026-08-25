@@ -806,7 +806,8 @@
 		revealPath,
 		controller,
 		getPresentationMode: () => effectiveMode,
-		grammar: registryView.grammar
+		grammar: registryView.grammar,
+		getContentVersion: contentVersion.read
 	});
 
 	// The action bundles stay per-key so a container re-provides exactly what it

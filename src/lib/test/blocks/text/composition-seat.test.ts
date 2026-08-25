@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { createCompositionSeat } from '$lib/components/blocks/text/composition-seat';
 import { screenVisibility } from '$lib/core/inline/visibility';
-import type { InlineMarkKind, PendingMarksState } from '$lib/cursor/pending-marks';
+import type { PendingMarksState } from '$lib/cursor/pending-marks';
+import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EdgeAffinity } from '$lib/cursor/edge-affinity';
 import { makePendingMarks } from '$lib/test/harness/editor-actions';
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { isInlineFormatActive } from '$lib/components/blocks/text/format-toggle';
-import type { InlineMarkKind } from '$lib/cursor/pending-marks';
+import { inlineFormatsCovering, isInlineFormatActive } from '$lib/core/inline/format-toggle';
+import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import { whole } from './format-toggle-fixture';
 
 // The pressed-state read answers "would a press unapply": the same arms the toggle routes by,
@@ -32,5 +32,14 @@ describe('isInlineFormatActive', () => {
 		expect(activeAt('**word**', 2, 6, 'emphasis')).toBe(false);
 		expect(activeAt('__word__', 2, 6, 'strong')).toBe(true);
 		expect(activeAt('`code run`', 3, 3, 'inlineCode')).toBe(true);
+	});
+
+	// A link parses as a sole span of its own kind, so the mark-row test is the only thing between
+	// the shared predicate and a pressed paint for a chord no row can write. Both readers ask it.
+	it('declines a kind whose policy row declares no mark, through either reader', () => {
+		const raw = '[a](b)';
+		const edit = { display: raw, content: whole(raw), selection: whole(raw) };
+		expect(isInlineFormatActive(edit, 'link')).toBe(false);
+		expect([...inlineFormatsCovering(edit, ['link'])]).toEqual([]);
 	});
 });

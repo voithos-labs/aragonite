@@ -23,9 +23,11 @@
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
-	import { isInlineFormatActive, toggleInlineFormat } from './format-toggle';
-	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
-	import type { InlineMarkKind } from '../../../cursor/pending-marks';
+	import { isInlineFormatActive, toggleInlineFormat } from '../../../core/inline/format-toggle';
+	import {
+		inlineMarkForCommand,
+		type InlineMarkKind
+	} from '../../../schema/inline-construct-policy';
 	import {
 		cycleHeading,
 		demoteToParagraph,

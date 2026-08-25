@@ -12,11 +12,8 @@ import type { CstNode, Document } from '$lib/core/nodes';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
 import type { StickyColumnState } from '$lib/cursor/sticky-column';
 import type { EdgeAffinityState } from '$lib/cursor/edge-affinity';
-import {
-	createPendingMarksState,
-	type InlineMarkKind,
-	type PendingMarksState
-} from '$lib/cursor/pending-marks';
+import { createPendingMarksState, type PendingMarksState } from '$lib/cursor/pending-marks';
+import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
 import type { ContainerBlockComponentDeps } from '$lib/editor-actions/container-block-component';

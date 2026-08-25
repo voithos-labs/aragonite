@@ -7,16 +7,19 @@
  */
 
 import {
+	activeInlineFormats,
+	inlineFormatsCovering,
 	isInlineFormatActive,
+	isInlineFormatActiveAfter,
 	toggleInlineFormat,
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
-} from '../../components/blocks/text/format-toggle';
+} from '../../core/inline/format-toggle';
 import { getContentRange, type ContentRange } from '../../core/inline';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
-import type { InlineMarkKind } from '../../cursor/pending-marks';
+import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { PresentationMode } from '../../presentation-mode';
 import type { GrammarView } from '../../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -81,15 +84,22 @@ export function planCrossBlockFormat(
 	return plan.writes.length === 0 ? null : plan;
 }
 
-/** The pressed-state a toolbar paints over a range: every participating span carries the mark. */
-export function crossBlockFormatIsActive(
+/** The pressed-state a toolbar paints over a range, every mark at once: one is active where
+ *  EVERY participating span carries it. All marks together, because a toolbar asks once per
+ *  button against the same range and the decomposition is the cost. */
+export function crossBlockActiveFormats(
 	doc: DocumentView,
 	start: SelectionPoint,
-	end: SelectionPoint,
-	format: InlineMarkKind
-): boolean {
+	end: SelectionPoint
+): ReadonlySet<InlineMarkKind> {
 	const spans = spansInRange(doc, start, end);
-	return spans.length > 0 && spans.every((span) => isInlineFormatActive(span.edit, format));
+	if (spans.length === 0) return new Set();
+	// The running intersection is the next span's candidate set, so a span costs one parse and a
+	// walk per mark still standing, and it empties where a per-mark `every` would stop.
+	let active = activeInlineFormats(spans[0].edit);
+	for (let index = 1; index < spans.length && active.size > 0; index++)
+		active = inlineFormatsCovering(spans[index].edit, active);
+	return active;
 }
 
 /** Write a plan into the tree, copy-path-on-write. The caller owns the commit ceremony. */
@@ -198,17 +208,5 @@ function landedOnIntendedSide(
 	format: InlineMarkKind,
 	unapply: boolean
 ): boolean {
-	const content: ContentRange = {
-		start: edit.content.start,
-		end: edit.content.end + toggled.newDisplay.length - edit.display.length
-	};
-	const after = isInlineFormatActive(
-		{
-			display: toggled.newDisplay,
-			content,
-			selection: { start: toggled.newSelStart, end: toggled.newSelEnd }
-		},
-		format
-	);
-	return after !== unapply;
+	return isInlineFormatActiveAfter(edit, toggled, format) !== unapply;
 }

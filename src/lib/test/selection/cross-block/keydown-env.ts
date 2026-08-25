@@ -78,7 +78,8 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		revealPath,
 		controller,
 		getPresentationMode,
-		grammar: undefined
+		grammar: undefined,
+		getContentVersion: harness.contentVersion
 	});
 
 	const onCommandError = vi.fn();

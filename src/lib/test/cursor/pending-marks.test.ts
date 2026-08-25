@@ -7,9 +7,9 @@ import {
 import {
 	createPendingMarksState,
 	flipMark,
-	type InlineMarkKind,
 	type PendingMarksState
 } from '../../cursor/pending-marks';
+import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 
 // The set a collapsed-caret toggle promises the next insertion. Two properties carry the
 // contract: exactly one insertion spends it, and every caret-invalidating seam drops it —

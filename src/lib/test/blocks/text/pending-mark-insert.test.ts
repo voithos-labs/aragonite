@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import { resolveMarkedInsertion } from '$lib/components/blocks/text/pending-mark-insert';
-import type { InlineMarkKind } from '$lib/cursor/pending-marks';
+import type { InlineMarkKind } from '$lib/schema/inline-construct-policy';
 import type { InlineNode } from '$lib/core/nodes';
 
 // The bytes a pending toggle turns the next keystroke into. Live paints no delimiter, so the

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
+import { toggleInlineFormat } from '$lib/core/inline/format-toggle';
 import { MARK_FORMATS, markersOf, toggleFormat, whole } from './format-toggle-fixture';
 
 // Coverage routing: a selection already covered by a same-format construct unapplies (splitting

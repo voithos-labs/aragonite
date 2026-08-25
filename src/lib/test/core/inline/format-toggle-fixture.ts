@@ -8,10 +8,13 @@ import {
 	toggleInlineFormat,
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
-} from '$lib/components/blocks/text/format-toggle';
-import type { InlineMarkKind } from '$lib/cursor/pending-marks';
+} from '$lib/core/inline/format-toggle';
 import type { PresentationMode } from '$lib/presentation-mode';
-import { getInlineMarkPolicy, listInlineMarks } from '$lib/schema/inline-construct-policy';
+import {
+	getInlineMarkPolicy,
+	listInlineMarks,
+	type InlineMarkKind
+} from '$lib/schema/inline-construct-policy';
 
 /** Source mode by default: these suites pin the bytes a painting mode writes, and the marker-hiding
  *  fork has its own file. */

@@ -8,7 +8,7 @@ import {
 	resolveMarkedInsertion,
 	type MarkedInsertion
 } from '../../components/blocks/text/pending-mark-insert';
-import type { InlineMarkKind } from '../../cursor/pending-marks';
+import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import { isSubsequence } from '$lib/test/harness/live-oracles';
 import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
