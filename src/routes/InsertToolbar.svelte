@@ -52,8 +52,6 @@
 		align-items: center;
 		gap: 0.35rem;
 		padding: 0.3rem 1rem;
-		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
-		background: var(--color-surface, #1b1c21);
 		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.75rem;
 	}

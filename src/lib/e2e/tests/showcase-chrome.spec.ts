@@ -84,9 +84,14 @@ test.describe('/ showcase chrome', () => {
 		await expect(panel).toHaveCount(0);
 	});
 
-	test('selecting text floats the toolbar and its bold button wraps the run', async ({ page }) => {
+	test('selecting text in live mode floats the toolbar and its bold button wraps the run', async ({
+		page
+	}) => {
 		const toolbar = page.getByTestId('selection-toolbar');
+		// Both toolbars belong to live mode; the markdown-first default shows neither.
 		await expect(toolbar).toHaveCount(0);
+		await expect(page.getByTestId('insert-toolbar')).toHaveCount(0);
+		await page.locator('.showcase-mode[data-mode="live"]').click();
 
 		const intro = page.locator('.block-host [contenteditable]').first();
 		await intro.click();
@@ -101,14 +106,16 @@ test.describe('/ showcase chrome', () => {
 		expect(bar!.y).toBeGreaterThan(header!.y + header!.height);
 
 		await page.getByTestId('toolbar-format.toggleStrong').click();
-		await expect(intro).toContainText('**');
+		// Live paints no markers, so the wrap shows as the rendered strong itself.
+		await expect(intro.locator('strong').first()).toBeVisible();
 
 		// A plain arrow collapses the selection, which is the bar's hide signal.
 		await page.keyboard.press('ArrowRight');
 		await expect(toolbar).toHaveCount(0);
 	});
 
-	test('the insert strip mints a table once the document holds a caret', async ({ page }) => {
+	test('the insert strip mints a table once the live document holds a caret', async ({ page }) => {
+		await page.locator('.showcase-mode[data-mode="live"]').click();
 		const table = page.getByTestId('insert-table');
 		await expect(table).toBeDisabled();
 

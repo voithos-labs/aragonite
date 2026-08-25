@@ -30,6 +30,18 @@ test.describe('insert toolbar', () => {
 		await expect(table).toBeEnabled();
 	});
 
+	// Miss-analysis: the greying was only ever driven towards enabled — no scenario took focus
+	// OUT of the editor, so the channel's silence on a user blur went unobserved.
+	test('buttons grey again when focus leaves the editor', async ({ page }) => {
+		const table = page.getByTestId('insert-table');
+		await editor.clickBlock(0);
+		await expect(table).toBeEnabled();
+
+		// Non-selectable harness chrome: the native range survives this click, the caret does not.
+		await page.locator('label').first().click();
+		await expect(table).toBeDisabled();
+	});
+
 	test('the table button splices the canonical table at the caret', async ({ page }) => {
 		await editor.focusBlock(0, 10);
 		await page.getByTestId('insert-table').click();

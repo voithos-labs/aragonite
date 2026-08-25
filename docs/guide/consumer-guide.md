@@ -525,7 +525,7 @@ Subscribe to the observer surface via `editor.getEvents()`. Five channels:
 The payload envelopes. Read the source types for the per-op arms, which change as operations are added:
 
 - **`EditEvent`** (`edit`) — `{ op, path, detail?, timestamp }`, discriminated by `op`. `path` is doc-absolute for every op (nested ops and the typing flush included) and resolves from the document root to the operated node.
-- **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused. Read the value the channel settles on rather than counting emissions: most changes emit once, but a caret arriving between two blocks emits a short burst, and only its last emission is settled. That settled value is `null`, since a between-blocks caret sits outside the public selection shape.
+- **`SelectionChangeEvent`** (`selectionChange`) — the `EditorSelection` snapshot, or `null` when nothing is focused. Read the value the channel settles on rather than counting emissions: most changes emit once, but a caret arriving between two blocks emits a short burst, and only its last emission is settled. That settled value is `null`, since a between-blocks caret sits outside the public selection shape. Focus leaving the editor announces too: the read goes `null` even where the native range survives unfocused, so an affordance greyed off this channel cannot go stale when the user clicks out.
 - **`EditorError`** (`error`) — `{ origin, error, context? }`, where `origin` is `subscriber | render | commit | command | decoration | clipboard | link` and `context` carries the block path or op kind when known (the block kind, command id, and owning plugin for a `command` throw; the source name for a `decoration` throw; the range the paste was aimed at, where there was one, for a `clipboard` failure; the refused URL for a `link` block).
 - **`PresentationMode`** (`presentationModeChange`) — the effective mode after a `presentationMode` prop change; a bare mode value, not a `{…}` envelope, and never fired at mount.
 - **`string`** (`themeChange`) — the theme name after a `theme` prop change; a bare value, never fired at mount. Only plugin content that PAINTS its own colors needs it; token-styled content rethemes itself through the cascade.
@@ -596,7 +596,7 @@ Float a formatting bar above the user's selection. This is the standard use of t
 8. **Paint the pressed states with `isCommandActive`, on that same `selectionChange`.** A selection already inside a bold run shows the bold button pressed (`aria-pressed` is the accessible spelling), and pressing it then unwraps — the pressed paint and the press read the same bytes, so they agree by construction.
 9. **Keep focus in the document** for the same reason the insert toolbar does: cancel the button's mousedown default, or restore a `getSelection()` snapshot before calling.
 
-The repository's `SelectionToolbar` component, mounted by the showcase and the dev harness alike, is this recipe end to end: both anchoring branches, the table exclusion, the five `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand` and pressed by `isCommandActive`, and the mousedown cancel that keeps the caret in the document.
+The repository's `SelectionToolbar` component, mounted by the showcase's live mode and the dev harness alike, is this recipe end to end: both anchoring branches, the table exclusion, the five `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand` and pressed by `isCommandActive`, and the mousedown cancel that keeps the caret in the document.
 
 ### Recipe: an insert toolbar
 
@@ -607,7 +607,7 @@ The repository's `SelectionToolbar` component, mounted by the showcase and the d
 3. **Position with `getRects()`.** `caretRect()` anchors a bar to the insertion point, `blockRect(path)` to the block. Both are viewport-space snapshots; re-read on the next `selectionChange`.
 4. **Read the result on the `edit` channel**, not on the line after the call: the commit lands on the editor's own flush.
 
-The repository's `InsertToolbar` component, the fixed strip the showcase mounts under its header, is this recipe's reference: canonical snippet buttons through the one door, the mousedown cancel, and a no-caret greying read off `selectionChange` — the same decline the door would answer, surfaced before the click.
+The repository's `InsertToolbar` component, the fixed strip the showcase mounts under its header in live mode, is this recipe's reference: canonical snippet buttons through the one door, the mousedown cancel, and a no-caret greying read off `selectionChange` — the same decline the door would answer, surfaced before the click.
 
 ## Rewriting a document
 

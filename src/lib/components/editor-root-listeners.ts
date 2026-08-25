@@ -5,6 +5,7 @@
  * returning the teardown. `onRoot`/`removeAll` capture that add/remove pair once.
  */
 
+import { tick } from 'svelte';
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 
 // ── Listener plumbing ───────────────────────────────────────────────
@@ -84,6 +85,31 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		deps.emit();
 	};
 	return onRoot(document, 'selectionchange', handler);
+}
+
+/**
+ * A focus departure is a selection change no browser channel reports: the native range can
+ * survive unfocused while the editor's own read goes null, so the channel announces it. Judged
+ * after the flush, never at focusout: a structural commit unmounts the focused surface and
+ * lands focus again after its own tick, and a departure that came back is no departure.
+ */
+export function installEditorBlurAnnouncer(deps: {
+	root: HTMLElement;
+	emit: () => void;
+}): () => void {
+	let pending = false;
+	const handler = (event: FocusEvent) => {
+		const to = event.relatedTarget;
+		if ((to instanceof Node && deps.root.contains(to)) || pending) return;
+		pending = true;
+		void tick().then(() => {
+			pending = false;
+			const active = document.activeElement;
+			if (active instanceof Node && deps.root.contains(active)) return;
+			deps.emit();
+		});
+	};
+	return onRoot(deps.root, 'focusout', handler);
 }
 
 /** Calls `bump` on a height change of the resolved scrollport `target`. */

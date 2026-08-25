@@ -88,6 +88,7 @@
 	import { createEditorRootKeydown } from './editor-root-keydown';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
 	import {
+		installEditorBlurAnnouncer,
 		installModActiveTracker,
 		installSelectionChangeBridge,
 		installViewportHeightWatcher,
@@ -968,6 +969,14 @@
 		return installSelectionChangeBridge({
 			root: editorEl,
 			isHostChrome,
+			emit: () => events.emit('selectionChange', getSelection())
+		});
+	});
+
+	$effect(() => {
+		if (!editorEl) return;
+		return installEditorBlurAnnouncer({
+			root: editorEl,
 			emit: () => events.emit('selectionChange', getSelection())
 		});
 	});

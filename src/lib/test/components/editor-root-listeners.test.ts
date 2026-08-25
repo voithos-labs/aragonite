@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { tick } from 'svelte';
 import {
+	installEditorBlurAnnouncer,
 	installModActiveTracker,
 	installSelectionChangeBridge,
 	installViewportHeightWatcher
@@ -15,6 +17,55 @@ beforeEach(() => {
 
 afterEach(() => {
 	teardowns.splice(0).forEach((teardown) => teardown());
+});
+
+// ── Blur announcer ───────────────────────────────────────────────────────────
+
+// Miss-analysis: every selectionChange emitter fired on selections the editor still held, so no
+// test ever took focus OUT of the editor and asked whether the channel reported the departure.
+describe('editor-root listeners — blur announcer', () => {
+	function announcer() {
+		const root = document.createElement('div');
+		const inside = document.createElement('button');
+		root.append(inside);
+		const outside = document.createElement('button');
+		document.body.append(root, outside);
+		let emitted = 0;
+		teardowns.push(installEditorBlurAnnouncer({ root, emit: () => emitted++ }));
+		return { root, inside, outside, count: () => emitted };
+	}
+
+	it('emits when focus departs the root for an outside target', async () => {
+		const t = announcer();
+		t.outside.focus();
+		t.root.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: t.outside }));
+		await tick();
+		expect(t.count()).toBe(1);
+	});
+
+	it('emits when focus departs for no target at all', async () => {
+		const t = announcer();
+		t.root.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+		await tick();
+		expect(t.count()).toBe(1);
+	});
+
+	it('stays silent when focus moves within the root', async () => {
+		const t = announcer();
+		t.root.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: t.inside }));
+		await tick();
+		expect(t.count()).toBe(0);
+	});
+
+	// A structural commit unmounts the focused surface (focusout, no relatedTarget) and lands
+	// focus again after its own tick: a departure that came back is no departure at all.
+	it('stays silent when focus returns to the root within the flush', async () => {
+		const t = announcer();
+		t.root.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+		t.inside.focus();
+		await tick();
+		expect(t.count()).toBe(0);
+	});
 });
 
 // ── Mod-active tracker ───────────────────────────────────────────────────────

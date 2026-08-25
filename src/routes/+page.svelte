@@ -109,7 +109,10 @@
 		>
 		<a class="showcase-link" href={resolve('/changelog')}>changelog</a>
 	</header>
-	<InsertToolbar {editor} />
+	<!-- Both toolbars are live mode's WYSIWYG affordance set; the markdown-first modes stay bare. -->
+	{#if presentationMode === 'live'}
+		<InsertToolbar {editor} />
+	{/if}
 	<div class="showcase-editor">
 		{#key dragHandles}
 			<Editor
@@ -121,7 +124,9 @@
 				{theme}
 			/>
 		{/key}
-		<SelectionToolbar {editor} topInset={headerHeight} />
+		{#if presentationMode === 'live'}
+			<SelectionToolbar {editor} topInset={headerHeight} />
+		{/if}
 	</div>
 	<DebugPanel {panel} {...panelFeed} />
 </div>
