@@ -13,7 +13,8 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 	const ctx = {
 		history: { requestUndo() {}, requestRedo() {} },
 		getPresentationMode: () => 'source' as const,
-		isCrossBlockRange: () => false
+		isCrossBlockRange: () => false,
+		crossBlockCommands: undefined
 	};
 
 	afterEach(() => {

@@ -29,6 +29,7 @@ function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchCon
 		history: { requestUndo: () => {}, requestRedo: () => {} },
 		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => false,
+		crossBlockCommands: undefined,
 		...over
 	};
 }
@@ -53,7 +54,9 @@ describe('the toolbar scenario', () => {
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), context())).toBe(true);
 	});
 
-	it('a painted cross-block range declines the single-block rewrites and nothing else', () => {
+	// No router threaded, which is what an older gates construction site hands the seam: the
+	// rewrites decline rather than falling through to the focused block's own offsets.
+	it('a painted range with no cross-block arm declines the rewrites and nothing else', () => {
 		const ctx = context({ isCrossBlockRange: () => true });
 		for (const id of TOOLBAR_IDS) expect(canRunCommandById(id, surface(), ctx)).toBe(false);
 		expect(canRunCommandById('block.split', surface(), ctx)).toBe(true);
@@ -87,8 +90,21 @@ describe('the read agrees with the dispatch it describes', () => {
 		const scenarios = [
 			{ name: 'collapsed caret', ctx: () => context(), target: surface },
 			{
-				name: 'cross-block range',
+				name: 'cross-block range, no arm',
 				ctx: () => context({ isCrossBlockRange: () => true }),
+				target: surface
+			},
+			{
+				name: 'cross-block range, arm wired',
+				ctx: () =>
+					context({
+						isCrossBlockRange: () => true,
+						crossBlockCommands: {
+							canRun: (id) => id.startsWith('format.'),
+							run: (id) => id.startsWith('format.'),
+							isActive: () => false
+						}
+					}),
 				target: surface
 			},
 			{

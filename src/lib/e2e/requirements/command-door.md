@@ -39,9 +39,13 @@ is its only user.
 ## Error cases
 
 - a cross-block range painted with real gestures, then the strong toggle through the
-  door: it declines, the source is byte-identical, and no undo entry is pushed. This
-  is the door half of #127 — the chord path is consumed at the cross-block keydown
-  arm, which a door call never reaches
+  door: it routes to the cross-block arm, marks each endpoint's own span (the anchor
+  block's tail, the focus block's head) and one undo restores the whole range. This
+  is the door half of #127 — the chord path is claimed at the cross-block keydown
+  arm, which a door call never reaches, so the door is where the route is proven
+- the link editor over that same range is the one range command still declined: it
+  mints over one block's offsets and a range gives it none, so the call returns
+  `false` and the source is byte-identical
 - an unknown id declines and mutates nothing
 - reading mode declines every published id, source byte-identical
 - zero `[invariant:…]` console fires across every scenario (automatic via the shared

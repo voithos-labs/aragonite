@@ -245,7 +245,9 @@
 				{ kind: node.kind, runCommand },
 				{
 					getPresentationMode,
-					isCrossBlockRange: () => selection?.isCrossBlock ?? false
+					isCrossBlockRange: () => selection?.isCrossBlock ?? false,
+					// A container bubble carries no range command: the leaf below it owns the format ids.
+					crossBlockCommands: undefined
 				},
 				keybindingOverrides()
 			)

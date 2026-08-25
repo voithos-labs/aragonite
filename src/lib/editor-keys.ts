@@ -15,6 +15,7 @@ import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
+import type { CrossBlockCommandRouter } from './schema/block-commands';
 import type { EditorRects } from './editor-rects';
 import type { EditorEvents } from './editor-events';
 import type { UndoController } from './editor-actions/deps';
@@ -145,6 +146,9 @@ export interface EditorServices {
 	/** The instance's rect surface, delivered to every block component as a prop
 	 *  so a block can measure/reveal/scroll by path through the one seam. */
 	rects: EditorRects;
+	/** The arm a format command takes while a cross-block range is painted, threaded into every
+	 *  dispatch site's gates so the chord, the leaf rebind and the `runCommand` door share one. */
+	crossBlockCommands: CrossBlockCommandRouter;
 }
 
 /** Host-supplied render/behavior policies. The getter members read live editor state

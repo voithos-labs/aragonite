@@ -35,8 +35,12 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
   focused surface to run on
 - a selection starting mid-line in a wrapped paragraph anchors the toolbar at
   rect[0]'s left — the first visual line's geometry, not the multi-line union
-- a cross-block selection greys the single-block rewrites out rather than
-  hiding the bar: the admissibility read and the door agree on the decline
+- a cross-block selection leaves the format toggles live and greys only the
+  link editor out: the toggles have a cross-block arm behind them, the link
+  editor mints over one block's offsets and a range gives it none
+- the bold button pressed over a cross-block selection wraps every block the
+  range touches, and its `aria-pressed` flips to true once they all carry the
+  mark: the pressed read answers from the same coverage the press spends
 
 ## Edge cases
 

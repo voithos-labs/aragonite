@@ -20,7 +20,8 @@ import {
 	getCommand,
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
-	SINGLE_BLOCK_RANGE_COMMAND_IDS,
+	CROSS_BLOCK_RANGE_COMMAND_IDS,
+	RANGE_DECLINED_COMMAND_IDS,
 	type CommandDispatchPath,
 	type GlobalCommandContext,
 	type GlobalCommandRun
@@ -89,14 +90,27 @@ export function __resetBlockCommandsForTests(): void {
 // ── Dispatch ─────────────────────────────────────────────────────────────
 
 /**
+ * The cross-block arm a range command routes to, injected because this schema leaf may not
+ * import selection machinery. `canRun` is reachability, not participation: a press whose range
+ * reaches no block still consumes the chord and writes nothing.
+ */
+export interface CrossBlockCommandRouter {
+	canRun(id: AnyCommandId): boolean;
+	run(id: AnyCommandId): boolean;
+	isActive(id: AnyCommandId): boolean;
+}
+
+/**
  * Editor state a command's admissibility reads, whatever invoked it. Getters, never values:
- * both change under a live editor between one dispatch and the next. Both fields are required,
- * so a new dispatch site cannot silently skip the reading-mode or the range decline.
+ * they change under a live editor between one dispatch and the next. Every field is required,
+ * so a new dispatch site cannot silently skip the reading-mode gate, the range decline, or the
+ * cross-block route — `undefined` for the router is the answer a bubble caller gives.
  */
 export interface CommandGates {
 	getPresentationMode: GlobalCommandContext['getPresentationMode'];
 	/** True while a cross-block range is painted. */
 	isCrossBlockRange(): boolean;
+	crossBlockCommands: CrossBlockCommandRouter | undefined;
 }
 
 /** What leaf dispatch and the `runCommand` door hand the seam: the gates plus the global tier. */
@@ -203,16 +217,34 @@ function runBlockLocalCommand(
 	}
 }
 
+/** `ranged` rides the block-local answer because a live range with no arm reading it is not
+ *  the same state as a caret, and only this walk has already asked. */
+type RangeRoute =
+	| { kind: 'block-local'; ranged: boolean }
+	| { kind: 'decline' }
+	| { kind: 'cross-block'; router: CrossBlockCommandRouter };
+
+/**
+ * Where an id goes with a range painted. The one-block arms have no host block to take their
+ * offsets from, so they either route to the cross-block arm or decline; everything else is
+ * range-safe and runs on the focused surface (`RANGE_DECLINED_COMMAND_IDS` in `./commands`).
+ */
+function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
+	// Called directly, not optionally: a caller without the getter throws rather than skipping.
+	if (!gates.isCrossBlockRange()) return { kind: 'block-local', ranged: false };
+	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
+	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
+	const router = gates.crossBlockCommands;
+	return router?.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
+}
+
 /**
  * The gates every entry path owes, whatever resolved the id. Reading mode is inert: the whole
  * vocabulary dead-keys, and navigation never routes through commands, so a reader loses nothing.
- * A painted cross-block range declines the single-block rewrites: the range has no one host
- * block, and an arm reached anyway would take the focused block's own offsets.
  */
 function commandIsAdmissible(id: AnyCommandId, gates: CommandGates): boolean {
 	if (isReadingMode(gates.getPresentationMode)) return false;
-	// Called directly, not optionally: a caller without the getter throws rather than skipping the decline.
-	return !(SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && gates.isCrossBlockRange());
+	return rangeRouteFor(id, gates).kind !== 'decline';
 }
 
 /**
@@ -229,7 +261,10 @@ function runResolvedCommand(
 	path: CommandDispatchPath,
 	onCommandError?: CommandErrorSink
 ): boolean {
-	if (!commandIsAdmissible(id, ctx)) return false;
+	if (isReadingMode(ctx.getPresentationMode)) return false;
+	const route = rangeRouteFor(id, ctx);
+	if (route.kind === 'decline') return false;
+	if (route.kind === 'cross-block') return route.router.run(id);
 	const resolved = resolveCommand(id, target);
 	// Inject the sink so a plugin-global handler's contained throw reports through the same
 	// channel as a block command's; the global tier is the only path reaching one.
@@ -248,15 +283,26 @@ export function canRunCommandById(
 	target: KindCommandTarget | null,
 	gates: CommandGates
 ): boolean {
-	if (!commandIsAdmissible(id, gates)) return false;
+	if (isReadingMode(gates.getPresentationMode)) return false;
+	const route = rangeRouteFor(id, gates);
+	if (route.kind !== 'block-local') return route.kind === 'cross-block';
 	const { tier } = resolveCommand(id, target);
 	return tier !== 'dead' && tier !== 'no-surface';
 }
 
 /** The door's pressed-state read, `canRunCommandById`'s sibling: state rather than
- *  admissibility, so it takes no gates — a disabled affordance may still paint pressed. The
- *  focused surface answers for its own bytes; no surface, or no answer, reads inactive. */
-export function isCommandActiveById(id: AnyCommandId, target: KindCommandTarget | null): boolean {
+ *  admissibility, so a disabled affordance may still paint pressed. Whoever would spend the
+ *  press answers — the cross-block arm over a range, the focused surface at a caret. */
+export function isCommandActiveById(
+	id: AnyCommandId,
+	target: KindCommandTarget | null,
+	gates: CommandGates
+): boolean {
+	const route = rangeRouteFor(id, gates);
+	if (route.kind === 'cross-block') return route.router.isActive(id);
+	// A range no arm reads has no pressed state: the focused surface holds a parked caret, whose
+	// bytes are not the ones a press would rewrite.
+	if (route.kind === 'decline' || route.ranged) return false;
 	return target?.isCommandActive?.(id) ?? false;
 }
 

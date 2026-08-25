@@ -4,7 +4,8 @@
 // cross-block range they delete then dispatch. Dispatching first would run against stale indices;
 // deleting without dispatching would swallow the keystroke. The reveal target is the authoritative
 // post-delete caret, not the pre-delete start path — they differ for a table end. The format
-// toggles are NOT candidates: they decline the range instead of type-replacing it (#107).
+// toggles are NOT candidates: they take the cross-block arm, which marks each block's own span
+// rather than type-replacing the range (#107).
 import { describe, it, expect, vi } from 'vitest';
 import { mockRef } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -82,23 +83,31 @@ describe('cross-block keydown — command candidates', () => {
 		});
 	}
 
-	// Every format toggle DECLINES over a range: consumed so the chord never reaches the browser,
-	// but no delete and no dispatch — the arm that deleted first turned a document into `****`
-	// (#107). Wrapping each block in the range is a feature of its own, not this path's job.
-	for (const [chord, key, init] of [
-		['Mod+B', 'b', { ctrlKey: true }],
-		['Mod+I', 'i', { ctrlKey: true }],
-		['Mod+E', 'e', { ctrlKey: true }],
-		['Mod+Shift+X', 'x', { ctrlKey: true, shiftKey: true }]
+	// Every format toggle is claimed but NOT a candidate: no delete, no redispatch at a collapsed
+	// caret — the arm that deleted first turned a document into `****` (#107). It reaches the
+	// cross-block arm instead, which marks each block's own span in place.
+	for (const [chord, key, init, mark] of [
+		['Mod+B', 'b', { ctrlKey: true }, '**'],
+		['Mod+I', 'i', { ctrlKey: true }, '*'],
+		['Mod+E', 'e', { ctrlKey: true }, '`'],
+		['Mod+Shift+X', 'x', { ctrlKey: true, shiftKey: true }, '~~']
 	] as const) {
-		it(`${chord} is consumed, deletes nothing and dispatches nothing`, async () => {
+		it(`${chord} is consumed, deletes nothing and marks each block's own span`, async () => {
 			const { env, runCommand } = envWithCommandTarget();
 
 			const event = press(key, init);
 			expect(await env.keydown.handleKeyDown(event)).toBe(true);
 
 			expect(event.defaultPrevented).toBe(true);
-			expect(env.source()).toBe(SOURCE);
+			// The anchor's tail and the focus block's head, each marked alone, with the block past
+			// the range untouched — which is what a delete-then-redispatch arm could not leave.
+			expect(env.source()).toBe(`a${mark}lpha${mark}
+
+${mark}be${mark}ta
+
+gamma
+`);
+			// The seam routes ahead of the block-local tier, so the focused surface is never asked.
 			expect(runCommand).not.toHaveBeenCalled();
 		});
 	}

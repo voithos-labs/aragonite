@@ -10,7 +10,9 @@ export interface OperationDetailMap {
 	reorder: { from: number; to: number };
 	delete: { crossBlock?: true; table?: 'whole' } | undefined;
 	input: { byteLength: number };
-	updateContent: { length: number };
+	/** `crossBlock` marks a write that spanned the range's other blocks too: `path` names one
+	 *  block, as every op does, and `length` is that block's. The `delete` twin reads the same. */
+	updateContent: { length: number; crossBlock?: true };
 	replaceBlock:
 		| { count: number }
 		| {

@@ -21,7 +21,7 @@ import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
-import type { CommandErrorSink } from '../../schema/block-commands';
+import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -63,6 +63,9 @@ export interface CrossBlockDispatchContext {
 	 *  nullable like `pluginEditor`, so a new construction site can't silently skip the thread. */
 	linkRef: LinkReferenceResolverRef | undefined;
 	onCommandError: CommandErrorSink | undefined;
+	/** The arm a format chord takes over the live range; the seam routes there rather than
+	 *  declining. Non-nullable: without it a rewrite chord is swallowed and nothing else. */
+	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** Block grammar forwarded to the join-paste reparse. Required-nullable like `pluginEditor`

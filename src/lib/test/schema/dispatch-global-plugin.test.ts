@@ -31,7 +31,8 @@ it('a plugin-global chord dispatches from an ordinary leaf and the sink receives
 			history: { requestUndo() {}, requestRedo() {} },
 			pluginEditor: () => editor,
 			getPresentationMode: () => 'source' as const,
-			isCrossBlockRange: () => false
+			isCrossBlockRange: () => false,
+			crossBlockCommands: undefined
 		},
 		undefined,
 		(r) => reports.push(r)

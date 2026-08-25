@@ -41,7 +41,8 @@ function bindKindChord(
 const GATES = {
 	history: { requestUndo() {}, requestRedo() {} },
 	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
 };
 
 type BuildArgs = Parameters<typeof buildLeafCommandContext>;

@@ -27,7 +27,8 @@ describe('dispatchKeyCommand', () => {
 	const ctx = {
 		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 		getPresentationMode: () => 'source' as const,
-		isCrossBlockRange: () => false
+		isCrossBlockRange: () => false,
+		crossBlockCommands: undefined
 	};
 	it('routes a global chord to the global command (no runCommand call)', () => {
 		const runCommand = vi.fn(() => true);

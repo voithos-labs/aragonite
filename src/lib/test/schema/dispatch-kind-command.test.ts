@@ -7,7 +7,11 @@ import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode } from '$lib/core/nodes';
 
 // No cross-block range in these cases; the seam's range decline has its own suite.
-const GATES = { getPresentationMode: () => 'source' as const, isCrossBlockRange: () => false };
+const GATES = {
+	getPresentationMode: () => 'source' as const,
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
+};
 
 const listItemNode = (): CstNode => ({
 	kind: 'listItem',

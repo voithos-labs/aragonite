@@ -1,12 +1,16 @@
 /**
- * G4.50 — the cross-block decline set is hand-maintained, so a new block command joins it or is
- * recorded as range-safe with the reason. There is no third answer: an id in neither table fails
- * here the day it is minted, rather than at the audit that finds the door and the chord path
- * disagreeing under a painted range.
+ * G4.50 — the cross-block sets are hand-maintained, so a new block command answers the range
+ * question in exactly one of three ways: declined outright, routed to the cross-block arm, or
+ * recorded as range-safe with the reason. An id in no table fails here the day it is minted,
+ * rather than at the audit that finds the door and the chord path disagreeing under a range.
  */
 
 import { describe, it, expect } from 'vitest';
-import { BLOCK_COMMAND_IDS, SINGLE_BLOCK_RANGE_COMMAND_IDS } from '$lib/schema/commands';
+import {
+	BLOCK_COMMAND_IDS,
+	CROSS_BLOCK_RANGE_COMMAND_IDS,
+	RANGE_DECLINED_COMMAND_IDS
+} from '$lib/schema/commands';
 
 /**
  * Ids whose arm does NOT spend one block's own offsets, and why. An arm that reads the focused
@@ -47,36 +51,39 @@ const RANGE_SAFE: Record<string, string> = {
 	'chrome.descendToBody': 'focus move into a container body'
 };
 
+const classifications = (id: string): number =>
+	(RANGE_DECLINED_COMMAND_IDS.has(id) ? 1 : 0) +
+	(CROSS_BLOCK_RANGE_COMMAND_IDS.has(id) ? 1 : 0) +
+	(RANGE_SAFE[id] === undefined ? 0 : 1);
+
 describe('G4.50 every block command answers the cross-block range question', () => {
-	it('classifies the whole vocabulary, with no id on both tables', () => {
-		const unclassified = BLOCK_COMMAND_IDS.filter(
-			(id) => !SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && RANGE_SAFE[id] === undefined
-		);
+	it('classifies the whole vocabulary exactly once each', () => {
 		expect(
-			unclassified,
-			'a new block command joins SINGLE_BLOCK_RANGE_COMMAND_IDS (it rewrites one block ' +
-				'around that block’s own selection) or the RANGE_SAFE table above, with the reason'
+			BLOCK_COMMAND_IDS.filter((id) => classifications(id) === 0),
+			'a new block command joins RANGE_DECLINED_COMMAND_IDS (one block’s own selection, ' +
+				'no cross-block reading), CROSS_BLOCK_RANGE_COMMAND_IDS (the same shape with an arm ' +
+				'behind it), or the RANGE_SAFE table above, with the reason'
 		).toEqual([]);
-		expect(
-			BLOCK_COMMAND_IDS.filter((id) => SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && RANGE_SAFE[id])
-		).toEqual([]);
+		expect(BLOCK_COMMAND_IDS.filter((id) => classifications(id) > 1)).toEqual([]);
 	});
 
 	// Both tables shrink only through the vocabulary: an id removed from BLOCK_COMMAND_IDS and
 	// left behind here would keep a decline alive for a command nobody can dispatch.
 	it('names no id the vocabulary no longer carries', () => {
 		const vocabulary = new Set<string>(BLOCK_COMMAND_IDS);
-		expect([...SINGLE_BLOCK_RANGE_COMMAND_IDS].filter((id) => !vocabulary.has(id))).toEqual([]);
-		expect(Object.keys(RANGE_SAFE).filter((id) => !vocabulary.has(id))).toEqual([]);
+		const named = [
+			...RANGE_DECLINED_COMMAND_IDS,
+			...CROSS_BLOCK_RANGE_COMMAND_IDS,
+			...Object.keys(RANGE_SAFE)
+		];
+		expect(named.filter((id) => !vocabulary.has(id))).toEqual([]);
 	});
 
 	// Non-vacuity: the census must actually fail on an unclassified id, not merely on an empty set.
 	it('flags an id classified nowhere', () => {
 		const vocabulary = [...BLOCK_COMMAND_IDS, 'block.inventedForThisCase'];
-		expect(
-			vocabulary.filter(
-				(id) => !SINGLE_BLOCK_RANGE_COMMAND_IDS.has(id) && RANGE_SAFE[id] === undefined
-			)
-		).toEqual(['block.inventedForThisCase']);
+		expect(vocabulary.filter((id) => classifications(id) === 0)).toEqual([
+			'block.inventedForThisCase'
+		]);
 	});
 });

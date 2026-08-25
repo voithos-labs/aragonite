@@ -139,9 +139,10 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.bridge.waitForSourceContains('| **2** |');
 	});
 
-	// The door half of #127: the chord never gets here (the cross-block keydown arm swallows it),
-	// so only an id-keyed decline stops a single-block arm rewriting one endpoint's bytes.
-	test('a cross-block range declines the toggle, byte-identical, no undo entry', async () => {
+	// The door half of #127: the chord never gets here (the cross-block keydown arm claims it), so
+	// only the id-keyed route reaches the cross-block arm rather than a single-block one that
+	// would spend the focused block's own offsets.
+	test('a cross-block range routes the toggle to the arm, in one undo entry', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 		const before = await editor.bridge.getSource();
 
@@ -149,12 +150,25 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.shiftClickBlock([1], 'be'.length);
 		await editor.waitForCrossBlock(true);
 
-		expect(await run('format.toggleStrong')).toBe(false);
-		await editor.waitForNoSourceMutation();
-		expect(await editor.bridge.getSource()).toBe(before);
+		expect(await run('format.toggleStrong')).toBe(true);
+		// Each endpoint's own span: the anchor block's tail, the focus block's head.
+		await editor.bridge.waitForSourceEquals('alp**ha**\n\n**be**ta\n', 3000);
 
-		// Nothing was pushed, so the undo walks past the decline to the document load.
+		// One entry for the whole range, not one per block.
 		await editor.undo();
+		await editor.bridge.waitForSourceEquals(before, 3000);
+	});
+
+	test('the link editor is the one range command the door still declines', async () => {
+		await editor.loadContent('alpha\n\nbeta\n');
+		const before = await editor.bridge.getSource();
+
+		await editor.focusBlock(0, 'alp'.length);
+		await editor.shiftClickBlock([1], 'be'.length);
+		await editor.waitForCrossBlock(true);
+
+		expect(await run('link.openCard')).toBe(false);
+		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 

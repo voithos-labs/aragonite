@@ -84,6 +84,7 @@ const KIND_WEIGHTS: { value: GestureKind; weight: number }[] = [
 	{ value: 'range-delete', weight: 3 },
 	{ value: 'type-over', weight: 2 },
 	{ value: 'format-toggle', weight: 2 },
+	{ value: 'cross-format-toggle', weight: 2 },
 	{ value: 'word-delete', weight: 2 }
 ];
 
@@ -101,6 +102,10 @@ function typedVocabulary(): string[] {
 }
 
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
+
+/** Both toggle gestures answer to the same two oracles: one block's span or a range of them. */
+const isFormatToggle = (kind: GestureKind): boolean =>
+	kind === 'format-toggle' || kind === 'cross-format-toggle';
 
 /** Hidden-edge biased, because a uniform draw meets a zero-width run only by accident — and the
  *  same for a surrogate seam, which is two units wide in a document that is mostly ASCII. */
@@ -146,7 +151,7 @@ function screenClaimHolds(gesture: Gesture, before: string, after: string): bool
 	if (gesture.kind === 'enter') return insertsSomewhere(before, after, '\n');
 	// A toggle changes formatting and nothing else, so its claim is the strictest of the family:
 	// equality, not containment.
-	if (gesture.kind === 'format-toggle') {
+	if (isFormatToggle(gesture.kind)) {
 		return normalizeScreen(after) === normalizeScreen(before);
 	}
 	const target = normalizeScreen(after);
@@ -201,7 +206,7 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 	// The coverage model splits and absorbs: one press may strip, move and mint the toggled
 	// construct's own delimiters at once, so direction says nothing. The claim is exact instead:
 	// outside that construct's delimiter alphabet, live is before, byte for byte.
-	if (gesture.kind === 'format-toggle') {
+	if (isFormatToggle(gesture.kind)) {
 		const alphabet = markAlphabet(drawnMark(gesture));
 		const scrub = (bytes: string) => [...inked(bytes)].filter((ch) => !alphabet.has(ch)).join('');
 		return scrub(live) === scrub(before);

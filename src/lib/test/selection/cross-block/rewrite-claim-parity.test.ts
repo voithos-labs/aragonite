@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 //
 // G4.40 — "single-block rewrite" is spelled in three places and must name one set: the ids the
-// built-in keymaps bind, the ids the dispatch seam declines over a cross-block range
-// (`SINGLE_BLOCK_RANGE_COMMAND_IDS`), and the chords `cross-block/keydown.ts` swallows before its
-// delete-and-redispatch arm. A sixth rewrite taught to one spelling is an N-1 gap at the other
-// two. The swallow GROWING a chord is caught by G4.29 instead, off the key literals its
-// manifest records.
+// built-in keymaps bind, the ids the dispatch seam answers specially over a cross-block range
+// (`RANGE_DECLINED_COMMAND_IDS` declines, `CROSS_BLOCK_RANGE_COMMAND_IDS` routes to the arm),
+// and the chords `cross-block/keydown.ts` claims before its delete-and-redispatch arm. A sixth
+// rewrite taught to one spelling is an N-1 gap at the other two. The swallow GROWING a chord is
+// caught by G4.29 instead, off the key literals its manifest records.
 import { describe, it, expect } from 'vitest';
 import { ALL_BLOCK_KINDS } from '$lib/core/nodes';
 import { tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
-import { SINGLE_BLOCK_RANGE_COMMAND_IDS } from '$lib/schema/commands';
+import { CROSS_BLOCK_RANGE_COMMAND_IDS, RANGE_DECLINED_COMMAND_IDS } from '$lib/schema/commands';
 import { normalizeChord } from '$lib/schema/keybindings';
 import { makeKeydownEnv, press } from './keydown-env';
 
@@ -61,17 +61,34 @@ async function pressOverCrossBlockRange(chord: string) {
 describe('G4.40 single-block-rewrite set parity', () => {
 	const keymap = singleBlockRewriteKeymap();
 
-	it('the keymaps bind exactly the ids the seam declines over a range', () => {
+	it('the keymaps bind exactly the ids the seam answers specially over a range', () => {
 		const bound = [...new Set(keymap.map((row) => row.command))].sort();
-		expect(bound).toEqual([...SINGLE_BLOCK_RANGE_COMMAND_IDS].sort());
+		expect(bound).toEqual([...RANGE_DECLINED_COMMAND_IDS, ...CROSS_BLOCK_RANGE_COMMAND_IDS].sort());
 	});
 
-	it.each(keymap)('$chord ($command) is swallowed over a cross-block range', async ({ chord }) => {
-		const { consumed, event, source } = await pressOverCrossBlockRange(chord);
+	it.each(keymap)('$chord ($command) is claimed over a cross-block range', async ({ chord }) => {
+		const { consumed, event } = await pressOverCrossBlockRange(chord);
 		expect(consumed).toBe(true);
 		expect(event.defaultPrevented).toBe(true);
-		expect(source).toBe(SOURCE);
 	});
+
+	it.each(keymap.filter((row) => RANGE_DECLINED_COMMAND_IDS.has(row.command)))(
+		'$chord ($command) writes nothing: the range has no one block for its arm',
+		async ({ chord }) => {
+			expect((await pressOverCrossBlockRange(chord)).source).toBe(SOURCE);
+		}
+	);
+
+	it.each(keymap.filter((row) => CROSS_BLOCK_RANGE_COMMAND_IDS.has(row.command)))(
+		'$chord ($command) reaches the cross-block arm and rewrites both endpoints',
+		async ({ chord }) => {
+			const { source } = await pressOverCrossBlockRange(chord);
+			expect(source).not.toBe(SOURCE);
+			// The anchor block's tail and the focus block's head, each marked on its own.
+			expect(source.startsWith('a')).toBe(true);
+			expect(source.endsWith('gamma\n')).toBe(true);
+		}
+	);
 
 	// Non-vacuity: the arm claims the rewrites, not every modified chord the keymaps bind.
 	it('a keymap chord outside the set is not swallowed by the rewrite arm', async () => {

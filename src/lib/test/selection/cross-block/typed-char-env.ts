@@ -100,6 +100,7 @@ export function makeHandlers(
 		getPresentationMode: () => 'source' as const,
 		linkRef: undefined,
 		onCommandError: undefined,
+		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		grammar: opts.grammar,

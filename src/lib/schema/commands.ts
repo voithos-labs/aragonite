@@ -67,18 +67,26 @@ export type BlockCommandId = (typeof BLOCK_COMMAND_IDS)[number];
 export type CommandId = GlobalCommandId | BlockCommandId;
 
 /**
- * Commands whose arms rewrite one block's bytes around that block's own selection. The
- * dispatch seam declines them while a cross-block range is painted; the cross-block keydown
- * arm swallows the default chords earlier, but only this set reaches a rebind or the
- * `runCommand` door. Membership is the arm's shape, not the id's prefix: the link card mints
- * its link over one block's offsets exactly as a toggle wraps one block's run.
+ * Commands whose arms rewrite one block's bytes around that block's own selection and have no
+ * cross-block reading: the dispatch seam declines them outright while a range is painted.
+ * Membership is the arm's shape, not the id's prefix — the link card mints its link over one
+ * block's offsets, and a range gives it no one block to mint into.
  */
-export const SINGLE_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
+export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
+	'link.openCard'
+]);
+
+/**
+ * The same one-block arms, but with a cross-block one behind them
+ * (`selection/cross-block/format-toggle.ts`), which the seam routes to through an injected
+ * router. Declined wherever no router is threaded, so a dispatch site that skips it cannot
+ * fall through to the focused block's own offsets.
+ */
+export const CROSS_BLOCK_RANGE_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId>([
 	'format.toggleStrong',
 	'format.toggleEmphasis',
 	'format.toggleStrikethrough',
-	'format.toggleCode',
-	'link.openCard'
+	'format.toggleCode'
 ]);
 
 /**

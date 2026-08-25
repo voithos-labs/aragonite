@@ -98,9 +98,12 @@ async function handleCrossBlockActive(
 	}
 
 	// Ahead of the command candidates, because a rewrite is NOT a type-replace: deleting the range
-	// and dispatching at the collapsed caret leaves empty pairs where the document stood.
-	if (isSingleBlockRewriteChord(e)) {
+	// and dispatching at the collapsed caret leaves empty pairs where the document stood. The
+	// seam decides which of these ids has a cross-block arm and which declines.
+	if (isClaimedRewriteChord(e)) {
 		e.preventDefault();
+		if (isReadingMode(ctx.getPresentationMode)) return true;
+		await dispatchOverRange(ctx, e, myPath);
 		return true;
 	}
 
@@ -125,9 +128,8 @@ async function handleCrossBlockActive(
 					history: ctx.history,
 					pluginEditor: ctx.pluginEditor,
 					getPresentationMode: ctx.getPresentationMode,
-					// The range was just deleted, so this reads false and the seam's decline stands
-					// down; it is threaded because every leaf dispatch site owes the gate.
-					isCrossBlockRange: () => selection.isCrossBlock
+					isCrossBlockRange: () => selection.isCrossBlock,
+					crossBlockCommands: ctx.crossBlockCommands
 				},
 				ctx.getKeybindingOverrides(),
 				ctx.onCommandError
@@ -231,6 +233,39 @@ async function handleCrossBlockEntry(
 // ── Keydown Helpers ───────────────────────────────────────────────────────
 
 /**
+ * A swallowed rewrite chord, handed to the seam with the range still painted. It resolves
+ * against the kind of the surface that took the keystroke, exactly as a single-block press
+ * would, so a consumer rebind reaches the same arm the default chord does.
+ */
+async function dispatchOverRange(
+	ctx: CrossBlockDispatchContext,
+	e: KeyboardEvent,
+	path: number[]
+): Promise<void> {
+	const chord = eventToChord(e);
+	if (!chord) return;
+	const surface = await ctx.revealPath(path);
+	dispatchKeyCommand(
+		chord,
+		// The block may host no command surface of its own; the range's arm is reached at the
+		// seam, ahead of any per-block `runCommand`, so an absent one is not a decline.
+		{
+			kind: kindOfPath(path, ctx.getDoc()),
+			runCommand: (id, arg) => surface?.runCommand?.(id, arg) ?? false
+		},
+		{
+			history: ctx.history,
+			pluginEditor: ctx.pluginEditor,
+			getPresentationMode: ctx.getPresentationMode,
+			isCrossBlockRange: () => ctx.selection.isCrossBlock,
+			crossBlockCommands: ctx.crossBlockCommands
+		},
+		ctx.getKeybindingOverrides(),
+		ctx.onCommandError
+	);
+}
+
+/**
  * Keys owned by the block-level handler at the caret, which must run at a collapsed caret
  * rather than over stale block indices. After the range delete they dispatch through the
  * merged block's command registry.
@@ -243,13 +278,13 @@ function isCommandCandidateKey(e: KeyboardEvent): boolean {
 }
 
 /**
- * The keystroke half of the cross-block single-block-rewrite decline: swallow the default chords
- * before the browser's own bold (or Ctrl+K kill-line) runs and before the delete-and-redispatch
- * arm below sees them. The SEMANTIC decline is id-keyed at the dispatch seam
- * (`SINGLE_BLOCK_RANGE_COMMAND_IDS`), which is what a rebound chord or the `runCommand` door
- * meets. Mod+Shift+X takes an arm of its own: the unshifted Mod+X is the whole-block cut.
+ * The keystroke half of the cross-block rewrite claim: swallow the default chords before the
+ * browser's own bold (or Ctrl+K kill-line) runs and before the delete-and-redispatch arm sees
+ * them, then hand the chord to the seam, which routes a format id to the cross-block arm and
+ * declines the rest (`CROSS_BLOCK_RANGE_COMMAND_IDS` / `RANGE_DECLINED_COMMAND_IDS` in
+ * `schema/commands`). Mod+Shift+X takes an arm of its own: unshifted Mod+X is the block cut.
  */
-function isSingleBlockRewriteChord(e: KeyboardEvent): boolean {
+function isClaimedRewriteChord(e: KeyboardEvent): boolean {
 	if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
 	// Literal comparisons, not a character class: the G4.29 manifest scan reads the keys a file
 	// compares, and a regex would hide this file's claim on Mod+B/I/E/K from it.

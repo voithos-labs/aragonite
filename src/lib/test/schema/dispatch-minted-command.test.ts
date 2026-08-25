@@ -13,11 +13,16 @@ import type { CstNode } from '$lib/core/nodes';
 const ctx = {
 	history: { requestUndo() {}, requestRedo() {} },
 	getPresentationMode: () => 'source' as const,
-	isCrossBlockRange: () => false
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
 };
 
 // No cross-block range in these cases; the seam's range decline has its own suite.
-const GATES = { getPresentationMode: () => 'source' as const, isCrossBlockRange: () => false };
+const GATES = {
+	getPresentationMode: () => 'source' as const,
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
+};
 const nodeOf = (kind: string): CstNode =>
 	({
 		kind: kind as CstNode['kind'],

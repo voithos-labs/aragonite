@@ -27,6 +27,10 @@ import {
 	resolveSelectionEdit
 } from '$lib/components/blocks/text/live-selection-edit';
 import { rangeDelete } from '$lib/selection/range-delete';
+import {
+	applyCrossBlockFormat,
+	planCrossBlockFormat
+} from '$lib/selection/cross-block/format-range';
 import { normalizeCharEndpoint } from '$lib/selection/char-endpoint-snap';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
@@ -41,6 +45,7 @@ export type GestureKind =
 	| 'range-delete'
 	| 'type-over'
 	| 'format-toggle'
+	| 'cross-format-toggle'
 	| 'word-delete';
 
 export interface Gesture {
@@ -134,7 +139,7 @@ function harnessFor(source: string, mode: PresentationMode | undefined): Harness
  * very node the applier will pick.
  */
 export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
-	if (kind === 'range-delete') return proseLeaves(doc);
+	if (spansLeaves(kind)) return proseLeaves(doc);
 	return doc.children.flatMap((child, index) =>
 		child.children === undefined && isProseKind(child.kind) ? [{ path: [index], node: child }] : []
 	);
@@ -184,7 +189,7 @@ function contentOffset(node: CstNode, offset: number): number {
  * ({@link storedEndpoint}): both arrive raw, and the production snap is what has to catch them.
  */
 function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
-	return kind === 'enter' || kind === 'range-delete' ? offset : codePointStart(node.raw, offset);
+	return kind === 'enter' || spansLeaves(kind) ? offset : codePointStart(node.raw, offset);
 }
 
 const drawnOffset = (node: CstNode, gesture: Gesture, offset: number): number =>
@@ -204,10 +209,9 @@ export async function applyGesture(
 	mode: PresentationMode | undefined
 ): Promise<Applied | null> {
 	const h = harnessFor(source, mode);
-	const claimed =
-		gesture.kind === 'range-delete'
-			? deleteRange(h, gesture, mode)
-			: await applyBlockGesture(h, gesture, mode);
+	const claimed = spansLeaves(gesture.kind)
+		? acrossLeaves(h, gesture, mode)
+		: await applyBlockGesture(h, gesture, mode);
 	if (claimed === null) return null;
 	return { doc: h.doc, bytes: serialize(h.doc), claimed };
 }
@@ -421,32 +425,49 @@ function replaceSelection(
 	return false;
 }
 
-/** A range delete over any two prose leaves, container children included — the seam every
- *  cross-block delete, cut, and paste's delete half crosses. */
-function deleteRange(
+/** The two gestures whose endpoints are two prose leaves, container children included. */
+const spansLeaves = (kind: GestureKind): boolean =>
+	kind === 'range-delete' || kind === 'cross-format-toggle';
+
+/** A gesture over any two prose leaves, through the seam its own arm commits: the delete every
+ *  cross-block delete, cut and paste crosses, or the plan-and-write the format toggle does. */
+function acrossLeaves(
 	h: Harness,
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): boolean | null {
-	const leaves = gestureTargets(h.doc, 'range-delete');
+	const range = drawnLeafRange(h.doc, gesture);
+	if (!range) return null;
+	if (gesture.kind === 'range-delete') {
+		rangeDelete(h.doc, range.start, range.end, h.sharing, undefined, mode, undefined);
+		return false;
+	}
+	const plan = planCrossBlockFormat(h.doc, range.start, range.end, drawnMark(gesture).kind, mode);
+	// A press no block joins writes nothing, which is the arm's own answer rather than a gesture
+	// the fuzzer failed to apply.
+	if (plan) applyCrossBlockFormat(h.doc, plan, h.sharing, undefined);
+	return true;
+}
+
+/** The two endpoints as the selection store would hold them, in document order. Null where they
+ *  collapsed: both gestures here need a span. */
+function drawnLeafRange(
+	doc: Document,
+	gesture: Gesture
+): { start: { path: number[]; offset: number }; end: { path: number[]; offset: number } } | null {
+	const leaves = gestureTargets(doc, gesture.kind);
 	if (leaves.length === 0) return null;
 	const first = leaves[gesture.leaf % leaves.length];
 	const second = leaves[gesture.endLeaf % leaves.length];
 	const [lo, hi] = comparePaths(first.path, second.path) <= 0 ? [first, second] : [second, first];
-	const a = storedEndpoint(h.doc, lo, hi.path, gesture.offset);
-	const b = storedEndpoint(h.doc, hi, lo.path, gesture.endOffset);
+	const a = storedEndpoint(doc, lo, hi.path, gesture.offset);
+	const b = storedEndpoint(doc, hi, lo.path, gesture.endOffset);
 	if (lo === hi && a === b) return null;
 	const [startOffset, endOffset] = lo === hi && a > b ? [b, a] : [a, b];
-	rangeDelete(
-		h.doc,
-		{ path: lo.path, offset: startOffset },
-		{ path: hi.path, offset: endOffset },
-		h.sharing,
-		undefined,
-		mode,
-		undefined
-	);
-	return false;
+	return {
+		start: { path: lo.path, offset: startOffset },
+		end: { path: hi.path, offset: endOffset }
+	};
 }
 
 /** The offset as the selection store holds it. Every production range delete reads its endpoints

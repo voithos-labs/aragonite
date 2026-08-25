@@ -88,7 +88,9 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		reorder: {} as EditorServices['reorder'],
 		reorderAnnounce: () => {},
 		registryView: defaultRegistryView,
-		rects: {} as EditorServices['rects']
+		rects: {} as EditorServices['rects'],
+		// Real, and inert: a bare mount has no cross-block range, so every arm answers no.
+		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false }
 	};
 }
 

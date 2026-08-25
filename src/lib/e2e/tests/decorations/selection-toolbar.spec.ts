@@ -118,16 +118,33 @@ test.describe('selection toolbar', () => {
 		await expect(bold).toHaveAttribute('aria-pressed', 'false');
 	});
 
-	// The affordance the decline owes a reader: the bar stays anchored and the buttons the door
-	// would refuse are visibly dead, rather than five live-looking controls that write nothing.
-	test('a cross-block selection greys the single-block rewrites out', async ({ page }) => {
+	// The affordance the split owes a reader: the toggles stay live because they have a
+	// cross-block arm, and only the button the door would still refuse is visibly dead.
+	test('a cross-block selection greys only the link editor out', async ({ page }) => {
 		await editor.loadContent('first block here\n\nsecond block below\n');
 		await editor.focusBlockStart(0);
 		await editor.shiftClickBlock([1], 6);
 		await editor.waitForCrossBlock(true);
 
 		await expect(page.locator(TOOLBAR)).toBeVisible();
-		await expect(page.locator('[data-testid="toolbar-format.toggleStrong"]')).toBeDisabled();
+		await expect(page.locator('[data-testid="toolbar-format.toggleStrong"]')).toBeEnabled();
 		await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toBeDisabled();
+	});
+
+	test('the bold button over a cross-block selection wraps every block and paints pressed', async ({
+		page
+	}) => {
+		await editor.loadContent('first block\n\nsecond block\n');
+		await editor.focusBlock(0, 3);
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+
+		const bold = page.locator('[data-testid="toolbar-format.toggleStrong"]');
+		await expect(bold).toHaveAttribute('aria-pressed', 'false');
+		await bold.click();
+
+		await editor.bridge.waitForSourceEquals('**first block**\n\n**second block**\n', 3000);
+		await expect(bold).toHaveAttribute('aria-pressed', 'true');
 	});
 });

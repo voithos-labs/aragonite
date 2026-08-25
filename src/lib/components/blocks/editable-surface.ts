@@ -24,7 +24,7 @@ import type {
 } from '../../editor-keys';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
-import type { CommandErrorSink } from '../../schema/block-commands';
+import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
@@ -123,6 +123,8 @@ export interface EditableSurfaceDeps {
 	/** The instance's link-reference resolver, forwarded to the cross-block join seam. */
 	linkRef: LinkReferenceResolverRef | undefined;
 	onCommandError: CommandErrorSink | undefined;
+	/** The arm a range command routes to; forwarded to the cross-block composer. */
+	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
@@ -211,6 +213,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getPresentationMode: deps.getPresentationMode,
 		linkRef: deps.linkRef,
 		onCommandError: deps.onCommandError,
+		crossBlockCommands: deps.crossBlockCommands,
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,
 		grammar: deps.grammar,

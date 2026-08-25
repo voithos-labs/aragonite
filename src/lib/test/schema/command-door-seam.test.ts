@@ -31,6 +31,7 @@ function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchCon
 		history: { requestUndo: () => void undos++, requestRedo: () => {} },
 		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => false,
+		crossBlockCommands: undefined,
 		...over
 	};
 }

@@ -43,6 +43,11 @@ const SITES: Record<string, SiteStance> = {
 		sinks: 0,
 		why: 'a decision, not a constraint: the rebuild root IS the scope whose descriptor the ceremony publishes, so a fold there would ride that descriptor. Declining because a metadata write that changes what a container interrupts has no producer'
 	},
+	'src/lib/selection/cross-block/format-range.ts': {
+		declines: 1,
+		sinks: 0,
+		why: 'a byte write inside the content range: no opener or closer line moves, so no fold a parent scope would have to reconcile can be produced'
+	},
 	'src/lib/selection/cross-block/type-replace.ts': {
 		declines: 1,
 		sinks: 0,

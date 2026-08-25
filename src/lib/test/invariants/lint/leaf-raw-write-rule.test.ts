@@ -25,6 +25,8 @@ const READER_SITES: Record<string, string> = {
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',
 	'src/lib/selection/range-delete.ts': 'the same-block merge writes raw with no reparse',
 	'src/lib/selection/cross-block/type-replace.ts': 'the degraded arm splices raw',
+	'src/lib/selection/cross-block/format-range.ts':
+		'the per-block toggle writes display bytes with no reparse',
 	'src/lib/tree-operations/paste/container-match.ts': 'splices clipboard text into the target leaf',
 	'src/lib/editor-actions/inline-range-commit.ts':
 		'the anchored inline editors splice a construct range with no reparse'

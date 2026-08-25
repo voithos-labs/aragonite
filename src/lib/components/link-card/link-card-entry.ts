@@ -30,7 +30,7 @@ export interface LinkCardEntryQuery extends LinkPointQuery {
 export function enterLinkCardAtCaret(query: LinkCardEntryQuery): void {
 	if (query.mode !== 'live') return;
 	// The dispatch seam declines `link.openCard` over a cross-block range already
-	// (`SINGLE_BLOCK_RANGE_COMMAND_IDS`); the belt is here because the offsets this arm would
+	// (`RANGE_DECLINED_COMMAND_IDS`); the belt is here because the offsets this arm would
 	// otherwise trust are fabricated in exactly that state rather than absent.
 	if (query.crossBlockRange) return;
 	const range = query.selection;

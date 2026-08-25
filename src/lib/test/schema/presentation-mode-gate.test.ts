@@ -6,7 +6,8 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 const modeGetter = (mode: PresentationMode) => () => mode;
 const gates = (mode: PresentationMode) => ({
 	getPresentationMode: modeGetter(mode),
-	isCrossBlockRange: () => false
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
 });
 
 describe('isReadingMode', () => {
@@ -36,7 +37,8 @@ describe('dispatch gates in reading mode', () => {
 		const reading = {
 			history,
 			getPresentationMode: modeGetter('reading'),
-			isCrossBlockRange: () => false
+			isCrossBlockRange: () => false,
+			crossBlockCommands: undefined
 		};
 		expect(dispatchKeyCommand('Mod+Z', target(ran), reading)).toBe(false);
 		expect(undos).toBe(0);
@@ -44,7 +46,8 @@ describe('dispatch gates in reading mode', () => {
 		const source = {
 			history,
 			getPresentationMode: modeGetter('source'),
-			isCrossBlockRange: () => false
+			isCrossBlockRange: () => false,
+			crossBlockCommands: undefined
 		};
 		expect(dispatchKeyCommand('Mod+Z', target(ran), source)).toBe(true);
 		expect(undos).toBe(1);

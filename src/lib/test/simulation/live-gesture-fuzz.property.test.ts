@@ -72,14 +72,18 @@ describe('live-mode gestures at hidden edges', () => {
 		// only gesture that reaches. Both count draws where live diverged from the byte-literal twin.
 		expect(stats.rewrote['format-toggle']).toBeGreaterThan(5);
 		expect(stats.rewrote['word-delete']).toBeGreaterThan(5);
+		// The toggle again, spread over two leaves: the per-block spans a range decomposes into
+		// are verified one at a time, so a range can rewrite where a single block would not.
+		expect(stats.rewrote['cross-format-toggle']).toBeGreaterThan(5);
 	});
 
-	// The two gestures whose offset a CALLER computes rather than the engine reporting it: a
+	// The three gestures whose offset a CALLER computes rather than the engine reporting it: a
 	// mid-scalar one reaches the seam, and a silent well-formedness oracle means its snap held.
 	// Single digits at the default budget, so a zero is a thin draw before it is a defect.
 	it('draws offsets inside a surrogate pair, at the doors that take a raw one', () => {
 		expect(stats.midScalar.enter).toBeGreaterThan(0);
 		expect(stats.midScalar['range-delete']).toBeGreaterThan(0);
+		expect(stats.midScalar['cross-format-toggle']).toBeGreaterThan(0);
 	});
 
 	/**

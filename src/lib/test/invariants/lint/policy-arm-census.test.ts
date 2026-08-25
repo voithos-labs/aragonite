@@ -84,6 +84,8 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/TextEditableBlock.svelte':
 		'the prose surface: the same command lookup',
 	'src/lib/schema/registration-checks.ts': 'the registration-time coherence check over every row',
+	'src/lib/selection/cross-block/format-toggle.ts':
+		'the cross-block arm: which mark a format command toggles',
 	'src/lib/tree-operations/node-ops.ts': 'the one reader of both registered rewrite slots'
 };
 

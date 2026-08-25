@@ -102,27 +102,27 @@ export interface EditorInstance {
 	 * Run a command by id at the focused surface, no chord in the path, so a consumer's
 	 * `keybindings` rebind cannot rewire a toolbar button. `TOOLBAR_COMMANDS` names the built-in
 	 * ids; a plugin's global name resolves ahead of the focused block, its per-block one stays
-	 * chord-only. Semantics match the chord: same arm, one undo entry, same caret. False, and
-	 * nothing mutates, on an unknown id, in reading mode, with no focused block for a block-local
-	 * id, and on a single-block rewrite (the format toggles, the link editor) over a range.
+	 * chord-only. Semantics match the chord: one undo entry, same caret — over a cross-block range
+	 * a format toggle marks every block it touches, still one entry. False, and nothing mutates,
+	 * on an unknown id, in reading mode, with nothing focused, and on the link editor over a range.
 	 */
 	runCommand(commandId: string): boolean;
 	/**
 	 * Whether `runCommand(id)` would reach that command's arm right now, asked at the seam that
 	 * would run it, so a host can grey a toolbar button out instead of hiding the affordance.
 	 * False wherever the door declines before dispatch: an unknown id, reading mode, a block-local
-	 * id with nothing focused (a gap caret included, where only the global ids stay live), and a
-	 * single-block rewrite while a cross-block range is painted. True is reachability, not success:
-	 * the focused surface's own arm still decides whether it writes.
+	 * id with nothing focused (a gap caret included, where only the global ids stay live), and the
+	 * link editor while a cross-block range is painted. True is reachability, not success: the arm
+	 * that would run still decides whether it writes, and over a range it may reach no block at all.
 	 */
 	canRunCommand(commandId: string): boolean;
 	/**
-	 * Whether the command's toggle-state reads ON at the focused surface's caret or selection —
-	 * the read a toolbar paints a pressed state from, answered by the same bytes the toggle
-	 * would rewrite. State, not admissibility, so it composes with `canRunCommand` rather than
-	 * repeating it: a disabled button may still paint pressed. False for an id with no
-	 * toggle-state (today that is every id outside the format toggles), with nothing focused,
-	 * and across a cross-block range, whose endpoints no one surface can read.
+	 * Whether the command's toggle-state reads ON where a press would land — the read a toolbar
+	 * paints pressed from, answered by the same bytes the toggle would rewrite. State, not
+	 * admissibility, so a disabled button may still paint pressed. Over a cross-block range the
+	 * answer is the range's own coverage: true only where every block it touches carries the
+	 * mark. False for an id with no toggle-state (every id outside the format toggles today)
+	 * and with nothing focused.
 	 */
 	isCommandActive(commandId: string): boolean;
 	getEvents(): EditorEvents;

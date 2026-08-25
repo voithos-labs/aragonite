@@ -511,7 +511,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			dispatchKindCommand(
 				chord,
 				kindTarget,
-				{ getPresentationMode, isCrossBlockRange: () => selection.isCrossBlock },
+				// A container bubble carries no range command: the leaf below it owns the format ids.
+				{
+					getPresentationMode,
+					isCrossBlockRange: () => selection.isCrossBlock,
+					crossBlockCommands: undefined
+				},
 				keybindingOverrides(),
 				(report) => emitCommandError(editorEvents, report)
 			)

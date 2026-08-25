@@ -83,6 +83,7 @@
 	import { findSurfacePathForElement, readBlockPath } from '../selection/path-lookup';
 	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
+	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
 	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
@@ -796,6 +797,18 @@
 
 	// ── Context provision ───────────────────────────────────────────────
 
+	// One per instance, shared by every dispatch site's gates: the chord arm, a leaf's rebound
+	// chord and the `runCommand` door must reach the same cross-block road.
+	const crossBlockCommands = createCrossBlockCommands({
+		selection: selectionState,
+		getDoc,
+		getBlockElByPath,
+		revealPath,
+		controller,
+		getPresentationMode: () => effectiveMode,
+		grammar: registryView.grammar
+	});
+
 	// The action bundles stay per-key so a container re-provides exactly what it
 	// overrides; HISTORY is G1.4's single-provider subject. The rest rides three facets.
 	setContext(BLOCK_EDIT_KEY, blockEdit);
@@ -819,7 +832,8 @@
 		reorder,
 		reorderAnnounce: announceReorder,
 		registryView,
-		rects
+		rects,
+		crossBlockCommands
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1006,6 +1020,7 @@
 		getPresentationMode: () => effectiveMode,
 		linkRef: linkRefView,
 		onCommandError: commandErrorSink,
+		crossBlockCommands,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
 		grammar: registryView.grammar,
@@ -1394,7 +1409,8 @@
 		history,
 		pluginEditor: pluginEditorLookup,
 		getPresentationMode: () => effectiveMode,
-		isCrossBlockRange: () => selectionState.isCrossBlock
+		isCrossBlockRange: () => selectionState.isCrossBlock,
+		crossBlockCommands: crossBlockCommands
 	};
 
 	// A gap caret focuses a proxy, not a block, so no block-local command has a surface to run
@@ -1439,7 +1455,11 @@
 	// State, not admissibility: the focused surface reports its own toggle-state, so a toolbar's
 	// pressed paint reads the same bytes the toggle would rewrite. See `editor-props.ts`.
 	export function isCommandActive(commandId: string): boolean {
-		return isCommandActiveById(commandId as AnyCommandId, focusedCommandTarget());
+		return isCommandActiveById(
+			commandId as AnyCommandId,
+			focusedCommandTarget(),
+			commandDispatchContext
+		);
 	}
 
 	export function getEvents(): EditorEvents {

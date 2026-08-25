@@ -9,6 +9,7 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import type { CrossBlockDispatchContext } from '$lib/selection/cross-block/dispatch';
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { createCrossBlockKeydown } from '$lib/selection/cross-block/keydown';
+import { createCrossBlockCommands } from '$lib/selection/cross-block/format-toggle';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 import { createStickyColumnState } from '$lib/cursor/sticky-column';
@@ -68,6 +69,18 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		linkRef: undefined
 	};
 
+	const getPresentationMode = opts.presentationMode ? () => opts.presentationMode! : undefined;
+	// The real arm, so a rewrite chord over a range moves the bytes it would move in production.
+	const crossBlockCommands = createCrossBlockCommands({
+		selection,
+		getDoc: () => harness.deps.doc,
+		getBlockElByPath,
+		revealPath,
+		controller,
+		getPresentationMode,
+		grammar: undefined
+	});
+
 	const onCommandError = vi.fn();
 	const ctx = {
 		getEl: () => getBlockElByPath(opts.myPath ?? [0]),
@@ -82,8 +95,9 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		controller,
 		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 		pluginEditor: undefined,
-		getPresentationMode: opts.presentationMode ? () => opts.presentationMode! : undefined,
+		getPresentationMode,
 		onCommandError,
+		crossBlockCommands,
 		getKeybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;
@@ -98,6 +112,7 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		mutCtx,
 		revealed,
 		revealPath,
+		crossBlockCommands,
 		onCommandError,
 		keydown: createCrossBlockKeydown(ctx, mutCtx),
 		source: () => serialize(harness.deps.doc)
