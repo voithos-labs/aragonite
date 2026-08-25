@@ -117,11 +117,14 @@ export async function visibleText(ep: EditorPage, block: number): Promise<string
 	});
 }
 
-// Center pixel of the first visible text node containing `word` — clicks a
-// marker-adjacent word without relying on raw-offset geometry (hidden markers
-// have no layout box, so a raw-offset walk mis-measures them).
-export async function centerOfWord(page: Page, word: string): Promise<{ x: number; y: number }> {
-	const point = await page.evaluate((w) => {
+// The client rect of the first visible text node containing `word` — the resolver the point
+// helpers below pick from, without relying on raw-offset geometry (hidden markers have no
+// layout box, so a raw-offset walk mis-measures them).
+async function rectOfWord(
+	page: Page,
+	word: string
+): Promise<{ left: number; right: number; y: number }> {
+	const rect = await page.evaluate((w) => {
 		const root = document.querySelector('.editor')!;
 		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 		let node: Node | null;
@@ -131,14 +134,29 @@ export async function centerOfWord(page: Page, word: string): Promise<{ x: numbe
 				const range = document.createRange();
 				range.setStart(node, i);
 				range.setEnd(node, i + w.length);
-				const rect = range.getBoundingClientRect();
-				return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+				const r = range.getBoundingClientRect();
+				return { left: r.left, right: r.right, y: r.top + r.height / 2 };
 			}
 		}
 		return null;
 	}, word);
-	if (!point) throw new Error(`centerOfWord: "${word}" not found`);
-	return point;
+	if (!rect) throw new Error(`rectOfWord: "${word}" not found`);
+	return rect;
+}
+
+export async function centerOfWord(page: Page, word: string): Promise<{ x: number; y: number }> {
+	const rect = await rectOfWord(page, word);
+	return { x: (rect.left + rect.right) / 2, y: rect.y };
+}
+
+// Pixel just inside `word`'s leading edge — with the trailing twin, the widest drag a word
+// affords, which is what keeps a drag-select off the runner's font-metric knife's edge.
+export async function leadingEdgeOfWord(
+	page: Page,
+	word: string
+): Promise<{ x: number; y: number }> {
+	const rect = await rectOfWord(page, word);
+	return { x: rect.left + 1, y: rect.y };
 }
 
 // Pixel just inside `word`'s trailing edge — the one gesture that lands a caret at a
@@ -148,22 +166,6 @@ export async function trailingEdgeOfWord(
 	page: Page,
 	word: string
 ): Promise<{ x: number; y: number }> {
-	const point = await page.evaluate((w) => {
-		const root = document.querySelector('.editor')!;
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-		let node: Node | null;
-		while ((node = walker.nextNode())) {
-			const i = node.textContent?.indexOf(w) ?? -1;
-			if (i >= 0) {
-				const range = document.createRange();
-				range.setStart(node, i);
-				range.setEnd(node, i + w.length);
-				const rect = range.getBoundingClientRect();
-				return { x: rect.right - 1, y: rect.top + rect.height / 2 };
-			}
-		}
-		return null;
-	}, word);
-	if (!point) throw new Error(`trailingEdgeOfWord: "${word}" not found`);
-	return point;
+	const rect = await rectOfWord(page, word);
+	return { x: rect.right - 1, y: rect.y };
 }

@@ -38,6 +38,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The unit suite imports from examples/consumer, and vite resolves that file's tsconfig
+      # chain into the example's GENERATED kit config — absent on a fresh checkout until the
+      # example installs and syncs.
+      - run: npm ci
+        working-directory: examples/consumer
+      - run: npx svelte-kit sync
+        working-directory: examples/consumer
       - run: npm run lint
       - run: npm run check
       - run: npm run test:editor
