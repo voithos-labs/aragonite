@@ -93,4 +93,7 @@ and nothing pinned — a commit rebuilds the inline DOM, so any overlay holding 
 strands itself on the first edit.
 
 Drag-select regression: every pointer row clicked; none dragged, so the click entry's missing
-selection guard (which the chord entry carried) was never exercised.
+selection guard (which the chord entry carried) was never exercised. The drag itself spans the
+whole word: a half-word drag was rect-derived and sat on the CI runner's font-metric knife's
+edge, collapsing to a caret there while every local host selected — a gesture asserted
+non-collapsed must dwarf the metric variance it is derived from.
