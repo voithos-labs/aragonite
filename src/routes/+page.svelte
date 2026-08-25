@@ -10,6 +10,7 @@
 	import { SHOWCASE_DOCUMENT } from './showcase-content';
 	import { trackParityDocument } from './parity-documents.svelte';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
+	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { createPanelState } from './debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from './debug-panel/panel-feed.svelte';
 
@@ -47,10 +48,12 @@
 	// Ctrl+Shift+D drive one state.
 	const panel = createPanelState();
 	const panelFeed = createDebugPanelFeed(() => editor);
+
+	let headerHeight = $state(0);
 </script>
 
 <div class="showcase aragonite-editor-theme" data-editor-theme={theme}>
-	<header class="showcase-header">
+	<header class="showcase-header" bind:clientHeight={headerHeight}>
 		<span class="showcase-title">aragonite</span>
 		<span class="showcase-tag">showcase</span>
 		<!-- Left of the mode group's auto margin: the open debug panel is fixed to the right
@@ -116,6 +119,7 @@
 				{theme}
 			/>
 		{/key}
+		<SelectionToolbar {editor} topInset={headerHeight} />
 	</div>
 	<DebugPanel {panel} {...panelFeed} />
 </div>

@@ -594,7 +594,7 @@ Float a formatting bar above the user's selection. This is the standard use of t
 7. **Grey the declining buttons out with `canRunCommand`, on the same `selectionChange`.** Ask it per button and disable the ones that answer `false`, so a cross-block selection shows a bar of dimmed toggles rather than a bar of dead ones or no bar at all. Cross-block wrapping is not supported in this version, and the decline is the contract, not a gap you can route around. Still read `runCommand`'s boolean: admissible means the command reached its arm, not that the arm wrote.
 8. **Keep focus in the document** for the same reason the insert toolbar does: cancel the button's mousedown default, or restore a `getSelection()` snapshot before calling.
 
-The demo route's `SelectionToolbar` component (in the repository) is this recipe end to end: both anchoring branches, the table exclusion, the five `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand`, and the mousedown cancel that keeps the caret in the document.
+The repository's `SelectionToolbar` component, mounted by the showcase and the dev harness alike, is this recipe end to end: both anchoring branches, the table exclusion, the five `TOOLBAR_COMMANDS` buttons greyed by `canRunCommand`, and the mousedown cancel that keeps the caret in the document.
 
 ### Recipe: an insert toolbar
 

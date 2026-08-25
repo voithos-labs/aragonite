@@ -5,7 +5,7 @@
 	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
 	import { createPanelState } from '../../debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
-	import SelectionToolbar from './SelectionToolbar.svelte';
+	import SelectionToolbar from '../../SelectionToolbar.svelte';
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 

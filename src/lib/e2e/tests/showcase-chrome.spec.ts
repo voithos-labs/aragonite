@@ -84,6 +84,30 @@ test.describe('/ showcase chrome', () => {
 		await expect(panel).toHaveCount(0);
 	});
 
+	test('selecting text floats the toolbar and its bold button wraps the run', async ({ page }) => {
+		const toolbar = page.getByTestId('selection-toolbar');
+		await expect(toolbar).toHaveCount(0);
+
+		const intro = page.locator('.block-host [contenteditable]').first();
+		await intro.click();
+		await page.keyboard.press('Home');
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(toolbar).toBeVisible();
+
+		// The first line sits right under the header, so the bar cannot clear the topInset the
+		// showcase passes: it flips below the selection instead of landing on the header.
+		const bar = await toolbar.boundingBox();
+		const header = await page.locator('.showcase-header').boundingBox();
+		expect(bar!.y).toBeGreaterThan(header!.y + header!.height);
+
+		await page.getByTestId('toolbar-format.toggleStrong').click();
+		await expect(intro).toContainText('**');
+
+		// A plain arrow collapses the selection, which is the bar's hide signal.
+		await page.keyboard.press('ArrowRight');
+		await expect(toolbar).toHaveCount(0);
+	});
+
 	test('clicking a toc entry scrolls the editor to that heading', async ({ page }) => {
 		const editor = page.locator('.editor');
 		expect(await editor.evaluate((el) => el.scrollTop)).toBe(0);
