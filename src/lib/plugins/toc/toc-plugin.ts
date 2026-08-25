@@ -32,6 +32,9 @@ export function registerTocBlock(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// Render-primary like the math forms: the folded view leaves a caret no textual landing
+		// at either edge, so both boundaries open against another trapped kind.
+		gapEdges: 'both',
 		conformanceFixture: '[[toc]]\n',
 		closure: simpleLeafClosure({
 			focus: {

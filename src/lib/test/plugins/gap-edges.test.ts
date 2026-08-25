@@ -11,6 +11,7 @@ import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerAdmonitions } from '$lib/plugins/admonitions/admonition-kind';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { registerTocBlock } from '$lib/plugins/toc/toc-plugin';
 import { gapEligibleAt } from '$lib/selection/gap-caret';
 
 const TABLE = '| a | b |\n| - | - |\n';
@@ -20,6 +21,7 @@ const MERMAID = '```mermaid\ngraph TD\n```\n';
 const CALLOUT = ':::note Title\nbody\n:::\n';
 const DETAILS = '<details>\n<summary>S</summary>\n\nbody\n\n</details>\n';
 const GENERIC_DIRECTIVE = ':::mystery\nbody\n:::\n';
+const TOC = '[[toc]]\n';
 const QUOTE = '> quoted\n';
 const ALERT = '> [!NOTE]\n> alert body\n';
 
@@ -32,6 +34,7 @@ beforeEach(() => {
 	registerMermaidKind();
 	registerAdmonitions();
 	registerDetailsKind();
+	registerTocBlock();
 });
 
 /** The boundary between the two sources, with each parsed as its own top-level block. */
@@ -70,6 +73,15 @@ describe('gapEdges declarations of the bundled plugin kinds', () => {
 	it('opens the boundary above a mermaid diagram but not below it', () => {
 		expect(eligibleBetween(TABLE, MERMAID)).toBe(true);
 		expect(eligibleBetween(MERMAID, TABLE)).toBe(false);
+	});
+
+	// The toc is a render-primary leaf like the math forms, and its folded view leaves a caret
+	// no textual landing at either edge. Miss-analysis: the declared set was pinned kind by
+	// kind, so a kind that never declared had no row to red — an omission looked like a decision.
+	it('opens the toc boundary against another trapped kind in either order', () => {
+		expect(eligibleBetween(MATH_BLOCK, TOC)).toBe(true);
+		expect(eligibleBetween(TOC, MATH_BLOCK)).toBe(true);
+		expect(eligibleBetween(TOC, TOC)).toBe(true);
 	});
 });
 
