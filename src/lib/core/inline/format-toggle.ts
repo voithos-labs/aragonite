@@ -2,8 +2,8 @@
  * Toggle an inline format inside a prose block. Over a SELECTION the direction is parse coverage,
  * not edge adjacency: a range a same-format construct covers unapplies (aligned strip, else split);
  * one overlapping or abutting same-format runs applies over their union (absorb); a bare range
- * wraps, literal-first where the mode paints delimiters. Split and absorb verify in every mode
- * and decline over rewriting what they cannot verify. At a COLLAPSED CARET: unwrap the span,
+ * wraps, literal-first where the mode paints delimiters and coverage-verified where it does not.
+ * Every arm declines over rewriting what it cannot verify. At a COLLAPSED CARET: unwrap the span,
  * else drop the empty pair, else insert one (live mode forks first, live-mode.md § 4.3). Every
  * write clamps to the CONTENT range: a marker in `# ` or a setext underline changes the kind.
  */
@@ -55,8 +55,12 @@ export function toggleInlineFormat(
 	const inlines = parseInline(display, content.start, content.end);
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
-	const sole = soleStripCandidate(display, start, end, format);
-	if (sole) return modeGated([sole], display, content, mode);
+	// Painted delimiters are the mode's own answer, so those modes write their candidate unverified.
+	// The preview rungs paint: this seam only writes into the block those rungs reveal.
+	const paints = paintsFocusedMarkers(mode ?? 'source');
+
+	const sole = soleStripCandidate(display, inlines, start, end, format);
+	if (sole) return paints ? sole : firstScreenPreserving([sole], display, content);
 
 	// The flank strip rewrites bytes OUTSIDE the selection, and byte equality can mistake literal
 	// content for the delimiters, so its candidate verifies like the split's and falls through.
@@ -89,7 +93,10 @@ export function toggleInlineFormat(
 			'apply'
 		);
 
-	return modeGated(wrapCandidates(display, start, end, mark), display, content, mode);
+	const wraps = wrapCandidates(display, inlines, start, end, mark);
+	// A wrap whose markers do not paint owes split and absorb's coverage check: bytes that re-pair
+	// against a neighbouring run leave the range unformatted with nothing on screen to say so.
+	return paints ? (wraps[0] ?? null) : firstFlipVerified(wraps, edit, format, 'apply');
 }
 
 /** Whether a toggle right now would UNAPPLY — the pressed-state a toolbar paints. The same arms
@@ -181,7 +188,7 @@ function coverageCarries(
 ): boolean {
 	if (!getInlineMarkPolicy(format)) return false;
 	if (start === end) return enclosingSpanOf(inlines, start, start, format) !== null;
-	if (soleSpanIn(sliceNodes, end - start, format)) return true;
+	if (soleSpanOfSelection(sliceNodes, inlines, start, end, format)) return true;
 	const enclosing = enclosingSpanOf(inlines, start, end, format);
 	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) return true;
 	return coveringSpanOf(inlines, start, end, format) !== null;
@@ -194,12 +201,14 @@ function coverageCarries(
  *  only selected bytes, so it keeps the press's literal reading. */
 function soleStripCandidate(
 	display: string,
+	inlines: readonly InlineNode[],
 	start: number,
 	end: number,
 	format: InlineMarkKind
 ): ToggleInlineFormatResult | null {
 	const slice = display.slice(start, end);
-	const selfSpan = soleSpanOf(slice, format);
+	const sliceNodes = parseInline(slice, 0, slice.length);
+	const selfSpan = soleSpanOfSelection(sliceNodes, inlines, start, end, format);
 	if (!selfSpan) return null;
 	const unwrapped = slice.slice(selfSpan.contentStart, selfSpan.contentEnd);
 	return {
@@ -245,8 +254,7 @@ function splitCandidates(
 ): ToggleInlineFormatResult[] {
 	const cutStart = Math.max(start, span.contentStart);
 	const cutEnd = Math.min(end, span.contentEnd);
-	if (!cutLandsCleanly(inlines, cutStart, span) || !cutLandsCleanly(inlines, cutEnd, span))
-		return [];
+	if (!cutsLandCleanly(inlines, { start: cutStart, end: cutEnd }, span)) return [];
 	const opener = display.slice(span.start, span.contentStart);
 	const closer = display.slice(span.contentEnd, span.end);
 	const middle = stripKindMarkers(display, inlines, format, cutStart, cutEnd);
@@ -321,8 +329,7 @@ function absorbCandidates(
 	format: InlineMarkKind,
 	mark: InlineMarkPolicy
 ): ToggleInlineFormatResult[] {
-	if (!cutLandsCleanly(inlines, union.start, union) || !cutLandsCleanly(inlines, union.end, union))
-		return [];
+	if (!cutsLandCleanly(inlines, union, union)) return [];
 	const stripped = stripKindMarkers(display, inlines, format, union.start, union.end);
 	const prefix = display.slice(0, union.start);
 	const suffix = display.slice(union.end);
@@ -342,18 +349,20 @@ function absorbCandidates(
 	return out;
 }
 
-/** Whether `cut` lands where a byte splice can: in a text run or on a construct boundary, never
- *  strictly inside another construct's bytes — a stranded delimiter re-pairs with whatever run the
- *  parse finds next, which can preserve the text while reformatting content nobody selected. */
-function cutLandsCleanly(
+/** Whether a rewrite of `within` may splice at both `cuts`: each has to land where a byte splice
+ *  can, in a text run or on a construct boundary, never strictly inside another construct's bytes —
+ *  a stranded delimiter re-pairs with whatever run the parse finds next, which can preserve the
+ *  text while reformatting content nobody selected. Split, absorb and the wrap all ask here. */
+function cutsLandCleanly(
 	inlines: readonly InlineNode[],
-	cut: number,
+	cuts: { start: number; end: number },
 	within: { start: number; end: number }
 ): boolean {
 	for (const node of inlineDescendants(inlines)) {
 		if (node.kind === 'text') continue;
 		if (node.start <= within.start && within.end <= node.end) continue;
-		if (node.start < cut && cut < node.end) return false;
+		if (node.start < cuts.start && cuts.start < node.end) return false;
+		if (node.start < cuts.end && cuts.end < node.end) return false;
 	}
 	return true;
 }
@@ -389,17 +398,21 @@ function stripKindMarkers(
 /**
  * What a bare wrap could mean, what it literally says first. Only the wrap has a second reading:
  * markdown opens and closes a run against a word, never whitespace, so a boundary space goes to
- * the plain text beside the run, as `live-split-rebalance` reads the same problem.
+ * the plain text beside the run, as `live-split-rebalance` reads the same problem. Either reading
+ * needs both its endpoints to be legal cuts: markers spliced into a construct's bytes re-pair.
  */
 function wrapCandidates(
 	display: string,
+	inlines: readonly InlineNode[],
 	start: number,
 	end: number,
 	mark: InlineMarkPolicy
 ): ToggleInlineFormatResult[] {
 	const core = trimmedRange(display, start, end);
-	const trimmed = core === null ? [] : [wrapRange(display, core.start, core.end, mark)];
-	return [wrapRange(display, start, end, mark), ...trimmed];
+	const readings = core === null ? [{ start, end }] : [{ start, end }, core];
+	return readings
+		.filter((range) => cutsLandCleanly(inlines, range, range))
+		.map((range) => wrapRange(display, range.start, range.end, mark));
 }
 
 /** The selection minus its boundary whitespace, or null when there is none to trim or nothing
@@ -442,16 +455,12 @@ function screenOf(display: string, content: ContentRange): string {
 	);
 }
 
-/** Painted delimiters are the mode's own answer, so the bytes stand whatever they parse as; the
- *  marker-hiding modes accept only a candidate whose screen is unchanged. The preview rungs paint:
- *  this seam only writes into the caret's block, which is the block those rungs reveal. */
-function modeGated(
+/** What a marker-hiding mode may write where the coverage answer is already settled by the arm. */
+function firstScreenPreserving(
 	candidates: ToggleInlineFormatResult[],
 	display: string,
-	content: ContentRange,
-	mode: PresentationMode | undefined
+	content: ContentRange
 ): ToggleInlineFormatResult | null {
-	if (paintsFocusedMarkers(mode ?? 'source')) return candidates[0] ?? null;
 	const shown = screenOf(display, content);
 	return (
 		candidates.find(
@@ -461,9 +470,9 @@ function modeGated(
 	);
 }
 
-/** Split and absorb rewrite bytes the user did not select, so they verify in EVERY mode: the
- *  content text unchanged, and the selection's coverage actually flipped — text preservation alone
- *  admits a nested pair that leaves the range formatted exactly as it was. */
+/** The two checks a candidate owes wherever its own bytes are not the mode's answer: the content
+ *  text unchanged, and the selection's coverage actually flipped — text preservation alone admits a
+ *  nested pair that leaves the range formatted exactly as it was. */
 function firstFlipVerified(
 	candidates: ToggleInlineFormatResult[],
 	edit: InlineFormatEdit,
@@ -621,9 +630,24 @@ function coveringSpanOf(
 	return found;
 }
 
-/** Exactly one span of this kind covering the whole slice, parsed standalone. */
-function soleSpanOf(slice: string, format: InlineMarkKind): FormatSpan | null {
-	return soleSpanIn(parseInline(slice, 0, slice.length), slice.length, format);
+/**
+ * The selection read as exactly one span of this kind — standalone AND in the block's own parse,
+ * which is the only reading a strip may act on: `*bold*` carved out of `**bold**` is emphasis alone
+ * while the block holds none, and shedding one delimiter layer there lands on a run of the same
+ * kind. Offsets come back in SLICE space, where the strip splices.
+ */
+function soleSpanOfSelection(
+	sliceNodes: readonly InlineNode[],
+	inlines: readonly InlineNode[],
+	start: number,
+	end: number,
+	format: InlineMarkKind
+): FormatSpan | null {
+	const span = soleSpanIn(sliceNodes, end - start, format);
+	if (!span) return null;
+	for (const node of inlineDescendants(inlines))
+		if (node.kind === format && node.start === start && node.end === end) return span;
+	return null;
 }
 
 function soleSpanIn(

@@ -4,7 +4,8 @@
 // the row wider than the delimiter's column count and the parser truncates the last column,
 // silently. Three gestures compute their own bytes and commit them: Mod+B, Shift+Enter, and the
 // menu Cut. Each committed text is read through the write sink, where the kind's escape runs —
-// measuring at the component's own call would only prove the gesture escaped its own bytes.
+// measuring at the component's own call would only prove the gesture escaped its own bytes. The
+// toggle refuses to splice inside the escape at all, so Mod+B is pinned on both sides of that.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { splitRowCells } from '$lib/core/parsers/table';
@@ -54,15 +55,27 @@ afterEach(async () => {
 });
 
 describe('table cell write paths escape the pipes they free', () => {
-	it('Mod+B over the escape keeps the row at two cells', () => {
+	it('Mod+B around the escape keeps the row at two cells', () => {
+		mounted = mountCell(ESCAPED);
+		const { el, blockEdit } = mounted;
+		el.focus();
+		mounted.instance.setSelection(1, 3);
+
+		expect(mounted.instance.runCommand('format.toggleStrong')).toBe(true);
+
+		expect(reparsedCells(committedRaw(blockEdit))).toEqual(['a**\\|**b', 'keep']);
+	});
+
+	// Splicing between the backslash and the pipe would free the pipe, so the toggle declines: the
+	// sink's escape is the second line of defence here, not the first.
+	it('Mod+B cutting into the escape writes nothing at all', () => {
 		mounted = mountCell(ESCAPED);
 		const { el, blockEdit } = mounted;
 		el.focus();
 		mounted.instance.setSelection(0, 2);
 
 		expect(mounted.instance.runCommand('format.toggleStrong')).toBe(true);
-
-		expect(reparsedCells(committedRaw(blockEdit))).toEqual(['**a\\**\\|b', 'keep']);
+		expect(vi.mocked(blockEdit.updateBlockContent).mock.calls).toEqual([]);
 	});
 
 	it('Shift+Enter between the backslash and the pipe keeps the row at two cells', async () => {

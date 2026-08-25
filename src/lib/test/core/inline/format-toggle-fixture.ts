@@ -5,6 +5,8 @@
  */
 
 import {
+	isInlineFormatActive,
+	isInlineFormatActiveAfter,
 	toggleInlineFormat,
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
@@ -30,6 +32,28 @@ export function toggleFormat(
 
 /** The selection covering all of `raw`. */
 export const whole = (raw: string) => ({ start: 0, end: raw.length });
+
+export interface Press {
+	display: string;
+	start: number;
+	end: number;
+	format: InlineMarkKind;
+	mode: PresentationMode;
+}
+
+/** One press with its pressed-state read on both sides, for the suites that assert the paint and
+ *  the write agree. A decline leaves the read where it was, so `activeAfter` reports `active`. */
+export function press({ display, start, end, format, mode }: Press) {
+	const edit: InlineFormatEdit = { display, content: whole(display), selection: { start, end } };
+	const active = isInlineFormatActive(edit, format);
+	const result = toggleInlineFormat(edit, format, mode);
+	return {
+		active,
+		wrote: result?.newDisplay ?? null,
+		selected: result ? result.newDisplay.slice(result.newSelStart, result.newSelEnd) : null,
+		activeAfter: result === null ? active : isInlineFormatActiveAfter(edit, result, format)
+	};
+}
 
 /** The bare delimiter run of a rowed kind. */
 export function markersOf(format: InlineMarkKind): string {

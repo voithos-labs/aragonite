@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 //
 // G2.14 — over a RANGE, the pressed-state read and the toggle's direction decide by the same
-// guards: an active range unapplies. Two arms sit outside, each anchored on an open gap: the
-// aligned strip sheds one delimiter layer (#216), and the bare wrap is never coverage-verified —
-// a painting mode writes it literally (live-mode.md § 4.3), a hiding mode checks only the screen
-// (#217). Miss-analysis: the equivalence was load-bearing for the cross-block direction and lived
-// only in prose, so a fourth arm on one side and not the other would misroute writes in silence.
+// guards: an active range unapplies. One arm sits outside, in one mode: where the delimiters PAINT,
+// a bare wrap writes its literal bytes unverified, on screen for the reader to see and fix
+// (live-mode.md § 4.3). Miss-analysis: the equivalence was load-bearing for the cross-block
+// direction and lived only in prose, so a fourth arm on one side and not the other would misroute
+// writes in silence.
 import { describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
 import {
 	isInlineFormatActive,
 	isInlineFormatActiveAfter,
@@ -15,7 +14,7 @@ import {
 	type InlineFormatEdit,
 	type ToggleInlineFormatResult
 } from '$lib/core/inline/format-toggle';
-import type { PresentationMode } from '$lib/presentation-mode';
+import { paintsFocusedMarkers, type PresentationMode } from '$lib/presentation-mode';
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 
 /** Shapes the naive reading breaks on: nesting, non-canonical runs, a literal delimiter, a code
@@ -71,18 +70,8 @@ function rangesOf(display: string): Range[] {
 	return ranges;
 }
 
-/** The selection reads standalone as this mark while the delimiter run continues outside it, so
- *  the aligned strip sheds one layer onto a shorter run — `soleStripCandidate`'s own reading (#216). */
-function cutsIntoOwnRun(display: string, { start, end }: Range, kind: string): boolean {
-	const slice = display.slice(start, end);
-	const nodes = parseInline(slice, 0, slice.length);
-	if (nodes.length !== 1 || nodes[0].kind !== kind) return false;
-	return display[start - 1] === display[start] || display[end] === display[end - 1];
-}
-
 /** The result is the selection, or its whitespace trim, with bytes spliced around it and nothing
- *  else touched: the bare wrap, which NO mode coverage-verifies — a painting mode writes it
- *  literally, a hiding mode checks only the screen (#217). */
+ *  else touched: the bare wrap, which only a marker-PAINTING mode may write unverified. */
 function isBareWrap(display: string, selection: Range, result: ToggleInlineFormatResult): boolean {
 	const wrapped = result.newDisplay.slice(result.newSelStart, result.newSelEnd);
 	return [selection, trimmed(display, selection.start, selection.end)].some(
@@ -102,14 +91,17 @@ describe('G2.14 — the pressed-state read and the toggle direction', () => {
 				for (const selection of rangesOf(display)) {
 					const edit: InlineFormatEdit = { display, content, selection };
 					const active = isInlineFormatActive(edit, kind);
-					if (active && cutsIntoOwnRun(display, selection, kind)) continue;
 					for (const mode of MODES) {
 						const result = toggleInlineFormat(edit, kind, mode);
 						// Declining is sound in both directions: a toggle's fallback is not writing.
 						if (!result) continue;
+						const excused =
+							!active &&
+							paintsFocusedMarkers(mode ?? 'source') &&
+							isBareWrap(display, selection, result);
 						if (isInlineFormatActiveAfter(edit, result, kind) !== active) {
 							flips++;
-						} else if (active || !isBareWrap(display, selection, result)) {
+						} else if (!excused) {
 							violations.push(
 								`${mode} ${JSON.stringify(display)} [${selection.start},${selection.end}] ` +
 									`was ${active ? 'active' : 'inactive'} and wrote ${JSON.stringify(result.newDisplay)}`
@@ -119,7 +111,7 @@ describe('G2.14 — the pressed-state read and the toggle direction', () => {
 				}
 			}
 			expect(violations).toEqual([]);
-			// The sweep proves nothing if every case declined or took an escape.
+			// The sweep proves nothing if every case declined or took the escape.
 			expect(flips).toBeGreaterThan(50);
 		});
 	}
