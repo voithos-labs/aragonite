@@ -21,6 +21,12 @@ and interactions are real clicks and key presses.
   it again — one state behind two controls
 - the debug panel's CST section shows the live tree of the showcase document
 - clicking a table-of-contents entry scrolls the editor to that heading
+- selecting text floats the shared `SelectionToolbar` beside the selection — below it when
+  the header's `topInset` leaves no room above, so the bar never lands on the header — its
+  bold button wraps the selected run through `runCommand`, and collapsing the selection
+  hides the bar (the component's own behavior matrix lives with
+  `decorations/selection-toolbar.md`; this scenario also pins the inset flip, which only a
+  chrome-bearing host can reach)
 - the header's `changelog` link navigates to `/changelog`, landing on that route's own
   chrome rather than a 404 — the guard on `resolve()` under a configured base path
 

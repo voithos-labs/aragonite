@@ -1,6 +1,8 @@
 # Feature: selection toolbar (consumer rect-API example)
 
-A demo-route component on `/test/editor` built purely consumer-side: a
+A shared demo component, mounted by the `/` showcase and the `/test/editor`
+harness (this spec drives the harness mount; `showcase-chrome.md` pins the
+showcase one), built purely consumer-side: a
 `bind:this` `EditorInstance`, `getEvents().on('selectionChange')` for
 lifecycle, and `getRects().rangeRects` for both the cross-block and the
 single-block anchor — the snapshot carries real range offsets, so the public
@@ -32,6 +34,11 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 
 ## Edge cases
 
+- a host passes `topInset` for its own fixed chrome, and a bar that cannot
+  clear it flips below the selection (pinned on the showcase mount, in
+  `showcase-chrome.md`, where the header makes the collision reachable; the
+  harness passes no inset and extending a selection re-scrolls its line back
+  into view, so the flip has no stable repro here)
 - scroll is v1 non-glue: the bar re-anchors on the next selection change, not
   on scroll (documented, untested — asserting a stale position would pin the
   gap, not the contract)

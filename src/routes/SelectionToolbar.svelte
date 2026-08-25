@@ -1,8 +1,9 @@
 <script lang="ts">
 	/**
-	 * Consumer-side rect-API example: no plugin, no internal imports, no native selection
-	 * reads. The bar re-anchors on the next selection change, not on scroll, and its buttons
-	 * run command ids rather than synthetic chords.
+	 * Consumer-side rect-API example, mounted by the showcase and the dev harness alike: no
+	 * plugin, no internal imports, no native selection reads. The bar re-anchors on the next
+	 * selection change, not on scroll, and its buttons run command ids rather than synthetic
+	 * chords (consumer-guide.md § Recipe: a selection toolbar).
 	 */
 	import {
 		SELECTION_END,
@@ -13,20 +14,26 @@
 	} from '$lib';
 
 	const BUTTONS = [
-		{ label: 'B', title: 'Bold', command: TOOLBAR_COMMANDS.toggleStrong },
-		{ label: 'I', title: 'Italic', command: TOOLBAR_COMMANDS.toggleEmphasis },
-		{ label: 'S', title: 'Strikethrough', command: TOOLBAR_COMMANDS.toggleStrikethrough },
-		{ label: '<>', title: 'Inline code', command: TOOLBAR_COMMANDS.toggleCode },
-		{ label: 'Link', title: 'Edit link', command: TOOLBAR_COMMANDS.editLink }
+		{ label: 'B', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong },
+		{ label: 'I', title: 'Italic (Ctrl/Cmd+I)', command: TOOLBAR_COMMANDS.toggleEmphasis },
+		{
+			label: 'S',
+			title: 'Strikethrough (Ctrl/Cmd+Shift+X)',
+			command: TOOLBAR_COMMANDS.toggleStrikethrough
+		},
+		{ label: '<>', title: 'Inline code (Ctrl/Cmd+E)', command: TOOLBAR_COMMANDS.toggleCode },
+		{ label: 'Link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink }
 	] as const;
 
 	interface Placement {
 		x: number;
 		y: number;
-		label: string;
 	}
 
-	let { editor }: { editor: EditorInstance | undefined } = $props();
+	// Only the host knows where its own fixed chrome ends, so the clearance floor arrives as a
+	// prop rather than a viewport guess.
+	let { editor, topInset = 0 }: { editor: EditorInstance | undefined; topInset?: number } =
+		$props();
 
 	let placement = $state<Placement | null>(null);
 	let declined = $state<ReadonlySet<string>>(new Set());
@@ -50,29 +57,31 @@
 		if (!sameBlock) {
 			// Rects from the start offset through the start block's last measurable position.
 			const rects = editor!.getRects().rangeRects(start.path, start.offset, SELECTION_END);
-			return rects.length ? above(rects[0], 'cross-block') : null;
+			return rects.length ? above(rects[0]) : null;
 		}
 		// An intra-table rectangle shares the table's path and carries cell indices on endpoints the
 		// flag need not mark, so the kind read is what excludes it rather than the flag.
 		if (editor!.getBlockKindAt(start.path) === 'table') return null;
 		if (start.offset === end.offset) return null;
 		const rects = editor!.getRects().rangeRects(start.path, start.offset, end.offset);
-		return rects.length ? above(rects[0], `${end.offset - start.offset} chars`) : null;
+		return rects.length ? above(rects[0]) : null;
 	}
 
 	/** How far above the selection the bar sits: its own height plus a gap, so the buttons never
-	 *  cover the line the user selected. */
+	 *  cover the line the user selected. A selection too close to the host's chrome flips the bar
+	 *  below itself instead, so it never lands on controls it does not own. */
 	const BAR_CLEARANCE = 40;
+	const BAR_GAP = 8;
 
-	function above(rect: DOMRect, label: string): Placement {
-		return { x: rect.left, y: Math.max(4, rect.top - BAR_CLEARANCE), label };
+	function above(rect: DOMRect): Placement {
+		const y = rect.top - BAR_CLEARANCE;
+		return y >= topInset + 4 ? { x: rect.left, y } : { x: rect.left, y: rect.bottom + BAR_GAP };
 	}
 
-	// The id, not a synthesized chord: a host rebind moves the shortcut and leaves the button. The
-	// boolean is still read, since reachability is not success.
+	// The id, not a synthesized chord: a host rebind moves the shortcut and leaves the button. A
+	// declined run means the bar's premise went stale under it, so the boolean hides the bar.
 	function fire(command: string): void {
-		if (!editor) return;
-		if (!editor.runCommand(command) && placement) placement = { ...placement, label: 'declined' };
+		if (editor && !editor.runCommand(command)) placement = null;
 	}
 </script>
 
@@ -96,7 +105,6 @@
 				{button.label}
 			</button>
 		{/each}
-		<span class="toolbar-label">{placement.label}</span>
 	</div>
 {/if}
 
@@ -107,31 +115,33 @@
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
-		padding: 0.2rem 0.4rem;
+		padding: 0.25rem 0.35rem;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 0.3rem;
-		background: var(--color-bg-primary, #1e1e1e);
+		border-radius: 6px;
+		background: var(--color-surface, #1b1c21);
 		color: var(--color-text-secondary, #888);
 		font-family: var(--font-editor, ui-monospace, monospace);
 		font-size: 0.75rem;
 		white-space: nowrap;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 	}
 	.toolbar-btn {
-		padding: 0.1rem 0.3rem;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 3px;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+		padding: 0.15rem 0.4rem;
+		border: none;
+		border-radius: 4px;
+		background: transparent;
 		color: inherit;
 		font-family: inherit;
 		font-size: inherit;
 		line-height: 1.2;
 		cursor: pointer;
 	}
+	.toolbar-btn:hover:not(:disabled) {
+		color: var(--color-text-primary, #fff);
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.18));
+	}
 	.toolbar-btn:disabled {
 		opacity: 0.45;
 		cursor: default;
-	}
-	.toolbar-label {
-		padding-left: 0.2rem;
 	}
 </style>
