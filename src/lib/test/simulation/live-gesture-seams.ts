@@ -13,7 +13,7 @@ import { serialize } from '$lib/core/serializer';
 import { getContentRange, isProseKind, parseInline } from '$lib/core/inline';
 import { trailingLineEnding, trimTrailingLineEnding } from '$lib/core/lines';
 import { renderInlineNodes } from '$lib/core/inline-render';
-import { listInlineMarks } from '$lib/schema/inline-construct-policy';
+import { listInlineMarks, type InlineMark } from '$lib/schema/inline-construct-policy';
 import { toggleInlineFormat } from '$lib/components/blocks/text/format-toggle';
 import {
 	CONTENT_EMPTY_ATTR,
@@ -232,6 +232,12 @@ async function applyBlockGesture(
 	return pressEdgeKey(h, index, node, offset, gesture, mode);
 }
 
+/** The mark row a gesture's draw addresses; the applier and the byte oracle read the same pick. */
+export function drawnMark(gesture: Gesture): InlineMark {
+	const marks = listInlineMarks();
+	return marks[gesture.mark % marks.length];
+}
+
 /** The two offsets a range gesture drew, ordered and clamped into the block's content. Null where
  *  they collapsed: every range gesture here needs a span to act on. */
 function drawnRange(node: CstNode, gesture: Gesture): { start: number; end: number } | null {
@@ -335,14 +341,13 @@ function toggleFormat(
 ): boolean {
 	const range = drawnRange(node, gesture);
 	if (range === null) return false;
-	const marks = listInlineMarks();
 	const toggled = toggleInlineFormat(
 		{
 			display: trimTrailingLineEnding(node.raw),
 			content: getContentRange(node),
 			selection: range
 		},
-		marks[gesture.mark % marks.length].kind,
+		drawnMark(gesture).kind,
 		mode
 	);
 	// A press with no candidate the painter accepts writes nothing, which is the seam's own answer
