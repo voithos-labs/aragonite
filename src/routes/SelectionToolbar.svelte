@@ -37,6 +37,7 @@
 
 	let placement = $state<Placement | null>(null);
 	let declined = $state<ReadonlySet<string>>(new Set());
+	let active = $state<ReadonlySet<string>>(new Set());
 
 	$effect(() => {
 		if (!editor) return;
@@ -45,9 +46,12 @@
 
 	function update(selection: EditorSelection | null): void {
 		placement = selection ? place(selection) : null;
-		// Asked per selection change, not per render: the answer is a snapshot of this selection.
+		// Asked per selection change, not per render: the answers are snapshots of this selection.
 		declined = new Set(
 			BUTTONS.filter((b) => !editor?.canRunCommand(b.command)).map((b) => b.command)
+		);
+		active = new Set(
+			BUTTONS.filter((b) => editor?.isCommandActive(b.command)).map((b) => b.command)
 		);
 	}
 
@@ -99,6 +103,7 @@
 				data-testid="toolbar-{button.command}"
 				title={button.title}
 				disabled={declined.has(button.command)}
+				aria-pressed={active.has(button.command)}
 				onmousedown={(e) => e.preventDefault()}
 				onclick={() => fire(button.command)}
 			>
@@ -136,7 +141,8 @@
 		line-height: 1.2;
 		cursor: pointer;
 	}
-	.toolbar-btn:hover:not(:disabled) {
+	.toolbar-btn:hover:not(:disabled),
+	.toolbar-btn[aria-pressed='true'] {
 		color: var(--color-text-primary, #fff);
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.18));
 	}

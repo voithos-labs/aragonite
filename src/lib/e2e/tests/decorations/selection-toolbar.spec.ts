@@ -99,6 +99,25 @@ test.describe('selection toolbar', () => {
 		expect(bar!.y + bar!.height).toBeLessThanOrEqual(blockTop + 1);
 	});
 
+	test('the bold button paints pressed inside bold text and unpressed outside', async ({
+		page
+	}) => {
+		await editor.loadContent('plain **bold words** after\n');
+		await editor.focusBlock(0, 8);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+
+		const bold = page.locator('[data-testid="toolbar-format.toggleStrong"]');
+		await expect(bold).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.locator('[data-testid="toolbar-format.toggleEmphasis"]')).toHaveAttribute(
+			'aria-pressed',
+			'false'
+		);
+
+		await editor.focusBlock(0, 0);
+		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(bold).toHaveAttribute('aria-pressed', 'false');
+	});
+
 	// The affordance the decline owes a reader: the bar stays anchored and the buttons the door
 	// would refuse are visibly dead, rather than five live-looking controls that write nothing.
 	test('a cross-block selection greys the single-block rewrites out', async ({ page }) => {

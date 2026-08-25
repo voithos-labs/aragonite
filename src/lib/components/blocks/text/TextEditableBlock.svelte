@@ -23,7 +23,7 @@
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
-	import { toggleInlineFormat } from './format-toggle';
+	import { isInlineFormatActive, toggleInlineFormat } from './format-toggle';
 	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
 	import type { InlineMarkKind } from '../../../cursor/pending-marks';
 	import {
@@ -575,6 +575,18 @@
 		const fold = widgetInteraction.foldRevealBeforeMutation(offset);
 		void (fold?.settled ?? tick()).then(() => performBlockCommand(id, command.perform));
 		return true;
+	}
+
+	// The pressed-state read: the same display, content and selection the toggle itself takes.
+	export function isCommandActive(id: CommandId): boolean {
+		const marked = inlineMarkForCommand(id);
+		if (!marked) return false;
+		const caret = cursor.getRaw() ?? 0;
+		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
+		return isInlineFormatActive(
+			{ display: getDisplayText(), content: getContentRange(node), selection },
+			marked.kind
+		);
 	}
 
 	// No arm reached through here mutates while a reveal is open (G1.26): a fire means a

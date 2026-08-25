@@ -108,6 +108,7 @@
 	import { domTextOffsetAtNode } from '../cursor/widget-offset';
 	import {
 		canRunCommandById,
+		isCommandActiveById,
 		runCommandById,
 		type CommandDispatchContext,
 		type CommandErrorSink,
@@ -1395,7 +1396,13 @@
 		const component = getBlockComponent(path);
 		const node = blockNodeAt(doc, path);
 		if (!component?.runCommand || !node) return null;
-		return { kind: node.kind, runCommand: (id, arg) => component.runCommand!(id, arg) };
+		return {
+			kind: node.kind,
+			runCommand: (id, arg) => component.runCommand!(id, arg),
+			isCommandActive: component.isCommandActive
+				? (id) => component.isCommandActive!(id)
+				: undefined
+		};
 	}
 
 	// The door only resolves the focused surface; every rule (the reading gate, the cross-block
@@ -1418,6 +1425,12 @@
 			focusedCommandTarget(),
 			commandDispatchContext
 		);
+	}
+
+	// State, not admissibility: the focused surface reports its own toggle-state, so a toolbar's
+	// pressed paint reads the same bytes the toggle would rewrite. See `editor-props.ts`.
+	export function isCommandActive(commandId: string): boolean {
+		return isCommandActiveById(commandId as AnyCommandId, focusedCommandTarget());
 	}
 
 	export function getEvents(): EditorEvents {
@@ -1486,6 +1499,7 @@
 		insertMarkdown,
 		runCommand,
 		canRunCommand,
+		isCommandActive,
 		getEvents,
 		getSearch,
 		getDecorations,

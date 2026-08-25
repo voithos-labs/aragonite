@@ -96,6 +96,22 @@ export function toggleInlineFormat(
 	return modeGated(wrapCandidates(display, start, end, mark), display, content, mode);
 }
 
+/** Whether a toggle right now would UNAPPLY — the pressed-state a toolbar paints. The same arms
+ *  the toggle routes by, asked without emitting: a caret inside the construct, a selection
+ *  carrying its own markers, flanked by them, or covered by a same-format construct. */
+export function isInlineFormatActive(edit: InlineFormatEdit, format: InlineMarkKind): boolean {
+	if (!getInlineMarkPolicy(format)) return false;
+	const { display, content, selection } = edit;
+	const start = clampToContent(selection.start, content);
+	const end = clampToContent(selection.end, content);
+	const inlines = parseInline(display, content.start, content.end);
+	if (start === end) return enclosingSpanOf(inlines, start, start, format) !== null;
+	if (soleSpanOf(display.slice(start, end), format)) return true;
+	const enclosing = enclosingSpanOf(inlines, start, end, format);
+	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) return true;
+	return coveringSpanOf(inlines, start, end, format) !== null;
+}
+
 // ── Aligned unapply ──────────────────────────────────────────────────────────
 
 /** The selection carries its own flanking markers (the user selected `**word**`): exactly one

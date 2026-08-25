@@ -116,6 +116,15 @@ export interface EditorInstance {
 	 * the focused surface's own arm still decides whether it writes.
 	 */
 	canRunCommand(commandId: string): boolean;
+	/**
+	 * Whether the command's toggle-state reads ON at the focused surface's caret or selection —
+	 * the read a toolbar paints a pressed state from, answered by the same bytes the toggle
+	 * would rewrite. State, not admissibility, so it composes with `canRunCommand` rather than
+	 * repeating it: a disabled button may still paint pressed. False for an id with no
+	 * toggle-state (today that is every id outside the format toggles), with nothing focused,
+	 * and across a cross-block range, whose endpoints no one surface can read.
+	 */
+	isCommandActive(commandId: string): boolean;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;

@@ -21,6 +21,12 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - a cross-block selection shows the toolbar anchored above the selection's
   start-block rects (the `rangeRects` public door)
 
+## Happy paths (state paint)
+
+- a selection inside a bold run paints the bold button pressed (`aria-pressed`
+  via `isCommandActive`, the admissibility read's state sibling) while the
+  other toggles stay unpressed, and a plain selection unpresses it
+
 ## User interactions
 
 - collapsing the selection (click) hides the toolbar
