@@ -4,7 +4,7 @@
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { toggleInlineFormat } from '../text/format-toggle';
+	import { isInlineFormatActive, toggleInlineFormat } from '../text/format-toggle';
 	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import { inlineMarkForCommand } from '../../../schema/inline-construct-policy';
 	import type { InlineMarkKind } from '../../../cursor/pending-marks';
@@ -336,6 +336,19 @@
 
 	// Claims the chord even with no caret to act on: declining leaves Mod+B to the browser's
 	// own contenteditable bold, an edit this surface never authored.
+	// The pressed-state read: the same cell text and selection the toggle itself takes.
+	export function isCommandActive(id: CommandId): boolean {
+		const marked = inlineMarkForCommand(id);
+		if (!marked || !el) return false;
+		const caret = cursor.getRaw() ?? 0;
+		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
+		const cellText = readCellText();
+		return isInlineFormatActive(
+			{ display: cellText, content: { start: 0, end: cellText.length }, selection },
+			marked.kind
+		);
+	}
+
 	function toggleFormat(format: InlineMarkKind): boolean {
 		if (!el) return true;
 		const caret = cursor.getRaw();

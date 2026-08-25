@@ -210,6 +210,12 @@ export interface BlockComponent {
 	 */
 	runCommand?(id: import('./schema/command-id').AnyCommandId, arg?: unknown): boolean;
 	/**
+	 * Whether the command's toggle-state reads ON at the surface's own caret or selection —
+	 * the read a toolbar paints a pressed state from. Absent, or an id with no toggle-state,
+	 * reads inactive.
+	 */
+	isCommandActive?(id: import('./schema/command-id').AnyCommandId): boolean;
+	/**
 	 * Current raw-offset selection in an editable leaf, a collapsed caret as
 	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.
 	 */

@@ -109,6 +109,9 @@ export interface KindCommandTarget {
 	// surfaces holding the focused node and a commit route. A target omitting it resolves no
 	// minted command, so the dispatch AND the admissibility read alike fall through to `runCommand`.
 	getCommandContext?(): Omit<BlockCommandContext, 'arg'>;
+	/** The id's toggle-state at the surface's own caret or selection — what a toolbar paints
+	 *  pressed. Absent means the surface has no toggle-state to report, which reads inactive. */
+	isCommandActive?(id: AnyCommandId): boolean;
 }
 
 /**
@@ -248,6 +251,13 @@ export function canRunCommandById(
 	if (!commandIsAdmissible(id, gates)) return false;
 	const { tier } = resolveCommand(id, target);
 	return tier !== 'dead' && tier !== 'no-surface';
+}
+
+/** The door's pressed-state read, `canRunCommandById`'s sibling: state rather than
+ *  admissibility, so it takes no gates — a disabled affordance may still paint pressed. The
+ *  focused surface answers for its own bytes; no surface, or no answer, reads inactive. */
+export function isCommandActiveById(id: AnyCommandId, target: KindCommandTarget | null): boolean {
+	return target?.isCommandActive?.(id) ?? false;
 }
 
 /** The `EditorInstance.runCommand` door: an id with no keystroke behind it. */
