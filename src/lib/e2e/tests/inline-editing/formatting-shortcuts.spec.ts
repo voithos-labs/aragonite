@@ -2,7 +2,8 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
 // Each row selects a run by real Shift+ArrowRight presses from a raw offset, then presses one
-// chord: the toggle either wraps the run or strips the delimiters already around it.
+// chord: the toggle wraps the run, strips the delimiters already around it, splits the construct
+// a sub-range selection sits inside, or absorbs the same-format runs a wider selection touches.
 const TOGGLES = [
 	{
 		chord: 'Ctrl+B',
@@ -22,6 +23,24 @@ const TOGGLES = [
 		press: 'ControlOrMeta+b',
 		expected: 'Hello world',
 		forbidden: '**'
+	},
+	{
+		chord: 'Ctrl+B',
+		effect: 'on a word inside a longer bold run splits the run',
+		doc: '**text text2**\n',
+		offset: 7,
+		extend: 5,
+		press: 'ControlOrMeta+b',
+		expected: '**text** text2'
+	},
+	{
+		chord: 'Ctrl+B',
+		effect: 'over bold runs and plain text absorbs them into one run',
+		doc: '**a** x **b**\n',
+		offset: 0,
+		extend: 13,
+		press: 'ControlOrMeta+b',
+		expected: '**a x b**'
 	},
 	{
 		chord: 'Ctrl+I',

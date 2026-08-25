@@ -61,6 +61,11 @@ const INFLATION_ALLOWLIST: readonly InflationException[] = [
 			'nine of ten tests are one parametrized loop over the absorb ROWS, invisible to the literal test counter'
 	},
 	{
+		spec: 'inline-editing/formatting-shortcuts.spec.ts',
+		reason:
+			'six of seven tests are one parametrized loop over the TOGGLES rows, invisible to the literal test counter'
+	},
+	{
 		spec: 'blocks/code/fence-content-validity.spec.ts',
 		reason:
 			'the write rule reaches most of its doors headlessly (the byte sinks, find/replace, the range-delete arms), so those bullets are unit-pinned and the spec drives only the gestures a user makes through the DOM'

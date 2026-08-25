@@ -24,6 +24,7 @@ import {
 } from './live-screen-reading';
 import {
 	applyGesture,
+	drawnMark,
 	drawsMidScalar,
 	gestureTargets,
 	resetSurfaces,
@@ -32,6 +33,14 @@ import {
 	type Gesture,
 	type GestureKind
 } from './live-gesture-seams';
+
+/** The characters that can delimit the drawn construct: its rowed run's, plus `_`, the
+ *  emphasis-family twin spelling no row names — a strip reads the author's own run off the parse. */
+function markAlphabet(entry: ReturnType<typeof drawnMark>): Set<string> {
+	const chars = new Set(entry.mark.markerBytes);
+	if (chars.has('*')) chars.add('_');
+	return chars;
+}
 
 // ── What a run reports ───────────────────────────────────────────────────────
 
@@ -189,12 +198,13 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 	if (gesture.kind === 'backspace' || gesture.kind === 'delete') {
 		return isSubsequence(inked(live), inked(before));
 	}
-	// A toggle either wraps or strips and never both, so its claim is one containment or the other
-	// — read off the direction rather than off a list of delimiter bytes the table alone knows.
+	// The coverage model splits and absorbs: one press may strip, move and mint the toggled
+	// construct's own delimiters at once, so direction says nothing. The claim is exact instead:
+	// outside that construct's delimiter alphabet, live is before, byte for byte.
 	if (gesture.kind === 'format-toggle') {
-		return live.length >= before.length
-			? isSubsequence(inked(before), inked(live))
-			: isSubsequence(inked(live), inked(before));
+		const alphabet = markAlphabet(drawnMark(gesture));
+		const scrub = (bytes: string) => [...inked(bytes)].filter((ch) => !alphabet.has(ch)).join('');
+		return scrub(live) === scrub(before);
 	}
 	// The swallow: an arm that owns a press but has no sound rewrite writes nothing (§ 4.4).
 	return live === before || isSubsequence(inked(live), inked(literal));
