@@ -27,6 +27,7 @@ const KIND = 'opaque-fixture-container';
 function registerOpaqueKind(): void {
 	const kind = declarePluginKind(KIND);
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		// The declaration under test: a surface whose only edit path would be its own UI.
 		editable: false,

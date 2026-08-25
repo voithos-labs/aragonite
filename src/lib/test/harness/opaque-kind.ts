@@ -18,6 +18,7 @@ export function registerOpaque(
 ): PluginBlockKind {
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

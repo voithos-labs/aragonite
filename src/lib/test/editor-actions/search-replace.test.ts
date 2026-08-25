@@ -170,6 +170,7 @@ describe('replace — matches on childless opaque containers are skipped', () =>
 		__resetSchemaRegistriesForTests();
 		const diagram = declarePluginKind('replace-diagram');
 		registerBlockKind(diagram, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
@@ -217,6 +218,7 @@ describe('replace — a batch that applies nothing leaves no undo entry', () => 
 		__resetSchemaRegistriesForTests();
 		const brittle = declarePluginKind('replace-brittle');
 		registerBlockKind(brittle, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,

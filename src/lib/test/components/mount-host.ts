@@ -78,6 +78,7 @@ export function mountBlockHost(
 export function declareComponentlessKind(name: string): PluginBlockKind {
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

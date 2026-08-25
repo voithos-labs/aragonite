@@ -24,6 +24,7 @@ function captureThrow(run: () => void): unknown {
 }
 
 const minimalRegistration = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: false,
 	supportsInline: false,

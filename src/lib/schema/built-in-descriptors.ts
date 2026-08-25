@@ -225,6 +225,7 @@ export function registerBuiltInDescriptors(): void {
 	registerBuiltInInlinePolicies();
 
 	registerBlockKind('paragraph', {
+		gapEdges: 'none',
 		mergeRole: 'prose',
 		editable: true,
 		supportsInline: true,
@@ -238,6 +239,7 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('heading', {
+		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
@@ -254,6 +256,7 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('setextHeading', {
+		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
@@ -344,6 +347,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('indentedCode', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -352,6 +356,7 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('htmlBlock', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -360,6 +365,7 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('linkReferenceDefinition', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -400,6 +406,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableRow', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -427,6 +434,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableCell', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: true,
@@ -465,6 +473,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('unrecognized', {
+		gapEdges: 'none',
 		mergeRole: 'self-merge',
 		editable: true,
 		supportsInline: false,
@@ -482,6 +491,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('blockquote', {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -514,6 +524,7 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('list', {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -549,6 +560,7 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('listItem', {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

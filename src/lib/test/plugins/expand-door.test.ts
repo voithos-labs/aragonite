@@ -14,6 +14,7 @@ function registerCollapsible(name: string, withDoor: boolean) {
 	const chrome = declarePluginKind(`${name}-chrome`);
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

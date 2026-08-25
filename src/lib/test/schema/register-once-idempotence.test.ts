@@ -25,7 +25,13 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const registration = (editable: boolean) =>
-	({ mergeRole: 'not-mergeable', editable, supportsInline: false, closure: testClosure }) as const;
+	({
+		mergeRole: 'not-mergeable',
+		editable,
+		supportsInline: false,
+		gapEdges: 'none',
+		closure: testClosure
+	}) as const;
 
 const stubComponent = (tag: string) => ({ tag }) as unknown as BlockComponentEntry;
 const stubOpener = (priority: number): BlockOpener => ({

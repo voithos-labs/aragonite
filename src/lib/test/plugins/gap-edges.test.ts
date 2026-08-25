@@ -75,6 +75,13 @@ describe('gapEdges declarations of the bundled plugin kinds', () => {
 		expect(eligibleBetween(MERMAID, TABLE)).toBe(false);
 	});
 
+	// `'none'` is the written-down no: it reads exactly as the omission it replaced.
+	it('keeps a boundary closed against a kind declaring none', () => {
+		expect(tryGetBlockKindDescriptor('paragraph')?.gapEdges).toBe('none');
+		expect(eligibleBetween(TABLE, 'prose\n')).toBe(false);
+		expect(eligibleBetween('prose\n', TABLE)).toBe(false);
+	});
+
 	// The toc is a render-primary leaf like the math forms, and its folded view leaves a caret
 	// no textual landing at either edge. Miss-analysis: the declared set was pinned kind by
 	// kind, so a kind that never declared had no row to red — an omission looked like a decision.

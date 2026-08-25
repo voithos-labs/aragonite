@@ -114,6 +114,7 @@ export function registerGithubAlert(): void {
 	});
 
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

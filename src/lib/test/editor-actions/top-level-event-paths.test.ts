@@ -16,6 +16,7 @@ import type { CstNode } from '$lib/core/nodes';
 function inertNode(): CstNode {
 	const kind = declarePluginKind('spec-inert-top-level');
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,

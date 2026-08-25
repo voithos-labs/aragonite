@@ -48,6 +48,7 @@ function registerProbeKind(name: 'probe-wide' | 'probe-fixed'): AnyBlockKind {
 	};
 
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

@@ -152,6 +152,7 @@ describe('block-edit core — whole-block-focus fallback', () => {
 	function wholeBlockNode(editable: boolean): CstNode {
 		const kind = declarePluginKind('spec-whole-block');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable,
 			supportsInline: false,
@@ -206,6 +207,7 @@ describe('block-edit core — non-editable neighbour fallback', () => {
 	function inertNode(): CstNode {
 		const kind = declarePluginKind('spec-inert-leaf');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,

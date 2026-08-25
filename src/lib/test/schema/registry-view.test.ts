@@ -32,6 +32,7 @@ const lineOpener = (kind: PluginBlockKind): BlockOpener => ({
 function registerCallout(): PluginBlockKind {
 	const kind = declarePluginKind('callout-x');
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

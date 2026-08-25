@@ -138,6 +138,7 @@ describe('split separator — the probe line', () => {
 	it('is reported claimed when an opener takes it, and the mint is what is lost', () => {
 		const kind = declarePluginKind('probe-claimer');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,

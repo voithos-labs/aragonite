@@ -49,7 +49,11 @@ describe('blockAtPoint hook plumbing', () => {
 	/** Register a kind with the given hooks and label the wrapper with it. */
 	function withKind(name: string, hooks: Record<string, unknown>) {
 		const kind = declarePluginKind(name);
-		registerBlockKind(kind, { ...leaf, ...hooks });
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			...leaf,
+			...hooks
+		});
 		wrapper.setAttribute('data-block-kind', kind);
 		return blockAtPoint(root, 10, 10);
 	}

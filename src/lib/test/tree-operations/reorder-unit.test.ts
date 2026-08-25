@@ -96,6 +96,7 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 		const chromeKind = declarePluginKind('spec-chrome');
 		const containerKind = declarePluginKind('spec-container');
 		registerBlockKind(chromeKind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
@@ -103,6 +104,7 @@ describe('resolveReorderUnit — plugin (opaque) container', () => {
 			contextDependentKind: true
 		});
 		registerBlockKind(containerKind, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,

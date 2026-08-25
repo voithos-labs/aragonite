@@ -30,6 +30,7 @@ describe('declarePluginKind', () => {
 	it('a declared kind round-trips through the descriptor registry', () => {
 		const kind = declarePluginKind('pluginKindRegistryProbe');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,

@@ -75,10 +75,11 @@ export interface BlockKindDescriptor {
 	blockFocus?: 'whole-block';
 	/**
 	 * Edges whose sibling-paragraph insertion this kind's own editing surface cannot host, so an
-	 * eligible boundary beside it gets a gap caret (`selection/gap-caret.ts`). Absent = the
-	 * surface, or an existing affordance, already covers insertion at both edges.
+	 * eligible boundary beside it gets a gap caret (`selection/gap-caret.ts`). Required, with
+	 * `'none'` the explicit answer: the surface, or an existing affordance, already covers
+	 * insertion at both edges. An omission once read as that decision; now it cannot compile.
 	 */
-	gapEdges?: 'before' | 'after' | 'both';
+	gapEdges: 'before' | 'after' | 'both' | 'none';
 	isContainer: boolean;
 	/**
 	 * Shape of a container's raw↔children relationship (container kinds only).

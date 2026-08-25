@@ -24,6 +24,7 @@ import { collector } from '$lib/test/harness/violation-collector';
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 
 const container: BlockKindRegistration = {
+	gapEdges: 'none',
 	mergeRole: 'container',
 	editable: true,
 	supportsInline: false,
@@ -32,6 +33,7 @@ const container: BlockKindRegistration = {
 };
 
 const leaf: BlockKindRegistration = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,

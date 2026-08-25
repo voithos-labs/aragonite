@@ -96,6 +96,7 @@ export function registerCalloutKind(): void {
 	}
 
 	registerBlockKind(callout, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

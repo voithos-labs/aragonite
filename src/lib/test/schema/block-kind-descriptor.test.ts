@@ -170,6 +170,7 @@ describe('blockFocus — whole-block-focus opt-in', () => {
 	it('survives leaf registration', () => {
 		const kind = declarePluginKind('spec-leaf-focus');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
@@ -182,6 +183,7 @@ describe('blockFocus — whole-block-focus opt-in', () => {
 	it('survives registration alongside a container group (opaque childless block)', () => {
 		const kind = declarePluginKind('spec-container-focus');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,

@@ -13,6 +13,7 @@ function registerCollapsible(): ReturnType<typeof declarePluginKind> {
 	const chrome = declarePluginKind('collapse-probe-chrome');
 	const kind = declarePluginKind('collapse-probe-container');
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

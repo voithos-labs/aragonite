@@ -67,13 +67,18 @@ void typePins;
 describe('closure lands on the read-side descriptor', () => {
 	it('survives leaf registration', () => {
 		const kind = declarePluginKind('closure-leaf');
-		registerBlockKind(kind, { ...leaf, closure: testClosure });
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			...leaf,
+			closure: testClosure
+		});
 		expect(getBlockKindDescriptor(kind).closure).toEqual(testClosure);
 	});
 
 	it('survives registration alongside a container group', () => {
 		const kind = declarePluginKind('closure-container');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
@@ -99,13 +104,18 @@ describe('simpleLeafClosure keeps a not-mergeable leaf coherent', () => {
 
 	it('passes for the baked preset', () => {
 		const kind = declarePluginKind('preset-coherent');
-		registerBlockKind(kind, { ...leaf, closure: simpleLeafClosure(cells) });
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			...leaf,
+			closure: simpleLeafClosure(cells)
+		});
 		expect(checkClosureCoherence([coherenceEntry(kind)])).toBeNull();
 	});
 
 	it('fires when a baked mergeBackspace is overridden to inherit-default', () => {
 		const kind = declarePluginKind('preset-broken');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			...leaf,
 			closure: simpleLeafClosure({ ...cells, mergeBackspace: { mode: 'inherit-default' } })
 		});
@@ -130,6 +140,7 @@ describe('containerClosure keeps a strip container coherent', () => {
 	it('bakes roundTrip: implemented so a container clears G1.24', () => {
 		const kind = declarePluginKind('container-preset-coherent');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,

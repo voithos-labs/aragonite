@@ -28,6 +28,7 @@ export function registerMemoBlock(): void {
 	});
 
 	registerBlockKind(memo, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

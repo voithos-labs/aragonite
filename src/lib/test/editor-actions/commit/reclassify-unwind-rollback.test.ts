@@ -22,6 +22,7 @@ beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 	THROWING = declarePluginKind('spec-throwing-rebuild');
 	registerBlockKind(THROWING, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

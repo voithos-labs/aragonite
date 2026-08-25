@@ -218,6 +218,7 @@ describe('createHeightOracle', () => {
 		const summary = declarePluginKind('oracle-collapsible-chrome');
 		const collapsible = declarePluginKind('oracle-collapsible');
 		registerBlockKind(collapsible, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
@@ -250,6 +251,7 @@ describe('createHeightOracle', () => {
 		const o = createHeightOracle(opts);
 		const estimated = declarePluginKind('oracle-estimate-height');
 		registerBlockKind(estimated, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,
@@ -267,6 +269,7 @@ describe('createHeightOracle', () => {
 		const summary = declarePluginKind('oracle-estimate-chrome');
 		const collapsible = declarePluginKind('oracle-estimate-collapsed');
 		registerBlockKind(collapsible, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,

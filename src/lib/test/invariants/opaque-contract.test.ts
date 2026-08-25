@@ -29,6 +29,7 @@ function rebuildNoteRaw(node: CstNode): void {
 function registerNoteKind(opts: { declareChrome?: boolean } = {}): AnyBlockKind {
 	const title = declarePluginKind('spec-note-title');
 	registerBlockKind(title, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

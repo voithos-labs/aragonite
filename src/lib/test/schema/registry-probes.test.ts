@@ -27,6 +27,7 @@ describe('registration probes', () => {
 	it('flips from false to true across a plugin kind registration', () => {
 		expect(isBlockKindRegistered('probeKind')).toBe(false);
 		registerBlockKind(declarePluginKind('probeKind'), {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,

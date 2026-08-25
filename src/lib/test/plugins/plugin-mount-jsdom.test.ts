@@ -43,6 +43,7 @@ function markerLeafPlugin(): EditorPlugin {
 		register: () => {
 			const kind = declarePluginKind(KIND);
 			registerBlockKind(kind, {
+				gapEdges: 'none',
 				mergeRole: 'not-mergeable',
 				editable: true,
 				supportsInline: false,

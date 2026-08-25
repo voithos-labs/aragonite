@@ -139,6 +139,7 @@ export function registerFootnoteDefinition(): void {
 	});
 
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

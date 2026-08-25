@@ -10,6 +10,7 @@ describe('plugin-kind node is a first-class CST citizen', () => {
 		const kind = declarePluginKind('nodeCitizenCallout');
 		expect(isBuiltinBlockKind(kind)).toBe(false);
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,

@@ -65,6 +65,7 @@ describe('scanDocument — childless opaque containers', () => {
 		artifact = declarePluginKind('scan-artifact');
 		const container = { contract: 'opaque' as const, rebuildRaw: () => {} };
 		registerBlockKind(diagram, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
@@ -72,6 +73,7 @@ describe('scanDocument — childless opaque containers', () => {
 			container
 		});
 		registerBlockKind(artifact, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,

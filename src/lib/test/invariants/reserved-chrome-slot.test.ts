@@ -11,6 +11,7 @@ import type { AnyBlockKind, CstNode } from '../../core/nodes';
 function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockKind } {
 	const chrome = declarePluginKind('spec-chrome-title');
 	registerBlockKind(chrome, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

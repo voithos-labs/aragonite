@@ -27,6 +27,7 @@ beforeAll(installBlockHostLayoutStubs);
 function recordingKind(name: string, supportsInline: boolean) {
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline,

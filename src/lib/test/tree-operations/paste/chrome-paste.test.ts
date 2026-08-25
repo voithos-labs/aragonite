@@ -24,6 +24,7 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 	const chrome = declarePluginKind('spec-chrome-title');
 	const container = declarePluginKind('spec-chrome-container');
 	registerBlockKind(chrome, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -31,6 +32,7 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 		contextDependentKind: true
 	});
 	registerBlockKind(container, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

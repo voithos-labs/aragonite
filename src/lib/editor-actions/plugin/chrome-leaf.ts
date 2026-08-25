@@ -55,6 +55,7 @@ export function registerChromeLeaf<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
 >(kind: AnyBlockKind, component: Component<P, BlockComponent>, opts: ChromeLeafOptions = {}): void {
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: opts.mergeRole ?? 'not-mergeable',
 		editable: true,
 		supportsInline: false,

@@ -110,6 +110,7 @@ describe('ensureEditableContainers — whole-block-focus kinds stay childless', 
 	function wholeBlockNode(): CstNode {
 		const kind = declarePluginKind('node-ops-whole-block');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,

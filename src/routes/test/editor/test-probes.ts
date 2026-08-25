@@ -313,6 +313,7 @@ export function installTestProbes({
 			const kind = 'orphanTest' as BlockKind;
 			if (!tryGetBlockKindDescriptor(kind)) {
 				registerBlockKind(kind, {
+					gapEdges: 'none',
 					mergeRole: 'not-mergeable',
 					editable: true,
 					supportsInline: false,
@@ -331,6 +332,7 @@ export function installTestProbes({
 			const kind = 'throwTest' as BlockKind;
 			if (!tryGetBlockKindDescriptor(kind)) {
 				registerBlockKind(kind, {
+					gapEdges: 'none',
 					mergeRole: 'not-mergeable',
 					editable: false,
 					supportsInline: false,

@@ -11,6 +11,7 @@ import type { CstNode } from '../../core/nodes';
 function registerChromeKind() {
 	const chrome = declarePluginKind('spec-chrome');
 	registerBlockKind(chrome, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

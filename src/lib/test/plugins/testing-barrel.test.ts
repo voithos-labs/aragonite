@@ -50,6 +50,7 @@ function installProbePlugin(): void {
 	const block = declarePluginKind('probe-block');
 	const inline = declarePluginInlineKind('probe-inline');
 	registerBlockKind(block, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,

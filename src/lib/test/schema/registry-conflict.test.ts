@@ -20,6 +20,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const minimal = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,

@@ -44,6 +44,7 @@ function openFrontMatter(ctx: OpenContext, kind: PluginKind): BlockOpenerResult 
 export function registerDocumentTopKind(): PluginKind {
 	const kind = declarePluginKind('test-front-matter');
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,

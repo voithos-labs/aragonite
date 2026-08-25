@@ -25,6 +25,7 @@ function claimNoteDirective(): void {
 	activateDirectives();
 	const kind = declarePluginKind(PROBE);
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

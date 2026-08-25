@@ -71,6 +71,7 @@ export function registerDirectiveKinds(): void {
 	});
 
 	registerBlockKind(declarePluginKind(DIRECTIVE_LEAF), {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,

@@ -19,6 +19,7 @@ import { collector } from '$lib/test/harness/violation-collector';
 // same seam duties — sibling-path parity with the dispatch read.
 
 const leaf: BlockKindRegistration = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,

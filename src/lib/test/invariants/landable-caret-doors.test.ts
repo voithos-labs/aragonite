@@ -41,6 +41,7 @@ function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string
 		register: () => {
 			const declared = declarePluginKind(kind);
 			registerBlockKind(declared, {
+				gapEdges: 'none',
 				mergeRole: 'not-mergeable',
 				editable: true,
 				supportsInline: false,

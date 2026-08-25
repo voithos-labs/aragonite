@@ -74,6 +74,7 @@ export function devProbePlugin(): EditorPlugin {
 			registerBlockKind(declarePluginKind(DEVPROBE), {
 				mergeRole: 'container',
 				editable: true,
+				gapEdges: 'none',
 				supportsInline: false,
 				container: {
 					contract: 'opaque',

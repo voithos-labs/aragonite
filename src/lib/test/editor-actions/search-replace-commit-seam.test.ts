@@ -58,6 +58,7 @@ describe('a plugin rebuildRaw throw during the subtree rebuild is contained', ()
 		__resetSchemaRegistriesForTests();
 		hostileKind = declarePluginKind('replace-hostile');
 		registerBlockKind(hostileKind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
@@ -124,6 +125,7 @@ describe('the hostile-kind fixture is real', () => {
 		__resetSchemaRegistriesForTests();
 		const kind = declarePluginKind('replace-friendly');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
