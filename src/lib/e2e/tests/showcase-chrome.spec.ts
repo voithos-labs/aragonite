@@ -108,6 +108,17 @@ test.describe('/ showcase chrome', () => {
 		await expect(toolbar).toHaveCount(0);
 	});
 
+	test('the insert strip mints a table once the document holds a caret', async ({ page }) => {
+		const table = page.getByTestId('insert-table');
+		await expect(table).toBeDisabled();
+
+		await page.locator('.block-host [contenteditable]').first().click();
+		await expect(table).toBeEnabled();
+
+		await table.click();
+		await expect(page.locator('.table-block').first()).toBeVisible();
+	});
+
 	test('clicking a toc entry scrolls the editor to that heading', async ({ page }) => {
 		const editor = page.locator('.editor');
 		expect(await editor.evaluate((el) => el.scrollTop)).toBe(0);

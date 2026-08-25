@@ -607,6 +607,8 @@ The repository's `SelectionToolbar` component, mounted by the showcase and the d
 3. **Position with `getRects()`.** `caretRect()` anchors a bar to the insertion point, `blockRect(path)` to the block. Both are viewport-space snapshots; re-read on the next `selectionChange`.
 4. **Read the result on the `edit` channel**, not on the line after the call: the commit lands on the editor's own flush.
 
+The repository's `InsertToolbar` component, the fixed strip the showcase mounts under its header, is this recipe's reference: canonical snippet buttons through the one door, the mousedown cancel, and a no-caret greying read off `selectionChange` — the same decline the door would answer, surfaced before the click.
+
 ## Rewriting a document
 
 Consumers never assemble a mutation ceremony. Edits happen through the component, and every commit surfaces on the `edit` channel. How an edit is applied internally is not part of the consumer contract.

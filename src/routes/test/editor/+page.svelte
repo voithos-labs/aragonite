@@ -5,6 +5,7 @@
 	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
 	import { createPanelState } from '../../debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
+	import InsertToolbar from '../../InsertToolbar.svelte';
 	import SelectionToolbar from '../../SelectionToolbar.svelte';
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
@@ -42,6 +43,10 @@
 	// `?paddedList=on` reproduces the documented host layout that pads the block list itself, so
 	// the visible side gutter reports the LIST as the click target rather than the editor root.
 	const paddedListOn = param('paddedList') === 'on';
+
+	// `?insertToolbar=on` mounts the shared insert strip above the editor. Off by default: a
+	// standing bar shifts the block geometry the rest of the suite measures.
+	const insertToolbarOn = param('insertToolbar') === 'on';
 
 	// `?searchAnchor=on` mounts a fixed pane OUTSIDE `.aragonite-editor-theme` as the find/replace
 	// bar's home. Off by default: it would overlay geometry the rest of the suite measures.
@@ -167,6 +172,9 @@
 		{/each}
 	</header>
 	<div class="demo-body">
+		{#if insertToolbarOn}
+			<InsertToolbar {editor} />
+		{/if}
 		<div class="editor-slot" class:padded-list={paddedListOn}>
 			{#key dragHandlesOn}
 				<Editor

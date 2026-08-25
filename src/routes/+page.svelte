@@ -10,6 +10,7 @@
 	import { SHOWCASE_DOCUMENT } from './showcase-content';
 	import { trackParityDocument } from './parity-documents.svelte';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
+	import InsertToolbar from './InsertToolbar.svelte';
 	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { createPanelState } from './debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from './debug-panel/panel-feed.svelte';
@@ -108,6 +109,7 @@
 		>
 		<a class="showcase-link" href={resolve('/changelog')}>changelog</a>
 	</header>
+	<InsertToolbar {editor} />
 	<div class="showcase-editor">
 		{#key dragHandles}
 			<Editor

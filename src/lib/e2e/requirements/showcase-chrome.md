@@ -27,6 +27,9 @@ and interactions are real clicks and key presses.
   hides the bar (the component's own behavior matrix lives with
   `decorations/selection-toolbar.md`; this scenario also pins the inset flip, which only a
   chrome-bearing host can reach)
+- the shared `InsertToolbar` strip under the header greys until the document holds a caret,
+  then its table button mints a real table through `insertMarkdown` (the component's own
+  behavior matrix lives with `insert-toolbar.md`; this scenario pins the showcase mount)
 - the header's `changelog` link navigates to `/changelog`, landing on that route's own
   chrome rather than a 404 — the guard on `resolve()` under a configured base path
 
