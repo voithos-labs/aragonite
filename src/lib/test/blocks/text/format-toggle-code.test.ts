@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { toggleFormat, whole } from './format-toggle-fixture';
 import { parseInline } from '$lib/core/inline';

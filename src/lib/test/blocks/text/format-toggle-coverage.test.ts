@@ -91,6 +91,20 @@ describe('a selection inside a same-format construct splits it', () => {
 		expect(r?.newDisplay).toBe('**text** text2');
 	});
 
+	// In strong(`x ** y`) the inner `**` is literal content that happens to equal the delimiter
+	// run, and no candidate can close a run against it: the press declines over eating it.
+	// Miss-analysis: the flank arm's byte-equality check was never handed flanking bytes that were
+	// content — every strip case's flanks were a parsed construct's real delimiters.
+	it('declines when the flanking bytes are literal content, not the construct delimiters', () => {
+		const raw = '**x ** y**';
+		const r = toggleInlineFormat(
+			{ display: raw, content: whole(raw), selection: { start: 6, end: 8 } },
+			'strong',
+			'source'
+		);
+		expect(r).toBeNull();
+	});
+
 	// The cut lands inside a different construct nested in the bold, so every candidate strands a
 	// delimiter and changes the screen: no verification, no rewrite.
 	it('declines a cut that would strand another construct’s delimiters', () => {

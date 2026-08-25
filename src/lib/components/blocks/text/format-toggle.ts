@@ -59,8 +59,21 @@ export function toggleInlineFormat(
 	const inlines = parseInline(display, content.start, content.end);
 	if (start === end) return toggleAtCaret(display, inlines, start, format, mark);
 
-	const aligned = alignedStrip(display, inlines, start, end, format);
-	if (aligned) return modeGated([aligned], display, content, mode);
+	const sole = soleStripCandidate(display, start, end, format);
+	if (sole) return modeGated([sole], display, content, mode);
+
+	// The flank strip rewrites bytes OUTSIDE the selection, and byte equality can mistake literal
+	// content for the delimiters, so its candidate verifies like the split's and falls through.
+	const enclosing = enclosingSpanOf(inlines, start, end, format);
+	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) {
+		const flank = firstFlipVerified(
+			[flankStrip(display, start, end, enclosing)],
+			edit,
+			format,
+			'unapply'
+		);
+		if (flank) return flank;
+	}
 
 	const covering = coveringSpanOf(inlines, start, end, format);
 	if (covering)
@@ -85,40 +98,42 @@ export function toggleInlineFormat(
 
 // ── Aligned unapply ──────────────────────────────────────────────────────────
 
-/** The two byte-aligned strips, what the press literally says first. */
-function alignedStrip(
+/** The selection carries its own flanking markers (the user selected `**word**`): exactly one
+ *  span covering the whole slice, so the strip can't orphan markers on `**a** **b**`. It rewrites
+ *  only selected bytes, so it keeps the press's literal reading. */
+function soleStripCandidate(
 	display: string,
-	inlines: readonly InlineNode[],
 	start: number,
 	end: number,
 	format: InlineMarkKind
 ): ToggleInlineFormatResult | null {
 	const slice = display.slice(start, end);
-
-	// The selection carries its own flanking markers (the user selected `**word**`). Exactly one
-	// span covering the whole slice, so the strip can't orphan markers on `**a** **b**`.
 	const selfSpan = soleSpanOf(slice, format);
-	if (selfSpan) {
-		const unwrapped = slice.slice(selfSpan.contentStart, selfSpan.contentEnd);
-		return {
-			newDisplay: display.slice(0, start) + unwrapped + display.slice(end),
-			newSelStart: start,
-			newSelEnd: start + unwrapped.length
-		};
-	}
+	if (!selfSpan) return null;
+	const unwrapped = slice.slice(selfSpan.contentStart, selfSpan.contentEnd);
+	return {
+		newDisplay: display.slice(0, start) + unwrapped + display.slice(end),
+		newSelStart: start,
+		newSelEnd: start + unwrapped.length
+	};
+}
 
-	// Markers outside the selection (`word` inside `*word*`). The construct check is what makes
-	// `**word**` toggled to emphasis nest rather than strip.
-	const enclosing = enclosingSpanOf(inlines, start, end, format);
-	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) {
-		const mLen = markerLengthOf(enclosing);
-		return {
-			newDisplay: display.slice(0, start - mLen) + slice + display.slice(end + mLen),
-			newSelStart: start - mLen,
-			newSelEnd: end - mLen
-		};
-	}
-	return null;
+/** Markers outside the selection (`word` inside `*word*`), stripped at the selection's flanks
+ *  rather than the construct's own run, so a `***word***` stack sheds one layer by run
+ *  arithmetic; the construct check is what makes `**word**` toggled to emphasis nest instead. */
+function flankStrip(
+	display: string,
+	start: number,
+	end: number,
+	span: FormatSpan
+): ToggleInlineFormatResult {
+	const mLen = markerLengthOf(span);
+	return {
+		newDisplay:
+			display.slice(0, start - mLen) + display.slice(start, end) + display.slice(end + mLen),
+		newSelStart: start - mLen,
+		newSelEnd: end - mLen
+	};
 }
 
 // ── Split unapply ────────────────────────────────────────────────────────────
