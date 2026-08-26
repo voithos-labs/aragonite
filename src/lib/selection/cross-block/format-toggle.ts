@@ -7,15 +7,15 @@
 
 import type { BlockComponent } from '../../block-component';
 import type { CommitController } from '../../action-contracts';
-import { trailingLineEnding } from '../../core/lines';
+import { displayLength } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { BlockElLookup, DocumentGetter, PresentationModeGetter } from '../../editor-keys';
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
 import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';
 import { blockNodeAt } from '../../tree-operations/node-ops';
-import { comparePaths } from '../path-math';
-import { charOffsetOf, type SelectionPoint } from '../primitives';
+import { comparePaths, pathHasPrefix } from '../path-math';
+import type { SelectionPoint } from '../primitives';
 import { restoreSelection } from '../selection-restore';
 import type { SelectionState } from '../selection-state.svelte';
 import {
@@ -24,8 +24,6 @@ import {
 	planCrossBlockFormat,
 	type CrossBlockFormatPlan
 } from './format-range';
-
-const TAG = 'cross-block-format-toggle';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -105,7 +103,9 @@ async function toggleFormatOverRange(
 		// Doc scope alone: the writes are bytes, not splices, so no container's children array
 		// or id list moves and each touched spine rebuilds from the leaf it owns.
 		scopes: [deps.controller.getDocScope()],
-		snapshot: { path: docPathFrom(start.path), offset: charOffsetOf(start, TAG) },
+		// The endpoint's own space, like the plan's offsets: undo restores through the clamp that
+		// reads a grid's path as cell indices.
+		snapshot: { path: docPathFrom(start.path), offset: start.offset },
 		mutate: ([docScope]) => {
 			applyCrossBlockFormat({ children: docScope.children }, plan, docScope.sharing, deps.grammar);
 			return [{ op: 'noop' }];
@@ -147,7 +147,10 @@ const withOffset = (point: SelectionPoint, offset: number): SelectionPoint => ({
 	offset
 });
 
-/** The event detail's post-write length, read off the plan: `op` is spent before `mutate` runs. */
+/**
+ * The event detail's post-write length, read off the plan: `op` is spent before `mutate` runs.
+ * A grid start endpoint names the whole grid, whose own bytes move by its cells' deltas.
+ */
 function startBlockLength(
 	doc: ReturnType<DocumentGetter>,
 	start: SelectionPoint,
@@ -155,5 +158,12 @@ function startBlockLength(
 ): number {
 	const raw = blockNodeAt(doc, start.path)?.raw ?? '';
 	const write = plan.writes.find((entry) => comparePaths(entry.path, start.path) === 0);
-	return write ? write.newDisplay.length + trailingLineEnding(raw).length : raw.length;
+	if (write) return write.newDisplay.length + raw.slice(displayLength(raw)).length;
+	return plan.writes
+		.filter((entry) => pathHasPrefix(entry.path, start.path))
+		.reduce(
+			(length, entry) =>
+				length + entry.newDisplay.length - (blockNodeAt(doc, entry.path)?.raw.length ?? 0),
+			raw.length
+		);
 }

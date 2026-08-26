@@ -4,6 +4,7 @@
  * coverage across the WHOLE range — every span covered unapplies, anything else applies — so an
  * apply leaves an already-marked block alone instead of toggling it the other way. Each span goes
  * through the single-block seam, so its arms, candidates and mode verification are the same ones.
+ * A grid joins by its cells, which the range covers whole.
  */
 
 import {
@@ -16,7 +17,7 @@ import {
 	type ToggleInlineFormatResult
 } from '../../core/inline/format-toggle';
 import { getContentRange, type ContentRange } from '../../core/inline';
-import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
@@ -28,6 +29,7 @@ import type { SharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
 import { comparePaths } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
+import { coveredGridCells } from '../table-endpoint-snap';
 
 const TAG = 'cross-block-format';
 
@@ -43,7 +45,8 @@ export interface CrossBlockFormatWrite {
 
 export interface CrossBlockFormatPlan {
 	writes: CrossBlockFormatWrite[];
-	/** The range's own endpoints after the rewrite, in document order. */
+	/** The range's own endpoints after the rewrite, in document order, each in the space its own
+	 *  block addresses: a char offset in prose, a cell index inside a grid. */
 	startOffset: number;
 	endOffset: number;
 }
@@ -63,10 +66,12 @@ export function planCrossBlockFormat(
 	const covered = spans.map((span) => isInlineFormatActive(span.edit, format));
 	const unapply = covered.every(Boolean);
 
+	// Each endpoint's own space, carried rather than read: a span that participates overwrites its
+	// side with a char offset, and one inside a grid never does, so its cell index stands.
 	const plan: CrossBlockFormatPlan = {
 		writes: [],
-		startOffset: charOffsetOf(start, TAG),
-		endOffset: charOffsetOf(end, TAG)
+		startOffset: start.offset,
+		endOffset: end.offset
 	};
 	for (const [index, span] of spans.entries()) {
 		if (covered[index] !== unapply) continue;
@@ -114,7 +119,9 @@ export function applyCrossBlockFormat(
 		const chain = ensureUnsharedPath(root, write.path, sharing);
 		const owned = chain[chain.length - 1];
 		if (!owned) continue;
-		const raw = write.newDisplay + trailingLineEnding(owned.raw);
+		// The node's OWN ending back, not a minted one: a grid cell carries none, and a line
+		// ending reaching its raw would be normalized into a space at the write sink.
+		const raw = write.newDisplay + owned.raw.slice(displayLength(owned.raw));
 		writeOwnRaw(owned, normalizeBodyWrite(chain[chain.length - 2]?.kind, raw), grammar);
 		chains.push(chain);
 	}
@@ -135,8 +142,8 @@ interface RangeSpan {
 /**
  * The anchor block's tail, every middle block's content, the focus block's head — in document
  * order. Participation is the kind's own declaration, never its name: an editable, inline-bearing
- * leaf with a non-blank span joins, and a grid's cells stay out because their endpoints are cell
- * coordinates rather than char offsets.
+ * leaf with a non-blank span joins, and a grid hands over its covered cells, which are leaves of
+ * that same shape.
  */
 function spansInRange(doc: DocumentView, start: SelectionPoint, end: SelectionPoint): RangeSpan[] {
 	const spans: RangeSpan[] = [];
@@ -148,7 +155,11 @@ function spansInRange(doc: DocumentView, start: SelectionPoint, end: SelectionPo
 			if (comparePaths(here, end.path) > 0) return;
 			const child = children[index];
 			if (child.children) {
-				if (tryGetBlockKindDescriptor(child.kind)?.containerContract !== 'grid') visit(child, here);
+				if (tryGetBlockKindDescriptor(child.kind)?.containerContract === 'grid') {
+					spans.push(...gridSpans(child, here, start, end));
+				} else {
+					visit(child, here);
+				}
 				continue;
 			}
 			const span = spanFor(child, here, start, end);
@@ -168,15 +179,63 @@ function spanFor(
 	if (comparePaths(path, start.path) < 0 || comparePaths(path, end.path) > 0) return null;
 	const isStart = comparePaths(path, start.path) === 0;
 	const isEnd = comparePaths(path, end.path) === 0;
+	const body = contentSpan(
+		node,
+		path,
+		isStart ? charOffsetOf(start, TAG) : null,
+		isEnd ? charOffsetOf(end, TAG) : null
+	);
+	return body && { ...body, isStart, isEnd };
+}
+
+/**
+ * A grid's covered cells, each contributing its WHOLE content. An endpoint inside a grid carries
+ * a cell index rather than a char offset, so no cell is ever cut in half and neither is the span
+ * the range's own offset-bearing edge — the plan leaves such an endpoint on its cell.
+ */
+function gridSpans(
+	grid: NodeView,
+	path: number[],
+	start: SelectionPoint,
+	end: SelectionPoint
+): RangeSpan[] {
+	if (comparePaths(path, start.path) < 0) return [];
+	const cells = coveredGridCells(
+		grid,
+		path,
+		comparePaths(path, start.path) === 0 ? start.offset : null,
+		comparePaths(path, end.path) === 0 ? end.offset : null
+	);
+	const spans: RangeSpan[] = [];
+	for (const cell of cells) {
+		const body = contentSpan(cell.node, cell.path, null, null);
+		if (body) spans.push({ ...body, isStart: false, isEnd: false });
+	}
+	return spans;
+}
+
+/**
+ * What one leaf contributes between two char offsets — null on a side meaning the block's own
+ * content edge. Null where the kind declares itself out of inline marking, or where the boundary
+ * trim leaves nothing to mark.
+ */
+function contentSpan(
+	node: NodeView,
+	path: number[],
+	from: number | null,
+	to: number | null
+): Omit<RangeSpan, 'isStart' | 'isEnd'> | null {
 	const descriptor = tryGetBlockKindDescriptor(node.kind);
 	if (!descriptor?.supportsInline || !descriptor.editable || descriptor.isContainer) return null;
 
 	const display = trimTrailingLineEnding(node.raw);
 	const content = getContentRange(node);
-	const from = clampToContent(isStart ? charOffsetOf(start, TAG) : content.start, content);
-	const to = clampToContent(isEnd ? charOffsetOf(end, TAG) : content.end, content);
-	const selection = withoutBoundaryWhitespace(display, from, to);
-	return selection && { path, edit: { display, content, selection }, isStart, isEnd };
+	const selection = withoutBoundaryWhitespace(
+		display,
+		clampToContent(from ?? content.start, content),
+		clampToContent(to ?? content.end, content)
+	);
+	return selection && { path, edit: { display, content, selection } };
 }
 
 /** The span minus its boundary whitespace, null once nothing is left. Markdown opens and closes a

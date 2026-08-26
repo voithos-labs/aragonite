@@ -1,9 +1,9 @@
 /**
- * Whole-row snap for cross-block selections with a table endpoint. Highlight, clipboard copy,
- * and range delete must agree on the same cell set; left partial, copy row-rounds while delete
- * clears columns and a Cut loses cells. Offsets stay INCLUSIVE cell indices, the space
- * SelectionPoint already uses. Only `cellCoordinate` endpoints snap; intra-table selections are
- * deliberately left alone, so rectangular sub-cell selection survives.
+ * The cell-index space a selection endpoint inside a table lives in: the char→cell funnel, the
+ * inverse expansion to a leaf path, the cells a range covers, and the whole-row snap that keeps
+ * highlight, clipboard copy and range delete on one cell set. Offsets are INCLUSIVE cell indices,
+ * the space SelectionPoint already uses; an intra-table pair is deliberately left unsnapped, so
+ * rectangular sub-cell selection survives.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -49,6 +49,49 @@ export function normalizeTableEndpoint(
  */
 export function tableCellCount(node: NodeView): number {
 	return (node.children?.length ?? 0) * metadataOf(node, 'table').columnCount;
+}
+
+/** One cell of a grid, with the doc-absolute path that addresses it. */
+export interface GridCell {
+	node: NodeView;
+	path: number[];
+}
+
+/**
+ * The cells a range covers inside one grid, in document order. `from`/`to` are the range's own
+ * cell indices, null on a side the range runs past. Both inside is the RECTANGLE they span —
+ * what the overlay paints and `range-delete-table` clears. One inside makes it a run to that
+ * cell inclusive, since the range enters or leaves at the grid's own edge.
+ */
+export function coveredGridCells(
+	grid: NodeView,
+	gridPath: number[],
+	from: number | null,
+	to: number | null
+): GridCell[] {
+	const rows = grid.children ?? [];
+	const colCount = metadataOf(grid, 'table').columnCount;
+	if (rows.length === 0 || colCount < 1) return [];
+	const lastIndex = rows.length * colCount - 1;
+	const clamp = (index: number) => Math.min(Math.max(index, 0), lastIndex);
+	const first = cellRowCol(asCellIndex(clamp(Math.min(from ?? 0, to ?? lastIndex))), colCount);
+	const last = cellRowCol(asCellIndex(clamp(Math.max(from ?? 0, to ?? lastIndex))), colCount);
+	const rectangle = from !== null && to !== null;
+
+	const cells: GridCell[] = [];
+	for (let row = first.row; row <= last.row; row++) {
+		const startCol = rectangle ? Math.min(first.col, last.col) : row === first.row ? first.col : 0;
+		const endCol = rectangle
+			? Math.max(first.col, last.col)
+			: row === last.row
+				? last.col
+				: colCount - 1;
+		for (let col = startCol; col <= endCol; col++) {
+			const node = rows[row]?.children?.[col];
+			if (node) cells.push({ node, path: [...gridPath, row, col] });
+		}
+	}
+	return cells;
 }
 
 /**
