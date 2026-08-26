@@ -48,16 +48,23 @@ export function resolveEdgeSeat(
 		policy.edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const content = contentBounds(inlines);
 	const before = shown(raw, content.start, content.end);
-	// The policy's side first, then the run's other end — the split rebalancer's space-outside
-	// reading in the seat's terms, since a byte the run's inner side kills is one its outer side
-	// keeps. The caret's own offset ends the list: reaching it means declining.
-	for (const offset of [offsetForSide(run, side), otherEnd(run, side), caretOffset]) {
-		// The walk's read and Chromium's insertion canonicalize the same way, so `seat === caret`
-		// means native typing already lands where the seat wants it.
-		if (offset === caretOffset) return null;
+	const holds = (offset: number): boolean => {
 		const candidate = raw.slice(0, offset) + typed + raw.slice(offset);
 		const after = shown(candidate, content.start, content.end + typed.length);
-		if (insertsExactly(before, after, typed)) return { offset, kind: run.kind };
+		return insertsExactly(before, after, typed);
+	};
+	// The policy's side first, then the run's other end — the split rebalancer's space-outside
+	// reading in the seat's terms, since a byte the run's inner side kills is one its outer side
+	// keeps. The caret's own offset is the byte-literal write, ranked last and verified like every
+	// other candidate: a parse it rebinds is no reason to stop looking.
+	for (const offset of [offsetForSide(run, side), otherEnd(run, side), caretOffset]) {
+		// The walk's read and Chromium's insertion canonicalize the same way, so a verified
+		// `seat === caret` means native typing already lands where the seat wants it.
+		if (offset === caretOffset) {
+			if (holds(offset)) return null;
+			continue;
+		}
+		if (holds(offset)) return { offset, kind: run.kind };
 	}
 	return null;
 }

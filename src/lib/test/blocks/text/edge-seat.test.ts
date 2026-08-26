@@ -192,3 +192,18 @@ describe('a delimiter run shared between two pairings', () => {
 		expect(seatIn(SHARED, 13, 'outside')).toEqual({ offset: 14, kind: 'emphasis' });
 	});
 });
+
+// #228 miss-analysis: the seat's table held no run enclosing a bare autolink, so no row asked what
+// happens when the caret's own offset is the one the parse rebinds.
+describe('a run enclosing a bare autolink', () => {
+	// GFM's bare-autolink scanner takes a trailing `*` into the URL, so a byte OUTSIDE the closer
+	// orphans the opener. Inside it the URL absorbs the byte and both delimiters stay hidden.
+	it('seats inside the closing delimiter, whatever the arrival', () => {
+		for (const affinity of ['near', 'far', 'outside', null] as const) {
+			expect(seatIn('*www.example.com*', 17, affinity), `${affinity}`).toEqual({
+				offset: 16,
+				kind: 'emphasis'
+			});
+		}
+	});
+});
