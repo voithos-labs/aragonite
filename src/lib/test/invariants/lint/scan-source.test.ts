@@ -116,6 +116,18 @@ describe('literal-aware walking', () => {
 		expect(stripComments("const url = 'https://x'; // trailing")).toBe(
 			"const url = 'https://x';            "
 		);
+
+		// A comment inside a `${…}` interpolation is a comment: interpolations are code.
+		expect(stripComments('const t = `a ${b /* c */} d`;')).toBe(
+			'const t = `a ${b ' + ' '.repeat(7) + '} d`;'
+		);
+	});
+
+	// A `/` after `}` is Svelte markup (`{a}/{b}`), never a regex opening: reading one as a regex
+	// swallows every byte to the next slash — here, the comment that must still blank.
+	it('reads a slash after a closing brace as code, not a regex opening', () => {
+		expect(stripComments('{a}/{b /* c */}</span>')).toBe('{a}/{b ' + ' '.repeat(7) + '}</span>');
+		expect(stripComments('{a} / {b /* c */}')).toBe('{a} / {b ' + ' '.repeat(7) + '}');
 	});
 
 	it('terminates a raw-write statement at the semicolon past a regex literal', () => {

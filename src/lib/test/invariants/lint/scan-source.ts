@@ -50,8 +50,7 @@ export function stripComments(text: string): string {
 			i++;
 			continue;
 		}
-		const source = text.slice(i, span.end);
-		out += span.isComment ? source.replace(/[^\n]/g, ' ') : source;
+		out += strippedSpan(text, i, span);
 		i = span.end;
 	}
 	return out;
@@ -135,15 +134,35 @@ function walkCode(
  * The non-code span starting at `i` — string, template, comment or regex literal — or null
  * where code continues. The one place the lexing rules live.
  */
-function spanAt(code: string, i: number): { end: number; isComment: boolean } | null {
+function spanAt(code: string, i: number): Span | null {
 	const ch = code[i];
-	if (ch === "'" || ch === '"') return { end: skipString(code, i), isComment: false };
-	if (ch === '`') return { end: skipTemplate(code, i), isComment: false };
+	if (ch === "'" || ch === '"') return { end: skipString(code, i), kind: 'literal' };
+	if (ch === '`') return { end: skipTemplate(code, i), kind: 'template' };
 	if (ch !== '/') return null;
-	if (code[i + 1] === '/') return { end: endOfLine(code, i), isComment: true };
-	if (code[i + 1] === '*') return { end: skipBlockComment(code, i), isComment: true };
+	if (code[i + 1] === '/') return { end: endOfLine(code, i), kind: 'comment' };
+	if (code[i + 1] === '*') return { end: skipBlockComment(code, i), kind: 'comment' };
 	const past = opensRegex(code, i) ? skipRegex(code, i) : null;
-	return past === null ? null : { end: past, isComment: false };
+	return past === null ? null : { end: past, kind: 'literal' };
+}
+
+interface Span {
+	end: number;
+	kind: 'comment' | 'template' | 'literal';
+}
+
+/** A span as `stripComments` writes it: a comment blanks, a template keeps its own bytes and
+ *  its `${…}` interpolations stay code. */
+function strippedSpan(text: string, start: number, span: Span): string {
+	const source = text.slice(start, span.end);
+	if (span.kind === 'comment') return source.replace(/[^\n]/g, ' ');
+	if (span.kind !== 'template') return source;
+	let out = '';
+	let at = start;
+	skipTemplate(text, start, (from, to) => {
+		out += text.slice(at, from) + stripComments(text.slice(from, to));
+		at = to;
+	});
+	return out + text.slice(at, span.end);
 }
 
 /** Index just past the string at `i`; an unterminated one ends at its line, as JS requires. */
@@ -159,17 +178,23 @@ function skipString(code: string, i: number): number {
 }
 
 /** Index just past the template literal at `i`; `${…}` interpolations are walked as code. */
-function skipTemplate(code: string, i: number): number {
+function skipTemplate(
+	code: string,
+	i: number,
+	onInterpolation?: (start: number, end: number) => void
+): number {
 	for (let j = i + 1; j < code.length; j++) {
 		const ch = code[j];
 		if (ch === '\\') j++;
 		else if (ch === '`') return j + 1;
 		else if (ch === '$' && code[j + 1] === '{') {
 			let depth = 1;
-			j = walkCode(code, j + 2, (c) => {
+			const close = walkCode(code, j + 2, (c) => {
 				if (c === '{') depth++;
 				else if (c === '}') return --depth === 0;
 			});
+			onInterpolation?.(j + 2, close);
+			j = close;
 		}
 	}
 	return code.length;
@@ -185,7 +210,7 @@ function skipBlockComment(code: string, i: number): number {
 	return end < 0 ? code.length : end + 2;
 }
 
-/** Index just past the regex literal at `i`, or null when it does not close on its line. */
+/** Index just past the regex literal at `i` and its flags, or null if it never closes. */
 function skipRegex(code: string, i: number): number | null {
 	let inClass = false;
 	for (let j = i + 1; j < code.length; j++) {
@@ -194,13 +219,21 @@ function skipRegex(code: string, i: number): number | null {
 		else if (ch === '\n') return null;
 		else if (inClass) inClass = ch !== ']';
 		else if (ch === '[') inClass = true;
-		else if (ch === '/') return j + 1;
+		else if (ch === '/') {
+			let end = j + 1;
+			while (end < code.length && code[end] >= 'a' && code[end] <= 'z') end++;
+			return end;
+		}
 	}
 	return null;
 }
 
-/** Operand position, which is where a `/` opens a regex; after a value it divides. */
-const REGEX_OPERAND_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';']);
+/**
+ * Operand position, which is where a `/` opens a regex; after a value it divides. `}` is not
+ * one: TypeScript's own parser finds no regex preceded by `}` anywhere in the tree, while
+ * Svelte markup (`{a}/{b}`) is full of the shape.
+ */
+const REGEX_OPERAND_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';']);
 
 function opensRegex(code: string, at: number): boolean {
 	let i = at - 1;

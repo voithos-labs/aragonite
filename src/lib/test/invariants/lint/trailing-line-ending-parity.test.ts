@@ -18,8 +18,10 @@ import {
 
 // ── Source extraction ────────────────────────────────────────────────────────
 
-/** From the bracket at `openIdx`, the balanced `(...)`/`{...}` region; strings skipped. Local to
- *  this file for the BRACE case — the shared walker reads call parens only. */
+/** From the bracket at `openIdx`, the balanced `(...)`/`{...}` region; strings skipped, regex
+ *  literals not — so a slice reaches the literal-aware `callArguments` below lexed twice, which
+ *  the content-argument census does not feel today. Local until #225 measures this survivor
+ *  against the shared walk. */
 function balancedRegion(code: string, openIdx: number): string {
 	const open = code[openIdx];
 	const close = open === '(' ? ')' : '}';
