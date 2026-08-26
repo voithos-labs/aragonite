@@ -7,7 +7,6 @@
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 import { createPointerDragSession } from '../../../selection/pointer-session';
-import { endpointAtPoint } from '../../../selection/block-hit-test';
 import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
 
@@ -96,7 +95,7 @@ export function installCellDragListener(
 		if (!near) return;
 		// Shared with the cross-block drag, so a table destination carries cellCoordinate for the
 		// whole-row snap symmetrically with the anchor, and a surfaceless kind is not hit-tested.
-		const focusPoint = endpointAtPoint(near.hit, near.probeX, near.probeY);
+		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);

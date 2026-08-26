@@ -11,10 +11,11 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { parse } from '$lib/core/parser';
 
 const SOURCE = 'first\n\nsecond\n\nthird\n';
+// Ten pixels of gap between the boxes, the shape a y belonging to no band needs.
 const BOXES = [
 	{ left: 0, right: 100, top: 0, bottom: 20 },
-	{ left: 0, right: 100, top: 20, bottom: 40 },
-	{ left: 0, right: 100, top: 40, bottom: 60 }
+	{ left: 0, right: 100, top: 30, bottom: 50 },
+	{ left: 0, right: 100, top: 60, bottom: 80 }
 ];
 // The focus below the anchor snaps to its block's end, so each arm's offset is that block's length.
 const END_OF = { second: 6, third: 5 };
@@ -68,9 +69,9 @@ describe('a drag that ends off every block', () => {
 	});
 
 	it('opens the range from a burst whose last sample is in the margin below', () => {
-		move(10, 30);
-		move(10, 50);
-		move(10, 90);
+		move(10, 40);
+		move(10, 70);
+		move(10, 120);
 		frame.run();
 
 		expect(selection.isCrossBlock).toBe(true);
@@ -80,7 +81,7 @@ describe('a drag that ends off every block', () => {
 	// One move gets the same answer: the burst is what real input coalesces into, not what the
 	// clamp is for. A drag autoscrolling in the margin sends nothing but off-block moves.
 	it('opens the range from a single move into the margin below', () => {
-		move(10, 90);
+		move(10, 120);
 		frame.run();
 
 		expect(selection.isCrossBlock).toBe(true);
@@ -89,16 +90,33 @@ describe('a drag that ends off every block', () => {
 
 	// x off the side, y inside a band: the nearest block is the one the pointer is beside.
 	it('extends to the block beside a point in the gutter', () => {
-		move(-40, 30);
+		move(-40, 40);
 		frame.run();
 
 		expect(selection.focus).toEqual({ path: [1], offset: END_OF.second });
 	});
 
+	// A y between two blocks belongs to the nearer one, and which one that is decides whether the
+	// gesture crosses a boundary at all: the same 6px of travel opens a range or opens nothing.
+	it('crosses into the next block from a gap nearer to it', () => {
+		move(10, 28);
+		frame.run();
+
+		expect(selection.focus).toEqual({ path: [1], offset: END_OF.second });
+	});
+
+	it('stays collapsed in a gap still nearer the anchor block', () => {
+		move(10, 22);
+		frame.run();
+
+		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.focus).toBeNull();
+	});
+
 	// Clamping means an off-block point can now resolve to the ANCHOR block, which is the
 	// collapse branch: the overlay stops painting a range the pointer has left.
 	it('collapses when the off-block point clamps back to the anchor block', () => {
-		move(10, 50);
+		move(10, 70);
 		frame.run();
 		expect(selection.isCrossBlock).toBe(true);
 

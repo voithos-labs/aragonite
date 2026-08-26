@@ -1,12 +1,13 @@
 /**
- * The mounted block nearest a viewport point, and the probe point inside its box. A gesture that
- * must answer EVERY point — the dead-space click, a drag into the margin — resolves an off-block
- * point through here instead of declining it, and hit-tests at the PROBE point, the one a press
- * inside the box would have produced. Only mounted blocks are measured; a caller that must answer
- * for a windowed-out tail reconciles against the CST itself.
+ * The mounted block nearest a viewport point, and the endpoint that point addresses. A gesture
+ * that must answer EVERY point — the dead-space click, a drag into the margin — resolves an
+ * off-block point through here instead of declining it. The probe point never leaves the module:
+ * a caller hit-testing at its own raw point gets no offset at all on a character surface.
+ * Only mounted blocks are measured; a caller answering for a windowed-out tail reconciles itself.
  */
 
-import { blockAtPoint, type BlockHit } from './block-hit-test';
+import { blockAtPoint, endpointAtPoint, type BlockHit } from './block-hit-test';
+import type { SelectionEndpoint } from './primitives';
 import { readBlockPath } from './path-lookup';
 
 // ── Bands ──────────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ export interface MeasuredBlock {
 
 /** Document order, since bands may nest and every walk over them depends on it. */
 export function measureBlocks(root: HTMLElement): MeasuredBlock[] {
-	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) => ({
+	return blockHosts(root).map((el) => ({
 		path: readBlockPath(el),
 		rect: el.getBoundingClientRect()
 	}));
@@ -76,12 +77,10 @@ export function probePointIn(
 	};
 }
 
-export interface NearestBlockHit {
-	hit: BlockHit;
-	/** Where the hit was taken: the caller's own point on a direct hit, the clamp otherwise.
-	 *  Anything resolving an offset inside the block must use these, not the raw point. */
-	probeX: number;
-	probeY: number;
+export interface NearestBlock {
+	path: number[];
+	/** Lazy so a drag whose point falls back on its own anchor block never pays the hit-test. */
+	endpointHere(): SelectionEndpoint | null;
 }
 
 /** The block a point addresses: the one under it, else the nearest one with the point clamped
@@ -90,22 +89,28 @@ export function blockNearPoint(
 	editorRoot: HTMLElement,
 	clientX: number,
 	clientY: number
-): NearestBlockHit | null {
+): NearestBlock | null {
 	const direct = blockAtPoint(editorRoot, clientX, clientY);
-	if (direct) return { hit: direct, probeX: clientX, probeY: clientY };
+	if (direct) return addressedAt(direct, clientX, clientY);
 
-	const blocks = measureBlocks(editorRoot);
-	const band = nearestBand(
-		blocks.map((b) => b.rect),
-		clientY
-	);
+	const rects = blockHosts(editorRoot).map((el) => el.getBoundingClientRect());
+	const band = nearestBand(rects, clientY);
 	if (!band) return null;
-	const probe = probePointIn(blocks[band.index].rect, clientX, clientY, band.belowAll);
+	const probe = probePointIn(rects[band.index], clientX, clientY, band.belowAll);
 	const hit = blockAtPoint(editorRoot, probe.x, probe.y);
-	return hit ? { hit, probeX: probe.x, probeY: probe.y } : null;
+	return hit && addressedAt(hit, probe.x, probe.y);
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+function addressedAt(hit: BlockHit, probeX: number, probeY: number): NearestBlock {
+	return { path: hit.path, endpointHere: () => endpointAtPoint(hit, probeX, probeY) };
+}
+
+/** The one selector for the mounted hosts, so the two walks above cannot drift apart. */
+function blockHosts(root: HTMLElement): HTMLElement[] {
+	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')];
+}
 
 function clamp(value: number, low: number, high: number): number {
 	return Math.min(Math.max(value, low), high);

@@ -11,7 +11,6 @@ import type { BlockElLookup } from '../editor-keys';
 import { applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './path-math';
 import { createPointerDragSession } from './pointer-session';
-import { endpointAtPoint } from './block-hit-test';
 import { blockNearPoint } from './nearest-block';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -40,9 +39,8 @@ export function installDragListener(
 		// autoscrolling drag sends nothing but off-block points.
 		const near = blockNearPoint(ctx.editorRoot, clientX, clientY);
 		if (!near) return;
-		const { hit, probeX, probeY } = near;
 
-		if (comparePaths(hit.path, anchorPoint.path) === 0) {
+		if (comparePaths(near.path, anchorPoint.path) === 0) {
 			if (ctx.selection.isCrossBlock) {
 				// Pointer returned to the anchor block: collapse so the overlay stops painting a
 				// stale remote range. The browser's drag has been extending the native selection
@@ -52,7 +50,7 @@ export function installDragListener(
 			return;
 		}
 
-		const focusPoint = endpointAtPoint(hit, probeX, probeY);
+		const focusPoint = near.endpointHere();
 		if (!focusPoint) return;
 		if (!ctx.selection.isCrossBlock) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
