@@ -2,8 +2,8 @@
  * G4.56 — every walk over an inline tree or its rendered DOM is iterative. Inline nesting depth is
  * input-controlled, so a per-level call frame overflows the stack and strands the block in the
  * fallback it cannot heal: the renderer knew that and four walks one call later did not (#200).
- * Scope is `core/inline/`, `cursor/`, `ambient/`; #226 widens it to `components/blocks/text/`,
- * whose join-seam rebuild is the one shape a pre-order cannot carry and the exception it will get.
+ * Scope is `core/inline/`, `cursor/`, `ambient/` and the live gesture seams under
+ * `components/blocks/text/`, whose join-seam rebuild routes through the same pre-order (#226).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -17,9 +17,16 @@ import {
 } from './scan-source';
 
 /** Library-internal: the rule binds the walks over aragonite's own tree, which no plugin owns. */
-const SCOPE = ['src/lib/core/inline/', 'src/lib/cursor/', 'src/lib/ambient/'];
+const SCOPE = [
+	'src/lib/core/inline/',
+	'src/lib/cursor/',
+	'src/lib/ambient/',
+	'src/lib/components/blocks/text/'
+];
 
-/** A walk that recurses is a stack overflow waiting for a deep enough document; empty by design. */
+/** Keyed by the `path :: name` a hit reads as, so an entry exempts one walk rather than its whole
+ *  file. A walk that recurses is a stack overflow waiting for a deep enough document: empty by
+ *  design, and an entry states one. */
 const EXCEPTIONS: Record<string, string> = {};
 
 const TOUCHES_CHILDREN = /\.(children|childNodes)\b/;
@@ -102,7 +109,7 @@ describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 	it('no walk over children or childNodes recurses', () => {
 		const hits = sources
 			.flatMap((file) => recursiveWalks(file).map((name) => `${file.relPath} :: ${name}`))
-			.filter((hit) => !(hit.split(' :: ')[0] in EXCEPTIONS))
+			.filter((hit) => !(hit in EXCEPTIONS))
 			.sort();
 
 		expect(
