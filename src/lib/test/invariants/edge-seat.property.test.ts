@@ -3,10 +3,10 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
-import { resolveEdgeSeat } from '../../components/blocks/text/edge-seat';
+import { resolveEdgeSeat, seatOffsetsAt } from '../../components/blocks/text/edge-seat';
 import { MARKER_FAMILY_SELECTOR, screenVisibility } from '../../core/inline/visibility';
 import type { EdgeAffinity } from '../../cursor/edge-affinity';
-import { caretPositions, countOnScreen } from '$lib/test/harness/painted-text';
+import { caretPositions, countOnScreen, paintedText } from '$lib/test/harness/painted-text';
 import { arbInlineSource, freshOrFixedSeed } from './arbitraries';
 import '../../schema/built-in-descriptors';
 
@@ -22,7 +22,17 @@ import '../../schema/built-in-descriptors';
 // in and against an unpainted run, which is where a seat has a job. The oracle stays one-sided
 // (delimiters may not INCREASE) because at an unpainted caret the byte appears nowhere at all.
 
+// A delimiter that surfaces is then CLASSIFIED rather than excluded by input shape (#116): `seam`
+// where some offset the seat could have taken keeps the screen, `ambiguous` where none does and
+// the parse rebinds under every answer, which is the byte-literal fallback § 4.4 declares. The
+// vocabulary is the live-gesture fuzzer's, so the two nets bucket the same finding the same way.
+
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(818818) } as const;
+
+/** A ceiling, never a floor, and measured with room for a fresh seed: the lane draws a screen
+ *  position that rebinds under every offset about once in fifteen thousand, so a run over this is
+ *  the seat's REACH having shrunk — a candidate it can no longer see reads as markdown's fault. */
+const AMBIGUOUS_RATE_CEILING = 0.01;
 
 /** Every arrival a seat can be asked about, including the one that says nothing yet. */
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
@@ -72,18 +82,34 @@ function seatCarets(raw: string): number[] {
 }
 
 /** Caret stops the net skips, per offset rather than per fixture (#117): the span of a construct
- *  that paints NOTHING (`[](url)` re-parses away under a byte anywhere in it), and a 3+ asterisk
- *  run ±1 — a run SHARED between a nested pair, so either side rebinds which delimiters pair
- *  with which: the pre-existing seat weakness tracked as #116, not this class. */
+ *  that paints NOTHING, which `[](url)` re-parses away under a byte anywhere in it. */
 function excludedIntervals(display: string): [number, number][] {
 	const intervals: [number, number][] = [];
 	for (const node of parseInline(display, 0, display.length)) {
 		if (display.slice(node.start, node.end).includes('[]')) intervals.push([node.start, node.end]);
 	}
-	for (const match of display.matchAll(/\*{3,}/g)) {
-		intervals.push([match.index - 1, match.index + match[0].length + 1]);
-	}
 	return intervals;
+}
+
+/** Whether `after` is `before` with one `Z` spliced in and nothing else moved — the net's own
+ *  version of the seat's claim, asked of the PAINTER rather than of the `renderedText` reading the
+ *  seat verifies with, since an oracle sharing that check echoes the seam instead of contesting it. */
+function splicesTyped(before: string, after: string): boolean {
+	if (after.length !== before.length + 1) return false;
+	let at = 0;
+	while (at < before.length && before[at] === after[at]) at++;
+	return after[at] === 'Z' && after.slice(at + 1) === before.slice(at);
+}
+
+/** The offset a seat could have taken that keeps the screen, or undefined where the caret's whole
+ *  screen position rebinds — `seam` against `ambiguous`. The reach is the seat's own, so a red
+ *  never names an offset the seat is structurally unable to reach. */
+function rescueOffset(display: string, caret: number): number | undefined {
+	const painted = paintedText(display);
+	return seatOffsetsAt(caret, parseInline(display, 0, display.length), display, LIVE).find(
+		(offset) =>
+			splicesTyped(painted, paintedText(display.slice(0, offset) + 'Z' + display.slice(offset)))
+	);
 }
 
 /** What the seat writes: the byte at the offset it answers, or at the caret when it declines. */
@@ -108,8 +134,9 @@ describe('the typing seat over generated inline fixtures', () => {
 	// Relocating is the rare answer, so a run that never relocated proves nothing about the seat.
 	let relocated = 0;
 	let declined = 0;
+	let ambiguous = 0;
 
-	it('a typed letter never puts a delimiter on screen', () => {
+	it('a typed letter never puts a delimiter on screen the seat could have kept hidden', () => {
 		fc.assert(
 			fc.property(
 				arbInlineSource,
@@ -127,12 +154,16 @@ describe('the typing seat over generated inline fixtures', () => {
 					if (moved) relocated++;
 					else declined++;
 					const now = countOnScreen(after, DELIMITERS);
-					if (now > before) {
-						throw new Error(
-							`${JSON.stringify(display)} @${caret} (${affinity}) → ${JSON.stringify(after)}: ` +
-								`${before} delimiters on screen became ${now}`
-						);
+					if (now <= before) return;
+					const rescue = rescueOffset(display, caret);
+					if (rescue === undefined) {
+						ambiguous++;
+						return;
 					}
+					throw new Error(
+						`${JSON.stringify(display)} @${caret} (${affinity}) → ${JSON.stringify(after)}: ` +
+							`${before} delimiters on screen became ${now}, and a seat at ${rescue} keeps them hidden`
+					);
 				}
 			),
 			PARAMS
@@ -142,5 +173,28 @@ describe('the typing seat over generated inline fixtures', () => {
 	it('both answers occurred', () => {
 		expect(relocated).toBeGreaterThan(0);
 		expect(declined).toBeGreaterThan(0);
+	});
+
+	it('markdown’s own rebinding stays the rare answer', () => {
+		expect(ambiguous / (relocated + declined)).toBeLessThan(AMBIGUOUS_RATE_CEILING);
+	});
+});
+
+// #116's class, classified rather than excluded by input shape. A run SHARED between nested pairs
+// mostly HAS an answer now that the seat reaches the whole screen position rather than one run;
+// where every offset that position names rebinds, the byte-literal write stands (§ 4.4) and the
+// net says which of the two it found instead of skipping the shape.
+describe('a delimiter run shared between nested pairs', () => {
+	// `*www.example.com***a**`: the `***` serves the emphasis closer and the strong opener, and the
+	// bare-autolink scanner takes the `*` that the opener's other offset would have freed.
+	it('reports a screen position that rebinds under every offset as markdown’s own', () => {
+		expect(rescueOffset('*www.example.com***a**', 0)).toBeUndefined();
+	});
+
+	// What the classification may not swallow: a shared run the seat CAN answer is still a claim,
+	// and the answer lies in the neighbouring run rather than in this construct's own.
+	it('still claims a shared run the seat can seat', () => {
+		expect(rescueOffset('**a *b** c*', 0)).toBe(2);
+		expect(typeThroughSeat('**a *b** c*', 0, 'near').after).toBe('**Za *b** c*');
 	});
 });

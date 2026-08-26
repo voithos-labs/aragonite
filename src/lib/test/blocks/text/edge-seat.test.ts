@@ -174,8 +174,8 @@ describe('relocateComposedRun', () => {
 });
 
 // #116's own draw: a run of three or more asterisks is SHARED between a nested pair, so a byte at
-// either end rebinds which delimiters pair with which. The painter is what catches it — the seat
-// has no side that keeps the screen, and declining leaves the byte where the caret already was.
+// either end rebinds which delimiters pair with which. Declining here is no shrug — the caret's
+// own offset is the candidate that verifies, and the run's far end is the one that does not.
 describe('a delimiter run shared between two pairings', () => {
 	const SHARED = '***foo****foo*';
 

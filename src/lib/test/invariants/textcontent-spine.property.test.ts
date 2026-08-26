@@ -67,8 +67,8 @@ describe('G2.4 textContent spine (widget-free)', () => {
 		expect(container.textContent).toBe(source);
 	});
 
-	// Asterisk delimiter nesting is out of the shared lane for the typing seat's sake (`testing.md`
-	// § Property suites); the spine is blind to the rebinding, so the shape is pinned here.
+	// The spine is blind to which pair a shared delimiter run binds to, so the four spellings the
+	// shared lane draws at random get a deterministic floor of their own.
 	it.each(['*a *b* c*', '**a **b** c**', '**a *b** c*', '*a **b* c**'])(
 		'asterisk delimiter nesting renders byte-exact: %s',
 		(source) => {

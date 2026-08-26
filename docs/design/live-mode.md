@@ -38,6 +38,8 @@ A byte typed where a marker run sits is seated by the edge seat (`components/blo
 - Pending marks (§ 4.3) outrank the arrival side: a toggle is the newer instruction about the same bytes.
 - An IME run cannot be intercepted per keystroke, so the composed text is relocated once at commit, against the affinity and marks captured at `compositionstart` (`composition-seat.ts`).
 
+What the seat chooses from is the caret's screen POSITION, not one construct's run: a hidden run's hidden neighbours name the same position, so a byte the construct's own edge would break can still land at the boundary of the run beside it. An offset inside a run's own bytes is inside some construct's delimiters, and is never a seat. The caret's own offset is a candidate like the others, ranked last and verified like the others — where it holds, native typing already writes it and the seat stands down. Where nothing the position names survives the painter, the byte-literal write stands and the delimiters it surfaces paint (§ 4.4); a run of asterisks SHARED between nested pairs is the shape that gets there, its bytes serving both pairs at once.
+
 ### 4.3 Format toggles at a collapsed caret: pending marks
 
 A collapsed-caret toggle in a mode that paints no delimiter cannot write an empty pair (§ 4.1), so it pends the mark instead (`cursor/pending-marks.ts`): the promise is held outside the document and spent by exactly one insertion. Resolution is against the caret's construct chain (`pending-mark-insert.ts`): a kind the chain lacks wraps the insertion, a kind it carries escapes it, by close-and-reopen split or by stepping outside the construct. The marks ride the edge affinity's invalidation (G4.31), so every seam that drops an arrival side drops them, and a mode flip clears them. A composition takes them at its start, ahead of the affinity re-arm that would otherwise drop them mid-window, and hands back what it took if it commits nothing: an IME cancel inserts no run, so the promise is still owed. Table cells fork to the same seat.
@@ -53,6 +55,8 @@ What happens to delimiters an edit cuts through or empties:
 - A side left with no content takes the whole construct rather than a pair enclosing nothing.
 - A destructive key at a hidden run takes the adjacent content character, never an invisible delimiter byte, plus every delimiter the cut leaves enclosing nothing (`autoUnwrapOnEmpty`, `construct-edge-delete.ts`). A press this arm owns but cannot rewrite soundly takes nothing, since the engine's version would paint the markers. Chrome that paints (§ 4.1) is not a hidden run, so the arm declines the block outright rather than reading its own bytes as unseen.
 - A block's own hidden structure gets the same first claim: `contentStartBackspace: 'demote-first'` makes Backspace at a heading's content start give up the `## ` or underline before any merge, the first press a user can aim at markers they cannot see.
+
+The fallback these rules share is § 2's: where no candidate survives the painter, the byte-literal edit is written and the delimiters it surfaces paint, so the reader sees what happened and can undo it. Two shapes reach it — a `plain` construct's split, and a typed byte whose whole screen position rebinds the parse (§ 4.2).
 
 ### 4.5 Joins clean their seam
 

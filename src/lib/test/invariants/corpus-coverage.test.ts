@@ -140,15 +140,20 @@ describe.each(LANES.map((lane) => [lane.name, lane] as const))(
 );
 
 // The byte shapes above say nothing about CONSTRUCTS, and the inline lane is the one whose whole
-// job is their adjacency. Asterisk nesting is absent on purpose: it rebinds under any neighbouring
-// byte, so it belongs in a fixed display corpus (G2.14) rather than a lane the seat net rides.
+// job is their adjacency. Two rows are the typing seat's: an asterisk nest, whose shared run serves
+// both pairs, and a run enclosing a BARE autolink, whose URL scanner swallows the closer beside it.
 describe('arbInlineSource draws the construct adjacencies its properties are about', () => {
 	const draws = fc.sample(arbInlineSource, { numRuns: DRAWS, seed: SEED });
 
 	const CONSTRUCTS: Record<string, [RegExp, number]> = {
 		'a run nested in a run of its own kind': [/(~~?|__?)[^~_]+ \1[^~_]+\1 [^~_]+\1/, 40],
+		'an asterisk run nested in a run of its own kind': [
+			/\*\*?[^*]+ \*\*?[^*]+\*\*? [^*]+\*\*?/,
+			30
+		],
 		'a run whose own space kills its flanking': [/(~~|__|\*\*|~|_|\*) [^~_*]+ \1/, 30],
 		'a run enclosing an autolink': [/[*~_]+[^\s*~_@]+@[^\s*~_@]+/, 20],
+		'a run enclosing a bare autolink': [/[*~_]+www\.[^\s*~_]+[*~_]+/, 20],
 		'a code span holding a delimiter run': [/`[^`]*\*\*[^`]*`/, 10],
 		'an escape against a run': [/\\\*[^\s*]*\*|\*[^\s*]*\\\*/, 5]
 	};
