@@ -38,37 +38,31 @@ describe.each(MODES)('a wrap whose endpoint cuts a construct declines (%s)', (mo
 });
 
 // The markers a wrap mints can merge with a neighbouring run instead of forming their own span:
-// `*em*` wrapped in `**` reparses as one nested stack whose strong sits inside the emphasis, so the
-// restored selection is outside it. A mode that paints the delimiters keeps its literal reading —
-// the reader sees the bytes and can fix them — while a mode that hides them has nothing to show and
-// declines. Miss-analysis: every wrap case selected a bare word, so no marker ever re-paired.
-describe('a wrap whose markers re-pair against a neighbouring run', () => {
-	it('writes the literal bytes where the delimiters paint', () => {
+// `*em*` wrapped in `**` reparses as one nested stack whose strong sits inside the emphasis. Every
+// byte of content still carries the mark, so the merged bytes verify and both modes write them.
+// Miss-analysis: every wrap case selected a bare word, so no marker ever re-paired.
+describe.each(MODES)('a wrap whose markers merge with a neighbouring run (%s)', (mode) => {
+	it('writes the merged stack and reads the mark it wrote', () => {
 		const { wrote, activeAfter } = press({
 			display: '*em* z',
 			start: 0,
 			end: 4,
 			format: 'strong',
-			mode: 'source'
+			mode
 		});
 		expect(wrote).toBe('***em*** z');
-		expect(activeAfter).toBe(false);
+		expect(activeAfter).toBe(true);
 	});
 
-	it('declines where they do not', () => {
-		expect(
-			press({ display: '*em* z', start: 0, end: 4, format: 'strong', mode: 'live' }).wrote
-		).toBeNull();
-	});
-
-	// The selection a marker-hiding mode can actually make is the content, and that one wraps.
+	// The selection a marker-hiding mode can actually make is the content, and that one wraps
+	// without merging: its markers land inside the run rather than against it.
 	it('wraps the content the hidden run holds', () => {
 		const { wrote, selected, activeAfter } = press({
 			display: '*em* z',
 			start: 1,
 			end: 3,
 			format: 'strong',
-			mode: 'live'
+			mode
 		});
 		expect(wrote).toBe('***em*** z');
 		expect(selected).toBe('**em**');

@@ -505,10 +505,11 @@ function coverageFlipped(
 	direction: 'apply' | 'unapply'
 ): boolean {
 	const { newDisplay, newSelStart: from, newSelEnd: to } = candidate;
+	const inlines = parseInline(newDisplay, content.start, content.end);
+	if (direction === 'apply') return coveringSpansOf(inlines, from, to, format).length > 0;
 	const spans: { start: number; end: number }[] = [];
-	for (const node of inlineDescendants(parseInline(newDisplay, content.start, content.end)))
+	for (const node of inlineDescendants(inlines))
 		if (node.kind === format) spans.push({ start: node.start, end: node.end });
-	if (direction === 'apply') return spans.some((span) => span.start <= from && to <= span.end);
 	return spans.every((span) => span.end <= from || to <= span.start);
 }
 
@@ -619,22 +620,58 @@ function enclosingSpanOf(
 	return found;
 }
 
-/** Every construct of this kind whose WHOLE RANGE covers the selection — coverage that reaches
- *  into the delimiters still reads as "already formatted", and where runs of one kind nest,
- *  shedding the inner one leaves the outer covering, so the split tries each in turn. */
+/** Every construct of this kind whose WHOLE RANGE covers the selection, peeled of the delimiters
+ *  the selection takes whole — coverage that reaches into the delimiters still reads as "already
+ *  formatted", and where runs of one kind nest, shedding the inner one leaves the outer covering,
+ *  so the split tries each in turn. */
 function coveringSpansOf(
 	inlines: readonly InlineNode[],
 	start: number,
 	end: number,
 	format: InlineMarkKind
 ): FormatSpan[] {
+	const range = peeledToContent(inlines, start, end);
 	const covering: FormatSpan[] = [];
 	for (const node of inlineDescendants(inlines)) {
 		if (node.kind !== format) continue;
 		const span = spanOf(node);
-		if (span && span.start <= start && end <= span.end) covering.push(span);
+		if (span && span.start <= range.start && range.end <= span.end) covering.push(span);
 	}
 	return covering;
+}
+
+/** The range with the delimiters of every construct it takes WHOLE peeled off: a run nests inside
+ *  another kind's bytes (`***ab***` is emphasis around strong), so a range that takes the outer
+ *  construct whole is asking about the content that construct encloses. */
+function peeledToContent(
+	inlines: readonly InlineNode[],
+	start: number,
+	end: number
+): { start: number; end: number } {
+	let from = start;
+	let to = end;
+	for (;;) {
+		const span = spanExactlyOver(inlines, from, to);
+		if (!span) return { start: from, end: to };
+		from = span.contentStart;
+		to = span.contentEnd;
+	}
+}
+
+function spanExactlyOver(
+	inlines: readonly InlineNode[],
+	start: number,
+	end: number
+): FormatSpan | null {
+	// A toolbar asks the coverage read once per button on every selection change, so the walk skips
+	// the children of every node too small to hold the range.
+	const containing = (node: InlineNode) => node.start <= start && end <= node.end;
+	for (const node of inlineDescendants(inlines, containing)) {
+		if (node.start !== start || node.end !== end) continue;
+		const span = spanOf(node);
+		if (span) return span;
+	}
+	return null;
 }
 
 /**

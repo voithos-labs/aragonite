@@ -20,9 +20,11 @@ import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 /** Shapes the naive reading breaks on: nesting same-kind, cross-kind and interleaved, non-canonical
  *  runs, a literal delimiter, an empty pair, a code span's opaque bytes, escapes at both construct
  *  edges, an entity, a multi-unit scalar and a combining cluster against a delimiter, an autolink
- *  the run encloses, and whitespace at both edges. */
+ *  the run encloses, a line that IS one run, in both spellings, and whitespace at both edges. */
 const CORPUS = [
 	'alpha beta',
+	'*ab*',
+	'_ab_',
 	'**bold** tail',
 	'*em* and **st**',
 	'***both*** x',
