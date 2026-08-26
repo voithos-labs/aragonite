@@ -17,8 +17,8 @@ import {
 import { paintsFocusedMarkers, type PresentationMode } from '$lib/presentation-mode';
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 
-/** Shapes the naive reading breaks on: nesting, non-canonical runs, a literal delimiter, a code
- *  span's opaque bytes, an escape, and whitespace at both edges. */
+/** Shapes the naive reading breaks on: nesting both cross-kind and same-kind, non-canonical runs,
+ *  a literal delimiter, a code span's opaque bytes, an escape, and whitespace at both edges. */
 const CORPUS = [
 	'alpha beta',
 	'**bold** tail',
@@ -35,7 +35,9 @@ const CORPUS = [
 	'  padded  ',
 	'a\\*escaped\\* b',
 	'**a `c` b**',
-	'~~**mix**~~ t'
+	'~~**mix**~~ t',
+	'~~a ~b~ c~~',
+	'**a **b** c**'
 ];
 
 const MODES: (PresentationMode | undefined)[] = ['source', 'live'];
@@ -112,7 +114,7 @@ describe('G2.14 — the pressed-state read and the toggle direction', () => {
 			}
 			expect(violations).toEqual([]);
 			// The sweep proves nothing if every case declined or took the escape.
-			expect(flips).toBeGreaterThan(50);
+			expect(flips).toBeGreaterThan(500);
 		});
 	}
 });

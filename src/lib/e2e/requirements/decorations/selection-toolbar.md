@@ -41,6 +41,12 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - the bold button pressed over a cross-block selection wraps every block the
   range touches, and its `aria-pressed` flips to true once they all carry the
   mark: the pressed read answers from the same coverage the press spends
+- the strike button over a lone delimiter byte of `~~a ~b~ c~~` leaves the
+  bytes and the selection exactly as they were: the bar paints pressed because
+  a run covers the byte, and there is no content inside it to unformat
+- the strike button over the nested `~b~` splits the outer run around it
+  (`~~a~~ b ~~c~~`) and unpresses: shedding only the inner run would leave the
+  selection struck through under a bar that just said it was not
 
 ## Edge cases
 
@@ -52,3 +58,13 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - scroll is v1 non-glue: the bar re-anchors on the next selection change, not
   on scroll (documented, untested — asserting a stale position would pin the
   gap, not the contract)
+
+## Miss-analysis
+
+- Nothing pressed a toggle over a selection of delimiter bytes, so a press that
+  writes the bytes unchanged, collapses the selection onto a caret and charges
+  an undo entry for it had no scenario at any layer (GH #218)
+- Both shapes are source-mode only, which is why they are pinned there alone: a
+  marker-hiding mode's caret stops are the visible ones, so a selection can open
+  at the inner run's opener but its next stop is past the content, never inside
+  a delimiter run

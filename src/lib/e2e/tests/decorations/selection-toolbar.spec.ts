@@ -131,6 +131,35 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toBeDisabled();
 	});
 
+	// Same-kind nesting, where the bar paints pressed for a run the press does not address: over a
+	// bare delimiter byte there is no content to unformat, and over the inner run the outer one goes
+	// on covering whatever the strip leaves.
+	test('the strike button declines over a bare delimiter and splits the outer run over the inner', async ({
+		page
+	}) => {
+		await editor.loadContent('~~a ~b~ c~~\n');
+		const strike = page.locator('[data-testid="toolbar-format.toggleStrikethrough"]');
+
+		await editor.focusBlock(0, 4);
+		await page.keyboard.press('Shift+ArrowRight');
+		await expect(strike).toHaveAttribute('aria-pressed', 'true');
+		await strike.click();
+
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('~~a ~b~ c~~\n');
+		expect(await editor.bridge.getSelectionPaths()).toMatchObject({
+			anchor: { offset: 4 },
+			focus: { offset: 5 }
+		});
+
+		for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(strike).toHaveAttribute('aria-pressed', 'true');
+		await strike.click();
+
+		await editor.bridge.waitForSourceEquals('~~a~~ b ~~c~~\n');
+		await expect(strike).toHaveAttribute('aria-pressed', 'false');
+	});
+
 	test('the bold button over a cross-block selection wraps every block and paints pressed', async ({
 		page
 	}) => {
