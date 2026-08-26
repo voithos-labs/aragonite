@@ -31,7 +31,9 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
   caret the click seated
 - `Mod+K` with a collapsed caret inside a link ENTERS the card — opened with the URL field focused,
   so the trap and Escape's caret restore engage without a mouse; it also enters a card the click
-  already opened, which is the case with no remount to key the focus on
+  already opened, which is the case with no remount to key the focus on. A selection lying wholly
+  inside the link enters the same way, the selection left as it is; the card anchors under the
+  link's own rects either way, never under the range
 - `Mod+K` at a collapsed caret outside every link opens no card and writes nothing (the press is
   still consumed — `live-link-card-chord.md`). Narrowed from "outside every link" when the create
   half shipped (#119): a selection now creates; minting an empty `[](url)` at a bare caret is a
@@ -48,8 +50,11 @@ ordinary one — `Mod+Z`, which restores the construct whole, url intact.
 ## Edge cases
 
 - a drag-select that starts and ends inside a link's text keeps the selection and opens no card:
-  the click fires on the link element, but a live selection is a gesture the card must not
-  interrupt — every entry declines at the state's own guard, the chord included
+  the click fires on the link element, but a live selection is a gesture an unsought card must not
+  interrupt, and the CLICK door declines it at the state's own guard. The chord door does not: a
+  press is asked for, and the entry has already resolved the selection against the construct it
+  opens, so `Mod+K` (or a toolbar button running the id) over a range inside the link enters that
+  link's card — see `live-link-card-create.md` for the fork between editing and creating
 - a blocked-scheme link (`javascript:`) renders as `span.md-link-blocked` with no `href` and still
   opens the card: the card is how its URL gets fixed
 - an autolink opens no card at all — there is no hidden destination to edit

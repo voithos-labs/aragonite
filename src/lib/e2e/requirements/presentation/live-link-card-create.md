@@ -27,7 +27,9 @@ restore, remove-link — is `live-link-card.md`; the consumption contract is `li
   the construct
 - a selection overlapping any other inline construct's bytes declines create — wrapping inside
   `**bold**` or across an existing link is a policy question the card does not answer; no card
-  opens and not a byte moves
+  opens and not a byte moves. One shape is claimed before create is asked, not by it: a range
+  lying WHOLLY inside a card-editable link takes the edit fork and enters that link's card, since
+  create would decline bytes the construct already owns and leave the press inert
 - a selection inside a table cell declines create: cell raw carries pipe escapes, a wrap policy of
   its own; the chord stays consumed
 - a selection SPANNING two blocks declines create: no block hosts the range, and the block-local

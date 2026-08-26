@@ -30,6 +30,9 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - in live mode a selection inside a link paints the link button pressed, and a
   selection in the plain text beside it unpresses: the link editor is not a
   mark, so its state is the construct its card would edit
+- clicking the link button while it paints pressed opens THAT link's card with
+  its URL, field focused: the paint and the press resolve one construct, so a
+  pressed affordance is never inert
 
 ## User interactions
 
@@ -68,6 +71,10 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - The pressed read was a per-command mark-row lookup that returned before any
   read, and no scenario at any layer ever asked a NON-mark command what it
   painted, so the whole id class with no mark row was unasserted
+- The pressed read shipped one commit ahead of the press it paints for: nothing
+  CLICKED a button the state read had just turned on, so the one state the
+  showcase can actually paint (a range inside a link, where the create fork
+  declines the bytes) stayed inert behind a green suite
 - Nothing pressed a toggle over a selection of delimiter bytes, so a press that
   writes the bytes unchanged, collapses the selection onto a caret and charges
   an undo entry for it had no scenario at any layer (GH #218)

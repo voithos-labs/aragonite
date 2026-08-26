@@ -10,7 +10,12 @@ import { enterLinkCardAtCaret } from '$lib/components/link-card/link-card-entry'
 
 function makeState(allowCreate: () => boolean = () => true) {
 	const onOpen = vi.fn();
-	const card = createLinkCardState({ onOpen, canOpen: () => true, canOpenCreate: allowCreate });
+	const card = createLinkCardState({
+		onOpen,
+		canOpen: () => true,
+		canEnter: () => true,
+		canOpenCreate: allowCreate
+	});
 	return { card, onOpen };
 }
 

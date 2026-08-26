@@ -136,6 +136,16 @@ test.describe('selection toolbar', () => {
 		await editor.focusBlockAtPath([0], 0);
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
 		await expect(link).toHaveAttribute('aria-pressed', 'false');
+
+		// What the paint promises: the same range presses through to that link's own card.
+		await editor.focusBlockAtPath([0], 8);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(link).toHaveAttribute('aria-pressed', 'true');
+		await link.click();
+
+		await expect(page.locator('[data-link-card]')).toBeVisible();
+		await expect(page.locator('[data-link-card] input')).toHaveValue('https://x.test');
+		await expect(page.locator('[data-link-card] input')).toBeFocused();
 	});
 
 	// The affordance the split owes a reader: the toggles stay live because they have a

@@ -24,7 +24,8 @@ export interface LinkCardState {
 	/** Anchored beside a live caret; the document keeps focus. The click gesture.
 	 *  False when `canOpen` declined and no card opened. */
 	open(target: LinkTarget): boolean;
-	/** Opened AND focused, so the trap and Escape's caret restore engage. The chord gesture. */
+	/** Opened AND focused, so the trap and Escape's caret restore engage. The chord gesture.
+	 *  False when `canEnter` declined. */
 	enter(target: LinkTarget): boolean;
 	/** Entered over the range a commit would wrap. False when `canOpenCreate` declined. */
 	enterCreate(target: CreateLinkTarget): boolean;
@@ -35,12 +36,15 @@ export interface LinkCardOptions {
 	/** Runs on every entry path before the card takes the screen — the caret snapshot lives here
 	 *  rather than at each caller, so entry path N+1 cannot forget it. */
 	onOpen: () => void;
-	/** Gates every entry the same way, for the same reason: a live selection — native or the
-	 *  editor's cross-block range — is a gesture the card must not interrupt or write over. */
+	/** The CLICK door: a live selection — native or the editor's cross-block range — is a gesture
+	 *  an unasked-for card must not interrupt or write over. */
 	canOpen: () => boolean;
+	/** The CHORD door, looser than the click's by exactly one case: the entry resolves the
+	 *  construct from the selection itself, so a range it admits is the card's own bytes. */
+	canEnter: () => boolean;
 	/** The create door: gates on the very selection `canOpen` forbids, since the range IS the
 	 *  gesture's target. Separate and required so each entry states which gesture it carries;
-	 *  a cross-block range declines at both. */
+	 *  a cross-block range declines at all three. */
 	canOpenCreate: () => boolean;
 }
 
@@ -50,8 +54,8 @@ export function createLinkCardState(options: LinkCardOptions): LinkCardState {
 	let focusEpoch = $state(0);
 	let entries = 0;
 
-	function seat(next: LinkTarget): boolean {
-		if (!options.canOpen()) return false;
+	function seat(next: LinkTarget, admits: () => boolean): boolean {
+		if (!admits()) return false;
 		createTarget = null;
 		target = { path: [...next.path], sourceStart: next.sourceStart };
 		options.onOpen();
@@ -63,12 +67,12 @@ export function createLinkCardState(options: LinkCardOptions): LinkCardState {
 		getCreateTarget: () => createTarget,
 		getFocusEpoch: () => focusEpoch,
 		open: (next) => {
-			if (!seat(next)) return false;
+			if (!seat(next, options.canOpen)) return false;
 			focusEpoch = 0;
 			return true;
 		},
 		enter: (next) => {
-			if (!seat(next)) return false;
+			if (!seat(next, options.canEnter)) return false;
 			focusEpoch = ++entries;
 			return true;
 		},

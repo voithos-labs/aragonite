@@ -144,18 +144,24 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
-	const linkCardQuery = () => ({
-		contentEl: el!,
+	/** The card's query for this surface, the cell's shape: `range` is the live selection at both
+	 *  the chord's arm and the pressed read, since prose owns no wrap policy of its own. */
+	const linkCardQuery = (contentEl: HTMLElement, range: { start: number; end: number } | null) => ({
+		contentEl,
 		block: node,
 		path: myPath,
 		linkRef,
-		card: linkCard,
 		mode: presentationMode,
-		selection: cursor.getRawSelection(),
+		selection: range,
 		crossBlockRange: selection.isCrossBlock
 	});
 	const enterLinkCard = () => {
-		if (el) enterLinkCardAtCaret(linkCardQuery());
+		if (el) {
+			enterLinkCardAtCaret({
+				...linkCardQuery(el, cursor.getRawSelection()),
+				card: linkCard
+			});
+		}
 	};
 	// A constant fallback keeps an empty island set out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
@@ -584,8 +590,9 @@
 	export function isCommandActive(id: CommandId): boolean {
 		const marked = inlineMarkForCommand(id);
 		if (!marked) {
+			// Both surfaces spell the id, as their run arms do: a registry for one command is premature.
 			if (id !== 'link.openCard' || !el) return false;
-			return linkCardTargetAt(linkCardQuery()) !== null;
+			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };

@@ -48,6 +48,13 @@ afterEach(async () => {
 	window.getSelection()?.removeAllRanges();
 });
 
+/** Flip the selection's direction, leaving the same two endpoints: the focus moves to the head. */
+function reverseSelection(): void {
+	const sel = window.getSelection()!;
+	const r = sel.getRangeAt(0);
+	sel.setBaseAndExtent(r.endContainer, r.endOffset, r.startContainer, r.startOffset);
+}
+
 function pressed(source: string, start: number, end = start, mode: PresentationMode = 'live') {
 	mounted = mountText(source, mode);
 	mounted.instance.setSelection(start, end);
@@ -69,6 +76,15 @@ describe('the link editor’s pressed state on a prose surface', () => {
 
 	it('a selection running out of the link paints nothing', () => {
 		expect(pressed(LINKED, 2, 10)).toBe(false);
+	});
+
+	// The construct is resolved at the FOCUS end, so only a backward range puts its far endpoint
+	// past the link: forward, the focus itself lands outside and resolves nothing.
+	it('a backward selection whose anchor left the link is outside it', () => {
+		mounted = mountText(LINKED, 'live');
+		mounted.instance.setSelection(10, 32);
+		reverseSelection();
+		expect(mounted.instance.isCommandActive('link.openCard')).toBe(false);
 	});
 
 	it('a selection spanning two adjacent links is inside neither', () => {

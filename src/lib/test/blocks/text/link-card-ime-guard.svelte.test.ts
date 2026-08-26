@@ -66,6 +66,7 @@ function mountHost() {
 	const card = createLinkCardState({
 		onOpen: () => {},
 		canOpen: () => true,
+		canEnter: () => true,
 		canOpenCreate: () => true
 	});
 	const restore = vi.fn();

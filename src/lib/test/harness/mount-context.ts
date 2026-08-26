@@ -77,6 +77,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		linkCard: createLinkCardState({
 			onOpen: () => {},
 			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false,
+			canEnter: () => !selection.isCrossBlock,
 			canOpenCreate: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed === false
 		}),
 		// The two members a format toggle reaches on a bare mount; the rest keep the cast.

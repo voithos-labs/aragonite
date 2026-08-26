@@ -442,11 +442,13 @@
 	// ── Link card door ──────────────────────────────────────────────────
 
 	// The caret snapshot and the entry guards ride the STATE, not the callers, so entry path N+1
-	// cannot forget them. Both doors decline a cross-block range absolutely: canOpen wants a
-	// collapsed caret, canOpenCreate the live selection the create gesture wraps.
+	// cannot forget them. All three decline a cross-block range absolutely; on a same-block one
+	// they split by gesture: an unasked-for click must not interrupt it, the create gesture wraps
+	// it, and the chord has already resolved it against the construct it opens.
 	const linkCard = createLinkCardState({
 		onOpen: () => linkCardCaret.saveCurrent(),
 		canOpen: () => !selectionState.isCrossBlock && window.getSelection()?.isCollapsed !== false,
+		canEnter: () => !selectionState.isCrossBlock,
 		canOpenCreate: () =>
 			!selectionState.isCrossBlock && window.getSelection()?.isCollapsed === false
 	});
