@@ -29,10 +29,11 @@ import '../../schema/built-in-descriptors';
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(818818) } as const;
 
-/** A ceiling, never a floor, and measured with room for a fresh seed: the lane draws a screen
- *  position that rebinds under every offset about once in fifteen thousand, so a run over this is
- *  the seat's REACH having shrunk — a candidate it can no longer see reads as markdown's fault. */
-const AMBIGUOUS_RATE_CEILING = 0.01;
+/** A ceiling, never a floor, and low enough that a SINGLE ambiguous draw trips it: the fixed lane
+ *  finds none, and a fresh one meets the shape about once in fifteen thousand draws. What it
+ *  catches is the seat's REACH shrinking, since a candidate it can no longer see reads as
+ *  markdown's fault; a fresh-seed fire is a find to look at, which is what that lane is for. */
+const AMBIGUOUS_RATE_CEILING = 0.001;
 
 /** Every arrival a seat can be asked about, including the one that says nothing yet. */
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
@@ -180,13 +181,13 @@ describe('the typing seat over generated inline fixtures', () => {
 	});
 });
 
-// #116's class, classified rather than excluded by input shape. A run SHARED between nested pairs
-// mostly HAS an answer now that the seat reaches the whole screen position rather than one run;
-// where every offset that position names rebinds, the byte-literal write stands (§ 4.4) and the
-// net says which of the two it found instead of skipping the shape.
-describe('a delimiter run shared between nested pairs', () => {
-	// `*www.example.com***a**`: the `***` serves the emphasis closer and the strong opener, and the
-	// bare-autolink scanner takes the `*` that the opener's other offset would have freed.
+// #116's class, classified rather than excluded by input shape. Every shared-asterisk-run spelling
+// the issue named HAS an answer now that the seat reaches the whole screen position rather than one
+// run; where every offset that position names rebinds, the byte-literal write stands (§ 4.4) and
+// the net reports which of the two it found instead of skipping the shape.
+describe('a surfaced delimiter is classified, never excluded', () => {
+	// The residue is not a shared run: this emphasis encloses a BARE autolink, and at its opener the
+	// outside offset kills the emphasis while the inside one kills the URL.
 	it('reports a screen position that rebinds under every offset as markdown’s own', () => {
 		expect(rescueOffset('*www.example.com***a**', 0)).toBeUndefined();
 	});
