@@ -10,7 +10,7 @@ import { withDrawnLineEnding } from './line-endings';
 // The minority arm, and `inline.ts`'s own vocabulary: what these words move is offset
 // ARITHMETIC (a multi-unit scalar under a slice), not the block grammar, so a rate high enough
 // to reach every structural lane is enough and ASCII stays the bulk of the bytes.
-export const nonAsciiWord = fc.constantFrom('汉字', 'ém', '😀', '👩‍👦');
+export const nonAsciiWord = fc.constantFrom('汉字', '\u00e9m', 'e\u0301m', '😀', '👩‍👦');
 
 /**
  * Construct-minting bytes inside prose. A pipe confined to the table arm makes a pipe-bearing

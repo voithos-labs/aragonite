@@ -7,9 +7,10 @@ import { withDrawnLineEnding } from './line-endings';
  * Drawn at a low run count: the point is reaching the scale, not sampling it densely.
  */
 
-/** One line carrying all three multi-unit classes at once. An offset defect at 100KB is still an
- *  offset defect, and it stays inside a mostly-ASCII line so the scale lane keeps its bulk. */
-const NON_ASCII_LINE = '汉字 ém 😀 x';
+/** One line carrying every multi-unit class at once, the combining cluster included. An offset
+ *  defect at 100KB is still an offset defect, and it stays inside a mostly-ASCII line so the scale
+ *  lane keeps its bulk. */
+const NON_ASCII_LINE = '汉字 \u00e9m e\u0301m 😀 x';
 
 /** Roughly the byte budget each drawn document aims for. */
 const TARGET_BYTES = 100_000;

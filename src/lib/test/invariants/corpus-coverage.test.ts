@@ -4,6 +4,7 @@ import {
 	arbBlankSeparatedGfmDoc,
 	arbGfmDoc,
 	arbIndentedGfmDoc,
+	arbInlineSource,
 	arbLargeDoc,
 	arbLiveDoc,
 	arbPluginBlockSource,
@@ -23,13 +24,15 @@ import {
 const DRAWS = 400;
 const SEED = 20260814;
 
-/** Shapes a byte-level defect hides in: multi-unit scalars under a slice, and the two-byte
- *  line ending every offset either counts as one boundary or corrupts. */
+/** Shapes a byte-level defect hides in: multi-unit scalars under a slice, the cluster whose base
+ *  and mark a boundary can land between, and the two-byte line ending every offset either counts as
+ *  one boundary or corrupts. */
 const SHAPES = {
 	'non-ASCII': (source: string) => [...source].some((char) => char.charCodeAt(0) > 0x7f),
 	'accented Latin': (source: string) => /[À-ɏ]/u.test(source),
 	CJK: (source: string) => /[一-鿿]/u.test(source),
 	'an astral pair': (source: string) => /[\u{10000}-\u{10ffff}]/u.test(source),
+	'a combining cluster': (source: string) => /\p{M}/u.test(source),
 	CRLF: (source: string) => source.includes('\r\n'),
 	LF: (source: string) => /(^|[^\r])\n/.test(source)
 };
@@ -56,11 +59,16 @@ const DOC_FLOOR: Record<Shape, number> = {
 	'accented Latin': 20,
 	CJK: 20,
 	'an astral pair': 20,
+	'a combining cluster': 20,
 	CRLF: 100,
 	LF: 100
 };
 
-const NO_LINE = 'an inline-fragment lane draws no line ending at all: its source is one line';
+/** An inline-fragment lane's only line ending is a HARD BREAK, one fragment among many rather than
+ *  a separator every block carries, so its endings floor reads that rate and not a document's. */
+const INLINE_FLOOR: Record<Shape, number> = { ...DOC_FLOOR, CRLF: 10, LF: 10 };
+
+const NO_LINE = 'a rung-token lane draws no line ending at all: every token is one line';
 
 /** The composed plugin lanes draw a built-in arm too, so their non-ASCII and line-ending shapes
  *  can be met without one plugin byte carrying either — the construct-only lanes are what bind. */
@@ -78,11 +86,8 @@ const LANES: Lane[] = [
 		floors: { ...PLUGIN_CONSTRUCT_FLOOR, CRLF: NO_LINE, LF: NO_LINE }
 	},
 	{ name: 'arbPluginGfmDoc', arbitrary: arbPluginGfmDoc, floors: DOC_FLOOR },
-	{
-		name: 'arbPluginInlineSource',
-		arbitrary: arbPluginInlineSource,
-		floors: { ...DOC_FLOOR, CRLF: NO_LINE, LF: NO_LINE }
-	},
+	{ name: 'arbPluginInlineSource', arbitrary: arbPluginInlineSource, floors: INLINE_FLOOR },
+	{ name: 'arbInlineSource', arbitrary: arbInlineSource, floors: INLINE_FLOOR },
 	{
 		name: 'arbLargeDoc',
 		arbitrary: arbLargeDoc,
@@ -93,6 +98,7 @@ const LANES: Lane[] = [
 			'accented Latin': 10,
 			CJK: 10,
 			'an astral pair': 10,
+			'a combining cluster': 10,
 			CRLF: 20,
 			LF: 20
 		}
@@ -132,6 +138,26 @@ describe.each(LANES.map((lane) => [lane.name, lane] as const))(
 		});
 	}
 );
+
+// The byte shapes above say nothing about CONSTRUCTS, and the inline lane is the one whose whole
+// job is their adjacency. Asterisk nesting is absent on purpose: it rebinds under any neighbouring
+// byte, so it belongs in a fixed display corpus (G2.14) rather than a lane the seat net rides.
+describe('arbInlineSource draws the construct adjacencies its properties are about', () => {
+	const draws = fc.sample(arbInlineSource, { numRuns: DRAWS, seed: SEED });
+
+	const CONSTRUCTS: Record<string, [RegExp, number]> = {
+		'a run nested in a run of its own kind': [/(~~?|__?)[^~_]+ \1[^~_]+\1 [^~_]+\1/, 40],
+		'a run whose own space kills its flanking': [/(~~|__|\*\*|~|_|\*) [^~_*]+ \1/, 30],
+		'a run enclosing an autolink': [/[*~_]+[^\s*~_@]+@[^\s*~_@]+/, 20],
+		'a code span holding a delimiter run': [/`[^`]*\*\*[^`]*`/, 10],
+		'an escape against a run': [/\\\*[^\s*]*\*|\*[^\s*]*\\\*/, 5]
+	};
+
+	it.each(Object.entries(CONSTRUCTS))('draws %s', (shape, [pattern, floor]) => {
+		const found = draws.filter((source) => pattern.test(source)).length;
+		expect(found, `drew ${shape} in ${found} of ${DRAWS}`).toBeGreaterThanOrEqual(floor);
+	});
+});
 
 // The garbage lane carries the shape the structured ones cannot: a control character no markdown
 // grammar mentions, which a byte-preserving parser has to hand back untouched anyway.

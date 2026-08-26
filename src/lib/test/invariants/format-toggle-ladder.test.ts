@@ -17,8 +17,10 @@ import {
 import { paintsFocusedMarkers, type PresentationMode } from '$lib/presentation-mode';
 import { listInlineMarks } from '$lib/schema/inline-construct-policy';
 
-/** Shapes the naive reading breaks on: nesting both cross-kind and same-kind, non-canonical runs,
- *  a literal delimiter, a code span's opaque bytes, an escape, and whitespace at both edges. */
+/** Shapes the naive reading breaks on: nesting same-kind, cross-kind and interleaved, non-canonical
+ *  runs, a literal delimiter, an empty pair, a code span's opaque bytes, escapes at both construct
+ *  edges, an entity, a multi-unit scalar and a combining cluster against a delimiter, an autolink
+ *  the run encloses, and whitespace at both edges. */
 const CORPUS = [
 	'alpha beta',
 	'**bold** tail',
@@ -37,7 +39,16 @@ const CORPUS = [
 	'**a `c` b**',
 	'~~**mix**~~ t',
 	'~~a ~b~ c~~',
-	'**a **b** c**'
+	'**a **b** c**',
+	'**a *b** c*',
+	'~~~del~~~ tail',
+	'x **** y z',
+	'\\*a* and *b\\*',
+	'a &amp; b c',
+	'**a&amp;b** tail',
+	'*😀* and x y',
+	'*e\u0301* and x y',
+	'*https://x.y/a* t'
 ];
 
 const MODES: (PresentationMode | undefined)[] = ['source', 'live'];

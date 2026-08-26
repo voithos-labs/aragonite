@@ -20,7 +20,8 @@ const word = fc.constantFrom(
 	'a',
 	'b',
 	'汉字',
-	'ém',
+	'\u00e9m',
+	'e\u0301m',
 	'😀',
 	'👩‍👦'
 );
@@ -30,8 +31,21 @@ const emphasisRun = fc
 	.map(([marker, inner]) => marker + inner + marker);
 
 const codeSpan = fc
-	.tuple(fc.constantFrom('`', '``'), fc.constantFrom('code', 'x = 1', 'a*b', '[x]', ''))
+	.tuple(fc.constantFrom('`', '``'), fc.constantFrom('code', 'x = 1', 'a*b', '**', '[x]', ''))
 	.map(([ticks, inner]) => ticks + inner + ticks);
+
+/**
+ * Nesting the flat `emphasisRun` cannot reach: a run inside a run of the SAME kind. Tilde and
+ * underscore only — an ASTERISK nest rebinds under any neighbouring byte at every run length, which
+ * the typing-seat net reads as its own failure. Those spellings live in the G2.14 display corpus,
+ * which seats nothing.
+ */
+const nestedRun = fc.constantFrom('~~a ~b~ c~~', '_a _b_ c_');
+
+/** Runs that decline, and a construct abutting the delimiters that would have taken them: a space
+ *  inside the run kills its flanking, and an autolink's own bytes are no run's content. The BARE
+ *  autolink is out for the asterisk nest's reason — its URL absorbs the closer. */
+const decliningRun = fc.constantFrom('~~ a ~~', '_ a _', '*foo@bar.com*');
 
 // Generated rather than constant so the code-span×destination and paren/escape classes
 // are reachable: backticks in either side, `)` inside a code span, balanced parens.
@@ -68,6 +82,8 @@ const punctSpacer = fc.constantFrom(' ', '. ', ', ', ' (', ') ', '!', '?', ': ',
 const fragment = fc.oneof(
 	{ arbitrary: word, weight: 5 },
 	{ arbitrary: emphasisRun, weight: 4 },
+	{ arbitrary: nestedRun, weight: 2 },
+	{ arbitrary: decliningRun, weight: 2 },
 	{ arbitrary: codeSpan, weight: 2 },
 	{ arbitrary: inlineLink, weight: 2 },
 	{ arbitrary: referenceLink, weight: 1 },

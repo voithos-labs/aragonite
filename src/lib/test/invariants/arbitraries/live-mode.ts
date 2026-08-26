@@ -9,7 +9,19 @@ import { withDrawnLineEnding } from './line-endings';
 
 // ── Inline fragments ─────────────────────────────────────────────────────────
 
-const word = fc.constantFrom('foo', 'bar', 'x', 'a', 'lorem', '42', '汉字', 'ém', '😀', '👩‍👦');
+const word = fc.constantFrom(
+	'foo',
+	'bar',
+	'x',
+	'a',
+	'lorem',
+	'42',
+	'汉字',
+	'\u00e9m',
+	'e\u0301m',
+	'😀',
+	'👩‍👦'
+);
 
 /** Symmetric pairs, nested one deep: the chain a split closes and reopens innermost-first. */
 const symmetricPair = fc.constantFrom(
