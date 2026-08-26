@@ -917,6 +917,11 @@
 		// Which markers paint just changed, so a side recorded against the old geometry
 		// no longer names the offset the user meant.
 		edgeAffinity.reset();
+		// The same premise one axis over: hidden markers re-wrap prose, so every measured
+		// height is the other mode's. The bump is load-bearing here — a flip moves no id, so
+		// nothing else re-runs a scope's rebuild.
+		heightOracle.dropMeasured();
+		widthVersion++;
 		if (mode === 'reading') {
 			// The gap is an editor-owned caret no DOM blur can reach, so the flip clears it
 			// rather than each arrival path.
@@ -1580,6 +1585,9 @@
 		// The measured-height cache is root-constructed and handed down through context,
 		// so its lifetime against a document swap has no headless seam either.
 		getHeightOracle: () => heightOracle,
+		// The one signal a windowing scope rebuilds off when no id moved, so it is the
+		// oracle for a mode flip having asked for the rebuild it needs.
+		getWidthVersion: () => widthVersion,
 		// Constructs the detached-slot artifact the windowed each-block's cleanup can
 		// leave behind (see `isSlotDetached`); e2e-only.
 		setBlockRefSlot: blockRefSlots.set
