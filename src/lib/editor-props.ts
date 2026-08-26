@@ -103,9 +103,8 @@ export interface EditorInstance {
 	 * `keybindings` rebind cannot rewire a toolbar button. `TOOLBAR_COMMANDS` names the built-in
 	 * ids; a plugin's global name resolves ahead of the focused block, its per-block one stays
 	 * chord-only. Semantics match the chord: one undo entry, same caret — over a cross-block range
-	 * a format toggle marks every block it touches, a table by its covered cells, still one entry.
-	 * False, and nothing mutates, on an unknown id, in reading mode, with nothing focused, and on
-	 * the link editor over a range.
+	 * a format toggle marks every block it touches, a table by its cells. False, and nothing mutates,
+	 * on an unknown id, in reading mode, with nothing focused, and on the link editor over a range.
 	 */
 	runCommand(commandId: string): boolean;
 	/**
