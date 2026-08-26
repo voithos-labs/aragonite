@@ -917,12 +917,8 @@
 		// Which markers paint just changed, so a side recorded against the old geometry
 		// no longer names the offset the user meant.
 		edgeAffinity.reset();
-		// The same premise one axis over: hidden markers re-wrap prose, so every measured
-		// height is the other mode's. Dropped alone, NOT paired with `widthVersion++` the way
-		// the width axes pair it: the flip blurs before this runs, so the rebuild that bump
-		// forces recomputes the window with no caret pin, and the re-seat below then has to
-		// scroll the block back into view — moving the reader (#221). Each block re-measures
-		// on its own mount instead.
+		// Hidden markers re-wrap prose, so every measured height is the other mode's. Not paired
+		// with `widthVersion++`: the flip has blurred, so a rebuild here loses the caret pin.
 		heightOracle.dropMeasured();
 		if (mode === 'reading') {
 			// The gap is an editor-owned caret no DOM blur can reach, so the flip clears it
