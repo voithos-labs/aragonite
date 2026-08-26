@@ -1,5 +1,6 @@
 import { type Page, type Locator } from '@playwright/test';
 import { EditorBridge } from './editor-bridge';
+import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
 import {
 	BLOCK_CONTENT_SELECTOR,
@@ -17,15 +18,18 @@ export const BRIDGE_INSTALL_TIMEOUT = 60_000;
 export class EditorPage {
 	readonly editorContainer: Locator;
 	readonly bridge: EditorBridge;
+	readonly clipboard: ClipboardArm;
 
 	constructor(public page: Page) {
 		this.editorContainer = page.locator('.editor');
 		this.bridge = new EditorBridge(page);
+		this.clipboard = createClipboardArm(page);
 	}
 
 	// ── Navigation ──────────────────────────────────────────────────────
 
 	async goto(query = '') {
+		await this.clipboard.install();
 		await this.page.goto(`/test/editor${query}`);
 		await this.editorContainer.waitFor({ state: 'visible' });
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
@@ -285,15 +289,15 @@ export class EditorPage {
 	// ── Clipboard ───────────────────────────────────────────────────────
 
 	async paste(): Promise<void> {
-		await this.page.keyboard.press('ControlOrMeta+v');
+		await this.clipboard.paste();
 	}
 
 	async seedClipboard(text: string): Promise<void> {
-		await this.page.evaluate((t) => navigator.clipboard.writeText(t), text);
+		await this.clipboard.seed(text);
 	}
 
 	async readClipboard(): Promise<string> {
-		return this.page.evaluate(() => navigator.clipboard.readText());
+		return this.clipboard.read();
 	}
 
 	// ── Drag & Shift+Click ──────────────────────────────────────────────
@@ -486,10 +490,6 @@ export class EditorPage {
 	}
 
 	async waitForClipboardContains(expected: string, timeout = 2000): Promise<void> {
-		await this.page.waitForFunction(
-			async (e) => (await navigator.clipboard.readText()).includes(e),
-			expected,
-			{ timeout, polling: 32 }
-		);
+		await this.clipboard.waitForContains(expected, timeout);
 	}
 }

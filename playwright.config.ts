@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 declare const process: { env: Record<string, string | undefined> };
 const PROD = !!process.env.PERF_PROD;
+const WEBKIT = !!process.env.WEBKIT;
 
 // `stdout: 'pipe'` routes the server's console through the reporters, which is what lets
 // `server-warn-reporter` fail a run on an SSR-side `[aragonite:` guard fire. Stderr already pipes.
@@ -35,6 +36,22 @@ const PROJECT_DIRS = [
 	'search'
 ];
 
+// The second-engine slice, run per release rather than per commit: every file is verified green
+// under the WebKit binary, so the lane opens at zero known-red and any red is a regression.
+const WEBKIT_LANE = [
+	'smoke.spec.ts',
+	'source-prop.spec.ts',
+	'text-editing/edge-cases.spec.ts',
+	'text-editing/forward-delete.spec.ts',
+	'text-editing/enter-at-block-start.spec.ts',
+	'text-editing/enter-at-soft-break.spec.ts',
+	'selection/pointer.spec.ts',
+	'selection/keyboard/collapse.spec.ts',
+	'selection/dead-space-click.spec.ts',
+	'selection/gap-caret-arrival.spec.ts',
+	'webkit/**/*.spec.ts'
+];
+
 export default defineConfig({
 	testDir: './src/lib/e2e/tests',
 	// A hang guard, not a budget: a first navigation onto a heavy route can outrun 30s under
@@ -61,7 +78,8 @@ export default defineConfig({
 				'clipboard/**',
 				'simulation/**',
 				'perf/**',
-				'capture/**'
+				'capture/**',
+				'webkit/**'
 			]
 		},
 		{
@@ -105,6 +123,17 @@ export default defineConfig({
 			testIgnore: 'clipboard/exploration/**/*'
 		},
 		{ name: 'e2e-exploration', testMatch: 'clipboard/exploration/**/*.spec.ts' },
+		...(WEBKIT
+			? [
+					{
+						// WebKit throws on the clipboard permissions at CONTEXT creation, so no spec-level
+						// guard can reach them; the lane's clipboard arm rides a dispatched event instead.
+						name: 'e2e-webkit',
+						testMatch: WEBKIT_LANE,
+						use: { browserName: 'webkit' as const, permissions: [] }
+					}
+				]
+			: []),
 		...(PROD
 			? [
 					{

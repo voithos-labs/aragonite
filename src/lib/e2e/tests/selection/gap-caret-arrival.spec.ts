@@ -32,6 +32,16 @@ test.describe('gap caret arrival', () => {
 	const proxyHoldsFocus = () =>
 		editor.page.evaluate(() => !!document.activeElement?.closest('[data-gap-caret]'));
 
+	/** How many visual lines the fence body sits below its opener is an ENGINE fact, not an
+	 *  editor contract, so the walk is bounded rather than counted. */
+	const pressUpToBoundary = async () => {
+		for (let press = 0; press < 4; press++) {
+			await editor.page.keyboard.press('ArrowUp');
+			if ((await editor.bridge.getGapCaret()) !== null) return;
+		}
+		throw new Error('ArrowUp never reached the gap caret');
+	};
+
 	const focusedBlockPath = () =>
 		editor.page.evaluate(
 			() =>
@@ -72,9 +82,7 @@ test.describe('gap caret arrival', () => {
 		await editor.loadContent(TABLE_THEN_FENCE);
 		await editor.focusBlockAtPath([2], 4);
 
-		// The opener fence is its own visual line, so leaving the body upward takes two.
-		await editor.page.keyboard.press('ArrowUp');
-		await editor.page.keyboard.press('ArrowUp');
+		await pressUpToBoundary();
 		await editor.bridge.waitForGapCaret(AT_BOUNDARY);
 
 		await editor.page.keyboard.press('ArrowUp');
