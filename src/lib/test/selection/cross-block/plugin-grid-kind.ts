@@ -1,10 +1,15 @@
 // A plugin-declared grid: the grid kind, the row kind it holds, and the inline-bearing leaf a row
 // holds — the shape the built-in table has, registered the way a plugin would register it, with no
-// table metadata anywhere. Callers own the registry reset (`__resetSchemaRegistriesForTests`).
+// table metadata anywhere — plus the document and the stored-endpoint plan its suites press
+// against. Callers own the registry reset (`__resetSchemaRegistriesForTests`).
 
-import type { CstNode } from '$lib/core/nodes';
+import { parse } from '$lib/core/parser';
+import type { CstNode, Document } from '$lib/core/nodes';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { planCrossBlockFormat } from '$lib/selection/cross-block/format-range';
+import type { SelectionPoint } from '$lib/selection/primitives';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { testClosure } from '$lib/test/support/closure';
 
 const joinChildren = (node: CstNode, sep: string) =>
@@ -56,5 +61,24 @@ export function gridOf(kinds: PluginGridKinds, rows: string[][]): CstNode {
 		leadingTrivia: '',
 		raw: children.map((row) => row.raw).join('\n') + '\n',
 		children
+	};
+}
+
+/** `head` / the grid / `tail`, so a grid that contributes nothing still has neighbours that do. */
+export function docAround(grid: CstNode): Document {
+	const doc = parse('head\n\ntail\n');
+	doc.children.splice(1, 0, grid);
+	return doc;
+}
+
+/** Plan from the endpoints SelectionState would store, not from a hand-built pair: a plugin
+ *  grid's endpoint passes the table snap untouched, which is what puts a deep path in the plan. */
+export function planStored(doc: Document, anchor: SelectionPoint, focus: SelectionPoint) {
+	const selection = createSelectionState({ getDoc: () => doc });
+	selection.enterCrossBlock(anchor, focus);
+	return {
+		start: selection.start!,
+		end: selection.end!,
+		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', undefined)
 	};
 }

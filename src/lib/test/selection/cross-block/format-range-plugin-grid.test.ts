@@ -8,9 +8,8 @@
 // Miss-analysis: every case fed the arm a parsed table with the grid WHOLLY inside the range, so
 // neither a metadata-free grid nor an endpoint inside one was ever put to it.
 import { afterEach, describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { setPluginMetadata, type CstNode, type Document } from '$lib/core/nodes';
+import { setPluginMetadata } from '$lib/core/nodes';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import {
 	applyCrossBlockFormat,
@@ -18,31 +17,11 @@ import {
 	planCrossBlockFormat
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { gridOf, registerPluginGrid } from './plugin-grid-kind';
+import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
-
-/** `head` / the grid / `tail`, so a grid that contributes nothing still has neighbours that do. */
-function docAround(grid: CstNode): Document {
-	const doc = parse('head\n\ntail\n');
-	doc.children.splice(1, 0, grid);
-	return doc;
-}
-
-/** Plan from the endpoints SelectionState would store, not from a hand-built pair: a plugin
- *  grid's endpoint passes the table snap untouched, which is what puts a deep path in the plan. */
-function planStored(doc: Document, anchor: SelectionPoint, focus: SelectionPoint) {
-	const selection = createSelectionState({ getDoc: () => doc });
-	selection.enterCrossBlock(anchor, focus);
-	return {
-		start: selection.start!,
-		end: selection.end!,
-		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', undefined)
-	};
-}
 
 describe('a grid whose kind carries no table metadata', () => {
 	it('contributes its cells instead of throwing out of the plan', () => {

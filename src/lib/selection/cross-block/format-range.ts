@@ -46,7 +46,8 @@ export interface CrossBlockFormatWrite {
 export interface CrossBlockFormatPlan {
 	writes: CrossBlockFormatWrite[];
 	/** The range's own endpoints after the rewrite, in document order, each in the space its own
-	 *  block addresses: a char offset in prose, a cell index inside a grid. */
+	 *  endpoint addresses: a char offset in prose and in the grid cell a deep path names, a cell
+	 *  index where the endpoint counts cells. */
 	startOffset: number;
 	endOffset: number;
 }
@@ -66,8 +67,8 @@ export function planCrossBlockFormat(
 	const covered = spans.map((span) => isInlineFormatActive(span.edit, format));
 	const unapply = covered.every(Boolean);
 
-	// Each endpoint's own space, carried rather than read: a span that participates overwrites its
-	// side with a char offset, and one inside a grid never does, so its cell index stands.
+	// Each endpoint's own space, carried rather than read: a participating span overwrites its side
+	// with a char offset, and an endpoint counting cells owns no span, so its index stands.
 	const plan: CrossBlockFormatPlan = {
 		writes: [],
 		startOffset: start.offset,
@@ -189,8 +190,8 @@ function spanFor(
 
 /**
  * A grid's covered cells, each contributing its WHOLE content. An endpoint inside a grid resolves
- * to one of its cells, so no cell is ever cut in half and neither is the span the range's own
- * offset-bearing edge — the plan leaves such an endpoint where it stands.
+ * to one of its cells, so no cell is ever cut in half: an endpoint counting cells stays on the one
+ * it named, while one naming its cell by path follows that cell's own write.
  */
 function gridSpans(
 	grid: NodeView,
@@ -205,9 +206,21 @@ function gridSpans(
 	const spans: RangeSpan[] = [];
 	for (const cell of cells) {
 		const body = contentSpan(cell.node, cell.path, null, null);
-		if (body) spans.push({ ...body, isStart: false, isEnd: false });
+		if (body)
+			spans.push({
+				...body,
+				isStart: addressesCell(start, path, cell.path),
+				isEnd: addressesCell(end, path, cell.path)
+			});
 	}
 	return spans;
+}
+
+/** Whether the endpoint's offset is a CHAR offset into this cell: only the deep `[grid, row, col]`
+ *  path G1.29 permits carries one, so a table's cell index keeps its own space while a plugin
+ *  grid's edge follows its cell's rewrite, as a prose edge follows its block's. */
+function addressesCell(point: SelectionPoint, gridPath: number[], cellPath: number[]): boolean {
+	return point.path.length > gridPath.length && comparePaths(point.path, cellPath) === 0;
 }
 
 /**
