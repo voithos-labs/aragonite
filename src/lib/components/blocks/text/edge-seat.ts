@@ -37,7 +37,8 @@ export function resolveEdgeSeat(
 	screen: VisibilityContext,
 	typed: string
 ): EdgeSeat | null {
-	const run = markerRunAt(caretOffset, inlines, raw, screen);
+	const runs = markerRuns(inlines, raw, screen);
+	const run = runAt(caretOffset, runs);
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
@@ -53,11 +54,7 @@ export function resolveEdgeSeat(
 		const after = shown(candidate, content.start, content.end + typed.length);
 		return insertsExactly(before, after, typed);
 	};
-	// The policy's side first, then the run's other end — the split rebalancer's space-outside
-	// reading in the seat's terms, since a byte the run's inner side kills is one its outer side
-	// keeps. The caret's own offset is the byte-literal write, ranked last and verified like every
-	// other candidate: a parse it rebinds is no reason to stop looking.
-	for (const offset of [offsetForSide(run, side), otherEnd(run, side), caretOffset]) {
+	for (const offset of candidateOffsets(run, side, caretOffset, runs)) {
 		// The walk's read and Chromium's insertion canonicalize the same way, so a verified
 		// `seat === caret` means native typing already lands where the seat wants it.
 		if (offset === caretOffset) {
@@ -102,6 +99,23 @@ export function plainInsertionAt(before: string, after: string, at: number): str
 	return after.slice(at, at + length);
 }
 
+/**
+ * Every raw offset the caret's screen position names — the seat's whole reach, and empty where no
+ * marker run touches the caret. A hidden run's hidden neighbours name the same position, so the
+ * stretch of abutting runs is one position and each boundary in it is a seat; an offset inside a
+ * run's own bytes is inside some construct's delimiters, which is where no byte belongs.
+ */
+export function seatOffsetsAt(
+	caretOffset: number,
+	inlines: readonly InlineNode[],
+	raw: string,
+	screen: VisibilityContext
+): readonly number[] {
+	const runs = markerRuns(inlines, raw, screen);
+	const run = runAt(caretOffset, runs);
+	return run ? screenPositionOffsets(run, runs) : [];
+}
+
 // ── Internal ─────────────────────────────────────────────────────────────────
 
 interface MarkerRun {
@@ -121,6 +135,53 @@ function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
 const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
 	offsetForSide(run, side) === run.start ? run.end : run.start;
 
+/**
+ * The offsets to try, best first: the policy's side, then the run's other end — the split
+ * rebalancer's space-outside reading in the seat's terms, since a byte the run's inner side kills
+ * is one its outer side keeps. Then the byte-literal write, verified like any other candidate: a
+ * parse it rebinds is no reason to stop looking. The rest of the screen position ends the list,
+ * nearest the policy's side first, for the caret whose own construct has no answer to give.
+ */
+function candidateOffsets(
+	run: MarkerRun,
+	side: EdgeAffinity,
+	caretOffset: number,
+	runs: readonly MarkerRun[]
+): number[] {
+	const preferred = offsetForSide(run, side);
+	const ranked = [preferred, otherEnd(run, side), caretOffset];
+	const rest = screenPositionOffsets(run, runs)
+		.filter((offset) => !ranked.includes(offset))
+		.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred));
+	return [...new Set([...ranked, ...rest])];
+}
+
+/** The stretch of abutting runs `run` belongs to, as the boundary offsets inside it. */
+function screenPositionOffsets(run: MarkerRun, runs: readonly MarkerRun[]): number[] {
+	let lo = run.start;
+	let hi = run.end;
+	for (let grew = true; grew;) {
+		grew = false;
+		for (const other of runs) {
+			if (other.start > hi || other.end < lo) continue;
+			if (other.start < lo) {
+				lo = other.start;
+				grew = true;
+			}
+			if (other.end > hi) {
+				hi = other.end;
+				grew = true;
+			}
+		}
+	}
+	const bounds = new Set([lo, hi]);
+	for (const other of runs) {
+		if (other.start >= lo && other.start <= hi) bounds.add(other.start);
+		if (other.end >= lo && other.end <= hi) bounds.add(other.end);
+	}
+	return [...bounds];
+}
+
 /** The bytes the inline tree covers — the block's content range, read off the tree rather than
  *  taken as a second parameter that could disagree with it. */
 function contentBounds(inlines: readonly InlineNode[]): ContentRange {
@@ -132,29 +193,36 @@ function contentBounds(inlines: readonly InlineNode[]): ContentRange {
 const shown = (raw: string, start: number, end: number): string =>
 	renderedText(parseInline(raw, start, end), raw, CONTENT_VISIBILITY);
 
-/**
- * The construct marker run `offset` sits in, its own boundaries included — the LAST in pre-order,
- * so the innermost construct at a shared boundary wins. INSIDE counts, not just the two ends: a
- * doubled code fence is a run a caret can be handed the middle of.
- */
-function markerRunAt(
-	offset: number,
+/** Every construct marker run, in pre-order. */
+function markerRuns(
 	inlines: readonly InlineNode[],
 	raw: string,
 	screen: VisibilityContext
-): MarkerRun | null {
-	let found: MarkerRun | null = null;
+): MarkerRun[] {
+	const runs: MarkerRun[] = [];
 	for (const node of inlineDescendants(inlines)) {
 		const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
 		if (!content) continue;
-		if (node.start < content.start && offset >= node.start && offset <= content.start) {
-			found = { start: node.start, end: content.start, leading: true, kind: node.kind };
-		} else if (content.end < node.end && offset >= content.end && offset <= node.end) {
-			found = { start: content.end, end: node.end, leading: false, kind: node.kind };
+		if (node.start < content.start) {
+			runs.push({ start: node.start, end: content.start, leading: true, kind: node.kind });
+		}
+		if (content.end < node.end) {
+			runs.push({ start: content.end, end: node.end, leading: false, kind: node.kind });
 		}
 	}
-	return found;
+	return runs;
 }
+
+/**
+ * The run `offset` sits in, its own boundaries included — the LAST in pre-order, so the innermost
+ * construct at a shared boundary wins. INSIDE counts, not just the two ends: a doubled code fence
+ * is a run a caret can be handed the middle of.
+ */
+const runAt = (offset: number, runs: readonly MarkerRun[]): MarkerRun | null =>
+	runs.reduce<MarkerRun | null>(
+		(found, run) => (offset >= run.start && offset <= run.end ? run : found),
+		null
+	);
 
 /**
  * What a CHILDLESS construct paints, as a range in the block's own bytes: the outer bounds of its

@@ -207,3 +207,18 @@ describe('a run enclosing a bare autolink', () => {
 		}
 	});
 });
+
+// #229 miss-analysis: every escape fixture in this table stood beside plain text, where the
+// construct's own outside edge always verifies, so no row needed a second construct's run.
+describe('abutting marker runs are one screen position', () => {
+	// `_foo_\*x`: the emphasis closer [4,5) and the escape's backslash [5,6) abut, so 4, 5 and 6
+	// are one screen position. 5 kills the underscore pair, 6 kills the escape, 4 keeps both.
+	it('reaches a neighbour’s run when the construct’s own outside edge is poisoned', () => {
+		for (const affinity of ['near', 'far', 'outside', null] as const) {
+			expect(seatIn('_foo_\\*x', 6, affinity), `${affinity}`).toEqual({
+				offset: 4,
+				kind: 'escape'
+			});
+		}
+	});
+});
