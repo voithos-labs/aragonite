@@ -90,3 +90,17 @@ describe('G2.5 pinned counterexamples', () => {
 		});
 	}
 });
+
+// Asterisk delimiter nesting is out of the shared lane because it rebinds under any neighbouring
+// byte, which the typing-seat net reads as its own failure (`testing.md` § Property suites). The
+// partition is blind to that rebinding, so the shape is pinned rather than lost with the lane.
+describe('G2.5 asterisk delimiter nesting', () => {
+	const cases = ['*a *b* c*', '**a **b** c**', '**a *b** c*', '*a **b* c**'];
+
+	for (const source of cases) {
+		it(`partitions ${JSON.stringify(source)}`, () => {
+			const nodes = parseInline(source, 0, source.length);
+			assertPartition(nodes, 0, source.length);
+		});
+	}
+});

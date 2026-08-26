@@ -66,6 +66,16 @@ describe('G2.4 textContent spine (widget-free)', () => {
 		const container = renderToContainer(nodes, source);
 		expect(container.textContent).toBe(source);
 	});
+
+	// Asterisk delimiter nesting is out of the shared lane for the typing seat's sake (`testing.md`
+	// § Property suites); the spine is blind to the rebinding, so the shape is pinned here.
+	it.each(['*a *b* c*', '**a **b** c**', '**a *b** c*', '*a **b* c**'])(
+		'asterisk delimiter nesting renders byte-exact: %s',
+		(source) => {
+			const nodes = parseInline(source, 0, source.length);
+			expect(renderToContainer(nodes, source).textContent).toBe(source);
+		}
+	);
 });
 
 // Atomic widgets contribute 0 textContent — their bytes live in data-source-* attributes
