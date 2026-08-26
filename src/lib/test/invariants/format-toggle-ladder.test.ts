@@ -2,9 +2,9 @@
 //
 // G2.14 — over a RANGE, the pressed-state read and the toggle's direction decide by the same
 // guards: an active range unapplies. One arm sits outside, in one mode: where the delimiters PAINT,
-// a bare wrap writes its literal bytes unverified, on screen for the reader to see and fix
-// (live-mode.md § 4.3). Miss-analysis: the equivalence was load-bearing for the cross-block
-// direction and lived only in prose, so a fourth arm on one side and not the other would misroute
+// a bare wrap writes its literal bytes unverified (live-mode.md § 4.3). A DECLINE is excused, so a
+// new corpus line reds nothing on its own: a shape that should WRITE needs a unit pin. Miss-analysis:
+// the equivalence lived only in prose, so a fourth arm on one side and not the other would misroute
 // writes in silence.
 import { describe, it, expect } from 'vitest';
 import {

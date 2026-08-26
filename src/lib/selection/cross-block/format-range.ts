@@ -209,18 +209,19 @@ function gridSpans(
 		if (body)
 			spans.push({
 				...body,
-				isStart: addressesCell(start, path, cell.path),
-				isEnd: addressesCell(end, path, cell.path)
+				isStart: addressesCell(start, cell.path),
+				isEnd: addressesCell(end, cell.path)
 			});
 	}
 	return spans;
 }
 
-/** Whether the endpoint's offset is a CHAR offset into this cell: only the deep `[grid, row, col]`
- *  path G1.29 permits carries one, so a table's cell index keeps its own space while a plugin
- *  grid's edge follows its cell's rewrite, as a prose edge follows its block's. */
-function addressesCell(point: SelectionPoint, gridPath: number[], cellPath: number[]): boolean {
-	return point.path.length > gridPath.length && comparePaths(point.path, cellPath) === 0;
+/** Whether the endpoint names this cell BY PATH, which is the same question as whether its offset
+ *  is a CHAR offset: only the deep `[grid, row, col]` endpoint G1.29 permits can match a cell path,
+ *  so a table's cell index keeps its own space while a plugin grid's edge follows its cell's
+ *  rewrite, as a prose edge follows its block's. */
+function addressesCell(point: SelectionPoint, cellPath: number[]): boolean {
+	return comparePaths(point.path, cellPath) === 0;
 }
 
 /**

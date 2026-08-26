@@ -5,19 +5,19 @@ import { CONTENT_VISIBILITY, renderedText } from '$lib/core/inline/visibility';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { press } from './format-toggle-fixture';
 
-// A selection taking another kind's run WHOLE: the markers it mints merge with that run's, and the
-// parse hands the outer layer to whichever kind the merged bytes open first — `*ab*` wrapped in
-// `**` re-reads as emphasis around strong, so the mark landed on every byte of content while no
-// span of it starts at the selection's own edge. Miss-analysis: the read was only ever asked about
-// selections whose flanks were content or its own delimiters, so the one shape where a foreign
-// run's delimiters sit at both edges answered false and the press wrote bytes it then disowned.
+// A selection taking another CONSTRUCT whole, so no span of the pressed mark starts at its own
+// edge: the markers a wrap mints merge with a same-family run (`*ab*` in `**` re-reads as emphasis
+// around strong), and a link's own delimiters sit at both edges of the text they enclose. Either
+// way the press is about the content those delimiters hold. Miss-analysis: the read was only ever
+// asked about selections whose flanks were content or its own delimiters, so every shape where a
+// foreign construct's bytes sat at both edges answered false and the press disowned what it wrote.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 
 const screenOf = (display: string) =>
 	renderedText(parseInline(display, 0, display.length), display, CONTENT_VISIBILITY);
 
-describe.each(MODES)('a selection taking another kind’s run whole (%s)', (mode) => {
+describe.each(MODES)('a selection taking another construct whole (%s)', (mode) => {
 	// The `_ab_` row is the contrast: the same shape spelled so the runs cannot merge, which the
 	// seam always answered, against the `*ab*` row where they do.
 	it.each([
@@ -49,6 +49,24 @@ describe.each(MODES)('a selection taking another kind’s run whole (%s)', (mode
 		expect(active).toBe(true);
 		expect(wrote).toBe('*ab*');
 		expect(selected).toBe('ab');
+		expect(activeAfter).toBe(false);
+		expect(screenOf(wrote!)).toBe(screenOf(display));
+	});
+
+	// A construct carrying no mark of its own: the link's delimiters flank its text and the run
+	// inside covers all of it, so the press sheds that run rather than adding a layer around one.
+	it('sheds the mark held by a link the selection takes whole', () => {
+		const display = '[**a**](u)';
+		const { active, wrote, selected, activeAfter } = press({
+			display,
+			start: 0,
+			end: display.length,
+			format: 'strong',
+			mode
+		});
+		expect(active).toBe(true);
+		expect(wrote).toBe('[a](u)');
+		expect(selected).toBe('a');
 		expect(activeAfter).toBe(false);
 		expect(screenOf(wrote!)).toBe(screenOf(display));
 	});

@@ -48,4 +48,12 @@ describe.each(MODES)('a middle block whose content is one run of another kind (%
 			'head\n\n*ab*\n\ntail\n'
 		);
 	});
+
+	// A construct carrying no mark of its own reaches the vote the same way, and got it wrong the
+	// other direction: the block the range called unmarked was the one the press marked AGAIN.
+	it('counts a link whose whole text is marked, so the range unapplies rather than doubling it', () => {
+		expect(toggle('**head**\n\n[**a**](u)\n\n**tail**\n', at([0], 0), at([2], 8), mode)).toBe(
+			'head\n\n[a](u)\n\ntail\n'
+		);
+	});
 });
