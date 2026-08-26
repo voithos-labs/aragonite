@@ -7,7 +7,8 @@
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 import { createPointerDragSession } from '../../../selection/pointer-session';
-import { blockAtPoint, endpointAtPoint } from '../../../selection/block-hit-test';
+import { endpointAtPoint } from '../../../selection/block-hit-test';
+import { blockNearPoint } from '../../../selection/nearest-block';
 import { firstScrollableDescendant } from '../../../cursor/scroll-ancestors';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -89,11 +90,13 @@ export function installCellDragListener(
 	}
 
 	function extendToForeignBlock(clientX: number, clientY: number): void {
-		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
-		if (!hit) return;
+		// Nearest, not under: one coalesced frame can hand over a point off every block (the
+		// margin, a gutter), and declining it would drop the whole gesture.
+		const near = blockNearPoint(ctx.editorRoot, clientX, clientY);
+		if (!near) return;
 		// Shared with the cross-block drag, so a table destination carries cellCoordinate for the
 		// whole-row snap symmetrically with the anchor, and a surfaceless kind is not hit-tested.
-		const focusPoint = endpointAtPoint(hit, clientX, clientY);
+		const focusPoint = endpointAtPoint(near.hit, near.probeX, near.probeY);
 		if (!focusPoint) return;
 		if (!ctx.selection.isCustomRendered) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);

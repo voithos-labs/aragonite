@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// Which door the dead-space click lands through. The band arithmetic is dead-space-band.test.ts
+// Which door the dead-space click lands through. The band arithmetic is nearest-block.test.ts
 // and the geometry is blocks/table/table-caret-at-point.test.ts; untested between them is the
 // routing decision, and whether the range-ending door opens only once a landing is known.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';

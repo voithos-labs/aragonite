@@ -410,7 +410,7 @@ Two endpoints, anchor and focus, each a `path` (child indices from the document 
 
 The state is lazy: its fields are null in single-block mode and become non-null only when the selection crosses a boundary. A normalized `start`/`end` pair in document order is derived from anchor/focus.
 
-**Entering it:** a pointer drag that crosses out of the starting block (rAF-throttled, autoscrolling at viewport edges); Shift+Arrow past a block edge; Ctrl+Shift+Home/End to a document boundary; Shift+click into another block; a second Ctrl+A (the first selects within the focused block, natively).
+**Entering it:** a pointer drag that crosses out of the starting block (rAF-throttled, autoscrolling at viewport edges; a point off every block resolves to the nearest one, so a drag into the margin extends rather than stalls); Shift+Arrow past a block edge; Ctrl+Shift+Home/End to a document boundary; Shift+click into another block; a second Ctrl+A (the first selects within the focused block, natively).
 
 **Rendering it:** every `BlockHost` mounts a `SelectionOverlay`, which classifies its own block as start / end / middle / outside and paints accordingly. Endpoint blocks measure partial rects; middle and non-text blocks get a full-block overlay. When a block scrolls internally (a wide table, a long-line code block), the overlay attaches a passive scroll listener and re-measures, so highlights track the content underneath. `cursor/scroll-ancestors.ts` is the single source of truth for what scrolls.
 

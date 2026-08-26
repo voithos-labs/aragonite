@@ -11,7 +11,8 @@ import type { BlockElLookup } from '../editor-keys';
 import { applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './path-math';
 import { createPointerDragSession } from './pointer-session';
-import { blockAtPoint, endpointAtPoint } from './block-hit-test';
+import { endpointAtPoint } from './block-hit-test';
+import { blockNearPoint } from './nearest-block';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,8 +35,12 @@ export function installDragListener(
 	down: PointerEvent
 ): { dispose(): void } {
 	function processMove(clientX: number, clientY: number): void {
-		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
-		if (!hit) return;
+		// The nearest block, not the one under the pointer: moves coalesce to one per frame, so a
+		// burst ending in the margin would otherwise discard every on-block sample in it, and an
+		// autoscrolling drag sends nothing but off-block points.
+		const near = blockNearPoint(ctx.editorRoot, clientX, clientY);
+		if (!near) return;
+		const { hit, probeX, probeY } = near;
 
 		if (comparePaths(hit.path, anchorPoint.path) === 0) {
 			if (ctx.selection.isCrossBlock) {
@@ -47,7 +52,7 @@ export function installDragListener(
 			return;
 		}
 
-		const focusPoint = endpointAtPoint(hit, clientX, clientY);
+		const focusPoint = endpointAtPoint(hit, probeX, probeY);
 		if (!focusPoint) return;
 		if (!ctx.selection.isCrossBlock) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);

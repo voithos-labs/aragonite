@@ -13,7 +13,8 @@ export interface PointerPosition {
 }
 
 export interface PointerDragSessionOptions {
-	/** Coalesced to one call per animation frame with the latest pointer. */
+	/** Coalesced to one call per animation frame with the latest pointer: intermediate positions
+	 *  are dropped, so a consumer must answer the point it gets rather than wait for a better one. */
 	onMove(pointer: PointerPosition): void;
 	/**
 	 * pointerup / pointercancel finalize, after the pending move flushes and the session tears

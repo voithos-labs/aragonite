@@ -1,54 +1,19 @@
 /**
  * Caret placement from a viewport point: the dead-space click (padding beside a block, the area
  * below the last one) and the public `placeCaretAtPoint`, which shares the walk under the gesture
- * guards. A y belonging to no band may name an eligible gap boundary; otherwise clamp into the
- * nearest block's box and let `blockAtPoint` resolve the leaf, so nothing here knows a block kind.
- * The bands come from the live DOM, so "below the last block" resolves against the CST (VR-6).
+ * guards. A y belonging to no band may name an eligible gap boundary; otherwise the point clamps
+ * into the nearest mounted block's box (`nearest-block.ts`) and resolves there, no kind named.
+ * Only what is mounted is measured, so "below the last block" resolves against the CST (VR-6).
  */
 
 import { CURSOR_END, type BlockComponent } from '../block-component';
 import { blockAtPoint, type BlockHit } from './block-hit-test';
+import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './nearest-block';
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
 import { offsetFromViewportPoint } from './native-bridge';
-import { readBlockPath } from './path-lookup';
 
 // ── Public API ─────────────────────────────────────────────────────────────
-
-export interface BlockBand {
-	top: number;
-	bottom: number;
-}
-
-/**
- * The band a dead-space `y` belongs to. `belowAll` marks a click past the last band, the
- * end-of-document gesture, which lands at a trailing corner rather than under the click's own
- * x. A y in a gap resolves to the nearest band, so no dead-space click is left unanswered.
- * Bands arrive in document order and may nest, so containment scans forward, outermost wins.
- */
-export function nearestBand(
-	bands: BlockBand[],
-	y: number
-): { index: number; belowAll: boolean } | null {
-	if (bands.length === 0) return null;
-	const last = bands.length - 1;
-	if (y > bands[last].bottom) return { index: last, belowAll: true };
-
-	for (let i = 0; i < bands.length; i++) {
-		if (y >= bands[i].top && y <= bands[i].bottom) return { index: i, belowAll: false };
-	}
-
-	let nearest = 0;
-	let smallestGap = Infinity;
-	for (let i = 0; i < bands.length; i++) {
-		const gap = y < bands[i].top ? bands[i].top - y : y - bands[i].bottom;
-		if (gap < smallestGap) {
-			smallestGap = gap;
-			nearest = i;
-		}
-	}
-	return { index: nearest, belowAll: false };
-}
 
 export interface DeadSpaceCaretDeps {
 	getBlockComponent(path: number[]): BlockComponent | null;
@@ -125,9 +90,7 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			return true;
 		}
 
-		const rect = blocks[band.index].rect;
-		const probeX = band.belowAll ? rect.right - 1 : clamp(x, rect.left + 1, rect.right - 1);
-		const probeY = clamp(y, rect.top + 1, rect.bottom - 1);
+		const { x: probeX, y: probeY } = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
 
 		const hit = blockAtPoint(root, probeX, probeY);
 		if (!hit) return false;
@@ -182,20 +145,6 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
-
-/** One mounted block's path and box. */
-interface MeasuredBlock {
-	path: number[] | null;
-	rect: DOMRect;
-}
-
-// Document order, since bands may nest and both walks below depend on it.
-function measureBlocks(root: HTMLElement): MeasuredBlock[] {
-	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')].map((el) => ({
-		path: readBlockPath(el),
-		rect: el.getBoundingClientRect()
-	}));
-}
 
 /** The last top-level index the slice currently holds; -1 when none is mounted. */
 function lastMountedTopLevel(blocks: MeasuredBlock[]): number {
@@ -262,8 +211,4 @@ function landingFor(
 	if (!hit.charSurface?.matches('[contenteditable="true"]')) return null;
 	const offset = offsetFromViewportPoint(hit.charSurface, probeX, probeY);
 	return offset === null ? null : { path: [], offset };
-}
-
-function clamp(value: number, low: number, high: number): number {
-	return Math.min(Math.max(value, low), high);
 }
