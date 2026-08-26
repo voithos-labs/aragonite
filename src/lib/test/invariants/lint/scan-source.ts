@@ -2,7 +2,8 @@
  * Shared primitives for the source-scan guards: editor source off disk, asserted against
  * structural patterns the type system can't express. Comment-stripping matters — an
  * invariant is documented in comments naming the very tokens its scan looks for, so a raw
- * substring match would flag its own documentation.
+ * substring match would flag its own documentation. The lexing itself is guarded by
+ * `scan-source.differential.test.ts` (G4.57), which holds it against TypeScript's own lexer.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -245,6 +246,37 @@ function opensRegex(code: string, at: number): boolean {
 	while (start > 0 && /[\w$]/.test(code[start - 1])) start--;
 	const word = code.slice(start, i + 1);
 	return word === 'return' || word === 'typeof';
+}
+
+// ── Lexical classification ───────────────────────────────────────────────────
+
+/** Class names in the order {@link lexicalClasses} numbers them. */
+export const LEXICAL_CLASSES = ['code', 'comment', 'string', 'template', 'regex'] as const;
+
+const [CODE, COMMENT, STRING, TEMPLATE, REGEX] = LEXICAL_CLASSES.map((_, index) => index);
+
+/** Each character's class, exported so the differential can hold this lexer against TypeScript's. */
+export function lexicalClasses(code: string): Uint8Array {
+	const out = new Uint8Array(code.length);
+	classifyRange(code, 0, code.length, out);
+	return out;
+}
+
+/** A template's `${…}` interiors are code, which is how `stripComments` already reads them. */
+function classifyRange(code: string, from: number, to: number, out: Uint8Array): void {
+	out.fill(CODE, from, to);
+	for (let i = from; i < to; i++) {
+		const span = spanAt(code, i);
+		if (span === null) continue;
+		const end = Math.min(span.end, to);
+		if (span.kind === 'comment') out.fill(COMMENT, i, end);
+		else if (span.kind === 'literal') out.fill(code[i] === '/' ? REGEX : STRING, i, end);
+		else {
+			out.fill(TEMPLATE, i, end);
+			skipTemplate(code, i, (start, close) => classifyRange(code, start, Math.min(close, to), out));
+		}
+		i = span.end - 1;
+	}
 }
 
 // ── Raw-write statements ─────────────────────────────────────────────────────
