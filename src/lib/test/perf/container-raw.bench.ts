@@ -66,6 +66,45 @@ describe('ancestry rebuild — breadth axis', () => {
 	}
 });
 
+// The keystroke the breadth axis is really about: an edit deep INSIDE a large container, which
+// pays the same re-join as one at its head. With the changed-child hint the door passes, the
+// rebuild rewrites that child's region instead. These plain objects cannot show the win: the
+// axis it removes is the `$state` proxy read per child, and on raw objects the re-join is a
+// rope append. `test/tree-operations/ancestry-splice-read-bounds.test.ts` counts what changed.
+describe('ancestry rebuild — interior keystroke, hint vs full', () => {
+	const doc = parse(singleFlatList(1_000_000));
+	const list = doc.children[0];
+	const middle = Math.floor(list.children!.length / 2);
+	const path = [0, middle, 0];
+
+	for (const hinted of [false, true]) {
+		const item = list.children![middle];
+		const chain = [list, item, item.children![0]];
+		const sharing = createSharingState();
+		rebuildUnsharedChain(list, chain, sharing, null, undefined);
+		const leaf = chain[2];
+		let longer = false;
+		bench(
+			`rebuild interior of a 1MB list (${hinted ? 'spliced' : 'full'})`,
+			() => {
+				const leafPreviousRaw = leaf.raw;
+				// Alternating lengths, so the span shift is measured rather than skipped.
+				longer = !longer;
+				leaf.raw = longer ? 'item edited\n' : 'item edit\n';
+				rebuildUnsharedChain(
+					list,
+					chain,
+					sharing,
+					null,
+					undefined,
+					hinted ? { path, leafPreviousRaw } : undefined
+				);
+			},
+			{ warmupIterations: 1, iterations: 20 }
+		);
+	}
+});
+
 // Every ancestor level carries substantial raw, so one rebuild pays Σ(level raw) ≈
 // amplification × doc bytes. The adversarial point past the realistic envelope is
 // reported, not judged against the verdict bounds.

@@ -140,6 +140,8 @@ Every surface that hands a plugin a node to **read** types it as a view: `NodeVi
 
 `CstNode` and `Document` stay the shapes a plugin **constructs and owns**: an opener or directive factory builds a `CstNode`, and `rebuildRaw` receives one to write, because the ceremony hands it an owned node, which is exactly when a byte write is legal. A document you parsed yourself is mutable and feeds every view-typed parameter with no conversion.
 
+`rebuildRaw` also receives an optional second argument (`ChildRawChange`): the index of the one child whose own raw just moved, and the bytes it held before. It is there for a container big enough that re-reading every child on every keystroke costs real time, and the built-in list and quote use it to re-emit that child's region alone. Take it only if your kind can place a child's bytes inside its raw exactly; ignoring it and re-deriving the whole raw is always correct, and is what every rebuilder does when the argument is absent.
+
 Mutating the **live** tree goes through the sanctioned commit paths (`updateOwnMetadata`, block commands, `rebuildRaw`), never through a view. And do not cast a view back to `CstNode`. The readonly type is the editor's snapshot-aliasing invariant stated at the surface, so the cast reopens the exact corruption class it closed.
 
 ## Walkthrough: a directive container end-to-end
@@ -1135,14 +1137,14 @@ Every `@voithos-labs/aragonite/plugin` export, grouped by job, so you can find a
 
 **Block-kind descriptor**
 
-| Export                                                                                                                         | Role                                                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `registerBlockKind`                                                                                                            | Register a kind's descriptor — merge behavior, editability, container shape                                                                               |
-| `augmentBlockKind`                                                                                                             | Merge extra fields into an already-registered descriptor                                                                                                  |
-| `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, and the closed role enums                                         |
-| `ClosureBlock`, `ClosureColumn`, `ClosureCell`                                                                                 | The required closure matrix per kind — one `implemented`/`inherit-default`/`not-supported` cell per cross-cutting system                                  |
-| `simpleLeafClosure`, `SimpleLeafClosureCells`                                                                                  | Preset for a simple leaf: bakes the five structurally-fixed columns, requires the four the component determines                                           |
-| `containerClosure`, `ContainerClosureCells`                                                                                    | Preset for a strip container: bakes the four structural columns and `roundTrip: implemented`, requires `roundTripVia` + the four the container determines |
+| Export                                                                                                                                           | Role                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerBlockKind`                                                                                                                              | Register a kind's descriptor — merge behavior, editability, container shape                                                                               |
+| `augmentBlockKind`                                                                                                                               | Merge extra fields into an already-registered descriptor                                                                                                  |
+| `BlockKindRegistration`, `BlockKindDescriptor`, `BlockKindAugmentation`, `ContainerDescriptorGroup`, `ChildRawChange`, `MergeRole`, `UnwrapRole` | The descriptor's write shape, read shape, augmentation patch, its container-only group, `rebuildRaw`'s changed-child hint, and the closed role enums      |
+| `ClosureBlock`, `ClosureColumn`, `ClosureCell`                                                                                                   | The required closure matrix per kind — one `implemented`/`inherit-default`/`not-supported` cell per cross-cutting system                                  |
+| `simpleLeafClosure`, `SimpleLeafClosureCells`                                                                                                    | Preset for a simple leaf: bakes the five structurally-fixed columns, requires the four the component determines                                           |
+| `containerClosure`, `ContainerClosureCells`                                                                                                      | Preset for a strip container: bakes the four structural columns and `roundTrip: implemented`, requires `roundTripVia` + the four the container determines |
 
 **Component registry**
 

@@ -141,8 +141,12 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the sanctioned writer itself, plus the reparse funnel: every other write here is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse peeled off (GH #97). Both deep-leaf merge arms land bytes that already crossed `normalizeOwnRaw` and a fragment reparse (GH #54); the seam absorb restores the exact joined bytes over its own reparse (GH #61)'
 	},
 	'src/lib/schema/container-rebuilders.ts': {
-		count: 5,
-		why: 'the built-in containers re-emit their own bytes from their children (G4.20 arm 3 reads the same writes)'
+		count: 2,
+		why: 'the table grid re-emits its own bytes from its rows (G4.20 arm 3 reads the same writes)'
+	},
+	'src/lib/schema/child-spans.ts': {
+		count: 4,
+		why: 'the strip and concat container shapes re-emitting their own bytes from their children: the two span-seeding rebuilds, the whole-body fallback, and the one-region splice'
 	},
 	'src/lib/core/directive/kinds.ts': { count: 1, why: "the directive container's own rebuildRaw" },
 	'src/lib/editor-actions/plugin/directive-container.ts': {
@@ -194,7 +198,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: "appends the list's own line ending to the deepest node that OWNS its last line — the descent stops above a grid cell or an opaque body, whose bytes sit inside a line their container emits; an ending terminates a line rather than restructuring one"
 	},
 	'src/lib/testing/container-conformance.ts': {
-		count: 4,
+		count: 5,
 		why: "the published kit's own fixture bytes, written into a throwaway parse"
 	}
 };

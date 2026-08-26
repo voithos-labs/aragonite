@@ -53,6 +53,7 @@ import {
 	assertUndoTopIntegrity
 } from '../../invariants/install';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
+import { dropChildSpans } from '../../schema/child-spans';
 import {
 	docByteLength,
 	perfEnabled,
@@ -523,6 +524,9 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * because the state bundle's setter would write the stale shared node prop.
 	 */
 	function publishScopeView(p: PreparedScope, change: StructuralChange): void {
+		// The commit-scope half of the spans contract (`schema/child-spans.ts`): every
+		// children-shape change inside a ceremony passes through here with its owner at hand.
+		if (change.op !== 'noop') dropChildSpans(p.owned);
 		applyStructuralChangeToIdsRefs(change, p.ids, p.refs);
 		assertIdsInLockstep(
 			`commitMultiScope [${p.target.path.join(',')}]`,
@@ -642,7 +646,10 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 					p.owned.childIds = p.savedChildIds;
 					// Bytes as well as shape: the chain rebuild dispatches into plugin
 					// `rebuildRaw`, so an unwind leaves raws the children no longer justify.
-					for (const { node, raw } of p.savedRaws) node.raw = raw;
+					for (const { node, raw } of p.savedRaws) {
+						node.raw = raw;
+						dropChildSpans(node);
+					}
 					// Without this, ids/refs published before the throw keep reflecting it.
 					if (p.isDoc) p.target.state.innerBlockIds = p.savedStateIds;
 					replaceRefs(p.target.state.innerBlockRefs, p.savedStateRefs);

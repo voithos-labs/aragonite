@@ -66,9 +66,10 @@ The fields, by category:
 | `innerPrefix`          | containers declaring an opener-line body wrap | The line the wrap peels against the opener (the `:::` / `<details>` family). A wrap-less container — blockquote, list, list item — parses it empty, and G1.5 fails one that fills it. |
 | `innerSuffix`          | containers                                    | Whitespace inside the container, after its last child.                                                                                                                                |
 | `childIds`             | containers                                    | Stable per-child IDs for keyed rendering. Carried on the node, so undo restores them with `children`.                                                                                 |
+| `childSpans`           | containers                                    | Where each child’s bytes sit inside the container’s own `raw`, so a rewrite of one child re-emits one region. Derived, dropped whenever the children change shape.                    |
 | `ownerEpoch`           | every node                                    | The structural-sharing mark: does a live undo snapshot still share this node? See `editor.md` § Undo / redo.                                                                          |
 
-`childIds` and `ownerEpoch` are editor-level, not source-level. They are not part of the round-trip and a parser consumer can ignore them entirely. That split is itself a type: readers outside the mutation layers hold bytes-readonly node views (`core/node-views.ts`) that keep the serialized fields immutable while leaving this bookkeeping writable.
+`childIds`, `childSpans` and `ownerEpoch` are editor-level, not source-level. They are not part of the round-trip and a parser consumer can ignore them entirely. That split is itself a type: readers outside the mutation layers hold bytes-readonly node views (`core/node-views.ts`) that keep the serialized fields immutable while leaving this bookkeeping writable.
 
 **Inline content is not a node field.** Prose kinds get an inline tree, but it is derived from `raw` and computed lazily on read, never stored on the node, never serialized. (Why: a reactive cache field on the node once corrupted keyed rendering. `editor.md` § Reactive state plumbing carries the scar.)
 

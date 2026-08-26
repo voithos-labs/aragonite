@@ -9,7 +9,7 @@ import {
 } from '../../../components/blocks/table/table-cell-paste';
 import type { PasteRange, PasteSeam } from '../../../tree-operations/paste-surfaces';
 import { updateNodeContent } from '../../../tree-operations/node-ops';
-import { rebuildTableRowRaw } from '../../../schema/container-rebuilders';
+import { writeTableRow } from '../../../schema/container-rebuilders';
 import { parse } from '../../../core/parser';
 import { cleanLiveJoinSeam } from '../../../components/blocks/text/live-join-seam';
 import {
@@ -39,7 +39,7 @@ function pasteIntoRow(
 		children: [makeCell(cellRaw), makeCell('keep')]
 	};
 	updateNodeContent(row as never, 0, result.newRaw);
-	rebuildTableRowRaw(row, '\n');
+	writeTableRow(row, '\n');
 	const table = parse('| h | h |\n| --- | --- |\n' + row.raw).children[0];
 	return { ...result, cells: (table.children?.[1].children ?? []).map((c) => c.raw) };
 }

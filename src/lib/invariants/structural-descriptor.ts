@@ -1,3 +1,4 @@
+import type { CstNode } from '../core/nodes';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { InvariantViolation } from '../assert';
 
@@ -37,5 +38,22 @@ export function checkIdsChildrenLockstep(
 		code: 'ids-children-lockstep',
 		message: `${seam}: ${idCount} ids for ${childCount} children`,
 		detail: { seam, idCount, childCount }
+	};
+}
+
+/**
+ * G1.36 over the other parallel array — one span PAIR per child once a rebuild has run
+ * (`schema/child-spans.ts`). A rebuilder seeding the wrong length, or a shape change that
+ * outlived its drop, is a stale-region splice waiting for the next keystroke.
+ */
+export function checkChildSpansLockstep(node: CstNode): InvariantViolation | null {
+	const spans = node.childSpans;
+	if (!spans) return null;
+	const childCount = node.children?.length ?? 0;
+	if (spans.length === childCount * 2) return null;
+	return {
+		code: 'child-spans-lockstep',
+		message: `${node.kind}: ${spans.length} span bounds for ${childCount} children`,
+		detail: { kind: node.kind, spanCount: spans.length, childCount }
 	};
 }

@@ -3,10 +3,12 @@
  * writes (discovered descendants/ancestors — see the `node-ops.ts` header). Inside a
  * commit scope the StructuralChange descriptor owns id/ref sync; here a hand-rolled
  * splice would let the parallel id array drift and break Svelte's keyed-each rendering.
+ * The same shape change invalidates `childSpans`, so both parallel arrays settle here.
  */
 
 import type { CstNode } from '../core/nodes';
 import { assignIds, generateBlockId } from '../block-id';
+import { dropChildSpans } from '../schema/child-spans';
 
 export function pushChild(container: CstNode, child: CstNode): void {
 	if (!container.children) container.children = [];
@@ -15,6 +17,7 @@ export function pushChild(container: CstNode, child: CstNode): void {
 	if (!container.childIds) container.childIds = assignIds(container.children);
 	container.children.push(child);
 	container.childIds.push(generateBlockId());
+	dropChildSpans(container);
 }
 
 /**
@@ -24,6 +27,7 @@ export function pushChild(container: CstNode, child: CstNode): void {
  * the array is absent; the mounting BlockList backfills it.
  */
 export function resyncChildIds(container: CstNode): void {
+	dropChildSpans(container);
 	const ids = container.childIds;
 	if (!ids) return;
 	if (!container.children) {
@@ -53,4 +57,5 @@ export function spliceChildren(
 		container.childIds.splice(at, removeCount, ...ids);
 	}
 	container.children.splice(at, removeCount, ...items);
+	dropChildSpans(container);
 }

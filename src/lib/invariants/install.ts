@@ -19,7 +19,7 @@ import {
 	checkCategoryFields
 } from './node-shape';
 import { checkContentRange } from './descriptor';
-import { checkIdsChildrenLockstep } from './structural-descriptor';
+import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
 /**
@@ -35,6 +35,7 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
 		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
+		assertInvariant('child-spans-lockstep', () => checkChildSpansLockstep(node));
 	}
 }
 

@@ -4,6 +4,7 @@ import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin, pluginKindOwner } from './plugin-install';
 import { deletePluginEntries, registerOnce } from './register-once';
+import type { ChildRawChange } from './child-spans';
 import type { ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 
@@ -180,8 +181,12 @@ export interface BlockKindDescriptor {
 	 * Marker-hiding modes only; requires `getContentRange` (G1.32). Absent = the merge cascade.
 	 */
 	contentStartBackspace?: 'demote-first';
-	/** Recompute `raw` from children + metadata; built-ins in `schema/container-rebuilders.ts`. */
-	rebuildRaw?: (node: CstNode) => void;
+	/**
+	 * Recompute `raw` from children + metadata; built-ins in `schema/container-rebuilders.ts`.
+	 * `changed` names the one child whose own raw just moved, for a rebuilder that can rewrite
+	 * that child's region instead of re-reading every child. Ignoring it is always correct.
+	 */
+	rebuildRaw?: (node: CstNode, changed?: ChildRawChange) => void;
 	/** Inline image nodes render as widgets in this kind; opt out (e.g. tableCell) for alt-only fallback. */
 	renderImagesAsWidgets?: boolean;
 	/**
@@ -253,7 +258,7 @@ void _descriptorFieldsAreComplete;
  */
 export interface ContainerDescriptorGroup {
 	contract: 'strip' | 'grid' | 'opaque';
-	rebuildRaw: (node: CstNode) => void;
+	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void;
 	bodyWrap?: ContainerBodyWrap;
 	reservedChrome?: BlockKindDescriptor['reservedChrome'];
 	containerPaste?: BlockKindDescriptor['containerPaste'];

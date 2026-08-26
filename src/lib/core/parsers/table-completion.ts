@@ -7,7 +7,7 @@
 import type { CstNode } from '../nodes';
 import { trimTrailingLineEnding } from '../lines';
 import { registerBlockCompleter, type CompletionResult } from '../../schema/block-completions';
-import { rebuildTableRowRaw } from '../../schema/container-rebuilders';
+import { writeTableRow } from '../../schema/container-rebuilders';
 import { tableHeaderCells } from './table';
 
 // `parseTable` seats the header at child 0 and synthesizes the delimiter from metadata, so the
@@ -47,6 +47,6 @@ function canonicalRow(cells: string[]): string {
 		metadata: { isHeader: false },
 		children: cells.map((raw) => ({ kind: 'tableCell', leadingTrivia: '', raw }))
 	};
-	rebuildTableRowRaw(row, '\n');
+	writeTableRow(row, '\n');
 	return trimTrailingLineEnding(row.raw);
 }

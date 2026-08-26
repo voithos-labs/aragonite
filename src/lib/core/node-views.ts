@@ -1,16 +1,16 @@
 /**
  * G1.9 in the type system (G3.8): a snapshot-shared node is read-only on its serialized bytes,
- * so a view freezes every byte-carrying field. `childIds` and `ownerEpoch` are editor
- * bookkeeping, not round-trip bytes, and stay writable through a view. The ONE sanctioned
+ * so a view freezes every byte-carrying field. `childIds`, `childSpans` and `ownerEpoch` are
+ * editor bookkeeping, not round-trip bytes, and stay writable through a view. The ONE sanctioned
  * view-to-mutable door is the unshare seam (`tree-operations/unshare.ts`) plus the commit
  * ceremony's owned scope views (G4.13); everywhere else the source-scan lint holds the perimeter.
  */
 
 import type { CstNode, Document } from './nodes';
 
-// Name-scoped at every recursion depth by design, so these two names are reserved: a future
+// Name-scoped at every recursion depth by design, so these three names are reserved: a future
 // nested field so named would be writable through a view.
-type BytesWritableKey = 'childIds' | 'ownerEpoch';
+type BytesWritableKey = 'childIds' | 'childSpans' | 'ownerEpoch';
 
 /** Primitives pass through untouched, so branded string kinds keep their brands. */
 export type BytesView<T> = T extends string | number | boolean | bigint | symbol | null | undefined

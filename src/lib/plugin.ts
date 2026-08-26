@@ -56,6 +56,9 @@ export type {
 	MergeRole,
 	UnwrapRole
 } from './schema/block-kind-descriptor';
+// `rebuildRaw`'s optional second argument: the one child whose raw moved, for a rebuilder that
+// re-emits that child's region alone. Ignoring it re-derives the whole raw, which is correct.
+export type { ChildRawChange } from './schema/child-spans';
 // The required closure block a registration answers every cross-cutting system with.
 // `simpleLeafClosure`/`containerClosure` bake their tier's fixed columns over that field.
 export type {

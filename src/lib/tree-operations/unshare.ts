@@ -13,6 +13,7 @@ import type { StructuralChange } from './structural-change';
 import { assertInvariant } from '../assert';
 import { checkCloneSafeMetadata } from '../invariants/node-shape';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
+import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { GrammarView } from '../schema/block-openers';
 import { trimTrailingLineEnding } from '../core/lines';
@@ -25,6 +26,8 @@ function copyNode(node: NodeView, sharing: SharingState): CstNode {
 	const copy = { ...node } as CstNode;
 	if (node.children) copy.children = [...node.children] as CstNode[];
 	if (node.childIds) copy.childIds = [...node.childIds];
+	// A splice writes spans in place, so sharing the array would rewrite the snapshot's own.
+	if (node.childSpans) copy.childSpans = node.childSpans.slice();
 	if (node.metadata) {
 		assertInvariant('clone-safe-metadata', () => checkCloneSafeMetadata(node));
 		copy.metadata = cloneMetadata(node.metadata);
@@ -134,11 +137,15 @@ export function ensureUnsharedSubtree(node: CstNode, sharing: SharingState): voi
  * grid's children are unshared first — keyed off `containerContract`, not a `table` kind
  * test, or a plugin grid writes through shared children.
  */
-export function rebuildOwnedContainer(node: CstNode, sharing: SharingState): void {
+export function rebuildOwnedContainer(
+	node: CstNode,
+	sharing: SharingState,
+	changed?: ChildRawChange
+): void {
 	if (getBlockKindDescriptor(node.kind).containerContract === 'grid') {
 		ensureUnsharedChildren(node, sharing);
 	}
-	rebuildContainerRawIfContainer(node);
+	rebuildContainerRawIfContainer(node, changed);
 }
 
 /**
@@ -186,6 +193,15 @@ export interface AncestrySeamFold {
 }
 
 /**
+ * What the typing door knows and a bare chain does not: where the chain sits in the document,
+ * and the bytes its leaf carried before the write. Both are guesses the rebuild identity-checks.
+ */
+export interface ChainWriteHint {
+	path: number[];
+	leafPreviousRaw: string;
+}
+
+/**
  * Rebuild raws along an owned spine chain innermost-first, re-deriving each container's kind and
  * settling the seams at its own slot; chain- rather than path-based so it survives index shifts.
  * Both passes gate on a boundary line of the rebuilt raw moving; the re-derive additionally needs
@@ -198,20 +214,33 @@ export function rebuildUnsharedChain(
 	chain: CstNode[],
 	sharing: SharingState,
 	folds: AncestrySeamFold[] | null,
-	grammar: GrammarView | undefined
+	grammar: GrammarView | undefined,
+	hint?: ChainWriteHint
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
+	// The bytes chain[i + 1] held before this pass, which is what its own level captures on
+	// the way past. Only the leaf's predecessor is unknowable here, so the door hands it in.
+	let childPreviousRaw: string | undefined;
 	for (let i = chain.length - 1; i >= 0; i--) {
 		const node = chain[i];
 		const rawBefore = node.raw;
-		rebuildOwnedContainer(node, sharing);
+		const child = chain[i + 1];
+		rebuildOwnedContainer(
+			node,
+			sharing,
+			child && childPreviousRaw !== undefined
+				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
+				: undefined
+		);
+		childPreviousRaw = i === chain.length - 1 ? hint?.leafPreviousRaw : rawBefore;
+
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
 		if (!openerMoved && !closerMoved) continue;
 
 		const owner = i === 0 ? null : chain[i - 1];
 		const siblings = (owner ?? root).children;
-		const index = siblings?.indexOf(node) ?? -1;
+		const index = siblings ? childIndexOf(siblings, node, hint?.path[i]) : -1;
 		if (!siblings || index < 0) continue;
 
 		if (openerMoved && lineOpensAs(firstLine(node.raw), grammar) !== node.kind) {
@@ -226,15 +255,41 @@ export function rebuildUnsharedChain(
 		if (openerMoved) settleSublistSeparator(siblings, index);
 		// After the re-derive: the seam reads whatever occupies the slot now.
 		if (folds) {
+			const before = folds.length;
 			settleSlotSeams(
 				{ siblings, owner, depth: i, index, openerMoved, closerMoved },
 				sharing,
 				folds
 			);
+			// A fold re-tiled the owner's children, so its spans describe a shape that is gone.
+			if (folds.length > before && owner) dropChildSpans(owner);
 		}
 	}
 	if (perfEnabled()) recordRebuildDepth(chain.length);
 	return reclassified;
+}
+
+/**
+ * The changed-child hint for `node`, or undefined when `child` cannot be placed in it. The
+ * path index is a guess: an identity match is what makes it an answer, and a splice since the
+ * unshare falls back to the scan.
+ */
+function childRawChange(
+	node: CstNode,
+	child: CstNode,
+	previousRaw: string,
+	guess: number | undefined
+): ChildRawChange | undefined {
+	const siblings = node.children;
+	if (!siblings) return undefined;
+	const index = childIndexOf(siblings, child, guess);
+	return index < 0 ? undefined : { index, previousRaw };
+}
+
+/** `indexOf` with a guess first: the scan is O(children) through the `$state` proxy. */
+function childIndexOf(siblings: CstNode[], child: CstNode, guess: number | undefined): number {
+	if (guess !== undefined && siblings[guess] === child) return guess;
+	return siblings.indexOf(child);
 }
 
 /** Where a rebuilt container sits, and which of its joins its new bytes can have moved. */

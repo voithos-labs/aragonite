@@ -10,7 +10,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { CstNode } from '$lib/core/nodes';
 import { splitRowCells } from '$lib/core/parsers/table';
 import { updateNodeContent } from '$lib/tree-operations/node-ops';
-import { rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
+import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell, settleTicks } from './mount-cell';
 
@@ -44,7 +44,7 @@ function reparsedCells(committed: string): string[] {
 		]
 	};
 	updateNodeContent(row as never, 0, committed);
-	rebuildTableRowRaw(row, '\n');
+	writeTableRow(row, '\n');
 	return splitRowCells(row.raw);
 }
 

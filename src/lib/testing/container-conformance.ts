@@ -647,8 +647,37 @@ export function checkDeclarationSanity(
 	const node = findFirstOfKind(parse(profile.deepNesting.source), kind);
 	assert(node, `deepNesting fixture contains a "${kind}" node`);
 	assertRebuildIsParseCanonical(descriptor, node, kind);
+	assertHintedRebuildMatchesFull(kind, descriptor, node);
 	assertBodyWrapMatchesParse(kind, descriptor);
 	assertContentStartSpaceIsRebuilt(kind, descriptor);
+}
+
+/**
+ * `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
+ * rebuilt with and without it are the same bytes. A rebuilder that ignores the hint passes here
+ * by construction, which is what makes the argument optional to adopt.
+ */
+function assertHintedRebuildMatchesFull(
+	kind: AnyBlockKind,
+	descriptor: BlockKindDescriptor,
+	node: CstNode
+): void {
+	const children = node.children;
+	if (!children?.length) return;
+	const index = children.length - 1;
+	const previousRaw = children[index].raw;
+	// Doubling keeps whatever line shape the fixture's own child had; one operand, so the
+	// cross-node join census still reads this as a kind re-emitting its own bytes.
+	children[index].raw = previousRaw.repeat(2);
+
+	descriptor.rebuildRaw!(node, { index, previousRaw });
+	const hinted = node.raw;
+	descriptor.rebuildRaw!(node);
+	assertIs(
+		hinted,
+		node.raw,
+		`${kind} rebuildRaw writes the same bytes for a changed-child hint as for a full rebuild`
+	);
 }
 
 /** The content a probe writes into a body child; distinctive enough that no fixture line ends

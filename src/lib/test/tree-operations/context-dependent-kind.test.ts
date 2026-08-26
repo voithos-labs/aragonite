@@ -3,7 +3,7 @@ import { updateNodeContent, splitNode } from '../../tree-operations/node-ops';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { rebuildTableRowRaw } from '../../schema/container-rebuilders';
+import { writeTableRow } from '../../schema/container-rebuilders';
 import { parse } from '../../core/parser';
 import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '../../core/nodes';
@@ -62,7 +62,7 @@ describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write
 			children: cellRaws.map((raw) => ({ kind: 'tableCell', leadingTrivia: '', raw }))
 		};
 		updateNodeContent(row as never, at, text);
-		rebuildTableRowRaw(row, '\n');
+		writeTableRow(row, '\n');
 		return bodyCellsOf(cellRaws.length, row.raw);
 	}
 
