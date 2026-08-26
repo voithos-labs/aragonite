@@ -79,26 +79,22 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const existingNestedList =
 				existingNestedIdx === -1 ? undefined : prevItem.children[existingNestedIdx];
 
-			// The destination scope is either an existing same-kind nested list or
-			// prevItem's children, where a new nested list gets appended.
-			const scopes: MultiScopeTarget[] = [{ node, state: deps.state, path: deps.scope.path }];
-
-			if (existingNestedList && existingNestedList.children) {
-				scopes.push({
-					node: existingNestedList,
-					state: expectStateForNode(existingNestedList),
-					path: [...deps.scope.path, itemIndex - 1, existingNestedIdx]
-				});
-			} else {
-				scopes.push({
-					node: prevItem,
-					state: expectStateForNode(prevItem),
-					path: [...deps.scope.path, itemIndex - 1]
-				});
-			}
+			// One predicate, one destination: a matching sublist adopts the item whether or not it
+			// holds any yet, so the scope push and the mutate branch cannot disagree about the seat.
+			const destination: MultiScopeTarget = existingNestedList
+				? {
+						node: existingNestedList,
+						state: expectStateForNode(existingNestedList),
+						path: [...deps.scope.path, itemIndex - 1, existingNestedIdx]
+					}
+				: {
+						node: prevItem,
+						state: expectStateForNode(prevItem),
+						path: [...deps.scope.path, itemIndex - 1]
+					};
 
 			await deps.controller.commitMultiScope({
-				scopes,
+				scopes: [{ node, state: deps.state, path: deps.scope.path }, destination],
 				snapshot: { path: extendDocPath(deps.scope.path, itemIndex), offset: 0 },
 				mutate: ([outerScope, destScope]) => {
 					const sharing = outerScope.sharing;
