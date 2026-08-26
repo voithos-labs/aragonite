@@ -49,17 +49,18 @@ function collectLinkReferences(nodes: CstNode[], entries: Map<string, ResolvedRe
 	push(nodes);
 	while (stack.length > 0) {
 		const node = stack.pop()!;
+		if (node.kind === 'linkReferenceDefinition') {
+			const meta = metadataOf(node, 'linkReferenceDefinition');
+			if (meta?.label === undefined || meta.url === undefined) continue;
+			const key = normalizeLinkLabel(meta.label);
+			if (entries.has(key)) continue; // first-wins
+			entries.set(
+				key,
+				meta.title !== undefined
+					? Object.freeze({ url: meta.url, title: meta.title })
+					: Object.freeze({ url: meta.url })
+			);
+		}
 		if (node.children) push(node.children);
-		if (node.kind !== 'linkReferenceDefinition') continue;
-		const meta = metadataOf(node, 'linkReferenceDefinition');
-		if (meta?.label === undefined || meta.url === undefined) continue;
-		const key = normalizeLinkLabel(meta.label);
-		if (entries.has(key)) continue; // first-wins
-		entries.set(
-			key,
-			meta.title !== undefined
-				? Object.freeze({ url: meta.url, title: meta.title })
-				: Object.freeze({ url: meta.url })
-		);
 	}
 }

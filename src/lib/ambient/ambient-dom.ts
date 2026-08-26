@@ -94,13 +94,18 @@ function firstTextNodeAfter(node: Node): Text | null {
 	return null;
 }
 
+// Unfiltered on the way down, unlike the measurable-text search it resembles
+// (`cursor/visual-lines.ts`): the caller judges hidden marker text once, at the top.
 function firstTextDescendant(node: Node): Text | null {
-	if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-		return node as Text;
-	}
-	for (const child of node.childNodes) {
-		const found = firstTextDescendant(child);
-		if (found) return found;
+	const stack: Node[] = [node];
+	while (stack.length > 0) {
+		const current = stack.pop()!;
+		if (current.nodeType === Node.TEXT_NODE && (current.textContent?.length ?? 0) > 0) {
+			return current as Text;
+		}
+		// Reversed push, so pop order is source order.
+		const children = current.childNodes;
+		for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
 	}
 	return null;
 }

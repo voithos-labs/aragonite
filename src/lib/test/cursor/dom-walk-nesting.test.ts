@@ -2,7 +2,8 @@
 // Miss-analysis: the depth pins covered the renderer that BUILDS this DOM
 // (`core/inline-render-nesting.test.ts`) and nothing that reads it back, so every caret-space
 // walk recursed per level over a fragment the renderer had just survived.
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
@@ -12,7 +13,9 @@ import {
 	rawTextOfNode
 } from '../../cursor/widget-offset';
 
-// Inline nesting is input-controlled, so the rendered DOM is as deep as the source asks.
+// Inline nesting is input-controlled, so the rendered DOM is as deep as the source asks. The cap
+// is jsdom's O(depth²) `matches`/`closest` cost, not the ceiling, and it assumes the default V8
+// stack: raising `--stack-size` turns every pin here green against a recursive walk.
 const DOM_DEPTH = 8_000;
 const LEAF = 'mn';
 
@@ -66,5 +69,27 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 		const chain = root.childNodes[1];
 		expect(findFirstTextNode(chain)?.textContent).toBe(LEAF[0]);
 		expect(findLastTextNode(chain)?.textContent).toBe(LEAF[1]);
+	}, 120_000);
+
+	// The ambient span's own descent asks a different question from the measurable-text search
+	// beside it: it filters hidden marker text at the top level, never during the walk.
+	it('seats the ambient caret on the deepest text node', () => {
+		const block = nestedSpans(DOM_DEPTH);
+		block.replaceChild(buildAmbientSpan('> '), block.firstChild!);
+		// jsdom's own attach walk overflows at this depth and it drops a detached range, so the
+		// seat is read at the door. The real selection is pinned shallow in `ambient-dom.test.ts`.
+		const seated: Range[] = [];
+		const addRange = vi
+			.spyOn(window.Selection.prototype, 'addRange')
+			.mockImplementation((range) => void seated.push(range));
+
+		try {
+			expect(placeCaretAfterAmbientSpan(block)).toBe(true);
+		} finally {
+			addRange.mockRestore();
+		}
+		expect(seated).toHaveLength(1);
+		expect(seated[0].startContainer.textContent).toBe(LEAF[0]);
+		expect(seated[0].startOffset).toBe(0);
 	}, 120_000);
 });

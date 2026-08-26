@@ -16,6 +16,8 @@ import {
 
 afterEach(() => __resetInlineSyntaxForTests());
 
+// Both constants assume the default V8 stack; raising `--stack-size` turns these pins green
+// against a recursive walk.
 const MODEL_DEPTH = 32_000;
 // jsdom's insert bookkeeping is superlinear in tree depth (a native DOM is not), so the
 // environment, not the walk, caps the one pin that renders.
@@ -86,9 +88,14 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 			return node;
 		});
 
-		let deepest = parseInline(raw, 0, raw.length)[0];
+		const claimed = parseInline(raw, 0, raw.length);
+		let deepest = claimed[0];
 		while (deepest.children?.[0]) deepest = deepest.children[0];
+
 		expect(deepest.syntaxClaim).toMatchObject({ prefix: 'Q' });
+		// Membership, not just reach: every node of the chain carries the claim.
+		const stamped = [...inlineDescendants(claimed)].filter((node) => node.syntaxClaim);
+		expect(stamped).toHaveLength(MODEL_DEPTH + 1);
 	});
 
 	// Block nesting is capped where inline nesting is not, so the deepest tree the parser will

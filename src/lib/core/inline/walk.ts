@@ -10,7 +10,8 @@ import type { InlineNode } from '../nodes';
 /**
  * Each node, then its children, in source order. `descend` declines a node's children — the node
  * itself is still yielded, and is asked only when it has any. Yields nodes only: what a reader
- * SEES stays the render path's question (G4.33).
+ * SEES stays the render path's question (G4.33). Each child list is snapshotted onto the stack
+ * when its parent pops, so a consumer that rewrites `children` must finish the walk first.
  */
 export function* inlineDescendants(
 	nodes: readonly InlineNode[],
