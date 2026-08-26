@@ -69,3 +69,20 @@ describe.each(MODES)('a wrap whose markers merge with a neighbouring run (%s)', 
 		expect(activeAfter).toBe(true);
 	});
 });
+
+// A selection taking ONE of the run's delimiters merges too, and the stack it lands in covers the
+// content rather than the bytes the selection named — the coverage check the marker-hiding wrap
+// carries on top of the screen check, and the one arm of the fork the two modes still split on.
+describe('a wrap whose merged bytes leave the selection uncovered', () => {
+	const HALF_RUN = { display: '*em* z', start: 0, end: 3, format: 'strong' } as const;
+
+	it('writes the literal bytes where the delimiters paint', () => {
+		const { wrote, activeAfter } = press({ ...HALF_RUN, mode: 'source' });
+		expect(wrote).toBe('***em*** z');
+		expect(activeAfter).toBe(false);
+	});
+
+	it('declines where they do not', () => {
+		expect(press({ ...HALF_RUN, mode: 'live' }).wrote).toBeNull();
+	});
+});
