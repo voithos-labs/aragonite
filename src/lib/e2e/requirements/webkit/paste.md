@@ -7,9 +7,10 @@ see, so the harness seeds and pastes through a dispatched `ClipboardEvent` carry
 these scenarios prove is that the seam DELIVERS: the editor's paste handlers read `text/plain` off
 the event whichever engine fired it, and its copy handlers write bytes the same seam can read back.
 
-What they do not prove: the chord. A dispatched paste event skips WebKit's own Ctrl/Cmd+V key
-handling, so a keybinding regression stays invisible here and is pinned in the Chromium
-clipboard suite.
+What they do not prove, both pinned in the Chromium clipboard suite: the chord, since a dispatched
+paste event skips WebKit's own Ctrl/Cmd+V key handling; and the editor root's fallback arm, since
+the dispatch targets `document.activeElement`, which makes `landedNowhere` false and leaves that
+arm (`components/editor-root-clipboard.ts`) unreachable through this lane.
 
 ## Happy paths
 

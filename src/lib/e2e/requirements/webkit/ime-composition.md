@@ -17,12 +17,12 @@ not the order an engine produces. Order stays pinned in the Chromium/CDP spec
 
 - Compose multi-update text into a paragraph and commit: the source stays byte-stable through every
   mid-composition update, and the committed run lands exactly once at `compositionend`.
-- Compose over a selection: the committed run replaces the selected text, leaving one copy of it.
 - Compose at a construct edge in live mode, the caret at the end of an emphasis run: the commit
   lands once, inside the construct, and the delimiters survive. The INSIDE half reads the edge
-  seat's contract (`components/blocks/text/edge-seat.ts`), which no unit test can observe running
-  under a second engine; a deliberate change to that contract updates this scenario, and the
-  lane is the only gate that sees it.
+  seat's contract (`components/blocks/text/edge-seat.ts`). The edge itself is pinned under Chromium
+  (`presentation/presentation-live-typing-affinity.md`, `presentation/presentation-live-pending-marks.md`);
+  what only this lane sees is that seat running under a second engine, so a deliberate change to
+  the seat's contract updates this scenario and no Chromium gate will say so.
 
 ## Edge cases
 
@@ -31,5 +31,8 @@ not the order an engine produces. Order stays pinned in the Chromium/CDP spec
 
 ## Error cases
 
-- Zero `[aragonite:…]` sentinel fires across every scenario. The composition-window guard (G1.27)
-  watches exactly these sequences, so an unpaired `compositionend` surfaces here.
+- Zero `[aragonite:…]` sentinel fires across every scenario, so the fixture's console gate
+  is armed for these runs. It is not an exercise of the composition-window guard (G1.27): the arm
+  cannot emit an unpaired `compositionend`, since `commit` opens a window first and `abort`
+  declines when none is open. Exercising G1.27 would take a deliberate unpaired end, which the
+  driver's interface does not offer and should not grow for one assertion.

@@ -32,8 +32,9 @@ test.describe('gap caret arrival', () => {
 	const proxyHoldsFocus = () =>
 		editor.page.evaluate(() => !!document.activeElement?.closest('[data-gap-caret]'));
 
-	/** How many visual lines the fence body sits below its opener is an ENGINE fact, not an
-	 *  editor contract, so the walk is bounded rather than counted. */
+	/** How many visual lines a fence opener occupies is an ENGINE fact, not an editor contract, so
+	 *  the walk is bounded rather than counted. Four is twice the deepest reading this fixture
+	 *  allows: one press onto the opener's own line, one more to leave the block. */
 	const pressUpToBoundary = async () => {
 		for (let press = 0; press < 4; press++) {
 			await editor.page.keyboard.press('ArrowUp');

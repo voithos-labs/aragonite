@@ -36,8 +36,8 @@ const PROJECT_DIRS = [
 	'search'
 ];
 
-// The second-engine slice, run per release rather than per commit: every file is verified green
-// under the WebKit binary, so the lane opens at zero known-red and any red is a regression.
+// The second-engine slice, run per release rather than per commit. It carries no known-red
+// backlog, which is what lets the lane fail rather than report: any red is a regression.
 const WEBKIT_LANE = [
 	'smoke.spec.ts',
 	'source-prop.spec.ts',

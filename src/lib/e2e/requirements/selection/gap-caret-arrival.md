@@ -59,6 +59,14 @@ paint and the non-mint ways out are `gap-caret-surface.md`.
   declare both (#93); those boundaries are pinned in
   `plugins/gap-caret-opaque-containers.md`.
 - The root's trailing boundary is deliberately excluded: the move-past-end append owns it.
+- The ArrowUp-from-the-fence-body scenario no longer pins a press COUNT. It walks upward until
+  the gap caret appears, because how many visual lines a fence opener occupies is an engine fact
+  and the same fixture reaches the boundary a press sooner under WebKit than under Chromium. What
+  the walk drops is the Chromium claim that the opener holds its own visual line; the sibling
+  claim for the CLOSER still carries it, at `blocks/code/editing-block-exit.spec.ts` ('ArrowDown
+  past the closer line exits to next block') and `blocks/code/editing-undo.spec.ts` ('type
+  multi-line code then navigate out via ArrowDown'), both Chromium-only. A count assertion here
+  would need a `browserName` branch, which is exactly what the shared-arm harness design forbids.
 
 ## Miss analysis
 

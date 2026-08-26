@@ -19,6 +19,8 @@ event ORDER and the wiring from the real contenteditable listeners down to the C
 
 ## Edge cases
 
+- A composition started over a selection replaces it: the engine's own composition window owns
+  that delete, so the committed run leaves one copy and the selected bytes are gone.
 - Undo after a composed commit restores the pre-composition text in ONE step — the whole
   composition is a single undo entry (the commit funnels through one `updateBlockContent`,
   whose debounced snapshot anchors at the pre-composition offset).

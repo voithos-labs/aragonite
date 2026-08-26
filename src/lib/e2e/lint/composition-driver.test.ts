@@ -50,7 +50,7 @@ function e2eSources(): SourceFile[] {
 const handFiredIn = (files: SourceFile[]): string[] =>
 	files.filter((f) => HAND_FIRED.some((re) => re.test(f.code))).map((f) => f.relPath);
 
-describe('G4.49 e2e composition rides the CDP driver', () => {
+describe('G4.49 e2e composition rides the shared IME driver', () => {
 	const files = e2eSources();
 
 	it('inspected the e2e sources', () => {

@@ -89,6 +89,18 @@ test.describe('IME composition', () => {
 		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
 	});
 
+	test('a composed commit over a selection replaces it, leaving one copy', async ({ page }) => {
+		await editor.loadContent('hello world\n');
+		await editor.focusBlockEnd(0);
+		for (let i = 0; i < 'world'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
+		const ime = await attachIme(page);
+
+		await ime.compose('かん');
+		await ime.commit('かん');
+
+		await editor.bridge.waitForSourceEquals('hello かん\n');
+	});
+
 	test('undo after a composed commit restores the pre-composition text in one step', async ({
 		page
 	}) => {

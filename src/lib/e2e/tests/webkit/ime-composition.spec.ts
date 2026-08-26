@@ -51,18 +51,6 @@ test.describe('webkit: composition through the hand-fired arm', () => {
 		expect(await editor.bridge.getSource()).toBe('hello world\n');
 	});
 
-	test('a commit over a selection replaces it, leaving one copy', async ({ page }) => {
-		await editor.loadContent('hello world\n');
-		await editor.focusBlockEnd(0);
-		for (let i = 0; i < 'world'.length; i++) await editor.page.keyboard.press('Shift+ArrowLeft');
-		const ime = await attachIme(page);
-
-		await ime.compose('かん');
-		await ime.commit('かん');
-
-		await editor.bridge.waitForSourceEquals('hello かん\n');
-	});
-
 	test('a commit at a live construct edge lands inside the run and keeps its delimiters', async ({
 		page
 	}) => {
