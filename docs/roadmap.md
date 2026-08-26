@@ -145,8 +145,16 @@ milestone touching each area inherits it instead of rediscovering it the expensi
   rather than per commit, with composition driven through hand-fired events because the CDP
   IME driver is Chromium-only. Contenteditable is the most engine-divergent API the editor
   sits on, and the ledger still carries a Safari-shaped watch (#37); the smoke lane
-  prices that gap before a WKWebView runner ever exists. An exploratory run of one e2e area
-  under the WebKit binary is the spike that sizes it.
+  prices that gap before a WKWebView runner ever exists. The sizing spike ran 2026-08-25
+  (325 tests across three areas under the WebKit binary, 307 green, no engine-specific editor
+  divergence): the lane is 49 tests in 11 spec files, nine of them green today, and the two
+  pieces of work it needs are a clipboard seam (WebKit rejects the clipboard permission grants
+  at context creation and its `writeText` lands in a clipboard the synthetic paste cannot see;
+  ten of the eighteen failures were clipboard) and a G4.49 amendment exempting the composition
+  driver so a hand-fired arm may live beside the CDP one. Its first run also found an
+  engine-independent drag defect the Chromium driver's one-move-per-frame pacing hides, which
+  argues for the lane on stronger grounds than #37 alone. Posture when built: per release, a
+  failing gate outside `npm test`, WebKit pinned to the Playwright version.
 - **Singletons earn their keep only until the second claimant arrives.** The process-global
   reveal anchor produced two consumer-visible defects, the interaction trace interleaves
   instances by design, and the reveal mount-waiter registry had to move off its bare-index
