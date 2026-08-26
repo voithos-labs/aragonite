@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // Miss-analysis: the flip seam's own suites assert caret, affinity and the announced event, and
 // the windowing suites stub the oracle out, so nothing asked what a flip does to heights the
-// other mode measured — the one editor-owned cache the flip invalidates without touching.
+// other mode measured. The no-rebuild leg is the second half of that miss: the first fix paired
+// the drop with a width bump, and only the presentation e2e project saw the scroll it moved.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installLayoutStubs } from '../blocks/editor-mount';
 import {
@@ -45,29 +46,28 @@ describe('a presentation-mode flip does not keep the heights the other mode meas
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBeUndefined();
 	});
 
-	// The drop alone is invisible to the reactive graph: a flip moves no id and no port, so
-	// the width version is the only signal left that re-runs a scope's rebuild effect. Without
-	// it the spacers keep serving the model built from the heights just dropped.
-	it('bumps the width version, the only rebuild signal a flip can move', async () => {
+	// The drop travels alone. Bumping the width version here forces a scope rebuild, and the
+	// flip has already blurred, so the window recomputes with no caret pin, drops the caret's
+	// block, and the re-seat scrolls it back — the reader loses their place (#221). Each block
+	// re-measures on its own mount instead, which costs the reader nothing.
+	it('forces no rebuild: the flip moves the width version for nobody', async () => {
 		const { editor, props } = mountAtSource();
 		const before = editor.__test.getWidthVersion();
 
 		props.presentationMode = 'live';
 		await settlePropWrite();
 
-		expect(editor.__test.getWidthVersion()).toBeGreaterThan(before);
+		expect(editor.__test.getWidthVersion()).toBe(before);
 	});
 
 	// The flip is a mode change, not an edit: rewriting the prop with the mode already in
-	// force must cost neither the drop nor the rebuild.
-	it('does neither when the prop is rewritten with the mode already in force', async () => {
-		const { editor, oracle, props } = mountAtSource();
-		const before = editor.__test.getWidthVersion();
+	// force must not drop a thing.
+	it('drops nothing when the prop is rewritten with the mode already in force', async () => {
+		const { oracle, props } = mountAtSource();
 
 		props.presentationMode = 'source';
 		await settlePropWrite();
 
 		expect(oracle.measured(WINDOWED_OUT_ID)).toBe(OTHER_MODE_HEIGHT);
-		expect(editor.__test.getWidthVersion()).toBe(before);
 	});
 });
