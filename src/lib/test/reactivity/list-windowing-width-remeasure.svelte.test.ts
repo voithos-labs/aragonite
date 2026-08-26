@@ -29,7 +29,7 @@ function seededOracle(): HeightOracle {
 			measured.set(id, height);
 		},
 		height: (id) => measured.get(id) ?? ESTIMATE,
-		invalidateWidth: () => measured.clear()
+		dropMeasured: () => measured.clear()
 	};
 }
 
@@ -59,7 +59,7 @@ describe('list-windowing width re-measure', () => {
 		port.setScrollTop(SCROLLED_THROUGH * REAL - REAL + 100);
 		const heldOffset = await screenOffsetOf(windowing, port, anchor);
 
-		oracle.invalidateWidth();
+		oracle.dropMeasured();
 		widthVersion++;
 		flushSync();
 

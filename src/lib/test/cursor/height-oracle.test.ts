@@ -51,10 +51,10 @@ describe('createHeightOracle', () => {
 		expect(o.height('id-2', node, 800)).toBe(24 + 16);
 	});
 
-	it('invalidateWidth clears measured heights (wrap depends on width)', () => {
+	it('dropMeasured falls every id back to its estimate', () => {
 		const o = createHeightOracle(opts);
 		o.recordMeasured('id-1', 99);
-		o.invalidateWidth();
+		o.dropMeasured();
 		expect(o.measured('id-1')).toBeUndefined();
 	});
 

@@ -25,7 +25,7 @@ export function fixedOracle(px: number): HeightOracle {
 		measured: () => undefined,
 		recordMeasured: () => {},
 		height: () => px,
-		invalidateWidth: () => {}
+		dropMeasured: () => {}
 	};
 }
 
@@ -36,7 +36,7 @@ export function heightsOracle(heights: Record<string, number>, estimate = 10): H
 		measured: () => undefined,
 		recordMeasured: () => {},
 		height: (id: string) => heights[id] ?? estimate,
-		invalidateWidth: () => {}
+		dropMeasured: () => {}
 	};
 }
 

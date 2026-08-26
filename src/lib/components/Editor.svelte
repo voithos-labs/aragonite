@@ -388,6 +388,9 @@
 			contentVersion.bump();
 			blockIds = assignIds(doc.children);
 			blockRefs.length = 0;
+			// Block ids never recur, so every measured height now keys a block that cannot
+			// come back: the scopes reseed from estimates exactly as they do on first load.
+			heightOracle.dropMeasured();
 			undoManager.clear();
 			stickyColumn.reset();
 			edgeAffinity.reset();
@@ -1136,7 +1139,7 @@
 			const width = el.clientWidth;
 			if (width === lastWidth) return;
 			lastWidth = width;
-			heightOracle.invalidateWidth();
+			heightOracle.dropMeasured();
 			widthVersion++;
 		});
 		observer.observe(el);
@@ -1166,7 +1169,7 @@
 		// Sub-percent moves are sub-pixel on a line box — not worth a full rebuild.
 		if (!(next > 0) || Math.abs(next - typeScale) < 0.01) return;
 		typeScale = next;
-		heightOracle.invalidateWidth();
+		heightOracle.dropMeasured();
 		widthVersion++;
 	}
 	$effect(() => {
@@ -1574,6 +1577,9 @@
 		// buckets are the only oracle for a stale bucket, since jsdom measures every
 		// range at zero width and no overlay ever paints there.
 		getDecorationEngine: () => decorationEngine,
+		// The measured-height cache is root-constructed and handed down through context,
+		// so its lifetime against a document swap has no headless seam either.
+		getHeightOracle: () => heightOracle,
 		// Constructs the detached-slot artifact the windowed each-block's cleanup can
 		// leave behind (see `isSlotDetached`); e2e-only.
 		setBlockRefSlot: blockRefSlots.set
