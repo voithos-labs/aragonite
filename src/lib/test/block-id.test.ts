@@ -10,32 +10,22 @@ describe('assignIds', () => {
 		expect(ids).toHaveLength(3);
 		expect(new Set(ids).size).toBe(3);
 	});
-
-	it('generates unique IDs (UUIDs)', () => {
-		const id1 = generateBlockId();
-		const id2 = generateBlockId();
-		expect(id1).not.toBe(id2);
-		expect(typeof id1).toBe('string');
-		expect(id1.length).toBeGreaterThan(0);
-	});
 });
 
-// `crypto.randomUUID` is secure-context-only, so an embedder on plain http has
-// `crypto` without it — and a throwing id generator takes down every keyed render.
-describe('generateBlockId without randomUUID', () => {
-	it('falls back to a unique id instead of throwing', () => {
-		// `randomUUID` lives on Crypto.prototype, so shadow it with an own undefined
-		// rather than deleting — an insecure context reads exactly this shape.
-		Object.defineProperty(globalThis.crypto, 'randomUUID', {
-			value: undefined,
-			configurable: true
-		});
-		try {
-			const ids = new Set([generateBlockId(), generateBlockId(), generateBlockId()]);
-			expect(ids.size).toBe(3);
-			for (const id of ids) expect(id.length).toBeGreaterThan(0);
-		} finally {
-			Reflect.deleteProperty(globalThis.crypto, 'randomUUID');
-		}
+describe('generateBlockId', () => {
+	// The whole requirement: these key Svelte's `{#each}`, and a repeat inside one process
+	// collides two live blocks onto one slot.
+	it('never repeats within the process', () => {
+		const ids = new Set(Array.from({ length: 10_000 }, generateBlockId));
+		expect(ids.size).toBe(10_000);
+	});
+
+	// A dev-server reload re-evaluates the module and restarts the counter, so the run prefix is
+	// what keeps the ids minted after it away from the ones the live tree already holds.
+	it('carries a run prefix ahead of the sequence', () => {
+		const [first, second] = [generateBlockId(), generateBlockId()];
+		const prefixOf = (id: string) => id.slice(0, id.lastIndexOf('-'));
+		expect(prefixOf(first)).toBe(prefixOf(second));
+		expect(prefixOf(first).length).toBeGreaterThan(1);
 	});
 });
