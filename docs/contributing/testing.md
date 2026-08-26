@@ -150,8 +150,19 @@ Specs are organized by feature area at the top level, and per-block inside `test
 | `test:e2e:simulation`     | The note-taking simulation sessions (below)                                                                                                                                                                                                                                                                       |
 | `test:e2e:a11y`           | axe baseline-ratchet over `.editor` — fails on any violation outside the committed allowlist                                                                                                                                                                                                                      |
 | `test:e2e:vr`             | Virtual rendering on large fixtures — windowing, reveal, table-row windowing, mounted-count ceiling                                                                                                                                                                                                               |
+| `test:e2e:webkit`         | The second-engine lane: a curated slice under the WebKit binary, env-gated and run per release rather than per commit (below)                                                                                                                                                                                     |
 
 The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither is a perf gate; both ride `npm test`.
+
+### The WebKit lane
+
+A second contenteditable implementation, run per release rather than per commit. The reason to keep it out of `npm test` is signal, not time: a second engine in the per-commit loop doubles the flake surface for a class of bug that does not appear between releases. `npm run test:e2e:webkit` sets `WEBKIT=1`, and that variable is what makes the `e2e-webkit` project exist at all, so the lane cannot half-run inside the default battery. It collects a curated slice of the existing typing, split/merge, selection and round-trip specs, plus the two specs under `tests/webkit/`. Every one was verified green when the lane opened, which is what lets it fail rather than report: there is no known-red backlog for a regression to hide behind. Run it alone; it shares the dev server with every other project.
+
+Two harness seams branch on the engine, both behind unchanged helper signatures, so no spec knows which arm it got. WebKit rejects the clipboard permissions at **context creation**, which no spec-level guard can reach, and its `writeText` resolves into a clipboard the synthetic paste chord cannot see; so the WebKit arm seeds, pastes and reads through a dispatched clipboard event carrying a `DataTransfer`, which is where the editor's own handlers already read and write. WebKit exposes no CDP session, so the IME driver hand-fires the composition sequence: the one exemption G4.49 grants, which no spec may copy.
+
+What the lane proves: editor behavior survives a second engine, and the commit funnel survives a WebKit-shaped composition without double-applying at `compositionend`. What it does not: event ORDER, which only the CDP arm can assert, and the paste chord itself, which the dispatched event bypasses. Both stay pinned in Chromium.
+
+**The caveat, wherever the lane is described.** WebKit-on-Windows through Playwright is not Safari and not a WKWebView. It is the closest available proxy, so a green lane is weaker evidence than its pass count suggests, and #37 stays open until something runs on Apple hardware. The browser build is pinned by the `@playwright/test` version in `package.json`: a Playwright upgrade that reds the lane is signal, not noise.
 
 ### Requirements pair one-to-one with specs
 

@@ -139,22 +139,12 @@ milestone touching each area inherits it instead of rediscovering it the expensi
   webview find of the next integration lands as a row in that example's checklist, not a
   surprise. Cross-platform webview coverage rides the same item (owner, 2026-08-14): WebKitGTK
   is reachable from Linux CI or WSL, and a macOS/WKWebView lane needs a real or virtualized
-  macOS runner; both are future gates, not pre-1.0 work. The first step, ahead of any real
-  webview lane, is a curated **Playwright-WebKit smoke project** (owner, 2026-08-14): a
-  30-50-spec slice of typing, split/merge, selection, paste, and round-trip, run per release
-  rather than per commit, with composition driven through hand-fired events because the CDP
-  IME driver is Chromium-only. Contenteditable is the most engine-divergent API the editor
-  sits on, and the ledger still carries a Safari-shaped watch (#37); the smoke lane
-  prices that gap before a WKWebView runner ever exists. The sizing spike ran 2026-08-25
-  (325 tests across three areas under the WebKit binary, 307 green, no engine-specific editor
-  divergence): the lane is 49 tests in 11 spec files, nine of them green today, and the two
-  pieces of work it needs are a clipboard seam (WebKit rejects the clipboard permission grants
-  at context creation and its `writeText` lands in a clipboard the synthetic paste cannot see;
-  ten of the eighteen failures were clipboard) and a G4.49 amendment exempting the composition
-  driver so a hand-fired arm may live beside the CDP one. Its first run also found an
-  engine-independent drag defect the Chromium driver's one-move-per-frame pacing hides, which
-  argues for the lane on stronger grounds than #37 alone. Posture when built: per release, a
-  failing gate outside `npm test`, WebKit pinned to the Playwright version.
+  macOS runner; both are future gates, not pre-1.0 work. Contenteditable is the most
+  engine-divergent API the editor sits on, and the ledger still carries a Safari-shaped watch
+  (#37) that only Apple hardware can close. The per-release Playwright-WebKit lane
+  (`docs/contributing/testing.md` § The WebKit lane) is the closest available proxy and prices
+  part of that gap, but a green lane is weaker evidence than its pass count suggests, so #37
+  stays open until a real WKWebView runs the suite.
 - **Singletons earn their keep only until the second claimant arrives.** The process-global
   reveal anchor produced two consumer-visible defects, the interaction trace interleaves
   instances by design, and the reveal mount-waiter registry had to move off its bare-index
