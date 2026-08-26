@@ -128,5 +128,10 @@ behavior that does not exist.
   same commit.
 - **A moved seam moves the codebase map in the same commit** ([`codebase-map.md`](codebase-map.md)).
   `npm run lint` fails on a path or symbol it names that no longer exists, which is the reminder.
+- **A behavior change sweeps its prose by claim, not by grep.** Every sentence about the changed
+  behavior gets a verdict, across `docs/guide/`, `docs/design/`, `src/lib/editor-props.ts` and the
+  shipped-source manifests (the section notes in `src/lib/plugin.ts` and `src/lib/index.ts`, the
+  tables in `docs/README.md`). Three stale sentences survived a grep sweep in one session, each
+  describing the old behavior in words that held no symbol to search for.
 - Contributor-facing friction that is real but is not a defect lives in
   [`friction-log.md`](friction-log.md) rather than in someone's memory.
