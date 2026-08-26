@@ -7,7 +7,7 @@
 
 import type { BlockComponent } from '../../block-component';
 import type { CommitController } from '../../action-contracts';
-import { displayLength } from '../../core/lines';
+import { ownTrailingLineEnding } from '../../core/lines';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import type { BlockElLookup, DocumentGetter, PresentationModeGetter } from '../../editor-keys';
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
@@ -159,5 +159,5 @@ function startBlockLength(
 ): number {
 	const raw = blockNodeAt(doc, start.path)?.raw ?? '';
 	const write = plan.writes.find((entry) => comparePaths(entry.path, start.path) === 0);
-	return write ? write.newDisplay.length + raw.slice(displayLength(raw)).length : raw.length;
+	return write ? write.newDisplay.length + ownTrailingLineEnding(raw).length : raw.length;
 }

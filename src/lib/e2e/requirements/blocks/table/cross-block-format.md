@@ -53,3 +53,7 @@ Direction is still the range's own coverage, and the whole press is ONE undo ent
 - The two readings of an intra-table pair (row-major run vs rectangle) are pinned
   only where a gesture drives them. The unit corpus can assert either and be
   self-consistent; the drag above is what ties the rewrite to what the user sees lit.
+- The same gap sat one layer lower: the arm plans from the whole-row-SNAPPED endpoints
+  while every unit case built its own pair and called the plan directly, so nothing
+  tested that edge. `test/selection/cross-block/format-snapped-endpoints.test.ts`
+  now drives a mid-row cell endpoint through the chord and pins the snapped cell set.

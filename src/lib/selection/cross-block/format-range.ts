@@ -17,7 +17,7 @@ import {
 	type ToggleInlineFormatResult
 } from '../../core/inline/format-toggle';
 import { getContentRange, type ContentRange } from '../../core/inline';
-import { displayLength, trimTrailingLineEnding } from '../../core/lines';
+import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { InlineMarkKind } from '../../schema/inline-construct-policy';
@@ -121,7 +121,7 @@ export function applyCrossBlockFormat(
 		if (!owned) continue;
 		// The node's OWN ending back, not a minted one: a grid cell carries none, and a line
 		// ending reaching its raw would be normalized into a space at the write sink.
-		const raw = write.newDisplay + owned.raw.slice(displayLength(owned.raw));
+		const raw = write.newDisplay + ownTrailingLineEnding(owned.raw);
 		writeOwnRaw(owned, normalizeBodyWrite(chain[chain.length - 2]?.kind, raw), grammar);
 		chains.push(chain);
 	}

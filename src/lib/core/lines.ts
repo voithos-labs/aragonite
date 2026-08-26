@@ -12,6 +12,15 @@ export function trimTrailingLineEnding(raw: string): string {
 }
 
 /**
+ * The ending `raw` actually carries, `''` where it carries none — {@link trimTrailingLineEnding}'s
+ * complement, the two partitioning `raw`. What {@link trailingLineEnding} answers instead is which
+ * ending the DOCUMENT uses, so a site reattaching a block's own bytes reads this one (G4.20).
+ */
+export function ownTrailingLineEnding(raw: string): string {
+	return raw.slice(displayLength(raw));
+}
+
+/**
  * `offset` moved off the interior of a surrogate pair, back to the pair's own start. Caret
  * offsets are UTF-16 code units, so a cut at one can halve an astral scalar and leave a lone
  * surrogate — bytes no UTF-8 encoder round-trips (`TextEncoder` yields U+FFFD) and no inverse

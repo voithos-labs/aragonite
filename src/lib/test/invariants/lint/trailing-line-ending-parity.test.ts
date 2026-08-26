@@ -161,6 +161,15 @@ const TERNARY_RULE =
 	'call `trailingLineEnding(raw)`. Twelve inline copies of it were the source contributors ' +
 	'copied from, and copy #13 dropped the CRLF arm four separate times';
 
+/** `raw.slice(displayLength(raw))` — `ownTrailingLineEnding`'s body, the ending a block's own
+ *  bytes carry rather than the one the document uses. */
+const INLINE_OWN_ENDING_SLICE = /\.slice\s*\(\s*displayLength\s*\(/;
+
+const OWN_ENDING_RULE =
+	`the \`.slice(displayLength(raw))\` ending complement belongs to ${LINE_ENDING_SEAM} alone — ` +
+	'call `ownTrailingLineEnding(raw)`. It answers the other half of the same question, so a ' +
+	'copy of it is the ternary copies again with the seam one call further away';
+
 // ── Arm 5 support: the rule's domain ─────────────────────────────────────────
 
 /**
@@ -270,11 +279,21 @@ describe('G4.20 trailing-line-ending seam exclusivity', () => {
 		expect(copies, TERNARY_RULE).toEqual([]);
 	});
 
-	it('the seam still holds the expression the rule redirects to', () => {
+	it('no file outside core/lines.ts writes the ending complement longhand', () => {
+		const copies = sources
+			.filter((f) => f.relPath !== LINE_ENDING_SEAM)
+			.filter((f) => INLINE_OWN_ENDING_SLICE.test(f.code))
+			.map((f) => f.relPath);
+		expect(copies, OWN_ENDING_RULE).toEqual([]);
+	});
+
+	it('the seam still holds both expressions the rules redirect to', () => {
 		const seam = sources.find((f) => f.relPath === LINE_ENDING_SEAM);
 		expect(seam, `line-ending seam not found: ${LINE_ENDING_SEAM}`).toBeDefined();
 		expect(INLINE_ENDING_TERNARY.test(seam!.code)).toBe(true);
+		expect(INLINE_OWN_ENDING_SLICE.test(seam!.code)).toBe(true);
 		expect(seam!.code).toContain('export function trailingLineEnding');
+		expect(seam!.code).toContain('export function ownTrailingLineEnding');
 	});
 });
 

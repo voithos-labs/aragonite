@@ -5,7 +5,12 @@
  */
 
 import type { ContentRange } from '../../../core/inline';
-import { displayLength, trailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
+import {
+	displayLength,
+	ownTrailingLineEnding,
+	trailingLineEnding,
+	trimTrailingLineEnding
+} from '../../../core/lines';
 
 export interface TextEditResult {
 	newRaw: string;
@@ -50,7 +55,7 @@ export function dropStructuralSuffix(
 	preEditOffset: number
 ): TextEditResult {
 	return {
-		newRaw: raw.slice(0, contentEnd) + raw.slice(displayLength(raw)),
+		newRaw: raw.slice(0, contentEnd) + ownTrailingLineEnding(raw),
 		caretOffset: Math.min(preEditOffset, contentEnd)
 	};
 }
@@ -73,7 +78,7 @@ export function cycleHeading(
 	const newDisplay = prefix + raw.slice(content.start, content.end);
 	const inContent = Math.min(Math.max(preEditOffset, content.start), content.end);
 	return {
-		newRaw: newDisplay + raw.slice(displayLength(raw)),
+		newRaw: newDisplay + ownTrailingLineEnding(raw),
 		caretOffset: prefix.length + (inContent - content.start)
 	};
 }
@@ -85,7 +90,7 @@ export function cycleHeading(
  */
 export function insertHardBreak(raw: string, offset: number): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
-	const trailing = raw.slice(displayLength(raw));
+	const trailing = ownTrailingLineEnding(raw);
 	// The break carries the block's own ending (G4.20): CommonMark reads a backslash
 	// before either LF or CRLF as a hard break, so a CRLF block stays CRLF.
 	const breakBytes = '\\' + trailingLineEnding(raw);
@@ -102,7 +107,7 @@ export function insertHardBreak(raw: string, offset: number): TextEditResult {
 /** Insert a literal tab character at `offset` within the display portion. */
 export function insertLiteralTab(raw: string, offset: number): TextEditResult {
 	const display = trimTrailingLineEnding(raw);
-	const trailing = raw.slice(displayLength(raw));
+	const trailing = ownTrailingLineEnding(raw);
 	const newDisplay = display.slice(0, offset) + '\t' + display.slice(offset);
 	return { newRaw: newDisplay + trailing, caretOffset: offset + 1 };
 }

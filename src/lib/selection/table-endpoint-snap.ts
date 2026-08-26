@@ -61,7 +61,8 @@ export interface GridCell {
  * The cells a range covers inside one grid, in document order. `from`/`to` are the range's own
  * cell indices, null on a side the range runs past. Both inside is the RECTANGLE they span —
  * what the overlay paints and `range-delete-table` clears. One inside makes it a run to that
- * cell inclusive, since the range enters or leaves at the grid's own edge.
+ * cell inclusive, since the range enters or leaves at the grid's own edge. Rows of cells is the
+ * whole shape asked of the grid; a plugin one holding anything else answers with no cells.
  */
 export function coveredGridCells(
 	grid: NodeView,
@@ -70,7 +71,10 @@ export function coveredGridCells(
 	to: number | null
 ): GridCell[] {
 	const rows = grid.children ?? [];
-	const colCount = metadataOf(grid, 'table').columnCount;
+	// The grid's own width, not `metadata.columnCount`: `containerContract: 'grid'` is a plugin
+	// contract too, and a kind carrying no table metadata reaches here. The two agree on a table —
+	// every column mutation splices each row and the count in one step.
+	const colCount = rows[0]?.children?.length ?? 0;
 	if (rows.length === 0 || colCount < 1) return [];
 	const lastIndex = rows.length * colCount - 1;
 	const clamp = (index: number) => Math.min(Math.max(index, 0), lastIndex);
