@@ -63,11 +63,10 @@ export function toggleInlineFormat(
 	// is the covering arm's split: stripping there leaves the press's own read still active.
 	const sole =
 		covering.length > 1 ? null : soleStripCandidate(display, inlines, start, end, format);
-	if (sole) return paints ? sole : (screenPreserving([sole], edit)[0] ?? null);
+	if (sole) return paints || preservesScreen(sole, edit, screenOf(display, content)) ? sole : null;
 
 	// The flank strip rewrites bytes OUTSIDE the selection, and byte equality can mistake a nested
-	// run's delimiters for the enclosing one's, so its candidate verifies like the split's and falls
-	// through.
+	// run's delimiters for the enclosing one's, so its candidate verifies like the split's.
 	const enclosing = enclosingSpanOf(inlines, start, end, format);
 	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) {
 		const flank = firstFlipVerified(
@@ -257,8 +256,8 @@ function splitCandidates(
 ): ToggleInlineFormatResult[] {
 	const cutStart = Math.max(start, span.contentStart);
 	const cutEnd = Math.min(end, span.contentEnd);
-	// A selection lying wholly in the run's own delimiters clamps to nothing, and what an emission
-	// there says is the bytes unchanged with the selection collapsed onto a caret.
+	// A selection wholly inside the run's delimiters clamps to nothing; emitting there writes the
+	// bytes unchanged and collapses the selection onto a caret.
 	if (cutEnd <= cutStart) return [];
 	if (!cutsLandCleanly(inlines, { start: cutStart, end: cutEnd }, span)) return [];
 	const opener = display.slice(span.start, span.contentStart);
@@ -461,18 +460,13 @@ function screenOf(display: string, content: ContentRange): string {
 	);
 }
 
-/** The candidates the render path reads back unchanged: a toggle changes formatting, never the
- *  text on screen. */
-function screenPreserving(
-	candidates: ToggleInlineFormatResult[],
-	edit: InlineFormatEdit
-): ToggleInlineFormatResult[] {
+function preservesScreen(
+	candidate: ToggleInlineFormatResult,
+	edit: InlineFormatEdit,
+	shown: string
+): boolean {
 	const { display, content } = edit;
-	const shown = screenOf(display, content);
-	return candidates.filter(
-		(candidate) =>
-			screenOf(candidate.newDisplay, shiftedContent(content, display, candidate)) === shown
-	);
+	return screenOf(candidate.newDisplay, shiftedContent(content, display, candidate)) === shown;
 }
 
 /** Both checks a candidate owes wherever its own bytes are not the mode's answer: the content text
@@ -485,9 +479,12 @@ function firstFlipVerified(
 	direction: 'apply' | 'unapply'
 ): ToggleInlineFormatResult | null {
 	const { display, content } = edit;
+	const shown = screenOf(display, content);
 	return (
-		screenPreserving(candidates, edit).find((candidate) =>
-			coverageFlipped(candidate, shiftedContent(content, display, candidate), format, direction)
+		candidates.find(
+			(candidate) =>
+				preservesScreen(candidate, edit, shown) &&
+				coverageFlipped(candidate, shiftedContent(content, display, candidate), format, direction)
 		) ?? null
 	);
 }
@@ -615,9 +612,9 @@ function enclosingSpanOf(
 	return found;
 }
 
-/** Every construct of this kind whose WHOLE RANGE covers the selection, innermost first — coverage
- *  that reaches into the delimiters still reads as "already formatted", and where runs of one kind
- *  nest, shedding the inner one leaves the outer covering, so the split tries each in turn. */
+/** Every construct of this kind whose WHOLE RANGE covers the selection — coverage that reaches
+ *  into the delimiters still reads as "already formatted", and where runs of one kind nest,
+ *  shedding the inner one leaves the outer covering, so the split tries each in turn. */
 function coveringSpansOf(
 	inlines: readonly InlineNode[],
 	start: number,
@@ -630,8 +627,7 @@ function coveringSpansOf(
 		const span = spanOf(node);
 		if (span && span.start <= start && end <= span.end) covering.push(span);
 	}
-	// Pre-order yields an ancestor before its children, and the spans covering one range are a chain.
-	return covering.reverse();
+	return covering;
 }
 
 /**

@@ -131,9 +131,8 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toBeDisabled();
 	});
 
-	// Same-kind nesting, where the bar paints pressed for a run the press does not address: over a
-	// bare delimiter byte there is no content to unformat, and over the inner run the outer one goes
-	// on covering whatever the strip leaves.
+	// The bar paints pressed for a run the press does not address: no content inside a bare
+	// delimiter, and an outer run that survives the inner strip.
 	test('the strike button declines over a bare delimiter and splits the outer run over the inner', async ({
 		page
 	}) => {
@@ -151,6 +150,7 @@ test.describe('selection toolbar', () => {
 			anchor: { offset: 4 },
 			focus: { offset: 5 }
 		});
+		await expect(strike).toHaveAttribute('aria-pressed', 'true');
 
 		for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowRight');
 		await expect(strike).toHaveAttribute('aria-pressed', 'true');

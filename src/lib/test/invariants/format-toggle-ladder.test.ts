@@ -87,6 +87,7 @@ describe('G2.14 — the pressed-state read and the toggle direction', () => {
 	for (const { kind } of listInlineMarks()) {
 		it(`${kind}: an active range unapplies, an inactive one applies`, () => {
 			const violations: string[] = [];
+			const flipsByLine = new Map<string, number>();
 			let flips = 0;
 			for (const display of CORPUS) {
 				const content = { start: 0, end: display.length };
@@ -103,6 +104,7 @@ describe('G2.14 — the pressed-state read and the toggle direction', () => {
 							isBareWrap(display, selection, result);
 						if (isInlineFormatActiveAfter(edit, result, kind) !== active) {
 							flips++;
+							flipsByLine.set(display, (flipsByLine.get(display) ?? 0) + 1);
 						} else if (!excused) {
 							violations.push(
 								`${mode} ${JSON.stringify(display)} [${selection.start},${selection.end}] ` +
@@ -113,7 +115,9 @@ describe('G2.14 — the pressed-state read and the toggle direction', () => {
 				}
 			}
 			expect(violations).toEqual([]);
-			// The sweep proves nothing if every case declined or took the escape.
+			// The sweep proves nothing where a line declined its way out, and a line's own collapse
+			// disappears into a total this large, so both floors stand: per line, then over the corpus.
+			expect(CORPUS.filter((line) => (flipsByLine.get(line) ?? 0) < 5)).toEqual([]);
 			expect(flips).toBeGreaterThan(500);
 		});
 	}
