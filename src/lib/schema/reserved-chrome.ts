@@ -1,6 +1,6 @@
 import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
-import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import { tryGetBlockKindDescriptor, type BlockKindDescriptor } from './block-kind-descriptor';
 
 /**
  * Reserved-chrome predicates: the declaration-driven surface the model layer dispatches on
@@ -20,7 +20,16 @@ export function isReservedChromeChild(container: NodeView, childIndex: number): 
 
 /** True only when the kind declares an `isCollapsed` probe and it reports this node collapsed. */
 export function isCollapsedContainer(node: NodeView): boolean {
-	const probe = tryGetBlockKindDescriptor(node.kind)?.reservedChrome?.isCollapsed;
+	return isCollapsedByDescriptor(tryGetBlockKindDescriptor(node.kind), node);
+}
+
+/** The same reading for a caller already holding the descriptor — the height oracle's per-node
+ *  path, where a second registry lookup is one per block of the document. */
+export function isCollapsedByDescriptor(
+	descriptor: BlockKindDescriptor | undefined,
+	node: NodeView
+): boolean {
+	const probe = descriptor?.reservedChrome?.isCollapsed;
 	return probe !== undefined && probe(node);
 }
 

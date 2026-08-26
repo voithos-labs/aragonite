@@ -146,9 +146,16 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	function buildModel(): HeightModel {
 		const width = estimateWidth(deps.getListEl(), deps.getPort()?.contentWidth() ?? 0);
 		const children = deps.getChildren();
-		const ids = deps.getChildIds();
-		modelChildIds = ids.slice();
-		return new HeightModel(children.map((n, i) => deps.oracle.height(ids[i], n, width)));
+		// Indexed, and off the snapshot rather than the live id array: `map` pays a `has` trap
+		// beside every `get`, and a scope holding 400,000 children pays each of those once per
+		// child on load.
+		modelChildIds = deps.getChildIds().slice();
+		const count = children.length;
+		const heights = new Array<number>(count);
+		for (let i = 0; i < count; i++) {
+			heights[i] = deps.oracle.height(modelChildIds[i], children[i], width);
+		}
+		return new HeightModel(heights);
 	}
 
 	let model = $state<HeightModel>(buildModel());
