@@ -176,6 +176,8 @@ describe('relocateComposedRun', () => {
 // #116's own draw: a run of three or more asterisks is SHARED between a nested pair, so a byte at
 // either end rebinds which delimiters pair with which. Declining here is no shrug — the caret's
 // own offset is the candidate that verifies, and the run's far end is the one that does not.
+// Miss-analysis: the property net excluded the class by an input regex against an open issue,
+// so neither lane could see it until the exclusion became a classification.
 describe('a delimiter run shared between two pairings', () => {
 	const SHARED = '***foo****foo*';
 
@@ -221,4 +223,21 @@ describe('abutting marker runs are one screen position', () => {
 			});
 		}
 	});
+});
+
+// Miss-analysis: the interior was unreachable while the caret's offset short-circuited candidate
+// one, so no row asked what slot two holds for a kind that may not take an interior at all.
+describe('a never-extend construct admits no interior seat', () => {
+	// `_foo_` poisons the byte before each construct (an intraword `_` cannot close), which is the
+	// only way past candidate one. Offset 4 is inside the EMPHASIS, outside the never-extend kind.
+	it.each([['_foo_[link](url)'], ['_foo_<https://e.com>'], ['_foo_![alt](u)']])(
+		'seats outside the construct in %s, never between its delimiters',
+		(source) => {
+			for (const affinity of ['near', 'far', 'outside', null] as const) {
+				expect(seatIn(source, 5, affinity), `${affinity}`).toEqual(
+					expect.objectContaining({ offset: 4 })
+				);
+			}
+		}
+	);
 });

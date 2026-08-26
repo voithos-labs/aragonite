@@ -15,7 +15,10 @@ import {
 	type VisibilityContext
 } from '../../../core/inline/visibility';
 import type { ContentRange } from '../../../core/inline';
-import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import {
+	getInlineConstructPolicy,
+	type InlineConstructPolicy
+} from '../../../schema/inline-construct-policy';
 import { insertsExactly } from './screen-diff';
 
 export interface EdgeSeat {
@@ -44,11 +47,6 @@ export function resolveEdgeSeat(
 	if (!run) return null;
 	const policy = getInlineConstructPolicy(run.kind);
 	if (!policy) return null;
-	// Never-extend resolves like a line extreme: past the construct's delimiters, which is the
-	// run's near side at an opener and its far side at a closer. A symmetric pair follows the
-	// arrival, defaulting to the near side — the gdocs click default (live-mode.md § 4.2).
-	const side: EdgeAffinity =
-		policy.edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const content = contentBounds(inlines);
 	const before = shown(raw, content.start, content.end);
 	const holds = (offset: number): boolean => {
@@ -56,7 +54,7 @@ export function resolveEdgeSeat(
 		const after = shown(candidate, content.start, content.end + typed.length);
 		return insertsExactly(before, after, typed);
 	};
-	for (const offset of candidateOffsets(run, side, caretOffset, runs)) {
+	for (const offset of candidateOffsets(run, policy.edgeAffinity, affinity, caretOffset, runs)) {
 		// The walk's read and Chromium's insertion canonicalize the same way, so a verified
 		// `seat === caret` means native typing already lands where the seat wants it.
 		if (offset === caretOffset) {
@@ -102,10 +100,11 @@ export function plainInsertionAt(before: string, after: string, at: number): str
 }
 
 /**
- * Every raw offset the caret's screen position names — the seat's whole reach, and empty where no
+ * Every raw offset the caret's screen position ADMITS — the seat's whole reach, and empty where no
  * marker run touches the caret. A hidden run's hidden neighbours name the same position, so the
  * stretch of abutting runs is one position and each boundary in it is a seat; an offset inside a
- * run's own bytes is inside some construct's delimiters, which is where no byte belongs.
+ * run's own bytes is inside some construct's delimiters, which is where no byte belongs. A caret
+ * strictly inside a run is one such offset, so the reach can exclude the caret it was asked about.
  */
 export function seatOffsetsAt(
 	caretOffset: number,
@@ -115,7 +114,11 @@ export function seatOffsetsAt(
 ): readonly number[] {
 	const runs = markerRuns(inlines, raw, screen);
 	const run = runAt(caretOffset, runs);
-	return run ? screenPositionOffsets(run, runs) : [];
+	if (!run) return [];
+	const offsets = screenPositionOffsets(run, runs);
+	return getInlineConstructPolicy(run.kind)?.edgeAffinity === 'never-extend'
+		? offsets.filter((offset) => outsideSpan(run, offset))
+		: offsets;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -126,6 +129,8 @@ interface MarkerRun {
 	/** The opener's run; its near side is outside the construct, its far side inside. */
 	leading: boolean;
 	kind: AnyInlineKind;
+	/** The construct's own bytes, which bound where a `never-extend` row admits a candidate. */
+	span: ContentRange;
 }
 
 function offsetForSide(run: MarkerRun, side: EdgeAffinity): number {
@@ -146,17 +151,30 @@ const otherEnd = (run: MarkerRun, side: EdgeAffinity): number =>
  */
 function candidateOffsets(
 	run: MarkerRun,
-	side: EdgeAffinity,
+	edgeAffinity: InlineConstructPolicy['edgeAffinity'],
+	affinity: EdgeAffinity | null,
 	caretOffset: number,
 	runs: readonly MarkerRun[]
 ): number[] {
+	// Never-extend resolves like a line extreme: past the construct's delimiters, which is the
+	// run's near side at an opener and its far side at a closer. A symmetric pair follows the
+	// arrival, defaulting to the near side — the gdocs click default (live-mode.md § 4.2).
+	const side: EdgeAffinity = edgeAffinity === 'never-extend' ? 'outside' : (affinity ?? 'near');
 	const preferred = offsetForSide(run, side);
 	const ranked = [preferred, otherEnd(run, side), caretOffset];
 	const rest = screenPositionOffsets(run, runs)
 		.filter((offset) => !ranked.includes(offset))
 		.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred));
-	return [...new Set([...ranked, ...rest])];
+	const offsets = [...new Set([...ranked, ...rest])];
+	return edgeAffinity === 'never-extend' ? offsets.filter((o) => outsideSpan(run, o)) : offsets;
 }
+
+/** Whether `offset` lies outside the run's own construct. A `never-extend` row admits nothing
+ *  inside: half a URL is not a URL, half an escape is a literal backslash, and a destination the
+ *  mode never paints is one the painter cannot check. Stated over the SPAN rather than over the
+ *  run's inner end, since the screen position reaches an interior through a neighbour's run too. */
+const outsideSpan = (run: MarkerRun, offset: number): boolean =>
+	offset <= run.span.start || offset >= run.span.end;
 
 /** The stretch of abutting runs `run` belongs to, as the boundary offsets inside it. */
 function screenPositionOffsets(run: MarkerRun, runs: readonly MarkerRun[]): number[] {
@@ -205,11 +223,12 @@ function markerRuns(
 	for (const node of inlineDescendants(inlines)) {
 		const content = constructContentRange(node) ?? paintedRange(node, raw, screen);
 		if (!content) continue;
+		const span = { start: node.start, end: node.end };
 		if (node.start < content.start) {
-			runs.push({ start: node.start, end: content.start, leading: true, kind: node.kind });
+			runs.push({ start: node.start, end: content.start, leading: true, kind: node.kind, span });
 		}
 		if (content.end < node.end) {
-			runs.push({ start: content.end, end: node.end, leading: false, kind: node.kind });
+			runs.push({ start: content.end, end: node.end, leading: false, kind: node.kind, span });
 		}
 	}
 	return runs;

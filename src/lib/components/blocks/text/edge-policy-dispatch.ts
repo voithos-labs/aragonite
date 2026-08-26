@@ -617,8 +617,8 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (!seat) return false;
 		e.preventDefault();
 		deps.setSnapTarget(null);
-		// The kind rides the trace: the seam's whole job is deciding which construct owns the
-		// byte, so a trace line that does not name it cannot be read.
+		// The kind rides the trace: it names the construct whose hidden edge the caret sat at, the
+		// question this seam answered, so a trace line without it cannot be read.
 		editDisplay(seat.offset, seat.offset, e.key, `seat:${seat.kind}`, caretOffset);
 		return true;
 	}

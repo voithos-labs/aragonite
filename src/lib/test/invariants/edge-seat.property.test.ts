@@ -29,12 +29,6 @@ import '../../schema/built-in-descriptors';
 
 const PARAMS = { numRuns: 500, seed: freshOrFixedSeed(818818) } as const;
 
-/** A ceiling, never a floor, and low enough that a SINGLE ambiguous draw trips it: the fixed lane
- *  finds none, and a fresh one meets the shape about once in fifteen thousand draws. What it
- *  catches is the seat's REACH shrinking, since a candidate it can no longer see reads as
- *  markdown's fault; a fresh-seed fire is a find to look at, which is what that lane is for. */
-const AMBIGUOUS_RATE_CEILING = 0.001;
-
 /** Every arrival a seat can be asked about, including the one that says nothing yet. */
 const AFFINITIES: (EdgeAffinity | null)[] = ['near', 'far', 'outside', null];
 
@@ -176,8 +170,11 @@ describe('the typing seat over generated inline fixtures', () => {
 		expect(declined).toBeGreaterThan(0);
 	});
 
-	it('markdown’s own rebinding stays the rare answer', () => {
-		expect(ambiguous / (relocated + declined)).toBeLessThan(AMBIGUOUS_RATE_CEILING);
+	// Zero on the fixed lane, and a ceiling rather than a floor: the shape turns up about once in
+	// fifteen thousand draws, so one HERE is the seat's REACH having shrunk — a candidate it can no
+	// longer see reads as markdown's fault. A fresh-seed fire is a find to look at, that lane's job.
+	it('no draw rebinds under every offset the seat can reach', () => {
+		expect(ambiguous).toBe(0);
 	});
 });
 
@@ -185,11 +182,16 @@ describe('the typing seat over generated inline fixtures', () => {
 // the issue named HAS an answer now that the seat reaches the whole screen position rather than one
 // run; where every offset that position names rebinds, the byte-literal write stands (§ 4.4) and
 // the net reports which of the two it found instead of skipping the shape.
+// Miss-analysis: the net excluded the class by an INPUT REGEX against an open issue, so no test
+// here could see it until the exclusion became a classification.
 describe('a surfaced delimiter is classified, never excluded', () => {
-	// The residue is not a shared run: this emphasis encloses a BARE autolink, and at its opener the
-	// outside offset kills the emphasis while the inside one kills the URL.
+	// The residue is not a shared run: this emphasis encloses a BARE autolink, and the trailing
+	// `**a**` offers the parse a second pairing — the opener's outside offset re-flanks into it
+	// while its inside offset kills the URL.
 	it('reports a screen position that rebinds under every offset as markdown’s own', () => {
 		expect(rescueOffset('*www.example.com***a**', 0)).toBeUndefined();
+		// The downstream run is what discriminates: the same opener alone still has an answer.
+		expect(rescueOffset('*www.example.com*', 0)).toBe(0);
 	});
 
 	// What the classification may not swallow: a shared run the seat CAN answer is still a claim,
