@@ -14,7 +14,7 @@ import type { CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
 import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';
 import { blockNodeAt } from '../../tree-operations/node-ops';
-import { comparePaths, pathHasPrefix } from '../path-math';
+import { comparePaths } from '../path-math';
 import type { SelectionPoint } from '../primitives';
 import { restoreSelection } from '../selection-restore';
 import type { SelectionState } from '../selection-state.svelte';
@@ -149,7 +149,8 @@ const withOffset = (point: SelectionPoint, offset: number): SelectionPoint => ({
 
 /**
  * The event detail's post-write length, read off the plan: `op` is spent before `mutate` runs.
- * A grid start endpoint names the whole grid, whose own bytes move by its cells' deltas.
+ * A grid start endpoint names the grid, whose bytes the plan holds only as its cells' — the
+ * rebuild re-pads every row, so it reports the length the grid stands at.
  */
 function startBlockLength(
 	doc: ReturnType<DocumentGetter>,
@@ -158,12 +159,5 @@ function startBlockLength(
 ): number {
 	const raw = blockNodeAt(doc, start.path)?.raw ?? '';
 	const write = plan.writes.find((entry) => comparePaths(entry.path, start.path) === 0);
-	if (write) return write.newDisplay.length + raw.slice(displayLength(raw)).length;
-	return plan.writes
-		.filter((entry) => pathHasPrefix(entry.path, start.path))
-		.reduce(
-			(length, entry) =>
-				length + entry.newDisplay.length - (blockNodeAt(doc, entry.path)?.raw.length ?? 0),
-			raw.length
-		);
+	return write ? write.newDisplay.length + raw.slice(displayLength(raw)).length : raw.length;
 }

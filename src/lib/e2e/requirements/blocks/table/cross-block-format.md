@@ -38,8 +38,9 @@ Direction is still the range's own coverage, and the whole press is ONE undo ent
 - zero `[invariant:…]` console fires across every scenario (automatic via the
   shared e2e fixture) — a cell endpoint reaching a char-offset site is exactly the
   shape G1.29 catches
-- the document still round-trips after the press: a cell write that escaped wrong
-  would reparse as a different grid
+- the whole-document press and the escaped-pipe press each leave a document that
+  still round-trips: a cell write that escaped wrong would reparse as a different
+  grid, and those two are the presses whose bytes could do it
 
 ## Miss-analysis
 
