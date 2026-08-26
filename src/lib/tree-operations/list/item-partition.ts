@@ -33,10 +33,9 @@ export function partitionItemChildren(
 	return { promotedItems, liftedBlocks };
 }
 
-// A childless sublist has no items to give and its bytes would vanish with it, so it lifts;
-// `[]` is the shape the editable-container backfill repairs, `undefined` the one it skips.
+// A sublist with no items has nothing to give, and its bytes would vanish with it, so it lifts.
 function promotesToParentLevel(child: NodeView, parentOrdered: boolean): boolean {
-	if (child.kind !== 'list' || child.children === undefined) return false;
+	if (child.kind !== 'list' || !child.children?.length) return false;
 	return (metadataOf(child, 'list')?.ordered ?? false) === parentOrdered;
 }
 

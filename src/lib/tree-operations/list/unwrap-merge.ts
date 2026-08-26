@@ -41,6 +41,9 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		const rest = clonedList.children!.slice(1);
 		if (rest.length === 0) return [];
 		clonedList.children = rest;
+		// childIds pairs by index, so it slices with the children or every survivor
+		// inherits its predecessor's id.
+		clonedList.childIds = clonedList.childIds?.slice(1);
 		rebuildListRaw(clonedList);
 		return [clonedList];
 	}
