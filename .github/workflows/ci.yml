@@ -94,11 +94,11 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
       - run: npx playwright install --with-deps chromium
-      # perf:check:prod builds and previews the app, then gates the keystroke rows
-      # against that prod build (the e2e-perf-prod project) — a dev-server run would
-      # measure vite transform overhead, not the editor. The report-only rows exclude
-      # themselves via their own PERF_GATE skip, so this needs no row filter.
-      - run: npm run perf:check:prod
+      # perf:check builds and previews the app, then gates the keystroke rows against
+      # that prod build (the e2e-perf-prod project) — a dev-server run would measure vite
+      # transform overhead, not the editor. The report-only rows exclude themselves via
+      # their own PERF_GATE skip, so this needs no row filter.
+      - run: npm run perf:check
 
   consumer-smoke:
     runs-on: ubuntu-latest

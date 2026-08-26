@@ -8,7 +8,7 @@
 - [ ] `npm run check` (svelte-check, 0 errors)
 - [ ] `npm run lint`
 
-`npm run perf:check` reads red on anything but the calibration machine, by design, so don't tune to a local number. CI's scaled perf job is the arbiter.
+`npm run perf:check` builds and previews the app before measuring, and reads red on anything but the calibration machine by design, so don't tune to a local number. CI's scaled perf job is the arbiter.
 
 ## Before you submit
 

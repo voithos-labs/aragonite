@@ -25,8 +25,8 @@ for (const [key, row] of Object.entries(baseline.e2e)) {
 	byShape.get(shape)[size] = row;
 }
 
-// A chart is a size series, so it draws only the shapes recorded at every size: the `-head`
-// rows are 1MB-only gate probes and sit outside that contract by design.
+// A chart is a size series, so it draws only the shapes recorded at every size: the
+// `-interior` rows are container-only gate probes and sit outside that contract by design.
 const sizeSeriesShapes = [...byShape.keys()].filter((s) =>
 	SIZES.every((size) => size in byShape.get(s))
 );

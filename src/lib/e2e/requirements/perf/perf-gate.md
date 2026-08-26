@@ -2,9 +2,9 @@
 
 The commit-blocking half of the perf harness. Where `typing-latency.md` _measures_
 every shape × size and reports, this gate _fails_ when a curated subset regresses
-past its recorded baseline. Armed only by `PERF_GATE` (`npm run perf:check`);
-without it every row skips, loudly rather than silently — a skipped gate that
-reads green would be theater.
+past its recorded baseline. Armed only by `PERF_GATE` (`npm run perf:check`, which
+builds and previews the app first and measures that); without it every row skips,
+loudly rather than silently — a skipped gate that reads green would be theater.
 
 Deliberately outside `npm test`: the timing rows are slow, and a single-machine
 timing gate belongs at a merge/ship boundary, not on every commit.
@@ -21,6 +21,10 @@ Per-keystroke **p50** for each gated row, against `src/lib/test/perf/baseline.js
   entirely at 1MB.
 - `single-giant-paragraph` is recorded, not gated: its span rebuild is
   O(paragraph length), a genuinely different axis that windowing cannot bound.
+- The `-interior-` rows type INSIDE a giant container, where every other row types
+  ahead of one. The caret sits at the container's first child, the child windowing
+  guarantees mounted, and the end whose keystroke still moves the container's opener
+  line; the axis they stand for is any keystroke inside a large container.
 
 ## The budget
 
@@ -47,12 +51,13 @@ re-render, say — barely moves a 30-sample median. That class is guarded
 separately, by the block-render-scoping count assertion inside the fast
 `npm test` gate.
 
-Rows also run under the dev server with DEV invariant assertions active, so every
-number is a conservative upper bound on production, not a production latency.
+Rows run against a built-and-previewed app, so the numbers are the editor's rather
+than the dev server's. A dev run of the same rows reads several times higher on a
+large container, most of it Svelte's dev-only bookkeeping.
 
 ## Error cases
 
 - a keystroke whose CST commit never lands fails the row via settle timeout
   rather than recording a bogus latency
-- a baseline row missing for a gated shape × size fails the row rather than
-  passing vacuously
+- a baseline row missing for a gated shape × size fails the row, naming the key,
+  rather than passing vacuously or dying on a property read

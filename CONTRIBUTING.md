@@ -118,7 +118,7 @@ How much you run scales with what you did. Scope follows the **files you touched
 
 - **Inner loop**, seconds to a minute: the per-area scripts while you iterate. Fast, and nowhere near enough to commit.
 - **Commit gate**: `npm test` plus `npm run check` and `npm run lint`. Green before every commit. This takes tens of minutes, so start it and go do something else with your life.
-- **Ship gate**: the commit gate plus `npm run perf:check` before a merge or release. Not `test:editor:perf`, which already runs inside `npm test` and tells you nothing new.
+- **Ship gate**: the commit gate plus `npm run perf:check` before a merge or release. It builds and previews the app first, so it measures the editor rather than the dev server, and takes several minutes for that reason. Not `test:editor:perf`, which already runs inside `npm test` and tells you nothing new.
 
 **`perf:check` will read red on your machine, and that is fine.** The ceilings are calibrated against one pinned host, so an unscaled run anywhere else is a diagnostic, not a verdict ([`docs/design/performance.md`](docs/design/performance.md) explains why). CI runs a scaled perf job and that job is the arbiter. A red local perf run is not you breaking the editor and it does not block your change.
 

@@ -9,7 +9,7 @@ import {
 	type TriggerDenseKind
 } from '../../../test/perf/fixtures/generate';
 import {
-	measureContainerHeadTyping,
+	measureContainerInteriorTyping,
 	measureDeepNestedTyping,
 	measureTypingIntoDocument,
 	measureTypingLatency,
@@ -73,24 +73,24 @@ test.describe('typing latency', () => {
 	}
 });
 
-// ── Container-head typing (report companion to the gated rows) ──────────────
+// ── Container-interior typing (report companion to the gated rows) ──────────
 
-// The caret INSIDE a giant container, so every keystroke rewrites its opener line — the
-// axis the prose-target rows above cannot reach, since they prepend a paragraph precisely
-// to give the caret a top-level home. Gated twins live in perf-gate.
-const CONTAINER_HEAD_SHAPES: Array<[shape: FixtureShape, headLeafPath: number[]]> = [
+// The caret INSIDE a giant container — the axis the prose-target rows above cannot reach,
+// since they prepend a paragraph precisely to give the caret a top-level home. The first
+// child is the one windowing guarantees mounted. Gated twins live in perf-gate.
+const CONTAINER_INTERIOR_SHAPES: Array<[shape: FixtureShape, leafPath: number[]]> = [
 	['giant-single-list', [0, 0, 0]],
 	['giant-single-blockquote', [0, 0]]
 ];
 
-test.describe('typing latency — container head', () => {
-	for (const [shape, headLeafPath] of CONTAINER_HEAD_SHAPES) {
-		test(`${shape} head 1MB`, async ({ page }) => {
+test.describe('typing latency — container interior', () => {
+	for (const [shape, leafPath] of CONTAINER_INTERIOR_SHAPES) {
+		test(`${shape} interior 1MB`, async ({ page }) => {
 			const editor = new EditorPage(page);
-			const m = await measureContainerHeadTyping(page, editor, shape, headLeafPath, 1_000_000, 30);
-			writeResult(`${shape}-head`, '1MB', {
+			const m = await measureContainerInteriorTyping(page, editor, shape, leafPath, 1_000_000, 30);
+			writeResult(`${shape}-interior`, '1MB', {
 				shape,
-				headLeafPath,
+				leafPath,
 				bytes: 1_000_000,
 				loadMs: round(m.loadMs),
 				keystrokes: 30,

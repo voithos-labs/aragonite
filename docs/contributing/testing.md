@@ -305,11 +305,11 @@ Artifacts persist under `simulation-captures/seed-<N>/` (gitignored, one directo
 
 Two layers measure the editor over shared deterministic fixtures, and exactly one of them is a gate. Work out which one you are looking at before you panic about a number.
 
-| Layer   | Command               | Measures                                                                                              |
-| ------- | --------------------- | ----------------------------------------------------------------------------------------------------- |
-| Bench   | `npm run perf:editor` | Parse / clone / ancestry-rebuild / snapshot-push timings → `perf-results/`                            |
-| Browser | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                                  |
-| Gate    | `npm run perf:check`  | Keystroke p50 of every renderable shape at 1MB and 10MB vs baseline + tolerance — fails on regression |
+| Layer   | Command               | Measures                                                                                                                              |
+| ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Bench   | `npm run perf:editor` | Parse / clone / ancestry-rebuild / snapshot-push timings → `perf-results/`                                                            |
+| Browser | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                                                                  |
+| Gate    | `npm run perf:check`  | Keystroke p50 of every renderable shape at 1MB and 10MB vs baseline + tolerance, over a built-and-previewed app — fails on regression |
 
 The browser and gate scripts arm their own env gates (`PERF` / `PERF_GATE`). Outside them, in the full `npm test` battery for instance, the `e2e-perf` specs self-skip in seconds.
 
@@ -335,7 +335,7 @@ On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()`
 
 Ceiling and baseline bumps are deliberate decisions with a changelog note, never a reflexive edit to make a red run go away.
 
-**What `perf:check` actually gates.** The dev machine is the pinned hardware, and same-machine run-to-run p50 spread is a few percent, so an absolute baseline plus tolerance catches regressions without a CI runner. Re-bless the baseline after a Chromium/OS/toolchain bump moves the floor.
+**What `perf:check` actually gates.** The dev machine is the pinned hardware, and same-machine run-to-run p50 spread is a few percent, so an absolute baseline plus tolerance catches regressions without a CI runner. It measures a production build, which is what makes the numbers the editor's rather than Vite's transforms and Svelte's dev bookkeeping. Re-bless the baseline after a Chromium/OS/toolchain bump moves the floor.
 
 It gates **steady-state** p50, which means it is blind to a one-slow-keystroke regression: a single slow first-edit full re-render barely moves a 30-sample median. That class is guarded separately, by the `block-render-scoping` count assertion inside the fast `npm test` gate. p95 is reported rather than gated, since it catches single GC-pause keystrokes and is noisy.
 

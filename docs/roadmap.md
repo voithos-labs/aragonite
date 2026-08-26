@@ -313,10 +313,6 @@ Where live mode's complexity actually arrives, and the consolidations that cap i
 the 2026-08 arcs. Each is a direction rather than a promise, and none is freeze-bound, since it
 is all internal machinery.
 
-- **Incremental ancestry rebuild, behind a falsification gate.** The container rebuild is
-  measured-cheap at realistic nesting; an O(child) splice-based rebuild is designed only if the
-  perf gate ever shows the O(container) cost moving. Not before. The lower-join seam ask's
-  measured tail (#182) is the first candidate workload.
 - **A non-fence open absorber declines the terminator mint silently.** The #180 discriminator
   correctly identifies today's absorbing class as exactly the fence family, whose closer is
   derivable; a future grammar whose open absorber has no derivable terminator would fall back

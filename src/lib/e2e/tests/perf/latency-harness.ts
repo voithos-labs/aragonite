@@ -205,16 +205,17 @@ export async function measureTypingLatency(
 }
 
 /**
- * The container-interior companion to {@link measureTypingLatency}. Typing into a giant
- * container's FIRST child rewrites the container's own opener line every keystroke — the
- * gesture the kind re-derivation gate must elide, and the one axis a prose-target row can
- * never see. Block 0 IS the container here, so the same block-0 settle applies.
+ * The container-interior companion to {@link measureTypingLatency}: the axis a prose-target row
+ * can never see, since every one of those types AHEAD of the container. The caret sits at the
+ * container's first child because that is the child windowing guarantees mounted, and it is also
+ * the expensive end — a first-child keystroke moves the container's own opener line, so it pays
+ * the kind re-derivation gate and the slot seam ask a mid-container keystroke skips.
  */
-export async function measureContainerHeadTyping(
+export async function measureContainerInteriorTyping(
 	page: Page,
 	editor: EditorPage,
 	shape: FixtureShape,
-	headLeafPath: number[],
+	leafPath: number[],
 	bytes: number,
 	keystrokes: number
 ): Promise<LatencyMeasurement> {
@@ -222,11 +223,11 @@ export async function measureContainerHeadTyping(
 	const fixture = generateFixture(shape, bytes);
 
 	const loadMs = await loadFixture(page, editor, fixture);
-	await assertMounted(page, headLeafPath, 'container head');
+	await assertMounted(page, leafPath, 'container interior');
 
 	// Overshooting the leaf's own length lands in focusBlockAtPath's clamp-to-end
-	// fallback, so the caret sits at the head leaf's end whatever its content is.
-	await editor.focusBlockAtPath(headLeafPath, Number.MAX_SAFE_INTEGER);
+	// fallback, so the caret sits at that leaf's end whatever its content is.
+	await editor.focusBlockAtPath(leafPath, Number.MAX_SAFE_INTEGER);
 	const base0 = await block0Length(page);
 	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
 

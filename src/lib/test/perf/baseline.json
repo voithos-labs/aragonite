@@ -2,7 +2,7 @@
 	"recorded": "2026-07-24",
 	"reVerified": "2026-08-20 — full perf:e2e re-run on the recorded machine; every row landed at or below its recorded value (ratios 0.66-1.02), so the values below stand unchanged and the gate ceiling did not move. Re-blessing on a uniformly-favourable run would tighten the gate on machine state rather than on code.",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
-	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. parse / snapshot* rows last refreshed 2026-06-20; ancestryRebuild rows re-blessed as one epoch 2026-08-26 (the four earlier rows had drifted 1.1-3x on a same-machine re-run, and the ten combined depth x bytes rows were unrecorded); e2e rows re-blessed 2026-07-24.",
+	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`, which builds and previews the app and measures that) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. parse / snapshot* rows last refreshed 2026-06-20; ancestryRebuild rows re-blessed as one epoch 2026-08-26 (the four earlier rows had drifted 1.1-3x on a same-machine re-run, and the ten combined depth x bytes rows were unrecorded); e2e rows re-blessed 2026-07-24, except the container `-interior-` rows: those carry dev-build values recorded under their former `-head-` names and are awaiting a production-build bless, and `giant-single-list-interior-10MB` is gated with no row at all, which fails the gate by design until one is measured.",
 	"parse": {
 		"flat-prose-100KB": {
 			"mean-ms": 0.2944,
@@ -421,12 +421,12 @@
 			"keystrokeP50Ms": 2.6,
 			"keystrokeP95Ms": 74.9
 		},
-		"giant-single-list-head-1MB": {
+		"giant-single-list-interior-1MB": {
 			"loadMs": 338.1,
 			"keystrokeP50Ms": 52.1,
 			"keystrokeP95Ms": 55.3
 		},
-		"giant-single-blockquote-head-1MB": {
+		"giant-single-blockquote-interior-1MB": {
 			"loadMs": 218.9,
 			"keystrokeP50Ms": 29.1,
 			"keystrokeP95Ms": 31.3

@@ -8,6 +8,8 @@ per-keystroke latency while typing into the loaded document. Gated behind
 **Caveat:** rows run against the dev server with DEV invariant assertions
 active, so all numbers are conservative upper bounds on production latency,
 not production latencies. The caveat is embedded in every result artifact.
+The gate (`perf-gate.md`) measures a production build instead, so a report row
+and its gated twin are not comparable numbers.
 
 ## Measurements
 
