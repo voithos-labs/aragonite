@@ -21,6 +21,8 @@ import { insertsExactly } from './screen-diff';
 export interface EdgeSeat {
 	/** Raw offset the byte must be written at. */
 	offset: number;
+	/** The construct whose hidden edge the caret sat at, which need not be the one holding
+	 *  `offset`: a screen position reaches the runs abutting that construct's own. */
 	kind: AnyInlineKind;
 }
 
