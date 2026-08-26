@@ -7,7 +7,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { balancedCall, collectEditorSources, EDITOR_SRC, REPO_WIDE_ROOTS } from './scan-source';
+import {
+	balancedCall,
+	callArguments,
+	collectEditorSources,
+	EDITOR_SRC,
+	rawAssignments,
+	REPO_WIDE_ROOTS,
+	stripComments
+} from './scan-source';
 
 describe('repo-wide scan roots', () => {
 	const sources = collectEditorSources();
@@ -68,11 +76,52 @@ describe('balancedCall', () => {
 		const quoted = "splitNode(node, ')', mode)";
 		expect(balancedCall(quoted, quoted.indexOf('(') + 1)).toBe("node, ')', mode");
 	});
+});
 
-	// Three runtime files spell one, and the string skip runs to EOF on each: a null here would
-	// drop the site from callsTo's population, which every consumer then asserts is empty.
-	it('falls back to the string-blind read when a regex literal opens an unclosed quote', () => {
+// Miss-analysis: the walkers' own cases fed them strings and nested parens, never a regex
+// literal, so the quote tracking's blindness to one was pinned as a fallback instead of caught.
+describe('literal-aware walking', () => {
+	it('balances a call whose argument holds a regex literal', () => {
 		const regexArg = 'encode(title.replace(/"/g, "x"))';
 		expect(balancedCall(regexArg, regexArg.indexOf('(') + 1)).toBe('title.replace(/"/g, "x")');
+
+		// A string-blind read answers `a, '` here: it counts the paren inside the string literal.
+		const both = "foo(a, ')', /'/.test(b))";
+		expect(balancedCall(both, both.indexOf('(') + 1)).toBe("a, ')', /'/.test(b)");
+	});
+
+	it('splits top-level arguments around a regex literal, character class included', () => {
+		expect(callArguments("a, /'/.test(x), b")).toEqual(['a', "/'/.test(x)", 'b']);
+		expect(callArguments('a, /[/,]/.test(x), b')).toEqual(['a', '/[/,]/.test(x)', 'b']);
+		expect(callArguments('a, /\\//.test(x), b')).toEqual(['a', '/\\//.test(x)', 'b']);
+	});
+
+	// The other half of the recognizer: reading division as a regex swallows the operands
+	// between two slashes, which merges argument slots just as silently.
+	it('reads division as division', () => {
+		expect(callArguments("f(x) / g(y), 'a, b', c")).toEqual(['f(x) / g(y)', "'a, b'", 'c']);
+		expect(callArguments('a, b / c, d')).toEqual(['a', 'b / c', 'd']);
+	});
+
+	// Every scan reads slots by position off the stripped text, so a strip that changes length
+	// slides every downstream offset.
+	it('strips comments without moving a single offset', () => {
+		const cases = [
+			"const url = 'https://x'; // trailing\nnext();",
+			'/* unterminated block comment',
+			'const re = /\\/\\//; /* mid */ call();',
+			'const t = `a ${b /* c */} d`;'
+		];
+		for (const text of cases) expect(stripComments(text)).toHaveLength(text.length);
+		expect(stripComments("const url = 'https://x'; // trailing")).toBe(
+			"const url = 'https://x';            "
+		);
+	});
+
+	it('terminates a raw-write statement at the semicolon past a regex literal', () => {
+		const src = "node.raw = source.replace(/'/g, '') + ending;\nconst other = 1;";
+		expect(rawAssignments([{ relPath: 'x', text: src, code: src }])).toEqual([
+			{ relPath: 'x', statement: ".raw = source.replace(/'/g, '') + ending" }
+		]);
 	});
 });

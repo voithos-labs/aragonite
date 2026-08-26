@@ -36,33 +36,23 @@ export interface SourceFile {
 }
 
 /**
- * Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a
- * code scan. Naive w.r.t. markers inside string/regex literals, which is acceptable: the
- * scans match call/read shapes rather than bare tokens.
+ * Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
+ * scan. A marker inside a string, template or regex literal is text: blanking one truncates the
+ * line and drops whatever followed from the census that reads it.
  */
 export function stripComments(text: string): string {
 	let out = '';
 	let i = 0;
 	while (i < text.length) {
-		const two = text.slice(i, i + 2);
-		if (two === '//') {
-			while (i < text.length && text[i] !== '\n') {
-				out += ' ';
-				i++;
-			}
-		} else if (two === '/*') {
-			out += '  ';
-			i += 2;
-			while (i < text.length && text.slice(i, i + 2) !== '*/') {
-				out += text[i] === '\n' ? '\n' : ' ';
-				i++;
-			}
-			out += '  ';
-			i += 2;
-		} else {
+		const span = spanAt(text, i);
+		if (span === null) {
 			out += text[i];
 			i++;
+			continue;
 		}
+		const source = text.slice(i, span.end);
+		out += span.isComment ? source.replace(/[^\n]/g, ' ') : source;
+		i = span.end;
 	}
 	return out;
 }
@@ -118,6 +108,112 @@ export function readEditorFile(relFromEditor: string): SourceFile {
 	};
 }
 
+// ── Literal-aware walk ───────────────────────────────────────────────────────
+
+/**
+ * Visit each character of `code` from `from` that is real code — strings, templates, comments
+ * and regex literals are stepped over whole, so a bracket, comma or semicolon inside one never
+ * reaches a census. Returns the index `visit` stopped at, or `code.length` if it ran out.
+ */
+function walkCode(
+	code: string,
+	from: number,
+	visit: (ch: string, index: number) => boolean | void
+): number {
+	for (let i = from; i < code.length; i++) {
+		const span = spanAt(code, i);
+		if (span !== null) {
+			i = span.end - 1;
+			continue;
+		}
+		if (visit(code[i], i) === true) return i;
+	}
+	return code.length;
+}
+
+/**
+ * The non-code span starting at `i` — string, template, comment or regex literal — or null
+ * where code continues. The one place the lexing rules live.
+ */
+function spanAt(code: string, i: number): { end: number; isComment: boolean } | null {
+	const ch = code[i];
+	if (ch === "'" || ch === '"') return { end: skipString(code, i), isComment: false };
+	if (ch === '`') return { end: skipTemplate(code, i), isComment: false };
+	if (ch !== '/') return null;
+	if (code[i + 1] === '/') return { end: endOfLine(code, i), isComment: true };
+	if (code[i + 1] === '*') return { end: skipBlockComment(code, i), isComment: true };
+	const past = opensRegex(code, i) ? skipRegex(code, i) : null;
+	return past === null ? null : { end: past, isComment: false };
+}
+
+/** Index just past the string at `i`; an unterminated one ends at its line, as JS requires. */
+function skipString(code: string, i: number): number {
+	const quote = code[i];
+	for (let j = i + 1; j < code.length; j++) {
+		const ch = code[j];
+		if (ch === '\\') j++;
+		else if (ch === quote) return j + 1;
+		else if (ch === '\n') return j;
+	}
+	return code.length;
+}
+
+/** Index just past the template literal at `i`; `${…}` interpolations are walked as code. */
+function skipTemplate(code: string, i: number): number {
+	for (let j = i + 1; j < code.length; j++) {
+		const ch = code[j];
+		if (ch === '\\') j++;
+		else if (ch === '`') return j + 1;
+		else if (ch === '$' && code[j + 1] === '{') {
+			let depth = 1;
+			j = walkCode(code, j + 2, (c) => {
+				if (c === '{') depth++;
+				else if (c === '}') return --depth === 0;
+			});
+		}
+	}
+	return code.length;
+}
+
+function endOfLine(code: string, i: number): number {
+	const nl = code.indexOf('\n', i);
+	return nl < 0 ? code.length : nl;
+}
+
+function skipBlockComment(code: string, i: number): number {
+	const end = code.indexOf('*/', i + 2);
+	return end < 0 ? code.length : end + 2;
+}
+
+/** Index just past the regex literal at `i`, or null when it does not close on its line. */
+function skipRegex(code: string, i: number): number | null {
+	let inClass = false;
+	for (let j = i + 1; j < code.length; j++) {
+		const ch = code[j];
+		if (ch === '\\') j++;
+		else if (ch === '\n') return null;
+		else if (inClass) inClass = ch !== ']';
+		else if (ch === '[') inClass = true;
+		else if (ch === '/') return j + 1;
+	}
+	return null;
+}
+
+/** Operand position, which is where a `/` opens a regex; after a value it divides. */
+const REGEX_OPERAND_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';']);
+
+function opensRegex(code: string, at: number): boolean {
+	let i = at - 1;
+	while (i >= 0 && /\s/.test(code[i])) i--;
+	if (i < 0) return true;
+	if (code[i] === '>') return code[i - 1] === '=';
+	if (REGEX_OPERAND_CHARS.has(code[i])) return true;
+	let start = i + 1;
+	while (start > 0 && /[\w$]/.test(code[start - 1])) start--;
+	const word = code.slice(start, i + 1);
+	return word === 'return' || word === 'typeof';
+}
+
 // ── Raw-write statements ─────────────────────────────────────────────────────
 
 /** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
@@ -137,28 +233,18 @@ export function rawAssignments(
 		const re = /\.raw\s*\+?=(?!=)/g;
 		let m: RegExpExecArray | null;
 		while ((m = re.exec(f.code)) !== null) {
-			let depth = 0;
-			let quote: string | null = null;
 			const limit = Math.min(f.code.length, m.index + MAX_STATEMENT_SPAN);
+			let depth = 0;
 			let end = limit;
-			for (let i = m.index; i < limit; i++) {
-				const c = f.code[i];
-				if (quote) {
-					if (c === '\\') i++;
-					else if (c === quote) quote = null;
-					continue;
-				}
-				if (c === "'" || c === '"' || c === '`') quote = c;
-				else if (c === '(' || c === '[' || c === '{') depth++;
+			walkCode(f.code, m.index, (c, i) => {
+				if (i >= limit) return true;
+				if (c === '(' || c === '[' || c === '{') depth++;
 				else if (c === ')' || c === ']' || c === '}') depth--;
-				else if (c === ';' && depth <= 0) {
+				else if (depth <= 0 && (c === ';' || (c === '\n' && f.code[i + 1] === '\n'))) {
 					end = i;
-					break;
-				} else if (c === '\n' && f.code[i + 1] === '\n' && depth <= 0) {
-					end = i;
-					break;
+					return true;
 				}
-			}
+			});
 			out.push({ relPath: f.relPath, statement: f.code.slice(m.index, end) });
 		}
 	}
@@ -194,53 +280,31 @@ export function callsAnywhere(code: string, name: string): boolean {
 }
 
 /**
- * Just after a call's opening paren to its matching close, parens balanced. Strings are skipped, so
- * a `)` inside an argument cannot truncate the slot a census then reads by position; the
- * string-blind read is the fallback, because `stripComments` leaves regex literals intact and a
- * lone quote in one runs the skip to EOF — dropping the site from the population entirely.
+ * Just after a call's opening paren to its matching close, parens balanced. A bracket inside a
+ * string, template, comment or regex literal cannot truncate the slot a census reads by position.
  */
 export function balancedCall(code: string, openParenIndex: number): string | null {
-	return matchingParen(code, openParenIndex, true) ?? matchingParen(code, openParenIndex, false);
-}
-
-function matchingParen(code: string, from: number, skipStrings: boolean): string | null {
 	let depth = 1;
-	let quote: string | null = null;
-	for (let i = from; i < code.length; i++) {
-		const ch = code[i];
-		if (quote) {
-			if (ch === '\\') i++;
-			else if (ch === quote) quote = null;
-			continue;
-		}
-		if (skipStrings && (ch === "'" || ch === '"' || ch === '`')) quote = ch;
-		else if (ch === '(') depth++;
-		else if (ch === ')' && --depth === 0) return code.slice(from, i);
-	}
-	return null;
+	const at = walkCode(code, openParenIndex, (ch) => {
+		if (ch === '(') depth++;
+		else if (ch === ')') return --depth === 0;
+	});
+	return at === code.length ? null : code.slice(openParenIndex, at);
 }
 
-/** A call's top-level arguments: split on the commas outside every bracket and string literal. */
+/** A call's top-level arguments: split on the commas outside every bracket and literal. */
 export function callArguments(args: string): string[] {
 	const out: string[] = [];
 	let depth = 0;
-	let quote: string | null = null;
 	let start = 0;
-	for (let i = 0; i < args.length; i++) {
-		const ch = args[i];
-		if (quote) {
-			if (ch === '\\') i++;
-			else if (ch === quote) quote = null;
-			continue;
-		}
-		if (ch === "'" || ch === '"' || ch === '`') quote = ch;
-		else if (ch === '(' || ch === '[' || ch === '{') depth++;
+	walkCode(args, 0, (ch, i) => {
+		if (ch === '(' || ch === '[' || ch === '{') depth++;
 		else if (ch === ')' || ch === ']' || ch === '}') depth--;
 		else if (ch === ',' && depth === 0) {
 			out.push(args.slice(start, i).trim());
 			start = i + 1;
 		}
-	}
+	});
 	out.push(args.slice(start).trim());
 	return out;
 }
