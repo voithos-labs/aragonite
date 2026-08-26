@@ -150,8 +150,9 @@ test.describe('sticky column: code block entry symmetry', () => {
 
 		// Entry from above and below land on DIFFERENT body lines, where nearest-column
 		// quantization can legitimately disagree by a character cell — so the bound is a measured
-		// cell, not the same-line PIXEL_TOLERANCE the sibling tests use. A sticky regression
-		// lands multiple cells apart and still fails.
+		// cell, not the same-line PIXEL_TOLERANCE the sibling tests use, widened by however far
+		// the two clicks' own captured columns fell apart. A sticky regression lands multiple
+		// cells apart and still fails.
 		const cellWidth = await editor.getBlock(codeBlockIndex).evaluate((el) => {
 			const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
 			let node: Node | null;
@@ -168,10 +169,8 @@ test.describe('sticky column: code block entry symmetry', () => {
 		expect(cellWidth).toBeGreaterThan(0);
 
 		const captureDelta = Math.abs(capturedAboveX - capturedBelowX);
-		if (captureDelta < 5) {
-			expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(
-				cellWidth + PIXEL_TOLERANCE + captureDelta
-			);
-		}
+		expect(Math.abs(landAboveX - landBelowX)).toBeLessThan(
+			cellWidth + PIXEL_TOLERANCE + captureDelta
+		);
 	});
 });
