@@ -1,7 +1,8 @@
 /**
- * The cell-index space a selection endpoint inside a table lives in. Offsets are INCLUSIVE cell
- * indices, the space SelectionPoint already uses; an intra-table pair is deliberately left
- * unsnapped, so rectangular sub-cell selection survives.
+ * The cell-index space a selection endpoint inside a grid lives in. Offsets are INCLUSIVE cell
+ * indices, the space SelectionPoint already uses. The whole-row snap and the two metadata reads
+ * answer for a table alone; the coverage tenants answer for any `containerContract: 'grid'` kind.
+ * An intra-table pair is deliberately left unsnapped, so rectangular sub-cell selection survives.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -63,10 +64,10 @@ function gridColumnCount(grid: NodeView): number {
 }
 
 /**
- * `point`'s index in `grid`'s cell space, null where it lies outside the grid — the side the range
- * runs past. A table's endpoint arrives on the grid path already carrying the index; a plugin
- * grid's keeps the deep `[grid, row, col]` path G1.29 permits, and resolves through the same width
- * {@link coveredGridCells} decodes with.
+ * `point`'s index in `grid`'s cell space, null where it addresses no cell of it — the side the
+ * range runs past, which reads as the grid's own edge. A table's endpoint arrives on the grid path
+ * already carrying the index; a plugin grid's keeps the deep `[grid, row, col]` path G1.29 permits,
+ * and resolves through the same width {@link coveredGridCells} decodes with.
  */
 export function gridEndpointCellIndex(
 	grid: NodeView,
@@ -74,17 +75,22 @@ export function gridEndpointCellIndex(
 	point: SelectionPoint
 ): number | null {
 	if (!pathHasPrefix(point.path, gridPath)) return null;
-	if (point.path.length === gridPath.length) return point.offset;
+	// On the grid's own path, resolution is the NODE KIND's, not the flag's ({@link
+	// cellEndpointDeepPath}): a table path IS cell space, so an intra-table rectangle's unflagged
+	// corner counts cells, while any other grid holds a char offset addressing no cell.
+	if (point.path.length === gridPath.length)
+		return point.cellCoordinate || grid.kind === 'table' ? point.offset : null;
 	const [row, col = 0] = point.path.slice(gridPath.length);
 	return row * gridColumnCount(grid) + col;
 }
 
 /**
- * The cells a range covers inside one grid, in document order. `from`/`to` are the range's own
- * cell indices, null on a side the range runs past. Both inside is the RECTANGLE they span — what
- * the overlay paints and `range-delete-table` clears; one inside is a run to that cell inclusive.
- * Rows of EQUAL-width cells is the whole shape asked: a grid holding anything else answers with no
- * cells, and a ragged one with the wrong cells or none, since every index is row 0's width.
+ * The cells a range covers inside one grid, in document order. `from`/`to` are the range's own cell
+ * indices IN DOCUMENT ORDER (`from <= to`; unordered inputs answer with fewer cells or none), null
+ * on a side the range runs past. Both inside is the RECTANGLE they span — what the overlay paints
+ * and `range-delete-table` clears; one inside is a run to that cell inclusive. Rows of cells is the
+ * whole shape asked: children that are not rows of cells answer with no cells, rows of unequal
+ * width with the wrong cells or none, every index being row 0's width.
  */
 export function coveredGridCells(
 	grid: NodeView,

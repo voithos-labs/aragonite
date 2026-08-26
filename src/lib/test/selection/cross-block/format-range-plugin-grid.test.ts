@@ -107,10 +107,11 @@ describe('a range endpoint deep inside a plugin grid', () => {
 	it('runs to the end endpoint’s own cell instead of covering every cell', () => {
 		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
 
-		const { end, plan } = planStored(doc, at([0], 0), at([1, 0, 0], 1));
+		// A row-1 endpoint, so the index arithmetic is `row * width + col` and not `row + col`.
+		const { end, plan } = planStored(doc, at([0], 0), at([1, 1, 0], 1));
 		// The premise the arm has to survive: no snap moved this endpoint into cell space.
-		expect(end).toEqual({ path: [1, 0, 0], offset: 1 });
-		expect(plan!.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0]]);
+		expect(end).toEqual({ path: [1, 1, 0], offset: 1 });
+		expect(plan!.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0], [1, 0, 1], [1, 1, 0]]);
 	});
 
 	it('runs from the start endpoint’s own cell instead of contributing nothing', () => {
@@ -150,5 +151,63 @@ describe('a range endpoint deep inside a plugin grid', () => {
 		doc.children[0].raw = '**head**\n';
 
 		expect(crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1)).has('strong')).toBe(true);
+	});
+
+	// An endpoint ON the grid's own path counts cells only where the path IS cell space. A plugin
+	// grid rendering one surface over its cells lands a CHAR offset there, which addresses no cell.
+	it('reads a char offset on the grid’s own path as the grid’s edge, not as a cell index', () => {
+		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
+
+		const { plan } = planStored(doc, at([1], 3), at([2], 4));
+		expect(plan!.writes.map((write) => write.path)).toEqual([
+			[1, 0, 0],
+			[1, 0, 1],
+			[1, 1, 0],
+			[1, 1, 1],
+			[2]
+		]);
+	});
+});
+
+// Row 0's width is the whole grid's, so a wider later row has cells no index reaches. Asserted
+// rather than left implied: every other fixture here is rectangular, where any width read agrees.
+describe('a grid whose rows differ in width', () => {
+	const RAGGED = [
+		['a', 'b'],
+		['c', 'd'],
+		['e', 'f', 'g']
+	];
+
+	it('never writes the surplus cell of a wider row', () => {
+		const doc = docAround(gridOf(registerPluginGrid(), RAGGED));
+
+		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined)!;
+		expect(plan.writes.map((write) => write.path)).toEqual([
+			[0],
+			[1, 0, 0],
+			[1, 0, 1],
+			[1, 1, 0],
+			[1, 1, 1],
+			[1, 2, 0],
+			[1, 2, 1],
+			[2]
+		]);
+	});
+
+	// The endpoint IS the surplus cell, and its index is still row 0's width — which puts it past
+	// the grid's last index, so the run stops at the last cell the space does reach.
+	it('resolves a deep endpoint through row 0’s width, past the grid’s end', () => {
+		const doc = docAround(gridOf(registerPluginGrid(), RAGGED));
+
+		const { plan } = planStored(doc, at([0], 0), at([1, 2, 2], 1));
+		expect(plan!.writes.map((write) => write.path)).toEqual([
+			[0],
+			[1, 0, 0],
+			[1, 0, 1],
+			[1, 1, 0],
+			[1, 1, 1],
+			[1, 2, 0],
+			[1, 2, 1]
+		]);
 	});
 });
