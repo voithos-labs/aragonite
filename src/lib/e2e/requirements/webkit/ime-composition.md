@@ -19,7 +19,10 @@ not the order an engine produces. Order stays pinned in the Chromium/CDP spec
   mid-composition update, and the committed run lands exactly once at `compositionend`.
 - Compose over a selection: the committed run replaces the selected text, leaving one copy of it.
 - Compose at a construct edge in live mode, the caret at the end of an emphasis run: the commit
-  lands once, inside the construct, and the delimiters survive.
+  lands once, inside the construct, and the delimiters survive. The INSIDE half reads the edge
+  seat's contract (`components/blocks/text/edge-seat.ts`), which no unit test can observe running
+  under a second engine; a deliberate change to that contract updates this scenario, and the
+  lane is the only gate that sees it.
 
 ## Edge cases
 
