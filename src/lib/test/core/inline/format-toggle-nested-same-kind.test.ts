@@ -9,7 +9,7 @@ import { press } from './format-toggle-fixture';
 // the outer, so the answer the coverage read promised is both coming off — the outer split around
 // the selection, the inner stripped inside it. Miss-analysis: every nested case in these suites and
 // in the G2.14 corpus was cross-kind (`~~**mix**~~`, `***both***`), so no test ever drew a strip
-// whose result a same-kind run still covered.
+// whose result a same-kind run still covered, or whose stripped content held one.
 
 const MODES: PresentationMode[] = ['source', 'live'];
 
@@ -29,6 +29,26 @@ describe.each(MODES)('a same-kind run nested inside another (%s)', (mode) => {
 		expect(active).toBe(true);
 		expect(wrote).toBe('~~a~~ b ~~c~~');
 		expect(selected).toBe('b');
+		expect(activeAfter).toBe(false);
+		expect(screenOf(wrote!)).toBe(screenOf(display));
+	});
+
+	// The strip's own content can hold a run of its kind, which only the split's marker shedding
+	// used to reach: a whole-range unapply must not leave part of the range formatted.
+	it.each([
+		['~~a ~b~ c~~', 'strikethrough'],
+		['**a **b** c**', 'strong']
+	] as const)('sheds a same-kind run contained in what it strips: %s', (display, format) => {
+		const { active, wrote, selected, activeAfter } = press({
+			display,
+			start: 0,
+			end: display.length,
+			format,
+			mode
+		});
+		expect(active).toBe(true);
+		expect(wrote).toBe('a b c');
+		expect(selected).toBe('a b c');
 		expect(activeAfter).toBe(false);
 		expect(screenOf(wrote!)).toBe(screenOf(display));
 	});

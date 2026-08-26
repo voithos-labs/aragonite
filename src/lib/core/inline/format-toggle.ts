@@ -200,7 +200,8 @@ function coverageCarries(
 
 /** The selection carries its own flanking markers (the user selected `**word**`): exactly one
  *  span covering the whole slice, so the strip can't orphan markers on `**a** **b**`. It rewrites
- *  only selected bytes, so it keeps the press's literal reading. */
+ *  only selected bytes, so it keeps the press's literal reading, and it sheds the runs of its own
+ *  kind inside that reading, or a whole-range unapply would leave part of the range formatted. */
 function soleStripCandidate(
 	display: string,
 	inlines: readonly InlineNode[],
@@ -212,7 +213,13 @@ function soleStripCandidate(
 	const sliceNodes = parseInline(slice, 0, slice.length);
 	const selfSpan = soleSpanOfSelection(sliceNodes, inlines, start, end, format);
 	if (!selfSpan) return null;
-	const unwrapped = slice.slice(selfSpan.contentStart, selfSpan.contentEnd);
+	const unwrapped = stripKindMarkers(
+		display,
+		inlines,
+		format,
+		start + selfSpan.contentStart,
+		start + selfSpan.contentEnd
+	);
 	return {
 		newDisplay: display.slice(0, start) + unwrapped + display.slice(end),
 		newSelStart: start,
