@@ -325,6 +325,17 @@ export function balancedCall(code: string, openParenIndex: number): string | nul
 	return at === code.length ? null : code.slice(openParenIndex, at);
 }
 
+/** A block's body from just after its opening brace to its matching close, braces balanced — the
+ *  {@link balancedCall} shape over `{}`, for a census that reads whole function bodies. */
+export function balancedBlock(code: string, openBraceIndex: number): string | null {
+	let depth = 1;
+	const at = walkCode(code, openBraceIndex, (ch) => {
+		if (ch === '{') depth++;
+		else if (ch === '}') return --depth === 0;
+	});
+	return at === code.length ? null : code.slice(openBraceIndex, at);
+}
+
 /** A call's top-level arguments: split on the commas outside every bracket and literal. */
 export function callArguments(args: string): string[] {
 	const out: string[] = [];
