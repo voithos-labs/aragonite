@@ -13,6 +13,7 @@ import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { registerOnce } from '../../schema/register-once';
+import { inlineDescendants } from './walk';
 
 /**
  * The atomic-widget shell every core builder shares. Its `data-*` attributes are the offset
@@ -162,22 +163,15 @@ export function getInlineWidgetComponent(
 }
 
 /**
- * Every live widget reachable from `nodes`, in document order. Recurses so a widget nested in a
+ * Every live widget reachable from `nodes`, in document order. Descends so a widget nested in a
  * non-widget parent is found (the `image` inside `[![alt][ref]][repo]`), but never into a
  * widget's own children, which are atomic. `raw` is the enclosing block's source.
  */
 export function flattenInlineWidgets(nodes: ReadonlyArray<InlineNode>, raw: string): InlineNode[] {
 	const out: InlineNode[] = [];
-	const visit = (list: ReadonlyArray<InlineNode>) => {
-		for (const node of list) {
-			if (isInlineWidget(node, raw)) {
-				out.push(node);
-				continue;
-			}
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(nodes);
+	for (const node of inlineDescendants(nodes, (parent) => !isInlineWidget(parent, raw))) {
+		if (isInlineWidget(node, raw)) out.push(node);
+	}
 	return out;
 }
 

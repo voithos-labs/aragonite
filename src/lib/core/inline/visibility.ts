@@ -168,6 +168,12 @@ export function paintsOnlyChrome(
 	);
 }
 
+/** One pending DOM node plus the hiding state it inherits from its ancestors. */
+interface RunFrame {
+	dom: Node;
+	hidden: boolean;
+}
+
 function collectRuns(
 	fragment: DocumentFragment,
 	start: number,
@@ -175,14 +181,22 @@ function collectRuns(
 	out: VisibleRun[]
 ): void {
 	let at = start;
-	const visit = (dom: Node, hidden: boolean): void => {
+	const stack: RunFrame[] = [];
+	// Reversed push, so pop order is source order — which `at` advances along.
+	const pushChildren = (parent: Node, hidden: boolean) => {
+		const children = parent.childNodes;
+		for (let i = children.length - 1; i >= 0; i--) stack.push({ dom: children[i], hidden });
+	};
+	pushChildren(fragment, false);
+	while (stack.length > 0) {
+		const { dom, hidden } = stack.pop()!;
 		if (dom.nodeType === Node.TEXT_NODE) {
 			const text = dom.textContent ?? '';
 			out.push({ start: at, end: at + text.length, text, visible: !hidden });
 			at += text.length;
-			return;
+			continue;
 		}
-		if (dom.nodeType !== Node.ELEMENT_NODE) return;
+		if (dom.nodeType !== Node.ELEMENT_NODE) continue;
 		const el = dom as Element;
 		// Only an atomic widget's shell carries a source range here, and it is the one element
 		// whose text is not its bytes — so the range is both the test and the re-sync.
@@ -190,11 +204,9 @@ function collectRuns(
 		if (source !== null) {
 			out.push({ ...source, text: el.textContent ?? '', visible: !hidden });
 			at = source.end;
-			return;
+			continue;
 		}
 		const family = markerFamilyOf(el);
-		const inner = hidden || (family !== null && familyHidesText(family, ctx));
-		for (const child of el.childNodes) visit(child, inner);
-	};
-	for (const child of fragment.childNodes) visit(child, false);
+		pushChildren(el, hidden || (family !== null && familyHidesText(family, ctx)));
+	}
 }

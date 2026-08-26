@@ -130,14 +130,18 @@ function containerOf(root: Node): HTMLElement | null {
 }
 
 function measurableText(node: Node, container: HTMLElement | null, fromEnd: boolean): Text | null {
-	if (node.nodeType === Node.TEXT_NODE) {
-		return isMeasurableText(node as Text, container) ? (node as Text) : null;
-	}
-	const children = node.childNodes;
-	for (let i = 0; i < children.length; i++) {
-		const child = children[fromEnd ? children.length - 1 - i : i];
-		const found = measurableText(child, container, fromEnd);
-		if (found) return found;
+	const stack: Node[] = [node];
+	while (stack.length > 0) {
+		const current = stack.pop()!;
+		if (current.nodeType === Node.TEXT_NODE) {
+			if (isMeasurableText(current as Text, container)) return current as Text;
+			continue;
+		}
+		// Reversed push, so pop order is the search order: source order, or its reverse.
+		const children = current.childNodes;
+		for (let i = 0; i < children.length; i++) {
+			stack.push(children[fromEnd ? i : children.length - 1 - i]);
+		}
 	}
 	return null;
 }

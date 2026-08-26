@@ -9,6 +9,7 @@ import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { registerBuiltInDescriptors } from '../../schema/built-in-descriptors';
 import type { LinkReferenceResolver } from './link-reference-resolver';
 import { scanInline } from './scan';
+import { inlineDescendants } from './walk';
 import { recordInlineCompute } from '../../perf/instruments';
 
 registerBuiltInDescriptors();
@@ -100,14 +101,7 @@ export function parseInline(
 
 // ── Inline Tree Walks ──────────────────────────────────────────────────────
 
-/** Pre-order over an inline tree, descending unconditionally: each node, then its children.
- *  Yields nodes only — what a reader SEES stays the render path's question (G4.33). */
-export function* inlineDescendants(nodes: readonly InlineNode[]): Generator<InlineNode> {
-	for (const node of nodes) {
-		yield node;
-		if (node.children) yield* inlineDescendants(node.children);
-	}
-}
+export { inlineDescendants };
 
 /** Every construct kind anywhere in a parse, at any depth. */
 export function constructKinds(nodes: readonly InlineNode[]): Set<AnyInlineKind> {

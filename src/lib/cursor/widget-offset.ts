@@ -176,17 +176,27 @@ export function widgetSpanContainingOffset(
 
 /** Raw bytes a DOM subtree stands for: text nodes verbatim, widgets via their source range. */
 export function rawTextOfNode(domNode: Node, raw: string): string {
-	if (domNode.nodeType === Node.TEXT_NODE) return domNode.textContent ?? '';
-	if (isAtomicInlineWidget(domNode)) {
-		const range = widgetSourceRange(domNode as Element);
-		return range ? raw.slice(range.start, range.end) : '';
+	let out = '';
+	const stack: Node[] = [domNode];
+	while (stack.length > 0) {
+		const node = stack.pop()!;
+		if (node.nodeType === Node.TEXT_NODE) {
+			out += node.textContent ?? '';
+			continue;
+		}
+		if (isAtomicInlineWidget(node)) {
+			const range = widgetSourceRange(node as Element);
+			if (range) out += raw.slice(range.start, range.end);
+			continue;
+		}
+		if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+			continue;
+		}
+		// Reversed push, so pop order is source order — which the concatenation follows.
+		const children = node.childNodes;
+		for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
 	}
-	if (domNode.nodeType === Node.ELEMENT_NODE || domNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-		let out = '';
-		for (const child of domNode.childNodes) out += rawTextOfNode(child, raw);
-		return out;
-	}
-	return '';
+	return out;
 }
 
 export function createRangeAtDomTextOffsets(
@@ -504,27 +514,34 @@ function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generat
 	let count = 0;
 	// One read per walk, not one `closest` per element: every caller passes the walk container.
 	const chromePaints = chromeStandsAloneUnder(root, mode);
-	function* visit(node: Node, hiddenRoot: Element | null): Generator<WalkSegment> {
+	const stack: { node: Node; hiddenRoot: Element | null }[] = [];
+	// Reversed push, so pop order is source order — which `count` advances along.
+	const pushChildren = (parent: Node, hiddenRoot: Element | null) => {
+		const children = parent.childNodes;
+		for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i], hiddenRoot });
+	};
+	pushChildren(root, null);
+	while (stack.length > 0) {
+		const { node, hiddenRoot } = stack.pop()!;
 		if (node.nodeType === Node.TEXT_NODE) {
 			const len = node.textContent?.length ?? 0;
 			yield { kind: 'text', node, start: count, len, hiddenRoot };
 			count += len;
-			return;
+			continue;
 		}
-		if (node.nodeType === Node.ELEMENT_NODE) {
-			const el = node as Element;
-			if (el.matches?.(WIDGET_SELECTOR)) {
-				const len = widgetRawLength(el);
-				yield { kind: 'widget', el, start: count, len };
-				count += len;
-				return;
-			}
-			const inner =
-				hiddenRoot ?? (mode !== null && hidesOwnText(el, mode, chromePaints) ? el : null);
-			for (const child of node.childNodes) yield* visit(child, inner);
+		if (node.nodeType !== Node.ELEMENT_NODE) continue;
+		const el = node as Element;
+		if (el.matches?.(WIDGET_SELECTOR)) {
+			const len = widgetRawLength(el);
+			yield { kind: 'widget', el, start: count, len };
+			count += len;
+			continue;
 		}
+		pushChildren(
+			el,
+			hiddenRoot ?? (mode !== null && hidesOwnText(el, mode, chromePaints) ? el : null)
+		);
 	}
-	for (const child of root.childNodes) yield* visit(child, null);
 }
 
 type LandingSegment =

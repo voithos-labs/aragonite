@@ -41,20 +41,25 @@ export function buildLinkReferenceMap(nodes: CstNode[]): LinkReferenceMap {
 }
 
 function collectLinkReferences(nodes: CstNode[], entries: Map<string, ResolvedReference>): void {
-	for (const node of nodes) {
-		if (node.kind === 'linkReferenceDefinition') {
-			const meta = metadataOf(node, 'linkReferenceDefinition');
-			if (meta?.label === undefined || meta.url === undefined) continue;
-			const key = normalizeLinkLabel(meta.label);
-			if (entries.has(key)) continue; // first-wins
-			const entry: ResolvedReference =
-				meta.title !== undefined
-					? Object.freeze({ url: meta.url, title: meta.title })
-					: Object.freeze({ url: meta.url });
-			entries.set(key, entry);
-		}
-		if (node.children) {
-			collectLinkReferences(node.children, entries);
-		}
+	const stack: CstNode[] = [];
+	// Reversed push, so pop order is document order — which is what first-wins reads.
+	const push = (level: CstNode[]) => {
+		for (let i = level.length - 1; i >= 0; i--) stack.push(level[i]);
+	};
+	push(nodes);
+	while (stack.length > 0) {
+		const node = stack.pop()!;
+		if (node.children) push(node.children);
+		if (node.kind !== 'linkReferenceDefinition') continue;
+		const meta = metadataOf(node, 'linkReferenceDefinition');
+		if (meta?.label === undefined || meta.url === undefined) continue;
+		const key = normalizeLinkLabel(meta.label);
+		if (entries.has(key)) continue; // first-wins
+		entries.set(
+			key,
+			meta.title !== undefined
+				? Object.freeze({ url: meta.url, title: meta.title })
+				: Object.freeze({ url: meta.url })
+		);
 	}
 }

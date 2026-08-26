@@ -30,38 +30,42 @@ export function createRangeFromOffsets(
 	let charCount = 0;
 	let startSet = false;
 
-	function walk(node: Node): boolean {
-		// The cursor never lands inside an opaque span: snap to the nearer edge.
-		const len = opaqueSpanLength(node, container);
-		if (len !== null) {
-			if (!startSet && start <= charCount + len) {
-				if (start <= charCount) range.setStartBefore(node);
-				else range.setStartAfter(node);
-				startSet = true;
+	function walk(root: Node): boolean {
+		const stack: Node[] = [root];
+		while (stack.length > 0) {
+			const node = stack.pop()!;
+			// The cursor never lands inside an opaque span: snap to the nearer edge.
+			const opaqueLen = opaqueSpanLength(node, container);
+			if (opaqueLen !== null) {
+				if (!startSet && start <= charCount + opaqueLen) {
+					if (start <= charCount) range.setStartBefore(node);
+					else range.setStartAfter(node);
+					startSet = true;
+				}
+				if (startSet && end <= charCount + opaqueLen) {
+					if (end <= charCount) range.setEndBefore(node);
+					else range.setEndAfter(node);
+					return true;
+				}
+				charCount += opaqueLen;
+				continue;
 			}
-			if (startSet && end <= charCount + len) {
-				if (end <= charCount) range.setEndBefore(node);
-				else range.setEndAfter(node);
-				return true;
+			if (node.nodeType === Node.TEXT_NODE) {
+				const len = node.textContent?.length ?? 0;
+				if (!startSet && charCount + len >= start) {
+					range.setStart(node, start - charCount);
+					startSet = true;
+				}
+				if (startSet && charCount + len >= end) {
+					range.setEnd(node, end - charCount);
+					return true;
+				}
+				charCount += len;
+				continue;
 			}
-			charCount += len;
-			return false;
-		}
-		if (node.nodeType === Node.TEXT_NODE) {
-			const len = node.textContent?.length ?? 0;
-			if (!startSet && charCount + len >= start) {
-				range.setStart(node, start - charCount);
-				startSet = true;
-			}
-			if (startSet && charCount + len >= end) {
-				range.setEnd(node, end - charCount);
-				return true;
-			}
-			charCount += len;
-		} else {
-			for (const child of node.childNodes) {
-				if (walk(child)) return true;
-			}
+			// Reversed push, so pop order is source order — which `charCount` advances along.
+			const children = node.childNodes;
+			for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
 		}
 		return false;
 	}

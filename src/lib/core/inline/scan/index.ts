@@ -5,6 +5,7 @@
 
 import { isBuiltinInlineKind, type InlineNode, type InlineSyntaxClaim } from '../../nodes';
 import type { LinkReferenceResolver } from '../link-reference-resolver';
+import { inlineDescendants } from '../walk';
 import { handleAngle, scanGfmAutolinks } from './autolinks';
 import { handleBang, handleCloseBracket, handleOpenBracket } from './brackets';
 import { handleBacktick } from './code-spans';
@@ -115,8 +116,9 @@ function tryRungs(ctx: ScanContext, rungs: InlineRung[] | undefined): InlineNode
 // into GFM and take the author's syntax with it. Descendants stamp on the same rule; a rung's
 // own kind needs no stamp. Assigned, never merged, so a recognizer cannot name its own claimer.
 function stampClaim(node: InlineNode, claim: InlineSyntaxClaim): void {
-	if (isBuiltinInlineKind(node.kind)) node.syntaxClaim = claim;
-	if (node.children) for (const child of node.children) stampClaim(child, claim);
+	for (const inline of inlineDescendants([node])) {
+		if (isBuiltinInlineKind(inline.kind)) inline.syntaxClaim = claim;
+	}
 }
 
 export function scanInline(
