@@ -3,7 +3,7 @@
 	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
-	import { enterLinkCardAtCaret } from '../../link-card/link-card-entry';
+	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
 	import {
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
@@ -579,10 +579,14 @@
 		return true;
 	}
 
-	// The pressed-state read: the same display, content and selection the toggle itself takes.
+	// The pressed-state read: the same display, content and selection the toggle itself takes,
+	// and for the card the same construct its own entry resolves.
 	export function isCommandActive(id: CommandId): boolean {
 		const marked = inlineMarkForCommand(id);
-		if (!marked) return false;
+		if (!marked) {
+			if (id !== 'link.openCard' || !el) return false;
+			return linkCardTargetAt(linkCardQuery()) !== null;
+		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		return isInlineFormatActive(

@@ -12,7 +12,8 @@ selection read. `normalizeSelection` orders the endpoints and
 no class probe live in the component. A `position: fixed` bar floats above the
 selection's first rect, carrying the five `TOOLBAR_COMMANDS` as buttons that
 call `runCommand(id)` rather than synthesizing a chord, each greyed by
-`canRunCommand(id)` when the door would decline it.
+`canRunCommand(id)` when the door would decline it and painted pressed by
+`isCommandActive(id)`.
 
 ## Happy paths
 
@@ -26,6 +27,9 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 - a selection inside a bold run paints the bold button pressed (`aria-pressed`
   via `isCommandActive`, the admissibility read's state sibling) while the
   other toggles stay unpressed, and a plain selection unpresses it
+- in live mode a selection inside a link paints the link button pressed, and a
+  selection in the plain text beside it unpresses: the link editor is not a
+  mark, so its state is the construct its card would edit
 
 ## User interactions
 
@@ -61,6 +65,9 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 
 ## Miss-analysis
 
+- The pressed read was a per-command mark-row lookup that returned before any
+  read, and no scenario at any layer ever asked a NON-mark command what it
+  painted, so the whole id class with no mark row was unasserted
 - Nothing pressed a toggle over a selection of delimiter bytes, so a press that
   writes the bytes unchanged, collapses the selection onto a caret and charges
   an undo entry for it had no scenario at any layer (GH #218)

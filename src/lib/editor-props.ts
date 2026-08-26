@@ -121,8 +121,8 @@ export interface EditorInstance {
 	 * paints pressed from, answered by the same bytes the toggle would rewrite. State, not
 	 * admissibility, so a disabled button may still paint pressed. Over a cross-block range the
 	 * answer is the range's own coverage: true only where every block it touches carries the
-	 * mark. False for an id with no toggle-state (every id outside the format toggles today)
-	 * and with nothing focused.
+	 * mark; the link editor reads ON inside the construct its card would edit, in live mode
+	 * alone. False for an id with no state of its own, and with nothing focused.
 	 */
 	isCommandActive(commandId: string): boolean;
 	getEvents(): EditorEvents;

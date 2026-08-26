@@ -60,7 +60,7 @@ Every destructive join crosses one seam: `cleanJoinedRaw` in `tree-operations/no
 
 ### 4.6 The link card
 
-Live paints no destination, so the card is the only way to read or rewrite one. The focus model: a click on a link opens the card beside a caret that stays the document's; keyboard entry (Mod+K with the caret inside a link) opens it with focus trapped in the URL field. An edit commits one undoable step through the link byte-write seam (G4.34); the card addresses its link by path plus construct start and re-resolves after every commit, since a commit rebuilds the inline DOM. Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
+Live paints no destination, so the card is the only way to read or rewrite one. The focus model: a click on a link opens the card beside a caret that stays the document's; keyboard entry (Mod+K with the caret inside a link) opens it with focus trapped in the URL field. An edit commits one undoable step through the link byte-write seam (G4.34); the card addresses its link by path plus construct start and re-resolves after every commit, since a commit rebuilds the inline DOM. A toolbar's pressed paint for the chord resolves that same construct, so it too is live mode's alone. Scenarios: `src/lib/e2e/requirements/presentation/live-link-card.md`.
 
 ### 4.7 The language chip
 

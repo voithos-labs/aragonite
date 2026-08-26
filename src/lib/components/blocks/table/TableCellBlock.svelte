@@ -75,7 +75,7 @@
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { widgetElByStart } from '../text/widget-adjacency';
 	import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
-	import { enterLinkCardAtCaret } from '../../link-card/link-card-entry';
+	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -336,12 +336,27 @@
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 
-	// Claims the chord even with no caret to act on: declining leaves Mod+B to the browser's
-	// own contenteditable bold, an edit this surface never authored.
-	// The pressed-state read: the same cell text and selection the toggle itself takes.
+	/** The card's query for this cell. `range` is null at the chord's arm, where a create would
+	 *  have to answer the pipe escapes in cell raw, and the live one at the pressed read. */
+	const linkCardQuery = (contentEl: HTMLElement, range: { start: number; end: number } | null) => ({
+		contentEl,
+		block: node,
+		path: myPath,
+		linkRef,
+		mode: presentationMode,
+		selection: range,
+		crossBlockRange: selection.isCrossBlock
+	});
+
+	// The pressed-state read: the same cell text and selection the toggle itself takes, and for
+	// the card the same construct its own entry resolves.
 	export function isCommandActive(id: CommandId): boolean {
+		if (!el) return false;
 		const marked = inlineMarkForCommand(id);
-		if (!marked || !el) return false;
+		if (!marked) {
+			if (id !== 'link.openCard') return false;
+			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		const cellText = readCellText();
@@ -351,6 +366,8 @@
 		);
 	}
 
+	// Claims the chord even with no caret to act on: declining leaves Mod+B to the browser's
+	// own contenteditable bold, an edit this surface never authored.
 	function toggleFormat(format: InlineMarkKind): boolean {
 		if (!el) return true;
 		const caret = cursor.getRaw();
@@ -413,18 +430,7 @@
 		// Consumed whether or not it enters, the prose surface's rule on this surface too:
 		// `reservedChords()` reports Mod+K as the editor's wherever the keymaps bind it.
 		if (id === 'link.openCard') {
-			return () =>
-				enterLinkCardAtCaret({
-					contentEl,
-					block: node,
-					path: myPath,
-					linkRef,
-					card: linkCard,
-					mode: presentationMode,
-					// Null declines create here: cell raw carries pipe escapes, its own wrap policy.
-					selection: null,
-					crossBlockRange: selection.isCrossBlock
-				});
+			return () => enterLinkCardAtCaret({ ...linkCardQuery(contentEl, null), card: linkCard });
 		}
 		const axisCommand = tableAxisCommand(id);
 		if (axisCommand) {

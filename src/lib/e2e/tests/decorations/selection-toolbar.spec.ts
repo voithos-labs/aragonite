@@ -118,6 +118,26 @@ test.describe('selection toolbar', () => {
 		await expect(bold).toHaveAttribute('aria-pressed', 'false');
 	});
 
+	// The link editor is not a mark, so its pressed state is the construct the card would edit.
+	// Live mode alone: every other mode paints the destination and the chord opens nothing.
+	test('the link button paints pressed inside a link and unpressed outside it', async ({
+		page
+	}) => {
+		await editor.goto('?presentationMode=live');
+		// The link spans raw [6, 36); `linked words` is its text and ` after` follows.
+		await editor.loadContent('plain [linked words](https://x.test) after\n');
+		await editor.focusBlockAtPath([0], 8);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+
+		const link = page.locator('[data-testid="toolbar-link.openCard"]');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await expect(link).toHaveAttribute('aria-pressed', 'true');
+
+		await editor.focusBlockAtPath([0], 0);
+		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(link).toHaveAttribute('aria-pressed', 'false');
+	});
+
 	// The affordance the split owes a reader: the toggles stay live because they have a
 	// cross-block arm, and only the button the door would still refuse is visibly dead.
 	test('a cross-block selection greys only the link editor out', async ({ page }) => {
