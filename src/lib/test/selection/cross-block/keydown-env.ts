@@ -13,6 +13,7 @@ import { createCrossBlockCommands } from '$lib/selection/cross-block/format-togg
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 import { createStickyColumnState } from '$lib/cursor/sticky-column';
+import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
@@ -29,10 +30,10 @@ export interface KeydownEnvOptions {
 	offWindowPaths?: number[][];
 }
 
-export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
+export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOptions = {}) {
 	// The extend arms scroll the moved endpoint into view; jsdom has no layout.
 	Element.prototype.scrollIntoView = () => {};
-	const harness = makeEditorActionsDeps(parse(source).children);
+	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
 	const controller = createUndoController(harness.deps);
 	const selection = harness.deps.selectionState;
 	const stickyColumn = createStickyColumnState();

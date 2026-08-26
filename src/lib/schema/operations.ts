@@ -12,9 +12,8 @@ export interface OperationDetailMap {
 	input: { byteLength: number };
 	/** `crossBlock` marks a write that spanned the range's other blocks too: `path` names one
 	 *  block, as every op does, and `length` is that block's. The `delete` twin reads the same.
-	 *  Where a format toggle's range entered a grid by cell, `path` names the grid and `length`
-	 *  is its PRE-write length: the plan holds its cells' bytes, not its own, and the op is
-	 *  spent before the write. */
+	 *  A toggle endpoint carrying a CELL INDEX names its grid, whose own bytes no write holds, so
+	 *  `length` is the grid's PRE-write length; a deep cell path names that cell like any block. */
 	updateContent: { length: number; crossBlock?: true };
 	replaceBlock:
 		| { count: number }

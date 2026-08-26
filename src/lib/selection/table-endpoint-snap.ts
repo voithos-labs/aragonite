@@ -1,9 +1,7 @@
 /**
- * The cell-index space a selection endpoint inside a table lives in: the char→cell funnel, the
- * inverse expansion to a leaf path, the cells a range covers, and the whole-row snap that keeps
- * highlight, clipboard copy and range delete on one cell set. Offsets are INCLUSIVE cell indices,
- * the space SelectionPoint already uses; an intra-table pair is deliberately left unsnapped, so
- * rectangular sub-cell selection survives.
+ * The cell-index space a selection endpoint inside a table lives in. Offsets are INCLUSIVE cell
+ * indices, the space SelectionPoint already uses; an intra-table pair is deliberately left
+ * unsnapped, so rectangular sub-cell selection survives.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -12,7 +10,7 @@ import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import type { CellSelectionPoint, SelectionPoint } from './primitives';
 import { cellIndexOf } from './primitives';
 import { asCellIndex, cellRowCol } from '../cursor/coordinate-spaces';
-import { comparePaths } from './path-math';
+import { comparePaths, pathHasPrefix } from './path-math';
 import { devWarn } from '../dev-warn';
 
 /**
@@ -57,12 +55,36 @@ export interface GridCell {
 	path: number[];
 }
 
+/** A grid's own width, row 0's cell count — not `metadata.columnCount`: `containerContract: 'grid'`
+ *  is a plugin contract, and a kind with no table metadata reaches here. A column mutation splices
+ *  each row and the count together, so the two agree on a table. */
+function gridColumnCount(grid: NodeView): number {
+	return grid.children?.[0]?.children?.length ?? 0;
+}
+
+/**
+ * `point`'s index in `grid`'s cell space, null where it lies outside the grid — the side the range
+ * runs past. A table's endpoint arrives on the grid path already carrying the index; a plugin
+ * grid's keeps the deep `[grid, row, col]` path G1.29 permits, and resolves through the same width
+ * {@link coveredGridCells} decodes with.
+ */
+export function gridEndpointCellIndex(
+	grid: NodeView,
+	gridPath: number[],
+	point: SelectionPoint
+): number | null {
+	if (!pathHasPrefix(point.path, gridPath)) return null;
+	if (point.path.length === gridPath.length) return point.offset;
+	const [row, col = 0] = point.path.slice(gridPath.length);
+	return row * gridColumnCount(grid) + col;
+}
+
 /**
  * The cells a range covers inside one grid, in document order. `from`/`to` are the range's own
- * cell indices, null on a side the range runs past. Both inside is the RECTANGLE they span —
- * what the overlay paints and `range-delete-table` clears. One inside makes it a run to that
- * cell inclusive, since the range enters or leaves at the grid's own edge. Rows of cells is the
- * whole shape asked of the grid; a plugin one holding anything else answers with no cells.
+ * cell indices, null on a side the range runs past. Both inside is the RECTANGLE they span — what
+ * the overlay paints and `range-delete-table` clears; one inside is a run to that cell inclusive.
+ * Rows of EQUAL-width cells is the whole shape asked: a grid holding anything else answers with no
+ * cells, and a ragged one with the wrong cells or none, since every index is row 0's width.
  */
 export function coveredGridCells(
 	grid: NodeView,
@@ -71,15 +93,12 @@ export function coveredGridCells(
 	to: number | null
 ): GridCell[] {
 	const rows = grid.children ?? [];
-	// The grid's own width, not `metadata.columnCount`: `containerContract: 'grid'` is a plugin
-	// contract too, and a kind carrying no table metadata reaches here. The two agree on a table —
-	// every column mutation splices each row and the count in one step.
-	const colCount = rows[0]?.children?.length ?? 0;
+	const colCount = gridColumnCount(grid);
 	if (rows.length === 0 || colCount < 1) return [];
 	const lastIndex = rows.length * colCount - 1;
 	const clamp = (index: number) => Math.min(Math.max(index, 0), lastIndex);
-	const first = cellRowCol(asCellIndex(clamp(Math.min(from ?? 0, to ?? lastIndex))), colCount);
-	const last = cellRowCol(asCellIndex(clamp(Math.max(from ?? 0, to ?? lastIndex))), colCount);
+	const first = cellRowCol(asCellIndex(clamp(from ?? 0)), colCount);
+	const last = cellRowCol(asCellIndex(clamp(to ?? lastIndex)), colCount);
 	const rectangle = from !== null && to !== null;
 
 	const cells: GridCell[] = [];

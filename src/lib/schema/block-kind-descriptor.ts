@@ -83,9 +83,9 @@ export interface BlockKindDescriptor {
 	isContainer: boolean;
 	/**
 	 * Shape of a container's raw↔children relationship (container kinds only).
-	 * `'strip'` — outer syntax wrapping a strip-and-recurse body, so
-	 * `strip(raw) === serialize(children)`.
-	 * `'grid'` — cells parse straight from `raw`; coordinate-addressed, and that does not hold.
+	 * `'strip'` — outer syntax wraps a strip-and-recurse body: `strip(raw) === serialize(children)`.
+	 * `'grid'` — cells parse straight from `raw`, and that does not hold. Children are ROWS of
+	 * equal-width cells, the width read off row 0, addressed as `row * width + column`.
 	 * `'opaque'` — `raw` is authoritative, not a strip-decomposition; exempt from the stale-raw
 	 * byte-check, and its `rebuildRaw` must be deterministic over children/metadata/inner trivia.
 	 */

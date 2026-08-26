@@ -1,23 +1,16 @@
 // @vitest-environment jsdom
 //
 // A plugin grid inside a cross-block format range. `containerContract: 'grid'` is a declarable
-// plugin contract, so the toggle's grid arm is reached by kinds carrying no table metadata: it
-// must read the grid's own shape, never throw out of either door, and leave the blocks around it
-// marked.
+// plugin contract, so the toggle's grid arm is reached by kinds with no table metadata, whose
+// endpoints never snap to cell space: a range edge inside one arrives as a deep `[grid, row, col]`
+// path.
 //
-// Miss-analysis: the arm was written against the only two grids that exist, both built-in, and
-// every case fed it a parsed table — no suite's corpus held a grid the table metadata is absent on.
+// Miss-analysis: every case fed the arm a parsed table with the grid WHOLLY inside the range, so
+// neither a metadata-free grid nor an endpoint inside one was ever put to it.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
-import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import {
-	setPluginMetadata,
-	type CstNode,
-	type Document,
-	type PluginBlockKind
-} from '$lib/core/nodes';
+import { setPluginMetadata, type CstNode, type Document } from '$lib/core/nodes';
 import { createSharingState } from '$lib/tree-operations/sharing';
 import {
 	applyCrossBlockFormat,
@@ -25,47 +18,12 @@ import {
 	planCrossBlockFormat
 } from '$lib/selection/cross-block/format-range';
 import type { SelectionPoint } from '$lib/selection/primitives';
-import { testClosure } from '$lib/test/support/closure';
+import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { gridOf, registerPluginGrid } from './plugin-grid-kind';
 
 afterEach(() => __resetSchemaRegistriesForTests());
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
-
-const joinChildren = (node: CstNode, sep: string) =>
-	(node.children ?? []).map((child) => child.raw).join(sep);
-
-/** A grid kind, the row kind it holds, and the inline-bearing leaf a row holds — the shape the
- *  built-in table has, registered the way a plugin would register it. */
-function registerPluginGrid() {
-	const grid = declarePluginKind('pluginGrid');
-	const row = declarePluginKind('pluginGridRow');
-	const cell = declarePluginKind('pluginGridCell');
-	const base = { gapEdges: 'none', mergeRole: 'not-mergeable', closure: testClosure } as const;
-	registerBlockKind(grid, {
-		...base,
-		editable: true,
-		supportsInline: false,
-		container: {
-			contract: 'grid',
-			rebuildRaw: (node) => {
-				node.raw = joinChildren(node, '\n') + '\n';
-			}
-		}
-	});
-	registerBlockKind(row, {
-		...base,
-		editable: true,
-		supportsInline: false,
-		container: {
-			contract: 'grid',
-			rebuildRaw: (node) => {
-				node.raw = joinChildren(node, ' ');
-			}
-		}
-	});
-	registerBlockKind(cell, { ...base, editable: true, supportsInline: true });
-	return { grid, row, cell };
-}
 
 /** `head` / the grid / `tail`, so a grid that contributes nothing still has neighbours that do. */
 function docAround(grid: CstNode): Document {
@@ -74,24 +32,21 @@ function docAround(grid: CstNode): Document {
 	return doc;
 }
 
-const leaf = (kind: PluginBlockKind, raw: string): CstNode => ({ kind, leadingTrivia: '', raw });
+/** Plan from the endpoints SelectionState would store, not from a hand-built pair: a plugin
+ *  grid's endpoint passes the table snap untouched, which is what puts a deep path in the plan. */
+function planStored(doc: Document, anchor: SelectionPoint, focus: SelectionPoint) {
+	const selection = createSelectionState({ getDoc: () => doc });
+	selection.enterCrossBlock(anchor, focus);
+	return {
+		start: selection.start!,
+		end: selection.end!,
+		plan: planCrossBlockFormat(doc, selection.start!, selection.end!, 'strong', undefined)
+	};
+}
 
 describe('a grid whose kind carries no table metadata', () => {
 	it('contributes its cells instead of throwing out of the plan', () => {
-		const kinds = registerPluginGrid();
-		const doc = docAround({
-			kind: kinds.grid,
-			leadingTrivia: '',
-			raw: 'a b\n',
-			children: [
-				{
-					kind: kinds.row,
-					leadingTrivia: '',
-					raw: 'a b',
-					children: [leaf(kinds.cell, 'a'), leaf(kinds.cell, 'b')]
-				}
-			]
-		});
+		const doc = docAround(gridOf(registerPluginGrid(), [['a', 'b']]));
 
 		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined)!;
 		expect(plan.writes.map((write) => [write.path, write.newDisplay])).toEqual([
@@ -106,20 +61,7 @@ describe('a grid whose kind carries no table metadata', () => {
 	// The other half of the same bug: metadata present but holding a shape of the plugin's own,
 	// where the column count read is `undefined` rather than a throw.
 	it('reads its own rows when the metadata belongs to the plugin', () => {
-		const kinds = registerPluginGrid();
-		const grid: CstNode = {
-			kind: kinds.grid,
-			leadingTrivia: '',
-			raw: 'a b\n',
-			children: [
-				{
-					kind: kinds.row,
-					leadingTrivia: '',
-					raw: 'a b',
-					children: [leaf(kinds.cell, 'a'), leaf(kinds.cell, 'b')]
-				}
-			]
-		};
+		const grid = gridOf(registerPluginGrid(), [['a', 'b']]);
 		setPluginMetadata(grid, { label: 'mine' });
 
 		const plan = planCrossBlockFormat(
@@ -140,7 +82,7 @@ describe('a grid whose kind carries no table metadata', () => {
 			kind: kinds.grid,
 			leadingTrivia: '',
 			raw: 'a\n',
-			children: [leaf(kinds.cell, 'a')]
+			children: [{ kind: kinds.cell, leadingTrivia: '', raw: 'a' }]
 		});
 
 		const plan = planCrossBlockFormat(doc, at([0], 0), at([2], 4), 'strong', undefined)!;
@@ -148,23 +90,65 @@ describe('a grid whose kind carries no table metadata', () => {
 	});
 
 	it('answers the pressed read over the same range rather than throwing', () => {
-		const kinds = registerPluginGrid();
-		const doc = docAround({
-			kind: kinds.grid,
-			leadingTrivia: '',
-			raw: 'a b\n',
-			children: [
-				{
-					kind: kinds.row,
-					leadingTrivia: '',
-					raw: '**a** **b**',
-					children: [leaf(kinds.cell, '**a**'), leaf(kinds.cell, '**b**')]
-				}
-			]
-		});
+		const doc = docAround(gridOf(registerPluginGrid(), [['**a**', '**b**']]));
 		doc.children[0].raw = '**head**\n';
 		doc.children[2].raw = '**tail**\n';
 
 		expect(crossBlockActiveFormats(doc, at([0], 0), at([2], 8)).has('strong')).toBe(true);
+	});
+});
+
+describe('a range endpoint deep inside a plugin grid', () => {
+	const TWO_BY_TWO = [
+		['a', 'b'],
+		['c', 'd']
+	];
+
+	it('runs to the end endpoint’s own cell instead of covering every cell', () => {
+		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
+
+		const { end, plan } = planStored(doc, at([0], 0), at([1, 0, 0], 1));
+		// The premise the arm has to survive: no snap moved this endpoint into cell space.
+		expect(end).toEqual({ path: [1, 0, 0], offset: 1 });
+		expect(plan!.writes.map((write) => write.path)).toEqual([[0], [1, 0, 0]]);
+	});
+
+	it('runs from the start endpoint’s own cell instead of contributing nothing', () => {
+		const doc = docAround(gridOf(registerPluginGrid(), TWO_BY_TWO));
+
+		const { start, plan } = planStored(doc, at([1, 0, 1], 0), at([2], 4));
+		expect(start).toEqual({ path: [1, 0, 1], offset: 0 });
+		expect(plan!.writes.map((write) => write.path)).toEqual([[1, 0, 1], [1, 1, 0], [1, 1, 1], [2]]);
+	});
+
+	// Both endpoints inside one grid is the rectangle arm, reached through the same resolution —
+	// the pair a drag inside a plugin grid stores, where a table's would share the table path.
+	it('marks the rectangle two deep endpoints span', () => {
+		const doc = docAround(
+			gridOf(registerPluginGrid(), [
+				['a', 'b', 'c'],
+				['d', 'e', 'f']
+			])
+		);
+
+		const { plan } = planStored(doc, at([1, 0, 1], 0), at([1, 1, 1], 1));
+		expect(plan!.writes.map((write) => write.path)).toEqual([
+			[1, 0, 1],
+			[1, 1, 1]
+		]);
+	});
+
+	// The pressed read decomposes the same range, so it inherits the fix: the cells past the
+	// endpoint must not vote the toolbar's paint off.
+	it('reads pressed from the covered cells alone', () => {
+		const doc = docAround(
+			gridOf(registerPluginGrid(), [
+				['**a**', 'b'],
+				['c', 'd']
+			])
+		);
+		doc.children[0].raw = '**head**\n';
+
+		expect(crossBlockActiveFormats(doc, at([0], 0), at([1, 0, 0], 1)).has('strong')).toBe(true);
 	});
 });

@@ -12,12 +12,12 @@ export function trimTrailingLineEnding(raw: string): string {
 }
 
 /**
- * The ending `raw` actually carries, `''` where it carries none — {@link trimTrailingLineEnding}'s
- * complement, the two partitioning `raw`. What {@link trailingLineEnding} answers instead is which
- * ending the DOCUMENT uses, so a site reattaching a block's own bytes reads this one (G4.20).
+ * The ending `raw` actually carries — {@link trimTrailingLineEnding}'s complement, the two
+ * partitioning `raw`. What {@link trailingLineEnding} answers instead is which ending the
+ * DOCUMENT uses, so a site reattaching a block's own bytes reads this one (G4.20).
  */
-export function ownTrailingLineEnding(raw: string): string {
-	return raw.slice(displayLength(raw));
+export function ownTrailingLineEnding(raw: string): '' | '\n' | '\r\n' {
+	return raw.slice(displayLength(raw)) as '' | '\n' | '\r\n';
 }
 
 /**

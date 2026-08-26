@@ -147,11 +147,8 @@ const withOffset = (point: SelectionPoint, offset: number): SelectionPoint => ({
 	offset
 });
 
-/**
- * The event detail's post-write length, read off the plan: `op` is spent before `mutate` runs.
- * A grid start endpoint names the grid, whose bytes the plan holds only as its cells' — the
- * rebuild re-pads every row, so it reports the length the grid stands at.
- */
+/** The event detail's post-write length, read off the plan: `op` is spent before `mutate` runs.
+ *  A block the plan does not write reports the length it already stands at (`schema/operations.ts`). */
 function startBlockLength(
 	doc: ReturnType<DocumentGetter>,
 	start: SelectionPoint,

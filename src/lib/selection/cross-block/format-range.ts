@@ -29,7 +29,7 @@ import type { SharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
 import { comparePaths } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
-import { coveredGridCells } from '../table-endpoint-snap';
+import { coveredGridCells, gridEndpointCellIndex } from '../table-endpoint-snap';
 
 const TAG = 'cross-block-format';
 
@@ -119,8 +119,7 @@ export function applyCrossBlockFormat(
 		const chain = ensureUnsharedPath(root, write.path, sharing);
 		const owned = chain[chain.length - 1];
 		if (!owned) continue;
-		// The node's OWN ending back, not a minted one: a grid cell carries none, and a line
-		// ending reaching its raw would be normalized into a space at the write sink.
+		// A line ending reaching a cell's raw would be normalized into a space at the write sink.
 		const raw = write.newDisplay + ownTrailingLineEnding(owned.raw);
 		writeOwnRaw(owned, normalizeBodyWrite(chain[chain.length - 2]?.kind, raw), grammar);
 		chains.push(chain);
@@ -189,9 +188,9 @@ function spanFor(
 }
 
 /**
- * A grid's covered cells, each contributing its WHOLE content. An endpoint inside a grid carries
- * a cell index rather than a char offset, so no cell is ever cut in half and neither is the span
- * the range's own offset-bearing edge — the plan leaves such an endpoint on its cell.
+ * A grid's covered cells, each contributing its WHOLE content. An endpoint inside a grid resolves
+ * to one of its cells, so no cell is ever cut in half and neither is the span the range's own
+ * offset-bearing edge — the plan leaves such an endpoint where it stands.
  */
 function gridSpans(
 	grid: NodeView,
@@ -199,13 +198,10 @@ function gridSpans(
 	start: SelectionPoint,
 	end: SelectionPoint
 ): RangeSpan[] {
-	if (comparePaths(path, start.path) < 0) return [];
-	const cells = coveredGridCells(
-		grid,
-		path,
-		comparePaths(path, start.path) === 0 ? start.offset : null,
-		comparePaths(path, end.path) === 0 ? end.offset : null
-	);
+	const from = gridEndpointCellIndex(grid, path, start);
+	// No endpoint of its own, and the range starts after it: the grid sits wholly before the range.
+	if (from === null && comparePaths(path, start.path) < 0) return [];
+	const cells = coveredGridCells(grid, path, from, gridEndpointCellIndex(grid, path, end));
 	const spans: RangeSpan[] = [];
 	for (const cell of cells) {
 		const body = contentSpan(cell.node, cell.path, null, null);
