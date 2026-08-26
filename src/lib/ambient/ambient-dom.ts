@@ -4,6 +4,7 @@
  */
 
 import type { AmbientPrefix } from '../block-component';
+import { domDescendants } from '../cursor/dom-walk';
 import { isAtomicInlineWidget, isHiddenMarkerText } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
 
@@ -97,15 +98,10 @@ function firstTextNodeAfter(node: Node): Text | null {
 // Unfiltered on the way down, unlike the measurable-text search it resembles
 // (`cursor/visual-lines.ts`): the caller judges hidden marker text once, at the top.
 function firstTextDescendant(node: Node): Text | null {
-	const stack: Node[] = [node];
-	while (stack.length > 0) {
-		const current = stack.pop()!;
+	for (const current of domDescendants(node)) {
 		if (current.nodeType === Node.TEXT_NODE && (current.textContent?.length ?? 0) > 0) {
 			return current as Text;
 		}
-		// Reversed push, so pop order is source order.
-		const children = current.childNodes;
-		for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
 	}
 	return null;
 }

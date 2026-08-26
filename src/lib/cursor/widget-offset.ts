@@ -27,8 +27,9 @@ import {
 	type DomTextOffset,
 	type RawOffset
 } from './coordinate-spaces';
+import { domDescendants } from './dom-walk';
 
-const WIDGET_SELECTOR = '[data-inline-widget]';
+const WIDGET_ATTR = 'data-inline-widget';
 
 /** The stamp a block surface writes on its walk container while {@link holdsOnlyMarkerChrome}
  *  holds. Both consumers of the hiding rule — this walk and `styles/editor.css` — read it.
@@ -177,9 +178,7 @@ export function widgetSpanContainingOffset(
 /** Raw bytes a DOM subtree stands for: text nodes verbatim, widgets via their source range. */
 export function rawTextOfNode(domNode: Node, raw: string): string {
 	let out = '';
-	const stack: Node[] = [domNode];
-	while (stack.length > 0) {
-		const node = stack.pop()!;
+	for (const node of domDescendants(domNode, isTransparentContainer)) {
 		if (node.nodeType === Node.TEXT_NODE) {
 			out += node.textContent ?? '';
 			continue;
@@ -187,17 +186,16 @@ export function rawTextOfNode(domNode: Node, raw: string): string {
 		if (isAtomicInlineWidget(node)) {
 			const range = widgetSourceRange(node as Element);
 			if (range) out += raw.slice(range.start, range.end);
-			continue;
 		}
-		if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
-			continue;
-		}
-		// Reversed push, so pop order is source order — which the concatenation follows.
-		const children = node.childNodes;
-		for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
 	}
 	return out;
 }
+
+/** A node whose own bytes are its children's: a widget stands for its source range instead, and
+ *  anything that is neither element nor fragment stands for nothing. */
+const isTransparentContainer = (node: Node): boolean =>
+	(node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
+	!isAtomicInlineWidget(node);
 
 export function createRangeAtDomTextOffsets(
 	container: ParentNode,
@@ -404,9 +402,10 @@ export function landableStartAbutsIsland(container: ParentNode): boolean {
 	return false;
 }
 
-/** Whether `node` is an atomic inline widget's element — the island every walk treats as opaque. */
+/** Whether `node` is an atomic inline widget's element — the island every walk treats as opaque.
+ *  The attribute rather than the selector: every walk asks this per node. */
 export function isAtomicInlineWidget(node: Node): boolean {
-	return node.nodeType === Node.ELEMENT_NODE && !!(node as Element).matches?.(WIDGET_SELECTOR);
+	return node.nodeType === Node.ELEMENT_NODE && (node as Element).hasAttribute(WIDGET_ATTR);
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -531,7 +530,7 @@ function* walkSegments(root: ParentNode, mode: PresentationMode | null): Generat
 		}
 		if (node.nodeType !== Node.ELEMENT_NODE) continue;
 		const el = node as Element;
-		if (el.matches?.(WIDGET_SELECTOR)) {
+		if (isAtomicInlineWidget(el)) {
 			const len = widgetRawLength(el);
 			yield { kind: 'widget', el, start: count, len };
 			count += len;

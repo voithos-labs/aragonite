@@ -5,6 +5,7 @@
  * (dimmed marker spans) returning null rects — measuring around real text always works.
  */
 
+import { domDescendants } from './dom-walk';
 import { FALLBACK_LINE_HEIGHT } from './typography-estimates';
 import { isHiddenMarkerText } from './widget-offset';
 
@@ -130,18 +131,9 @@ function containerOf(root: Node): HTMLElement | null {
 }
 
 function measurableText(node: Node, container: HTMLElement | null, fromEnd: boolean): Text | null {
-	const stack: Node[] = [node];
-	while (stack.length > 0) {
-		const current = stack.pop()!;
-		if (current.nodeType === Node.TEXT_NODE) {
-			if (isMeasurableText(current as Text, container)) return current as Text;
-			continue;
-		}
-		// Reversed push, so pop order is the search order: source order, or its reverse.
-		const children = current.childNodes;
-		for (let i = 0; i < children.length; i++) {
-			stack.push(children[fromEnd ? i : children.length - 1 - i]);
-		}
+	for (const current of domDescendants(node, undefined, { fromEnd })) {
+		if (current.nodeType !== Node.TEXT_NODE) continue;
+		if (isMeasurableText(current as Text, container)) return current as Text;
 	}
 	return null;
 }

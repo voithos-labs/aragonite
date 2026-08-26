@@ -101,9 +101,15 @@ describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 		}
 	});
 
-	it('reads a walker declaration out of a scoped file', () => {
-		const seam = sources.find((file) => file.relPath === 'src/lib/core/inline/walk.ts');
-		expect(walkerDeclarations(seam!.code).map((d) => d.name)).toContain('inlineDescendants');
+	it('reads both walk seams out of the scoped sources', () => {
+		const seams = [
+			['src/lib/core/inline/walk.ts', 'inlineDescendants'],
+			['src/lib/cursor/dom-walk.ts', 'domDescendants']
+		];
+		for (const [relPath, name] of seams) {
+			const seam = sources.find((file) => file.relPath === relPath);
+			expect(walkerDeclarations(seam!.code).map((d) => d.name)).toContain(name);
+		}
 	});
 
 	it('no walk over children or childNodes recurses', () => {

@@ -7,7 +7,8 @@
  */
 
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
-import { isHiddenMarkerRoot } from './widget-offset';
+import { domDescendants } from './dom-walk';
+import { isAtomicInlineWidget, isHiddenMarkerRoot } from './widget-offset';
 
 /**
  * Length of a span the cursor may not enter, or null when it is transparent. Atomic widgets
@@ -17,7 +18,7 @@ import { isHiddenMarkerRoot } from './widget-offset';
 function opaqueSpanLength(node: Node, container: HTMLElement): number | null {
 	if (node.nodeType !== Node.ELEMENT_NODE) return null;
 	const el = node as Element;
-	if (!el.matches?.('[data-inline-widget]') && !isHiddenMarkerRoot(el, container)) return null;
+	if (!isAtomicInlineWidget(el) && !isHiddenMarkerRoot(el, container)) return null;
 	return el.textContent?.length ?? 0;
 }
 
@@ -29,48 +30,49 @@ export function createRangeFromOffsets(
 	const range = document.createRange();
 	let charCount = 0;
 	let startSet = false;
+	let endFound = false;
 
-	function walk(root: Node): boolean {
-		const stack: Node[] = [root];
-		while (stack.length > 0) {
-			const node = stack.pop()!;
-			// The cursor never lands inside an opaque span: snap to the nearer edge.
-			const opaqueLen = opaqueSpanLength(node, container);
-			if (opaqueLen !== null) {
-				if (!startSet && start <= charCount + opaqueLen) {
-					if (start <= charCount) range.setStartBefore(node);
-					else range.setStartAfter(node);
-					startSet = true;
-				}
-				if (startSet && end <= charCount + opaqueLen) {
-					if (end <= charCount) range.setEndBefore(node);
-					else range.setEndAfter(node);
-					return true;
-				}
-				charCount += opaqueLen;
-				continue;
+	// One classification per node, though the walk and the body below both ask: the read is a
+	// `contains` plus a `closest` per element, and a caret seat spends this walk on every step.
+	const opaque = new Map<Node, number | null>();
+	const opaqueLengthOf = (node: Node): number | null => {
+		if (!opaque.has(node)) opaque.set(node, opaqueSpanLength(node, container));
+		return opaque.get(node) ?? null;
+	};
+
+	for (const node of domDescendants(container, (node) => opaqueLengthOf(node) === null)) {
+		// The cursor never lands inside an opaque span: snap to the nearer edge.
+		const opaqueLen = opaqueLengthOf(node);
+		if (opaqueLen !== null) {
+			if (!startSet && start <= charCount + opaqueLen) {
+				if (start <= charCount) range.setStartBefore(node);
+				else range.setStartAfter(node);
+				startSet = true;
 			}
-			if (node.nodeType === Node.TEXT_NODE) {
-				const len = node.textContent?.length ?? 0;
-				if (!startSet && charCount + len >= start) {
-					range.setStart(node, start - charCount);
-					startSet = true;
-				}
-				if (startSet && charCount + len >= end) {
-					range.setEnd(node, end - charCount);
-					return true;
-				}
-				charCount += len;
-				continue;
+			if (startSet && end <= charCount + opaqueLen) {
+				if (end <= charCount) range.setEndBefore(node);
+				else range.setEndAfter(node);
+				endFound = true;
+				break;
 			}
-			// Reversed push, so pop order is source order — which `charCount` advances along.
-			const children = node.childNodes;
-			for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
+			charCount += opaqueLen;
+			continue;
 		}
-		return false;
+		if (node.nodeType === Node.TEXT_NODE) {
+			const len = node.textContent?.length ?? 0;
+			if (!startSet && charCount + len >= start) {
+				range.setStart(node, start - charCount);
+				startSet = true;
+			}
+			if (startSet && charCount + len >= end) {
+				range.setEnd(node, end - charCount);
+				endFound = true;
+				break;
+			}
+			charCount += len;
+		}
 	}
 
-	const endFound = walk(container);
 	if (!startSet) {
 		range.selectNodeContents(container);
 		range.collapse(false);
