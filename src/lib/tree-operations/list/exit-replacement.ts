@@ -5,6 +5,7 @@ import { trailingLineEnding } from '../../core/lines';
 import { cloneNode } from '../clone';
 import { emptyParagraph } from '../node-ops';
 import { assembleListHalf } from './list-builders';
+import { partitionItemChildren } from './item-partition';
 import { orderedBaseOf } from './ordered-markers';
 
 /**
@@ -22,26 +23,11 @@ export function buildExitReplacement(
 	const exitedItem = items[itemIndex];
 	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 
-	const promotedItems: CstNode[] = [];
-	const liftedBlocks: CstNode[] = [];
-	if (exitedItem?.children && exitedItem.children.length > 1) {
-		for (const child of exitedItem.children.slice(1)) {
-			if (child.kind === 'list' && child.children) {
-				const childOrdered = metadataOf(child, 'list')?.ordered ?? false;
-				if (childOrdered === parentOrdered) {
-					for (const nestedItem of child.children) {
-						const cloned = cloneNode(nestedItem);
-						cloned.leadingTrivia = '';
-						promotedItems.push(cloned);
-					}
-					continue;
-				}
-			}
-			const lifted = cloneNode(child);
-			lifted.leadingTrivia = '';
-			liftedBlocks.push(lifted);
-		}
-	}
+	// Child 0 is the exiting paragraph, which the fresh one below replaces.
+	const { promotedItems, liftedBlocks } = partitionItemChildren(
+		(exitedItem?.children ?? []).slice(1),
+		parentOrdered
+	);
 
 	const before = items.slice(0, itemIndex).map(cloneNode);
 	const after = items.slice(itemIndex + 1).map(cloneNode);

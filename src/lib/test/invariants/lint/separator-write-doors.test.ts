@@ -23,9 +23,12 @@ const TRIVIA_WRITERS: Record<string, string> = {
 		'same head normalization, per assembled half and per split-built trailing half',
 	'src/lib/tree-operations/list/sublist-separator.ts':
 		'the settle door for an empty-marker sublist, whose line no splice window can infer: the write lands on the list, the edit two levels below it',
-	'src/lib/tree-operations/list/unwrap-merge.ts': 'same head normalization, per lifted body',
+	'src/lib/tree-operations/list/item-partition.ts':
+		'same head normalization, per promoted item and lifted body, at the partition U1 and the item exit share',
+	'src/lib/tree-operations/list/unwrap-merge.ts':
+		'same head normalization, on the shrunk list’s new head item',
 	'src/lib/tree-operations/list/exit-replacement.ts':
-		'head normalization, plus the exit paragraph’s own line: a minted block between two halves owes one on both sides, which no splice probe can infer',
+		'the exit paragraph’s own line: a minted block between two halves owes one on both sides, which no splice probe can infer',
 	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
 		'positional: the before/after slots around an inline paste each answer for their own line',

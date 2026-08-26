@@ -17,26 +17,27 @@ import { rebuildAncestryRaw } from '../../schema/container-raw';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { orderedBaseOf, renumberOrderedList, renumberOrderedListFrom } from './ordered-markers';
+import { partitionItemChildren } from './item-partition';
 import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
 import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**
- * Unwrap a list's first item (Rule U1) without mutating the input. Output order: lifted
- * non-list children and mismatched-type sub-lists first, then the shrunk parent list with
- * matching-type sub-list items prepended and ordered markers renumbered.
+ * Unwrap a list's first item (Rule U1) without mutating the input. Output order: the item's
+ * non-promoting children lifted in place, then the shrunk parent list with the promoted
+ * sub-list items prepended and ordered markers renumbered.
  */
 export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
 		return [];
 	}
 
-	const clonedList: CstNode = cloneNode(list);
-	const parentOrdered = metadataOf(clonedList, 'list')?.ordered ?? false;
+	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 
-	const firstItem = clonedList.children![0];
+	const firstItem = list.children[0];
 	if (!firstItem.children || firstItem.children.length === 0) {
 		// Empty item: nothing to lift, so return the shrunk list.
+		const clonedList: CstNode = cloneNode(list);
 		const rest = clonedList.children!.slice(1);
 		if (rest.length === 0) return [];
 		clonedList.children = rest;
@@ -44,30 +45,9 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		return [clonedList];
 	}
 
-	const liftedBlocks: CstNode[] = [];
-	const promotedItems: CstNode[] = [];
+	const { promotedItems, liftedBlocks } = partitionItemChildren(firstItem.children, parentOrdered);
 
-	for (const child of firstItem.children) {
-		if (child.kind === 'list') {
-			const childOrdered = metadataOf(child, 'list')?.ordered ?? false;
-			if (childOrdered === parentOrdered) {
-				if (child.children) {
-					for (const item of child.children) {
-						item.leadingTrivia = '';
-						promotedItems.push(item);
-					}
-				}
-			} else {
-				child.leadingTrivia = '';
-				liftedBlocks.push(child);
-			}
-		} else {
-			child.leadingTrivia = '';
-			liftedBlocks.push(child);
-		}
-	}
-
-	const restItems = clonedList.children!.slice(1);
+	const restItems = list.children.slice(1).map(cloneNode);
 	const remainingItems = [...promotedItems, ...restItems];
 
 	if (remainingItems.length === 0) {
@@ -80,13 +60,13 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		kind: 'list',
 		leadingTrivia: '',
 		raw: '',
-		metadata: clonedList.metadata
-			? (cloneMetadata(clonedList.metadata) as ListMetadata)
+		metadata: list.metadata
+			? (cloneMetadata(list.metadata) as ListMetadata)
 			: { ordered: parentOrdered },
 		children: remainingItems,
 		childIds: assignIds(remainingItems),
-		innerPrefix: clonedList.innerPrefix ?? '',
-		innerSuffix: clonedList.innerSuffix ?? ''
+		innerPrefix: list.innerPrefix ?? '',
+		innerSuffix: list.innerSuffix ?? ''
 	};
 
 	// Preserve the original list's starting number.
