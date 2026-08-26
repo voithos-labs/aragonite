@@ -111,7 +111,7 @@ function readSplitBytes(
 
 // ── The chain ────────────────────────────────────────────────────────────────
 
-interface ChainLink {
+export interface ChainLink {
 	kind: AnyInlineKind;
 	start: number;
 	end: number;
@@ -141,34 +141,42 @@ function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): num
 /**
  * Every construct holding `offset`, outermost first — or null when one of them declines. A kind
  * with no policy row, one whose split behavior is plain and one whose content bounds are unknown
- * cannot be cut open, and cutting the constructs inside one would strand its pair.
+ * cannot be cut open, and cutting the constructs inside one would strand its pair. Exported for
+ * the depth pin, which has to reach it with a tree no split this deep could be rendered at.
  */
-function splittableChainAt(inlines: readonly InlineNode[], offset: number): ChainLink[] | null {
+export function splittableChainAt(
+	inlines: readonly InlineNode[],
+	offset: number
+): ChainLink[] | null {
 	const chain: ChainLink[] = [];
-	const visit = (nodes: readonly InlineNode[]): boolean => {
-		for (const node of nodes) {
-			if (node.kind === 'text') continue;
-			const content = constructContentRange(node);
-			// A construct with children is content-inclusive so its edges reach the chain (the
-			// handover cases); a childless one is strict-interior, its edges being ordinary seams.
-			const holds = content
-				? offset >= content.start && offset <= content.end
-				: offset > node.start && offset < node.end;
-			if (!holds) continue;
-			if (!content) return false;
-			if (getInlineConstructPolicy(node.kind)?.splitBehavior !== 'close-and-reopen') return false;
-			chain.push({
-				kind: node.kind,
-				start: node.start,
-				end: node.end,
-				contentStart: content.start,
-				contentEnd: content.end
-			});
-			if (node.children && !visit(node.children)) return false;
-		}
-		return true;
-	};
-	return visit(inlines) ? chain : null;
+	const holds = (node: InlineNode): boolean => holdsOffset(node, offset);
+	for (const node of inlineDescendants(inlines, holds)) {
+		if (!holds(node)) continue;
+		const content = constructContentRange(node);
+		if (!content) return null;
+		if (getInlineConstructPolicy(node.kind)?.splitBehavior !== 'close-and-reopen') return null;
+		chain.push({
+			kind: node.kind,
+			start: node.start,
+			end: node.end,
+			contentStart: content.start,
+			contentEnd: content.end
+		});
+	}
+	return chain;
+}
+
+/**
+ * Whether a cut at `offset` lands in this construct. One with children is content-INCLUSIVE so
+ * its edges reach the chain (the handover cases); a childless one is strict-interior, its edges
+ * being ordinary seams. Text is content, and nothing under it is a construct either.
+ */
+function holdsOffset(node: InlineNode, offset: number): boolean {
+	if (node.kind === 'text') return false;
+	const content = constructContentRange(node);
+	return content
+		? offset >= content.start && offset <= content.end
+		: offset > node.start && offset < node.end;
 }
 
 // ── Candidates ───────────────────────────────────────────────────────────────

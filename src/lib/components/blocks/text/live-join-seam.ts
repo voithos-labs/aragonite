@@ -8,6 +8,7 @@
 import {
 	constructContentRange,
 	getContentRange,
+	inlineDescendants,
 	isProseKind,
 	parseInline
 } from '../../../core/inline';
@@ -160,6 +161,10 @@ function readSide(
 	};
 }
 
+/** Text is content, not a construct, and nothing under it is one either — the descent predicate
+ *  the two censuses below share. */
+const isConstruct = (node: InlineNode): boolean => node.kind !== 'text';
+
 /** Constructs with a content range (outermost first) apart from those without one, whose bytes
  *  the seam can only step around. */
 function classifyConstructs(inlines: readonly InlineNode[]): {
@@ -168,19 +173,15 @@ function classifyConstructs(inlines: readonly InlineNode[]): {
 } {
 	const ranged: SideConstruct[] = [];
 	const atomic: Span[] = [];
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			if (node.kind === 'text') continue;
-			const content = constructContentRange(node);
-			if (!content) {
-				atomic.push({ start: node.start, end: node.end });
-				continue;
-			}
-			ranged.push({ kind: node.kind, node: { start: node.start, end: node.end }, content });
-			if (node.children) visit(node.children);
+	for (const node of inlineDescendants(inlines, isConstruct)) {
+		if (node.kind === 'text') continue;
+		const content = constructContentRange(node);
+		if (!content) {
+			atomic.push({ start: node.start, end: node.end });
+			continue;
 		}
-	};
-	visit(inlines);
+		ranged.push({ kind: node.kind, node: { start: node.start, end: node.end }, content });
+	}
 	return { ranged, atomic };
 }
 
@@ -326,14 +327,23 @@ function visibleSide(side: Side, keep: 'before' | 'after'): string {
 	return renderedText(clipNodes(side.inlines, side.cut, keep), side.raw, CONTENT_VISIBILITY);
 }
 
-function clipNodes(
+/**
+ * The `keep` side of `level`, rebuilt: a construct the cut crosses hands its place to its own
+ * clipped children. Exported for the depth pin, which has to reach the rebuild with a tree no
+ * side this deep could be rendered at.
+ */
+export function clipNodes(
 	level: readonly InlineNode[],
 	cut: number,
 	keep: 'before' | 'after'
 ): InlineNode[] {
 	const before = keep === 'before';
+	// A crossed construct is emitted as its children, in its own place, so the pre-order's
+	// emission order is the rebuilt list's order.
+	const crossed = (node: InlineNode): boolean =>
+		isConstruct(node) && node.start < cut && node.end > cut;
 	const out: InlineNode[] = [];
-	for (const node of level) {
+	for (const node of inlineDescendants(level, crossed)) {
 		if (before ? node.end <= cut : node.start >= cut) {
 			out.push(node);
 			continue;
@@ -345,10 +355,7 @@ function clipNodes(
 		}
 		const content = constructContentRange(node);
 		if (!content) continue;
-		if (node.children && node.children.length > 0) {
-			out.push(...clipNodes(node.children, cut, keep));
-			continue;
-		}
+		if (node.children && node.children.length > 0) continue;
 		// A code span carries its content as bytes rather than children, so the surviving part of
 		// it is that byte range read as text — which is exactly what the span paints.
 		const start = before ? content.start : Math.max(content.start, cut);
@@ -395,7 +402,7 @@ function keepsContainerMarker(prefix: string, raw: string): boolean {
  *  them when emptied rather than leaving delimiters over nothing. */
 function countResidue(nodes: readonly InlineNode[], raw: string): number {
 	let found = 0;
-	for (const node of nodes) {
+	for (const node of inlineDescendants(nodes, isConstruct)) {
 		if (node.kind === 'text') continue;
 		if (
 			node.end > node.start &&
@@ -404,7 +411,6 @@ function countResidue(nodes: readonly InlineNode[], raw: string): number {
 		) {
 			found++;
 		}
-		if (node.children) found += countResidue(node.children, raw);
 	}
 	return found;
 }

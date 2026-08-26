@@ -5,6 +5,7 @@
  */
 
 import { ambientLengthOf } from '../../../ambient/ambient-dom';
+import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
@@ -60,14 +61,8 @@ export function linkConstructAt(
 	sourceStart: number,
 	linkRef?: LinkReferenceResolverRef
 ): InlineNode | null {
-	return findLink(resolvedInlineContent(block, linkRef), sourceStart);
-}
-
-function findLink(nodes: InlineNode[], sourceStart: number): InlineNode | null {
-	for (const node of nodes) {
+	for (const node of inlineDescendants(resolvedInlineContent(block, linkRef))) {
 		if (isCardEditable(node) && node.start === sourceStart) return node;
-		const nested = node.children ? findLink(node.children, sourceStart) : null;
-		if (nested) return nested;
 	}
 	return null;
 }

@@ -10,6 +10,7 @@ import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
+import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
 import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
@@ -27,17 +28,13 @@ import {
  * first; at a boundary shared by adjacent siblings both are collected.
  */
 export function constructChainAtOffset(nodes: InlineNode[], offset: number): InlineNode[] {
+	// A child lies inside its parent's range, so a node that misses the offset prunes its subtree.
+	const holds = (node: InlineNode): boolean => offset >= node.start && offset <= node.end;
 	const chain: InlineNode[] = [];
-	collectChain(nodes, offset, chain);
-	return chain;
-}
-
-function collectChain(nodes: InlineNode[], offset: number, out: InlineNode[]): void {
-	for (const node of nodes) {
-		if (offset < node.start || offset > node.end) continue;
-		if (isRevealableInlineKind(node.kind)) out.push(node);
-		if (node.children && node.children.length > 0) collectChain(node.children, offset, out);
+	for (const node of inlineDescendants(nodes, holds)) {
+		if (holds(node) && isRevealableInlineKind(node.kind)) chain.push(node);
 	}
+	return chain;
 }
 
 // ── Trigger (DOM class flips) ────────────────────────────────────────────────

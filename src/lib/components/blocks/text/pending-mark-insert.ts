@@ -5,7 +5,12 @@
  * (`**hello**X** world**` renders literal stars), so every candidate is re-parsed and checked.
  */
 
-import { constructContentRange, constructKinds, parseInline } from '../../../core/inline';
+import {
+	constructContentRange,
+	constructKinds,
+	inlineDescendants,
+	parseInline
+} from '../../../core/inline';
 import { CONTENT_VISIBILITY, renderedText } from '../../../core/inline/visibility';
 import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import {
@@ -203,15 +208,11 @@ function enclosingKinds(
 	start: number,
 	end: number
 ): Set<AnyInlineKind> {
+	const covers = (node: InlineNode): boolean => node.start <= start && end <= node.end;
 	const kinds = new Set<AnyInlineKind>();
-	const visit = (level: readonly InlineNode[]): void => {
-		for (const node of level) {
-			if (node.start > start || end > node.end) continue;
-			if (node.kind !== 'text') kinds.add(node.kind);
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(nodes);
+	for (const node of inlineDescendants(nodes, covers)) {
+		if (covers(node) && node.kind !== 'text') kinds.add(node.kind);
+	}
 	return kinds;
 }
 
@@ -226,7 +227,7 @@ function visibleText(raw: string, parsed?: readonly InlineNode[]): string {
 
 // ── The chain ────────────────────────────────────────────────────────────────
 
-interface ChainNode {
+export interface ChainNode {
 	kind: AnyInlineKind;
 	/** The mark a chord can toggle, or null for a construct no chord addresses. */
 	mark: InlineMarkKind | null;
@@ -251,27 +252,33 @@ function isSymmetricPair(kind: AnyInlineKind): boolean {
  * EVERY construct holding `offset`, outermost first: one missing from the chain is missing from
  * `intended`, which is what lets a candidate destroy it unnoticed. A construct with children is
  * content-INCLUSIVE, a childless one STRICT-interior, its edges being ordinary insertion points.
+ * Exported for the depth pin, which has to reach it with a tree no insertion this deep could be
+ * rendered at.
  */
-function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
+export function constructChainAt(offset: number, inlines: readonly InlineNode[]): ChainNode[] {
+	const holds = (node: InlineNode): boolean => holdsOffset(node, offset);
 	const chain: ChainNode[] = [];
-	const visit = (nodes: readonly InlineNode[]): void => {
-		for (const node of nodes) {
-			if (node.kind === 'text') continue;
-			const content = constructContentRange(node);
-			if (content) {
-				if (offset < content.start || offset > content.end) continue;
-			} else if (offset <= node.start || offset >= node.end) continue;
-			chain.push({
-				kind: node.kind,
-				mark: markOf(node.kind),
-				start: node.start,
-				end: node.end,
-				contentStart: content?.start ?? node.start,
-				contentEnd: content?.end ?? node.end
-			});
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(inlines);
+	for (const node of inlineDescendants(inlines, holds)) {
+		if (!holds(node)) continue;
+		const content = constructContentRange(node);
+		chain.push({
+			kind: node.kind,
+			mark: markOf(node.kind),
+			start: node.start,
+			end: node.end,
+			contentStart: content?.start ?? node.start,
+			contentEnd: content?.end ?? node.end
+		});
+	}
 	return chain;
+}
+
+/** Whether `offset` sits inside this construct, on the reading the chain doc states. Text is
+ *  content, and nothing under it is a construct either. */
+function holdsOffset(node: InlineNode, offset: number): boolean {
+	if (node.kind === 'text') return false;
+	const content = constructContentRange(node);
+	return content
+		? offset >= content.start && offset <= content.end
+		: offset > node.start && offset < node.end;
 }
