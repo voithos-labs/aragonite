@@ -144,15 +144,15 @@ function classLine(source: string): string {
 	return Array.from(lexicalClasses(source), (cls) => CLASS_LETTERS[cls]).join('');
 }
 
-/** Markup shapes TypeScript cannot lex. The last three record a simplification rather than the
- *  truth: a `/` after a bare keyword, an interpolation inside a quoted attribute, and an
- *  apostrophe in prose. Each is confined to its line and blanks nothing, and no census reads a
- *  shape like it today, so the pin marks the boundary instead of hiding it. */
+/** Markup shapes TypeScript cannot lex. The last two record a simplification rather than the
+ *  truth: inside a quoted attribute an interpolation reads as string text, and markup prose
+ *  opens a string on an apostrophe. Each is confined to its line and blanks nothing, so a
+ *  census loses at most one line's brackets and never a byte to blanking. */
 const MARKUP_CORPUS: Array<[source: string, classes: string]> = [
 	['{a}/{b /* c */}', '.......ccccccc.'],
 	['<Foo {...rest} /><Bar {...rest} />', '.'.repeat(34)],
 	['<a href="https://x">', '........sssssssssss.'],
-	['{#if /^a$/.test(v)}', '...................'],
+	['{#if /^a$/.test(v)}', '.....rrrrr.........'],
 	['<b class="a-{f(x)}">', '.........ssssssssss.'],
 	["<p>Sam's list</p>", '......sssssssssss']
 ];

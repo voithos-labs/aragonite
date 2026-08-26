@@ -236,6 +236,25 @@ function skipRegex(code: string, i: number): number | null {
  */
 const REGEX_OPERAND_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';']);
 
+/** Reserved words an expression directly follows, so a `/` after one opens a regex (`if` for
+ *  Svelte's `{#if …}`). A plain identifier never joins: it can be a value. */
+const REGEX_OPERAND_WORDS = new Set([
+	'await',
+	'case',
+	'delete',
+	'do',
+	'else',
+	'if',
+	'in',
+	'instanceof',
+	'new',
+	'return',
+	'throw',
+	'typeof',
+	'void',
+	'yield'
+]);
+
 function opensRegex(code: string, at: number): boolean {
 	let i = at - 1;
 	while (i >= 0 && /\s/.test(code[i])) i--;
@@ -244,8 +263,8 @@ function opensRegex(code: string, at: number): boolean {
 	if (REGEX_OPERAND_CHARS.has(code[i])) return true;
 	let start = i + 1;
 	while (start > 0 && /[\w$]/.test(code[start - 1])) start--;
-	const word = code.slice(start, i + 1);
-	return word === 'return' || word === 'typeof';
+	if (start > 0 && code[start - 1] === '.') return false;
+	return REGEX_OPERAND_WORDS.has(code.slice(start, i + 1));
 }
 
 // ── Lexical classification ───────────────────────────────────────────────────
