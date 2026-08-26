@@ -19,7 +19,9 @@ beforeAll(() => {
 	Element.prototype.scrollIntoView = () => {};
 });
 
-type MountedEditor = EditorInstance & { __test: { getHeightOracle(): HeightOracle } };
+type MountedEditor = EditorInstance & {
+	__test: { getHeightOracle(): HeightOracle; getContentVersion(): number };
+};
 
 const OUTGOING_ID = 'outgoing-block';
 const OUTGOING_HEIGHT = 99;
@@ -35,7 +37,11 @@ afterEach(() => {
 });
 
 /** Mounts, then records a measured height as a mounted block's ResizeObserver would. */
-function mountEditor(source: string): { oracle: HeightOracle; props: { source: string } } {
+function mountEditor(source: string): {
+	editor: MountedEditor;
+	oracle: HeightOracle;
+	props: { source: string };
+} {
 	target = document.createElement('div');
 	document.body.appendChild(target);
 	const props = $state({ source });
@@ -43,7 +49,7 @@ function mountEditor(source: string): { oracle: HeightOracle; props: { source: s
 	flushSync();
 	const oracle = mounted.__test.getHeightOracle();
 	oracle.recordMeasured(OUTGOING_ID, OUTGOING_HEIGHT);
-	return { oracle, props };
+	return { editor: mounted, oracle, props };
 }
 
 async function settleSwap(): Promise<void> {
@@ -72,11 +78,15 @@ describe('the measured-height cache does not outlive the document it measured', 
 	// Replacement is the only eviction an edit must not trigger: ids survive a keystroke,
 	// so dropping there would cost a full re-measure per typing batch.
 	it('keeps measured heights across an edit, which replaces no document', async () => {
-		const { oracle } = mountEditor('one\n\ntwo\n');
+		const { editor, oracle } = mountEditor('one\n\ntwo\n');
+		const before = editor.__test.getContentVersion();
 
 		typeInFirstBlock('one!');
 		await tick();
 
+		// The version is the guard's own oracle: an input the editor ignored would leave the
+		// height standing too, and pin nothing.
+		expect(editor.__test.getContentVersion()).not.toBe(before);
 		expect(oracle.measured(OUTGOING_ID)).toBe(OUTGOING_HEIGHT);
 	});
 });
