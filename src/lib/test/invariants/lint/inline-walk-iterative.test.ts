@@ -12,8 +12,7 @@ import {
 	balancedCall,
 	callsAnywhere,
 	collectEditorSources,
-	EDITOR_SRC,
-	type SourceFile
+	EDITOR_SRC
 } from './scan-source';
 
 /** Library-internal: the rule binds the walks over aragonite's own tree, which no plugin owns. */
@@ -24,9 +23,9 @@ const SCOPE = [
 	'src/lib/components/blocks/text/'
 ];
 
-/** Keyed by the `path :: name` a hit reads as, so an entry exempts one walk rather than its whole
- *  file. A walk that recurses is a stack overflow waiting for a deep enough document: empty by
- *  design, and an entry states one. */
+/** Keyed by the `path :: name` a hit reads as, which addresses ONE walk because the assertion
+ *  below fails a scoped file that spells two walkers alike. A walk that recurses is a stack
+ *  overflow waiting for a deep enough document: empty by design, and an entry states one. */
 const EXCEPTIONS: Record<string, string> = {};
 
 const TOUCHES_CHILDREN = /\.(children|childNodes)\b/;
@@ -61,21 +60,26 @@ function walkerDeclarations(code: string): Declaration[] {
 	return out;
 }
 
-/** Names on a call cycle — a self-call is the one-cycle, so both shapes fall out of one pass. */
-function recursiveNames(declarations: Declaration[]): string[] {
-	const reach = new Map<string, Set<string>>();
-	for (const declaration of declarations) {
-		const calls = declarations
-			.filter((other) => callsAnywhere(declaration.body, other.name))
-			.map((other) => other.name);
-		reach.set(declaration.name, new Set(calls));
-	}
+/**
+ * Declarations on a call cycle — a self-call is the one-cycle, so both shapes fall out of one
+ * pass. Reachability is per DECLARATION and a call reaches EVERY declaration bearing the name:
+ * which one the source means is not decidable here, and over-flagging is the safe direction.
+ */
+function recursiveDeclarations(declarations: Declaration[]): Declaration[] {
+	const reach = declarations.map(
+		(declaration) =>
+			new Set(
+				declarations.flatMap((other, index) =>
+					callsAnywhere(declaration.body, other.name) ? [index] : []
+				)
+			)
+	);
 	let grew = true;
 	while (grew) {
 		grew = false;
-		for (const targets of reach.values()) {
+		for (const targets of reach) {
 			for (const target of [...targets]) {
-				for (const next of reach.get(target) ?? []) {
+				for (const next of reach[target]) {
 					if (!targets.has(next)) {
 						targets.add(next);
 						grew = true;
@@ -84,11 +88,39 @@ function recursiveNames(declarations: Declaration[]): string[] {
 			}
 		}
 	}
-	return [...reach].filter(([name, targets]) => targets.has(name)).map(([name]) => name);
+	return declarations.filter((_, index) => reach[index].has(index));
 }
 
-const recursiveWalks = (file: SourceFile): string[] =>
-	recursiveNames(walkerDeclarations(file.code));
+const recursiveWalkNames = (code: string): string[] =>
+	recursiveDeclarations(walkerDeclarations(code)).map((declaration) => declaration.name);
+
+/** Walker names a file spells more than once. An EXCEPTIONS key is a path and a name, so a repeat
+ *  would exempt a walk nobody stated — and a detector keyed by name would hide one behind the
+ *  other. */
+function repeatedWalkerNames(code: string): string[] {
+	const seen = new Set<string>();
+	const repeats = new Set<string>();
+	for (const { name } of walkerDeclarations(code)) {
+		if (seen.has(name)) repeats.add(name);
+		seen.add(name);
+	}
+	return [...repeats];
+}
+
+/** A recursive walker and an iterative one under one name, the shape `components/blocks/text/`
+ *  spells as `visit`: the guard must report the first and leave the second alone. */
+const TWO_WALKERS_ALIKE = `
+function visit(nodes) {
+	for (const node of nodes) if (node.children) visit(node.children);
+}
+function visit(nodes) {
+	const stack = [...nodes];
+	while (stack.length > 0) {
+		const node = stack.pop();
+		if (node.children) stack.push(...node.children);
+	}
+}
+`;
 
 describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 	const sources = collectEditorSources(EDITOR_SRC).filter((file) =>
@@ -112,9 +144,27 @@ describe('G4.56 inline-tree and rendered-DOM walks are iterative', () => {
 		}
 	});
 
+	it('reports the recursive half of two walkers spelled alike', () => {
+		expect(walkerDeclarations(TWO_WALKERS_ALIKE)).toHaveLength(2);
+		expect(recursiveWalkNames(TWO_WALKERS_ALIKE)).toEqual(['visit']);
+		expect(repeatedWalkerNames(TWO_WALKERS_ALIKE)).toEqual(['visit']);
+	});
+
+	it('no scoped file spells two walkers alike', () => {
+		const hits = sources.flatMap((file) =>
+			repeatedWalkerNames(file.code).map((name) => `${file.relPath} :: ${name}`)
+		);
+
+		expect(
+			hits,
+			'an exception is keyed by path and name, so two walkers under one name leave the map ' +
+				'unable to address either: rename one for what it walks'
+		).toEqual([]);
+	});
+
 	it('no walk over children or childNodes recurses', () => {
 		const hits = sources
-			.flatMap((file) => recursiveWalks(file).map((name) => `${file.relPath} :: ${name}`))
+			.flatMap((file) => recursiveWalkNames(file.code).map((name) => `${file.relPath} :: ${name}`))
 			.filter((hit) => !(hit in EXCEPTIONS))
 			.sort();
 

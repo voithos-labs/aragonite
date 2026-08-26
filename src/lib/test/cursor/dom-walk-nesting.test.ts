@@ -5,6 +5,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildAmbientSpan, placeCaretAfterAmbientSpan } from '../../ambient/ambient-dom';
 import { createRangeFromOffsets } from '../../cursor/content-offsets';
+import { domDescendants } from '../../cursor/dom-walk';
 import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import { findFirstTextNode, findLastTextNode } from '../../cursor/visual-lines';
 import {
@@ -92,4 +93,29 @@ describe('caret-space DOM walks at input-controlled nesting depth', () => {
 		expect(seated[0].startContainer.textContent).toBe(LEAF[0]);
 		expect(seated[0].startOffset).toBe(0);
 	}, 120_000);
+});
+
+// `fromEnd` is a MIRROR pre-order, not the walk reversed: each level's children come last-first
+// while a parent still precedes them, so only the leaf order comes back reversed — which is what
+// a last-match search reads off it.
+describe('domDescendants under fromEnd', () => {
+	it('walks each level last child first, with parents still ahead of children', () => {
+		const root = document.createElement('div');
+		root.id = 'R';
+		const branch = document.createElement('span');
+		branch.id = 'A';
+		for (const id of ['B', 'C']) {
+			const leaf = document.createElement('span');
+			leaf.id = id;
+			branch.appendChild(leaf);
+		}
+		const tail = document.createElement('span');
+		tail.id = 'D';
+		root.append(branch, tail);
+		const ids = (options?: { fromEnd?: boolean }): string[] =>
+			[...domDescendants(root, undefined, options)].map((node) => (node as Element).id);
+
+		expect(ids()).toEqual(['R', 'A', 'B', 'C', 'D']);
+		expect(ids({ fromEnd: true })).toEqual(['R', 'D', 'A', 'C', 'B']);
+	});
 });

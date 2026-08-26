@@ -7,10 +7,12 @@
  */
 
 /**
- * `root`, then its descendants, in document order — or its exact reverse under `fromEnd`, which a
- * search for the LAST match walks instead. `descend` declines a node's children: the node itself
- * is still yielded, and is asked only when it has any. Each child list is read when its parent
- * pops, so a consumer that rewrites the tree must finish the walk first.
+ * `root`, then its descendants, in document order. `fromEnd` MIRRORS that walk rather than
+ * reversing it — each level's children come last-first, a parent still ahead of them — so the
+ * leaves arrive reversed and a search for the last matching one reads them in the order it wants.
+ * `descend` declines a node's children: the node itself is still yielded, and is asked only when
+ * it has any. Each child list is read when its parent pops, so a consumer that rewrites the tree
+ * must finish the walk first.
  */
 export function* domDescendants(
 	root: Node,
