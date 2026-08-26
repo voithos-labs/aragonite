@@ -1,8 +1,7 @@
 /**
- * The promote/lift partition U1 (`unwrap-merge.ts`) and the empty-item exit
- * (`exit-replacement.ts`) share: a nested list whose `ordered` matches the parent gives its
- * items to the parent level, everything else lifts out as a sibling block. Output is fully
- * owned; the input is not mutated.
+ * The promote/lift partition U1 and the empty-item exit share: a nested list whose `ordered`
+ * matches the parent gives its items to the parent level, everything else lifts out as a
+ * sibling block. Output is fully owned; the input is not mutated.
  */
 
 import type { CstNode } from '../../core/nodes';
