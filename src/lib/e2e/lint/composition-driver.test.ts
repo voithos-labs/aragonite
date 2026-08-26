@@ -1,8 +1,9 @@
 /**
- * G4.49 — a spec composes through the CDP driver (`simulation/ime.ts`), never by constructing
+ * G4.49 — a spec composes through the shared driver (`simulation/ime.ts`), never by constructing
  * composition events itself. A hand-fired `CompositionEvent` skips the browser's own composition
  * window, so the spec asserts against a sequence no IME produces: it can pass while the real
- * gesture breaks, which is what issue #46 was. Lives beside the other e2e lints, outside
+ * gesture breaks, which is what issue #46 was. The driver is the one exemption, since WebKit
+ * exposes no CDP and its arm has nowhere else to live. Lives beside the other e2e lints, outside
  * `test:editor:invariants`.
  */
 import { describe, it, expect } from 'vitest';
@@ -11,6 +12,9 @@ import path from 'node:path';
 import { stripComments } from '../../test/invariants/lint/scan-source';
 
 const E2E_DIR = path.resolve('src/lib/e2e');
+
+/** The only file the ban exempts, and the only one that may carry a hand-fired arm. */
+const DRIVER = 'simulation/ime.ts';
 
 /** Both evasions: the event itself, and the input event that carries a composition's bytes.
  *  Assembled, because this file's own scan reads a source tree it is part of. */
@@ -55,15 +59,20 @@ describe('G4.49 e2e composition rides the CDP driver', () => {
 
 	it('no spec constructs its own composition events', () => {
 		expect(
-			handFiredIn(files),
+			handFiredIn(files.filter((file) => file.relPath !== DRIVER)),
 			'drive the composition through attachIme (simulation/ime.ts) — a synthetic event skips the browser composition window'
 		).toEqual([]);
 	});
 
-	it('the CDP driver is where composition lives', () => {
-		const driver = files.find((f) => f.relPath === 'simulation/ime.ts');
-		expect(driver, 'simulation/ime.ts is the composition driver').toBeDefined();
+	it('the CDP arm is where Chromium composition lives', () => {
+		const driver = files.find((file) => file.relPath === DRIVER);
+		expect(driver, `${DRIVER} is the composition driver`).toBeDefined();
 		expect(driver!.code).toContain('Input.imeSetComposition');
+	});
+
+	it('the hand-fired shape lives in the driver and nowhere else', () => {
+		// Exact both ways: a widened exemption grows this list, and a deleted WebKit arm empties it.
+		expect(handFiredIn(files), `the hand-fired arm belongs to ${DRIVER} alone`).toEqual([DRIVER]);
 	});
 
 	// ── Matcher self-test (non-vacuity) ──────────────────────────────────────
