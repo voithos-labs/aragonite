@@ -14,19 +14,47 @@ something you skim, and a wall of prose prefixes does not skim:
 
 Rules:
 
-- One subject line per change: lowercase, no trailing period, plain words, aim for under ~72 characters
-- The subject says what changed; the diff says how. **No essay bodies.** A body is exceptional: at most 2-3 short lines, only when the subject genuinely cannot carry it (a breaking-change note, a non-obvious constraint)
-- Scope in parens when useful: `+ (editor) block parser`. Comma-separate several: `> (editor,plugins) …`
+- Line 1 is the whole summary: lowercase, no trailing period, plain words, **72 characters hard**
+- The subject says what changed; the diff says how. **No essay bodies.** A body is exceptional: at most 3 short lines, only when the subject genuinely cannot carry it (a breaking-change note, a non-obvious constraint)
+- Scope in parens when useful: `+ (editor) block parser`. Comma-separate several, no space: `> (editor,plugins) …`
 - One logical change per commit. Bundle small related edits into medium-sized commits rather than micro-commits. Nobody wants to bisect through forty commits that each moved a semicolon
-- A commit holding several changes lists one subject line per change:
+- A commit holding several changes summarizes on line 1 and lists the changes in the body, below a blank line:
 
 ```
-+ (editor) undo/redo
-! (editor) editor now editable when empty
+> (schema) the opener and descriptor registries merge
+
++ (schema) one registry keyed by block kind
+- (core) the per-kind branch in the parser
 ```
+
+Those per-change lines are subject lines in their own right and carry every line-1 rule. They sit below a blank line because `git log --oneline`, and every other reader of `%s`, joins a multi-line first paragraph into a single line: three 72-character lines would arrive as one 216-character line, which is the shape the cap exists to prevent.
 
 - Verify behavior before committing
 - No attribution trailers (no `Co-Authored-By`, no "Generated with"). The git history is not a credits reel
+
+## The shape is enforced
+
+`scripts/lint-commit-message.mjs` holds the only definition of the shape above, behind two doors:
+
+| Door              | Where                                                                                 | Catches                                   |
+| ----------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `commit-msg` hook | `.githooks/`, wired by `npm install` (a `prepare` script sets git's `core.hooksPath`) | every local commit, before it exists      |
+| CI step           | the `unit` job, over the pull request's own commits                                   | a contributor who never ran `npm install` |
+
+What it reads:
+
+- line 1: symbol, an optional `(lowercase,scope)`, text that does not open uppercase, no trailing period, at most 72 characters
+- line 2, when anything follows: blank
+- the body: either per-change lines, where **every** line is symbol-prefixed and held to the line-1 rules, or prose, at most 3 lines of at most 100 characters
+- no `Co-Authored-By` or "Generated with" trailer
+
+Exempt, because no convention of ours writes them: `Merge …`, `Revert "…"`, and dependabot's `Bump …` and `build(deps…`.
+
+To read the verdict before you open a pull request:
+
+```bash
+node scripts/lint-commit-message.mjs --range origin/dev..HEAD
+```
 
 ## Bug fixes carry a miss-analysis
 

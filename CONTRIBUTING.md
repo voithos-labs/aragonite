@@ -132,7 +132,7 @@ Three honest warnings about the battery on real hardware, because I would rather
 
 ## Commit messages
 
-Symbol-prefixed, lowercase, one logical change per commit. Full convention in [`docs/contributing/commit-conventions.md`](docs/contributing/commit-conventions.md).
+Symbol-prefixed, lowercase, one logical change per commit, and the summary line is capped at 72 characters. `npm install` points git at `.githooks/`, where a `commit-msg` hook rejects a message that breaks the shape before the commit exists, and CI reads your pull request's commits again in case you never ran it. Full convention in [`docs/contributing/commit-conventions.md`](docs/contributing/commit-conventions.md).
 
 ## Submitting a change
 

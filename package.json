@@ -173,7 +173,8 @@
 		"docs:map:check": "node scripts/check-codebase-map.mjs",
 		"docs:capture:modes": "node scripts/run-with-env.mjs DOCS_CAPTURE=1 -- playwright test --project=e2e-capture",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
-		"prepack": "npm run package && node scripts/verify-pack.mjs"
+		"prepack": "npm run package && node scripts/verify-pack.mjs",
+		"prepare": "git config core.hooksPath .githooks || exit 0"
 	},
 	"dependencies": {
 		"esm-env": "^1.2.2",
