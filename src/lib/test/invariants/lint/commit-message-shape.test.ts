@@ -7,7 +7,10 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { commitMessageProblems } from '../../../../../scripts/lint-commit-message.mjs';
+import {
+	commitMessageProblems,
+	SUBJECT_LIMIT
+} from '../../../../../scripts/lint-commit-message.mjs';
 
 const ROOT = path.resolve('.');
 
@@ -19,7 +22,7 @@ const LEGAL: [name: string, message: string][] = [
 	['a scoped subject', '+ (editor) block parser'],
 	['an unscoped subject', '! caret lands at a hidden marker'],
 	['a multi-scope subject', '@ (docs,plugins) the guide names the freeze contract'],
-	['a subject at exactly the limit', `~ ${'x'.repeat(70)}`],
+	['a subject at exactly the limit', `~ ${'x'.repeat(SUBJECT_LIMIT - 2)}`],
 	[
 		'per-change lines after the summary',
 		'> (schema) two registries merge\n\n+ (schema) the opener registry\n- (core) the kind branch'
@@ -42,7 +45,7 @@ const LEGAL: [name: string, message: string][] = [
 const ILLEGAL: [rule: string, line: number, message: string][] = [
 	['subject-missing', 1, ''],
 	['subject-missing', 1, '# Please enter the commit message for your changes.\n'],
-	['subject-too-long', 1, `+ (editor) ${'x'.repeat(70)}`],
+	['subject-too-long', 1, `~ ${'x'.repeat(SUBJECT_LIMIT - 1)}`],
 	['subject-shape', 1, 'fixed the caret at a hidden marker'],
 	['subject-shape', 1, '? (editor) block parser'],
 	['subject-shape', 1, '+ (Editor) block parser'],
@@ -105,8 +108,10 @@ describe('G4.58 commit-message shape — the two doors', () => {
 		expect(readFileSync(hook, 'utf8')).toContain('lint-commit-message.mjs');
 	});
 
-	it('the unit job lints the pull request range through the same script', () => {
-		expect(unitJob).toMatch(/lint-commit-message\.mjs --range/);
-		expect(unitJob).toContain('pull_request.base.sha');
+	// The range is the PR's OWN commits, and the release PR is scoped out: dev into main would
+	// otherwise range over every commit on dev and read red on history nobody in it wrote.
+	it('the unit job lints only the commits a pull request adds, never the release PR', () => {
+		expect(unitJob).toMatch(/lint-commit-message\.mjs --range HEAD\^1\.\.HEAD\^2/);
+		expect(unitJob).toContain("base.ref != 'main'");
 	});
 });

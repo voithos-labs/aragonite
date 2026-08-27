@@ -41,11 +41,12 @@ jobs:
           node-version: 24
           cache: npm
       # The commit-subject rule's second door: a contributor who never ran `npm ci` never
-      # installed the `commit-msg` hook, so the range is checked here too. Base-to-head skips
-      # the synthetic merge commit the PR ref is checked out at.
+      # installed the `commit-msg` hook. `HEAD^1..HEAD^2` on the checked-out merge ref is the
+      # PR's own commits, current base tip and all. The dev-to-main release PR is scoped out:
+      # its range is every commit on dev, which nobody in that PR wrote.
       - name: Lint commit messages
-        if: github.event_name == 'pull_request'
-        run: node scripts/lint-commit-message.mjs --range ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main'
+        run: node scripts/lint-commit-message.mjs --range HEAD^1..HEAD^2
       - run: npm ci
       # The unit suite imports from examples/consumer, and vite resolves that file's tsconfig
       # chain into the example's GENERATED kit config — absent on a fresh checkout until the
