@@ -149,9 +149,10 @@ function drawGesture(rng: Rng, doc: Document): Gesture {
  * moment content arrives, and a screen-side reading would report that fold as bytes lost.
  */
 function screenClaimHolds(gesture: Gesture, before: string, after: string): boolean {
-	if (gesture.kind === 'type' || gesture.kind === 'type-in-container') {
-		return insertsSomewhere(before, after, gesture.char);
-	}
+	if (gesture.kind === 'type') return insertsSomewhere(before, after, gesture.char);
+	// A compound sequence has no single-glyph delta to claim: its seeding write mints a sibling
+	// before the drawn one lands. The shape, round-trip and dev-warn oracles are what judge it.
+	if (gesture.kind === 'type-in-container' || gesture.kind === 'blank-in-container') return true;
 	if (gesture.kind === 'enter') return insertsSomewhere(before, after, '\n');
 	// A toggle changes formatting and nothing else, so its claim is the strictest of the family:
 	// equality, not containment.
@@ -267,11 +268,13 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 			if (live.bytes !== literal.bytes) stats.rewrote[gesture.kind]++;
 			const found = judge(gesture, { bytes: current, doc: before }, live, literal);
 			// A dev guard that fired is a finding in its own right: the fuzzer is the caller that
-			// provoked it, and which of the two arms provoked it is the same question every oracle asks.
+			// provoked it. An `invariant:` fire is a contract that should never fire in EITHER arm, so
+			// the twin excuses nothing there; for the rest, which arm provoked it is the usual question.
 			if (liveWarns.length > 0) {
+				const guarded = liveWarns.some((w) => w.tag.startsWith('invariant:'));
 				found.push({
 					oracle: 'dev-warn',
-					category: liveWarns.length > literalWarns.length ? 'seam' : 'ambiguous',
+					category: guarded || liveWarns.length > literalWarns.length ? 'seam' : 'ambiguous',
 					report:
 						`${liveWarns.map((w) => `${w.tag} ${w.message}`).join(' | ')}\n` +
 						`  before ${JSON.stringify(current)}\n  live   ${JSON.stringify(live.bytes)}`

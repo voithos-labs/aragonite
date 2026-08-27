@@ -233,9 +233,10 @@ function containerLeaves(doc: Document): ProseLeaf[] {
 
 /**
  * Writing inside a container, twice. Once cannot reach the class: a container's child spans are
- * seeded by the first write into it and ridden by the second (`schema/child-spans.ts`), so the
- * seeding write goes first, with the leaf's own bytes. The second either types the drawn character
- * or empties the leaf, and emptying is what makes the container's settle move a SIBLING's line.
+ * seeded by the first write into it and ridden by the second (`schema/child-spans.ts`). The seeding
+ * write also mints the sibling the second one's settle moves a separating line for, since the drawn
+ * corpus composes containers of a single line. The second write types the drawn character or empties
+ * the leaf, and emptying is what makes the settle retire the follower's line.
  */
 async function writeInsideContainer(
 	source: string,
@@ -258,7 +259,11 @@ async function writeInsideContainer(
 	const children = (): CstNode[] => h.deps.doc.children[target.path[0]].children ?? [];
 	const seeded = children()[seed.path[1]];
 	if (!seeded) return null;
-	await h.bundle.blockEdit.updateBlockContent(seed.path[1], seeded.raw);
+	const ending = trailingLineEnding(seeded.raw);
+	const body = trimTrailingLineEnding(seeded.raw);
+	// Delimiter-free, so the run the screen oracles count is the drawn character's alone.
+	const withSibling = body + ending + ending + 'seed' + ending;
+	await h.bundle.blockEdit.updateBlockContent(seed.path[1], withSibling);
 
 	const node = children()[target.path[1]];
 	if (!node) return null;
