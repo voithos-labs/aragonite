@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { scanInline } from '../../../../core/inline/scan';
-import { BOUNDED_GROWTH_CEILING, measureScanGrowth } from '../../../harness/scan-growth';
+import {
+	BOUNDED_GROWTH_CEILING,
+	describeGrowth,
+	measureScanGrowth
+} from '../../../harness/scan-growth';
 import {
 	assertConstructCoverage,
 	assertTotalCoverage,
@@ -69,14 +73,12 @@ describe('openers_bottom (§6.2 phase 2 optimization)', () => {
 	it('pathological unmatched closers stay linear', () => {
 		// Openers interleaved with closers that can never match: without the openers_bottom
 		// lower bound every closer re-walks the whole opener stack.
-		const { times, ratio } = measureScanGrowth(
+		const growth = measureScanGrowth(
 			(source) => void scanInline(source, 0, source.length),
 			'_a* ',
 			[32, 128]
 		);
-		expect(ratio, `32KB=${times[0].toFixed(1)}ms 128KB=${times[1].toFixed(1)}ms`).toBeLessThan(
-			BOUNDED_GROWTH_CEILING
-		);
+		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
 
 		const raw = '_a* '.repeat(150000);
 		const nodes = scanInline(raw, 0, raw.length);
