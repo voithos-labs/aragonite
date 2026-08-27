@@ -38,3 +38,7 @@ CLAUDE.md
 /superpowers/
 docs/superpowers/
 .superpowers/
+
+# Owner-private documents: the forward plan and the release runbook
+docs/roadmap.md
+docs/contributing/releasing.md
