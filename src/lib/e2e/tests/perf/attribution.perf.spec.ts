@@ -47,6 +47,15 @@ async function settle(page: Page, min: number): Promise<void> {
 
 const p50 = (xs: number[]): number => percentileMs(xs, 50);
 
+/** Block 0's serialized length, the O(1) settle target: an interior keystroke reaches it
+ *  through the ancestry rebuild, and summing every child would dwarf what is measured. */
+async function block0Len(page: Page): Promise<number> {
+	return page.evaluate(() => {
+		const c = (window as any).__test.getDocument().children[0];
+		return c.leadingTrivia.length + c.raw.length;
+	});
+}
+
 interface DurationDeltaMs {
 	scriptMs: number;
 	layoutMs: number;
@@ -354,10 +363,7 @@ test('axisS: steady-state latency vs flat block count', async ({ page }) => {
 	for (const blockCount of [1000, 10000, 30000]) {
 		const src = generateUniformBlocks(blockCount, 4) + '\nperf cursor target\n';
 		await loadAndFocusBlock0(page, editor, src);
-		let b0 = await page.evaluate(() => {
-			const c = (window as any).__test.getDocument().children[0];
-			return c.leadingTrivia.length + c.raw.length;
-		});
+		let b0 = await block0Len(page);
 		await editor.typeSlowly('x'); // warm up past the first-edit re-render
 		await waitForBlock0Len(page, b0 + 1, 60_000);
 		b0 += 1;
@@ -455,4 +461,94 @@ test('axisT: first-edit full instrument profile (nested 1MB)', async ({ page }) 
 	// A document-wide fan-out reads in the tens of thousands here, so the generous bound
 	// still catches a regression back to one.
 	expect(s.blockRenderCount).toBeLessThanOrEqual(50);
+});
+
+// ── Axis I: container-interior direct attribution ───────────────────────────
+// The axis no other row here can see: every one of them prepends a prose target and types
+// AHEAD of the container, so none has ever measured a keystroke from inside one.
+
+const INTERIOR_LEAF_PATHS = [
+	[0, 0, 0],
+	[0, 20, 0]
+];
+
+/** A leaf the container windowed out takes the keystroke on `<body>`, so the settle hangs to
+ *  timeout instead of reporting. Mirrors loadAndFocusBlock0's block-0 check. */
+async function assertLeafMounted(page: Page, leafPath: number[]): Promise<void> {
+	const attr = JSON.stringify(leafPath);
+	const mounted = await page.evaluate(
+		(a) => document.querySelector(`[data-block-path='${a}']`) !== null,
+		attr
+	);
+	if (!mounted) throw new Error(`interior target ${attr} is off-window — windowing unmounted it`);
+}
+
+/** One interior arm: focus the leaf, absorb the first-edit re-render, then time keystrokes
+ *  inside a single CDP window. Leaves the caret and the grown document for the next arm. */
+async function measureInteriorArm(
+	page: Page,
+	editor: EditorPage,
+	leafPath: number[]
+): Promise<object> {
+	await assertLeafMounted(page, leafPath);
+	// Overshooting the leaf's length lands in focusBlockAtPath's clamp-to-end fallback, so
+	// the caret sits at that leaf's end whatever its content is.
+	await editor.focusBlockAtPath(leafPath, Number.MAX_SAFE_INTEGER);
+
+	const WARMUP = 2;
+	let b0 = await block0Len(page);
+	for (let i = 1; i <= WARMUP; i++) {
+		await editor.typeSlowly('x');
+		await waitForBlock0Len(page, b0 + i, 60_000);
+	}
+	b0 += WARMUP;
+
+	await armPerf(page);
+	const harness: number[] = [];
+	const N = 10;
+	const delta = await cdpDurationDelta(page, async () => {
+		harness.push(
+			...(await timedKeystrokes(editor, N, (i) => waitForBlock0Len(page, b0 + i, 60_000)))
+		);
+	});
+	const snap = await page.evaluate(() => (window as any).__test.perf.snapshot());
+	return {
+		leafPath: JSON.stringify(leafPath),
+		keystrokes: N,
+		harnessP50Ms: Math.round(p50(harness)),
+		inPageP50Ms: snap.keystrokeInPageMs.length
+			? Math.round(p50(snap.keystrokeInPageMs) * 10) / 10
+			: null,
+		scriptMsPerKey: Math.round((delta.scriptMs * 10) / N) / 10,
+		layoutMsPerKey: Math.round((delta.layoutMs * 10) / N) / 10,
+		recalcStyleMsPerKey: Math.round((delta.recalcStyleMs * 10) / N) / 10,
+		rebuildDepths: snap.rebuildDepths,
+		parseCount: snap.parseCount,
+		snapshotCount: snap.snapshotCount,
+		blockRenderCount: snap.blockRenderCount,
+		formatCoverageReads: snap.formatCoverageReads
+	};
+}
+
+test('axisI: container-interior direct attribution (giant list 1MB)', async ({ page }) => {
+	const editor = new EditorPage(page);
+	// No prose target: block 0 IS the list, which is what puts the caret inside a container
+	// and still leaves the block-0 settle reading the ancestry rebuild.
+	const src = generateFixture('giant-single-list', 1_000_000);
+	await editor.goto();
+	await page.evaluate((c) => (window as any).__test.setSource(c), src);
+	await settle(page, src.replace(/\s+$/, '').length);
+	await editor.waitForRenderFlush();
+
+	// Both arms checked before either runs: a mid-leaf miss after the head arm's minute of
+	// keystrokes would fail the test having written no row at all.
+	for (const leafPath of INTERIOR_LEAF_PATHS) await assertLeafMounted(page, leafPath);
+
+	// Head and mid on one loaded document, so the pair differs only in where the caret sits.
+	const rows: object[] = [];
+	for (const leafPath of INTERIOR_LEAF_PATHS) {
+		rows.push(await measureInteriorArm(page, editor, leafPath));
+	}
+	write('axisI-interior', { rows });
+	expect(rows).toHaveLength(2);
 });

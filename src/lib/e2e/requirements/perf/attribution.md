@@ -14,6 +14,7 @@
 - axisR steady-state instruments: renders, parse count/ms/blocks, inline computes, snapshots and rebuild depths per keystroke, post-warmup.
 - axisS flat block count: steady-state p50, in-page p50, CDP script per keystroke, mounted top-level hosts and renders-per-keystroke at 1000/10000/30000 uniform blocks.
 - axisLoad flat load: load ms, top-level child count vs mounted host count, renders during load, and the script/layout split at 1MB/4MB/10MB of many small blocks. Separates first-render-mounts-all from O(count) materialization.
+- axisI container interior: harness p50, in-page p50, CDP script/layout/recalc per keystroke and the instrument snapshot (rebuild depths, parses, snapshots, block renders, coverage reads) for 10 keystrokes at the head leaf and again at a mid leaf of a 1MB single list, no prose target prepended. The one caret position no other row here takes: inside the container rather than ahead of it.
 - axisT first edit: the full instrument profile of the FIRST keystroke after load. The one row with a pin — block renders ≤ 50, since a document-wide fan-out reads in the tens of thousands.
 
 ## Notes
