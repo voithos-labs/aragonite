@@ -22,24 +22,24 @@
 <line x1="584" y1="356" x2="584" y2="361" stroke="#383835" stroke-width="1"/>
 <text x="584" y="378" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="middle">10 MB</text>
 <text x="342" y="398" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#898781" text-anchor="middle">document size (log-spaced) · vertical axis is log scale</text>
-<polygon points="100,270.776046741022 342,245.6135765694769 584,177.2095626813672 584,222.96276073313555 342,282.1109977701109 100,318.47833775476363" fill="#3987e5" opacity="0.16"/>
-<polyline points="100,294.2041509472652 342,263.5831104997129 584,201.61205939890164" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
-<circle cx="100" cy="294.2041509472652" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
-<circle cx="342" cy="263.5831104997129" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
-<circle cx="584" cy="201.61205939890164" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
-<polyline points="100,294.46721074074355 342,242.44354729390528 584,164.22577047766634" fill="none" stroke="#d95926" stroke-width="2" stroke-linecap="round"/>
-<circle cx="100" cy="294.46721074074355" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
-<text x="100" y="282.46721074074355" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">71 ms</text>
-<circle cx="342" cy="242.44354729390528" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
-<text x="342" y="230.44354729390528" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">374 ms</text>
-<circle cx="584" cy="164.22577047766634" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
-<text x="584" y="152.22577047766634" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">4.5 s</text>
-<circle cx="636" cy="160.22577047766634" r="4" fill="#d95926"/>
-<text x="646" y="164.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">many small blocks</text>
-<text x="646" y="180.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">392k blocks at 10 MB,</text>
-<text x="646" y="196.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">the block count extreme</text>
-<circle cx="636" cy="220.22577047766634" r="4" fill="#3987e5"/>
-<text x="646" y="224.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">8 other fixture shapes</text>
-<text x="646" y="240.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">band and median,</text>
-<text x="646" y="256.22577047766634" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">697 ms to 3.0 s at 10 MB</text>
+<polygon points="100,281.6981330565002 342,260.7556571564659 584,195.15016184729177 584,235.52731790284332 342,293.98660826461514 100,318.10178338000077" fill="#3987e5" opacity="0.16"/>
+<polyline points="100,301.6887228755288 342,271.1504771685328 584,212.89172868200387" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="301.6887228755288" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="342" cy="271.1504771685328" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<circle cx="584" cy="212.89172868200387" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"/>
+<polyline points="100,306.30922467931543 342,266.0088212554467 584,190.3546899194478" fill="none" stroke="#d95926" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="306.30922467931543" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="100" y="294.30922467931543" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">49 ms</text>
+<circle cx="342" cy="266.0088212554467" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="342" y="254.00882125544672" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">177 ms</text>
+<circle cx="584" cy="190.3546899194478" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"/>
+<text x="584" y="178.3546899194478" font-family="system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#c3c2b7" text-anchor="middle" style="font-variant-numeric:tabular-nums">2.0 s</text>
+<circle cx="636" cy="186.3546899194478" r="4" fill="#d95926"/>
+<text x="646" y="190.3546899194478" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">many small blocks</text>
+<text x="646" y="206.3546899194478" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">392k blocks at 10 MB,</text>
+<text x="646" y="222.3546899194478" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">the block count extreme</text>
+<circle cx="636" cy="246.3546899194478" r="4" fill="#3987e5"/>
+<text x="646" y="250.3546899194478" font-family="system-ui, sans-serif" font-size="12.5" font-weight="600" fill="#ffffff" text-anchor="start">8 other fixture shapes</text>
+<text x="646" y="266.35468991944776" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">band and median,</text>
+<text x="646" y="282.35468991944776" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">467 ms to 1.7 s at 10 MB</text>
 </svg>

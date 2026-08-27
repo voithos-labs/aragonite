@@ -297,7 +297,7 @@ Now let me show you some pretty graphs.
   <img alt="Document load time across the same nine shapes, log scale: load grows roughly linearly with size; every shape loads within a few seconds at 10 MB, the 392,000-block extreme taking the longest." src="docs/assets/perf-load-light.svg">
 </picture>
 
-_Recorded 2026-07-24 and re-verified 2026-08-20 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), under a dev build with the invariant assertions still on, so read everything as a conservative upper bound relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^16]
+_Recorded 2026-08-26 on an ordinary desktop (Ryzen 7 7700, 31 GB RAM, Windows 11), on the production build the gate measures (`npm run perf:check` builds, previews, and times that), so read everything relative to that machine. What is gated versus report-only, and where the numbers live, is [performance.md](./docs/design/performance.md)'s subject._ [^16]
 
 Now, the numbers here depend on the machine; however, the scale of the numbers and the shape of the graph should tell you the story I want to share.
 

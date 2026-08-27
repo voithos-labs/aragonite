@@ -251,6 +251,8 @@ test.describe('typing latency — installed inline rungs', () => {
 // ── Bridge sanity ───────────────────────────────────────────────────────────
 
 test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }) => {
+	// The bridge's instruments arm only in dev, so the prod route has nothing to read here.
+	test.skip(!!process.env.PERF_PROD, 'dev-only instruments');
 	const editor = new EditorPage(page);
 	await editor.goto();
 	await editor.loadContent('hello world\n');
