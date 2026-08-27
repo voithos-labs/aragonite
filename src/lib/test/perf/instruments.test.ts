@@ -12,6 +12,7 @@ import {
 	perfSnapshot,
 	recordBlockRender,
 	recordDecorationRun,
+	recordFormatCoverageRead,
 	recordInlineCompute,
 	recordIslandKeyScan,
 	recordIslandRebuild,
@@ -31,6 +32,7 @@ const EMPTY: PerfSnapshot = {
 	parseMsTotal: 0,
 	parseBlockCount: 0,
 	inlineComputeCount: 0,
+	formatCoverageReads: 0,
 	undoLiveBytes: 0,
 	undoEntryCount: 0,
 	blockRenderCount: 0,
@@ -48,6 +50,7 @@ function recordOneOfEach(): void {
 	recordRebuildDepth(3);
 	recordParse(1.5, 10);
 	recordInlineCompute();
+	recordFormatCoverageRead();
 	setUndoGauge(1000, 2);
 	recordBlockRender(2);
 	recordDecorationRun();

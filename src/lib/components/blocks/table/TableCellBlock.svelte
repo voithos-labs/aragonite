@@ -4,7 +4,10 @@
 	import { type BlockComponent } from '../../../block-component';
 	import { type CommandId } from '../../../schema/commands';
 	import { eventToChord } from '../../../schema/keybindings';
-	import { isInlineFormatActive, toggleInlineFormat } from '../../../core/inline/format-toggle';
+	import {
+		createInlineFormatActiveMemo,
+		toggleInlineFormat
+	} from '../../../core/inline/format-toggle';
 	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import {
 		inlineMarkForCommand,
@@ -348,6 +351,9 @@
 		crossBlockRange: selection.isCrossBlock
 	});
 
+	// A toolbar asks once per button on every selection change, so the buttons share the parse.
+	const formatActive = createInlineFormatActiveMemo();
+
 	// The pressed-state read: the same cell text and selection the toggle itself takes, and for
 	// the card the same construct its own entry resolves.
 	export function isCommandActive(id: CommandId): boolean {
@@ -360,7 +366,7 @@
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
 		const cellText = readCellText();
-		return isInlineFormatActive(
+		return formatActive(
 			{ display: cellText, content: { start: 0, end: cellText.length }, selection },
 			marked.kind
 		);

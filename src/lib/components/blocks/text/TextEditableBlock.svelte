@@ -23,7 +23,10 @@
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
-	import { isInlineFormatActive, toggleInlineFormat } from '../../../core/inline/format-toggle';
+	import {
+		createInlineFormatActiveMemo,
+		toggleInlineFormat
+	} from '../../../core/inline/format-toggle';
 	import {
 		inlineMarkForCommand,
 		type InlineMarkKind
@@ -585,6 +588,9 @@
 		return true;
 	}
 
+	// A toolbar asks once per button on every selection change, so the buttons share the parse.
+	const formatActive = createInlineFormatActiveMemo();
+
 	// The pressed-state read: the same display, content and selection the toggle itself takes,
 	// and for the card the same construct its own entry resolves.
 	export function isCommandActive(id: CommandId): boolean {
@@ -596,7 +602,7 @@
 		}
 		const caret = cursor.getRaw() ?? 0;
 		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
-		return isInlineFormatActive(
+		return formatActive(
 			{ display: getDisplayText(), content: getContentRange(node), selection },
 			marked.kind
 		);

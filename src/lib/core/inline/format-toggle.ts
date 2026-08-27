@@ -7,6 +7,7 @@
  * (live-mode.md § 4.3). Every write clamps to the CONTENT range: a marker in `# ` changes the kind.
  */
 
+import { recordFormatCoverageRead } from '../../perf/instruments';
 import { paintsFocusedMarkers, type PresentationMode } from '../../presentation-mode';
 import {
 	getInlineMarkPolicy,
@@ -147,6 +148,20 @@ export function inlineFormatsCovering(
 	return carried;
 }
 
+/** The same read, one id at a time, with consecutive asks over one block state sharing the parse:
+ *  a toolbar's buttons arrive as N separate calls, and only the caller knows they are one repaint.
+ *  One slot, since the previous state is dead the moment a keystroke or the caret moves. */
+export function createInlineFormatActiveMemo(): (
+	edit: InlineFormatEdit,
+	format: InlineMarkKind
+) => boolean {
+	let slot: { edit: InlineFormatEdit; coverage: Coverage } | null = null;
+	return (edit, format) => {
+		if (!slot || !sameEdit(slot.edit, edit)) slot = { edit, coverage: coverageOf(edit) };
+		return coverageCarries(slot.coverage, format);
+	};
+}
+
 // ── Coverage ─────────────────────────────────────────────────────────────────
 
 /** The block and the selected slice, each parsed once, so asking mark after mark costs the walks
@@ -161,6 +176,7 @@ interface Coverage {
 }
 
 function coverageOf(edit: InlineFormatEdit): Coverage {
+	recordFormatCoverageRead();
 	const { display, content, selection } = edit;
 	const start = clampToContent(selection.start, content);
 	const end = clampToContent(selection.end, content);
@@ -180,6 +196,18 @@ function coverageOf(edit: InlineFormatEdit): Coverage {
 					? inlines
 					: parseInline(display.slice(start, end), 0, end - start)
 	};
+}
+
+/** The memo's key: field-wise, where the cross-block sibling composes a string, because the
+ *  display here is the block's whole raw and building a key would cost what the memo saves. */
+function sameEdit(a: InlineFormatEdit, b: InlineFormatEdit): boolean {
+	return (
+		a.display === b.display &&
+		a.content.start === b.content.start &&
+		a.content.end === b.content.end &&
+		a.selection.start === b.selection.start &&
+		a.selection.end === b.selection.end
+	);
 }
 
 /** The one home for "does this range carry this mark", so every reader asks the same guards —

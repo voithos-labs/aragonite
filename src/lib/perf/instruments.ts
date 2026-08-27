@@ -19,6 +19,8 @@ export interface PerfSnapshot {
 	parseMsTotal: number;
 	parseBlockCount: number;
 	inlineComputeCount: number;
+	/** Inline-format coverage reads that actually parsed — the pressed-state read's cost. */
+	formatCoverageReads: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -45,6 +47,7 @@ function emptySnapshot(): PerfSnapshot {
 		parseMsTotal: 0,
 		parseBlockCount: 0,
 		inlineComputeCount: 0,
+		formatCoverageReads: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -116,6 +119,11 @@ export function recordParse(ms: number, blockCount: number): void {
 export function recordInlineCompute(): void {
 	if (!enabled) return;
 	counters.inlineComputeCount++;
+}
+
+export function recordFormatCoverageRead(): void {
+	if (!enabled) return;
+	counters.formatCoverageReads++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {
