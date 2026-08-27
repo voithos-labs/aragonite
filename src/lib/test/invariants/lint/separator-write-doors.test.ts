@@ -147,7 +147,10 @@ describe('every separator door retires the child spans it invalidates', () => {
 		WRITES_SEPARATOR_BYTES.test(fn.body)
 	);
 
-	/** Every settle door by name: each retires, and losing one is a red on that door alone. */
+	/**
+	 * Every settle door by name: each retires FIRST, before its own guards. A retire that has
+	 * slid below an early return is a door that stops retiring on the paths that take it.
+	 */
 	const DOORS = [
 		'clearRedundantSeparator',
 		'dropDoubledSeparator',
@@ -159,14 +162,17 @@ describe('every separator door retires the child spans it invalidates', () => {
 		'handDownVacatedSeparator'
 	];
 
-	it('every named door retires the spans, one red per door', () => {
+	it('every named door retires the spans first, one red per door', () => {
 		const bodies = new Map(
 			functionBodies(readEditorFile(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
 		);
 		const forgot = DOORS.filter(
-			(name) => !/(?<![\w.])retireChildSpans\s*\(/.test(bodies.get(name) ?? '')
+			(name) => !/^\s*retireChildSpans\s*\(/.test(bodies.get(name) ?? '')
 		);
-		expect(forgot, 'a settle door stopped retiring the child spans it invalidates').toEqual([]);
+		expect(
+			forgot,
+			'a settle door stopped retiring the child spans it invalidates, or retires past a guard'
+		).toEqual([]);
 		expect(DOORS.filter((name) => !bodies.has(name))).toEqual([]);
 	});
 
