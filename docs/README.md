@@ -56,17 +56,15 @@ Because the pack ships flat, a markdown link inside `guide/` may only point at a
 | [`contributing/code-style.md`](contributing/code-style.md)                   | Code style conventions                                        |
 | [`contributing/commit-conventions.md`](contributing/commit-conventions.md)   | Commit message format                                         |
 | [`contributing/friction-log.md`](contributing/friction-log.md)               | Known contributor-experience friction, open and retired       |
-| [`contributing/releasing.md`](contributing/releasing.md)                     | Maintainer runbook: version cut, publish, the public flip     |
 
 `rules.md` is the one to read before you write code, and the one people skip. Every rule in it was paid for by a real bug, and `casebook.md` holds the bug. [`contributing/culture.md`](contributing/culture.md) is a redirect stub kept for the citations older code and requirement files still carry.
 
 ## Records + reference
 
-The moving state, and the background material behind it.
+The moving state, and the background material behind it. Forward-looking plans are not kept in the repo; a decision that binds a contract is recorded with that contract, and everything shipped is in the changelog.
 
 | Doc                                                                              | Scope                                                                   |
 | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [`roadmap.md`](roadmap.md)                                                       | Forward plan — nothing shipped                                          |
 | [`changelog.md`](changelog.md)                                                   | Shipped history — nothing speculative; index over the per-family files  |
 | [GitHub Issues](https://github.com/voithos-labs/aragonite/issues)                | Defect ledger — severity + area labelled, closed by the shipping commit |
 | [`research/gfm-reference.md`](research/gfm-reference.md)                         | The GFM syntax the editor parses                                        |

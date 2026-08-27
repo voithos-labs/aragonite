@@ -1,7 +1,6 @@
 /**
- * Type pins for the freeze-surface liveness rule (docs/roadmap.md § Pre-1.0 item 1):
- * a live field on the public factory-deps interfaces is a thunk (`() => T`), so a
- * captured value no longer compiles. The `@ts-expect-error` directives ARE the
+ * Type pins for the freeze-surface liveness rule: a live field on the public
+ * factory-deps interfaces is a thunk (`() => T`), so a captured value no longer compiles. The `@ts-expect-error` directives ARE the
  * assertions — `npm run check` fails the day one starts compiling. `valueCaptureRejected`
  * is the load-bearing one: a getter and a value property are structurally identical,
  * so nothing but the thunk shape can reject a value capture.

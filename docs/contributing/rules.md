@@ -124,8 +124,9 @@ behavior that does not exist.
 - **Close an issue by naming the shipping commit** in the closing comment.
 - **Reconcile an issue against the commits that resolve it, never against its own prose.** A premise
   expires without a word of the issue changing, so work landed elsewhere closes issues nobody edited.
-- Roadmap is forward-only; changelog is past-only; a shipping milestone moves between them in the
-  same commit.
+- **The changelog is past-only**, and a shipped milestone lands in it in the same commit that ships
+  the feature. A decision lives with the contract it binds, not in a plan document. Forward-looking
+  plans are not in this repository at all.
 - **A moved seam moves the codebase map in the same commit** ([`codebase-map.md`](codebase-map.md)).
   `npm run lint` fails on a path or symbol it names that no longer exists, which is the reminder.
 - **A behavior change sweeps its prose by claim, not by grep.** Every sentence about the changed

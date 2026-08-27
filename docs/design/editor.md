@@ -527,7 +527,7 @@ The top-level and container action factories share one core through a `CommitSco
 
 The undo stack is session-scoped: in memory, cleared when the document closes. A future persistent version-history layer operates at a different boundary (the save write), and the two are designed not to interact: the editor produces a serialized document on save, and whatever handles cross-session history does so independently.
 
-The persistence mechanism itself (Automerge, Yjs, a custom CRDT, a linear log) is an open roadmap decision. The boundary is the commitment; the technology is not.
+The persistence mechanism itself (Automerge, Yjs, a custom CRDT, a linear log) is an open decision. The boundary is the commitment; the technology is not.
 
 ## 12. Serialization and the event seam
 
@@ -632,3 +632,10 @@ Guardrails, derived from a previous failed attempt at a per-block editor. Every 
 3. **The CST is the single source of truth.** If the CST and the DOM disagree, the CST wins. If the CST and the undo stack disagree, the snapshot replaces the CST. There is never a question of which state is correct.
 4. **Adding a block type should be boring, and usually is.** A kind that varies an existing capability is pure registration: a component, a descriptor, one `register` call, and no core file switches on its kind string. A genuinely new cross-cutting capability isn't free, but it lands _once_ at the choke point, as a declarative descriptor field or probe every later kind inherits (collapse arrived this way), never as a kind check. The coupling bug to refuse is shell, orchestration, or selection code branching on a specific kind _name_.
 5. **Don't build upward on a shaky foundation.** A paragraph-only editor that handles split/merge/focus/undo flawlessly is worth more than a full-featured one where nothing quite works.
+
+The four below came from the first real integration rather than from the predecessor, and they are directions for the next milestone that touches each area.
+
+6. **Inline-widget _editing_ is where a consumer's defect density concentrates.** What happens when a caret, a keystroke, or a command meets an inline widget is one region, and consumer finds cluster there. A new inline-editing capability picks its key space deliberately (rung or kind, and the split is the design, not an accident of it) and enrols in the inline conformance kit, which is where a rung's behavior is held.
+7. **The webview host boundary is invisible to the in-repo harness.** Clipboard retargeting, host accelerator keys, and image-src scheme policy are the host webview's decisions rather than the page's, so no Chromium-driven battery can see them and that class of bug is found by a real host or by a user.
+8. **A process-global singleton is a deliberate choice with a written second-claimant story.** One slot works until the second claimant arrives, and by then the interleaving is a consumer-visible defect rather than a design question.
+9. **Every gesture that places a caret is a data-loss candidate until proven otherwise.** A live cross-block range sitting there before the gesture is what turns a caret landing into a whole-document loss, and the pointer guard's perimeter is pointer-only by design, so a new caret-placing door joins the simulation's range-interrupt family by hand or goes unprobed.

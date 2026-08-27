@@ -162,6 +162,8 @@ Two harness seams branch on the engine, both behind unchanged helper signatures,
 
 What the lane proves: editor behavior survives a second engine, and the commit funnel survives a WebKit-shaped composition without double-applying at `compositionend`. What it does not: event ORDER, which only the CDP arm can assert, and the paste chord itself, which the dispatched event bypasses. Both stay pinned in Chromium.
 
+**The engine is not the host.** A second engine says nothing about the webview host boundary, which no in-repo battery can see at all: clipboard retargeting, the host's own accelerator keys, and image-src scheme policy are the embedding host's decisions rather than the page's, so that class of bug is found by a real host or by a user.
+
 **The caveat, wherever the lane is described.** WebKit-on-Windows through Playwright is not Safari and not a WKWebView. It is the closest available proxy, so a green lane is weaker evidence than its pass count suggests, and #37 stays open until something runs on Apple hardware. The browser build is pinned by the `@playwright/test` version in `package.json`: a Playwright upgrade that reds the lane is signal, not noise.
 
 ### Requirements pair one-to-one with specs

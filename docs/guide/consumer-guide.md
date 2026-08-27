@@ -54,7 +54,7 @@ Three things your build needs. All three are already true in a SvelteKit app, so
 
 ## Public API
 
-Everything supported is re-exported from the package barrel (`@voithos-labs/aragonite`). Adding an export is non-breaking; removing one is breaking, so the surface is kept deliberately small and grows on demand. The barrel itself (`src/lib/index.ts` in the repository) is the authoritative list; this page is only the map.
+Everything supported is re-exported from the package barrel (`@voithos-labs/aragonite`). Adding an export is non-breaking; removing one is breaking, so the surface is kept deliberately small and grows on demand. From 1.0 the version number carries that distinction: a breaking change to a frozen surface rides a major version, and additive needs ship as minors. The barrel itself (`src/lib/index.ts` in the repository) is the authoritative list; this page is only the map.
 
 | Group                  | What you get                                                                                                                                                                                                                                                                                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

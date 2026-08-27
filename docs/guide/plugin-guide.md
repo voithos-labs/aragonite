@@ -65,6 +65,8 @@ You are building against an API that is going to freeze, so you deserve to know 
 - **Registration base, stable.** Kind declaration, descriptor/component/opener registration, typed per-node metadata, and the idempotence probes. These shapes will not change in a breaking way. (One exception landed pre-freeze: an opener's return became a line count in 0.9.36, see [What an opener returns](#what-an-opener-returns).)
 - **Pre-freeze / unstable.** Everything else, and the [API reference](#api-reference) below carries the list rather than this sentence: **a section labelled _(pre-freeze / unstable)_ may still change shape until the freeze.** Those labels mirror the section headers of the `@voithos-labs/aragonite/plugin` entry point (`src/lib/plugin.ts` in the repository), so the two cannot drift apart. The big families are the plugin unit itself, the authoring tiers (container, editable leaf, inline, directive), the grammar hooks, paste transforms, and the view surfaces (decorations, rects, selection geometry). Each one is being refined against real consumers, and each one freezes at the public release.
 
+After the freeze the version number carries the promise: a breaking change to a frozen surface rides a **major** version, and additive needs ship as **minors**.
+
 ## Per-instance context
 
 `setup` runs once per process, but a plugin usually needs to react to _each editor_: recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that seam. It registers a callback fired once per mounted `<Editor>`, handed that instance's **`EditorContext`**.
@@ -604,6 +606,8 @@ Two rules place a plugin opener on it:
 
 Ties break by kind name, deterministically, so dispatch never depends on registration order. But a shared priority is a smell, and the dev build warns on it. Price into a gap instead.
 
+**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor, its own closure row. It is uninstall-safe by construction, because the built-in opener never left the ladder — remove your plugin and it takes the bytes back unchanged. There is no registry-level override of a built-in's component or descriptor, deliberately: registries are process-global, so an override would be global and last-writer-wins.
+
 The opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
 
 ## Openers and document position
@@ -845,6 +849,15 @@ Bytes are the whole API, so shipping a new kind adds no method for the host to a
 ## What a plugin may and may not do
 
 The boundary, spelled out, because a plugin platform that leaves this implicit is one you should not trust with somebody's notes.
+
+**An editor plugin is not an app plugin.** If you are extending an app that embeds aragonite, that app almost certainly has a plugin layer of its own, and the two own different halves:
+
+| Layer                           | Owns                                                                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **aragonite plugins**           | Anything touching the document or the editing surface: kinds, grammar, decorations, commands over the document, presentation |
+| **The embedding app's plugins** | Anything touching the app: ribbon, sidebar, status bar, settings tabs, modals, the command palette UI, the vault, sync       |
+
+Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It is not simply "editor = view", though. Derived state over the _one_ document you are editing — a table of contents, footnote numbering, the tasks in this note — is an editor plugin's to build, which is why a block component is handed its document ([Recipe: reading the document above your block](#recipe-reading-the-document-above-your-block)).
 
 A plugin **may**:
 
