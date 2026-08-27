@@ -78,6 +78,8 @@ export interface FuzzOptions {
 
 const KIND_WEIGHTS: { value: GestureKind; weight: number }[] = [
 	{ value: 'type', weight: 3 },
+	{ value: 'type-in-container', weight: 2 },
+	{ value: 'blank-in-container', weight: 2 },
 	{ value: 'backspace', weight: 3 },
 	{ value: 'delete', weight: 2 },
 	{ value: 'enter', weight: 2 },
@@ -147,7 +149,9 @@ function drawGesture(rng: Rng, doc: Document): Gesture {
  * moment content arrives, and a screen-side reading would report that fold as bytes lost.
  */
 function screenClaimHolds(gesture: Gesture, before: string, after: string): boolean {
-	if (gesture.kind === 'type') return insertsSomewhere(before, after, gesture.char);
+	if (gesture.kind === 'type' || gesture.kind === 'type-in-container') {
+		return insertsSomewhere(before, after, gesture.char);
+	}
 	if (gesture.kind === 'enter') return insertsSomewhere(before, after, '\n');
 	// A toggle changes formatting and nothing else, so its claim is the strictest of the family:
 	// equality, not containment.

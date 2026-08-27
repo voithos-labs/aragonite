@@ -7,6 +7,8 @@ import fc from 'fast-check';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '$lib/core/nodes';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { pushChild, spliceChildren } from '$lib/tree-operations/children';
+
+import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 import { freshOrFixedSeed } from './arbitraries';
 
 const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(717171) } as const;
@@ -156,6 +158,27 @@ function applyEdit(node: CstNode, edit: Edit): boolean {
 	return spansBefore !== undefined && node.childSpans === spansBefore;
 }
 
+// The shipped door, where the synthesized hint above cannot reach: `updateBlockContent` mints its
+// own hint and its settle rewrites bytes no hint names. Deep paths (a chain of two hinted levels)
+// live in `test/schema/child-spans-settle.test.ts`'s sweep, which this arm does not repeat.
+const NESTED_SOURCES = [
+	'> a\n>\n>\n> c\n',
+	'> a\n>\n> b\n>\n> c\n',
+	'> - a\n> - b\n',
+	'> - a\n>\n> - b\n',
+	'> # h\n>\n> body\n>\n> tail\n',
+	'- one\n\n  body\n\n  tail\n',
+	'- a\n  - b\n  - c\n',
+	'1. one\n\n   body\n\n   tail\n'
+];
+
+const arbDoorCase = fc.record({
+	source: fc.constantFrom(...NESTED_SOURCES),
+	seedAt: fc.nat({ max: 5 }),
+	at: fc.nat({ max: 5 }),
+	text: fc.constantFrom('x\n', '\n', 'x', 'a\nb\n', '')
+});
+
 describe('container child spans', () => {
 	it('a spliced raw is the raw a full rebuild would have written', () => {
 		let splices = 0;
@@ -173,5 +196,45 @@ describe('container child spans', () => {
 		);
 		// Non-vacuity: a run where every rewrite declined would prove nothing about the arithmetic.
 		expect(splices, 'the splice path never ran').toBeGreaterThan(PARAMS.numRuns / 4);
+	});
+
+	it('a write through the shipped door leaves the raw a full rebuild would write', async () => {
+		let spliced = 0;
+		let retired = 0;
+		await fc.assert(
+			fc.asyncProperty(arbDoorCase, async (c) => {
+				const h = makeNestedHarness(c.source, { index: 0 });
+				const container = (): CstNode => h.deps.doc.children[0];
+				const count = container().children?.length ?? 0;
+				if (count === 0) return;
+
+				// Prose leaves only: the content door writes a block's own text, and handing it a
+				// container child's bytes is a different gesture with a stale-raw problem of its own.
+				const leaves = container()
+					.children!.map((child, i) => (child.children ? -1 : i))
+					.filter((i) => i >= 0);
+				if (leaves.length === 0) return;
+
+				// Writing a child's own bytes back seeds the spans without moving anything.
+				const seedAt = leaves[c.seedAt % leaves.length];
+				await h.bundle.blockEdit.updateBlockContent(seedAt, container().children![seedAt].raw);
+				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
+
+				const seeded = container().childSpans;
+				const at = leaves[c.at % leaves.length];
+				if (at >= (container().children?.length ?? 0)) return;
+				await h.bundle.blockEdit.updateBlockContent(at, c.text, 0, c.text.length);
+				if (seeded !== undefined) {
+					if (container().childSpans === seeded) spliced++;
+					else retired++;
+				}
+				expect(container().raw, 'after the settling write').toBe(fullRebuildOf(container()).raw);
+			}),
+			{ numRuns: 200, seed: PARAMS.seed }
+		);
+		// Both classes, or the arm proves only the one it happened to draw: an ordinary content
+		// write rides the spans, and a write whose settle moves a sibling retires them.
+		expect(spliced, 'no write through the door took the splice path').toBeGreaterThan(0);
+		expect(retired, 'no write through the door retired the spans').toBeGreaterThan(0);
 	});
 });

@@ -1,13 +1,18 @@
-import { expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 
 import { parse } from '../../core/parser';
+import { disablePerfInstruments, enablePerfInstruments } from '../../perf/instruments';
 import { createSharingState } from '../../tree-operations/sharing';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
 
 // The point of the child spans: a keystroke rewrites one region instead of re-joining the
 // container. Wall-clock cannot say which happened on a given host; counting the sibling
 // elements the rebuild reads can, and it fails the day the hint stops reaching a level.
+// Instrumented, because that is the one dev shape without G1.38's rebuild behind the splice.
+afterEach(disablePerfInstruments);
+
 it('a keystroke inside a large container reads O(1) sibling elements, not O(children)', () => {
+	enablePerfInstruments();
 	const count = 2000;
 	const source = Array.from({ length: count }, (_, i) => `- item ${i}\n`).join('');
 	const sharing = createSharingState();

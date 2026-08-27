@@ -34,11 +34,17 @@ import {
 import { normalizeCharEndpoint } from '$lib/selection/char-endpoint-snap';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps, makePendingMarks } from '$lib/test/harness/editor-actions';
+import {
+	makeEditorActionsDeps,
+	makeNestedHarness,
+	makePendingMarks
+} from '$lib/test/harness/editor-actions';
 import { proseLeaves, type ProseLeaf } from './live-screen-reading';
 
 export type GestureKind =
 	| 'type'
+	| 'type-in-container'
+	| 'blank-in-container'
 	| 'backspace'
 	| 'delete'
 	| 'enter'
@@ -139,6 +145,7 @@ function harnessFor(source: string, mode: PresentationMode | undefined): Harness
  * very node the applier will pick.
  */
 export function gestureTargets(doc: Document, kind: GestureKind): ProseLeaf[] {
+	if (kind === 'type-in-container' || kind === 'blank-in-container') return containerLeaves(doc);
 	if (spansLeaves(kind)) return proseLeaves(doc);
 	return doc.children.flatMap((child, index) =>
 		child.children === undefined && isProseKind(child.kind) ? [{ path: [index], node: child }] : []
@@ -208,12 +215,62 @@ export async function applyGesture(
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): Promise<Applied | null> {
+	if (gesture.kind === 'type-in-container' || gesture.kind === 'blank-in-container') {
+		return writeInsideContainer(source, gesture, mode);
+	}
 	const h = harnessFor(source, mode);
 	const claimed = spansLeaves(gesture.kind)
 		? acrossLeaves(h, gesture, mode)
 		: await applyBlockGesture(h, gesture, mode);
 	if (claimed === null) return null;
 	return { doc: h.doc, bytes: serialize(h.doc), claimed };
+}
+
+/** A container's own prose children: the leaves the document-level bundle cannot address. */
+function containerLeaves(doc: Document): ProseLeaf[] {
+	return proseLeaves(doc).filter((leaf) => leaf.path.length === 2);
+}
+
+/**
+ * Writing inside a container, twice. Once cannot reach the class: a container's child spans are
+ * seeded by the first write into it and ridden by the second (`schema/child-spans.ts`), so the
+ * seeding write goes first, with the leaf's own bytes. The second either types the drawn character
+ * or empties the leaf, and emptying is what makes the container's settle move a SIBLING's line.
+ */
+async function writeInsideContainer(
+	source: string,
+	gesture: Gesture,
+	mode: PresentationMode | undefined
+): Promise<Applied | null> {
+	const doc = parse(source);
+	const targets = containerLeaves(doc);
+	if (targets.length === 0) return null;
+	const seed = targets[gesture.leaf % targets.length];
+	const target = targets[gesture.endLeaf % targets.length];
+	// One container, or the seeding write leaves the other one's spans unseeded and buys nothing.
+	if (seed.path[0] !== target.path[0]) return null;
+
+	const h = makeNestedHarness(doc, {
+		index: target.path[0],
+		presentationMode: mode,
+		stubState: true
+	});
+	const children = (): CstNode[] => h.deps.doc.children[target.path[0]].children ?? [];
+	const seeded = children()[seed.path[1]];
+	if (!seeded) return null;
+	await h.bundle.blockEdit.updateBlockContent(seed.path[1], seeded.raw);
+
+	const node = children()[target.path[1]];
+	if (!node) return null;
+	if (gesture.kind === 'blank-in-container') {
+		const ending = trailingLineEnding(node.raw);
+		await h.bundle.blockEdit.updateBlockContent(target.path[1], ending, 1, 0);
+	} else {
+		const at = drawnOffset(node, gesture, gesture.endOffset);
+		const text = node.raw.slice(0, at) + gesture.char + node.raw.slice(at);
+		await h.bundle.blockEdit.updateBlockContent(target.path[1], text, at, at + gesture.char.length);
+	}
+	return { doc: h.deps.doc, bytes: serialize(h.deps.doc), claimed: false };
 }
 
 async function applyBlockGesture(

@@ -502,6 +502,9 @@ export interface NestedHarnessOptions {
 	overrides?: NestedActionsOverrideFactory;
 	/** Wire the standard list-item overrides (unwrap/merge/delete) onto the bundle. */
 	listOverrides?: boolean;
+	/** Take the id-mirroring stub instead of the reactive state, for a driver with no effect
+	 *  root to own the production state's `$effect` (the jsdom gesture fuzzer). */
+	stubState?: boolean;
 	grammar?: GrammarView;
 	presentationMode?: PresentationMode;
 }
@@ -523,7 +526,8 @@ export function makeNestedHarness(
 	const controller = createUndoController(deps);
 	const containerEdit = createContainerEditActions(deps, controller);
 	const getNode = () => deps.doc.children[index];
-	const state = createBlockListState(getNode);
+	const state = opts.stubState ? makeBlockListState(getNode) : createBlockListState(getNode);
+	if (opts.stubState) registerBlockListState(getNode(), state);
 	const overrides = opts.listOverrides
 		? createListOverrides({
 				scope: {

@@ -47,6 +47,7 @@ import {
 	type StructuralChange
 } from './structural-change';
 import { assertInvariant } from '../assert';
+import { dropChildSpans } from '../schema/child-spans';
 import { checkSingleNodeSink } from '../invariants/single-node-sink';
 import { checkSplitLanding } from '../invariants/split-landing';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
@@ -666,6 +667,7 @@ export function clearRedundantSeparator(
 	index: number,
 	sharing?: SharingState
 ): void {
+	retireChildSpans(parent);
 	const node = parent.children?.[index];
 	if (!node || node.leadingTrivia === '') return;
 	const bodyStart = bodyStartIndex(parent);
@@ -690,6 +692,7 @@ export function dropDoubledSeparator(
 	index: number,
 	sharing?: SharingState
 ): void {
+	retireChildSpans(parent);
 	const node = parent.children?.[index];
 	if (!node || node.leadingTrivia === '' || !isBlankParagraph(node)) return;
 	if ((parent.children?.[index + 1]?.leadingTrivia ?? '') === '') return;
@@ -708,6 +711,7 @@ export function restoreSeparatorOnFill(
 	index: number,
 	sharing?: SharingState
 ): void {
+	retireChildSpans(parent);
 	const node = parent.children?.[index];
 	if (!node || node.leadingTrivia !== '' || isBlankParagraph(node)) return;
 	mintSeparator(parent, index, sharing);
@@ -724,6 +728,7 @@ function restoreSeparatorAfterBlank(
 	index: number,
 	sharing?: SharingState
 ): void {
+	retireChildSpans(parent);
 	const children = parent.children;
 	const node = children?.[index];
 	if (!children || !node || node.leadingTrivia !== '') return;
@@ -742,6 +747,7 @@ export function settleSeparatorOnBlank(
 	index: number,
 	sharing?: SharingState
 ): void {
+	retireChildSpans(parent);
 	const children = parent.children;
 	const node = children?.[index];
 	if (!children || !node || !isBlankParagraph(node)) return;
@@ -813,6 +819,7 @@ export function settleSeparatorOnBlank(
  * line, against a stray one after every tail split.
  */
 function releaseWrapPeel(parent: SeparatorParent, index: number): void {
+	retireChildSpans(parent);
 	const children = parent.children;
 	const slots = wrapSlotsOf(parent);
 	if (!children || children.length === 0 || !slots?.innerSuffix) return;
@@ -830,6 +837,7 @@ function releaseWrapPeel(parent: SeparatorParent, index: number): void {
  * Returns the blocks appended.
  */
 function materializeTailSuffix(parent: SeparatorParent, sharing?: SharingState): number {
+	retireChildSpans(parent);
 	const children = parent.children;
 	const suffix = parent.suffix;
 	if (!children || !suffix) return 0;
@@ -905,6 +913,7 @@ function handDownVacatedSeparator(
 	vacated: string,
 	sharing?: SharingState
 ): void {
+	retireChildSpans(parent);
 	const heir = parent.children?.[at];
 	if (vacated === '' || !heir || heir.leadingTrivia !== '') return;
 	const owned = sharing ? ensureUnsharedChild(parent as NodeParent, at, sharing) : heir;
@@ -1267,7 +1276,23 @@ function bodyWrapOf(parent: SeparatorParent): ContainerBodyWrap | undefined {
 
 /** The node carrying the wrap's peel slots: the sink's answer, or the parent when it IS the node. */
 function wrapSlotsOf(parent: SeparatorParent): CstNode | undefined {
+	return ownerNodeOf(parent);
+}
+
+/** The container node these children belong to, where the caller answered for one. */
+function ownerNodeOf(parent: SeparatorParent): CstNode | undefined {
 	return parent.owner ?? ('raw' in parent ? (parent as CstNode) : undefined);
+}
+
+/**
+ * Every settle door rewrites bytes the owner's child spans describe (a sibling's separating line,
+ * a wrap slot) while leaving the children's shape alone, so the spans retire at the doors and the
+ * next rebuild re-derives (`schema/child-spans.ts`). The census fencing this family
+ * (`lint/separator-write-doors.test.ts`) is what makes door N+1 answer for it too.
+ */
+function retireChildSpans(parent: SeparatorParent): void {
+	const owner = ownerNodeOf(parent);
+	if (owner) dropChildSpans(owner);
 }
 
 /** The kind whose body these children are: the sink's answer, or the owner node's own. */

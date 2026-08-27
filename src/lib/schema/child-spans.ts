@@ -7,7 +7,10 @@
  * source per element.
  */
 
-import type { CstNode } from '../core/nodes';
+import { DEV } from 'esm-env';
+import { makeBlockNode, type CstNode } from '../core/nodes';
+import { assertInvariant } from '../assert';
+import { perfEnabled } from '../perf/instruments';
 import { concatChildren } from '../core/serializer';
 import { splitLines } from '../core/lines';
 
@@ -34,7 +37,13 @@ export function dropChildSpans(node: CstNode): void {
 /** A container whose raw is its children's bytes joined (list). */
 export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void {
 	const children = node.children!;
-	if (changed && spliceChildRegion(node, children, changed, renderVerbatim)) return;
+	if (
+		changed &&
+		spliceChildRegion(node, children, changed, renderVerbatim) &&
+		spliceIsFaithful(node, rebuildConcatRaw)
+	) {
+		return;
+	}
 
 	const spans = new Uint32Array(children.length * 2);
 	let out = '';
@@ -56,7 +65,13 @@ export function rebuildConcatRaw(node: CstNode, changed?: ChildRawChange): void 
 export function rebuildStripRaw(node: CstNode, prefix: LinePrefix, changed?: ChildRawChange): void {
 	const children = node.children!;
 	const render: RenderChild = (text, first) => renderPrefixed(text, prefix, first);
-	if (changed && spliceChildRegion(node, children, changed, render)) return;
+	if (
+		changed &&
+		spliceChildRegion(node, children, changed, render) &&
+		spliceIsFaithful(node, (scratch) => rebuildStripRaw(scratch, prefix))
+	) {
+		return;
+	}
 
 	const spans = new Uint32Array(children.length * 2);
 	let out = '';
@@ -103,6 +118,35 @@ function renderPrefixed(text: string, prefix: LinePrefix, first: boolean): strin
 		out += prefix(lines[i].text, first && i === 0) + lines[i].lineEnding;
 	}
 	return out;
+}
+
+/**
+ * G1.38, dev only: the splice writes bytes only its own region justifies, so a sibling's line or a
+ * wrap slot moving underneath it would ship silently (the seams that retire those bytes drop the
+ * spans, and this is the belt under them). Re-derives the whole raw on a scratch and refuses the
+ * splice on any difference, so dev never keeps the bad bytes either. Dev pays the rebuild it paid
+ * before the spans; production pays nothing, and neither does an instrumented run, whose numbers
+ * this would be measuring instead of the editor's.
+ */
+function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void): boolean {
+	if (!DEV || perfEnabled()) return true;
+	const scratch = makeBlockNode({
+		kind: node.kind,
+		leadingTrivia: node.leadingTrivia,
+		raw: node.raw,
+		metadata: node.metadata,
+		children: node.children,
+		innerPrefix: node.innerPrefix,
+		innerSuffix: node.innerSuffix
+	});
+	rebuildFull(scratch);
+	if (scratch.raw === node.raw) return true;
+	assertInvariant('child-spans-faithful', () => ({
+		code: 'child-spans-faithful',
+		message: `${node.kind}: the spliced raw differs from a full rebuild of the same children`,
+		detail: { kind: node.kind }
+	}));
+	return false;
 }
 
 // ── The splice ───────────────────────────────────────────────────────────────
