@@ -53,4 +53,4 @@ the task.
 | The miss-analysis convention did not say where a unit-level one lives                                 | `d4cffb6df`, `e89934ced`              |
 | `docs/design/editor.md` gave no reading tier, so orientation read as all-or-nothing                   | `d4cffb6df`                           |
 | The consumer guide listed no keyboard shortcut table                                                  | `12cbc45db`                           |
-| `consumer-smoke` ran on pull requests and `main` only, so a `dev` break surfaced on someone else's PR | `TBD` (consumer-smoke.yml)            |
+| `consumer-smoke` ran on pull requests and `main` only, so a `dev` break surfaced on someone else's PR | `0d46e7413` (consumer-smoke.yml)      |
