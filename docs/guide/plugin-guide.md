@@ -606,7 +606,7 @@ Two rules place a plugin opener on it:
 
 Ties break by kind name, deterministically, so dispatch never depends on registration order. But a shared priority is a smell, and the dev build warns on it. Price into a gap instead.
 
-**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor, its own closure row. It is uninstall-safe by construction, because the built-in opener never left the ladder — remove your plugin and it takes the bytes back unchanged. There is no registry-level override of a built-in's component or descriptor, deliberately: registries are process-global, so an override would be global and last-writer-wins.
+**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor, its own closure row. It is uninstall-safe by construction, because the built-in opener never left the ladder: remove your plugin and it takes the bytes back unchanged. There is no registry-level override of a built-in's component or descriptor, deliberately: registries are process-global, so an override would be global and last-writer-wins.
 
 The opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
 
@@ -857,7 +857,7 @@ The boundary, spelled out, because a plugin platform that leaves this implicit i
 | **aragonite plugins**           | Anything touching the document or the editing surface: kinds, grammar, decorations, commands over the document, presentation |
 | **The embedding app's plugins** | Anything touching the app: ribbon, sidebar, status bar, settings tabs, modals, the command palette UI, the vault, sync       |
 
-Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It is not simply "editor = view", though. Derived state over the _one_ document you are editing — a table of contents, footnote numbering, the tasks in this note — is an editor plugin's to build, which is why a block component is handed its document ([Recipe: reading the document above your block](#recipe-reading-the-document-above-your-block)).
+Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It is not simply "editor = view", though. Derived state over the _one_ document you are editing (a table of contents, footnote numbering, the tasks in this note) is an editor plugin's to build, which is why a block component is handed its document ([Recipe: reading the document above your block](#recipe-reading-the-document-above-your-block)).
 
 A plugin **may**:
 
