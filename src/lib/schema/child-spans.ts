@@ -121,12 +121,9 @@ function renderPrefixed(text: string, prefix: LinePrefix, first: boolean): strin
 }
 
 /**
- * G1.38, dev only: the splice writes bytes only its own region justifies, so a sibling's line or a
- * wrap slot moving underneath it would ship silently (the seams that retire those bytes drop the
- * spans, and this is the belt under them). Re-derives the whole raw on a scratch and refuses the
- * splice on any difference, so dev never keeps the bad bytes either. Dev pays the rebuild it paid
- * before the spans; production pays nothing, and neither does an instrumented run, whose numbers
- * this would be measuring instead of the editor's.
+ * G1.38: re-derives the whole raw on a scratch and refuses a splice that disagrees, so a sibling's
+ * bytes moving under the spans cannot ship. Dev only, and off under the perf instruments, whose
+ * numbers would otherwise be measuring this.
  */
 function spliceIsFaithful(node: CstNode, rebuildFull: (scratch: CstNode) => void): boolean {
 	if (!DEV || perfEnabled()) return true;

@@ -161,22 +161,38 @@ function applyEdit(node: CstNode, edit: Edit): boolean {
 // The shipped door, where the synthesized hint above cannot reach: `updateBlockContent` mints its
 // own hint and its settle rewrites bytes no hint names. Deep paths (a chain of two hinted levels)
 // live in `test/schema/child-spans-settle.test.ts`'s sweep, which this arm does not repeat.
-const NESTED_SOURCES = [
+/**
+ * Containers whose second write can cross a blank line, which is where a settle retires. Every
+ * one holds a prose child the harness bundle can address; a nested container's OWN children are
+ * the sweep's subject, since this bundle reaches one level.
+ */
+const SETTLING_SOURCES = [
 	'> a\n>\n>\n> c\n',
 	'> a\n>\n> b\n>\n> c\n',
-	'> - a\n> - b\n',
-	'> - a\n>\n> - b\n',
+	'> - a\n> - b\n>\n> after\n',
 	'> # h\n>\n> body\n>\n> tail\n',
-	'- one\n\n  body\n\n  tail\n',
-	'- a\n  - b\n  - c\n',
-	'1. one\n\n   body\n\n   tail\n'
+	'> a\n>\n> - x\n> - y\n>\n> z\n'
 ];
 
+/** Containers of plain adjacent leaves: a write into one settles nothing. */
+const PLAIN_SOURCES = ['> # a\n> # b\n> # c\n', '> # one\n> body\n'];
+
+const DOOR_RUNS = 300;
+
 const arbDoorCase = fc.record({
-	source: fc.constantFrom(...NESTED_SOURCES),
+	source: fc.oneof(
+		{ arbitrary: fc.constantFrom(...SETTLING_SOURCES), weight: 3 },
+		{ arbitrary: fc.constantFrom(...PLAIN_SOURCES), weight: 2 }
+	),
 	seedAt: fc.nat({ max: 5 }),
 	at: fc.nat({ max: 5 }),
-	text: fc.constantFrom('x\n', '\n', 'x', 'a\nb\n', '')
+	// A prose rewrite of a non-blank child crosses no blank line, so its write settles nothing
+	// and the spans carry: the splice class, drawn rather than stumbled into.
+	prose: fc.oneof(
+		{ arbitrary: fc.constant(true), weight: 3 },
+		{ arbitrary: fc.constant(false), weight: 2 }
+	),
+	text: fc.constantFrom('x\n', 'a\nb\n', 'xyz\n', '\n', '')
 });
 
 describe('container child spans', () => {
@@ -221,20 +237,26 @@ describe('container child spans', () => {
 				expect(container().raw, 'after the seeding write').toBe(fullRebuildOf(container()).raw);
 
 				const seeded = container().childSpans;
-				const at = leaves[c.at % leaves.length];
+				const targets = c.prose
+					? leaves.filter((i) => container().children![i].raw.trim() !== '')
+					: leaves;
+				if (targets.length === 0) return;
+				const at = targets[c.at % targets.length];
 				if (at >= (container().children?.length ?? 0)) return;
-				await h.bundle.blockEdit.updateBlockContent(at, c.text, 0, c.text.length);
+				const text = c.prose ? 'edited\n' : c.text;
+				await h.bundle.blockEdit.updateBlockContent(at, text, 0, text.length);
 				if (seeded !== undefined) {
 					if (container().childSpans === seeded) spliced++;
 					else retired++;
 				}
 				expect(container().raw, 'after the settling write').toBe(fullRebuildOf(container()).raw);
 			}),
-			{ numRuns: 200, seed: PARAMS.seed }
+			{ numRuns: DOOR_RUNS, seed: PARAMS.seed }
 		);
-		// Both classes, or the arm proves only the one it happened to draw: an ordinary content
-		// write rides the spans, and a write whose settle moves a sibling retires them.
-		expect(spliced, 'no write through the door took the splice path').toBeGreaterThan(0);
-		expect(retired, 'no write through the door retired the spans').toBeGreaterThan(0);
+		// Both classes at a rate rather than at all: an arm drawing the splice path once is the
+		// same vacuity the synthesized arm above would have if its generator went tame.
+		const floor = DOOR_RUNS / 10;
+		expect(spliced, 'the door arm barely reaches the splice path').toBeGreaterThan(floor);
+		expect(retired, 'the door arm barely reaches a retiring settle').toBeGreaterThan(floor);
 	});
 });

@@ -1287,8 +1287,8 @@ function ownerNodeOf(parent: SeparatorParent): CstNode | undefined {
 /**
  * Every settle door rewrites bytes the owner's child spans describe (a sibling's separating line,
  * a wrap slot) while leaving the children's shape alone, so the spans retire at the doors and the
- * next rebuild re-derives (`schema/child-spans.ts`). The census fencing this family
- * (`lint/separator-write-doors.test.ts`) is what makes door N+1 answer for it too.
+ * next rebuild re-derives (`schema/child-spans.ts`). The retire census in
+ * `lint/separator-write-doors.test.ts` names every door and reds the one that forgets.
  */
 function retireChildSpans(parent: SeparatorParent): void {
 	const owner = ownerNodeOf(parent);

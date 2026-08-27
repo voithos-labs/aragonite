@@ -6,9 +6,15 @@
 import { bench, describe } from 'vitest';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
+import { enablePerfInstruments } from '../../perf/instruments';
+import { dropChildSpans } from '../../schema/child-spans';
 import { createSharingState } from '../../tree-operations/sharing';
 import { rebuildUnsharedChain } from '../../tree-operations/unshare';
 import { generateDeepNested, generateFixture } from './fixtures/generate';
+
+// Every row below would otherwise time G1.38's dev-only re-derive alongside the rebuild it
+// belts, which is the one thing these numbers must not include.
+enablePerfInstruments();
 
 function deepestChain(node: CstNode, chain: CstNode[] = []): CstNode[] {
 	chain.push(node);
@@ -67,10 +73,10 @@ describe('ancestry rebuild — breadth axis', () => {
 });
 
 // The keystroke the breadth axis is really about: an edit deep INSIDE a large container, which
-// pays the same re-join as one at its head. With the changed-child hint the door passes, the
-// rebuild rewrites that child's region instead. These plain objects cannot show the win: the
-// axis it removes is the `$state` proxy read per child, and on raw objects the re-join is a
-// rope append. `test/tree-operations/ancestry-splice-read-bounds.test.ts` counts what changed.
+// pays the same re-join as one at its head. The two arms are the two paths: `full` re-joins every
+// child (what a caller passing no hint gets), `spliced` rewrites the changed child's region. Plain
+// objects understate the difference, since the axis the splice removes is the `$state` proxy read
+// per child; `test/tree-operations/ancestry-splice-read-bounds.test.ts` counts those.
 describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 	const doc = parse(singleFlatList(1_000_000));
 	const list = doc.children[0];
@@ -91,6 +97,11 @@ describe('ancestry rebuild — interior keystroke, hint vs full', () => {
 				// Alternating lengths, so the span shift is measured rather than skipped.
 				longer = !longer;
 				leaf.raw = longer ? 'item edited\n' : 'item edit\n';
+				// The label, made true by construction: no spans, no region to rewrite.
+				if (!hinted) {
+					dropChildSpans(list);
+					dropChildSpans(item);
+				}
 				rebuildUnsharedChain(
 					list,
 					chain,

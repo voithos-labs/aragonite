@@ -12,7 +12,6 @@ import {
 	type AncestrySeamFold
 } from '../tree-operations/unshare';
 import type { StructuralChange } from '../tree-operations/structural-change';
-import { dropChildSpans } from '../schema/child-spans';
 import { publishAncestryFolds, publishScopeFold } from './ancestry-folds';
 import type { EditorActionsDeps, UndoController } from './deps';
 
@@ -52,11 +51,7 @@ export function createContainerEditActions(
 			// The write's own settle can splice the scope it wrote in, and a short chain means the
 			// unshare never reached that scope, so there is nothing to publish against.
 			if (chain.length === absPath.length) {
-				const scope = chain[absPath.length - 2];
-				// A settle inside the write re-tiled the scope, so the spans naming its children's
-				// regions describe a shape that is gone.
-				if (scope && written.op !== 'noop') dropChildSpans(scope);
-				publishScopeFold(deps, scope, written);
+				publishScopeFold(deps, chain[absPath.length - 2], written);
 			}
 			// The ANCESTRY settle's folds — a container's own slot in its PARENT, not the write's
 			// scope published above. Their unwind is discarded on purpose: nothing rolls back at a

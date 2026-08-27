@@ -218,8 +218,9 @@ export function rebuildUnsharedChain(
 	hint?: ChainWriteHint
 ): ContainerReclassification[] {
 	const reclassified: ContainerReclassification[] = [];
-	// The bytes chain[i + 1] held before this pass, which is what its own level captures on
-	// the way past. Only the leaf's predecessor is unknowable here, so the door hands it in.
+	// The bytes chain[i + 1] held before this pass, which is what its own level captures on the
+	// way past. It rides up only from a door that named the leaf's own: a caller passing no hint
+	// re-derives at every level, which is what makes the structural paths a reseed (editor.md § 9).
 	let childPreviousRaw: string | undefined;
 	for (let i = chain.length - 1; i >= 0; i--) {
 		const node = chain[i];
@@ -232,7 +233,7 @@ export function rebuildUnsharedChain(
 				? childRawChange(node, child, childPreviousRaw, hint?.path[i + 1])
 				: undefined
 		);
-		childPreviousRaw = i === chain.length - 1 ? hint?.leafPreviousRaw : rawBefore;
+		if (hint) childPreviousRaw = i === chain.length - 1 ? hint.leafPreviousRaw : rawBefore;
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);

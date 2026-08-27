@@ -40,3 +40,47 @@ it('a keystroke inside a large container reads O(1) sibling elements, not O(chil
 	expect(list.raw).toBe(source.replace('- item 900\n', '- item 900 edited\n'));
 	expect(reads).toBeLessThan(10);
 });
+
+// The other half of the same rule: a hint rides up from the door that named the leaf's bytes and
+// from nowhere else, so a structural caller re-derives at every level (`editor.md` § 9). A fresh
+// spans array is what a full rebuild leaves behind; the splice writes the one it was handed.
+it('a hintless rebuild re-derives at every level, and a hinted one splices at every level', () => {
+	const source = '- one\n\n  body\n\n  tail\n';
+	const path = [0, 0, 1];
+
+	const spansOf = (doc: ReturnType<typeof parse>) => {
+		const list = doc.children[0];
+		return [list.childSpans, list.children![0].childSpans];
+	};
+	const seeded = (
+		doc: ReturnType<typeof parse>,
+		sharing: ReturnType<typeof createSharingState>
+	) => {
+		const chain = ensureUnsharedPath(doc, path, sharing);
+		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
+		return chain;
+	};
+
+	const hintless = parse(source);
+	const hintlessSharing = createSharingState();
+	const hintlessChain = seeded(hintless, hintlessSharing);
+	const beforeHintless = spansOf(hintless);
+	hintlessChain[2].raw = 'body edited\n';
+	rebuildUnsharedChain(hintless, hintlessChain, hintlessSharing, null, undefined);
+	expect(spansOf(hintless)[0]).not.toBe(beforeHintless[0]);
+	expect(spansOf(hintless)[1]).not.toBe(beforeHintless[1]);
+
+	const hinted = parse(source);
+	const hintedSharing = createSharingState();
+	const hintedChain = seeded(hinted, hintedSharing);
+	const beforeHinted = spansOf(hinted);
+	const leafPreviousRaw = hintedChain[2].raw;
+	hintedChain[2].raw = 'body edited\n';
+	rebuildUnsharedChain(hinted, hintedChain, hintedSharing, null, undefined, {
+		path,
+		leafPreviousRaw
+	});
+	expect(spansOf(hinted)[0]).toBe(beforeHinted[0]);
+	expect(spansOf(hinted)[1]).toBe(beforeHinted[1]);
+	expect(hinted.children[0].raw).toBe('- one\n\n  body edited\n\n  tail\n');
+});

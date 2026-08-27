@@ -7,8 +7,8 @@ let sequence = 0;
 
 /**
  * These ids key Svelte's `{#each}`: process uniqueness, not unguessability. `crypto.randomUUID`
- * costs about a microsecond each, which is half a second of a 400,000-block load, and is
- * secure-context-only besides — an embedder on plain http has `crypto` without it.
+ * answers a question nobody asked here, at a per-block cost a large load pays in full
+ * (`performance.md`), and is secure-context-only besides.
  */
 export function generateBlockId(): string {
 	sequence += 1;

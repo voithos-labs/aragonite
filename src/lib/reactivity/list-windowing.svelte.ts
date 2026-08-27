@@ -146,9 +146,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 	function buildModel(): HeightModel {
 		const width = estimateWidth(deps.getListEl(), deps.getPort()?.contentWidth() ?? 0);
 		const children = deps.getChildren();
-		// Indexed, and off the snapshot rather than the live id array: `map` pays a `has` trap
-		// beside every `get`, and a scope holding 400,000 children pays each of those once per
-		// child on load.
+		// Indexed, and off the snapshot: `map` pays a `has` trap beside every `get`, once per child.
 		modelChildIds = deps.getChildIds().slice();
 		const count = children.length;
 		const heights = new Array<number>(count);

@@ -7,7 +7,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, stripComments, type SourceFile } from './scan-source';
+import {
+	balancedBlock,
+	collectEditorSources,
+	readEditorFile,
+	stripComments,
+	type SourceFile
+} from './scan-source';
 
 /**
  * Files that may assign an existing node's `leadingTrivia`. A mint's own `leadingTrivia:`
@@ -107,5 +113,111 @@ describe('separator-write-door census', () => {
 		};
 		const writers = [...sources, rogue].filter(writesTrivia).map((f) => f.relPath);
 		expect(writers.sort()).not.toEqual(Object.keys(TRIVIA_WRITERS).sort());
+	});
+});
+
+// ── The retire parity, inside the doors’ own file ─────────────────────────
+
+/**
+ * A settle door rewrites bytes the owner's child spans describe, so it retires them
+ * (`schema/child-spans.ts`). The censuses above fix which FILES may write a separator; this one
+ * fixes which functions inside the doors’ own file may, and every one of them answers for the
+ * retire. Door N+1 is born failing this rather than waiting for a sweep case to reach it.
+ */
+const DOORS_FILE = 'tree-operations/node-ops.ts';
+
+/** Every `function name(` body in `code`, braces balanced. */
+function functionBodies(code: string): { name: string; body: string }[] {
+	const out: { name: string; body: string }[] = [];
+	const re = /function\s+(\w+)\s*\(/g;
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(code)) !== null) {
+		const brace = code.indexOf('{', re.lastIndex);
+		const body = brace === -1 ? null : balancedBlock(code, brace + 1);
+		if (body !== null) out.push({ name: match[1], body });
+	}
+	return out;
+}
+
+/** A write to a sibling’s separating line, or to a wrap slot the spans do not cover. */
+const WRITES_SEPARATOR_BYTES = /(?:\.leadingTrivia|slots\.inner(?:Prefix|Suffix))\s*\+?=(?!=)/;
+
+describe('every separator door retires the child spans it invalidates', () => {
+	const doors = functionBodies(readEditorFile(DOORS_FILE).code).filter((fn) =>
+		WRITES_SEPARATOR_BYTES.test(fn.body)
+	);
+
+	/** Every settle door by name: each retires, and losing one is a red on that door alone. */
+	const DOORS = [
+		'clearRedundantSeparator',
+		'dropDoubledSeparator',
+		'restoreSeparatorOnFill',
+		'restoreSeparatorAfterBlank',
+		'settleSeparatorOnBlank',
+		'releaseWrapPeel',
+		'materializeTailSuffix',
+		'handDownVacatedSeparator'
+	];
+
+	it('every named door retires the spans, one red per door', () => {
+		const bodies = new Map(
+			functionBodies(readEditorFile(DOORS_FILE).code).map((fn) => [fn.name, fn.body])
+		);
+		const forgot = DOORS.filter(
+			(name) => !/(?<![\w.])retireChildSpans\s*\(/.test(bodies.get(name) ?? '')
+		);
+		expect(forgot, 'a settle door stopped retiring the child spans it invalidates').toEqual([]);
+		expect(DOORS.filter((name) => !bodies.has(name))).toEqual([]);
+	});
+
+	it('found the doors (not vacuous)', () => {
+		expect(doors.map((fn) => fn.name).sort()).toEqual(
+			expect.arrayContaining([
+				'clearRedundantSeparator',
+				'dropDoubledSeparator',
+				'mintSeparator',
+				'settleSeparatorOnBlank'
+			])
+		);
+	});
+
+	/**
+	 * Writers that answer for the spans some other way, each with the reason. Two are reached
+	 * only from doors that retire before dispatching; the rest write a MINT’s own line, or write
+	 * one inside a splice that moves the child count, which refuses the next region rewrite.
+	 */
+	const ANSWERED_ELSEWHERE: Record<string, string> = {
+		mintSeparator: 'reached only from the three doors that retire first',
+		absorbWrapPrefix: 'reached only from clearRedundantSeparator, which retires first',
+		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
+		absorbSeamReading: 'writes a fresh block’s line, then splices; the count moves',
+		absorbFragmentPeel: 'the follower’s line inside that same absorb, ahead of its splice',
+		deleteNode: 'hands the vacated line down inside the delete splice; the count moves',
+		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
+		reclassifyContainer: 'carries the line onto the replacement, byte for byte',
+		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
+	};
+
+	it('each one calls the retire, or is answered for elsewhere', () => {
+		const missing = doors
+			.filter((fn) => !(fn.name in ANSWERED_ELSEWHERE))
+			.filter((fn) => !/(?<![\w.])retireChildSpans\s*\(/.test(fn.body))
+			.map((fn) => fn.name);
+		expect(
+			missing,
+			'a settle door writes separator bytes without retiring the spans that describe them'
+		).toEqual([]);
+	});
+
+	it('no entry outlives the writer it excuses', () => {
+		const names = new Set(doors.map((fn) => fn.name));
+		expect(Object.keys(ANSWERED_ELSEWHERE).filter((name) => !names.has(name))).toEqual([]);
+	});
+
+	it('the matcher sees both write forms and skips a read', () => {
+		const probe = (body: string) => WRITES_SEPARATOR_BYTES.test(body);
+		expect(probe("owned.leadingTrivia = '';")).toBe(true);
+		expect(probe('slots.innerSuffix = ending;')).toBe(true);
+		expect(probe("if (node.leadingTrivia === '') return;")).toBe(false);
 	});
 });

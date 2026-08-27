@@ -1,6 +1,7 @@
 // The hand-built edges of the one-child splice: what each kind's per-line syntax does to a
 // region, and the two shapes where the rebuild must refuse the splice and re-derive instead.
 import { describe, it, expect } from 'vitest';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '$lib/core/nodes';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { pushChild, spliceChildren } from '$lib/tree-operations/children';
@@ -117,6 +118,23 @@ describe('the rebuild refuses a splice it cannot place', () => {
 		reorderChildren(node.children!, 1, 0);
 		rewriteChild(node, 0, 'bbbbb\n');
 		expect(node.raw).toBe('> bbbbb\n> a\n');
+	});
+});
+
+// G1.38's own arm. The region check reads the NAMED child only, so a sibling's bytes moving
+// underneath it is the one shape that reaches the belt: no door ran, and no count moved.
+describe('the dev belt behind a splice', () => {
+	it('fires and re-derives when a sibling moved under the spans', () => {
+		const node = container('blockquote', [paragraph('a\n'), paragraph('b\n')]);
+		expect(node.raw).toBe('> a\n> b\n');
+		// Hand-written, the way a reorder writes: past every door, so nothing retires the spans.
+		node.children![1].leadingTrivia = '\n';
+
+		rewriteChild(node, 0, 'aa\n');
+
+		expect(takeDevWarns().map((warn) => warn.tag)).toEqual(['invariant:child-spans-faithful']);
+		expect(node.raw).toBe('> aa\n>\n> b\n');
+		expect(spans(node)).toEqual([0, 5, 5, 11]);
 	});
 });
 

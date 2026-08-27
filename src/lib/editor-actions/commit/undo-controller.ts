@@ -524,9 +524,6 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 	 * because the state bundle's setter would write the stale shared node prop.
 	 */
 	function publishScopeView(p: PreparedScope, change: StructuralChange): void {
-		// The commit-scope half of the spans contract (`schema/child-spans.ts`): every
-		// children-shape change inside a ceremony passes through here with its owner at hand.
-		if (change.op !== 'noop') dropChildSpans(p.owned);
 		applyStructuralChangeToIdsRefs(change, p.ids, p.refs);
 		assertIdsInLockstep(
 			`commitMultiScope [${p.target.path.join(',')}]`,
