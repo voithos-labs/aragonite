@@ -4,6 +4,116 @@ This is everything you need to teach the editor your own block or inline content
 
 Start here. The `:::name` directive grammar gets its own [directives guide](directives.md); embedding, theming, and events belong to the [consumer guide](consumer-guide.md). And every export named anywhere below is cataloged in the [API reference](#api-reference) at the bottom, so you never have to guess whether a name is real.
 
+## The first fifteen minutes
+
+Before the long version, the short one. `npm install @voithos-labs/aragonite` gets you every import path below: the `@voithos-labs/aragonite` barrel a consumer embeds, the `@voithos-labs/aragonite/plugin` authoring subpath, and the `@voithos-labs/aragonite/testing` seam. What follows is one real kind, a `%%` memo line, from nothing to a passing test.
+
+**Declare and describe.** `declarePluginKind` mints the kind, `registerBlockKind` describes it, `registerBlockOpener` teaches the parser to find it, and `definePluginBlock` packages the lot as a unit. That last one is the one-kind shortcut over `definePlugin`: it runs your register step, then binds the component for you.
+
+```ts
+// memo-plugin.ts
+import {
+	declarePluginKind,
+	definePluginBlock,
+	registerBlockKind,
+	registerBlockOpener,
+	simpleLeafClosure,
+	type EditorPlugin
+} from '@voithos-labs/aragonite/plugin';
+import MemoBlock from './MemoBlock.svelte';
+
+export const MEMO = 'memo';
+
+function registerMemoBlock(): void {
+	const memo = declarePluginKind(MEMO);
+
+	registerBlockKind(memo, {
+		gapEdges: 'none',
+		mergeRole: 'not-mergeable',
+		editable: true,
+		supportsInline: false,
+		conformanceFixture: '%%a memo\n',
+		closure: simpleLeafClosure({
+			focus: { mode: 'implemented', via: 'createEditableLeaf plain, always-editable source' },
+			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
+			undo: { mode: 'implemented', via: 'plain mode, per-keystroke commits' },
+			simOracle: { mode: 'implemented', via: 'covered by my own e2e' }
+		})
+	});
+
+	registerBlockOpener(memo, {
+		priority: 25,
+		interruptsParagraph: (text) => text.startsWith('%%'),
+		tryOpen(ctx) {
+			if (!ctx.line.text.startsWith('%%')) return null;
+			const node = { kind: memo, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw };
+			return { node, consumed: 1 };
+		}
+	});
+}
+
+export function memoPlugin(): EditorPlugin {
+	return definePluginBlock({
+		name: 'memo',
+		kind: MEMO,
+		component: MemoBlock,
+		register: registerMemoBlock
+	});
+}
+```
+
+Three of those descriptor fields carry more than they look. `gapEdges` is required so a caret can always reach the space beside your block, and answering `'none'` is a decision rather than an omission. `closure` is required so every cross-cutting editor system gets a written answer. `conformanceFixture` is the one optional field, and supplying it is what enrolls your kind in the battery below. On the opener, `priority` prices you against the built-ins ([opener priority](#opener-priority)) and `consumed` is the line count you claimed ([what an opener returns](#what-an-opener-returns)).
+
+**Render.** `createEditableLeaf` hands your block a native caret, IME, prose-batched undo, selection and clipboard, and one spread wires the source surface.
+
+```svelte
+<!-- MemoBlock.svelte -->
+<script lang="ts">
+	import { createEditableLeaf, type NodeView } from '@voithos-labs/aragonite/plugin';
+
+	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
+	let el: HTMLDivElement | undefined = $state();
+
+	const leaf = createEditableLeaf({
+		getNode: () => node,
+		getIndex: () => index,
+		getPath: () => myPath,
+		getEl: () => el ?? null,
+		mode: 'plain'
+	});
+
+	export const editable = true;
+	export const focusable = true;
+	export const focus = leaf.focus;
+	export const getCursorOffset = leaf.getCursorOffset;
+	// plus one `export const x = leaf.x` each for parkCaret, focusAtColumn, getSelectedText,
+	// setSelection, measurePartialRects, runCommand, insertMarkdown
+</script>
+
+<div bind:this={el} {...leaf.surfaceProps} class="memo-block" aria-label="Memo"></div>
+```
+
+The component is the factory call plus one-line re-exports of what it returns, `focus` and `getCursorOffset` being the two a block component must have; the behavior is all the factory's. A leaf whose bytes can span lines owes its element `white-space: pre-wrap` too, which [the editable leaf](#the-editable-leaf) covers.
+
+**Install.** Pass the unit to the editor's `plugins` prop the way [the plugin unit](#the-plugin-unit) shows: build the array once at module scope, then `<Editor {source} {plugins} />`. A `%%` line now opens a memo block, renders through your component, and serializes back byte for byte.
+
+**Verify.** Registering a kind enrolls it in the conformance battery, which parses your fixture, round-trips it, and holds every closure cell it can reach without a browser to what you claimed.
+
+```ts
+import { installPlugins } from '@voithos-labs/aragonite';
+import { declaredPluginKind } from '@voithos-labs/aragonite/plugin';
+import { resetPluginPlatformForTests, runKindConformance } from '@voithos-labs/aragonite/testing';
+import { MEMO, memoPlugin } from './memo-plugin';
+
+it('memo conforms', async () => {
+	resetPluginPlatformForTests();
+	installPlugins([memoPlugin()]);
+	await runKindConformance(declaredPluginKind(MEMO));
+});
+```
+
+That is the loop: describe the kind, render it, install it, verify the bytes. Everything after this is the same four moves at more interesting shapes, starting with the rules the registries enforce and [what is stable, what is not](#what-is-stable-what-is-not) on the surface you just used.
+
 ## What a plugin is
 
 A plugin teaches the editor a new **kind**: a first-class citizen of the document tree that parses, renders, and serializes right alongside the built-ins. Not an embed tier, not something bolted to the side. You wire up to four things:
