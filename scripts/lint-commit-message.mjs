@@ -20,7 +20,8 @@ const SCOPE_CHARS = /^[a-z0-9,/-]+$/;
 const CHANGE_LINE = /^[-+~>!@] /;
 
 /** Shapes git or a bot writes, which no convention of ours governs. */
-const EXEMPT = [/^Merge /, /^Revert "/, /^Bump /, /^build\(deps/];
+// `fixup!`/`squash!` never reach a pull request unsquashed; the CI door catches a leftover.
+const EXEMPT = [/^Merge /, /^Revert "/, /^Bump /, /^build\(deps/, /^fixup! /, /^squash! /];
 
 const ATTRIBUTION = [/^co-authored-by:/i, /^(?:🤖\s*)?generated with /i];
 
@@ -48,6 +49,10 @@ function significantLines(raw) {
 	return lines;
 }
 
+// Prose starts lowercase; an identifier such as `G1.38`, `CST`, `WebKit` or `MeasurableChild`
+// may open a subject, so only a single capitalized plain word is the shape to reject.
+const CAPITALIZED_WORD = /^[A-Z][a-z]*(?![\w.])/;
+
 /**
  * @param {string} text
  * @param {number} line
@@ -58,7 +63,11 @@ function subjectProblems(text, line) {
 	const problems = [];
 	const parts = SUBJECT_PARTS.exec(text);
 	const scope = parts?.[2];
-	if (!parts || (scope !== undefined && !SCOPE_CHARS.test(scope)) || /^[A-Z]/.test(parts[3])) {
+	if (
+		!parts ||
+		(scope !== undefined && !SCOPE_CHARS.test(scope)) ||
+		CAPITALIZED_WORD.test(parts[3])
+	) {
 		problems.push({
 			rule: 'subject-shape',
 			line,

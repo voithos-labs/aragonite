@@ -35,6 +35,12 @@ const LEGAL: [name: string, message: string][] = [
 	['a revert', 'Revert "+ (editor) block parser"'],
 	['a dependabot bump', 'Bump vite from 8.2.1 to 8.2.2'],
 	['a dependabot build scope', 'build(deps): bump actions/checkout from 7 to 8'],
+	['a fixup commit', 'fixup! + (editor) block parser'],
+	['a squash commit', 'squash! + (editor) block parser'],
+	['an identifier opening the subject', '+ (invariants) G1.38 pins the splice belt'],
+	['an acronym opening the subject', '~ (core) CST nodes carry child spans'],
+	['a camel-case name opening the subject', '! (cursor) MeasurableChild reads the gap'],
+	['a product name opening the subject', '+ (e2e) WebKit lane runs per release'],
 	[
 		'git comment lines and trailing blanks',
 		'+ (editor) block parser\n\n# Please enter the commit message for your changes.\n#\n\n'
@@ -50,6 +56,8 @@ const ILLEGAL: [rule: string, line: number, message: string][] = [
 	['subject-shape', 1, '? (editor) block parser'],
 	['subject-shape', 1, '+ (Editor) block parser'],
 	['subject-shape', 1, '+ Fixed the caret at a hidden marker'],
+	['subject-shape', 1, '+ (editor) Fixed the caret at a hidden marker'],
+	['subject-shape', 1, '+ (editor) A caret lands at a hidden marker'],
 	['subject-trailing-period', 1, '+ (editor) block parser.'],
 	['body-missing-blank-line', 2, '+ (editor) undo/redo\n! (editor) editable when empty'],
 	['subject-too-long', 3, `> (schema) two registries merge\n\n+ (schema) ${'x'.repeat(70)}`],
