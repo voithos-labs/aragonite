@@ -313,6 +313,11 @@ Where live mode's complexity actually arrives, and the consolidations that cap i
 the 2026-08 arcs. Each is a direction rather than a promise, and none is freeze-bound, since it
 is all internal machinery.
 
+- **Lazy height seeding.** The height model seeds one estimate per child of a mounted scope at
+  load, and the estimate arithmetic is not where that costs: measured at 63 ns per block on plain
+  objects against roughly 3.8 microseconds per block for the browser pass, so the rest is `$state`
+  proxy traps and first-touch source creation. Seeding lazily, per window rather than per document,
+  is the lever; making the estimate cheaper is not.
 - **A non-fence open absorber declines the terminator mint silently.** The #180 discriminator
   correctly identifies today's absorbing class as exactly the fence family, whose closer is
   derivable; a future grammar whose open absorber has no derivable terminator would fall back
