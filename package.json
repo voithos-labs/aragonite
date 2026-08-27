@@ -161,6 +161,7 @@
 		"test:e2e:search": "playwright test --project=e2e-search",
 		"test:e2e:vr": "playwright test --project=e2e-vr",
 		"test:e2e:webkit": "node scripts/run-with-env.mjs WEBKIT=1 -- playwright test --project=e2e-webkit",
+		"test:e2e:isolated": "node scripts/run-with-env.mjs E2E_ISOLATED=1 -- playwright test",
 		"perf:editor": "vitest bench --run src/lib/test/perf",
 		"perf:e2e": "node scripts/run-with-env.mjs PERF=1 -- playwright test --project=e2e-perf",
 		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 PERF_PROD=1 -- playwright test --project=e2e-perf-prod",

@@ -130,6 +130,8 @@ Editor.svelte (production component, unchanged)
 - **EditorPage** wraps Playwright with editor-specific _interaction_ helpers: cursor positioning, text insertion, key presses.
 - **`editor.bridge`** is the _state_ accessor: `getSource` / `getBlockCount` / `getBlockKind`, plus the `waitForSource*` / `waitForBlockCount` settling predicates. Reach for these instead of `waitForTimeout` whenever you're waiting on document state.
 
+**Every project shares one dev server**, started by the Playwright config on port 1420 and reused when something is already listening there. That reuse is the convenience and the trap: an interrupted battery leaves a server alive, and the next run serves whatever that tree was mid-edit. `E2E_ISOLATED=1` starts the run's own servers instead, on 1430 (and 1431 for the `PERF_PROD` preview), reusing neither, so a battery can only measure the checkout it was launched from. `npm run test:e2e:isolated` runs the whole battery that way; for anything narrower, compose the variable through the launcher: `node scripts/run-with-env.mjs E2E_ISOLATED=1 -- playwright test --project=e2e-blocks`.
+
 Specs are organized by feature area at the top level, and per-block inside `tests/blocks/`. They cover the harness smoke test, text editing (typing / split / merge / kind change), keyboard navigation (arrows, container traversal, sticky column), undo/redo, inline editing, container editing, and selection + clipboard.
 
 ### By area

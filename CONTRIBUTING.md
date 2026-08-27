@@ -127,7 +127,7 @@ Two rules from the rule set, both bought with incidents: **never pipe a gate com
 Three honest warnings about the battery on real hardware, because I would rather you hear them from me than from a red run at midnight:
 
 - A few specs still carry absolute wall-clock budgets, so a slower laptop or a busy host can tip one red without your change being wrong. Most of that class was engineered away: G4.48 forces new timing assertions onto a machine-speed-cancelling ratio instead, and what is left is a reasoned allowlist in `src/lib/test/invariants/lint/wall-clock-budgets.test.ts`. CI is the arbiter, same as perf.
-- A battery you interrupt can leave a dev server alive on port 1420, and the next run will cheerfully reuse it and serve stale code, which looks exactly like everything failing at once. Kill leftover node processes before rerunning.
+- A battery you interrupt can leave a dev server alive on port 1420, and the next run will cheerfully reuse it and serve stale code, which looks exactly like everything failing at once. Kill leftover node processes before rerunning. `npm run test:e2e:isolated` sidesteps the whole class by starting the run's own server on its own port and reusing nothing.
 - **Pre-warm that server on a cold checkout.** Playwright starts it with a short `webServer` timeout, and a cold Vite boot on fresh `node_modules` can outrun it. Run `npm run dev` once and let it come up, or learn to read your first E2E run's instant failure as the phantom it is.
 
 ## Commit messages

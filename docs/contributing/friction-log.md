@@ -42,22 +42,15 @@ file to open, or when they are done. The convention worth writing down is that a
 names one concrete edit site and one acceptance signal, with the shape as background rather than as
 the task.
 
-**`consumer-smoke` is the one gate no `dev` commit runs.** It is correct, and it catches what
-nothing else can, but CI triggers it on `pull_request` and `push: main` only, while the working
-branch is `dev`. So a break introduced there surfaces weeks later on whatever dependabot PR happens
-next, wearing that PR's name and burning that PR's reviewer: a stale fixture in the consumer
-example sat red for a fortnight exactly that way. Closing it means either a `dev` trigger (the
-matrix is long) or a cheap subset a contributor is told to run before pushing anything that touches
-`examples/consumer` or a published barrel.
-
 ## Retired
 
-| Friction                                                                                       | Retired by                            |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------- |
-| No dev-warning taxonomy: console output was undifferentiated, and nothing said what fails      | `067a08f6b` (warnings.md)             |
-| The dirty-tree convention was unwritten, so an uncommitted call site read as precedent         | `5a0904937` (CONTRIBUTING quickstart) |
-| The reveal road was a chain of nine names in one paragraph, with no picture of the flow        | `56e69b60d` (map diagram)             |
-| Keyboard and chord dispatch had no single explanation of tiers, `Mod` folding, or the manifest | `14325665e`                           |
-| The miss-analysis convention did not say where a unit-level one lives                          | `d4cffb6df`, `e89934ced`              |
-| `docs/design/editor.md` gave no reading tier, so orientation read as all-or-nothing            | `d4cffb6df`                           |
-| The consumer guide listed no keyboard shortcut table                                           | `12cbc45db`                           |
+| Friction                                                                                              | Retired by                            |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| No dev-warning taxonomy: console output was undifferentiated, and nothing said what fails             | `067a08f6b` (warnings.md)             |
+| The dirty-tree convention was unwritten, so an uncommitted call site read as precedent                | `5a0904937` (CONTRIBUTING quickstart) |
+| The reveal road was a chain of nine names in one paragraph, with no picture of the flow               | `56e69b60d` (map diagram)             |
+| Keyboard and chord dispatch had no single explanation of tiers, `Mod` folding, or the manifest        | `14325665e`                           |
+| The miss-analysis convention did not say where a unit-level one lives                                 | `d4cffb6df`, `e89934ced`              |
+| `docs/design/editor.md` gave no reading tier, so orientation read as all-or-nothing                   | `d4cffb6df`                           |
+| The consumer guide listed no keyboard shortcut table                                                  | `12cbc45db`                           |
+| `consumer-smoke` ran on pull requests and `main` only, so a `dev` break surfaced on someone else's PR | `TBD` (consumer-smoke.yml)            |

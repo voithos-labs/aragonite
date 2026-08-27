@@ -3,21 +3,28 @@ import { defineConfig } from '@playwright/test';
 declare const process: { env: Record<string, string | undefined> };
 const PROD = !!process.env.PERF_PROD;
 const WEBKIT = !!process.env.WEBKIT;
+// A run that adopts a developer's live harness on the default port serves whatever that
+// tree currently is, so a reviewer's battery moves both servers and reuses neither.
+const ISOLATED = !!process.env.E2E_ISOLATED;
+const DEV_PORT = ISOLATED ? 1430 : 1420;
+const PROD_PORT = ISOLATED ? 1431 : 1421;
 
 // `stdout: 'pipe'` routes the server's console through the reporters, which is what lets
 // `server-warn-reporter` fail a run on an SSR-side `[aragonite:` guard fire. Stderr already pipes.
 const devServer = {
-	command: 'npm run dev',
-	port: 1420,
-	reuseExistingServer: true,
+	// `vite.config.js` pins the default port with `strictPort`, so isolation must move it on
+	// the command line — Playwright's `port` only says where to wait.
+	command: ISOLATED ? `npm run dev -- --port ${DEV_PORT} --strictPort` : 'npm run dev',
+	port: DEV_PORT,
+	reuseExistingServer: !ISOLATED,
 	stdout: 'pipe' as const,
 	timeout: 15_000
 };
 
 const prodServer = {
-	command: 'npm run build && npm run preview -- --port 1421 --strictPort',
-	port: 1421,
-	reuseExistingServer: true,
+	command: `npm run build && npm run preview -- --port ${PROD_PORT} --strictPort`,
+	port: PROD_PORT,
+	reuseExistingServer: !ISOLATED,
 	stdout: 'pipe' as const,
 	timeout: 180_000
 };
@@ -59,7 +66,7 @@ export default defineConfig({
 	timeout: 60_000,
 	retries: 0,
 	use: {
-		baseURL: 'http://localhost:1420',
+		baseURL: `http://localhost:${DEV_PORT}`,
 		headless: true,
 		permissions: ['clipboard-read', 'clipboard-write'],
 		// Pinned, not inherited: specs across several projects assert near-absolute geometry and
@@ -140,7 +147,10 @@ export default defineConfig({
 						name: 'e2e-perf-prod',
 						testMatch: 'perf/**/*.perf.spec.ts',
 						timeout: 600_000,
-						use: { viewport: { width: 1280, height: 900 }, baseURL: 'http://localhost:1421' }
+						use: {
+							viewport: { width: 1280, height: 900 },
+							baseURL: `http://localhost:${PROD_PORT}`
+						}
 					}
 				]
 			: [])
