@@ -15,11 +15,11 @@ The arc ran four waves and a tail, over one day:
 
 | Wave              | Commit      | What landed                                                          |
 | ----------------- | ----------- | -------------------------------------------------------------------- |
-| Model             | `0de868a0b` | The descriptor field, the eligibility core, the third selection mode |
-| Arrival           | `0ff4b57b9` | Existing focus seams gain a stop; the dead-space click; the shell    |
-| Editing           | `e3be22f39` | Paint, mint, undo, chords, and the bug only editing could find       |
-| Simulation + docs | `5776d03cc` | A simulation gesture, the design docs, both guides                   |
-| Tail              | `61c4bab2a` | Two pins that passed for the wrong reason, one deleted fix           |
+| Model             | `9e61cb489` | The descriptor field, the eligibility core, the third selection mode |
+| Arrival           | `1ae85d39a` | Existing focus seams gain a stop; the dead-space click; the shell    |
+| Editing           | `1fe6d0e49` | Paint, mint, undo, chords, and the bug only editing could find       |
+| Simulation + docs | `d4cffb6df` | A simulation gesture, the design docs, both guides                   |
+| Tail              | `1cf8b148e` | Two pins that passed for the wrong reason, one deleted fix           |
 
 ## Wave 1: the model, before anything renders
 

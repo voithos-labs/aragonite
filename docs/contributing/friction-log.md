@@ -54,10 +54,10 @@ matrix is long) or a cheap subset a contributor is told to run before pushing an
 
 | Friction                                                                                       | Retired by                            |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------- |
-| No dev-warning taxonomy: console output was undifferentiated, and nothing said what fails      | `94ed069d1` (warnings.md)             |
-| The dirty-tree convention was unwritten, so an uncommitted call site read as precedent         | `19fd77792` (CONTRIBUTING quickstart) |
-| The reveal road was a chain of nine names in one paragraph, with no picture of the flow        | `2b018af9b` (map diagram)             |
-| Keyboard and chord dispatch had no single explanation of tiers, `Mod` folding, or the manifest | `60fb8ca49`                           |
-| The miss-analysis convention did not say where a unit-level one lives                          | `5776d03cc`, `2703ffba9`              |
-| `docs/design/editor.md` gave no reading tier, so orientation read as all-or-nothing            | `5776d03cc`                           |
-| The consumer guide listed no keyboard shortcut table                                           | `9c4b35804`                           |
+| No dev-warning taxonomy: console output was undifferentiated, and nothing said what fails      | `067a08f6b` (warnings.md)             |
+| The dirty-tree convention was unwritten, so an uncommitted call site read as precedent         | `5a0904937` (CONTRIBUTING quickstart) |
+| The reveal road was a chain of nine names in one paragraph, with no picture of the flow        | `56e69b60d` (map diagram)             |
+| Keyboard and chord dispatch had no single explanation of tiers, `Mod` folding, or the manifest | `14325665e`                           |
+| The miss-analysis convention did not say where a unit-level one lives                          | `d4cffb6df`, `e89934ced`              |
+| `docs/design/editor.md` gave no reading tier, so orientation read as all-or-nothing            | `d4cffb6df`                           |
+| The consumer guide listed no keyboard shortcut table                                           | `12cbc45db`                           |
