@@ -13,6 +13,7 @@ import {
 	collectEditorSources,
 	lexicalClasses,
 	LEXICAL_CLASSES,
+	ROUTES_SRC,
 	type SourceFile
 } from './scan-source';
 
@@ -179,6 +180,28 @@ describe('G4.57 the scan lexer reads what TypeScript reads', () => {
 			'fix the lexer in scan-source.ts, or pin the shape here with the reason no census can move'
 		).toEqual([]);
 	});
+
+	// G4.26 and G4.48 lex the test tree and `src/routes` as well, so the oracle has to reach
+	// what they read. Collected inside the test, where the timeout covers it.
+	it('the wider census corpus, tests and routes included, lexes the same', () => {
+		// Deduped by path: `REPO_WIDE_ROOTS` already carries `src/routes/test/plugins`, and a
+		// file scanned twice reports its divergence twice.
+		const wider = new Map<string, SourceFile>();
+		for (const file of [
+			...collectEditorSources(undefined, { includeTests: true }),
+			...collectEditorSources(ROUTES_SRC, { includeTests: true })
+		]) {
+			wider.set(file.relPath, file);
+		}
+		expect(wider.size).toBeGreaterThan(classified.length);
+		const found = [...wider.values()]
+			.map((file) => divergenceIn(file, lexicalClasses(file.text)))
+			.filter((report) => report !== null);
+		expect(
+			found,
+			'fix the lexer in scan-source.ts, or pin the shape here with the reason no census can move'
+		).toEqual([]);
+	}, 30_000);
 
 	// Without this the differential guards a shadow lexer: the censuses read `stripComments`,
 	// never `lexicalClasses`, and only this ties the two to one reading.
