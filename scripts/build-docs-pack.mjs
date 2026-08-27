@@ -3,6 +3,7 @@
 // Gate 1: the public docs pack (docs/guide/) ships flat and .md-only, so every relative
 // pointer must name a packed .md basename. Gate 2: the rest of the corpus (README,
 // CONTRIBUTING, docs/) must have every relative link resolve to a real file or directory.
+import { execSync } from 'node:child_process';
 import {
 	copyFileSync,
 	existsSync,
@@ -80,12 +81,23 @@ const EXCLUDED_DIR = 'docs/superpowers'; // gitignored working area, not part of
 // distinguish from a dead one. Each entry carries a reason; empty is healthy.
 const LINK_ALLOWLIST = new Set();
 
+// A gitignored doc (the owner's private roadmap and runbook) sits on disk beside the corpus
+// but ships nowhere, so a dead pointer inside one is not the repo's to gate.
+const IGNORED_FILES = new Set(
+	execSync('git ls-files --others --ignored --exclude-standard -- ' + LINK_ROOTS.join(' '), {
+		encoding: 'utf8'
+	})
+		.split('\n')
+		.filter(Boolean)
+);
+
 function corpusMarkdownFiles(path, out) {
 	if (path.split('\\').join('/') === EXCLUDED_DIR) return out;
 	for (const entry of readdirSync(path, { withFileTypes: true })) {
 		const child = join(path, entry.name);
 		if (entry.isDirectory()) corpusMarkdownFiles(child, out);
-		else if (entry.name.endsWith('.md')) out.push(child);
+		else if (entry.name.endsWith('.md') && !IGNORED_FILES.has(child.split('\\').join('/')))
+			out.push(child);
 	}
 	return out;
 }
