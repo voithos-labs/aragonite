@@ -164,7 +164,7 @@ A dev warning is a gate failure, not console noise; [`docs/contributing/warnings
 
 # Licensing
 
-aragonite is [GPL-3.0-or-later](LICENSE), and contributions come in under the same terms (inbound = outbound): by submitting a change you agree it is licensed under the project license. That is the whole ceremony, there is no CLA to sign.
+aragonite is [AGPL-3.0-or-later](LICENSE), and contributions come in under the same terms (inbound = outbound): by submitting a change you agree it is licensed under the project license. That is the whole ceremony, there is no CLA to sign.
 
 # Footnote
 

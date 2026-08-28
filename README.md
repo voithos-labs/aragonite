@@ -328,7 +328,7 @@ One last snarky remark to make... All these - all five styles, follow one render
 
 # License
 
-Aragonite is free software, released under [GPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under GPL-compatible terms.
+Aragonite is free software, released under [AGPL-3.0-or-later](./LICENSE): use it, study it, fork it, embed it, but what you ship it in must be open source under compatible terms, and "ship" includes running it as a service for other people. Yes, that is the strict one. That is the point.
 
 # Footnote
 

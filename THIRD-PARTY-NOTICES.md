@@ -1,6 +1,6 @@
 # Third-party notices
 
-aragonite is licensed under GPL-3.0-or-later. It includes the third-party materials below, each used under its own license.
+aragonite is licensed under AGPL-3.0-or-later. It includes the third-party materials below, each used under its own license.
 
 ## commonmark.js (BSD-2-Clause)
 

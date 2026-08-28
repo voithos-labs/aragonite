@@ -13,4 +13,4 @@
 ## Before you submit
 
 - Target branch is `dev`. `main` takes release merges only.
-- Licensing is inbound = outbound: by submitting this change you license it under GPL-3.0-or-later, same as the rest of the project.
+- Licensing is inbound = outbound: by submitting this change you license it under AGPL-3.0-or-later, same as the rest of the project.
