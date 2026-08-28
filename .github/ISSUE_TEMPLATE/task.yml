@@ -1,0 +1,49 @@
+name: Task
+description: Work the codebase owes itself, with no defect behind it
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: A coverage gap, a refactor, a doc or process job. If something is wrong and you can show it, file a Defect instead — severity reads blast radius, which only a defect has.
+
+  - type: textarea
+    id: what-is-owed
+    attributes:
+      label: What is owed
+      description: The work, described from the outside. What is missing, or what shape the code should be in and is not.
+    validations:
+      required: true
+
+  - type: input
+    id: edit-site
+    attributes:
+      label: Edit site
+      description: The file or seam the work lands in. One concrete site beats a subsystem, and a wrong guess costs nothing.
+      placeholder: src/lib/test/invariants/lint/scan-source.ts
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-signal
+    attributes:
+      label: Acceptance signal
+      description: How someone knows they are done. A test that goes red first, a count that moves, a declaration that disappears.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where in the codebase it sits. Issue forms can't apply labels from a dropdown, so a maintainer sets the real one at triage.
+      options:
+        - 'code-structure: internal structure and ergonomics'
+        - 'core-editing: parser, round-trip, tree ops, commits, undo, merge/split'
+        - 'virtual-rendering: windowing, reveal, scroll'
+        - 'plugin-containers: bundled plugins and container kinds'
+        - 'test-coverage: suite shape and coverage gaps'
+        - 'selection-caret: caret doors, gap caret, affinity, cross-block selection'
+        - 'clipboard-paste: copy, cut, paste pipeline and transforms'
+        - 'presentation: live, preview, reading paint and editing rules'
+    validations:
+      required: true

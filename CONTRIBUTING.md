@@ -144,7 +144,7 @@ Review is root-cause first, and it will ask for the test alongside the fix. I kn
 
 ## Filing defects
 
-Defects and proposals go straight to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues). The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it is a defect. The forms ask for the shape we want, so filling one in honestly is the whole job: what is wrong, how to reproduce it, and where it seems to live. A repro beats a description of a repro every single time.
+Defects, proposals and tasks go straight to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues). The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it is a defect. The forms ask for the shape we want, so filling one in honestly is the whole job: what is wrong, how to reproduce it, and where it seems to live. A repro beats a description of a repro every single time. Task is the form for work the codebase owes itself with no defect behind it — a coverage gap, a refactor, a doc job — and it asks for an edit site and an acceptance signal instead of a repro.
 
 A note on reading the ledger, because the open count looks alarming and is not: it is a memory, not a scoreboard. `severity: watch` entries record observed signals with no confirmed defect, and small true things stay open until they are fixed rather than being tidied away to make a number look nice. The labels are the sort order.
 

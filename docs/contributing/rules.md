@@ -114,10 +114,13 @@ behavior that does not exist.
 ## Records
 
 - **The GitHub issue tracker is the defect ledger.** An issue's **type** says what it is (`Bug`,
-  `Feature`, `Task`; the issue forms set the first two). Every issue carries one `area:` label, and
-  a `Bug` additionally carries one `severity:` — severity reads blast radius, which only a defect
-  has. The body holds the thing and nothing else: what is wrong, the repro, the files, the fix
-  direction, and why it is deferred. No provenance, no process notes.
+  `Feature`, `Task`, one issue form each). Every issue carries one `area:` label, and a `Bug`
+  additionally carries one `severity:` — severity reads blast radius, which only a defect has. The
+  body holds the thing and nothing else: what is wrong, the repro, the files, the fix direction,
+  and why it is deferred. No provenance, no process notes. The form sets the type at creation and
+  [`scripts/issue-type.mjs`](../../scripts/issue-type.mjs) sets it afterwards;
+  [`scripts/audit-issues.mjs`](../../scripts/audit-issues.mjs) is the check, and it fails on an
+  open issue missing either a type or an area.
 - **Labels come from the existing set** (`gh label list`, where the described ones are canonical). A
   label that seems missing is usually a duplicate spelling of one that exists; only mint a genuinely
   new label with a description matching the set's voice.
