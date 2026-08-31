@@ -2,7 +2,7 @@
 // the first line of a paragraph block (core/parsers/paragraph.ts), so a truncated head that does
 // not end on a line ending lets the next parse swallow the table into the paragraph — the CST
 // looks correct and the loss lands on reload. Its sibling truncation in range-delete-chrome.ts
-// terminates the head first: the N−1-of-N shape culture.md § sibling-path parity names.
+// terminates the head first: the N−1-of-N shape rules.md § sibling-path parity names.
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';

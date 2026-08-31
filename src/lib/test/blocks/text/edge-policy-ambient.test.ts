@@ -4,7 +4,7 @@
 // range reaches into the contenteditable="false" ambient marker blocks native Backspace/Delete
 // silently — no beforeinput fires — so the dispatch commits the delete through the CST instead.
 // This branch lived inside the Svelte component and never had a unit test; the extraction lets
-// one pin it at its own level (culture.md: dispatch layers get tests at their own level).
+// one pin it at its own level (rules.md: dispatch layers get tests at their own level).
 import { describe, expect, it } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { asRawOffset } from '$lib/cursor/coordinate-spaces';

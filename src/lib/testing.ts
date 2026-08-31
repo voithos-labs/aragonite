@@ -1,7 +1,7 @@
 // The plugin-testing surface, published at the `@voithos-labs/aragonite/testing` subpath. TEST
 // PROCESSES ONLY, and nothing here may import a test runner — the kits run inside an
 // author's own case, so failures surface as plain `Error`s. The registries are
-// register-once with no unregister (docs/contributing/culture.md), so every registration
+// register-once with no unregister (docs/contributing/casebook.md), so every registration
 // reachable from `@voithos-labs/aragonite/plugin` must wire its reset into the aggregate below.
 
 import { editorEnv } from './env';

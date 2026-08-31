@@ -737,7 +737,7 @@
 
 	// onMount, NEVER a plain $effect: attachAll synchronously runs plugin callbacks that
 	// read reactive state, so an effect would take doc.children as a dependency and the
-	// first structural edit would dispose every subscription (culture.md's re-init scar).
+	// first structural edit would dispose every subscription (casebook.md's re-init scar).
 	onMount(() => {
 		pluginContexts.attachAll(({ plugin, error }) =>
 			events.emit('error', { origin: 'subscriber', error, context: { plugin } })

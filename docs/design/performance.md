@@ -57,3 +57,43 @@ A flat high-block-count keystroke cost was once recorded here as an O(top-level-
 **Container raw materialization.** Container nodes keep their full materialized outer source text. That spends memory on the amplification axis to buy it back on the undo axis, via structural-sharing undo. The amplification is linear and bounded at realistic sizes, whereas the only budget-busting cliffs (clone time proportional to node count, and a multi-GB undo-stack heap) both sat on the undo axis, and clone-on-write keyed by child ids eliminates both. Deriving container raw instead would fix the cheap problem and leave the expensive one. The combined depth-x-size axis in `container-raw.bench.ts` is the standing evidence: a FULL re-materialization, which every structural edit pays and which a keystroke paid before the child spans, costs ≈2 µs per KB, near-constant across the axis, so realistic deep nesting stays in the floor class (microseconds) and the superlinear tail is confined to adversarial shapes (tens of milliseconds at depth 16 × 100 KB). Depth is not the variable; the bytes each enclosing container holds are. The rows are the `ancestryRebuild` section of `baseline.json`, report-only like every bench row, one epoch per re-bless.
 
 **Keystroke-latency attribution.** The dominant steady-state keystroke cost is framework reactive-flush work proportional to the number of **mounted** components. It sits outside every editor seam (only the edited block re-renders, and parse, inline refresh, ancestry rebuild, and snapshot each run about one unit), yet it scales linearly with mounted block count. Which is the annoying part: no amount of tuning inside the seams touches it. The only lever that turns O(mounted) into O(viewport) is to genuinely unmount off-screen blocks. Hence virtual rendering.
+
+## The harness
+
+Two layers measure the editor over shared deterministic fixtures, and exactly one of them is a gate. Work out which one you are looking at before you panic about a number.
+
+| Layer   | Command               | Measures                                                                                                                              |
+| ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Bench   | `npm run perf:editor` | Parse / clone / ancestry-rebuild / snapshot-push timings → `perf-results/`                                                            |
+| Browser | `npm run perf:e2e`    | Fixture load wall-time + per-keystroke p50/p95 through real Chromium                                                                  |
+| Gate    | `npm run perf:check`  | Keystroke p50 of every renderable shape at 1MB and 10MB vs baseline + tolerance, over a built-and-previewed app — fails on regression |
+
+The browser and gate scripts arm their own env gates (`PERF` / `PERF_GATE`). Outside them, in the full `npm test` battery for instance, the `e2e-perf` specs self-skip in seconds.
+
+### Fixtures
+
+`src/lib/test/perf/fixtures/generate.ts` builds nine seeded shapes at any byte target: flat-prose, nested-containers, many-small-blocks, single-giant-paragraph, reference-heavy, table-heavy, giant-single-list, giant-single-blockquote, giant-single-table. The same (shape, size, seed) always yields identical bytes, golden-pinned, so numbers stay comparable across runs and machines.
+
+### Instruments
+
+`src/lib/perf/instruments.ts` holds the dev-mode counters: snapshot clone bytes, rebuild-depth histogram, parse timing, inline-refresh node counts, and an undo live-byte gauge. Recording is off until enabled, and the switch only arms under dev/Vitest, so production pays one boolean check per record site.
+
+On `/test/editor` the bridge exposes them as `__test.perf.enable()` / `.reset()` / `.snapshot()`, callable from DevTools or `page.evaluate`.
+
+**The undo gauge is push-sampled.** It updates only when a snapshot is pushed; undo, redo, and clear don't refresh it. Read it as "live bytes as of the last push", not a live value.
+
+### Threshold policy
+
+| Kind                         | Examples                                          | Treatment                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Machine-independent counters | Clone byte parity, container-raw amplification    | Hard ceilings — fail the commit gate (`test:editor:perf`, inside `npm test`)                                                                                                             |
+| Keystroke p50 (renderable)   | The 1MB, 10MB and live rows in `GATED_ROWS`       | Gated by `npm run perf:check` — deliberate, not in `npm test`; ceiling = `baseline × 1.1 + 5ms`, × `PERF_RUNNER_SCALE` (1 locally — the tight gate; CI sets 2.5, a gross-regression net) |
+| Other time rows              | Parse/clone bench ms, p95, single-giant-paragraph | Report-only vs `src/lib/test/perf/baseline.json`                                                                                                                                         |
+
+Ceiling and baseline bumps are deliberate decisions with a changelog note, never a reflexive edit to make a red run go away.
+
+**What `perf:check` actually gates.** The dev machine is the pinned hardware, and same-machine run-to-run p50 spread is a few percent, so an absolute baseline plus tolerance catches regressions without a CI runner. It measures a production build, which is what makes the numbers the editor's rather than Vite's transforms and Svelte's dev bookkeeping. Re-bless the baseline after a Chromium/OS/toolchain bump moves the floor.
+
+It gates **steady-state** p50, which means it is blind to a one-slow-keystroke regression: a single slow first-edit full re-render barely moves a 30-sample median. That class is guarded separately, by the `block-render-scoping` count assertion inside the fast `npm test` gate. p95 is reported rather than gated, since it catches single GC-pause keystrokes and is noisy.
+
+**Dev-overhead caveat.** Both layers run under DEV (Vitest / dev server) with invariant assertions active. Every timing number is a conservative upper bound on production, not a production latency. The real thing is faster than what you are reading, never slower.

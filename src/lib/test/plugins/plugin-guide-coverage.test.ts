@@ -2,13 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-// Drift guard: every export of the two published author barrels must appear in the plugin
-// guide, so a new export can't ship undocumented. Names match in backtick form, so incidental
-// prose cannot stand in for an entry. Each section is keyed by its heading, which makes the
-// heading load-bearing: rename it in both.
+// Drift guard: every export of the two published author barrels must appear in the docs pack,
+// so a new export can't ship undocumented. Names match in backtick form, so incidental prose
+// cannot stand in for an entry. Each section is keyed by its heading, which makes the heading
+// load-bearing: rename it in both.
+const CATALOG_DOC = 'docs/guide/plugin-api.md';
 const CATALOG_HEADING = '\n## API reference';
 // `@voithos-labs/aragonite/testing` has no catalog table of its own — its section IS the catalog, and only
 // its callables are enrolled; the kits' report types are read off the calls that return them.
+const TESTING_DOC = 'docs/guide/plugin-testing.md';
 const TESTING_HEADING = '\n## Verifying your plugin';
 
 function barrelExports(relPath: string, valuesOnly = false): string[] {
@@ -39,9 +41,9 @@ function barrelExports(relPath: string, valuesOnly = false): string[] {
 	return [...names];
 }
 
-function guideSection(heading: string): string {
-	const guide = readFileSync(path.resolve('docs/guide/plugin-guide.md'), 'utf8');
-	return guide.split(heading)[1]?.split('\n## ')[0] ?? '';
+function guideSection(doc: string, heading: string): string {
+	const text = readFileSync(path.resolve(doc), 'utf8');
+	return text.split(heading)[1]?.split('\n## ')[0] ?? '';
 }
 
 /**
@@ -52,12 +54,12 @@ function guideSection(heading: string): string {
 const undocumented = (names: string[], text: string, allowCallForm = false) =>
 	names.filter((n) => !text.includes(`\`${n}\``) && !(allowCallForm && text.includes(`\`${n}(`)));
 
-describe('plugin-guide § API reference catalogs the whole aragonite/plugin surface', () => {
+describe('plugin-api § API reference catalogs the whole aragonite/plugin surface', () => {
 	const exportNames = barrelExports('src/lib/plugin.ts');
-	const section = guideSection(CATALOG_HEADING);
+	const section = guideSection(CATALOG_DOC, CATALOG_HEADING);
 
 	it('finds the catalog section, and a non-trivial export set with aliases resolved', () => {
-		expect(section, `plugin-guide.md has no "${CATALOG_HEADING.trim()}" heading`).not.toBe('');
+		expect(section, `${CATALOG_DOC} has no "${CATALOG_HEADING.trim()}" heading`).not.toBe('');
 		expect(exportNames.length).toBeGreaterThan(40);
 		expect(exportNames).toContain('serializeChildren');
 		expect(exportNames).toContain('BlockList');
@@ -74,12 +76,12 @@ describe('plugin-guide § API reference catalogs the whole aragonite/plugin surf
 	});
 });
 
-describe('plugin-guide § Verifying your plugin names every aragonite/testing callable', () => {
+describe('plugin-testing § Verifying your plugin names every aragonite/testing callable', () => {
 	const exportNames = barrelExports('src/lib/testing.ts', true);
-	const section = guideSection(TESTING_HEADING);
+	const section = guideSection(TESTING_DOC, TESTING_HEADING);
 
 	it('finds the section, and the callables without their type exports', () => {
-		expect(section, `plugin-guide.md has no "${TESTING_HEADING.trim()}" heading`).not.toBe('');
+		expect(section, `${TESTING_DOC} has no "${TESTING_HEADING.trim()}" heading`).not.toBe('');
 		expect(exportNames).toContain('resetPluginPlatformForTests');
 		expect(exportNames).toContain('runKindConformance');
 		// A type export is not a callable and carries no documentation duty here.

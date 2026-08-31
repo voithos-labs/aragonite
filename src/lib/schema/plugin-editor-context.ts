@@ -1,7 +1,7 @@
 /**
  * Per-(instance, plugin) EditorContext: the one object onEditor callbacks, global-command
  * handlers, and BlockCommandContext.editor all receive. `document` is a getter so every read is
- * live (culture.md: getters, not values).
+ * live (rules.md: getters, not values).
  */
 import type { DocumentView } from '../core/node-views';
 import type { DecorationRegistry } from '../decorations/types';

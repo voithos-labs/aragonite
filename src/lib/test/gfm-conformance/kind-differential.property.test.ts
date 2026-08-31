@@ -62,7 +62,7 @@ describe('kind-differential: inline node kinds vs commonmark over arbInlineSourc
 		);
 	});
 
-	// Reachability + completeness self-test (culture.md: a generator that cannot reach the
+	// Reachability + completeness self-test (rules.md: a generator that cannot reach the
 	// class proves nothing, and an allowlist that excuses everything is vacuously green).
 	// Fixed seed so it is a deterministic guard, not part of the fresh lane's search.
 	it('arbInlineSource reaches all three documented classes and no fourth', () => {

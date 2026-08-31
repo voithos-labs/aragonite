@@ -5,7 +5,7 @@ bytes: `?seed=wiki-embed` installs a `![[…]]` rung that mints built-in `image`
 every existing image gesture runs against bytes the editor is forbidden to re-serialize
 as GFM. `resizeImage` already drove real Shift+Arrow presses, but only ever over
 `![alt](url)` the built-in scanner minted, so the whole borrow-a-built-in-kind class ran
-outside the oracle stack — the scar culture.md names, a plugin surface going a minor
+outside the oracle stack — the scar rules.md names, a plugin surface going a minor
 version unobserved by the simulation. The gap was a seed, not a verb.
 
 What the oracle stack adds over the wiki-embed e2e battery: the live-CST round-trip and

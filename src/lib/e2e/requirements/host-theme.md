@@ -12,7 +12,7 @@ on the page's own dropdowns.
 
 Miss-analysis: nothing pinned the accent's path from a host wrapper to painted editor text,
 because the route shipped with no spec at its own level — the entry-layer blind spot
-culture.md names, one rung up from a module.
+rules.md names, one rung up from a module.
 
 ## Happy paths
 

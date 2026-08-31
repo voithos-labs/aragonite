@@ -32,7 +32,7 @@ import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 
 // The generic battery pointed at real PLUGIN kinds. They only exist once their setup
 // installs them, so each case resets and re-installs — the platform is register-once
-// (docs/contributing/culture.md).
+// (docs/contributing/casebook.md).
 
 const MEMO_KIND = () => declaredPluginKind(MEMO_BLOCK);
 const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);

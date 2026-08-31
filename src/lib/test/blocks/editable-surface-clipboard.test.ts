@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The clipboard skeleton's ORDER contract (docs/contributing/culture.md § the bug shape to
+// The clipboard skeleton's ORDER contract (docs/contributing/rules.md § the bug shape to
 // fear). The four editable surfaces share createClipboardHandlers, which OWNS the arms that
 // must stay in lockstep — the reading gate, the cross-block copy/cut write, the reveal fold,
 // and the load-bearing scar: paste's preventDefault BEFORE any await. The per-surface tails

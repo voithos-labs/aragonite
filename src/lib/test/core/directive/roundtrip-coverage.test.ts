@@ -25,7 +25,7 @@ activateDirectiveGrammar(); // before any parse
 // The acceptance gate for the directive primitive: an arbitrary spanning the whole
 // construct space, asserting serialize(parse(src)) === src. Curated non-ASCII pools
 // (not fc.unicode) keep CJK / astral / combining boundary shapes reliably reachable, and
-// the reachability self-tests below are the culture.md evidence that the arbitrary can
+// the reachability self-tests below are the rules.md evidence that the arbitrary can
 // actually produce the bug-carrying shapes.
 
 const isNonAscii = (s: string): boolean => [...s].some((ch) => (ch.codePointAt(0) ?? 0) > 0x7f);
