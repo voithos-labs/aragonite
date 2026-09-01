@@ -199,9 +199,7 @@ The editing half is the factory call, one spread, and one-line re-exports of wha
 
 **Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). A `%%parrot` line now opens a parrot block, dances through your component, and saves back byte for byte.
 
-<!-- Landing TODO: capture the FULL ten-frame dance (paste FRAMES from parrot-frames.md)
-     in the dev harness and drop the gif here as parrot.gif, alt "The parrot block,
-     mid-party"; the gif ships in docs/guide/ beside this file. -->
+![The parrot block, mid-party](parrot.gif)
 
 **Verify.** Registering a kind enrolls it in the conformance kit, which parses your fixture, round-trips it (parse, serialize, compare the bytes), and checks the closure cells it can reach without a browser against what you claimed.
 
@@ -666,10 +664,7 @@ The chords are live (a **chord** is a key combination, written `Mod+7` where `Mo
 
 Add a collapse toggle by giving `reservedChrome` an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit; without it, such a reveal has nowhere to land and reports that it did not.
 
-<!-- Landing TODO: capture the finished box in the dev harness, alleged then Mod+8'd
-     (allegedly-then-debunked is a natural two-state capture) and drop the gif or screenshot
-     here as conspiracy.gif, alt "A conspiracy, debunked on camera"; the asset ships in
-     docs/guide/ beside this file. -->
+![A conspiracy, debunked on camera](conspiracy.gif)
 
 ## The closure block
 

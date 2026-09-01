@@ -1,7 +1,7 @@
 // Two documentation gates, both run on every invocation. With a <dir> argument the pack
 // is also written there (the directory is cleared first — see the refusal below).
-// Gate 1: the public docs pack (docs/guide/) ships flat and .md-only, so every relative
-// pointer must name a packed .md basename. Gate 2: the rest of the corpus (README,
+// Gate 1: the public docs pack (docs/guide/) ships flat, so every relative pointer must name a
+// file the pack carries — a doc, or an asset beside it. Gate 2: the rest of the corpus (README,
 // CONTRIBUTING, docs/) must have every relative link resolve to a real file or directory.
 import { execSync } from 'node:child_process';
 import {
@@ -13,20 +13,24 @@ import {
 	statSync,
 	unlinkSync
 } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const SOURCE_DIR = 'docs/guide';
 
-const packNames = readdirSync(SOURCE_DIR)
-	.filter((name) => name.endsWith('.md'))
+// The pack is the whole directory, docs and assets alike: package.json already ships
+// `docs/guide` to npm wholesale, so one set keeps the two publishing paths in agreement.
+const packFiles = readdirSync(SOURCE_DIR, { withFileTypes: true })
+	.filter((entry) => entry.isFile())
+	.map((entry) => entry.name)
 	.sort();
+const packNames = packFiles.filter((name) => name.endsWith('.md'));
 if (packNames.length === 0) {
 	console.error(`docs-pack: no .md files in ${SOURCE_DIR}`);
 	process.exit(1);
 }
 
-// A pointer resolves iff it names another packed .md basename; anything else is dead once the
-// doc leaves the repo. Targets are normalized first, so a padded, bracketed, or anchored form
+// A pointer resolves iff it names another packed basename; anything else is dead once the doc
+// leaves the repo. Targets are normalized first, so a padded, bracketed, or anchored form
 // can't smuggle one past. Regex-level on purpose: dependency-free and conservative.
 const INLINE_TARGET = /\]\(([^)]+)\)/g; // `[text](t)` and `![alt](t)` (the latter contains `](t)`)
 const REFERENCE_TARGET = /^[ \t]*\[[^\]]+\]:[ \t]*(\S+)/gm; // `[label]: t` link definitions
@@ -48,10 +52,6 @@ function isExternal(target) {
 	);
 }
 
-function isPackedMd(target) {
-	return target.endsWith('.md') && target === basename(target) && packNames.includes(target);
-}
-
 const deadPointers = [];
 for (const name of packNames) {
 	const text = readFileSync(join(SOURCE_DIR, name), 'utf8');
@@ -62,12 +62,13 @@ for (const name of packNames) {
 	for (const raw of rawTargets) {
 		const target = normalizeTarget(raw);
 		if (target === '' || isExternal(target)) continue; // pure anchor or off-pack URL
-		if (isPackedMd(target)) continue;
+		// A bare basename in the pack and nothing else: a slash or a `..` can never be in the list.
+		if (packFiles.includes(target)) continue;
 		deadPointers.push(`${name}: ${raw.trim()}`);
 	}
 }
 if (deadPointers.length > 0) {
-	console.error('docs-pack: dead pointers (every target must be a packed .md basename):');
+	console.error('docs-pack: dead pointers (every target must name a file the pack ships):');
 	for (const hit of deadPointers) console.error(`  ${hit}`);
 	process.exit(1);
 }
@@ -171,14 +172,14 @@ if (!target) {
 // ── Pack write ──────────────────────────────────────────────────────────
 
 // The clear must not be able to take a tree with it on a mistyped argument, so two refusals
-// bound what is clearable: the pack's own source, which is all-.md and would pass a shape test
-// alone, and any directory holding an entry the pack never writes.
+// bound what is clearable: the pack's own source, which would pass a shape test alone, and any
+// directory holding an entry the pack never writes.
 function refusalReason(dir) {
 	if (dir === resolve(SOURCE_DIR)) return 'it is the pack source directory';
 	if (!existsSync(dir)) return null;
 	if (!statSync(dir).isDirectory()) return 'it is not a directory';
 	const foreign = readdirSync(dir, { withFileTypes: true })
-		.filter((entry) => !entry.isFile() || !entry.name.endsWith('.md'))
+		.filter((entry) => !entry.isFile() || !packFiles.includes(entry.name))
 		.map((entry) => entry.name);
 	return foreign.length === 0
 		? null
@@ -194,5 +195,5 @@ if (refusal) {
 
 mkdirSync(packDir, { recursive: true });
 for (const name of readdirSync(packDir)) unlinkSync(join(packDir, name));
-for (const name of packNames) copyFileSync(join(SOURCE_DIR, name), join(packDir, name));
-console.log(`docs-pack: ${packNames.length} docs → ${target}`);
+for (const name of packFiles) copyFileSync(join(SOURCE_DIR, name), join(packDir, name));
+console.log(`docs-pack: ${packFiles.length} files → ${target}`);
