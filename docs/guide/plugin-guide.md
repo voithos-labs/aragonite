@@ -662,6 +662,8 @@ Pass the plugin to the editor's `plugins` prop. It installs before the seed pars
 
 The chords are live (a **chord** is a key combination, written `Mod+7` where `Mod` is Ctrl, or Cmd on a Mac): focus the box, press `Mod+8` to debunk the theory and `Mod+7` to allege it again, then read `editor.getSource()` back and watch the opener line flip between the two names. The flip is one undoable edit, so undo un-debunks it, which is how conspiracies work anyway. And because the verdict lives in the bytes, a debunked conspiracy stays debunked across a reload.
 
+One thing that surprises people pasting this into a fresh app: `theme="light"` flips only the editor-owned colors, so the page still looks dark. The built-in light chrome wants the `aragonite-editor-theme` class on a wrapper element, and [consumer-guide.md](consumer-guide.md)'s theming section explains the two tiers.
+
 Add a collapse toggle by giving `reservedChrome` an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit; without it, such a reveal has nowhere to land and reports that it did not.
 
 ![A conspiracy, debunked on camera](conspiracy.gif)

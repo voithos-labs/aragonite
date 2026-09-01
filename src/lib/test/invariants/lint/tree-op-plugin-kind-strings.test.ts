@@ -1,5 +1,5 @@
 /**
- * G4.x — no plugin kind name in a core dispatch layer (`editor.md` §16 lesson 4). The
+ * G4.x — no plugin kind name in a core dispatch layer (`editor.md` § 1). The
  * coupling that shipped read correctly and passed every behavioral test, so only a scan
  * catches the DIRECTIONAL smell of core naming a plugin kind. Scope is
  * `tree-operations/`, `editor-actions/` and `selection/`; the forbidden set derives from
