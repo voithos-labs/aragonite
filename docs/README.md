@@ -34,13 +34,14 @@ The system's shape and its load-bearing contracts. `editor.md` is the orientatio
 
 The published docs pack: `docs/guide` is listed in the package's `files`, so this folder, and only this folder, is what a third-party plugin author receives with the npm install.
 
-| Doc                                                  | Scope                                                         |
-| ---------------------------------------------------- | ------------------------------------------------------------- |
-| [`guide/consumer-guide.md`](guide/consumer-guide.md) | Embedding the editor: public API, props, theming, events      |
-| [`guide/plugin-guide.md`](guide/plugin-guide.md)     | Plugin authoring: the unit, the tiers, recipes                |
-| [`guide/plugin-testing.md`](guide/plugin-testing.md) | Verifying a plugin: the conformance kits and the test seam    |
-| [`guide/plugin-api.md`](guide/plugin-api.md)         | Every `@voithos-labs/aragonite/plugin` export, grouped by job |
-| [`guide/directives.md`](guide/directives.md)         | The `:::name` directive grammar                               |
+| Doc                                                  | Scope                                                                 |
+| ---------------------------------------------------- | --------------------------------------------------------------------- |
+| [`guide/consumer-guide.md`](guide/consumer-guide.md) | Embedding the editor: public API, props, theming, events              |
+| [`guide/plugin-guide.md`](guide/plugin-guide.md)     | Plugin authoring: the unit, the tiers, recipes                        |
+| [`guide/plugin-testing.md`](guide/plugin-testing.md) | Verifying a plugin: the conformance kits and the test seam            |
+| [`guide/plugin-api.md`](guide/plugin-api.md)         | Every `@voithos-labs/aragonite/plugin` export, grouped by job         |
+| [`guide/directives.md`](guide/directives.md)         | The `:::name` directive grammar                                       |
+| [`guide/parrot-frames.md`](guide/parrot-frames.md)   | All ten party-parrot frames, ready to paste over the quickstart's two |
 
 Because the pack ships flat, a markdown link inside `guide/` may only point at another file in `guide/`. Name any other doc as inline code instead. `npm run lint` fails on a link that would dangle once the pack leaves the repo, and hearing it from the linter is faster than hearing it from a reader with a 404.
 

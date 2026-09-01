@@ -179,7 +179,7 @@ Every `@voithos-labs/aragonite/plugin` export, grouped by job, so you can find a
 | `headingLevel`                           | A heading's level (ATX or setext), null otherwise — the outline reader for a table-of-contents plugin                                                  |
 | `computeInlineContent`, `isProseKind`    | Inline-parse a prose leaf (uncached, reactive-safe) and gate the walk — for document-wide state derived from inline structure, e.g. footnote numbering |
 | `CstNode`                                | The tree-node shape your factory builds and your `rebuildRaw` mutates                                                                                  |
-| `NodeView`, `DocumentView`               | The bytes-readonly views every read surface hands you ([Views](plugin-guide.md#views))                                                                 |
+| `NodeView`, `DocumentView`               | The bytes-readonly views every read surface hands you ([Views](plugin-guide.md#views-what-you-read-what-you-own))                                      |
 
 **Idempotence probes**
 
