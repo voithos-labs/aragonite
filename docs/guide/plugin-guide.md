@@ -128,7 +128,7 @@ The rest read as they sound. On the opener, `priority` decides where you sit in 
 		mode: 'plain'
 	});
 
-	// Frames 0 and 5 of the canonical ten. The full dance is in parrot-frames.md;
+	// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;
 	// this is a guide, not an aviary.
 	const FRAMES = [
 		String.raw`
@@ -172,11 +172,23 @@ xx:':;;;;,.,,...,;;cllllllllllllllc;'.;od,
 cNo.....................................oc
 `
 	];
-	let frame = $state(0);
+	// parrot.live's seven, cycled rather than rolled so every run of the dance looks the same.
+	const COLORS = [
+		'#ff5f5f',
+		'#ffc83d',
+		'#3fd97a',
+		'#5aa9ff',
+		'#ff6ad5',
+		'#3fd3d3',
+		'var(--color-text-primary, #ffffff)'
+	];
+	let tick = $state(0);
 	$effect(() => {
-		const id = setInterval(() => (frame = (frame + 1) % FRAMES.length), 250);
+		const id = setInterval(() => tick++, 70);
 		return () => clearInterval(id);
 	});
+	const frame = $derived(FRAMES[tick % FRAMES.length]);
+	const color = $derived(COLORS[tick % COLORS.length]);
 
 	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
 
@@ -189,17 +201,37 @@ cNo.....................................oc
 </script>
 
 <div class="parrot-block">
-	<pre class="parrot" aria-hidden="true">{FRAMES[frame]}</pre>
+	<pre class="parrot" style:color aria-hidden="true">{frame}</pre>
 	{#if caption}<p class="parrot-caption">{caption}</p>{/if}
 	<div bind:this={el} {...leaf.surfaceProps} class="parrot-source" aria-label="Party parrot"></div>
 </div>
+
+<style>
+	.parrot {
+		/* a terminal cell is about twice as tall as it is wide; prose line-height stretches the bird */
+		margin: 0;
+		font-size: 1.1em;
+		line-height: 1.1;
+		letter-spacing: 0.05em;
+	}
+	.parrot-caption {
+		margin: 0.25em 0 0;
+		font-weight: 600;
+	}
+	.parrot-source {
+		/* the bytes, dimmed the way the editor dims a marker */
+		opacity: 0.55;
+		font-family: monospace;
+		font-size: 0.9em;
+	}
+</style>
 ```
 
-The editing half is the factory call, one spread, and one-line re-exports of what the factory returns, `focus` and `getCursorOffset` being the two every block component must have. The parrot half never touches the editor: the `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`, which is what keeps it live. Type in the source line and the caption follows, because the tree is the truth and the component just renders it. A leaf whose bytes can span lines also owes its source element `white-space: pre-wrap` (the parrot's cannot: its opener claims one line), for a reason [The editable leaf](#the-editable-leaf) explains. And the full ten-frame dance? Go see [parrot-frames.md](parrot-frames.md) for the actual frames; not gonna put them all here.
+The editing half is the factory call, one spread, and one-line re-exports of what the factory returns, `focus` and `getCursorOffset` being the two every block component must have. The parrot half never touches the editor: the `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`, which is what keeps it live. Type in the source line and the caption follows, because the tree is the truth and the component just renders it. A leaf whose bytes can span lines also owes its source element `white-space: pre-wrap` (the parrot's cannot: its opener claims one line), for a reason [The editable leaf](#the-editable-leaf) explains. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
 **Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). A `%%parrot` line now opens a parrot block, dances through your component, and saves back byte for byte.
 
-![The parrot block, mid-party](parrot.gif)
+![The parrot block, mid-party](./plugin-guide/parrot.gif)
 
 **Verify.** Registering a kind enrolls it in the conformance kit, which parses your fixture, round-trips it (parse, serialize, compare the bytes), and checks the closure cells it can reach without a browser against what you claimed.
 
@@ -431,7 +463,7 @@ import ConspiracyBlock from './ConspiracyBlock.svelte'; // the component built i
 const CONSPIRACY = 'conspiracy';
 const CONSPIRACY_TITLE = 'conspiracy-title';
 
-interface ConspiracyMetadata {
+export interface ConspiracyMetadata {
 	name: string; // 'conspiracy' or 'debunked'; re-emitted into raw so the verdict survives
 	colonCount: number;
 	closerColonCount: number;
@@ -581,12 +613,18 @@ export function conspiracyPlugin(): EditorPlugin {
 
 ### The component
 
-Your component supplies only its own **chrome** (the block's furniture: the border, the title styling, an icon if you like). `createContainerBlock` hides the child-list state, the ancestor wiring, and the windowing (the editor only mounts the blocks in view, and a container windows its own children too). Pass `node`, `index`, and `path` as **thunks**, meaning `getNode` / `getIndex` / `getPath` functions the factory calls to read the live value each time; a captured value would be a stale snapshot. On this frozen surface the type no longer lets you pass one: a function-valued field is a live read, a plain-valued field is static config.
+Your component supplies only its own **chrome** (the block's furniture: the border, the title styling, an icon if you like). Chrome may read the node it dresses: the verdict comes off the metadata through `getPluginMetadata`, and the stamp follows it. `createContainerBlock` hides the child-list state, the ancestor wiring, and the windowing (the editor only mounts the blocks in view, and a container windows its own children too). Pass `node`, `index`, and `path` as **thunks**, meaning `getNode` / `getIndex` / `getPath` functions the factory calls to read the live value each time; a captured value would be a stale snapshot. On this frozen surface the type no longer lets you pass one: a function-valued field is a live read, a plain-valued field is static config.
 
 ```svelte
 <!-- ConspiracyBlock.svelte -->
 <script lang="ts">
-	import { BlockList, createContainerBlock, type NodeView } from '@voithos-labs/aragonite/plugin';
+	import {
+		BlockList,
+		createContainerBlock,
+		getPluginMetadata,
+		type NodeView
+	} from '@voithos-labs/aragonite/plugin';
+	import type { ConspiracyMetadata } from './conspiracy-kind';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 	let boxEl: HTMLElement | undefined = $state();
@@ -598,23 +636,48 @@ Your component supplies only its own **chrome** (the block's furniture: the bord
 		getBoxEl: () => boxEl
 	});
 
+	// The verdict is read off the node, so the stamp lands the moment the command commits.
+	const debunked = $derived(getPluginMetadata<ConspiracyMetadata>(node)?.name === 'debunked');
+
 	export { containerApi };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="conspiracy-block" bind:this={boxEl} onkeydown={handleKeydown}>
+<div class="conspiracy-block" class:debunked bind:this={boxEl} onkeydown={handleKeydown}>
 	<BlockList {...blockListProps} />
 </div>
 
 <style>
 	.conspiracy-block {
-		/* the corkboard; red string sold separately */
+		/* the corkboard, with one piece of red string */
+		position: relative;
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-left: 3px solid var(--color-error, #e06c75);
 		border-radius: 6px;
 		padding: 8px 12px;
 	}
 	.conspiracy-block :global(.conspiracy-title) {
 		font-weight: 600;
+	}
+	/* debunked: the string comes down, the theory gets crossed out, the stamp lands */
+	.debunked {
+		border-left-color: var(--color-ui-muted, #a4a4a4);
+	}
+	.debunked :global(.conspiracy-title) {
+		text-decoration: line-through;
+	}
+	.debunked::after {
+		content: 'DEBUNKED';
+		position: absolute;
+		top: 6px;
+		right: 12px;
+		transform: rotate(-12deg);
+		font: 600 0.75em monospace;
+		letter-spacing: 0.12em;
+		color: var(--color-error, #e06c75);
+		border: 2px solid currentColor;
+		border-radius: 3px;
+		padding: 1px 6px;
 	}
 </style>
 ```
@@ -660,13 +723,13 @@ Pass the plugin to the editor's `plugins` prop. It installs before the seed pars
 <Editor bind:this={editor} source={SEED} {plugins} theme="light" />
 ```
 
-The chords are live (a **chord** is a key combination, written `Mod+7` where `Mod` is Ctrl, or Cmd on a Mac): focus the box, press `Mod+8` to debunk the theory and `Mod+7` to allege it again, then read `editor.getSource()` back and watch the opener line flip between the two names. The flip is one undoable edit, so undo un-debunks it, which is how conspiracies work anyway. And because the verdict lives in the bytes, a debunked conspiracy stays debunked across a reload.
+The chords are live (a **chord** is a key combination, written `Mod+7` where `Mod` is Ctrl, or Cmd on a Mac): focus the box, press `Mod+8` to debunk the theory (the string comes down and the stamp lands) and `Mod+7` to allege it again, then read `editor.getSource()` back and watch the opener line flip between the two names. The flip is one undoable edit, so undo un-debunks it, which is how conspiracies work anyway. And because the verdict lives in the bytes, a debunked conspiracy stays debunked across a reload.
 
 One thing that surprises people pasting this into a fresh app: `theme="light"` flips only the editor-owned colors, so the page still looks dark. The built-in light chrome wants the `aragonite-editor-theme` class on a wrapper element, and [consumer-guide.md](consumer-guide.md)'s theming section explains the two tiers.
 
 Add a collapse toggle by giving `reservedChrome` an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit; without it, such a reveal has nowhere to land and reports that it did not.
 
-![A conspiracy, debunked on camera](conspiracy.gif)
+![A conspiracy, debunked on camera](./plugin-guide/conspiracy.gif)
 
 ## The closure block
 

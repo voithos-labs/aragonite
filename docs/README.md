@@ -34,16 +34,16 @@ One spec per subsystem, for anyone changing the editor's insides. `editor.md` or
 
 The published pack. This folder ships inside the npm package, and it is the only docs folder that does, so the copy in a plugin author's `node_modules` matches the version they installed.
 
-| Doc                                                  | Scope                                                                                                                             |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [`guide/consumer-guide.md`](guide/consumer-guide.md) | Embedding the editor: props, events, theming, and everything else a host app touches                                              |
-| [`guide/plugin-guide.md`](guide/plugin-guide.md)     | Teaching the editor your own blocks and inline syntax, from a first working plugin to full recipes                                |
-| [`guide/plugin-testing.md`](guide/plugin-testing.md) | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks answer to, pointed at yours |
-| [`guide/plugin-api.md`](guide/plugin-api.md)         | Every `@voithos-labs/aragonite/plugin` export, grouped by job; a page for Ctrl+F, not for reading                                 |
-| [`guide/directives.md`](guide/directives.md)         | The `:::name` fence: a named box in Markdown, and how a plugin claims a name                                                      |
-| [`guide/parrot-frames.md`](guide/parrot-frames.md)   | All ten party-parrot frames, ready to paste over the quickstart's two                                                             |
+| Doc                                                                          | Scope                                                                                                                             |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [`guide/consumer-guide.md`](guide/consumer-guide.md)                         | Embedding the editor: props, events, theming, and everything else a host app touches                                              |
+| [`guide/plugin-guide.md`](guide/plugin-guide.md)                             | Teaching the editor your own blocks and inline syntax, from a first working plugin to full recipes                                |
+| [`guide/plugin-testing.md`](guide/plugin-testing.md)                         | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks answer to, pointed at yours |
+| [`guide/plugin-api.md`](guide/plugin-api.md)                                 | Every `@voithos-labs/aragonite/plugin` export, grouped by job; a page for Ctrl+F, not for reading                                 |
+| [`guide/directives.md`](guide/directives.md)                                 | The `:::name` fence: a named box in Markdown, and how a plugin claims a name                                                      |
+| [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md) | All ten party-parrot frames, ready to paste over the quickstart's two                                                             |
 
-The pack ships flat, the whole folder at once (the two gifs included), so a markdown link inside `guide/` may only target a file the pack carries. Name any other doc as inline code instead. `npm run lint` fails on a link that would dangle once the pack leaves the repo, and hearing it from the linter is faster than hearing it from a reader with a 404.
+The pack ships the whole `guide/` folder as is, subfolders included (a doc's gifs live in a folder named after it), so a markdown link inside it may only target a file the pack carries. Name any other doc as inline code instead. `npm run lint` fails on a link that would dangle once the pack leaves the repo, and hearing it from the linter is faster than hearing it from a reader with a 404.
 
 ## `contributing/`: how we work
 

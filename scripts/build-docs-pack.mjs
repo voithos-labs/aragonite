@@ -1,8 +1,9 @@
 // Two documentation gates, both run on every invocation. With a <dir> argument the pack
 // is also written there (the directory is cleared first — see the refusal below).
-// Gate 1: the public docs pack (docs/guide/) ships flat, so every relative pointer must name a
-// file the pack carries — a doc, or an asset beside it. Gate 2: the rest of the corpus (README,
-// CONTRIBUTING, docs/) must have every relative link resolve to a real file or directory.
+// Gate 1: the public docs pack (docs/guide/, subfolders included) leaves the repo as one tree, so
+// every relative pointer must land on a file the pack carries — a doc, or an asset beside it.
+// Gate 2: the rest of the corpus (README, CONTRIBUTING, docs/) must have every relative link
+// resolve to a real file or directory.
 import { execSync } from 'node:child_process';
 import {
 	copyFileSync,
@@ -10,28 +11,35 @@ import {
 	mkdirSync,
 	readFileSync,
 	readdirSync,
+	rmSync,
 	statSync,
 	unlinkSync
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 
 const SOURCE_DIR = 'docs/guide';
 
-// The pack is the whole directory, docs and assets alike: package.json already ships
+// The pack is the whole directory tree, docs and assets alike: package.json already ships
 // `docs/guide` to npm wholesale, so one set keeps the two publishing paths in agreement.
-const packFiles = readdirSync(SOURCE_DIR, { withFileTypes: true })
-	.filter((entry) => entry.isFile())
-	.map((entry) => entry.name)
-	.sort();
+function listPack(dir, prefix = '') {
+	const out = [];
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const rel = prefix + entry.name;
+		if (entry.isDirectory()) out.push(...listPack(join(dir, entry.name), rel + '/'));
+		else if (entry.isFile()) out.push(rel);
+	}
+	return out.sort();
+}
+const packFiles = listPack(SOURCE_DIR);
 const packNames = packFiles.filter((name) => name.endsWith('.md'));
 if (packNames.length === 0) {
 	console.error(`docs-pack: no .md files in ${SOURCE_DIR}`);
 	process.exit(1);
 }
 
-// A pointer resolves iff it names another packed basename; anything else is dead once the doc
-// leaves the repo. Targets are normalized first, so a padded, bracketed, or anchored form
-// can't smuggle one past. Regex-level on purpose: dependency-free and conservative.
+// A pointer resolves iff it lands on a packed file, relative to the doc holding it; anything else
+// is dead once the doc leaves the repo. Targets are normalized first, so a padded, bracketed, or
+// anchored form can't smuggle one past. Regex-level on purpose: dependency-free and conservative.
 const INLINE_TARGET = /\]\(([^)]+)\)/g; // `[text](t)` and `![alt](t)` (the latter contains `](t)`)
 const REFERENCE_TARGET = /^[ \t]*\[[^\]]+\]:[ \t]*(\S+)/gm; // `[label]: t` link definitions
 
@@ -62,8 +70,8 @@ for (const name of packNames) {
 	for (const raw of rawTargets) {
 		const target = normalizeTarget(raw);
 		if (target === '' || isExternal(target)) continue; // pure anchor or off-pack URL
-		// A bare basename in the pack and nothing else: a slash or a `..` can never be in the list.
-		if (packFiles.includes(target)) continue;
+		// A `..` that climbs out of the pack can never land on a listed file.
+		if (packFiles.includes(posix.normalize(posix.join(posix.dirname(name), target)))) continue;
 		deadPointers.push(`${name}: ${raw.trim()}`);
 	}
 }
@@ -173,14 +181,26 @@ if (!target) {
 
 // The clear must not be able to take a tree with it on a mistyped argument, so two refusals
 // bound what is clearable: the pack's own source, which would pass a shape test alone, and any
-// directory holding an entry the pack never writes.
+// directory holding an entry the pack never writes, checked down through the pack's subfolders.
+const packDirs = new Set();
+for (const name of packFiles) {
+	for (let dir = posix.dirname(name); dir !== '.'; dir = posix.dirname(dir)) packDirs.add(dir);
+}
+function foreignEntries(dir, prefix = '') {
+	const foreign = [];
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const rel = prefix + entry.name;
+		if (entry.isDirectory() && packDirs.has(rel)) {
+			foreign.push(...foreignEntries(join(dir, entry.name), rel + '/'));
+		} else if (!entry.isFile() || !packFiles.includes(rel)) foreign.push(rel);
+	}
+	return foreign;
+}
 function refusalReason(dir) {
 	if (dir === resolve(SOURCE_DIR)) return 'it is the pack source directory';
 	if (!existsSync(dir)) return null;
 	if (!statSync(dir).isDirectory()) return 'it is not a directory';
-	const foreign = readdirSync(dir, { withFileTypes: true })
-		.filter((entry) => !entry.isFile() || !packFiles.includes(entry.name))
-		.map((entry) => entry.name);
+	const foreign = foreignEntries(dir);
 	return foreign.length === 0
 		? null
 		: `it holds entries the pack never writes: ${foreign.join(', ')}`;
@@ -194,6 +214,14 @@ if (refusal) {
 }
 
 mkdirSync(packDir, { recursive: true });
-for (const name of readdirSync(packDir)) unlinkSync(join(packDir, name));
-for (const name of packFiles) copyFileSync(join(SOURCE_DIR, name), join(packDir, name));
+for (const entry of readdirSync(packDir, { withFileTypes: true })) {
+	const path = join(packDir, entry.name);
+	if (entry.isDirectory()) rmSync(path, { recursive: true });
+	else unlinkSync(path);
+}
+for (const name of packFiles) {
+	const dest = join(packDir, name);
+	mkdirSync(dirname(dest), { recursive: true });
+	copyFileSync(join(SOURCE_DIR, name), dest);
+}
 console.log(`docs-pack: ${packFiles.length} files → ${target}`);

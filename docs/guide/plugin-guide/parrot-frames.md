@@ -1,6 +1,6 @@
 # The Parrot Frames
 
-The [plugin guide](plugin-guide.md) quickstart ships two frames and calls it a dance. This page is all ten, ready to paste over the sample's `FRAMES` wholesale. That is this page's entire job; not every doc can say that.
+Birb be dancing
 
 ```js
 // The canonical ten, via terminal-parrot (MIT).
