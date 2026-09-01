@@ -10,7 +10,7 @@ First of all, congrats on beating your 40-300 million compatriots on your way to
 
 ## Love and Peace
 
-To maintain love and peace, send an email to loveandpeace@aragonite.dev. The address may or may not exist.
+To maintain love and peace, send an email to loveandpeace@aragonite.dev (this address may or may not exist).
 
 ---
 
