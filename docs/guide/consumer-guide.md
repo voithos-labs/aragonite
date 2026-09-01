@@ -218,12 +218,12 @@ Runs an editor command by name at the focused surface, no keystroke involved. Th
 The ids you can pass:
 
 - **`TOOLBAR_COMMANDS`** (exported from the barrel) names what a selection toolbar needs: strong, emphasis, strikethrough, inline code, and the link editor. The rest of the built-in command vocabulary stays internal for now.
-- **A plugin's global command name** is a valid id too (`registerGlobalCommand` mints it process-wide, see the [plugin guide](plugin-guide.md)), and it resolves ahead of the focused block, so a host can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command is the one that stays keyboard-only.
+- **A plugin's global command name** is a valid id too (`registerGlobalCommand` mints it process-wide; minted: created by the one authorized place, where a duplicate throws; see the [plugin guide](plugin-guide.md)), and it resolves ahead of the focused block, so a host can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command is the one that stays keyboard-only.
 
 What the boolean means:
 
 - **`true` means the editor claimed the command, not that the edit has landed.** A toggle inside a construct whose markers a preview mode has revealed (see [Presentation modes](#presentation-modes)) settles that reveal first, so read the outcome on the `edit` channel rather than polling `getSource()`.
-- **`false`, and nothing mutates**, for an unknown id, in reading mode, when the command needs a focused block and none is focused, and for the link editor over a selection that spans blocks, since a link mints into one block's offsets and a range gives it none.
+- **`false`, and nothing mutates**, for an unknown id, in reading mode, when the command needs a focused block and none is focused, and for the link editor over a selection that spans blocks, since a link is created within one block's offsets and a range gives it none.
 
 Two behaviors to know before wiring buttons:
 
@@ -343,7 +343,7 @@ Plugins extend the grammar with new block and inline kinds. Writing one is the [
 <Editor {source} {plugins} />
 ```
 
-Units install once at mount, in array order, before the first parse. Build the array at module scope rather than inline in the markup: an inline array re-mints the units on every render, which is harmless (a dev-build warning) but noise you don't need.
+Units install once at mount, in array order, before the first parse. Build the array at module scope rather than inline in the markup: an inline array re-creates the units on every render, which is harmless (a dev-build warning) but noise you don't need.
 
 Installation is **process-global**: the block grammar (the kinds, their components, their parsing rules, their commands) is one shared definition set per JavaScript context, on the `customElements` model, so registering the same kind twice is a conflict rather than a per-instance override. Runtime state is per-instance: selection, undo history, and every transient cache are scoped to one editor, and nothing one instance does reaches another. Mounting several editors on one page is supported; they share one grammar and never any state. Three consequences:
 
@@ -721,7 +721,7 @@ The repository's `SelectionToolbar` component, mounted by the showcase's live mo
 `insertMarkdown(md)` and `getRects()` are a toolbar: one writes, the other positions. Bytes are the API, so every construct is a snippet, including one a plugin contributes, with no new call to learn.
 
 1. **Do not let the button take focus.** The call inserts at the caret, and a button that focuses on press has already destroyed it, so the call returns `false`. Cancel the press default (`onmousedown={(e) => e.preventDefault()}`) so focus never leaves the document, or stash a `getSelection()` snapshot and `setSelection` it back before inserting.
-2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |\n| --- | --- |\n|  |  |\n'`; a fence button `'```lang\n\n```\n'`. There is no per-construct API, so a new kind needs no new call. (A table is also typeable: a lone header row completed with `Enter` mints the same thing, per [Keyboard shortcuts](#keyboard-shortcuts).)
+2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |\n| --- | --- |\n|  |  |\n'`; a fence button `'```lang\n\n```\n'`. There is no per-construct API, so a new kind needs no new call. (A table is also typeable: a lone header row completed with `Enter` creates the same thing, per [Keyboard shortcuts](#keyboard-shortcuts).)
 3. **Position with `getRects()`.** `caretRect()` anchors a bar to the insertion point, `blockRect(path)` to the block. Both are viewport-space snapshots; re-read on the next `selectionChange`.
 4. **Read the result on the `edit` channel**, not on the line after the call: the commit lands on the editor's own flush.
 

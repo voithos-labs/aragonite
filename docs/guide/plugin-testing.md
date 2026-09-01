@@ -1,88 +1,94 @@
 # Testing Your Plugin
 
-How to prove your plugin's bytes survive: round-trip checks, the `@voithos-labs/aragonite/testing` seam, and the conformance kits every registered kind is enrolled in. Authoring itself is [`plugin-guide.md`](plugin-guide.md).
+The testing half of the plugin story: what to check once your block works, and the tools your suite imports from `@voithos-labs/aragonite/testing` to check it. Three neighbouring docs carry what this one leans on:
+
+- [plugin-guide.md](plugin-guide.md): building the plugin in the first place. The `%%parrot` block and the `:::conspiracy` container below are its running examples.
+- [plugin-api.md](plugin-api.md): the catalog of every authoring export, if a name below reads unfamiliar.
+- [consumer-guide.md](consumer-guide.md): the editor's props and instance methods; the mounting section below uses both.
+
+And a map, so you can jump straight at your question:
+
+| Section                                                                   | What it covers                                                                                           |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [Round-trip is the contract](#round-trip-is-the-contract)                 | The three byte checks to write first: without an editor, in a live one, and with your plugin uninstalled |
+| [A blank slate per test](#a-blank-slate-per-test)                         | Why a plugin registers only once per process, and the reset that lets a test suite live with that        |
+| [Turning warnings into failures](#turning-warnings-into-failures)         | Making the editor's dev-mode warnings fail your suite instead of scrolling by                            |
+| [Proving a paste transform is wired](#proving-a-paste-transform-is-wired) | Driving the real paste pipeline over a string, no clipboard involved                                     |
+| [Mounting the editor under jsdom](#mounting-the-editor-under-jsdom)       | Rendering your component in a simulated browser, and the helper that fills the gaps                      |
+| [The conformance kits](#the-conformance-kits)                             | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share    |
+| [The kind checkup](#the-kind-checkup-runkindconformance)                  | The checks every block kind owes: bytes survive, one edit is one undo step, copying invents nothing      |
+| [The container checkup](#the-container-checkup-runcontainerconformance)   | Extra checks for a block that holds other blocks, starring the body line that ends the container early   |
+| [The inline checkup](#the-inline-checkup-runinlinekindconformance)        | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's            |
 
 ## Verifying your plugin
 
-A plugin can look perfect on screen and still be quietly eating bytes, and in a lossless editor that is the only class of bug that actually matters. Screenshots prove nothing here. Verify the damn bytes.
+A plugin can look perfect on screen and still be quietly eating bytes, and in a lossless editor that is the only class of bug that really matters. Screenshots prove nothing here. Verify the damn bytes.
 
-**Round-trip is the contract.** The headless form needs no editor at all, because `parse` and `serialize` both ship on `@voithos-labs/aragonite/plugin`:
+The proof comes in three layers, cheapest first, and this doc walks them in order:
 
-```
+1. **Round-trip checks you write yourself.** Parse, serialize, compare. A few lines, no editor mounted.
+2. **The editor's own warnings, turned into failures.** A dev build already watches your plugin for contract violations; a suite can fail on them.
+3. **The conformance kits.** The same checks every built-in block kind is held to, pointed at your kind. You supply fixtures; the kit supplies the suspicion.
+
+Everything test-specific imports from one subpath, `@voithos-labs/aragonite/testing`, and each export gets its section below.
+
+### Round-trip is the contract
+
+The editor saves a document by concatenating each block's exact source bytes, so the one promise your plugin must keep is `serialize(parse(source)) === source`. Check it three ways:
+
+**Headless.** `parse` and `serialize` both ship on `@voithos-labs/aragonite/plugin`, so the core check needs no editor at all:
+
+```ts
 import { parse, serialize } from '@voithos-labs/aragonite/plugin';
 
 expect(serialize(parse(MY_SOURCE))).toBe(MY_SOURCE);
 ```
 
-Then read the live document back with `editor.getSource()` and confirm it equals what you authored. Then test the case that matters most for a plugin platform: author a document using your directive **with your plugin not registered**. The generic fallback must return it byte-for-byte, so uninstalling a plugin never corrupts a saved document.
+**Live.** Mount an editor over a document that uses your syntax (the [mounting section](#mounting-the-editor-under-jsdom) shows how), read it back with `editor.getSource()`, and compare bytes with what you authored.
 
-**Dev-mode warnings are your guard channel.** The shape checks in [misuse outcomes](plugin-guide.md#misuse-outcomes) only fire in a dev build. Run `vite dev` while developing and watch the console: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, or a collapse probe that contradicts the descriptor all warn there and are silent in production. A clean dev-console round-trip is the signal your plugin is sound.
+**Uninstalled.** Author a document using your syntax, then load it with your plugin **not** registered. The generic fallback must return it byte for byte, so uninstalling a plugin never corrupts a saved document. A `%%parrot` file opened without the parrot plugin renders as plain text: no dancing, but no damage.
 
-### Testing your plugin
+While you iterate, keep a dev build running (`vite dev`) and watch the console. The editor's shape checks ([misuse outcomes](plugin-guide.md#misuse-outcomes)) fire only there: a `rebuildRaw` byte mismatch, an opener that disagrees with the lines it consumed, a collapse probe that contradicts the descriptor. All of them warn in dev and are silent in production, so a clean dev console over a green round-trip is the signal your plugin is sound. A suite can hold that line automatically; [turning warnings into failures](#turning-warnings-into-failures) is the recipe.
 
-The platform is register-once: a plugin's setup writes into process-global registries that throw on a duplicate and never unregister. A test runner reuses one process across cases, so a plugin installed in a second `beforeEach` would collide with the first. The `@voithos-labs/aragonite/testing` subpath exists for exactly this:
+### A blank slate per test
 
-```
+The plugin platform is register-once: setup writes into process-global registries that throw on a duplicate and never unregister. A test runner reuses one process across cases, so a plugin installed in a second `beforeEach` would collide with the first. One export exists for exactly this.
+
+**`resetPluginPlatformForTests()`**
+
+Empties every registry a plugin writes into, so each case re-installs from nothing. Call it, then re-install your plugin's **unit**, the installable package `definePlugin` or `definePluginBlock` returns:
+
+```ts
 import { installPlugins } from '@voithos-labs/aragonite';
 import { resetPluginPlatformForTests } from '@voithos-labs/aragonite/testing';
-import { notePlugin } from './note-kind';
+import { parrotPlugin } from './parrot-plugin';
+
+const parrot = parrotPlugin(); // one unit instance for the whole file
 
 beforeEach(() => {
 	resetPluginPlatformForTests(); // empty the registries
-	installPlugins([notePlugin()]); // the unit, exactly as the `plugins` prop installs it
+	installPlugins([parrot]); // the unit, exactly as the `plugins` prop installs it
 });
 ```
 
-**Install the unit, not the registrar.** `definePluginBlock` generates a setup that does two things, your `register` step and then the component registration, so calling your own `registerNote()` here leaves the kind without a component and `BlockHost` falls back to the raw-editable surface with a dev warning. Your kind's tests then pass against a block that is not yours. Do not do both either: install the unit here and pass a `plugins` array to the mount, and the second install throws, because the register-once throw stays live under test.
+What that clears, and what it deliberately does not:
 
-Reset **then** re-install, because the reset only empties the registries. It clears every non-built-in schema registration (kinds, components, openers, commands, installed plugins), the inline syntax and widget registries, the paste surface and transform pipelines, and the `:::` directive registry. Built-in registrations survive, exactly as in production.
+- Cleared: every non-built-in registration. Kinds, components, openers, completers, commands and keymaps, the inline syntax and widget registries, the paste surfaces and transform pipelines, the `:::` directive registry, and the installed-plugin set.
+- Built-in registrations survive, exactly as in production. One exception: paste surfaces are wiped whole, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset. Parse and round-trip cases are unaffected.
+- Runtime state is untouched: the undo stack, the selection, and any live document are yours to set up.
+- It is test-only and throws outside a detected test environment. Detection is Vitest-specific, so a suite on another runner opts in first with `configureEditorEnv({ isTest: true })` and restores the detected defaults with `resetEditorEnv()`.
 
-Two things it does not restore. It wipes **all** paste surfaces, built-ins included, so a case that pastes into a built-in block after a reset must re-register or skip the reset (parse and round-trip cases are unaffected). And it touches no runtime state: the undo stack, the selection, and the live document are yours to set up. `resetPluginPlatformForTests` is test-only and throws if called outside a detected test environment; detection is Vitest-specific, so a suite on another runner opts in first with `configureEditorEnv({ isTest: true })`.
+**Install the unit, not your register function.** `definePluginBlock` generates a setup that runs your `register` step and then binds the component, so calling your own `registerParrotBlock()` here leaves the kind without a component: the editor falls back to a raw-text surface with a dev warning, and your tests pass against a block that is not yours. Three more identity rules keep a suite honest:
 
-The rest of the subpath, at a glance:
+- Installing the **same unit instance** twice (the `beforeEach` above plus an editor's `plugins` prop, say) is a no-op, which is why the sample builds `parrot` once at module scope.
+- A **different instance under the same name** is kept out by a first-wins rule, with a dev warning naming the loser.
+- Calling your register function directly **beside** a unit install makes the unit's setup re-register your kind, which **throws**. The register-once throw stays live under test on purpose, so the collision fails your suite instead of silently winning.
 
-| Export                                                       | Role                                                                          |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `installEditorDomStubsForTests`                              | Install the browser APIs a mounted editor calls and jsdom lacks               |
-| `applyPasteTransforms`                                       | Run the registered paste pipeline over a string, exactly as a real paste does |
-| `runKindConformance`                                         | The per-kind closure battery                                                  |
-| `checkCopyIsRawByteSlice`                                    | That battery's clipboard executor, drivable directly against a kind           |
-| `runContainerConformance`, `reversedAncestryLeavesRootStale` | The container harness, and the companion that proves its ancestry cell bites  |
-| `runInlineKindConformance`                                   | The inline-rung battery                                                       |
-| `configureEditorEnv`, `resetEditorEnv`                       | Declare a non-Vitest runner a test environment, and restore the defaults      |
-| `setDevWarnSink`                                             | Route every editor dev warning to a callback of yours instead of the console  |
+### Turning warnings into failures
 
-**Testing a paste transform.** `registerPasteTransform` writes into a registry nothing else on the public surface reads, so `applyPasteTransforms(text)` ships beside the reset. It is the very function every clipboard→parse route runs, which is what makes driving it proof that your transform is _wired_ rather than proof that your pure function works:
+The editor reports contract violations it can contain, rather than crash on, as dev warnings under an `[aragonite:…]` console head. A suite that wants those red rather than scrolling past registers a sink:
 
-```
-import { applyPasteTransforms, resetPluginPlatformForTests } from '@voithos-labs/aragonite/testing';
-
-it('converts on paste', () => {
-	registerMyPlugin();
-	expect(applyPasteTransforms(CLIPBOARD_TEXT)).toBe(CONVERTED_TEXT);
-});
-```
-
-**Mounting your component.** A component tier is only really verified mounted, and a jsdom mount is a supported way to do it. Two of the three things standing in the way are jsdom gaps rather than editor requirements, and the helper closes both:
-
-```
-// @vitest-environment jsdom
-import { mount, flushSync } from 'svelte';
-import { Editor } from '@voithos-labs/aragonite';
-import { installEditorDomStubsForTests } from '@voithos-labs/aragonite/testing';
-
-installEditorDomStubsForTests(); // ResizeObserver + scrollIntoView, installed only where absent
-
-const target = document.body.appendChild(document.createElement('div'));
-const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scrollMode: 'host' } });
-flushSync(); // the first render has to land before you can assert on it
-```
-
-`scrollMode="host"` is the third: it drops the editor's own scrollport and the standalone chrome a jsdom box cannot size anyway. Windowing is gated on the height budget alone in either scroll mode, so keep the fixture short. A document tall enough to clear the budget windows here too, and unmounts the very block you are asserting on. From there `target.querySelector` reaches your component's own chrome and `editor.getSource()` is a byte-exact assertion surface.
-
-**Failing on a dev warning.** The editor reports contract violations it can contain rather than throw through dev warnings, which reach the console under an `[aragonite:…]` head. A suite that wants those to fail rather than scroll past registers a sink:
-
-```
+```ts
 import { setDevWarnSink } from '@voithos-labs/aragonite/testing';
 
 const fires = [];
@@ -93,87 +99,157 @@ afterEach(() => {
 });
 ```
 
-`setDevWarnSink` returns the sink it replaced, so a nested harness can restore rather than clear. A registered sink takes reporting over: nothing reaches the console while yours is installed, and each entry carries the guard's `tag`, its `message`, and any `details`.
+`setDevWarnSink` returns the sink it replaced, so a nested harness can restore rather than clear. While a sink is registered it takes reporting over completely: nothing reaches the console, and each entry carries the guard's `tag`, its `message`, and any `details`.
 
-One prerequisite, or the gate is green because it is blind: warnings emit only while the editor env reads as a dev build outside a test runner it recognizes. Vitest is detected automatically; under any other runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true, isTest: false })` (same table, above) in your setup first and `resetEditorEnv()` in teardown.
+One prerequisite, or the gate is green because it is blind: warnings emit only while the editor believes it is in a dev build. A Vitest suite gets that automatically, because its build resolves the dev flag. Under another runner, or a bundler that resolves no export conditions, call `configureEditorEnv({ isDev: true })` in your setup (add `isTest: true` if the suite also uses the reset) and `resetEditorEnv()` in teardown.
 
-### The conformance battery — registering a kind enrolls it
+### Proving a paste transform is wired
 
-`runKindConformance(kind)` executes the headless half of your kind's `closure` block. It derives one cell per cross-cutting system from the block and your `conformanceFixture`, and runs the part that needs no browser now: it round-trips the fixture (and, for a container, checks `rebuildRaw` is deterministic), holds Backspace-merge eligibility to your `mergeRole`, confirms an `inherit-default` clipboard copies as a plain byte slice, checks one structural op is one undo entry, and asserts a `not-supported` search cell genuinely finds nothing. Cells whose mechanism only exists in the browser (focus, selection and search paint, reorder, the simulation oracle) are recorded `boundary`, run by the e2e sweep rather than stubbed green.
+`registerPasteTransform` writes into a registry nothing else on the public surface reads, so the subpath ships the driver: `applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs. Driving it proves your transform is **wired**, not merely that your pure function works:
 
-```
-import { runKindConformance } from '@voithos-labs/aragonite/testing';
+```ts
+import { applyPasteTransforms } from '@voithos-labs/aragonite/testing';
 
-it('my kind conforms', async () => {
-	await runKindConformance(declaredPluginKind(MY_KIND));
+it('converts on paste', () => {
+	expect(applyPasteTransforms(CLIPBOARD_TEXT)).toBe(CONVERTED_TEXT);
 });
 ```
 
-**The fixture contract**, because two executors depend on it and only a thrown assertion would otherwise teach it: your `conformanceFixture` must parse to your kind at **`children[0]`**, and the undo and clipboard cells build their document by **appending** a sentinel block after it. A fixture that puts your kind anywhere but first fails the clipboard cell, and a kind that can only appear somewhere other than the document top is not enrollable in those two cells as they stand.
+(The plugin is installed by the `beforeEach` from [a blank slate per test](#a-blank-slate-per-test); the transform rides along with the rest of the unit's setup.)
 
-It resolves with a per-cell report and throws naming every failed cell, so a `conformanceFixture` that stops parsing to your kind, or a closure cell that lies about a mechanism the runner can observe, fails the moment you register it. Where a cell claims a mechanism the runner cannot reach generically (a kind-specific copy, say), supply a check for it: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })`, where `ctx` hands you the parsed fixture and the kind's node.
+### Mounting the editor under jsdom
 
-The mounted-DOM cells (focus, selection paint, search paint) are executed for you: a browser conformance sweep enrolls every registered kind that declares a `conformanceFixture`, so the moment your kind registers with one it is driven headfully for caret walk-through, cross-block selection painting, and search-match painting.
+A component is only really verified mounted, and a jsdom mount is a supported way to do it. Three things stand in the way; two are jsdom gaps, and `installEditorDomStubsForTests` closes both by stubbing the browser APIs a mounted editor calls and jsdom lacks (`ResizeObserver` and `scrollIntoView`), each only where absent, so the call is inert in a real browser:
 
-### Conformance-testing a container
+```ts
+// @vitest-environment jsdom
+import { mount, flushSync } from 'svelte';
+import { Editor } from '@voithos-labs/aragonite';
+import { installEditorDomStubsForTests } from '@voithos-labs/aragonite/testing';
 
-If your plugin registers a **container** kind, `@voithos-labs/aragonite/testing` also publishes the harness the built-in containers are held to, which is the same checks pointed at your own kind. It is the fastest way to find out whether your container behaves like a first-class one:
+installEditorDomStubsForTests();
 
-| Cell                  | What it holds you to                                                                                                                                                                                                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `localIndex`          | Children are addressed by their **local** index at each nesting level, not a global offset                                                                                                                                                                                                                    |
-| `ancestry`            | An edit deep inside rebuilds raw inner→outer, so the root's `raw` reflects the leaf change                                                                                                                                                                                                                    |
-| `multiScope`          | One logical multi-scope op pushes exactly **one** undo entry                                                                                                                                                                                                                                                  |
-| `focusBubble`         | A boundary focus event bubbles to the root and terminates — no loop, no double-escape                                                                                                                                                                                                                         |
-| `terminatorCollision` | A body line reproducing your container's own terminator stays inside it                                                                                                                                                                                                                                       |
-| `declarations`        | Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` runs — and, if you declare `contentStartSpace`, that it re-emits the marker's trailing space on a content line (the declaration consumes the user's space, so a rebuild that does not give it back eats a byte) |
-
-`terminatorCollision` is new, and **required**: a profile written before it stops compiling until the cell is declared. Assert it and supply a `terminatorCollisionFixture` (body bytes carrying a line that reproduces your terminator), or declare it `exempt` with a reason if nothing a body can hold could ever reproduce your terminator; the paragraph below the example says which of those you are. The fixture's `bodyRaw` names the bytes a **user types**, not the bytes that reach the tree: the kit writes them through your `bodyWrite` rule, the same door a real commit uses.
-
-You supply the fixtures, because the kit parses its way to your kind. So register the plugin first, then hand it Markdown that produces your container:
-
+const target = document.body.appendChild(document.createElement('div'));
+const editor = mount(Editor, { target, props: { source: MY_SOURCE, plugins, scrollMode: 'host' } });
+flushSync(); // the first render has to land before you can assert on it
 ```
+
+`scrollMode: 'host'` is the third thing: it drops the editor's own scroll container and the chrome a jsdom box cannot size anyway ([host scroll mode](consumer-guide.md#host-scroll-mode)). And keep the fixture document short. The editor stops mounting blocks past an estimated-height budget in either scroll mode, jsdom reports a zero-height viewport, and a fixture tall enough to trip that unmounts the very block you are asserting on. From there `target.querySelector` reaches your component's own markup and `editor.getSource()` is a byte-exact assertion surface.
+
+### The conformance kits
+
+Conformance here means: your kind behaves the way the built-in kinds are required to behave, under the same checks. Three kits ship on the subpath, one per tier (block kind, container, inline syntax), and they share a vocabulary:
+
+- Each kit runs **cells**, one check per behavior, and each cell is covered one of three ways. `assert` runs the real check. `exempt` means the invariant has nothing to bite on for your kind (there is no such operation to test). `boundary` means checking it needs something headless code cannot reach (a browser, a mounted component).
+- An excused cell is **declared, never skipped**, and both excuse modes demand a reason that is a real sentence; a bare token fails the run. An excuse the kit can falsify, it falsifies.
+- Every kit resolves with a report of what was asserted and what was excused, and throws a plain `Error` naming every failed cell otherwise, so a run drops straight into a test case under any runner.
+
+### The kind checkup: `runKindConformance`
+
+**`runKindConformance(kind, profile?)`**
+
+Takes your kind (the value `declaredPluginKind` returns) and executes the headless half of its `closure` block, the descriptor field where every kind answers the cross-cutting editor systems ([the closure block](plugin-guide.md#the-closure-block)). One cell per system, derived from your declarations and your `conformanceFixture`. What runs now, with no browser:
+
+- The fixture round-trips, and a kind declaring `rebuildRaw` also has it checked twice over: it re-emits the parsed bytes exactly, and it emits the same bytes on every run.
+- Backspace-merge eligibility is held to your declared `mergeRole`.
+- A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind exercised at both ends of the selection sweep.
+- An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
+- A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
+
+Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, the simulation oracle) are recorded `boundary`, never stubbed green; a browser conformance sweep enrolls every registered kind that declares a `conformanceFixture` and drives those in a real browser. For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
+
+```ts
+it('parrot conforms', async () => {
+	await runKindConformance(declaredPluginKind(PARROT));
+});
+```
+
+**The fixture contract.** Your `conformanceFixture` must hold your kind inside its **first** top-level block, or the run fails outright: the undo and clipboard cells drive the fixture's first block and ride a throwaway neighbour block the kit adds beside it (after it for the undo cell, on each side in turn for the clipboard cell). A kind that only ever appears nested still enrolls, seated inside the first block; its clipboard cell then reports `boundary`, because its bytes are copied as part of the enclosing container.
+
+Where a cell claims a mechanism the runner cannot reach generically (a kind-specific copy, say), supply the check yourself: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })`, where `ctx` hands you the parsed fixture and your kind's node. A custom check is accepted only on a cell declared `implemented`; anywhere else it would contradict the declaration and silence the executor for the mode you declared.
+
+The clipboard executor is also exported on its own as `checkCopyIsRawByteSlice(kind, fixture)`, for driving that one check directly in a regression test.
+
+### The container checkup: `runContainerConformance`
+
+**`runContainerConformance(kind, profile)`**
+
+The harness the built-in containers are held to, pointed at your own container kind. The profile carries your fixtures plus a coverage declaration per cell; the kit parses its way to your kind, so register the plugin before running it. The cells:
+
+| Cell                  | What it holds you to                                                                                                                                                                                                                                                                                                                                           |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `localIndex`          | Children are addressed by their index inside your container at each nesting level, not by a document-wide count                                                                                                                                                                                                                                                |
+| `ancestry`            | An edit deep inside rebuilds bytes innermost-first, so the outermost block's raw reflects the leaf change                                                                                                                                                                                                                                                      |
+| `multiScope`          | One operation spanning two nesting levels pushes exactly one undo entry. The kit only owns such an operation for the built-in list and table, so a plugin kind declares this cell `exempt`                                                                                                                                                                     |
+| `focusBubble`         | A focus move leaving your top edge reaches the document root exactly once, with no loop and no double-escape                                                                                                                                                                                                                                                   |
+| `terminatorCollision` | A body line reproducing your container's own closing line stays inside the container                                                                                                                                                                                                                                                                           |
+| `declarations`        | The kit's own cell, always on. Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` re-emits the parsed bytes and answers its changed-child shortcut with the same bytes as a full rebuild, `bodyWrap` matches what your parse does, and a declared `contentStartSpace` gives the user's space back on a content line |
+
+You supply the fixtures. For the guide's `:::conspiracy` container ([the walkthrough](plugin-guide.md#walkthrough-a-conspiracy-container-end-to-end)), a full profile looks like this:
+
+```ts
+import { declaredPluginKind } from '@voithos-labs/aragonite/plugin';
 import { runContainerConformance } from '@voithos-labs/aragonite/testing';
 
-it('my container conforms', async () => {
-	await runContainerConformance(declaredPluginKind(MY_KIND), {
+it('the conspiracy container conforms', async () => {
+	await runContainerConformance(declaredPluginKind('conspiracy'), {
 		// A nesting where your kind is an ancestor of a deep editable leaf.
-		deepNesting: { source: OUTER_WRAPPING_INNER, leafPath: [0, 1, 1] },
+		deepNesting: {
+			source: ':::conspiracy The moon is a hologram\n> projected from a warehouse in Nevada\n:::\n',
+			leafPath: [0, 1, 0]
+		},
 		// The chain of container indices down to your kind, and which child to edit.
-		localIndexFixture: { source: OUTER_WRAPPING_INNER, containerChain: [0, 1], targetChild: 2 },
-		focusSource: ONE_OF_MY_CONTAINERS,
-		// Body bytes carrying a line that reproduces your terminator.
-		terminatorCollisionFixture: { source: ONE_OF_MY_CONTAINERS, bodyRaw: 'before\nMY_TERMINATOR\nafter\n' },
+		// Nested fences need the outer one longer, hence the four colons.
+		localIndexFixture: {
+			source:
+				'::::conspiracy Big Bird is three kids in a coat\neyewitness sketch\n:::debunked The coat theory\nwool receipts\nthe coat has an alibi\n:::\n::::\n',
+			containerChain: [0, 2],
+			targetChild: 2
+		},
+		focusSource: ':::conspiracy Elvis works at the DMV\nhe renews his own license\n:::\n',
+		// Body bytes carrying a line that reproduces the terminator. Evidence that
+		// ends the conspiracy: very on brand.
+		terminatorCollisionFixture: {
+			source: ':::conspiracy Birds are drones\nthey never land near me\n:::\n',
+			bodyRaw: 'exhibit A\n:::\nexhibit B never made it out\n'
+		},
 		localIndex: { mode: 'assert' },
 		ancestry: { mode: 'assert' },
-		multiScope: { mode: 'exempt', reason: 'my container owns no ≥2-scope op — its inner ops are single-scope' },
+		multiScope: { mode: 'exempt', reason: 'no conspiracy op edits two nesting levels at once; every edit lands in one child' },
 		focusBubble: { mode: 'assert' },
 		terminatorCollision: { mode: 'assert' }
 	});
 });
 ```
 
-Pick a **non-first** child at a **non-zero** chain position for `localIndexFixture`. At chain `[0, 0]` / child 0 a local path and a flat global offset are the same number, and the check proves nothing.
+Two notes on those fixtures. `localIndexFixture` must edit a non-first child **or** descend through a non-zero chain position; at chain `[0, 0]`, child 0, a local path and a flat global offset are the same number and the check proves nothing (the fixture above does both, since Big Bird deserves rigor). And `terminatorCollisionFixture.bodyRaw` names the bytes a **user types**, not the bytes that reach the tree: the kit writes them through your `bodyWrite` rule, the same route a real commit uses.
 
-`terminatorCollision` is the one most container authors have not considered. If your container wraps body bytes between an opener and a terminator, a body line that reproduces that terminator closes it early, and everything below leaves the container the next time the document is parsed. Byte round-trip does not catch it: the bytes are re-emitted verbatim either way, and only the live tree disagrees with them.
+**`terminatorCollision` is the cell most container authors have not considered**, and the profile type requires a declaration, so a profile written before the cell existed stops compiling until you answer it. If your container wraps body bytes between an opener and a closing line, a body line that reproduces that closing line ends it early, and everything below leaves the container the next time the document is parsed. Byte round-trip cannot catch it: the bytes are re-emitted verbatim either way, and only the live tree disagrees with them, which is why this cell's oracle is convergence (the live tree must agree with a fresh parse of its own bytes) rather than a byte comparison.
 
-Three repairs, by terminator shape. A **fence-shaped** terminator escalates: the `:::` containers lengthen their fence past the body's runs, which the editor does for you. A **strip** container is immune, because it prefixes every line it emits. A **fixed-token** terminator such as an HTML close tag can do neither, and repairs the collision with [`bodyWrite`](#making-body-bytes-legal-bodywrite) instead: it rewrites the offending bytes on the way IN, so the child's own `raw` carries the rewrite and nothing diverges. Declare the cell `exempt` only when nothing a body can hold could reproduce your terminator at all. A **childless** container whose body lives in metadata drives the same cell through the optional `TerminatorCollisionFixture.writeBody` instead of a last-child write, so the collision probe reaches a body no child carries.
+Whether you may excuse it, and how to fix a real collision, depends on your terminator's shape:
 
-Escaping at the **rebuild** is the one thing that does not work, and it is the tempting one: an opaque container's `raw` is checked against its live children, so rewriting a child on the way out reads as staleness. The write sink is early enough that no such gap exists.
+- **Fence-shaped** terminators escalate: the `:::` containers lengthen their fence past the body's runs, and the editor does that for you, so the conspiracy above asserts the cell and passes without writing a line.
+- A **strip** container (one that prefixes every line it emits, the blockquote shape) is immune, and is the one shape allowed to declare the cell `exempt`. An opaque container may not: the `declarations` cell fails a profile that tries.
+- A **fixed-token** terminator, an HTML close tag say, can neither escalate nor prefix; it repairs the collision with [`bodyWrite`](#making-body-bytes-legal-bodywrite), rewriting the offending bytes on the way **in**, so the child's own raw carries the rewrite and nothing diverges.
+- A **childless** container whose body lives in metadata supplies the optional `writeBody` on the fixture, so the collision probe reaches a body no child carries.
 
-Every cell is `assert`, `exempt`, or `boundary`. A cell you cannot assert is declared, not skipped: `exempt` means the invariant has nothing to bite on (no multi-scope op exists), `boundary` means asserting it would need something the harness cannot reach (a mounted component, a DOM). Both demand a substantive `reason`, and a thin one fails the run, so an exemption stays visible instead of quietly hollowing the harness out. A profile must keep at least one asserting behavioral cell, or excuse itself whole through the optional `wholeProfileExemption` with the same documented-reason bar. The call resolves with a report of what was asserted and what was excused; it throws an `Error` naming every failed cell otherwise, so it drops straight into a test case under any runner.
+Escaping at the rebuild is the one repair that does not work, and it is the tempting one: an opaque container's raw is checked against its live children, so rewriting a child on the way out reads as staleness. The write sink is early enough that no such gap exists.
 
-One companion worth asserting alongside it: `reversedAncestryLeavesRootStale(profile)` must be `true` for a container whose `rebuildRaw` reads only its direct children. It rebuilds outer-first on purpose and checks the root went **stale**, which is what proves your `ancestry` cell is testing something rather than passing by construction.
+Two things finish the profile. A profile must keep at least one asserting behavioral cell, or excuse itself whole through the optional `wholeProfileExemption`, with the same real-sentence reason bar and only when no cell asserts. And one companion is worth a line in the same test: `reversedAncestryLeavesRootStale(profile)` must be `true` for a container whose `rebuildRaw` reads only its direct children. It rebuilds outermost-first on purpose and checks the root went stale, which is what proves your `ancestry` cell tests something rather than passing by construction; a container that re-derives its whole subtree from scratch returns `false`, and excuses `ancestry` instead.
 
 #### Declaring the wrap: `bodyWrap`
 
-A container whose opener parses its body through `parseContainerBody` declares the same wrap as `container.bodyWrap`. The parse peels the blank line against your opener into `innerPrefix`, so that line is the wrap's rather than an empty first row, and the editor's separator settle has to know it, or a delete that frees a blank line above your body head drops the line the peel eats and the head block disappears on the next load. Declare it and the two agree; the container conformance kit probes the parse and fails a declaration that does not match. A strip container whose body starts at its own first line (a blockquote shape) declares nothing, and must therefore carry no `innerPrefix`, since the node-shape guard fails a wrap-less container that fills that slot.
+A container whose opener parses its body through `parseContainerBody` declares the same wrap as `container.bodyWrap`, and the `declarations` cell probes your parse in both directions, failing a declaration that does not match what the parse actually does. Why the editor needs to be told at all:
+
+- The parse peels the blank line against your opener into `innerPrefix`, so that line belongs to the wrap rather than being an empty first row. The editor's blank-line bookkeeping has to know that, or a delete that frees a blank line above your body's first block eats the line the peel owns, and that block disappears on the next load.
+- A strip container whose body starts at its own first line declares nothing, and must then carry no `innerPrefix` either: the node-shape guard fails a wrap-less container that fills that slot.
+- A childless container whose body lives in metadata has no body child to peel a line from, so it declares nothing too, and the kit fails a declaration there as well.
 
 #### Making body bytes legal: `bodyWrite`
 
-A container kind declares `bodyWrite` when its body's bytes carry grammatical meaning it owns:
+A container kind declares `bodyWrite` when its body's bytes can carry grammar the container itself owns:
 
-```
+```ts
 container: {
 	contract: 'opaque',
 	rebuildRaw: rebuildMyRaw,
@@ -184,50 +260,67 @@ container: {
 }
 ```
 
-`normalize` is applied to every byte destined for the body, at the tree-op write sinks, **ahead of the reparse that decides the child's kind**, which is what makes it work where a rebuild-time rewrite cannot: the kind a write lands on is the kind its committed bytes describe. It must be **idempotent** (a re-commit of already-legal bytes changes nothing) and **line-local** (it may read the whole raw to decide _which_ lines to rewrite, but never moves bytes across a line boundary). `mapOffset` is its caret image, so a surface whose committed bytes differ from what the user typed still seats the caret on the bytes; the pair ships as one object because a rewrite without its caret image strands the caret.
+`normalize` runs over every byte destined for the body, at the tree-operation write sinks, **ahead of the reparse that decides the child's kind**. That order is what makes it work where a rebuild-time rewrite cannot: the kind a write lands on is the kind its committed bytes describe. Two rules bind it:
 
-Two rules of thumb from the bundled `details` container. Ask the **grammar**, not your own spelling: what breaks the container is everything the Markdown spec hands to raw-HTML passthrough (indented, upper-cased and trailing-space spellings included), which is looser than the canonical form your `rebuildRaw` emits, and `htmlBlockTagLineMatcher` from `@voithos-labs/aragonite/plugin` answers that question for a tag name. And rewrite the **minimum**: `details` escapes one `<` to `&lt;`, which renders as the literal tag both in the editor and on GitHub while matching no tag line, so the author sees what they typed.
+- **Idempotent**: re-committing already-legal bytes changes nothing.
+- **Line-local**: it may read the whole raw to decide which lines to rewrite, but it never moves bytes across a line boundary.
 
-### Conformance-testing an inline rung
+`mapOffset` is the rewrite's caret image: where a caret sitting at some offset in the typed bytes ends up in the committed ones. The pair ships as one object because a rewrite without its caret image strands the caret.
 
-If your plugin registers inline syntax, `runInlineKindConformance` is the same idea one layer down: register the rung, then point the kit at its trigger and prefix and it drives the behaviors a rung can break without moving a byte.
+Two rules of thumb from the bundled `details` container. Ask the **grammar**, not your own spelling: what breaks that container is everything the Markdown spec hands to raw-HTML passthrough, indented, upper-cased and trailing-space spellings included, which is looser than the canonical form your `rebuildRaw` emits, and `htmlBlockTagLineMatcher` from `@voithos-labs/aragonite/plugin` answers that question for a tag name. And rewrite the **minimum**: `details` escapes one `<` to `&lt;`, which renders as the literal tag both in the editor and on GitHub while matching no tag line, so the author still sees what they typed.
 
-| Cell             | What it holds you to                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------- |
-| `claims`         | Every fixture you supply is actually claimed by **your** rung                                     |
-| `roundTrip`      | Your fixtures and the kit's interleavings of them round-trip, and your claims tile the scan range |
-| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it                  |
-| `widget`         | Your claimed bytes are one atomic unit, and your island carries the span the caret walk reads     |
-| `editingPolicy`  | Your widget's editing declaration is in the vocabulary the caret-edge dispatch actually reads     |
-| `imageClaim`     | A rung minting a built-in kind carries the `rewriteImage` hook the write paths need               |
-| `registration`   | Your rung is actually registered where your profile says it is                                    |
+### The inline checkup: `runInlineKindConformance`
 
-```
+**`runInlineKindConformance(profile)`**
+
+The same idea one layer down: register your rung (one level in the ordered ladder of recognizers consulted for your trigger), then point the kit at it and it drives the behaviors a rung can break without moving a byte. The profile's fields, before the cells:
+
+- `trigger`: the single character you registered on.
+- `prefix`: your multi-character opener. Omit it for a bare-trigger registration.
+- `priority`: only when two rungs share a prefix at different priorities; it says which one is yours.
+- `kind`: the inline kind you mint (minted: created by the one authorized place; a duplicate throws). Omit it for a recognizer that only builds built-in nodes over its own bytes.
+- `fixtures`: single-line sources your recognizer claims; `overlapFixtures`: sources it must decline (the star cell below).
+
+The cells:
+
+| Cell             | What it holds you to                                                                                                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claims`         | Every fixture you supply is actually claimed by **your** recognizer, starting at your own prefix                                                                      |
+| `roundTrip`      | Your fixtures, and the kit's interleavings of them with other syntax, round-trip, and your claims tile the scanned range with no gap                                  |
+| `overlapDecline` | Where your prefix also opens something the built-in scanner owns, you decline it                                                                                      |
+| `widget`         | Your claimed bytes are one atomic unit, and your rendered widget spans exactly the bytes it stands for                                                                |
+| `editingPolicy`  | Your widget's editing declaration exists, is in the vocabulary the caret-edge dispatch actually reads, and (for one-press delete) leaves bytes behind that round-trip |
+| `imageClaim`     | A rung whose recognizer builds built-in nodes carries the `rewriteImage` hook the write paths need                                                                    |
+| `registration`   | Your rung is actually registered where your profile says it is                                                                                                        |
+
+`claims`, `roundTrip`, and `registration` always run; the other four you declare. For the [guide's](plugin-guide.md#inline-kinds) `![[…]]` embed, in the variant that mints its own kind:
+
+```ts
 import { runInlineKindConformance } from '@voithos-labs/aragonite/testing';
 
-it('my rung conforms', () => {
+it('the embed recognizer conforms', () => {
 	runInlineKindConformance({
 		trigger: '!',
 		prefix: '![[',
-		kind: declaredPluginInlineKind(MY_KIND),
+		kind: declaredPluginInlineKind(EMBED),
 		fixtures: ['![[cat.png]]', 'see ![[cat.png|300]] here'],
 		overlapFixtures: ['![[a]](https://x.dev)'],
 		overlapDecline: { mode: 'assert' },
 		widget: { mode: 'assert' },
 		editingPolicy: { mode: 'assert' },
-		imageClaim: { mode: 'exempt', reason: 'the rung mints only its own kind, which the scan leaves unstamped' }
+		imageClaim: { mode: 'exempt', reason: 'this recognizer builds only its own kind, never a built-in one' }
 	});
 });
 ```
 
-`fixtures` is required and non-empty, and a fixture your rung does not claim **fails** rather than being skipped: every cell below reads the node a fixture produces, so an unclaimed one would enroll your rung without testing it.
+(The guide's other embed variant builds real built-in images; that one asserts `imageClaim` instead, and excuses `widget` and `editingPolicy`, since a built-in kind renders through the built-in widget.)
 
-**`overlapDecline` is the cell most rung authors have not considered, and it is required.** Registering on a reserved trigger (`[`, `!`, `*`, `` ` ``, …) puts your recognizer _ahead_ of the built-in case, so wherever your prefix matches you are claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a rung that claims every `![[…]]` takes it, and the document still round-trips, as a wiki embed nobody ever wrote. Supply the sources where your grammar and a built-in one collide; the kit consults your recognizer at every position the scanner would and requires a decline at each, which is exactly what leaves the built-in reading byte-identical bytes. A rung on a reserved trigger may not excuse this cell at all: the overlap exists by construction.
+`fixtures` is required and non-empty, and a fixture your recognizer does not claim **fails** rather than being skipped: every cell reads the nodes a fixture produces, so an unclaimed one would enroll your syntax without testing it.
 
-The other three cells you declare, because only you know whether they have anything to bite on. But an excuse the kit can falsify, it falsifies. Declaring `imageClaim` exempt while a fixture mints a stamped built-in fails, as does excusing `widget` for a kind that _is_ a registered live widget. A reason is a claim about your rung, not a waiver.
+**`overlapDecline` is the cell most inline authors have not considered, and on a reserved trigger it is required.** Registering on a trigger the built-in scanner owns (`[`, `!`, `*`, `` ` ``, and friends) puts your recognizer ahead of the built-in case, so wherever your prefix matches you are claiming those bytes whether or not they spell something the built-in owns. `![[a]](https://x.dev)` is a plain image whose alt text is `[a]`; a recognizer that claims every `![[…]]` takes it, and the document still round-trips, as a wiki embed nobody ever wrote. Supply the sources where your grammar and a built-in one collide; the kit consults your recognizer at every position the scanner would and requires a decline at each, which is exactly what leaves the built-in reading byte-identical bytes. A rung on a reserved trigger may not excuse this cell at all: the overlap exists by construction.
 
-Two things worth knowing about `widget`. It asserts your claimed slice is **self-delimiting**: re-scanning it alone must re-form the same kind over the whole slice, because that slice is what `data-source-*` hands the clipboard and a source reveal. And where your kind builds its own island (`buildWidget`), it renders your fixture and measures the caret walk, which must equal the source length: a widget counts as its source span, never as what it draws, so an emoji showing one glyph for seven bytes still walks seven. A `component` kind's island is minted by the editor, not by you, so that half does not run and the cell reports `boundary` rather than claiming a pass.
+The other three cells you declare, because only you know whether they have anything to bite on. But an excuse the kit can falsify, it falsifies: declaring `imageClaim` exempt while a fixture produces a stamped built-in fails, as does excusing `widget` for a kind that **is** a registered live widget, or `editingPolicy` for a kind that declares one.
 
-Run it under a DOM (`// @vitest-environment jsdom` for Vitest). Without one the island half cannot run either, and the cell again reports `boundary` naming what you lost; the recognition and self-delimiting halves still execute.
+Two things worth knowing about `widget`. It asserts your claimed slice is **self-delimiting**: re-scanning the slice alone must re-form the same kind over its whole length, because that slice is exactly what the `data-source-*` attributes hand the clipboard and a source reveal. And where your kind builds its own widget DOM (`buildWidget`), the kit renders your fixture and measures the caret walk across it, which must equal the source length: a widget counts as its source span, never as what it draws, so an emoji showing one glyph for seven bytes still walks seven. A `component` kind's wrapper is built by the editor, not by you, so that half does not run and the cell reports `boundary` rather than claiming a pass. Run the suite under a DOM (`// @vitest-environment jsdom` for Vitest); without one the rendering half cannot run either, and the cell again reports `boundary` naming what you lost, while the recognition and self-delimiting checks still execute.
 
-`registration` is the thinnest cell and the one that caught a real bug. `registerInlineSyntax` already refuses most of what it checks at registration: one rung per rung, a prefix long enough for a reserved trigger, a priority under the built-in boundary, a trigger the fast bail visits. So those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your rung not being there at all: a setup step that ran under the wrong guard, or an install order that let another plugin's registration on a shared trigger look like your own. That is what this cell reds on, and it is how the bundled directive tier's own recognizer was found missing.
+`registration` is the thinnest cell and the one that caught a real bug. `registerInlineSyntax` already refuses most bad registrations up front, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your rung not being there at all: a setup step that ran under the wrong guard, or an install order that let another plugin's registration on a shared trigger stand in for yours. That is what this cell goes red on, and it is how the bundled directive text tier's own recognizer was once found missing.
