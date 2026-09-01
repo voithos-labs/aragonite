@@ -1,27 +1,19 @@
 # Friction log
 
-## What this is
+Friction that is real and reproduced but is not a defect: a convention nobody wrote down, a
+doc that sends you the wrong way, a boundary that reads as arbitrary until someone explains
+it. Defects go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues); this
+file is for everything else, the stuff that only exists for a person who does not already
+know the codebase.
 
-Contributor-experience friction that is real and reproduced, but is not a defect: a convention
-nobody wrote down, a doc that sends you the wrong way, a seam that reads as arbitrary until someone
-explains it. Defects go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues). This
-file is for everything else, the stuff that only exists for a person who does not already know the
-codebase.
-
-Entries come from cold-start probes and from anyone who hits one. **If you trip over something
-while getting oriented, write it down here before you understand it.** That sounds backwards and it
-isn't. The moment you work out why the seam is the way it is, the friction goes invisible to you,
-permanently, the same way it is invisible to me. A retired entry earns its keep for the same
-reason: it stops the finding from being rediscovered as new.
+Entries come from cold-start probes (sessions where someone who has never seen the repo
+tries to get something done) and from anyone who trips. **If you trip over something while
+getting oriented, write it down here before you understand it.** Sounds backwards, isn't:
+the moment you work out why a thing is the way it is, the friction goes invisible to you,
+permanently, same as it is to me. Retired entries stay in the table for the same reason,
+so the finding doesn't get rediscovered as new.
 
 ## Open
-
-**`docs/design/invariants.md` is a catalog you cannot read in a plain-text view.** Its table cells
-run to hundreds of characters, plenty of them past a thousand, so a row that reads fine in a
-rendered browser view is an unbroken wall in an editor, a terminal, or a diff. The catalog is
-correct and load-bearing, which is exactly why the reading cost matters: it is the document you
-most need to read, in the place you can least read it. Closing it means a shape that survives both
-views, most likely a short table plus per-entry prose below it, not shorter statements.
 
 **The cross-block keydown twin is documented in the code but not on the road that leads to it.**
 The first-press arm and the already-cross-block arm carry the identical chord set, and the source
@@ -44,13 +36,14 @@ the task.
 
 ## Retired
 
-| Friction                                                                                              | Retired by                            |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| No dev-warning taxonomy: console output was undifferentiated, and nothing said what fails             | `067a08f6b` (warnings.md)             |
-| The dirty-tree convention was unwritten, so an uncommitted call site read as precedent                | `5a0904937` (CONTRIBUTING quickstart) |
-| The reveal road was a chain of nine names in one paragraph, with no picture of the flow               | `56e69b60d` (map diagram)             |
-| Keyboard and chord dispatch had no single explanation of tiers, `Mod` folding, or the manifest        | `14325665e`                           |
-| The miss-analysis convention did not say where a unit-level one lives                                 | `d4cffb6df`, `e89934ced`              |
-| `docs/design/editor.md` gave no reading tier, so orientation read as all-or-nothing                   | `d4cffb6df`                           |
-| The consumer guide listed no keyboard shortcut table                                                  | `12cbc45db`                           |
-| `consumer-smoke` ran on pull requests and `main` only, so a `dev` break surfaced on someone else's PR | `0d46e7413` (consumer-smoke.yml)      |
+| Friction                                                                                                                                          | Retired by                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| No dev-warning taxonomy: console output was undifferentiated, and nothing said what fails                                                         | `067a08f6b` (warnings.md)                                        |
+| The dirty-tree convention was unwritten, so an uncommitted call site read as precedent                                                            | `5a0904937` (CONTRIBUTING quickstart)                            |
+| The reveal road was a chain of nine names in one paragraph, with no picture of the flow                                                           | `56e69b60d` (map diagram)                                        |
+| Keyboard and chord dispatch had no single explanation of tiers, `Mod` folding, or the manifest                                                    | `14325665e`                                                      |
+| The miss-analysis convention did not say where a unit-level one lives                                                                             | `d4cffb6df`, `e89934ced`                                         |
+| `docs/design/editor.md` gave no reading tier, so orientation read as all-or-nothing                                                               | `d4cffb6df`                                                      |
+| The consumer guide listed no keyboard shortcut table                                                                                              | `12cbc45db`                                                      |
+| `consumer-smoke` ran on pull requests and `main` only, so a `dev` break surfaced on someone else's PR                                             | `0d46e7413` (consumer-smoke.yml)                                 |
+| `docs/design/invariants.md` was a catalog unreadable in plain text: cells ran past a thousand characters, a wall in any editor, terminal, or diff | `2f865eb60` (the catalog reshape: index tables, per-entry prose) |

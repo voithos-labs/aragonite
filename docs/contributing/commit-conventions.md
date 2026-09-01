@@ -34,23 +34,27 @@ Those per-change lines are subject lines in their own right and carry every line
 
 ## The shape is enforced
 
-`scripts/lint-commit-message.mjs` holds the only definition of the shape above, behind two doors:
+`scripts/lint-commit-message.mjs` holds the only definition of the shape above, and the same
+script runs at two checkpoints, so nothing above depends on you remembering it:
 
-| Door              | Where                                                                                 | Catches                                   |
+| Checkpoint        | Where                                                                                 | Catches                                   |
 | ----------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `commit-msg` hook | `.githooks/`, wired by `npm install` (a `prepare` script sets git's `core.hooksPath`) | every local commit, before it exists      |
 | CI step           | the `unit` job, over the pull request's own commits                                   | a contributor who never ran `npm install` |
 
 What it reads:
 
-- line 1: symbol, an optional `(lowercase,scope)`, text that does not open uppercase, no trailing period, at most 72 characters
+- line 1: symbol, an optional `(scope)` (lowercase; digits, commas, `/` and `-` allowed), then the text, no trailing period, at most 72 characters. The text may open with an identifier (`G1.38`, `CST`, `WebKit`); what gets rejected is an ordinary capitalized word
 - line 2, when anything follows: blank
 - the body: either per-change lines, where **every** line is symbol-prefixed and held to the line-1 rules, or prose, at most 3 lines of at most 100 characters
-- no `Co-Authored-By` or "Generated with" trailer
+- no `Co-Authored-By` or "Generated with" trailer, anywhere
 
-Exempt, because no convention of ours writes them: `Merge …`, `Revert "…"`, and dependabot's `Bump …` and `build(deps…`.
+Exempt, because no convention of ours writes them: `Merge …`, `Revert "…"`, dependabot's
+`Bump …` and `build(deps…`, and git's own `fixup!` / `squash!` (those never reach a pull
+request unsquashed, and the CI checkpoint catches a leftover).
 
-To read the verdict before you open a pull request:
+To read the verdict yourself before you open a pull request (the same line works in bash
+and PowerShell):
 
 ```bash
 node scripts/lint-commit-message.mjs --range origin/dev..HEAD
