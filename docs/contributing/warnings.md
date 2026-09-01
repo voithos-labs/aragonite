@@ -1,109 +1,83 @@
 # Dev warnings
 
-## What this is
+In a dev build the editor talks to you through the console - don't ignore them, most of what shows up is a guard telling you something is wrong. This document will introduce
+you to three relevant concepts:
 
-The editor talks to you through the console in dev builds, and almost none of it is chatter. If you
-are used to scrolling past console output, unlearn that here: most of what appears is a guard telling
-you something is already wrong.
+1. the three kinds of console output (a.k.a the three channels) the editor produces in dev (a **guard** warning, a subsystem **diagnostic**, a **Svelte runtime** warning) and how to tell them apart by their prefix.
+2. for each channel, which test gate goes red when it fires (i.e. unit run, e2e run, or nothing).
+3. when a test deliberately triggers a warning (some tests exist to prove a guard works), how it declares "I expected this one" (via `expectWarns` and friends) so the gate doesn't count it as a failure.
 
-So this page says which channel is which, what fails on which one, and how a test claims a fire it
-lit on purpose. The catalog of individual guards is `docs/design/invariants.md`; this is the taxonomy
-sitting above it.
+Fun (?) fact, every guard is catalogued in [`../design/invariants.md`](../design/invariants.md), with what it checks and how hard it is enforced.
 
-## The sentinel
+## One prefix to rule them all
 
-Every warning the editor itself emits goes through one function and comes out under one head:
+Every dev warning the editor emits goes through `devWarn` (`src/lib/dev-warn.ts`) and comes out under one head:
 
 ```
 [aragonite:<tag>] <message>
 ```
 
-The sentinel is deliberate. No page script or dependency shares that prefix, so a browser-side gate
-can fail on ours alone. In production the emitter returns before doing anything, so none of this
-reaches a consumer.
+fyi:
 
-**The funnel is a contract, not a description.** It is what lets the browser gate be sound and what
-keeps a consumer's console ours-free, so library console output that reaches a user outside the
-emitter is a defect to fix at the site, never a fourth channel to document here.
+- there are browser-side gates that depend on these dev warning syntaxes
+- to keep consumer's console clean, in prod build, `devWarn` returns before doing anything
 
-## Three classes
+## The three channels
 
-| Class              | Looks like                               | Means                                                                                                   |
-| ------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Guard**          | `[aragonite:invariant:<name>]`           | A load-bearing contract was violated. Always a defect, yours or the one you just uncovered.             |
-| **Diagnostic**     | `[aragonite:<subsystem>]`                | A seam refused something and degraded gracefully. Usually a defect upstream of it; occasionally benign. |
-| **Svelte runtime** | `[svelte] state_proxy_equality_mismatch` | Raw-versus-proxy identity confusion. No sentinel, because it is not ours.                               |
+| Channel        | Looks like                               | What it means                                                                                                                                                                                                      |
+| -------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Guard          | `[aragonite:invariant:<name>]`           | A contract was violated. Always a defect, yours or one you just uncovered.                                                                                                                                         |
+| Diagnostic     | `[aragonite:<subsystem>]`                | A seam (i.e. boundary; a place where responsibility changes hands from one piece of code to another, so to speak) refused something and degraded gracefully. Usually a defect upstream of it, occasionally benign. |
+| Svelte runtime | `[svelte] state_proxy_equality_mismatch` | Svelte detects code comparing a raw object against its own proxy and emits this warning. (explained in "The proxy-versus-raw one" below)                                                                           |
 
-**Guards.** The `invariant:` namespace is minted by one relay, so a guard fire is structurally
-distinguishable from everything else. Guards never throw, because a false positive must not crash a
-real editor, which is exactly why silence is the only acceptable reading of the channel. Each one is
-catalogued with its predicate and its enforcement rung in `docs/design/invariants.md`.
+To find **guards**, understand that guard sites use `assertInvariant` in `src/lib/assert.ts`. Also note that guards don't throw, because we don't want a false positive to crash the editor.
 
-**Diagnostics.** The tag names the subsystem that refused (the parser, the paste transforms, a
-registry, the reorder primitive, and so on). `grep 'devWarn(' src/lib` for the live vocabulary
-rather than trusting a list here; tags are added with the seams that need them. A diagnostic firing
-during your change is a question to answer, not a line to route around.
+**Diagnostics**, on the other hand, calls `devWarn` from `src/lib/dev-warn.ts` directly. They carry the tag of the subsystem that refused (e.g. `reorder`, `tree-ops`, `decorations`, `registry`, etc.) (to get the list of diagnostic sites and the available subsystems, use `grep -r 'devWarn(' src/lib` or `Get-ChildItem src/lib -Recurse -Include *.ts,*.svelte | Select-String -SimpleMatch 'devWarn('`).
 
-**The Svelte runtime warn** is the one class the sentinel cannot cover, which is why the e2e error
-collector keeps a separate list for it.
+## The proxy-versus-raw one
 
-## The proxy-versus-raw identity class
+When a plain object is written into Svelte's $state, Svelte wraps it in a proxy, and `$state`hands the proxy back on every later read. The proxy and your original raw object are the same node but two different JavaScript identities, so a`===`comparison is false even though both "are" that node. Svelte detects code comparing a raw object against its own proxy and emits`[svelte] state_proxy_equality_mismatch`. In this codebase the usual cause is holding a node copy past the insertion into the live tree (i.e. the CST, see [`syntax-tree.md`](../design/syntax-tree.md)), which is rule 1's incident (see [`rules.md`](rules.md)); remember, re-read through the tree, never keep the copy.
 
-`state_proxy_equality_mismatch` is the warning a contributor here meets first and understands last.
-A node written into the `$state` tree is handed back as a proxy, and the proxy is not `===` the raw
-object you wrote. Any code that keeps the pre-write copy and later compares it against what the tree
-returns is comparing two identities for the same node, and Svelte says so. In this codebase the
-usual cause is a node copy held past the splice that published it, which is rule 1's incident:
-re-read through the tree, never keep the copy (`src/lib/tree-operations/unshare.ts` header owns the
-full statement).
-
-The message is more useful than it looks. In a dev build it embeds the comparison operator that
-tripped it (`===`, `!==`, and so on), so the operator narrows the search to comparison sites of that
-exact spelling. Outside dev the message degrades to a bare documentation URL with no operator, so
-diagnose it in dev.
+fyi, in a dev build the warning's message embeds the comparison operator that tripped it (`===`, `!==`, etc.), which narrows the hunt to comparison sites of that exact spelling; in prod it degrades to a bare documentation URL, so diagnose it in dev.
 
 ## What fails on what
 
-| Gate                    | Watches                                         | Failure unit                                                           |
-| ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
-| Unit suite (Vitest)     | Every `devWarn` fire, through a structured sink | The test that provoked it, unless that test claims it                  |
-| E2E specs (Playwright)  | Console lines carrying the sentinel             | The spec whose page emitted one, at teardown                           |
-| Simulation sessions     | The sentinel plus the Svelte runtime list       | The checkpoint, so a fire surfaces mid-session rather than after       |
-| Playwright's dev server | The server's own console, for a fire during SSR | The whole run, at teardown — only where Playwright launched the server |
+Four things watch the console for these warnings. The unit suite and the e2e specs you have already met; the other two are the **simulation sessions** (long scripted editing runs that type whole documents through real keystrokes, see `testing.md`) and the dev server the e2e suite runs the editor on.
 
-The unit runner registers a sink, which means the console line never happens there. Two consequences
-worth knowing before you debug: a `console.warn` spy will not see dev warnings, and a `vi.mock` of
-the dev-warn module removes the emitter entirely. Either one blinds the gate for that whole file, so
-a source scan (G4.41) fails on both.
+One mechanism to know before the table: under Vitest the console line never happens at all. The test setup registers a **sink** (a function `devWarn` hands entries to instead of printing), and the gate reads that.
 
-The e2e side is bidirectional. A spec that deliberately trips a fire names its tags
-(`expectInvariants` for a guard, `expectWarns` for a diagnostic), and a named tag that stops firing
-fails the spec too, so an expectation cannot quietly outlive its cause.
+| Gate                    | Watches                                                                                                                             | What goes red                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Unit suite (Vitest)     | every `devWarn` fire, through the sink                                                                                              | the test that provoked it, unless that test claims it (next section)                                                      |
+| E2E specs (Playwright)  | console lines carrying the prefix                                                                                                   | the spec whose page emitted one, at teardown                                                                              |
+| Simulation sessions     | the prefix, plus the Svelte runtime warn                                                                                            | the checkpoint the session was at (sessions assert at checkpoints mid-run), so a fire surfaces in context, not at the end |
+| Playwright's dev server | that server's own console, for a fire during SSR (the page rendering on the server, so the warning lands there, not in the browser) | the whole run, at teardown; only when Playwright started the server itself rather than reusing one already running        |
+
+Though, two consequences of the sink:
+
+- a `console.warn` spy sees nothing
+- `vi.mock`ing `$lib/dev-warn` deletes the emitter entirely
+
+Either one blinds the gate for that whole file, so a source scan (G4.41 in `invariants.md`) fails on both.
+
+On the e2e side the expectation runs in both directions: a spec that trips a fire on purpose declares its tags, `test.use({ expectInvariants: ['late-opener-registration'] })` for a guard (the bare tag; `assertInvariant` prepends the `invariant:` half) or `test.use({ expectWarns: ['tree-ops'] })` for a diagnostic. A declared tag that stops firing also fails the spec, so an expectation can't outlive its cause.
+
+And if a fire ever shows up that no gate goes red for, that's a bug in the gate; file it.
 
 ## Claiming a fire in a unit test
 
-Four doors, narrowest first. Prefer the earliest one that fits.
+Some tests light a fire on purpose (a test proving a guard works has to violate the contract). Four ways to claim one, narrowest first; take the earliest that fits:
 
-1. The test's subject **is** the diagnostic: assert on the drained fires directly.
-2. The test needs its fixture's noise out of the way: drain before the part it asserts on.
-3. The test's fixture provokes a fire the test is not about: declare the tag file-scoped, with the
-   reason on the line above.
-4. A benign diagnostic too cross-cutting for any of those joins the shared warn allowlist, which
-   waives a tag at a site for the whole run and only shrinks.
+1. the fire is the test's subject: assert on `takeDevWarns()` directly.
+2. the fixture makes noise before the part you assert on: `drainDevWarns()` first.
+3. the fixture provokes a fire the test is not about: `allowDevWarns([tag])`, file-scoped, reason on the line above.
+4. a benign diagnostic too cross-cutting for any of those goes in `src/lib/test/support/warn-allowlist.json`, which waives one tag at one site for the entire run.
 
-The fourth door blinds its site everywhere, which is why **no `invariant:` fire may take one**. A
-guard that defers its fire past a tick is still attributed to the test that provoked it, so claim it
-inside the test after awaiting a tick, never with a file-scoped declaration.
+Prefer 1 through 3. An allowlist row hides every fire of that tag at that site, real bugs included, which is why the list only shrinks (it is empty right now, and adding the first row is a conversation, not a shrug), and why an `invariant:` fire may never take one.
 
-Two per-file aggregates close what a per-test verdict cannot see: a declared tag that never fires in
-its file reds the file, and a fire arriving after the last test's verdict fails the file rather than
-vanishing.
+In addition,
 
-## Load-bearing versus chatter
+- a guard that defers its fire past a tick still lands on the test that provoked it; claim it inside that test (`await tick()`, then `takeDevWarns()`), never with way 3.
+- per file: a tag declared through `allowDevWarns` that never fires reds the file (a waiver for something that no longer happens is a hole), and a fire arriving after the last test's verdict reds the file instead of vanishing.
 
-Everything above is load-bearing: all three classes fail a gate somewhere, and the allowlist is the
-only waiver in the system. What is genuinely chatter is the rest of the console, Vite's own
-messages, hot-reload notices, and third-party logging, none of which any gate reads.
-
-The practical rule: **if it carries `[aragonite:` or `state_proxy_equality_mismatch`, something is
-wrong.** If a gate is not already red for it, the gap is in the gate.
+The machinery behind all this is in [`testing.md`](testing.md).
