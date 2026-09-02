@@ -1,7 +1,7 @@
 /**
  * The tier × subsystem closure matrix as a type: every block-kind registration carries a
- * `ClosureBlock`, so a blank cell is a compile error (`docs/design/plugin-contract.md` § "The
- * tier × subsystem closure matrix"). Dependency-free leaf — `core/directive/kinds.ts` imports
+ * `ClosureBlock`, so a blank cell is a compile error (`docs/design/plugin-contract.md` § "Editable
+ * content and the closure matrix"). Dependency-free leaf — `core/directive/kinds.ts` imports
  * it, so it must not import back toward core. Honesty rule (coherence-checked by G1.24):
  * `implemented` names a real mechanism; never claim a capability to fill a cell.
  */
