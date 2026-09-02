@@ -105,6 +105,37 @@ export async function revealWidget(widget: Locator): Promise<void> {
 	await expect(widget).toHaveCount(0);
 }
 
+// Aim point for a gesture at a run of characters, which no locator addresses: the center of the
+// first `needle` in a block's rendered text. Measured live, so it reads a revealed source too.
+export async function textRunCenter(
+	page: Page,
+	blockPath: number[],
+	needle: string
+): Promise<Point> {
+	const point = await page.evaluate(
+		({ path, text }) => {
+			const block = document.querySelector(`[data-block-path='${JSON.stringify(path)}']`);
+			const editable = block?.querySelector('[contenteditable]');
+			if (!editable) return null;
+			const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT);
+			let node: Node | null;
+			while ((node = walker.nextNode())) {
+				const at = node.textContent?.indexOf(text) ?? -1;
+				if (at < 0) continue;
+				const range = document.createRange();
+				range.setStart(node, at);
+				range.setEnd(node, at + text.length);
+				const rect = range.getBoundingClientRect();
+				return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+			}
+			return null;
+		},
+		{ path: blockPath, text: needle }
+	);
+	if (!point) throw new Error(`no text run "${needle}" in block ${JSON.stringify(blockPath)}`);
+	return point;
+}
+
 // ── Container read: one container node at a root index + its children ──────
 
 export interface ContainerState {

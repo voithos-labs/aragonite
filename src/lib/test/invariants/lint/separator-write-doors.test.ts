@@ -25,6 +25,8 @@ const TRIVIA_WRITERS: Record<string, string> = {
 		'trivia is positional, so a rotation carries each slot’s line rather than its node’s',
 	'src/lib/tree-operations/blockquote.ts':
 		'head normalization inside a built subtree: a body head separates from nothing',
+	'src/lib/tree-operations/container-lift.ts':
+		'same head normalization, plus the line that stood between the two lifted halves inside the container moving out with them',
 	'src/lib/tree-operations/list/list-builders.ts':
 		'same head normalization, per assembled half and per split-built trailing half',
 	'src/lib/tree-operations/list/sublist-separator.ts':

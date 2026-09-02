@@ -711,7 +711,7 @@
 		revealAnchor,
 		// A navigation holds its pin, unlike the consumer restore door: nothing follows
 		// it that wants the viewport back, and the band should outlive a late decode.
-		landCaretAt: (path) => landCaretAtOffset(path, 0)
+		landCaretAt: landCaretAtOffset
 	});
 
 	// After getDoc so it reuses that one live-doc closure: a second getDoc would be a

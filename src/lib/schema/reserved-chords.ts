@@ -187,6 +187,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Reorder for plugin containers, whose command dispatch is inert.'
 	},
 	{
+		file: 'plugins/footnotes/FootnoteDefinition.svelte',
+		chords: [],
+		keys: [],
+		note: 'Mod-click on the `[^label]` marker jumps back to the reference — no keystroke is consumed.'
+	},
+	{
 		file: 'plugins/footnotes/FootnoteReference.svelte',
 		chords: [],
 		keys: [],

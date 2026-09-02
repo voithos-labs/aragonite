@@ -92,13 +92,18 @@ test.describe('footnote-ops simulation', () => {
 		expect(await editor.bridge.getSource()).toContain('Continued note.');
 		await checkOracles('definition-body-continued');
 
-		// Backspace at the definition's first body child start delegates upward
-		// (not-mergeable) — byte-identical, never an unwrap into loose paragraphs.
+		// Backspace at the definition's first body child start lifts that child out as the
+		// paragraph before the marker; the continuation stays under the marker.
+		const beforeExit = await editor.bridge.getSource();
 		await g.footnoteDefinitionExitBackspace([defIndex, 0]);
 		await checkOracles('definition-exit-backspace');
 
 		// ── Undo unwind across the definition edits and the reference delete ────────
 		await g.pause();
+		await g.undo();
+		expect(await editor.bridge.getSource()).toBe(beforeExit);
+		await checkOracles('undo-exit-backspace');
+
 		await g.undo();
 		await checkOracles('undo-continuation');
 

@@ -28,6 +28,8 @@ math on line 1 and column-aligned text on line 2, for the reveal hit-test.
   invisible select-then-Enter step; a typed char lands before the opening `$`
 - edit the revealed source and walk the caret out of it (End): KaTeX re-renders and
   the edited `$…$` bytes are in the source (round-trip stable)
+- double-click the rendered math: the first click reveals and the whole `$x^2$` token
+  is selected, not the `$` the browser's word rule would take on its own
 
 ## Edge cases
 
@@ -38,6 +40,9 @@ math on line 1 and column-aligned text on line 2, for the reveal hit-test.
   own position does not survive the fold, the widget's trailing edge does
 - Escape after editing: the rendered widget returns carrying the ORIGINAL source and
   the serialized source is byte-identical to the seed — the edit is discarded
+- double-click inside an already-open reveal (`$alpha beta gamma$`): the word under the
+  pointer is taken, not the whole token — the whole-token rule belongs to the double-click
+  that opened the reveal
 - click on real text on another visual line that column-aligns with the widget: the
   caret lands in that text and the widget stays rendered — the reveal hit-test is
   point-in-rect (X and Y), not X-only
@@ -57,6 +62,13 @@ math on line 1 and column-aligned text on line 2, for the reveal hit-test.
 - real CDP IME composition (genuine compositionstart → update → compositionend) into
   the revealed source commits nothing per keystroke; the composed math commits only
   when focus leaves the block
+
+## Miss-analysis
+
+- The double-click inside an open reveal: the whole-token rule shipped with one scenario, the
+  gesture that opens the reveal, so "any double-click while a reveal is open" and "the
+  double-click that opened it" passed the same test. A rule stated over a gesture owes a
+  scenario for that gesture repeated.
 
 ## Error cases
 

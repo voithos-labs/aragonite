@@ -1,13 +1,21 @@
 import { test, expect } from '../../fixtures';
 import type { Locator } from '@playwright/test';
-import { PluginsPage, activeBlockPath, blockView, capturedErrors, type Point } from './helpers';
+import {
+	PluginsPage,
+	activeBlockPath,
+	blockView,
+	capturedErrors,
+	textRunCenter,
+	type Point
+} from './helpers';
 
 /**
  * Jumping between a `[^label]` reference and its definition, both directions
- * (requirements/plugins/footnotes-navigation.md). The gesture is the link gesture: plain click
- * in reading mode, Ctrl/Cmd+click in the editing modes, where a plain click keeps meaning
- * "reveal the source to edit". The definitions sit past the window, so a jump that failed to
- * reveal leaves an unmounted target rather than an off-screen one.
+ * (requirements/plugins/footnotes-navigation.md). Both markers take the link gesture: plain
+ * click in reading mode, Ctrl/Cmd+click in the editing modes, where a plain click keeps its
+ * own meaning (reveal the source on a reference, seat the caret on a definition's marker).
+ * The definitions sit past the window, so a jump that failed to reveal leaves an unmounted
+ * target rather than an off-screen one.
  */
 
 // Capped viewport → the editor is a real scroll container, so the definitions window out and
@@ -34,8 +42,9 @@ class FootnotePage extends PluginsPage {
 	refs(block = 0): Locator {
 		return this.page.locator(`[data-block-path='[${block}]'] .footnote-ref`);
 	}
-	backref(block: number): Locator {
-		return this.page.locator(`[data-block-path='[${block}]'] .footnote-backref`);
+	/** The definition's own `[^label]` marker range: the way back. */
+	defMarker(block: number): Locator {
+		return this.page.locator(`[data-block-path='[${block}]'] .footnote-def-marker`);
 	}
 	async load(md: string): Promise<void> {
 		await this.gotoPlugins('footnotes-ref');
@@ -215,7 +224,9 @@ test.describe('footnote jump: definition back to reference', () => {
 		editor = new FootnotePage(page);
 	});
 
-	test('the back-link mounts the referencing block and lands the caret there', async ({ page }) => {
+	test('Ctrl+click on the marker mounts the referencing block and lands past the citation', async ({
+		page
+	}) => {
 		const { md, defA } = navDoc();
 		await editor.load(md);
 		await editor.setPresentationMode('source');
@@ -227,14 +238,18 @@ test.describe('footnote jump: definition back to reference', () => {
 		// The reference's own block windowed out on the way down, so the return trip mounts it.
 		await expect(page.locator("[data-block-path='[0]']")).toHaveCount(0);
 
-		await editor.backref(defA).click();
+		await editor.defMarker(defA).click({ modifiers: ['Control'] });
 
 		await expect.poll(() => blockView(page, [0])).toEqual({ mounted: true, inView: true });
 		await expect.poll(() => activeBlockPath(page)).toEqual([0]);
+		// Immediately after `[^a]` in `Body has [^a] and …`, not at the block's start.
+		await expect
+			.poll(() => editor.bridge.getSelection())
+			.toMatchObject({ focus: { path: [0], offset: 13 } });
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('reading mode: the back-link takes the same plain click', async ({ page }) => {
+	test('reading mode: the marker takes a plain click', async ({ page }) => {
 		const { md, defA } = navDoc();
 		await editor.load(md);
 		await editor.setPresentationMode('reading');
@@ -242,23 +257,96 @@ test.describe('footnote jump: definition back to reference', () => {
 		await expect.poll(() => blockView(page, [defA])).toEqual({ mounted: true, inView: true });
 		await expect(page.locator("[data-block-path='[0]']")).toHaveCount(0);
 
-		await editor.backref(defA).click();
+		await editor.defMarker(defA).click();
 
 		// Reading mode seats no caret, so arrival is the whole assertion.
 		await expect.poll(() => blockView(page, [0])).toEqual({ mounted: true, inView: true });
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('a definition no reference points at carries no back-link', async ({ page }) => {
+	// The pointer cue is stamped per mode, so a runtime flip has to move it: a cue frozen at
+	// mount would promise a plain click in a mode where the gesture wants the chord.
+	test('the plain-click cue follows a runtime mode flip', async ({ page }) => {
+		await editor.load(SHORT_DOC);
+		await editor.setPresentationMode('reading');
+
+		const def = page.locator('.footnote-def');
+		await expect(def).toHaveAttribute('data-plain-click-jumps', '');
+
+		await editor.setPresentationMode('source');
+		await expect(def).not.toHaveAttribute('data-plain-click-jumps', '');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('live mode: a plain click on the marker seats the caret in the body, no jump', async ({
+		page
+	}) => {
+		await editor.load(SHORT_DOC);
+		await editor.setPresentationMode('live');
+
+		await editor.defMarker(1).click();
+		await editor.waitForRenderFlush();
+
+		// The marker is chrome the caret clamps out of, exactly as before the gesture existed.
+		await expect.poll(() => activeBlockPath(page)).toEqual([1, 0]);
+		await expect
+			.poll(() => editor.bridge.getSelection())
+			.toMatchObject({ focus: { path: [1, 0], offset: 0 } });
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('a definition no reference points at ignores the gesture', async ({ page }) => {
 		await editor.load(
 			'Body has [^a] here.\n\n[^a]: First note.\n\n[^orphan]: Nobody points here.\n'
 		);
 		await editor.setPresentationMode('source');
 
-		await expect(editor.backref(1)).toHaveCount(1);
-		await expect(editor.backref(2)).toHaveCount(0);
+		await editor.defMarker(2).click({ modifiers: ['Control'] });
+		await editor.waitForRenderFlush();
+
+		// Nothing to jump to, so nothing moves and the caret never leaves the orphan.
+		expect(await editor.bridge.getSource()).toContain('[^orphan]: Nobody points here.');
+		await expect.poll(() => activeBlockPath(page)).not.toEqual([0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
+});
+
+// The first click of a double-click reveals the source, so the second lands in ordinary text
+// and the browser's word rule would take the `[` alone.
+test.describe('footnote reference: double-click takes the whole token', () => {
+	for (const mode of ['source', 'live'] as const) {
+		test(`${mode} mode: a double-click selects all of [^a]`, async ({ page }) => {
+			const editor = new FootnotePage(page);
+			await editor.load(SHORT_DOC);
+			await editor.setPresentationMode(mode);
+
+			const { x, y } = await widgetCenter(editor.refs().nth(0));
+			await page.mouse.dblclick(x, y);
+			await editor.waitForRenderFlush();
+
+			await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('[^a]');
+			expect(await capturedErrors(page)).toEqual([]);
+		});
+
+		// The whole-token rule belongs to the double-click that OPENED the reveal. Once the source
+		// is showing, it is ordinary text and the browser's word rule owns the gesture.
+		test(`${mode} mode: a double-click inside an open reveal keeps the word`, async ({ page }) => {
+			const editor = new FootnotePage(page);
+			await editor.load('Body has [^alpha] here.\n\n[^alpha]: First note.\n');
+			await editor.setPresentationMode(mode);
+
+			const widget = await widgetCenter(editor.refs().nth(0));
+			await page.mouse.click(widget.x, widget.y);
+			await expect(editor.refs()).toHaveCount(0);
+
+			const word = await textRunCenter(page, [0], 'alpha');
+			await page.mouse.dblclick(word.x, word.y);
+			await editor.waitForRenderFlush();
+
+			await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('alpha');
+			expect(await capturedErrors(page)).toEqual([]);
+		});
+	}
 });
 
 // The cell's own `navigateTo` wiring: a reference inside a table cell rides a different

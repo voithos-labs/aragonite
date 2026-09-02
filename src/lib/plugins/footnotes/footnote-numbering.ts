@@ -18,6 +18,8 @@ export interface FootnoteReference {
 	label: string;
 	/** Doc-absolute block path of the prose leaf carrying the reference. */
 	path: number[];
+	/** Raw offset just past the `[^label]` bytes in that leaf — where the way back lands. */
+	end: number;
 }
 
 function collectRefsInInline(
@@ -26,7 +28,7 @@ function collectRefsInInline(
 	out: FootnoteReference[]
 ): void {
 	for (const node of nodes) {
-		if (node.kind === FOOTNOTE_REF_KIND) out.push({ label: node.label ?? '', path });
+		if (node.kind === FOOTNOTE_REF_KIND) out.push({ label: node.label ?? '', path, end: node.end });
 		else if (node.children) collectRefsInInline(node.children, path, out);
 	}
 }
@@ -45,7 +47,7 @@ export function collectFootnoteReferences(document: DocumentView): FootnoteRefer
 	const children = document.children;
 	for (let index = 0; index < children.length; index++) {
 		for (const ref of subtreeRefs(children[index])) {
-			refs.push({ label: ref.label, path: [index, ...ref.path] });
+			refs.push({ label: ref.label, path: [index, ...ref.path], end: ref.end });
 		}
 	}
 	return refs;

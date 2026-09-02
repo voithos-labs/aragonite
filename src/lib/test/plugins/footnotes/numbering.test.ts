@@ -46,6 +46,13 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		expect(numbers.size).toBe(0);
 	});
 
+	// Miss-analysis: the back gesture landed at offset 0 because the walk recorded only the
+	// leaf path, and no test read what a caller would need to land beside the citation.
+	it('records where each reference ends, so the way back lands beside the citation', () => {
+		const refs = collectFootnoteReferences(parse('Body has [^a] and [^b] here.\n'));
+		expect(refs.map((r) => r.end)).toEqual([13, 22]);
+	});
+
 	it('finds a reference nested inside a container block', () => {
 		const refs = collectFootnoteReferences(parse('> A quote with [^q] inside.\n\n[^q]: def.\n'));
 		expect(refs).toHaveLength(1);

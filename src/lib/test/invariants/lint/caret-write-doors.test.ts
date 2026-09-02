@@ -38,6 +38,8 @@ const NATIVE_RANGE_WRITERS: Record<string, string> = {
 	'src/lib/components/blocks/editable-surface.ts': 'the factory setSelection range write',
 	'src/lib/components/blocks/text/edge-policy-dispatch.ts':
 		'selects a replace island whole — a range, not a caret seat',
+	'src/lib/components/blocks/text/widget-interaction.ts':
+		"a double-click selects the revealed token whole — the same range-not-a-seat case, over the reveal's own text node",
 	'src/lib/cursor/content-offsets.ts': 'setCursorOffset, the content-offset write helper',
 	'src/lib/cursor/focused-caret.ts': 'restoreCaretAtWalkOffset, the render-rebuild carry',
 	'src/lib/selection/caret-restore.ts': 'the menu-blur saved-range restore',

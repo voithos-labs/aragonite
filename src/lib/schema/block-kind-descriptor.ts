@@ -33,7 +33,12 @@ export const isKnownMergeRole = (role: string): boolean =>
  * middle children follow merge-rules).
  */
 export interface UnwrapRole {
-	firstChildBackspace: 'lift-first-child' | 'list-item-cascade';
+	/**
+	 * `'lift-first-child'` drops the container's opener with the lift, so the remainder
+	 * reparses as a plain quote; `'lift-first-child-keep-container'` is for a container whose
+	 * syntax `rebuildRaw` re-emits, so the remainder keeps its own kind.
+	 */
+	firstChildBackspace: 'lift-first-child' | 'lift-first-child-keep-container' | 'list-item-cascade';
 	middleChildBackspace: 'default-merge' | 'list-item-cascade';
 	/**
 	 * Quote-shaped: lifting the first child out (Rule U2) drops the opener, so

@@ -1009,7 +1009,10 @@
 		const y = lastClickClientY;
 		lastClickClientX = null;
 		lastClickClientY = null;
-		widgetInteraction.snapClickToWidgetEdge(x, y, e.ctrlKey || e.metaKey);
+		widgetInteraction.snapClickToWidgetEdge(x, y, {
+			modified: e.ctrlKey || e.metaKey,
+			clickCount: e.detail
+		});
 	}
 
 	function snapCaretToPoint(clientX: number, clientY: number): void {

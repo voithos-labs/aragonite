@@ -871,7 +871,10 @@
 		lastClickClientX = null;
 		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
-		widgetInteraction.snapClickToWidgetEdge(x, y, e.ctrlKey || e.metaKey);
+		widgetInteraction.snapClickToWidgetEdge(x, y, {
+			modified: e.ctrlKey || e.metaKey,
+			clickCount: e.detail
+		});
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────

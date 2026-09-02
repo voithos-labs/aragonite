@@ -5,11 +5,13 @@
  */
 
 import { CURSOR_END, CURSOR_START } from '../block-component';
+import type { CstNode } from '../core/nodes';
 import type { UnwrapRole } from '../schema/block-kind-descriptor';
 import {
 	deleteNode as performDelete,
 	unwrapFirstItemFromList,
 	unwrapFirstChildFromQuote,
+	liftFirstChildKeepingContainer,
 	mergeListItemIntoPrevious,
 	renumberOrderedList,
 	isItemUserEmpty
@@ -51,8 +53,15 @@ async function deleteEmptyItem(
 /** Rule U2: lift the first child out of a container that declares the quoteShaped
  *  capability; a chrome container sharing this strategy no-ops (empty replacement). */
 async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
-	const node = deps.node;
-	const replacement = unwrapFirstChildFromQuote(node);
+	await spliceLift(deps, unwrapFirstChildFromQuote(deps.node));
+}
+
+/** Rule U2 for a container whose syntax survives the lift: the remainder keeps its kind. */
+async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Promise<void> {
+	await spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
+}
+
+async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<void> {
 	if (replacement.length === 0) return;
 	await deps.parent.blockEdit.replaceBlock(deps.index, replacement, {
 		replacementIndex: 0,
@@ -159,6 +168,7 @@ export const firstChildUnwrapStrategies: Record<
 	(deps: UnwrapStrategyDeps) => Promise<void>
 > = {
 	'lift-first-child': liftFirstChild,
+	'lift-first-child-keep-container': liftFirstChildAndKeepContainer,
 	'list-item-cascade': listItemCascadeFirst
 };
 

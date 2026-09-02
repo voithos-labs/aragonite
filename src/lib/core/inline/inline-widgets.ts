@@ -62,9 +62,9 @@ export interface InlineWidgetComponentProps {
 	 * Read it INSIDE the widget's `$derived`; that read is what subscribes it to edits anywhere.
 	 */
 	getContentVersion?: () => number;
-	/** `EditorRects.navigateTo`: reveal, scroll and land the caret at a block path. Absent in a
-	 *  bare harness, so a widget that navigates declines rather than throws. */
-	navigateTo?: (path: number[]) => Promise<boolean>;
+	/** `EditorRects.navigateTo`: reveal, scroll and land the caret at a raw offset in a block
+	 *  path. Absent in a bare harness, so a widget that navigates declines rather than throws. */
+	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
 }
 
 /**

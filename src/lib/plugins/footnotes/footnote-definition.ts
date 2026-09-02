@@ -148,7 +148,17 @@ export function registerFootnoteDefinition(): void {
 		conformanceFixture: '[^1]: A footnote definition.\n    with an indented continuation.\n',
 		// Unlike a listItem, whose leaf resolves to the item under the list, the body
 		// blocks reorder within; the marker is position-independent, so rebuildRaw re-emits it.
-		container: { contract: 'strip', rebuildRaw: rebuildFootnoteDefRaw, reorderChildren: {} },
+		container: {
+			contract: 'strip',
+			rebuildRaw: rebuildFootnoteDefRaw,
+			reorderChildren: {},
+			// The marker rides metadata rather than the first line, so the remainder of a lift is
+			// still a definition, not the plain quote a quote-shaped lift leaves.
+			unwrapRole: {
+				firstChildBackspace: 'lift-first-child-keep-container',
+				middleChildBackspace: 'default-merge'
+			}
+		},
 		closure: containerClosure({
 			roundTripVia:
 				'container contract=strip — rebuildFootnoteDefRaw re-emits the [^label]: marker + four-space continuation indent',
@@ -158,7 +168,7 @@ export function registerFootnoteDefinition(): void {
 			},
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'not-mergeable — the definition never concatenates with a neighbour; a first-child Backspace at offset 0 delegates upward'
+				via: 'not-mergeable outward, so nothing below concatenates into the note; within the body, unwrapRole lifts the first block out (lift-first-child-keep-container) and later blocks default-merge'
 			},
 			undo: { mode: 'inherit-default' },
 			simOracle: { mode: 'inherit-default' }

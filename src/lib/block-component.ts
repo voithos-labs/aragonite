@@ -80,7 +80,9 @@ export interface AmbientInteractiveRange {
 	className: string;
 	role?: 'checkbox';
 	ariaChecked?: boolean;
-	onClick: () => void;
+	/** The click lands on the range's own span, before the leaf's caret handling; a handler
+	 *  reading the chord (`isWidgetActivationClick`) stops propagation to keep the gesture. */
+	onClick: (e: MouseEvent) => void;
 }
 
 export type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };

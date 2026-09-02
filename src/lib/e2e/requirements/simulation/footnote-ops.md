@@ -2,8 +2,9 @@
 
 A loaded-ops session on the plugins route over the first-party footnotes plugin. The plugin
 spans two tiers the corruption oracle stack had never watched under a state-accumulating
-watcher: the `[^label]: ` strip-container definition (a not-mergeable container in the listItem
-mold) and the `[^label]` inline reference widget (the `[^`-prefix ladder rung, reveal-to-edit).
+watcher: the `[^label]: ` strip-container definition (a container in the listItem mold, not
+mergeable from outside) and the `[^label]` inline reference widget (the `[^`-prefix ladder rung,
+reveal-to-edit).
 The session drives real edits across both tiers while the oracle stack — structured error +
 `[invariant:…]` console watcher, live-CST round-trip, nested BlockListState audit, and
 live-vs-reparse convergence — re-checks after every move, with a fixed seed for determinism.
@@ -39,14 +40,17 @@ the oracle for the live renumber, so this session asserts structural integrity, 
 - a destructive key adjacent to a folded reference reveals it rather than deleting it whole; a
   second press then removes the opening `[` and a commit degrades the reference to literal text,
   reversed by one undo
-- Backspace at the start of a definition's first body child moves focus upward rather than
-  concatenating into the block above or unwrapping the container into loose paragraphs
-  (`not-mergeable`): the source is byte-identical after it, asserted by a positive re-read
+- Backspace at the start of a definition's first body child lifts that child out of the
+  container (`lift-first-child-keep-container`): it becomes the paragraph before the marker and
+  the rest of the body stays under it, never a concatenation into the block above. The gesture
+  asserts the lifted shape by re-reading the tree, and one undo restores the bytes exactly.
+  Miss-analysis: the gesture pinned the old not-mergeable no-op and only the controller runs
+  this project, so the contract change shipped through review and reddened at landing
 - every edit lands mid-document, never the end-of-document append the expectation tracker
   predicts, so each gesture that triggers a promotion, a widget swap, or a reparse settles on an
   observable signal and resyncs from observed state
-- undo across the continuation edit, the body split, and the definition promotion each restore
-  the prior source without corrupting the tree
+- undo across the exit lift, the continuation edit, the body split, and the definition promotion
+  each restore the prior source without corrupting the tree
 
 ## User interactions
 

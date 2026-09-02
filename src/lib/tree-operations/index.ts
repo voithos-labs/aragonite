@@ -25,6 +25,7 @@ export { buildExitReplacement } from './list/exit-replacement';
 export { reconcileTaskMetadata } from './list/reconcile-task';
 
 export { unwrapFirstChildFromQuote } from './blockquote';
+export { liftFirstChildKeepingContainer } from './container-lift';
 
 export {
 	insertEmptyRow,

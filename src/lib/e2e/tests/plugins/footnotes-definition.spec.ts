@@ -5,8 +5,8 @@ import { PluginsPage, readContainer, activeBlockPath, capturedErrors } from './h
  * The GFM footnote definition as a strip container in the listItem mold — the definition side of
  * the first-party footnotes plugin. This gate proves the three things a unit test cannot see: the
  * ambient `[^label]: ` marker renders as a dimmed prefix on the body, a body edit rebuilds the
- * container raw live, and a Backspace at the body's start delegates upward instead of unwrapping
- * the container into loose paragraphs (the not-mergeable contract).
+ * container raw live, and a Backspace at the body's start unwraps the note the way every other
+ * marker-bearing container does while the block below it never merges in.
  */
 const SEED = 'A note reference [^a] in prose.\n\n[^a]: The note body.\n';
 
@@ -64,18 +64,72 @@ test.describe('plugin container: footnote definition', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Backspace at the body start delegates up, not into paragraph soup', async ({ page }) => {
+	test('Backspace at the body start unwraps the note into a bare paragraph', async ({ page }) => {
 		await editor.focusBlockAtPath([1, 0], 0); // body start, just after the ambient marker
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('\n\nThe note body.\n');
+
+		expect(await editor.bridge.getSource()).toBe(
+			'A note reference [^a] in prose.\n\nThe note body.\n'
+		);
+		const lifted = await readContainer(page, 1);
+		expect(lifted.kind).toBe('paragraph');
+		await expect.poll(() => activeBlockPath(page)).toEqual([1]);
+		// Numbering is over references, not definitions, so the now-orphaned reference keeps
+		// its number and renders rather than throwing.
+		await expect(page.locator('.footnote-ref')).toHaveText('1');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('one undo puts the unwrapped note back under its marker', async ({ page }) => {
+		await editor.focusBlockAtPath([1, 0], 0);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('\n\nThe note body.\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceContains('[^a]: The note body.\n');
+		expect(await editor.bridge.getSource()).toBe(SEED);
+		expect((await readContainer(page, 1)).kind).toBe('footnote-def');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('a Backspace in the second body block merges it into the first', async ({ page }) => {
+		await editor.loadContent('[^a]: First.\n\n    Second.\n');
+		await editor.focusBlockAtPath([0, 1], 0);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('First.Second.');
+
+		// The marker stays: only the first body block's Backspace reaches the unwrap arm.
+		expect(await editor.bridge.getSource()).toBe('[^a]: First.Second.\n');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('the first of two body blocks lifts out and the marker keeps the rest', async ({ page }) => {
+		await editor.loadContent('[^a]: First.\n\n    Second.\n');
+		await editor.focusBlockAtPath([0, 0], 0);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceContains('First.\n\n[^a]: Second.\n');
+
+		expect(await editor.bridge.getSource()).toBe('First.\n\n[^a]: Second.\n');
+		const def = await readContainer(page, 1);
+		expect(def.kind).toBe('footnote-def');
+		expect(def.childTexts).toEqual(['Second.']);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('a Backspace in the paragraph below the note leaves the bytes alone', async ({ page }) => {
+		await editor.loadContent('[^a]: The note body.\n\nAfter.\n');
+		await editor.focusBlockAtPath([1], 0);
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
 
-		// not-mergeable: the definition stays one footnote-def block (never a run of loose
-		// paragraphs), the bytes are untouched, and the caret lands on the prose above.
-		expect(await editor.bridge.getSource()).toBe(SEED);
-		const def = await readContainer(page, 1);
-		expect(def.kind).toBe('footnote-def');
-		expect(def.childKinds).toEqual(['paragraph']);
-		await expect.poll(() => activeBlockPath(page)).toEqual([0]);
+		// A note is leaf-like outward: the keystroke moves the caret into the body rather than
+		// turning the paragraph below into note text.
+		expect(await editor.bridge.getSource()).toBe('[^a]: The note body.\n\nAfter.\n');
+		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
+		await expect
+			.poll(() => editor.bridge.getSelection())
+			.toMatchObject({ focus: { path: [0, 0], offset: 14 } });
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 

@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures';
-import { PluginsPage, revealWidget, roundTripStable } from './helpers';
+import { PluginsPage, revealWidget, roundTripStable, textRunCenter } from './helpers';
 import { capturePageErrors } from '../../page-probes';
 import { attachIme } from '../../simulation/ime';
 
@@ -80,6 +80,18 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(await editor.getBlockText(0)).toContain('$x^2$');
 		// Reveal is a view toggle — the source has not changed.
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+	});
+
+	// The rule is the reveal choke point's, not the footnote widget's: the first click reveals,
+	// and the browser's word rule would take `$` from the source as a word of its own.
+	test('a double-click on the rendered math selects the whole revealed token', async ({ page }) => {
+		const box = await editor.mathWidget.boundingBox();
+		if (!box) throw new Error('math widget has no bounding box');
+
+		await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+		await editor.waitForRenderFlush();
+
+		await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('$x^2$');
 	});
 
 	test('clicking column-aligned text on another visual line places the caret, not reveal', async ({
@@ -263,4 +275,30 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await expect(editor.mathWidget).toHaveCount(0);
 		expect(pageErrors).toEqual([]);
 	});
+});
+
+// The whole-token rule belongs to the double-click that OPENED the reveal. Once the source is
+// showing, it is ordinary text and the browser's word rule owns the gesture.
+test.describe('plugin inline math: a double-click inside an open reveal', () => {
+	for (const mode of ['source', 'live'] as const) {
+		test(`${mode} mode: takes the word, not the whole token`, async ({ page }) => {
+			const editor = new MathPage(page);
+			await editor.gotoPlugins('math');
+			await editor.loadContent('Before $alpha beta gamma$ after\n\nNext\n');
+			await editor.setPresentationMode(mode);
+			await expect(editor.mathWidget).toHaveCount(1);
+
+			await editor.revealByClick();
+
+			const word = await textRunCenter(page, [0], 'beta');
+			await page.mouse.dblclick(word.x, word.y);
+			await editor.waitForRenderFlush();
+
+			// Trimmed: the browser's word rule carries the trailing space, and what discriminates
+			// is that the `$` delimiters are outside the selection.
+			await expect
+				.poll(() => page.evaluate(() => window.getSelection()?.toString().trim()))
+				.toBe('beta');
+		});
+	}
 });

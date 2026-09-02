@@ -142,7 +142,7 @@ export interface SvelteWidgetPoolDeps {
 	getContentVersion?: () => number;
 	/** The editor's navigation door, for a widget whose gesture jumps elsewhere in the
 	 *  document. Absent in a bare harness. */
-	navigateTo?: (path: number[]) => Promise<boolean>;
+	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
 }
 
 /**

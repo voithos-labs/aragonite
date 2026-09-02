@@ -79,6 +79,14 @@ export interface WidgetInteractionDeps {
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
+/** The click a widget gesture reads off: the same event the widget's own handler sees. */
+export interface WidgetPress {
+	/** Ctrl/Cmd at the CLICK: with it, a widget claiming the activation click keeps the gesture. */
+	modified?: boolean;
+	/** `MouseEvent.detail`; two or more is a double-click, which takes the token it just revealed. */
+	clickCount?: number;
+}
+
 export interface WidgetInteraction {
 	/** Block holds only image/blank inline content, so vertical arrow traversal skips
 	 *  it: the widgets carry no column meaning. */
@@ -98,9 +106,8 @@ export interface WidgetInteraction {
 	 *  source, any other is selected. Returns whether an edge widget was entered. */
 	enterEdgeWidget(side: 'start' | 'end'): boolean;
 	/** Snap a click that landed outside any text node to the nearest widget edge, or open a
-	 *  reveal-source widget it hit. `modified` is the CLICK's Ctrl/Cmd state, the same event the
-	 *  widget reads: with it, a widget claiming the activation click keeps the gesture. */
-	snapClickToWidgetEdge(clickX: number | null, clickY: number | null, modified?: boolean): void;
+	 *  reveal-source widget it hit. */
+	snapClickToWidgetEdge(clickX: number | null, clickY: number | null, press?: WidgetPress): void;
 	/** A reveal-source widget currently shows its editable `$…$` source. */
 	isRevealing(): boolean;
 	/** Escape (cancel to rendered) while source is shown. Enter is deliberately NOT
@@ -408,6 +415,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return el !== null && hitTestRevealWidget(el, x, y) !== null;
 	}
 
+	// The whole-token select belongs to the double-click that OPENED a reveal, and nothing in
+	// the second click's own shape tells it apart from a later one inside the same source.
+	let revealOpenedByLastClick = false;
+
 	// Order is the whole point: resolve the target BEFORE folding, because the fold shifts
 	// layout and the click point only means something against pre-fold geometry, then
 	// re-locate by OFFSET, because an edited commit shifts raw positions by its delta.
@@ -442,8 +453,22 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		);
 		if (!target) return;
 		el.focus();
+		revealOpenedByLastClick = true;
 		// A click can't map to a source glyph — land at the leading edge (offset 0).
 		void startReveal(target, target.start, 0);
+	}
+
+	/** Take the whole revealed token; declines unless the native selection sits inside it. */
+	function selectRevealedSource(): boolean {
+		const source = activeSourceNode;
+		if (!revealState || !source) return false;
+		const selection = window.getSelection();
+		if (!selection || !selection.anchorNode || !source.contains(selection.anchorNode)) return false;
+		const range = document.createRange();
+		range.selectNodeContents(source);
+		selection.removeAllRanges();
+		selection.addRange(range);
+		return true;
 	}
 
 	function isRevealing(): boolean {
@@ -632,9 +657,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	function snapClickToWidgetEdge(
 		clickX: number | null,
 		clickY: number | null,
-		modified = false
+		press: WidgetPress = {}
 	): void {
 		deps.setSnapTarget(null);
+		const doubleClick = (press.clickCount ?? 1) >= 2;
+		// Every double-click opens with a click of its own, so the opening click is where the
+		// flag is armed and the flag from any earlier gesture is dropped.
+		if (!doubleClick) revealOpenedByLastClick = false;
 		const el = deps.getEl();
 		if (!el || clickX === null) return;
 		// The point-in-rect test runs BEFORE the text-node guard below, so a column-aligned
@@ -646,7 +675,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				// place a caret, stealing back what the widget's own navigation just landed.
 				if (
 					getInlineWidgetEditing(hit.inline.kind)?.claimsActivationClick &&
-					isWidgetActivationClick(modified, deps.getPresentationMode?.() ?? 'source')
+					isWidgetActivationClick(press.modified ?? false, deps.getPresentationMode?.() ?? 'source')
 				) {
 					return;
 				}
@@ -654,6 +683,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				return;
 			}
 		}
+		// The first click of a double-click already revealed, so the second lands in the source
+		// text and the browser's word rule takes `[` or `$` as a word of its own.
+		if (doubleClick && revealOpenedByLastClick && selectRevealedSource()) return;
 		// A click in a real text node keeps the native caret; a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;
 		for (const inline of inlinesOf(deps.node)) {
