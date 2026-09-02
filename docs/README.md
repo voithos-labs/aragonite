@@ -13,11 +13,11 @@ New here? Run it with the root [`README.md`](../README.md) (which also argues wh
 | **Write a plugin**                  | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages |
 | **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md), then [`contributing/rules.md`](contributing/rules.md)                                  |
 
-Everything else hangs off those four. The folders split by **audience**, not by topic, which is why the same subsystem shows up in two of them wearing different hats.
+Everything else hangs off those four. The folders are split by **audience**, not by topic, so don't be surprised when the same subsystem shows up in two of them wearing different hats.
 
 ## `design/`: how it works
 
-One spec per subsystem, for anyone changing the editor's insides. `editor.md` orients any task; read another only when your task touches its subsystem. Working through all eight up front is a great way to feel productive without becoming useful, so let the other seven be somebody else's afternoon.
+One spec per subsystem, for anyone changing the editor's insides. Start with `editor.md` whatever the task, and open another only when your task touches its subsystem. Working through all eight up front is a great way to feel productive without becoming useful; let the other seven be somebody else's afternoon.
 
 | Doc                                                          | Scope                                                                                                              |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
@@ -32,18 +32,18 @@ One spec per subsystem, for anyone changing the editor's insides. `editor.md` or
 
 ## `guide/`: using aragonite
 
-The published pack. This folder ships inside the npm package, and it is the only docs folder that does, so the copy in a plugin author's `node_modules` matches the version they installed.
+The published pack. This folder ships inside the npm package (the only docs folder that does), so whatever's in a plugin author's `node_modules` matches the version they installed.
 
-| Doc                                                                          | Scope                                                                                                                             |
-| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [`guide/consumer-guide.md`](guide/consumer-guide.md)                         | Embedding the editor: props, events, theming, and everything else a host app touches                                              |
-| [`guide/plugin-guide.md`](guide/plugin-guide.md)                             | Teaching the editor your own blocks and inline syntax, from a first working plugin to full recipes                                |
-| [`guide/plugin-testing.md`](guide/plugin-testing.md)                         | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks answer to, pointed at yours |
-| [`guide/plugin-api.md`](guide/plugin-api.md)                                 | Every `@voithos-labs/aragonite/plugin` export, grouped by job; a page for Ctrl+F, not for reading                                 |
-| [`guide/directives.md`](guide/directives.md)                                 | The `:::name` fence: a named box in Markdown, and how a plugin claims a name                                                      |
-| [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md) | All ten party-parrot frames, ready to paste over the quickstart's two                                                             |
+| Doc                                                                          | Scope                                                                                                                         |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| [`guide/consumer-guide.md`](guide/consumer-guide.md)                         | Embedding the editor: props, events, theming, and everything else a host app touches                                          |
+| [`guide/plugin-guide.md`](guide/plugin-guide.md)                             | Teaching the editor your own blocks and inline syntax, from a first working plugin to full recipes                            |
+| [`guide/plugin-testing.md`](guide/plugin-testing.md)                         | Proving a plugin never eats bytes: the checks to write, and the ready-made suites the built-in blocks pass, run against yours |
+| [`guide/plugin-api.md`](guide/plugin-api.md)                                 | Every `@voithos-labs/aragonite/plugin` export, grouped by job; a page for Ctrl+F, not for reading                             |
+| [`guide/directives.md`](guide/directives.md)                                 | The `:::name` fence: a named box in Markdown, and how a plugin claims a name                                                  |
+| [`guide/plugin-guide/parrot-frames.md`](guide/plugin-guide/parrot-frames.md) | All ten party-parrot frames, ready to paste over the quickstart's two                                                         |
 
-The pack ships the whole `guide/` folder as is, subfolders included (a doc's gifs live in a folder named after it), so a markdown link inside it may only target a file the pack carries. Name any other doc as inline code instead. `npm run lint` fails on a link that would dangle once the pack leaves the repo, and hearing it from the linter is faster than hearing it from a reader with a 404.
+The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs live in a folder named after it), so a markdown link inside it may only point at a file the pack carries. Name any other doc as inline code instead. `npm run lint` fails on a link that'd dangle once the pack leaves the repo.
 
 ## `contributing/`: how we work
 
@@ -63,11 +63,11 @@ The pack ships the whole `guide/` folder as is, subfolders included (a doc's gif
 
 ## Records and reference
 
-The moving state, and the background material behind it. Forward-looking plans are not kept in the repo: a decision lives with the contract it binds, and everything shipped is in the changelog.
+The moving state, and the background material behind it. Forward-looking plans aren't kept in the repo. A decision lives with the contract it binds, and everything shipped is in the changelog.
 
-| Doc                                                                              | Scope                                                                                                               |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| [`changelog.md`](changelog.md)                                                   | Everything shipped, newest first; this page is the index, the entries live one file per 0.x line under `changelog/` |
-| [GitHub Issues](https://github.com/voithos-labs/aragonite/issues)                | Every known defect as an issue, labelled by area and severity, closed by naming the commit that shipped the fix     |
-| [`research/gfm-reference.md`](research/gfm-reference.md)                         | Every piece of GFM syntax the editor handles, on one page                                                           |
-| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What everyone else's plugin systems expose, and where aragonite stands against them                                 |
+| Doc                                                                              | Scope                                                                                                           |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [`changelog.md`](changelog.md)                                                   | Everything shipped, newest first: an index page, with the entries one file per 0.x line under `changelog/`      |
+| [GitHub Issues](https://github.com/voithos-labs/aragonite/issues)                | Every known defect as an issue, labelled by area and severity, closed by naming the commit that shipped the fix |
+| [`research/gfm-reference.md`](research/gfm-reference.md)                         | Every piece of GFM syntax the editor handles, on one page                                                       |
+| [`research/plugin-extension-surfaces.md`](research/plugin-extension-surfaces.md) | What everyone else's plugin systems expose, and where aragonite stands against them                             |
