@@ -6,7 +6,7 @@ import path from 'node:path';
 
 /**
  * The shipped parrot IS the guide's quickstart: `docs/guide/plugin-guide.md` owns the bytes,
- * `src/lib/plugins/parrot/` compiles them. Three adaptations bridge the two, and this derives
+ * `src/lib/plugins/parrot/` compiles them. Two adaptations bridge the two, and this derives
  * the plugin from the docs so either side drifting reds here rather than in a reader's editor.
  */
 
@@ -91,62 +91,22 @@ function derivePluginModule(guide: string): string {
 }
 
 /**
- * Adaptation (c): the guide elides seven `BlockComponent` doors behind a prose comment to keep
- * the quickstart short. Shipped source cannot elide them (G2.12, G4.38, G4.39), so the plugin
- * publishes each one. The list is data here, and the guide's comment is checked against it —
- * derived FROM the prose, a reworded sentence would rewrite the plugin instead of reddening.
+ * Adaptation (b): the guide's two sample frames, comment included, become the frames doc's
+ * canonical ten under that doc's own comment, so the shipped file never claims to hold two.
  */
-const ELIDED_DOORS = [
-	'parkCaret',
-	'focusAtColumn',
-	'getSelectedText',
-	'setSelection',
-	'measurePartialRects',
-	'runCommand',
-	'insertMarkdown'
-];
-const ELISION_HEAD = '\t// plus one `export const x = leaf.x` each for ';
+const SAMPLE_COMMENT =
+	'\t// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;';
 
-/** The comment's own line range. Guarded, so a reworded guide reds AT the cause rather than
- *  splicing at index -1 and reddening as an unreadable byte diff. */
-function elisionSpan(lines: string[]): { start: number; end: number } {
-	const start = lines.findIndex((line) => line.startsWith(ELISION_HEAD));
-	expect(start, 'the guide no longer elides the leaf doors').toBeGreaterThan(-1);
-	let end = start;
-	while (lines[end + 1]?.startsWith('\t// ')) end++;
-	return { start, end };
-}
-
-/** The names the guide's elision comment lists, in its own order. */
-function elidedDoorsInGuide(component: string[]): string[] {
-	const { start, end } = elisionSpan(component);
-	return component
-		.slice(start, end + 1)
-		.join(' ')
-		.slice(ELISION_HEAD.length)
-		.replaceAll('\t// ', '')
-		.split(',')
-		.map((name) => name.trim());
-}
-
-/** Adaptation (b): the guide's two sample frames become the frames doc's canonical ten. */
 function deriveComponent(guide: string, framesDoc: string): string {
 	const component = toLibImport(fenceBodyAround(guide, COMPONENT_MARKER)).split('\n');
 	const frames = fenceBodyAround(framesDoc, FRAMES_MARKER).split('\n');
 
-	const canonical = spanBetween(frames, 'const FRAMES = [', '];');
-	const sample = spanBetween(component, '\tconst FRAMES = [', '\t];');
-	const withFrames = [
+	const canonical = spanBetween(frames, FRAMES_MARKER, '];');
+	const sample = spanBetween(component, SAMPLE_COMMENT, '\t];');
+	return [
 		...component.slice(0, sample.start),
 		...nestOneLevel(frames.slice(canonical.start, canonical.end + 1)),
 		...component.slice(sample.end + 1)
-	];
-
-	const elision = elisionSpan(withFrames);
-	return [
-		...withFrames.slice(0, elision.start),
-		...ELIDED_DOORS.map((door) => `\texport const ${door} = leaf.${door};`),
-		...withFrames.slice(elision.end + 1)
 	].join('\n');
 }
 
@@ -165,11 +125,11 @@ describe('the bundled parrot is the plugin guide, compiled', () => {
 	});
 });
 
-// ── Non-vacuity: the derivation really does all three adaptations ───────────
+// ── Non-vacuity: the derivation really does both adaptations ────────────────
 // Two byte-equal sides prove nothing about WHICH bytes, and the splice is the half that
 // can be wrong in the file and the derivation at once.
 
-describe('the derivation performs all three adaptations', () => {
+describe('the derivation performs both adaptations', () => {
 	const guide = read(GUIDE);
 	const framesDoc = read(FRAMES_DOC);
 
@@ -185,12 +145,10 @@ describe('the derivation performs all three adaptations', () => {
 		expect(deriveComponent(guide, framesDoc).match(/String\.raw`/g)).toHaveLength(10);
 	});
 
-	it('publishes exactly the leaf doors the guide says it elides', () => {
-		const component = fenceBodyAround(guide, COMPONENT_MARKER).split('\n');
-		expect(elidedDoorsInGuide(component)).toEqual(ELIDED_DOORS);
-		for (const door of ELIDED_DOORS) {
-			expect(deriveComponent(guide, framesDoc)).toContain(`\texport const ${door} = leaf.${door};`);
-		}
+	it("swaps the two-frame comment for the frames doc's own", () => {
+		const derived = deriveComponent(guide, framesDoc);
+		expect(derived).not.toContain('Frames 0 and 5');
+		expect(derived).toContain(`\t${FRAMES_MARKER}\n\tconst FRAMES = [`);
 	});
 
 	it('nests the array one level without touching a byte of the art', () => {

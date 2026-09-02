@@ -207,8 +207,13 @@ cNo.....................................oc
 	export const focusable = true;
 	export const focus = leaf.focus;
 	export const getCursorOffset = leaf.getCursorOffset;
-	// plus one `export const x = leaf.x` each for parkCaret, focusAtColumn, getSelectedText,
-	// setSelection, measurePartialRects, runCommand, insertMarkdown
+	export const parkCaret = leaf.parkCaret;
+	export const focusAtColumn = leaf.focusAtColumn;
+	export const getSelectedText = leaf.getSelectedText;
+	export const setSelection = leaf.setSelection;
+	export const measurePartialRects = leaf.measurePartialRects;
+	export const runCommand = leaf.runCommand;
+	export const insertMarkdown = leaf.insertMarkdown;
 </script>
 
 <div class="parrot-block">
@@ -238,9 +243,9 @@ cNo.....................................oc
 </style>
 ```
 
-The editing half is the factory call, one spread, and one-line re-exports of what the factory returns; `focus` and `getCursorOffset` are the two every block component must have. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`, which is what keeps it live: type in the source line and the caption follows. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap` (the parrot's can't, since its opener claims one line), for a reason [The editable leaf](#the-editable-leaf) explains. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
+The editing half is the factory call, one spread, and one-line re-exports of what the factory returns; `focus` and `getCursorOffset` are the two every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`, which is what keeps it live: type in the source line and the caption follows. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap` (the parrot's can't, since its opener claims one line), for a reason [The editable leaf](#the-editable-leaf) explains. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
-**Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
+**Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships in the package, as `@voithos-labs/aragonite/plugins/parrot`, and a test keeps the shipped files identical to the fences above, so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
 
 ```ts
 parse('%%parrot party responsibly\n').children[0];

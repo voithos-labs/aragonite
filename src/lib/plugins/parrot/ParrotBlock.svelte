@@ -13,8 +13,7 @@
 		mode: 'plain'
 	});
 
-	// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;
-	// this is a guide, not an aviary.
+	// The canonical ten, via terminal-parrot (MIT).
 	const FRAMES = [
 		String.raw`
                          .cccc;;cc;';c.

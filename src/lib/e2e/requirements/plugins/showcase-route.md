@@ -36,6 +36,8 @@ re-tested here.
   table cell (the shared widget dispatch, not per-surface plumbing)
 - a ` ```math ` fence renders a second KaTeX block surface beside the `$$` form
 - a sampling of built-in kinds is visible: a table and a fenced code block
+- the bundled parrot renders on the demo: a `.parrot-block` with non-empty `pre.parrot` art
+  and its caption, since the demo document carries a `%%parrot` line
 
 ## Edge cases
 

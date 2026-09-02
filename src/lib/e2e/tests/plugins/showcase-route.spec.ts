@@ -71,4 +71,11 @@ test.describe('/ showcase route', () => {
 		await expect(page.locator('[data-block-kind="table"]').first()).toBeVisible();
 		await expect(page.locator('[data-block-kind="fencedCode"]').first()).toBeVisible();
 	});
+
+	test('the bundled parrot dances on the demo', async ({ page }) => {
+		const parrot = page.locator('.parrot-block').first();
+		await expect(parrot).toBeVisible();
+		await expect(parrot.locator('pre.parrot')).not.toHaveText('');
+		await expect(parrot.locator('.parrot-caption')).toBeVisible();
+	});
 });
