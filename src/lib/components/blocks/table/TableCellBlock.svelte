@@ -129,6 +129,7 @@
 		widgetSelection,
 		linkCard,
 		reorder,
+		rects,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
@@ -515,6 +516,7 @@
 		getTheme,
 		getDocument: () => getDoc(),
 		getContentVersion,
+		navigateTo: (path) => rects.navigateTo(path),
 		get islands() {
 			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
 		},
@@ -1002,12 +1004,12 @@
 	// A click past a widget drops the caret at an element-level position with no text
 	// anchor, so snap to the nearest widget edge (or reveal). Normal text clicks fall
 	// through untouched.
-	function onClick(): void {
+	function onClick(e: MouseEvent): void {
 		const x = lastClickClientX;
 		const y = lastClickClientY;
 		lastClickClientX = null;
 		lastClickClientY = null;
-		widgetInteraction.snapClickToWidgetEdge(x, y);
+		widgetInteraction.snapClickToWidgetEdge(x, y, e.ctrlKey || e.metaKey);
 	}
 
 	function snapCaretToPoint(clientX: number, clientY: number): void {

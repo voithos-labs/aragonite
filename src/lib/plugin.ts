@@ -36,7 +36,11 @@ export {
 export type { PluginInlineKind, InlineNode, ImageFields, ImageSyntaxRewriter } from './core/nodes';
 export { registerInlineSyntax, INLINE_PRIORITIES } from './core/inline/scan/plugin-syntax';
 export type { InlineSyntaxRecognizer, InlineSyntaxOptions } from './core/inline/scan/plugin-syntax';
-export { registerInlineWidgetKind, mintWidgetShell } from './core/inline/inline-widgets';
+export {
+	registerInlineWidgetKind,
+	mintWidgetShell,
+	isWidgetActivationClick
+} from './core/inline/inline-widgets';
 export type {
 	InlineWidgetDescriptor,
 	InlineWidgetComponentProps,

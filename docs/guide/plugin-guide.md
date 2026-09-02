@@ -1086,6 +1086,10 @@ A widget renders through one of two paths, and the descriptor rejects declaring 
 - `getDocument`: the read-only root document.
 - `getContentVersion`: a number that changes whenever the document's bytes change, and is stable otherwise.
 
+A fourth prop, `navigateTo`, is the editor's jump door: hand it a block path and the editor reveals that block, scrolls it into view, and lands the caret in it. Aim at a leaf: a container seats no caret, so a container path scrolls the block into view and leaves the caret where it was. Use it when your widget points at somewhere else in the document, the way a footnote reference points at its definition. It is absent in a bare harness mount, so call it optionally.
+
+If your `revealSource` widget takes a click of its own, declare `claimsActivationClick` in its editing policy and read `isWidgetActivationClick` to decide when to act: the surface stands its reveal down for exactly the gesture that predicate names, so the widget is not swapped for its source bytes under a click meant to navigate. Without `revealSource` there is no reveal to stand down, and the field is inert.
+
 If your widget derives from the whole document, read the version inside the same `$derived` and use it as your memo key. The document itself is not a usable key: the editor mutates it in place, so its identity never changes, and an identity-keyed memo hits forever on a stale answer. Reading the version inside the derived is also what subscribes your widget to edits anywhere, so N widgets sharing one memoized walk stay as live as N widgets each walking the document.
 
 **A bare trigger must be a character no built-in scanner claims.** Registering a bare recognizer on a reserved trigger (`` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline) throws: built-in dispatch runs first, so a bare recognizer there would never fire, and a silent no-op is the one failure a public API must not have.
@@ -1109,7 +1113,7 @@ A rung on `!` is consulted ahead of the built-in `!` case, so it outranks the im
 
 **Bound the decline, not just the claim.** Your recognizer is consulted at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger, which goes quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar cannot contain, the way the emoji recognizer stops at the first non-shortcode byte; where the grammar has no such character, index the candidate positions once per block with `createScanIndex` (hand it your position collector, get back a "first candidate at or after this offset" lookup), the way the bundled math and footnote recognizers index their closers.
 
-The bundled **footnotes** plugin (`@voithos-labs/aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^`-prefix rung at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` walk memoized on `getContentVersion`, so the number re-derives when a reference is added elsewhere while every mounted widget in a flush shares one walk), and reveals its source to edit. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
+The bundled **footnotes** plugin (`@voithos-labs/aragonite/plugins/footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^`-prefix rung at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number derives reactively from the whole document (a `DocumentView` walk memoized on `getContentVersion`, so the number re-derives when a reference is added elsewhere while every mounted widget in a flush shares one walk), reveals its source to edit, and jumps to its definition on the activation click. The definition carries a `↩` back to the first reference. The literal `[^label]` bytes stay in the block's raw, so an uninstalled document round-trips as ordinary GFM.
 
 **If your rung builds a built-in kind's node, it owns writing those bytes back.** A rung may return a node of a kind the editor already has, say an `![[cat.png|300]]` that is a real `image`, so the widget renders it, the caret addresses it, and the resize handles appear. Every _read_ path then treats it as an image, which is the point. The _write_ paths cannot: the editor's inverse for a built-in kind emits that kind's built-in grammar, so re-serializing your node's fields brings `![[cat.png|300]]` back as a GFM image, bracketed alt and parenthesized destination, and your syntax is gone. Supply a `rewriteImage` hook and the edit comes back to you instead:
 
@@ -1141,14 +1145,15 @@ Three edges the snippet above is shaped by, and each one bites if you drop it:
 
 **Errors in a component widget are half yours.** A **synchronous mount-time throw** is caught, so the widget falls back to its raw source and an `error` event fires, but the component mounts as its own effect root and nothing catches its post-mount runtime errors. Render a legible error for bad input instead of throwing (the KaTeX widget shows an inline message). A render engine's stylesheet is likewise yours: import it in the module that owns the renderer, so no route can forget it.
 
-**The inline tier is not the block surface in miniature.** An inline kind gets recognition, rendering, atomic caret addressing at its edges, and an editing policy on its widget registration. The policy has four fields, all optional:
+**The inline tier is not the block surface in miniature.** An inline kind gets recognition, rendering, atomic caret addressing at its edges, and an editing policy on its widget registration. The policy has five fields, all optional:
 
-| Field               | What it decides                                                                                                           |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `revealSource`      | Open the source (the `$…$` bytes) for editing on caret entry; inline math's model                                         |
-| `onSelectedKey`     | A handler for keys while the widget is selected; image resize rides it                                                    |
-| `onEdge`            | `'select' \| 'step-over'`: an edge press selects the whole widget, or steps transparently over it                         |
-| `deleteGranularity` | `'atomic' \| 'select-then-delete'`: one press deletes the whole widget, or the first press selects and the second deletes |
+| Field                   | What it decides                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `revealSource`          | Open the source (the `$…$` bytes) for editing on caret entry; inline math's model                                         |
+| `onSelectedKey`         | A handler for keys while the widget is selected; image resize rides it                                                    |
+| `onEdge`                | `'select' \| 'step-over'`: an edge press selects the whole widget, or steps transparently over it                         |
+| `deleteGranularity`     | `'atomic' \| 'select-then-delete'`: one press deletes the whole widget, or the first press selects and the second deletes |
+| `claimsActivationClick` | Your component handles the activation click itself, so the surface's reveal stands down for it; the footnote jump's model |
 
 Both edge fields are live today: the built-in decoded-entity widget (`&copy;` → ©) ships `{ deleteGranularity: 'atomic', onEdge: 'step-over' }`, so a caret-adjacent Backspace removes it whole and a plain arrow walks the caret across it like a character, the caret-edge dispatch reading both off the widget registration. The inline tier gets **no keymap, no minted commands, and no per-node metadata**: `InlineNode` has no metadata field, so unlike a block kind it stores nothing at all on the node.
 

@@ -42,6 +42,8 @@ export interface CellRenderDeps {
 	/** The editor's content version, so a widget can memoize a document-wide derivation
 	 *  on it. Absent in a bare harness. */
 	getContentVersion?: () => number;
+	/** The editor's navigation door, forwarded to widgets whose gesture jumps elsewhere. */
+	navigateTo?: (path: number[]) => Promise<boolean>;
 	/** Position-sorted islands. A getter read inside the render pass on purpose: that
 	 *  read is the reactive dependency that re-renders the cell on an island change. */
 	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -68,7 +70,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		getPresentationMode: () => deps.presentationMode,
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
-		getContentVersion: deps.getContentVersion
+		getContentVersion: deps.getContentVersion,
+		navigateTo: deps.navigateTo
 	});
 	let islandDestroys: Array<() => void> = [];
 

@@ -63,6 +63,8 @@ export interface TextRenderDeps {
 	/** The editor's content version, so a widget can memoize a document-wide derivation
 	 *  on it. Absent in a bare harness. */
 	getContentVersion?: () => number;
+	/** The editor's navigation door, forwarded to widgets whose gesture jumps elsewhere. */
+	navigateTo?: (path: number[]) => Promise<boolean>;
 	get linkResolver(): LinkReferenceResolver | undefined;
 	/** A compact stamp changing exactly when the document's LRD signature does
 	 *  (`link-reference-resolver.ts` mints it), so a reference-bearing block folds this
@@ -118,7 +120,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		getPresentationMode: () => deps.presentationMode,
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
-		getContentVersion: deps.getContentVersion
+		getContentVersion: deps.getContentVersion,
+		navigateTo: deps.navigateTo
 	});
 	let islandDestroys: Array<() => void> = [];
 

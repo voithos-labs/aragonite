@@ -566,6 +566,13 @@ function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInli
 	if (policy.onSelectedKey !== undefined) {
 		assertIs(typeof policy.onSelectedKey, 'function', `"${kind}" onSelectedKey is callable`);
 	}
+	if (policy.claimsActivationClick !== undefined) {
+		assertIs(
+			typeof policy.claimsActivationClick,
+			'boolean',
+			`"${kind}" claimsActivationClick is a boolean`
+		);
+	}
 }
 
 // ── imageClaim ───────────────────────────────────────────────────────────────

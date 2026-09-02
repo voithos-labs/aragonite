@@ -62,6 +62,19 @@ export interface InlineWidgetComponentProps {
 	 * Read it INSIDE the widget's `$derived`; that read is what subscribes it to edits anywhere.
 	 */
 	getContentVersion?: () => number;
+	/** `EditorRects.navigateTo`: reveal, scroll and land the caret at a block path. Absent in a
+	 *  bare harness, so a widget that navigates declines rather than throws. */
+	navigateTo?: (path: number[]) => Promise<boolean>;
+}
+
+/**
+ * The editor's activation gesture, shared by the surface deciding whether to reveal and the
+ * widget deciding whether to act: a Ctrl/Cmd chord while editing, a plain click in reading
+ * mode, where there is no caret for a plain click to place. The link click's rule
+ * (`Editor.svelte`), applied to widgets.
+ */
+export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
+	return modified || mode === 'reading';
 }
 
 /** The closed vocabularies as values, so the published conformance kit checks a registration
@@ -80,6 +93,9 @@ export interface InlineWidgetEditingPolicy {
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
+	/** The widget's own component handles an activation click ({@link isWidgetActivationClick}),
+	 *  so the surface stands its reveal down rather than unmounting the widget under it. */
+	claimsActivationClick?: boolean;
 }
 
 export interface InlineWidgetEditingContext {

@@ -82,6 +82,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/editor-actions/reorder-drag.ts': 'starts a block reorder drag off the handle',
 	'src/lib/plugins/details/DetailsBlock.svelte':
 		'preventDefault on the summary so the disclosure toggle takes no focus',
+	'src/lib/plugins/footnotes/FootnoteDefinition.svelte':
+		'preventDefault on the back-link so it takes no focus; its click navigates, and the caret lands through the navigation',
 	'src/lib/plugins/latex/BlockMath.svelte':
 		'binds the shared editable-leaf reveal handler; the reset lives there',
 	'src/lib/plugins/toc/TocBlock.svelte':

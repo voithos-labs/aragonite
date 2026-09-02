@@ -92,7 +92,8 @@
 		index,
 		myPath = [],
 		blockClass = 'paragraph-block',
-		ambientPrefix = ''
+		ambientPrefix = '',
+		rects
 	}: {
 		node: NodeView;
 		index: number;
@@ -102,8 +103,8 @@
 		// Accepted for BlockComponentProps parity: this surface reads the doc from the
 		// document facet, and binding would shadow the global `document`.
 		document?: DocumentView;
-		// Accepted for BlockComponentProps parity; this surface navigates through the
-		// editor, not the rect seam.
+		// The surface itself navigates through the editor; this is forwarded to inline
+		// widgets whose own gesture jumps elsewhere in the document.
 		rects?: EditorRects;
 	} = $props();
 
@@ -409,6 +410,7 @@
 		getTheme,
 		getDocument: () => getDoc(),
 		getContentVersion,
+		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},
@@ -863,13 +865,13 @@
 		lastSnapTargetOffset = null;
 	}
 
-	function onClick(): void {
+	function onClick(e: MouseEvent): void {
 		const x = lastClickClientX;
 		const y = lastClickClientY;
 		lastClickClientX = null;
 		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
-		widgetInteraction.snapClickToWidgetEdge(x, y);
+		widgetInteraction.snapClickToWidgetEdge(x, y, e.ctrlKey || e.metaKey);
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────

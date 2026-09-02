@@ -82,10 +82,13 @@ describe('[^label] recognizer grammar', () => {
 describe('footnote reference widget registration', () => {
 	beforeEach(() => registerFootnoteReference());
 
-	it('registers a component widget with the reveal-source editing policy', () => {
+	it('registers a component widget that reveals its source and claims the activation click', () => {
 		expect(getInlineWidgetComponent(FOOTNOTE_REF_KIND as InlineNode['kind'])).toBeDefined();
+		// Both fields, exhaustively: the reveal is the plain-click behavior and the claim is
+		// what stands it down for the jump gesture, so a dropped claim reveals under the click.
 		expect(getInlineWidgetEditing(FOOTNOTE_REF_KIND as InlineNode['kind'])).toEqual({
-			revealSource: true
+			revealSource: true,
+			claimsActivationClick: true
 		});
 	});
 });

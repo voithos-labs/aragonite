@@ -140,6 +140,9 @@ export interface SvelteWidgetPoolDeps {
 	getTheme?: () => string;
 	getDocument?: () => DocumentView | undefined;
 	getContentVersion?: () => number;
+	/** The editor's navigation door, for a widget whose gesture jumps elsewhere in the
+	 *  document. Absent in a bare harness. */
+	navigateTo?: (path: number[]) => Promise<boolean>;
 }
 
 /**
@@ -149,7 +152,8 @@ export interface SvelteWidgetPoolDeps {
  * outlives a mode flip or an edit elsewhere that a frozen value would not.
  */
 export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetPool {
-	const { reportError, getPresentationMode, getTheme, getDocument, getContentVersion } = deps;
+	const { reportError, getPresentationMode, getTheme, getDocument, getContentVersion, navigateTo } =
+		deps;
 	return createWidgetPool<PortalHandle>({
 		create(kind, inline, source) {
 			const component = getInlineWidgetComponent(kind);
@@ -162,7 +166,15 @@ export function createSvelteWidgetPool(deps: SvelteWidgetPoolDeps = {}): WidgetP
 			try {
 				const instance = mount(component, {
 					target: wrapper,
-					props: { inline, source, getPresentationMode, getTheme, getDocument, getContentVersion }
+					props: {
+						inline,
+						source,
+						getPresentationMode,
+						getTheme,
+						getDocument,
+						getContentVersion,
+						navigateTo
+					}
 				});
 				return { wrapper, instance };
 			} catch (error) {

@@ -64,6 +64,6 @@ export function registerFootnoteReference(): void {
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
 		component: FootnoteReference,
-		editing: { revealSource: true }
+		editing: { revealSource: true, claimsActivationClick: true }
 	});
 }

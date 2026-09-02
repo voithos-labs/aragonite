@@ -16,7 +16,8 @@ import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	isInlineWidget,
 	flattenInlineWidgets,
-	getInlineWidgetEditing
+	getInlineWidgetEditing,
+	isWidgetActivationClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
@@ -96,8 +97,10 @@ export interface WidgetInteraction {
 	/** Cross-block edge landing: a reveal-capable widget at the near edge opens its
 	 *  source, any other is selected. Returns whether an edge widget was entered. */
 	enterEdgeWidget(side: 'start' | 'end'): boolean;
-	/** Snap a click that landed outside any text node to the nearest widget edge. */
-	snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void;
+	/** Snap a click that landed outside any text node to the nearest widget edge, or open a
+	 *  reveal-source widget it hit. `modified` is the CLICK's Ctrl/Cmd state, the same event the
+	 *  widget reads: with it, a widget claiming the activation click keeps the gesture. */
+	snapClickToWidgetEdge(clickX: number | null, clickY: number | null, modified?: boolean): void;
 	/** A reveal-source widget currently shows its editable `$…$` source. */
 	isRevealing(): boolean;
 	/** Escape (cancel to rendered) while source is shown. Enter is deliberately NOT
@@ -626,15 +629,30 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return true;
 	}
 
-	function snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void {
+	function snapClickToWidgetEdge(
+		clickX: number | null,
+		clickY: number | null,
+		modified = false
+	): void {
 		deps.setSnapTarget(null);
 		const el = deps.getEl();
 		if (!el || clickX === null) return;
 		// The point-in-rect test runs BEFORE the text-node guard below, so a column-aligned
 		// click on real text on another visual line falls through to the caret path.
-		if (clickY !== null && hitTestRevealWidget(el, clickX, clickY)) {
-			void revealFromClick(clickX, clickY);
-			return;
+		if (clickY !== null) {
+			const hit = hitTestRevealWidget(el, clickX, clickY);
+			if (hit) {
+				// Returns rather than falls through: the edge-snap below would focus this block and
+				// place a caret, stealing back what the widget's own navigation just landed.
+				if (
+					getInlineWidgetEditing(hit.inline.kind)?.claimsActivationClick &&
+					isWidgetActivationClick(modified, deps.getPresentationMode?.() ?? 'source')
+				) {
+					return;
+				}
+				void revealFromClick(clickX, clickY);
+				return;
+			}
 		}
 		// A click in a real text node keeps the native caret; a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;

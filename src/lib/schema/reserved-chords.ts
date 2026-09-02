@@ -86,7 +86,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/table/TableCellBlock.svelte',
 		chords: ['Shift+ArrowUp', 'Shift+ArrowDown'],
 		keys: ['ArrowDown', 'ArrowUp', 'Enter'],
-		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf.'
+		note: 'Starts the intra-table rectangle before the prose extend can walk the next leaf; the second modifier read is the widget activation click, which consumes no keystroke.'
 	},
 	{
 		file: 'components/blocks/table/cell-keydown-plan.ts',
@@ -108,7 +108,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/text/TextEditableBlock.svelte',
 		chords: [],
 		keys: ['Home'],
-		note: 'Bare Home only; the modifier read is the guard that keeps Shift+Home native.'
+		note: 'Bare Home only; the modifier reads are the guard that keeps Shift+Home native and the widget activation click, which consumes no keystroke.'
 	},
 	{
 		file: 'components/blocks/text/click-snap-guard.ts',
@@ -185,6 +185,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		chords: ['Alt+ArrowUp', 'Alt+ArrowDown'],
 		keys: ['ArrowDown', 'ArrowUp'],
 		note: 'Reorder for plugin containers, whose command dispatch is inert.'
+	},
+	{
+		file: 'plugins/footnotes/FootnoteReference.svelte',
+		chords: [],
+		keys: [],
+		note: 'Mod-click jump to the definition, the link click’s gesture — no keystroke is consumed.'
 	},
 	{
 		file: 'plugins/mermaid/MermaidBlock.svelte',
