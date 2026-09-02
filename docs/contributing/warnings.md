@@ -36,7 +36,7 @@ To find **guards**, understand that guard sites use `assertInvariant` in `src/li
 
 ## The proxy-versus-raw one
 
-When a plain object is written into Svelte's $state, Svelte wraps it in a proxy, and `$state`hands the proxy back on every later read. The proxy and your original raw object are the same node but two different JavaScript identities, so a`===`comparison is false even though both "are" that node. Svelte detects code comparing a raw object against its own proxy and emits`[svelte] state_proxy_equality_mismatch`. In this codebase the usual cause is holding a node copy past the insertion into the live tree (i.e. the CST, see [`syntax-tree.md`](../design/syntax-tree.md)), which is rule 1's incident (see [`rules.md`](rules.md)); remember, re-read through the tree, never keep the copy.
+When a plain object is written into Svelte's `$state`, Svelte wraps it in a proxy, and `$state` hands the proxy back on every later read. The proxy and your original raw object are the same node but two different JavaScript identities, so a `===` comparison is false even though both "are" that node. Svelte detects code comparing a raw object against its own proxy and emits `[svelte] state_proxy_equality_mismatch`. In this codebase the usual cause is holding a node copy past the insertion into the live tree (i.e. the CST, see [`syntax-tree.md`](../design/syntax-tree.md)), which is rule 1's incident (see [`rules.md`](rules.md)); remember, re-read through the tree, never keep the copy.
 
 fyi, in a dev build the warning's message embeds the comparison operator that tripped it (`===`, `!==`, etc.), which narrows the hunt to comparison sites of that exact spelling; in prod it degrades to a bare documentation URL, so diagnose it in dev.
 
@@ -72,6 +72,16 @@ Some tests light a fire on purpose (a test proving a guard works has to violate 
 2. the fixture makes noise before the part you assert on: `drainDevWarns()` first.
 3. the fixture provokes a fire the test is not about: `allowDevWarns([tag])`, file-scoped, reason on the line above.
 4. a benign diagnostic too cross-cutting for any of those goes in `src/lib/test/support/warn-allowlist.json`, which waives one tag at one site for the entire run.
+
+What way 1 gets back, from a fire that carried a `details` payload:
+
+```ts
+devWarn('tree-ops', 'probe message', { at: 3 });
+takeDevWarns();
+// [{ tag: 'tree-ops', message: 'probe message', details: { at: 3 }, site: 'src/lib/test/probe.test.ts' }]
+```
+
+`site` is the repo-relative file the fire came from, and it's also what an allowlist row keys on, together with the tag.
 
 Prefer 1 through 3. An allowlist row hides every fire of that tag at that site, real bugs included, which is why the list only shrinks (it is empty right now, and adding the first row is a conversation, not a shrug), and why an `invariant:` fire may never take one.
 

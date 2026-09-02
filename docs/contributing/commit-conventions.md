@@ -15,7 +15,7 @@ something you skim, and a wall of prose prefixes does not skim:
 Rules:
 
 - Line 1 is the whole summary: lowercase, no trailing period, plain words, **72 characters hard**
-- The subject says what changed; the diff says how. **No essay bodies.** A body is exceptional: at most 3 short lines, only when the subject genuinely cannot carry it (a breaking-change note, a non-obvious constraint)
+- The subject says what changed; the diff says how. **No essay bodies.** A body is exceptional: at most 3 short lines, only when the subject genuinely can't carry it (a breaking-change note, a non-obvious constraint)
 - Scope in parens when useful: `+ (editor) block parser`. Comma-separate several, no space: `> (editor,plugins) …`
 - One logical change per commit. Bundle small related edits into medium-sized commits rather than micro-commits. Nobody wants to bisect through forty commits that each moved a semicolon
 - A commit holding several changes summarizes on line 1 and lists the changes in the body, below a blank line:
@@ -27,7 +27,7 @@ Rules:
 - (core) the per-kind branch in the parser
 ```
 
-Those per-change lines are subject lines in their own right and carry every line-1 rule. They sit below a blank line because `git log --oneline`, and every other reader of `%s`, joins a multi-line first paragraph into a single line: three 72-character lines would arrive as one 216-character line, which is the shape the cap exists to prevent.
+Those per-change lines are subject lines in their own right and carry every line-1 rule. They sit below a blank line because `git log --oneline`, and every other reader of `%s`, joins a multi-line first paragraph into a single line, so three 72-character lines would arrive as one 216-character line.
 
 - Verify behavior before committing
 - No attribution trailers (no `Co-Authored-By`, no "Generated with"). The git history is not a credits reel
@@ -59,6 +59,32 @@ and PowerShell):
 ```bash
 node scripts/lint-commit-message.mjs --range origin/dev..HEAD
 ```
+
+Or pipe a message straight in, to see what the hook would say before you commit it:
+
+```bash
+printf 'Fixed the thing.\n' | node scripts/lint-commit-message.mjs
+```
+
+```powershell
+'Fixed the thing.' | node scripts/lint-commit-message.mjs
+```
+
+```
+commit message rejected:
+  line 1  subject-shape: expected `<symbol> [(scope)] lowercase text`, symbol one of + - ~ > ! @
+    Fixed the thing.
+  line 1  subject-trailing-period: drop the period
+    Fixed the thing.
+  convention: docs/contributing/commit-conventions.md
+```
+
+Every rule it breaks gets a line, with the offending text under it, and the exit code is 1. A
+subject over the cap says by how much (`subject-too-long: 84 characters, limit 72`), a body with
+no blank line above it gets `body-missing-blank-line`, and a trailer gets
+`attribution-trailer: the git history is not a credits reel`. The multi-change message above
+passes, and a pass prints nothing at all: exit code 0, silence. Same for `--range` over a clean
+branch.
 
 ## Bug fixes carry a miss-analysis
 
