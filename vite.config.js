@@ -26,6 +26,9 @@ export default defineConfig({
 	plugins: [silenceBrokenImageFixture, sveltekit()],
 	server: {
 		port: 1420,
-		strictPort: true
+		strictPort: true,
+		// A nested worktree under `.claude/` is not this app; a write there reloaded every open
+		// e2e page mid-battery.
+		watch: { ignored: ['**/.claude/**'] }
 	}
 });
