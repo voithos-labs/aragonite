@@ -3,14 +3,17 @@
 	import { createEditableLeaf, type NodeView } from '$lib/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
-	let el: HTMLDivElement | undefined = $state();
+	let sourceEl: HTMLDivElement | undefined = $state();
+	let revealed = $state(false);
 
 	const leaf = createEditableLeaf({
 		getNode: () => node,
 		getIndex: () => index,
 		getPath: () => myPath,
-		getEl: () => el ?? null,
-		mode: 'plain'
+		getEl: () => sourceEl ?? null,
+		mode: 'render-primary',
+		isRevealed: () => revealed,
+		setRevealed: (next) => (revealed = next)
 	});
 
 	// The canonical ten, via terminal-parrot (MIT).
@@ -251,8 +254,24 @@ cNd.........................................;lOc
 
 <div class="parrot-block">
 	<pre class="parrot" style:color aria-hidden="true">{frame}</pre>
-	{#if caption}<p class="parrot-caption">{caption}</p>{/if}
-	<div bind:this={el} {...leaf.surfaceProps} class="parrot-source" aria-label="Party parrot"></div>
+	{#if revealed}
+		<div
+			bind:this={sourceEl}
+			{...leaf.surfaceProps}
+			class="parrot-source"
+			aria-label="Party parrot source"
+		></div>
+	{:else}
+		<div
+			class="parrot-caption"
+			role="button"
+			tabindex="-1"
+			aria-label="Party parrot caption (click to edit)"
+			{...leaf.renderProps}
+		>
+			{caption}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -266,11 +285,13 @@ cNd.........................................;lOc
 	.parrot-caption {
 		margin: 0.25em 0 0;
 		font-weight: 600;
+		cursor: text;
 	}
 	.parrot-source {
 		/* the bytes, dimmed the way the editor dims a marker */
 		opacity: 0.55;
 		font-family: monospace;
 		font-size: 0.9em;
+		outline: none;
 	}
 </style>

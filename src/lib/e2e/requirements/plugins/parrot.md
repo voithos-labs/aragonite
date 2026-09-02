@@ -1,34 +1,54 @@
 # Feature: the party parrot block
 
 A `%%parrot` line renders as an animated ASCII party parrot with the bytes after the
-marker as its caption. The line itself stays an always-editable plain leaf below the
-bird, so the caption is the source and the source is the caption. Seed `parrot`: block 0
-`%%parrot party responsibly`, block 1 `After` (a plain caret and blur target).
+marker as its caption. The line is a render-primary leaf: at rest the caption is the
+block's view, a click on it (or the caret walking in) swaps it for the source line, and
+leaving the block folds the source back into a caption and commits the edit once. Seed
+`parrot`: block 0 `%%parrot party responsibly`, block 1 `After` (a plain caret and blur
+target).
 
 ## Happy paths
 
 - Seed render: block 0 shows one `.parrot-block` holding a `pre.parrot` frame and a
-  `.parrot-caption` reading `party responsibly`; the `%%parrot party responsibly` bytes
-  stay in the source.
-- The bird dances: the `pre.parrot` text changes on its own, with no gesture — two
+  `.parrot-caption` reading `party responsibly`; no `.parrot-source` is mounted, and the
+  `%%parrot party responsibly` bytes stay in the source.
+- The bird dances: the `pre.parrot` text changes on its own, with no gesture; two
   samples taken across a wait differ.
 
 ## User interactions
 
-- Typing extends the caption: with the caret at the end of the source line, typed
-  characters land in the source bytes and the rendered caption follows them live.
-- Deleting back to the bare marker drops the caption element entirely; the block stays a
-  parrot and the frame keeps dancing.
-- Arrow out: from the end of the parrot's source line, ArrowRight lands the caret in the
-  following paragraph — the leaf is a caret stop like any other block.
+- Click reveals: a click on the caption mounts `.parrot-source` holding the whole line,
+  marker included, with the caret in it, and unmounts the caption; the bytes are
+  untouched (a view toggle).
+- Edit and leave: typed characters stay in the source line until the caret leaves the
+  block (ArrowDown into `After`); the leave folds the source, the caption shows the new
+  text, and the document holds the typed bytes, round-trip stable.
+- Deleting back to the bare marker then leaving folds to an empty caption; the block
+  stays a parrot and the frame keeps dancing.
+- Arrow in and out: ArrowLeft from the start of `After` reveals the source with the
+  caret in the parrot; ArrowRight from the end of the source folds it and lands the caret
+  back in `After`.
 
 ## Edge cases
 
-- Round-trip after editing: the document `getSource()` returns is exactly the seed with
-  the typed bytes in it, marker included — the parrot's chrome writes no bytes of its own.
+- One undo entry per cycle: a reveal, edit, leave cycle whose typing spans an undo batch
+  pause undoes in ONE step back to the seed, the caption reading the old text.
+- Reading mode: no `.parrot-source` anywhere, the caption stays, and a click on it
+  reveals nothing.
 
 ## Error cases
 
 - Uninstalled parity is a unit concern (`test/plugins/parrot/round-trip.test.ts`): with
   the plugin absent, `%%parrot …` is an ordinary paragraph. The e2e runs only with the
   plugin installed and asserts no console errors are captured across every gesture.
+
+## Miss-analysis
+
+- The always-mounted source line: the old spec pinned the plain shape the parrot shipped
+  with (a click straight into the source, the caption live per keystroke), so the
+  presentation-modes rule that a plugin hides its source chrome when unfocused had no
+  test naming the parrot, and the doubled caption only ever showed on the demo.
+- Reading mode: no parrot test flipped the mode, so a source line that merely went inert
+  (contenteditable off, still on screen) was never asserted against.
+- Undo granularity: the old spec never pressed undo, so the per-keystroke batches the
+  plain leaf pushed were never counted against the one-entry claim the closure now makes.

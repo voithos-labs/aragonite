@@ -85,9 +85,9 @@ function registerParrotBlock(): void {
 		supportsInline: false,
 		conformanceFixture: '%%parrot party responsibly\n',
 		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf plain, always-editable source' },
+			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
 			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
-			undo: { mode: 'implemented', via: 'plain mode, per-keystroke commits' },
+			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
 			simOracle: { mode: 'inherit-default' }
 		})
 	});
@@ -121,7 +121,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Three of
 
 The rest read as they sound. On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](#what-an-opener-returns)).
 
-**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; the walkthrough later builds one). `createEditableLeaf` hands a leaf a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo that batches like prose, selection, and clipboard. One spread wires the whole editing surface. The parrot itself is ordinary **chrome** (a block's furniture, as opposed to its content) that the component owns, animated on an ordinary interval.
+**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; the walkthrough later builds one). `createEditableLeaf` hands a leaf a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection, and clipboard. The parrot asks for it in `render-primary` mode, where the caption is what you see at rest and the source line only shows while the caret is in the block. One spread wires each of the two views. The parrot itself is ordinary **chrome** (a block's furniture, as opposed to its content) that the component owns, animated on an ordinary interval.
 
 ```svelte
 <!-- ParrotBlock.svelte -->
@@ -129,14 +129,17 @@ The rest read as they sound. On the opener, `priority` decides where you sit in 
 	import { createEditableLeaf, type NodeView } from '@voithos-labs/aragonite/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
-	let el: HTMLDivElement | undefined = $state();
+	let sourceEl: HTMLDivElement | undefined = $state();
+	let revealed = $state(false);
 
 	const leaf = createEditableLeaf({
 		getNode: () => node,
 		getIndex: () => index,
 		getPath: () => myPath,
-		getEl: () => el ?? null,
-		mode: 'plain'
+		getEl: () => sourceEl ?? null,
+		mode: 'render-primary',
+		isRevealed: () => revealed,
+		setRevealed: (next) => (revealed = next)
 	});
 
 	// Frames 0 and 5 of the canonical ten. The full dance is in ./plugin-guide/parrot-frames.md;
@@ -218,8 +221,24 @@ cNo.....................................oc
 
 <div class="parrot-block">
 	<pre class="parrot" style:color aria-hidden="true">{frame}</pre>
-	{#if caption}<p class="parrot-caption">{caption}</p>{/if}
-	<div bind:this={el} {...leaf.surfaceProps} class="parrot-source" aria-label="Party parrot"></div>
+	{#if revealed}
+		<div
+			bind:this={sourceEl}
+			{...leaf.surfaceProps}
+			class="parrot-source"
+			aria-label="Party parrot source"
+		></div>
+	{:else}
+		<div
+			class="parrot-caption"
+			role="button"
+			tabindex="-1"
+			aria-label="Party parrot caption (click to edit)"
+			{...leaf.renderProps}
+		>
+			{caption}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -233,17 +252,19 @@ cNo.....................................oc
 	.parrot-caption {
 		margin: 0.25em 0 0;
 		font-weight: 600;
+		cursor: text;
 	}
 	.parrot-source {
 		/* the bytes, dimmed the way the editor dims a marker */
 		opacity: 0.55;
 		font-family: monospace;
 		font-size: 0.9em;
+		outline: none;
 	}
 </style>
 ```
 
-The editing half is the factory call, one spread, and one-line re-exports of what the factory returns; `focus` and `getCursorOffset` are the two every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`, which is what keeps it live: type in the source line and the caption follows. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap` (the parrot's can't, since its opener claims one line), for a reason [The editable leaf](#the-editable-leaf) explains. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
+The editing half is the factory call, the `revealed` flag, two spreads, and one-line re-exports of what the factory returns. The flag is yours to own. The factory flips it on through `setRevealed` when a click or an arrow lands in the block, and off again when the caret leaves; the `{#if}` swaps on it. `surfaceProps` goes on the source line, `renderProps` on the caption, and you spread both (a caption wired for the click alone swallows undo while it holds focus). `focus` and `getCursorOffset` are the two every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The commit happens when the caret leaves. Reveal, type, arrow out, and that's one undo entry. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`. The raw only changes when the caret leaves, not per keystroke, and the caption follows it. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap` (the parrot's can't, since its opener claims one line), for a reason [The editable leaf](#the-editable-leaf) explains. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
 **Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships in the package, as `@voithos-labs/aragonite/plugins/parrot`, and a test keeps the shipped files identical to the fences above, so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
 
@@ -1121,7 +1142,7 @@ In `reading` mode the platform does most of it for you, which is why most plugin
 
 You read the mode yourself in two cases: when your component owns an edit affordance of its own (a toolbar button, a click-to-edit swap, an interactive widget) which must go inert, the bundled mermaid block's Edit button and the details disclosure being the worked examples, or when your rendering should genuinely differ between a source view and a reading view.
 
-`preview-block` is different: it's a **live editing** mode, so none of those reading gates fire. You type, edit, and command in it exactly as in source; only the marker visibility changes. A **render-primary** plugin block (a diagram, a chart, [the render-primary recipe](#recipe-a-render-primary-block)) gets this for free: it already renders its picture when unfocused and reveals its source only on caret entry, in every non-reading mode, which _is_ block-granular preview. A plugin block that instead renders always-visible source chrome should hide that chrome when it isn't the focused block; the built-in prose kinds do this by CSS, and the reveal-on-focus render-primary pattern is the supported way for a plugin to match it. A reactive "am I the focused block" block-tier signal is planned but not built.
+`preview-block` is different: it's a **live editing** mode, so none of those reading gates fire. You type, edit, and command in it exactly as in source; only the marker visibility changes. A **render-primary** plugin block (a diagram, a chart, [the render-primary recipe](#recipe-a-render-primary-block)) gets this for free: it already renders its picture when unfocused and reveals its source only on caret entry, in every non-reading mode, which _is_ block-granular preview. A plugin block that instead renders always-visible source chrome should hide that chrome when it isn't the focused block; the built-in prose kinds do this by CSS, and the reveal-on-focus render-primary pattern (the quickstart parrot's shape) is the supported way for a plugin to match it. A reactive "am I the focused block" block-tier signal is planned but not built.
 
 `preview-inline` narrows the reveal to inline granularity inside the focused block: the construct under the caret shows its syntax, everything else stays rendered. For plugin inline kinds nothing changes at the API level, and what happens to each follows from how it renders:
 

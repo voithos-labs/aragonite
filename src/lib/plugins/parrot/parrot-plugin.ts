@@ -21,9 +21,9 @@ function registerParrotBlock(): void {
 		supportsInline: false,
 		conformanceFixture: '%%parrot party responsibly\n',
 		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf plain, always-editable source' },
+			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
 			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
-			undo: { mode: 'implemented', via: 'plain mode, per-keystroke commits' },
+			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
 			simOracle: { mode: 'inherit-default' }
 		})
 	});
