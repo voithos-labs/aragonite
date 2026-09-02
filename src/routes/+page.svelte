@@ -7,7 +7,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { Editor, type PresentationMode } from '$lib';
-	import { SHOWCASE_DOCUMENT } from './showcase-content';
+	import SHOWCASE_DOCUMENT from './showcase-content.md?raw';
 	import { trackParityDocument } from './parity-documents.svelte';
 	import DebugPanel from './debug-panel/DebugPanel.svelte';
 	import InsertToolbar from './InsertToolbar.svelte';

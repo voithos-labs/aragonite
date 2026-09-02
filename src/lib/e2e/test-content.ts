@@ -43,7 +43,7 @@ Third paragraph.
 `;
 
 // The `/test/editor` harness seed. Machine-facing: every construct the specs need to find,
-// spelled out. The `/` showcase's own document is `routes/showcase-content.ts`.
+// spelled out. The `/` showcase's own document is `routes/showcase-content.md`.
 export const HARNESS_SHOWCASE_CONTENT = `# aragonite — editor showcase
 
 Every block type the editor parses. Edit freely; \`serialize(parse(source)) === source\` holds for shipped syntax.
