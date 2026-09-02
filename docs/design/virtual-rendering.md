@@ -12,16 +12,23 @@ Windowing is why you won't feel your chunker of a file (say, 10 MB): the editor 
 
 ---
 
-To make sure each block has a stable index, the mounted blocks are rendered with the absolute index (the index you would use if there were no windowing). For every scope, the first block is 0, the fifth is 4, the seventh is 6, no matter where the viewport is or which slice is mounted. That gives every block a stable, absolute path (the list of indices from the root down to it), and life is easy. Same deal for the render keys: the slice keys on the block's id, never its position in the loop.
+To make sure each block has a stable index, the mounted blocks are rendered with the absolute index (the index you would use if there were no windowing). For every scope, the first block is 0, the fifth is 4, the seventh is 6, no matter where the viewport is or which slice is mounted. That gives every block a stable, absolute path (the list of indices from the root down to it), and life is easy. Same deal for the render keys: the slice keys on the block's id.
 
 ## How tall is a block nobody has rendered?
 
-This is where the height model comes in. Every block gets a cheap guess from its source (roughly how we guess: how many lines would this much text wrap to at this width; one line plus chrome per child for a container; the `|WxH` hints for images; etc.), and the guess gets replaced by the real measurement the first time a block mounts (and is, ofc, remembered and linked to that block's id).
+This is where the height model comes in. Every block gets a cheap guess from its source (roughly how we guess: how many lines would this much text wrap to at this width; one line plus chrome (the parts of a block that are furniture, not content: a title row, a border) per child for a container; the `|WxH` hints for images; etc.), and the guess gets replaced by the real measurement the first time a block mounts (and is, ofc, remembered and linked to that block's id).
 
 (Maybe Irrelevant) Details for the Curious:
 
 - Guessing the height of a block is cheap (bounded at O(1)).
-- Plugins with tricky heights can supply their own `estimateHeight` function, just in case. The pecking order: a collapsed container is guessed at one chrome row no matter what (its body never paints), a plugin's `estimateHeight` beats the built-in guess, and a real measurement beats everything.
+- Plugins with tricky heights can supply their own `estimateHeight` function, just in case. It's a descriptor field, `(node, { width }) => px`, and the bundled mermaid plugin's is the whole story in one line:
+
+  ```ts
+  estimateHeight: () => 320, // the skeleton's fixed height; the real one replaces it on mount
+  ```
+
+  The pecking order: a collapsed container is guessed at one chrome row no matter what (its body never paints), a plugin's `estimateHeight` beats the built-in guess, and a real measurement beats everything.
+
 - The worst case for guessing is a block whose height has nothing to do with its source (a Mermaid diagram, a KaTeX render). One that renders at a stable skeleton size declares `estimateHeight` at that size and the guess is exact; one that truly can't know gets guessed as prose, self-corrects on first mount, and drifts the scrollbar thumb a bit more until then.
 - For every scope, the heights live in a binary indexed tree (i.e. Fenwick tree); this allows for things like "what pixel offset does block N start at" and "which block is at pixel P" to be answered in log time.
 - Measuring gets batched. Say 30 blocks get mounted - they are measured all at once and written (into the tree) all at once, this way the browser re-lays out once for the whole batch. An edit to a single mounted block re-measures just that block, through the same writer.
@@ -33,7 +40,7 @@ Here's a bad ux: you scroll up, a block above the viewport gets mounted (thus ge
 
 Again, some technical details:
 
-- By default browsers have their own scroll anchoring (i.e. it also tries to correct for content growing above you), which would double move the reader. Thus, the editor turns the browser's scroll anchoring off where it owns the scrolling (`scrollMode="self"`) and, on a host page, side steps the browser (i.e. withdraws its own subtree from the browser's anchor candidates) during windowing; below the budget it corrects nothing and lets the browser's anchoring do its job. The mode only ever picks which scroller windowing reads (the editor itself, or the nearest scrollable ancestor / the page); whether a scope windows is decided by the budget alone.
+- By default browsers have their own scroll anchoring (i.e. it also tries to correct for content growing above you), which would double move the reader. Thus, the editor turns the browser's scroll anchoring off where it owns the scrolling (`scrollMode="self"`) and, on a host page, side steps the browser (i.e. withdraws its own subtree from the browser's anchor candidates) during windowing; below the budget it corrects nothing and lets the browser's anchoring do its job. The mode only picks which scroller windowing reads (the editor itself, or the nearest scrollable ancestor / the page). Whether a scope windows at all is the budget's call.
   - Do note, while windowing in host mode, something growing in the page's own chrome above the editor goes uncompensated, because the editor's subtree is no longer an anchor candidate.
 - Chrome above the block list (the editor's header slot, or the host page's own) needs no special case in the window math: a scope only counts the part of itself that overlaps the viewport. The header slot does need the correction though (its height lives outside the height model), so when it grows, its delta routes through the same scroll adjustment.
 - For things that grow after mounting (e.g. an image decoding, a font swapping in, a lazy embed), those have to be accounted for lest we want to cause the dreaded slide; so every rendered block reports its size changes and windowing corrects for that.
@@ -60,7 +67,7 @@ Drops the measured cache. That's it actually. This way we only account for a lit
 
 ## Nesting
 
-**Why does aragonite nest windowing?** I don't know who keeps asking these stupid questions, but here goes: because large containers need it, for example a long flat list with thousands of items (i dunno, some people are freaky like that). Each layer only ever sees its own children, so a huge nested list is one entry, one height, in its parent's model, and nobody has to look inside. It's also nice this way, because wiring is just one hook, so a plugin container inherits windowing by declaring only what is different about it (its DOM selectors, where its children come from, etc.).
+**Why does aragonite nest windowing?** I don't know who keeps asking these stupid questions, but here goes: because large containers need it, for example a long flat list with thousands of items (i dunno, some people are freaky like that). Each layer only ever sees its own children, so a huge nested list is one entry, one height, in its parent's model, and nobody has to look inside. It's also nice this way, because wiring is just one hook (`reactivity/use-container-windowing.svelte.ts`), so a plugin container inherits windowing by declaring only what is different about it (its DOM selectors, where its children come from, etc.).
 
 ## Doing something to a block you can't see
 
