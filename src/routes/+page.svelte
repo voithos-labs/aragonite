@@ -202,4 +202,8 @@
 		min-width: 0;
 		min-height: 0;
 	}
+	/* The library paints the overlay's geometry and leaves its color to the host page. */
+	.showcase-editor :global(.decoration-overlay.hl-occurrence) {
+		background: rgba(250, 204, 21, 0.35);
+	}
 </style>
