@@ -526,12 +526,6 @@
 	background-color: transparent;
 }
 
-/* Table grips leave with the mode — their menus and drags all mutate. */
-:where(.editor)[data-presentation='reading'] [data-table-col-grip],
-:where(.editor)[data-presentation='reading'] [data-table-row-grip] {
-	display: none;
-}
-
 /* No caret to place: links read as links and activate on plain click. */
 :where(.editor)[data-presentation='reading'] a.md-link-content,
 :where(.editor)[data-presentation='reading'] .md-autolink:not(.md-link-blocked) {

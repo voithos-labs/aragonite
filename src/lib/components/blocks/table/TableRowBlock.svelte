@@ -42,7 +42,8 @@
 		myPath = [],
 		slots,
 		onOpenRowMenu,
-		onRowGripPointerDown
+		onRowGripPointerDown,
+		showGrips
 	}: {
 		node: NodeView;
 		index: number;
@@ -54,6 +55,9 @@
 		slots?: RefSlots<BlockComponent>;
 		onOpenRowMenu?: (rowIdx: number, e: MouseEvent) => void;
 		onRowGripPointerDown?: (rowIdx: number, e: PointerEvent) => void;
+		/** The table's `blockDragHandles` read, passed down rather than re-read: the row grip
+		 *  and the gutter track it fills are one decision. */
+		showGrips: boolean;
 	} = $props();
 
 	// A row's position among the table's children IS its row index.
@@ -204,11 +208,11 @@
 	and the cells fill the rest. No whitespace between it and the cells: a stray text node
 	joins the table's raw-offset walk and misplaces a parked cross-block caret. -->
 <div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
-	<TableGrip
-		axis="row"
-		onActivate={(e) => onOpenRowMenu?.(rowIdx, e)}
-		onpointerdown={(e) => onRowGripPointerDown?.(rowIdx, e)}
-	/>{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
+	{#if showGrips}<TableGrip
+			axis="row"
+			onActivate={(e) => onOpenRowMenu?.(rowIdx, e)}
+			onpointerdown={(e) => onRowGripPointerDown?.(rowIdx, e)}
+		/>{/if}{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}
 			index={colIdx}

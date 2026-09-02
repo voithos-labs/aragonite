@@ -83,10 +83,14 @@
 		lifetime: editorLifetime,
 		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { presentationMode: getPresentationMode, blockDragHandles: getDragHandles } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item mutates the table, so reading mode declines to open it and the
 	// native context menu (with Copy) shows instead.
 	const readOnly = $derived(getPresentationMode() === 'reading');
+	// The block handle's switch covers the grips: one mouse-only affordance policy, and the
+	// getter already folds reading mode in.
+	const showGrips = $derived(getDragHandles());
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -160,11 +164,11 @@
 	// wide cell scrolls out of the mounted set (F6). The floor only ever grows.
 	let columnMaxWidths = $state<number[]>([]);
 
-	// Leading `0` track is the row-grip gutter: zero width keeps cell A's left edge at the
-	// same x, so caret pixel-measurement and sticky-column geometry are untouched.
+	// The row-grip gutter leads, and only while the grips render: rows auto-place, so a track
+	// with nothing in it would shift every cell left. Zero width, so the geometry is untouched.
 	const trackTemplate = $derived(
 		[
-			'0',
+			...(showGrips ? ['0'] : []),
 			...Array.from({ length: columnCount }, (_, c) => {
 				const floor = Math.max(80, columnMaxWidths[c] ?? 0);
 				return `minmax(${floor}px, max-content)`;
@@ -653,16 +657,17 @@
 	<!-- The corner occupies the zero-width gutter so the column grips align to their
 	     columns. The block boundaries below stay whitespace-adjacent: a stray text node
 	     joins the raw-offset walk and shifts a parked caret (cursor/widget-offset.ts). -->
-	<span class="table-grip-corner" aria-hidden="true"></span>{#each columnIndices as colIdx (colIdx)}
-		<TableGrip
-			axis="column"
-			onActivate={(e) => {
-				if (suppressColumnGripClick) return;
-				openMenu('column', colIdx, e);
-			}}
-			onpointerdown={(e) => onColumnGripPointerDown(colIdx, e)}
-		/>
-	{/each}{#if win.active}
+	{#if showGrips}<span class="table-grip-corner" aria-hidden="true"
+		></span>{#each columnIndices as colIdx (colIdx)}
+			<TableGrip
+				axis="column"
+				onActivate={(e) => {
+					if (suppressColumnGripClick) return;
+					openMenu('column', colIdx, e);
+				}}
+				onpointerdown={(e) => onColumnGripPointerDown(colIdx, e)}
+			/>
+		{/each}{/if}{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
 		<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key carry the absolute row index
@@ -682,6 +687,7 @@
 				openMenu('row', r, e);
 			}}
 			{onRowGripPointerDown}
+			{showGrips}
 		/>
 	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>

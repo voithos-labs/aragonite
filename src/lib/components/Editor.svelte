@@ -846,8 +846,8 @@
 		resolveImageUrl: resolveImageUrlImpl,
 		resolveLinkUrl: resolveLinkUrlImpl,
 		imageLoadPolicy: () => imageLoadPolicy,
-		// Reading mode forces the handle off through the prop's own funnel; both render
-		// sites read this one getter.
+		// Reading mode forces the affordances off through the prop's own funnel; the handle
+		// and the table grips all read this one getter.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
 		presentationMode: () => effectiveMode,
 		theme: () => theme,

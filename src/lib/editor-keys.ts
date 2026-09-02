@@ -158,8 +158,8 @@ export interface EditorPolicies {
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	imageLoadPolicy: () => ImageLoadPolicy;
-	/** Getter-wrapped set-once flag: render the mouse-only hover drag handle.
-	 *  False hides it; keyboard reorder stays available regardless. */
+	/** Getter-wrapped set-once flag: render the mouse-only hover affordances, the block drag
+	 *  handle and the table grips. False renders neither; the keyboard routes stay regardless. */
 	blockDragHandles: () => boolean;
 	presentationMode: PresentationModeGetter;
 	/** For a renderer that paints rather than styles: a plugin emitting its own colored

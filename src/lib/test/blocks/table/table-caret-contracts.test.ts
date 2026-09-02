@@ -33,21 +33,31 @@ function ownTextOf(el: Element): string[] {
 		.map((child) => child.textContent ?? '');
 }
 
-describe('the table markup contributes no characters to the raw-offset walk', () => {
-	it('holds no text node between the corner, the column grips, and the rows', () => {
-		mounted = mountTable(GRID);
+// Both grip states, since `blockDragHandles` decides whether the grips render and each state
+// has its own adjacency: the corner-to-grip run when on, the `{#if}` boundaries when off.
+describe.each([true, false])(
+	'the table markup contributes no characters to the raw-offset walk (grips: %s)',
+	(grips) => {
+		const mountGripped = () => mountTable(GRID, { policies: { blockDragHandles: () => grips } });
 
-		expect(ownTextOf(mounted.el)).toEqual([]);
-	});
+		it('holds no text node between the corner, the column grips, and the rows', () => {
+			mounted = mountGripped();
 
-	it('holds none inside a row either, between its grip and its cells', () => {
-		mounted = mountTable(GRID);
+			// Non-vacuity: without this the grips-on run is the grips-off run under another name.
+			expect(mounted.el.querySelectorAll('[data-table-col-grip]')).toHaveLength(grips ? 2 : 0);
+			expect(ownTextOf(mounted.el)).toEqual([]);
+		});
 
-		const rows = mounted.el.querySelectorAll(':scope > [data-table-row-idx]');
-		expect(rows).toHaveLength(3);
-		for (const row of rows) expect(ownTextOf(row)).toEqual([]);
-	});
-});
+		it('holds none inside a row either, between its grip and its cells', () => {
+			mounted = mountGripped();
+
+			const rows = mounted.el.querySelectorAll(':scope > [data-table-row-idx]');
+			expect(rows).toHaveLength(3);
+			expect(mounted.el.querySelectorAll('[data-table-row-grip]')).toHaveLength(grips ? 3 : 0);
+			for (const row of rows) expect(ownTextOf(row)).toEqual([]);
+		});
+	}
+);
 
 describe('the table lands a caret through the door and at the offset it was asked for', () => {
 	it('parks in the corner cell without ending a live cross-block range', () => {
