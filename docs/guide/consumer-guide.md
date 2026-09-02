@@ -21,7 +21,7 @@ This is gonna be a long one, so here are the sections:
 | [Events](#events)                                             | The five channels an editor reports on, and what each one carries                                              |
 | [Presentation modes](#presentation-modes)                     | One document shown five ways, from raw Markdown to fully rendered                                              |
 | [Images and links](#images-and-links)                         | Rewriting URLs, importing pasted images, and which URLs the editor refuses to load                             |
-| [Plugins](#plugins)                                           | Installing plugins, why the whole app should share one set, and the eight that ship in the box                 |
+| [Plugins](#plugins)                                           | Installing plugins, why the whole app should share one set, and the nine that ship in the box                  |
 | [Theming](#theming)                                           | The CSS variables the editor reads, and three ways to restyle it                                               |
 | [Keyboard shortcuts](#keyboard-shortcuts)                     | Every shortcut, how to rebind or disable one, and which keys the editor swallows                               |
 | [Embedding in a host layout](#embedding-in-a-host-layout)     | Letting your page scroll the editor, and putting your own content above the document                           |
@@ -519,7 +519,7 @@ The same rule covers [directive](directives.md) names. A plugin that claims an a
 
 ### Bundled plugins
 
-Eight first-party plugins ship in the package as subpath exports. Install them like any other plugin:
+Nine first-party plugins ship in the package as subpath exports. Install them like any other plugin:
 
 ```ts
 import { admonitionsPlugin } from '@voithos-labs/aragonite/plugins/admonitions';
@@ -530,6 +530,7 @@ import { emojiPlugin } from '@voithos-labs/aragonite/plugins/emoji';
 import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite/plugins/highlight-occurrences';
 import { latexPlugin } from '@voithos-labs/aragonite/plugins/latex';
 import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
+import { parrotPlugin } from '@voithos-labs/aragonite/plugins/parrot';
 ```
 
 | Plugin                         | What it teaches the editor                                                                                                                                                                                                                                     |
@@ -542,6 +543,7 @@ import { mermaidPlugin } from '@voithos-labs/aragonite/plugins/mermaid';
 | `highlightOccurrencesPlugin()` | Every other occurrence of the word under the caret is highlighted across the document's prose blocks, as a view-only decoration, never a byte change                                                                                                           |
 | `latexPlugin({ renderer })`    | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; uninstalled, each stays its plain reading (prose, or a plain `math` code block)                                                         |
 | `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled)                                                                                                                         |
+| `parrotPlugin()`               | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption; uninstalled, the line is ordinary prose                                                                                                          |
 
 A few of them take options or need a word more.
 

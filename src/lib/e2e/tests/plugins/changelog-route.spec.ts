@@ -4,10 +4,10 @@ import { findInput } from '../search/helpers';
 import type { Page } from '@playwright/test';
 
 // The `/changelog` dogfood route renders the repo's own changelog, one release family per
-// document, behind a route-prepended `[[toc]]` inside a collapsed `<details>`, under all eight
+// document, behind a route-prepended `[[toc]]` inside a collapsed `<details>`, under all nine
 // bundled plugins. No `window.__test` bridge, so this smoke asserts through rendered DOM only. The
 // shared fixture also fails on any `[invariant:…]` console fire, so a green run additionally
-// proves the changelog loads without tripping an invariant under all eight plugins. Requirements:
+// proves the changelog loads without tripping an invariant under all nine plugins. Requirements:
 // e2e/requirements/plugins/changelog-route.md.
 
 // The `<details>` opener bytes, read off the live document the route registers for the parity

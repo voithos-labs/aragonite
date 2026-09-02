@@ -84,6 +84,11 @@
 			"svelte": "./dist/plugins/mermaid/renderer.js",
 			"default": "./dist/plugins/mermaid/renderer.js"
 		},
+		"./plugins/parrot": {
+			"types": "./dist/plugins/parrot/index.d.ts",
+			"svelte": "./dist/plugins/parrot/index.js",
+			"default": "./dist/plugins/parrot/index.js"
+		},
 		"./plugins/toc": {
 			"types": "./dist/plugins/toc/index.d.ts",
 			"svelte": "./dist/plugins/toc/index.js",

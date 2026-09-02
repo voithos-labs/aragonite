@@ -1,7 +1,7 @@
 # Feature: `/` showcase route (bundled-plugin smoke)
 
 The root route `/` is the developer-facing showcase: it mounts `<Editor>` with all
-eight bundled plugins installed the way a consumer installs them (each imported from
+nine bundled plugins installed the way a consumer installs them (each imported from
 its `$lib/plugins/<name>` subpath, latex/mermaid engines injected), seeded with a
 document that exercises every built-in block kind alongside each plugin's syntax.
 Unlike the machine-facing `/test/*` routes it exposes no `window.__test` bridge and
@@ -10,7 +10,7 @@ the rendered DOM only.
 
 The bar is deliberately just "the whole surface renders clean": the shared e2e
 `test` fixture fails on any `[invariant:…]` console fire, so a passing run also
-proves the showcase document loads without tripping an invariant under all eight
+proves the showcase document loads without tripping an invariant under all nine
 plugins. Editing behavior is owned by the machine-facing batteries and is not
 re-tested here.
 

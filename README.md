@@ -188,7 +188,7 @@ Also, shipping a kind forces the boring questions up front: the registration typ
 
 This is the bet. Aragonite cannot top Obsidian in plugin count (in the short term, at least), but what it can try to do is trade plugin count for plugin quality. Score it against my three criterias: reach is the whole own a kind story above, safety is the lossless promise doing double duty, and ergonomics is the part I haven't argued yet, so here it is: svelte and typescript end to end, the entire authoring surface on one import path (`@voithos-labs/aragonite/plugin`), and a public testing seam so your plugin's own test suite isn't an afterthought.
 
-Does the design actually work in practice? Well, the eight bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting) are built on the exact surface third parties get, so I would describe it as "so far, so good".
+Does the design actually work in practice? Well, the nine bundled first party plugins (admonitions, details, footnotes, emoji, math, diagrams, table of contents, occurrence highlighting, and a party parrot) are built on the exact surface third parties get, so I would describe it as "so far, so good".
 
 # Lean
 
@@ -196,7 +196,7 @@ Let's start by establishing the right context: most editors ship as a toolkit, a
 
 (Yes, there is a small set of dependencies. Two hard runtime dependencies: highlight.js, for code-block syntax colors, and esm-env, a few bytes of bundler-agnostic dev-flag resolution that svelte itself already depends on. Svelte is a peer you already have, and compiles to far less runtime than a virtual-DOM framework; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
 
-Currently, the codebase lands at about 66k lines of typescript and svelte for the shipped library, roughly 6k of which is the eight bundled plugins [^13]. Here is where the lines actually went:
+Currently, the codebase lands at about 66k lines of typescript and svelte for the shipped library, roughly 6k of which is the nine bundled plugins [^13]. Here is where the lines actually went:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loc-dark.svg">

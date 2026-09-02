@@ -29,6 +29,8 @@ import { ADMONITION, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
+import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
+import { installPlugins } from '$lib';
 
 // The generic battery pointed at real PLUGIN kinds. They only exist once their setup
 // installs them, so each case resets and re-installs — the platform is register-once
@@ -91,7 +93,10 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
 	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
-	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
+	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock },
+	// The parrot's registrar is module-private (it keeps the guide's bytes), so its plugin
+	// unit is the door in — the same one a consumer installs through.
+	{ dir: 'parrot', kind: PARROT, install: () => installPlugins([parrotPlugin()]) }
 ];
 
 const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji']);

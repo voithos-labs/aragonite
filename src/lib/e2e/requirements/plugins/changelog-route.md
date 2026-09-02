@@ -2,12 +2,12 @@
 
 `/changelog` renders the repo's own changelog — long real documents, imported at build
 time from `docs/changelog/<family>.md` and shown verbatim behind a prelude the route
-prepends: a `[[toc]]` inside a collapsed `<details>`. All eight bundled plugins are
+prepends: a `[[toc]]` inside a collapsed `<details>`. All nine bundled plugins are
 installed the consumer way, the outline is capped at the version level, and the editor
 owns its scrollport so virtual rendering is live. Like the `/` showcase it exposes no
 `window.__test` bridge, so assertions are rendered-DOM only, and the shared e2e `test`
 fixture fails on any `[invariant:…]` console fire, so a passing run also proves the
-changelog loads without tripping an invariant under all eight plugins.
+changelog loads without tripping an invariant under all nine plugins.
 
 The header carries two controls: a release-family picker over the `source` prop, seeded
 with the newest family, and a reading/source toggle over the live `presentationMode`

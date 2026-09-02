@@ -1,7 +1,7 @@
 # Dogfood plugins
 
 Dev-harness fixtures. The bundled tier — admonitions, details, emoji, footnotes, latex,
-mermaid, toc, highlight-occurrences — ships in the package (`src/lib/plugins/README.md`) and
+mermaid, parrot, toc, highlight-occurrences — ships in the package (`src/lib/plugins/README.md`) and
 is demonstrated on the `/` showcase route. Everything here stays harness-side: installed
 on `/test/plugins` (seed-gated where noted), never packaged, never showcased.
 

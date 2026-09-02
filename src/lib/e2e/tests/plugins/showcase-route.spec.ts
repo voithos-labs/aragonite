@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { waitForEditorHydrated } from '../../page-probes';
 
-// The `/` showcase mounts <Editor> with all eight bundled plugins installed the consumer way
+// The `/` showcase mounts <Editor> with all nine bundled plugins installed the consumer way
 // (subpath imports, injected latex/mermaid engines) and exposes no `window.__test` bridge, so this
 // smoke asserts through rendered DOM only. The shared fixture also fails on any `[invariant:…]`
 // console fire, so a green run additionally proves the showcase document loads clean under every

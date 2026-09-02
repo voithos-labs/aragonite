@@ -8,6 +8,7 @@
 		DEMO_HIGHLIGHT_OCCURRENCES,
 		DEMO_LATEX,
 		DEMO_MERMAID,
+		DEMO_PARROT,
 		DEMO_TOC
 	} from '../../demo-plugins';
 	import { memoPlugin } from './memo/register';
@@ -46,6 +47,9 @@
 		// The `![[…]]` rung mints a built-in `image`, so it would claim `!` for every
 		// sibling seed's prose once installed; scoped to its own.
 		'wiki-embed': [wikiEmbedPlugin],
+		// `%%parrot` is a narrowing of the base memo fixture's `%%`, and the bird animates on
+		// an interval; scoped to its own seed so neither reaches a sibling battery.
+		parrot: [DEMO_PARROT],
 		hloccur: [DEMO_HIGHLIGHT_OCCURRENCES],
 		// The observability wrapper over the same shipped createOccurrenceSource, so the
 		// battery can read the index-rebuild count off window.
@@ -191,7 +195,10 @@
 		emoji: 'Mood :smile: today\n\nType here\n',
 		// The rung mints a built-in image; the explicit size makes one resize step visible in
 		// the bytes, with prose either side as blur and caret targets.
-		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n'
+		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n',
+		// The caption is the bytes after the marker, so block 0 is the caption target and
+		// block 1 a plain blur target.
+		parrot: '%%parrot party responsibly\n\nAfter\n'
 	};
 	// svelte-ignore state_referenced_locally
 	const plugins = [...basePlugins, ...(seedPlugins[data.seed ?? ''] ?? [])];

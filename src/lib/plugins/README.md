@@ -6,8 +6,10 @@ First-party plugins that ship inside the package, each at its own `@voithos-labs
 
 The owner-decided split between what ships and what stays a dev fixture:
 
-- **Bundled (in-package):** admonitions, details, emoji, footnotes, latex, mermaid, toc, highlight-occurrences.
+- **Bundled (in-package):** admonitions, details, emoji, footnotes, latex, mermaid, parrot, toc, highlight-occurrences.
 - **Dev fixtures (stay in `src/routes/test/plugins/`):** callout, memo, block-badge, fold, doc-stats, ghost-text (+ sim-mark and the `multi/` + `staggered/` route fixtures).
+
+The parrot is the plugin guide's quickstart, compiled: its two source files are that guide's fences byte for byte, so edit the guide and re-derive, never the plugin. `src/lib/test/plugins/parrot/guide-parity.test.ts` gates the pair.
 
 ## External-shaped
 

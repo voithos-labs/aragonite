@@ -55,9 +55,10 @@ export function registerMemoBlock(): void {
 	});
 
 	registerBlockOpener(memo, {
-		// `%%` collides with no built-in matcher; 25 sits between the block-math
-		// opener (15) and the shared `:::` directive opener (45).
-		priority: 25,
+		// `%%` collides with no built-in matcher; 27 sits between the block-math opener
+		// (15) and the shared `:::` directive opener (45), above the bundled parrot's 25
+		// so `%%parrot` lines go to the parrot.
+		priority: 27,
 		interruptsParagraph: (text) => text.startsWith('%%'),
 		tryOpen(ctx) {
 			if (!ctx.line.text.startsWith('%%')) return null;

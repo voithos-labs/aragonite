@@ -10,6 +10,7 @@ import { emojiPlugin } from '$lib/plugins/emoji';
 import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 import { latexPlugin } from '$lib/plugins/latex';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
+import { parrotPlugin } from '$lib/plugins/parrot';
 import type { EditorPlugin } from '$lib/plugin';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { memoPlugin } from '../../../routes/test/plugins/memo/register';
@@ -44,7 +45,8 @@ const demoRouteSet = (): EditorPlugin[] => [
 	emojiPlugin(),
 	highlightOccurrencesPlugin(),
 	stubLatex(),
-	stubMermaid()
+	stubMermaid(),
+	parrotPlugin()
 ];
 
 const harnessSet = (): EditorPlugin[] => [
@@ -94,5 +96,16 @@ describe('a route parses its own document the same however other routes installe
 		expect(kindsUnder([harnessSet(), demoRouteSet()], changelog)).toEqual(
 			kindsUnder([demoRouteSet()], changelog)
 		);
+	});
+
+	// The harness memo claims every `%%` line, a superset of the bundled parrot's `%%parrot`,
+	// so the two openers only sort correctly while the parrot prices below the memo. A tie
+	// would break by kind name and hand `%%parrot` to the memo, in either install order.
+	const BOTH_MARKERS = '%%parrot party responsibly\n\n%% memo text\n';
+	it.each([
+		['demo first', [demoRouteSet(), harnessSet()]],
+		['harness first', [harnessSet(), demoRouteSet()]]
+	])('the co-installed memo and parrot each claim their own marker (%s)', (_, order) => {
+		expect(kindsUnder(order as EditorPlugin[][], BOTH_MARKERS)).toEqual(['parrot', 'memo']);
 	});
 });

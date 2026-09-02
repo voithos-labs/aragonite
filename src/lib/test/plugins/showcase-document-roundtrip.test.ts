@@ -12,6 +12,7 @@ import { emojiPlugin } from '$lib/plugins/emoji';
 import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 import { latexPlugin, MATH_BLOCK } from '$lib/plugins/latex';
 import { mermaidPlugin } from '$lib/plugins/mermaid';
+import { parrotPlugin } from '$lib/plugins/parrot';
 import { SHOWCASE_DOCUMENT } from '../../../routes/showcase-content';
 
 /**
@@ -32,7 +33,8 @@ beforeAll(() => {
 		emojiPlugin(),
 		highlightOccurrencesPlugin(),
 		latexPlugin({ renderer: () => ({ dom: document.createElement('span') }) }),
-		mermaidPlugin({ renderer: async () => '<svg />' })
+		mermaidPlugin({ renderer: async () => '<svg />' }),
+		parrotPlugin()
 	]);
 });
 
