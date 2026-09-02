@@ -1,22 +1,22 @@
 # Plugin API Reference
 
-Every export of `@voithos-labs/aragonite/plugin`, grouped by job, so you can find a name and what it does without reading the package's entry module. This page is consulted, not read; Ctrl+F is the intended navigation. The recipes behind the names live in the [plugin guide](plugin-guide.md), and each group links to its section there.
+Every export of `@voithos-labs/aragonite/plugin`, grouped by job, so you can find a name and what it does without reading the package's entry module. Nobody reads this page top to bottom; Ctrl+F your way to the name you're after. The recipes behind the names live in the [plugin guide](plugin-guide.md), and each group links to its section there.
 
 ## API reference
 
-Values are the calls you make; the types beside them describe those calls' inputs and outputs.
+Values are the calls you make, and the types beside them describe what those calls take and hand back.
 
 Five words recur in every table, so here they are once:
 
 - A **kind** is aragonite's word for a block type. Paragraph is a kind, fenced code is a kind, your plugin's block is about to be one.
-- A block's **raw** is its exact source bytes. The editor saves a document by concatenating raws and nothing else.
+- A block's **raw** is its exact source bytes, and saving a document is just concatenating them.
 - An **opener** is the piece of the parser that recognizes the line a block starts with.
 - A **leaf** is a block with no child blocks; a **container** holds other blocks.
 - To **mint** is to create a branded, registry-backed identity (a kind, a command id) in the one authorized place; a duplicate throws.
 
-A group tagged _(pre-freeze / unstable)_ may still change shape until the 1.0 freeze; an untagged group already holds its final shape. The tags copy the section notes in the entry module (`src/lib/plugin.ts`), so the two cannot drift.
+A group tagged _(pre-freeze / unstable)_ may still change shape until the 1.0 freeze; an untagged group already holds its final shape. The tags copy the section notes in the entry module (`src/lib/plugin.ts`).
 
-Adding an export? Give it a row in its group, tagged the way its entry-module section is tagged. A test (`src/lib/test/plugins/plugin-guide-coverage.test.ts`) diffs this page against the entry module and fails naming any export without a row; it finds the catalog by the exact `## API reference` heading above, so renaming the heading means renaming it there too.
+Adding an export? Give it a row in its group, tagged the way its entry-module section is tagged. A test (`src/lib/test/plugins/plugin-guide-coverage.test.ts`) diffs this page against the entry module and fails naming any export without a row. It finds the catalog by the exact `## API reference` heading above, so if you rename the heading, rename it there too.
 
 The groups, in page order:
 
@@ -28,7 +28,7 @@ The groups, in page order:
 | [The component registry](#the-component-registry)       | Binding a block type to the Svelte component that renders it                                 |
 | [The parser opener](#the-parser-opener)                 | Teaching the parser to recognize your block's syntax                                         |
 | [Enter completion](#enter-completion)                   | Letting one typed line become a construct whose lines must sit together                      |
-| [Registration probes](#registration-probes)             | Checking what is already registered, so a module that runs twice stays safe                  |
+| [Registration probes](#registration-probes)             | Checking what's already registered, so a module that runs twice stays safe                   |
 | [Directive authoring](#directive-authoring)             | Owning a `:::name` block without writing your own parsing                                    |
 | [Container authoring](#container-authoring)             | Blocks that hold other blocks, plus their title line                                         |
 | [Editable-leaf authoring](#editable-leaf-authoring)     | A text-editing block with the editor's own caret, undo, and selection                        |
@@ -38,7 +38,7 @@ The groups, in page order:
 | [Decorations](#decorations)                             | View-only annotations over content your plugin does not own                                  |
 | [Rects](#rects)                                         | Where things are on screen: block boxes, ranges, the caret, scrolling to a block             |
 | [Selection geometry](#selection-geometry)               | The shapes that describe what the user has selected                                          |
-| [Parse and serialize](#parse-and-serialize)             | Markdown in, tree out, and back again, byte for byte                                         |
+| [Parse and serialize](#parse-and-serialize)             | Markdown in, tree out, and back again                                                        |
 | [Grammar scanners](#grammar-scanners)                   | The editor's own code-fence, HTML-tag, and blockquote rules, reusable so you never fork them |
 | [Node access and metadata](#node-access-and-metadata)   | Reading the document tree, and storing your own data on a block                              |
 | [Performance helpers](#performance-helpers)             | A small cache and a scan index for render and recognition work                               |
@@ -51,17 +51,17 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `definePlugin`       | Validate a `{ name, setup }` unit at definition time and return it, ready for the editor's `plugins` prop                                                                                                           |
 | `definePluginBlock`  | The single-block shortcut: one kind, one component, one register step, packaged as a unit                                                                                                                           |
-| `isPluginInstalled`  | Has a plugin of this name installed? For the rare setup that must branch on it                                                                                                                                      |
+| `isPluginInstalled`  | Has a plugin of this name installed? For the rare setup that has to branch on it                                                                                                                                    |
 | `EditorPlugin`       | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these                                                                                                                               |
 | `EditorPluginEntry`  | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor                                                                                                                          |
 | `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously)                                                                                                |
 | `OnEditorCallback`   | The callback itself: receives the mounted editor's `EditorContext`, may return a cleanup function the editor runs at unmount                                                                                        |
 | `EditorContext`      | One editor's view for your plugin: `editorId`, the live read-only `document`, subscribe-only `events`, this editor's `options`, its `decorations` and `rects` surfaces, and the live `presentationMode` and `theme` |
-| `PresentationMode`   | The union of the editor's view modes (source, reading, the previews, live); every mode read reports the effective one. [Presentation modes](plugin-guide.md#presentation-modes)                                     |
+| `PresentationMode`   | The union of the editor's view modes (source, reading, the previews, live); every mode read reports the effective one, meaning the mode actually in force. [Presentation modes](plugin-guide.md#presentation-modes) |
 
 ### Kind declaration
 
-Every kind starts here; no other call accepts a bare string in a kind's place.
+Every kind starts here. No other call accepts a bare string where a kind goes.
 
 | Export                            | Role                                                                                                    |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -71,7 +71,7 @@ Every kind starts here; no other call accepts a bare string in a kind's place.
 
 ### The block-kind descriptor
 
-The **descriptor** is a kind's written behavior: how it merges, whether it is editable, its container shape. Its required `closure` field is the kind's answer to each cross-cutting editor system (undo, search, selection, clipboard and friends), so a new kind cannot ship silently broken under a subsystem nobody asked about. Cell by cell: [The closure block](plugin-guide.md#the-closure-block).
+The **descriptor** is a kind's written behavior: how it merges, whether it's editable, its container shape. Its required `closure` field is the kind's answer to each cross-cutting editor system (undo, search, selection, clipboard and friends), so a new kind can't ship silently broken under a subsystem nobody asked about. Cell by cell: [The closure block](plugin-guide.md#the-closure-block).
 
 | Export                                         | Role                                                                                                                                                                                                  |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -81,20 +81,20 @@ The **descriptor** is a kind's written behavior: how it merges, whether it is ed
 | `BlockKindAugmentation`                        | The patch `augmentBlockKind` merges; a partial `container` group merges into the existing one                                                                                                         |
 | `ContainerDescriptorGroup`                     | The descriptor's container-only half: `rebuildRaw` (the hook that recomputes a container's raw from its children after an edit), the body wrap, the reserved title line, unwrap behavior              |
 | `MergeRole`, `UnwrapRole`                      | Closed sets naming how a kind merges on Backspace, and how a container releases a child at its edge                                                                                                   |
-| `ChildRawChange`                               | `rebuildRaw`'s optional second argument: which one child's bytes just moved, for a rebuilder that re-emits only that region. Ignoring it and re-deriving the whole raw is always correct              |
+| `ChildRawChange`                               | `rebuildRaw`'s optional second argument: which one child's bytes just moved, for a rebuilder that re-emits only that region. Ignoring it and re-deriving the whole raw is always correct, just slower |
 | `ClosureBlock`, `ClosureColumn`, `ClosureCell` | The closure matrix: nine columns, one cell each, and a cell is `implemented` (name the mechanism), `inherit-default`, or `not-supported` (name the degradation). A missing column fails the typecheck |
 | `simpleLeafClosure`, `SimpleLeafClosureCells`  | Closure preset for a plain text leaf: bakes the five cells every such leaf answers alike, requires the four your component determines (`focus`, `searchPaint`, `undo`, `simOracle`)                   |
 | `containerClosure`, `ContainerClosureCells`    | Closure preset for a container of real child blocks: bakes the four structural cells plus `roundTrip: implemented`, requires the round trip's `via` string and the four the container determines      |
 
 ### The component registry
 
-| Export                                    | Role                                                                                                                          |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `registerBlockComponent`                  | Bind a kind to the Svelte component that renders it; without one the kind renders as a visible raw-text fallback              |
-| `defineBlockComponent`                    | Wrap your component into the registry's entry shape; a container that forgot to publish its API fails the typecheck here      |
-| `BlockComponentEntry`                     | The registry entry: the component, plus an optional per-node extra-props hook                                                 |
-| `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a leaf's own members, or a container's single `containerApi` export                  |
-| `BlockComponentProps`                     | The props every block component receives: its node, its position, the read-only whole document, the editor's geometry surface |
+| Export                                    | Role                                                                                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `registerBlockComponent`                  | Bind a kind to the Svelte component that renders it; without one the kind renders as a visible raw-text fallback (you'll notice) |
+| `defineBlockComponent`                    | Wrap your component into the registry's entry shape; a container that forgot to publish its API fails the typecheck here         |
+| `BlockComponentEntry`                     | The registry entry: the component, plus an optional per-node extra-props hook                                                    |
+| `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a leaf's own members, or a container's single `containerApi` export                     |
+| `BlockComponentProps`                     | The props every block component receives: its node, its position, the read-only whole document, the editor's geometry surface    |
 
 ### The parser opener
 
@@ -105,7 +105,7 @@ Where your opener sits on the ladder, and the two placement rules: [Opener prior
 | `registerBlockOpener`                    | Teach the parser to recognize your kind's Markdown syntax                                                                                                                                                             |
 | `BlockOpener`, `OpenContext`             | The opener contract, and the line cursor its `tryOpen` inspects: the lines, the position, the parse's scope and depth                                                                                                 |
 | `BlockOpenerResult`                      | A claim: the node built, plus `consumed`, the count of lines it took                                                                                                                                                  |
-| `OPENER_PRIORITIES`                      | The built-in priority ladder your opener prices against; lower dispatches first _(pre-freeze / unstable)_                                                                                                             |
+| `OPENER_PRIORITIES`                      | The built-in priorities your opener picks its own number relative to; lower dispatches first _(pre-freeze / unstable)_                                                                                                |
 | `lineStartsOuterBlock`, `OuterBlockScan` | "Does this line start a block at the outer level?" The shared end-of-extent test for a container opener scanning its own lines, and its input flag saying whether a paragraph is open above _(pre-freeze / unstable)_ |
 
 ### Enter completion
@@ -120,7 +120,7 @@ _(pre-freeze / unstable)_ The recipe: [Typing a multi-line construct into existe
 
 ### Registration probes
 
-Every registry on this surface is register-once: a duplicate throws, never overrides. These are the matching is-it-there checks, so a module that may run twice (hot reload, a re-import) asks before registering. Guard on these, never on a module-level flag of your own; the flag outlives the test kit's platform reset, and the guide's registration section tells you how that afternoon goes. The directive and inline tiers keep their own probes, `isDirectiveRegistered` and `isInlineKindDeclared`, in their groups below.
+Every registry on this surface is register-once (a duplicate throws, it never overrides). These are the matching is-it-there checks, for a module that may run twice (hot reload, a re-import) to ask before registering. Guard on these rather than on a module-level flag of your own: the flag outlives the test kit's platform reset, and the guide's registration section tells you how that afternoon goes. The directive and inline tiers keep their own probes, `isDirectiveRegistered` and `isInlineKindDeclared`, in their groups below.
 
 | Export                                                                                                         | Role                                               |
 | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -137,7 +137,7 @@ _(pre-freeze / unstable)_ The `:::name` grammar itself is the [directives guide]
 | `activateDirectives`                                     | Turn the `:::name` grammar on, once at startup, before the first parse; every other export here is inert until it runs                                                        |
 | `registerDirective`                                      | Map a `(tier, name)` pair to one of your kinds; a container mapping must bring its node factory (`fromDirective`), or registration throws                                     |
 | `isDirectiveRegistered`                                  | The is-it-there check for a directive name                                                                                                                                    |
-| `parseDirectiveAttributes`                               | Opt-in reader pulling a `[label]` and a `{#id .class key=val}` block out of a directive's info string; one-way, the verbatim info string stays the saved truth                |
+| `parseDirectiveAttributes`                               | Opt-in reader pulling a `[label]` and a `{#id .class key=val}` block out of a directive's info string; one-way, it reads and never writes back                                |
 | `serializeDirective`                                     | Re-emit a directive's exact bytes from its parts (colon count, name, verbatim info string, body, closer shape), growing the fences itself so no body line reads as the closer |
 | `escalatedColonCount`                                    | The fence length a body forces, for an emitter building `:::name` text by hand instead of through `serializeDirective`                                                        |
 | `createDirectiveRebuild`                                 | Build the raw-recompute hook (`rebuildRaw`) for a directive container whose child 0 is an editable title; owns the fence bytes, CRLF included                                 |
@@ -147,7 +147,7 @@ _(pre-freeze / unstable)_ The `:::name` grammar itself is the [directives guide]
 
 ### Container authoring
 
-_(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the border, the title line, an icon if you like. The factory hides everything else (child-list state, ancestor wiring, the mounting of only what is visible), so your component supplies chrome and nothing more. Worked end to end in [the walkthrough](plugin-guide.md#walkthrough-a-conspiracy-container-end-to-end).
+_(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the border, the title line, an icon if you like. The factory hides everything else (child-list state, ancestor wiring, the mounting of only what's visible), so your component only has to supply the chrome. Worked end to end in [the walkthrough](plugin-guide.md#walkthrough-a-conspiracy-container-end-to-end).
 
 | Export                                          | Role                                                                                                                                                                                                               |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -200,14 +200,14 @@ _(pre-freeze / unstable)_ Syntax inside a paragraph: recognize it at a trigger c
 
 _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-guide.md#block-commands).
 
-| Export                                       | Role                                                                                                                                                                           |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `registerBlockCommand`                       | Mint a `(kind, name)` command and get back its id, for a keymap binding to target                                                                                              |
-| `registerGlobalCommand`                      | Mint a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id                                                      |
-| `CommandId`                                  | A built-in command's id; a vocabulary your keymaps may bind too                                                                                                                |
-| `KeyBinding`                                 | One keymap entry: a chord (fixed-order `Mod` / `Alt` / `Shift` plus the key), a command id, an optional baked argument                                                         |
-| `BlockCommandContext`, `BlockCommandHandler` | What a block command's handler receives (the focused node, read-only; the argument; the metadata-commit route; the mounted component's own hooks), and the handler's signature |
-| `PluginCommandId`, `AnyCommandId`            | A minted command's id, and the union spanning built-in and minted                                                                                                              |
+| Export                                       | Role                                                                                                                                                                                                       |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerBlockCommand`                       | Mint a `(kind, name)` command and get back its id, for a keymap binding to target                                                                                                                          |
+| `registerGlobalCommand`                      | Mint a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id                                                                                  |
+| `CommandId`                                  | A built-in command's id; a vocabulary your keymaps may bind too                                                                                                                                            |
+| `KeyBinding`                                 | One keymap entry: a chord (fixed-order `Mod` / `Alt` / `Shift` plus the key), a command id, an optional baked argument                                                                                     |
+| `BlockCommandContext`, `BlockCommandHandler` | What a block command's handler receives (the focused node, read-only; the argument; `updateMetadata`, the way to commit a metadata change; the mounted component's own hooks), and the handler's signature |
+| `PluginCommandId`, `AnyCommandId`            | A minted command's id, and the union spanning built-in and minted                                                                                                                                          |
 
 ### Paste transforms
 
@@ -220,14 +220,14 @@ _(pre-freeze / unstable)_ The recipe: [Paste transforms](plugin-guide.md#paste-t
 
 ### Decorations
 
-_(pre-freeze / unstable)_ View-only annotations layered over the rendered document: never in the tree, never in the saved bytes, never in undo. You register a source per editor through `editor.decorations` (your `onEditor` context). The recipe and both authoring contracts: [Decorations](plugin-guide.md#decorations).
+_(pre-freeze / unstable)_ View-only annotations drawn over the rendered document. They live outside the tree, so they reach neither the saved bytes nor the undo stack. You register a source per editor through `editor.decorations` (your `onEditor` context). The recipe and both authoring contracts: [Decorations](plugin-guide.md#decorations).
 
 | Export                                                                       | Role                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DecorationRegistry`                                                         | The `editor.decorations` surface; `addSource` registers a source and returns its handle                                                                                                        |
 | `DecorationSource`                                                           | A named, pure source: `provide(document, ctx)` returns the decorations to render, and is re-run after every edit                                                                               |
 | `DecorationSourceHandle`                                                     | The handle back: `invalidate()` re-runs just your source, synchronously; `dispose()` removes it                                                                                                |
-| `ProvideContext`                                                             | `provide`'s second argument, carrying `editEpoch`: a counter that bumps once per document change and never on `invalidate()`, exactly the split a cached scan keys on                          |
+| `ProvideContext`                                                             | `provide`'s second argument, carrying `editEpoch`: a counter that bumps once per document change and never on `invalidate()`. Key a cached scan on it                                          |
 | `Decoration`                                                                 | The union of the four decoration types a source may return                                                                                                                                     |
 | `MarkDecoration`, `WidgetDecoration`, `ReplaceDecoration`, `BlockDecoration` | The four: a styled span over an inline range, a zero-width widget at an offset, a widget covering a range whose bytes stay in the document, and a whole-block treatment with an optional badge |
 | `DecorationWidgetSpec`                                                       | How a decoration's widget renders: a Svelte `component`, or a hand-built `buildDom`                                                                                                            |
@@ -263,13 +263,13 @@ _(pre-freeze / unstable)_ The editor's own parse and serialize entries, re-expor
 | `Document`                                | The parsed-document shape both parse entries return                                                                                                                                                |
 | `splitLines`                              | Split source into the parsed lines every line-scoped helper here consumes                                                                                                                          |
 | `ParsedLine`                              | One source line: its text, its bytes with the ending, the ending itself, its offsets                                                                                                               |
-| `isBlankLine`                             | The GFM blank-line test, spaces and tabs only; `trim()` would let a pasted non-breaking space split a block                                                                                        |
+| `isBlankLine`                             | The GFM blank-line test, spaces and tabs only. Don't substitute `trim()`: it would let a pasted non-breaking space split a block                                                                   |
 | `trimTrailingLineEnding`                  | Cut the one trailing line ending (LF or CRLF) off a block's bytes, giving the text you display                                                                                                     |
 | `normalizeLineEndings`                    | CRLF to LF, for text arriving from outside the document (a plugin-owned input surface)                                                                                                             |
 
 ### Grammar scanners
 
-_(pre-freeze / unstable)_ The built-in rules for three grammars a plugin commonly claims, exported so you reuse them instead of forking the spec (the spec is longer than it looks, every time).
+_(pre-freeze / unstable)_ The built-in rules for three grammars a plugin commonly claims, exported so you reuse them instead of forking the spec (the spec is longer than it looks, every time, trust me).
 
 | Export                    | Role                                                                                                                                                                                                        |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -287,7 +287,7 @@ _(pre-freeze / unstable, beyond the stable metadata pair `setPluginMetadata` / `
 | Export                                   | Role                                                                                                                                                     |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CstNode`                                | The writable tree-node shape you construct: what a factory builds and a `rebuildRaw` mutates                                                             |
-| `NodeView`, `DocumentView`               | The read-only views every read surface hands you; a byte write through one is a compile error, not a rule to remember                                    |
+| `NodeView`, `DocumentView`               | The read-only views every read surface hands you. Writing bytes through one is a compile error                                                           |
 | `setPluginMetadata`, `getPluginMetadata` | Store and read your kind's own typed per-node data, no casting; keep the stored shape primitive-valued                                                   |
 | `getContentRange`, `ContentRange`        | The content span inside a block's raw, syntax markers excluded (a heading's `#`, a setext underline)                                                     |
 | `headingLevel`                           | A heading's level, ATX or setext, null for anything else: the outline read a table-of-contents plugin wants                                              |

@@ -148,9 +148,17 @@ p.s. Please, for chrissake, don't hand-write `rebuildRaw` for a container, lest 
 
 ## The info string and attributes
 
-Everything after the name on the opener line is the **info string**. It is captured verbatim (leading space included) and written back verbatim; nothing ever re-parses it to rebuild the bytes.
+Everything after the name on the opener line is the **info string**. For `:::note Heads up` that's `' Heads up'`, leading space included, so trim it before you show it.
 
 If you want the remark-style `[label]{#id .class key=value}` convention, `parseDirectiveAttributes(info)` reads it into `{ label, id, classes, properties }`. It is opt-in and pure: a directive whose "info" is just a title (`:::note My Title`) never calls it.
+
+```ts
+parseDirectiveAttributes('[Heads up]{#intro .warning level=3}');
+// { label: 'Heads up', id: 'intro', classes: ['warning'], properties: { level: '3' } }
+
+parseDirectiveAttributes(' Heads up');
+// { classes: [], properties: {} }
+```
 
 One limitation though: the helper goes one way, info to structure, not the inverse. A directive that edits its attributes rewrites its own info string (through its metadata and `rebuildRaw`, the same path a title edit takes). If a real plugin needs the inverse, it is an additive addition; raise an issue and present your case.
 
@@ -158,7 +166,7 @@ One limitation though: the helper goes one way, info to structure, not the inver
 
 Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the `:::` and `::` block openers, and the inline `:` recognizer).
 
-Remember, call it once at startup, before the editor first parses anything (a document parsed before the call will not re-parse, and a dev-mode warning will call you out). The call is also idempotent, so several plugins (and hot-reload re-runs) can each make it without stepping on each other. And it really is the call that does it: importing authoring symbols off `@voithos-labs/aragonite/plugin` claims nothing, so a plain-GFM consumer who never calls it keeps `:::` as ordinary text.
+Remember, call it once at startup, before the editor first parses anything (a document parsed before the call will not re-parse, and a dev-mode warning will call you out). The call is also idempotent, so several plugins (and hot-reload re-runs) can each make it without stepping on each other.
 
 ## What you get on `@voithos-labs/aragonite/plugin`
 
@@ -179,7 +187,7 @@ The ones you probably won't:
 | Entry                      | When you reach for it                                                                                         |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `parseDirectiveAttributes` | if your info strings use the `[label]{#id .class key=value}` convention and you want them read into an object |
-| `serializeDirective`       | writes a fence back out, byte for byte; `createDirectiveRebuild` already calls it for you                     |
+| `serializeDirective`       | writes a fence back out from its parts; `createDirectiveRebuild` already calls it for you                     |
 | `escalatedColonCount`      | how many colons a fence needs to hold a given body; only if you build `:::name` text by hand                  |
 
 Plus the types: `DirectiveTier`, `DirectiveDefinition`, `ParsedDirective`, `DirectiveFence` and `DirectiveAttributes`.
@@ -192,5 +200,24 @@ The one type worth knowing by heart is `ParsedDirective`, because it is what you
 | `body`                                            | everything between the fences, already parsed (a leaf has none); its `children` become your node's body blocks                                     |
 | `leadingTrivia`, `raw`                            | the blank lines before the block, and the block's exact source text; copy both onto your node untouched, or it will not save back to what was read |
 | `closerColonCount`, `closerNewline`, `lineEnding` | how the closing fence looked and which line ending the file used, so the fence can be written back exactly, CRLF included                          |
+
+For the `:::note Heads up` fence at the top of this page, your factory gets:
+
+```ts
+{
+	fence: { tier: 'container', colonCount: 3, name: 'note', info: ' Heads up' },
+	body: {
+		kind: 'document',
+		prefix: '',
+		children: [/* the "Some body markdown." paragraph, already parsed */],
+		suffix: ''
+	},
+	leadingTrivia: '',
+	raw: ':::note Heads up\nSome body markdown.\n:::\n',
+	closerColonCount: 3,
+	closerNewline: true,
+	lineEnding: '\n'
+}
+```
 
 One thing to know before you write your metadata type: `createDirectiveRebuild` needs it to carry `colonCount`, `closerColonCount`, `closerNewline` and `lineEnding`, under exactly those names. Those four are how it writes the fence back identical to the one it read. The compiler will tell you if one is missing; now you also know why.
