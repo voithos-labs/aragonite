@@ -1,152 +1,253 @@
 # aragonite
+Hello. Here's a birb.
 
-Hi. This page is the editor and this document is live, so click anywhere and type; nothing here is precious. Whatever you type goes back out as the same Markdown file it came from, `serialize(parse(source)) === source` and all that. The readme says it more times than it needed to, so once here and we move on.
+%%parrot Dancing is what to do. Dancing's when I think of you. Dancing's what clears my soul. Dancing's what makes me whole.
+
+
+Hmmm still have to demo. One sec.
 
 [[toc]]
 
-That outline is a plugin, and also just a block. Click an entry to jump to its section; click the outline itself and you're editing the `[[toc]]` line that makes it.
 
-## Prose you already know how to write
-
-The syntax stays visible, just dimmed, so **bold**, *italic*, ~~strikethrough~~ and `inline code` never hide where they start (put your caret inside one and watch the markers). Links work inline, like [the repository](https://github.com/voithos-labs/aragonite), and by reference, like [the docs][repo-docs], whose definition sits at the very bottom of this page, where reference definitions go to be forgotten.
-
-Now click into a word, say banana, and every banana on this page lights up. There are exactly four: banana, banana, and the two you just read. The highlight is a decoration, painted over the document and never written into it, so the file stays exactly as silly as I left it.
-
-Blocks, mostly invisible
-------------------------
-
-Everything on this page is a block, and almost none of it looks like one. No cards, no outlines, no gutter furniture (flip **handles** in the header if you want grips; they show on hover and otherwise stay out of the way). Also, that heading is spelled with an underline instead of a `##`. Same heading, different bytes. I only know it's called Setext because I had to write the parser for it.
-
-> Quotes nest.
->
-> > Into other quotes.
-> >
-> > > And further, if that's your thing (i dunno, some people are freaky like that).
-
-### Lists, and a to-do list I'm not proud of
-
-1. Ordered lists renumber themselves when you split them. Press `Enter` in the middle of this item and watch.
-2. Unordered lists have nothing to renumber, and honestly, good for them.
+## roadmap
 
 - [x] write an editor
-- [x] make it lossless
-- [ ] write the docs for it
-- [ ] stop adding plugins
-- [ ] sleep
+- [x] open source it
+- [ ] one ton slab of stone
 
-Click a box, or type the `x` in yourself. Same byte either way.
 
-#### Nesting goes as deep as you care to indent
+## hope your road is a long one
 
-- One level
-  - Two levels
-    - Three levels, which is where I'd stop if I were sensible
-      - Four levels. So, no.
+> Ithaka
+> By C. P. Cavafy
+> > As you set out for Ithaka
+> > hope your road is a long one,
+> > full of adventure, full of discovery.
+> > Laistrygonians, Cyclops,
+> > angry Poseidon — don’t be afraid of them:
+> > you’ll never find things like that on your way
+> > as long as you keep your thoughts raised high,
+> > as long as a rare excitement
+> > stirs your spirit and your body.
+> > Laistrygonians, Cyclops,
+> > wild Poseidon — you won’t encounter them
+> > unless you bring them along inside your soul,
+> > unless your soul sets them up in front of you.
+>
+> 
+> > Hope your road is a long one.
+> > May there be many summer mornings when,
+> > with what pleasure, what joy,
+> > you enter harbors you’re seeing for the first time;
+> > may you stop at Phoenician trading stations
+> > to buy fine things,
+> > mother of pearl and coral, amber and ebony,
+> > sensual perfume of every kind—
+> > as many sensual perfumes as you can;
+> > and may you visit many Egyptian cities
+> > to learn and go on learning from their scholars.
+>
+> 
+> > Keep Ithaka always in your mind.
+> > Arriving there is what you’re destined for.
+> > But don’t hurry the journey at all.
+> > Better if it lasts for years,
+> > so you’re old by the time you reach the island,
+> > wealthy with all you’ve gained on the way,
+> > not expecting Ithaka to make you rich.
+>
+> 
+> > Ithaka gave you the marvelous journey.
+> > Without her you wouldn't have set out.
+> > She has nothing left to give you now.
+>
+> 
+> > And if you find her poor, Ithaka won’t have fooled you.
+> > Wise as you will have become, so full of experience,
+> > you’ll have understood by then what these Ithakas mean.
 
-A list this size just renders. One with a few thousand items windows its own children, meaning only the ones on screen get mounted, and yes, the test suite builds one.
 
-## Tables, one cell at a time
+## what is?
+who **am** i, *where* do i come from, and where am ~~i~~ going? `system reboot`. `searching...` 
 
-Each cell is its own little editing surface. `Tab` hops to the next cell and `Enter` drops to the row below (try it). One heads-up: the first time you edit inside a table, its padding and delimiter row get tidied to the standard spelling. That's about the only time the editor writes a byte you didn't.
+[the answer?](https://youtu.be/dQw4w9WgXcQ?si=naj07y-yv6X9rq4m)
 
-| what you write         | what happens to it            |    round-trips     |
-| :--------------------- | :---------------------------- | :----------------: |
-| syntax it knows        | becomes a styled block        | :white_check_mark: |
-| syntax a plugin claims | the plugin takes it from here | :white_check_mark: |
-| syntax nobody claims   | stays plain text, untouched   | :white_check_mark: |
-| my typos               | kept, faithfully, forever     | :white_check_mark: |
 
-## Code, fenced or indented
+## DOES THE INERTIA OF A BODY DEPEND UPON ITS ENERGY-CONTENT?
 
-A fence highlights by language; this one's `js`:
+**By A. EINSTEIN**
 
-```js
-function remainingBugs() {
-	return 0; // famous last words
-}
-```
+*September 27, 1905*
 
-The four-space form still parses, for every README written before fences were a thing:
 
-    const indented = true; // no language, no highlighting, no shame
+The results of the previous investigation lead to a very interesting conclusion, which is here to be deduced.
 
-## Math
 
-Inline math sits inside a sentence, like $a^2 + b^2 = c^2$, which I'm told is a famous one. Display math gets its own block; click it to edit the source:
+I based that investigation on the Maxwell-Hertz equations for empty space, together with the Maxwellian expression for the electromagnetic energy of space, and in addition the principle that:—
+
+
+> *The laws by which the states of physical systems alter are independent of the alternative, to which of two systems of coordinates, in uniform motion of parallel translation relatively to each other, these alterations of state are referred (principle of relativity).*
+
+
+With these principles[^1] as my basis I deduced *inter alia* the following result (§ 8):—
+
+
+Let a system of plane waves of light, referred to the system of co-ordinates $(x, y, z)$, possess the energy $l$; let the direction of the ray (the wave-normal) make an angle $\varphi$ with the axis of $x$ of the system. If we introduce a new system of co-ordinates $(\xi, \eta, \zeta)$ moving in uniform parallel translation with respect to the system $(x, y, z)$, and having its origin of co-ordinates in motion along the axis of $x$ with the velocity $v$, then this quantity of light—measured in the system $(\xi, \eta, \zeta)$—possesses the energy
+
+$$l^{*} = l\,\frac{1 - \dfrac{v}{c}\cos\varphi}{\sqrt{1 - v^{2}/c^{2}}}$$
+
+where $c$ denotes the velocity of light. We shall make use of this result in what follows.
+
+
+Let there be a stationary body in the system $(x, y, z)$, and let its energy—referred to the system $(x, y, z)$ be $E_0$. Let the energy of the body relative to the system $(\xi, \eta, \zeta)$ moving as above with the velocity $v$, be $H_0$.
+
+
+Let this body send out, in a direction making an angle $\varphi$ with the axis of $x$, plane waves of light, of energy $\tfrac{1}{2}L$ measured relatively to $(x, y, z)$, and simultaneously an equal quantity of light in the opposite direction. Meanwhile the body remains at rest with respect to the system $(x, y, z)$. The principle of energy must apply to this process, and in fact (by the principle of relativity) with respect to both systems of co-ordinates. If we call the energy of the body after the emission of light $E_1$ or $H_1$ respectively, measured relatively to the system $(x, y, z)$ or $(\xi, \eta, \zeta)$ respectively, then by employing the relation given above we obtain
+
+$$E_0 = E_1 + \tfrac{1}{2}L + \tfrac{1}{2}L,$$
 
 $$
-\int_0^1 x^2 \, dx = \frac{1}{3}
+H_0 = H_1
++ \frac{1}{2}L\,\frac{1 - \dfrac{v}{c}\cos\varphi}{\sqrt{1 - v^{2}/c^{2}}}
++ \frac{1}{2}L\,\frac{1 + \dfrac{v}{c}\cos\varphi}{\sqrt{1 - v^{2}/c^{2}}}
+= H_1 + \frac{L}{\sqrt{1 - v^{2}/c^{2}}}.
 $$
 
-GitHub's `math` fence is the same display spelled as a fence, for people who like their math fenced in:
+By subtraction we obtain from these equations
 
-```math
-e^{i\pi} + 1 = 0
-```
+$$H_0 - E_0 - (H_1 - E_1) = L\left(\frac{1}{\sqrt{1 - v^{2}/c^{2}}} - 1\right).$$
 
-## Diagrams
+The two differences of the form $H - E$ occurring in this expression have simple physical significations. $H$ and $E$ are energy values of the same body referred to two systems of co-ordinates which are in motion relatively to each other, the body being at rest in one of the two systems (system $(x, y, z)$). Thus it is clear that the difference $H - E$ can differ from the kinetic energy $K$ of the body, with respect to the other system $(\xi, \eta, \zeta)$, only by an additive constant $C$, which depends on the choice of the arbitrary additive constants of the energies $H$ and $E$. Thus we may place
 
-A `mermaid` fence renders as a diagram. Double-click it to get the source back, and feel free to edit the flowchart if you disagree with it:
+$$H_0 - E_0 = K_0 + C,$$
+$$H_1 - E_1 = K_1 + C,$$
 
-```mermaid
-flowchart TD
-	Q1["do you write markdown?"] -->|no| A["fair enough, carry on"]
-	Q1 -->|yes| Q2["do you want your bytes back the way you wrote them?"]
-	Q2 -->|no| B["most editors will happily oblige"]
-	Q2 -->|yes| C["you are already here"]
-```
+since $C$ does not change during the emission of light. So we have
 
-## Callouts
+$$K_0 - K_1 = L\left(\frac{1}{\sqrt{1 - v^{2}/c^{2}}} - 1\right).$$
 
-:::note
-A `:::name` block belongs to a plugin, not the parser. What's inside is ordinary **Markdown**, so edit away.
-:::
+The kinetic energy of the body with respect to $(\xi, \eta, \zeta)$ diminishes as a result of the emission of light, and the amount of diminution is independent of the properties of the body. Moreover, the difference $K_0 - K_1$, like the kinetic energy of the electron (§ 10), depends on the velocity.
 
-:::tip Give it a title
-The title rides along on the opener line. This one is called "Give it a title", which is a title, so I've technically followed my own advice.
-:::
 
-GitHub's alert syntax renders as a callout too:
+Neglecting magnitudes of fourth and higher orders we may place
 
-> [!IMPORTANT]
-> Nothing rewrote this into a `:::`. In the file it's still a blockquote wearing a hat.
+$$K_0 - K_1 = \frac{1}{2}\frac{L}{c^{2}}v^{2}.$$
 
-## Things that fold
+From this equation it directly follows that:—
 
-<details>
-<summary>Nothing in here, don't open</summary>
 
-I said don't. Anyway, a details block holds real Markdown in real blocks, so this list is as editable as everything else:
+If a body gives off the energy $L$ in the form of radiation, its mass diminishes by $L/c^{2}$. The fact that the energy withdrawn from the body becomes energy of radiation evidently makes no difference, so that we are led to the more general conclusion that
 
-- the fold is prob the only bit of HTML most people ever type into Markdown, so it had better work
-- the parrot is in the next section, keep scrolling
 
-</details>
+> *The mass of a body is a measure of its energy-content; if the energy changes by $L$, the mass changes in the same sense by $L/9 \times 10^{20}$, the energy being measured in ergs, and the mass in grammes.*
 
-## A parrot
 
-The plugin guide's first exercise is a party parrot, so naturally the party parrot is now a bundled plugin. Click into it and change the words after `%%parrot`; the caption follows.
+It is not impossible that with bodies whose energy-content is variable to a high degree (e.g. with radium salts) the theory may be successfully put to the test.
 
-%%parrot the plugin platform, working as intended
 
-## Whatever else you paste
+If the theory corresponds to the facts, radiation conveys inertia between the emitting and absorbing bodies.
 
-<div class="unclaimed">
-	Raw HTML nobody claims is left exactly as you wrote it.
-</div>
-
-So is syntax from a plugin you uninstalled last week[^plugins]. Images are just images:
-
-![a 32 by 24 pixel test fixture, which makes it the most honest picture on the internet: it is exactly as small as it looks](/test-fixtures/sample.png)
-
-## Emoji :sparkles:
-
-Shortcodes render as glyphs while the `:name:` bytes stay in the file, in prose :rocket:, in headings (see above), and in table cells (see the table). There's a :parrot: shortcode as well, which is not the same parrot, but I appreciate the commitment.
 
 ---
 
-That's the tour. All of it is editable, `Ctrl+F` searches it, **under the hood** in the header shows the syntax tree behind it, and the mode buttons next to it take this same document from raw to rendered. `Ctrl+Z` is right there when you need it.
 
-[repo-docs]: https://github.com/voithos-labs/aragonite/tree/main/docs
+[^1]: The principle of the constancy of the velocity of light is of course contained in Maxwell's equations.
 
-[^plugins]: Footnotes are a plugin as well. The number up there picks itself (first appearance wins), and this definition is an ordinary block, so yes, you can edit it. And yes, I put a footnote in a demo. I have a problem.
+
+## Human Transmutation
+
+
+> There was once a hero who flew too close to the sun.
+> His wings of wax fell apart and he plummeted to the earth...
+
+
+| Ingredient | Amount |
+|---|---|
+| Water | 35 L |
+| Carbon | 20 kg |
+| Ammonia | 4 L |
+| Lime | 1.5 kg |
+| Phosphorus | 800 g |
+| Salt | 250 g |
+| Saltpeter | 100 g |
+| Sulfur | 80 g |
+| Fluorine | 7.5 g |
+| Iron | 5 g |
+| Silicon | 3 g |
+| Fifteen further trace elements | small quantities |
+
+
+35 liters of water, 20 kilograms of carbon, 4 liters of ammonia, 1.5 kilograms of lime, 800 grams of phosphorous, 250 grams of salt, 100 grams of saltpeter, 80 grams of sulfur, 7.5 grams of fluorine, 5 grams of iron, 3 grams of silicon, and a little bit of 15 other elements... These would be the calculated components that make up the body of a single adult.
+
+
+---
+
+<details>
+<summary>Let's bring her back.</summary>
+
+![human transmutation|300x300](/demo/transmutation.png)
+
+</details>
+
+---
+
+
+## fast inverse square root
+```rust
+/// an approximation of 1/sqrt(x)
+fn fast_inv_sqrt(x: f32) -> f32 {
+    let i = x.to_bits();
+    let i = 0x5f3759df - (i >> 1);
+    let y = f32::from_bits(i);
+    y * (1.5 - 0.5 * x * y * y)
+}
+```
+
+
+### the bit pattern is a logarithm...?
+An IEEE-754 single stores a biased exponent and a mantissa in adjacent fields. Read the whole 32 bits as an unsigned integer and the exponent field supplies the integer part of $\log_2 x$ while the mantissa field linearly interpolates the fractional part. That interpolation is wrong - a straight line where a logarithm curves - but wrong smoothly, and within a bounded margin.
+
+
+Once you accept you're holding a logarithm, the rest reads normally. The inverse square root is $-\tfrac{1}{2}\log_2 x$, so the shift halves and the subtraction negates. The constant absorbs both the exponent bias and the accumulated error of the linear-interpolation lie.
+
+:::note
+Nothing in the source signals that a logarithm is involved. The logarithm is a side effect of how the bits happen to be laid out, which is exactly why the function is unreadable without knowing the layout.
+:::
+
+
+### The constant
+`0x5f3759df` is not the value you get by deriving the bias correction on paper. It is tuned so that the *entire* pipeline, approximation plus refinement, has minimal worst-case error. Its authorship was murky for years; it surfaced publicly when the Quake III Arena source was released, and traces back before that through Silicon Graphics.
+
+
+Chris Lomont later ran the search properly and published `0x5f375a86`.
+
+| Variant | Max relative error |
+|---|---|
+| Bit trick alone, no refinement | 3.44% |
+| One Newton step | 0.175% |
+| One Newton step, Lomont's constant | 0.175% |
+
+
+:::tip Measure before you swap constants
+Lomont's value is better, by about one part in $10^5$. Over the range tested, both round to the same three significant figures. If you are choosing between them on anything other than curiosity, the answer is that it does not matter.
+:::
+
+
+### refinement
+
+The last line is one iteration of Newton-Raphson on
+
+$$f(y) = \frac{1}{y^{2}} - x,$$
+
+whose update rule is $y \leftarrow y(1.5 - 0.5xy^{2})$. That specific formulation is the point: it needs two multiplications and a subtraction and **no division**, which is what makes it cheaper than the operation it is approximating. Adding a second iteration costs one more line and buys roughly three more decimal digits. 
+
+
+## Punishing Evil
+> [!WARNING]
+> :crescent_moon:In the name of the Moon, I'll punish you!:punch:
+
+
+1. Fighting evil by moonlight:full_moon:, 
+2. winning :two_hearts:love by :sunny:daylight, 
+3. never running from a real fight:muscle:, 
+4. she is the one named Sailor Moon! :dizzy::dizzy::dizzy::sparkles:
