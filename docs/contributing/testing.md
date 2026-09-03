@@ -16,7 +16,8 @@ Where to jump:
 - [Unit tests (Vitest)](#unit-tests-vitest): where a file goes, the area scripts, mounting a
   block without the whole editor, and the console-warning gate.
 - [E2E tests (Playwright)](#e2e-tests-playwright): the fixture import rule, the test bridge, the
-  area scripts, the WebKit run, the requirement files, and the gotchas.
+  area scripts, the plugins route and what's installed on it, the WebKit run, the requirement
+  files, and the gotchas.
 - [The conformance differ](#the-conformance-differ): our inline parser diffed against
   commonmark.js.
 - [Property suites and fresh seeds](#property-suites-and-fresh-seeds): why the random tests
@@ -25,6 +26,8 @@ Where to jump:
   hidden construct edges.
 - [The note-taking simulation](#the-note-taking-simulation): whole documents typed keystroke by
   keystroke, the strongest corruption oracle in the repo.
+- [The consumer smoke](#the-consumer-smoke): the example app that installs the packed tarball,
+  what CI checks with it, and how to run it yourself.
 - The performance harness (fixtures, instruments, threshold policy) lives in
   `docs/design/performance.md` § The numbers and the gate.
 - The debug panel, its console helpers, and dumping editor state inside a test are in
@@ -334,6 +337,61 @@ editing, and selection + clipboard.
 
 The a11y allowlist and the VR ceilings both fail closed and only shrink. Neither is a perf gate;
 both ride `npm test`.
+
+### The plugins route
+
+The plugin specs drive `/test/plugins` (`src/routes/test/plugins/+page.svelte`), the editor
+route's sibling with a set of plugins installed that exist to be tested against. None of them
+ship: the package's own plugins live in `src/lib/plugins/`, and these install on this route and
+nowhere else. `?seed=<name>` picks the document and, for some seeds, adds a plugin that only
+installs under that seed (callout is the default). The always-on set is callout, memo, and
+doc-stats, plus the bundled details, latex, admonitions, mermaid, and toc. The rest are scoped
+to their seed because they'd change what every other seed's test sees, by claiming a common
+character (`:` for emoji, `!` for wiki-embed, `[^` for footnotes), by painting decorations a
+sibling test is counting, or, in the parrot's case, by animating on a timer. The seed table is
+in `+page.svelte`, and `+page.ts` reads the query so server and client render the same document.
+What each fixture is for:
+
+- `callout/`: `:::callout Title` (and `:::aside`, so a kind switch has somewhere to go), a
+  container with a title line the block always keeps, which the editor calls reserved chrome
+  (block furniture rather than content; a range delete or a merge has to step around it).
+  Minimal on purpose, so the five `reserved-chrome-*` specs, the chrome unit suites, and the
+  simulation's plugin gestures observe the editor's chrome handling and not a plugin feature.
+  As a product it duplicates admonitions; as a fixture it's what those tests stand on. Its two
+  directive names are claimed by no other plugin, since a contended name resolves by install
+  order, and the dev server (every route in one process) installs in a different order than a
+  fresh tab would. Always on.
+- `memo/`: a `%%` leaf you edit as plain text, the one plugin anywhere that builds
+  `createEditableLeaf` in `'plain'` mode (the bundled leaves all use `'render-primary'`), so
+  the `editable-leaf-*` specs drive it. Always on; seed `memo` loads its document.
+- `doc-stats/`: counts blocks and edits per editor and publishes them on `window`. Installed
+  bare here (the no-options path) and with per-editor options on the `multi/` subroute; the
+  working example of `registerGlobalCommand` plus a per-editor context. Always on; seed
+  `docstats`.
+- `ghost-text/`: one component widget at the end of the focused paragraph, with no completion
+  backend behind it; its spec proves typing next to the widget never captures the ghost text
+  into the document. Seed `ghost`.
+- `fold/`: `[>hidden<]` ranges collapse to a clickable `…` that reopens on click; the
+  `ReplaceDecoration.widget` fixture, covering a live click handler inside a decoration and
+  decorations inside table cells. Seeds `fold` and `fold-table`.
+- `block-badge/`: a class plus an `H` badge on every heading at any depth; the
+  `BlockDecoration.badge` fixture, including a badge surviving its heading scrolling out of the
+  window and back. Seed `badge`.
+- `wiki-embed/`: `![[path|width]]` recognized as a built-in image, resize handles and all;
+  covers an inline syntax producing a built-in kind, and `rewriteImage`, without which a resize
+  would write GFM over the embed. Seed `wiki-embed`.
+- `hloccur-scan/`: the bundled highlight-occurrences plugin configured with an `onScan` counter
+  on `window`, so its spec can count how often it rescans. Seed `hloccur-memo`.
+- `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section
+  below). One marks every whole-word `paragraph`; the other turns three sentinel strings in the
+  text into a replace island, a widget island, and a block badge. Both under `?seed=sim`, so
+  the simulation runs with the decoration engine live on every keystroke.
+
+`walk-views.ts` is the leaf walk they share. Three subroutes carry the multi-editor cases:
+`multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the
+second), `staggered/` (editor one installs callout, editor two mounts later with details added,
+for the staggered-mount spec), and `enablement/` (two editors sharing one memo registration, the
+left with the kind switched off through the harness-only `__registryEnablement` prop).
 
 ### The WebKit run
 
@@ -719,3 +777,36 @@ Artifacts persist under `simulation-captures/seed-<N>/` (gitignored, one directo
 They live _outside_ `test-results/` deliberately: Playwright wipes that directory at the start
 of every run, so captures kept there wouldn't survive the next invocation, which is the one the
 review needs them for.
+
+## The consumer smoke
+
+`examples/consumer/` is a tiny SvelteKit app that installs aragonite the way a stranger would:
+from the packed tarball, importing only published entry points. It's a test, not documentation
+(if something is only learnable from that folder, that's a docs bug; file it). CI's
+`consumer-smoke` job runs `scripts/consumer-smoke.mjs`, which builds and packs `dist/`, checks
+the tarball holds every published path and no test file, installs it into the example with
+`--no-save`, typechecks and builds the example (a Rollup "reexported through module" warning
+fails the build, since it means a published barrel sits inside an import cycle), then runs the
+example's own Playwright specs: the page server-renders without a 5xx, hydrates with no console
+errors and takes a keystroke, the plugins page mounts the bundled plugins through their subpaths
+plus a copy of the callout fixture, and the editor's dev-only warnings still fire under a
+consumer's `vite dev`.
+
+To run the example yourself, from a fresh clone (same commands in bash and PowerShell):
+
+```bash
+npm install        # at the repo root, once
+npm run package    # builds dist/, which the example imports through the package's exports map
+
+cd examples/consumer
+npm install        # links the local library + the example's own deps
+npm run dev        # http://localhost:5173
+```
+
+Locally the example depends on `@voithos-labs/aragonite` as `file:../..`, a link to the working
+tree you cloned, so there's no tarball to refresh; after a library change, `npm run package`
+again and the example sees it. `examples/consumer/src/plugins/` is generated, not written: before
+every `dev`, `build`, `check`, and `test`, `scripts/sync-consumer-plugins.mjs` copies the callout
+fixture from `src/routes/test/plugins/callout/` with its `$lib/plugin` imports rewritten to the
+package name, and fails if any deep `$lib/` import survives the rewrite. The folder is
+git-ignored and shows up on first run.

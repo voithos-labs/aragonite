@@ -1,6 +1,6 @@
 ## What changed and why
 
-<!-- One line is plenty. Link the issue if there is one. -->
+<!-- One line is plenty. Link the issue if there's one. -->
 
 ## Gates
 
@@ -8,9 +8,9 @@
 - [ ] `npm run check` (svelte-check, 0 errors)
 - [ ] `npm run lint`
 
-`npm run perf:check` builds and previews the app before measuring, and reads red on anything but the calibration machine by design, so don't tune to a local number. CI's scaled perf job is the arbiter.
+Don't chase `npm run perf:check` on your own machine unless it's the calibration machine: it builds and previews the app, then measures keystrokes against baselines taken on one pinned desktop, so anywhere else it reads red by design. CI runs it with a scale factor for its slower runners, and that's the run that has to be green.
 
 ## Before you submit
 
-- Target branch is `dev`. `main` takes release merges only.
-- Licensing is inbound = outbound: by submitting this change you license it under AGPL-3.0-or-later, same as the rest of the project.
+- Target `dev`. `main` only takes release merges.
+- Inbound = outbound: by submitting this you license the change under AGPL-3.0-or-later, same as the rest of the project.
