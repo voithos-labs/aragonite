@@ -12,6 +12,7 @@
 		getPath: () => myPath,
 		getEl: () => sourceEl ?? null,
 		mode: 'render-primary',
+		singleLine: true,
 		isRevealed: () => revealed,
 		setRevealed: (next) => (revealed = next)
 	});

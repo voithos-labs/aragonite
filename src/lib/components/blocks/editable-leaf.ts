@@ -49,7 +49,8 @@ export type EditableLeafMode = 'plain' | 'render-primary';
 /**
  * The frozen inputs the host component feeds in. A function-valued field is a **live
  * read**, re-evaluated on every use, so a structural op or undo replacement is observed
- * rather than snapshotted; `mode` is static configuration captured at the factory call.
+ * rather than snapshotted; `mode` and `singleLine` are static configuration captured at the
+ * factory call.
  */
 export interface EditableLeafDeps {
 	getNode(): NodeView;
@@ -58,6 +59,8 @@ export interface EditableLeafDeps {
 	/** The source contenteditable; null while unmounted (render-primary's rendered view). */
 	getEl(): HTMLElement | null;
 	mode?: EditableLeafMode;
+	/** A kind whose bytes are one line: Enter splits the block rather than typing a newline. */
+	singleLine?: boolean;
 	/** render-primary only: the component owns the swap flag and both views. */
 	isRevealed?(): boolean;
 	setRevealed?(revealed: boolean): void;
@@ -153,7 +156,8 @@ export interface EditableLeaf {
 	insertMarkdown(md: string): boolean;
 	/** Mount/focus the source with the caret at `offset` (plain mode: focus only). */
 	reveal(offset?: number): Promise<void>;
-	/** Commit edited source as one undo entry; the parse decides update / kind change / structural split. */
+	/** Commit edited source as one undo entry, fire and forget; the parse decides update / kind
+	 *  change / structural split. */
 	commitSource(edited: string): void;
 }
 
@@ -178,6 +182,7 @@ export function buildLeafCommandContext(
 
 export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const mode: EditableLeafMode = deps.mode ?? 'plain';
+	const singleLine = deps.singleLine ?? false;
 	if (mode === 'render-primary' && (!deps.isRevealed || !deps.setRevealed)) {
 		throw new Error('createEditableLeaf: render-primary mode requires isRevealed + setRevealed');
 	}
@@ -296,18 +301,22 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── Commit ─────────────────────────────────────────────────────────────────
 
-	function commitSource(edited: string): void {
+	// Returns the commit's own promise, so a caller that has to act on the committed bytes
+	// (a single-line Enter's split) can wait for the write to land.
+	function commitSource(edited: string): Promise<void> {
 		// One undo entry: the anchor is where the caret entered the edit; the post-edit
 		// caret follows the edit position.
-		void blockEdit.updateBlockContent(
-			deps.getIndex(),
-			edited + trailingLineEnding(deps.getNode().raw),
-			preEditOffset,
-			edited.length
+		return Promise.resolve(
+			blockEdit.updateBlockContent(
+				deps.getIndex(),
+				edited + trailingLineEnding(deps.getNode().raw),
+				preEditOffset,
+				edited.length
+			)
 		);
 	}
 
-	function commitReveal(): void {
+	async function commitReveal(): Promise<void> {
 		if (mode !== 'render-primary' || !isRevealed()) return;
 		// A cross-block selection sweeping through keeps the source revealed so its rects
 		// measure real text, and focusout is this fold's only entry — so the leaf stays in
@@ -325,7 +334,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// no longer here and writing them corrupts the one that is (#161).
 		if (base !== null && base !== sourceText()) return;
 		if (edited === sourceText()) return; // pure view toggle, nothing for the CST
-		commitSource(edited);
+		await commitSource(edited);
 	}
 
 	// ── BlockComponent surface ─────────────────────────────────────────────────
@@ -443,12 +452,21 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		if (dispatchChord(e)) return;
 
-		// Enter stays inside the leaf as a literal newline (multiline source);
-		// it never splits the block. Plain mode commits the insertion.
+		// Enter stays inside the leaf as a literal newline (multiline source); it never splits
+		// the block, and plain mode commits the insertion. A single-line leaf has nowhere to put
+		// that byte, so it spends the press on the document instead.
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			if (isReading()) return;
+			// Read before any fold: `setRevealed(false)` unmounts the element the offset lives in.
 			const offset = getCursorOffset(el) ?? (el.textContent ?? '').length;
+			if (singleLine) {
+				// Through the fold, not a bare commit: it is the one door deciding whether an open
+				// reveal's bytes may still be written, and the split reads `node.raw` after it.
+				await commitReveal();
+				await blockEdit.splitBlock(deps.getIndex(), offset);
+				return;
+			}
 			spliceSourceText(el, offset, offset, '\n');
 		}
 	}
@@ -486,7 +504,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		oncut: clipboard.onCut,
 		onpaste: clipboard.onPaste,
 		onpointerdown: onPointerDown,
-		onfocusout: commitReveal,
+		onfocusout: () => void commitReveal(),
 		oncompositionstart: editableSurface.onCompositionStart,
 		oncompositionend: editableSurface.onCompositionEnd
 	};
@@ -558,6 +576,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
 			return isReading() ? Promise.resolve() : revealKernel.reveal(offset);
 		},
-		commitSource
+		commitSource: (edited) => void commitSource(edited)
 	};
 }

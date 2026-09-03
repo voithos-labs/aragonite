@@ -138,6 +138,7 @@ The rest read as they sound. On the opener, `priority` decides where you sit in 
 		getPath: () => myPath,
 		getEl: () => sourceEl ?? null,
 		mode: 'render-primary',
+		singleLine: true,
 		isRevealed: () => revealed,
 		setRevealed: (next) => (revealed = next)
 	});
@@ -264,7 +265,7 @@ cNo.....................................oc
 </style>
 ```
 
-The editing half is the factory call, the `revealed` flag, two spreads, and one-line re-exports of what the factory returns. The flag is yours to own. The factory flips it on through `setRevealed` when a click or an arrow lands in the block, and off again when the caret leaves; the `{#if}` swaps on it. `surfaceProps` goes on the source line, `renderProps` on the caption, and you spread both (a caption wired for the click alone swallows undo while it holds focus). `focus` and `getCursorOffset` are the two every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The commit happens when the caret leaves. Reveal, type, arrow out, and that's one undo entry. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`. The raw only changes when the caret leaves, not per keystroke, and the caption follows it. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap` (the parrot's can't, since its opener claims one line), for a reason [The editable leaf](#the-editable-leaf) explains. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
+The editing half is the factory call, the `revealed` flag, two spreads, and one-line re-exports of what the factory returns. The flag is yours to own. The factory flips it on through `setRevealed` when a click or an arrow lands in the block, and off again when the caret leaves; the `{#if}` swaps on it. `surfaceProps` goes on the source line, `renderProps` on the caption, and you spread both (a caption wired for the click alone swallows undo while it holds focus). `focus` and `getCursorOffset` are the two every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The commit happens when the caret leaves. Reveal, type, arrow out, and that's one undo entry. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`. The raw only changes when the caret leaves, not per keystroke, and the caption follows it. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap`, for a reason [The editable leaf](#the-editable-leaf) explains. The parrot's can't span lines, since its opener claims one, so it says so with `singleLine: true` and skips the CSS. Enter in a block like that ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
 **Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships in the package, as `@voithos-labs/aragonite/plugins/parrot`, and a test keeps the shipped files identical to the fences above, so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
 
@@ -1067,6 +1068,7 @@ const leaf = createEditableLeaf({
 	getPath: () => myPath,
 	getEl: () => sourceEl ?? null, // null while a render-primary view is folded
 	mode: 'render-primary', // 'plain' is the default
+	singleLine: true, // a one-line kind: Enter splits the block instead of typing a newline
 	isRevealed: () => revealed, // render-primary only: you own the swap flag
 	setRevealed: (next) => (revealed = next)
 });
@@ -1080,6 +1082,8 @@ leaf.getOptions(); // this editor's options for your plugin, typed unknown
 **One spread wires the source surface.** Write `<div {...leaf.surfaceProps}>` on your source contenteditable and the nine DOM handlers, the `contenteditable` / `role` / `tabindex` / `spellcheck` attributes, and two view-lifecycle contracts all land at once, so a forgotten handler (a dropped `oncompositionend` that silently breaks IME) simply can't happen to you. The two contracts the spread owns are the ones every consumer used to hand-write: the source is populated as a **single text node** (so `textContent === source` and the walk that maps DOM positions to byte offsets stays exact), and focus is parked on the editor root when the source unmounts.
 
 That single text node carries every newline your source holds, which makes **`white-space: pre-wrap` (or `pre`) on your source element part of the contract** for any leaf whose bytes can span lines. Without it the browser collapses the line breaks on screen while the offset walk goes on counting them, and the caret sits nowhere near where it looks.
+
+A leaf whose bytes are one line (an opener that claims a single line, like the parrot's) declares `singleLine: true` and needs none of that. Enter in one of those ends the block: the text after the caret becomes a paragraph below and the caret lands at the start of it, which is what Enter does in a heading. Press it at the end of the line and you get an empty paragraph to keep typing in. Leave the flag off, which is the default, and Enter stays a literal newline the way a multi-line leaf wants.
 
 Beyond the spread you add only your own `class` / `aria-label`, plus **`bind:this` in both modes**: the factory reaches your element only through `getEl()`, so both modes read it the same way, and they differ only in that render-primary's `getEl()` returns null while the view is folded. The two modes:
 

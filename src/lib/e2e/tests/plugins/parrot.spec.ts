@@ -146,6 +146,85 @@ test.describe('the bundled party parrot', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
+	test('Enter at the end of the caption leaves a paragraph below, caret in it', async ({
+		page
+	}) => {
+		await editor.revealByClick();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Enter');
+
+		// The shape a heading's Enter writes at the same offset, byte for byte.
+		await editor.bridge.waitForSourceEquals('%%parrot party responsibly\n\n\nAfter\n');
+		await expect(editor.source).toHaveCount(0);
+		await expect(editor.caption).toHaveText('party responsibly');
+		expect(await activeBlockPath(page)).toEqual([1]);
+		expect(await roundTripStable(page)).toBe(true);
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(SEED);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Enter after a bare marker commits the emptied caption, then splits', async ({ page }) => {
+		await editor.revealByClick();
+		await page.keyboard.press('End');
+		for (let i = 0; i < ' party responsibly'.length; i++) {
+			await page.keyboard.press('Backspace');
+		}
+		await page.keyboard.press('Enter');
+
+		await editor.bridge.waitForSourceEquals('%%parrot\n\n\nAfter\n');
+		await expect(editor.caption).toHaveText('');
+		expect(await activeBlockPath(page)).toEqual([1]);
+		await editor.expectDancing();
+
+		// One step, not two: the fold's commit is still inside its undo batch when the split
+		// lands on the same press, so the pair shares an entry.
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(SEED);
+		await expect(editor.caption).toHaveText('party responsibly');
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('Enter mid-caption moves the tail into the paragraph below', async ({ page }) => {
+		await editor.revealByClick();
+		await page.keyboard.press('Home');
+		// Walked, not clicked: a rect-derived point lands on whichever side of a glyph the font
+		// metrics put it, and the assertion below is byte-exact.
+		for (let i = 0; i < '%%parrot party'.length; i++) {
+			await page.keyboard.press('ArrowRight');
+		}
+		await page.keyboard.press('Enter');
+
+		await editor.bridge.waitForSourceEquals('%%parrot party\n responsibly\n\nAfter\n');
+		await expect(editor.caption).toHaveText('party');
+		expect(await activeBlockPath(page)).toEqual([1]);
+		expect(await roundTripStable(page)).toBe(true);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('typing the marker into a paragraph then pressing Enter lands a paragraph below', async ({
+		page
+	}) => {
+		await editor.getBlock(1).click();
+		await page.keyboard.press('End');
+		for (let i = 0; i < 'After'.length; i++) {
+			await page.keyboard.press('Backspace');
+		}
+		await page.keyboard.type('%%parrot');
+		// The kind flip mounts the bird with its source revealed and the caret still at the end.
+		await expect(editor.block).toHaveCount(2);
+		await expect(editor.source).toHaveCount(1);
+
+		await page.keyboard.press('Enter');
+
+		await editor.bridge.waitForSourceEquals('%%parrot party responsibly\n\n%%parrot\n\n\n');
+		await expect(editor.source).toHaveCount(0);
+		expect(await activeBlockPath(page)).toEqual([2]);
+		expect(await roundTripStable(page)).toBe(true);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
 	test('reading mode shows the rendered view only, and a click reveals nothing', async ({
 		page
 	}) => {

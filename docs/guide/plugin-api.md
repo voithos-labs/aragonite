@@ -171,7 +171,7 @@ _(pre-freeze / unstable)_ The container factory's sibling for leaves; the full s
 | `EditableLeaf`                                        | What the factory returns: the spreads, the focus surface your component re-exports, the mode and option reads                                          |
 | `EditableLeafMode`                                    | The two modes: `'plain'` (always-editable source, per-keystroke commits) and `'render-primary'` (rendered view, reveal to edit, one commit on leaving) |
 | `EditableLeafSurfaceProps`, `EditableLeafRenderProps` | The two spreads: the source surface's, and the folded rendered view's (a render-primary block spreads both)                                            |
-| `EditableLeafDeps`                                    | The factory's inputs: live getters for the node, the index, the path, and your source element                                                          |
+| `EditableLeafDeps`                                    | The factory's inputs: live getters for the node, the index, the path, and your source element, plus the static `mode` and `singleLine` settings        |
 | `StickyColumnDirection`                               | Which vertical direction the caret is entering your block from, handed to `focusAtColumn` so the column carries across lines                           |
 
 ### Inline authoring

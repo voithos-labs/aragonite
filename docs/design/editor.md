@@ -129,7 +129,7 @@ The full editing-rule catalog is [`live-mode.md`](live-mode.md).
 A block picks its own editing surface, and three exist:
 
 - **`TextEditableBlock`.** The built-in contenteditable prose surface: paragraphs, headings, setext headings, and the raw-editable fallback. Parameterized by CSS class.
-- **`createEditableLeaf`.** The plugin-facing text-leaf factory, with the same native caret, IME, undo, clipboard and cross-block-selection behavior as the built-in. Two modes: `plain` (always editable, commits per keystroke) and `render-primary` (a rendered view that reveals its source on entry and commits once on blur).
+- **`createEditableLeaf`.** The plugin-facing text-leaf factory, with the same native caret, IME, undo, clipboard and cross-block-selection behavior as the built-in. Two modes: `plain` (always editable, commits per keystroke) and `render-primary` (a rendered view that reveals its source on entry and commits once on blur). A `singleLine` leaf spends Enter on a block split rather than a literal newline.
 - **`createContainerBlock`.** The plugin-facing container factory: a nested `BlockList` with its own scoped contexts, wired exactly as `BlockquoteBlock` wires it.
 
 Beyond those, a block may render anything (a grid of cells, a static focusable element, an opaque diagram). It only has to conform to the block interface below, and not every block needs contenteditable. Images aren't a block kind at all: they render inline, as atomic widgets inside prose blocks (§ 6).
