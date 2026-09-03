@@ -22,8 +22,9 @@ block containing `alpha`.
 
 - moving the caret to another word re-filters to that word without re-scanning:
   the mark set changes but `window.__hloccurScans` is unchanged
-- typing an edit bumps the epoch, so the index does rebuild (`__hloccurScans`
-  increases) — the positive control that the memo is not frozen
+- typing a three-character burst rebuilds the index three times, once per keystroke
+  rather than once per typing pause (`__hloccurScans` increases by three) — the
+  positive control that the memo is not frozen
 
 ## Edge cases
 

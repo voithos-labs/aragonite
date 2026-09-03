@@ -54,9 +54,10 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		await expect(page.locator(OCCURRENCE)).toHaveCount(1);
 		expect(await scanCount(page)).toBe(afterClick);
 
-		// An edit bumps the epoch, so the index does rebuild — the positive control.
-		await editor.typeSlowly('X');
-		await expect.poll(() => scanCount(page)).toBeGreaterThan(afterClick);
+		// The epoch bumps once per keystroke, not once per typing pause, so a three-character
+		// burst rebuilds three times — the positive control that the memo is not frozen.
+		await editor.typeSlowly('XYZ');
+		await expect.poll(() => scanCount(page)).toBe(afterClick + 3);
 	});
 
 	// Live-preview modes keep the caret, so the selection-driven marks stay painted —

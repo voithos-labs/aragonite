@@ -139,8 +139,8 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 	if (path) counters.blockRenderPaths.push(path.join(','));
 }
 
-// notifyEdit runs every source, so a typing pass records edits × sources — the ceiling
-// that catches a per-block cascade.
+// notifyEdit runs every source, so a typing pass records keystrokes × sources — the
+// ceiling that catches a per-block cascade.
 export function recordDecorationRun(): void {
 	if (!enabled) return;
 	counters.decorationRuns++;

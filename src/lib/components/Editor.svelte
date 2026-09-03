@@ -251,9 +251,8 @@
 	let doc = $state<Document>(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
-	// The edit epoch's twin at render cadence: a byte-writing door bumps it immediately,
-	// while `editEpoch` waits for the typing batch to flush. Inline widgets derive at
-	// render cadence and need this one.
+	// Bumped by every byte-writing door. Inline widgets derive on it directly, and the
+	// decoration engine's `editEpoch` rides it a tick later.
 	const contentVersion = createContentVersion();
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
@@ -334,39 +333,38 @@
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
-			// try/finally: the log/LRD half and the notify were separate listeners once,
-			// so a throwing first half must still reach the notify (and the error event).
-			try {
-				operationsLog.record({
-					op: e.op,
-					path: e.path,
-					detail: ('detail' in e ? e.detail : undefined) ?? {}
-				});
-				// The shell maintains only the LRD resolver (inline content computes lazily
-				// on read — core/inline/inline-cache), and hands out a fresh identity only on
-				// a real signature change: one per edit re-renders every block that read it.
-				if (lrdMapCouldChange(doc, e)) {
-					const newMap = buildLinkReferenceMap(doc.children);
-					const next = advanceSignatureEpoch(currentSignature, signatureEpoch, newMap.signature);
-					if (next.epoch !== signatureEpoch) {
-						currentResolver = newMap.resolve;
-						currentSignature = next.signature;
-						signatureEpoch = next.epoch;
-					}
+			operationsLog.record({
+				op: e.op,
+				path: e.path,
+				detail: ('detail' in e ? e.detail : undefined) ?? {}
+			});
+			// The shell maintains only the LRD resolver (inline content computes lazily
+			// on read — core/inline/inline-cache), and hands out a fresh identity only on
+			// a real signature change: one per edit re-renders every block that read it.
+			if (lrdMapCouldChange(doc, e)) {
+				const newMap = buildLinkReferenceMap(doc.children);
+				const next = advanceSignatureEpoch(currentSignature, signatureEpoch, newMap.signature);
+				if (next.epoch !== signatureEpoch) {
+					currentResolver = newMap.resolve;
+					currentSignature = next.signature;
+					signatureEpoch = next.epoch;
 				}
-			} finally {
-				notifyDocumentChanged();
 			}
 		});
 		return () => dispose();
 	});
 
-	// The one bump site for `editEpoch` ("the document changed" — a commit or a whole
-	// `source` swap). Deferred a tick so no source reads a half-applied tree, and
-	// skipped with no source registered: zero keystroke work by default (perf:check).
-	function notifyDocumentChanged(): void {
+	// The one bump site for `editEpoch`. It rides the content version rather than the `edit`
+	// event, whose `input` is batched across a typing burst and would leave every source a
+	// pause behind the bytes; the tick keeps a source off a half-applied tree, and the
+	// no-source skip keeps an undecorated editor at zero keystroke work (perf:check).
+	let notifiedVersion = contentVersion.read();
+	$effect(() => {
+		const version = contentVersion.read();
+		if (version === notifiedVersion) return; // the mount run announces nothing
+		notifiedVersion = version;
 		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
-	}
+	});
 
 	// Counts whole-document REPLACEMENTS, which the edit epoch cannot tell from a
 	// keystroke. Deliberately NOT $state: its readers run inside decoration `provide`,
@@ -408,7 +406,6 @@
 			currentResolver = reset.resolver;
 			currentSignature = next.signature;
 			signatureEpoch = next.epoch;
-			notifyDocumentChanged();
 		}
 	});
 

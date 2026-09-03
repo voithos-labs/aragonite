@@ -369,7 +369,7 @@ Three invariants govern how tree state crosses into Svelte's reactivity. Each pr
    }
    ```
 
-   It's announced rather than derived from a walk because the walk was O(document nodes) per edit and the announcement is O(1), at the cost of invalidating on a commit that moved no byte. It isn't the decoration engine's `editEpoch`, which moves at edit-event cadence and so lags a typing batch; the version moves at render cadence.
+   It's announced rather than derived from a walk because the walk was O(document nodes) per edit and the announcement is O(1), at the cost of invalidating on a commit that moved no byte. It isn't the decoration engine's `editEpoch`, which follows it one `tick()` later; the version is the reactive read a `$derived` subscribes to, while the epoch is the plain number `provide` receives.
 
 3. **The render path computes inline content locally and reads no cache.** There's no `inlineContent` node field: prose blocks compute the inline tree from `node.raw` on each render, so a render effect's reactive read set is `node.raw` plus its closure inputs, nothing more. Non-render consumers (event handlers, exported methods, click-snap) read inline content through an accessor backed by an external, non-reactive WeakMap that Svelte's ownership tracking never observes. The incident behind this one: a render effect both read and wrote a reactive cache field, write-during-read closed the loop, and ownership tracking corrupted keyed `{#each}` index assignments after `splitBlock`. With no reactive cache field, that class can't recur.
 
