@@ -1,7 +1,16 @@
 <script module lang="ts">
-	import { DEMO_PLUGINS } from './demo-plugins';
+	import { DEMO_PLUGINS, DEMO_HIGHLIGHT_OCCURRENCES } from './demo-plugins';
+	import type { HighlightOccurrencesOptions } from '$lib/plugins/highlight-occurrences';
 
-	const showcasePlugins = DEMO_PLUGINS;
+	// Installation is process-wide and every installed plugin's editor hooks run on every
+	// editor, so the toggle rides the plugin's per-instance option rather than the plugin set.
+	function showcasePluginsFor(occurrences: boolean) {
+		return DEMO_PLUGINS.map((unit) =>
+			unit === DEMO_HIGHLIGHT_OCCURRENCES
+				? { plugin: unit, options: { enabled: occurrences } satisfies HighlightOccurrencesOptions }
+				: unit
+		);
+	}
 </script>
 
 <script lang="ts">
@@ -31,14 +40,21 @@
 	let editor = $state<ReturnType<typeof Editor>>();
 	trackParityDocument(() => editor);
 
-	// blockDragHandles is set-once at mount, so its toggle remounts the editor via {#key},
-	// carrying the live content across so a visitor's edits survive the flip.
+	// blockDragHandles and the plugin set are both set-once at mount, so their toggles remount
+	// the editor via {#key}, carrying the live content across so a visitor's edits survive.
 	let source = $state(SHOWCASE_DOCUMENT);
 	let dragHandles = $state(false);
+	let occurrences = $state(false);
+	const showcasePlugins = $derived(showcasePluginsFor(occurrences));
 
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();
 		dragHandles = !dragHandles;
+	}
+
+	function toggleOccurrences() {
+		if (editor) source = editor.getSource();
+		occurrences = !occurrences;
 	}
 
 	// Reading mode ONLY: the editor gates handles off there, so an enabled toggle would paint an
@@ -84,6 +100,17 @@
 		<button
 			type="button"
 			class="showcase-toggle"
+			class:active={occurrences}
+			data-testid="occurrences-toggle"
+			aria-pressed={occurrences}
+			title="Highlight every other occurrence of the word under the caret"
+			onclick={toggleOccurrences}
+		>
+			occurrences
+		</button>
+		<button
+			type="button"
+			class="showcase-toggle"
 			class:active={panel.open}
 			data-testid="debug-toggle"
 			aria-pressed={panel.open}
@@ -114,7 +141,7 @@
 		<InsertToolbar {editor} />
 	{/if}
 	<div class="showcase-editor">
-		{#key dragHandles}
+		{#key `${dragHandles}:${occurrences}`}
 			<Editor
 				bind:this={editor}
 				{source}
