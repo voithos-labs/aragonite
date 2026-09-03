@@ -1,10 +1,12 @@
 import { test, expect } from '../fixtures';
 import { waitForEditorHydrated } from '../page-probes';
+import { SHOWCASE_MD, scanShowcase } from '../showcase-document';
 
 // The `/` showcase header: theme, drag handles, the debug panel, and the toc as navigation.
 // No `window.__test` bridge on this route, so assertions read rendered DOM only. The mode
 // toggle and the bundled-plugin surface have their own specs and are not re-tested here.
-// Requirements: e2e/requirements/showcase-chrome.md.
+// What the seeded document says is read off its bytes, never pinned as prose — the owner
+// rewrites it by hand. Requirements: e2e/requirements/showcase-chrome.md.
 
 test.describe('/ showcase chrome', () => {
 	test.beforeEach(async ({ page }) => {
@@ -16,12 +18,13 @@ test.describe('/ showcase chrome', () => {
 		await waitForEditorHydrated(page);
 	});
 
-	test('seeds the pitch document with a live outline', async ({ page }) => {
-		await expect(page.locator('.editor')).toContainText('serialize(parse(source)) === source');
-		// The outline is derived from the document's own headings, so entries at more than
-		// one level prove it walked the sections rather than rendering a placeholder.
-		await expect(page.locator('.toc-block-item', { hasText: 'Math' })).toBeVisible();
-		await expect(page.locator('.toc-block-item.toc-block-level-3').first()).toBeVisible();
+	test('seeds the demo document with a live outline', async ({ page }) => {
+		const [opening] = scanShowcase().headings;
+		expect(opening, 'the demo document opens with no heading').toBeDefined();
+		await expect(page.locator('[data-block-kind="heading"]').first()).toContainText(opening.text);
+
+		expect(SHOWCASE_MD, 'the demo document asks for no outline').toMatch(/^\[\[toc\]\]\s*$/m);
+		await expect(page.locator('.toc-block-item').first()).toBeVisible();
 	});
 
 	test('theme toggle flips the editor between dark and light', async ({ page }) => {
@@ -130,7 +133,8 @@ test.describe('/ showcase chrome', () => {
 		const editor = page.locator('.editor');
 		expect(await editor.evaluate((el) => el.scrollTop)).toBe(0);
 
-		await page.locator('.toc-block-item', { hasText: 'Emoji' }).click();
+		// The last entry, so the jump is unmistakable whichever sections the document holds.
+		await page.locator('.toc-block-item').last().click();
 
 		await expect.poll(() => editor.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 	});

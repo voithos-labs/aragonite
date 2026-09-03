@@ -1,5 +1,9 @@
 # Feature: `/` showcase header chrome
 
+What the seeded document says is read out of `src/routes/showcase-content.md` at run time,
+never quoted here: the owner rewrites it by hand, and the version quoting its prose went red
+on the rewrite.
+
 The root route wraps `<Editor>` in a restrained header: the presentation-mode segmented
 control, three toggles (theme, drag handles, debug panel), a keyboard hint and two links.
 This spec owns the chrome, not the document. Two sibling specs already cover the rest of
@@ -11,8 +15,8 @@ and interactions are real clicks and key presses.
 
 ## Happy paths
 
-- the seeded document is the pitch, not a syntax list: the opening paragraph states the
-  round-trip promise, and the `[[toc]]` block renders an outline of the sections below it
+- the editor opens on the seeded document: its first heading, read off the file's bytes, is
+  the first heading the editor shows, and its `[[toc]]` line renders an outline
 - the theme toggle flips `data-editor-theme` on the editor root from `dark` to `light`
   and back, with the editor still mounted after each flip
 - the drag-handles toggle removes the hover grips (`.block-drag-handle`) from the document
@@ -20,7 +24,8 @@ and interactions are real clicks and key presses.
 - `Ctrl+Shift+D` opens the debug panel over the showcase, and the header affordance closes
   it again — one state behind two controls
 - the debug panel's CST section shows the live tree of the showcase document
-- clicking a table-of-contents entry scrolls the editor to that heading
+- clicking the outline's last entry scrolls the editor down to that heading, whichever
+  sections the document happens to hold
 - both toolbars are live mode's WYSIWYG affordance set: the markdown-first modes mount
   neither, and flipping to live brings them in
 - in live mode, selecting text floats the shared `SelectionToolbar` beside the selection —
