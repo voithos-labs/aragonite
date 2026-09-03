@@ -76,7 +76,7 @@ describe('buildOccurrenceIndex', () => {
 	const doc = parse('cat one\n\n> a cat naps\n\n## cat title\n\ncatalog\n');
 
 	it('indexes every whole-word occurrence across top-level, nested, and heading leaves', () => {
-		expect(buildOccurrenceIndex(doc).get('cat')).toEqual([
+		expect(buildOccurrenceIndex(doc).index.get('cat')).toEqual([
 			{ type: 'mark', path: [0], start: 0, end: 3, class: OCCURRENCE_CLASS },
 			{ type: 'mark', path: [1, 0], start: 2, end: 5, class: OCCURRENCE_CLASS },
 			// Heading offsets are raw offsets: 'cat' sits past the '## ' marker.
@@ -85,7 +85,7 @@ describe('buildOccurrenceIndex', () => {
 	});
 
 	it('buckets a longer word separately, never as a substring match', () => {
-		const index = buildOccurrenceIndex(doc);
+		const { index } = buildOccurrenceIndex(doc);
 		expect(index.get('cat')?.some((m) => m.path[0] === 3)).toBe(false);
 		expect(index.get('catalog')?.map((m) => m.path)).toEqual([[3]]);
 	});
@@ -95,7 +95,7 @@ describe('buildOccurrenceIndex', () => {
 		// The delimiter row is trivia, not a child: body cells sit on row 1.
 		expect(
 			buildOccurrenceIndex(tableDoc)
-				.get('cat')
+				.index.get('cat')
 				?.map((m) => m.path)
 		).toEqual([
 			[0, 0, 0],
@@ -107,8 +107,39 @@ describe('buildOccurrenceIndex', () => {
 		const codeDoc = parse('cat one\n\n```\ncat inside code\n```\n');
 		expect(
 			buildOccurrenceIndex(codeDoc)
-				.get('cat')
+				.index.get('cat')
 				?.map((m) => m.path)
 		).toEqual([[0]]);
+	});
+});
+
+// The scan is per-keystroke work, so what it may NOT redo is the load-bearing half: a leaf
+// whose bytes did not move keeps the token list the previous scan produced.
+describe('buildOccurrenceIndex token cache', () => {
+	const doc = parse('cat one\n\ndog two\n');
+	const rawOf = (parsed: ReturnType<typeof parse>, index: number) => parsed.children[index].raw;
+
+	it('re-tokenizes only the leaf an edit changed, reusing the rest by identity', () => {
+		const first = buildOccurrenceIndex(doc);
+		expect(first.tokenizedLeaves).toBe(2);
+
+		const edited = parse('cat one\n\ndog twos\n');
+		const second = buildOccurrenceIndex(edited, first.tokens);
+		expect(second.tokenizedLeaves).toBe(1);
+		expect(second.tokens.get(rawOf(doc, 0))).toBe(first.tokens.get(rawOf(doc, 0)));
+	});
+
+	it('drops a leaf that left the document from the carried cache', () => {
+		const first = buildOccurrenceIndex(doc);
+		const shorter = parse('cat one\n');
+		expect([...buildOccurrenceIndex(shorter, first.tokens).tokens.keys()]).toEqual([
+			rawOf(shorter, 0)
+		]);
+	});
+
+	it('tokenizes two leaves holding the same text once, marking both paths', () => {
+		const twins = buildOccurrenceIndex(parse('same text\n\nsame text\n'));
+		expect(twins.tokenizedLeaves).toBe(1);
+		expect(twins.index.get('same')?.map((m) => m.path)).toEqual([[0], [1]]);
 	});
 });

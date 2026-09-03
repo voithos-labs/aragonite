@@ -26,6 +26,18 @@ export interface WordSpan {
 
 export type OccurrenceIndex = Map<string, MarkDecoration[]>;
 
+/** Token lists keyed by the leaf `raw` they were scanned from, so a leaf whose bytes did
+ *  not move costs one string compare instead of a re-tokenize. */
+export type TokenCache = Map<string, WordSpan[]>;
+
+export interface OccurrenceScan {
+	index: OccurrenceIndex;
+	/** Carry into the next scan; a leaf gone from the document drops out of it. */
+	tokens: TokenCache;
+	/** Leaves whose text had to be tokenized, the seam a memoization test asserts on. */
+	tokenizedLeaves: number;
+}
+
 /** Prefers the char at the caret, falling back to the one before it (the usual
  *  word-under-caret rule). */
 export function wordAt(text: string, offset: number): WordSpan | null {
@@ -51,12 +63,21 @@ export function anchorWord(doc: DocumentView, selection: EditorSelection | null)
 	return span ? span.word : null;
 }
 
-/** Built once per edit by a memoizing source, not once per caret move. */
-export function buildOccurrenceIndex(doc: DocumentView): OccurrenceIndex {
+/** Built once per document change by a memoizing source, not once per caret move. The
+ *  marks are rebuilt every time (they carry paths), the tokens only for changed leaves. */
+export function buildOccurrenceIndex(doc: DocumentView, cached?: TokenCache): OccurrenceScan {
 	const index: OccurrenceIndex = new Map();
+	const tokens: TokenCache = new Map();
+	let tokenizedLeaves = 0;
 	forEachLeaf(doc.children, [], (node, path) => {
 		if (!isProseKind(node.kind)) return;
-		for (const span of tokenizeWords(node.raw)) {
+		let spans = tokens.get(node.raw) ?? cached?.get(node.raw);
+		if (!spans) {
+			spans = [...tokenizeWords(node.raw)];
+			tokenizedLeaves++;
+		}
+		tokens.set(node.raw, spans);
+		for (const span of spans) {
 			const mark: MarkDecoration = {
 				type: 'mark',
 				path,
@@ -69,7 +90,7 @@ export function buildOccurrenceIndex(doc: DocumentView): OccurrenceIndex {
 			else index.set(span.word, [mark]);
 		}
 	});
-	return index;
+	return { index, tokens, tokenizedLeaves };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

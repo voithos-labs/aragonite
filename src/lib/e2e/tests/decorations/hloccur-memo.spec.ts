@@ -16,6 +16,11 @@ function scanCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__hloccurScans ?? 0);
 }
 
+/** Leaves the rebuilds have tokenized, summed over every rebuild so far. */
+function tokenizedCount(page: Page): Promise<number> {
+	return page.evaluate(() => (window as any).__hloccurTokenized ?? 0);
+}
+
 test.describe('highlight-occurrences memoized scan + capability skip', () => {
 	let editor: PluginsPage;
 
@@ -56,8 +61,13 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 
 		// The epoch bumps once per keystroke, not once per typing pause, so a three-character
 		// burst rebuilds three times — the positive control that the memo is not frozen.
+		const tokenizedBefore = await tokenizedCount(page);
 		await editor.typeSlowly('XYZ');
 		await expect.poll(() => scanCount(page)).toBe(afterClick + 3);
+
+		// Each of those rebuilds re-tokenized only the leaf the keystroke changed; the seed's
+		// other four prose leaves came back off the carried token cache.
+		expect(await tokenizedCount(page)).toBe(tokenizedBefore + 3);
 	});
 
 	// Live-preview modes keep the caret, so the selection-driven marks stay painted —

@@ -8,10 +8,11 @@ import { createOccurrenceSource } from './occurrence-source';
 
 export interface HighlightOccurrencesOptions {
 	/**
-	 * Called when the word index is rebuilt: on an edit, not on a caret move. Public
-	 * so a harness asserts the memo against this wiring rather than a copy of it.
+	 * Called when the word index is rebuilt: on a document change, not on a caret move,
+	 * carrying how many leaves that rebuild had to tokenize. Public so a harness asserts
+	 * the memo against this wiring rather than a copy of it.
 	 */
-	onScan?: () => void;
+	onScan?: (stats: { tokenizedLeaves: number }) => void;
 }
 
 export function highlightOccurrencesPlugin(

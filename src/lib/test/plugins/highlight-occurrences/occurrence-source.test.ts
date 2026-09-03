@@ -75,6 +75,21 @@ describe('createOccurrenceSource', () => {
 		expect(marks.every((m) => m.end - m.start === 4)).toBe(true);
 	});
 
+	// The cache is per-source closure state, so the second epoch's scan must inherit the
+	// first's token lists rather than starting from an empty one.
+	it('carries its token cache across epochs, re-tokenizing only the changed leaf', () => {
+		const tokenized: number[] = [];
+		const { source, setSelection } = createOccurrenceSource({
+			onScan: (stats) => tokenized.push(stats.tokenizedLeaves)
+		});
+		setSelection(caret([0], 0));
+
+		provideMarks(source, doc, 1);
+		provideMarks(source, parse('cat sat on cat\n\ndog rans\n'), 2);
+
+		expect(tokenized).toEqual([2, 1]);
+	});
+
 	it('emits the occurrence class and returns nothing for a wordless caret', () => {
 		const { source, setSelection } = createOccurrenceSource();
 		setSelection(caret([0], 0));
