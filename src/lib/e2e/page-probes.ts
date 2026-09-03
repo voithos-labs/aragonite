@@ -20,6 +20,23 @@ export function waitForEditorHydrated(page: Page): Promise<unknown> {
 	);
 }
 
+// A fixed instant rather than the wall clock (G4.48), advanced one second so a timer armed
+// during setup settles before the page stops ticking.
+const FROZEN_AT = new Date('2026-01-01T00:00:00Z');
+const FROZEN_UNTIL = new Date('2026-01-01T00:00:01Z');
+
+// Stop every in-page timer, so a spec owns when the editor's typing pause elapses.
+// `install` alone leaves the fake clock ticking; only the pause stops timers, and
+// Playwright's own retries keep running on the runner's real clock. Install it after the
+// setup gestures: the harness's render-flush waits ride rAF, which a frozen page never runs.
+export async function freezeInPageClock(page: Page): Promise<void> {
+	await page.clock.install({ time: FROZEN_AT });
+	await page.clock.pauseAt(FROZEN_UNTIL);
+}
+
+/** Advance a frozen clock by this to elapse the editor's 250 ms typing pause. */
+export const PAST_TYPING_PAUSE_MS = 300;
+
 // Whether the top-level block at `index` has a mounted host — false once windowing
 // unmounts it. Windowing-generic, so it serves both the VR reveal specs and the
 // off-window selection-skip specs.

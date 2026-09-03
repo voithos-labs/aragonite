@@ -60,14 +60,15 @@ describe('createOccurrenceSource', () => {
 
 	it('rebuilds the index when the epoch bumps, reading the new document', () => {
 		let scans = 0;
-		const { source, setSelection } = createOccurrenceSource({ onScan: () => scans++ });
+		const { source, setSelection, noteEdit } = createOccurrenceSource({ onScan: () => scans++ });
 		setSelection(caret([0], 0)); // 'cat', a 3-char word in `doc`
 
 		expect(provideMarks(source, doc, 1).every((m) => m.end - m.start === 3)).toBe(true);
 		expect(scans).toBe(1);
 
-		// A later edit rewrote the block; the bumped epoch must re-read it, so the
-		// caret now resolves 'bird' (4 chars) against the fresh index, not the stale one.
+		// A structural edit rewrote the block, so its epoch paints rather than stepping
+		// aside: the caret resolves 'bird' (4 chars) against the fresh index, not the stale one.
+		noteEdit('replaceBlock');
 		const edited = parse('bird sat on bird\n\ndog ran\n');
 		const marks = provideMarks(source, edited, 2);
 		expect(scans).toBe(2);
@@ -97,5 +98,84 @@ describe('createOccurrenceSource', () => {
 
 		setSelection(null);
 		expect(provideMarks(source, doc, 1)).toEqual([]);
+	});
+});
+
+// The marks step aside while you type. A keystroke lands under a caret and bumps the epoch
+// with no `edit` event ahead of it; every other document change fails one of those two, so
+// the marks stay on. Miss-analysis: no unit reached the source through an `edit` op at all,
+// so nothing distinguished a keystroke's epoch from an undo's or a document swap's.
+describe('createOccurrenceSource typing gate', () => {
+	const doc = parse('cat sat on cat\n\ndog ran\n');
+
+	it('hides the marks on an epoch that arrived with no edit event', () => {
+		const { source, setSelection } = createOccurrenceSource();
+		setSelection(caret([0], 0));
+		expect(provideMarks(source, doc, 1)).toHaveLength(2);
+
+		expect(provideMarks(source, doc, 2)).toEqual([]);
+	});
+
+	it('paints them again when the typing burst flushes its input event', () => {
+		const { source, setSelection, noteEdit } = createOccurrenceSource();
+		setSelection(caret([0], 0));
+		provideMarks(source, doc, 1);
+		expect(provideMarks(source, doc, 2)).toEqual([]);
+
+		expect(noteEdit('input')).toBe(true); // asks the wiring for the repaint
+		expect(provideMarks(source, doc, 2)).toHaveLength(2);
+		expect(noteEdit('input')).toBe(false); // already painted, nothing to reveal
+	});
+
+	// Undo bumps the content version before it emits, so its op can arrive on the far side
+	// of the epoch it moved. The hold has to end on the op, not only on the next epoch.
+	it('paints them again when a structural op lands after its own epoch', () => {
+		const { source, setSelection, noteEdit } = createOccurrenceSource();
+		setSelection(caret([0], 0));
+		provideMarks(source, doc, 1);
+		expect(provideMarks(source, doc, 2)).toEqual([]);
+
+		expect(noteEdit('undo')).toBe(true);
+		expect(provideMarks(source, doc, 2)).toHaveLength(2);
+	});
+
+	it('never hides the epoch a structural op announced ahead of', () => {
+		const { source, setSelection, noteEdit } = createOccurrenceSource();
+		setSelection(caret([0], 0));
+		provideMarks(source, doc, 1);
+
+		expect(noteEdit('paste')).toBe(false); // nothing held back to reveal
+		expect(provideMarks(source, doc, 2)).toHaveLength(2);
+	});
+
+	// A whole-document swap announces no op at all; it drops the caret before its epoch
+	// lands, and that is what separates it from a keystroke.
+	it('never hides an epoch that arrived with no caret', () => {
+		const { source, setSelection } = createOccurrenceSource();
+		setSelection(caret([0], 0));
+		provideMarks(source, doc, 1);
+
+		setSelection(null);
+		expect(provideMarks(source, doc, 2)).toEqual([]); // no anchor word, not a hold
+
+		setSelection(caret([0], 0)); // the click into the swapped-in document
+		expect(provideMarks(source, doc, 2)).toHaveLength(2);
+	});
+
+	it('rebuilds the index on every hidden epoch, so the flush paints fresh marks', () => {
+		const tokenized: number[] = [];
+		const { source, setSelection, noteEdit } = createOccurrenceSource({
+			onScan: (stats) => tokenized.push(stats.tokenizedLeaves)
+		});
+		setSelection(caret([0], 0));
+		provideMarks(source, doc, 1);
+
+		const typed = parse('cat sat on cat\n\ndog rans\n');
+		expect(provideMarks(source, typed, 2)).toEqual([]);
+		expect(tokenized).toEqual([2, 1]); // the hidden epoch still re-tokenized its leaf
+
+		noteEdit('input');
+		expect(provideMarks(source, typed, 2)).toHaveLength(2);
+		expect(tokenized).toEqual([2, 1]); // and the flush reused that rebuild
 	});
 });

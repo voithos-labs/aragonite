@@ -20,24 +20,37 @@ function caret(path: number[], offset: number): EditorSelection {
 	return { anchor: point, focus: point };
 }
 
+const DOC = parse('cat sat cat\n');
+
 function editorStub() {
 	const invalidate = vi.fn();
 	const dispose = vi.fn();
-	const off = vi.fn();
+	// One unsubscribe per channel, so cleanup is asserted per subscription rather than
+	// as a count a single shared mock could reach by unsubscribing one channel twice.
+	const offSelection = vi.fn();
+	const offEdit = vi.fn();
 	let added: DecorationSource | undefined;
 	let selectionHandler: ((sel: EditorSelection) => void) | undefined;
+	let editHandler: ((event: { op: string }) => void) | undefined;
 
 	const editor = {
 		decorations: {
 			addSource: (source: DecorationSource) => {
 				added = source;
+				// The engine runs a source the moment it registers; a stub that skips that
+				// first provide cannot see what the source makes of the epoch it mounts on.
+				source.provide(DOC, { editEpoch: 0 });
 				return { invalidate, dispose };
 			}
 		},
 		events: {
-			on: (name: string, handler: (sel: EditorSelection) => void) => {
-				if (name === 'selectionChange') selectionHandler = handler;
-				return off;
+			on: (name: string, handler: (event: never) => void) => {
+				if (name === 'selectionChange') {
+					selectionHandler = handler as unknown as (sel: EditorSelection) => void;
+					return offSelection;
+				}
+				editHandler = handler as unknown as (event: { op: string }) => void;
+				return offEdit;
 			}
 		}
 	} as unknown as EditorContext;
@@ -46,9 +59,11 @@ function editorStub() {
 		editor,
 		invalidate,
 		dispose,
-		off,
+		offSelection,
+		offEdit,
 		source: () => added,
-		fireSelection: (sel: EditorSelection) => selectionHandler?.(sel)
+		fireSelection: (sel: EditorSelection) => selectionHandler?.(sel),
+		fireEdit: (op: string) => editHandler?.({ op })
 	};
 }
 
@@ -75,24 +90,46 @@ describe('highlightOccurrencesPlugin wiring', () => {
 
 	it('pushes the new selection into the source and invalidates on selectionChange', () => {
 		const wired = attach();
-		const doc = parse('cat sat cat\n');
-		expect(wired.source()!.provide(doc, { editEpoch: 0 })).toEqual([]); // no selection yet
+		expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toEqual([]); // no selection yet
 
 		wired.fireSelection(caret([0], 0)); // caret on the first 'cat'
 		expect(wired.invalidate).toHaveBeenCalledTimes(1);
 		// The invalidate re-runs provide in the engine; here we call it directly to
 		// prove the source now sees the word under the caret (setSelection was wired).
-		const marks = wired.source()!.provide(doc, { editEpoch: 0 }) as MarkDecoration[];
+		const marks = wired.source()!.provide(DOC, { editEpoch: 0 }) as MarkDecoration[];
 		expect(marks).toHaveLength(2);
 		expect(marks[0].class).toBe(OCCURRENCE_CLASS);
 	});
 
-	it('disposes the source and unsubscribes from events on cleanup', () => {
+	it('disposes the source and unsubscribes from both channels on cleanup', () => {
 		const wired = attach();
 		expect(typeof wired.cleanup).toBe('function');
 		wired.cleanup!();
 		expect(wired.dispose).toHaveBeenCalledTimes(1);
-		expect(wired.off).toHaveBeenCalledTimes(1);
+		expect(wired.offSelection).toHaveBeenCalledTimes(1);
+		expect(wired.offEdit).toHaveBeenCalledTimes(1);
+	});
+
+	it('holds the marks back while typing and paints them when the burst flushes', () => {
+		const wired = attach();
+		wired.fireSelection(caret([0], 0));
+		expect(wired.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
+
+		// A keystroke: the epoch bumps with no `edit` event ahead of it.
+		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toEqual([]);
+
+		wired.fireEdit('input');
+		expect(wired.invalidate).toHaveBeenCalledTimes(2); // the selection change, then the flush
+		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
+	});
+
+	it('reads a structural op as an immediate repaint, not a typing burst', () => {
+		const wired = attach();
+		wired.fireSelection(caret([0], 0));
+
+		wired.fireEdit('paste');
+		expect(wired.invalidate).toHaveBeenCalledTimes(1); // no second: the epoch bump repaints
+		expect(wired.source()!.provide(DOC, { editEpoch: 1 })).toHaveLength(2);
 	});
 
 	// The scan seam is the plugin's only option; the memo it feeds is pinned at the
@@ -131,9 +168,8 @@ describe('highlightOccurrencesPlugin through the install platform', () => {
 		onEditor(first.editor);
 		onEditor(second.editor);
 
-		const doc = parse('cat sat cat\n');
 		first.fireSelection(caret([0], 0));
-		expect(first.source()!.provide(doc, { editEpoch: 0 })).toHaveLength(2);
-		expect(second.source()!.provide(doc, { editEpoch: 0 })).toEqual([]);
+		expect(first.source()!.provide(DOC, { editEpoch: 0 })).toHaveLength(2);
+		expect(second.source()!.provide(DOC, { editEpoch: 0 })).toEqual([]);
 	});
 });

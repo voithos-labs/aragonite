@@ -1,6 +1,7 @@
 /**
- * The decoration-source shape on public doors only: onEditor wires a selection-driven
- * mark source, and the scan and its memo stay pure in the sibling modules.
+ * The decoration-source shape on public doors only: onEditor wires a mark source to the
+ * selection and edit channels, and the scan, its memo and the typing gate stay pure in
+ * the sibling modules.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';
@@ -24,12 +25,16 @@ export function highlightOccurrencesPlugin(
 			ctx.onEditor((editor) => {
 				const occurrences = createOccurrenceSource({ onScan: options.onScan });
 				const handle = editor.decorations.addSource(occurrences.source);
-				const off = editor.events.on('selectionChange', (selection) => {
+				const offSelection = editor.events.on('selectionChange', (selection) => {
 					occurrences.setSelection(selection);
 					handle.invalidate();
 				});
+				const offEdit = editor.events.on('edit', ({ op }) => {
+					if (occurrences.noteEdit(op)) handle.invalidate();
+				});
 				return () => {
-					off();
+					offSelection();
+					offEdit();
 					handle.dispose();
 				};
 			});

@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
+import { freezeInPageClock, PAST_TYPING_PAUSE_MS } from '../../page-probes';
 
 /**
  * highlight-occurrences hardening (requirements/decorations/hloccur-memo.md). The seed wraps
@@ -68,6 +69,20 @@ test.describe('highlight-occurrences memoized scan + capability skip', () => {
 		// Each of those rebuilds re-tokenized only the leaf the keystroke changed; the seed's
 		// other four prose leaves came back off the carried token cache.
 		expect(await tokenizedCount(page)).toBe(tokenizedBefore + 3);
+	});
+
+	test('the marks step aside while you type and return when the burst pauses', async ({ page }) => {
+		await editor.clickBlockAtPath([0], 6); // caret on 'beta', its single occurrence
+		await expect(page.locator(OCCURRENCE)).toHaveCount(1);
+
+		// Frozen AFTER the click: the harness's render-flush waits ride rAF, and the typing
+		// pause must not elapse until this spec advances it.
+		await freezeInPageClock(page);
+		await editor.typeSlowly('XYZ');
+		await expect(page.locator(OCCURRENCE)).toHaveCount(0);
+
+		await page.clock.runFor(PAST_TYPING_PAUSE_MS);
+		await expect(page.locator(OCCURRENCE)).toHaveCount(1); // 'XYZbeta', its single occurrence
 	});
 
 	// Live-preview modes keep the caret, so the selection-driven marks stay painted —

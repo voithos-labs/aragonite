@@ -1,11 +1,12 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
+import { freezeInPageClock, PAST_TYPING_PAUSE_MS } from '../../page-probes';
 
 /**
  * The edit epoch follows the keystroke (requirements/decorations/epoch-per-keystroke.md).
- * The clock is frozen after setup, so the typing batch's pause never elapses and only a
- * per-change epoch can move the marks.
+ * The clock is frozen after setup, so the typing batch's pause elapses only when the spec
+ * advances it: the marks step aside on the keystroke and the advance is what returns them.
  */
 
 const WORD = 'alpha';
@@ -81,18 +82,6 @@ function scanCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__hloccurScans ?? 0);
 }
 
-// A fixed instant rather than the wall clock (G4.48), advanced one second so a timer armed
-// during setup settles before the page stops ticking.
-const FROZEN_AT = new Date('2026-01-01T00:00:00Z');
-const FROZEN_UNTIL = new Date('2026-01-01T00:00:01Z');
-
-/** `install` alone leaves the fake clock ticking; only the pause stops in-page timers.
- *  Playwright's own retries keep running on the runner's real clock. */
-async function freezeInPageClock(page: Page): Promise<void> {
-	await page.clock.install({ time: FROZEN_AT });
-	await page.clock.pauseAt(FROZEN_UNTIL);
-}
-
 test.describe('decoration refresh per keystroke, not per typing batch', () => {
 	let editor: PluginsPage;
 
@@ -103,18 +92,23 @@ test.describe('decoration refresh per keystroke, not per typing batch', () => {
 		await expect(page.locator(OCCURRENCE)).toHaveCount(3);
 	});
 
-	test('a typed space moves the overlays onto the words they mark', async ({ page }) => {
+	test('a typed space clears the overlays, and the pause repaints them on the moved words', async ({
+		page
+	}) => {
 		expect(await coverage(page)).toEqual({ aligned: 2, painted: 2, words: 2 });
 		const [wordLeft] = (await probe(page)).wordLefts;
 
-		// Frozen from here: no in-page timer fires again, so the typing batch never flushes.
+		// Frozen from here: no in-page timer fires until this spec advances the clock, so
+		// the typing batch flushes exactly where the test says it does.
 		await freezeInPageClock(page);
 		await page.keyboard.type(' ');
 
-		// Liveness first: the word itself moved under the frozen clock, so a stationary
-		// overlay below is a stale decoration rather than a page that stopped rendering.
+		// Liveness first: the word itself moved under the frozen clock, so the empty overlay
+		// set below is the marks stepping aside, not a page that stopped rendering.
 		await expect.poll(async () => (await probe(page)).wordLefts[0]).toBeGreaterThan(wordLeft + 1);
+		await expect.poll(() => coverage(page)).toEqual({ aligned: 0, painted: 0, words: 2 });
 
+		await page.clock.runFor(PAST_TYPING_PAUSE_MS);
 		await expect.poll(() => coverage(page)).toEqual({ aligned: 2, painted: 2, words: 2 });
 	});
 

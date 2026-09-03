@@ -7,6 +7,16 @@ Occurrence marks paint on inline-prose surfaces only (paragraph, heading, table
 cell — `supportsInline`); a fenced code block is a non-prose leaf and out of scope.
 Marks are view-only, so they survive a presentation-mode flip.
 
+The marks also step aside while you type. An edit epoch that arrives with no `edit`
+event ahead of it is a keystroke, so the source serves nothing until the typing
+burst flushes its batched `input` event a quarter-second after the last character.
+The index still rebuilds underneath, which is why the counter scenarios below and
+the visible-mark scenario can disagree about what is on screen.
+
+Miss-analysis: every occurrence scenario asserted marks after a click and none
+typed through one, so "highlighted while you type" was never a scenario anyone
+wrote down, and the counters that did type never looked at the overlays.
+
 Scenarios run on `/test/plugins?seed=hloccur-memo`, whose seed installs an
 observability wrapper over the shipped `createOccurrenceSource` that publishes the
 index-rebuild count to `window.__hloccurScans` and the leaves those rebuilds
@@ -30,6 +40,10 @@ block containing `alpha`.
 - each of those rebuilds re-tokenizes only the leaf the keystroke changed
   (`__hloccurTokenized` increases by three, one leaf per rebuild), so the per-keystroke
   scan stays proportional to the edited block rather than to the whole document
+- typing that same burst with the clock frozen clears the overlays, and advancing
+  the clock past the typing pause paints them back on the word the caret now sits
+  in: the marks step aside for the burst rather than following it character by
+  character
 
 ## Edge cases
 
