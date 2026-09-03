@@ -67,7 +67,10 @@ function editorStub() {
 	};
 }
 
-function attach(options: HighlightOccurrencesOptions = {}) {
+function attach(
+	options: HighlightOccurrencesOptions = {},
+	instanceOptions?: HighlightOccurrencesOptions
+) {
 	let onEditor: OnEditorCallback | undefined;
 	const setupCtx: PluginSetupContext = {
 		onEditor: (cb) => {
@@ -78,10 +81,18 @@ function attach(options: HighlightOccurrencesOptions = {}) {
 	if (!onEditor) throw new Error('plugin registered no onEditor callback');
 
 	const stub = editorStub();
+	// The per-instance `{ plugin, options }` entry reaches the hook as `options` on its context.
+	(stub.editor as { options?: unknown }).options = instanceOptions;
 	return { ...stub, cleanup: onEditor(stub.editor) };
 }
 
 describe('highlightOccurrencesPlugin wiring', () => {
+	it('an instance whose options say enabled: false gets no source and no subscriptions', () => {
+		const wired = attach({}, { enabled: false });
+		expect(wired.source()).toBeUndefined();
+		expect(wired.cleanup).toBeUndefined();
+	});
+
 	it('registers one decoration source named for the plugin on attach', () => {
 		const wired = attach();
 		expect(wired.source()?.name).toBe('highlight-occurrences');
