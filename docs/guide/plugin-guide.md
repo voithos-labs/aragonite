@@ -273,7 +273,7 @@ parse('%%parrot party responsibly\n').children[0];
 // { kind: 'parrot', leadingTrivia: '', raw: '%%parrot party responsibly\n' }
 ```
 
-It dances through your component, and it saves back byte for byte.
+It dances through your component.
 
 ![The parrot block, mid-party](./plugin-guide/parrot.gif)
 
