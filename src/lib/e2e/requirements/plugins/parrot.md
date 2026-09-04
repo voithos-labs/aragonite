@@ -50,6 +50,9 @@ target).
   so one undo goes back to the seed.
 - Reading mode: no `.parrot-source` anywhere, the caption stays, and a click on it
   reveals nothing.
+- Phone width: at a 320px viewport every frame is wider than the text column, so the
+  `pre.parrot` overflows its own box while the editor root's `scrollWidth` still equals
+  its `clientWidth` — the bird scrolls, the document does not pan.
 
 ## Error cases
 
@@ -70,3 +73,6 @@ target).
 - Enter: every parrot case typed into the caption and left by arrow or click, so no test
   ever pressed Enter in the block, and the leaf factory's own cases were all written
   against multi-line kinds where the newline Enter inserts is visible and wanted.
+- Containment: every scenario ran at the config's pinned 1280 viewport, where the widest
+  frame still fits the text column, so no test ever put a block beside a column narrower
+  than its own content and the sideways pan only ever showed on a phone.

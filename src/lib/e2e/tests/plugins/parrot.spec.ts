@@ -238,3 +238,27 @@ test.describe('the bundled party parrot', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });
+
+test.describe('the bird at phone width', () => {
+	test.use({ viewport: { width: 320, height: 640 } });
+
+	test('scrolls inside its own box instead of panning the document', async ({ page }) => {
+		const editor = new ParrotPage(page);
+		await editor.gotoSeed();
+
+		// Every frame is wider than a phone column, so the bird overflowing its own box is
+		// the premise; the editor staying unpanned is the claim.
+		await expect
+			.poll(() =>
+				page.evaluate(() => {
+					const root = document.querySelector('.editor') as HTMLElement;
+					const bird = document.querySelector('pre.parrot') as HTMLElement;
+					return {
+						editorPan: root.scrollWidth - root.clientWidth,
+						birdOverflow: bird.scrollWidth > bird.clientWidth
+					};
+				})
+			)
+			.toEqual({ editorPan: 0, birdOverflow: true });
+	});
+});

@@ -282,6 +282,8 @@ cNd.........................................;lOc
 		font-size: 1.1em;
 		line-height: 1.1;
 		letter-spacing: 0.05em;
+		/* the bird is wider than a phone column, and the editor root pans if it isn't contained */
+		overflow-x: auto;
 	}
 	.parrot-caption {
 		margin: 0.25em 0 0;
