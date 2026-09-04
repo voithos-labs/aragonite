@@ -75,6 +75,7 @@
 		selection,
 		getDoc,
 		getEditorRoot,
+		grammar,
 		activePlugins,
 		events: editorEvents
 	} = wiring.deps;
@@ -644,6 +645,7 @@
 					doc: getDoc(),
 					blockEdit,
 					controller: pasteCoordinator,
+					grammar,
 					activePlugins
 				}
 			);

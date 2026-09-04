@@ -120,6 +120,7 @@
 		getDoc,
 		getBlockElByPath,
 		getEditorRoot,
+		grammar,
 		activePlugins,
 		events: editorEvents,
 		linkRef
@@ -936,6 +937,7 @@
 				doc: getDoc(),
 				blockEdit,
 				controller: pasteCoordinator,
+				grammar,
 				activePlugins,
 				// The delete half is a join like any other, and a cell's is no more literal than a
 				// paragraph's: without the seam a live cut pastes the runs it stranded into view.

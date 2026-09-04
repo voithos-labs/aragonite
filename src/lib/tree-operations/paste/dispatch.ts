@@ -53,7 +53,9 @@ export interface PasteDispatchContext {
 	controller: PasteCommitCoordinator;
 	/** `'join'`: the cross-block caller owns the undo entry, so no snapshot is pushed here. */
 	undoEntry?: UndoEntryMode;
-	/** The instance's grammar for the join branch's same-slot reparse; absent = global. */
+	/** The instance's grammar: the clipboard parse below and the join branch's same-slot
+	 *  reparse both read it, so an unlisted plugin's opener never claims pasted bytes here.
+	 *  Absent = global. */
 	grammar?: GrammarView;
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out
 	 *  of the pipeline; absent = every installed plugin. */
@@ -95,7 +97,7 @@ export async function pasteDispatch(
 	// bytes a bodyWrite-declaring ancestor will actually accept.
 	const pastedText = normalizeClipboardForBody(ctx.doc, input.targetPath, transformed);
 
-	const parsed = parse(pastedText, { scope: 'fragment' });
+	const parsed = parse(pastedText, { grammar: ctx.grammar, scope: 'fragment' });
 	if (parsed.children.length === 0) return {};
 
 	const targetNode = nodeAt(ctx.doc, input.targetPath) as CstNode | null;

@@ -152,9 +152,12 @@ async function replaceTableWithPaste(
 	const tablePath = ctx.selection.anchor!.path;
 	const doc = ctx.getDoc();
 
-	// This route never reaches pasteDispatch, so the paste transforms run here too; the rule
-	// lives in the helper, applied at both sites.
-	const parsed = parse(applyPasteTransforms(pasted, ctx.activePlugins), { scope: 'fragment' });
+	// This route never reaches pasteDispatch, so the paste transforms and the instance grammar
+	// ride here too; both rules live in the helper, applied at both sites.
+	const parsed = parse(applyPasteTransforms(pasted, ctx.activePlugins), {
+		grammar: ctx.grammar,
+		scope: 'fragment'
+	});
 	if (parsed.children.length === 0) return;
 
 	const tableNode = blockNodeAt(doc, tablePath);
@@ -174,6 +177,7 @@ async function replaceTableWithPaste(
 		focusReplacementIndex: replacement.length - 1,
 		focusOffset: CURSOR_END,
 		source: 'cross-block-paste-whole-table',
+		...(ctx.grammar ? { grammar: ctx.grammar } : {}),
 		// Nothing is reattached behind the clipboard here — the table's whole slot is the target —
 		// so the trailing blank rides in unfiltered (`paste/dispatch.ts` states the rule).
 		trailingSeparator: parsed.suffix

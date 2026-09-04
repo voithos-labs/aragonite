@@ -15,6 +15,7 @@ import type { WidgetSelectionState } from '../../image/widget-selection-state.sv
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
+import type { GrammarView } from '../../../schema/block-openers';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
@@ -47,6 +48,8 @@ export interface TextClipboardDeps {
 	edgeAffinity: EdgeAffinityState;
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
+	/** The instance grammar, so an unlisted plugin's opener never claims pasted bytes here. */
+	grammar: GrammarView | undefined;
 	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
 	activePlugins: PluginActivation;
 	getDoc: DocumentGetter;
@@ -207,6 +210,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 					doc: deps.getDoc(),
 					blockEdit: deps.blockEdit,
 					controller: deps.pasteCoordinator,
+					grammar: deps.grammar,
 					activePlugins: deps.activePlugins,
 					seam: { presentationMode: deps.getPresentationMode(), linkRef: deps.linkRef }
 				}

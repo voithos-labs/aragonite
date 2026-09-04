@@ -123,6 +123,7 @@
 		selection,
 		getDoc,
 		getEditorRoot,
+		grammar,
 		activePlugins,
 		events: editorEvents,
 		linkRef
@@ -297,6 +298,7 @@
 		edgeAffinity,
 		blockEdit,
 		pasteCoordinator,
+		grammar,
 		activePlugins,
 		getDoc,
 		widgetSelection,
