@@ -81,17 +81,17 @@ const PENDING_RENDER = '.mermaid-loading';
 /**
  * The mounted text once nothing is still rendering and two consecutive reads agree. An async
  * renderer that finishes between the flip's two samples reads as a block the flip changed, which
- * is the one difference this comparison must not see. Both waits are needed: a diagram's first
- * render pulls its library over a cold dev server and sits on a placeholder that is perfectly
- * stable while it does, so text stability alone answers too early.
+ * is the one difference this comparison must not see. Both conditions are checked on the same
+ * pass: a diagram sits on a perfectly stable placeholder while it fetches its renderer, and
+ * before it mounts at all there is no placeholder to find.
  */
 async function settledBlockText(page: Page): Promise<Record<string, string>> {
-	await expect(page.locator(PENDING_RENDER)).toHaveCount(0, { timeout: 30_000 });
 	let previous = await mountedBlockText(page);
-	for (let attempt = 0; attempt < 50; attempt++) {
+	for (let attempt = 0; attempt < 200; attempt++) {
 		await page.waitForTimeout(100);
 		const next = await mountedBlockText(page);
-		if (JSON.stringify(next) === JSON.stringify(previous)) return next;
+		const pending = await page.locator(PENDING_RENDER).count();
+		if (pending === 0 && JSON.stringify(next) === JSON.stringify(previous)) return next;
 		previous = next;
 	}
 	throw new Error('the showcase document never settled: a block is still rendering');

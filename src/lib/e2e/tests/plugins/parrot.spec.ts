@@ -89,6 +89,16 @@ class ParrotPage extends PluginsPage {
 		});
 	}
 
+	/** Where the reel sits, counted in clip windows. A stepped animation only ever reports whole
+	 *  frames; a smooth one reports the space between them. */
+	reelOffsetRows(): Promise<number> {
+		return this.page.evaluate(() => {
+			const windowHeight = document.querySelector('.parrot')!.getBoundingClientRect().height;
+			const reel = getComputedStyle(document.querySelector('.parrot-reel')!).transform;
+			return new DOMMatrix(reel).m42 / windowHeight;
+		});
+	}
+
 	async expectDancing(): Promise<void> {
 		const first = await this.reelTransform();
 		// A frame is 70ms, so a reel the poll never catches moving is a stopped bird.
@@ -118,6 +128,18 @@ test.describe('the bundled party parrot', () => {
 
 	test('the bird dances on its own', async () => {
 		await editor.expectDancing();
+	});
+
+	test('the reel steps frame to frame instead of sliding between them', async ({ page }) => {
+		const offsets: number[] = [];
+		for (let sample = 0; sample < 12; sample++) {
+			offsets.push(await editor.reelOffsetRows());
+			await page.waitForTimeout(60);
+		}
+
+		expect(offsets.filter((rows) => Math.abs(rows - Math.round(rows)) > 0.02)).toEqual([]);
+		// And it did move over those samples, so a frozen reel cannot satisfy the line above.
+		expect(new Set(offsets.map(Math.round)).size).toBeGreaterThan(1);
 	});
 
 	test('the dance moves no byte of the block', async ({ page }) => {
