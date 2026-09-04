@@ -1,16 +1,8 @@
 <script module lang="ts">
 	import { DEMO_PLUGINS, DEMO_HIGHLIGHT_OCCURRENCES } from './demo-plugins';
-	import type { HighlightOccurrencesOptions } from '$lib/plugins/highlight-occurrences';
 
-	// Installation is process-wide and every installed plugin's editor hooks run on every
-	// editor, so the toggle rides the plugin's per-instance option rather than the plugin set.
-	function showcasePluginsFor(occurrences: boolean) {
-		return DEMO_PLUGINS.map((unit) =>
-			unit === DEMO_HIGHLIGHT_OCCURRENCES
-				? { plugin: unit, options: { enabled: occurrences } satisfies HighlightOccurrencesOptions }
-				: unit
-		);
-	}
+	// The prop is the enablement set, so the toggle is the plugin's presence in the array.
+	const WITHOUT_OCCURRENCES = DEMO_PLUGINS.filter((unit) => unit !== DEMO_HIGHLIGHT_OCCURRENCES);
 </script>
 
 <script lang="ts">
@@ -45,7 +37,7 @@
 	let source = $state(SHOWCASE_DOCUMENT);
 	let dragHandles = $state(false);
 	let occurrences = $state(false);
-	const showcasePlugins = $derived(showcasePluginsFor(occurrences));
+	const showcasePlugins = $derived(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES);
 
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();
