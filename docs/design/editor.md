@@ -212,23 +212,16 @@ The group is why an illegal leaf/container mix is a compile error rather than a 
 
 ### Commands and keybindings
 
-A kind's `keymap` maps a chord to a command id. The chord string is normalized before lookup, with `Mod` standing for Ctrl on Windows and Linux and Cmd on macOS:
+A kind's `keymap` maps a chord to a command id. The chord string is normalized before lookup (`schema/keybindings.ts` :: `eventToChord`), and `Mod` folds Ctrl and Cmd into one token, so a binding is `{ chord: 'Mod+B', command: 'format.toggleStrong' }` on every platform; why nothing in the tree detects the platform, and what that costs the test harness, is [`../contributing/codebase-map.md`](../contributing/codebase-map.md) § Keyboard and chords. Global commands (undo/redo, a plugin's registered global) are free functions rather than per-kind entries. Keystroke-to-operation mapping is declarative, so there's no per-component `onKeyDown` branching to keep in sync.
 
-```ts
-eventToChord(new KeyboardEvent('keydown', { key: 'b', ctrlKey: true })); // 'Mod+B'
-eventToChord(new KeyboardEvent('keydown', { key: 'z', metaKey: true, shiftKey: true })); // 'Mod+Shift+Z'
-```
+A focused leaf resolves a chord through the consumer's overrides first, then three keymap tiers (`schema/commands.ts` :: `resolveBinding`):
 
-So a binding is `{ chord: 'Mod+B', command: 'format.toggleStrong' }`, and global commands (undo/redo, a plugin's registered global) are free functions rather than per-kind entries. Keystroke-to-operation mapping is declarative, so there's no per-component `onKeyDown` branching to keep in sync.
+1. an override on the kind (the `keybindings` prop, scoped by `kind`), then an override on the global table,
+2. the kind's own keymap,
+3. the editor-global keymap,
+4. the plugin-global tier, where a plugin's `registerGlobalCommand` binds its chord.
 
-A focused leaf resolves a chord through four tiers, consumer overrides first:
-
-1. an override on the kind (the `keybindings` prop, scoped by `kind`),
-2. an override on the global table,
-3. the kind's own keymap,
-4. the built-in global table.
-
-Override source beats specificity, so a consumer disabling a chord globally suppresses one a kind defines. The resolved id is then spent on three tiers in order: the global table; a minted `(kind, id)` block command (minted: created by the one authorized registration, where a duplicate throws), which runs its own registered handler; and the built-in vocabulary on the focused component's `runCommand`. Container bubble handlers resolve kind-only, so they never double-fire a leaf's global command, and `runCommand` reads the caret live, so a cross-block dispatch operates at the collapsed position.
+Override source beats specificity, so a consumer disabling a chord globally suppresses one a kind defines; and a plugin's global chord never beats a built-in one, on any kind. The resolved id is then spent on three tiers in order: the global table; a minted `(kind, id)` block command (minted: created by the one authorized registration, where a duplicate throws), which runs its own registered handler; and the built-in vocabulary on the focused component's `runCommand`. Container bubble handlers resolve kind-only, so they never double-fire a leaf's global command, and `runCommand` reads the caret live rather than an offset captured at keydown.
 
 ### The dispatch seam
 
@@ -266,7 +259,7 @@ The same seam answers `EditorInstance.canRunCommand`, the read a host greys a bu
   });
   ```
 
-  Both the parser's dispatch order and its paragraph-interrupt scan derive from the declarations. Built-in openers live in `core/parsers/`, and their priorities are published as `OPENER_PRIORITIES` (`fencedCode` 10, `heading` 20, `thematicBreak` 30, `blockquote` 40, `list` 50, `indentedCode` 60, `htmlBlock` 70, `linkReferenceDefinition` 80), so a plugin opener whose matcher is a superset of a built-in's prices below it, and one that only slots between built-ins prices into the gap.
+  Both the parser's dispatch order and its paragraph-interrupt scan derive from the declarations. Built-in openers live in `core/parsers/`, and their priorities are published as one constant, `OPENER_PRIORITIES` (`schema/opener-priorities.ts`), so a plugin opener whose matcher is a superset of a built-in's prices below that built-in's entry, and one that only slots between built-ins prices into the gap.
 
 - **Enter completion.** The opener registry's sibling, for kinds whose grammar spans adjacent lines and so can't be typed into existence. A registered completer reads one typed line and answers the lines completing it plus where the caret lands; § 8 shows the call. Published on the plugin surface, so plugin entries clear through the platform reset like every other public register-once registry.
 - **Components.** The runtime kind-to-component map `BlockHost` looks up. Built-in registrations live in `components/built-in-blocks.ts`, imported once at editor mount.
@@ -290,10 +283,7 @@ The tree is the document-level truth. Inside one block, while you're typing, the
 
 ### Reading the DOM back
 
-On `input`, the block reads its own DOM content back as raw text, writes it to `node.raw`, and re-parses to refresh metadata and inline content; if the kind changed, it re-renders with the new component. What it never does is reconstruct that text from parsed structure (§ 1's rule, one level down). Each surface supplies its own reader:
-
-- code blocks and plain editable leaves read `textContent` directly, because for them `textContent` _is_ `raw`;
-- prose blocks read through a raw-aware DOM walk, because atomic widgets contribute **zero** characters to `textContent` (their bytes live on `data-source-*` attributes, below) and a container's ambient prefix (the read-only marker a container lends its first child, a list's `- `) contributes characters that aren't in the child's `raw` at all. A `textContent` read there would silently drop every widget's source and swallow the marker.
+On `input`, the block reads its own DOM content back as raw text, writes it to `node.raw`, and re-parses to refresh metadata and inline content; if the kind changed, it re-renders with the new component. What it never does is reconstruct that text from parsed structure (§ 1's rule, one level down). Each surface supplies its own reader: code blocks and plain editable leaves can read `textContent` directly, while a prose block reads through a raw-aware DOM walk, since its atomic widgets and its container's ambient prefix (the read-only marker a container lends its first child, a list's `- `) both put `textContent` out of step with `raw`. Why, and the walk itself, is [`inline-parsing.md`](inline-parsing.md) § 2.
 
 The common case (no kind change) needs no DOM patching, since the browser's update and the tree agree; prose blocks rebuild their styled span tree from `raw` on every input, and offsets map unchanged.
 
@@ -321,9 +311,9 @@ Some inline nodes render as opaque widgets: `contenteditable="false"` islands wi
 <span data-inline-widget="" data-source-start="4" data-source-end="20" contenteditable="false">…</span>
 ```
 
-So the caret is addressable only at its leading and trailing edges, and the generic machinery keys off `[data-inline-widget]` alone: no per-widget plumbing in the cursor walker, the selection painter, or the raw reader.
+So the caret is addressable only at its leading and trailing edges, and the generic machinery keys off `[data-inline-widget]` alone ([`inline-parsing.md`](inline-parsing.md) § The textContent invariant).
 
-**`cursor/widget-offset.ts` is the single translation point between DOM Range positions and raw offsets.** It walks the block in document order, summing text-node lengths and widget raw lengths, and everything that needs the translation routes through it: the ambient-marker helpers, sticky-column measurement, the native selection bridge, the block's own `setSelection` / `measurePartialRects`. Offset arithmetic done anywhere else will eventually disagree with it, and [`../contributing/casebook.md`](../contributing/casebook.md) has the incident.
+**`cursor/widget-offset.ts` is the single translation point between DOM Range positions and raw offsets**, and everything that needs the translation routes through it. Why there's exactly one home, and what happened when arithmetic lived elsewhere, is [`inline-parsing.md`](inline-parsing.md) § Coordinate spaces.
 
 Two cross-block focus behaviors compose on top:
 
@@ -406,7 +396,7 @@ The claim becomes a block replacement in the slot (one undo entry, the paragraph
 
 **Kind change.** When a re-parse of a block's updated `raw` yields a different kind, the node is replaced with one of the correct kind and keeps its ID; when it yields several blocks, the first keeps the slot's ID and leading trivia and the rest splice in with fresh IDs, exactly as a split does. The same rule runs a level up for **containers**: an edit inside one changes what the container's own rebuilt `raw` parses to (typing the rest of a `> [!TIP]` marker), so the ancestry rebuild re-derives the container's kind and swaps the slot the same way (§ 9). A demotion also settles the joins it disturbed.
 
-**Settling a disturbed join.** To _settle_ is to re-derive the blank-line separators around a splice. A mutation can invalidate an adjacency that was correct before it, and adjacent bytes that re-read as **fewer** blocks are the reload's own reading, so the tree converges to that reading rather than inventing separator bytes into an untouched neighbour. Four routes settle: a kind demotion absorbs the neighbours it stopped interrupting; a delete joins its survivor into a tight neighbour; a reorder re-judges both edges of the moved window and reports where the block actually landed; and a container's own slot is asked on the way out of the ancestry rebuild. A write that leaves its own construct open is closed first (§ 6).
+**Settling a disturbed join.** To _settle_ is to re-derive the blank-line separators around a splice. A mutation can invalidate an adjacency that was correct before it, and adjacent bytes that re-read as **fewer** blocks are the reload's own reading, so the tree converges to that reading rather than inventing separator bytes into an untouched neighbour. Everything that disturbs a join owes it that question, asked at the ceremony's settle step (§ 11) and at the two splice entries in `tree-operations/node-ops.ts`; the one join no scope-local ask can see, a container's own slot in its grandparent's array, is asked on the way out of the ancestry rebuild (§ 9). Which caller asks through which entry is [`../contributing/codebase-map.md`](../contributing/codebase-map.md) § Blank lines and separators. A write that leaves its own construct open is closed first (§ 6).
 
 ### Merge eligibility: roles, not pairs
 
@@ -466,11 +456,7 @@ A **whole-block-focus** kind (`blockFocus: 'whole-block'` in its descriptor, as 
 
 The container factory wires all of this from the one declaration, which is why mermaid is the reference a plugin author copies; the thematic break is a plain component that reaches the same tail directly. Such kinds are childless by design, so the pass that gives every emptied container a placeholder child (so the caret always has somewhere to land) skips them: a phantom child would permanently violate their opaque `raw`-to-children faithfulness (§ 9).
 
-DOM focus doesn't sit on the declared surface. The kind declares which element **stands for** the block, and the editor mounts a hidden editing host in the block's box and focuses that instead, because AltGr productions and IME composition reach an editing host or nowhere, and a `tabindex=0` div isn't one. (This is the gap caret's proxy technique at a second site; the gap caret, a caret parked between two blocks where neither surface can host one, is § 10's subject. One factory serves both whole-block routes, while the gap caret reimplements the technique independently.) The declared surface keeps focus only when it's itself editable, owning its caret already. Three consequences worth knowing:
-
-- a focus assertion is containment, not identity;
-- the host is the block's one tab stop, so a declared surface that stays in the tab order adds a second stop the backward tab parks on;
-- a plugin box needs `position: relative` for the host to resolve against the block.
+DOM focus doesn't sit on the declared surface. The kind declares which element **stands for** the block, and the editor mounts a hidden editing host in the block's box and focuses that instead, because AltGr productions and IME composition reach an editing host or nowhere, and a `tabindex=0` div isn't one. (This is the gap caret's proxy technique at a second site; the gap caret, a caret parked between two blocks where neither surface can host one, is § 10's subject. One factory serves both whole-block routes, while the gap caret reimplements the technique independently.) The declared surface keeps focus only when it's itself editable, owning its caret already; otherwise the host is the block's one tab stop, and the editor demotes the declared surface out of the tab order on every read rather than once at mount, since a render swap can hand it a fresh element. What that costs an author (containment assertions, a positioned box) is [`../guide/plugin-guide.md`](../guide/plugin-guide.md) § Whole-block focus.
 
 ### Container unwrap
 
@@ -492,7 +478,7 @@ Arrow navigation at block boundaries uses geometry, not offsets: the cursor rect
 **Sticky column.** Cross-block caret column memory. Within a block the browser's native sticky column handles vertical movement, and the editor layers on top only at block boundaries, where the native one resets.
 
 - **Capture.** A vertical arrow press captures the cursor's _editor-relative_ pixel X (scroll-invariant). Idempotent: the first press after a reset captures, later ones don't.
-- **Reset.** Any other user action: typing, click, horizontal arrows, structural ops, undo/redo, editor blur, tab hidden.
+- **Reset.** Nearly any other user action: typing, click, horizontal arrows, structural ops, undo/redo, editor blur, tab hidden. The carve-out is PageUp/PageDown and a bare modifier tap (Shift, Control, AltGraph, CapsLock and friends), which preserve it; `cursor/sticky-column.ts` :: `classifyStickyKey` is the matrix.
 - **Transparent blocks** (thematic break) pass through without capturing or resetting; **participating blocks** (text, code) capture and implement `focusAtColumn(x, from)`, prose and code differing only in rendered content, same helpers, same policy.
 
 Capture and consumption are split: the source block captures, and a separate focus dispatcher reads the value at cross-block transitions, either calling `focusAtColumn` or falling back to start/end focus. The surface is a pure receiver, null-handling lives in the dispatcher, and the `cursor/sticky-column.ts` header carries the authoritative two-axis contract. Sticky X is a **visual** lock, not a logical one: when a destination block scrolls internally, the visible column at a given X depends on its current `scrollLeft`, so re-entering a scrolled table lands the caret in the visible column nearest the captured X. By design.
@@ -515,13 +501,7 @@ quote.children[1].children[1].raw; // '- two\n'  its second item
 quote.children[1].children[1].children[0].raw; // 'two\n'  the item's paragraph
 ```
 
-The two are redundant, not additive, which is why the serializer never recurses (§ 12 is where the trade pays for itself). Three contracts exist, declared per kind in the descriptor's `container` group; [`syntax-tree.md`](syntax-tree.md) § The container contract is authoritative:
-
-| Contract   | `raw` ↔ children                                                                                   | Kinds                                 |
-| ---------- | -------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `'strip'`  | Stripping the container syntax from `raw` yields the children                                      | blockquote, list, listItem            |
-| `'grid'`   | Cells parse straight from `raw`; children are coordinate-addressed                                 | table, tableRow                       |
-| `'opaque'` | `raw` is authoritative and is not a strip-decomposition; chrome lives in the container's own bytes | directive containers, plugin callouts |
+The two are redundant, not additive, which is why the serializer never recurses (§ 12 is where the trade pays for itself). Three contracts relate a container's `raw` to its children (`strip`, `grid`, `opaque`), declared per kind in the descriptor's `container` group; [`syntax-tree.md`](syntax-tree.md) § The container contract is authoritative on what each promises and which kinds pick which.
 
 A container's `rebuildRaw` re-emits its `raw` from its children and metadata after any edit inside it, and ancestry dispatch runs it up the whole nesting chain.
 
@@ -541,7 +521,7 @@ A plugin rebuilder that ignores the hint is correct, just not incremental.
 
 ### Ambient markers
 
-A container may lend a read-only prefix to its first prose child's rendered content, today the list item's `- ` / `1. ` marker: the ambient prefix from § 6, carried by the `ambientPrefix` prop, with the contract `textContent(block) === ambientPrefix + raw`. (The blockquote lends none; its `> ` markers are border-only chrome.) The prop is a union:
+A container may lend a read-only prefix to its first prose child's rendered content, today the list item's `- ` / `1. ` marker: the ambient prefix from § 6, carried by the `ambientPrefix` prop. (The blockquote lends none; its `> ` markers are border-only chrome.) The prop is a union:
 
 ```ts
 type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };
@@ -551,7 +531,7 @@ A plain string is an inert marker. The object form carries `text` plus interacti
 
 ### Reserved chrome
 
-A container may declare its child 0 as a **reserved chrome leaf**, a title or summary whose bytes live in the container's own opener line (a callout title, a `<details>` summary). The machinery then enforces the contract: the slot is always present, single-line (unsplittable; a paste there flattens inline), cleared rather than deleted by destructive ranges, and kind-stable through every edit. The declaration may also carry a pure collapse probe (`isCollapsed`), from which collapse-awareness follows everywhere for free: merge walks, focus walks, Enter-descend, source reveal, the container's window clamp, and the estimate of the height oracle (the estimate-then-measure model windowing sizes blocks with).
+A container may declare its child 0 as a **reserved chrome leaf**, a title or summary whose bytes live in the container's own opener line (a callout title, a `<details>` summary), and the machinery enforces the slot's contract from that one declaration ([`plugin-contract.md`](plugin-contract.md) § Editable chrome). The declaration may also carry a pure collapse probe (`isCollapsed`), from which collapse-awareness follows everywhere for free: merge walks, focus walks, Enter-descend, source reveal, the container's window clamp, and the estimate of the height oracle (the estimate-then-measure model windowing sizes blocks with).
 
 A few container-specific operations, for completeness:
 
@@ -566,21 +546,11 @@ Single-block selection is the browser's: native selection inside the block's con
 
 ### Cross-block selection
 
-Two endpoints, anchor and focus, each a path plus an offset in that block (`selection/primitives.ts`):
-
-```ts
-interface EditorSelection {
-	anchor: SelectionPoint;
-	focus: SelectionPoint;
-}
-type SelectionPoint =
-	| { path: number[]; offset: number; cellCoordinate?: false } // a character offset into raw
-	| { path: number[]; offset: number; cellCoordinate: true }; // a row-major cell index, inside a table
-```
+Two endpoints, anchor and focus, each a path plus an offset in that block. `selection/primitives.ts` :: `SelectionPoint` is the type, a two-arm union on `cellCoordinate` (a character offset into `raw`, or a row-major cell index inside a table), with one trap its docstring and G1.29 both carry: a selection wholly inside one table keeps cell indices on both endpoints and flags only the anchor, so the block's kind, never the flag, picks the coordinate space.
 
 Same path on both means single-block, and the browser handles it; different paths mean the editor manages all selection rendering. The native caret and native `::selection` are suppressed (via `[data-cross-block]` on the editor root) exactly when the overlay paints instead, one predicate for both: a stored pair the overlay declines to paint, such as a rectangle shrunk back onto its own cell, keeps its native caret rather than showing nothing at all. The state is lazy, its fields null in single-block mode, with a normalized `start`/`end` pair in document order derived from anchor/focus.
 
-- **Entering it:** a pointer drag that crosses out of the starting block (rAF-throttled, autoscrolling at viewport edges; a point off every block resolves to the nearest one, so a drag into the margin extends rather than stalls); Shift+Arrow past a block edge; Ctrl+Shift+Home/End to a document boundary; Shift+click into another block; a second Ctrl+A (the first selects within the focused block, natively).
+- **Entering it:** a pointer drag that crosses out of the starting block (rAF-throttled, autoscrolling at viewport edges; a point off every block resolves to the nearest one, so a drag into the margin extends rather than stalls); Shift+Arrow past a block edge; Mod+Shift+Home/End to a document boundary; Shift+click into another block; a second Mod+A (the first selects within the focused block, natively).
 - **Rendering it:** every `BlockHost` mounts a `SelectionOverlay`, which classifies its own block as start / end / middle / outside and paints accordingly. Endpoint blocks measure partial rects; middle and non-text blocks get a full-block overlay. A block that scrolls internally (a wide table, a long-line code block) gets a passive scroll listener and a re-measure, so highlights track the content underneath; `cursor/scroll-ancestors.ts` is the one place that knows what scrolls.
 - **Exiting it:** a click or an unshifted arrow collapses back to native single-block selection. Typing, Backspace, Delete, Cut, and Paste all delete the selected range first, then perform their normal action at the collapsed cursor, and IME composition follows the same delete-then-compose path.
 - **Restoring it:** one route serves both the undo swap and the consumer's `setSelection`. Resolve and clamp both endpoints, reveal what the caret will park at, then write the state and place the caret, both inside one change-notification batch, because a subscriber reads the editor back (§ 12) and a notification landing between the two writes would report a selection the restore is about to move.
@@ -621,7 +591,7 @@ The root's trailing boundary is excluded, since the move-past-end append already
 
 **At the gap**, a printable key or an IME commit inserts a paragraph carrying the text, and Enter inserts an empty one; both go through the ordinary commit ceremony, so each is one undo entry and one `insertBlock` edit event. Arrows and Escape leave for the neighbour they point at. Shift+Arrow is deliberately the plain arrow: a single block selected whole isn't a representable cross-block state, and the per-kind shapes it would need are exactly the kind dispatch selection code refuses. Every other input, paste above all, is declined rather than guessed at. Focus lives on a hidden proxy behind the painted line, which is what lets the editor-global chords resolve there as they do anywhere else.
 
-**Undo stores it as itself.** An entry's recorded selection is either an editor selection or a gap position, so undoing the insertion returns the caret to the boundary the paragraph came from, and a restore whose container path no longer resolves degrades to the ordinary fallback landing rather than parking where nothing would paint it. **It isn't public in v1.** The gap never enters the `SelectionPoint` union, and `getSelection()` reports null while one is live. A pre-freeze decision rather than a limit of the model: admitting it later is additive, and admitting it now would freeze a shape no consumer has exercised.
+**Undo stores it as itself.** An entry's recorded selection is either an editor selection or a gap position, so undoing the insertion returns the caret to the boundary the paragraph came from, and a restore whose container path no longer resolves degrades to the ordinary fallback landing rather than parking where nothing would paint it. **It isn't public in v1.** The gap stays outside the `SelectionPoint` union, a freeze decision [`plugin-contract.md`](plugin-contract.md) § Payloads bound as-is records.
 
 ### Search
 
@@ -702,16 +672,18 @@ await scope.commit({
 });
 ```
 
-The ceremony, in order:
+The ceremony's structural steps, in order (`src/lib/editor-actions/commit/undo-controller.ts` :: `runCommitCeremony` runs a few more around them: the sticky-column reset, the content-version bump, the gap-caret clear):
 
 1. capture the snapshot,
 2. unshare the written path,
 3. run the mutation on plain-array copies,
-4. publish the new children atomically,
-5. emit an `edit` event,
-6. `await tick()`, then run the caller-supplied post-tick callback (focus landing, cursor placement), itself awaited.
+4. settle the separators and joins the mutation disturbed (§ 8),
+5. publish the new children atomically,
+6. rebuild every enclosing container's `raw`, deepest first, asking each container's own slot on the way out (§ 9),
+7. emit an `edit` event,
+8. `await tick()`, then run the caller-supplied post-tick callback (focus landing, cursor placement), itself awaited.
 
-Because step 6 awaits, a landing that must first reveal an off-window target is expressible there rather than fire-and-forget, and a landing that deliberately doesn't make its commit wait says so by returning nothing. Callers pick a scope; they never assemble the ceremony, and **this is the canonical entry for any new structural mutation** (the op-log isn't a ceremony step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit ladder is single-sourced and the factories differ only in scope wiring and container-only concerns.
+Because step 8 awaits, a landing that must first reveal an off-window target is expressible there rather than fire-and-forget, and a landing that deliberately doesn't make its commit wait says so by returning nothing. Callers pick a scope; they never assemble the ceremony, and **this is the canonical entry for any new structural mutation** (the op-log isn't a ceremony step; it subscribes to `edit` downstream). The top-level and container action factories share one core through a `CommitScope` adapter, so the structural-edit ladder is single-sourced and the factories differ only in scope wiring and container-only concerns.
 
 Not every undo snapshot comes from the primitive. Where a write isn't a structural commit, its seam pushes one directly: the debounced text-input snapshot; the snapshot cross-block dispatch takes before its direct raw mutation (spent by IME composition entry over a range and by cross-block paste alike); and replace-all's seed, which is what makes a batch rewrite one entry. Those sit outside the primitive by design.
 
@@ -782,7 +754,7 @@ The built-in kinds and what the editor does with each. A kind with no dedicated 
 | `heading`                 | Styled ATX heading. Contenteditable, inline-parsed.                                                                                                                                                                                                                                                                                                                |
 | `setextHeading`           | Identical to `heading` for editing purposes. Not normalized to ATX: that would rewrite bytes the user typed.                                                                                                                                                                                                                                                       |
 | `fencedCode`              | Live syntax-highlighted code surface. Dimmed fence and info-string markers. Participates in sticky-column traversal.                                                                                                                                                                                                                                               |
-| `thematicBreak`           | Non-editable, focusable, reorderable. Declares `blockFocus: 'whole-block'`: a caret-adjacent Backspace focuses it, a second press deletes. The one built-in on that model.                                                                                                                                                                                         |
+| `thematicBreak`           | Non-editable, focusable, reorderable. The one built-in on the whole-block focus model (§ 8).                                                                                                                                                                                                                                                                       |
 | `indentedCode`            | Raw-editable. Not mergeable.                                                                                                                                                                                                                                                                                                                                       |
 | `htmlBlock`               | Raw-editable. Not mergeable.                                                                                                                                                                                                                                                                                                                                       |
 | `linkReferenceDefinition` | Raw-editable. Editing one changes the link-reference map's signature, which triggers a document-wide inline re-parse so reference-style links and images update. The shell rebuilds the map after every commit (a cheap walk) but scopes the per-edit inline re-parse to a dirty set: whole-document only on a signature change or a structural op. Not mergeable. |
