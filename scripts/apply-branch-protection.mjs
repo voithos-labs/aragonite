@@ -1,8 +1,8 @@
 // One-shot: apply main-branch protection. Run at the flip to public; the API plan-gates
 // protection on private free-plan repos (403 until then), and it needs gh authenticated as
-// a repo admin. Contexts must match ci.yml's job names exactly, so a job rename updates
-// this list. The bypass allowance exempts the owner from the code-owner review only; the
-// status checks stay binding on everyone.
+// a repo admin. Contexts are ci.yml's job names, held in step by
+// `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`. The bypass allowance
+// exempts the owner from the code-owner review only; the status checks stay binding on everyone.
 //
 // `main` alone is protected: `dev` is the integration branch and takes the repo-wide history
 // rewrites, which need the force push this rule forbids.
