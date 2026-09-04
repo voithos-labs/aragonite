@@ -1,6 +1,6 @@
-// One-shot: apply main-branch protection. Run at the flip to public; the API plan-gates
-// protection on private free-plan repos (403 until then), and it needs gh authenticated as
-// a repo admin. Contexts are ci.yml's job names, held in step by
+// One-shot: apply main-branch protection. Needs gh authenticated as a repo admin, and a repo
+// the API will take it on: protection is plan-gated, so a private free-plan repo answers 403.
+// Contexts are ci.yml's job names, held in step by
 // `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`. The bypass allowance
 // exempts the owner from the code-owner review only; the status checks stay binding on everyone.
 //

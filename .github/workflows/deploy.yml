@@ -1,6 +1,6 @@
 name: Deploy
-# Manual until the first deploy is verified against the live domain; add a
-# `push: branches: [main]` trigger once it is.
+# Manual: a deploy that half-publishes against a live domain is worse than one nobody ran.
+# TODO(#282): also fire on a merge to `main`, once the first manual run is verified.
 on:
   workflow_dispatch:
 
