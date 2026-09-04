@@ -1,16 +1,17 @@
-## What changed and why
+## What changed, and why
 
-<!-- One line is plenty. Link the issue if there's one. -->
+<!-- A line is plenty. Link the issue if there's one. -->
 
 ## Gates
 
-- [ ] `npm test` (full unit suite + every e2e project)
+- [ ] `npm test` (the unit suite, then every e2e project)
 - [ ] `npm run check` (svelte-check, 0 errors)
 - [ ] `npm run lint`
+- [ ] fixing a bug? a test that went red before the fix, plus a miss-analysis: one line saying what should have caught this and why nothing did
 
-Don't chase `npm run perf:check` on your own machine unless it's the calibration machine: it builds and previews the app, then measures keystrokes against baselines taken on one pinned desktop, so anywhere else it reads red by design. CI runs it with a scale factor for its slower runners, and that's the run that has to be green.
+Skip `npm run perf:check` unless you happen to be on the desktop the baselines were measured on. It builds the app, previews it, and times keystrokes against numbers from that one machine, so anywhere else it reads red and the red means nothing. CI runs it with a scale factor for its slower boxes, and that's the run that has to be green.
 
-## Before you submit
+## Before you hit submit
 
 - Target `dev`. `main` only takes release merges.
-- Inbound = outbound: by submitting this you license the change under AGPL-3.0-or-later, same as the rest of the project.
+- By submitting this you're licensing the change under AGPL-3.0-or-later, same as the rest of the project.
