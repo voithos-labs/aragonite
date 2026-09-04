@@ -25,7 +25,8 @@
 	--color-border: #3d4047;
 	--color-ui-muted: #a4a4a4;
 	--color-ui-dulled: #afb1b3;
-	--color-accent: #567b67;
+	/* Split per mode: no single value clears AA on both a near-black and a white surface. */
+	--color-accent: #6c9d83;
 	/* Base the selection, search-match and reorder washes derive from, so one declaration
 	   moves all of them; the washes themselves stay editor-owned. */
 	--color-selection: #6496ff;
@@ -39,7 +40,7 @@
 	--color-border: #d0d7de;
 	--color-ui-muted: #6e7781;
 	--color-ui-dulled: #8c959f;
-	--color-accent: #567b67;
+	--color-accent: #496e5b;
 	--color-selection: #6496ff;
 	--color-error: #cf222e;
 }

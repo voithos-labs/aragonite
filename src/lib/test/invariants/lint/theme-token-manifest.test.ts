@@ -37,7 +37,6 @@ const MODE_INDEPENDENT_TOKENS = [
 
 /** Themed tokens whose light value deliberately repeats the dark one, with the reason. */
 const MODE_BLIND_BY_DESIGN: Record<string, string> = {
-	'--color-accent': 'one brand accent, chosen to read on both palettes',
 	'--color-selection': 'one selection base, carried into both palettes by its washes'
 };
 
