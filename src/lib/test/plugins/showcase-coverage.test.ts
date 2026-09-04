@@ -34,8 +34,6 @@ import SHOWCASE_DOCUMENT from '../../../routes/showcase-content.md?raw';
  *  whose kind is demonstrated, or names nothing expected, fails. */
 const NOT_YET_DEMONSTRATED: Record<string, string> = {
 	// Gaps the owner can close by editing the document.
-	mermaid:
-		'GAP: the document holds no ```mermaid fence, so the bundled mermaid plugin never renders on the tour',
 	mathFence: 'GAP: block math is written as `$$…$$` only; the ```math fence form is unshown',
 	setextHeading: 'GAP: every heading is ATX; the underlined form is unshown',
 	indentedCode: 'GAP: code is fenced throughout; the four-space form is unshown',

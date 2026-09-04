@@ -251,3 +251,13 @@ whose update rule is $y \leftarrow y(1.5 - 0.5xy^{2})$. That specific formulatio
 2. winning :two_hearts:love by :sunny:daylight, 
 3. never running from a real fight:muscle:, 
 4. she is the one named Sailor Moon! :dizzy::dizzy::dizzy::sparkles:
+
+
+## on the relationship between productivity and coffee
+```mermaid
+xychart-beta
+    title "productivity vs. caffeine (empirically derived, n=1)"
+    x-axis "Cups" [0, 1, 2, 3, 4, 5, 6]
+    y-axis "10x Engineer Units" 0 --> 1000
+    line [5, 40, 160, 480, 950, 0, 0]
+```
