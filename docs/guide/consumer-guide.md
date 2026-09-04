@@ -427,7 +427,7 @@ Hiding every marker means one screen position can mean two raw offsets wherever 
 
 - **A character typed at a hidden edge follows how the caret got there.** Arriving from outside a construct types outside it; walking into it types inside. A construct that never grows at its edges (a link) always takes the outside.
 - **A caret seated at an extreme lands outside.** `Home`, `End`, and collapsing a selection put the caret past the delimiters, not between them. A seat isn't a step, so the direction of the key that produced it doesn't decide the side.
-- **`Enter` inside a construct closes it and reopens it.** Splitting `**bold**` down the middle leaves two balanced constructs rather than one stranded delimiter in each half, and a split link carries its destination into both halves. Where Markdown can't write the two halves as balanced pairs (a code span whose reopened fence would collide with its own backticks), the split falls back to a plain byte cut.
+- **`Enter` inside a construct closes it and reopens it.** Splitting `**bold**` down the middle leaves two balanced constructs rather than one stranded delimiter in each half, and a split link carries its destination into both halves. Where no balanced rewrite shows what the screen showed (a code span whose reopened backticks would collide with its own, say), the split falls back to a plain byte cut.
 - **A join cleans up after itself.** `Backspace`, `Delete`, a range delete, typing over a selection, and a paste all go through the same code: a delimiter run the cut orphaned goes with the cut instead of appearing on screen, and a closer meeting an opener around nothing is dropped. Every candidate cleanup is checked against what the two sides showed, and the byte-literal join stands when it can't be.
 - **The format toggles work at a collapsed caret.** `Mod+B`, `Mod+I`, `Mod+Shift+X`, and `Mod+E` over a selection wrap or unwrap it as always; at a caret they arm the format for the next thing you type, which is what a mode with no visible delimiters needs. A selection ending on a space wraps the word and leaves the space beside it (a run closing against whitespace is no run at all), and a press whose wrap the screen wouldn't survive writes nothing rather than printing delimiters you can't see to delete.
 
@@ -736,7 +736,7 @@ Disabling `Tab` or `Enter` for `tableCell` likewise leaves the cell with no way 
 
 The Find / replace family doesn't consult the override map at all: those chords are wired straight into the search components, and aren't rebindable today.
 
-**Plugin-global chords resolve last.** A plugin's global command (see the [plugin guide](plugin-guide.md)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright. The shadow runs the other way by design: a built-in kind's own chord beats a plugin-global chord on that kind, not elsewhere. A plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
+**Plugin-global chords resolve last.** A plugin's global command (see the [plugin guide](plugin-guide.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright. The shadow runs the other way by design: a built-in kind's own chord beats a plugin-global chord on that kind, not elsewhere. A plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
 ### Which shortcuts the editor consumes
 
@@ -765,7 +765,7 @@ window.addEventListener(
 );
 ```
 
-The set is composed on each call, not baked at build time, so it already reflects the block kinds your plugins registered, the global chords they claimed, and the `keybindings` overrides you passed: a chord you disabled drops out, one you bound appears, and turning `searchBar` off drops `Mod+F` and `Mod+H` with it.
+The set is composed on each call, not baked at build time, so it already reflects the block kinds your plugins registered, the global chords they claimed, and the `keybindings` overrides you passed: a chord you disabled globally drops out (a per-kind disable can't, since other kinds still claim it), one you bound appears, and turning `searchBar` off drops `Mod+F` and `Mod+H` with it.
 
 **Modifier chords only, by design.** Bare keys (`Enter`, `Tab`, `Escape`, the arrows, `Backspace`) never appear: a focused document owns them whatever the set says, so an app shortcut bound to one is lost while the caret is in a block regardless. That makes the set the right input for an accelerator table and the wrong input for a "what can I press here" help sheet; for that, use the [shortcut table](#keyboard-shortcuts).
 

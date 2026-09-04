@@ -265,7 +265,7 @@ cNo.....................................oc
 </style>
 ```
 
-The editing half is the factory call, the `revealed` flag, two spreads, and one-line re-exports of what the factory returns. The flag is yours to own. The factory flips it on through `setRevealed` when a click or an arrow lands in the block, and off again when the caret leaves; the `{#if}` swaps on it. `surfaceProps` goes on the source line, `renderProps` on the caption, and you spread both (a caption wired for the click alone swallows undo while it holds focus). `focus` and `getCursorOffset` are the two every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The commit happens when the caret leaves. Reveal, type, arrow out, and that's one undo entry. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`. The raw only changes when the caret leaves, not per keystroke, and the caption follows it. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap`, for a reason [The editable leaf](#the-editable-leaf) explains. The parrot's can't span lines, since its opener claims one, so it says so with `singleLine: true` and skips the CSS. Enter in a block like that ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
+The editing half is the factory call, the `revealed` flag, two spreads, and one-line re-exports of what the factory returns. The flag is yours to own. The factory flips it on through `setRevealed` when a click or an arrow lands in the block, and off again when the caret leaves; the `{#if}` swaps on it. `surfaceProps` goes on the source line, `renderProps` on the caption, and you spread both (a caption wired for the click alone swallows undo while it holds focus). `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The commit happens when the caret leaves. Reveal, type, arrow out, and that's one undo entry. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`. The raw only changes when the caret leaves, not per keystroke, and the caption follows it. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap`, for a reason [The editable leaf](#the-editable-leaf) explains. The parrot's can't span lines, since its opener claims one, so it says so with `singleLine: true` and skips the CSS. Enter in a block like that ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
 **Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships in the package, as `@voithos-labs/aragonite/plugins/parrot`, and a test keeps the shipped files identical to the fences above, so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
 
@@ -957,7 +957,7 @@ The scanners the package exports hand back positions rather than deltas, because
 
 ### Opener priority
 
-An opener's `priority` decides dispatch order, and **lower runs first**. `OPENER_PRIORITIES` is the authoritative built-in ladder (a readonly map, the same constant the built-ins register with):
+An opener's `priority` decides dispatch order, and **lower runs first**. `OPENER_PRIORITIES` is the built-in ladder (a readonly map, the same constant the built-ins register with):
 
 | Priority | Built-in kind             |
 | -------: | ------------------------- |
@@ -1210,7 +1210,7 @@ The mechanics behind that, each with its gotcha:
 
 - **DOM focus goes to a hidden editing host** the factory mounts in your chrome box, because AltGr productions and IME composition arrive only through an editing host and your surface isn't one; a click or Tab onto your declared element is passed on to it. So assert containment, not identity, if you test for focus.
 - **Give your box `position: relative`**, or the host resolves against whatever ancestor happens to be positioned.
-- **The host is the block's tab stop**, so a declared element carrying its own `tabindex="0"` adds a second one, and a backward tab out of the block parks on it instead of leaving; leave the declared element out of the tab order unless it's genuinely interactive.
+- **The host is the block's one tab stop**, and the editor keeps it that way: a `tabindex` on your declared element is demoted to `-1` on every read unless the element is itself an editing surface (a textarea, an input, a contenteditable). So there's no tab-order work to do on your side, and no point declaring a `tabindex="0"` button as the surface expecting Tab to land on it.
 - **An editable declared surface keeps focus for itself** (your edit `<textarea>`), which owns its caret and IME already.
 
 Supply a focus element for **every steady state** (error, loading, and static fallbacks included), so a broken render stays keyboard-reachable. If the getter returns null anyway, the editor degrades to focusing your chrome box and warns in dev.
@@ -1508,7 +1508,7 @@ setup(ctx) {
 }
 ```
 
-The chord binds in the **plugin-global tier**, which resolves _last_, after every `keybindings` override (the consumer's own rebinds, a consumer-guide prop), built-in kind chord, and built-in global chord (undo/redo). Three consequences:
+The chord binds in the **plugin-global tier**, the last rung of the ladder [the consumer guide's Rebinding chords](consumer-guide.md#rebinding-chords) lays out. Three consequences:
 
 - A plugin chord never shadows a built-in, and the reverse shadow is by design: a built-in kind's own chord beats your plugin chord **on that kind, not elsewhere**.
 - A chord the global tier already binds (undo and redo, or another plugin's global chord) or the search bar reserves (`Mod+F` / `Mod+H`) is unstealable, and the collision **throws before the mint**, leaving no half-registered command. A built-in kind's chord doesn't throw; it just wins on that kind, per the first bullet.

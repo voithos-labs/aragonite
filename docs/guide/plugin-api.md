@@ -245,10 +245,10 @@ _(pre-freeze / unstable)_ Where things are on screen, reached through `editor.re
 
 _(pre-freeze / unstable)_ The selection shapes a decoration source or geometry consumer reads.
 
-| Export                              | Role                                                                                                                                                                                                                                |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EditorSelection`, `SelectionPoint` | The `selectionChange` payload, an anchor/focus pair, and one endpoint of it: a `{ path, offset }` where `cellCoordinate: true` means `offset` counts table cells rather than characters, so check the flag before reading it as one |
-| `SELECTION_END`, `SelectionEnd`     | The importable "through the end of this block's measurable content" value `rangeRects` accepts as `end`, and its type                                                                                                               |
+| Export                              | Role                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EditorSelection`, `SelectionPoint` | The `selectionChange` payload, an anchor/focus pair, and one endpoint of it: a `{ path, offset }`. Inside a table `offset` counts cells rather than characters, and `cellCoordinate` doesn't reliably say so, so check the block's kind the way [the consumer guide](consumer-guide.md#reading-the-document-and-the-selection) does |
+| `SELECTION_END`, `SelectionEnd`     | The importable "through the end of this block's measurable content" value `rangeRects` accepts as `end`, and its type                                                                                                                                                                                                               |
 
 ### Parse and serialize
 
