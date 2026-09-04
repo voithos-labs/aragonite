@@ -382,7 +382,7 @@
 	// which must register no reactive dependency.
 	let documentGeneration = 0;
 
-	// `source !== lastSource` guard is load-bearing — see `docs/design/editor.md` § Reactive State Plumbing.
+	// `source !== lastSource` guard is load-bearing — see `docs/design/editor.md` § Reactive state plumbing.
 	// svelte-ignore state_referenced_locally
 	let lastSource = source;
 	$effect(() => {

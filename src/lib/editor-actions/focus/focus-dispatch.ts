@@ -60,7 +60,7 @@ export async function dispatchMoveFocus(
 	const block = refs[innerIndex];
 	if (!block?.focusable) {
 		// A refless or non-focusable child must not dead-end the move — continue in
-		// its direction (editor.md § Focus Traversal).
+		// its direction (editor.md § Focus traversal).
 		if (step !== 0) {
 			await dispatchMoveFocus(refs, innerIndex + step, position, stickyColumn, parent, scope);
 		}

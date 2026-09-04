@@ -69,7 +69,7 @@ export function createFocusActions(
 			const block = await deps.revealPath([blockIndex]);
 			if (!block?.focusable) {
 				// A refless or non-focusable block must not dead-end the move — skip it in
-				// the move's direction (editor.md § Focus Traversal).
+				// the move's direction (editor.md § Focus traversal).
 				if (step !== 0) await this.moveFocus(blockIndex + step, position, options);
 				return;
 			}

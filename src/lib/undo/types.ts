@@ -24,7 +24,7 @@ export function isGapSelection(
 export interface UndoEntry {
 	snapshot: Document;
 	blockIds: string[];
-	/** Effective selection at push. See docs/design/editor.md — Undo/Redo. */
+	/** Effective selection at push. See docs/design/editor.md § Undo / redo. */
 	selection: EditorSelection | GapCaretSelection;
 	/** DEV-only digest of `snapshot` at push; restore verifies no mutation wrote through a shared node. */
 	integrity?: number;
