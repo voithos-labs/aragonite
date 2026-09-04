@@ -5,30 +5,17 @@ on:
   issue_comment:
     types: [created]
 
-# Admin-gated, on-demand review (built for eventual open-sourcing). It NEVER runs on a
-# plain PR open — so a contributor can't spend the review budget by opening PRs. It fires
-# only when someone adds the `claude-review` label to a PR, or comments `/claude review`
-# on one — AND only if that person has admin/maintain on the repo. The `authorize` job
-# does that permission check fail-closed (any API error or lower permission → skip), so a
-# non-admin trigger skips the paid `review` job — quietly for a denial, with an error
-# annotation for a broken lookup, which would otherwise deny everyone in silence. (Adding
-# a label already needs Triage+; the check tightens it to admin/maintain regardless of PR
-# author.)
-#
-# The gate authorizes the TRIGGER, not the CONTENT: a maintainer may point the review at a
-# fork PR whose diff, titles, and file bodies are attacker-authored. That content reaches an
-# agent holding an API credential and a comment-posting tool, so the `review` job also
-# minimizes what an injected run can reach — no persisted git credential in the tree, and a
-# prompt that frames PR text as data.
-#
-# Default permissions are read-only; the agent job re-grants exactly what it needs.
+# Admin-gated on purpose, so a contributor can't spend the review budget by opening PRs.
+# The gate authorizes the TRIGGER, not the CONTENT: a maintainer may point this at a fork PR
+# whose diff and file bodies are attacker-authored, and that content reaches an agent holding
+# a credential and a comment tool. Hence the credential strip below and a prompt that frames
+# PR text as data.
 permissions:
   contents: read
 
 jobs:
   authorize:
-    # Cheap pre-filter: only a `claude-review` label add, or a `/claude review` comment on
-    # a PR (not a plain issue). Anything else → this job is skipped → `review` is skipped.
+    # A cheap filter ahead of the paid job: a non-admin trigger never reaches `review`.
     if: >-
       (github.event_name == 'pull_request' && github.event.label.name == 'claude-review') ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && startsWith(github.event.comment.body, '/claude review'))
@@ -45,9 +32,8 @@ jobs:
           ACTOR: ${{ github.event_name == 'issue_comment' && github.event.comment.user.login || github.event.sender.login }}
           PR: ${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
         run: |
-          # Fail-closed: any error, or a permission below admin/maintain, → not authorized.
-          # A failed lookup and a denied actor are both unauthorized but reported apart, so a
-          # broken lookup surfaces as an error annotation instead of reading like a denial.
+          # A failed lookup and a denied actor are both unauthorized, reported apart so a
+          # broken lookup surfaces as an error instead of reading like a denial.
           lookup_err="${RUNNER_TEMP}/permission-lookup.err"
           if ! perm=$(gh api "repos/${{ github.repository }}/collaborators/${ACTOR}/permission" --jq '.permission' 2>"$lookup_err"); then
             echo "::error::Claude review permission lookup failed for ${ACTOR}: $(cat "$lookup_err")"
@@ -74,17 +60,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      # issue_comment runs on the default branch; check out the PR head so the agent
-      # reads the PR's code (the labeled event is already on the PR, but this is uniform).
+      # `issue_comment` fires on the default branch, so check out the PR head instead.
       - name: Check out the PR head
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr checkout ${{ needs.authorize.outputs.pr }}
-      # `actions/checkout` persists the job token in `.git/config`, where the agent's
-      # unconditional Read tool can reach it — a credential sitting next to the untrusted
-      # PR content the agent is about to read. Nothing after this needs it: the allowlisted
-      # git commands are local, and `gh` carries its own token. Assert the strip so a
-      # renamed config key fails here instead of silently re-opening the hole.
+      # `actions/checkout` leaves the job token in `.git/config`, within reach of the agent's
+      # Read tool and beside the untrusted PR content. Nothing downstream needs it: the
+      # allowlisted git commands are local and `gh` carries its own token. The grep asserts the
+      # strip, so a renamed config key fails here instead of reopening the hole.
       - name: Strip the persisted git credential
         run: |
           git config --local --unset-all 'http.https://github.com/.extraheader' || true
