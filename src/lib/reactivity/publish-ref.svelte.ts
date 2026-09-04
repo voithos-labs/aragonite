@@ -4,6 +4,8 @@ import { tick, untrack } from 'svelte';
  * A scope's ref-slot array, reached only through the accessors its owner mints. Object
  * identity IS the scope: the mount registry keys on it, so a mount in one scope cannot wake
  * a waiter in another (a nested level, a sibling container, a second editor instance).
+ * Neither accessor is reactive: every owner mints the slots over a plain array, so a `get`
+ * registers no dependency and a `set` wakes no effect; `whenRefMounted` is how a caller waits.
  */
 export interface RefSlots<T> {
 	set(index: number, ref: T | undefined): void;
