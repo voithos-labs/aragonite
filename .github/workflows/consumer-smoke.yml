@@ -38,9 +38,11 @@ concurrency:
   cancel-in-progress: true
 
 # Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
-# The steps are ci.yml's `consumer-smoke` job, which stays the pull-request door.
+# The steps are ci.yml's `consumer-smoke` job, which stays the pull-request door. The job id
+# differs from that one on purpose: a required status check matches by context name, so two
+# jobs sharing one would let either satisfy the rule if this workflow ever ran on a PR.
 jobs:
-  consumer-smoke:
+  consumer-smoke-dev:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
