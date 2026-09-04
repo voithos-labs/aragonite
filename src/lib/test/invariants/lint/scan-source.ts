@@ -32,7 +32,7 @@ export interface SourceFile {
 	relPath: string;
 	/** Raw file text, comments intact. */
 	text: string;
-	/** File text with line and block comments blanked to whitespace. */
+	/** File text with line, block and markup comments blanked to whitespace. */
 	code: string;
 }
 
@@ -139,6 +139,11 @@ function spanAt(code: string, i: number): Span | null {
 	const ch = code[i];
 	if (ch === "'" || ch === '"') return { end: skipString(code, i), kind: 'literal' };
 	if (ch === '`') return { end: skipTemplate(code, i), kind: 'template' };
+	// Markup's comment form, unconditional rather than `.svelte`-only: the walk reaches this
+	// only in code position, and G4.57's TypeScript arm reds if a `.ts` file ever writes one.
+	if (ch === '<') {
+		return code.startsWith('<!--', i) ? { end: skipMarkupComment(code, i), kind: 'comment' } : null;
+	}
 	if (ch !== '/') return null;
 	if (code[i + 1] === '/') return { end: endOfLine(code, i), kind: 'comment' };
 	if (code[i + 1] === '*') return { end: skipBlockComment(code, i), kind: 'comment' };
@@ -209,6 +214,11 @@ function endOfLine(code: string, i: number): number {
 function skipBlockComment(code: string, i: number): number {
 	const end = code.indexOf('*/', i + 2);
 	return end < 0 ? code.length : end + 2;
+}
+
+function skipMarkupComment(code: string, i: number): number {
+	const end = code.indexOf('-->', i + 4);
+	return end < 0 ? code.length : end + 3;
 }
 
 /** Index just past the regex literal at `i` and its flags, or null if it never closes. */

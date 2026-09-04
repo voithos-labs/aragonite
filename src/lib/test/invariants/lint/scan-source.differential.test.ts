@@ -155,7 +155,8 @@ const MARKUP_CORPUS: Array<[source: string, classes: string]> = [
 	['<a href="https://x">', '........sssssssssss.'],
 	['{#if /^a$/.test(v)}', '.....rrrrr.........'],
 	['<b class="a-{f(x)}">', '.........ssssssssss.'],
-	["<p>Sam's list</p>", '......sssssssssss']
+	["<p>Sam's list</p>", '......sssssssssss'],
+	['<!-- x -->', 'cccccccccc']
 ];
 
 describe('G4.57 the scan lexer reads what TypeScript reads', () => {

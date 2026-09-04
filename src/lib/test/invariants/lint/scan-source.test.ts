@@ -123,6 +123,18 @@ describe('literal-aware walking', () => {
 		);
 	});
 
+	// Miss-analysis: every strip case was TypeScript source, so no fixture ever put a token inside
+	// a `.svelte` markup comment — the one comment form the blanking did not know.
+	it('blanks a markup comment, so a census cannot count the site inside one', () => {
+		const markup = '<!-- <BlockHost path={[]} /> -->\n<BlockHost path={[]} />';
+		const code = stripComments(markup);
+		expect(code).toHaveLength(markup.length);
+		expect([...code.matchAll(/<BlockHost/g)]).toHaveLength(1);
+
+		// A `<!--` the source quotes is text: the walk steps over the string whole.
+		expect(stripComments("const open = '<!--'; call();")).toBe("const open = '<!--'; call();");
+	});
+
 	// A `/` after `}` is Svelte markup (`{a}/{b}`), never a regex opening: reading one as a regex
 	// swallows every byte to the next slash — here, the comment that must still blank.
 	it('reads a slash after a closing brace as code, not a regex opening', () => {
