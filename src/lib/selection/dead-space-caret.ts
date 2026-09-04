@@ -8,6 +8,7 @@
 
 import { CURSOR_END, type BlockComponent } from '../block-component';
 import { blockAtPoint, type BlockHit } from './block-hit-test';
+import type { CaretTarget } from '../schema/block-kind-descriptor';
 import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './nearest-block';
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
@@ -199,11 +200,7 @@ function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
  * Where the caret goes for a resolved hit: an internal child path (empty for a
  * character-addressed surface) plus the offset within that leaf. Null declines the click.
  */
-function landingFor(
-	hit: BlockHit,
-	probeX: number,
-	probeY: number
-): { path: number[]; offset: number } | null {
+function landingFor(hit: BlockHit, probeX: number, probeY: number): CaretTarget | null {
 	if (hit.caretTargetAtPoint) return hit.caretTargetAtPoint(probeX, probeY);
 	// A kind with only the drag hook addresses cells and named no caret landing.
 	if (hit.foreignDragHitTest) return null;

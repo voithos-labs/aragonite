@@ -281,6 +281,15 @@ export type {
 // Viewport-space geometry over the rendered document, reached through `editor.rects`.
 export type { EditorRects } from './editor-rects';
 
+// ── Caret geometry (pre-freeze) ──────────────────────────────────────────────
+// The kit a kind answers `caretTargetAtPoint` with: the landing shape, the probe that turns a
+// point in one of your own elements into an offset (NEAREST, so a press on your chrome still
+// names one), and the sentinel for "wherever this leaf ends".
+export { caretOffsetAtPoint } from './cursor/point-offset';
+export type { CaretTarget } from './schema/block-kind-descriptor';
+export { CURSOR_END } from './block-component';
+export type { CursorEnd } from './block-component';
+
 // ── Selection geometry (pre-freeze) ──────────────────────────────────────────
 // The selection shapes a decoration source or rect consumer reads. SELECTION_END is
 // the sentinel `rangeRects` accepts as `end`.

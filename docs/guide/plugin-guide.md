@@ -64,38 +64,30 @@ And all four together, which is the whole plugin minus its component:
 ```ts
 // parrot-plugin.ts
 import {
+	caretOffsetAtPoint,
 	declarePluginKind,
 	definePluginBlock,
 	registerBlockKind,
 	registerBlockOpener,
 	simpleLeafClosure,
+	type CaretTarget,
 	type EditorPlugin
 } from '@voithos-labs/aragonite/plugin';
 import ParrotBlock from './ParrotBlock.svelte';
 
 export const PARROT = 'parrot';
 
-/** The character offset under a point in one of the block's two views, clamped into that
- *  view's box so a press on the bird above it still names one. Each holds a single text node. */
-function offsetAtPoint(view: HTMLElement, clientX: number, clientY: number): number {
-	const box = view.getBoundingClientRect();
-	const x = Math.min(Math.max(clientX, box.left + 1), box.right - 1);
-	const y = Math.min(Math.max(clientY, box.top + 1), box.bottom - 1);
-	const doc = view.ownerDocument;
-	// caretRangeFromPoint is the Chromium/WebKit spelling, caretPositionFromPoint the standard one.
-	const range = doc.caretRangeFromPoint?.(x, y);
-	if (range && view.contains(range.startContainer)) return range.startOffset;
-	const position = doc.caretPositionFromPoint?.(x, y);
-	return position && view.contains(position.offsetNode) ? position.offset : 0;
-}
-
 /** Where a press in the block puts the caret. The caption renders the bytes after `%%parrot `,
  *  so an offset in it sits that far along the source; the revealed source IS the source. */
-function parrotCaretAtPoint(blockEl: HTMLElement, clientX: number, clientY: number) {
+function parrotCaretAtPoint(
+	blockEl: HTMLElement,
+	clientX: number,
+	clientY: number
+): CaretTarget | null {
 	const source = blockEl.querySelector<HTMLElement>('.parrot-source');
 	const view = source ?? blockEl.querySelector<HTMLElement>('.parrot-caption');
 	if (!view) return null;
-	const offset = offsetAtPoint(view, clientX, clientY);
+	const offset = caretOffsetAtPoint(view, clientX, clientY) ?? 0;
 	return { path: [], offset: source ? offset : offset + '%%parrot '.length };
 }
 
@@ -144,7 +136,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Three of
 - `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](#the-closure-block) explains every cell.
 - `conformanceFixture` is the one optional field of the three. Supplying it enrolls your kind in the conformance kit, a bundled suite of checks every registered kind is run through ([plugin-testing.md](plugin-testing.md)).
 
-The rest read as they sound, bar one. `caretTargetAtPoint` is where a click inside your block puts the caret: the rendered view and the source are different strings, and only your kind knows how the two line up, so a kind that names nothing reveals its source at the first byte. On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](#what-an-opener-returns)).
+The rest read as they sound, bar one. `caretTargetAtPoint` is where a click inside your block puts the caret: the rendered view and the source are different strings, and only your kind knows how the two line up, so a kind that names nothing reveals its source at the first byte. The pixel half of that is `caretOffsetAtPoint`, which takes one of your own elements and the press and answers the offset nearest it, clamping into the element's box so a press on the bird above the caption still names a character. Your job is the arithmetic between the two strings, which for the parrot is the length of its own marker. On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](#what-an-opener-returns)).
 
 **Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; the walkthrough later builds one). `createEditableLeaf` hands a leaf a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection, and clipboard. The parrot asks for it in `render-primary` mode, where the caption is what you see at rest and the source line only shows while the caret is in the block. One spread wires each of the two views. The parrot itself is ordinary **chrome** (a block's furniture, as opposed to its content) that the component owns, animated on an ordinary interval.
 

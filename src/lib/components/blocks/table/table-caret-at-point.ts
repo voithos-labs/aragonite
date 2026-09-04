@@ -6,13 +6,14 @@
  */
 
 import { CURSOR_END } from '../../../block-component';
+import type { CaretTarget } from '../../../schema/block-kind-descriptor';
 import { mountedRowEls, rowCellEls } from './cell-pointer';
 
 export function tableCaretAtPoint(
 	blockEl: HTMLElement,
 	clientX: number,
 	clientY: number
-): { path: number[]; offset: number } | null {
+): CaretTarget | null {
 	const tableEl = blockEl.querySelector(':scope > [role="table"]') as HTMLElement | null;
 	if (!tableEl) return null;
 

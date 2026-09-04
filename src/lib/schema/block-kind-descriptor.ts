@@ -61,6 +61,16 @@ export interface ReorderChildrenRole {
 	renumberMarkers?: true;
 }
 
+/**
+ * A caret landing inside a kind's own addressing: the child path a `focusByPath` walks (empty
+ * for a leaf, which is its own landing) and the offset within the leaf it names. `CURSOR_END`
+ * is a legal offset here, and the one way to say "wherever that leaf ends".
+ */
+export interface CaretTarget {
+	path: number[];
+	offset: number;
+}
+
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
@@ -201,15 +211,15 @@ export interface BlockKindDescriptor {
 	 */
 	foreignDragHitTest?: (blockEl: HTMLElement, clientX: number, clientY: number) => number | null;
 	/**
-	 * Translate a point in this block's box into a caret landing in the kind's own addressing —
-	 * child indices plus within-leaf offset, placed through `focusByPath`. TOTAL within the box,
-	 * unlike {@link foreignDragHitTest}: snap to the NEAREST leaf where a drag declines off-cell.
+	 * Translate a point in this block's box into a caret landing in the kind's own addressing.
+	 * TOTAL within the box, unlike {@link foreignDragHitTest}: snap to the NEAREST leaf where a
+	 * drag declines off-cell.
 	 */
 	caretTargetAtPoint?: (
 		blockEl: HTMLElement,
 		clientX: number,
 		clientY: number
-	) => { path: number[]; offset: number } | null;
+	) => CaretTarget | null;
 	/** O(1) content-height estimate in px for virtual rendering — no subtree walk.
 	 *  The oracle adds block chrome; the measured cache still supersedes. */
 	estimateHeight?: (node: NodeView, env: { width: number }) => number;

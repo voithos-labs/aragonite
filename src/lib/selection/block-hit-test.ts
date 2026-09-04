@@ -8,7 +8,7 @@
 
 import type { AnyBlockKind } from '../core/nodes';
 import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { tryGetBlockKindDescriptor, type CaretTarget } from '../schema/block-kind-descriptor';
 import type { CellSelectionPoint, SelectionEndpoint } from './primitives';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
 import { readBlockPath } from './path-lookup';
@@ -31,10 +31,7 @@ export interface BlockHit {
 	 * The caret landing inside such a kind, as an internal child path plus offset. A
 	 * caret-placing gesture reads this where the drag hook declines.
 	 */
-	caretTargetAtPoint?: (
-		clientX: number,
-		clientY: number
-	) => { path: number[]; offset: number } | null;
+	caretTargetAtPoint?: (clientX: number, clientY: number) => CaretTarget | null;
 }
 
 export function blockAtPoint(

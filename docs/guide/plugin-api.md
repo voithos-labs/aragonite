@@ -37,6 +37,7 @@ The groups, in page order:
 | [Paste transforms](#paste-transforms)                   | Rewriting pasted text before the editor parses it                                            |
 | [Decorations](#decorations)                             | View-only annotations over content your plugin does not own                                  |
 | [Rects](#rects)                                         | Where things are on screen: block boxes, ranges, the caret, scrolling to a block             |
+| [Caret geometry](#caret-geometry)                       | Answering where a press inside your block puts the caret                                     |
 | [Selection geometry](#selection-geometry)               | The shapes that describe what the user has selected                                          |
 | [Parse and serialize](#parse-and-serialize)             | Markdown in, tree out, and back again                                                        |
 | [Grammar scanners](#grammar-scanners)                   | The editor's own code-fence, HTML-tag, and blockquote rules, reusable so you never fork them |
@@ -240,6 +241,16 @@ _(pre-freeze / unstable)_ Where things are on screen, reached through `editor.re
 | Export        | Role                                                                                                                                                                                                                                                                                                                                                   |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `EditorRects` | The geometry surface: a block's box, an inline range's rects (one per visual line), the native caret, a `reveal` that mounts a block the editor had skipped (it only mounts blocks in view), a `scrollTo` that mounts then brings a block into view, and a `navigateTo` that also lands the caret there, at the block's start or at an offset you name |
+
+### Caret geometry
+
+_(pre-freeze / unstable)_ What a kind fills its descriptor's `caretTargetAtPoint` with. The rendered view and the source are different strings, so only your kind knows how a press on one lines up with the other; these three are the pieces that don't depend on your grammar. The worked example is the quickstart's parrot: [The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes).
+
+| Export                    | Role                                                                                                                                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caretOffsetAtPoint`      | The character offset in one of your own elements nearest a viewport point; the point clamps into that element's box first, so a press on your chrome still names one, and null means the element holds no position at all |
+| `CaretTarget`             | What the hook answers: the child path to the leaf (empty when your block is the leaf) and the offset inside it                                                                                                            |
+| `CURSOR_END`, `CursorEnd` | The offset meaning "wherever that leaf ends", and its type; a plain `0` is the other end, since that one is a real offset                                                                                                 |
 
 ### Selection geometry
 
