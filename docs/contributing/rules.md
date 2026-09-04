@@ -127,10 +127,9 @@ doesn't exist.
 - **Generators must be adversarial**: non-ASCII, cross-construct interleaving, boundary shapes. A
   property suite whose generator can't produce the bug class proves nothing about it.
 - **New feature class → new simulation gesture.** The simulation (long scripted sessions that type
-  whole documents through real keystrokes) is the strongest corruption oracle in the repo (an
-  oracle: an independent source of the right answer a test compares against), so its coverage has
-  to track the product surface; the plugin surface once went a full minor version unobserved by
-  it.
+  whole documents through real keystrokes) only catches what it types, so its coverage has to
+  track the product surface; [`testing.md`](testing.md) § The note-taking simulation says what it
+  is and why it's worth that upkeep.
 - Requirements stay in lockstep with specs, and e2e simulates real user actions.
   [`testing.md`](testing.md) has the mechanics.
 
@@ -138,28 +137,29 @@ doesn't exist.
 
 The commit gate is `npm test` (the unit suite, then every e2e project) plus `npm run check` and
 `npm run lint`. The per-area scripts (`npm run test:editor:<area>`, listed in `package.json`) are
-the inner loop. Green looks like this, first lines only, and the counts are today's:
+the inner loop. Green looks like this, first lines only, with the counts elided (they move every
+week, and the zeros are what you're checking):
 
 ```
 $ npm run check
 > svelte-kit sync && svelte-check --tsconfig ./tsconfig.json
-... COMPLETED 2587 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
+... COMPLETED … FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
 
 $ npm run lint
 > prettier --check . && npm run docs:pack:check && npm run docs:map:check && npm run lint:eslint
 Checking formatting...
 All matched files use Prettier code style!
-docs-pack: 6 docs link-closed (consumer-guide.md, directives.md, plugin-api.md, ...)
-docs-links: 41 corpus docs, every relative link resolves
-codebase-map: 326 references resolve (98 naming a symbol) across 19 files in docs/design, docs/contributing
+docs-pack: … docs link-closed (consumer-guide.md, directives.md, plugin-api.md, ...)
+docs-links: … corpus docs, every relative link resolves
+codebase-map: … references resolve (… naming a symbol) across … files in docs/design, docs/contributing
 > eslint .
 (nothing: eslint prints no output when it's happy)
 
 $ npm run test:editor:invariants
 > vitest run src/lib/test/invariants
- RUN  v4.1.11 ...
- Test Files  126 passed (126)
-      Tests  1212 passed (1212)
+ RUN  v… ...
+ Test Files  … passed (…)
+      Tests  … passed (…)
 ```
 
 - Gate lists derive from the **files touched**, not the task's theme. A batch "about" selection
@@ -210,15 +210,15 @@ the body carries none of it:
 
   ```
   $ node scripts/audit-issues.mjs
-  ledger: 220 issues (54 open, 166 closed)
-    open        Bug 45, Task 9
-    closed      Bug 161, Feature 2, Task 2, untyped 1
-    open milestones  (none) 5, 1.0 8, post-1.0 41
-    good first issue 5 open
+  ledger: … issues (… open, … closed)
+    open        Bug …, Task …
+    closed      Bug …, Feature …, Task …, untyped …
+    open milestones  (none) …, 1.0 …, post-1.0 …
+    good first issue … open
 
   severity: without type Bug   0  none
-  closed, untyped              1  #5
-  closed, no area:             1  #5
+  closed, untyped              …
+  closed, no area:             …
 
   OPEN, untyped                0  none
   OPEN, no area:               0  none

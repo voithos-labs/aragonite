@@ -36,7 +36,7 @@ kind, container and inline conformance kits a plugin author runs inside their ow
 The three commands you'll type most:
 
 ```bash
-npm test               # full suite, the commit gate
+npm test               # full suite: unit, then every e2e project
 npm run test:editor    # all unit tests
 npm run test:e2e       # all E2E tests (auto-starts the dev server)
 ```
@@ -172,29 +172,10 @@ A guard that should never fire has fired: fix it. A test whose subject is the fi
 ```
 
 Some tests light a fire on purpose (a test proving a guard works has to violate the contract).
-Four ways to claim one, narrowest first; take the earliest that fits:
-
-1. The fire is the test's subject: assert on `takeDevWarns()` directly.
-2. The fixture makes noise before the part you assert on: `drainDevWarns()` first.
-3. The fixture provokes a fire the test is not about: `allowDevWarns([tag])`, file-scoped, with
-   the reason on the line above.
-4. A benign diagnostic too cross-cutting for any of those goes in
-   `src/lib/test/support/warn-allowlist.json`, which waives one tag at one site for the entire
-   run.
-
-The first three import from `src/lib/test/support/warn-gate.ts`, and what `takeDevWarns()` hands
-back is the fires since the last drain, each with the site that emitted it:
-
-```ts
-import { takeDevWarns } from '../support/warn-gate';
-
-// ...the gesture that provokes the fire...
-takeDevWarns();
-// [{ tag: 'tree-ops', message: 'splitNode: the first half parsed to 2 blocks', site: 'src/lib/tree-operations/node-ops.ts' }]
-```
-
-Prefer 1 through 3. An allowlist row hides every fire of that tag at that site, real bugs
-included, which is why that list only shrinks and why an `invariant:` fire may never take one.
+How a test claims one, four ways from narrowest to widest, is
+[`warnings.md` § Claiming a fire in a unit test](warnings.md#claiming-a-fire-in-a-unit-test); the
+claim helpers (`takeDevWarns`, `drainDevWarns`, `allowDevWarns`) import from
+`src/lib/test/support/warn-gate.ts`.
 
 The machinery, for when you're inside it:
 
@@ -202,10 +183,8 @@ The machinery, for when you're inside it:
   the verdict; the claim helpers sit in file-level `afterEach` hooks that must run before it,
   which is why `vitest.config.ts` pins `sequence.hooks: 'stack'`. The per-file `afterAll` is the
   aggregate, next bullet.
-- Two per-file aggregates close what a per-test verdict can't see: a tag declared through
-  `allowDevWarns` that never fires fails the file (a waiver for something that no longer happens
-  is a hole), and a fire arriving after the last test's verdict fails the file rather than
-  vanishing.
+- Two per-file aggregates close what a per-test verdict can't see: an `allowDevWarns` tag that
+  never fired, and a fire arriving after the last test's verdict. Either fails the file.
 - A guard that defers its fire past a tick (`reportContestedClaim` is the shipped shape) still
   lands on the test that provoked it: the verdict awaits a tick before reading. That tick lands
   after the file's own claim helpers, so claim such a fire inside the test (`await tick()`, then
@@ -377,11 +356,13 @@ What each fixture is for:
   text into a replace island, a widget island, and a block badge. Both under `?seed=sim`, so
   the simulation runs with the decoration engine live on every keystroke.
 
-`walk-views.ts` is the leaf walk they share. Three subroutes carry the multi-editor cases:
+`walk-views.ts` is the leaf walk they share. Four subroutes carry the multi-editor cases:
 `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the
 second), `staggered/` (editor one installs callout, editor two mounts later with details added,
-for the staggered-mount spec), and `enablement/` (two editors sharing one memo registration, the
-left with the kind switched off through the harness-only `__registryEnablement` prop).
+for the staggered-mount spec), `enablement/` (two editors sharing one memo registration, the
+left with the kind switched off through the harness-only `__registryEnablement` prop), and
+`activation/` (two editors in one process, only the first listing the parrot and the block
+badge, for the per-instance activation spec).
 
 ### The WebKit run
 

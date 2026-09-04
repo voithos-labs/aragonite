@@ -90,4 +90,4 @@ In addition,
 - a guard that defers its fire past a tick still lands on the test that provoked it; claim it inside that test (`await tick()`, then `takeDevWarns()`), never with way 3.
 - per file: a tag declared through `allowDevWarns` that never fires reds the file (a waiver for something that no longer happens is a hole), and a fire arriving after the last test's verdict reds the file instead of vanishing.
 
-The machinery behind all this is in [`testing.md`](testing.md).
+The machinery behind all this (the sink, the per-file aggregates, the tick the verdict awaits) is [`testing.md` § A dev warning fails its test](testing.md#a-dev-warning-fails-its-test).
