@@ -1,8 +1,9 @@
 // One-shot: apply main-branch protection. Needs gh authenticated as a repo admin, and a repo
 // the API will take it on: protection is plan-gated, so a private free-plan repo answers 403.
 // Contexts are ci.yml's job names, held in step by
-// `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`. The bypass allowance
-// exempts the owner from the code-owner review only; the status checks stay binding on everyone.
+// `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`. Admins are exempt so a
+// maintainer is never locked out of their own repo when the other one is unreachable; the price
+// is that an admin can also merge past a red check, deliberately and visibly.
 //
 // `main` alone is protected: `dev` is the integration branch and takes the repo-wide history
 // rewrites, which need the force push this rule forbids.
@@ -28,13 +29,13 @@ const protection = {
 			'emoji-table'
 		]
 	},
-	enforce_admins: true,
+	enforce_admins: false,
+	// Present with a count of 1, so every change arrives as a PR and an outside fork's PR needs
+	// a maintainer's approval. Both maintainers are code owners, so either can approve the other.
 	required_pull_request_reviews: {
 		dismiss_stale_reviews: true,
 		require_code_owner_reviews: true,
-		require_last_push_approval: true,
-		required_approving_review_count: 1,
-		bypass_pull_request_allowances: { users: ['DanielZFLiu'], teams: [], apps: [] }
+		required_approving_review_count: 1
 	},
 	// Null is "anyone with write may push"; a list here would be a second, narrower gate on top
 	// of the reviews.
