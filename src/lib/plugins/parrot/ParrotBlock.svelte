@@ -220,23 +220,11 @@ Ol;......................................;l'
 cNd.........................................;lOc
 `
 	];
-	// parrot.live's seven, cycled rather than rolled so every run of the dance looks the same.
-	const COLORS = [
-		'#ff5f5f',
-		'#ffc83d',
-		'#3fd97a',
-		'#5aa9ff',
-		'#ff6ad5',
-		'#3fd3d3',
-		'var(--color-text-primary, #ffffff)'
-	];
-	let tick = $state(0);
-	$effect(() => {
-		const id = setInterval(() => tick++, 70);
-		return () => clearInterval(id);
-	});
-	const frame = $derived(FRAMES[tick % FRAMES.length]);
-	const color = $derived(COLORS[tick % COLORS.length]);
+	// One strip the CSS scrolls a frame at a time. The closing newline is load-bearing: a `pre`
+	// drops a trailing blank line, and a strip a row short steps a fraction off every frame.
+	const REEL = FRAMES.join('\n') + '\n';
+	// The clip window's height, which is why every frame has to be the same number of rows.
+	const FRAME_ROWS = FRAMES[0].split('\n').length;
 
 	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
 
@@ -253,8 +241,13 @@ cNd.........................................;lOc
 	export const insertMarkdown = leaf.insertMarkdown;
 </script>
 
-<div class="parrot-block" {...leaf.renderProps}>
-	<pre class="parrot" style:color aria-hidden="true">{frame}</pre>
+<div
+	class="parrot-block"
+	{...leaf.renderProps}
+	style:--parrot-rows={FRAME_ROWS}
+	style:--parrot-frames={FRAMES.length}
+>
+	<div class="parrot" aria-hidden="true"><pre class="parrot-reel">{REEL}</pre></div>
 	{#if revealed}
 		<div
 			bind:this={sourceEl}
@@ -277,14 +270,62 @@ cNd.........................................;lOc
 <style>
 	.parrot {
 		/* a terminal cell is about twice as tall as it is wide; prose line-height stretches the bird */
-		margin: 0;
 		font-size: 1.1em;
 		line-height: 1.1;
 		letter-spacing: 0.05em;
+		/* one frame tall, in the reel's own rows so a step lands on the next frame exactly */
+		height: calc(var(--parrot-rows) * 1lh);
 		/* wider than a phone column, and the editor root pans if it isn't contained; the bar
-		   stays hidden because a per-frame width change would toggle it fourteen times a second */
+		   would sit across the bird, which is decoration rather than a pane to scroll */
 		overflow-x: auto;
+		overflow-y: hidden;
 		scrollbar-width: none;
+		/* chrome, not content: every frame is in the DOM and none of them belong in a copy */
+		user-select: none;
+		animation: parrot-hue 0.49s step-end infinite;
+	}
+	.parrot-reel {
+		/* type and rhythm come from the box above, so its `lh` is this reel's row exactly */
+		margin: 0;
+		animation-name: parrot-reel;
+		animation-duration: calc(var(--parrot-frames) * 70ms);
+		animation-timing-function: steps(var(--parrot-frames));
+		animation-iteration-count: infinite;
+	}
+	@keyframes parrot-reel {
+		to {
+			transform: translateY(-100%);
+		}
+	}
+	/* parrot.live's seven, stepped rather than blended so every run of the dance looks the same */
+	@keyframes parrot-hue {
+		0% {
+			color: #ff5f5f;
+		}
+		14.286% {
+			color: #ffc83d;
+		}
+		28.571% {
+			color: #3fd97a;
+		}
+		42.857% {
+			color: #5aa9ff;
+		}
+		57.143% {
+			color: #ff6ad5;
+		}
+		71.429% {
+			color: #3fd3d3;
+		}
+		85.714% {
+			color: var(--color-text-primary, #ffffff);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.parrot,
+		.parrot-reel {
+			animation: none;
+		}
 	}
 	.parrot-caption {
 		margin: 0.25em 0 0;

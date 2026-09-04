@@ -138,7 +138,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Three of
 
 The rest read as they sound, bar one. `caretTargetAtPoint` is where a click inside your block puts the caret: the rendered view and the source are different strings, and only your kind knows how the two line up, so a kind that names nothing reveals its source at the first byte. The pixel half of that is `caretOffsetAtPoint`, which takes one of your own elements and the press and answers the offset nearest it, clamping into the element's box so a press on the bird above the caption still names a character. Your job is the arithmetic between the two strings, which for the parrot is the length of its own marker. On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](#what-an-opener-returns)).
 
-**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; the walkthrough later builds one). `createEditableLeaf` hands a leaf a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection, and clipboard. The parrot asks for it in `render-primary` mode, where the caption is what you see at rest and the source line only shows while the caret is in the block. One spread wires each of the two views. The parrot itself is ordinary **chrome** (a block's furniture, as opposed to its content) that the component owns, animated on an ordinary interval.
+**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; the walkthrough later builds one). `createEditableLeaf` hands a leaf a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection, and clipboard. The parrot asks for it in `render-primary` mode, where the caption is what you see at rest and the source line only shows while the caret is in the block. One spread wires each of the two views. The parrot itself is ordinary **chrome** (a block's furniture, as opposed to its content) that the component owns. Every frame sits in the DOM as one tall strip and CSS scrolls it a frame at a time, so the dance costs no script: there is no timer running while nobody is looking at the block, and `prefers-reduced-motion` parks the bird on one frame for free.
 
 ```svelte
 <!-- ParrotBlock.svelte -->
@@ -204,23 +204,11 @@ xx:':;;;;,.,,...,;;cllllllllllllllc;'.;od,
 cNo.....................................oc
 `
 	];
-	// parrot.live's seven, cycled rather than rolled so every run of the dance looks the same.
-	const COLORS = [
-		'#ff5f5f',
-		'#ffc83d',
-		'#3fd97a',
-		'#5aa9ff',
-		'#ff6ad5',
-		'#3fd3d3',
-		'var(--color-text-primary, #ffffff)'
-	];
-	let tick = $state(0);
-	$effect(() => {
-		const id = setInterval(() => tick++, 70);
-		return () => clearInterval(id);
-	});
-	const frame = $derived(FRAMES[tick % FRAMES.length]);
-	const color = $derived(COLORS[tick % COLORS.length]);
+	// One strip the CSS scrolls a frame at a time. The closing newline is load-bearing: a `pre`
+	// drops a trailing blank line, and a strip a row short steps a fraction off every frame.
+	const REEL = FRAMES.join('\n') + '\n';
+	// The clip window's height, which is why every frame has to be the same number of rows.
+	const FRAME_ROWS = FRAMES[0].split('\n').length;
 
 	const caption = $derived(node.raw.slice('%%parrot'.length).trim());
 
@@ -237,8 +225,13 @@ cNo.....................................oc
 	export const insertMarkdown = leaf.insertMarkdown;
 </script>
 
-<div class="parrot-block" {...leaf.renderProps}>
-	<pre class="parrot" style:color aria-hidden="true">{frame}</pre>
+<div
+	class="parrot-block"
+	{...leaf.renderProps}
+	style:--parrot-rows={FRAME_ROWS}
+	style:--parrot-frames={FRAMES.length}
+>
+	<div class="parrot" aria-hidden="true"><pre class="parrot-reel">{REEL}</pre></div>
 	{#if revealed}
 		<div
 			bind:this={sourceEl}
@@ -261,14 +254,62 @@ cNo.....................................oc
 <style>
 	.parrot {
 		/* a terminal cell is about twice as tall as it is wide; prose line-height stretches the bird */
-		margin: 0;
 		font-size: 1.1em;
 		line-height: 1.1;
 		letter-spacing: 0.05em;
+		/* one frame tall, in the reel's own rows so a step lands on the next frame exactly */
+		height: calc(var(--parrot-rows) * 1lh);
 		/* wider than a phone column, and the editor root pans if it isn't contained; the bar
-		   stays hidden because a per-frame width change would toggle it fourteen times a second */
+		   would sit across the bird, which is decoration rather than a pane to scroll */
 		overflow-x: auto;
+		overflow-y: hidden;
 		scrollbar-width: none;
+		/* chrome, not content: every frame is in the DOM and none of them belong in a copy */
+		user-select: none;
+		animation: parrot-hue 0.49s step-end infinite;
+	}
+	.parrot-reel {
+		/* type and rhythm come from the box above, so its `lh` is this reel's row exactly */
+		margin: 0;
+		animation-name: parrot-reel;
+		animation-duration: calc(var(--parrot-frames) * 70ms);
+		animation-timing-function: steps(var(--parrot-frames));
+		animation-iteration-count: infinite;
+	}
+	@keyframes parrot-reel {
+		to {
+			transform: translateY(-100%);
+		}
+	}
+	/* parrot.live's seven, stepped rather than blended so every run of the dance looks the same */
+	@keyframes parrot-hue {
+		0% {
+			color: #ff5f5f;
+		}
+		14.286% {
+			color: #ffc83d;
+		}
+		28.571% {
+			color: #3fd97a;
+		}
+		42.857% {
+			color: #5aa9ff;
+		}
+		57.143% {
+			color: #ff6ad5;
+		}
+		71.429% {
+			color: #3fd3d3;
+		}
+		85.714% {
+			color: var(--color-text-primary, #ffffff);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.parrot,
+		.parrot-reel {
+			animation: none;
+		}
 	}
 	.parrot-caption {
 		margin: 0.25em 0 0;

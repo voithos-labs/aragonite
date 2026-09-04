@@ -9,11 +9,17 @@ target).
 
 ## Happy paths
 
-- Seed render: block 0 shows one `.parrot-block` holding a `pre.parrot` frame and a
-  `.parrot-caption` reading `party responsibly`; no `.parrot-source` is mounted, and the
-  `%%parrot party responsibly` bytes stay in the source.
-- The bird dances: the `pre.parrot` text changes on its own, with no gesture; two
-  samples taken across a wait differ.
+- Seed render: block 0 shows one `.parrot-block` holding the bird's clip window
+  (`.parrot`) and a `.parrot-caption` reading `party responsibly`; no `.parrot-source` is
+  mounted, and the `%%parrot party responsibly` bytes stay in the source. The strip inside
+  the window (`.parrot-reel`) is exactly ten windows tall, so a step lands on the next
+  frame rather than a fraction into it.
+- The bird dances: the reel's transform moves on its own, with no gesture; two samples
+  taken across a wait differ.
+- The dance moves no byte: the block's whole text is unchanged across six frame periods,
+  over a span in which the reel provably moved. Every frame lives in the DOM at once and
+  CSS chooses which one shows, so nothing a reader (or a test comparing block text across
+  a mode flip) can see changes with the animation.
 
 ## User interactions
 
@@ -54,9 +60,12 @@ target).
   so one undo goes back to the seed.
 - Reading mode: no `.parrot-source` anywhere, the caption stays, and a click on it
   reveals nothing.
+- Reduced motion: under `prefers-reduced-motion: reduce` the reel's transform holds still
+  across the same wait and sits at the strip's top, so the bird rests on a whole frame
+  rather than on none.
 - Phone width: at a 320px viewport every frame is wider than the text column, so the
-  `pre.parrot` overflows its own box while the editor root's `scrollWidth` still equals
-  its `clientWidth` — the bird scrolls, the document does not pan.
+  `.parrot` window overflows while the editor root's `scrollWidth` still equals its
+  `clientWidth` — the bird scrolls, the document does not pan.
 
 ## Error cases
 
@@ -81,6 +90,12 @@ target).
   click handler passed was never read back and a hardcoded 0 satisfied all of them.
 - The bird: no scenario ever pressed anywhere in the block but the caption, so the half of
   the folded view carrying no handler was never asked to do anything.
+- The dance versus the bytes: every bird scenario asserted that the frame CHANGED, and
+  none that anything else held still, so a block whose own text moved fourteen times a
+  second read as working here while it broke a presentation spec elsewhere (#280). The
+  generalized miss: an animation was only ever asserted from the side that wanted it.
+- Reduced motion: no parrot scenario ever ran with a media preference set, so a bird that
+  danced through `prefers-reduced-motion: reduce` had nothing to fail.
 - Containment: every scenario ran at the config's pinned 1280 viewport, where the widest
   frame still fits the text column, so no test ever put a block beside a column narrower
   than its own content and the sideways pan only ever showed on a phone.

@@ -22,9 +22,7 @@ const ALLOWLIST: Record<string, string> = {
 	'src/lib/editor-actions/commit/text-batch.ts': 'setTimeout wall-clock undo debounce',
 	// A cancellation deadline, not an ordering primitive: nothing waits on the timer, and
 	// no main-thread budget can interrupt a single `RegExp.exec` — hence the worker.
-	'src/lib/search/regex-executor.ts': 'setTimeout regex-scan cancellation deadline',
-	// An animation cadence inside one block's chrome; no editor state waits on it.
-	'src/lib/plugins/parrot/ParrotBlock.svelte': 'setInterval parrot frame cadence'
+	'src/lib/search/regex-executor.ts': 'setTimeout regex-scan cancellation deadline'
 };
 
 const TIMING_RE = /\b(setTimeout|setInterval|queueMicrotask|requestAnimationFrame)\s*\(/;

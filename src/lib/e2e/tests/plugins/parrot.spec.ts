@@ -15,7 +15,7 @@ class ParrotPage extends PluginsPage {
 		return this.page.locator('.parrot-block');
 	}
 	get frame() {
-		return this.page.locator('pre.parrot');
+		return this.page.locator('.parrot');
 	}
 	get caption() {
 		return this.page.locator('.parrot-caption');
@@ -72,10 +72,27 @@ class ParrotPage extends PluginsPage {
 		await expect(this.source).toHaveCount(0);
 	}
 
+	/** What the dance actually moves: the reel's own transform, read the way a viewer sees it. */
+	reelTransform(): Promise<string> {
+		return this.page.evaluate(
+			() => getComputedStyle(document.querySelector('.parrot-reel')!).transform
+		);
+	}
+
+	/** How many clip windows tall the strip is. A step lands on the next frame rather than
+	 *  halfway into it only while this is the frame count exactly. */
+	reelFrameFit(): Promise<number> {
+		return this.page.evaluate(() => {
+			const windowHeight = document.querySelector('.parrot')!.getBoundingClientRect().height;
+			const stripHeight = document.querySelector('.parrot-reel')!.getBoundingClientRect().height;
+			return Math.round((stripHeight / windowHeight) * 100) / 100;
+		});
+	}
+
 	async expectDancing(): Promise<void> {
-		const first = await this.frame.textContent();
-		// The interval is 70ms, so a frame the poll never catches changing is a stopped bird.
-		await expect.poll(() => this.frame.textContent(), { timeout: 3000 }).not.toBe(first);
+		const first = await this.reelTransform();
+		// A frame is 70ms, so a reel the poll never catches moving is a stopped bird.
+		await expect.poll(() => this.reelTransform(), { timeout: 3000 }).not.toBe(first);
 	}
 }
 
@@ -93,11 +110,22 @@ test.describe('the bundled party parrot', () => {
 		await expect(editor.frame).toContainText('kkkk');
 		await expect(editor.caption).toHaveText('party responsibly');
 		await expect(editor.source).toHaveCount(0);
+		// One frame on screen, the canonical ten in the strip behind it.
+		expect(await editor.reelFrameFit()).toBe(10);
 		expect(await editor.bridge.getSource()).toBe(SEED);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
 	test('the bird dances on its own', async () => {
+		await editor.expectDancing();
+	});
+
+	test('the dance moves no byte of the block', async ({ page }) => {
+		const before = await editor.block.textContent();
+		// Six frame periods: a bird repainted from script has swapped several times by now.
+		await page.waitForTimeout(420);
+
+		expect(await editor.block.textContent()).toBe(before);
 		await editor.expectDancing();
 	});
 
@@ -296,6 +324,21 @@ test.describe('the bundled party parrot', () => {
 	});
 });
 
+test.describe('the bird under reduced motion', () => {
+	test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
+	test('rests on one frame instead of dancing', async ({ page }) => {
+		const editor = new ParrotPage(page);
+		await editor.gotoSeed();
+
+		const first = await editor.reelTransform();
+		await page.waitForTimeout(420);
+		expect(await editor.reelTransform()).toBe(first);
+		// Parked at the strip's top, so the bird on screen is a whole frame rather than none.
+		expect(first === 'none' || first === 'matrix(1, 0, 0, 1, 0, 0)').toBe(true);
+	});
+});
+
 test.describe('the bird at phone width', () => {
 	test.use({ viewport: { width: 320, height: 640 } });
 
@@ -309,7 +352,7 @@ test.describe('the bird at phone width', () => {
 			.poll(() =>
 				page.evaluate(() => {
 					const root = document.querySelector('.editor') as HTMLElement;
-					const bird = document.querySelector('pre.parrot') as HTMLElement;
+					const bird = document.querySelector('.parrot') as HTMLElement;
 					return {
 						editorPan: root.scrollWidth - root.clientWidth,
 						birdOverflow: bird.scrollWidth > bird.clientWidth

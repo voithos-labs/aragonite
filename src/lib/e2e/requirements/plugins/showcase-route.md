@@ -36,7 +36,7 @@ pinned with its gap list in `src/lib/test/plugins/showcase-coverage.test.ts`.
 - the outline renders exactly when the document holds a `[[toc]]` line, with one entry per
   heading
 - the parrot dances exactly when the document holds a `%%parrot` line: a `.parrot-block`
-  with non-empty `pre.parrot` art and its caption
+  with non-empty `pre.parrot-reel` art and its caption
 
 ## Edge cases
 

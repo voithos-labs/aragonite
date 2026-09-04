@@ -181,7 +181,7 @@ test.describe('/ showcase route', () => {
 			return;
 		}
 		await expect(parrot).toBeVisible();
-		await expect(parrot.locator('pre.parrot')).not.toHaveText('');
+		await expect(parrot.locator('pre.parrot-reel')).not.toHaveText('');
 		await expect(parrot.locator('.parrot-caption')).toBeVisible();
 	});
 });
