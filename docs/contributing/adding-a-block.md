@@ -110,7 +110,7 @@ registerBlockKind('thematicBreak', {
 });
 ```
 
-`gapEdges` names the edges of your block that can't host a caret for inserting a sibling paragraph (`'before'`, `'after'`, `'both'`, or `'none'`); at those edges the editor parks a gap caret instead, a caret between two blocks where neither surface can hold one. `mergeRole` is one of `prose`, `prose-absorber`, `container`, `self-merge`, `not-mergeable`, and `docs/design/editor.md` § "Merge eligibility: roles, not pairs" says which roles merge with which. The optional fields, every one of them:
+`gapEdges` names the edges of your block that may host a gap caret (a caret parked between two blocks, where neither surface can hold one) because your own surface can't host a sibling-paragraph insertion there: `'before'`, `'after'`, `'both'`, or `'none'`. A boundary only opens when both blocks facing it declare it, and an edge some gesture of yours already covers stays undeclared, which is why the thematic break above says `'before'` and not `'both'`; `docs/design/editor.md` § The gap caret has the semantics. `mergeRole` is one of `prose`, `prose-absorber`, `container`, `self-merge`, `not-mergeable`, and `docs/design/editor.md` § "Merge eligibility: roles, not pairs" says which roles merge with which. The optional fields, every one of them (the pinned inventory, container fields included, is `docs/design/plugin-contract.md` § The descriptor field reference):
 
 | Field                   | For                                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -126,7 +126,7 @@ registerBlockKind('thematicBreak', {
 | `caretTargetAtPoint`    | Where a caret-placing gesture lands inside the block: the NEAREST target                                                                          |
 | `estimateHeight`        | An O(1) height guess for windowing, when the default guess is far off for your kind                                                               |
 
-The `closure` block is the kind's written answer to every cross-cutting editor system (focus, selection paint, search, undo, and so on), one cell per column. The plugin guide teaches it cell by cell in ["The closure block"](../guide/plugin-guide.md), and `docs/design/plugin-contract.md` § "Editable content and the closure matrix" is the full reference, so I won't repeat it. What's built-in specific is where the presets live:
+The `closure` block is the kind's written answer to every cross-cutting editor system (focus, selection paint, search, undo, and so on), one cell per column. The plugin guide teaches it cell by cell in ["The closure block"](../guide/plugin-guide.md#the-closure-block), and `docs/design/plugin-contract.md` § "Editable content and the closure matrix" is the full reference, so I won't repeat it. What's built-in specific is where the presets live:
 
 - `simpleLeafClosure` (`schema/closure.ts`): a not-mergeable, source-editable leaf. Bakes the five cells such leaves always answer the same way, and still demands the four your component decides (`focus`, `searchPaint`, `undo`, `simOracle`).
 - `containerClosure` (`schema/closure.ts`): a container whose body is its children's bytes inside its own markers (the `'strip'` contract, below). Bakes the four structural cells and `roundTrip`, demands the rest.
@@ -153,7 +153,7 @@ container: {
 
 Required, together:
 
-- `contract` and `rebuildRaw`: how the container re-derives its own bytes from its children. `'strip'` means the body is the children's bytes wrapped in your markers (the blockquote, the list), `'grid'` means cells parse straight from the raw (the table), and `'opaque'` means the raw is authoritative and `rebuildRaw` must be deterministic. Implementations live in `schema/container-rebuilders.ts`.
+- `contract` and `rebuildRaw`: how the container re-derives its own bytes from its children. Which of `'strip'`, `'grid'` and `'opaque'` yours is, and what each promises, is `docs/design/syntax-tree.md` § The container contract; the one thing it asks of you specifically is that an opaque `rebuildRaw` be deterministic, since a DEV probe runs it twice and compares. Implementations live in `schema/container-rebuilders.ts`.
 
 Optional, each earning its place:
 
@@ -199,7 +199,7 @@ BlockHost looks your component up by kind and hands every block the same props: 
 
 ### 3. The opener, if you need one
 
-A kind the block parser must recognize on a line registers an opener: `registerBlockOpener(kind, { priority, tryOpen, interruptsParagraph })` from `schema/block-openers.ts`, called from `core/parsers/built-in-openers.ts`. How an opener claims lines, interrupts paragraphs, and consumes multi-line constructs is the plugin guide's ["Teaching the parser"](../guide/plugin-guide.md); the built-in wiring is what's here.
+A kind the block parser must recognize on a line registers an opener: `registerBlockOpener(kind, { priority, tryOpen, interruptsParagraph })` from `schema/block-openers.ts`, called from `core/parsers/built-in-openers.ts`. How an opener claims lines, interrupts paragraphs, and consumes multi-line constructs is the plugin guide's ["Teaching the parser"](../guide/plugin-guide.md#teaching-the-parser); the built-in wiring is what's here.
 
 ```ts
 // core/parsers/built-in-openers.ts
@@ -221,23 +221,7 @@ registerBlockOpener('thematicBreak', {
 });
 ```
 
-Priority orders the parser's attempts, ascending, and the built-in ladder is single-sourced in `schema/opener-priorities.ts`, so slot yours against that constant rather than a number copied from a doc:
-
-```ts
-// schema/opener-priorities.ts
-export const OPENER_PRIORITIES = {
-	fencedCode: 10,
-	heading: 20,
-	thematicBreak: 30,
-	blockquote: 40,
-	list: 50,
-	indentedCode: 60,
-	htmlBlock: 70,
-	linkReferenceDefinition: 80
-} as const satisfies Partial<Record<BlockKind, number>>;
-```
-
-Give each kind its own priority. A tie is deterministic (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
+Priority orders the parser's attempts, ascending, and the built-in ladder is single-sourced in `src/lib/schema/opener-priorities.ts` :: `OPENER_PRIORITIES`, so slot yours against that constant (`OPENER_PRIORITIES.heading + 5`, say) rather than a number copied from a doc, this one included. Give each kind its own priority. A tie is deterministic (dispatch falls back to kind name, never registration order) but almost always unintended, so G1.10 warns on one at bootstrap.
 
 ## Commands
 
@@ -466,12 +450,7 @@ Copy from `ListBlock.svelte` (direct-each) or `TableBlock.svelte` (row windowing
 
 ### Interactive ambient markers
 
-A container's `ambientPrefix` (the read-only marker a container lends its first child, like a list's `- `) is either inert text, the default, or carries interactive character ranges, meaning clickable regions inside the read-only prefix:
-
-```ts
-// block-component.ts
-type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };
-```
+A container's `ambientPrefix` (the read-only marker a container lends its first child, like a list's `- `) is either inert text, the default, or carries interactive character ranges, meaning clickable regions inside the read-only prefix. The shape is `AmbientPrefix` in `src/lib/block-component.ts`, and the contract is `docs/design/editor.md` § Ambient markers.
 
 - **Inert:** return a string, the list item's `- `. (The blockquote passes no prefix at all; its `> ` markers render as border-only chrome.)
 - **Interactive:** return the object form: `text` plus one or more ranges, each a character span, a class name, an optional role and ARIA state, and a click handler.
@@ -495,7 +474,7 @@ return {
 };
 ```
 
-The helper is unit-testable without mounting anything, and the dev warning for malformed metadata lives in it too. The `AmbientPrefix` contract is in `docs/design/editor.md`.
+The helper is unit-testable without mounting anything, and the dev warning for malformed metadata lives in it too.
 
 ## Sticky-column participation
 
