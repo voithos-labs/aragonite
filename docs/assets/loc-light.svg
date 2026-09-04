@@ -1,35 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="400" viewBox="0 0 880 400" role="img" aria-label="Library source by area: Block UIs &amp; rendering 18.8k, Editing, commits &amp; undo 11.3k, Selection, caret, markers 8.4k, Parser, serializer, inline 8.1k, 8 bundled plugins 5.7k, Schema &amp; plugin registry 4.5k, Invariants &amp; debug tooling 4.4k, Public API &amp; wiring 2.2k, Decorations &amp; search 1.4k, Windowing &amp; reactivity 1.2k. About 66.2k lines total.">
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="400" viewBox="0 0 880 400" role="img" aria-label="Library source by area: Block UIs &amp; rendering 19.0k, Editing, commits &amp; undo 11.5k, Selection, caret, markers 9.1k, Parser, serializer, inline 8.9k, 9 bundled plugins 6.3k, Schema &amp; plugin registry 4.9k, Invariants &amp; debug tooling 4.5k, Public API &amp; wiring 2.3k, Decorations &amp; search 1.4k, Windowing &amp; reactivity 1.2k. About 69.0k lines total.">
 <rect width="880" height="400" fill="#fcfcfb"/>
-<text x="24" y="36" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#0b0b0b" text-anchor="start">Where the 66.2k lines go</text>
+<text x="24" y="36" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#0b0b0b" text-anchor="start">Where the 69.0k lines go</text>
 <text x="24" y="56" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">shipped library source, tests excluded</text>
 <text x="236" y="99" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Block UIs &amp; rendering</text>
 <rect x="248" y="88" width="512.0" height="18" rx="4" fill="#2a78d6"/>
-<text x="768" y="99" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">18.8k</text>
+<text x="768" y="99" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">19.0k</text>
 <text x="236" y="129" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Editing, commits &amp; undo</text>
-<rect x="248" y="118" width="308.3" height="18" rx="4" fill="#2a78d6"/>
-<text x="564.2984440550157" y="129" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">11.3k</text>
+<rect x="248" y="118" width="310.7" height="18" rx="4" fill="#2a78d6"/>
+<text x="566.7260071714828" y="129" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">11.5k</text>
 <text x="236" y="159" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Selection, caret, markers</text>
-<rect x="248" y="148" width="228.3" height="18" rx="4" fill="#2a78d6"/>
-<text x="484.3349795549891" y="159" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">8.4k</text>
+<rect x="248" y="148" width="245.0" height="18" rx="4" fill="#2a78d6"/>
+<text x="501.0385994515925" y="159" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">9.1k</text>
 <text x="236" y="189" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Parser, serializer, inline</text>
-<rect x="248" y="178" width="219.6" height="18" rx="4" fill="#2a78d6"/>
-<text x="475.5528649567203" y="189" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">8.1k</text>
-<text x="236" y="219" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">8 bundled plugins</text>
-<rect x="248" y="208" width="155.7" height="18" rx="4" fill="#2a78d6"/>
-<text x="411.6854123519728" y="219" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">5.7k</text>
+<rect x="248" y="178" width="240.7" height="18" rx="4" fill="#2a78d6"/>
+<text x="496.6648386416368" y="189" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">8.9k</text>
+<text x="236" y="219" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">9 bundled plugins</text>
+<rect x="248" y="208" width="169.7" height="18" rx="4" fill="#2a78d6"/>
+<text x="425.6857203121704" y="219" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">6.3k</text>
 <text x="236" y="249" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Schema &amp; plugin registry</text>
-<rect x="248" y="238" width="123.5" height="18" rx="4" fill="#2a78d6"/>
-<text x="379.4933885614147" y="249" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">4.5k</text>
+<rect x="248" y="238" width="132.8" height="18" rx="4" fill="#2a78d6"/>
+<text x="388.7787386627294" y="249" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">4.9k</text>
 <text x="236" y="279" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Invariants &amp; debug tooling</text>
-<rect x="248" y="268" width="120.4" height="18" rx="4" fill="#2a78d6"/>
-<text x="376.42100791248475" y="279" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">4.4k</text>
+<rect x="248" y="268" width="121.3" height="18" rx="4" fill="#2a78d6"/>
+<text x="377.27736764395695" y="279" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">4.5k</text>
 <text x="236" y="309" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Public API &amp; wiring</text>
-<rect x="248" y="298" width="60.7" height="18" rx="4" fill="#2a78d6"/>
-<text x="316.7406935372524" y="309" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">2.2k</text>
+<rect x="248" y="298" width="61.3" height="18" rx="4" fill="#2a78d6"/>
+<text x="317.3136469099346" y="309" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">2.3k</text>
 <text x="236" y="339" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Decorations &amp; search</text>
-<rect x="248" y="328" width="38.5" height="18" rx="4" fill="#2a78d6"/>
-<text x="294.527109553396" y="339" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">1.4k</text>
+<rect x="248" y="328" width="38.3" height="18" rx="4" fill="#2a78d6"/>
+<text x="294.2569078253533" y="339" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">1.4k</text>
 <text x="236" y="369" font-family="system-ui, sans-serif" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="end">Windowing &amp; reactivity</text>
-<rect x="248" y="358" width="32.1" height="18" rx="4" fill="#2a78d6"/>
-<text x="288.0560777441453" y="369" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">1.2k</text>
+<rect x="248" y="358" width="32.0" height="18" rx="4" fill="#2a78d6"/>
+<text x="287.9662518456022" y="369" font-family="system-ui, sans-serif" font-size="12" font-weight="400" fill="#898781" text-anchor="start" style="font-variant-numeric:tabular-nums">1.2k</text>
 </svg>

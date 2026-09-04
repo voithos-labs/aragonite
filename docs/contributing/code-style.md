@@ -2,9 +2,7 @@
 
 How we name, shape, comment, and format code. Nothing exotic; most decent codebases converge on roughly this list, and it's written down so you don't have to guess which dialect of it we speak. You can absorb this page as you go; you've probably absorbed most of it already.
 
-What is _not_ here: the rules specific to this codebase, the ones that will actually eat somebody's file if you get them wrong. Those live in [`rules.md`](rules.md), and that one you read before your first edit.
-
-One rule outranks the rest of the page: **when you touch messy code, improve what you touch.** Don't conform to bad patterns already in the file. Renaming a bad local, adding a section divider, pruning a stale comment are part of the edit, not a chore you file for later and never do.
+There's one rule that outranks the rest of the page: **when you touch messy code, improve what you touch.** Don't conform to bad patterns already in the file. Renaming a bad local, adding a section divider, pruning a stale comment are part of the edit, not a chore you file for later and never do.
 
 ## Naming
 

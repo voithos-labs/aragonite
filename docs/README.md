@@ -59,7 +59,6 @@ The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs l
 | [`contributing/adding-a-block.md`](contributing/adding-a-block.md)           | Adding a block type to the editor itself; plugin authors want the plugin guide instead                                                      |
 | [`contributing/code-style.md`](contributing/code-style.md)                   | How we name, shape, comment, and format code; nothing exotic                                                                                |
 | [`contributing/commit-conventions.md`](contributing/commit-conventions.md)   | Commit message format: the symbols, the 72-character line, what a body may carry                                                            |
-| [`contributing/friction-log.md`](contributing/friction-log.md)               | Friction that is real but not a bug: where newcomers have tripped, open and retired                                                         |
 
 ## Records and reference
 

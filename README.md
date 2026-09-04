@@ -196,14 +196,14 @@ Let's start by establishing the right context: most editors ship as a toolkit, a
 
 (Yes, there is a small set of dependencies. Two hard runtime dependencies: highlight.js, for code-block syntax colors, and esm-env, a few bytes of bundler-agnostic dev-flag resolution that svelte itself already depends on. Svelte is a peer you already have, and compiles to far less runtime than a virtual-DOM framework; katex and mermaid are optional peers, pulled in only if you use the math or diagram plugins. That is the whole tree.)
 
-Currently, the codebase lands at about 66k lines of typescript and svelte for the shipped library, roughly 6k of which is the nine bundled plugins [^13]. Here is where the lines actually went:
+Currently, the codebase lands at around 69k lines of typescript and svelte for the shipped library, roughly 6k of which is the nine bundled plugins [^13]. Here is where the lines actually went:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/loc-dark.svg">
   <img alt="Horizontal bar chart of the shipped library's lines of code by area: block UIs and rendering is the largest slice, then editing/commits/undo, the parser and serializer, selection, and the bundled plugins; the schema registry, invariants, public API, decorations, and windowing each take progressively smaller slices." src="docs/assets/loc-light.svg">
 </picture>
 
-I guess the number itself is nothing special, but the ratio turns out to be quite dense. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, five presentation modes, and a plugin platform) fits in a codebase one person can still realistically read end to end. The test suite, meanwhile, is ard 2.4x the size of the library (~160k lines), which says more about my paranoia than the leanness.
+I guess the number itself is nothing special, but the ratio turns out to be quite dense. A whole block editor (a full markdown parser and serializer, structural editing, windowing, cross-block selection, undo, decorations, five presentation modes, and a plugin platform) fits in a codebase one person can still realistically read end to end. The test suite, meanwhile, is ard 2.4x the size of the library (~168k lines), which says more about my paranoia than the leanness.
 
 # Fast
 

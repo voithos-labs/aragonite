@@ -1,17 +1,10 @@
 # The codebase map
 
-You watched the editor do something wrong. You have no idea which of four hundred files did it.
-That's the entire reason this page exists.
+So, I've noticed a slight blocker to people working on this repo - namely the few hundred source files in it. Skill issue honestly, but i'll play nice.
 
-The design docs tell you how a subsystem works, and `docs/README.md` sorts them by audience.
-Neither helps at 2am when a list item has eaten its own marker. This page runs the other
-direction: from the behavior you just saw break, to the one file to open. Read it end to end once
-(fifteen minutes, give or take), then come back to the table forever after. Fair warning, it also
-tells you what not to do once you get there, and sorry, those parts aren't suggestions.
+What's in this doc:
 
-What's in here:
-
-1. **The behavior → seam table**: the thing you saw break, the file that owns it, and the rule
+1. **The behavior -> seam table**: the thing you saw break, the file that owns it, and the rule
    people keep breaking there.
 2. **Keyboard and chords**: how a keypress becomes a command, and the one gate that inverts the
    codebase's usual instincts.

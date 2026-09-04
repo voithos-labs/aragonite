@@ -1,10 +1,6 @@
 # Testing
 
-Two layers, both living inside `src/lib/` next to the code they test. There's no separate test
-tree at the repo root, and that's on purpose: the whole editor module is self-contained
-(components, core logic, and both test layers under one root), which is the property that made
-extracting aragonite from limestone a file move rather than a project. Worth protecting, even on
-the days it feels like bookkeeping.
+So, two layers:
 
 | Layer | Runner     | Location        | Tests                                                 |
 | ----- | ---------- | --------------- | ----------------------------------------------------- |
@@ -35,13 +31,7 @@ Where to jump:
 
 Beside the two layers sits `src/lib/testing/`, which isn't a test layer but **shipped code**:
 the published `@voithos-labs/aragonite/testing` module, holding the plugin-platform reset and the
-kind, container and inline conformance kits a plugin author runs inside their own test suite. It's
-a seam in the honest sense (a boundary where responsibility passes from one piece of code to
-another): the editor's test machinery on one side, a stranger's suite on the other. Its own
-suites live under `src/lib/test/invariants/` (the built-in sweeps) and `src/lib/test/plugins/`
-(the kits driven exactly as an author would drive them). How to call each kit, with fixtures and
-what comes back, is [`../guide/plugin-testing.md`](../guide/plugin-testing.md); nothing here
-repeats it.
+kind, container and inline conformance kits a plugin author runs inside their own test suite.
 
 The three commands you'll type most:
 

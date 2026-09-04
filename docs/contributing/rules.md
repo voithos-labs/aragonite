@@ -1,18 +1,10 @@
 # The rules
 
-The rules you can't get from reading the code. Every one of them was paid for with a real bug,
-and [`casebook.md`](casebook.md) still has the receipt.
+The rules you can't get from reading the code. Things happened which shaped this doc; go read [`casebook.md`](casebook.md).
 
-Here's the shape of the problem. aragonite keeps one mutable tree, the CST (the parsed form of the
-Markdown, markers and all). The undo history points into that same tree, and the DOM renders from
-it. That's a good design, and it goes wrong in a small number of very specific ways, which are the
-ways below. Nobody guessed them in advance; we found them the expensive way, mostly in one event: the
-2026-07 audit, a large internal review that produced most of this page ("the audit" from here on).
+Here's the shape of the problem. aragonite keeps one mutable tree, the CST (the parsed form of the Markdown, markers and all). The undo history points into that same tree, and the DOM renders from it. It's decent design, and it goes wrong in a small number of very specific ways, which are partly listed below.
 
-Read this page before your first edit, and the casebook before your first structural change. The
-five rules are five on purpose, because five is about what anyone actually retains on the way to
-touching something. The sections after them are how the five get applied, so budget for the whole
-page and not just the list:
+You prob want to read this page before your first edit, and the casebook before your first structural change. The five rules are five because of [this](https://pmc.ncbi.nlm.nih.gov/articles/PMC2864034/), which means that on average you will forget one of these rules when you make your way to touching the code. You are welcome.
 
 - [The five rules](#the-five-rules): the list, each rule linking to the incident that bought it.
 - [The enforcement ladder](#the-enforcement-ladder): where a rule should live, so nobody has to remember it.
@@ -21,9 +13,6 @@ page and not just the list:
 - [Testing shape](#testing-shape): where tests have to sit to catch anything.
 - [Working the gates](#working-the-gates): the check commands, what green looks like, and the one way to fool yourself.
 - [Records](#records): where defects, decisions, and stale prose go.
-
-When the mechanism behind a rule is specified elsewhere, this page keeps the rule and points at
-the spec.
 
 ## The five rules
 
@@ -237,6 +226,10 @@ the body carries none of it:
 
 - The body holds the thing and nothing else: what's wrong, the repro, the files, the fix
   direction, and why it's deferred. No provenance, no process notes.
+- **A `good first issue` body names one edit site and one acceptance signal**, and keeps the
+  architectural shape as background. The rest of the ledger wants the shape first, which is why
+  this one needs saying: a newcomer reading a shape can't tell which file to open or when
+  they're done.
 
 Labels come from the existing set, and the ones with a description are the canonical ones:
 
@@ -270,8 +263,10 @@ Three more places a record lives, or pointedly doesn't:
   and `scripts/` path in `docs/design/` and `docs/contributing/`, so it covers more than the map,
   and a `path :: Symbol` span has to find the symbol in that file too. Its passing line is in the
   lint output above.
-- Contributor-facing friction that's real but isn't a defect goes in
-  [`friction-log.md`](friction-log.md) rather than in someone's memory.
+- Contributor-facing friction that's real but isn't a defect goes to
+  [Discussions](https://github.com/voithos-labs/aragonite/discussions) rather than into someone's
+  memory. It lands there and not in the ledger because a Task has to name an edit site, which is
+  the one thing a person who has just tripped doesn't have yet; once it does, it becomes a Task.
 
 **A behavior change sweeps its prose claim by claim.** Grep alone doesn't cut it: three stale
 sentences once survived a grep sweep in one session, each describing the old behavior in words
