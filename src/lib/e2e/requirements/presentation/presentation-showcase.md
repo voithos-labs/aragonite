@@ -18,7 +18,9 @@ renders as an inline widget stays rendered, and flipping back restores the sourc
   them paints again on the way back
 - every inline widget mounted before the flip is still mounted after it — the rendered half
   of the document survives the rung that hides its syntax
-- the editor's text is byte-identical before and after the round trip, so the flip is a view
+- every block mounted both before and after the round trip carries byte-identical text, compared
+  block by block (a windowed editor's text is only its mounted slice, and the reading flip
+  re-measures heights, so the window after the trip need not be the window before), so the flip is a view
   change and nothing else
 
 ## Edge cases
@@ -36,3 +38,10 @@ renders as an inline widget stays rendered, and flipping back restores the sourc
 
 - zero `[invariant:…]` console fires across the toggle round-trip (automatic via the shared
   e2e fixture)
+
+## Miss-analysis
+
+The round trip compared the editor's whole mounted text. Run alone, the same window mounted both
+times and the comparison held; under the full battery's load the reading flip re-measured heights
+and the window landed on other blocks, so identical bytes read as a mismatch. No run of the spec
+on its own could show it.

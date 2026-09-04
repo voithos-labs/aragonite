@@ -39,10 +39,12 @@ test.describe('/ showcase presentation toggle', () => {
 		await scrollToEnd(page);
 		const widgets = page.locator('[data-inline-widget]');
 		await expect
-			.poll(() => widgets.count(), { message: 'the demo document mounts no inline widget' })
+			.poll(() => widgets.count(), {
+				message: 'the demo document mounts no inline widget'
+			})
 			.toBeGreaterThan(0);
 		await expect(page.locator(`${MARKER}:visible`).first()).toBeVisible();
-		const source = await editor.textContent();
+		const before = await mountedBlockText(page);
 
 		await page.locator('.showcase-mode[data-mode="reading"]').click();
 		await expect(editor).toHaveAttribute('data-presentation', 'reading');
@@ -52,9 +54,30 @@ test.describe('/ showcase presentation toggle', () => {
 		await page.locator('.showcase-mode[data-mode="source"]').click();
 		await expect(editor).not.toHaveAttribute('data-presentation');
 		await expect(page.locator(`${MARKER}:visible`).first()).toBeVisible();
-		// Hiding markers shortens the document, so the round trip lands back on the same
-		// window only once the scrollport is at its end again.
+		// Hiding markers shortens the document, so the window after the round trip need not be
+		// the window before it: compare block by block over the blocks mounted both times.
 		await scrollToEnd(page);
-		await expect.poll(() => editor.textContent()).toBe(source);
+		await expect
+			.poll(async () => {
+				const after = await mountedBlockText(page);
+				const shared = Object.keys(before).filter((path) => path in after);
+				const drifted = shared.filter((path) => after[path] !== before[path]);
+				return { shared: shared.length, drifted };
+			})
+			.toEqual({ shared: expect.any(Number), drifted: [] });
+		const after = await mountedBlockText(page);
+		expect(Object.keys(before).filter((path) => path in after).length).toBeGreaterThan(4);
 	});
 });
+
+/** Text per mounted block, keyed by path: a windowed editor's text is only its mounted slice. */
+function mountedBlockText(page: Page): Promise<Record<string, string>> {
+	return page.evaluate(() =>
+		Object.fromEntries(
+			Array.from(document.querySelectorAll('.block-host[data-block-path]')).map((host) => [
+				host.getAttribute('data-block-path') ?? '',
+				host.textContent ?? ''
+			])
+		)
+	);
+}
