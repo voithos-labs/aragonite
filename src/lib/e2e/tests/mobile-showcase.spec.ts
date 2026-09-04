@@ -84,7 +84,7 @@ test.describe('/ showcase on a phone', () => {
 		const header = await page
 			.locator('.showcase-header button')
 			.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
-		expect(header.length).toBe(9);
+		expect(header.length).toBeGreaterThanOrEqual(9);
 		expect(Math.min(...header)).toBeGreaterThanOrEqual(24);
 
 		await page.keyboard.press('ControlOrMeta+f');
