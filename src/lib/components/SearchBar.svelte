@@ -227,4 +227,17 @@
 	.search-count.error {
 		color: var(--color-error, #e06c75);
 	}
+
+	/* A pointer with no hover is a thumb: the glyph buttons are ~16px boxes, under the WCAG
+	   2.5.8 minimum, and the row wraps rather than crowding once they grow. */
+	@media (pointer: coarse) {
+		.search-tog,
+		.search-nav,
+		.search-x,
+		.search-btn,
+		.search-chevron {
+			min-width: 24px;
+			min-height: 24px;
+		}
+	}
 </style>

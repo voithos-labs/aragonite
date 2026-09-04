@@ -23,7 +23,12 @@ which the owner rewrites by hand.
   text reports matches.
 - With the drag-handles toggle on, the grips are opaque with nothing hovering them, and a
   tap lands on the grip rather than falling through to the editor.
-- The header leaves the document at least four fifths of the screen.
+- Every header button and every find-bar button clears 24 CSS px on both axes, the WCAG
+  2.2 AA minimum. 44 is not the target: the header carries eleven controls, and 44 apiece
+  puts back over the document every row the condensed header saves.
+- The header leaves the document at least three quarters of the screen. A quarter, not the
+  fifth the condensed header alone reaches: thumb-sized controls cost two rows back, and a
+  header nobody can operate is not a saved row.
 
 ## User interactions
 
@@ -44,3 +49,5 @@ which the owner rewrites by hand.
 - Touch: no spec had ever run with `hasTouch`, so an affordance revealed by `:hover` alone
   read as present in every run — `toBeVisible()` passes on an `opacity: 0` element, and
   only a hit test names the `pointer-events: none` half.
+- Target size: nothing in the suite had ever measured a control's box against a minimum,
+  on any pointer, so chrome sized for a mouse cursor was never asked what a thumb needs.

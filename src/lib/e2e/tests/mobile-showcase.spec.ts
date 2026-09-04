@@ -78,8 +78,31 @@ test.describe('/ showcase on a phone', () => {
 		await handle.locator('.grip').tap();
 	});
 
-	test('the header leaves the document four fifths of the screen', async ({ page }) => {
+	test('the controls a thumb has to hit clear 24px', async ({ page }) => {
+		// WCAG 2.2 AA (2.5.8), not the 44px HIG figure: the header carries eleven controls, and
+		// 44 apiece puts back over the document every row the condensed header just gave it.
+		const header = await page
+			.locator('.showcase-header button')
+			.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+		expect(header.length).toBe(9);
+		expect(Math.min(...header)).toBeGreaterThanOrEqual(24);
+
+		await page.keyboard.press('ControlOrMeta+f');
+		await expect(page.locator('.search-bar')).toBeVisible();
+		const buttons = await page.locator('.search-bar button').evaluateAll((els) =>
+			els.map((el) => {
+				const box = el.getBoundingClientRect();
+				return Math.min(box.width, box.height);
+			})
+		);
+		expect(buttons.length).toBeGreaterThan(0);
+		expect(Math.min(...buttons)).toBeGreaterThanOrEqual(24);
+	});
+
+	test('the header leaves the document three quarters of the screen', async ({ page }) => {
+		// A quarter, not a fifth: thumb-sized controls cost two rows back, and a header that
+		// cannot be operated is not a saved row.
 		const header = (await page.locator('.showcase-header').boundingBox())!;
-		expect(header.height).toBeLessThanOrEqual(PHONE.height / 5);
+		expect(header.height).toBeLessThanOrEqual(PHONE.height / 4);
 	});
 });

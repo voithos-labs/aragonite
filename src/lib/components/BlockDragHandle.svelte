@@ -57,6 +57,10 @@
 		.grip {
 			pointer-events: auto;
 			touch-action: none;
+			/* The whole gutter slot, not just the dots: 1rem of editor padding is all the width
+			   there is, and any more would reach over the line's first character. */
+			width: 100%;
+			justify-content: center;
 		}
 	}
 </style>
