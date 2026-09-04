@@ -89,6 +89,63 @@ function pastedLines(rel: string): Array<{ rel: string; line: number; text: stri
 		.filter((entry) => PREFIXES.some((prefix) => entry.text.startsWith(prefix)));
 }
 
+// ── npm's own echo ───────────────────────────────────────────────────────────
+
+const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as {
+	name: string;
+	version: string;
+	scripts: Record<string, string>;
+};
+
+const RUN_LINE = /^\$ npm run \S+/;
+const ECHO_LINE = /^> (.+)$/;
+const BANNER = /^(\S+)@(\S+) (\S+)$/;
+
+/** Fenced blocks, each as its own lines, so a markdown blockquote is never read as a transcript. */
+function fences(text: string): string[][] {
+	const blocks: string[][] = [];
+	let open: string[] | null = null;
+	for (const line of text.split('\n')) {
+		if (/^\s*(```|~~~)/.test(line)) {
+			if (open) blocks.push(open);
+			open = open ? null : [];
+			continue;
+		}
+		open?.push(line);
+	}
+	return blocks;
+}
+
+/**
+ * An `npm run` transcript echoes what npm resolved, and both halves name package.json: the banner
+ * carries the package version (which a release bumps) and the line under it is the script itself.
+ */
+function echoFailures(rel: string, text: string): string[] {
+	const failures: string[] = [];
+	const bodies = new Set(Object.values(pkg.scripts));
+	for (const block of fences(text)) {
+		if (!block.some((line) => RUN_LINE.test(line))) continue;
+		for (const line of block) {
+			const echo = ECHO_LINE.exec(line)?.[1];
+			if (echo === undefined) continue;
+			const banner = BANNER.exec(echo);
+			if (banner === null) {
+				// `npm run x -- args` echoes the script with the args appended, so a prefix counts.
+				const known = [...bodies].some((body) => echo === body || echo.startsWith(`${body} `));
+				if (!known) failures.push(`${rel}: > ${echo} — no package.json script is this`);
+				continue;
+			}
+			const [, name, version, script] = banner;
+			if (name !== pkg.name) failures.push(`${rel}: > ${echo} — the package is ${pkg.name}`);
+			if (version !== '…' && version !== pkg.version) {
+				failures.push(`${rel}: > ${echo} — the version is ${pkg.version}; elide it with \`…\``);
+			}
+			if (!(script in pkg.scripts)) failures.push(`${rel}: > ${echo} — no such script`);
+		}
+	}
+	return failures;
+}
+
 // ── The comparison ───────────────────────────────────────────────────────────
 
 /** The pasted line as a pattern: `…` and `...` stand for whatever the run prints there. */
@@ -104,6 +161,13 @@ const live = liveLines();
 // ── The gate ─────────────────────────────────────────────────────────────────
 
 describe('pasted gate output ↔ what the gate prints', () => {
+	it('every npm transcript echoes the package and script package.json declares', () => {
+		const stale = docs.flatMap((rel) =>
+			echoFailures(rel, readFileSync(path.join(ROOT, rel), 'utf8'))
+		);
+		expect(stale, `stale npm transcripts: ${stale.join('; ')}`).toEqual([]);
+	});
+
 	it('every pasted line matches a line a live run produces', () => {
 		const stale = pasted
 			.filter((entry) => !live.some((actual) => elisionPattern(entry.text).test(actual)))
@@ -148,6 +212,28 @@ describe('pasted gate output — self-tests', () => {
 		expect(
 			elisionPattern('docs-pack: … (a.md, b.md, ...)').test('docs-pack: 6 (a.md, b.md, c.md)')
 		).toBe(true);
+	});
+
+	it('reads the transcripts, and reds on a banner or body that drifted', () => {
+		const transcripts = docs.filter((rel) =>
+			fences(readFileSync(path.join(ROOT, rel), 'utf8')).some((block) =>
+				block.some((line) => RUN_LINE.test(line))
+			)
+		);
+		expect(transcripts.length).toBeGreaterThan(1);
+		const fence = '```';
+		const transcript = (...lines: string[]) => [fence, ...lines, fence].join('\n');
+		// A console transcript that never ran npm must not be read as one.
+		expect(echoFailures('x.md', transcript('> __test.dumpTree()'))).toEqual([]);
+		expect(echoFailures('x.md', transcript('$ npm run check', `> ${pkg.scripts.check}`))).toEqual(
+			[]
+		);
+		expect(
+			echoFailures('x.md', transcript('$ npm run check', '> svelte-check --tsconfig ./nope.json'))
+		).toHaveLength(1);
+		expect(
+			echoFailures('x.md', transcript('$ npm run check', `> ${pkg.name}@0.0.1 check`))
+		).toHaveLength(1);
 	});
 
 	it('reds on a count that drifted rather than being elided', () => {

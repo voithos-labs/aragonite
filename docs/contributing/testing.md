@@ -48,7 +48,7 @@ area covers. An area run is a few seconds, and the summary block is all you read
 ```
 $ npm run test:editor:undo
 
-> @voithos-labs/aragonite@0.10.0 test:editor:undo
+> @voithos-labs/aragonite@… test:editor:undo
 > vitest run src/lib/test/undo
 
  Test Files  6 passed (6)
