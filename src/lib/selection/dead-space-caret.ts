@@ -11,7 +11,7 @@ import { blockAtPoint, type BlockHit } from './block-hit-test';
 import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './nearest-block';
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
-import { offsetFromViewportPoint } from './native-bridge';
+import { offsetFromViewportPoint } from '../cursor/point-offset';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 

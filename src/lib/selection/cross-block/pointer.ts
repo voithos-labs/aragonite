@@ -9,7 +9,8 @@ import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
-import { clearNativeSelection, offsetFromViewportPoint } from '../native-bridge';
+import { clearNativeSelection } from '../native-bridge';
+import { offsetFromViewportPoint } from '../../cursor/point-offset';
 import { installDragListener } from '../drag-pointer';
 import { devWarn } from '../../dev-warn';
 

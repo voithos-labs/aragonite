@@ -10,9 +10,9 @@ import {
 	applyCollapsedCaret,
 	focusCollapsedCaret,
 	applySingleBlockRange,
-	clearNativeSelection,
-	offsetFromViewportPoint
+	clearNativeSelection
 } from './native-bridge';
+import { offsetFromViewportPoint } from '../cursor/point-offset';
 import type { BlockElLookup } from '../editor-keys';
 import {
 	nextPath,

@@ -6,6 +6,7 @@
  * Only mounted blocks are measured; a caller answering for a windowed-out tail reconciles itself.
  */
 
+import { clampPointIntoBox } from '../cursor/point-offset';
 import { blockAtPoint, endpointAtPoint, type BlockHit } from './block-hit-test';
 import type { SelectionEndpoint } from './primitives';
 import { readBlockPath } from './path-lookup';
@@ -63,18 +64,16 @@ export function nearestBand(
 
 // ── Probing ────────────────────────────────────────────────────────────────
 
-/** A point inside `rect`, one pixel off its edges so the topmost element there is the block's
- *  own content; `belowAll` takes the trailing corner, the block's last position. */
+/** The band's own probe point: {@link clampPointIntoBox}, except that `belowAll` takes the
+ *  trailing corner — the block's last position — rather than the point's own x. */
 export function probePointIn(
 	rect: DOMRect,
 	x: number,
 	y: number,
 	belowAll: boolean
 ): { x: number; y: number } {
-	return {
-		x: belowAll ? rect.right - 1 : clamp(x, rect.left + 1, rect.right - 1),
-		y: clamp(y, rect.top + 1, rect.bottom - 1)
-	};
+	const inside = clampPointIntoBox(rect, x, y);
+	return { x: belowAll ? rect.right - 1 : inside.x, y: inside.y };
 }
 
 export interface NearestBlock {
@@ -110,8 +109,4 @@ function addressedAt(hit: BlockHit, probeX: number, probeY: number): NearestBloc
 /** The one selector for the mounted hosts, so the two walks above cannot drift apart. */
 function blockHosts(root: HTMLElement): HTMLElement[] {
 	return [...root.querySelectorAll<HTMLElement>('[data-block-path]')];
-}
-
-function clamp(value: number, low: number, high: number): number {
-	return Math.min(Math.max(value, low), high);
 }

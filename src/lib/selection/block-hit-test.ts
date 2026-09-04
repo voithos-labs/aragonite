@@ -10,7 +10,7 @@ import type { AnyBlockKind } from '../core/nodes';
 import { WHOLE_BLOCK_INPUT_ATTR } from '../editor-actions/whole-block-focus-surface';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CellSelectionPoint, SelectionEndpoint } from './primitives';
-import { offsetFromViewportPoint } from './native-bridge';
+import { offsetFromViewportPoint } from '../cursor/point-offset';
 import { readBlockPath } from './path-lookup';
 
 export interface BlockHit {
