@@ -1,7 +1,7 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
 
-// The grips are mouse-only chrome, so `blockDragHandles=false` must leave nothing behind, not
+// The grips are pointer chrome, so `blockDragHandles=false` must leave nothing behind, not
 // hide it: a hidden grip still occupies its gutter track. Requirements: requirements/blocks/table/grip-policy.md.
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -38,6 +38,23 @@ test.describe('table block: the grips follow blockDragHandles', () => {
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
 		await expect(page.locator('[data-table-col-grip]')).toHaveCount(0);
 		await expect(page.locator('[data-table-row-grip]')).toHaveCount(0);
+	});
+
+	test.describe('under touch, where nothing hovers', () => {
+		test.use({ hasTouch: true });
+
+		test('the grips show unasked and a tap opens the row menu', async ({ page }) => {
+			await editor.goto();
+			await editor.loadContent(TABLE);
+
+			const grip = page.locator('[data-table-row-grip]').first();
+			// Nothing can hover the table, so a grip still keyed on hover stays transparent.
+			await expect.poll(() => grip.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+
+			// The menu is the proof the tap reached the grip rather than the cell behind it.
+			await grip.tap();
+			await expect(page.getByRole('menuitem', { name: /insert row below/i })).toBeVisible();
+		});
 	});
 
 	// The row grip lives in a leading zero-width grid track and the rows auto-place, so dropping

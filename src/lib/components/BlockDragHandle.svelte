@@ -47,4 +47,16 @@
 		background-image: radial-gradient(currentColor 40%, transparent 45%);
 		background-size: 0.25rem 0.28rem;
 	}
+
+	/* Touch never fires the hover reveal, so the handle shows unasked. The pointer goes to the
+	   grip rather than the full-height strip, which would make the whole gutter unscrollable. */
+	@media (hover: none) {
+		.block-drag-handle {
+			opacity: 1;
+		}
+		.grip {
+			pointer-events: auto;
+			touch-action: none;
+		}
+	}
 </style>

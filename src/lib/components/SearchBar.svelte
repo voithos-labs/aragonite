@@ -152,6 +152,9 @@
 		position: absolute;
 		top: 10px;
 		right: 10px;
+		/* Content-sized off the right edge, so without the cap a narrow host puts the bar's
+		   left half (the find field) off screen instead of shrinking it. */
+		max-width: calc(100% - 20px);
 		z-index: 5;
 		display: flex;
 		flex-direction: column;
@@ -164,6 +167,7 @@
 	}
 	.search-row {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 6px;
 	}
@@ -174,6 +178,9 @@
 		color: var(--color-text-secondary, #d6d9e0);
 		padding: 3px 7px;
 		height: 22px;
+		/* A floor, not a width: `min-width: auto` on a flex item is its intrinsic size, which
+		   is what stops the field shrinking before the row wraps. */
+		min-width: 6ch;
 	}
 	.search-tog,
 	.search-nav,

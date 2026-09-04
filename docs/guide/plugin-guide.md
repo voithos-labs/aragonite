@@ -249,8 +249,10 @@ cNo.....................................oc
 		font-size: 1.1em;
 		line-height: 1.1;
 		letter-spacing: 0.05em;
-		/* the bird is wider than a phone column, and the editor root pans if it isn't contained */
+		/* wider than a phone column, and the editor root pans if it isn't contained; the bar
+		   stays hidden because a per-frame width change would toggle it fourteen times a second */
 		overflow-x: auto;
+		scrollbar-width: none;
 	}
 	.parrot-caption {
 		margin: 0.25em 0 0;

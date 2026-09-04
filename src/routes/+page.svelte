@@ -196,6 +196,8 @@
 		border: none;
 		border-radius: 4px;
 		cursor: pointer;
+		/* A pill is one word wide; wrapping its label doubles the header's row height. */
+		white-space: nowrap;
 	}
 	.showcase-mode.active,
 	.showcase-toggle.active {
@@ -224,5 +226,36 @@
 	/* The library paints the overlay's geometry and leaves its color to the host page. */
 	.showcase-editor :global(.decoration-overlay.hl-occurrence) {
 		background: rgba(250, 204, 21, 0.18);
+	}
+
+	/* Eleven controls over four rows ate a quarter of a phone screen before the document
+	   got a pixel. The demo IS the document, so the chrome condenses and drops what a
+	   phone cannot use. */
+	@media (max-width: 640px) {
+		.showcase-header {
+			gap: 0.3rem 0.45rem;
+			padding: 0.45rem 0.6rem;
+		}
+		/* No modifier key to press, and the tag is a label the title already carries. */
+		.showcase-tag,
+		.showcase-hint {
+			display: none;
+		}
+		.showcase-title {
+			font-size: 1rem;
+		}
+		.showcase-mode,
+		.showcase-toggle {
+			font-size: 0.7rem;
+			padding: 0.1rem 0.4rem;
+		}
+		/* inline-flex holds the pills on one line no width can break, which is what put
+		   `live` past the right edge; the group takes a row and wraps inside it instead. */
+		.showcase-modes {
+			margin-left: 0;
+			flex: 1 0 100%;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
 	}
 </style>
