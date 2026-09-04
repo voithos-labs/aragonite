@@ -9,6 +9,7 @@
 import type { BlockEditActions, UndoEntryMode } from '../../action-contracts';
 import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
+import type { PluginActivation } from '../../schema/plugin-activation';
 import { parse } from '../../core/parser';
 import { cutRangeFromDisplay, isBlockNode, nodeAt } from '../node-ops';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
@@ -54,6 +55,9 @@ export interface PasteDispatchContext {
 	undoEntry?: UndoEntryMode;
 	/** The instance's grammar for the join branch's same-slot reparse; absent = global. */
 	grammar?: GrammarView;
+	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out
+	 *  of the pipeline; absent = every installed plugin. */
+	activePlugins?: PluginActivation;
 	/** What the paste's DELETE half needs to cross the join seam; absent leaves it byte-literal. */
 	seam?: PasteSeam;
 }
@@ -84,7 +88,7 @@ export async function pasteDispatch(
 
 	// Once, before any branch below reads the text; a transform that empties it is an
 	// empty paste.
-	const transformed = applyPasteTransforms(input.pastedText);
+	const transformed = applyPasteTransforms(input.pastedText, ctx.activePlugins);
 	if (!transformed) return {};
 
 	// Ahead of the fragment parse, so the strategy pick and every landed kind follow the

@@ -646,7 +646,7 @@ Clipboard content is always plain Markdown sourced from the tree, with no HTML f
 
 #### The paste pipeline
 
-Before anything is parsed, registered **paste transforms** rewrite the clipboard text in install order: a content-keyed plugin hook for pre-parse conversions (GitHub-alert blockquotes to directive syntax, for instance). The rewrite runs wherever clipboard text reaches `parse()`, including the whole-table-selection route that bypasses the dispatcher. And one entry isn't a gesture: the instance's `insertMarkdown(md)` enters the surfaces' shared clipboard skeleton below the clipboard unwrap, so a programmatic insertion carries the transforms, the delete-selection-first rule, the single undo entry and the caret landing without a `ClipboardEvent` in sight.
+Before anything is parsed, the **paste transforms** of the plugins this editor activated rewrite the clipboard text in install order: a content-keyed plugin hook for pre-parse conversions (GitHub-alert blockquotes to directive syntax, for instance). The rewrite runs wherever clipboard text reaches `parse()`, including the whole-table-selection route that bypasses the dispatcher. And one entry isn't a gesture: the instance's `insertMarkdown(md)` enters the surfaces' shared clipboard skeleton below the clipboard unwrap, so a programmatic insertion carries the transforms, the delete-selection-first rule, the single undo entry and the caret landing without a `ClipboardEvent` in sight.
 
 The text is then parsed and routed by a single dispatcher (`src/lib/tree-operations/paste/dispatch.ts` :: `pasteDispatch`), which consults gates in this order:
 

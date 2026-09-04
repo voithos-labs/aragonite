@@ -26,6 +26,7 @@ import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
+import type { PluginActivation } from '../../schema/plugin-activation';
 import type { UndoController } from '../../editor-actions/deps';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { StickyColumnState } from '../../cursor/sticky-column';
@@ -130,6 +131,8 @@ export interface EditableSurfaceDeps {
 	/** The instance's block grammar, forwarded to the cross-block join-paste reparse.
 	 *  Required-nullable: a surface must answer, and `undefined` means the global one. */
 	grammar: GrammarView | undefined;
+	/** The plugins this instance activated, forwarded to the paste-transform pipeline. */
+	activePlugins: PluginActivation;
 	/** The instance event surface, forwarded to the cross-block tier's clipboard
 	 *  error channel — the same `EditorServices.events` the clipboard seam takes. */
 	events: EditorEvents;
@@ -217,6 +220,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		getKeybindingOverrides: deps.getKeybindingOverrides,
 		pasteCoordinator: deps.pasteCoordinator,
 		grammar: deps.grammar,
+		activePlugins: deps.activePlugins,
 		events: deps.events,
 		getCursorOffset: () => deps.backend.getRaw(),
 		afterReactivity: () => tick()

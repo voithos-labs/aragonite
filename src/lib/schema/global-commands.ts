@@ -27,11 +27,14 @@ export function registerGlobalCommand(
 	// owner in a cross-plugin collision.
 	const id = mintCommandId(name, owner);
 	registerCommand(id, (ctx) => {
-		const editor = ctx.pluginEditor?.(owner ?? '');
-		if (!editor) {
+		if (!ctx.pluginEditor) {
 			warnDeadKeyCommand(id, 'plugin-global');
 			return false;
 		}
+		// Installed process-wide but absent from this editor's `plugins` prop: inert here, not
+		// dead, so it must not spend the dead-key diagnostic a truly unreachable id owes.
+		const editor = ctx.pluginEditor(owner ?? '');
+		if (!editor) return false;
 		try {
 			return handler(editor);
 		} catch (error) {

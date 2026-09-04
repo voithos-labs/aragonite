@@ -105,8 +105,9 @@ export const TOOLBAR_COMMANDS = {
 /** Minimal context a global command needs; HistoryActions is structurally compatible. */
 export interface GlobalCommandContext {
 	history: { requestUndo(): void | Promise<void>; requestRedo(): void | Promise<void> };
-	/** Per-instance context lookup, threaded from the dispatching editor. */
-	pluginEditor?: (pluginName: string) => EditorContext;
+	/** Per-instance context lookup, threaded from the dispatching editor; it resolves nothing
+	 *  for a plugin installed in the process that this editor did not activate. */
+	pluginEditor?: (pluginName: string) => EditorContext | undefined;
 	/** The effective presentation mode, read live — the reading-mode gate keys off this,
 	 *  not the plugin lookup. Absent (a history-only context) means source. */
 	getPresentationMode?: () => PresentationMode;

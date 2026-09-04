@@ -375,6 +375,7 @@ Install by passing units to the editor's **`plugins` prop**, set once at mount, 
 - Units install in array order.
 - A `setup` that throws stays failed: a later attempt rethrows and tells you to reload, because a partial setup can't re-run against the register-once registries.
 - Two editors passing the same plugin share one registration, but their _configuration_ isn't shared: an editor may pass `{ plugin, options }` and the plugin reads its own `options` off each instance ([the options recipe](#recipe-per-instance-options-and-the-factory-closure-trap)).
+- **The prop is also the enablement set.** Registration is process-wide; activation is not. An editor runs the `onEditor` hooks, resolves the kinds, answers the global commands and applies the paste transforms of exactly the plugins its own array lists. A plugin another editor on the page installed but this one left out does nothing here, and its blocks fall back to raw-editable text. An editor with no `plugins` prop at all is the exception: it activates everything installed.
 
 Two smaller routes. For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call `installPlugins(units)` from `@voithos-labs/aragonite`, with the same once-per-process semantics. And `isPluginInstalled(name)` probes an install, for the rare setup that has to branch on it; the prop and `installPlugins` are already safe to call twice, and most people never reach for it.
 
@@ -432,7 +433,7 @@ The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw 
 
 ## One process, many editors
 
-`setup` runs once per process, but a plugin usually needs to react to _each editor_: recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that entry point. It registers a callback fired once per mounted `<Editor>`, handed that instance's **`EditorContext`**:
+`setup` runs once per process, but a plugin usually needs to react to _each editor_: recompute derived state on every edit, hold per-document data, read the options a given editor passed. `ctx.onEditor(cb)` is that entry point. It registers a callback fired once per mounted `<Editor>` that listed your plugin, handed that instance's **`EditorContext`**:
 
 ```ts
 setup(ctx) {

@@ -123,6 +123,7 @@
 		selection,
 		getDoc,
 		getEditorRoot,
+		activePlugins,
 		events: editorEvents,
 		linkRef
 	} = wiring.deps;
@@ -296,6 +297,7 @@
 		edgeAffinity,
 		blockEdit,
 		pasteCoordinator,
+		activePlugins,
 		getDoc,
 		widgetSelection,
 		events: editorEvents,

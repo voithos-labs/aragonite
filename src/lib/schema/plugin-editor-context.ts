@@ -7,6 +7,7 @@ import type { DocumentView } from '../core/node-views';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
 import type { PresentationMode } from '../presentation-mode';
+import type { PluginActivation } from './plugin-activation';
 import {
 	installedPluginNames,
 	onEditorCallbacks,
@@ -15,7 +16,9 @@ import {
 } from './plugin-install';
 
 export interface EditorPluginContexts {
-	get(pluginName: string): EditorContext;
+	/** The instance's context for a plugin it activated; `undefined` for one it did not. The
+	 *  empty name is the instance's own base context (an unowned kind's), never gated. */
+	get(pluginName: string): EditorContext | undefined;
 	attachAll(onError: (report: { plugin: string; error: unknown }) => void): void;
 	dispose(): void;
 }
@@ -34,12 +37,14 @@ export function createEditorPluginContexts(deps: {
 	rects: EditorRects;
 	getPresentationMode: () => PresentationMode;
 	getTheme: () => string;
+	activation: PluginActivation;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
 	let onDisposeError: (report: { plugin: string; error: unknown }) => void = () => {};
 
-	function get(pluginName: string): EditorContext {
+	function get(pluginName: string): EditorContext | undefined {
+		if (pluginName !== '' && !deps.activation.isActive(pluginName)) return undefined;
 		let ctx = contexts.get(pluginName);
 		if (!ctx) {
 			ctx = {
@@ -68,9 +73,10 @@ export function createEditorPluginContexts(deps: {
 		attachAll(onError) {
 			onDisposeError = onError;
 			for (const plugin of installedPluginNames()) {
+				if (!deps.activation.isActive(plugin)) continue;
 				for (const cb of onEditorCallbacks(plugin)) {
 					try {
-						const dispose = cb(get(plugin));
+						const dispose = cb(get(plugin)!);
 						if (typeof dispose === 'function') disposers.push({ plugin, dispose });
 					} catch (error) {
 						onError({ plugin, error });

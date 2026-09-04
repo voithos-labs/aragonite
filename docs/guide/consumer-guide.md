@@ -62,7 +62,7 @@ A few things in the above example snippet are decently important; you might want
 2. **`bind:this` is how you talk to a mounted editor.** For example, you might want to use important read functions like `getSource()` and `getSelection()`, or important write functions like `setSelection()` and `runCommand()`. [The instance surface](#the-instance-surface) covers all of it.
 3. **Theming is CSS custom properties.** [Theming](#theming) has the variables and how to customize yours.
 
-Two more that aren't in the snippet but bite early: plugins are process-global, installed once at mount, so two editors on the same page share the installed plugins ([Plugins](#plugins)); and `editor.__test.*` is internal and will move, so don't build on it.
+Two more that aren't in the snippet but bite early: plugin registration is process-global and happens once at mount, but each editor activates exactly the plugins its own `plugins` prop lists ([Plugins](#plugins)); and `editor.__test.*` is internal and will move, so don't build on it.
 
 ## What your build needs
 
@@ -113,7 +113,7 @@ Everything supported is exported from `@voithos-labs/aragonite`. Before 1.0 the 
 | `source`           | Seeds the document at mount, and re-seeds it whenever the prop changes; never two-way bound                                                                                                         |
 | `theme`            | Theme name, reflected to `data-editor-theme` on the editor root: `'dark'` (default), `'light'`, or a name of your own (see [Theming](#theming))                                                     |
 | `presentationMode` | How the document presents, from raw source to fully rendered: `'source'` (default), `'reading'`, `'preview-block'`, `'preview-inline'`, or `'live'` (see [Presentation modes](#presentation-modes)) |
-| `plugins`          | Plugin units installed once at mount, in array order, before the first parse (see [Plugins](#plugins))                                                                                              |
+| `plugins`          | Plugin units installed once at mount, in array order, before the first parse; the array is also the set this editor activates (see [Plugins](#plugins))                                             |
 | `keybindings`      | Rebind or disable the editor's shortcuts, per instance (see [Rebinding chords](#rebinding-chords))                                                                                                  |
 | `resolveImageUrl`  | Rewrite a raw image URL before it reaches `img.src` (to resolve a relative path, say)                                                                                                               |
 | `resolveLinkUrl`   | Rewrite a raw link destination at render time                                                                                                                                                       |
@@ -504,6 +504,7 @@ Plugins install once at mount, in array order, before the first parse. Build the
 **Installation is process-global.** The grammar (the kinds, their components, their parsing rules, their commands) is one shared set per JavaScript context, the way `customElements` is, so registering the same kind twice is a conflict rather than a per-instance override. Runtime state is per instance: selection, undo history, and every cache are one editor's own, and nothing one instance does reaches another. Mounting several editors on one page is fine; they share one grammar and never any state. Three consequences:
 
 - **Passing the same plugin to two editors registers it once.** Per-instance configuration still works: an entry may be `{ plugin, options }` instead of a bare plugin, and each editor gets its own `options` even though the registration is shared (the split-pane case). Reach for this over the plugin's own factory argument for anything two editors would vary, because a factory argument only takes effect on the first install.
+- **The prop is the enablement set.** Registration is shared; activation is per editor. An editor runs the hooks, resolves the kinds, answers the commands and applies the paste transforms of exactly the plugins it lists, so leaving one out of an editor's array switches it off for that editor. Its blocks still parse (the seed parse reads the whole grammar) and then render as plain editable source, which is the same fallback an unknown kind gets. Two things aren't scoped yet: a plugin's inline syntax and directive names still reach every editor, and so does its keyboard chord, which lands as a dead key in an editor that didn't list the plugin. An editor mounted with no `plugins` prop is the exception: it activates everything installed in the process.
 - **A later editor may mount carrying a plugin an earlier one never had.** The late install is legal and serves the new editor's own parse; an editor that already parsed doesn't re-parse against the newer grammar, and a dev-build warning names the late registration.
 - **For a `parse()` pipeline with no `<Editor>` mounted**, call `installPlugins(plugins)` from the package to make the grammar live.
 

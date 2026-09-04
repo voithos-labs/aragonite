@@ -75,6 +75,7 @@
 		selection,
 		getDoc,
 		getEditorRoot,
+		activePlugins,
 		events: editorEvents
 	} = wiring.deps;
 	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -642,7 +643,8 @@
 				{
 					doc: getDoc(),
 					blockEdit,
-					controller: pasteCoordinator
+					controller: pasteCoordinator,
+					activePlugins
 				}
 			);
 

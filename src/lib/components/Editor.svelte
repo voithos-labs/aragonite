@@ -118,8 +118,13 @@
 	} from '../schema/block-commands';
 	import type { AnyCommandId } from '../schema/command-id';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
+	import {
+		activationFor,
+		everyInstalledPlugin,
+		kindEnablementFor
+	} from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
-	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
@@ -207,6 +212,12 @@
 	// svelte-ignore state_referenced_locally
 	const pluginEntries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
 	if (pluginEntries) installPlugins(pluginEntries.plugins);
+
+	// The prop IS the enablement set: this editor activates exactly what it listed. No prop
+	// means no restriction, so everything installed in the process stays active here.
+	const activePlugins = pluginEntries
+		? activationFor(pluginEntries.plugins.map((p) => p.name))
+		: everyInstalledPlugin;
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
@@ -638,12 +649,18 @@
 			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
 
-	// The instance's resolution over the global block definitions: without an
-	// enablement door it reads the global registry verbatim.
+	// The instance's resolution over the global block definitions: an unlisted plugin's kind
+	// resolves no component here and its opener leaves this grammar. A prop-less editor reads
+	// the global registry verbatim.
+	// The harness door composes rather than replaces: widening past what the prop activated
+	// would prove a resolution the shipped path cannot reach.
 	// svelte-ignore state_referenced_locally
-	const registryView = createRegistryView(
-		__registryEnablement ? { isEnabled: __registryEnablement } : undefined
-	);
+	const registryView = createRegistryView({
+		isEnabled: bothEnable(
+			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
+			__registryEnablement
+		)
+	});
 
 	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
@@ -724,7 +741,8 @@
 		// The one injection point of the mode into the dispatch tiers; they read it back
 		// through the pluginEditor lookup they already thread.
 		getPresentationMode: () => effectiveMode,
-		getTheme: () => theme
+		getTheme: () => theme,
+		activation: activePlugins
 	});
 
 	// One definition, threaded by every dispatch tier that can reach a plugin-global
@@ -835,6 +853,7 @@
 		reorder,
 		reorderAnnounce: announceReorder,
 		registryView,
+		activePlugins,
 		rects,
 		crossBlockCommands
 	} satisfies EditorServices);
@@ -1030,6 +1049,7 @@
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
 		grammar: registryView.grammar,
+		activePlugins,
 		events,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
 		afterReactivity: () => tick()

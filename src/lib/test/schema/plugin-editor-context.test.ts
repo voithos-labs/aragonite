@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createEditorPluginContexts } from '$lib/schema/plugin-editor-context';
+import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	definePlugin,
 	installPlugins,
@@ -30,25 +31,40 @@ const deps = (doc: { children: unknown[] }) => ({
 	decorations: noopDecorations,
 	rects: noopRects,
 	getPresentationMode: () => 'source' as const,
-	getTheme: () => 'dark'
+	getTheme: () => 'dark',
+	activation: everyInstalledPlugin
 });
+
+/** Two installed plugins, each recording the editors its hook attached to. */
+function installPair(attached: string[]) {
+	installPlugins([
+		definePlugin({
+			name: 'alpha',
+			setup: (ctx) => ctx.onEditor(() => void attached.push('alpha'))
+		}),
+		definePlugin({
+			name: 'beta',
+			setup: (ctx) => ctx.onEditor(() => void attached.push('beta'))
+		})
+	]);
+}
 
 beforeEach(() => __resetInstalledPluginsForTests());
 
 describe('createEditorPluginContexts', () => {
 	it('get() returns one stable identity per plugin, with per-plugin options', () => {
 		const ctxs = createEditorPluginContexts(deps({ children: [] }));
-		const a = ctxs.get('opts');
+		const a = ctxs.get('opts')!;
 		expect(a).toBe(ctxs.get('opts'));
 		expect(a.options).toEqual({ max: 3 });
-		expect(ctxs.get('other').options).toBeUndefined();
+		expect(ctxs.get('other')!.options).toBeUndefined();
 		expect(a.editorId).toBe('ed-1');
 	});
 
 	it('document is a live getter, not a snapshot', () => {
 		let doc = { children: [] as unknown[] };
 		const ctxs = createEditorPluginContexts({ ...deps(doc), getDoc: () => doc as never });
-		const ctx = ctxs.get('p');
+		const ctx = ctxs.get('p')!;
 		doc = { children: [1] };
 		expect((ctx.document as never as { children: unknown[] }).children).toHaveLength(1);
 	});
@@ -59,7 +75,7 @@ describe('createEditorPluginContexts', () => {
 			...deps({ children: [] }),
 			getPresentationMode: () => mode
 		});
-		const ctx = ctxs.get('p');
+		const ctx = ctxs.get('p')!;
 		expect(ctx.presentationMode).toBe('source');
 		mode = 'reading';
 		expect(ctx.presentationMode).toBe('reading');
@@ -185,6 +201,39 @@ describe('createEditorPluginContexts', () => {
 
 		// Identity, not shape: a per-context copy would break the "one door" contract.
 		expect(received).toBe(rects);
-		expect(ctxs.get('measurer').rects).toBe(rects);
+		expect(ctxs.get('measurer')!.rects).toBe(rects);
+	});
+});
+
+describe('activation scopes an instance to the plugins it listed', () => {
+	it('attachAll runs only the listed plugin hooks', () => {
+		const attached: string[] = [];
+		installPair(attached);
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			activation: activationFor(['alpha'])
+		});
+		ctxs.attachAll(() => {});
+		expect(attached).toEqual(['alpha']);
+	});
+
+	it('an instance that listed nothing runs every installed hook', () => {
+		const attached: string[] = [];
+		installPair(attached);
+		const ctxs = createEditorPluginContexts(deps({ children: [] }));
+		ctxs.attachAll(() => {});
+		expect(attached).toEqual(['alpha', 'beta']);
+	});
+
+	it('get() resolves the listed plugin and nothing for the unlisted one', () => {
+		installPair([]);
+		const ctxs = createEditorPluginContexts({
+			...deps({ children: [] }),
+			activation: activationFor(['alpha'])
+		});
+		expect(ctxs.get('alpha')).toBeDefined();
+		expect(ctxs.get('beta')).toBeUndefined();
+		// The empty name is the instance's own base context, never a plugin, so it survives.
+		expect(ctxs.get('')).toBeDefined();
 	});
 });

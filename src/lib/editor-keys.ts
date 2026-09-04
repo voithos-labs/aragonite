@@ -15,6 +15,7 @@ import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
+import type { PluginActivation } from './schema/plugin-activation';
 import type { CrossBlockCommandRouter } from './schema/block-commands';
 import type { EditorRects } from './editor-rects';
 import type { EditorEvents } from './editor-events';
@@ -54,7 +55,8 @@ export type PresentationModeGetter = () => PresentationMode;
 /** The editor's theme name, as reflected to `data-editor-theme`. An open string:
  *  built-ins are `'dark'`/`'light'`, and a consumer may name its own. */
 export type ThemeGetter = () => string;
-export type PluginEditorLookup = (pluginName: string) => EditorContext;
+/** `undefined` for a plugin installed in the process that this instance did not activate. */
+export type PluginEditorLookup = (pluginName: string) => EditorContext | undefined;
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
 export type DocumentGetter = () => Document;
 export type FocusedPathGetter = () => number[] | null;
@@ -143,6 +145,9 @@ export interface EditorServices {
 	/** The instance's resolution over the global block definitions, so a per-instance
 	 *  enablement filter reaches the render path. */
 	registryView: RegistryView;
+	/** The plugins this instance activated, so a paste site scopes the transform pipeline
+	 *  the way `registryView` scopes the kinds. */
+	activePlugins: PluginActivation;
 	/** The instance's rect surface, delivered to every block component as a prop
 	 *  so a block can measure/reveal/scroll by path through the one seam. */
 	rects: EditorRects;

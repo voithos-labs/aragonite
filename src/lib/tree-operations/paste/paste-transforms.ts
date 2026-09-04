@@ -3,6 +3,7 @@
  * rewrites the raw clipboard text or declines. Register-once, throw-on-duplicate — the
  * `customElements` model shared with `paste-surfaces.ts`.
  */
+import type { PluginActivation } from '../../schema/plugin-activation';
 import { currentInstallingPlugin } from '../../schema/plugin-install';
 import { registerOnce } from '../../schema/register-once';
 import { devWarn } from '../../dev-warn';
@@ -45,12 +46,14 @@ export function isPasteTransformRegistered(name: string): boolean {
 
 /**
  * Run every transform over `text` in registration order, each seeing the prior's output;
- * a null return leaves the running text untouched.
+ * a null return leaves the running text untouched. `activation` scopes the run to one
+ * instance's plugins; absent = every installed one. A transform no plugin owns always runs.
  */
-export function applyPasteTransforms(text: string): string {
+export function applyPasteTransforms(text: string, activation?: PluginActivation): string {
 	if (transforms.size === 0) return text;
 	let result = text;
-	for (const { transform } of transforms.values()) {
+	for (const { transform, owner } of transforms.values()) {
+		if (owner !== null && activation && !activation.isActive(owner)) continue;
 		const next = runContained(transform, result, 'pipeline');
 		if (next === null) continue;
 		warnIfNonIdempotent(transform, next);

@@ -10,6 +10,7 @@ import {
 	installPlugins,
 	__resetInstalledPluginsForTests
 } from '../../../schema/plugin-install';
+import { activationFor } from '../../../schema/plugin-activation';
 import { allowDevWarns, takeDevWarns } from '../../support/warn-gate';
 
 // The ordering fixtures append unconditionally, so the dev idempotence probe warns on them;
@@ -137,5 +138,36 @@ describe('paste-transforms containment', () => {
 		expect(takeDevWarns().map((w) => w.message)).toContainEqual(
 			expect.stringContaining("'grows' is not idempotent")
 		);
+	});
+});
+
+describe('per-instance activation over the transform pipeline', () => {
+	beforeEach(() => {
+		__resetPasteTransformsForTests();
+		__resetInstalledPluginsForTests();
+	});
+
+	/** Installs `name`, whose setup registers a transform appending `suffix`. */
+	function installTransformPlugin(name: string, suffix: string): void {
+		installPlugins([
+			definePlugin({ name, setup: () => registerPasteTransform(appending(name, suffix)) })
+		]);
+	}
+
+	it('runs only the transforms of the plugins an instance listed', () => {
+		installTransformPlugin('listed', '-1');
+		installTransformPlugin('unlisted', '-2');
+		expect(applyPasteTransforms('seed', activationFor(['listed']))).toBe('seed-1');
+	});
+
+	it('runs every installed transform when the instance passes no activation', () => {
+		installTransformPlugin('listed', '-1');
+		installTransformPlugin('unlisted', '-2');
+		expect(applyPasteTransforms('seed')).toBe('seed-1-2');
+	});
+
+	it('never gates a transform no plugin owns', () => {
+		registerPasteTransform(appending('ownerless', '!'));
+		expect(applyPasteTransforms('seed', activationFor([]))).toBe('seed!');
 	});
 });

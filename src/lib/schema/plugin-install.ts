@@ -143,7 +143,7 @@ export function pluginKindOwner(kind: string): string | null {
 /** The per-instance EditorContext of the plugin owning `kind`. The `''` miss arm hands an
  *  unowned kind the base per-instance context, so the leaf and container tiers resolve alike. */
 export function owningPluginEditor(
-	pluginEditor: ((pluginName: string) => EditorContext) | undefined,
+	pluginEditor: ((pluginName: string) => EditorContext | undefined) | undefined,
 	kind: string
 ): EditorContext | undefined {
 	return pluginEditor?.(pluginKindOwner(kind) ?? '');

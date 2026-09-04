@@ -53,6 +53,25 @@ describe('registerGlobalCommand', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 
+	// A plugin installed process-wide but absent from this editor's `plugins` prop resolves no
+	// context here. That is inert, not a dead key, so it must not spend the dead-key diagnostic.
+	it('declines quietly when the dispatching editor did not list the owning plugin', () => {
+		__resetInstalledPluginsForTests();
+		let ran = false;
+		let id!: ReturnType<typeof registerGlobalCommand>;
+		installPlugins([
+			definePlugin({
+				name: 'scoped',
+				setup() {
+					id = registerGlobalCommand('scoped.act', () => ((ran = true), true));
+				}
+			})
+		]);
+		expect(getCommand(id)!(ctx({ pluginEditor: () => undefined }))).toBe(false);
+		expect(ran).toBe(false);
+		expect(takeDevWarns()).toEqual([]);
+	});
+
 	it('contains a handler throw and reports it through the injected sink', () => {
 		const reports: unknown[] = [];
 		const id = registerGlobalCommand('demo.boom', () => {

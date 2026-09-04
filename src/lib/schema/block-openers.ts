@@ -106,15 +106,18 @@ function orderedEntries(): readonly [AnyBlockKind, BlockOpener][] {
  * per instance; absent = all definitions, cached. Built-ins are never filtered.
  */
 export function getOrderedOpeners(isEnabled?: OpenerEnablement): readonly BlockOpener[] {
+	const entries = consumedEntries();
+	if (isEnabled) return entries.filter(([kind]) => isEnabled(kind)).map(([, opener]) => opener);
+	if (!orderedCache) orderedCache = entries.map(([, opener]) => opener);
+	return orderedCache;
+}
+
+// The seam every ordered read passes: pending registrations validate before the read, and
+// flush-before-mark keeps a registrant racing the first read out of the late-opener warn (G1.17).
+function consumedEntries(): readonly [AnyBlockKind, BlockOpener][] {
 	if (hasPendingRegistrationChecks()) flushPendingRegistrationChecks();
 	markGrammarConsumed();
-	if (isEnabled) {
-		return orderedEntries()
-			.filter(([kind]) => isEnabled(kind))
-			.map(([, opener]) => opener);
-	}
-	if (!orderedCache) orderedCache = orderedEntries().map(([, opener]) => opener);
-	return orderedCache;
+	return orderedEntries();
 }
 
 /**
@@ -149,11 +152,20 @@ export const defaultGrammarView: GrammarView = {
 	orderedOpeners: () => getOrderedOpeners()
 };
 
-// TODO(limestone): the filtered read re-sorts per call where the default view is cached.
-// Memoize per-view with registration-invalidation before the public enablement API ships.
 export function createGrammarView(isEnabled: OpenerEnablement): GrammarView {
+	// A reparse reads this per block, so the filtered list is memoized on the global ordering's
+	// identity: a later registration replaces that array, which rebuilds the filter.
+	let builtFrom: readonly [AnyBlockKind, BlockOpener][] | null = null;
+	let filtered: readonly BlockOpener[] = [];
 	return {
-		orderedOpeners: () => getOrderedOpeners(isEnabled)
+		orderedOpeners() {
+			const entries = consumedEntries();
+			if (entries !== builtFrom) {
+				builtFrom = entries;
+				filtered = entries.filter(([kind]) => isEnabled(kind)).map(([, opener]) => opener);
+			}
+			return filtered;
+		}
 	};
 }
 

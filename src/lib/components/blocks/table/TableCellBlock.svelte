@@ -120,6 +120,7 @@
 		getDoc,
 		getBlockElByPath,
 		getEditorRoot,
+		activePlugins,
 		events: editorEvents,
 		linkRef
 	} = wiring.deps;
@@ -935,6 +936,7 @@
 				doc: getDoc(),
 				blockEdit,
 				controller: pasteCoordinator,
+				activePlugins,
 				// The delete half is a join like any other, and a cell's is no more literal than a
 				// paragraph's: without the seam a live cut pastes the runs it stranded into view.
 				seam: { presentationMode, linkRef }

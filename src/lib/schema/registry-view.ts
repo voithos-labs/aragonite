@@ -3,10 +3,9 @@
  * § Schema registries). The default view resolves every kind VERBATIM, so an editorless `parse()`
  * and every bare component mount stay byte-identical. An `isEnabled` view resolves no component
  * for a disabled plugin kind and drops its opener; the DESCRIPTOR is never filtered, since a
- * disabled kind still needs it to degrade rather than throw.
+ * disabled kind still needs it to degrade rather than throw. The `plugins` prop sources the
+ * predicate: `plugin-activation.ts` turns an instance's listed set into one.
  */
-// TODO(limestone): public enablement prop — the predicate that sources enablement
-// has no public door yet; it firms up with limestone (docs/design/plugin-contract.md).
 import { isBuiltinBlockKind, type AnyBlockKind } from '../core/nodes';
 import { getBlockComponent, type BlockComponentEntry } from './block-component-registry';
 import {
@@ -27,6 +26,17 @@ export interface RegistryView {
 	tryDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined;
 	/** The block grammar this instance parses through (`parse(source, { grammar })`). */
 	grammar: GrammarView;
+}
+
+/** Both predicates must admit the kind, so a second filter can only narrow the first.
+ *  An absent side admits everything. */
+export function bothEnable(
+	a: KindEnablement | undefined,
+	b: KindEnablement | undefined
+): KindEnablement | undefined {
+	if (!a) return b;
+	if (!b) return a;
+	return (kind) => a(kind) && b(kind);
 }
 
 export function createRegistryView(opts?: { isEnabled?: KindEnablement }): RegistryView {

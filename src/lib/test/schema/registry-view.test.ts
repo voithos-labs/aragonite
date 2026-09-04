@@ -8,7 +8,7 @@ import {
 	type BlockComponentEntry
 } from '$lib/schema/block-component-registry';
 import { registerBlockOpener, type BlockOpener } from '$lib/schema/block-openers';
-import { createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
+import { bothEnable, createRegistryView, defaultRegistryView } from '$lib/schema/registry-view';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 import type { AnyBlockKind, PluginBlockKind } from '$lib/core/nodes';
@@ -99,5 +99,24 @@ describe('enablement filter', () => {
 		expect(builtinOpenerCount).toBeGreaterThan(0);
 		// The plugin kind IS disabled by the same predicate.
 		expect(disableEverything.component(kind)).toBeUndefined();
+	});
+});
+
+// The second filter is the harness door layered over the instance's own activation, so it must
+// only ever narrow: a door that widened would prove a resolution the shipped path cannot reach.
+describe('bothEnable', () => {
+	const admitsAll = () => true;
+	const admitsNone = () => false;
+
+	it('admits a kind only when both sides do', () => {
+		expect(bothEnable(admitsAll, admitsNone)!('paragraph')).toBe(false);
+		expect(bothEnable(admitsNone, admitsAll)!('paragraph')).toBe(false);
+		expect(bothEnable(admitsAll, admitsAll)!('paragraph')).toBe(true);
+	});
+
+	it('passes a lone predicate through, and undefined for neither', () => {
+		expect(bothEnable(admitsNone, undefined)).toBe(admitsNone);
+		expect(bothEnable(undefined, admitsNone)).toBe(admitsNone);
+		expect(bothEnable(undefined, undefined)).toBeUndefined();
 	});
 });

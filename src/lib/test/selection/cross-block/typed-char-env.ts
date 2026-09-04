@@ -104,6 +104,7 @@ export function makeHandlers(
 		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
 		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
 		grammar: opts.grammar,
+		activePlugins: undefined,
 		events: env.events,
 		getCursorOffset: opts.getCursorOffset ?? (() => 0),
 		afterReactivity: async () => {}

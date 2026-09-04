@@ -23,6 +23,7 @@ import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { defaultRegistryView } from '$lib/schema/registry-view';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
@@ -89,6 +90,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		reorder: {} as EditorServices['reorder'],
 		reorderAnnounce: () => {},
 		registryView: defaultRegistryView,
+		activePlugins: everyInstalledPlugin,
 		rects: {} as EditorServices['rects'],
 		// Real, and inert: a bare mount has no cross-block range, so every arm answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false }

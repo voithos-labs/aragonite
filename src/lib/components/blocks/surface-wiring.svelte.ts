@@ -43,6 +43,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'getKeybindingOverrides'
 	| 'pasteCoordinator'
 	| 'grammar'
+	| 'activePlugins'
 	| 'events'
 	| 'linkRef'
 	| 'onCommandError'
@@ -67,6 +68,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		edgeAffinity,
 		selection,
 		registryView,
+		activePlugins,
 		events,
 		crossBlockCommands
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
@@ -99,6 +101,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		getKeybindingOverrides: keybindingOverrides,
 		pasteCoordinator,
 		grammar: registryView.grammar,
+		activePlugins,
 		events,
 		linkRef,
 		crossBlockCommands,

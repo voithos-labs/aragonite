@@ -24,6 +24,7 @@ import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
 import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
+import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { isReadingMode } from '../../presentation-mode';
 import { performCrossBlockDelete } from './ops';
@@ -71,6 +72,9 @@ export interface CrossBlockDispatchContext {
 	/** Block grammar forwarded to the join-paste reparse. Required-nullable like `pluginEditor`
 	 *  so a new construction site can't silently skip the thread; `undefined` = global. */
 	grammar: GrammarView | undefined;
+	/** The plugins this instance activated, forwarded to the paste-transform pipeline.
+	 *  Required-nullable like `grammar`; `undefined` means every installed plugin. */
+	activePlugins: PluginActivation | undefined;
 	/** The instance event surface, the paste arm's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;
