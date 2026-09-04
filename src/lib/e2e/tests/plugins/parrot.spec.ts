@@ -36,6 +36,36 @@ class ParrotPage extends PluginsPage {
 		await expect(this.source).toBeFocused();
 	}
 
+	/** The rendered caption's TEXT box, not the div's: the div spans the block width, so a
+	 *  fraction of it lands past the last glyph. */
+	async captionTextBox(): Promise<{ x: number; y: number; width: number; height: number }> {
+		return this.page.evaluate(() => {
+			const range = document.createRange();
+			range.selectNodeContents(document.querySelector('.parrot-caption')!);
+			const { x, y, width, height } = range.getBoundingClientRect();
+			return { x, y, width, height };
+		});
+	}
+
+	/** Collapsed caret offset within the revealed source's single text node, or null. */
+	async sourceCaretOffset(): Promise<number | null> {
+		return this.page.evaluate(() => {
+			const el = document.querySelector('.parrot-source');
+			const selection = window.getSelection();
+			if (!el || !selection || selection.rangeCount === 0) return null;
+			const range = selection.getRangeAt(0);
+			return el.contains(range.startContainer) ? range.startOffset : null;
+		});
+	}
+
+	/** Press that far across the caption's text and report where the reveal put the caret. */
+	async revealByClickAcross(fraction: number): Promise<number | null> {
+		const box = await this.captionTextBox();
+		await this.page.mouse.click(box.x + box.width * fraction, box.y + box.height / 2);
+		await expect(this.source).toBeFocused();
+		return this.sourceCaretOffset();
+	}
+
 	/** Leave the block downward into `After`; the fold is the blur, so the source unmounts. */
 	async leaveDownward(): Promise<void> {
 		await this.page.keyboard.press('ArrowDown');
@@ -75,6 +105,33 @@ test.describe('the bundled party parrot', () => {
 		await editor.revealByClick();
 		await expect(editor.source).toHaveText('%%parrot party responsibly');
 		await expect(editor.caption).toHaveCount(0);
+		expect(await editor.bridge.getSource()).toBe(SEED);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('a press in the caption reveals at the character pressed, not at the line start', async ({
+		page
+	}) => {
+		const early = await editor.revealByClickAcross(0.25);
+		await editor.leaveDownward();
+		const late = await editor.revealByClickAcross(0.75);
+
+		// Ordered rather than byte-exact: a rect-derived x lands on whichever side of a glyph the
+		// font metrics put it. Both past the marker, and the righter press further along — which a
+		// landing that ignores the point cannot satisfy, since that one is 0 every time.
+		expect(early).toBeGreaterThan('%%parrot '.length);
+		expect(late!).toBeGreaterThan(early!);
+		expect(await editor.bridge.getSource()).toBe(SEED);
+		expect(await capturedErrors(page)).toEqual([]);
+	});
+
+	test('a press on the bird reveals the source too', async ({ page }) => {
+		const box = (await editor.frame.boundingBox())!;
+
+		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
+		await expect(editor.source).toHaveCount(1);
+		await expect(editor.source).toBeFocused();
 		expect(await editor.bridge.getSource()).toBe(SEED);
 		expect(await capturedErrors(page)).toEqual([]);
 	});

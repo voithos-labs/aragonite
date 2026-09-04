@@ -75,6 +75,30 @@ import ParrotBlock from './ParrotBlock.svelte';
 
 export const PARROT = 'parrot';
 
+/** The character offset under a point in one of the block's two views, clamped into that
+ *  view's box so a press on the bird above it still names one. Each holds a single text node. */
+function offsetAtPoint(view: HTMLElement, clientX: number, clientY: number): number {
+	const box = view.getBoundingClientRect();
+	const x = Math.min(Math.max(clientX, box.left + 1), box.right - 1);
+	const y = Math.min(Math.max(clientY, box.top + 1), box.bottom - 1);
+	const doc = view.ownerDocument;
+	// caretRangeFromPoint is the Chromium/WebKit spelling, caretPositionFromPoint the standard one.
+	const range = doc.caretRangeFromPoint?.(x, y);
+	if (range && view.contains(range.startContainer)) return range.startOffset;
+	const position = doc.caretPositionFromPoint?.(x, y);
+	return position && view.contains(position.offsetNode) ? position.offset : 0;
+}
+
+/** Where a press in the block puts the caret. The caption renders the bytes after `%%parrot `,
+ *  so an offset in it sits that far along the source; the revealed source IS the source. */
+function parrotCaretAtPoint(blockEl: HTMLElement, clientX: number, clientY: number) {
+	const source = blockEl.querySelector<HTMLElement>('.parrot-source');
+	const view = source ?? blockEl.querySelector<HTMLElement>('.parrot-caption');
+	if (!view) return null;
+	const offset = offsetAtPoint(view, clientX, clientY);
+	return { path: [], offset: source ? offset : offset + '%%parrot '.length };
+}
+
 function registerParrotBlock(): void {
 	const parrot = declarePluginKind(PARROT);
 
@@ -84,6 +108,7 @@ function registerParrotBlock(): void {
 		editable: true,
 		supportsInline: false,
 		conformanceFixture: '%%parrot party responsibly\n',
+		caretTargetAtPoint: parrotCaretAtPoint,
 		closure: simpleLeafClosure({
 			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
 			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
@@ -119,7 +144,7 @@ The object you handed `registerBlockKind` is the kind's **descriptor**. Three of
 - `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](#the-closure-block) explains every cell.
 - `conformanceFixture` is the one optional field of the three. Supplying it enrolls your kind in the conformance kit, a bundled suite of checks every registered kind is run through ([plugin-testing.md](plugin-testing.md)).
 
-The rest read as they sound. On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](#what-an-opener-returns)).
+The rest read as they sound, bar one. `caretTargetAtPoint` is where a click inside your block puts the caret: the rendered view and the source are different strings, and only your kind knows how the two line up, so a kind that names nothing reveals its source at the first byte. On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](#what-an-opener-returns)).
 
 **Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; the walkthrough later builds one). `createEditableLeaf` hands a leaf a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection, and clipboard. The parrot asks for it in `render-primary` mode, where the caption is what you see at rest and the source line only shows while the caret is in the block. One spread wires each of the two views. The parrot itself is ordinary **chrome** (a block's furniture, as opposed to its content) that the component owns, animated on an ordinary interval.
 
@@ -220,7 +245,7 @@ cNo.....................................oc
 	export const insertMarkdown = leaf.insertMarkdown;
 </script>
 
-<div class="parrot-block">
+<div class="parrot-block" {...leaf.renderProps}>
 	<pre class="parrot" style:color aria-hidden="true">{frame}</pre>
 	{#if revealed}
 		<div
@@ -235,7 +260,6 @@ cNo.....................................oc
 			role="button"
 			tabindex="-1"
 			aria-label="Party parrot caption (click to edit)"
-			{...leaf.renderProps}
 		>
 			{caption}
 		</div>
@@ -269,7 +293,7 @@ cNo.....................................oc
 </style>
 ```
 
-The editing half is the factory call, the `revealed` flag, two spreads, and one-line re-exports of what the factory returns. The flag is yours to own. The factory flips it on through `setRevealed` when a click or an arrow lands in the block, and off again when the caret leaves; the `{#if}` swaps on it. `surfaceProps` goes on the source line, `renderProps` on the caption, and you spread both (a caption wired for the click alone swallows undo while it holds focus). `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The commit happens when the caret leaves. Reveal, type, arrow out, and that's one undo entry. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`. It does owe the document one thing, which every block wider than the text column owes: scroll inside your own box (`overflow-x: auto`, same as a code block or a table). The editor root scrolls, so an uncontained block pans the whole page sideways and takes the prose with it. The raw only changes when the caret leaves, not per keystroke, and the caption follows it. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap`, for a reason [The editable leaf](#the-editable-leaf) explains. The parrot's can't span lines, since its opener claims one, so it says so with `singleLine: true` and skips the CSS. Enter in a block like that ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
+The editing half is the factory call, the `revealed` flag, two spreads, and one-line re-exports of what the factory returns. The flag is yours to own. The factory flips it on through `setRevealed` when a click or an arrow lands in the block, and off again when the caret leaves; the `{#if}` swaps on it. `surfaceProps` goes on the source line and `renderProps` on the block wrapper, so the bird is part of the click target and not just the caption; spread both (a folded view wired for the click alone swallows undo while it holds focus). `focus`, `getCursorOffset`, `editable` and `focusable` are the four every block component must have, and the other seven are what let `insertMarkdown`, `runCommand`, and a selection landing reach your block, so keep them. The commit happens when the caret leaves. Reveal, type, arrow out, and that's one undo entry. The parrot half never touches the editor. The `<pre>` and the interval are the component's own business, and the caption reads straight off `node.raw`. It does owe the document one thing, which every block wider than the text column owes: scroll inside your own box (`overflow-x: auto`, same as a code block or a table). The editor root scrolls, so an uncontained block pans the whole page sideways and takes the prose with it. The raw only changes when the caret leaves, not per keystroke, and the caption follows it. One more thing a leaf owes: if its bytes can span lines, its source element needs `white-space: pre-wrap`, for a reason [The editable leaf](#the-editable-leaf) explains. The parrot's can't span lines, since its opener claims one, so it says so with `singleLine: true` and skips the CSS. Enter in a block like that ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
 **Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships in the package, as `@voithos-labs/aragonite/plugins/parrot`, and a test keeps the shipped files identical to the fences above, so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
 
@@ -1093,7 +1117,7 @@ A leaf whose bytes are one line (an opener that claims a single line, like the p
 Beyond the spread you add only your own `class` / `aria-label`, plus **`bind:this` in both modes**: the factory reaches your element only through `getEl()`, so both modes read it the same way, and they differ only in that render-primary's `getEl()` returns null while the view is folded. The two modes:
 
 - **`'plain'`**: the source is always the editable view, and every keystroke commits to the tree (with prose-like undo batching). The spread's sync mirrors external rewrites (an undo, a structural replace) into the source and gates `contenteditable` off the mode, so the always-mounted surface goes inert in reading mode; the factory owns the Chromium trailing-newline caret quirk and the caret restore.
-- **`'render-primary'`**: a rendered view by default, where focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once**, so the whole reveal, edit, blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering; there are two spreads, `surfaceProps` for the source and `renderProps` for the folded view. Spread both: the folded view owes the reveal click AND the chord dispatch, and one wired for the click alone swallows undo while it holds focus. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it.
+- **`'render-primary'`**: a rendered view by default, where focus, click, or arrow-traversal reveals the raw source in your contenteditable, and leaving it commits **once**, so the whole reveal, edit, blur cycle is one undo entry. You own the swap flag (`isRevealed` / `setRevealed`) and both views' rendering; there are two spreads, `surfaceProps` for the source and `renderProps` for the folded view. Spread both: the folded view owes the reveal click AND the chord dispatch, and one wired for the click alone swallows undo while it holds focus. `renderProps` may sit on a wrapper the reveal never unmounts, since both handlers stand down while the source is up, which is how the whole folded surface (your chrome included) becomes one click target. Where in the source that click lands is your kind's `caretTargetAtPoint`; declare none and every click reveals at the first byte. A fold writes back only the bytes the reveal opened over, so an undo or a `source` swap that lands a different block at the index declines the write rather than corrupting it.
 
 **Commit semantics.** A commit parses the edited text and lands it through the editor's own edit ladder:
 

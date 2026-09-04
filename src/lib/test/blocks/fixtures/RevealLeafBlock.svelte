@@ -35,11 +35,14 @@
 	export const getCursorOffset = leaf.getCursorOffset;
 </script>
 
-{#if revealed}
-	<div bind:this={sourceEl} {...leaf.surfaceProps} class="reveal-leaf-source"></div>
-{:else}
-	<div class="reveal-leaf-render" {...leaf.renderProps}>{node.raw}</div>
-{/if}
+<!-- The spread sits on a wrapper the fold keeps, the shape the guide documents. -->
+<div class="reveal-leaf-block" {...leaf.renderProps}>
+	{#if revealed}
+		<div bind:this={sourceEl} {...leaf.surfaceProps} class="reveal-leaf-source"></div>
+	{:else}
+		<div class="reveal-leaf-render">{node.raw}</div>
+	{/if}
+</div>
 
 <style>
 	.reveal-leaf-source {

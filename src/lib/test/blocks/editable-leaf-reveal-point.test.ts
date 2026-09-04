@@ -2,7 +2,8 @@
 //
 // Miss-analysis: every render-primary case drove the reveal through `parkCaret`, which is handed
 // an offset, so nothing exercised the one entry that has to COMPUTE one and the hardcoded 0 the
-// click handler passed was never read back.
+// click handler passed was never read back; and no fixture ever spread `renderProps` anywhere the
+// fold kept, so both handlers re-firing on the way up from the revealed source went unseen.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import RevealLeafBlock from './fixtures/RevealLeafBlock.svelte';
@@ -43,12 +44,14 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 	const host = document.createElement('div');
 	host.setAttribute('data-block-path', '[0]');
 	document.body.appendChild(host);
+	const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
 
 	const instance = mount(RevealLeafBlock, {
 		target: host,
 		props: { node, index: 0, myPath: [0] },
 		context: editorMountContext({
 			blockEdit: makeStubBlockEdit(),
+			history,
 			doc: { doc: () => doc, blockElLookup: () => host.firstElementChild as HTMLElement }
 		})
 	});
@@ -57,6 +60,15 @@ function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint'
 	return {
 		instance,
 		host,
+		history,
+		/** Reveal the source with the caret at the end of the block's bytes. */
+		revealAtEnd: async () => {
+			instance.parkCaret(RAW.length - 1);
+			await flush();
+			const el = host.querySelector<HTMLElement>('.reveal-leaf-source');
+			expect(el, 'the reveal mounted no source element').not.toBeNull();
+			return el!;
+		},
 		/** Press on the folded view at a viewport point, then settle the reveal it opens. */
 		clickRendered: async (clientX: number, clientY: number) => {
 			const rendered = host.querySelector<HTMLElement>('.reveal-leaf-render');
@@ -115,5 +127,32 @@ describe('a reveal click on a render-primary leaf', () => {
 		await mounted.clickRendered(40, 12);
 
 		expect(mounted.instance.getCursorOffset()).toBe(0);
+	});
+});
+
+describe('the folded surface’s spread while the source is up', () => {
+	it('leaves a press inside the source to the source', async () => {
+		const hook = vi.fn(() => ({ path: [], offset: 3 }));
+		mounted = mountLeaf(hook);
+		const source = await mounted.revealAtEnd();
+
+		source.dispatchEvent(
+			new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: 40, clientY: 12 })
+		);
+		await flush();
+
+		expect(hook).not.toHaveBeenCalled();
+	});
+
+	it('spends a chord from the source once, not twice on the way up', async () => {
+		mounted = mountLeaf();
+		const source = await mounted.revealAtEnd();
+
+		source.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true })
+		);
+		await flush();
+
+		expect(mounted.history.requestUndo).toHaveBeenCalledTimes(1);
 	});
 });

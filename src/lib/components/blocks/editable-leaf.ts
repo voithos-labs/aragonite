@@ -101,7 +101,8 @@ export interface EditableLeafSurfaceProps {
 /**
  * The one-spread rendered surface: `<div {...leaf.renderProps}>` on a render-primary block's
  * FOLDED view. One bundle rather than a handler apiece, because a rendered view wired for the
- * reveal click alone swallows every chord while it holds focus — undo included.
+ * reveal click alone swallows every chord while it holds focus — undo included. Both entries
+ * stand down while the source is up, so the spread may sit on a wrapper the fold keeps.
  */
 export interface EditableLeafRenderProps {
 	/** Reveal-on-click (shift-click extends a selection instead). */
@@ -498,9 +499,15 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		void revealKernel.reveal(revealOffsetAt(e));
 	}
 
+	// The revealed source owns the press and has already spent the chord, so a spread the fold
+	// does not unmount must not re-run either on the way up.
 	const renderProps: EditableLeafRenderProps = {
-		onpointerdown: onRenderPointerDown,
-		onkeydown: (e) => void dispatchChord(e)
+		onpointerdown: (e) => {
+			if (!isRevealed()) onRenderPointerDown(e);
+		},
+		onkeydown: (e) => {
+			if (!isRevealed()) void dispatchChord(e);
+		}
 	};
 
 	// ── Source surface bundle ────────────────────────────────────────────────────

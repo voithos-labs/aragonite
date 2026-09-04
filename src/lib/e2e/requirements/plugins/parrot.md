@@ -20,6 +20,10 @@ target).
 - Click reveals: a click on the caption mounts `.parrot-source` holding the whole line,
   marker included, with the caret in it, and unmounts the caption; the bytes are
   untouched (a view toggle).
+- Click position: the reveal seats the caret at the character pressed, past the marker,
+  and a press further right along the caption lands further along the source.
+- Click the bird: the whole folded block is the reveal target, so a press on the ASCII
+  art reveals the source with the caret in it, bytes untouched.
 - Edit and leave: typed characters stay in the source line until the caret leaves the
   block (ArrowDown into `After`); the leave folds the source, the caption shows the new
   text, and the document holds the typed bytes, round-trip stable.
@@ -73,6 +77,10 @@ target).
 - Enter: every parrot case typed into the caption and left by arrow or click, so no test
   ever pressed Enter in the block, and the leaf factory's own cases were all written
   against multi-line kinds where the newline Enter inserts is visible and wanted.
+- Click position: every reveal case asserted only that the source mounted, so the offset the
+  click handler passed was never read back and a hardcoded 0 satisfied all of them.
+- The bird: no scenario ever pressed anywhere in the block but the caption, so the half of
+  the folded view carrying no handler was never asked to do anything.
 - Containment: every scenario ran at the config's pinned 1280 viewport, where the widest
   frame still fits the text column, so no test ever put a block beside a column narrower
   than its own content and the sideways pan only ever showed on a phone.

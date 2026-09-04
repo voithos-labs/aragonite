@@ -253,7 +253,7 @@ cNd.........................................;lOc
 	export const insertMarkdown = leaf.insertMarkdown;
 </script>
 
-<div class="parrot-block">
+<div class="parrot-block" {...leaf.renderProps}>
 	<pre class="parrot" style:color aria-hidden="true">{frame}</pre>
 	{#if revealed}
 		<div
@@ -268,7 +268,6 @@ cNd.........................................;lOc
 			role="button"
 			tabindex="-1"
 			aria-label="Party parrot caption (click to edit)"
-			{...leaf.renderProps}
 		>
 			{caption}
 		</div>
