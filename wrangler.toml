@@ -5,7 +5,12 @@ compatibility_date = "2026-08-20"
 
 # The domain lives here rather than in the dashboard, so a deploy target is reviewable in a
 # diff like everything else. Cloudflare must already hold the zone for `aragonite.dev`.
-routes = [{ pattern = "aragonite.dev", custom_domain = true }]
+# Both hostnames are bound because a custom domain serves exactly the name it is given, and
+# people type `www.` whatever the link says.
+routes = [
+  { pattern = "aragonite.dev", custom_domain = true },
+  { pattern = "www.aragonite.dev", custom_domain = true }
+]
 
 [assets]
 directory = "./build"
