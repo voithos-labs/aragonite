@@ -3,6 +3,10 @@
 name = "aragonite"
 compatibility_date = "2026-08-20"
 
+# The domain lives here rather than in the dashboard, so a deploy target is reviewable in a
+# diff like everything else. Cloudflare must already hold the zone for `aragonite.dev`.
+routes = [{ pattern = "aragonite.dev", custom_domain = true }]
+
 [assets]
 directory = "./build"
 # Not `single-page-application`: that answers 200 and would have crawlers index every
