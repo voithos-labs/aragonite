@@ -39,6 +39,7 @@ import { createSourceReveal } from '../../cursor/reveal-source';
 import { traceRevealOpen, traceRevealFold } from '../../debug/interaction-trace';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../core/lines';
 import type { PresentationMode } from '../../presentation-mode';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { type CommandId } from '../../schema/commands';
 import { type BlockCommandContext } from '../../schema/block-commands';
 import { owningPluginEditor } from '../../schema/plugin-install';
@@ -475,6 +476,16 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		void crossBlock.handlePointerDown(e);
 	}
 
+	// The rendered view and the source are different strings, so only the kind can map a point
+	// to a source offset: `caretTargetAtPoint` is that one declaration, and a kind naming none
+	// reveals at the source start. The host, not the component root, is what the hook is bound to.
+	function revealOffsetAt(e: PointerEvent): number {
+		const host = getBlockElByPath(deps.getPath())?.closest('[data-block-path]');
+		if (!(host instanceof HTMLElement)) return 0;
+		const descriptor = tryGetBlockKindDescriptor(deps.getNode().kind);
+		return descriptor?.caretTargetAtPoint?.(host, e.clientX, e.clientY)?.offset ?? 0;
+	}
+
 	function onRenderPointerDown(e: PointerEvent): void {
 		// Shift-click extends a selection; a plain click reveals. Reading mode: no reveal
 		// and no preventDefault, so native selection over the rendered view stays live.
@@ -484,7 +495,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// crossBlock.handlePointerDown: that hit-tests against the SOURCE text, which the
 		// rendered view is not.
 		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
-		void revealKernel.reveal(0);
+		void revealKernel.reveal(revealOffsetAt(e));
 	}
 
 	const renderProps: EditableLeafRenderProps = {
