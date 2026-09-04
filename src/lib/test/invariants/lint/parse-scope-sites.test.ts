@@ -7,7 +7,7 @@
  */
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
+import { balancedCall, collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
 
 /**
  * `core/parser.ts` declares the entry and carries the flag positionally from there;
@@ -27,29 +27,11 @@ const RULE =
 // Kept non-global: a shared /g regex carries `lastIndex` from one scan into the next.
 const CALL_RE = /(?<!function\s)(?<![\w.$])parse\s*\(/;
 
-/** The call's argument text, from the opening paren to its match; quotes skipped. */
-function callArgs(code: string, openParen: number): string {
-	let depth = 0;
-	let quote = '';
-	for (let i = openParen; i < code.length; i++) {
-		const ch = code[i];
-		if (quote) {
-			if (ch === '\\') i++;
-			else if (ch === quote) quote = '';
-			continue;
-		}
-		if (ch === "'" || ch === '"' || ch === '`') quote = ch;
-		else if (ch === '(') depth++;
-		else if (ch === ')' && --depth === 0) return code.slice(openParen + 1, i);
-	}
-	return code.slice(openParen + 1);
-}
-
 export function implicitScopeCalls(file: SourceFile): string[] {
 	const hits: string[] = [];
 	for (const match of file.code.matchAll(new RegExp(CALL_RE, 'g'))) {
-		const openParen = match.index + match[0].length - 1;
-		if (callArgs(file.code, openParen).includes('scope:')) continue;
+		// An unbalanced call reads as silent rather than borrowing the next call's scope.
+		if (balancedCall(file.code, match.index + match[0].length)?.includes('scope:')) continue;
 		const line = file.code.slice(0, match.index).split('\n').length;
 		hits.push(`${file.relPath}:${line}`);
 	}
@@ -85,6 +67,12 @@ describe('G4.27 every parse() call declares its scope', () => {
 		expect(scan('const d = parse(raw);'), RULE).toEqual(['s.ts:1']);
 		expect(scan("const d = parse(raw, { scope: 'fragment' });")).toEqual([]);
 		expect(scan("parse(text, { grammar, scope: 'document' })")).toEqual([]);
+	});
+
+	// Miss-analysis: the private walk tracked quotes but not regex literals, and its own cases only
+	// ever fed it strings, so the argument slot it truncated at one was never read back.
+	it('reads past a paren inside a regex literal', () => {
+		expect(scan("parse(strip(a, /)/), { scope: 'fragment' })")).toEqual([]);
 	});
 
 	it('reads past nested calls and parens inside strings', () => {

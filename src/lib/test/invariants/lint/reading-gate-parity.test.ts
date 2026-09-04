@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { balancedCall, collectEditorSources } from './scan-source';
+import { balancedCall, balancedRegion, collectEditorSources } from './scan-source';
 
 const DISPATCH_TOKENS = [
 	'dispatchKeyCommand(',
@@ -79,14 +79,7 @@ const IDENTIFIER_RE = /^[A-Za-z_$][\w$]*$/;
 /** The object literal a same-file `const <name> = { … }` binds, braces balanced. */
 function namedObjectLiteral(code: string, name: string): string | null {
 	const decl = new RegExp(`\\bconst\\s+${name}\\b[^=]*=\\s*\\{`).exec(code);
-	if (!decl) return null;
-	const open = decl.index + decl[0].length - 1;
-	let depth = 0;
-	for (let i = open; i < code.length; i++) {
-		if (code[i] === '{') depth++;
-		else if (code[i] === '}' && --depth === 0) return code.slice(open, i + 1);
-	}
-	return null;
+	return decl === null ? null : balancedRegion(code, decl.index + decl[0].length - 1);
 }
 
 /**
@@ -146,6 +139,13 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 		expect(balancedCall(code, 'dispatchKeyCommand'.length + 1)).toBe(
 			'chord, ctx(), { getPresentationMode }'
 		);
+	});
+
+	// Miss-analysis: the private brace walk had no literal awareness at all, and every case fed it
+	// a plain literal, so the short region a quoted brace ends was never read for the getter.
+	it('a brace inside a string does not end the literal an argument names', () => {
+		const gated = "const ctx = {\n\tlabel: '}',\n\tgetPresentationMode: () => mode\n};";
+		expect(isThreaded('chord, target, ctx', gated)).toBe(true);
 	});
 
 	it('threaded detection keys on getPresentationMode presence', () => {

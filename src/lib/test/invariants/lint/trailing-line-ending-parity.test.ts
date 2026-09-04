@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+	balancedRegion,
 	callArguments,
 	collectEditorSources,
 	rawAssignments,
@@ -18,29 +19,6 @@ import {
 
 // ── Source extraction ────────────────────────────────────────────────────────
 
-/** From the bracket at `openIdx`, the balanced `(...)`/`{...}` region; strings skipped, regex
- *  literals not — so a slice reaches the literal-aware `callArguments` below lexed twice, which
- *  the content-argument census does not feel today. Local until #225 measures this survivor
- *  against the shared walk. */
-function balancedRegion(code: string, openIdx: number): string {
-	const open = code[openIdx];
-	const close = open === '(' ? ')' : '}';
-	let depth = 0;
-	let quote: string | null = null;
-	for (let i = openIdx; i < code.length; i++) {
-		const c = code[i];
-		if (quote) {
-			if (c === '\\') i++;
-			else if (c === quote) quote = null;
-			continue;
-		}
-		if (c === "'" || c === '"' || c === '`') quote = c;
-		else if (c === open) depth++;
-		else if (c === close && --depth === 0) return code.slice(openIdx, i + 1);
-	}
-	return code.slice(openIdx);
-}
-
 /** The content (2nd) argument of every `updateBlockContent(` call in `code`. */
 function contentArgs(code: string): string[] {
 	const out: string[] = [];
@@ -48,6 +26,7 @@ function contentArgs(code: string): string[] {
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(code)) !== null) {
 		const region = balancedRegion(code, code.indexOf('(', m.index));
+		if (region === null) continue;
 		const args = callArguments(region.slice(1, -1));
 		if (args.length >= 2) out.push(args[1]);
 	}
@@ -86,10 +65,12 @@ function containerRebuilders(sources: SourceFile[]): RebuilderBody[] {
 		let m: RegExpExecArray | null;
 		while ((m = re.exec(f.code)) !== null) {
 			const parenIdx = f.code.indexOf('(', m.index);
-			const afterParams = parenIdx + balancedRegion(f.code, parenIdx).length;
-			const braceIdx = f.code.indexOf('{', afterParams);
-			if (braceIdx === -1) continue;
-			out.push({ relPath: f.relPath, name: m[1], body: balancedRegion(f.code, braceIdx) });
+			const params = balancedRegion(f.code, parenIdx);
+			if (params === null) continue;
+			const braceIdx = f.code.indexOf('{', parenIdx + params.length);
+			const body = braceIdx === -1 ? null : balancedRegion(f.code, braceIdx);
+			if (body === null) continue;
+			out.push({ relPath: f.relPath, name: m[1], body });
 		}
 	}
 	return out;
@@ -103,7 +84,9 @@ function commitInputFunnels(sources: SourceFile[]): CommitFunnel[] {
 		let m: RegExpExecArray | null;
 		while ((m = re.exec(f.code)) !== null) {
 			const body = balancedRegion(f.code, f.code.indexOf('{', m.index));
-			if (/\bupdateBlockContent\s*\(/.test(body)) out.push({ relPath: f.relPath, body });
+			if (body !== null && /\bupdateBlockContent\s*\(/.test(body)) {
+				out.push({ relPath: f.relPath, body });
+			}
 		}
 	}
 	return out;
@@ -387,6 +370,14 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		const found = containerRebuilders([{ relPath: 'x', text: src, code: src }]);
 		expect(found.map((fn) => fn.name)).toEqual(['rebuildXRaw']);
 		expect(found[0].body).toBe('{ node.raw = a + e; }');
+	});
+
+	// Miss-analysis: the private region walk skipped strings but not regex literals, and its cases
+	// only ever fed it strings, so the body it truncated at a regex brace was never read back.
+	it('rebuilder scan reads the body past a brace inside a regex literal', () => {
+		const src = 'function rebuildXRaw(n: P): void { node.raw = a.replace(/}/g, b) + e; }';
+		const found = containerRebuilders([{ relPath: 'x', text: src, code: src }]);
+		expect(found[0].body).toBe('{ node.raw = a.replace(/}/g, b) + e; }');
 	});
 
 	it('ternary matcher flags the longhand copy and passes the seam call', () => {

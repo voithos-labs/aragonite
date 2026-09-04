@@ -115,7 +115,7 @@ export function readEditorFile(relFromEditor: string): SourceFile {
  * and regex literals are stepped over whole, so a bracket, comma or semicolon inside one never
  * reaches a census. Returns the index `visit` stopped at, or `code.length` if it ran out.
  */
-function walkCode(
+export function walkCode(
 	code: string,
 	from: number,
 	visit: (ch: string, index: number) => boolean | void
@@ -395,6 +395,19 @@ export function balancedBlock(code: string, openBraceIndex: number): string | nu
 		else if (ch === '}') return --depth === 0;
 	});
 	return at === code.length ? null : code.slice(openBraceIndex, at);
+}
+
+/** The region from the bracket at `openIndex` to its match, both ends included — the
+ *  {@link balancedCall} walk for a census that reads a whole `(…)` or `{…}` rather than an interior. */
+export function balancedRegion(code: string, openIndex: number): string | null {
+	const open = code[openIndex];
+	const close = open === '(' ? ')' : open === '[' ? ']' : '}';
+	let depth = 0;
+	const at = walkCode(code, openIndex, (ch) => {
+		if (ch === open) depth++;
+		else if (ch === close) return --depth === 0;
+	});
+	return at === code.length ? null : code.slice(openIndex, at + 1);
 }
 
 /** A call's top-level arguments: split on the commas outside every bracket and literal. */

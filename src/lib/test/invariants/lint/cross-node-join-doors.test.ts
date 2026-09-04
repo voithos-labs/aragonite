@@ -8,7 +8,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { callsTo, collectEditorSources, rawAssignments, type SourceFile } from './scan-source';
+import {
+	callsTo,
+	collectEditorSources,
+	rawAssignments,
+	walkCode,
+	type SourceFile
+} from './scan-source';
 
 /** Every file naming the cleaner, and what it joins. */
 const CLEANER_READERS: Record<string, string> = {
@@ -40,27 +46,19 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 /** Operand names that terminate a line rather than contribute a source's bytes. */
 const TERMINATOR = /(ending|Ending|suffix|Suffix|prefix|Prefix|trivia|Trivia)\b/;
 
-/** Top-level `+` operands of `expr`, brackets and string literals respected. */
+/** Top-level `+` operands of `expr`, brackets and every literal respected. */
 function plusOperands(expr: string): string[] {
 	const parts: string[] = [];
 	let depth = 0;
-	let quote: string | null = null;
 	let start = 0;
-	for (let i = 0; i < expr.length; i++) {
-		const ch = expr[i];
-		if (quote) {
-			if (ch === '\\') i++;
-			else if (ch === quote) quote = null;
-			continue;
-		}
-		if (ch === "'" || ch === '"' || ch === '`') quote = ch;
-		else if (ch === '(' || ch === '[' || ch === '{') depth++;
+	walkCode(expr, 0, (ch, i) => {
+		if (ch === '(' || ch === '[' || ch === '{') depth++;
 		else if (ch === ')' || ch === ']' || ch === '}') depth--;
 		else if (ch === '+' && depth === 0 && expr[i + 1] !== '+' && expr[i - 1] !== '+') {
 			parts.push(expr.slice(start, i).trim());
 			start = i + 1;
 		}
-	}
+	});
 	parts.push(expr.slice(start).trim());
 	return parts;
 }
@@ -122,6 +120,12 @@ describe('cross-node join door census', () => {
 		// A `+` inside a call argument or a string is not a top-level operand boundary.
 		expect(joinsSources('marker.repeat(a + b) + lineEnding')).toBe(false);
 		expect(joinsSources("'| ' + cells.join(' | ')")).toBe(false);
+	});
+
+	// Miss-analysis: the private split knew quotes and brackets only, and its own cases fed it
+	// nothing else, so a regex quantifier read as two sources meeting with no test to say so.
+	it('a quantifier inside a regex literal is not an operand boundary', () => {
+		expect(joinsSources('/a+b/.test(head) ? head : head + lineEnding')).toBe(false);
 	});
 
 	it('an undeclared file building a join fails the set equality', () => {
