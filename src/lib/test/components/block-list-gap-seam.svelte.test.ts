@@ -13,13 +13,13 @@ import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import type { WindowResult } from '$lib/reactivity/block-window.svelte';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { editorMountContext } from '../harness/mount-context';
-import { installBlockHostLayoutStubs } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
 
 const BLOCK_COUNT = 6;
 const SLICE_END = 3;
 
 beforeAll(() => {
-	installBlockHostLayoutStubs();
+	installEditorDomStubsForTests();
 	registerBuiltInBlocks();
 });
 

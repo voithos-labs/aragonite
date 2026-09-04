@@ -10,19 +10,16 @@ import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-
 import { createRegistryView } from '$lib/schema/registry-view';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
-import {
-	declareComponentlessKind,
-	installBlockHostLayoutStubs,
-	mountBlockHost
-} from './mount-host';
+import { declareComponentlessKind, mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { allowDevWarns } from '$lib/test/support/warn-gate';
 
 // The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
 afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(() => {
-	installBlockHostLayoutStubs();
+	installEditorDomStubsForTests();
 	registerBuiltInBlocks();
 });
 

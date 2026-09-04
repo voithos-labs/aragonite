@@ -16,6 +16,7 @@ import { createStickyColumnState } from '$lib/cursor/sticky-column';
 import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 
 export interface KeydownEnvOptions {
@@ -32,7 +33,7 @@ export interface KeydownEnvOptions {
 
 export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOptions = {}) {
 	// The extend arms scroll the moved endpoint into view; jsdom has no layout.
-	Element.prototype.scrollIntoView = () => {};
+	installEditorDomStubsForTests();
 	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
 	const controller = createUndoController(harness.deps);
 	const selection = harness.deps.selectionState;

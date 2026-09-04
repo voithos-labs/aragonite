@@ -12,15 +12,6 @@ import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { testClosure } from '$lib/test/support/closure';
 import { editorMountContext, type MountContextOverrides } from '../harness/mount-context';
 
-/** BlockHost's measure effect constructs an observer jsdom does not implement. */
-export function installBlockHostLayoutStubs(): void {
-	(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
-		observe(): void {}
-		unobserve(): void {}
-		disconnect(): void {}
-	};
-}
-
 /** The props a caller sets; the rest are filled in. Pass a `$state` object to
  *  drive a re-dispatch (index shift, byte change) after mount. */
 export interface HostProps {

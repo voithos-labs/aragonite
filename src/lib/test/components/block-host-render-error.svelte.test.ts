@@ -13,14 +13,11 @@ import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import type { CstNode } from '$lib/core/nodes';
 import ThrowingBlock from './fixtures/ThrowingBlock.svelte';
-import {
-	declareComponentlessKind,
-	installBlockHostLayoutStubs,
-	mountBlockHost
-} from './mount-host';
+import { declareComponentlessKind, mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
 
-beforeAll(installBlockHostLayoutStubs);
+beforeAll(installEditorDomStubsForTests);
 
 let mounted: MountedHost | null = null;
 afterEach(async () => {

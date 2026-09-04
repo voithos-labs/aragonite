@@ -14,17 +14,13 @@ import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import SurfacelessBlock from './fixtures/SurfacelessBlock.svelte';
-import {
-	declareComponentlessKind,
-	installBlockHostLayoutStubs,
-	mountBlockHost,
-	type MountedHost
-} from './mount-host';
+import { declareComponentlessKind, mountBlockHost, type MountedHost } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
 
 // The vitest setup registers built-in DESCRIPTORS only, but the container assertions
 // need BlockHost to dispatch a real blockquote.
 beforeAll(() => {
-	installBlockHostLayoutStubs();
+	installEditorDomStubsForTests();
 	registerBuiltInBlocks();
 });
 

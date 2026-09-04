@@ -10,10 +10,11 @@ import { flushSync } from 'svelte';
 import { parse } from '$lib/core/parser';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
-import { installBlockHostLayoutStubs, mountBlockHost, type MountedHost } from './mount-host';
+import { mountBlockHost, type MountedHost } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
 
 beforeAll(() => {
-	installBlockHostLayoutStubs();
+	installEditorDomStubsForTests();
 	registerBuiltInBlocks();
 });
 

@@ -124,8 +124,10 @@ describe('mounting a plugin block through the published surface', () => {
 	});
 });
 
+// Miss-analysis: the seam shipped with no in-repo caller, so nothing ran its install-only-where-
+// absent guard — the internal mount harness force-assigned a copy and never met the published one.
 describe('installEditorDomStubsForTests', () => {
-	it('never clobbers an API the environment already provides', () => {
+	it('keeps a ResizeObserver the environment already provides', () => {
 		class RealResizeObserver {
 			observe(): void {}
 			unobserve(): void {}
@@ -151,6 +153,31 @@ describe('installEditorDomStubsForTests', () => {
 			expect(typeof globals.ResizeObserver).toBe('function');
 		} finally {
 			globals.ResizeObserver = previous;
+		}
+	});
+
+	// The second guard reads a prototype property rather than a global, so it fails on its own.
+	it('keeps a scrollIntoView the environment already provides', () => {
+		const provided = () => {};
+		const previous = Element.prototype.scrollIntoView;
+		Element.prototype.scrollIntoView = provided;
+		try {
+			installEditorDomStubsForTests();
+			expect(Element.prototype.scrollIntoView).toBe(provided);
+		} finally {
+			Element.prototype.scrollIntoView = previous;
+		}
+	});
+
+	it('installs the scroll shim jsdom lacks when it is absent', () => {
+		const proto = Element.prototype as { scrollIntoView?: unknown };
+		const previous = proto.scrollIntoView;
+		delete proto.scrollIntoView;
+		try {
+			installEditorDomStubsForTests();
+			expect(typeof proto.scrollIntoView).toBe('function');
+		} finally {
+			proto.scrollIntoView = previous;
 		}
 	});
 });

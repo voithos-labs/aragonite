@@ -11,15 +11,8 @@ import { ambientLengthOf } from '$lib/ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
 
-/** BlockHost measures its own height and scrolls reveals into view; jsdom has neither. */
-export function installLayoutStubs(): void {
-	(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
-		observe(): void {}
-		unobserve(): void {}
-		disconnect(): void {}
-	};
-	Element.prototype.scrollIntoView = () => {};
-}
+/** Every mount suite runs the published seam, so a plugin author's stub installer is gated here. */
+export { installEditorDomStubsForTests as installLayoutStubs } from '$lib/testing';
 
 export interface MountedEditor {
 	instance: EditorInstance;

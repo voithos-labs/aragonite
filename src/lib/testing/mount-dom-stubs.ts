@@ -1,9 +1,3 @@
-/**
- * The browser APIs a mounted editor calls that jsdom does not implement. Each is installed
- * only when absent, so the call is inert in a real browser and cannot clobber a runner that
- * already supplies one. Runner-agnostic: no test-runner import, plain globals.
- */
-
 interface StubbableGlobals {
 	ResizeObserver?: unknown;
 }
@@ -16,8 +10,9 @@ class NoopResizeObserver {
 
 /**
  * Install the jsdom gaps a mounted editor hits — the block-height `ResizeObserver` and the
- * reveal's `scrollIntoView`. Call it once before the first mount. Windowing activates on
- * ESTIMATED height in either scroll mode, so keep fixture documents small if a test asserts
+ * reveal's `scrollIntoView` — once, before the first mount. Each lands only where absent, so a
+ * runner supplying a real one keeps it and the call is inert in a browser. Windowing activates
+ * on ESTIMATED height in either scroll mode, so keep fixture documents small if a test asserts
  * on a block being mounted; jsdom reports a zero viewport and mounts only the first few.
  */
 export function installEditorDomStubsForTests(): void {

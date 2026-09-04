@@ -15,12 +15,12 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { testClosure } from '$lib/test/support/closure';
 import { editorMountContext } from '../harness/mount-context';
-import { installBlockHostLayoutStubs } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
 
 const MARKER = '[^a]: ';
 
-beforeAll(installBlockHostLayoutStubs);
+beforeAll(installEditorDomStubsForTests);
 
 /** A recording kind that answers the platform's "does this surface paint inline content?" one
  *  way or the other — the only thing the forward reads. */

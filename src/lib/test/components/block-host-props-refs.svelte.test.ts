@@ -13,14 +13,11 @@ import type { EditorServices } from '$lib/editor-keys';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
-import {
-	declareComponentlessKind,
-	installBlockHostLayoutStubs,
-	mountBlockHost
-} from './mount-host';
+import { declareComponentlessKind, mountBlockHost } from './mount-host';
 import type { HostProps, MountedHost } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
 
-beforeAll(installBlockHostLayoutStubs);
+beforeAll(installEditorDomStubsForTests);
 
 let mounted: MountedHost | null = null;
 afterEach(async () => {
