@@ -282,12 +282,14 @@ Two things hold it, and one of them isn't automatic.
 `scripts/check-codebase-map.mjs` runs inside `npm run lint`, and on its own as
 `npm run docs:map:check`. It reads every backticked `src/`, `docs/`, or `scripts/` span in this
 file and in every other `docs/design` and `docs/contributing` doc, asserts the path exists, and
-for a `path :: Symbol` span, that the symbol appears word-bounded in that file. When everything
-resolves it prints one line, counts and all, and exits 0:
+for a `path :: Symbol` span, that the symbol appears word-bounded in that file. It reads the
+other direction too, over the whole tree: a `<doc>.md § Section name` pointer in any source file
+or doc has to slug-match a heading that doc still carries. When everything resolves it prints one
+line, counts and all, and exits 0:
 
 ```
 $ npm run docs:map:check
-codebase-map: … references resolve (… naming a symbol) across … files in docs/design, docs/contributing
+codebase-map: … references resolve (… naming a symbol) across … files in docs/design, docs/contributing; … § pointers resolve across … files
 ```
 
 When something doesn't, it prints each offending doc and span (a missing file, a symbol not found

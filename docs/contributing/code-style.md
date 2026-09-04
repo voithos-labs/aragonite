@@ -89,7 +89,7 @@ npm run lint     # check
 
 1. the Prettier check
 2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, and links in the published guide may not leave it
-3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist on disk
+3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist on disk, and every `<doc>.md § Section name` pointer in the tree must still name a heading that doc carries
 4. ESLint
 
 A failure says which of the four fired, so read that instead of assuming it was formatting. It usually isn't. One of each, provoked on purpose so you know the shape:

@@ -151,7 +151,7 @@ Checking formatting...
 All matched files use Prettier code style!
 docs-pack: … docs link-closed (consumer-guide.md, directives.md, plugin-api.md, ...)
 docs-links: … corpus docs, every relative link resolves
-codebase-map: … references resolve (… naming a symbol) across … files in docs/design, docs/contributing
+codebase-map: … references resolve (… naming a symbol) across … files in docs/design, docs/contributing; … § pointers resolve across … files
 > eslint .
 (nothing: eslint prints no output when it's happy)
 
@@ -261,8 +261,9 @@ Three more places a record lives, or pointedly doesn't:
   `npm run lint` fails on a path or symbol the map names that no longer exists, which is the
   reminder. The check (`scripts/check-codebase-map.mjs`) reads every backticked `src/`, `docs/`
   and `scripts/` path in `docs/design/` and `docs/contributing/`, so it covers more than the map,
-  and a `path :: Symbol` span has to find the symbol in that file too. Its passing line is in the
-  lint output above.
+  and a `path :: Symbol` span has to find the symbol in that file too. It runs the other way as
+  well: a `§ Section name` pointer anywhere in the tree has to name a heading its target doc still
+  has. Its passing line is in the lint output above.
 - Contributor-facing friction that's real but isn't a defect goes to
   [Discussions](https://github.com/voithos-labs/aragonite/discussions) rather than into someone's
   memory. It lands there and not in the ledger because a Task has to name an edit site, which is

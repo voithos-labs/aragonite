@@ -102,8 +102,8 @@ describe('buildImageWidget — the path a click emits', () => {
 });
 
 // Miss-analysis: nothing asserted what a `|WxH` hint puts on the element, so the attribute pair
-// read as "sizes the rendered widget" (syntax-tree.md § image) while the decoded natural ratio
-// silently won every layout back through the stylesheet's `height: auto`.
+// read as "sizes the rendered widget" (syntax-tree.md § Inline nodes) while the decoded natural
+// ratio silently won every layout back through the stylesheet's `height: auto`.
 describe('buildImageWidget — declared dimensions', () => {
 	function widgetFor(source: string): HTMLImageElement {
 		const node = parseInline(source, 0, source.length).find((n) => n.kind === 'image');
