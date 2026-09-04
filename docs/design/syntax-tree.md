@@ -61,14 +61,7 @@ Serialization therefore **never recurses**. It concatenates the document's prefi
 
 The flip side: an edit _inside_ a container means nothing until the container's `raw` is written back from its children. That's `rebuildRaw` on the container's descriptor (descriptor: the per-kind metadata record saying how a kind merges, edits, renders), dispatched up the whole chain of enclosing containers. Skip it and `raw` quietly disagrees with the children, and the document you save is the one you had before the edit. So, don't.
 
-That dispatch is the per-keystroke price of the redundancy: each enclosing container re-emits everything from its own level inward, so a keystroke at depth d rewrites the surrounding bytes roughly d/2 times over. What the price actually comes to:
-
-- The variable is bytes re-materialized, not depth. Roughly 2 microseconds per KB holds across the whole measured axis, and the depth-squared-times-bytes shape only shows up when every level carries real bytes of its own, because the cost is the sum over the levels.
-- So the same depth 8 costs microseconds when the containers are small and single-digit milliseconds at 50 KB per level, and an adversarial depth 16 with 100 KB per level reaches tens of milliseconds.
-- Real documents keep the byte term tiny, so a nested keystroke costs what any keystroke costs.
-- `container-raw.bench.ts` (the deep-nesting axis) is the standing evidence, and the `ancestryRebuild` rows of `src/lib/test/perf/baseline.json` are the recorded numbers, from one machine, so read them as orders of magnitude.
-
-The redundancy was weighed and kept (`performance.md` § Two architectural decisions has the weighing, if you're curious).
+That dispatch is the price of the redundancy: a structural edit at depth d re-emits every enclosing container's bytes, roughly d/2 times over, while routine typing pays less, since a container that knows which child moved re-emits that child's region alone (`editor.md` § 9). The variable is bytes re-materialized, not depth: the cost is the sum over the levels, so it only turns superlinear when every level carries real bytes of its own, and real documents keep that term tiny, so a nested keystroke costs what any keystroke costs. The redundancy was weighed and kept; the measurements and the weighing are `performance.md` § Two architectural decisions, if you're curious.
 
 ### Node shape
 

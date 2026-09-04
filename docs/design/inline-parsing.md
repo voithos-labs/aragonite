@@ -30,7 +30,7 @@ So the span structure is always correct, because it's rebuilt after every charac
 Reading `raw` back from the DOM is the step with a trap in it. **A prose block's `textContent` is not its `raw`**, for two independent reasons:
 
 - **Atomic widgets contribute zero characters to `textContent`.** An image or an inline formula renders as a `contenteditable="false"` island whose bytes live on `data-source-*` attributes, not in any text node.
-- **The ambient prefix contributes characters that aren't in `raw` at all.** A list item lends its `- ` marker to its first prose child's rendered content, so `textContent === ambientPrefix + raw`.
+- **The ambient prefix contributes characters that aren't in `raw` at all.** A list item lends its `- ` marker to its first prose child's rendered content, so `textContent === ambientPrefix + raw`, give or take the trailing line ending (§ The textContent invariant has the exact form).
 
 The first one, with the entity widget (a decoded `&copy;` renders as one atomic glyph):
 

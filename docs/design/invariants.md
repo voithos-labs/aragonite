@@ -117,27 +117,14 @@ predicate, so the whole thing tree-shakes to nothing and costs zero shipped byte
 checks are scoped to the nodes a commit touched, never the whole document, which is what keeps them
 safe inside the large-document workflow the project targets.
 
-That `[aragonite:invariant:<tag>]` string is watched from three directions:
-
-- Under Vitest there's no console line at all. `devWarn` hands entries to a structured sink the
-  harness reads, so a fire fails the unit test that provoked it.
-- On the e2e side, the shared `test` fixture (`src/lib/e2e/fixtures.ts`) fails any spec whose page
-  emits one. Call this the **e2e invariant watcher**; the entries below lean on the name.
-- The note-taking simulation drives the editing machinery hard enough to trip the guards that only
-  fire mid-gesture, and asserts the same channel at its checkpoints.
-
-A spec whose whole subject is a fire declares it by tag, and the declaration cuts both ways: the
-named fire must arrive, or the spec fails on that instead.
-
-```ts
-import { test, expect } from '../../fixtures';
-
-// a second editor mounts late with a plugin the first never had, so exactly this fire is expected
-test.use({ expectInvariants: ['late-opener-registration'] });
-```
-
-No `invariant:` fire may be waived run-wide. A test that provokes one claims it locally, like that
-(`docs/contributing/testing.md`).
+That `[aragonite:invariant:<tag>]` string is what every gate watches, and
+`docs/contributing/warnings.md` § What fails on what lists the watchers and what each one reds. One
+of them gets a name here: the shared e2e `test` fixture (`src/lib/e2e/fixtures.ts`), which fails any
+spec whose page emits a fire, is the **e2e invariant watcher** the entries below lean on. A spec
+whose whole subject is a fire declares it by tag (`test.use({ expectInvariants: [tag] })`), and the
+declaration cuts both ways: the named fire must arrive, or the spec fails on that instead. No
+`invariant:` fire may be waived run-wide; a test that provokes one claims it locally, and
+`docs/contributing/warnings.md` § Claiming a fire in a unit test is the ladder.
 
 ### Where the shape doesn't hold, and why
 
@@ -650,8 +637,9 @@ G2.2 block.
 **G2.3 · Inline conformance corpus.** The inline parser holds against the conformance corpus.
 `inline-conformance.test.ts`.
 
-**G2.4 · The textContent equation.** `textContent === ambientPrefix + raw` over rendered blocks, run
-in jsdom. `textcontent-spine.property.test.ts`.
+**G2.4 · The textContent equation.** `textContent === ambientPrefix + raw` over rendered prose, the
+trailing line ending excluded (`docs/design/inline-parsing.md` § The textContent invariant), run in
+jsdom. `textcontent-spine.property.test.ts`.
 
 **G2.5 · Inline offset partition.** The inline tree's offsets partition the block's raw.
 `inline-offsets.property.test.ts`.
