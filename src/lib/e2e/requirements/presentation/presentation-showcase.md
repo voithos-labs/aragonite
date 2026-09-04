@@ -21,7 +21,9 @@ renders as an inline widget stays rendered, and flipping back restores the sourc
 - every block mounted both before and after the round trip carries byte-identical text, compared
   block by block (a windowed editor's text is only its mounted slice, and the reading flip
   re-measures heights, so the window after the trip need not be the window before), so the flip is a view
-  change and nothing else
+  change and nothing else. A block that does drift is reported with both of its texts, since
+  which block moved is a different question from whether it rendered differently or was read
+  mid-frame
 
 ## Edge cases
 
@@ -29,6 +31,10 @@ renders as an inline widget stays rendered, and flipping back restores the sourc
   document first; "widgets survived" asserted where none are mounted proves nothing
 - hiding markers shortens the document, which moves the window: the end of the scrollport is
   the one position a mode flip cannot shift, so the text comparison is made there both times
+- the first sample waits for a settled document: nothing still announcing itself as rendering,
+  and two consecutive reads of the mounted text in agreement. A diagram whose first render pulls
+  its library over a cold dev server sits on a stable placeholder while it does, so neither wait
+  covers the other
 
 ## User interactions
 
@@ -40,6 +46,15 @@ renders as an inline widget stays rendered, and flipping back restores the sourc
   e2e fixture)
 
 ## Miss-analysis
+
+The first sample was taken the moment the widgets appeared, so a diagram still fetching its
+renderer was compared against the same diagram once it had one, and the flip took the blame for a
+render that had simply not finished when the spec looked. The generalized miss: a before/after
+comparison that never established what "before" was allowed to be.
+
+A drifted block was reported by path alone, so the one signal the failure carried named the block
+and not the difference, and two rounds of diagnosis went on a block nobody could see the text of.
+The generalized miss: a comparison whose failure message is narrower than the comparison itself.
 
 The round trip compared the editor's whole mounted text. Run alone, the same window mounted both
 times and the comparison held; under the full battery's load the reading flip re-measured heights

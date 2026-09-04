@@ -44,7 +44,7 @@ test.describe('/ showcase presentation toggle', () => {
 			})
 			.toBeGreaterThan(0);
 		await expect(page.locator(`${MARKER}:visible`).first()).toBeVisible();
-		const before = await mountedBlockText(page);
+		const before = await settledBlockText(page);
 
 		await page.locator('.showcase-mode[data-mode="reading"]').click();
 		await expect(editor).toHaveAttribute('data-presentation', 'reading');
@@ -61,7 +61,11 @@ test.describe('/ showcase presentation toggle', () => {
 			.poll(async () => {
 				const after = await mountedBlockText(page);
 				const shared = Object.keys(before).filter((path) => path in after);
-				const drifted = shared.filter((path) => after[path] !== before[path]);
+				// Both texts, not just the path: which block moved is not the same question as
+				// whether it rendered differently or was read mid-frame (#280).
+				const drifted = shared
+					.filter((path) => after[path] !== before[path])
+					.map((path) => `${path} ${trim(before[path])} -> ${trim(after[path])}`);
 				return { shared: shared.length, drifted };
 			})
 			.toEqual({ shared: expect.any(Number), drifted: [] });
@@ -69,6 +73,33 @@ test.describe('/ showcase presentation toggle', () => {
 		expect(Object.keys(before).filter((path) => path in after).length).toBeGreaterThan(4);
 	});
 });
+
+/** Chrome a renderer mounts while it is still working. A sample taken over one of these is a
+ *  sample of a half-rendered document, which the flip would then be blamed for. */
+const PENDING_RENDER = '.mermaid-loading';
+
+/**
+ * The mounted text once nothing is still rendering and two consecutive reads agree. An async
+ * renderer that finishes between the flip's two samples reads as a block the flip changed, which
+ * is the one difference this comparison must not see. Both waits are needed: a diagram's first
+ * render pulls its library over a cold dev server and sits on a placeholder that is perfectly
+ * stable while it does, so text stability alone answers too early.
+ */
+async function settledBlockText(page: Page): Promise<Record<string, string>> {
+	await expect(page.locator(PENDING_RENDER)).toHaveCount(0, { timeout: 30_000 });
+	let previous = await mountedBlockText(page);
+	for (let attempt = 0; attempt < 50; attempt++) {
+		await page.waitForTimeout(100);
+		const next = await mountedBlockText(page);
+		if (JSON.stringify(next) === JSON.stringify(previous)) return next;
+		previous = next;
+	}
+	throw new Error('the showcase document never settled: a block is still rendering');
+}
+
+/** One block's text, short enough to read in a failure message. */
+const trim = (text: string) =>
+	JSON.stringify(text.length > 80 ? `${text.slice(0, 40)}…${text.slice(-40)}` : text);
 
 /** Text per mounted block, keyed by path: a windowed editor's text is only its mounted slice. */
 function mountedBlockText(page: Page): Promise<Record<string, string>> {
