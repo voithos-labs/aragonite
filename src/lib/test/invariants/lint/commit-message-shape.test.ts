@@ -34,6 +34,10 @@ const LEGAL: [name: string, message: string][] = [
 	['a merge commit', "Merge branch 'dev' into main"],
 	['a revert', 'Revert "+ (editor) block parser"'],
 	['a dependabot bump', 'Bump vite from 8.2.1 to 8.2.2'],
+	[
+		'a grouped dependabot bump',
+		'Bump the development-minor-patch group across 1 directory with 6 updates'
+	],
 	['a dependabot build scope', 'build(deps): bump actions/checkout from 7 to 8'],
 	['a fixup commit', 'fixup! + (editor) block parser'],
 	['a squash commit', 'squash! + (editor) block parser'],
@@ -55,6 +59,7 @@ const ILLEGAL: [rule: string, line: number, message: string][] = [
 	['subject-shape', 1, 'fixed the caret at a hidden marker'],
 	['subject-shape', 1, '? (editor) block parser'],
 	['subject-shape', 1, '+ (Editor) block parser'],
+	['subject-shape', 1, '~(deps-dev): Bump the development-minor-patch group with 6 updates'],
 	['subject-shape', 1, '+ Fixed the caret at a hidden marker'],
 	['subject-shape', 1, '+ (editor) Fixed the caret at a hidden marker'],
 	['subject-shape', 1, '+ (editor) A caret lands at a hidden marker'],
@@ -121,5 +126,12 @@ describe('G4.58 commit-message shape — the two doors', () => {
 	it('the unit job lints only the commits a pull request adds, never the release PR', () => {
 		expect(unitJob).toMatch(/lint-commit-message\.mjs --range HEAD\^1\.\.HEAD\^2/);
 		expect(unitJob).toContain("base.ref != 'main'");
+	});
+
+	// Miss-analysis: the exemption for a bot subject and the config that decided what dependabot
+	// actually writes lived in different files, and no case ever fed the door a real bot subject.
+	it('dependabot writes the default `Bump ...` subject the exemption matches', () => {
+		const dependabot = readFileSync(path.join(ROOT, '.github/dependabot.yml'), 'utf8');
+		expect(dependabot).not.toMatch(/^\s*commit-message:/m);
 	});
 });

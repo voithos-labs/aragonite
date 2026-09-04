@@ -2,6 +2,10 @@
 # lands on main. Version updates target dev to ride the normal dev -> main
 # flow; security updates (a repo setting, not configured here) always
 # target main regardless.
+#
+# No `commit-message` block anywhere below: dependabot's default `Bump ...`
+# subject is the shape scripts/lint-commit-message.mjs exempts, and a prefix
+# of ours turns every bot PR red at the commit-message door.
 version: 2
 updates:
   - package-ecosystem: 'npm'
@@ -11,9 +15,6 @@ updates:
       day: 'monday'
     target-branch: 'dev'
     open-pull-requests-limit: 5
-    commit-message:
-      prefix: '~'
-      include: 'scope'
     # Minor + patch bumps arrive as one grouped PR per dependency type;
     # majors fall outside the groups and arrive individually.
     groups:
@@ -31,9 +32,6 @@ updates:
     schedule:
       interval: 'monthly'
     target-branch: 'dev'
-    commit-message:
-      prefix: '~'
-      include: 'scope'
     groups:
       actions:
         patterns: ['*']
