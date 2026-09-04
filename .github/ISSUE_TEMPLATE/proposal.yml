@@ -24,6 +24,21 @@ body:
       label: Shape you would expect
       description: Optional. A prop, a method, a directive, a sketch of the call site.
 
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Optional. Where in the codebase it would sit. Issue forms can't apply labels from a dropdown, so a maintainer sets the real one at triage.
+      options:
+        - 'code-structure: internal structure and ergonomics'
+        - 'core-editing: parser, round-trip, tree ops, commits, undo, merge/split'
+        - 'virtual-rendering: windowing, reveal, scroll'
+        - 'plugin-containers: bundled plugins and container kinds'
+        - 'test-coverage: suite shape and coverage gaps'
+        - 'selection-caret: caret doors, gap caret, affinity, cross-block selection'
+        - 'clipboard-paste: copy, cut, paste pipeline and transforms'
+        - 'presentation: live, preview, reading paint and editing rules'
+
   - type: markdown
     attributes:
       value: After 1.0, API proposals meet the plugin-contract freeze rules, so additive shapes land far more easily than ones that move existing surface.

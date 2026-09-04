@@ -33,6 +33,28 @@ body:
       required: true
 
   - type: input
+    id: environment
+    attributes:
+      label: Version and browser
+      description: The aragonite version, and the browser you saw it in. Only chromium is tested, so a report from Safari or Firefox is welcome and reads differently.
+      placeholder: 0.10.0, Edge 141 on Windows 11
+    validations:
+      required: true
+
+  - type: dropdown
+    id: presentation-mode
+    attributes:
+      label: Presentation mode
+      description: Optional. Plenty of defects live in one mode only, and knowing which saves a round trip.
+      options:
+        - 'source: markers visible, the editing default'
+        - 'reading: markers hidden, surface inert'
+        - "preview-block: the caret's block reveals its markers"
+        - 'preview-inline: only the construct the caret touches reveals'
+        - 'live: markers hidden, still editable'
+        - 'more than one, or not sure'
+
+  - type: input
     id: where-it-lives
     attributes:
       label: Where it lives
@@ -62,7 +84,7 @@ body:
     id: area
     attributes:
       label: Area
-      description: Optional. Where in the codebase it sits.
+      description: Optional. Where in the codebase it sits. Issue forms can't apply labels from a dropdown, so a maintainer sets the real one at triage.
       options:
         - 'code-structure: internal structure and ergonomics'
         - 'core-editing: parser, round-trip, tree ops, commits, undo, merge/split'
