@@ -277,6 +277,13 @@ export type {
 	DecorationRegistry
 } from './decorations/types';
 
+// ── Events (pre-freeze) ──────────────────────────────────────────────────────
+// The payloads `EditorContext.events` delivers. `EditEvent` is the correlated pair a
+// structural change reports, so an `edit` handler narrows `op` against the real vocabulary
+// instead of a bare string.
+export type { EditEvent, EditorEventMap, SelectionChangeEvent, EditorError } from './editor-events';
+export type { OperationKind } from './schema/operations';
+
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────
 // Viewport-space geometry over the rendered document, reached through `editor.rects`.
 export type { EditorRects } from './editor-rects';

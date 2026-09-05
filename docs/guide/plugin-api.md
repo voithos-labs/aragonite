@@ -36,6 +36,7 @@ The groups, in page order:
 | [Commands and keybindings](#commands-and-keybindings)   | Keyboard shortcuts and commands, per block type or editor-wide                               |
 | [Paste transforms](#paste-transforms)                   | Rewriting pasted text before the editor parses it                                            |
 | [Decorations](#decorations)                             | View-only annotations over content your plugin does not own                                  |
+| [Events](#events)                                       | What the editor tells your plugin has happened, and the shapes it says it in                 |
 | [Rects](#rects)                                         | Where things are on screen: block boxes, ranges, the caret, scrolling to a block             |
 | [Caret geometry](#caret-geometry)                       | Answering where a press inside your block puts the caret                                     |
 | [Selection geometry](#selection-geometry)               | The shapes that describe what the user has selected                                          |
@@ -233,6 +234,17 @@ _(pre-freeze / unstable)_ View-only annotations drawn over the rendered document
 | `Decoration`                                                                 | The union of the four decoration types a source may return                                                                                                                                     |
 | `MarkDecoration`, `WidgetDecoration`, `ReplaceDecoration`, `BlockDecoration` | The four: a styled span over an inline range, a zero-width widget at an offset, a widget covering a range whose bytes stay in the document, and a whole-block treatment with an optional badge |
 | `DecorationWidgetSpec`                                                       | How a decoration's widget renders: a Svelte `component`, or a hand-built `buildDom`                                                                                                            |
+
+### Events
+
+_(pre-freeze / unstable)_ The payloads `EditorContext.events` delivers to an `on(name, handler)` subscription. The channel itself: [The plugin unit](plugin-guide.md#the-plugin-unit).
+
+| Export                                | Role                                                                                                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EditorEventMap`                      | Event name to payload, so a handler you declare apart from the `on` call still types                                                                                  |
+| `EditEvent`                           | The `edit` payload: `op`, the `path` it landed at, a per-op `detail`, and a `timestamp`. `op` and `detail` are correlated, so narrowing `op` narrows `detail` with it |
+| `OperationKind`                       | The structural-operation vocabulary `EditEvent.op` draws from                                                                                                         |
+| `SelectionChangeEvent`, `EditorError` | The other two payloads worth naming: the anchor/focus pair (or null), and a contained failure with its `origin` and context                                           |
 
 ### Rects
 
