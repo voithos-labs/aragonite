@@ -1,5 +1,5 @@
 /**
- * G4.60 — the commit scope is production-live. `invariants/commit-scope.ts` routes the
+ * G4.61 — the commit scope is production-live. `invariants/commit-scope.ts` routes the
  * decoration engine's deferral, not only a DEV assertion, so a build-flag guard on its writes
  * would leave `invalidate()` running inside the commit in production while every test stayed
  * green (`esm-env` resolves DEV to true under vitest, so no behavior test can see this).
@@ -28,7 +28,7 @@ function findDefects(code: string): ScopeDefect[] {
 	return defects;
 }
 
-describe('G4.60 the commit scope is production-live', () => {
+describe('G4.61 the commit scope is production-live', () => {
 	const file = readEditorFile(SCOPE_FILE);
 
 	it('found the scope module to inspect', () => {
