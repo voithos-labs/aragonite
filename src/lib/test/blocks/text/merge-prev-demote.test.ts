@@ -47,9 +47,12 @@ function mountBlock(source: string, mode: PresentationMode, caret: number) {
 	return { instance, blockEdit };
 }
 
-let mounted: ReturnType<typeof mountBlock>;
+let mounted: ReturnType<typeof mountBlock> | null = null;
 afterEach(async () => {
+	// Cleared, not only unmounted: a test that mounts nothing inherits the previous
+	// instance, and unmounting it twice is a Svelte lifecycle warning.
 	if (mounted) await unmount(mounted.instance);
+	mounted = null;
 	document.body.innerHTML = '';
 	window.getSelection()?.removeAllRanges();
 });
