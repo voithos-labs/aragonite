@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
 import { takeDevWarns } from './support/warn-gate';
+import { configureEditorEnv } from '$lib/env';
 import { asDocPath } from '$lib/selection/path-math';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
 import type { AnyBlockKind } from '$lib/core/nodes';
@@ -83,6 +84,23 @@ describe('createEditorEvents', () => {
 		// Through the dev-warn channel, not the console: a swallow no gate can see is how a
 		// subscriber overflowed the stack on every battery unnoticed (GH #246).
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['events']);
+	});
+
+	it('reports a swallowed subscriber throw to the console in a production build', () => {
+		configureEditorEnv({ isDev: false });
+		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const events = createEditorEvents();
+		const thrown = new Error('subscriber blew up');
+		events.on('edit', () => {
+			throw thrown;
+		});
+
+		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
+
+		// devWarn is silent in production, so without a console arm the consumer's own exception
+		// vanishes where an unguarded throw would have surfaced (GH #246).
+		expect(errSpy.mock.calls.map((args) => args[args.length - 1])).toEqual([thrown]);
+		errSpy.mockRestore();
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {

@@ -6,6 +6,7 @@
 
 import type { AnyBlockKind } from './core/nodes';
 import { devWarn } from './dev-warn';
+import { editorEnv } from './env';
 import type { PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
@@ -104,8 +105,12 @@ export function createEditorEvents(): EditorEvents {
 				// re-emitting, which would loop. Everything the channel cannot carry reds a gate.
 				if (event !== 'error' && handlers.error?.size) {
 					emit('error', { origin: 'subscriber', error: err });
-				} else {
+				} else if (editorEnv.isDev) {
 					devWarn('events', `${event} subscriber threw`, err);
+				} else {
+					// devWarn is silent in production, and the swallow is what hides an exception the
+					// consumer's own handler threw, which an unguarded call would have surfaced.
+					console.error(`[aragonite] ${event} subscriber threw`, err);
 				}
 			}
 		}
