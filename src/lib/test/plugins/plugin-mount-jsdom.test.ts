@@ -124,8 +124,8 @@ describe('mounting a plugin block through the published surface', () => {
 	});
 });
 
-// Miss-analysis: the seam shipped with no in-repo caller, so nothing ran its install-only-where-
-// absent guard — the internal mount harness force-assigned a copy and never met the published one.
+// Miss-analysis: every caller ran in a bare jsdom, so the install-only-where-absent guard never
+// met an API already in place, and the internal mount harness kept a force-assigning copy instead.
 describe('installEditorDomStubsForTests', () => {
 	it('keeps a ResizeObserver the environment already provides', () => {
 		class RealResizeObserver {
