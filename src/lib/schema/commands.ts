@@ -357,10 +357,11 @@ export function resolveBinding(
 }
 
 /**
- * True when the built-in or plugin-global keymap binds this exact chord BEFORE any consumer
- * override — never a modified variant like `Mod+Alt+Y`. Override-BLIND by design: it answers
- * which chords carry a native browser default to suppress, not which command runs. A dispatch
- * question reads `runGlobalChord`/`runGlobalChordOnKind`, which consult the override tier.
+ * True when the built-in keymap, or a plugin-global chord `activation` claims, binds this exact
+ * chord BEFORE any consumer override — never a modified variant like `Mod+Alt+Y`. Override-BLIND
+ * by design: it answers which chords carry a native browser default to suppress, not which
+ * command runs. A dispatch question reads `runGlobalChord`/`runGlobalChordOnKind`, which consult
+ * the override tier.
  */
 export function isDefaultGlobalChord(chord: string, activation?: PluginActivation): boolean {
 	return builtinGlobalBinding(chord, activation) !== null;
