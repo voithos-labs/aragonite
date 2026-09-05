@@ -4,6 +4,7 @@ import { takeDevWarns } from './support/warn-gate';
 import { configureEditorEnv } from '$lib/env';
 import { asDocPath } from '$lib/selection/path-math';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
+import { makeNestedHarness } from './harness/editor-actions';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
 describe('createEditorEvents', () => {
@@ -104,7 +105,6 @@ describe('createEditorEvents', () => {
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
-		const { makeNestedHarness } = await import('./harness/editor-actions');
 		const h = makeNestedHarness('- a\n- b\n');
 		let editCount = 0;
 		h.events.on('edit', (e) => {

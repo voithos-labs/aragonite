@@ -8,6 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 const stub = vi.hoisted(() => ({ mode: 'off' as 'off' | 'unit-start' | 'unit-end' }));
 vi.mock('$lib/selection/clipboard-text', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/selection/clipboard-text')>();
+	// A mock factory is hoisted above the file's imports, so it loads what it needs itself.
 	const { nodeAt } = await import('$lib/tree-operations/node-ops');
 	const { getBlockKindDescriptor } = await import('$lib/schema/block-kind-descriptor');
 	const { displayLength } = await import('$lib/core/lines');
