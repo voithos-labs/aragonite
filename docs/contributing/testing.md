@@ -615,12 +615,11 @@ every gesture against the live-mode license (`docs/design/live-mode.md` § 2). E
 runs on a byte-literal twin from the same starting bytes, so a divergence the source-mode edit
 already has is reported rather than gated.
 
-Findings sort into three buckets. `seam` is a live-only divergence and fails the sweep.
-`ambiguous` is both twins failing the same claim: markdown's own rebinding, or the byte-literal
-fallback § 4.4 declares. `known` is a live-only divergence an open ledger issue owns; every one
-of those names its issue and is pinned by a deterministic case in the same file, so closing the
-issue turns the pin red and the exclusion goes with it. An exclusion without an issue number
-isn't allowed, no matter how obvious it looks at the time.
+Findings sort into two buckets. `seam` is a divergence live has and the twin does not, and fails
+the sweep. `ambiguous` is both twins failing the same claim: markdown's own rebinding, or the
+byte-literal fallback § 4.4 declares; it is held to a ceiling rather than gated, so a new class
+can't grow there unwatched. The shapes that once needed an exclusion are pinned as deterministic
+cases in the same file, each naming the issue whose fix made it byte-literal.
 
 One oracle stands outside that sort: UTF-16 well-formedness. A gesture that writes a lone
 surrogate its input didn't hold fails the sweep whether or not the twin writes one too, because
@@ -630,7 +629,9 @@ the split and the range delete, reach their entry points unsnapped: the producti
 thing under test, and a harness that snapped first would be asserting the invariant instead of
 checking it.
 
-It rides `npm test` at a bounded default and joins fresh mode. `LIVE_FUZZ_DOCS` and
+It rides `npm test` at a bounded default and joins fresh mode, minus its surrogate-pair coverage
+floor, which is the fixed seed's alone: a thin draw there is not a find, and a red over one
+buries the finds the fresh lane exists for. `LIVE_FUZZ_DOCS` and
 `LIVE_FUZZ_STEPS` raise the sweep for an overnight run, and every budgeted claim it makes is a
 RATE over applied gestures rather than a count, so raising them changes what the sweep searches
 and not what it asserts.
