@@ -55,7 +55,7 @@ One mechanism to know before the table: under Vitest the console line never happ
 
 Though, two consequences of the sink:
 
-- a `console.warn` spy sees no `devWarn` fire, and takes the Svelte channel off the gate
+- a `console.warn` spy sees no `devWarn` fire, and a spy that swallows the call takes the Svelte channel off the gate too
 - `vi.mock`ing `$lib/dev-warn` deletes the emitter entirely
 
 Either one blinds the gate for that whole file, so a source scan (G4.41 in `invariants.md`) fails on both.

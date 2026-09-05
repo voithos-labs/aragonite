@@ -194,10 +194,10 @@ The machinery, for when you're inside it:
 - A file that swaps the sink out and never restores it fails itself rather than blinding the
   rest of the worker, and the gate re-arms.
 - There's no exemption. A file that `vi.mock`s `$lib/dev-warn` deletes the emitter outright,
-  and a file that spies `console.warn` reads a channel the sink silences while taking the Svelte
-  channel off the gate; either one blinds the gate for that whole file, so a source scan (G4.41)
-  fails on both. The one file that pins a warning channel itself is named in its allowlist with
-  the reason.
+  and a file that spies `console.warn` reads a channel the sink silences, while a spy that
+  swallows the call takes the Svelte channel off the gate too; either one blinds the gate for
+  that whole file, so a source scan (G4.41) fails on both. The one file that pins a warning
+  channel itself is named in its allowlist with the reason.
 
 ## E2E tests (Playwright)
 
