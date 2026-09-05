@@ -3,7 +3,7 @@
 	"allow": [
 		{
 			"id": "color-contrast",
-			"reason": "Measured against the wrong background, and it always will be: the editor paints no surface of its own, so this scan reports the harness shell's --color-bg (#2d3033, src/app.css) rather than the --color-surface (#1b1c21) the library declares. The dark accent reads 4.29:1 here and 5.50:1 on the surface it ships against. The library's own palette is certified without a browser by src/lib/test/invariants/lint/code-token-contrast.test.ts (G4.60).",
+			"reason": "Measured against the wrong background, and it always will be: the editor paints no surface of its own, so this scan reports the harness shell's --color-bg (#2d3033, src/app.css) rather than the --color-surface (#1b1c21) the library declares. The dark accent reads 4.29:1 here and 5.50:1 on the surface it ships against. The library's own palette is certified without a browser by src/lib/test/invariants/lint/code-token-contrast.test.ts (G4.62).",
 			"milestone": "1.1 shell integration"
 		},
 		{
