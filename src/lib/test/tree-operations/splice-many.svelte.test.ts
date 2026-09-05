@@ -6,42 +6,25 @@ const OVER_LIMIT = 200_000;
 
 const run = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 
-describe('spliceMany', () => {
+describe('spliceMany past the argument limit', () => {
 	it.each([
-		['head', 0],
-		['middle', 2],
-		['tail', 4]
-	] as const)('inserts a document-scaled run at the %s', (_where, at) => {
+		['at the head', 0, 0, 0],
+		['in the middle', 2, 0, 2],
+		['at the tail', 4, 0, 4],
+		['over a wider delete', 1, 3, 1],
+		['past the end', 99, 0, 4],
+		['from a negative start', -1, 1, 3]
+	] as const)('writes the whole list %s', (_label, at, deleteCount, landsAt) => {
 		const target = run(4);
-		const items = run(OVER_LIMIT);
-		spliceMany(target, at, 0, items);
-		expect(target).toHaveLength(4 + OVER_LIMIT);
-		expect(target[at]).toBe(0);
-		expect(target[at + OVER_LIMIT - 1]).toBe(OVER_LIMIT - 1);
-		expect(target.slice(0, at)).toEqual(run(at));
-		expect(target.slice(at + OVER_LIMIT)).toEqual(run(4).slice(at));
-	});
+		const survivors = run(4);
+		survivors.splice(landsAt, deleteCount);
+		spliceMany(target, at, deleteCount, run(OVER_LIMIT));
 
-	it('removes more than it writes back', () => {
-		const target = run(10);
-		spliceMany(target, 2, 6, [100, 101]);
-		expect(target).toEqual([0, 1, 100, 101, 8, 9]);
-	});
-
-	it('with no items is a plain delete', () => {
-		const target = run(5);
-		spliceMany(target, 1, 2, []);
-		expect(target).toEqual([0, 3, 4]);
-	});
-
-	it('clamps a start past the end, and reads a negative one from the end', () => {
-		const appended = run(3);
-		spliceMany(appended, 99, 0, [7, 8]);
-		expect(appended).toEqual([0, 1, 2, 7, 8]);
-
-		const fromEnd = run(3);
-		spliceMany(fromEnd, -1, 1, [7, 8]);
-		expect(fromEnd).toEqual([0, 1, 7, 8]);
+		expect(target).toHaveLength(survivors.length + OVER_LIMIT);
+		expect(target[landsAt]).toBe(0);
+		expect(target[landsAt + OVER_LIMIT - 1]).toBe(OVER_LIMIT - 1);
+		expect(target.slice(0, landsAt)).toEqual(survivors.slice(0, landsAt));
+		expect(target.slice(landsAt + OVER_LIMIT)).toEqual(survivors.slice(landsAt));
 	});
 
 	it('keeps the array’s identity, so a holder of the reference sees the write', () => {
@@ -51,8 +34,25 @@ describe('spliceMany', () => {
 		expect(alias).toBe(target);
 		expect(alias).toHaveLength(2 + OVER_LIMIT);
 	});
+});
 
-	it('writes through a $state proxy array the same way', () => {
+describe('spliceMany under the argument limit', () => {
+	it.each([
+		['a plain insert', 1, 0, [7, 8]],
+		['a replace', 1, 1, [7]],
+		['a delete with no items', 1, 2, []],
+		['a delete wider than the array', 2, 99, [7]],
+		['a start past the end', 99, 0, [7]],
+		['a negative start', -2, 1, [7, 8]]
+	] as const)('leaves what splice itself leaves for %s', (_label, at, deleteCount, items) => {
+		const target = run(5);
+		const expected = run(5);
+		expected.splice(at, deleteCount, ...items);
+		spliceMany(target, at, deleteCount, items);
+		expect(target).toEqual(expected);
+	});
+
+	it('writes through a $state proxy array', () => {
 		const proxied = $state([0, 1, 2]);
 		spliceMany(proxied, 1, 1, [7, 8, 9]);
 		expect(proxied).toEqual([0, 7, 8, 9, 2]);
