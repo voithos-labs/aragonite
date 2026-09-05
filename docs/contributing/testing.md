@@ -157,7 +157,9 @@ across every block-mount test.
 
 Every `devWarn` fire reaches a structured sink the unit setup registers, and a fire no test
 claims fails that test. The sink takes reporting over, so under the unit runner the console line
-never happens and a `console.warn` spy sees nothing. The same per-test hook resets `editorEnv`,
+never happens and a `console.warn` spy sees nothing. Svelte's own runtime warnings have no sink
+to register, so the setup wraps `console.warn` and files them into the same records under
+`svelte:<code>`; they claim through the same doors. The same per-test hook resets `editorEnv`,
 so a suite that configures the environment configures it per test; a `beforeAll` override is
 gone by the second case. Which console channel a fire belongs to, and what each one means, is
 [`warnings.md`](warnings.md).
@@ -192,9 +194,10 @@ The machinery, for when you're inside it:
 - A file that swaps the sink out and never restores it fails itself rather than blinding the
   rest of the worker, and the gate re-arms.
 - There's no exemption. A file that `vi.mock`s `$lib/dev-warn` deletes the emitter outright,
-  and a file that spies `console.warn` reads a channel the sink silences; either one blinds the
-  gate for that whole file, so a source scan (G4.41) fails on both. Two files pin the warning
-  channels themselves and are named in its allowlist with the reason.
+  and a file that spies `console.warn` reads a channel the sink silences while taking the Svelte
+  channel off the gate; either one blinds the gate for that whole file, so a source scan (G4.41)
+  fails on both. The one file that pins a warning channel itself is named in its allowlist with
+  the reason.
 
 ## E2E tests (Playwright)
 
@@ -202,21 +205,22 @@ The editor component driven in real Chromium. No backend needed; it's self-conta
 
 **Every spec imports `test` and `expect` from `src/lib/e2e/fixtures.ts`, never from
 `@playwright/test` directly.** This isn't a style preference, and I will be tedious about it in
-review. Every `devWarn` reaches the browser console under the `[aragonite:…]` prefix, and the
-shared `test` fails any spec whose page emitted one, so a dev-guard violation surfaces at the
-spec that _caused_ it rather than passing silently and turning up a release later. The verdict
-lands at teardown and names the fire:
+review. Every `devWarn` reaches the browser console under the `[aragonite:…]` prefix and every
+Svelte runtime warning under `[svelte] <code>`, and the shared `test` fails any spec whose page
+emitted one, so a dev-guard violation surfaces at the spec that _caused_ it rather than passing
+silently and turning up a release later. The verdict lands at teardown and names the fire:
 
 ```
-Error: unexpected [aragonite:…] console fires:
+Error: unexpected [aragonite:…] / [svelte] console fires:
 warning: [aragonite:demo] a fire the spec did not declare
 ```
 
 A spec that deliberately trips one names its tags,
-`test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire or
-`test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning, and the fire above would have
-passed under `test.use({ expectWarns: ['demo'] })`. Both run in both directions: a named tag that
-stops firing fails too.
+`test.use({ expectInvariants: ['late-opener-registration'] })` for an invariant fire,
+`test.use({ expectWarns: ['tree-ops'] })` for a plain dev warning, or
+`test.use({ expectSvelteWarns: ['derived_inert'] })` for a Svelte code, and the fire above would
+have passed under `test.use({ expectWarns: ['demo'] })`. All three run in both directions: a named
+tag that stops firing fails too.
 
 ### Architecture
 

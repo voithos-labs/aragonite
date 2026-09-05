@@ -1183,10 +1183,12 @@ caught by G4.29 instead, whose manifest records the key literals that file compa
 `test/selection/cross-block/rewrite-claim-parity.test.ts`.
 
 **G4.41 · Warn-gate bypasses.** No file under `src/lib` mocks `dev-warn` or spies `console.warn`. A
-mocked `devWarn` never reaches the structured sink, and a console spy reads a channel a registered
-sink silences, so the fail-on-warn unit gate goes blind for that whole file and every guard firing
-in it passes unnoticed. The one file whose subject IS a warning channel (`devWarn`'s console half)
-is named in the scan's allowlist with the reason. `lint/warn-gate-bypass-census.test.ts`.
+mocked `devWarn` never reaches the structured sink, and a console spy both reads a channel a
+registered sink silences and takes Svelte's own runtime warnings off the gate (they reach it
+through `console.warn` and nowhere else), so the fail-on-warn unit gate goes blind for that whole
+file and every fire in it passes unnoticed. The one file whose subject IS a warning channel
+(`devWarn`'s console half) is named in the scan's allowlist with the reason.
+`lint/warn-gate-bypass-census.test.ts`.
 
 **G4.42 · Separator-write sites.** No module writes a sibling's `leadingTrivia` by hand. A splice
 settles through the one route: `settleSeparator` at the commit ceremony, `spliceChildrenSettled`
