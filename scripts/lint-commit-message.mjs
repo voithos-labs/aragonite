@@ -21,7 +21,7 @@ const CHANGE_LINE = /^[-+~>!@] /;
 
 /** Shapes git or a bot writes, which no convention of ours governs. */
 // `fixup!`/`squash!` never reach a pull request unsquashed; the CI door catches a leftover.
-const EXEMPT = [/^Merge /, /^Revert "/, /^Bump /, /^build\(deps/, /^fixup! /, /^squash! /];
+const EXEMPT = [/^Merge /, /^Revert "/, /^[Bb]ump /, /^build\(deps/, /^fixup! /, /^squash! /];
 
 const ATTRIBUTION = [/^co-authored-by:/i, /^(?:🤖\s*)?generated with /i];
 

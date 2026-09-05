@@ -38,6 +38,9 @@ const LEGAL: [name: string, message: string][] = [
 		'a grouped dependabot bump',
 		'Bump the development-minor-patch group across 1 directory with 6 updates'
 	],
+	// dependabot-core capitalizes `Bump` only because our prefix is nil; a configured prefix
+	// lowercases it, and the history carries one.
+	['a lowercase dependabot bump', 'bump actions/checkout from 7 to 8'],
 	['a dependabot build scope', 'build(deps): bump actions/checkout from 7 to 8'],
 	['a fixup commit', 'fixup! + (editor) block parser'],
 	['a squash commit', 'squash! + (editor) block parser'],
