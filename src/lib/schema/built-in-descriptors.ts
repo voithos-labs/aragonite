@@ -500,9 +500,8 @@ export function registerBuiltInDescriptors(): void {
 			rebuildRaw: rebuildBlockquoteRaw,
 			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 			unwrapRole: {
-				firstChildBackspace: 'lift-first-child',
-				middleChildBackspace: 'default-merge',
-				quoteShaped: true
+				firstChildBackspace: 'lift-first-child-drop-opener',
+				middleChildBackspace: 'default-merge'
 			},
 			contentStartSpace: 'complete-marker',
 			reorderChildren: {}
@@ -513,7 +512,7 @@ export function registerBuiltInDescriptors(): void {
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
+				via: 'mergeRole=container + unwrapRole (lift-first-child-drop-opener; default-merge)'
 			},
 			undo: { mode: 'inherit-default' },
 			clipboard: {

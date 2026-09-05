@@ -80,7 +80,7 @@ export function devProbePlugin(): EditorPlugin {
 					contract: 'opaque',
 					rebuildRaw: rebuildDevProbeRaw,
 					unwrapRole: {
-						firstChildBackspace: 'lift-first-child',
+						firstChildBackspace: 'lift-first-child-keep-container',
 						middleChildBackspace: 'default-merge'
 					}
 				},

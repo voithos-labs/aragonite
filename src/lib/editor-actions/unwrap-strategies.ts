@@ -50,9 +50,8 @@ async function deleteEmptyItem(
 
 // ── First-child strategies ──────────────────────────────────────────────────
 
-/** Rule U2: lift the first child out of a container that declares the quoteShaped
- *  capability; a chrome container sharing this strategy no-ops (empty replacement). */
-async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
+/** Rule U2 for the quote shape: the opener lives on the first line, so the lift drops it. */
+async function liftFirstChildDroppingOpener({ deps }: UnwrapStrategyDeps): Promise<void> {
 	await spliceLift(deps, unwrapFirstChildFromQuote(deps.node));
 }
 
@@ -60,6 +59,9 @@ async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
 async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Promise<void> {
 	await spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
 }
+
+/** Rule U2's declared decline: child 0 is the container's chrome, and a lift would carry it out. */
+async function keepReservedChrome(): Promise<void> {}
 
 async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<void> {
 	if (replacement.length === 0) return;
@@ -167,8 +169,9 @@ export const firstChildUnwrapStrategies: Record<
 	UnwrapRole['firstChildBackspace'],
 	(deps: UnwrapStrategyDeps) => Promise<void>
 > = {
-	'lift-first-child': liftFirstChild,
+	'lift-first-child-drop-opener': liftFirstChildDroppingOpener,
 	'lift-first-child-keep-container': liftFirstChildAndKeepContainer,
+	'keep-reserved-chrome': keepReservedChrome,
 	'list-item-cascade': listItemCascadeFirst
 };
 

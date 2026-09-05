@@ -14,6 +14,8 @@ const row = (over: Partial<DescriptorFieldEntry> = {}): DescriptorFieldEntry => 
 	declaresReservedChrome: false,
 	contextDependentKind: false,
 	hasOpener: false,
+	unwrapLiftsFirstChild: false,
+	unwrapKeepsReservedChrome: false,
 	...over
 });
 
@@ -40,14 +42,32 @@ describe('checkDescriptorFieldCoherence (G1.37)', () => {
 		expect(violation?.message).toContain('never childless');
 	});
 
-	it('accepts each field alone', () => {
+	it('fires when a chrome-reserving kind lifts its first child out', () => {
+		const violation = checkDescriptorFieldCoherence([
+			row({ kind: kind('details'), declaresReservedChrome: true, unwrapLiftsFirstChild: true })
+		]);
+		expect(violation?.message).toContain('as a sibling block');
+		expect(violation?.detail).toMatchObject({ kind: 'details' });
+	});
+
+	it('fires when a body container declares the chrome decline, the dead-key shape', () => {
+		const violation = checkDescriptorFieldCoherence([
+			row({ kind: kind('directiveContainer'), unwrapKeepsReservedChrome: true })
+		]);
+		expect(violation?.message).toContain('dead key');
+		expect(violation?.detail).toMatchObject({ kind: 'directiveContainer' });
+	});
+
+	it('accepts each field alone, and each unwrap strategy beside the chrome it fits', () => {
 		expect(
 			checkDescriptorFieldCoherence([
 				row({ contextDependentKind: true }),
 				row({ hasOpener: true, supportsInline: true }),
 				row({ declaresWholeBlockFocus: true }),
 				row({ declaresReservedChrome: true }),
-				row({ declaresReservedChrome: true, supportsInline: true })
+				row({ declaresReservedChrome: true, supportsInline: true }),
+				row({ unwrapLiftsFirstChild: true }),
+				row({ declaresReservedChrome: true, unwrapKeepsReservedChrome: true })
 			])
 		).toBeNull();
 	});

@@ -105,7 +105,10 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 			rebuildRaw: rebuildAdmonitionRaw,
 			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: title },
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+			unwrapRole: {
+				firstChildBackspace: 'keep-reserved-chrome',
+				middleChildBackspace: 'default-merge'
+			}
 		},
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
 		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',

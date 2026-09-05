@@ -3,21 +3,19 @@ import type { NodeView } from '../core/node-views';
 import { cloneMetadata, cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { rebuildContainerRaw } from '../schema/container-raw';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { assignIds } from '../block-id';
 import { emptyParagraph } from './node-ops';
 import { trailingLineEnding } from '../core/lines';
 
 /**
  * Unwrap a quote-shaped container's first child (Rule U2), returning fresh clones without
- * mutating the input. Eligibility is `unwrapRole.quoteShaped`, not a kind name, so a
- * future quote-shaped kind opts in by declaration alone. The remainder is always a plain
- * blockquote: a marker like `[!TYPE]` lives only on the opener line, so lifting a body
- * child out drops it and the rest reparses as an ordinary quote.
+ * mutating the input. Eligibility is the caller's declared `lift-first-child-drop-opener`,
+ * not a kind name. The remainder is always a plain blockquote: a marker like `[!TYPE]` lives
+ * only on the opener line, so lifting a body child out drops it and the rest reparses as an
+ * ordinary quote.
  */
 export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
-	const quoteShaped = tryGetBlockKindDescriptor(container.kind)?.unwrapRole?.quoteShaped;
-	if (!quoteShaped || !container.children || container.children.length === 0) {
+	if (!container.children || container.children.length === 0) {
 		return [];
 	}
 

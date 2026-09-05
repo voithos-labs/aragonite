@@ -27,6 +27,12 @@ export type MergeRole = (typeof MERGE_ROLES)[number];
 export const isKnownMergeRole = (role: string): boolean =>
 	(MERGE_ROLES as readonly string[]).includes(role);
 
+/** The first-child strategies that carry child 0 out of the container. One home, like MERGE_ROLES. */
+export const LIFTING_FIRST_CHILD_BACKSPACE = [
+	'lift-first-child-drop-opener',
+	'lift-first-child-keep-container'
+] as const;
+
 /**
  * Backspace-at-start behavior for a container's children; strategies live in
  * `editor-actions/unwrap-strategies.ts`. Absent = default (first child delegates upward;
@@ -34,19 +40,19 @@ export const isKnownMergeRole = (role: string): boolean =>
  */
 export interface UnwrapRole {
 	/**
-	 * `'lift-first-child'` drops the container's opener with the lift, so the remainder
-	 * reparses as a plain quote; `'lift-first-child-keep-container'` is for a container whose
-	 * syntax `rebuildRaw` re-emits, so the remainder keeps its own kind.
+	 * `'-drop-opener'` is the quote shape, whose opener line goes with the lift so the
+	 * remainder reparses as a plain quote; `'-keep-container'` is the shape `rebuildRaw`
+	 * re-emits, so the remainder keeps its kind; `'keep-reserved-chrome'` declines, because
+	 * child 0 is the container's chrome and a lift would carry it out.
 	 */
-	firstChildBackspace: 'lift-first-child' | 'lift-first-child-keep-container' | 'list-item-cascade';
+	firstChildBackspace:
+		(typeof LIFTING_FIRST_CHILD_BACKSPACE)[number] | 'keep-reserved-chrome' | 'list-item-cascade';
 	middleChildBackspace: 'default-merge' | 'list-item-cascade';
-	/**
-	 * Quote-shaped: lifting the first child out (Rule U2) drops the opener, so
-	 * `unwrapFirstChildFromQuote` takes the lift. A `lift-first-child` container omitting
-	 * this no-ops instead, preserving its reserved chrome.
-	 */
-	quoteShaped?: true;
 }
+
+/** G1.37's chrome arms read the tuple, so a new lifting strategy joins them by being listed. */
+export const liftsFirstChild = (strategy: UnwrapRole['firstChildBackspace']): boolean =>
+	(LIFTING_FIRST_CHILD_BACKSPACE as readonly string[]).includes(strategy);
 
 /**
  * A container whose direct children reorder among themselves (Alt+Arrow / drag handle). The

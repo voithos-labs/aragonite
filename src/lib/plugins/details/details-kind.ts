@@ -188,7 +188,7 @@ export function registerDetailsKind(): void {
 				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
 			unwrapRole: {
-				firstChildBackspace: 'lift-first-child',
+				firstChildBackspace: 'keep-reserved-chrome',
 				middleChildBackspace: 'default-merge'
 			},
 			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }

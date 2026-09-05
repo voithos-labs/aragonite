@@ -35,6 +35,7 @@ import {
 	tryGetBlockKindDescriptor,
 	getAllRegisteredKinds,
 	isKnownMergeRole,
+	liftsFirstChild,
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import { getBlockComponent } from './block-component-registry';
@@ -126,6 +127,7 @@ const descriptorFieldEntries = (
 	kinds.flatMap((kind) => {
 		const d = tryGetBlockKindDescriptor(kind);
 		if (!d) return [];
+		const firstChildBackspace = d.unwrapRole?.firstChildBackspace;
 		return [
 			{
 				kind,
@@ -133,7 +135,10 @@ const descriptorFieldEntries = (
 				supportsInline: d.supportsInline,
 				declaresReservedChrome: d.reservedChrome !== undefined,
 				contextDependentKind: d.contextDependentKind === true,
-				hasOpener: openerKinds.has(kind)
+				hasOpener: openerKinds.has(kind),
+				unwrapLiftsFirstChild:
+					firstChildBackspace !== undefined && liftsFirstChild(firstChildBackspace),
+				unwrapKeepsReservedChrome: firstChildBackspace === 'keep-reserved-chrome'
 			}
 		];
 	});

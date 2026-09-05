@@ -126,9 +126,8 @@ export function registerGithubAlert(): void {
 			// The alert is a blockquote with a marker, so it unwraps as one: lifting the
 			// first child out drops the marker and reparses plain.
 			unwrapRole: {
-				firstChildBackspace: 'lift-first-child',
-				middleChildBackspace: 'default-merge',
-				quoteShaped: true
+				firstChildBackspace: 'lift-first-child-drop-opener',
+				middleChildBackspace: 'default-merge'
 			},
 			// The marker is position-independent, so rebuildRaw re-emits it after a move.
 			reorderChildren: {}
@@ -142,7 +141,7 @@ export function registerGithubAlert(): void {
 			},
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge) — Backspace at the body start lifts the first child out and drops the marker, leaving a plain blockquote'
+				via: 'mergeRole=container + unwrapRole (lift-first-child-drop-opener; default-merge) — Backspace at the body start lifts the first child out and drops the marker, leaving a plain blockquote'
 			},
 			undo: { mode: 'inherit-default' },
 			simOracle: {

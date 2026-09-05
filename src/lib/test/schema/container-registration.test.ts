@@ -19,7 +19,7 @@ const leaf = {
 } as const;
 
 const UNWRAP = {
-	firstChildBackspace: 'lift-first-child',
+	firstChildBackspace: 'lift-first-child-keep-container',
 	middleChildBackspace: 'default-merge'
 } as const;
 

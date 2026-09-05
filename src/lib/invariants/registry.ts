@@ -354,6 +354,8 @@ export interface DescriptorFieldEntry {
 	declaresReservedChrome: boolean;
 	contextDependentKind: boolean;
 	hasOpener: boolean;
+	unwrapLiftsFirstChild: boolean;
+	unwrapKeepsReservedChrome: boolean;
 }
 
 /**
@@ -385,6 +387,20 @@ export function checkDescriptorFieldCoherence(
 				code: 'descriptor-field-coherence',
 				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and reservedChrome — the chrome slot is always present, so the kind is never childless and the focus-then-delete model it declares can never engage`,
 				detail: { kind: entry.kind, fields: ['blockFocus', 'reservedChrome'] }
+			};
+		}
+		if (entry.declaresReservedChrome && entry.unwrapLiftsFirstChild) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares reservedChrome and a lifting firstChildBackspace — child 0 is the chrome row, so Backspace at its start would carry the container's own title out as a sibling block; declare 'keep-reserved-chrome'`,
+				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
+			};
+		}
+		if (entry.unwrapKeepsReservedChrome && !entry.declaresReservedChrome) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares firstChildBackspace: 'keep-reserved-chrome' without reservedChrome — child 0 is body, so the declared decline makes Backspace at the body start a dead key; declare a lifting strategy`,
+				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
 			};
 		}
 	}

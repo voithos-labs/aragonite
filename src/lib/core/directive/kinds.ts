@@ -55,7 +55,10 @@ export function registerDirectiveKinds(): void {
 			contract: 'opaque',
 			rebuildRaw: rebuildDirectiveContainerRaw,
 			bodyWrap: DIRECTIVE_BODY_WRAP,
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+			unwrapRole: {
+				firstChildBackspace: 'lift-first-child-keep-container',
+				middleChildBackspace: 'default-merge'
+			}
 		},
 		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',
 		closure: containerClosure({
@@ -63,7 +66,7 @@ export function registerDirectiveKinds(): void {
 			focus: { mode: 'implemented', via: 'focus walks into the first body child' },
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
+				via: 'mergeRole=container + unwrapRole (lift-first-child-keep-container; default-merge) — Backspace at the body start lifts the first block out and the fences close over the rest'
 			},
 			undo: { mode: 'inherit-default' },
 			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
