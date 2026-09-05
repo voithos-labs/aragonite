@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { scanInline } from '../../../../core/inline/scan';
-import {
-	BOUNDED_GROWTH_CEILING,
-	describeGrowth,
-	measureScanGrowth
-} from '../../../harness/scan-growth';
+import { expectBoundedGrowth, measureScanGrowth } from '../../../harness/scan-growth';
 import {
 	assertConstructCoverage,
 	assertTotalCoverage,
@@ -78,7 +74,7 @@ describe('openers_bottom (§6.2 phase 2 optimization)', () => {
 			'_a* ',
 			[32, 128]
 		);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 
 		const raw = '_a* '.repeat(150000);
 		const nodes = scanInline(raw, 0, raw.length);

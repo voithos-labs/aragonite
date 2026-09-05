@@ -2,11 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import {
-	measureScanGrowth,
-	describeGrowth,
-	BOUNDED_GROWTH_CEILING
-} from '../../harness/scan-growth';
+import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 activateDirectiveGrammar(); // before any parse
 
@@ -18,7 +14,7 @@ const parseOnly = (source: string) => void parse(source);
 describe('directive container-opener bounds (ADV-2)', () => {
 	it('an unclosed-opener flood parses within a bounded growth ratio and round-trips', () => {
 		const growth = measureScanGrowth(parseOnly, ':::a\n', [32, 128]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 
 		const source = ':::a\n'.repeat(25_000);
 		expect(serialize(parse(source))).toBe(source);
@@ -30,7 +26,7 @@ describe('directive container-opener bounds (ADV-2)', () => {
 describe('directive closer lookup bounds', () => {
 	it('stays bounded when no closer is long enough to close any opener', () => {
 		const growth = measureScanGrowth(parseOnly, ':::a\n:\n', [64, 256]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 	}, 120_000);
 
 	it('round-trips the unclosable shape byte-for-byte', () => {

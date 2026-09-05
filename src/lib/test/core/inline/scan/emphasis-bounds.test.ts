@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../../core/inline';
-import {
-	BOUNDED_GROWTH_CEILING,
-	describeGrowth,
-	measureScanGrowth
-} from '../../../harness/scan-growth';
+import { expectBoundedGrowth, measureScanGrowth } from '../../../harness/scan-growth';
 import { assertConstructCoverage, assertTotalCoverage, collectKind } from './scan-test-helpers';
 
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
@@ -17,22 +13,22 @@ describe('emphasis pairing bounds', () => {
 	it('a pair flood scans within a bounded growth ratio at both 4x steps', () => {
 		const small = measureScanGrowth(scan, '*a*', [24, 96]);
 		const large = measureScanGrowth(scan, '*a*', [96, 384]);
-		expect(small.ratio, describeGrowth(small)).toBeLessThan(BOUNDED_GROWTH_CEILING);
-		expect(large.ratio, describeGrowth(large)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(small);
+		expectBoundedGrowth(large);
 	}, 300_000);
 
 	// Two marker characters per side go through the same surgery, so a bound that held only
 	// for the one-character run would miss a regression in the two-character path.
 	it('a strong and strikethrough flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '**a** ~~b~~ ', [24, 96]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 	}, 300_000);
 
 	// A `]` resolves the emphasis inside its label, so this row catches a per-pass setup
 	// cost scaled to the whole working list instead of to the label.
 	it('emphasis nested in a link flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '[*a*](u) ', [24, 96]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 	}, 300_000);
 
 	// A faster scan that drops or mis-nests pairs is not a fix. The separator matters: an

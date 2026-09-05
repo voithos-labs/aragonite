@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseInline } from '../../../core/inline';
-import {
-	BOUNDED_GROWTH_CEILING,
-	describeGrowth,
-	measureScanGrowth
-} from '../../harness/scan-growth';
+import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 /** G2.11 total coverage: every byte of the block is claimed by exactly one node. */
 const tiles = (source: string) =>
@@ -22,7 +18,7 @@ const scan = (source: string) => void parseInline(source, 0, source.length);
 describe('adversarial scan bounds', () => {
 	it('entity-candidate flood scans within a bounded growth ratio, output unchanged', () => {
 		const growth = measureScanGrowth(scan, '&', [64, 256]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 
 		const source = '&'.repeat(200_000) + 'x;';
 		const nodes = parseInline(source, 0, source.length);
@@ -36,7 +32,7 @@ describe('adversarial scan bounds', () => {
 		const parenTail = (bytes: number, salt: string) =>
 			'www.x.com' + salt + ')'.repeat(Math.max(1, bytes - 9 - salt.length));
 		const growth = measureScanGrowth(scan, parenTail, [32, 128]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 
 		const source = 'www.x.com' + ')'.repeat(120_000);
 		const autolink = parseInline(source, 0, source.length).find((n) => n.kind === 'autolink');
@@ -60,7 +56,7 @@ describe('adversarial scan bounds', () => {
 			return out;
 		};
 		const growth = measureScanGrowth(scan, ladder, [16, 64]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 
 		const source = Array.from({ length: 2600 }, (_, k) => '`'.repeat(k + 1) + 'x').join('');
 		expect(parseInline(source, 0, source.length).every((n) => n.kind === 'text')).toBe(true);
@@ -75,7 +71,7 @@ describe('GFM autolink pass bounds', () => {
 	// delimiter about every match is O(delimiters × matches).
 	it('prunes delimiters against matches within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, 'www.a.bc _x ', [48, 192]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 	}, 300_000);
 
 	// Spreading a match array as call arguments dies on V8's argument limit, and the

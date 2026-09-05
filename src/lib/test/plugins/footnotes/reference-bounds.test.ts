@@ -4,11 +4,7 @@ import { parseInline } from '$lib/core/inline';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
 import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
-import {
-	BOUNDED_GROWTH_CEILING,
-	describeGrowth,
-	measureScanGrowth
-} from '../../harness/scan-growth';
+import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(() => {
 	resetPluginPlatformForTests();
@@ -25,7 +21,7 @@ const refsIn = (raw: string) => scan(raw).filter((n) => n.kind === FOOTNOTE_REF_
 describe('footnote reference decline bounds', () => {
 	it('an unterminated-[^ flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '[^x', [32, 128]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 	}, 300_000);
 
 	// The label alphabet is unchanged by the bound: `[` is still label content, so a

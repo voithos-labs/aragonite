@@ -37,9 +37,10 @@ function virtualScan(cost: CostMs, stalls: (durationMs: number) => number = () =
 	};
 }
 
+const STALL_MS = 4;
+
 /** Stationary interference: every millisecond of work stalls on a coin flip, so a stall-free run
  *  is rarer the longer the run — the asymmetry a best-of estimator reads as growth. */
-const STALL_MS = 4;
 function stallStream(seed: number) {
 	let state = seed >>> 0;
 	const stalled = () => {
@@ -57,8 +58,24 @@ function stallStream(seed: number) {
 	};
 }
 
+/** Interference that lands only on the longer sample and fades as it goes: proportional stalls
+ *  cancel pair by pair, this does not, and it is gone by the time a re-measurement runs. */
+function fadingBurst() {
+	let landed = 0;
+	return (durationMs: number) => (durationMs > 8 ? Math.max(0, 20 - landed++) : 0);
+}
+
+/** Alternating stalls put the small size's minimum under the floor while its median clears it. */
+function everyOtherSampleStalls() {
+	let sample = 0;
+	return () => sample++ % 2;
+}
+
 /** Half the floor at 8KB, so 8KB escalates and 32KB does not. */
 const HALF_FLOOR_AT_8KB = MIN_SAMPLE_MS / 16384;
+
+/** 32KB costs 1.5ms: under the floor unstalled, over it once a stall lands. */
+const STRADDLES_FLOOR_AT_32KB = 1.5 / 32768;
 
 /** 32KB costs 4ms and 128KB 16ms, clear of the floor either way. */
 const CLEARS_FLOOR_AT_32KB = 4 / 32768;
@@ -77,6 +94,15 @@ describe('measureScanGrowth noise floor', () => {
 		const growth = measureScanGrowth(run, 'x', [32, 128], now);
 		expect(growth.sizesKb).toEqual([32, 128]);
 		expect(growth.ratio).toBeCloseTo(4, 1);
+	});
+
+	// The floor reads the median, not the minimum: a size whose fastest sample is jitter still
+	// carries a measurement while the middle of its samples clears.
+	it('stays at the declared sizes when only the fastest samples land under the floor', () => {
+		const { run, now } = virtualScan(linear(STRADDLES_FLOOR_AT_32KB), everyOtherSampleStalls());
+		const growth = measureScanGrowth(run, 'x', [32, 128], now);
+		expect(growth.sizesKb).toEqual([32, 128]);
+		expect(growth.times[0]).toBeGreaterThanOrEqual(MIN_SAMPLE_MS);
 	});
 
 	it('gives up after two escalations rather than climbing to a size nobody declared', () => {
@@ -111,6 +137,16 @@ describe('measureScanGrowth calibration', () => {
 		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
 		expect(growth.ratio, describeGrowth(growth)).toBeCloseTo(4, 0);
 		expect(growth.attempts).toBe(1);
+	});
+
+	// Contention that lands on one size is what a re-measurement is for: the first attempt reads
+	// far over the ceiling, and only a later attempt taken as the verdict brings the shape back.
+	it('re-measures a reading over the ceiling and keeps the lowest ratio', () => {
+		const contended = virtualScan(linear(CLEARS_FLOOR_AT_32KB), fadingBurst());
+		const growth = measureScanGrowth(contended.run, 'x', [32, 128], contended.now);
+		expect(growth.attempts, describeGrowth(growth)).toBeGreaterThan(1);
+		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expect(growth.ratio, describeGrowth(growth)).toBeCloseTo(4, 0);
 	});
 });
 

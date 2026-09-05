@@ -3,6 +3,7 @@
 // bounded and near 16 when it is quadratic. Both sizes are warmed (the first samples run several
 // times slow), then sampled in one alternating window and priced pair by pair, so interference
 // arriving mid-run cancels instead of loading whichever size it caught.
+import { expect } from 'vitest';
 
 /** Distinct-per-sample tail: the scan indexes memoize on the block's raw, so a
  *  second run of the identical string would time a cache hit, not the scan. Trailing
@@ -12,12 +13,10 @@ const salt = (sample: number) => 'z'.repeat(sample);
 /** Discarded samples per size — the warm-up ramp is steepest across the first two. */
 const WARMUPS = 2;
 
-/** Timed pairs per size. Sixteen, not four: a battery starves a size's windows, and a starved pair
- *  only stays out of the verdict while enough clean ones outnumber it. */
+/** Timed pairs per size — enough that a pair starved by a sibling suite stays out of the median. */
 const REPETITIONS = 16;
 
-/** Below this, a sample is jitter rather than a measurement: at a fraction of a millisecond
- *  a single scheduler hiccup fabricates growth the scan never had. */
+/** Floor the median small sample must clear, below which a scheduler hiccup outweighs the scan. */
 export const MIN_SAMPLE_MS = 2;
 
 /** Escalation cap. Each step costs 4x the wall time for the same verdict, and past two the
@@ -28,15 +27,14 @@ const MAX_ESCALATIONS = 2;
  *  between a linear 4x and a quadratic 16x, so neither side is a coin flip. */
 export const BOUNDED_GROWTH_CEILING = 8;
 
-/** Whole re-measurements a reading over the ceiling earns before it stands. A sibling suite hogging
- *  the cores lands on the longer size; a quadratic scan reads 16 in every attempt regardless. */
+/** Whole re-measurements a reading over the ceiling earns before it stands; the lowest ratio of
+ *  them is the verdict. */
 export const MAX_ATTEMPTS = 3;
 
 export interface ScanGrowth {
 	/** Median wall time at [N, 4N], milliseconds. */
 	times: [number, number];
-	/** Median of the per-pair time(4N) / time(N) readings. Interference lands in proportion to a
-	 *  sample's length, so a best-of would favor the shorter size and read the gap as growth. */
+	/** Median of the per-pair time(4N) / time(N) readings. */
 	ratio: number;
 	/** The [N, 4N] sizes actually priced: the declared pair, or a 4x escalation of it. */
 	sizesKb: [number, number];
@@ -49,6 +47,12 @@ export interface ScanGrowth {
 export function describeGrowth({ times, ratio, sizesKb, attempts }: ScanGrowth): string {
 	const retried = attempts > 1 ? ` best of ${attempts}` : '';
 	return `${sizesKb[0]}KB=${times[0].toFixed(1)}ms ${sizesKb[1]}KB=${times[1].toFixed(1)}ms ratio=${ratio.toFixed(2)}${retried}`;
+}
+
+/** The one bounded-scan verdict: every suite asserts through this, so the ceiling a reading is
+ *  retried against and the ceiling it is judged against cannot drift apart. */
+export function expectBoundedGrowth(growth: ScanGrowth): void {
+	expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
 }
 
 function timeMs(run: (source: string) => void, source: string, now: () => number): number {

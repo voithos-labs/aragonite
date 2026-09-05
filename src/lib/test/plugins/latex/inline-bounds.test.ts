@@ -3,11 +3,7 @@ import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { parseInline } from '$lib/core/inline';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import {
-	BOUNDED_GROWTH_CEILING,
-	describeGrowth,
-	measureScanGrowth
-} from '../../harness/scan-growth';
+import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 beforeEach(() => {
 	resetPluginPlatformForTests();
@@ -24,7 +20,7 @@ const mathIn = (raw: string) => scan(raw).filter((n) => n.kind === MATH_INLINE);
 describe('inline math decline bounds', () => {
 	it('a $-flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, '$x ', [32, 128]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 	}, 300_000);
 
 	// The bound is a lookup over the same closer predicate, so the greedy first-close

@@ -5,11 +5,7 @@ import { recognizeTextDirective } from '$lib/core/directive/text-recognizer';
 import { declaredPluginInlineKind } from '$lib/schema/plugin-kind';
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';
 import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
-import {
-	BOUNDED_GROWTH_CEILING,
-	describeGrowth,
-	measureScanGrowth
-} from '../../harness/scan-growth';
+import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 activateDirectiveGrammar(); // before any parse
 
@@ -21,7 +17,7 @@ const scan = (raw: string) => parseInline(raw, 0, raw.length);
 describe('text directive decline bounds', () => {
 	it('an unbalanced-label flood scans within a bounded growth ratio', () => {
 		const growth = measureScanGrowth(scan, ':a[', [32, 128]);
-		expect(growth.ratio, describeGrowth(growth)).toBeLessThan(BOUNDED_GROWTH_CEILING);
+		expectBoundedGrowth(growth);
 	}, 300_000);
 
 	// Depth-counted nesting is what the bound has to preserve: a later `[` that
