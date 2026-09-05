@@ -21,6 +21,28 @@
 
 	trackParityDocument(() => listing);
 	trackParityDocument(() => notListing);
+
+	// The chord half of activation has no DOM tell: a chord this instance never claimed is one
+	// the host keeps, and only `reservedChords`/`claimsChord` answer that. Recorded from a real
+	// keystroke on the way past, so the spec presses the chord rather than fabricating one.
+	const claims: { listing: boolean; notListing: boolean }[] = [];
+
+	$effect(() => {
+		const record = (event: KeyboardEvent) => {
+			claims.push({
+				listing: listing?.claimsChord(event) ?? false,
+				notListing: notListing?.claimsChord(event) ?? false
+			});
+		};
+		document.addEventListener('keydown', record, true);
+		(window as unknown as { __activation?: unknown }).__activation = {
+			reserved: (pane: 'listing' | 'notListing') => [
+				...((pane === 'listing' ? listing : notListing)?.reservedChords() ?? [])
+			],
+			claims: () => claims
+		};
+		return () => document.removeEventListener('keydown', record, true);
+	});
 </script>
 
 <div class="activation-harness aragonite-editor-theme">
