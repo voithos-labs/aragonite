@@ -266,7 +266,7 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 			stats.applied++;
 			if (live.claimed) stats.claimed++;
 			if (live.bytes !== literal.bytes) stats.rewrote[gesture.kind]++;
-			const found = judge(gesture, { bytes: current, doc: before }, live, literal);
+			const found = judgeGesture(gesture, { bytes: current, doc: before }, live, literal);
 			// A dev guard that fired is a finding in its own right: the fuzzer is the caller that
 			// provoked it. An `invariant:` fire is a contract that should never fire in EITHER arm, so
 			// the twin excuses nothing there; for the rest, which arm provoked it is the usual question.
@@ -292,7 +292,8 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 	return stats;
 }
 
-function judge(
+/** Every violation one applied gesture reports; exported so a pin can replay one draw's verdict. */
+export function judgeGesture(
 	gesture: Gesture,
 	origin: { bytes: string; doc: Document },
 	live: Applied,
@@ -360,9 +361,10 @@ function judge(
 	}
 	// Against the document the gesture STARTED from: § 4.1 forbids writing residue, and a twin that
 	// happened to destroy a pre-existing run would otherwise read as live having minted one.
-	if (unpaintedResidue(live.doc) > unpaintedResidue(start)) {
-		// Where the twin wrote the same bytes, nothing live did minted it.
-		const minted = live.bytes !== literal.bytes;
+	const liveResidue = unpaintedResidue(live.doc);
+	if (liveResidue > unpaintedResidue(start)) {
+		// And against the twin: residue the byte-literal edit leaves too is nothing live minted.
+		const minted = liveResidue > unpaintedResidue(literal.doc);
 		say('residue', minted ? 'seam' : 'ambiguous', 'live minted a delimiter pair enclosing nothing');
 	}
 	return out;

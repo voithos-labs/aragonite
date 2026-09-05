@@ -9,7 +9,8 @@ import {
 import { cleanLiveJoinSeam } from '$lib/components/blocks/text/live-join-seam';
 import { rebalanceLiveSplit } from '$lib/components/blocks/text/live-split-rebalance';
 import { freshOrFixedSeed } from '$lib/test/invariants/arbitraries';
-import { fuzzLiveGestures, type FuzzStats } from './live-gesture-fuzz';
+import { fuzzLiveGestures, judgeGesture, type FuzzStats } from './live-gesture-fuzz';
+import { parse } from '$lib/core/parser';
 import { applyGesture, resetSurfaces, type Gesture } from './live-gesture-seams';
 import { documentContentText } from './live-screen-reading';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
@@ -121,17 +122,25 @@ const gesture = (over: Partial<Gesture>): Gesture => ({
 });
 
 async function liveAndLiteral(source: string, over: Partial<Gesture>) {
+	const drawn = gesture(over);
 	resetSurfaces();
-	const live = await applyGesture(source, gesture(over), 'live');
+	const live = await applyGesture(source, drawn, 'live');
 	resetSurfaces();
-	const literal = await applyGesture(source, gesture(over), undefined);
+	const literal = await applyGesture(source, drawn, undefined);
 	resetSurfaces();
 	return {
 		live: live?.bytes,
 		literal: literal?.bytes,
 		screen: live ? documentContentText(live.doc) : null,
 		shape: live ? describeConvergence(live.doc) : null,
-		literalShape: literal ? describeConvergence(literal.doc) : null
+		literalShape: literal ? describeConvergence(literal.doc) : null,
+		/** The sweep's own verdict for this draw, lazily, so a pin can read an oracle not bytes. */
+		seams: () =>
+			live && literal
+				? judgeGesture(drawn, { bytes: source, doc: parse(source) }, live, literal).filter(
+						(v) => v.category === 'seam'
+					)
+				: []
 	};
 }
 
@@ -251,5 +260,14 @@ describe('painted chrome survives both cut seams', () => {
 		});
 		expect(cut.live).toBe('**[](u)****[](u)**\n');
 		expect(cut.live).toBe(cut.literal);
+	});
+
+	// The draw the residue arm reported as live's alone (fresh seed 4032657474, doc 13 step 0):
+	// both arms leave one pair enclosing nothing, so the increase belongs to the literal edit.
+	it('a residue the byte-literal twin leaves too is not live minting one', async () => {
+		const typed = await liveAndLiteral('**[](u)**\n', { offset: 9, char: 'a', affinity: 'near' });
+		expect(typed.live).toBe('**[](u)a**\n');
+		expect(typed.literal).toBe('**[](u)**a\n');
+		expect(typed.seams().map((v) => v.oracle)).toEqual([]);
 	});
 });
