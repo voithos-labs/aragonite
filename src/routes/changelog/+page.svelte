@@ -88,6 +88,7 @@
 	.changelog-header {
 		flex: 0 0 auto;
 		display: flex;
+		flex-wrap: wrap;
 		align-items: baseline;
 		gap: 0.6rem;
 		padding: 0.75rem 1rem;
@@ -142,11 +143,10 @@
 		min-height: 0;
 	}
 
-	/* One unwrappable row of a chip per release family left everything from 0.8 down, both
-	   mode chips and the link past the right edge, on a page with no pan to reach them. */
+	/* A chip per release family, both modes and the link is more row than a phone column can
+	   hold even wrapped, so the chrome condenses and drops what a phone cannot use. */
 	@media (max-width: 640px) {
 		.changelog-header {
-			flex-wrap: wrap;
 			gap: 0.3rem 0.45rem;
 			padding: 0.45rem 0.6rem;
 		}
