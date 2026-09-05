@@ -97,6 +97,7 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 		// The last pasted block, before the second table half (the residue).
 		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 		focusOffset: CURSOR_END,
-		source: 'paste-dispatch-table-cell'
+		source: 'paste-dispatch-table-cell',
+		...(input.grammar ? { grammar: input.grammar } : {})
 	});
 }

@@ -2,6 +2,7 @@ import type { UndoEntryMode } from '../action-contracts';
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
 import type { PresentationMode } from '../presentation-mode';
 import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { GrammarView } from '../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import { registerOnce } from '../schema/register-once';
 
@@ -41,6 +42,9 @@ export interface ScopedStructuralPasteInput {
 	blocks: CstNode[];
 	controller: PasteCommitCoordinator;
 	undoEntry: UndoEntryMode;
+	/** The instance grammar the splice owes its bodyWrite escape reparse. Required-nullable, so
+	 *  a new scoped surface cannot silently drop it; `undefined` = global. */
+	grammar: GrammarView | undefined;
 }
 
 export interface PasteSurface {

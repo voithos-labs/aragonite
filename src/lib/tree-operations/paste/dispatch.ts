@@ -177,7 +177,8 @@ export async function pasteDispatch(
 			targetPath: input.targetPath,
 			blocks: blocks.slice(),
 			controller: ctx.controller,
-			undoEntry: ctx.undoEntry ?? 'own'
+			undoEntry: ctx.undoEntry ?? 'own',
+			grammar: ctx.grammar
 		});
 		return {};
 	}
