@@ -118,6 +118,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 				{
 					history,
 					pluginEditor,
+					activation: activePlugins,
 					getPresentationMode,
 					isCrossBlockRange: () => selection.isCrossBlock,
 					crossBlockCommands: crossBlockCommands

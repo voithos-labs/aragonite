@@ -42,6 +42,6 @@ export function registerGlobalCommand(
 			return true;
 		}
 	});
-	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id });
+	if (opts?.chord) registerPluginGlobalBinding({ chord: opts.chord, command: id }, owner);
 	return id;
 }

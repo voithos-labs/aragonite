@@ -9,6 +9,7 @@
 
 import { claimsBodyChord, isForeignTextEntry } from '../active-editor';
 import type { PluginEditorLookup } from '../editor-keys';
+import type { PluginActivation } from '../schema/plugin-activation';
 import type { PresentationMode } from '../presentation-mode';
 import type { SearchState } from '../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
@@ -30,6 +31,9 @@ export interface EditorRootKeydownDeps {
 	search: SearchState;
 	history: GlobalCommandContext['history'];
 	pluginEditor: PluginEditorLookup;
+	/** The plugins this instance activated, so the root claims only its own plugins'
+	 *  chords. `undefined` = every installed plugin. */
+	activation: PluginActivation | undefined;
 	onCommandError: CommandErrorSink;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown'>;
 	/** True for nodes in the host's `header` slot: they sit inside `root.contains`
@@ -123,6 +127,7 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 					isReading: deps.mode === 'reading',
 					history: deps.history,
 					pluginEditor: deps.pluginEditor,
+					activation: deps.activation,
 					onCommandError: deps.onCommandError
 				})
 			) {

@@ -325,7 +325,7 @@ export function dispatchKeyCommand(
 	overrides?: KeybindingOverrideMap,
 	onCommandError?: CommandErrorSink
 ): boolean {
-	const binding = resolveBinding(chord, target.kind, overrides);
+	const binding = resolveBinding(chord, target.kind, overrides, ctx.activation);
 	if (!binding) return false;
 	return runResolvedCommand(binding.command, binding.arg, target, ctx, 'chord', onCommandError);
 }

@@ -20,6 +20,7 @@ import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
 import { runGlobalChordOnKind, type GlobalCommandContext } from '../schema/commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
+import type { PluginActivation } from '../schema/plugin-activation';
 import { isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
@@ -41,6 +42,9 @@ export interface EditorGlobalChordDeps extends Pick<
 	getKind: () => AnyBlockKind;
 	getKeybindingOverrides: () => KeybindingOverrideMap | undefined;
 	isReading: () => boolean;
+	/** Required here though optional on the context: a whole-block surface that skipped it
+	 *  would consume an unlisted plugin's chord. `undefined` = every installed plugin. */
+	activation: PluginActivation | undefined;
 }
 
 /**
@@ -54,7 +58,8 @@ export function handleEditorGlobalChord(chord: string, deps: EditorGlobalChordDe
 		isReading: deps.isReading(),
 		history: deps.history,
 		pluginEditor: deps.pluginEditor,
-		onCommandError: deps.onCommandError
+		onCommandError: deps.onCommandError,
+		activation: deps.activation
 	});
 }
 

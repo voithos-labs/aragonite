@@ -21,7 +21,9 @@ function makeDeps(overrides?: Parameters<typeof normalizeKeybindingOverrides>[0]
 		getKind: () => 'thematicBreak' as AnyBlockKind,
 		history: { requestUndo, requestRedo },
 		getKeybindingOverrides: () => compiled,
-		isReading: () => false
+		isReading: () => false,
+		// No plugins stood up here, so every installed one is active.
+		activation: undefined
 	};
 	return { deps, requestUndo, requestRedo };
 }

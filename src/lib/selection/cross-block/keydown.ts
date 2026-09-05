@@ -127,6 +127,7 @@ async function handleCrossBlockActive(
 				{
 					history: ctx.history,
 					pluginEditor: ctx.pluginEditor,
+					activation: ctx.activePlugins,
 					getPresentationMode: ctx.getPresentationMode,
 					isCrossBlockRange: () => selection.isCrossBlock,
 					crossBlockCommands: ctx.crossBlockCommands
@@ -256,6 +257,7 @@ async function dispatchOverRange(
 		{
 			history: ctx.history,
 			pluginEditor: ctx.pluginEditor,
+			activation: ctx.activePlugins,
 			getPresentationMode: ctx.getPresentationMode,
 			isCrossBlockRange: () => ctx.selection.isCrossBlock,
 			crossBlockCommands: ctx.crossBlockCommands

@@ -83,6 +83,7 @@
 			isReading,
 			history: deps.history,
 			pluginEditor: deps.doc.pluginEditor,
+			activation: services?.activePlugins,
 			onCommandError: (report) => emitCommandError(deps.events, report)
 		});
 		if (consumed) event.preventDefault();

@@ -52,6 +52,8 @@ function makeEnv(source: string, offset: number | null, mode?: string): Env {
 		// Cast the members this fixture does not stand up, never the whole context: a blanket cast
 		// is what let a new required reader ship unanswered here.
 		ctx: {
+			// No plugins stood up here, so every installed one is active.
+			activePlugins: undefined,
 			getEl: () => el,
 			getCursorOffset: () => offset,
 			getFocusOffset: () => offset,

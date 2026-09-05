@@ -33,7 +33,7 @@
 		edgeAffinity,
 		selection
 	} = wiring.deps;
-	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { reorder, activePlugins } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Tabindex-focusable independent of contenteditable, so keydown stays live in
 	// reading mode; the edit branches below gate on this instead.
@@ -91,7 +91,8 @@
 		pluginEditor,
 		onCommandError,
 		getKeybindingOverrides,
-		isReading
+		isReading,
+		activation: activePlugins
 	};
 
 	function onKeyDown(e: KeyboardEvent): void {

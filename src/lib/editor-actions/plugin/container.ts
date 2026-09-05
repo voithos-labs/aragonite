@@ -324,7 +324,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		selection,
 		reorder,
 		events: editorEvents,
-		registryView
+		registryView,
+		activePlugins
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		keybindingOverrides,
@@ -494,7 +495,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		onCommandError: (report: Parameters<typeof emitCommandError>[1]) =>
 			emitCommandError(editorEvents, report),
 		getKeybindingOverrides: keybindingOverrides,
-		isReading: () => isReadingMode(getPresentationMode)
+		isReading: () => isReadingMode(getPresentationMode),
+		activation: activePlugins
 	};
 
 	const handleKeydown = (e: KeyboardEvent): void => {

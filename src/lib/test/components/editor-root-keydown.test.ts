@@ -67,6 +67,8 @@ function harness(): Harness {
 	let overrides: KeybindingOverride[] | undefined;
 
 	const deps: EditorRootKeydownDeps = {
+		// No plugins stood up here, so every installed one is active.
+		activation: undefined,
 		get searchBarEnabled() {
 			return searchBar;
 		},

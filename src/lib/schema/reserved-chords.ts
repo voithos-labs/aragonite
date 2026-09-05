@@ -8,6 +8,7 @@
 import { getAllRegisteredKinds, tryGetBlockKindDescriptor } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
+import type { PluginActivation } from './plugin-activation';
 import { eventToChord, normalizeChord } from './keybindings';
 
 // ── The hardcoded-chord manifest ─────────────────────────────────────────────
@@ -291,6 +292,9 @@ export interface ReservedChordOptions {
 	searchBar: boolean;
 	/** The instance's compiled `keybindings` prop, so an override's binds and disables show. */
 	keybindings?: KeybindingOverrideMap;
+	/** The plugins this instance activated: a chord another editor's plugin claimed is not
+	 *  this editor's. Absent = every installed plugin. */
+	activation?: PluginActivation;
 }
 
 /**
@@ -302,7 +306,7 @@ export function collectReservedChords(options: ReservedChordOptions): ReadonlySe
 		[
 			...registeredKeymapChords(),
 			...GLOBAL_KEYMAP.map((binding) => binding.chord),
-			...pluginGlobalChords(),
+			...pluginGlobalChords(options.activation),
 			...HARDCODED_CHORDS,
 			...(options.searchBar ? reservedUiChords() : []),
 			...overrideBoundChords(options.keybindings)

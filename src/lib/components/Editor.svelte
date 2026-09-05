@@ -1077,6 +1077,7 @@
 		search: searchState,
 		history,
 		pluginEditor: pluginEditorLookup,
+		activation: activePlugins,
 		onCommandError: commandErrorSink,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
@@ -1434,6 +1435,7 @@
 	const commandDispatchContext: CommandDispatchContext = {
 		history,
 		pluginEditor: pluginEditorLookup,
+		activation: activePlugins,
 		getPresentationMode: () => effectiveMode,
 		isCrossBlockRange: () => selectionState.isCrossBlock,
 		crossBlockCommands: crossBlockCommands
@@ -1507,7 +1509,11 @@
 	// Recomposed per call rather than derived: the kind and plugin registries are
 	// process-global and mutate outside this component's reactive graph.
 	export function reservedChords(): ReadonlySet<string> {
-		return collectReservedChords({ searchBar, keybindings: overridesMap });
+		return collectReservedChords({
+			searchBar,
+			keybindings: overridesMap,
+			activation: activePlugins
+		});
 	}
 
 	export function claimsChord(event: KeyboardEvent): boolean {

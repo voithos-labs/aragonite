@@ -10,6 +10,7 @@ import type { StickyColumnState } from '../cursor/sticky-column';
 import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
+import type { PluginActivation } from '../schema/plugin-activation';
 import {
 	extendFocusToNextBlock,
 	extendFocusToPreviousBlock,
@@ -39,6 +40,9 @@ export interface SharedKeydownContext extends LandableBoundsContext {
 	history: HistoryActions;
 	focus: FocusActions;
 	getBlockElByPath: BlockElLookup;
+	/** The plugins this instance activated; without it the suppression below swallows a
+	 *  chord another editor's plugin claimed. `undefined` = every installed plugin. */
+	activePlugins: PluginActivation | undefined;
 }
 
 /** True when the event was fully handled; the caller must skip its block-specific branches. */
@@ -73,7 +77,7 @@ export async function handleSharedKeydown(
 	// it names the chords with a native history default, and running the command is the block's
 	// own override-aware dispatch, one branch further on.
 	const historyChord = eventToChord(e);
-	if (historyChord && isDefaultGlobalChord(historyChord)) {
+	if (historyChord && isDefaultGlobalChord(historyChord, ctx.activePlugins)) {
 		e.preventDefault();
 		return false;
 	}

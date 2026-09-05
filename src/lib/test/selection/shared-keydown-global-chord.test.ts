@@ -28,6 +28,8 @@ const noCross: CrossBlockHandlers = {
 function makeCtx(): SharedKeydownContext {
 	const el = document.createElement('div');
 	return {
+		// No plugins stood up here, so every installed one is active.
+		activePlugins: undefined,
 		getEl: () => el,
 		getCursorOffset: () => 0,
 		getFocusOffset: () => null,
