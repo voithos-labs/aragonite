@@ -4,6 +4,7 @@ import { serialize } from '../../core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
+import type { SettledContent } from '$lib/tree-operations/node-ops';
 
 // GH #61: a splice can leave neighbours whose adjacent bytes re-read as ONE block on reload —
 // a list newly standing above indented code absorbs it, since no separator line can hold
@@ -161,10 +162,13 @@ describe('a splice absorbs a seam whose fold promotes the head (GH #255)', () =>
 	it('typing the underline into the tight block below a paragraph folds the pair', () => {
 		const doc = parse('p\n# h\n');
 
-		const change = settled(doc, () => updateNodeContent(doc, 1, '===\n').change);
+		let written: SettledContent | undefined;
+		const change = settled(doc, () => (written = updateNodeContent(doc, 1, '===\n')).change);
 
 		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([['setextHeading', 'p\n===\n']]);
 		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
+		// The typed underline sits behind the paragraph the promotion absorbed and its join newline.
+		expect(written!.textStart).toBe(2);
 		expect(describeConvergence(doc)).toBeNull();
 	});
 });
