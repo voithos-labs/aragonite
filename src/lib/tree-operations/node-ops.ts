@@ -1052,10 +1052,9 @@ function absorbSeamReading(
 		const reparsed = parse(joinedWindowBytes(window, window.length), { scope: 'fragment' });
 		const blocks = reparsed.children;
 		if (blocks.length === 0 || blocks.length >= window.length) break;
-		// A legitimate fold EXTENDS the window's head block, so its kind survives its own
-		// reparse. A structured container's children fail this by construction — two items'
-		// joined bytes read as a nested LIST — and the seam is not askable there.
-		if (blocks[0].kind !== window[0].kind) break;
+		// A fold may PROMOTE the head past what its bytes carry alone (a paragraph under the
+		// setext underline below it), so what must survive is the head's own reading, not its kind.
+		if (blocks[0].kind !== window[0].kind && !readsAsItselfAlone(window[0])) break;
 		onBeforeSplice?.();
 		absorbFragmentPeel(parent, at + window.length, reparsed.suffix, blocks, sharing);
 		blocks[0].leadingTrivia = window[0].leadingTrivia;
@@ -1071,6 +1070,17 @@ function absorbSeamReading(
 		spliced = true;
 	}
 	return { at, span, eaten, spliced };
+}
+
+/**
+ * Whether a block's own bytes read back as that block. A structured container's children fail
+ * this by construction — one list item's bytes read as a LIST — which is how a scope whose
+ * children a document parse does NOT reproduce declines the seam question. Asked only where the
+ * fold changed the head's kind, so the kind-preserving folds pay nothing.
+ */
+function readsAsItselfAlone(node: CstNode): boolean {
+	const alone = parse(node.raw, { scope: 'fragment' }).children;
+	return alone.length === 1 && alone[0].kind === node.kind;
 }
 
 /**
@@ -1505,8 +1515,8 @@ interface FoldWindow {
 /**
  * Identity through the fold: a slot the absorb did not re-mint still holds the block the change
  * put there, so its id composes through both steps instead of resetting. Slot 0 keeps the head
- * mapping wherever the walk has none — the fold's head block survives its own reparse (`kind`
- * equality is what admits the fold), which is the identity `replacePreservingFirst` reports.
+ * mapping wherever the walk has none — a fold EXTENDS its head, kind promotion included, which
+ * is the identity `replacePreservingFirst` reports.
  */
 function composeFoldIdMap(
 	change: StructuralChange,

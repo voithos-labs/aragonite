@@ -15,9 +15,10 @@ import { makeEditorActionsDeps } from '../harness/editor-actions';
 // branch of the splice was never taken and the integrity oracle never saw these paths.
 
 const TIGHT_JOIN = 'a\n# h\nb\n';
+const UNDERLINE_BELOW = '# [t](u)\n===\n\nafter\n';
 
-function harness() {
-	const { deps, doc } = makeEditorActionsDeps(parse(TIGHT_JOIN));
+function harness(source = TIGHT_JOIN) {
+	const { deps, doc } = makeEditorActionsDeps(parse(source));
 	const controller = createUndoController(deps);
 	return {
 		deps,
@@ -63,5 +64,28 @@ describe('a seam absorb under an outstanding snapshot', () => {
 		expect(takeDevWarns()).toEqual([]);
 		expect(serialize(h.doc)).toBe(TIGHT_JOIN);
 		expect(h.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading', 'paragraph']);
+	});
+
+	// GH #255: the fold splices out the underline the entry still shares, and promotes the head
+	// past the kind its own bytes carry alone.
+	// Miss-analysis: no split pin put a combination-only structural line under the second half,
+	// so the fold that changes the head's kind never ran with an entry outstanding.
+	it('splices the shared underline into the promoted head, and undo restores it', async () => {
+		const h = harness(UNDERLINE_BELOW);
+
+		await h.actions.splitBlock(0, 1);
+
+		expect(h.doc.children.map((c) => [c.kind, c.raw])).toEqual([
+			['heading', '#\n'],
+			['setextHeading', ' [t](u)\n===\n'],
+			['paragraph', 'after\n']
+		]);
+		expect(h.snapshotBytes()).toBe(UNDERLINE_BELOW);
+
+		await h.history.requestUndo();
+
+		expect(takeDevWarns()).toEqual([]);
+		expect(serialize(h.doc)).toBe(UNDERLINE_BELOW);
+		expect(h.doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph', 'paragraph']);
 	});
 });

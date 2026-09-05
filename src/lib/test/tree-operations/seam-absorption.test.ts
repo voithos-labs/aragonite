@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
-import { deleteNode, splitNode } from '../../tree-operations';
+import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
+import { settled } from '$lib/test/harness/settle-funnel';
 
 // GH #61: a splice can leave neighbours whose adjacent bytes re-read as ONE block on reload —
 // a list newly standing above indented code absorbs it, since no separator line can hold
@@ -117,6 +118,53 @@ describe('a splice absorbs a seam the reload would fold (GH #61)', () => {
 
 		expect(doc.children.map((c) => c.raw)).toEqual(['a\n', 'c\n']);
 		expect(change).toEqual({ op: 'delete', at: 1, count: 1 });
+		expect(describeConvergence(doc)).toBeNull();
+	});
+});
+
+// GH #255: the second half a split mints can be the FIRST line of a two-line construct whose
+// second line is the follower — a setext underline, a table delimiter row. The pair's own bytes
+// parse to one block, so the reload folds it and the tree must too.
+// Miss-analysis: every seam pin folded a window whose head kept its kind, so the guard admitting
+// only a kind-preserving fold refused these promotions unasserted.
+
+describe('a splice absorbs a seam whose fold promotes the head (GH #255)', () => {
+	it('a split above a setext underline leaves the pair as one heading', () => {
+		const doc = parse('# [t](u)\n===\n');
+		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
+
+		const result = splitNode(doc, 0, 1, undefined, undefined, undefined);
+
+		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
+			['heading', '#\n'],
+			['setextHeading', ' [t](u)\n===\n']
+		]);
+		expect(result.secondHalfIndex).toBe(1);
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	it('a split above a table delimiter row leaves the pair as one table', () => {
+		const doc = parse('# | a |\n| --- |\n');
+		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
+
+		splitNode(doc, 0, 1, undefined, undefined, undefined);
+
+		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([
+			['heading', '#\n'],
+			['table', ' | a |\n| --- |\n']
+		]);
+		expect(describeConvergence(doc)).toBeNull();
+	});
+
+	// The content door names the block whose bytes moved, so the fold is asked through the
+	// head-line pre-parse first: it must fall through rather than decline the promotion.
+	it('typing the underline into the tight block below a paragraph folds the pair', () => {
+		const doc = parse('p\n# h\n');
+
+		const change = settled(doc, () => updateNodeContent(doc, 1, '===\n').change);
+
+		expect(doc.children.map((c) => [c.kind, c.raw])).toEqual([['setextHeading', 'p\n===\n']]);
+		expect(change).toEqual({ op: 'replace', at: 0, count: 2, newCount: 1, idMap: { 0: 0 } });
 		expect(describeConvergence(doc)).toBeNull();
 	});
 });
