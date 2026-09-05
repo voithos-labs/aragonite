@@ -58,8 +58,9 @@ function normalizeTarget(raw) {
 
 /** The `#fragment` a target carries, or `''` where it names a whole file. */
 function targetFragment(raw) {
-	const at = cleanTarget(raw).indexOf('#');
-	return at < 0 ? '' : cleanTarget(raw).slice(at + 1);
+	const target = cleanTarget(raw);
+	const at = target.indexOf('#');
+	return at < 0 ? '' : target.slice(at + 1);
 }
 
 function isExternal(target) {

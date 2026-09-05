@@ -51,11 +51,12 @@ describe('in-pack anchors — the index', () => {
 
 // ── The gate ─────────────────────────────────────────────────────────────────
 
-/** The pack gate's output over a scratch pack. Only its Gate 1 half is readable: the corpus gate
- *  under it asks git for the ignored files, and a scratch tree is no repository. */
+/** The pack gate's output over a scratch pack, git-initialised so the corpus gate under Gate 1
+ *  can ask git for the ignored files and the run reaches its summary line. */
 function packGateOutput(docs: Record<string, string>): string {
 	const dir = mkdtempSync(path.join(tmpdir(), 'aragonite-pack-'));
 	try {
+		execFileSync('git', ['init', '-q', '.'], { cwd: dir, stdio: 'ignore' });
 		mkdirSync(path.join(dir, 'docs/guide'), { recursive: true });
 		for (const [name, body] of Object.entries(docs)) {
 			writeFileSync(path.join(dir, 'docs/guide', name), body);
@@ -91,6 +92,9 @@ describe('in-pack anchors — the gate', () => {
 	});
 
 	it('passes the same two links once each heading spells them', () => {
-		expect(packGateOutput(pack(['the-new-name', 'a-section']))).not.toContain(DANGLING);
+		const output = packGateOutput(pack(['the-new-name', 'a-section']));
+		// The summary line prints past both gates, so a green here cannot be a crash before Gate 1.
+		expect(output).toContain('docs-pack: 2 docs link-closed');
+		expect(output).not.toContain(DANGLING);
 	});
 });

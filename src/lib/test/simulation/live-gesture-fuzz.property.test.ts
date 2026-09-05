@@ -264,6 +264,8 @@ describe('painted chrome survives both cut seams', () => {
 
 	// The draw the residue arm reported as live's alone (fresh seed 4032657474, doc 13 step 0):
 	// both arms leave one pair enclosing nothing, so the increase belongs to the literal edit.
+	// Miss-analysis: every residue pin started from a source holding none, so no case ever handed
+	// the arm a draw where BOTH twins leave one.
 	it('a residue the byte-literal twin leaves too is not live minting one', async () => {
 		const typed = await liveAndLiteral('**[](u)**\n', { offset: 9, char: 'a', affinity: 'near' });
 		expect(typed.live).toBe('**[](u)a**\n');
