@@ -870,6 +870,9 @@
 	}
 
 	function onClick(e: MouseEvent): void {
+		// An inline widget's own handler runs first, and a jump it starts can unmount this
+		// surface before the click reaches it; nothing below addresses a block that is gone.
+		if (!el) return;
 		const x = lastClickClientX;
 		const y = lastClickClientY;
 		lastClickClientX = null;

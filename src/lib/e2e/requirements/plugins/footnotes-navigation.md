@@ -57,6 +57,9 @@ covers the user-facing gesture.)
 - **Double-click inside an already-open reveal:** the whole-token rule belongs to the
   double-click that opened the reveal, so a later one in the revealed source takes the word
   under the pointer
+- **The click that outlives its block:** the widget's handler runs first, so a jump can unmount
+  the referencing block before the same click reaches its surface; the surface declines rather
+  than clamping a caret and snapping a widget edge for a block that is gone
 - Every scenario names its presentation mode, so none of them rides the harness default
 
 ## Error cases
@@ -81,3 +84,6 @@ covers the user-facing gesture.)
   gesture whose parts were never varied independently.
 - The table cell: the widget's props reach it through a second surface, and every scenario
   loaded prose. A per-surface forward is a class, and the suite exercised one member.
+- The click that outlived its block: five scenarios here drove it and all five passed, because
+  the only thing it broke was a Svelte runtime warning no gate read. A channel nothing watches
+  is a whole class of defect with no tests at all, whatever the scenarios say.
