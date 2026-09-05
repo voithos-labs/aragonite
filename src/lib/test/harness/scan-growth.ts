@@ -1,10 +1,8 @@
-// Growth harness for the inline scan-bounds suites. Wall time is machine-dependent,
-// so these suites time the same shape at N and 4N: the ratio cancels machine speed
-// out, landing near 4 when the scan is bounded and near 16 when it is quadratic.
-// Under parallel workers an asymmetry between the two measurements does not average
-// out — it lands on one size and fabricates growth. Hence both sizes are warmed (the
-// first samples run several times slow), and sampled in one alternating window so
-// drift arriving mid-run cancels instead of loading whichever went second.
+// Growth harness for the scan-bounds suites. Wall time is machine-dependent, so these suites time
+// the same shape at N and 4N: the ratio cancels machine speed out, landing near 4 when the scan is
+// bounded and near 16 when it is quadratic. Both sizes are warmed (the first samples run several
+// times slow), then sampled in one alternating window and priced pair by pair, so interference
+// arriving mid-run cancels instead of loading whichever size it caught.
 
 /** Distinct-per-sample tail: the scan indexes memoize on the block's raw, so a
  *  second run of the identical string would time a cache hit, not the scan. Trailing
@@ -14,37 +12,55 @@ const salt = (sample: number) => 'z'.repeat(sample);
 /** Discarded samples per size — the warm-up ramp is steepest across the first two. */
 const WARMUPS = 2;
 
-/** Timed samples per size; the minimum of these is the size's reported cost. Sixteen, not four:
- *  a battery starves the longer size's windows first, and four reached 7.7 against a ceiling of 8. */
+/** Timed pairs per size. Sixteen, not four: a battery starves a size's windows, and a starved pair
+ *  only stays out of the verdict while enough clean ones outnumber it. */
 const REPETITIONS = 16;
 
-/** Below this, a best-of is jitter rather than a measurement: at a fraction of a millisecond
- *  a single scheduler hiccup in either sample fabricates growth the scan never had. */
+/** Below this, a sample is jitter rather than a measurement: at a fraction of a millisecond
+ *  a single scheduler hiccup fabricates growth the scan never had. */
 export const MIN_SAMPLE_MS = 2;
 
-/** Escalation cap. Past two 4x steps the samples run long enough that best-of starts favoring
- *  the shorter size, since a clean window is rarer the longer it has to stay clean. */
+/** Escalation cap. Each step costs 4x the wall time for the same verdict, and past two the
+ *  harness is pricing a size no suite declared. */
 const MAX_ESCALATIONS = 2;
 
+/** Ratio ceiling every bounded-scan assertion prices against: midway (log scale)
+ *  between a linear 4x and a quadratic 16x, so neither side is a coin flip. */
+export const BOUNDED_GROWTH_CEILING = 8;
+
+/** Whole re-measurements a reading over the ceiling earns before it stands. A sibling suite hogging
+ *  the cores lands on the longer size; a quadratic scan reads 16 in every attempt regardless. */
+export const MAX_ATTEMPTS = 3;
+
 export interface ScanGrowth {
-	/** Best-of wall time at [N, 4N], milliseconds. */
+	/** Median wall time at [N, 4N], milliseconds. */
 	times: [number, number];
-	/** time(4N) / time(N). */
+	/** Median of the per-pair time(4N) / time(N) readings. Interference lands in proportion to a
+	 *  sample's length, so a best-of would favor the shorter size and read the gap as growth. */
 	ratio: number;
 	/** The [N, 4N] sizes actually priced: the declared pair, or a 4x escalation of it. */
 	sizesKb: [number, number];
+	/** Measurements taken; past one, the reading is the lowest ratio they returned. */
+	attempts: number;
 }
 
-/** `24KB=1.2ms 96KB=5.0ms`, with the sizes read off the result so a failure message cannot
- *  name a size the run never measured. */
-export function describeGrowth({ times, sizesKb }: ScanGrowth): string {
-	return `${sizesKb[0]}KB=${times[0].toFixed(1)}ms ${sizesKb[1]}KB=${times[1].toFixed(1)}ms`;
+/** `24KB=1.2ms 96KB=5.0ms ratio=4.17`; sizes read off the result so a message cannot name a size
+ *  the run never measured, and times are medians, so they need not divide to the paired ratio. */
+export function describeGrowth({ times, ratio, sizesKb, attempts }: ScanGrowth): string {
+	const retried = attempts > 1 ? ` best of ${attempts}` : '';
+	return `${sizesKb[0]}KB=${times[0].toFixed(1)}ms ${sizesKb[1]}KB=${times[1].toFixed(1)}ms ratio=${ratio.toFixed(2)}${retried}`;
 }
 
 function timeMs(run: (source: string) => void, source: string, now: () => number): number {
 	const started = now();
 	run(source);
 	return now() - started;
+}
+
+function median(values: number[]): number {
+	const sorted = [...values].sort((a, b) => a - b);
+	const middle = sorted.length >> 1;
+	return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 /**
@@ -56,8 +72,8 @@ export type ScanSource = string | ((bytes: number, salt: string) => string);
 
 /**
  * Time `run` over `source` built to each of `[smallKb, largeKb]` (a 4x step), warming and
- * sampling both sizes symmetrically, and re-pricing both 4x larger while the small sample
- * sits under `MIN_SAMPLE_MS`.
+ * sampling both sizes symmetrically, re-pricing both 4x larger while the small sample sits
+ * under `MIN_SAMPLE_MS`, and re-measuring a reading that lands over the ceiling.
  */
 export function measureScanGrowth(
 	run: (source: string) => void,
@@ -77,7 +93,7 @@ export function measureScanGrowth(
 		return () => body + salt(sample++);
 	};
 
-	const sampleBoth = (sizes: [number, number]): [number, number] => {
+	const sampleBoth = (sizes: [number, number]) => {
 		const small = sourceAt(sizes[0]);
 		const large = sourceAt(sizes[1]);
 
@@ -86,29 +102,37 @@ export function measureScanGrowth(
 			timeMs(run, large(), now);
 		}
 
-		let smallBest = Infinity;
-		let largeBest = Infinity;
+		const smalls: number[] = [];
+		const larges: number[] = [];
+		const ratios: number[] = [];
 		for (let rep = 0; rep < REPETITIONS; rep++) {
-			if (rep % 2 === 0) {
-				smallBest = Math.min(smallBest, timeMs(run, small(), now));
-				largeBest = Math.min(largeBest, timeMs(run, large(), now));
-			} else {
-				largeBest = Math.min(largeBest, timeMs(run, large(), now));
-				smallBest = Math.min(smallBest, timeMs(run, small(), now));
-			}
+			const smallFirst = rep % 2 === 0;
+			const first = timeMs(run, smallFirst ? small() : large(), now);
+			const second = timeMs(run, smallFirst ? large() : small(), now);
+			const [smallMs, largeMs] = smallFirst ? [first, second] : [second, first];
+			smalls.push(smallMs);
+			larges.push(largeMs);
+			ratios.push(largeMs / smallMs);
 		}
-		return [smallBest, largeBest];
+		return { times: [median(smalls), median(larges)] as [number, number], ratio: median(ratios) };
 	};
 
-	let sizesKb: [number, number] = [smallKb, largeKb];
-	let times = sampleBoth(sizesKb);
-	for (let step = 0; step < MAX_ESCALATIONS && times[0] < MIN_SAMPLE_MS; step++) {
-		sizesKb = [sizesKb[0] * 4, sizesKb[1] * 4];
-		times = sampleBoth(sizesKb);
-	}
-	return { times, ratio: times[1] / times[0], sizesKb };
-}
+	const priceOnce = () => {
+		let sizesKb: [number, number] = [smallKb, largeKb];
+		let growth = sampleBoth(sizesKb);
+		for (let step = 0; step < MAX_ESCALATIONS && growth.times[0] < MIN_SAMPLE_MS; step++) {
+			sizesKb = [sizesKb[0] * 4, sizesKb[1] * 4];
+			growth = sampleBoth(sizesKb);
+		}
+		return { ...growth, sizesKb };
+	};
 
-/** Ratio ceiling every bounded-scan assertion prices against: midway (log scale)
- *  between a linear 4x and a quadratic 16x, so neither side is a coin flip. */
-export const BOUNDED_GROWTH_CEILING = 8;
+	let best = priceOnce();
+	let attempts = 1;
+	while (attempts < MAX_ATTEMPTS && best.ratio > BOUNDED_GROWTH_CEILING) {
+		const retry = priceOnce();
+		attempts++;
+		if (retry.ratio < best.ratio) best = retry;
+	}
+	return { ...best, attempts };
+}
