@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+//
+// Miss-analysis: every case here handed the IO a live element, so the read order behind a dead
+// one was never asked.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 import { asRawOffset } from '../../cursor/coordinate-spaces';
@@ -183,6 +186,22 @@ describe('clampOutOfAmbient', () => {
 
 		const sel = window.getSelection()!;
 		expect(sel.focusNode).toBe(marker.firstChild);
+	});
+
+	// The surface can be gone before a click reaches it: a widget's own handler navigates, the
+	// window re-slices, and the block unmounts mid-dispatch. `getAmbientLength` is an owner-bound
+	// derived at the shipped call site, so reading it before liveness reads a dead owner.
+	it('reads no ambient length once the surface is gone', () => {
+		let reads = 0;
+		createAmbientCursorIO({
+			getEl: () => null,
+			getAmbientLength: () => {
+				reads++;
+				return AMBIENT.length;
+			}
+		}).clampOutOfAmbient();
+
+		expect(reads).toBe(0);
 	});
 });
 

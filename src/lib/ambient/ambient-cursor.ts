@@ -113,10 +113,12 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	}
 
 	function clampOutOfAmbient(): void {
-		const ambientLength = deps.getAmbientLength();
-		if (ambientLength === 0) return;
+		// Liveness before the ambient read, as every other method here does it: the length is an
+		// owner-bound derived at the call site, and a surface unmounted mid-dispatch is a dead owner.
 		const live = readLiveRange();
 		if (live.state !== 'live' || !live.collapsed) return;
+		const ambientLength = deps.getAmbientLength();
+		if (ambientLength === 0) return;
 		const content = domTextOffsetAtNode(live.el, live.range.startContainer, live.range.startOffset);
 		if (content >= ambientLength) return;
 		setToAmbientBoundary();
