@@ -178,6 +178,15 @@ describe('branch protection ↔ workflow check names', () => {
 		).toEqual([]);
 	});
 
+	it('sends both halves in the payload it applies', () => {
+		const contexts = /contexts:\s*(.+)$/m.exec(script)?.[1] ?? '';
+		expect(
+			contexts,
+			'the readers below hold two declarations the payload has stopped spreading, so a half of the rule would silently go unrequired'
+		).toContain('CI_CONTEXTS');
+		expect(contexts).toContain('EXTERNAL_CONTEXTS');
+	});
+
 	it('no undeclared workflow reports a check name the rule requires', () => {
 		const outsideCi = new Map([...workflowChecks].filter(([file]) => file !== CI));
 		const colliding = undeclaredReporters(required, declaredExternal, outsideCi);
