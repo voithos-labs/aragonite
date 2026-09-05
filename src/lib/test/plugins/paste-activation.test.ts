@@ -14,7 +14,8 @@ import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { registerPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { normalizeReplacementForBody } from '$lib/tree-operations/paste/body-write';
-import { registerDetailsKind } from '$lib/plugins/details/details-kind';
+import { declaredPluginKind } from '$lib/schema/plugin-kind';
+import { DETAILS, registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '$lib/core/nodes';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { activationFor, kindEnablementFor } from '$lib/schema/plugin-activation';
@@ -74,7 +75,9 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 		{ kind: 'paragraph', leadingTrivia: '', raw: PARROT_LINE + '</details>\n' } as CstNode
 	];
 	const landedKinds = (grammar: ReturnType<typeof grammarListing> | undefined) =>
-		normalizeReplacementForBody('details', pasted(), grammar).replacement.map((n) => n.kind);
+		normalizeReplacementForBody(declaredPluginKind(DETAILS), pasted(), grammar).replacement.map(
+			(n) => n.kind
+		);
 
 	it('the global grammar mints the plugin kind', () => {
 		expect(landedKinds(undefined)).toContain(PARROT);
