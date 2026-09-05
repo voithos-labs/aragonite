@@ -84,7 +84,9 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 	const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
 	const replacement: CstNode[] = [];
 	if (firstHalf) replacement.push(firstHalf);
-	replacement.push(...input.blocks);
+	// Appended, never spread: a paste large enough to outnumber an argument list would
+	// raise "Maximum call stack size exceeded" at the call.
+	for (const block of input.blocks) replacement.push(block);
 	if (secondHalf) replacement.push(secondHalf);
 
 	await replaceBlockAtParent({
