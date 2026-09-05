@@ -74,15 +74,15 @@
 	--syntax-task-done: rgba(128, 128, 128, 0.7);
 
 	/* Code block syntax highlighting — monokai-inspired palette */
-	--code-tok-keyword: #f92672;
+	--code-tok-keyword: #ff79a8;
 	--code-tok-string: #e6db74;
 	--code-tok-number: #ae81ff;
 	--code-tok-literal: #ae81ff;
-	--code-tok-comment: #75715e;
+	--code-tok-comment: #9c9780;
 	--code-tok-type: #66d9ef;
 	--code-tok-function: #a6e22e;
 	--code-tok-variable: inherit;
-	--code-tok-operator: #f92672;
+	--code-tok-operator: #ff79a8;
 	--code-tok-punctuation: inherit;
 	--code-tok-meta: #fd971f;
 	--code-tok-attr: #a6e22e;
@@ -90,7 +90,7 @@
 	--code-tok-symbol: #ae81ff;
 	--code-tok-subst: inherit;
 	--code-tok-added: #a6e22e;
-	--code-tok-removed: #f92672;
+	--code-tok-removed: #ff79a8;
 	--code-tok-heading: #66d9ef;
 	--code-tok-link: #66d9ef;
 	--code-tok-unknown: inherit;
@@ -133,7 +133,7 @@
 	--code-tok-string: #0a3069;
 	--code-tok-number: #0550ae;
 	--code-tok-literal: #0550ae;
-	--code-tok-comment: #6e7781;
+	--code-tok-comment: #666f79;
 	--code-tok-type: #953800;
 	--code-tok-function: #8250df;
 	--code-tok-operator: #cf222e;

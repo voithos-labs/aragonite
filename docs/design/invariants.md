@@ -836,6 +836,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.58 | One commit-message rule, enforced at the hook and in CI                       | L       |
 | G4.59 | The VR tag catalog and the tags cited in source are one set                   | L       |
 | G4.60 | Every spread into a call's argument list declares what bounds its count       | L       |
+| G4.62 | Every code token clears AA on the surface and the fence, in both themes       | L       |
 
 ### The entries
 
@@ -1339,6 +1340,14 @@ what this replaces: the fix that closed the first three sites missed a fourth in
 key is the file plus its enclosing function, so a second spread added inside a declared function
 inherits that row's reason — the granularity a reviewer checks by hand.
 `lint/spread-call-census.test.ts`.
+**G4.62 · Code-token contrast.** Every `--code-tok-*` color `editor-theme.css` declares clears WCAG
+AA (4.5:1) against both backgrounds code paints on — `--color-surface` and the fence,
+`--color-bg-secondary` composited over it — in each theme. Computed from the declarations rather
+than a browser, because the editor paints no background of its own: an axe run measures whatever
+page the editor was dropped onto, so it can report the shell's palette and never the library's.
+Completeness is the load-bearing half — the family is derived from the CSS by prefix, so a token
+added tomorrow is measured, and a value in a form the reader can't parse fails instead of escaping.
+`lint/code-token-contrast.test.ts`.
 
 ## Accessibility
 
@@ -1347,8 +1356,10 @@ Target: WCAG 2.1 AA, enforced by an `@axe-core/playwright` baseline gate (`test:
 cross-block selection, the failed-block fallback, a blocked-scheme link) and fails on any violation
 whose rule id isn't in the committed allowlist (`src/lib/e2e/a11y/axe-baseline.json`).
 
-That allowlist is the executable, milestone-tied log of deferred AA work (contrast rides the
-CSS-ownership migration; per-block accessible names and the focusable thematic-break separator land
-at 1.1) and it **only shrinks**. The cross-block selection is overlay-painted with native selection
+That allowlist is the executable, milestone-tied log of deferred AA work (per-block accessible names
+and the focusable thematic-break separator land at 1.1) and it **only shrinks**. Contrast is the one
+entry it cannot settle: the editor paints no background of its own, so axe reports the ratios of
+whatever page it scanned, which is why the palette the library ships is certified by G4.62 instead.
+The cross-block selection is overlay-painted with native selection
 suppressed, so assistive tech can't otherwise see it; it's exposed through a visually-hidden
 `aria-live` region fed by the pure `createSelectionDescription` builder.

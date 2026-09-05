@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { readEditorFile, stripComments } from './scan-source';
+import { declaredValue, LIGHT_SELECTOR, themeBlocks } from './theme-css';
 
 const THEMED_TOKENS = [
 	'--color-surface',
@@ -40,27 +41,8 @@ const MODE_BLIND_BY_DESIGN: Record<string, string> = {
 	'--color-selection': 'one selection base, carried into both palettes by its washes'
 };
 
-const LIGHT_SELECTOR = "[data-editor-theme='light']";
-
-/** Base and light are each split across the host-chrome and editor-owned tiers, so rules
- *  are classified by their own selector rather than by one index split. */
-function themeBlocks(): { base: string; light: string } {
-	const css = stripComments(readEditorFile('styles/editor-theme.css').text);
-	let base = '';
-	let light = '';
-	for (const [, selector, body] of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
-		if (selector.includes(LIGHT_SELECTOR)) light += body;
-		else base += body;
-	}
-	return { base, light };
-}
-
 function declares(block: string, token: string): boolean {
 	return new RegExp(`${token}\\s*:`).test(block);
-}
-
-function declaredValue(block: string, token: string): string | null {
-	return block.match(new RegExp(`${token}\\s*:\\s*([^;]+);`))?.[1].trim() ?? null;
 }
 
 // ── The published manifest ──────────────────────────────────────────────────
