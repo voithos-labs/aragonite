@@ -60,7 +60,9 @@ export interface EditorProps {
 	keybindings?: KeybindingOverride[];
 	/** Plugins installed once, in array order, at mount. Set-once: a later change to
 	 *  this prop is ignored — installation is process-global and cannot re-run. An
-	 *  entry may be a bare unit or `{ plugin, options }` for per-instance options. */
+	 *  entry may be a bare unit or `{ plugin, options }` for per-instance options.
+	 *  The array is the enablement set too: this editor activates exactly what it
+	 *  lists, and no prop at all activates everything installed. */
 	plugins?: readonly EditorPluginEntry[];
 }
 
