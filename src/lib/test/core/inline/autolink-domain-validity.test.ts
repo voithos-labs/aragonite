@@ -58,3 +58,25 @@ describe('http/https autolink — valid domain (GFM §6.9)', () => {
 		expect(autolinkUrls('http://example.com:8080/a_b')).toEqual(['http://example.com:8080/a_b']);
 	});
 });
+
+// Miss-analysis: the file header claimed a deliberate divergence without naming one, and no
+// case pinned a dotless host, so the behavior was unpinned in either direction.
+describe("a scheme'd host needs no period — the deliberate divergence", () => {
+	// GFM §6.9's valid-domain rule wants at least one period, and cmark-gfm keeps these
+	// literal. Kept because `http://localhost` is what a dev note is full of.
+	it.each(['http://localhost', 'http://foo'])('autolinks %j', (raw) => {
+		expect(autolinkUrls(raw)).toEqual([raw]);
+	});
+
+	it.each(['localhost', 'foo'])('keeps a bare %j literal — no scheme and no `www.`', (raw) => {
+		expect(autolinkUrls(raw)).toEqual([]);
+	});
+
+	// The dotless host does not exempt the trailing-punctuation trim, which runs first.
+	it('trims the trailing period of http://foo. and leaves it as text', () => {
+		expect(inlineOf('http://foo.')).toEqual([
+			{ kind: 'autolink', start: 0, end: 10, url: 'http://foo' },
+			{ kind: 'text', start: 10, end: 11, text: '.' }
+		]);
+	});
+});

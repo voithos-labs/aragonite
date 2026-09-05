@@ -1,8 +1,8 @@
 /**
  * `<` dispatch (spec autolinks §6.5, then raw HTML §6.6) plus the GFM §6.9 bare/www/email pass
  * over completed text runs. No conformance reference covers the extension: these rules follow
- * the GFM spec text, then cmark-gfm where its prose runs out (`scanEmailDomain`), with one
- * deliberate divergence at `hasValidDomain`.
+ * the GFM spec text, then cmark-gfm where its prose runs out (`scanEmailDomain`), and diverge
+ * from both at `hasValidDomain`: a scheme'd host needs no period, so `http://localhost` links.
  */
 
 import type { InlineNode } from '../../nodes';
