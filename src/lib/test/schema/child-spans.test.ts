@@ -145,7 +145,7 @@ describe('the children doors drop the spans they invalidate', () => {
 		// element — the O(children) cost the spans exist to remove (`schema/child-spans.ts`).
 		expect(node.childSpans).toBeInstanceOf(Uint32Array);
 		expect(spans(node)).toEqual([0, 4, 4, 8]);
-		spliceChildren(node, 1, 1, paragraph('c\n'));
+		spliceChildren(node, 1, 1, [paragraph('c\n')]);
 		expect(node.childSpans).toBeUndefined();
 		rebuild(node);
 		pushChild(node, paragraph('d\n'));

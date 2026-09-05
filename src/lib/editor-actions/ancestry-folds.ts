@@ -10,6 +10,7 @@ import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange
 } from '../tree-operations/structural-change';
+import { spliceMany } from '../tree-operations/splice-many';
 import { assignIds } from '../block-id';
 import { getStateForNode } from '../reactivity/state-registry';
 import { replaceRefs } from '../reactivity/publish-ref.svelte';
@@ -126,5 +127,5 @@ function publishContainerFold(deps: EditorActionsDeps, fold: AncestrySeamFold): 
 
 /** The whole pre-splice array: a fold re-mints plural slots, so no narrower register covers it. */
 function restoreChildren(fold: AncestrySeamFold): void {
-	fold.siblings.splice(0, fold.siblings.length, ...fold.before);
+	spliceMany(fold.siblings, 0, fold.siblings.length, fold.before);
 }

@@ -9,6 +9,7 @@ import type { BlockComponent } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from './sharing';
 import { generateBlockId, assignChildIdsDeep, assignIds } from '../block-id';
+import { spliceMany } from './splice-many';
 import { assertInvariant } from '../assert';
 import { checkStructuralDescriptor } from '../invariants/structural-descriptor';
 
@@ -73,8 +74,8 @@ export function applyStructuralChangeToIdsRefs(
 		case 'insert': {
 			const newIds = Array.from({ length: change.count }, generateBlockId);
 			const newRefs = new Array<BlockComponent | undefined>(change.count).fill(undefined);
-			ids.splice(change.at, 0, ...newIds);
-			refs.splice(change.at, 0, ...newRefs);
+			spliceMany(ids, change.at, 0, newIds);
+			spliceMany(refs, change.at, 0, newRefs);
 			return;
 		}
 		case 'delete': {
@@ -92,8 +93,8 @@ export function applyStructuralChangeToIdsRefs(
 			const newRefs = Array.from({ length: change.newCount }, (_, i) =>
 				idMap[i] !== undefined ? oldRefs[idMap[i]] : undefined
 			);
-			ids.splice(change.at, change.count, ...newIds);
-			refs.splice(change.at, change.count, ...newRefs);
+			spliceMany(ids, change.at, change.count, newIds);
+			spliceMany(refs, change.at, change.count, newRefs);
 			return;
 		}
 	}

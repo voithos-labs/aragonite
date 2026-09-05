@@ -301,7 +301,7 @@ export function installTestProbes({
 			const container = nodeAt(editor.__test.getDocument(), path) as CstNode | null;
 			if (!container) return;
 			const inserted = markdown ? parse(markdown).children : [];
-			spliceChildren(container, at, removeCount, ...inserted);
+			spliceChildren(container, at, removeCount, inserted);
 			container.children = [...(container.children ?? [])];
 		},
 		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',

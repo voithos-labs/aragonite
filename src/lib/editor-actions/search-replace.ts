@@ -7,6 +7,7 @@
 import type { CstNode } from '../core/nodes';
 import { parse } from '../core/parser';
 import { cloneNode } from '../tree-operations/clone';
+import { spliceMany } from '../tree-operations/splice-many';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import {
 	normalizeBodyWrite,
@@ -136,7 +137,7 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 			await controller.commitStructural({
 				snapshot: 'skip', // batch shares the single snapshot pushed above
 				mutate: (children) => {
-					children.splice(topIndex, 1, ...newNodes);
+					spliceMany(children, topIndex, 1, newNodes);
 					const change = replacePreservingFirst(topIndex, 1, newNodes.length);
 					stampStructuralChange(children, change, deps.sharing);
 					return change;

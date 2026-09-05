@@ -10,6 +10,7 @@ import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import type { PasteCommitCoordinator } from './paste-deps';
 import { nodeAt } from '../node-ops';
+import { spliceMany } from '../splice-many';
 import { trailingLineEnding } from '../../core/lines';
 import { normalizeReplacementForBody } from './body-write';
 import { landedPasteOffset, trackedPasteCaret } from './focus-target';
@@ -88,7 +89,7 @@ export async function replaceBlockAtParent(args: ReplaceBlockAtParentArgs): Prom
 		scopes: [scope],
 		snapshot: undoEntry === 'join' ? 'skip' : { path: docPathFrom(blockPath), offset: 0 },
 		mutate: ([scopeView]) => {
-			scopeView.children.splice(blockIdx, 1, ...replacement);
+			spliceMany(scopeView.children, blockIdx, 1, replacement);
 			// Identity preservation only helps on a kind match; BlockHost dispatches by kind,
 			// so a different kind remounts anyway.
 			const change: StructuralChange = sameKindFirst

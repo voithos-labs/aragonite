@@ -8,6 +8,7 @@ import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
+import { spliceMany } from '../splice-many';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { containerPasteFor } from './container-paste';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
@@ -107,7 +108,7 @@ export async function applyListBreakOut(
 		scopes: [parentScope],
 		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
-			scopeView.children.splice(spliceIndex, 1, ...replacement);
+			spliceMany(scopeView.children, spliceIndex, 1, replacement);
 			const change: StructuralChange = {
 				op: 'replace',
 				at: spliceIndex,

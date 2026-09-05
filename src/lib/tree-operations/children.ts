@@ -9,6 +9,7 @@
 import type { CstNode } from '../core/nodes';
 import { assignIds, generateBlockId } from '../block-id';
 import { dropChildSpans } from '../schema/child-spans';
+import { spliceMany } from './splice-many';
 
 export function pushChild(container: CstNode, child: CstNode): void {
 	if (!container.children) container.children = [];
@@ -43,7 +44,7 @@ export function spliceChildren(
 	container: CstNode,
 	at: number,
 	removeCount: number,
-	...items: CstNode[]
+	items: readonly CstNode[]
 ): void {
 	if (!container.children) container.children = [];
 	// No lazy-init here: containers without childIds get them from the mounting BlockList anyway.
@@ -54,8 +55,8 @@ export function spliceChildren(
 		const ids = items.map((_, i) =>
 			i === 0 && continues ? container.childIds![at] : generateBlockId()
 		);
-		container.childIds.splice(at, removeCount, ...ids);
+		spliceMany(container.childIds, at, removeCount, ids);
 	}
-	container.children.splice(at, removeCount, ...items);
+	spliceMany(container.children, at, removeCount, items);
 	dropChildSpans(container);
 }

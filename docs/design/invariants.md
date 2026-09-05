@@ -1334,9 +1334,11 @@ counts. `lint/vr-tag-census.test.ts`.
 source is declared with what bounds its count. A spread hands the engine one argument per element,
 and a list past its limit raises "Maximum call stack size exceeded" at the call, which strands the
 operation with nothing rendered (#246). A declaration is one of two modes: a `bounded` site names
-the ceiling its count can't pass (a literal group, `MAX_UNDO`, the parser's nesting cap), and a
-`gap` site says the count follows the document, which is the honest reading for the splice family
-under `tree-operations/` that a paste scales. Array-literal spread (`[...x]`) has no argument list
+the ceiling its count can't pass (a literal group, `MAX_UNDO`, the parser's nesting cap, the insert
+chunk `spliceMany` splices in), and a `gap` site says the count follows the document, which names a
+defect rather than settling one: a splice a paste can scale routes through
+`src/lib/tree-operations/splice-many.ts` :: `spliceMany` instead. Array-literal spread (`[...x]`)
+has no argument list
 and is out of scope; a rest parameter names one array and never grows a call, so the scan reads the
 `function` keyword before and the body or arrow after to tell the two apart. Hand enumeration is
 what this replaces: the fix that closed the first three sites missed a fourth in its own file. The

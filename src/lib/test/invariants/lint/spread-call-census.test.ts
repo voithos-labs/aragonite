@@ -28,35 +28,14 @@ const ALLOWLIST: Record<string, Declaration> = {
 		mode: 'bounded',
 		reason: 'the tokens of one decoration’s own class attribute; no document axis scales it'
 	},
-	'src/lib/editor-actions/ancestry-folds.ts :: restoreChildren': {
-		mode: 'gap',
-		reason:
-			'a fold restores a scope’s whole pre-splice children array, which a wide container scales'
-	},
-	'src/lib/editor-actions/block-edit-core.ts :: mutate': {
-		mode: 'gap',
-		reason: 'the replacement blocks are caller-supplied, and a paste scales them'
-	},
 	'src/lib/editor-actions/commit/undo-controller.ts :: mutate': {
 		mode: 'bounded',
 		reason:
 			'one reclassification per ancestor container, and the parser folds nesting past MAX_NESTING_DEPTH into paragraph content'
 	},
-	'src/lib/editor-actions/search-replace.ts :: mutate': {
-		mode: 'gap',
-		reason: 'the replacement text is caller-supplied and reparses into as many blocks as it carries'
-	},
 	'src/lib/selection/range-delete-ceremony.ts :: collectDeletionPlan': {
 		mode: 'bounded',
 		reason: 'the range’s own endpoints: every caller passes zero to two paths'
-	},
-	'src/lib/tree-operations/children.ts :: spliceChildren': {
-		mode: 'gap',
-		reason: 'the door’s rest parameter reaches both arrays, so a paste scales the count twice over'
-	},
-	'src/lib/tree-operations/list/terminator.ts :: spliceTerminatedItems': {
-		mode: 'gap',
-		reason: 'the pasted list items are caller-supplied'
 	},
 	'src/lib/tree-operations/node-ops.ts :: splitNode': {
 		mode: 'bounded',
@@ -66,34 +45,13 @@ const ALLOWLIST: Record<string, Declaration> = {
 		mode: 'bounded',
 		reason: 'the merged node alone; assertSingleNodeSink pins the array at length one'
 	},
-	'src/lib/tree-operations/node-ops.ts :: spliceChildrenSettled': {
-		mode: 'gap',
-		reason: 'the replacement is caller-supplied, and spliceChildren spreads it again downstream'
-	},
-	'src/lib/tree-operations/node-ops.ts :: absorbSeamReading': {
-		mode: 'gap',
-		reason: 'the fold window spans a blank run, so the reparse it splices back is document-scaled'
-	},
-	'src/lib/tree-operations/node-ops.ts :: writeParsedContent': {
-		mode: 'gap',
-		reason: 'the written content is caller-supplied and reparses into as many blocks as it carries'
-	},
 	'src/lib/tree-operations/paste/body-write.ts :: normalizeReplacementForBody': {
 		mode: 'bounded',
 		reason: 'one pasted node’s own reparse, appended per node rather than per replacement'
 	},
-	'src/lib/tree-operations/paste/list-break-out.ts :: mutate': {
-		mode: 'gap',
-		reason: 'the clipboard’s blocks'
-	},
-	'src/lib/tree-operations/paste/replace-block-at-parent.ts :: mutate': {
-		mode: 'gap',
-		reason:
-			'the clipboard’s blocks — the array table-cell-paste.ts appends into for exactly this reason'
-	},
-	'src/lib/tree-operations/structural-change.ts :: applyStructuralChangeToIdsRefs': {
-		mode: 'gap',
-		reason: 'one id and one ref per inserted block, so a replacement’s count reaches both splices'
+	'src/lib/tree-operations/splice-many.ts :: spliceMany': {
+		mode: 'bounded',
+		reason: 'one INSERT_CHUNK per call, whatever the total the mutation doors hand it'
 	},
 	'src/lib/undo/manager.ts :: restoreStacks': {
 		mode: 'bounded',
@@ -228,6 +186,18 @@ function annotationColonBefore(text: string, cls: Uint8Array, assign: number): n
 	return assign;
 }
 
+/** Back over a type-parameter list, so `function pick<T>(…)` names `pick` and not the module. */
+function skipTypeParameters(text: string, cls: Uint8Array, at: number): number {
+	if (text[at] !== '>') return at;
+	let depth = 0;
+	for (let i = at; i >= 0; i--) {
+		if (cls[i] !== CODE) continue;
+		if (text[i] === '>') depth++;
+		else if (text[i] === '<' && --depth === 0) return skipBack(text, cls, i - 1);
+	}
+	return at;
+}
+
 /** The nearest enclosing named function, walking out through blocks and anonymous scopes. */
 function enclosingName(text: string, cls: Uint8Array, at: number): string {
 	let from = at;
@@ -238,7 +208,7 @@ function enclosingName(text: string, cls: Uint8Array, at: number): string {
 		if (text[open] !== '{') continue;
 		const paren = parameterListOf(text, cls, open);
 		if (paren === null) continue;
-		const before = skipBack(text, cls, paren - 1);
+		const before = skipTypeParameters(text, cls, skipBack(text, cls, paren - 1));
 		const direct = identifierBefore(text, before);
 		if (CONTROL_KEYWORDS.has(direct)) continue;
 		if (direct !== '' && direct !== 'function') return direct;
@@ -329,17 +299,20 @@ describe('G4.60 scan self-tests', () => {
 		expect(scan('const ellipsis = /f\\(\\.\\.\\.x\\)/;\n')).toEqual([]);
 	});
 
-	it('reads a rest parameter as a declaration, in all three spellings the tree uses', () => {
+	it('reads a rest parameter as a declaration, wherever it sits in the list', () => {
 		expect(scan('export function removeAll(...removers: (() => void)[]): () => void {}\n')).toEqual(
 			[]
 		);
 		expect(scan('const api = { moveFocus: (...args: unknown[]) => {} };\n')).toEqual([]);
-		expect(scan('function spliceChildren(at: number, ...items: Node[]): void {}\n')).toEqual([]);
+		expect(scan('function appendAll(at: number, ...items: Node[]): void {}\n')).toEqual([]);
 	});
 
-	it('names the enclosing function past a return type and a declared type', () => {
+	it('names the enclosing function past a return type, a declared type and a type parameter', () => {
 		expect(scan('function menu(a: T): Item[] {\n\titems.push(...group());\n}\n')[0].key).toBe(
 			'f.ts :: menu'
+		);
+		expect(scan('function pick<T>(a: T[]): void {\n\tsink(...a);\n}\n')[0].key).toBe(
+			'f.ts :: pick'
 		);
 		expect(scan('const clean: Cleaner = (j) => {\n\tMath.min(...c);\n};\n')[0].key).toBe(
 			'f.ts :: clean'

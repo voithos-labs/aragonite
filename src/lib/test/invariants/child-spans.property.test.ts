@@ -142,7 +142,9 @@ function applyEdit(node: CstNode, edit: Edit): boolean {
 	}
 	if (edit.op === 'splice') {
 		const at = edit.at % (children.length + 1);
-		spliceChildren(node, at, Math.min(edit.remove, children.length - at), paragraph('', edit.body));
+		spliceChildren(node, at, Math.min(edit.remove, children.length - at), [
+			paragraph('', edit.body)
+		]);
 		rebuild(node);
 		return false;
 	}

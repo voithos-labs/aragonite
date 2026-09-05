@@ -41,6 +41,7 @@ import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild, ensureUnsharedPath } from './unshare';
 import { resyncChildIds, spliceChildren } from './children';
+import { spliceMany } from './splice-many';
 import {
 	applyStructuralChangeToIdsRefs,
 	replacePreservingFirst,
@@ -976,7 +977,7 @@ export function spliceChildrenSettled(
 	const children = parent.children;
 	if (!children || at < 0 || at > children.length) return;
 	const removed = children.slice(at, at + removeCount);
-	spliceChildren(parent as CstNode, at, removeCount, ...replacement);
+	spliceChildren(parent as CstNode, at, removeCount, replacement);
 	// `noop` in, so what comes back describes the SETTLE alone: `spliceChildren` already carried
 	// the door's own splice into `childIds`, and out of commit scope nothing else publishes.
 	const settled = settleSplicedWindow(
@@ -1064,7 +1065,7 @@ function absorbSeamReading(
 			assignChildIdsDeep(block);
 		}
 		if (tracked) retrackThroughFold(tracked, at, window, blocks);
-		children.splice(at, window.length, ...blocks);
+		spliceMany(children, at, window.length, blocks);
 		eaten += window.length - blocks.length;
 		span = blocks.length;
 		spliced = true;
@@ -1657,7 +1658,7 @@ function writeParsedContent(
 		if (firstBackfilled) reconcileBackfilledRaw(first);
 		// The peeled line has no follower inside the splice, so it stays in raw.
 		rest[rest.length - 1].raw += reparsed.suffix;
-		parent.children.splice(blockIndex, 1, first, ...rest);
+		spliceMany(parent.children, blockIndex, 1, parsed);
 		return replacePreservingFirst(blockIndex, 1, parsed.length);
 	}
 

@@ -8,6 +8,7 @@
 
 import type { CstNode } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
+import { spliceMany } from '../splice-many';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
 import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
@@ -63,5 +64,5 @@ export function spliceTerminatedItems(
 ): void {
 	const neighbour = (removeCount > 0 ? children[at] : undefined) ?? children[at - 1] ?? children[0];
 	newlineTerminateListItems(items, neighbour ? trailingLineEnding(neighbour.raw) : '\n');
-	children.splice(at, removeCount, ...items);
+	spliceMany(children, at, removeCount, items);
 }

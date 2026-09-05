@@ -28,6 +28,7 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations/structural-change';
+import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
@@ -331,7 +332,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					}
 					const normalized = normalizeReplacementTrivia(view.children[i], replacement);
 					for (const node of normalized) ensureEditableContainers(node);
-					view.children.splice(i, 1, ...normalized);
+					spliceMany(view.children, i, 1, normalized);
 					const change = replacePreservingFirst(i, 1, normalized.length);
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
