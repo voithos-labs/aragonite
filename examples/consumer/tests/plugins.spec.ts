@@ -1,7 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const getSource = (page: Page) =>
-	page.evaluate(() => (window as { __consumer?: { getSource(): string } }).__consumer!.getSource());
+// The route binds the probe in an effect after hydration, and a visible contenteditable is
+// already true of the server-rendered markup, so the read waits for the handle itself.
+const getSource = async (page: Page) => {
+	await page.waitForFunction(() => !!(window as { __consumer?: unknown }).__consumer);
+	return page.evaluate(() =>
+		(window as { __consumer?: { getSource(): string } }).__consumer!.getSource()
+	);
+};
 
 test.beforeEach(async ({ page }) => {
 	const errors: string[] = [];
