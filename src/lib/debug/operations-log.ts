@@ -1,3 +1,4 @@
+import { devWarn } from '../dev-warn';
 import type { OperationKind } from '../schema/operations';
 
 export interface OperationEntry {
@@ -28,7 +29,7 @@ export function createOperationsLog(capacity = 100): OperationsLog {
 				try {
 					l(stamped);
 				} catch (err) {
-					console.error('[OperationsLog] subscriber threw while handling entry:', err);
+					devWarn('operations-log', 'subscriber threw while handling entry', err);
 				}
 			}
 		},

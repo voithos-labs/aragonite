@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
+import { takeDevWarns } from './support/warn-gate';
 import { asDocPath } from '$lib/selection/path-math';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
 import type { AnyBlockKind } from '$lib/core/nodes';
@@ -67,7 +68,6 @@ describe('createEditorEvents', () => {
 
 	it('a throwing subscriber does not starve downstream subscribers', () => {
 		const events = createEditorEvents();
-		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const called: string[] = [];
 
 		events.on('edit', () => called.push('a'));
@@ -80,8 +80,9 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
 		expect(called).toEqual(['a', 'b-throwing', 'c']);
-		expect(spy).toHaveBeenCalled();
-		spy.mockRestore();
+		// Through the dev-warn channel, not the console: a swallow no gate can see is how a
+		// subscriber overflowed the stack on every battery unnoticed (GH #246).
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['events']);
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
@@ -126,15 +127,14 @@ describe('editor-events — error channel', () => {
 		expect(errors[0].origin).toBe('subscriber');
 	});
 
-	it('does not recurse when an error-subscriber itself throws (falls back to console.error)', () => {
+	it('does not recurse when an error-subscriber itself throws (reports instead)', () => {
 		const events = createEditorEvents();
-		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		events.on('error', () => {
 			throw new Error('error-handler boom');
 		});
 		expect(() => events.emit('error', { origin: 'render', error: new Error('x') })).not.toThrow();
-		expect(spy).toHaveBeenCalled();
-		spy.mockRestore();
+		const fires = takeDevWarns();
+		expect(fires.map((w) => `${w.tag}: ${w.message}`)).toEqual(['events: error subscriber threw']);
 	});
 });
 

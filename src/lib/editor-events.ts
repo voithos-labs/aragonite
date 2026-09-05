@@ -5,6 +5,7 @@
  */
 
 import type { AnyBlockKind } from './core/nodes';
+import { devWarn } from './dev-warn';
 import type { PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
@@ -99,14 +100,12 @@ export function createEditorEvents(): EditorEvents {
 			try {
 				(handler as (p: EditorEventMap[K]) => void)(payload);
 			} catch (err) {
-				// Recursion guard: an error-channel subscriber that throws only logs,
-				// since re-emitting would loop.
-				if (event === 'error') {
-					console.error('[EditorEvents] error-channel subscriber threw:', err);
-				} else if (handlers.error?.size) {
+				// Recursion guard: an error-channel subscriber's own throw reports rather than
+				// re-emitting, which would loop. Everything the channel cannot carry reds a gate.
+				if (event !== 'error' && handlers.error?.size) {
 					emit('error', { origin: 'subscriber', error: err });
 				} else {
-					console.error('[EditorEvents] subscriber threw (no error handler):', err);
+					devWarn('events', `${event} subscriber threw`, err);
 				}
 			}
 		}
