@@ -6,7 +6,7 @@ Everything this editor has actually shipped, newest first. The README sends peop
 
 ## [0.10](changelog/0.10.md)
 
-- [0.10.1](changelog/0.10.md#0101-large-documents): the party parrot ships bundled and dances in CSS, a plugin can say where a click lands, the plugins prop scopes activation, huge containers type at block cost, the demo answers a phone
+- [0.10.1](changelog/0.10.md#0101-large-documents-the-plugins-prop-and-a-phone): typing inside a huge list costs the block, the plugins prop is the enablement set, a plugin can say where a click lands, the parrot ships and dances in CSS, and the demo answers a phone
 - [0.10.0](changelog/0.10.md#0100-reload-truth-at-every-door-and-windowing-under-host-scroll): reload truth at every mutating door, windowing under host scroll, the whole-block editing host
 
 ## [0.9](changelog/0.9.md)
