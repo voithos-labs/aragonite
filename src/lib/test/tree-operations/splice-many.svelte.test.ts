@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spliceMany } from '$lib/tree-operations/splice-many';
+import { INSERT_CHUNK, spliceMany } from '$lib/tree-operations/splice-many';
 
 /** Past the engine's argument limit, so a single spread would raise a RangeError here. */
 const OVER_LIMIT = 200_000;
@@ -25,6 +25,16 @@ describe('spliceMany past the argument limit', () => {
 		expect(target[landsAt + OVER_LIMIT - 1]).toBe(OVER_LIMIT - 1);
 		expect(target.slice(0, landsAt)).toEqual(survivors.slice(0, landsAt));
 		expect(target.slice(landsAt + OVER_LIMIT)).toEqual(survivors.slice(landsAt));
+	});
+
+	// The seam between the one-call path and the chunk loop, where the loop's offset arithmetic
+	// first has a second chunk to place.
+	it.each([INSERT_CHUNK, INSERT_CHUNK + 1])('hands off at the ceiling with %i items', (count) => {
+		const target = run(4);
+		spliceMany(target, 2, 1, run(count));
+		expect(target).toHaveLength(3 + count);
+		expect(target.slice(2, 2 + count)).toEqual(run(count));
+		expect(target.slice(2 + count)).toEqual([3]);
 	});
 
 	it('keeps the array’s identity, so a holder of the reference sees the write', () => {

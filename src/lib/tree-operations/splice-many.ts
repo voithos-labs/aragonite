@@ -6,7 +6,7 @@
  */
 
 /** Well under the engine's argument ceiling, which measures around 125,000 on a desktop V8. */
-const INSERT_CHUNK = 50_000;
+export const INSERT_CHUNK = 50_000;
 
 export function spliceMany<T>(
 	target: T[],
