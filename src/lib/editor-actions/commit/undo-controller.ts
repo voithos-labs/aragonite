@@ -368,8 +368,8 @@ export function createUndoController(deps: EditorActionsDeps): UndoController {
 		return true;
 	}
 
-	// Bracket the synchronous ceremony (DEV-only) so the decoration engine can assert no
-	// source runs inside a half-applied commit. Cleared before the first await.
+	// Bracket the synchronous ceremony so the decoration engine keeps a source off a
+	// half-applied commit. Cleared before the first await.
 	async function __commit(args: CommitArgs): Promise<void> {
 		beginCommit();
 		let committed: boolean;
