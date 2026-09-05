@@ -1335,7 +1335,9 @@ the ceiling its count can't pass (a literal group, `MAX_UNDO`, the parser's nest
 under `tree-operations/` that a paste scales. Array-literal spread (`[...x]`) has no argument list
 and is out of scope; a rest parameter names one array and never grows a call, so the scan reads the
 `function` keyword before and the body or arrow after to tell the two apart. Hand enumeration is
-what this replaces: the fix that closed the first three sites missed a fourth in its own file.
+what this replaces: the fix that closed the first three sites missed a fourth in its own file. The
+key is the file plus its enclosing function, so a second spread added inside a declared function
+inherits that row's reason — the granularity a reviewer checks by hand.
 `lint/spread-call-census.test.ts`.
 
 ## Accessibility
