@@ -57,7 +57,9 @@ export interface DecorationSource {
 }
 export interface DecorationSourceHandle {
 	/** Synchronous by contract: decorations and buckets reflect the new result before this
-	 *  returns. Search's setQuery relies on it — never defer. */
+	 *  returns. Search's setQuery relies on it — never defer. The one exception is a call
+	 *  from inside a commit (an `edit` handler): those coalesce to one run once it publishes,
+	 *  since a source must never read a half-applied tree. */
 	invalidate(): void;
 	dispose(): void;
 }

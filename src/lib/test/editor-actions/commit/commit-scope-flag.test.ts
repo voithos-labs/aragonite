@@ -9,10 +9,10 @@ import {
 	type StructuralChange
 } from '$lib/tree-operations/structural-change';
 
-// The ceremony brackets its synchronous body with this DEV flag so the decoration
-// engine can assert no source re-runs inside a half-applied commit.
+// The ceremony brackets its synchronous body with this flag so the decoration engine can
+// keep a source off a half-applied commit.
 describe('commit-scope flag', () => {
-	it('tracks an explicit begin/end pair (confirming the mechanism is live under DEV)', () => {
+	it('tracks an explicit begin/end pair', () => {
 		expect(isCommitInProgress()).toBe(false);
 		beginCommit();
 		try {

@@ -420,8 +420,8 @@ out-of-range index silently truncates the chain. Inline closure, watcher-netted.
 `tree-operations/unshare.ts :: ensureUnsharedPath`.
 
 **G1.23 · No decoration sources mid-commit.** `notifyEdit` and `runAll` assert the commit ceremony's
-in-progress flag is clear, because a decoration source running mid-commit would read a
-half-published tree. The flag is set by the commit helper and read from
+in-progress flag is clear, and a source handle's `invalidate()` defers to one run once it clears,
+because a decoration source running mid-commit would read a half-published tree. The flag is set by the commit helper and read from
 `invariants/commit-scope.ts`. Inline closure, watcher-netted. Seam
 `decorations/decoration-state.svelte.ts`.
 

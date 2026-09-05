@@ -1476,7 +1476,7 @@ setup(ctx) {
 
 **Two contracts to build against:**
 
-- **`invalidate()` is synchronous.** Your new decorations are applied before the call returns, so an event handler can invalidate and immediately trust the view.
+- **`invalidate()` is synchronous.** Your new decorations are applied before the call returns, so an event handler can invalidate and immediately trust the view. The exception is an `edit` handler, which the editor calls mid-commit: an invalidate from there waits for the commit to publish, so your source reads a finished document rather than a half-applied one. Several of them in one commit are one re-run.
 - **Widget identity is untracked.** The renderer compares decorations by position and class, not by widget object, so swapping in a new `component` or `buildDom` at the same position with the same class re-renders nothing. Vary `class` when the widget's content changes.
 
 ### The four decoration types

@@ -1,4 +1,5 @@
 import { DEV } from 'esm-env';
+import { tick } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
 	groupDecorationsByAncestor,
@@ -129,6 +130,23 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		}
 	}
 
+	// A source invalidating from its own `edit` handler is asking to re-run inside the commit
+	// that emitted the event; deferred here to one run per source once the commit publishes.
+	const deferred = new Set<DecorationSource>();
+	let flushQueued = false;
+
+	function runAfterCommit(source: DecorationSource): void {
+		deferred.add(source);
+		if (flushQueued) return;
+		flushQueued = true;
+		void tick().then(() => {
+			flushQueued = false;
+			const pending = [...deferred];
+			deferred.clear();
+			for (const source of pending) runSource(source);
+		});
+	}
+
 	function runAll(): void {
 		assertNotInCommit();
 		for (const source of sources) runSource(source);
@@ -149,7 +167,9 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		let live = true;
 		return {
 			invalidate: () => {
-				if (live) runSource(source);
+				if (!live) return;
+				if (isCommitInProgress()) runAfterCommit(source);
+				else runSource(source);
 			},
 			dispose: () => {
 				if (!live) return;
