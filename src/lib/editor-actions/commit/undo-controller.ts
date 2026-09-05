@@ -82,7 +82,7 @@ function touchedContainersWithChildren(containers: CstNode[] | undefined): CstNo
 		out.push(c);
 		// Appended, never spread: a container as wide as a giant table's row list would
 		// exceed the engine's argument limit at the call.
-		if (c.children) for (const child of c.children) out.push(child);
+		for (const child of c.children ?? []) out.push(child);
 	}
 	return out;
 }
