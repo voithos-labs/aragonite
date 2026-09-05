@@ -168,10 +168,10 @@ export interface EditableSurface {
 	surface: EditableSurfaceMethods;
 	caret: ClipboardCaretIO;
 	/**
-	 * True once this surface has left the document. Svelte's delegated walk does not await a
-	 * keydown handler, so a container above it (a list item's Tab) claims the press and unmounts
-	 * the block while a step is suspended; every awaited step asks this before reading on, or the
-	 * tail addresses a block that is gone.
+	 * True while this surface's element is out of the document — a torn-down host, and equally a
+	 * render-primary leaf whose source is folded. Svelte's delegated walk does not await a keydown
+	 * handler, so a container above it (a list item's Tab) claims the press and unmounts the block
+	 * while a step is suspended; every awaited step asks this before reading on.
 	 */
 	isDetached(): boolean;
 	onInput: () => void;
