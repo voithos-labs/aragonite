@@ -167,6 +167,13 @@ export interface EditableSurface {
 	sharedCtx: SharedKeydownContext;
 	surface: EditableSurfaceMethods;
 	caret: ClipboardCaretIO;
+	/**
+	 * True once this surface has left the document. Svelte's delegated walk does not await a
+	 * keydown handler, so a container above it (a list item's Tab) claims the press and unmounts
+	 * the block while a step is suspended; every awaited step asks this before reading on, or the
+	 * tail addresses a block that is gone.
+	 */
+	isDetached(): boolean;
 	onInput: () => void;
 	onCompositionStart: () => void;
 	onCompositionEnd: () => void;
@@ -373,7 +380,20 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 
 	const caret: ClipboardCaretIO = { getEl: deps.getEl, getCursorOffset, focus };
 
-	return { crossBlock, sharedCtx, surface, caret, onInput, onCompositionStart, onCompositionEnd };
+	// The element, not the binding: a torn-down host drops out of the document before Svelte's
+	// `bind:this` teardown nulls the reference a resuming handler still holds.
+	const isDetached = (): boolean => deps.getEl()?.isConnected !== true;
+
+	return {
+		crossBlock,
+		sharedCtx,
+		surface,
+		caret,
+		isDetached,
+		onInput,
+		onCompositionStart,
+		onCompositionEnd
+	};
 }
 
 // ── Reveal fold ─────────────────────────────────────────────────────────────

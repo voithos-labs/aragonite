@@ -104,6 +104,22 @@ describe('Enter in an editable leaf', () => {
 		expect(mounted.source()).toBeNull();
 	});
 
+	// Miss-analysis: every case here dispatched the press and awaited it on a leaf nothing
+	// touched, so no test ever asked what the handler does when the block it addresses stops
+	// existing between two of its own steps.
+	it('drops the press whose container unmounted the leaf mid-step', async () => {
+		mounted = mountLeaf(true);
+		const el = await mounted.revealAtEnd();
+
+		// Svelte's delegated walk does not await the handler, so the container above claims the
+		// press and tears the block down while the shared step is still pending.
+		el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+		el.remove();
+		await flush();
+
+		expect(mounted.blockEdit.splitBlock).not.toHaveBeenCalled();
+	});
+
 	it('lands the fold’s write before the split reads the block’s bytes', async () => {
 		mounted = mountLeaf(true);
 		let releaseWrite!: () => void;

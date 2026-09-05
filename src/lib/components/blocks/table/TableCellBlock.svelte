@@ -617,7 +617,7 @@
 
 		// Reveal/selection intercepts before the plan, which would otherwise read a
 		// mid-reveal ArrowUp/Down as cell nav.
-		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+		if ((await widgetInteraction.handleRevealingKeydown(e)) || editableSurface.isDetached()) return;
 		// Enter is a cell's exception: prose splits, a cell hops rows, and hopping would
 		// carry the ephemeral edit out of the surface that owns it. Commit and stay put.
 		if (widgetInteraction.isRevealing() && e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
@@ -625,7 +625,8 @@
 			widgetInteraction.foldRevealBeforeMutation();
 			return;
 		}
-		if (await widgetInteraction.handleSelectedWidgetKeydown(e)) return;
+		if ((await widgetInteraction.handleSelectedWidgetKeydown(e)) || editableSurface.isDetached())
+			return;
 		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 
 		preEditOffset = cursor.getRaw() ?? 0;

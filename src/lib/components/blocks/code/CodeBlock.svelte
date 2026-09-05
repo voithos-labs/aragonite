@@ -401,7 +401,7 @@
 
 		preEditOffset = backend.getRaw() ?? 0;
 
-		if (await handleSharedKeydown(e, sharedCtx)) return;
+		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 	}

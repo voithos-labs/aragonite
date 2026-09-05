@@ -770,7 +770,7 @@
 	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing) return;
+		if (composing || editableSurface.isDetached()) return;
 
 		preEditOffset = cursor.getRaw() ?? 0;
 
@@ -780,18 +780,19 @@
 
 		// Escape cancels a revealed source back to rendered; every other key edits the
 		// source natively or reaches the command seam below, which folds before mutating.
-		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+		if ((await widgetInteraction.handleRevealingKeydown(e)) || editableSurface.isDetached()) return;
 
 		// Before handleSharedKeydown: selecting cleared the native range, so the shared
 		// ArrowLeft boundary branch would read offset 0 and move focus to a block that
 		// isn't there.
-		if (await widgetInteraction.handleSelectedWidgetKeydown(e)) return;
+		if ((await widgetInteraction.handleSelectedWidgetKeydown(e)) || editableSurface.isDetached())
+			return;
 
 		// The native default, with user-select:none on the widget, collapses the selection
 		// instead of stepping past it.
 		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 
-		if (await handleSharedKeydown(e, sharedCtx)) return;
+		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
 		// Every caret-edge construct routes through this one dispatch, keeping native
 		// contenteditable from corrupting the atomic bytes each stands for.

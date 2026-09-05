@@ -450,7 +450,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (composing || !el) return;
 		preEditOffset = getCursorOffset(el) ?? 0;
 
-		if (await handleSharedKeydown(e, editableSurface.sharedCtx)) return;
+		if ((await handleSharedKeydown(e, editableSurface.sharedCtx)) || editableSurface.isDetached())
+			return;
 
 		if (dispatchChord(e)) return;
 
