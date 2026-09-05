@@ -8,6 +8,7 @@ import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	recordPluginKindOwner,
 	__resetInstalledPluginsForTests,
@@ -40,6 +41,7 @@ function bindKindChord(
 
 const GATES = {
 	history: { requestUndo() {}, requestRedo() {} },
+	activation: everyInstalledPlugin,
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
 	crossBlockCommands: undefined

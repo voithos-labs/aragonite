@@ -11,6 +11,7 @@ import {
 	resolveGlobalBinding
 } from '$lib/schema/commands';
 import { mintCommandId } from '$lib/schema/command-id';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { takeDevWarns } from '$lib/test/support/warn-gate';
 
@@ -79,19 +80,25 @@ describe('override-aware resolution (commands.ts)', () => {
 		const map = normalizeKeybindingOverrides([
 			{ chord: 'Enter', command: 'history.undo', kind: 'paragraph' }
 		]);
-		expect(resolveBinding('Enter', 'paragraph', map)?.command).toBe('history.undo');
+		expect(resolveBinding('Enter', 'paragraph', map, everyInstalledPlugin)?.command).toBe(
+			'history.undo'
+		);
 		// without overrides, Enter on paragraph is the built-in split
-		expect(resolveBinding('Enter', 'paragraph')?.command).toBe('block.split');
+		expect(resolveBinding('Enter', 'paragraph', undefined, everyInstalledPlugin)?.command).toBe(
+			'block.split'
+		);
 	});
 
 	it('a global override shadows a built-in KIND binding (source dominates specificity)', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Enter', command: 'history.undo' }]);
-		expect(resolveBinding('Enter', 'paragraph', map)?.command).toBe('history.undo');
+		expect(resolveBinding('Enter', 'paragraph', map, everyInstalledPlugin)?.command).toBe(
+			'history.undo'
+		);
 	});
 
 	it('a global disable suppresses a chord everywhere and does NOT consult the built-in', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Z', command: null }]);
-		expect(resolveBinding('Mod+Z', 'paragraph', map)).toBeNull();
+		expect(resolveBinding('Mod+Z', 'paragraph', map, everyInstalledPlugin)).toBeNull();
 	});
 
 	it('resolveKindBinding honors a kind override and disable', () => {
@@ -123,46 +130,58 @@ describe('override-aware resolution (commands.ts)', () => {
 
 	it('adds a brand-new chord for a built-in command', () => {
 		const map = normalizeKeybindingOverrides([{ chord: 'Mod+Alt+S', command: 'history.undo' }]);
-		expect(resolveBinding('Mod+Alt+S', 'paragraph', map)?.command).toBe('history.undo');
+		expect(resolveBinding('Mod+Alt+S', 'paragraph', map, everyInstalledPlugin)?.command).toBe(
+			'history.undo'
+		);
 	});
 
 	it('no overrides leaves built-in resolution unchanged', () => {
-		expect(resolveBinding('Mod+Z', 'paragraph')?.command).toBe('history.undo');
+		expect(resolveBinding('Mod+Z', 'paragraph', undefined, everyInstalledPlugin)?.command).toBe(
+			'history.undo'
+		);
 		expect(resolveKindBinding('Enter', 'paragraph')?.command).toBe('block.split');
 	});
 });
 
 describe('isDefaultGlobalChord', () => {
 	it('matches the exact default history chords only', () => {
-		expect(isDefaultGlobalChord('Mod+Z')).toBe(true);
-		expect(isDefaultGlobalChord('Mod+Y')).toBe(true);
-		expect(isDefaultGlobalChord('Mod+Shift+Z')).toBe(true);
+		expect(isDefaultGlobalChord('Mod+Z', everyInstalledPlugin)).toBe(true);
+		expect(isDefaultGlobalChord('Mod+Y', everyInstalledPlugin)).toBe(true);
+		expect(isDefaultGlobalChord('Mod+Shift+Z', everyInstalledPlugin)).toBe(true);
 	});
 
 	it('does NOT match a modified variant — the Ctrl+Alt+Y interception bug guard', () => {
-		expect(isDefaultGlobalChord('Mod+Alt+Y')).toBe(false);
-		expect(isDefaultGlobalChord('Mod+Alt+Z')).toBe(false);
-		expect(isDefaultGlobalChord('Mod+B')).toBe(false);
+		expect(isDefaultGlobalChord('Mod+Alt+Y', everyInstalledPlugin)).toBe(false);
+		expect(isDefaultGlobalChord('Mod+Alt+Z', everyInstalledPlugin)).toBe(false);
+		expect(isDefaultGlobalChord('Mod+B', everyInstalledPlugin)).toBe(false);
 	});
 });
 
 describe('resolveGlobalBinding', () => {
 	it('returns the default global binding when no override', () => {
-		expect(resolveGlobalBinding('Mod+Z')?.command).toBe('history.undo');
-		expect(resolveGlobalBinding('Mod+Y')?.command).toBe('history.redo');
+		expect(resolveGlobalBinding('Mod+Z', undefined, everyInstalledPlugin)?.command).toBe(
+			'history.undo'
+		);
+		expect(resolveGlobalBinding('Mod+Y', undefined, everyInstalledPlugin)?.command).toBe(
+			'history.redo'
+		);
 	});
 
 	it('honors a global rebind and disable', () => {
 		const rebind = normalizeKeybindingOverrides([{ chord: 'Mod+Z', command: 'history.redo' }]);
-		expect(resolveGlobalBinding('Mod+Z', rebind)?.command).toBe('history.redo');
+		expect(resolveGlobalBinding('Mod+Z', rebind, everyInstalledPlugin)?.command).toBe(
+			'history.redo'
+		);
 		const disable = normalizeKeybindingOverrides([{ chord: 'Mod+Z', command: null }]);
-		expect(resolveGlobalBinding('Mod+Z', disable)).toBeNull();
+		expect(resolveGlobalBinding('Mod+Z', disable, everyInstalledPlugin)).toBeNull();
 	});
 
 	it('ignores a kind-scoped override (global scope only)', () => {
 		const kindScoped = normalizeKeybindingOverrides([
 			{ chord: 'Mod+Z', command: 'history.redo', kind: 'paragraph' }
 		]);
-		expect(resolveGlobalBinding('Mod+Z', kindScoped)?.command).toBe('history.undo');
+		expect(resolveGlobalBinding('Mod+Z', kindScoped, everyInstalledPlugin)?.command).toBe(
+			'history.undo'
+		);
 	});
 });

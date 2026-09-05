@@ -293,8 +293,9 @@ export interface ReservedChordOptions {
 	/** The instance's compiled `keybindings` prop, so an override's binds and disables show. */
 	keybindings?: KeybindingOverrideMap;
 	/** The plugins this instance activated: a chord another editor's plugin claimed is not
-	 *  this editor's. Absent = every installed plugin. */
-	activation?: PluginActivation;
+	 *  this editor's. Required-nullable, so a new caller must answer; `undefined` is every
+	 *  installed plugin. */
+	activation: PluginActivation | undefined;
 }
 
 /**

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isReadingMode, type PresentationMode } from '$lib/presentation-mode';
 import { dispatchKeyCommand, dispatchKindCommand } from '$lib/schema/block-commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const modeGetter = (mode: PresentationMode) => () => mode;
 const gates = (mode: PresentationMode) => ({
@@ -36,6 +37,7 @@ describe('dispatch gates in reading mode', () => {
 		const history = { requestUndo: () => void undos++, requestRedo: () => {} };
 		const reading = {
 			history,
+			activation: everyInstalledPlugin,
 			getPresentationMode: modeGetter('reading'),
 			isCrossBlockRange: () => false,
 			crossBlockCommands: undefined
@@ -45,6 +47,7 @@ describe('dispatch gates in reading mode', () => {
 
 		const source = {
 			history,
+			activation: everyInstalledPlugin,
 			getPresentationMode: modeGetter('source'),
 			isCrossBlockRange: () => false,
 			crossBlockCommands: undefined

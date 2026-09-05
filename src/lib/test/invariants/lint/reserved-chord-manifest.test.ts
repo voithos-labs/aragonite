@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { collectReservedChords, HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
 import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { isChordWellFormed } from '$lib/schema/keybindings';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { collectEditorSources, EDITOR_SRC, type SourceFile } from './scan-source';
 
 // ── The scan ─────────────────────────────────────────────────────────────────
@@ -107,7 +108,9 @@ describe('G4.29 scan non-vacuity', () => {
 	// unenumerated claim on the same chord; the card's own field swallow is manifested instead.
 	it('Mod+K reaches reservedChords from the keymaps, not from a hand-written branch', () => {
 		registerBuiltInDescriptors();
-		expect(collectReservedChords({ searchBar: true }).has('Mod+K')).toBe(true);
+		expect(
+			collectReservedChords({ searchBar: true, activation: everyInstalledPlugin }).has('Mod+K')
+		).toBe(true);
 		const cardHost = byPath.get('components/link-card/LinkCardHost.svelte');
 		expect(cardHost, 'LinkCardHost.svelte not found').toBeDefined();
 		expect(MODIFIER_READ.test(cardHost!.code)).toBe(false);

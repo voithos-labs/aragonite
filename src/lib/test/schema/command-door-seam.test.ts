@@ -19,6 +19,7 @@ import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import type { AnyCommandId } from '$lib/schema/command-id';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { takeDevWarns } from '../support/warn-gate';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 afterEach(() => {
 	__resetBlockCommandsForTests();
@@ -29,6 +30,7 @@ let undos = 0;
 function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
 	return {
 		history: { requestUndo: () => void undos++, requestRedo: () => {} },
+		activation: everyInstalledPlugin,
 		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => false,
 		crossBlockCommands: undefined,

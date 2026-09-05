@@ -37,6 +37,7 @@ import {
 import { devWarn } from '$lib/dev-warn';
 import { installPlugins, onEditorCallbacks } from '$lib/schema/plugin-install';
 import { pluginGlobalBinding } from '$lib/schema/commands';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { registerPasteSurface, getPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
 import { stripComments } from '../invariants/lint/scan-source';
@@ -82,7 +83,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(true);
 		expect(isPluginInstalled('probeplugin')).toBe(true);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(1);
-		expect(pluginGlobalBinding('Mod+Shift+1')?.command).toBe('probe.global');
+		expect(pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin)?.command).toBe('probe.global');
 
 		resetPluginPlatformForTests();
 
@@ -95,7 +96,7 @@ describe('resetPluginPlatformForTests aggregate', () => {
 		expect(isDirectiveRegistered('text', 'probe-dir')).toBe(false);
 		expect(isPluginInstalled('probeplugin')).toBe(false);
 		expect(onEditorCallbacks('probeplugin')).toHaveLength(0);
-		expect(pluginGlobalBinding('Mod+Shift+1')).toBeNull();
+		expect(pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin)).toBeNull();
 		expect(getPasteSurface('probe-block' as AnyBlockKind)).toBeUndefined();
 		expect(getInlineRungs('⌘')).toHaveLength(0);
 

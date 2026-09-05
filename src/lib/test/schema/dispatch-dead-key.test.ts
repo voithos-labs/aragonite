@@ -8,10 +8,12 @@ import {
 } from '$lib/schema/block-commands';
 import { runGlobalChord, runGlobalChordOnKind } from '$lib/schema/commands';
 import { takeDevWarns } from '../support/warn-gate';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 describe('leaf-path dispatch of an unresolved plugin command', () => {
 	const ctx = {
 		history: { requestUndo() {}, requestRedo() {} },
+		activation: everyInstalledPlugin,
 		getPresentationMode: () => 'source' as const,
 		isCrossBlockRange: () => false,
 		crossBlockCommands: undefined
@@ -66,7 +68,8 @@ describe('leaf-path dispatch of an unresolved plugin command', () => {
 describe('global-scope dispatch of a binding no global command backs', () => {
 	const ctx = {
 		isReading: false,
-		history: { requestUndo() {}, requestRedo() {} }
+		history: { requestUndo() {}, requestRedo() {} },
+		activation: everyInstalledPlugin
 	};
 	// A whole-block kind whose own keymap binds Alt+Arrow (reorder) and no history chord.
 	const KIND = 'thematicBreak' as const;

@@ -15,7 +15,7 @@ import {
 } from '$lib/schema/commands';
 import { chordIsClaimed, collectReservedChords } from '$lib/schema/reserved-chords';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
-import { activationFor } from '$lib/schema/plugin-activation';
+import { activationFor, everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	definePlugin,
 	installPlugins,
@@ -76,7 +76,7 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 	});
 
 	it('the process-wide tier still enumerates every registered chord', () => {
-		expect(pluginGlobalChords()).toContain(CHORD);
+		expect(pluginGlobalChords(everyInstalledPlugin)).toContain(CHORD);
 		expect(pluginGlobalChords(listing)).toContain(CHORD);
 		expect(pluginGlobalChords(notListing)).not.toContain(CHORD);
 	});

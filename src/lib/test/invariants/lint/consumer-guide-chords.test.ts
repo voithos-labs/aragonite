@@ -17,6 +17,7 @@ import {
 	tryGetBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
 import { normalizeChord } from '$lib/schema/keybindings';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { HARDCODED_CHORD_SITES } from '$lib/schema/reserved-chords';
 import { readEditorFile } from './scan-source';
 
@@ -236,7 +237,10 @@ describe('consumer-guide § Keyboard shortcuts → code', () => {
 	it.each(keymapRows)('$family — $action resolves to the command it names', (row) => {
 		const target = ROW_TARGETS[row.action];
 		expect(target, `no ROW_TARGETS entry for "${row.action}"`).toBeDefined();
-		const resolved = row.chords.map((chord) => resolveBinding(chord, target.kind)?.command ?? null);
+		const resolved = row.chords.map(
+			(chord) =>
+				resolveBinding(chord, target.kind, undefined, everyInstalledPlugin)?.command ?? null
+		);
 		expect(
 			[...new Set(resolved)].sort(),
 			`on ${target.kind} these chords run something else than the row claims: ${row.chords.join(', ')}`
@@ -322,10 +326,16 @@ describe('consumer-guide chord coherence — self-tests', () => {
 	});
 
 	it('reads a kind-scoped binding, so one chord is three commands across three rows', () => {
-		expect(resolveBinding('Tab', 'listItem')?.command).toBe('list.indent');
-		expect(resolveBinding('Tab', 'fencedCode')?.command).toBe('code.indent');
-		expect(resolveBinding('Tab', 'paragraph')?.command).toBe('block.insertTab');
-		expect(resolveBinding('Mod+Q', 'paragraph')).toBeNull();
+		expect(resolveBinding('Tab', 'listItem', undefined, everyInstalledPlugin)?.command).toBe(
+			'list.indent'
+		);
+		expect(resolveBinding('Tab', 'fencedCode', undefined, everyInstalledPlugin)?.command).toBe(
+			'code.indent'
+		);
+		expect(resolveBinding('Tab', 'paragraph', undefined, everyInstalledPlugin)?.command).toBe(
+			'block.insertTab'
+		);
+		expect(resolveBinding('Mod+Q', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
 	it('finds a non-empty claim set on both code axes', () => {

@@ -110,8 +110,9 @@ export interface GlobalCommandContext {
 	 *  for a plugin installed in the process that this editor did not activate. */
 	pluginEditor?: (pluginName: string) => EditorContext | undefined;
 	/** The plugins the dispatching editor activated, so the process-global plugin-global tier
-	 *  claims a chord only where its plugin is live. Absent = every installed plugin. */
-	activation?: PluginActivation;
+	 *  claims a chord only where its plugin is live. Required-nullable: a new dispatch context
+	 *  must answer, and `undefined` is the answer of a caller holding no instance. */
+	activation: PluginActivation | undefined;
 	/** The effective presentation mode, read live — the reading-mode gate keys off this,
 	 *  not the plugin lookup. Absent (a history-only context) means source. */
 	getPresentationMode?: () => PresentationMode;
@@ -272,7 +273,7 @@ function claimedHere(
 
 export function pluginGlobalBinding(
 	chord: string,
-	activation?: PluginActivation
+	activation: PluginActivation | undefined
 ): KeyBinding | null {
 	const entry = findByChord(pluginGlobalKeymap, chord);
 	return entry && claimedHere(entry, activation) ? entry : null;
@@ -280,7 +281,7 @@ export function pluginGlobalBinding(
 
 /** Every chord the plugin-global tier binds for `activation`. Registration is process-global,
  *  so an absent activation reflects plugins any mounted editor installed. */
-export function pluginGlobalChords(activation?: PluginActivation): readonly string[] {
+export function pluginGlobalChords(activation: PluginActivation | undefined): readonly string[] {
 	return pluginGlobalKeymap
 		.filter((entry) => claimedHere(entry, activation))
 		.map((b) => normalizeChord(b.chord));
@@ -348,8 +349,8 @@ export function resolveKindBinding(
 export function resolveBinding(
 	chord: string,
 	kind: AnyBlockKind,
-	overrides?: KeybindingOverrideMap,
-	activation?: PluginActivation
+	overrides: KeybindingOverrideMap | undefined,
+	activation: PluginActivation | undefined
 ): KeyBinding | null {
 	const override = overrideTier(overrides, kind, chord);
 	if (override !== undefined) return override;
@@ -363,7 +364,10 @@ export function resolveBinding(
  * command runs. A dispatch question reads `runGlobalChord`/`runGlobalChordOnKind`, which consult
  * the override tier.
  */
-export function isDefaultGlobalChord(chord: string, activation?: PluginActivation): boolean {
+export function isDefaultGlobalChord(
+	chord: string,
+	activation: PluginActivation | undefined
+): boolean {
 	return builtinGlobalBinding(chord, activation) !== null;
 }
 
@@ -373,8 +377,8 @@ export function isDefaultGlobalChord(chord: string, activation?: PluginActivatio
  */
 export function resolveGlobalBinding(
 	chord: string,
-	overrides?: KeybindingOverrideMap,
-	activation?: PluginActivation
+	overrides: KeybindingOverrideMap | undefined,
+	activation: PluginActivation | undefined
 ): KeyBinding | null {
 	const decision = overrideDecision(lookupOverride(overrides, 'global', chord));
 	if (decision !== undefined) return decision;

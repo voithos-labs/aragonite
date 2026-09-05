@@ -7,6 +7,7 @@ import {
 } from '$lib/schema/commands';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
 import type { EditorContext } from '$lib/schema/plugin-install';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 beforeEach(() => {
 	__resetPluginGlobalKeymapForTests();
@@ -29,6 +30,7 @@ it('a plugin-global chord dispatches from an ordinary leaf and the sink receives
 		{ kind: 'paragraph', runCommand: () => false },
 		{
 			history: { requestUndo() {}, requestRedo() {} },
+			activation: everyInstalledPlugin,
 			pluginEditor: () => editor,
 			getPresentationMode: () => 'source' as const,
 			isCrossBlockRange: () => false,

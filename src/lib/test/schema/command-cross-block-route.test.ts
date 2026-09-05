@@ -11,6 +11,7 @@ import {
 	type KindCommandTarget
 } from '$lib/schema/block-commands';
 import { TOOLBAR_COMMANDS } from '$lib/schema/commands';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 const TOGGLES = [
 	TOOLBAR_COMMANDS.toggleStrong,
@@ -26,6 +27,7 @@ function router(over: Partial<CrossBlockCommandRouter> = {}): CrossBlockCommandR
 function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
 	return {
 		history: { requestUndo: () => {}, requestRedo: () => {} },
+		activation: everyInstalledPlugin,
 		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => true,
 		crossBlockCommands: undefined,

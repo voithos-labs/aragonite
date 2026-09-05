@@ -18,6 +18,7 @@ import type { AnyCommandId } from '$lib/schema/command-id';
 import type { NodeView } from '$lib/core/node-views';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { allowDevWarns } from '../support/warn-gate';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 afterEach(() => {
 	__resetBlockCommandsForTests();
@@ -27,6 +28,7 @@ afterEach(() => {
 function context(over: Partial<CommandDispatchContext> = {}): CommandDispatchContext {
 	return {
 		history: { requestUndo: () => {}, requestRedo: () => {} },
+		activation: everyInstalledPlugin,
 		getPresentationMode: () => 'source',
 		isCrossBlockRange: () => false,
 		crossBlockCommands: undefined,

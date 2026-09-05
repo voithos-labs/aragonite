@@ -8,10 +8,12 @@ import {
 } from '$lib/schema/block-commands';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { CstNode } from '$lib/core/nodes';
 
 const ctx = {
 	history: { requestUndo() {}, requestRedo() {} },
+	activation: everyInstalledPlugin,
 	getPresentationMode: () => 'source' as const,
 	isCrossBlockRange: () => false,
 	crossBlockCommands: undefined

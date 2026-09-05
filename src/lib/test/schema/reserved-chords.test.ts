@@ -9,6 +9,7 @@ import {
 	__removePluginCommandsForTests
 } from '$lib/schema/commands';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 registerBuiltInDescriptors();
 
@@ -18,7 +19,8 @@ beforeEach(() => {
 	__resetMintedCommandIdsForTests();
 });
 
-const chords = (searchBar = true) => collectReservedChords({ searchBar });
+const chords = (searchBar = true) =>
+	collectReservedChords({ searchBar, activation: everyInstalledPlugin });
 
 function ke(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
 	return new KeyboardEvent('keydown', init);
@@ -77,6 +79,7 @@ describe('collectReservedChords — per-instance overrides', () => {
 	const withOverrides = (overrides: Parameters<typeof normalizeKeybindingOverrides>[0]) =>
 		collectReservedChords({
 			searchBar: true,
+			activation: everyInstalledPlugin,
 			keybindings: normalizeKeybindingOverrides(overrides)
 		});
 

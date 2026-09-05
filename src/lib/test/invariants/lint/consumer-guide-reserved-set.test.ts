@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { registerBuiltInDescriptors } from '$lib/schema/built-in-descriptors';
 import { collectReservedChords } from '$lib/schema/reserved-chords';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 
 registerBuiltInDescriptors();
 
@@ -32,7 +33,7 @@ function bareKeysClaimed(section: string): string[] {
 const section = consumedSection();
 const sampled = sampledChords(section);
 const bareKeys = bareKeysClaimed(section);
-const reserved = collectReservedChords({ searchBar: true });
+const reserved = collectReservedChords({ searchBar: true, activation: everyInstalledPlugin });
 
 describe('consumer-guide § Which shortcuts the editor consumes ↔ reservedChords()', () => {
 	it('every chord the pasted sample names is in the live set', () => {

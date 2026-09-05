@@ -14,6 +14,7 @@ import {
 } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	definePlugin,
 	installPlugins,
@@ -29,6 +30,7 @@ const editor = {
 } as never as EditorContext;
 const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	history: { requestUndo() {}, requestRedo() {} },
+	activation: everyInstalledPlugin,
 	pluginEditor: () => editor,
 	...over
 });
@@ -83,10 +85,14 @@ describe('registerGlobalCommand', () => {
 
 	it('chord registers into the plugin-global tier; built-in chords are unstealable', () => {
 		registerGlobalCommand('demo.chorded', () => true, { chord: 'Mod+Shift+9' });
-		expect(pluginGlobalBinding('Mod+Shift+9')?.command).toBe('demo.chorded');
-		expect(isDefaultGlobalChord('Mod+Shift+9')).toBe(true);
-		expect(resolveGlobalBinding('Mod+Shift+9')?.command).toBe('demo.chorded');
-		expect(resolveBinding('Mod+Shift+9', 'paragraph')?.command).toBe('demo.chorded');
+		expect(pluginGlobalBinding('Mod+Shift+9', everyInstalledPlugin)?.command).toBe('demo.chorded');
+		expect(isDefaultGlobalChord('Mod+Shift+9', everyInstalledPlugin)).toBe(true);
+		expect(resolveGlobalBinding('Mod+Shift+9', undefined, everyInstalledPlugin)?.command).toBe(
+			'demo.chorded'
+		);
+		expect(
+			resolveBinding('Mod+Shift+9', 'paragraph', undefined, everyInstalledPlugin)?.command
+		).toBe('demo.chorded');
 		expect(() => registerGlobalCommand('demo.steal', () => true, { chord: 'Mod+Z' })).toThrow(
 			/Mod\+Z/
 		);
@@ -102,8 +108,8 @@ describe('registerGlobalCommand', () => {
 		expect(() => registerGlobalCommand('demo.malformed', () => true, { chord: 'Ctrl+W' })).toThrow(
 			/malformed/
 		);
-		expect(pluginGlobalBinding('W')).toBeNull();
-		expect(resolveBinding('W', 'paragraph')).toBeNull();
+		expect(pluginGlobalBinding('W', everyInstalledPlugin)).toBeNull();
+		expect(resolveBinding('W', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
 	it('a chord collision leaves no partial state — the name can still be minted afterward', () => {
@@ -116,7 +122,7 @@ describe('registerGlobalCommand', () => {
 	it('a consumer global override disables a plugin-global chord', () => {
 		registerGlobalCommand('demo.overridable', () => true, { chord: 'Mod+Shift+8' });
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+8', command: null }]);
-		expect(resolveBinding('Mod+Shift+8', 'paragraph', overrides)).toBeNull();
+		expect(resolveBinding('Mod+Shift+8', 'paragraph', overrides, everyInstalledPlugin)).toBeNull();
 	});
 });
 
@@ -133,8 +139,10 @@ describe('chorded global command survives dev re-eval', () => {
 			registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' })
 		).not.toThrow();
 		// One binding survives — a re-eval must not stack a duplicate.
-		expect(pluginGlobalBinding('Mod+Shift+7')?.command).toBe('demo.dev');
-		expect(resolveBinding('Mod+Shift+7', 'paragraph')?.command).toBe('demo.dev');
+		expect(pluginGlobalBinding('Mod+Shift+7', everyInstalledPlugin)?.command).toBe('demo.dev');
+		expect(
+			resolveBinding('Mod+Shift+7', 'paragraph', undefined, everyInstalledPlugin)?.command
+		).toBe('demo.dev');
 	});
 
 	it('a cross-command chord collision still throws under dev re-eval', () => {
