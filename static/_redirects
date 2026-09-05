@@ -1,0 +1,3 @@
+# Cloudflare applies this before its 404 handling, which would otherwise boot the dev harness
+# (the /test/* pages) through the SPA fallback. vite preview ignores it, so the perf gate is unaffected.
+/test/* / 302
