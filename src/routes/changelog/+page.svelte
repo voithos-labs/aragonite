@@ -36,7 +36,7 @@
 	<header class="changelog-header">
 		<span class="changelog-title">aragonite</span>
 		<span class="changelog-tag">changelog</span>
-		<div class="changelog-chips" role="group" aria-label="Release family">
+		<div class="changelog-chips changelog-families" role="group" aria-label="Release family">
 			{#each CHANGELOG_FAMILIES as entry (entry.id)}
 				<button
 					type="button"
@@ -140,5 +140,49 @@
 		flex-direction: column;
 		min-width: 0;
 		min-height: 0;
+	}
+
+	/* One unwrappable row of a chip per release family left everything from 0.8 down, both
+	   mode chips and the link past the right edge, on a page with no pan to reach them. */
+	@media (max-width: 640px) {
+		.changelog-header {
+			flex-wrap: wrap;
+			gap: 0.3rem 0.45rem;
+			padding: 0.45rem 0.6rem;
+		}
+		/* No modifier key to press, and the tag is a label the title already carries. */
+		.changelog-tag,
+		.changelog-hint {
+			display: none;
+		}
+		.changelog-title {
+			font-size: 1rem;
+		}
+		.changelog-chip {
+			font-size: 0.7rem;
+			padding: 0.1rem 0.4rem;
+		}
+		/* inline-flex holds a group on one line no width can break, which is what put the
+		   older families off screen; the family group takes a row and wraps inside it. */
+		.changelog-chips {
+			flex-wrap: wrap;
+		}
+		.changelog-families {
+			flex: 1 0 100%;
+			justify-content: center;
+		}
+		.changelog-modes {
+			margin-left: 0;
+		}
+	}
+
+	/* Every header control clears the thumb minimum, the link included. */
+	@media (pointer: coarse) {
+		.changelog-chip,
+		.changelog-link {
+			display: inline-flex;
+			align-items: center;
+			min-height: 24px;
+		}
 	}
 </style>
