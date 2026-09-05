@@ -1,6 +1,6 @@
 {
 	"name": "@voithos-labs/aragonite",
-	"version": "0.10.1",
+	"version": "0.10.2",
 	"description": "Svelte 5 block editor for GFM Markdown with byte-for-byte lossless round-trip and a plugin platform",
 	"keywords": [
 		"markdown",

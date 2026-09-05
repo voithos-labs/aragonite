@@ -50,9 +50,12 @@ The editor owns the caret, the tree, and the undo stack. You own load, save, and
 	import '@voithos-labs/aragonite/styles/editor-theme.css';
 
 	let editor;
+	const source = '# Hello\n';
 </script>
 
-<Editor bind:this={editor} source={'# Hello\n'} theme="dark" />
+<div class="aragonite-editor-theme" data-editor-theme="light">
+	<Editor bind:this={editor} {source} theme="light" />
+</div>
 <button onclick={() => save(editor.getSource())}>Save</button>
 ```
 
@@ -60,7 +63,7 @@ A few things in the above example snippet are decently important; you might want
 
 1. **`source` seeds the document at mount**, and re-seeds it if the prop later changes. It's not a two way bound: the editor never writes back into it, so the document you read is always `getSource()`.
 2. **`bind:this` is how you talk to a mounted editor.** For example, you might want to use important read functions like `getSource()` and `getSelection()`, or important write functions like `setSelection()` and `runCommand()`. [The instance surface](#the-instance-surface) covers all of it.
-3. **Theming is CSS custom properties.** [Theming](#theming) has the variables and how to customize yours.
+3. **The editor paints no background of its own.** It inherits your page, so its mode has to match the page it lands on, and it says `light` twice because there are two things to match: the wrapper carries the built-in look (font, colors) for everything inside it, and the `theme` prop keys the editor's own surfaces. A fresh app's page is white, hence `light`; on a dark page write `dark` in both spots, or write nothing, dark being the default. Skip the wrapper if your app already declares the tokens; [Theming](#theming) has the two tiers and how to customize yours.
 
 Two more that aren't in the snippet but bite early: plugin registration is process-global and happens once at mount, but each editor activates exactly the plugins its own `plugins` prop lists ([Plugins](#plugins)); and `editor.__test.*` is internal and will move, so don't build on it.
 
@@ -645,7 +648,7 @@ A live change is supported, and virtual rendering re-estimates the document at t
 
 Outside this contract sits the editor's own visual language: the syntax and code-token palettes, the marker colors, the selection, search, and reorder tints (derived from `--color-selection`, above), and the surfaces windowing paints where blocks aren't mounted yet. Those are dark-based or mode-independent; read `editor-theme.css` if you mean to retheme them.
 
-**Plugin fallbacks.** A plugin reading a token keeps an inline fallback (`var(--color-text-muted, #aaaaaa)`) so it renders with no host, and every fallback matches the token's dark base value in `editor-theme.css`, never the light one. Which scopes a fallback fires in follows the tier: an editor-owned token defaults on `.editor`, so its fallback only fires outside the editor, while a host-chrome token defaults behind the opt-in class alone, so in a host that skips the class the fallback fires inside `.editor` too.
+**Plugin fallbacks.** A plugin reading a token keeps an inline fallback (`var(--color-text-muted, #aaaaaa)`) so it renders with no host, and every fallback matches the token's dark base value in `editor-theme.css`, never the light one. The one exception is the text color: it falls back to `currentColor`, so an editor with no host tokens and no wrapper inherits the page's own text instead of painting white on whatever the page is. Which scopes a fallback fires in follows the tier: an editor-owned token defaults on `.editor`, so its fallback only fires outside the editor, while a host-chrome token defaults behind the opt-in class alone, so in a host that skips the class the fallback fires inside `.editor` too.
 
 ## Keyboard shortcuts
 

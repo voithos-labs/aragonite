@@ -318,7 +318,7 @@ cNd.........................................;lOc
 			color: #3fd3d3;
 		}
 		85.714% {
-			color: var(--color-text-primary, #ffffff);
+			color: var(--color-text-primary, currentColor);
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {

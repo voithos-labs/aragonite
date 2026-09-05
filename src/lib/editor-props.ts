@@ -51,7 +51,9 @@ export interface EditorProps {
 	scrollMode?: 'self' | 'host';
 	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
-	 *  own `.editor[data-editor-theme='<name>']` token block. */
+	 *  own `.editor[data-editor-theme='<name>']` token block. The editor paints no
+	 *  background, so the name should match the page; an `aragonite-editor-theme`
+	 *  wrapper keys its own palette off the same attribute set on the wrapper. */
 	theme?: string;
 	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
 	 *  guide's Presentation modes section describes what each rung shows and allows. */

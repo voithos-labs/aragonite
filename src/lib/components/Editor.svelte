@@ -1715,7 +1715,8 @@
 		   declaration scales the whole surface. */
 		font-size: var(--editor-font-size, 1rem);
 		line-height: 1.6;
-		color: var(--color-text-primary, #ffffff);
+		/* Inherit rather than assume a dark host: an unthemed page keeps its own text color. */
+		color: var(--color-text-primary, currentColor);
 		min-height: 200px;
 		overflow-y: auto;
 		/* The editor corrects the scroll anchor by hand (list-windowing's
