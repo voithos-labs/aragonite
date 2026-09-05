@@ -175,7 +175,7 @@ Note,
 
 ## The paperwork
 
-One thing before your first pull request lands: sign the contributor license agreement, [`CLA.md`](CLA.md). It's a comment on the pull request, the bot tells you the exact sentence, and it covers every pull request after. Short version: you keep your copyright, your code stays open source forever, and voithos-labs gets to license the project as a whole under other terms too (the app this editor came out of is under a different license). Read the whole thing anyway; it's a page.
+One thing before your first pull request lands: sign the contributor license agreement, [`CLA.md`](CLA.md). It's a comment on the pull request, the bot tells you the exact sentence, and it covers every pull request after. Short version: you keep your copyright, your code stays open source forever, and voithos-labs gets to license the project as a whole under other terms too. That last bit is for [limestone](https://github.com/voithos-labs/limestone), the app this editor came out of; it's under FSL-1.1-Apache-2.0, and the AGPL won't let it carry your code without your say-so. Read the whole thing anyway; it's a page.
 
 ## 2 ton slab of stone
 

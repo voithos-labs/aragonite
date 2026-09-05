@@ -4,6 +4,12 @@ Thank you for contributing to aragonite. This agreement sets the terms under whi
 
 Signing is one comment on your first pull request. The CLA check on the pull request tells you the exact sentence.
 
+## Why this exists
+
+Short version: limestone. aragonite is AGPL, and [limestone](https://github.com/voithos-labs/limestone), the app it was extracted from, ships under FSL-1.1-Apache-2.0 (source available, no competing use for two years, then plain Apache-2.0). voithos-labs can only put aragonite inside a program under that license because it holds the copyright on every line, and a copyright holder isn't bound by the license it hands everyone else. Your pull request would end that. From the first outside contribution on, limestone couldn't ship aragonite without every contributor's say-so. This agreement is that say-so, given once, up front.
+
+It isn't a way to take aragonite closed, either. aragonite stays AGPL, your contribution stays in it under AGPL, and section 4 is voithos-labs promising in writing not to withdraw the open source license from anything already released. Section 1 says "any terms" rather than "limestone only" because product names and licenses change, and I'd rather not ask everyone to sign again when one does.
+
 ## Definitions
 
 - "You" means the individual or legal entity making the contribution.
