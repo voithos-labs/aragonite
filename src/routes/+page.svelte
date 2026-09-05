@@ -259,11 +259,12 @@
 		}
 	}
 
-	/* Every header button clears the thumb minimum. It costs the condensed header two rows
-	   back, which is the trade: a control nobody can hit is not a saved row. */
+	/* Every header control clears the thumb minimum, the links included. It costs the condensed
+	   header two rows back, which is the trade: a control nobody can hit is not a saved row. */
 	@media (pointer: coarse) {
 		.showcase-mode,
-		.showcase-toggle {
+		.showcase-toggle,
+		.showcase-link {
 			display: inline-flex;
 			align-items: center;
 			min-height: 24px;

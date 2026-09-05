@@ -81,10 +81,16 @@ test.describe('/ showcase on a phone', () => {
 	test('the controls a thumb has to hit clear 24px', async ({ page }) => {
 		// WCAG 2.2 AA (2.5.8), not the 44px HIG figure: the header carries eleven controls, and
 		// 44 apiece puts back over the document every row the condensed header just gave it.
+		// Buttons and links both: a census matching one tag name misses the class at the other.
 		const header = await page
-			.locator('.showcase-header button')
-			.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
-		expect(header.length).toBeGreaterThanOrEqual(9);
+			.locator('.showcase-header button, .showcase-header a')
+			.evaluateAll((els) =>
+				els.map((el) => {
+					const box = el.getBoundingClientRect();
+					return Math.min(box.width, box.height);
+				})
+			);
+		expect(header.length).toBeGreaterThanOrEqual(11);
 		expect(Math.min(...header)).toBeGreaterThanOrEqual(24);
 
 		await page.keyboard.press('ControlOrMeta+f');

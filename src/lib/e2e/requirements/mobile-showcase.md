@@ -23,7 +23,7 @@ which the owner rewrites by hand.
   text reports matches.
 - With the drag-handles toggle on, the grips are opaque with nothing hovering them, and a
   tap lands on the grip rather than falling through to the editor.
-- Every header button and every find-bar button clears 24 CSS px on both axes, the WCAG
+- Every header button and link, and every find-bar button, clears 24 CSS px on both axes, the WCAG
   2.2 AA minimum. 44 is not the target: the header carries eleven controls, and 44 apiece
   puts back over the document every row the condensed header saves.
 - The header leaves the document at least three quarters of the screen. A quarter, not the
@@ -51,3 +51,6 @@ which the owner rewrites by hand.
   only a hit test names the `pointer-events: none` half.
 - Target size: nothing in the suite had ever measured a control's box against a minimum,
   on any pointer, so chrome sized for a mouse cursor was never asked what a thumb needs.
+- Target-size census: the first pass matched `.showcase-header button`, and the header's two
+  links are anchors, so the census closed the class everywhere except at the elements its
+  selector could not name.
