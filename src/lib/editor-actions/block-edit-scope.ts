@@ -1,18 +1,19 @@
 /**
- * Per-level adapter for the shared block-edit core: commit ceremony, child
- * addressing, refs, and unshare, for a top-level edit vs a container one. Both
- * factories are the SINGLE mint point for the commit args' doc-absolute paths
- * (snapshot restore + event target), minted as `DocPath` — the core hands over local
- * indices only. G1.16 stays the runtime belt for the JS callers types don't bind.
+ * Per-level adapter for the shared block-edit core: commit ceremony, child addressing, refs and
+ * unshare, for a top-level edit vs a container one. Both factories are the SINGLE mint point for
+ * the commit args' doc-absolute paths, as `DocPath` — the core hands over local indices only.
+ * G1.16 stays the runtime belt for the JS callers types don't bind.
  */
 
 import type { OpDescriptor } from '../schema/operations';
-import type { CommitAfterTick } from '../action-contracts';
+import type { CommitAfterTick, ContainerScope } from '../action-contracts';
 import type { AnyBlockKind, CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
 import type { GrammarView } from '../schema/block-openers';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { PresentationModeGetter } from '../editor-keys';
 import type { BlockComponent } from '../block-component';
 import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { asDocPath } from '../selection/path-math';
@@ -28,8 +29,17 @@ export interface MutationView {
 	/** The container these children belong to, for mutations whose bytes must satisfy
 	 *  its grammar (`bodyWrite`). Absent at the document root. */
 	ownerKind?: AnyBlockKind;
+	/** The container NODE itself, for settles that write its wrap slots. Nullable
+	 *  rather than optional so each adapter answers; `undefined` is the document root. */
+	owner: CstNode | undefined;
 	/** The instance's block grammar, for mutations that re-parse. Absent = the global grammar. */
 	grammar?: GrammarView;
+	/** Live EFFECTIVE mode, for mutations whose bytes depend on what the mode paints. Nullable
+	 *  rather than optional so each adapter answers; `undefined` reads as not-live. */
+	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, so a rewrite parses the reference forms the render
+	 *  path drew. Nullable for the same reason as the mode; `undefined` reads them as brackets. */
+	linkRef: InlineResolverRef | undefined;
 	/** Copy-out-of-sharing the child at `i` before an in-place write; returns the owned node. */
 	unshareChild(i: number): CstNode;
 }
@@ -64,6 +74,13 @@ export interface CommitScope {
 	commit(args: ScopeCommitArgs): Promise<void>;
 }
 
+/** The byte/settle sinks' owner answer for a container commit's own scope — {@link MutationView}'s twin. */
+export const scopeParentOf = (scope: ContainerScope) => ({
+	children: scope.children,
+	ownerKind: scope.node.kind,
+	owner: scope.node
+});
+
 // ── Top-level adapter ────────────────────────────────────────────────────────
 
 export function createTopLevelScope(
@@ -92,7 +109,10 @@ export function createTopLevelScope(
 					mutate({
 						children,
 						sharing: deps.sharing,
+						owner: undefined,
 						grammar: deps.grammar,
+						getPresentationMode: deps.getPresentationMode,
+						linkRef: deps.linkRef,
 						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0]
 					}),
 				op: { ...op, eventPath: asDocPath([eventTarget]) },
@@ -108,7 +128,9 @@ export function createTopLevelScope(
 
 export function createContainerScope(state: BlockListState, deps: NestedActionsDeps): CommitScope {
 	return {
-		children: () => deps.node.children ?? [],
+		// A fold at this container's own slot detaches it (`tree-operations/unshare.ts`), so a
+		// post-commit read can find the scope gone rather than merely empty.
+		children: () => deps.node?.children ?? [],
 		refAt: (i) => state.innerBlockRefs[i],
 		collapseEmptyReplaceToDelete: true,
 		commit({ snapshot, eventTarget, op, mutate, afterTick, discardIfNoop }): Promise<void> {
@@ -125,7 +147,10 @@ export function createContainerScope(state: BlockListState, deps: NestedActionsD
 						children: scope.children,
 						sharing: scope.sharing,
 						ownerKind: scope.node.kind,
+						owner: scope.node,
 						grammar: deps.grammar,
+						getPresentationMode: deps.getPresentationMode,
+						linkRef: deps.linkRef,
 						unshareChild: (i) => ensureUnsharedChild(scope.node, i, scope.sharing)
 					}),
 				op: { ...op, eventPath: extendDocPath(deps.path, eventTarget) },

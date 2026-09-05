@@ -10,7 +10,15 @@ function run(
 	end: { path: number[]; offset: number }
 ) {
 	const doc = parse(source);
-	const result = rangeDelete(doc, start, end, createSharingState(), undefined);
+	const result = rangeDelete(
+		doc,
+		start,
+		end,
+		createSharingState(),
+		undefined,
+		undefined,
+		undefined
+	);
 	return { source: serialize(result.newDoc), caret: result.collapsedCaret };
 }
 
@@ -70,6 +78,17 @@ describe('rangeDelete — cross-container start-wins', () => {
 		);
 		expect(source).toBe('> first bq\n');
 	});
+
+	it('rangeDelete across two list items collapses to a single empty item', () => {
+		// The other list cases all keep content; this pins the fully-emptied-item boundary.
+		const { source, caret } = run(
+			'1. one\n2. two\n',
+			{ path: [0, 0, 0], offset: 0 },
+			{ path: [0, 1, 0], offset: 3 }
+		);
+		expect(source).toBe('1. \n');
+		expect(caret).toEqual({ path: [0, 0, 0], offset: 0 });
+	});
 });
 
 describe('rangeDelete — end-container post-end siblings preservation', () => {
@@ -91,7 +110,9 @@ describe('rangeDelete — end-container post-end siblings preservation', () => {
 	it('end inside first paragraph of multi-paragraph blockquote preserves later paragraphs', () => {
 		const src = 'before\n\n> first para\n>\n> second para\n>\n> third para\n';
 		const { source } = run(src, { path: [0], offset: 4 }, { path: [1, 0], offset: 5 });
-		expect(source).toBe('befo para\n\n>\n> second para\n>\n> third para\n');
+		// The deleted first paragraph takes its own separator with it, so the surviving
+		// paragraph opens the quote rather than trailing a blank first row.
+		expect(source).toBe('befo para\n\n> second para\n>\n> third para\n');
 	});
 
 	it('end inside multi-paragraph list item preserves later paragraphs in same item', () => {

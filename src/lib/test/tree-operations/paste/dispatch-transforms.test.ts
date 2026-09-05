@@ -13,6 +13,7 @@ import { parse } from '../../../core/parser';
 import { createSharingState } from '../../../tree-operations/sharing';
 import { makeStubBlockEdit, makeStubController } from '../../harness/editor-actions';
 import type { BlockKind, CstNode, Document } from '../../../core/nodes';
+import { takeDevWarns } from '../../support/warn-gate';
 
 // ── Dev-mode opaque-fallback warning ─────────────────────────────────────
 
@@ -37,21 +38,16 @@ describe('paste-dispatch opaque-fallback warning', () => {
 	});
 
 	it('warns in dev mode when target kind has no registered surface', async () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
 		const doc = makeDocWithOneBlock('indentedCode', 'plain\n');
 		await pasteDispatch(
 			{ pastedText: 'hello', targetPath: [0], offset: 0 },
 			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() }
 		);
 
-		expect(warn).toHaveBeenCalledWith(
-			expect.stringContaining('No paste surface registered for kind'),
-			expect.stringContaining('indentedCode'),
-			expect.any(String)
-		);
-
-		warn.mockRestore();
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain('no paste surface registered');
+		expect(fires[0].details).toBe('indentedCode');
 	});
 
 	it('does not warn when target kind has a registered surface', async () => {
@@ -63,16 +59,13 @@ describe('paste-dispatch opaque-fallback warning', () => {
 			}),
 			onStructuralPaste: () => ({ replacement: [], focusReplacementIndex: 0, focusOffset: 0 })
 		});
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
 		const doc = makeDocWithOneBlock('paragraph', 'hello\n');
 		await pasteDispatch(
 			{ pastedText: 'X', targetPath: [0], offset: 0 },
 			{ doc, blockEdit: makeStubBlockEdit(), controller: makeStubController() }
 		);
 
-		expect(warn).not.toHaveBeenCalled();
-		warn.mockRestore();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });
 

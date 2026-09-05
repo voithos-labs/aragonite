@@ -13,6 +13,7 @@ import {
 	defineBlockComponent,
 	getPluginMetadata,
 	isBlankLine,
+	lineStartsOuterBlock,
 	parse,
 	registerBlockComponent,
 	registerBlockKind,
@@ -35,21 +36,44 @@ const MARKER_STRIP = /^ {0,3}\[\^[^\]\s]+\]: ?/;
 const CONTINUATION_INDENT = /^(\t| {4})/;
 const CONTINUATION_MARKER = '    ';
 
+/** Per-line approximation of the body's open-paragraph state, as in the core blockquote/list
+ *  lazy models: laziness reaches only the body's own top-level paragraph. */
+function keepsParagraphOpen(strippedText: string, grammar: OpenContext['grammar']): boolean {
+	if (isBlankLine(strippedText)) return false;
+	if (OPENER.test(strippedText)) return false;
+	for (const opener of grammar.orderedOpeners()) {
+		const interrupts = opener.interruptsParagraph;
+		if (interrupts !== false && interrupts(strippedText)) return false;
+	}
+	return true;
+}
+
 /**
- * Blank lines are absorbed only when a later indented line still follows, since GFM
- * allows blank-separated blocks inside a definition; a trailing blank run belongs to
- * the document, so the scan stops at the last confirmed content line.
+ * Blank lines are absorbed only while a later indented line still follows — a trailing blank
+ * run belongs to the document. An unindented non-blank line continues the definition only as
+ * a lazy continuation of an open body paragraph (CommonMark §5.1, as cmark-gfm applies it).
  */
 function scanDefinitionEnd(ctx: OpenContext): number {
 	let lastContent = ctx.index;
+	let paragraphOpen = keepsParagraphOpen(ctx.line.text.replace(MARKER_STRIP, ''), ctx.grammar);
 	let i = ctx.index + 1;
 	while (i < ctx.end) {
 		const text = ctx.lines[i].text;
 		if (isBlankLine(text)) {
+			paragraphOpen = false;
 			i++;
 			continue;
 		}
 		if (CONTINUATION_INDENT.test(text)) {
+			paragraphOpen = keepsParagraphOpen(text.replace(CONTINUATION_INDENT, ''), ctx.grammar);
+			lastContent = i;
+			i++;
+			continue;
+		}
+		if (
+			paragraphOpen &&
+			!lineStartsOuterBlock(ctx.lines[i], { paragraphOpen: true, grammar: ctx.grammar })
+		) {
 			lastContent = i;
 			i++;
 			continue;
@@ -70,7 +94,8 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const stripped = defLines
 		.map((line, i) => line.raw.replace(i === 0 ? MARKER_STRIP : CONTINUATION_INDENT, ''))
 		.join('');
-	const body = parse(stripped);
+	// A fresh parse entry, so the body's own line 0 must not read as the document top.
+	const body = parse(stripped, { scope: 'fragment' });
 
 	const node: CstNode = {
 		kind: declaredPluginKind(FOOTNOTE_DEF_KIND),
@@ -114,13 +139,26 @@ export function registerFootnoteDefinition(): void {
 	});
 
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		conformanceFixture: '[^1]: A footnote definition.\n',
+		// Kit fixtures must be rebuildRaw fixed points, so the continuation is indented: the
+		// lazy form canonicalizes.
+		conformanceFixture: '[^1]: A footnote definition.\n    with an indented continuation.\n',
 		// Unlike a listItem, whose leaf resolves to the item under the list, the body
 		// blocks reorder within; the marker is position-independent, so rebuildRaw re-emits it.
-		container: { contract: 'strip', rebuildRaw: rebuildFootnoteDefRaw, reorderChildren: {} },
+		container: {
+			contract: 'strip',
+			rebuildRaw: rebuildFootnoteDefRaw,
+			reorderChildren: {},
+			// The marker rides metadata rather than the first line, so the remainder of a lift is
+			// still a definition, not the plain quote a quote-shaped lift leaves.
+			unwrapRole: {
+				firstChildBackspace: 'lift-first-child-keep-container',
+				middleChildBackspace: 'default-merge'
+			}
+		},
 		closure: containerClosure({
 			roundTripVia:
 				'container contract=strip — rebuildFootnoteDefRaw re-emits the [^label]: marker + four-space continuation indent',
@@ -130,7 +168,7 @@ export function registerFootnoteDefinition(): void {
 			},
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'not-mergeable — the definition never concatenates with a neighbour; a first-child Backspace at offset 0 delegates upward'
+				via: 'not-mergeable outward, so nothing below concatenates into the note; within the body, unwrapRole lifts the first block out (lift-first-child-keep-container) and later blocks default-merge'
 			},
 			undo: { mode: 'inherit-default' },
 			simOracle: { mode: 'inherit-default' }

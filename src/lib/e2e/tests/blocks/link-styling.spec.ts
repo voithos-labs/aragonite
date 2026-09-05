@@ -83,8 +83,8 @@ test.describe('link styling + affordance', () => {
 	test('an image wrapped in a link hugs the image, not the full content width', async ({
 		page
 	}) => {
-		// `[shot]` resolves the inner image, `[repo]` the outer link; the title on
-		// the `[repo]` LRD is what produced the over-wide `title` tooltip pre-fix.
+		// `[shot]` resolves the inner image, `[repo]` the outer link; the title on the `[repo]`
+		// LRD is what widens the `title` tooltip when the link does not hug the image.
 		const NESTED = [
 			'[![cat][shot]][repo]',
 			'',

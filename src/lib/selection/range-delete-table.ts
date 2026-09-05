@@ -7,20 +7,24 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
+import type { PresentationMode } from '../presentation-mode';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { CstNode, Document } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
+import { displayLength, trailingLineEnding } from '../core/lines';
 import { cellRowCol } from '../cursor/coordinate-spaces';
-import { charOffsetOf, cellIndexOf } from './primitives';
-import { replaceAtPath } from '../tree-operations/path-mutate';
+import { cellIndexOf } from './primitives';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
 	applyPlannedDeletion,
-	rebuildSharedAncestries
+	rebuildSharedAncestries,
+	truncateEndInPlace,
+	truncateStartInPlace,
+	type LiveSeamContext
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
 import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
@@ -33,7 +37,7 @@ import {
 } from '../tree-operations/unshare';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
-import { nearestChromeContainer, isChromeChild, reparseWithFallback } from './range-delete-chrome';
+import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -46,9 +50,12 @@ export function tableAwareRangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView | undefined,
+	presentationMode?: PresentationMode,
+	linkRef?: InlineResolverRef
 ): RangeDeleteResult {
 	const sameBlock = comparePaths(start.path, end.path) === 0;
+	const live = { presentationMode, linkRef };
 
 	// Own both endpoint spines (and table subtrees: cell raws, row splices, and header promotion
 	// all write at depth) before any capture or mutation.
@@ -67,9 +74,9 @@ export function tableAwareRangeDelete(
 		return deleteAcrossTwoTables(doc, start, end, startBlock, endBlock, sharing, grammar);
 	}
 	if (startBlock.kind === 'table') {
-		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing, grammar);
+		return deleteFromTableIntoProse(doc, start, end, startBlock, endBlock, sharing, grammar, live);
 	}
-	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar);
+	return deleteFromProseIntoTable(doc, start, end, startBlock, endBlock, sharing, grammar, live);
 }
 
 /**
@@ -97,7 +104,7 @@ function deleteWithinTable(
 	// Same-path intra-table endpoints are context-established, not flagged, so they read
 	// `.offset` directly; cellIndexOf would warn spuriously here.
 	clearRectangularCells(table, start.offset, end.offset);
-	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 
 	const meta = metadataOf(table, 'table');
 	const cellsPerRow = meta.columnCount;
@@ -138,21 +145,11 @@ function deleteFromProseIntoTable(
 	startBlock: CstNode,
 	table: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView | undefined,
+	live: LiveSeamContext
 ): RangeDeleteResult {
-	const startChar = charOffsetOf(start, 'deleteFromProseIntoTable:start');
-	const startHead = startBlock.raw.slice(0, startChar);
 	const startC = nearestChromeContainer(doc, start.path);
 	const startIsChrome = startC !== null && isChromeChild(startC, start.path);
-	let truncatedReplacement: CstNode[] | null = null;
-	if (!startIsChrome) {
-		truncatedReplacement = reparseWithFallback(
-			terminateLine(startHead, startBlock.raw),
-			startBlock.leadingTrivia,
-			trailingLineEnding(startBlock.raw)
-		);
-		for (const node of truncatedReplacement) sharing.stamp(node);
-	}
 
 	// The snapped end cell is the whole-row inclusive last cell; deleteCellsAndCollapse takes an
 	// exclusive end, so +1 clears the same rows the clipboard copied.
@@ -173,22 +170,25 @@ function deleteFromProseIntoTable(
 	);
 
 	applyPlannedDeletion(doc, plan, lcaPath);
-	if (startIsChrome) {
-		// The wall: a chrome start truncates by raw write — kind and node kept.
-		startBlock.raw = terminateLine(startHead, startBlock.raw);
-	} else {
-		replaceAtPath(doc, start.path, truncatedReplacement!);
-	}
+	const seam = truncateStartInPlace(
+		doc,
+		start,
+		startBlock,
+		startIsChrome,
+		live,
+		sharing,
+		'deleteFromProseIntoTable:start'
+	);
 
 	const tableSurvives = result === 'tableSurvives';
 	if (tableSurvives) rebuildOwnedContainer(table, sharing);
-	rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+	rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
-	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing, grammar);
+	if (tableSurvives) rebuildUnsharedAncestry(doc, survivorPath(doc, table), sharing, null, grammar);
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: startChar },
+		collapsedCaret: { path: start.path.slice(), offset: seam },
 		tableRowSplices: splice ? [{ table, ...splice }] : []
 	};
 }
@@ -202,7 +202,8 @@ function deleteFromTableIntoProse(
 	table: CstNode,
 	endBlock: CstNode,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView | undefined,
+	live: LiveSeamContext
 ): RangeDeleteResult {
 	const lineEnding = trailingLineEnding(table.raw);
 	const startCell = cellIndexOf(start, 'deleteFromTableIntoProse:start');
@@ -216,20 +217,6 @@ function deleteFromTableIntoProse(
 	const consumed = wall?.consumed ?? false;
 	const endIsChrome = wall !== null && !consumed && isChromeChild(wall.container, end.path);
 
-	let tailReplacement: CstNode[] | null = null;
-	let endTail = '';
-	if (!consumed) {
-		endTail = endBlock.raw.slice(charOffsetOf(end, 'deleteFromTableIntoProse:end'));
-		if (!endIsChrome) {
-			tailReplacement = reparseWithFallback(
-				endTail || trailingLineEnding(endBlock.raw),
-				endBlock.leadingTrivia,
-				trailingLineEnding(endBlock.raw)
-			);
-			for (const node of tailReplacement) sharing.stamp(node);
-		}
-	}
-
 	const { plan, lcaPath } = planCrossBlockDeletion(
 		doc,
 		start,
@@ -239,33 +226,32 @@ function deleteFromTableIntoProse(
 		sharing
 	);
 
-	// Replace/truncate end first: its path is later in doc order, so deleting strictly-between
-	// doesn't shift it. Skipped when the container dies whole.
-	let tailNode: CstNode | null = null;
-	if (endIsChrome) {
-		// The wall: a chrome end keeps its tail by raw write — kind and node kept.
-		endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
-		tailNode = endBlock;
-	} else if (!consumed) {
-		replaceAtPath(doc, end.path, tailReplacement!);
-		// Re-read through the tree (design rule 5): the replacement node is proxy-wrapped by
-		// the live $state doc, so the identity search below would miss the raw copy.
-		tailNode = blockNodeAt(doc, end.path);
-	}
+	// Truncate end first: its path is later in doc order, so deleting strictly-between doesn't
+	// shift it. Skipped when the container dies whole.
+	const tailNode = consumed
+		? null
+		: truncateEndInPlace(
+				doc,
+				end,
+				endBlock,
+				endIsChrome,
+				live,
+				sharing,
+				'deleteFromTableIntoProse:end'
+			);
 	applyPlannedDeletion(doc, plan, lcaPath);
 
 	const tailPath = tailNode ? survivorPath(doc, tailNode) : null;
 
 	if (tableResult === 'tableSurvives') {
 		rebuildOwnedContainer(table, sharing);
-		rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	}
-	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing, grammar);
+	if (tailPath) rebuildUnsharedAncestry(doc, tailPath, sharing, null, grammar);
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
-	// Case 2 of `e2e/requirements/blocks/table/cross-block-delete.md`: a fully consumed table
-	// lands the caret at the start of the surviving tail, never the deleted table; otherwise in
-	// the table's surviving anchor cell, or the nearest survivor when the tail went too.
+	// A fully consumed table lands the caret at the start of the surviving tail; otherwise in the
+	// table's surviving anchor cell, or the nearest survivor when the tail went too.
 	const collapsedCaret: SelectionPoint =
 		tableResult === 'tableEmpty'
 			? tailPath
@@ -350,11 +336,11 @@ function deleteAcrossTwoTables(
 
 	if (startResult === 'tableSurvives') {
 		rebuildOwnedContainer(startTable, sharing);
-		rebuildUnsharedAncestry(doc, start.path, sharing, grammar);
+		rebuildUnsharedAncestry(doc, start.path, sharing, null, grammar);
 	}
 	if (endTablePath) {
 		rebuildOwnedContainer(endTable, sharing);
-		rebuildUnsharedAncestry(doc, endTablePath, sharing, grammar);
+		rebuildUnsharedAncestry(doc, endTablePath, sharing, null, grammar);
 	}
 	rebuildSharedAncestries(doc, plan, sharing, grammar);
 
@@ -376,11 +362,10 @@ function deleteAcrossTwoTables(
 	return { newDoc: doc, collapsedCaret, tableRowSplices };
 }
 
-// Every block the caret could land in was removed. Prefer the end of the nearest surviving
-// block before the range, else the start of the first after it, else materialize an empty
-// paragraph. Survivors are sought in the deleted block's OWN container, walking outward when
-// cascade cleanup took that too. `lineEnding` is the deleted start table's, captured before the
-// mutation (G4.20): nothing survives to read one from, so a defaulted LF would flip a CRLF doc.
+// Every block the caret could land in was removed, so survivors are sought in the deleted block's
+// OWN container, walking outward when cascade cleanup took that too. `lineEnding` is the deleted
+// start table's, captured before the mutation (G4.20): nothing survives to read one from, so a
+// defaulted LF would flip a CRLF doc.
 function caretNearestSurvivor(
 	doc: Document,
 	startPath: number[],

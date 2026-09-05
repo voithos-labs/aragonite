@@ -11,6 +11,11 @@ The rule lives at the block's command seam, so it holds for every reveal-capable
 - Mod+1 cycles the heading on the committed bytes, keeping an edit the CST had not been told about
 - Mod+B toggles the range the user selected: the fold parks a caret that collapses the live selection, so the command must act on the range it read before folding, not re-read one after
 - A footnote reference and an inline directive-text widget — the other two `revealSource: true` kinds — take the same merge with no code of their own
+- The emptied block takes its own blank line with it, so the merged bytes reload as the blocks on screen; the widget kind has no say in that, and neither does the successor's
+
+## Miss-analysis
+
+- The blank-line materialization changed what an emptied-middle-block merge leaves behind, and this spec pinned the retired shape (`above` / blank / blank / definition), which reloaded one block wider than the live tree. The sweep that landed the rule picked its e2e projects from the FILES touched, so `e2e-plugins` was never run; the honest rule is to pick them from the BEHAVIOR changed — a separator-derivation change in `tree-operations` reaches every spec asserting `getSource()` after Backspace, Enter or a delete, whether or not its fixture mentions a blank line. The tree-level family pin is `test/tree-operations/emptied-block-collapse.test.ts`.
 
 ## Edge cases
 

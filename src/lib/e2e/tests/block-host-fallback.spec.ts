@@ -1,7 +1,11 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
+// The fallback reports itself, and that report is half of what these cases pin: a kind
+// rendering raw with no warning would be a silent display-drop.
 test.describe('BlockHost no-component fallback', () => {
+	test.use({ expectWarns: ['block-host'] });
+
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {

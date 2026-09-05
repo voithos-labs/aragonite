@@ -14,7 +14,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.focusBlockAtPath([0, 0], 11);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForCrossBlock(false);
 		const source = await editor.bridge.getSource();
 		// "start wins": the blockquote context should survive.
@@ -26,7 +26,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForCrossBlock(false);
 		const source = await editor.bridge.getSource();
 		// "start wins": the paragraph context should survive.
@@ -51,7 +51,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceWith((source, original) => source !== original, before);
 		expect(await editor.bridge.getSource()).not.toBe(before);
 		await editor.undo();
@@ -66,7 +66,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.waitForCrossBlock(true);
 
 		const before = await editor.bridge.getSource();
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(before);
@@ -76,16 +76,16 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 	test('copy from inside blockquote to paragraph then paste reproduces text', async () => {
 		await editor.loadContent('> quoted text\n\noutside\n\ndestination\n');
 		await editor.focusBlockAtPath([0, 0], 0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/quoted text[\s\S]*quoted text/);
 
 		const source = await editor.bridge.getSource();
@@ -105,7 +105,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceWith(
 			(source, original) => source.length < original.length,

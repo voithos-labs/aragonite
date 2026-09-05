@@ -1,10 +1,9 @@
 /**
- * Built-in block-kind descriptor registrations, applied by an EXPLICIT
- * `registerBuiltInDescriptors()` call from the two descriptor-read entry points,
- * `core/inline/index.ts` and `components/built-in-blocks.ts`. A bare side-effect import is NOT
- * enough: the production Rollup build tree-shakes an unused import of a module outside the
- * package's `sideEffects` allowlist, and a used binding cannot be dropped. Split out of
- * `block-kind-descriptor.ts` so that module carries no registration payload.
+ * Built-in block-kind descriptors and inline-construct policies, applied by an EXPLICIT
+ * `registerBuiltInDescriptors()` call from `core/inline/index.ts` and
+ * `components/built-in-blocks.ts`: the `sideEffects` allowlist names dist paths, never the src
+ * specifiers used inside this library, so only a called binding is safe from tree-shaking. Split
+ * from `block-kind-descriptor.ts` so that module carries no registration payload.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -21,6 +20,9 @@ import {
 	rebuildTableRowRaw
 } from './container-rebuilders';
 import { normalizeCellRaw } from './table-cell-raw';
+import { normalizeFencedRaw } from './fenced-code-raw';
+import { registerInlineConstructPolicy } from './inline-construct-policy';
+import { wrapAsCodeSpan } from '../core/inline/backticks';
 
 // ── Content-range helpers ──────────────────────────────────────────────────
 
@@ -46,11 +48,6 @@ function setextHeadingContentRange(node: NodeView): { start: number; end: number
 	return { start: 0, end: contentEnd };
 }
 
-// Cells have no markers; the entire raw is content.
-function tableCellContentRange(node: NodeView): { start: number; end: number } {
-	return { start: 0, end: displayLength(node.raw) };
-}
-
 // ── Keymaps ───────────────────────────────────────────────────────────────
 
 // Shared by every kind TextEditableBlock renders — prose and the raw-editable fallback alike —
@@ -65,6 +62,12 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 	{ chord: 'Mod+B', command: 'format.toggleStrong' },
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
+	{ chord: 'Mod+E', command: 'format.toggleCode' },
+	// The live-mode link card. Consumed even when no card opens (a caret outside every link
+	// no-ops): `reservedChords()` reports the chord as claimed, and a fall-through would run the
+	// browser's own Mod+K.
+	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+0', command: 'heading.cycle', arg: 0 },
 	{ chord: 'Mod+1', command: 'heading.cycle', arg: 1 },
 	{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 },
@@ -84,6 +87,9 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Shift+Tab', command: 'cell.shiftTab' },
 	{ chord: 'Mod+B', command: 'format.toggleStrong' },
 	{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+	{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
+	{ chord: 'Mod+E', command: 'format.toggleCode' },
+	{ chord: 'Mod+K', command: 'link.openCard' },
 	{ chord: 'Mod+Enter', command: 'table.insertRowBelow' },
 	{ chord: 'Mod+Shift+Enter', command: 'table.insertRowAbove' },
 	{ chord: 'Alt+Shift+ArrowRight', command: 'table.insertColumnRight' },
@@ -104,7 +110,7 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 // ── Closure blocks ────────────────────────────────────────────────────────────
 
 // Shared by the not-mergeable, non-inline raw-text leaves — byte-identical rows, hoisted rather
-// than triplicated. fencedCode and unrecognized diverge, so they stay inline.
+// than triplicated. fencedCode diverges too widely to spread, so it stays inline.
 const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
 	roundTrip: { mode: 'inherit-default' },
 	focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
@@ -141,6 +147,71 @@ function proseLeafClosure(vias: {
 	};
 }
 
+// ── Inline-construct policies ───────────────────────────────────────────────
+
+// Registered beside the block descriptors rather than from the component layer so a headless
+// consumer — and the unit bootstrap, which loads only this module — reads the same rows.
+function registerBuiltInInlinePolicies(): void {
+	// Outermost first, and code is innermost because its content is literal: no other mark can
+	// take effect inside it.
+	const marks = [
+		{ kind: 'strong', markerBytes: '**', command: 'format.toggleStrong' },
+		{ kind: 'emphasis', markerBytes: '*', command: 'format.toggleEmphasis' },
+		{ kind: 'strikethrough', markerBytes: '~~', command: 'format.toggleStrikethrough' },
+		{
+			kind: 'inlineCode',
+			markerBytes: '`',
+			command: 'format.toggleCode',
+			wrapBytes: wrapAsCodeSpan
+		}
+	] as const;
+	marks.forEach(({ kind, ...mark }, nestingRank) => {
+		registerInlineConstructPolicy(kind, {
+			edgeAffinity: 'symmetric-pair',
+			autoUnwrapOnEmpty: true,
+			splitBehavior: 'close-and-reopen',
+			revealable: true,
+			mark: { nestingRank, ...mark }
+		});
+	});
+	// A link's closer is its URL, not a mirror of its opener, so neither edge extends; the
+	// split rebalancer is what duplicates the URL across the halves.
+	registerInlineConstructPolicy('link', {
+		edgeAffinity: 'never-extend',
+		autoUnwrapOnEmpty: true,
+		splitBehavior: 'close-and-reopen',
+		revealable: true,
+		cardEditable: true
+	});
+	// An image with an empty alt is still an image, and a split inside one moves bytes only.
+	registerInlineConstructPolicy('image', {
+		edgeAffinity: 'never-extend',
+		autoUnwrapOnEmpty: false,
+		splitBehavior: 'plain',
+		revealable: true
+	});
+	// An autolink's `<`/`>` are a link's delimiters by another spelling: the destination IS the
+	// text, so a byte landing between the brackets rewrites where the link goes. Never-extend, for
+	// the same reason the bracket form is (live-mode.md § 4.2), and plain: two halves of a URL
+	// are not two URLs.
+	registerInlineConstructPolicy('autolink', {
+		edgeAffinity: 'never-extend',
+		autoUnwrapOnEmpty: false,
+		splitBehavior: 'plain',
+		revealable: false
+	});
+	// Unstamped marker runs, permanently hidden in live mode: the `\X` pair and the trailing-space
+	// run delete as a unit, so nothing may rewrite their markers around an edit.
+	for (const kind of ['escape', 'hardLineBreak'] as const) {
+		registerInlineConstructPolicy(kind, {
+			edgeAffinity: 'never-extend',
+			autoUnwrapOnEmpty: false,
+			splitBehavior: 'plain',
+			revealable: false
+		});
+	}
+}
+
 // ── Built-in registrations ──────────────────────────────────────────────────
 
 // Idempotence guard, not a registry bypass: both entry points call this, and a
@@ -151,7 +222,10 @@ export function registerBuiltInDescriptors(): void {
 	if (registered) return;
 	registered = true;
 
+	registerBuiltInInlinePolicies();
+
 	registerBlockKind('paragraph', {
+		gapEdges: 'none',
 		mergeRole: 'prose',
 		editable: true,
 		supportsInline: true,
@@ -165,10 +239,14 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('heading', {
+		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
 		getContentRange: headingContentRange,
+		// Live paints no `## `, so the first Backspace a user can aim at it takes the structure
+		// they CAN see; the second one merges, through the untouched cascade.
+		contentStartBackspace: 'demote-first',
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: '# Heading\n',
 		closure: proseLeafClosure({
@@ -178,10 +256,12 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('setextHeading', {
+		gapEdges: 'none',
 		mergeRole: 'prose-absorber',
 		editable: true,
 		supportsInline: true,
 		getContentRange: setextHeadingContentRange,
+		contentStartBackspace: 'demote-first',
 		keymap: TEXT_EDITABLE_KEYMAP,
 		conformanceFixture: 'Title\n===\n',
 		closure: proseLeafClosure({
@@ -194,6 +274,9 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// Enter inside the fence writes a code newline, so neither edge can grow a sibling.
+		gapEdges: 'both',
+		normalizeRawWrite: normalizeFencedRaw,
 		keymap: [
 			{ chord: 'Enter', command: 'code.newline' },
 			{ chord: 'Tab', command: 'code.indent' },
@@ -203,7 +286,10 @@ export function registerBuiltInDescriptors(): void {
 			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 			{ chord: 'Mod+B', command: 'format.toggleStrong' },
-			{ chord: 'Mod+I', command: 'format.toggleEmphasis' }
+			{ chord: 'Mod+I', command: 'format.toggleEmphasis' },
+			{ chord: 'Mod+Shift+X', command: 'format.toggleStrikethrough' },
+			{ chord: 'Mod+E', command: 'format.toggleCode' },
+			{ chord: 'Mod+K', command: 'link.openCard' }
 		],
 		conformanceFixture: '```\ncode\n```\n',
 		closure: {
@@ -229,6 +315,8 @@ export function registerBuiltInDescriptors(): void {
 		editable: false,
 		supportsInline: false,
 		blockFocus: 'whole-block',
+		// Leading edge only: its focused Enter already inserts a paragraph below.
+		gapEdges: 'before',
 		keymap: [
 			{ chord: 'Alt+ArrowUp', command: 'block.moveUp' },
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' }
@@ -259,6 +347,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('indentedCode', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -267,6 +356,7 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('htmlBlock', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -275,6 +365,7 @@ export function registerBuiltInDescriptors(): void {
 		closure: RAW_TEXT_LEAF_CLOSURE
 	});
 	registerBlockKind('linkReferenceDefinition', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -286,6 +377,8 @@ export function registerBuiltInDescriptors(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// Enter inside a cell stays in the grid, so neither edge can grow a sibling.
+		gapEdges: 'both',
 		container: { contract: 'grid', rebuildRaw: rebuildTableRaw },
 		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
 		closure: {
@@ -313,6 +406,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableRow', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -340,12 +434,12 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('tableCell', {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: true,
 		contextDependentKind: true,
 		normalizeRawWrite: normalizeCellRaw,
-		getContentRange: tableCellContentRange,
 		renderImagesAsWidgets: false,
 		keymap: TABLE_CELL_KEYMAP,
 		// No conformanceFixture: the table opener mints cells, so one never stands alone as the
@@ -379,6 +473,7 @@ export function registerBuiltInDescriptors(): void {
 		}
 	});
 	registerBlockKind('unrecognized', {
+		gapEdges: 'none',
 		mergeRole: 'self-merge',
 		editable: true,
 		supportsInline: false,
@@ -386,21 +481,17 @@ export function registerBuiltInDescriptors(): void {
 		// No conformanceFixture: it is the reserved fallback for content no opener claimed, so a
 		// document scan never yields it in isolation.
 		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
+			...RAW_TEXT_LEAF_CLOSURE,
 			mergeBackspace: {
 				mode: 'implemented',
 				via: 'mergeRole=self-merge — concatenates with an adjacent unrecognized block'
 			},
-			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
 			searchPaint: { mode: 'implemented', via: 'raw scanned; matches painted as marks' },
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
 			simOracle: { mode: 'inherit-default' }
 		}
 	});
 	registerBlockKind('blockquote', {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -409,10 +500,10 @@ export function registerBuiltInDescriptors(): void {
 			rebuildRaw: rebuildBlockquoteRaw,
 			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 			unwrapRole: {
-				firstChildBackspace: 'lift-first-child',
-				middleChildBackspace: 'default-merge',
-				quoteShaped: true
+				firstChildBackspace: 'lift-first-child-drop-opener',
+				middleChildBackspace: 'default-merge'
 			},
+			contentStartSpace: 'complete-marker',
 			reorderChildren: {}
 		},
 		conformanceFixture: '> quoted\n',
@@ -421,7 +512,7 @@ export function registerBuiltInDescriptors(): void {
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge)'
+				via: 'mergeRole=container + unwrapRole (lift-first-child-drop-opener; default-merge)'
 			},
 			undo: { mode: 'inherit-default' },
 			clipboard: {
@@ -432,6 +523,7 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('list', {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -467,6 +559,7 @@ export function registerBuiltInDescriptors(): void {
 		})
 	});
 	registerBlockKind('listItem', {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,

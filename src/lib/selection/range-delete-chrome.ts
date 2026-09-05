@@ -6,20 +6,20 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
+import type { PresentationMode } from '../presentation-mode';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { RangeDeleteResult } from './range-delete';
 import type { SharingState } from '../tree-operations/sharing';
-import { parse } from '../core/parser';
-import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
-import { charOffsetOf } from './primitives';
+import { displayLength } from '../core/lines';
 import { comparePaths, pathsEqual } from './path-math';
-import { replaceAtPath } from '../tree-operations/path-mutate';
-import { emptyParagraph } from '../tree-operations/node-ops';
 import {
 	resolveEndWall,
 	planCrossBlockDeletion,
-	applyPlannedDeletion
+	applyPlannedDeletion,
+	truncateEndInPlace,
+	truncateStartInPlace
 } from './range-delete-ceremony';
 import { ensureUnsharedPath, rebuildUnsharedChain } from '../tree-operations/unshare';
 import { reservedChromeKindOf, isReservedChromeChild } from '../schema/reserved-chrome';
@@ -56,12 +56,13 @@ export function chromeAwareRangeDelete(
 	start: SelectionPoint,
 	end: SelectionPoint,
 	sharing: SharingState,
-	grammar: GrammarView | undefined
+	grammar: GrammarView | undefined,
+	presentationMode?: PresentationMode,
+	linkRef?: InlineResolverRef
 ): RangeDeleteResult {
-	const startOffset = charOffsetOf(start, 'chromeAwareRangeDelete:start');
-	const endOffset = charOffsetOf(end, 'chromeAwareRangeDelete:end');
 	const startC = nearestChromeContainer(doc, start.path);
 	const endC = nearestChromeContainer(doc, end.path);
+	const live = { presentationMode, linkRef };
 
 	// Own every written spine BEFORE identities are captured (G1.9): chains stay valid across
 	// splices, paths don't.
@@ -79,47 +80,39 @@ export function chromeAwareRangeDelete(
 	// End truncates in place first (its path is still live), the wall: its tail never merges
 	// into start. Skipped when its container dies whole.
 	if (!endConsumed) {
-		const endBlock = endChain[endChain.length - 1];
-		const endTail = endBlock.raw.slice(endOffset);
-		if (endC && isChromeChild(endC, end.path)) {
-			endBlock.raw = endTail || trailingLineEnding(endBlock.raw);
-		} else {
-			const tailReplacement = reparseWithFallback(
-				endTail || trailingLineEnding(endBlock.raw),
-				endBlock.leadingTrivia,
-				trailingLineEnding(endBlock.raw)
-			);
-			for (const node of tailReplacement) sharing.stamp(node);
-			replaceAtPath(doc, end.path, tailReplacement);
-		}
+		truncateEndInPlace(
+			doc,
+			end,
+			endChain[endChain.length - 1],
+			endC !== null && isChromeChild(endC, end.path),
+			live,
+			sharing,
+			'chromeAwareRangeDelete:end'
+		);
 	}
 
 	applyPlannedDeletion(doc, plan, lcaPath);
 
 	// Start truncates in place; every deletion sits after it in doc order, so start.path is
 	// still live.
-	const startBlock = startChain[startChain.length - 1];
-	const startHead = startBlock.raw.slice(0, startOffset);
-	if (startC && isChromeChild(startC, start.path)) {
-		startBlock.raw = terminateLine(startHead, startBlock.raw);
-	} else {
-		const headReplacement = reparseWithFallback(
-			terminateLine(startHead, startBlock.raw),
-			startBlock.leadingTrivia,
-			trailingLineEnding(startBlock.raw)
-		);
-		for (const node of headReplacement) sharing.stamp(node);
-		replaceAtPath(doc, start.path, headReplacement);
-	}
+	const seam = truncateStartInPlace(
+		doc,
+		start,
+		startChain[startChain.length - 1],
+		startC !== null && isChromeChild(startC, start.path),
+		live,
+		sharing,
+		'chromeAwareRangeDelete:start'
+	);
 
 	// Chain-based rebuilds: node references survive the splices above where paths may not, and
 	// every touched container re-emits raw (G1.12).
-	rebuildUnsharedChain(doc, startChain, sharing, grammar);
-	rebuildUnsharedChain(doc, endChain, sharing, grammar);
+	rebuildUnsharedChain(doc, startChain, sharing, null, grammar);
+	rebuildUnsharedChain(doc, endChain, sharing, null, grammar);
 
 	return {
 		newDoc: doc,
-		collapsedCaret: { path: start.path.slice(), offset: startOffset }
+		collapsedCaret: { path: start.path.slice(), offset: seam }
 	};
 }
 
@@ -172,23 +165,4 @@ export function lastChildDescendant(container: ChromeContainer, path: number[]):
 		node = children[path[i]];
 	}
 	return node;
-}
-
-/**
- * Reparse a truncated endpoint slice, preserving its leading trivia; empty gives a bare
- * paragraph. `lineEnding` is the source block's (G4.20): a slice that is nothing but an ending
- * parses to no blocks, and the placeholder must not downgrade a CRLF block to LF.
- */
-export function reparseWithFallback(
-	raw: string,
-	leadingTrivia: string,
-	lineEnding: string
-): CstNode[] {
-	const reparsed = parse(raw || lineEnding);
-	if (reparsed.children.length === 0) {
-		return [emptyParagraph(leadingTrivia, lineEnding)];
-	}
-	const cloned = reparsed.children.slice();
-	cloned[0] = { ...cloned[0], leadingTrivia };
-	return cloned;
 }

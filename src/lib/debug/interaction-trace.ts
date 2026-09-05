@@ -1,10 +1,9 @@
 /**
- * Interaction trace — a bounded ring buffer of the inline layer's transient state
- * transitions, joining `debug/operations-log.ts` in the debug panel and in `getDiagnostics()`.
- * Unlike `perf/instruments.ts` it arms from anywhere, production included, so a consumer app
- * can attach it to a bug report. Entries carry cheap primitives ONLY, never node references
- * or raw document text — a trace attached to a bug report must not smuggle the document.
- * Known limitation: the buffer is module-global, so two editors on one page interleave.
+ * Bounded ring buffer of the inline layer's transient state transitions, read through the debug
+ * panel and `getDiagnostics()`. Unlike `perf/instruments.ts` it arms from anywhere, production
+ * included, so a consumer app can attach it to a bug report — which is why entries carry cheap
+ * primitives ONLY, never node references or raw document text. The buffer is module-global, so
+ * two editors on one page interleave.
  */
 
 export interface InteractionTraceEntry {
@@ -19,7 +18,6 @@ const CAPACITY = 200;
 
 let enabled = false;
 let buf: InteractionTraceEntry[] = [];
-const listeners = new Set<(entry: InteractionTraceEntry) => void>();
 
 // ── Switch and readout ──────────────────────────────────────────────────────
 
@@ -44,25 +42,9 @@ export function interactionTraceSnapshot(): InteractionTraceEntry[] {
 	return buf.slice();
 }
 
-export function subscribeInteractionTrace(
-	listener: (entry: InteractionTraceEntry) => void
-): () => void {
-	listeners.add(listener);
-	return () => listeners.delete(listener);
-}
-
 function record(site: string, kind: string, detail?: InteractionTraceEntry['detail']): void {
-	const entry: InteractionTraceEntry = { t: performance.now(), site, kind, detail };
-	buf.push(entry);
+	buf.push({ t: performance.now(), site, kind, detail });
 	if (buf.length > CAPACITY) buf.splice(0, buf.length - CAPACITY);
-	// Snapshot before iterating so a self-disposing subscriber doesn't abort the loop.
-	for (const l of [...listeners]) {
-		try {
-			l(entry);
-		} catch (err) {
-			console.error('[InteractionTrace] subscriber threw while handling entry:', err);
-		}
-	}
 }
 
 // ── Recorders (one per transition family) ────────────────────────────────────

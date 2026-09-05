@@ -1,16 +1,14 @@
-// Regenerates src/lib/test/gfm-conformance/spec-examples.json from a downloaded
-// CommonMark spec.json (path in argv[2]; fetch it from https://spec.commonmark.org/, which
-// is not committed). Keeps only inline-only examples so the conformance differ compares
-// like for like; the inline guard duplicates reference.ts on purpose, so this stays
-// runnable with plain `node`. Output is JSON with escaped strings so hard-break bytes and
-// CRs survive LF normalization.
+// Regenerates src/lib/test/gfm-conformance/spec-examples.json from a CommonMark spec.json
+// (path in argv[2]; fetched from https://spec.commonmark.org/, never committed). Keeps only
+// inline-only examples so the conformance differ compares like for like; that guard duplicates
+// reference.ts on purpose, so this stays runnable with plain `node`. Strings are escaped so
+// hard-break bytes and CRs survive LF normalization.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Parser } from 'commonmark';
 
-// Read from the pinned devDependency rather than written down again: `reference.ts`'s
-// REFERENCE_VERSION already asserts against this same field, so a literal here would be a
-// third copy that can disagree with the corpus it labels.
+// Read from the pinned devDependency rather than written down again: `reference.ts` already
+// asserts against this same field, so a literal here would be a third copy that can disagree.
 const REFERENCE_VERSION = JSON.parse(
 	readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')
 ).devDependencies.commonmark;

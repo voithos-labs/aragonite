@@ -22,6 +22,26 @@ test.describe('table block: navigation', () => {
 		await expect(page.locator('[role="cell"]').nth(4)).toBeFocused();
 	});
 
+	test('ArrowRight from the block above enters the FIRST cell at its start', async ({ page }) => {
+		await editor.loadContent('Text before.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		await page.getByText('Text before.').click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('ArrowRight');
+		await expect(page.locator('[role="cell"]').nth(0)).toBeFocused();
+		await page.keyboard.type('X');
+		await expect(page.locator('[role="cell"]').nth(0)).toHaveText(/^XA/);
+	});
+
+	test('ArrowLeft from the block below enters the LAST cell at its end', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nText after.\n');
+		await page.getByText('Text after.').click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('ArrowLeft');
+		await expect(page.locator('[role="cell"]').nth(3)).toBeFocused();
+		await page.keyboard.type('X');
+		await expect(page.locator('[role="cell"]').nth(3)).toHaveText(/2X$/);
+	});
+
 	test('ArrowDown exits table downward into next block', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nText after.\n');
 		await page.locator('[role="cell"]').nth(2).click();

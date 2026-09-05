@@ -1,6 +1,20 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { EDITOR_SERVICES_KEY, type EditorServices } from '../editor-keys';
+	import {
+		SEARCH_CLOSE_LABEL,
+		SEARCH_CLOSE_TITLE,
+		SEARCH_FIND,
+		SEARCH_MATCH_CASE,
+		SEARCH_NEXT_LABEL,
+		SEARCH_NEXT_TITLE,
+		SEARCH_PREVIOUS_LABEL,
+		SEARCH_PREVIOUS_TITLE,
+		SEARCH_REGEX,
+		SEARCH_REPLACE,
+		SEARCH_TOGGLE_REPLACE,
+		SEARCH_WHOLE_WORD
+	} from '../a11y-strings';
 
 	// `replaceExpanded` is owned by Editor so the root Ctrl+H shortcut and the
 	// chevron share one source of truth; the chevron reports toggles back up.
@@ -13,6 +27,12 @@
 	} = $props();
 
 	const { search } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+
+	const OPTION_TOGGLES = [
+		{ key: 'caseSensitive', glyph: 'Aa', text: SEARCH_MATCH_CASE },
+		{ key: 'wholeWord', glyph: 'W', text: SEARCH_WHOLE_WORD },
+		{ key: 'regex', glyph: '.*', text: SEARCH_REGEX }
+	] as const;
 
 	let findInput = $state<HTMLInputElement>();
 	$effect(() => {
@@ -47,48 +67,32 @@
 				type="button"
 				class="search-chevron"
 				class:on={replaceExpanded}
-				title="Toggle replace"
-				aria-label="Toggle replace"
+				title={SEARCH_TOGGLE_REPLACE}
+				aria-label={SEARCH_TOGGLE_REPLACE}
 				aria-expanded={replaceExpanded}
 				onclick={() => onToggleReplace?.()}>›</button
 			>
 			<input
 				bind:this={findInput}
 				class="search-input"
-				placeholder="Find"
+				placeholder={SEARCH_FIND}
 				value={search.query}
 				oninput={(e) => search.setQuery(e.currentTarget.value)}
 				onkeydown={onFindKeydown}
-				aria-label="Find"
+				aria-label={SEARCH_FIND}
 			/>
-			<button
-				type="button"
-				class="search-tog"
-				class:on={search.options.caseSensitive}
-				title="Match case"
-				aria-label="Match case"
-				aria-pressed={search.options.caseSensitive}
-				onclick={() => search.setOptions({ caseSensitive: !search.options.caseSensitive })}
-				>Aa</button
-			>
-			<button
-				type="button"
-				class="search-tog"
-				class:on={search.options.wholeWord}
-				title="Whole word"
-				aria-label="Whole word"
-				aria-pressed={search.options.wholeWord}
-				onclick={() => search.setOptions({ wholeWord: !search.options.wholeWord })}>W</button
-			>
-			<button
-				type="button"
-				class="search-tog"
-				class:on={search.options.regex}
-				title="Regex"
-				aria-label="Regex"
-				aria-pressed={search.options.regex}
-				onclick={() => search.setOptions({ regex: !search.options.regex })}>.*</button
-			>
+			{#each OPTION_TOGGLES as toggle (toggle.key)}
+				<button
+					type="button"
+					class="search-tog"
+					class:on={search.options[toggle.key]}
+					title={toggle.text}
+					aria-label={toggle.text}
+					aria-pressed={search.options[toggle.key]}
+					onclick={() => search.setOptions({ [toggle.key]: !search.options[toggle.key] })}
+					>{toggle.glyph}</button
+				>
+			{/each}
 			<span class="search-count" class:error={!!search.error}>
 				{#if search.error}
 					{search.error}
@@ -105,22 +109,22 @@
 			<button
 				type="button"
 				class="search-nav"
-				title="Previous"
-				aria-label="Previous match"
+				title={SEARCH_PREVIOUS_TITLE}
+				aria-label={SEARCH_PREVIOUS_LABEL}
 				onclick={() => search.prev()}>‹</button
 			>
 			<button
 				type="button"
 				class="search-nav"
-				title="Next"
-				aria-label="Next match"
+				title={SEARCH_NEXT_TITLE}
+				aria-label={SEARCH_NEXT_LABEL}
 				onclick={() => search.next()}>›</button
 			>
 			<button
 				type="button"
 				class="search-x"
-				title="Close"
-				aria-label="Close search"
+				title={SEARCH_CLOSE_TITLE}
+				aria-label={SEARCH_CLOSE_LABEL}
 				onclick={() => search.close()}>✕</button
 			>
 		</div>
@@ -128,11 +132,11 @@
 			<div class="search-row">
 				<input
 					class="search-input"
-					placeholder="Replace"
+					placeholder={SEARCH_REPLACE}
 					value={search.replacement}
 					oninput={(e) => search.setReplacement(e.currentTarget.value)}
 					onkeydown={onReplaceKeydown}
-					aria-label="Replace"
+					aria-label={SEARCH_REPLACE}
 				/>
 				<button type="button" class="search-btn" onclick={() => search.replaceCurrent()}
 					>Replace</button
@@ -148,6 +152,9 @@
 		position: absolute;
 		top: 10px;
 		right: 10px;
+		/* Content-sized off the right edge, so without the cap a narrow host puts the bar's
+		   left half (the find field) off screen instead of shrinking it. */
+		max-width: calc(100% - 20px);
 		z-index: 5;
 		display: flex;
 		flex-direction: column;
@@ -160,26 +167,30 @@
 	}
 	.search-row {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 6px;
 	}
 	.search-input {
-		background: var(--color-bg, #1b1c21);
+		background: var(--color-surface, #1b1c21);
 		border: 1px solid var(--color-border, #44474f);
 		border-radius: 4px;
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 		padding: 3px 7px;
 		height: 22px;
+		/* A floor, not a width: `min-width: auto` on a flex item is its intrinsic size, which
+		   is what stops the field shrinking before the row wraps. */
+		min-width: 6ch;
 	}
 	.search-tog,
 	.search-nav,
 	.search-x,
 	.search-btn,
 	.search-chevron {
-		color: var(--color-text, #d6d9e0);
+		color: var(--color-text-secondary, #d6d9e0);
 		background: transparent;
 		border: 1px solid var(--color-border, #44474f);
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		cursor: pointer;
 	}
 	.search-tog {
@@ -188,7 +199,7 @@
 	}
 	.search-tog.on,
 	.search-chevron.on {
-		color: var(--color-bg, #1e1f24);
+		color: var(--color-surface, #1e1f24);
 		background: var(--color-accent, #567b67);
 	}
 	.search-nav,
@@ -214,6 +225,19 @@
 		white-space: nowrap;
 	}
 	.search-count.error {
-		color: var(--color-danger, #e06c75);
+		color: var(--color-error, #e06c75);
+	}
+
+	/* A pointer with no hover is a thumb: the glyph buttons are ~16px boxes, under the WCAG
+	   2.5.8 minimum, and the row wraps rather than crowding once they grow. */
+	@media (pointer: coarse) {
+		.search-tog,
+		.search-nav,
+		.search-x,
+		.search-btn,
+		.search-chevron {
+			min-width: 24px;
+			min-height: 24px;
+		}
 	}
 </style>

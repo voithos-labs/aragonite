@@ -3,8 +3,7 @@
  * `auto`/`scroll` and stops at the first answer, CLIPPING asks for anything that bounds
  * the visible region and collects the whole chain, since visibility is their intersection.
  * An `overflow: hidden` auto-height card matches a clipping predicate while doing neither.
- * `selection/drag-pointer.ts` keeps its own inner walk — sharing the predicate is a
- * known follow-up, so a change here is not automatically a change to drag-select.
+ * `selection/drag-pointer.ts` keeps its own inner walk, so a change here is not one to it.
  */
 
 // Scrollable through script — `element.scrollTop = n` moves it. `hidden` qualifies.
@@ -81,15 +80,15 @@ export function clippingAncestors(el: HTMLElement): HTMLElement[] {
  *  OUTSIDE a block's internal scroll container, so finding what scrolls beneath the host
  *  means looking inward, not up. */
 export function firstScrollableDescendant(el: HTMLElement): HTMLElement | null {
-	const stack: HTMLElement[] = [];
+	const queue: HTMLElement[] = [];
 	for (const child of el.children) {
-		if (child instanceof HTMLElement) stack.push(child);
+		if (child instanceof HTMLElement) queue.push(child);
 	}
-	while (stack.length > 0) {
-		const cur = stack.shift()!;
+	while (queue.length > 0) {
+		const cur = queue.shift()!;
 		if (isScriptScrollable(cur)) return cur;
 		for (const child of cur.children) {
-			if (child instanceof HTMLElement) stack.push(child);
+			if (child instanceof HTMLElement) queue.push(child);
 		}
 	}
 	return null;

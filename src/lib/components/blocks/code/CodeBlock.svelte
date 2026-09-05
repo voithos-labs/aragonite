@@ -1,27 +1,21 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
-	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
+	import { getContext, tick } from 'svelte';
 	import { type BlockComponent, type StickyColumnDirection } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
-	import { emitCommandError } from '../../../editor-events';
 	import {
-		BLOCK_EDIT_KEY,
-		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
-		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { asDomTextOffset, asRawOffset } from '../../../cursor/coordinate-spaces';
+	import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
 	import {
 		createRangeFromOffsets,
-		setCursorOffset as setCursorOffsetHelper,
-		getRangeOffsets as getRangeOffsetsHelper,
-		getSelectionOffsets as getSelectionOffsetsHelper,
-		hasSelection as hasSelectionHelper
+		setCursorOffset,
+		getRangeOffsets,
+		getSelectionOffsets,
+		hasSelection
 	} from '../../../cursor/content-offsets';
 	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
 	import {
@@ -29,8 +23,8 @@
 		createClipboardHandlers,
 		consumePendingRestore
 	} from '../editable-surface';
+	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
-	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 	import { renderCodeBlock } from './code-renderer';
 	import {
 		getLineLeadingWhitespace,
@@ -40,7 +34,13 @@
 	import { indentLines, dedentLines, type IndentResult } from './code-indent';
 	import { computeCodeEnter } from './code-enter';
 	import { computeAutoPair } from './code-beforeinput';
-	import { reconcileFenceWrite, type FenceShape } from './code-fence-write';
+	import {
+		fenceShapeOf,
+		reconcileFenceWrite,
+		writeFenceInfo
+	} from '../../../schema/fenced-code-raw';
+	import { hidesMarkers } from '../../../presentation-mode';
+	import CodeLanguageChip from './CodeLanguageChip.svelte';
 	import { computeFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
@@ -57,43 +57,38 @@
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
-	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
+	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
-	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const wiring = wireSurfaceContexts();
 	const {
+		blockEdit,
+		focusActions,
 		controller,
 		pasteCoordinator,
 		stickyColumn,
-		reorder,
+		edgeAffinity,
 		selection,
-		registryView,
+		getDoc,
+		getEditorRoot,
+		grammar,
+		activePlugins,
 		events: editorEvents
-	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const {
-		keybindingOverrides,
-		presentationMode: getPresentationMode,
-		onPasteImage
-	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const {
-		blockElLookup: getBlockElByPath,
-		doc: getDoc,
-		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
-		lifetime: editorLifetime,
-		pluginEditor
-	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
-	const readOnly = $derived(getPresentationMode?.() === 'reading');
+	} = wiring.deps;
+	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const { presentationMode: getPresentationMode, onPasteImage } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
+	const readOnly = $derived(presentationMode === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
+	// The walk container's own stamp, kept as state rather than re-derived: it is what
+	// decides whether this block paints its fence chrome, and so whether it needs a chip.
+	let contentEmpty = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
@@ -104,6 +99,7 @@
 	);
 
 	const editableSurface = createEditableSurface({
+		...wiring.deps,
 		getEl: () => el ?? null,
 		getAmbientLength: () => 0,
 		backend,
@@ -120,24 +116,7 @@
 		setPendingCursor: (offset) => {
 			pendingCursorOffset = offset;
 		},
-		selection,
-		getDoc,
-		getBlockElByPath,
-		focusActions,
-		getEditorRoot,
-		getScrollHost,
-		getEditorLifetime: () => editorLifetime ?? null,
-		stickyColumn,
-		blockEdit,
-		controller,
-		history,
-		pluginEditor,
 		getPresentationMode,
-		onCommandError,
-		getKeybindingOverrides: keybindingOverrides,
-		pasteCoordinator,
-		grammar: registryView.grammar,
-		events: editorEvents,
 		getFocusOffset,
 		getTextLen,
 		readText,
@@ -186,16 +165,10 @@
 		return trimTrailingLineEnding(node.raw);
 	}
 
-	function fenceShapeOf(view: NodeView): FenceShape {
-		const meta = metadataOf(view, 'fencedCode');
-		return { marker: meta.fenceMarker, length: meta.fenceLength, closed: meta.closed };
-	}
-
 	/**
-	 * The block's ONE display-commit door: no gesture calls `updateBlockContent`
-	 * directly (pinned by `lint/code-commit-funnel`). The write seam sits inside rather
-	 * than at each caller, so a gesture written tomorrow gets fence reconciliation by
-	 * construction. Returns where `caret` lands in the committed bytes.
+	 * The block's ONE display-commit door: no gesture calls `updateBlockContent` directly (pinned
+	 * by `lint/code-commit-funnel`). The write seam sits inside rather than at each caller, so
+	 * every gesture gets fence reconciliation by construction.
 	 */
 	function commitDisplay(display: string, undoAnchor: number, caret: number): number {
 		const written = reconcileFenceWrite({
@@ -219,6 +192,9 @@
 
 		el.replaceChildren(renderCodeBlock(node));
 		anchorTrailingNewline(el);
+		const chromeOnly = holdsOnlyMarkerChrome(el);
+		el.toggleAttribute(CONTENT_EMPTY_ATTR, chromeOnly);
+		contentEmpty = chromeOnly;
 		lastRenderedRaw = node.raw;
 
 		// Restore only while this block still holds focus: an edit reparsing to multiple
@@ -240,18 +216,44 @@
 			pendingCursorOffset = null;
 		} else if (pendingCursorOffset !== null) {
 			consumePendingRestore(el, pendingCursorOffset, (offset) =>
-				setCursorOffsetHelper(el!, asDomTextOffset(offset))
+				setCursorOffset(el!, asDomTextOffset(offset))
 			);
 			pendingCursorOffset = null;
 		}
 	});
 
-	// Windowed out while focused: hand focus to the editor root so the next keystroke
-	// routes through its document-level listener instead of falling to <body>.
-	$effect(() => {
-		const blockEl = el;
-		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
-	});
+	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
+
+	// ── The language chip ─────────────────────────────────────────────────────
+
+	// The chip stands in for fence chrome the mode paints nothing for, so it shows exactly
+	// where that chrome is missing: never in source, never on a block painting its own.
+	const showChip = $derived(hidesMarkers(presentationMode) && !contentEmpty);
+	const infoString = $derived(metadataOf(node, 'fencedCode').info);
+
+	// The chip's write: the opener's info span, through the display funnel so the fence rule
+	// runs over it, isolated so no typing burst on either side joins its undo entry.
+	function commitLanguage(info: string): void {
+		// Unchanged or refused bytes are a close, not a write — no entry, no edit event. The seed
+		// is `meta.info`, TRIMMED, so a byte test alone lets a bare Enter respell a padded fence.
+		if (info === infoString) {
+			returnCaretToBody();
+			return;
+		}
+		const display = getDisplayText();
+		const written = writeFenceInfo(display, info, fenceShapeOf(node));
+		const bodyStart = clampCaretToBody(node, 0);
+		if (written !== null && written !== display) {
+			controller.isolateUndoEntry(() => commitDisplay(written, bodyStart, bodyStart));
+		}
+		returnCaretToBody();
+	}
+
+	// This block's own door, not `moveFocus`: the chip is chrome over one block, and a
+	// traversal to it stops at the gap above instead. The seat waits for the commit's render.
+	function returnCaretToBody(): void {
+		void tick().then(() => focus(0));
+	}
 
 	// ── Event handlers ────────────────────────────────────────────────────────
 
@@ -262,7 +264,7 @@
 	// insertCompositionText is not cancelable — so a fence-crossing selection shrinks
 	// onto its body span here, before the composition owns the surface.
 	function onCompositionStart(): void {
-		const sel = el ? getSelectionOffsetsHelper(el) : null;
+		const sel = el ? getSelectionOffsets(el) : null;
 		if (sel && crossesFenceBoundary(node, sel)) {
 			const span = fenceEditSpan(node, sel);
 			setSelection(span.start, span.end);
@@ -293,7 +295,7 @@
 		if (!data || data.length !== 1) return;
 
 		const text = getDisplayText();
-		const selOffsets = getSelectionOffsetsHelper(el);
+		const selOffsets = getSelectionOffsets(el);
 		const offset = selOffsets ? selOffsets.start : (backend.getRaw() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
@@ -307,7 +309,7 @@
 
 		e.preventDefault();
 		if (result.kind === 'skip') {
-			setCursorOffsetHelper(el, asDomTextOffset(result.caretOffset));
+			setCursorOffset(el, asDomTextOffset(result.caretOffset));
 			return;
 		}
 		if (result.kind === 'wrap') {
@@ -362,18 +364,18 @@
 	 */
 	function pendingEditRange(e: InputEvent, surface: HTMLElement): CodeRange | null {
 		const targets = typeof e.getTargetRanges === 'function' ? e.getTargetRanges() : [];
-		if (targets.length > 0) return getRangeOffsetsHelper(surface, targets[0]);
-		const selected = getSelectionOffsetsHelper(surface);
+		if (targets.length > 0) return getRangeOffsets(surface, targets[0]);
+		const selected = getSelectionOffsets(surface);
 		if (selected) return selected;
 		const caret = backend.getRaw();
 		return caret === null ? null : { start: caret, end: caret };
 	}
 
 	/**
-	 * The text each claimed input type writes over its span. The posture, not a list:
-	 * only a payload readable off the event or mintable here is re-sited; every other
-	 * type is REFUSED (null: prevented, nothing committed). Text riding a `dataTransfer`
-	 * would otherwise reach `parse()` without the sanctioned paste transforms (G4.11).
+	 * The text each claimed input type writes over its span: only a payload readable off the event
+	 * or mintable here is re-sited, every other type is REFUSED (null: prevented, nothing
+	 * committed). Text riding a `dataTransfer` would reach `parse()` without the paste transforms
+	 * (G4.11).
 	 */
 	function rangedEditInsertion(e: InputEvent, span: CodeRange): string | null {
 		if (e.inputType.startsWith('delete')) return '';
@@ -399,31 +401,22 @@
 
 		preEditOffset = backend.getRaw() ?? 0;
 
-		if (await handleSharedKeydown(e, sharedCtx)) return;
+		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
-		const chord = eventToChord(e);
-		if (
-			chord &&
-			dispatchKeyCommand(
-				chord,
-				{ kind: node.kind, runCommand },
-				{ history, pluginEditor, getPresentationMode },
-				keybindingOverrides(),
-				onCommandError
-			)
-		) {
-			e.preventDefault();
-			return;
-		}
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 	}
 
 	// ── Commands ────────────────────────────────────────────────────────
 
 	export function runCommand(id: CommandId): boolean {
+		if (reorderRunCommand(id, reorder, () => myPath)) return true;
 		switch (id) {
 			case 'format.toggleStrong':
 			case 'format.toggleEmphasis':
-				return true; // code blocks don't format-toggle; swallow to stop the browser default
+			case 'format.toggleStrikethrough':
+			case 'format.toggleCode':
+			case 'link.openCard':
+				return true; // code blocks carry no inline constructs; swallow to stop the browser default
 			case 'code.newline':
 				return codeNewline();
 			case 'code.indent':
@@ -436,19 +429,13 @@
 				return codeBackspace();
 			case 'code.delete':
 				return codeDelete();
-			case 'block.moveUp':
-				reorder.nudgeReorderUnit(myPath, -1);
-				return true;
-			case 'block.moveDown':
-				reorder.nudgeReorderUnit(myPath, 1);
-				return true;
 			default:
 				return false;
 		}
 	}
 
 	function codeBackspace(): boolean {
-		if (!el || hasSelectionHelper()) return false;
+		if (!el || hasSelection()) return false;
 		const offset = backend.getRaw() ?? 0;
 		// offset===0 is the universal contract; the classifyFenceBoundary check catches the
 		// fence boundary, where a native Backspace would delete the opener's terminating `\n`.
@@ -473,7 +460,7 @@
 	}
 
 	function codeDelete(): boolean {
-		if (!el || hasSelectionHelper()) return false;
+		if (!el || hasSelection()) return false;
 		const offset = backend.getRaw() ?? 0;
 		if (classifyFenceBoundary({ node, offset, forward: true }).kind === 'exitNext') {
 			// The root's forward asymmetry (past-end appends a paragraph) would strand a
@@ -544,9 +531,8 @@
 		else focusActions.moveFocus(index + 1, 'start');
 	}
 
-	// Leaving an unclosed fence downward mints its closer, so save→reload no longer
-	// lazy-absorbs the trailing blocks into the open fence. Closer and fresh paragraph
-	// land as ONE replaceBlock commit, so a single undo restores both.
+	// Leaving an unclosed fence downward mints its closer, keeping save→reload from lazy-absorbing
+	// the trailing blocks into it. Closer and fresh paragraph land as ONE replaceBlock commit.
 	function closeUnclosedFenceAndDescend(closedDisplay: string): void {
 		const meta = metadataOf(node, 'fencedCode');
 		const lineEnding = trailingLineEnding(node.raw);
@@ -572,12 +558,13 @@
 		parkCaret,
 		getCursorOffset,
 		focusAtColumn,
+		insertMarkdown,
 		runCommand
 	} satisfies BlockComponent);
 
 	function currentRange(): { start: number; end: number } {
 		if (!el) return { start: 0, end: 0 };
-		const sel = getSelectionOffsetsHelper(el);
+		const sel = getSelectionOffsets(el);
 		if (sel) return sel;
 		const cursor = backend.getRaw() ?? 0;
 		return { start: cursor, end: cursor };
@@ -614,13 +601,14 @@
 	// ── Pointer + clipboard ─────────────────────────────────────────────
 
 	function onPointerDown(e: PointerEvent): void {
-		if (crossBlock.handlePointerDown(e)) return;
+		void crossBlock.handlePointerDown(e);
 	}
 
 	// Code has no ambient markers, so its DOM-text selection IS its raw slice: copy falls
 	// to the seam's visible-selection default, and cut writes that string before deleting.
-	const { onCopy, onCut, onPaste } = createClipboardHandlers({
+	const clipboard = createClipboardHandlers({
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		getDoc,
 		crossBlock,
@@ -633,13 +621,13 @@
 		cutTail: (e) => {
 			e.clipboardData?.setData('text/plain', window.getSelection()?.toString() ?? '');
 			if (!el) return;
-			const selOffsets = getSelectionOffsetsHelper(el);
+			const selOffsets = getSelectionOffsets(el);
 			if (!selOffsets) return;
 			const edit = computeFenceRangedEdit(node, selOffsets, '');
 			if (!edit) return;
 			pendingCursorOffset = commitDisplay(edit.newText, edit.newCursor, edit.newCursor);
 		},
-		pasteTail: async (e, pastedText) => {
+		pasteTail: async (pastedText) => {
 			if (!el) return;
 			// Paste refuses where typing refuses: a target confined to fence structure has
 			// nothing to paste into. The tree-op owns the splice, so the span goes to it.
@@ -656,7 +644,9 @@
 				{
 					doc: getDoc(),
 					blockEdit,
-					controller: pasteCoordinator
+					controller: pasteCoordinator,
+					grammar,
+					activePlugins
 				}
 			);
 
@@ -665,6 +655,11 @@
 			}
 		}
 	});
+	const { onCopy, onCut, onPaste } = clipboard;
+
+	export function insertMarkdown(md: string): boolean {
+		return clipboard.insertMarkdown(md);
+	}
 </script>
 
 <div
@@ -685,6 +680,16 @@
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}
 ></div>
+<!-- Beside the walk container, never inside it: the render effect replaces that element's
+	children on every commit, and the offset walk counts everything that survives there. -->
+{#if showChip}
+	<CodeLanguageChip
+		info={infoString}
+		editable={!readOnly}
+		onCommit={commitLanguage}
+		onCancel={(returnCaret) => returnCaret && returnCaretToBody()}
+	/>
+{/if}
 
 <style>
 	.code-block {

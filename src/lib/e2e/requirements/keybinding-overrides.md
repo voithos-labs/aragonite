@@ -34,6 +34,11 @@ mutating the global tables.
 - a rebound add-chord undoes an edit made in a paragraph (TextEditableBlock)
 - a rebound add-chord undoes an edit made in a code block (CodeBlock)
 - a rebound add-chord undoes an edit made in a table cell (TableCellBlock)
+- a rebound add-chord undoes an edit with the GAP CARET live between two blocks — no block holds
+  focus and there is no kind scope to fall back on, so the gap's own global arm is the only path
+  (miss-analysis: every case in this file drove a leaf surface, and every override case
+  elsewhere re-pointed a chord the BUILT-IN table already owned, so four arms could pre-gate on
+  the built-in table alone and no test could tell)
 
 ## Notes
 

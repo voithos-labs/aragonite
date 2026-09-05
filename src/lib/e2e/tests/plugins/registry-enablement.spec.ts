@@ -11,13 +11,18 @@ test.describe('per-instance registry enablement', () => {
 		await page.getByTestId('editor-enabled').locator('[data-block-kind]').first().waitFor();
 	});
 
-	test('the disabled instance degrades the memo block to raw-editable', async ({ page }) => {
-		const disabledMemo = page.getByTestId('editor-disabled').locator('[data-block-kind="memo"]');
-		await expect(disabledMemo).toBeVisible();
-		// The unknown-kind fallback surface, not the memo component.
-		await expect(disabledMemo.locator('.raw-block')).toBeVisible();
-		await expect(disabledMemo.locator('.memo-block')).toHaveCount(0);
-		await expect(disabledMemo).toHaveText(/%% memo text/);
+	// Degrading to raw IS the no-component fallback, which reports itself on the way past.
+	test.describe('the disabled instance', () => {
+		test.use({ expectWarns: ['block-host'] });
+
+		test('degrades the memo block to raw-editable', async ({ page }) => {
+			const disabledMemo = page.getByTestId('editor-disabled').locator('[data-block-kind="memo"]');
+			await expect(disabledMemo).toBeVisible();
+			// The unknown-kind fallback surface, not the memo component.
+			await expect(disabledMemo.locator('.raw-block')).toBeVisible();
+			await expect(disabledMemo.locator('.memo-block')).toHaveCount(0);
+			await expect(disabledMemo).toHaveText(/%% memo text/);
+		});
 	});
 
 	test('the enabled instance renders the memo component', async ({ page }) => {

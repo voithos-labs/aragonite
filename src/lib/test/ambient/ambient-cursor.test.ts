@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+//
+// Miss-analysis: every case here handed the IO a live element, so the read order behind a dead
+// one was never asked.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createAmbientCursorIO } from '../../ambient/ambient-cursor';
 import { asRawOffset } from '../../cursor/coordinate-spaces';
@@ -87,6 +90,48 @@ describe('getRawSelection', () => {
 	});
 });
 
+// The door a native ranged edit reads its own range through: `getTargetRanges()` reports a span
+// while the caret stays collapsed, so the selection answers nothing there (G4.44).
+describe('rawRangeOf', () => {
+	const rangeOver = (
+		startNode: Node,
+		startOffset: number,
+		endNode: Node,
+		endOffset: number
+	): Range => {
+		const range = document.createRange();
+		range.setStart(startNode, startOffset);
+		range.setEnd(endNode, endOffset);
+		return range;
+	};
+
+	it('reads an arbitrary range in raw offsets, past the ambient prefix', () => {
+		expect(cursorIO().rawRangeOf(rangeOver(text, 1, text, 3))).toEqual({ start: 1, end: 3 });
+	});
+
+	// The event's range is the argument, so neither focus nor the live selection is consulted —
+	// which is the whole reason a collapsed caret can still carry one.
+	it('answers without focus, and answers a collapsed range', () => {
+		elsewhere.focus();
+		select(elsewhere.firstChild!, 0, elsewhere.firstChild!, 2);
+		expect(cursorIO().rawRangeOf(rangeOver(text, 2, text, 2))).toEqual({ start: 2, end: 2 });
+	});
+
+	it('clamps a marker-interior endpoint to raw 0', () => {
+		expect(cursorIO().rawRangeOf(rangeOver(marker.firstChild!, 1, text, 2))).toEqual({
+			start: 0,
+			end: 2
+		});
+	});
+
+	// A range another surface reported: resolving it here would write this block's bytes at
+	// offsets that address someone else's text.
+	it('declines a range outside the surface', () => {
+		const foreign = elsewhere.firstChild!;
+		expect(cursorIO().rawRangeOf(rangeOver(foreign, 0, foreign, 2))).toBeNull();
+	});
+});
+
 describe('getRaw', () => {
 	it('reads the caret inside the focused surface in raw offsets', () => {
 		el.focus();
@@ -141,6 +186,22 @@ describe('clampOutOfAmbient', () => {
 
 		const sel = window.getSelection()!;
 		expect(sel.focusNode).toBe(marker.firstChild);
+	});
+
+	// The surface can be gone before a click reaches it: a widget's own handler navigates, the
+	// window re-slices, and the block unmounts mid-dispatch. `getAmbientLength` is an owner-bound
+	// derived at the shipped call site, so reading it before liveness reads a dead owner.
+	it('reads no ambient length once the surface is gone', () => {
+		let reads = 0;
+		createAmbientCursorIO({
+			getEl: () => null,
+			getAmbientLength: () => {
+				reads++;
+				return AMBIENT.length;
+			}
+		}).clampOutOfAmbient();
+
+		expect(reads).toBe(0);
 	});
 });
 

@@ -3,9 +3,9 @@ import {
 	dispatchMoveFocus,
 	dispatchFocusByPath,
 	dispatchFocusAtColumn
-} from '../../../editor-actions/focus/focus-dispatch';
-import { CURSOR_END } from '../../../block-component';
-import { mockRef, makeStickyColumn, makeStubFocus } from '../../harness/editor-actions';
+} from '$lib/editor-actions/focus/focus-dispatch';
+import { CURSOR_END, CURSOR_START } from '$lib/block-component';
+import { mockRef, makeStickyColumn, makeStubFocus } from '$lib/test/harness/editor-actions';
 
 describe('dispatchMoveFocus', () => {
 	it('delegates upward when innerIndex < 0', async () => {
@@ -34,8 +34,7 @@ describe('dispatchMoveFocus', () => {
 			'start',
 			makeStickyColumn(),
 			{ focus: parentFocus, index: 5 },
-			undefined,
-			{ append: false }
+			{ options: { append: false } }
 		);
 		expect(parentFocus.moveFocus).toHaveBeenCalledWith(6, 'start', { append: false });
 	});
@@ -68,14 +67,14 @@ describe('dispatchMoveFocus', () => {
 		expect(child.focus).not.toHaveBeenCalled();
 	});
 
-	it('sticky-column variant falls back to focus(0) when from=above and no sticky X', async () => {
+	it('sticky-column variant falls back to focus(CURSOR_START) when from=above and no sticky X', async () => {
 		const child = mockRef({ focus: vi.fn(), focusAtColumn: vi.fn() });
 		await dispatchMoveFocus([child], 0, { stickyColumnFrom: 'above' }, makeStickyColumn(null), {
 			focus: makeStubFocus(),
 			index: 0
 		});
 		expect(child.focusAtColumn).not.toHaveBeenCalled();
-		expect(child.focus).toHaveBeenCalledWith(0);
+		expect(child.focus).toHaveBeenCalledWith(CURSOR_START);
 	});
 
 	it('sticky-column variant falls back to CURSOR_END when from=below and child lacks focusAtColumn', async () => {
@@ -110,7 +109,7 @@ describe('dispatchMoveFocus', () => {
 			index: 0
 		});
 		expect(nonFocusable.focus).not.toHaveBeenCalled();
-		expect(focusable.focus).toHaveBeenCalledWith(0);
+		expect(focusable.focus).toHaveBeenCalledWith(CURSOR_START);
 		expect(parentFocus.moveFocus).not.toHaveBeenCalled();
 	});
 });
@@ -157,10 +156,10 @@ describe('dispatchFocusAtColumn', () => {
 		expect(first.focusAtColumn).not.toHaveBeenCalled();
 	});
 
-	it('falls back to focus(0) from above when child lacks focusAtColumn', () => {
+	it('falls back to focus(CURSOR_START) from above when child lacks focusAtColumn', () => {
 		const first = mockRef({ focus: vi.fn() });
 		dispatchFocusAtColumn([first], 42, 'above');
-		expect(first.focus).toHaveBeenCalledWith(0);
+		expect(first.focus).toHaveBeenCalledWith(CURSOR_START);
 	});
 
 	it('falls back to focus(CURSOR_END) from below when child lacks focusAtColumn', () => {

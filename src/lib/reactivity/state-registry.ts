@@ -1,9 +1,11 @@
-/** Resolve a container node (by identity; views accepted) to its reactive BlockListState.
+/** Resolve a container node (by identity; views accepted) to its BlockListState.
  *  WeakMap, so entries collect when the node becomes unreachable. */
 
+import { DEV } from 'esm-env';
 import { tick } from 'svelte';
 import type { NodeView } from '../core/node-views';
 import type { BlockListState } from './block-list-state.svelte';
+import { devWarn } from '../dev-warn';
 
 const stateRegistry = new WeakMap<NodeView, BlockListState>();
 
@@ -11,7 +13,7 @@ const stateRegistry = new WeakMap<NodeView, BlockListState>();
 export function registerBlockListState(node: NodeView, state: BlockListState): void {
 	const existing = stateRegistry.get(node);
 	stateRegistry.set(node, state);
-	if (import.meta.env.DEV && existing && existing !== state) {
+	if (DEV && existing && existing !== state) {
 		void reportContestedClaim(node, existing, state);
 	}
 }
@@ -19,8 +21,8 @@ export function registerBlockListState(node: NodeView, state: BlockListState): v
 /**
  * A dev signal, not a guarantee. Svelte creates a structural remount's new mount before
  * tearing the old one down, so a claim contested INSIDE a flush says nothing about
- * ownership; re-ask once it settles, when a loser still holding child refs is a genuine
- * second live owner.
+ * ownership; re-ask once it settles, when a loser still holding child refs means either a
+ * second live owner or a teardown whose clear never reached the live slots.
  */
 async function reportContestedClaim(
 	node: NodeView,
@@ -30,10 +32,11 @@ async function reportContestedClaim(
 	await tick();
 	if (stateRegistry.get(node) !== winner) return;
 	if (loser.innerBlockRefs.every((ref) => ref === undefined)) return;
-	console.warn(
-		`[state-registry] two live components claim the same ${node.kind} — the loser's ` +
-			`child refs are orphaned. Either both mounts render this node, or cloneDocument ` +
-			`is preserving node identity across snapshots unexpectedly.`
+	devWarn(
+		'state-registry',
+		`two live components claim the same ${node.kind} — the loser's child refs are orphaned. ` +
+			`Either both mounts render this node, or the loser's teardown emptied slots the ` +
+			`scope no longer reads.`
 	);
 }
 

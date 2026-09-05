@@ -88,12 +88,9 @@ export function recognizeTextDirective(
 		const labelEnd = consumeBalanced(raw, i, end, '[');
 		if (labelEnd < 0) return null;
 		i = labelEnd;
-		if (i < end && raw[i] === '{') {
-			const attrsEnd = consumeBalanced(raw, i, end, '{');
-			if (attrsEnd < 0) return null;
-			i = attrsEnd;
-		}
-	} else {
+	}
+	// Mandatory under the `{` gate, optional after a label: the same run either way.
+	if (i < end && raw[i] === '{') {
 		const attrsEnd = consumeBalanced(raw, i, end, '{');
 		if (attrsEnd < 0) return null;
 		i = attrsEnd;

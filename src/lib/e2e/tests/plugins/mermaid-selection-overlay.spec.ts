@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from './helpers';
+import { STANDARD_DIAGRAM_DOC } from './mermaid-helpers';
 
 /**
  * Cross-block selection overlay over childless opaque containers
@@ -10,10 +11,8 @@ import { PluginsPage } from './helpers';
  * childless containers; the built-in overlay behavior is pinned in tests/selection/overlay.spec.ts.
  */
 
-const RENDERED_DOC =
-	'Above text\n\n```mermaid\ngraph TD\n\tA[Start] --> B[Finish]\n```\n\ntail text\n';
 const BROKEN_DOC = 'Above text\n\n```mermaid\nnotadiagram broken\n```\n\ntail text\n';
-const CALLOUT_DOC = 'before\n\n:::note Title\nBody\n:::\n\nafter\n';
+const CALLOUT_DOC = 'before\n\n:::callout Title\nBody\n:::\n\nafter\n';
 
 const MIDDLE_OVERLAY = "[data-block-path='[1]'] > .selection-overlay-middle";
 
@@ -28,7 +27,7 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 	test('a keyboard sweep across a rendered diagram paints its full-block overlay', async ({
 		page
 	}) => {
-		await editor.loadContent(RENDERED_DOC);
+		await editor.loadContent(STANDARD_DIAGRAM_DOC);
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 
 		await editor.focusBlockStart(0);
@@ -39,7 +38,7 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 	});
 
 	test('an upward sweep ending ON the diagram paints its endpoint box', async ({ page }) => {
-		await editor.loadContent(RENDERED_DOC);
+		await editor.loadContent(STANDARD_DIAGRAM_DOC);
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 
 		await editor.focusBlockEnd(2);
@@ -72,7 +71,7 @@ test.describe('cross-block selection overlay — childless opaque container', ()
 	}) => {
 		await editor.loadContent(CALLOUT_DOC);
 		await editor.focusBlockStart(0);
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
 		await expect(page.locator(MIDDLE_OVERLAY)).toHaveCount(0);

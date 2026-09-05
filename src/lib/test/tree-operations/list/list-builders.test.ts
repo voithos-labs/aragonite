@@ -4,38 +4,11 @@ import { parse } from '$lib/core/parser';
 import {
 	assembleListHalf,
 	buildListItemWithContent,
-	orderedBaseOf,
-	readOrderedSuffix,
 	splitLeafForPaste
 } from '$lib/tree-operations/list/list-builders';
 import type { CstNode } from '$lib/core/nodes';
 
 describe('list-builders', () => {
-	it('orderedBaseOf reads numeric prefix; defaults to 1', () => {
-		expect(
-			orderedBaseOf({
-				kind: 'listItem',
-				leadingTrivia: '',
-				raw: '',
-				metadata: { marker: '5. ' }
-			} as CstNode)
-		).toBe(5);
-		expect(
-			orderedBaseOf({
-				kind: 'listItem',
-				leadingTrivia: '',
-				raw: '',
-				metadata: { marker: '- ' }
-			} as CstNode)
-		).toBe(1);
-		expect(orderedBaseOf(undefined)).toBe(1);
-	});
-
-	it('readOrderedSuffix reads suffix from list first item', () => {
-		const list = parse('1. a\n').children[0];
-		expect(readOrderedSuffix(list)).toBe('. ');
-	});
-
 	it('buildListItemWithContent inherits template metadata + sets marker raw via rebuild', () => {
 		const tplItem = parse('1. tmpl\n').children[0].children![0];
 		const para: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'X\n' };

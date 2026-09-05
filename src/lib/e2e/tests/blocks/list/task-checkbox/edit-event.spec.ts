@@ -1,6 +1,5 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { waitForSourceContains } from './helpers';
 
 test.describe('task checkbox — edit-event shape and cross-block click', () => {
 	let editor: EditorPage;
@@ -20,7 +19,7 @@ test.describe('task checkbox — edit-event shape and cross-block click', () => 
 		await editor.waitForCrossBlock(true);
 
 		await editor.page.locator('.task-checkbox').first().click();
-		await waitForSourceContains(editor, '[x] first');
+		await editor.bridge.waitForSourceContains('[x] first');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		expect((await editor.bridge.getSource()).trim()).toBe('- [x] first\n- [ ] second');
 	});
@@ -29,7 +28,7 @@ test.describe('task checkbox — edit-event shape and cross-block click', () => 
 		await editor.loadContent('- [ ] task\n');
 		await editor.page.evaluate(() => (window as any).__test.startEditOpCapture());
 		await editor.page.locator('.task-checkbox').first().click();
-		await waitForSourceContains(editor, '[x]');
+		await editor.bridge.waitForSourceContains('[x]');
 		const ops = await editor.page.evaluate(() => (window as any).__test.stopEditOpCapture());
 		expect(ops).toEqual(['metadataUpdate']);
 	});

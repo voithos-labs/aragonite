@@ -6,13 +6,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // and exercise the branch logic instead.
 vi.mock('../../selection/native-bridge', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../../selection/native-bridge')>()),
-	offsetFromViewportPoint: vi.fn(),
 	readNativeCaretInBlock: vi.fn()
+}));
+vi.mock('../../cursor/point-offset', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../../cursor/point-offset')>()),
+	offsetFromViewportPoint: vi.fn()
 }));
 
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { handleShiftClick } from '../../selection/keyboard-extend';
-import { offsetFromViewportPoint, readNativeCaretInBlock } from '../../selection/native-bridge';
+import { readNativeCaretInBlock } from '../../selection/native-bridge';
+import { offsetFromViewportPoint } from '../../cursor/point-offset';
 import { parse } from '../../core/parser';
 import type { Document } from '../../core/nodes';
 

@@ -15,9 +15,11 @@ import type { WidgetSelectionState } from '../../image/widget-selection-state.sv
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
 import type { PasteCommitCoordinator } from '../../../tree-operations/paste/paste-deps';
+import type { GrammarView } from '../../../schema/block-openers';
+import type { PluginActivation } from '../../../schema/plugin-activation';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { StickyColumnState } from '../../../cursor/sticky-column';
-import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
+import type { EdgeAffinityState } from '../../../cursor/edge-affinity';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isInlineWidget } from '../../../core/inline/inline-widgets';
 import {
@@ -27,6 +29,8 @@ import {
 	type RevealFold
 } from '../editable-surface';
 import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
+import { deleteRangeRaw } from './live-selection-edit';
+import type { PresentationMode } from '../../../presentation-mode';
 
 export interface TextClipboardDeps {
 	get node(): NodeView;
@@ -41,8 +45,13 @@ export interface TextClipboardDeps {
 	onPasteImage: PasteImageHook | undefined;
 	selection: SelectionState;
 	stickyColumn: StickyColumnState;
+	edgeAffinity: EdgeAffinityState;
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
+	/** The instance grammar, so an unlisted plugin's opener never claims pasted bytes here. */
+	grammar: GrammarView | undefined;
+	/** The plugins this instance activated, so an unlisted plugin's paste transform stays out. */
+	activePlugins: PluginActivation;
 	getDoc: DocumentGetter;
 	widgetSelection: WidgetSelectionState;
 	setPendingCursor: (offset: number | null) => void;
@@ -54,13 +63,28 @@ export interface TextClipboardDeps {
 	foldRevealBeforeMutation: () => RevealFold | null;
 	/** True while an inline-widget source reveal is active on this block. */
 	isRevealing: () => boolean;
+	/** The effective mode the cut's join seam answers to (live-mode.md § 4.5); `undefined` reads
+	 *  as not-live. */
+	getPresentationMode: () => PresentationMode | undefined;
+	/** The container prefix this block renders under, which the cut's seam reads its candidate
+	 *  back through — an item body the cut left starting with a space reloads under a wider marker. */
+	getAmbientPrefix: () => string;
 	/** The block's live DOM as raw text, so a copy over a revealed (uncommitted) edit
 	 *  yields what the user sees rather than the stale raw slice. */
 	readRevealedText: () => string;
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
-export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers {
+export interface TextClipboard extends ClipboardHandlers {
+	/**
+	 * The block's own handler for a copy/cut/paste the editor root received: a selected widget
+	 * clears the native selection, so a block with no text position for a caret to survive in
+	 * gets its events at `<body>`, where no surface binding sees them.
+	 */
+	claimRootClipboard(event: ClipboardEvent): void;
+}
+
+export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 	function getSelectedTextFromRaw(): string {
 		const offsets = deps.cursor.getRawSelection();
 		if (!offsets) return '';
@@ -83,8 +107,9 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 		return inline ? { inline, preSelectOffset: selected.preSelectOffset } : null;
 	}
 
-	return createClipboardHandlers({
+	const handlers = createClipboardHandlers({
 		stickyColumn: deps.stickyColumn,
+		edgeAffinity: deps.edgeAffinity,
 		selection: deps.selection,
 		getDoc: deps.getDoc,
 		crossBlock: deps.crossBlock,
@@ -139,20 +164,21 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 			e.clipboardData?.setData('text/plain', selectedText);
 
 			const selOffsets = deps.cursor.getRawSelection();
-			if (selOffsets) {
-				const displayText = trimTrailingLineEnding(deps.node.raw);
-				const newDisplay =
-					displayText.slice(0, selOffsets.start) + displayText.slice(selOffsets.end);
-				void deps.blockEdit.updateBlockContent(
-					deps.index,
-					newDisplay + trailingLineEnding(deps.node.raw),
-					selOffsets.start
-				);
-				deps.setPendingCursor(selOffsets.start);
-			}
+			if (!selOffsets) return;
+			// A cut is a delete, so it crosses the same join seam: in live the range can span
+			// delimiter runs the reader never saw, and a raw splice would print them.
+			const edit = deleteRangeRaw(
+				deps.node,
+				selOffsets,
+				deps.getPresentationMode(),
+				deps.linkRef,
+				deps.getAmbientPrefix()
+			);
+			void deps.blockEdit.updateBlockContent(deps.index, edit.raw, selOffsets.start);
+			deps.setPendingCursor(edit.caret);
 		},
 
-		pasteTail: async (e, pastedText, foldedCaret) => {
+		pasteTail: async (pastedText, foldedCaret) => {
 			const widget = selectedWidgetOnThisBlock();
 			if (widget !== null) {
 				const { inline, preSelectOffset } = widget;
@@ -183,7 +209,10 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 				{
 					doc: deps.getDoc(),
 					blockEdit: deps.blockEdit,
-					controller: deps.pasteCoordinator
+					controller: deps.pasteCoordinator,
+					grammar: deps.grammar,
+					activePlugins: deps.activePlugins,
+					seam: { presentationMode: deps.getPresentationMode(), linkRef: deps.linkRef }
 				}
 			);
 
@@ -193,4 +222,16 @@ export function createTextClipboard(deps: TextClipboardDeps): ClipboardHandlers 
 			}
 		}
 	});
+
+	return {
+		...handlers,
+		// Routed to the same arms the caret route reaches, so the reading gate, the reveal
+		// fold and the sticky reset come along rather than being re-carried here.
+		claimRootClipboard(event) {
+			if (selectedWidgetOnThisBlock() === null) return;
+			if (event.type === 'copy') handlers.onCopy(event);
+			else if (event.type === 'cut') void handlers.onCut(event);
+			else if (event.type === 'paste') void handlers.onPaste(event);
+		}
+	};
 }

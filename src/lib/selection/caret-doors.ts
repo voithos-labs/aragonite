@@ -1,11 +1,12 @@
 /**
  * The two caret doors a block component exposes. `parkCaret` is the primitive: it seats a caret
  * and touches nothing else, which is what the cross-block dispatcher needs while an extend is
- * still growing a range. `focus` is that primitive plus the range-ending every other placement
+ * still growing a range. `focus` is that primitive plus the claim-ending every other placement
  * owes, since a caret left in a live cross-block range leaves a document the next keystroke
  * type-replaces. The door a caller reaches for by default is the safe one.
  */
 
+import type { GapCaretPosition } from './gap-caret';
 import { clearNativeSelection } from './native-bridge';
 import type { SelectionState } from './selection-state.svelte';
 
@@ -19,18 +20,35 @@ export function placeCaret(
 ): (offset: number) => void {
 	return (offset) =>
 		selection.batch(() => {
-			endLiveRange(selection);
+			endLiveCaretClaim(selection);
 			parkCaret(offset);
 		});
 }
 
 /**
- * Guarded on `isCrossBlock` so the common no-range placement stays a zero-emission no-op;
- * `clear()` notifies whether or not it changed anything. The native clear matters for a
- * whole-block landing, which seats no DOM range of its own.
+ * The gap's own door: every arrival path writes gap state through here and nowhere else. The
+ * native clear is inside the batch because no native caret may outlive the landing — the gap
+ * owns the caret from here until something else claims it.
  */
-function endLiveRange(selection: SelectionState): void {
-	if (!selection.isCrossBlock) return;
-	selection.clear();
-	clearNativeSelection();
+export function placeGapCaret(selection: SelectionState, pos: GapCaretPosition): void {
+	selection.batch(() => {
+		endLiveCaretClaim(selection);
+		selection.setGapCaret(pos);
+		clearNativeSelection();
+	});
+}
+
+/**
+ * Ends any editor-owned caret claim (cross-block range or gap) before a new caret lands. The
+ * range arm takes the gap with it, so the split is on which claim is live rather than on which
+ * field to zero. The native clear matters for a whole-block landing, which seats no DOM range
+ * of its own.
+ */
+function endLiveCaretClaim(selection: SelectionState): void {
+	if (selection.isCrossBlock) {
+		selection.clear();
+		clearNativeSelection();
+		return;
+	}
+	selection.clearGapCaret();
 }

@@ -1,13 +1,11 @@
 import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import {
 	PARAGRAPH,
 	PNG,
 	getCalls,
 	gotoWithHook,
-	parseConverged,
 	pasteFiles,
 	releaseImport,
 	setResponses
@@ -42,7 +40,7 @@ test.describe('image paste: host hook installed', () => {
 			{ mimeType: 'image/png', suggestedName: 'shot.png', bytes: 4 }
 		]);
 
-		await page.keyboard.press(`${primaryModifier}+z`);
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceNotContains('shot.png');
 		expect(await editor.bridge.getSource()).toContain('AB');
 	});
@@ -57,7 +55,7 @@ test.describe('image paste: host hook installed', () => {
 		]);
 
 		await editor.bridge.waitForSourceContains('A![[one.png]]![[two.png]]B');
-		await page.keyboard.press(`${primaryModifier}+z`);
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceNotContains('one.png');
 		expect(await editor.bridge.getSource()).not.toContain('two.png');
 	});
@@ -151,7 +149,7 @@ test.describe('image paste: host hook installed', () => {
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('1![[cell.png]]');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('an image pasted into a code block lands as literal source', async ({ page }) => {
@@ -162,7 +160,7 @@ test.describe('image paste: host hook installed', () => {
 		await pasteFiles(page, [PNG]);
 
 		await editor.bridge.waitForSourceContains('code![[fenced.png]]');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 });
 

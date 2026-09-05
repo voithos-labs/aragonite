@@ -14,6 +14,7 @@ import {
 	type WidgetInteractionDeps
 } from '$lib/components/blocks/text/widget-interaction';
 import type { CstNode } from '$lib/core/nodes';
+import { placeCaretAt } from './math-widget-fixture';
 
 describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 	let el: HTMLElement;
@@ -77,20 +78,10 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 		return createWidgetInteraction(deps);
 	}
 
-	function placeCaret(node: Node, offset: number): Selection {
-		const sel = window.getSelection()!;
-		sel.removeAllRanges();
-		const range = document.createRange();
-		range.setStart(node, offset);
-		range.collapse(true);
-		sel.addRange(range);
-		return sel;
-	}
-
 	it('consumes Shift+ArrowRight when the caret sits against a <br> widget edge', () => {
 		const interaction = makeInteraction();
 		// Caret at text "a" offset 1 == raw offset 1 == the widget's leading edge.
-		const sel = placeCaret(tA, 1);
+		const sel = placeCaretAt(tA, 1);
 		const evt = new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true });
 
 		const consumed = interaction.handleShiftArrowIntoWidget(evt);
@@ -108,7 +99,7 @@ describe('handleShiftArrowIntoWidget — non-image inline widget', () => {
 	it('does not consume when no widget sits at the caret edge', () => {
 		const interaction = makeInteraction();
 		// Caret at text "b" offset 1 == raw offset 6 — past the widget, plain text.
-		placeCaret(tB, 1);
+		placeCaretAt(tB, 1);
 		const evt = new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true });
 
 		expect(interaction.handleShiftArrowIntoWidget(evt)).toBe(false);

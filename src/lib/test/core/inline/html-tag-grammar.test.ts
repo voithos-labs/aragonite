@@ -25,6 +25,12 @@ describe('matchHtmlFormAt — per-form detection at position', () => {
 		it('matches hyphenated tag name', () => {
 			expect(match('<custom-element>')).toEqual({ kind: 'openTag', length: 16 });
 		});
+		it('matches an attribute on the next line', () => {
+			expect(match('<span\nclass="y">')).toEqual({ kind: 'openTag', length: 16 });
+		});
+		it('rejects an unterminated open tag', () => {
+			expect(match('<span no end')).toBeNull();
+		});
 	});
 
 	describe('close tag', () => {

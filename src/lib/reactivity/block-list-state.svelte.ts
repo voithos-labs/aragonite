@@ -1,19 +1,24 @@
 /**
- * Reactive state bundle for a container's inner BlockList children: the keyed-each source
- * and the component-ref slot array. Structural mutations route through the commit
- * primitives on UndoController, which apply `StructuralChange` descriptors to keep
- * ids/refs aligned with children.
+ * A container's inner BlockList scope: the keyed-each id source and the component-ref slot
+ * array. Structural mutations route through the commit primitives on UndoController, which
+ * apply `StructuralChange` descriptors to keep ids/refs aligned with children.
  */
 
-import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
 import type { NodeView } from '../core/node-views';
 import { assignIds } from '../block-id';
 import { registerBlockListState } from './state-registry';
+import { refSlotsOver, type RefSlots } from './publish-ref.svelte';
 
 export interface BlockListState {
+	/** Settable because ids live on the node, where the write reaches the `$state` proxy.
+	 *  Refs do not: the array identity IS the scope, so `replaceRefs` publishes contents
+	 *  and the property itself never moves. */
 	innerBlockIds: string[];
-	innerBlockRefs: (BlockComponent | undefined)[];
+	readonly innerBlockRefs: (BlockComponent | undefined)[];
+	/** This scope's slot accessors, minted once here so every consumer — the child list,
+	 *  the container surface, the mount registry — addresses the scope by one identity. */
+	readonly refSlots: RefSlots<BlockComponent>;
 }
 
 /** `getNode` must be a live getter — by-value freezes on the initial node and misses
@@ -25,7 +30,7 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		initialNode.childIds = assignIds(initialNode.children ?? []);
 	}
 
-	let innerBlockRefs = $state<(BlockComponent | undefined)[]>([]);
+	const innerBlockRefs: (BlockComponent | undefined)[] = [];
 
 	const state: BlockListState = {
 		get innerBlockIds() {
@@ -34,12 +39,8 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		set innerBlockIds(value) {
 			getNode().childIds = value;
 		},
-		get innerBlockRefs() {
-			return innerBlockRefs;
-		},
-		set innerBlockRefs(value) {
-			innerBlockRefs = value;
-		}
+		innerBlockRefs,
+		refSlots: refSlotsOver(innerBlockRefs)
 	};
 
 	// Sync so callers outside a reactive context (unit tests) see the entry on creation.
@@ -54,14 +55,12 @@ export function createBlockListState(getNode: () => NodeView): BlockListState {
 		registerBlockListState(node, state);
 
 		// A parent-scope replace can reuse this instance with a node prop that has fewer
-		// children than before. Index-keyed ref-setting never clears the stale trailing
-		// slots the longer prior node left, so reconcile the length here.
+		// children than before. Publish cleanup empties departing slots but never shrinks
+		// the array, and refs length must track children exactly, so reconcile it here.
 		const childCount = node.children?.length ?? 0;
-		untrack(() => {
-			if (innerBlockRefs.length > childCount) {
-				innerBlockRefs = innerBlockRefs.slice(0, childCount);
-			}
-		});
+		if (innerBlockRefs.length > childCount) {
+			innerBlockRefs.length = childCount;
+		}
 	});
 
 	return state;

@@ -10,6 +10,7 @@
 	} from '../../../action-contracts';
 	import {
 		CURSOR_END,
+		CURSOR_START,
 		type BlockComponent,
 		type StickyColumnDirection
 	} from '../../../block-component';
@@ -79,23 +80,31 @@
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		widthVersion: getWidthVersion,
-		lifetime: editorLifetime
+		lifetime: editorLifetime,
+		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const getPresentationMode = getContext<EditorPolicies | undefined>(
-		EDITOR_POLICIES_KEY
-	)?.presentationMode;
+	const { presentationMode: getPresentationMode, blockDragHandles: getDragHandles } =
+		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item mutates the table, so reading mode declines to open it and the
 	// native context menu (with Copy) shows instead.
-	const readOnly = $derived(getPresentationMode?.() === 'reading');
+	const readOnly = $derived(getPresentationMode() === 'reading');
+	// The block handle's switch covers the grips: one mouse-only affordance policy, and the
+	// getter already folds reading mode in.
+	const showGrips = $derived(getDragHandles());
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
 	const columnCount = $derived(meta.columnCount);
 
-	// A column reorder permutes cells while leaving columnCount and widthVersion untouched,
-	// so it alone can't invalidate the monotonic width floors below; the header row's
-	// cell-id order tracks column order and nothing else, so the measure epoch folds it in.
-	const columnStructureToken = $derived((node.children?.[0]?.childIds ?? []).join(','));
+	// A column reorder permutes cells while leaving columnCount and widthVersion untouched, so it
+	// alone can't invalidate the monotonic width floors below; the header row's cell bytes permute
+	// with it, so the measure epoch folds them in. The bytes, not the row's `childIds`: those are
+	// minted at the row's first mount, so a windowed-out header row would hold the epoch still
+	// across the very reorder it exists to catch.
+	const columnStructureToken = $derived(
+		// The grammar keeps a cell to one line, so a newline joiner cannot be confused for content.
+		(node.children?.[0]?.children ?? []).map((cell) => cell.raw).join('\n')
+	);
 
 	// Plain `let`, not $state: writes happen during keyed-each reconcile via
 	// the focusout handler, which Svelte 5 traps as state_unsafe_mutation.
@@ -121,6 +130,8 @@
 		scope,
 		stickyColumn: editorStickyColumn,
 		grammar: registryView.grammar,
+		getPresentationMode,
+		linkRef,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: focusActions,
@@ -153,11 +164,11 @@
 	// wide cell scrolls out of the mounted set (F6). The floor only ever grows.
 	let columnMaxWidths = $state<number[]>([]);
 
-	// Leading `0` track is the row-grip gutter: zero width keeps cell A's left edge at the
-	// same x, so caret pixel-measurement and sticky-column geometry are untouched.
+	// The row-grip gutter leads, and only while the grips render: rows auto-place, so a track
+	// with nothing in it would shift every cell left. Zero width, so the geometry is untouched.
 	const trackTemplate = $derived(
 		[
-			'0',
+			...(showGrips ? ['0'] : []),
 			...Array.from({ length: columnCount }, (_, c) => {
 				const floor = Math.max(80, columnMaxWidths[c] ?? 0);
 				return `minmax(${floor}px, max-content)`;
@@ -304,13 +315,8 @@
 	);
 
 	function openMenu(axis: MenuAxis, axisIdx: number, e: MouseEvent): void {
-		const grip = e.currentTarget as HTMLElement | null;
-		const rect = grip?.getBoundingClientRect();
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		const target: MenuTarget = axis === 'column' ? { colIdx: axisIdx } : { rowIdx: axisIdx };
-		if (!rect) {
-			menu = { target, x: e.clientX, y: e.clientY, clipboardSel: null };
-			return;
-		}
 		// A row grip opens beside itself rather than below, so the menu clears the left edge.
 		menu =
 			axis === 'column'
@@ -319,7 +325,7 @@
 	}
 
 	function cellRefAt(rowIdx: number, colIdx: number): BlockComponent | null {
-		return rowRefAt(rowIdx)?.getBlockComponentByPath?.([colIdx]) ?? null;
+		return getBlockComponentByPath([rowIdx, colIdx]);
 	}
 
 	// Capture the cell's selection now, before a menu-item click moves focus off it, so
@@ -496,21 +502,26 @@
 	// 2D surface — one integer can't address a cell, so both caret doors mirror
 	// `createContainerBlockComponent`'s 0-or-last collapse and cell callers use
 	// `focusByPath`.
+	function tableLanding(offset: number): {
+		rowIdx: number;
+		colIdx: number;
+		position: CellPosition;
+	} {
+		return offset === 0 || offset === CURSOR_START
+			? { rowIdx: 0, colIdx: 0, position: 'start' }
+			: { rowIdx: rowCount - 1, colIdx: columnCount - 1, position: 'end' };
+	}
+
 	export const focus = placeCaret(selection, (offset: number) => {
 		if (rowCount === 0) return;
-		if (offset === 0) {
-			focusCell(0, 0, 'start');
-			return;
-		}
-		focusCell(rowCount - 1, columnCount - 1, 'end');
+		const { rowIdx, colIdx, position } = tableLanding(offset);
+		focusCell(rowIdx, colIdx, position);
 	});
 
 	export function parkCaret(offset: number): void {
 		if (rowCount === 0) return;
-		const atStart = offset === 0;
-		const rowIdx = atStart ? 0 : rowCount - 1;
-		const colIdx = atStart ? 0 : columnCount - 1;
-		cellRefAt(rowIdx, colIdx)?.parkCaret?.(atStart ? 0 : CURSOR_END);
+		const { rowIdx, colIdx, position } = tableLanding(offset);
+		cellRefAt(rowIdx, colIdx)?.parkCaret?.(position === 'start' ? CURSOR_START : CURSOR_END);
 	}
 
 	export function focusAtColumn(x: number, from: StickyColumnDirection): void {
@@ -538,14 +549,10 @@
 	export async function revealByPath(path: number[]): Promise<BlockComponent | null> {
 		if (path.length === 0) return null;
 		const [rowIdx, ...rest] = path;
-		// A row scrolled off-window can leave a detached ref in its slot, so the scroll gates
-		// on live window bounds (a present ref is a cache, not a mount oracle) and drops it.
 		await revealChildOrWait(rowIdx, {
+			slots: rowsState.refSlots,
 			childCount: rowCount,
-			getRef: (i) => rowsState.innerBlockRefs[i],
-			dropRef: (i) => (rowsState.innerBlockRefs[i] = undefined),
 			revealChild: windowing.revealChild,
-			isStale: (i) => i < bounds.start || i >= bounds.end,
 			isInWindow: windowing.isInWindow
 		});
 		const rowRef = rowsState.innerBlockRefs[rowIdx];
@@ -634,13 +641,6 @@
 			return { left: r.left - editorLeft, right: r.right - editorLeft };
 		});
 	}
-
-	function setRowRef(i: number, r: BlockComponent | undefined): void {
-		rowsState.innerBlockRefs[i] = r;
-	}
-	function getRowRef(i: number): BlockComponent | undefined {
-		return rowsState.innerBlockRefs[i];
-	}
 </script>
 
 <!-- Delegated listeners for the cell grid (cells are the interactive surfaces); the
@@ -657,37 +657,37 @@
 	<!-- The corner occupies the zero-width gutter so the column grips align to their
 	     columns. The block boundaries below stay whitespace-adjacent: a stray text node
 	     joins the raw-offset walk and shifts a parked caret (cursor/widget-offset.ts). -->
-	<span class="table-grip-corner" aria-hidden="true"></span>{#each columnIndices as colIdx (colIdx)}
-		<TableGrip
-			axis="column"
-			onActivate={(e) => {
-				if (suppressColumnGripClick) return;
-				openMenu('column', colIdx, e);
-			}}
-			onpointerdown={(e) => onColumnGripPointerDown(colIdx, e)}
-		/>
-	{/each}{#if win.active}
+	{#if showGrips}<span class="table-grip-corner" aria-hidden="true"
+		></span>{#each columnIndices as colIdx (colIdx)}
+			<TableGrip
+				axis="column"
+				onActivate={(e) => {
+					if (suppressColumnGripClick) return;
+					openMenu('column', colIdx, e);
+				}}
+				onpointerdown={(e) => onColumnGripPointerDown(colIdx, e)}
+			/>
+		{/each}{/if}{#if win.active}
 		<div class="vr-spacer" style="height: {win.topSpacerPx}px"></div>
 	{/if}{#each (node.children ?? []).slice(bounds.start, bounds.end) as rowNode, localIndex (rowsState.innerBlockIds[bounds.start + localIndex])}
-		<!-- ABSOLUTE-INDEX INVARIANT: index/rowIdx/myPath/key carry the absolute row index
+		<!-- ABSOLUTE-INDEX INVARIANT: index/myPath/key carry the absolute row index
 		     (bounds.start + localIndex), never the local loop index. -->
 		{@const rowIdx = bounds.start + localIndex}
 		<TableRowBlock
 			node={rowNode}
 			index={rowIdx}
 			id={rowsState.innerBlockIds[rowIdx]}
-			{rowIdx}
 			{columnCount}
 			{rowCount}
-			alignments={meta?.alignments ?? []}
+			alignments={meta.alignments ?? []}
 			myPath={[...myPath, rowIdx]}
-			setRef={setRowRef}
-			getRef={getRowRef}
+			slots={rowsState.refSlots}
 			onOpenRowMenu={(r, e) => {
 				if (suppressRowGripClick) return;
 				openMenu('row', r, e);
 			}}
 			{onRowGripPointerDown}
+			{showGrips}
 		/>
 	{/each}{#if win.active}
 		<div class="vr-spacer" style="height: {win.bottomSpacerPx}px"></div>

@@ -8,6 +8,7 @@ import { joinRaw, parseBlocks, isBlankLine } from '../parser';
 import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
+	lineStartsOuterBlock,
 	type BlockOpenerResult
 } from '../../schema/block-openers';
 
@@ -47,7 +48,11 @@ export function blockquoteExtent(
 			i++;
 			continue;
 		}
-		if (paragraphOpen && wouldKeepParagraphOpen(lineText)) {
+		if (
+			paragraphOpen &&
+			wouldKeepParagraphOpen(lineText) &&
+			!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+		) {
 			i++;
 			continue;
 		}
@@ -61,7 +66,8 @@ export function parseBlockquote(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
-	depth: number = 0
+	depth: number = 0,
+	isDocumentParse: boolean = false
 ): BlockOpenerResult {
 	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex);
 
@@ -70,10 +76,17 @@ export function parseBlockquote(
 		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
 	);
 
-	const inner = parseBlocks(strippedLines, 0, strippedLines.length, defaultGrammarView, depth + 1);
+	const inner = parseBlocks(
+		strippedLines,
+		0,
+		strippedLines.length,
+		defaultGrammarView,
+		depth + 1,
+		isDocumentParse
+	);
 
-	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)?.[0] ?? '';
-	const quoteDepth = (quotePrefix.match(/>/g) ?? []).length || 1;
+	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)![0];
+	const quoteDepth = quotePrefix.match(/>/g)!.length;
 
 	return {
 		node: {
@@ -81,7 +94,7 @@ export function parseBlockquote(
 			leadingTrivia,
 			raw,
 			metadata: { quoteDepth },
-			innerPrefix: inner.prefix,
+			innerPrefix: '',
 			children: inner.children,
 			innerSuffix: inner.suffix
 		},

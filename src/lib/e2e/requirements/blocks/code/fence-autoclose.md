@@ -15,6 +15,9 @@ and the new block's creation land as one undo entry.
 - nested escape stays scoped: a fence inside a blockquote auto-closes within the quote and
   the new paragraph lands inside it — the container raw rebuilds cleanly and `parseConverged()`
   holds
+- a fence opener typed on a block that has blocks below it closes as it is minted: the
+  neighbours stay their own blocks, `parseConverged()` holds, and the caret is still on the
+  opener line so the next keystrokes reach the info string
 
 ## Edge cases
 

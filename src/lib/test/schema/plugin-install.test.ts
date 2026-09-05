@@ -1,11 +1,30 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin, installPlugins, isPluginInstalled } from '$lib/schema/plugin-install';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+	definePlugin,
+	installPlugins,
+	isPluginInstalled,
+	owningPluginEditor,
+	recordPluginKindOwner,
+	type EditorContext
+} from '$lib/schema/plugin-install';
 import { declarePluginKind, declaredPluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
+
+/** The thrown error itself, where `toThrow` only proves that something threw. */
+function captureThrow(run: () => void): unknown {
+	try {
+		run();
+	} catch (err) {
+		return err;
+	}
+	return undefined;
+}
 
 const minimalRegistration = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: false,
 	supportsInline: false,
@@ -40,6 +59,7 @@ describe('installPlugins', () => {
 
 		expect(firstCalls).toBe(1);
 		expect(secondCalls).toBe(0);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['plugin-install']);
 	});
 
 	it('installs plugins in array order', () => {
@@ -62,12 +82,7 @@ describe('installPlugins', () => {
 			}
 		});
 
-		let thrown: unknown;
-		try {
-			installPlugins([plugin]);
-		} catch (err) {
-			thrown = err;
-		}
+		const thrown = captureThrow(() => installPlugins([plugin]));
 		expect(thrown).toBeInstanceOf(Error);
 		expect((thrown as Error).message).toMatch(/^plugin 'broken':/);
 		expect((thrown as Error).message).toContain('kaboom');
@@ -90,12 +105,7 @@ describe('installPlugins', () => {
 			}
 		});
 
-		let firstThrow: unknown;
-		try {
-			installPlugins([plugin]);
-		} catch (err) {
-			firstThrow = err;
-		}
+		const firstThrow = captureThrow(() => installPlugins([plugin]));
 		// The setup-wrap throw carries the version so a two-version collision is legible.
 		expect((firstThrow as Error).message).toMatch(/^plugin 'broken-v@1\.2\.0':/);
 
@@ -121,12 +131,7 @@ describe('installPlugins', () => {
 
 		installPlugins([first]);
 
-		let thrown: unknown;
-		try {
-			installPlugins([second]);
-		} catch (err) {
-			thrown = err;
-		}
+		const thrown = captureThrow(() => installPlugins([second]));
 		expect((thrown as Error).message).toContain("first declared by plugin 'plugin-a'");
 	});
 
@@ -164,6 +169,17 @@ describe('installPlugins', () => {
 		expect(isPluginInstalled('resettable')).toBe(false);
 		installPlugins([plugin]);
 		expect(calls).toBe(2);
+	});
+});
+
+describe('owningPluginEditor', () => {
+	it("resolves the owner's context; an unowned kind takes the base-context '' arm", () => {
+		const lookup = vi.fn((name: string) => ({ editorId: name }) as unknown as EditorContext);
+		recordPluginKindOwner('owned-kind', 'plug-a');
+
+		expect(owningPluginEditor(lookup, 'owned-kind')?.editorId).toBe('plug-a');
+		expect(owningPluginEditor(lookup, 'unowned-kind')?.editorId).toBe('');
+		expect(owningPluginEditor(undefined, 'owned-kind')).toBeUndefined();
 	});
 });
 

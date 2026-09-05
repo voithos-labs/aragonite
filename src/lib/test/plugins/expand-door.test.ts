@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { composeExpandDoor } from '../../editor-actions/plugin/container';
-import { getPluginMetadata, setPluginMetadata, type CstNode } from '../../core/nodes';
-import { declarePluginKind } from '../../schema/plugin-kind';
-import { registerBlockKind } from '../../schema/block-kind-descriptor';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { composeExpandDoor } from '$lib/editor-actions/plugin/container';
+import { getPluginMetadata, setPluginMetadata, type CstNode } from '$lib/core/nodes';
+import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
+import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
-import { resetEditorEnv } from '../../env';
 
 // What a reveal into a collapsed body commits, and when it declines. The door is
 // declared beside the collapse probe (`reservedChrome.expandPatch`), so the clamp that
@@ -15,6 +14,7 @@ function registerCollapsible(name: string, withDoor: boolean) {
 	const chrome = declarePluginKind(`${name}-chrome`);
 	const kind = declarePluginKind(name);
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -57,7 +57,6 @@ function door(
 
 describe('composeExpandDoor', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
-	afterEach(() => resetEditorEnv());
 
 	it('commits the declared patch for a collapsed container', async () => {
 		const d = door(registerCollapsible('door-open', true), {});

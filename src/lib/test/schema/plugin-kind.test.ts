@@ -14,6 +14,13 @@ describe('declarePluginKind', () => {
 		expect(() => declarePluginKind('tableRow')).toThrow(/built-in/);
 	});
 
+	// Miss-analysis: `RESERVED_KIND_NAMES` had no test at all, so the set's membership was
+	// pinned nowhere and a sentinel spelled elsewhere in the codebase could never fail a gate.
+	it('rejects the structural sentinels a live kind would shadow', () => {
+		expect(() => declarePluginKind('document')).toThrow(/reserved/);
+		expect(() => declarePluginKind('global')).toThrow(/reserved/);
+	});
+
 	it('rejects malformed names', () => {
 		for (const bad of ['', 'Has Space', 'has space', '1leading', 'UpperFirst']) {
 			expect(() => declarePluginKind(bad)).toThrow(/invalid/);
@@ -23,6 +30,7 @@ describe('declarePluginKind', () => {
 	it('a declared kind round-trips through the descriptor registry', () => {
 		const kind = declarePluginKind('pluginKindRegistryProbe');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,

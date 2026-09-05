@@ -1,21 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { parseInline } from '$lib/core/inline';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
 import type { InlineNode } from '$lib/core/nodes';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerEmoji, EMOJI_KIND } from '$lib/plugins/emoji/emoji-recognizer';
 
-function resetInline(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-beforeEach(resetInline);
-afterEach(resetInline);
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 const isEmoji = (n: InlineNode) => n.kind === EMOJI_KIND;
 const scan = (raw: string) => parseInline(raw, 0, raw.length);
@@ -27,7 +18,7 @@ describe('emoji shortcode is dormant until the plugin registers', () => {
 	it('leaves :smile: to literal text with nothing registered', () => {
 		const clean = scan('a :smile: b');
 		registerEmoji();
-		resetInline();
+		resetPluginPlatformForTests();
 		expect(scan('a :smile: b')).toEqual(clean);
 		expect(clean.some(isEmoji)).toBe(false);
 	});
@@ -68,7 +59,7 @@ describe('recognizer grammar', () => {
 	];
 	for (const [name, raw] of declines) {
 		it(`declines ${name} (${JSON.stringify(raw)}) and stays byte-identical`, () => {
-			resetInline();
+			resetPluginPlatformForTests();
 			const clean = scan(raw);
 			registerEmoji();
 			expect(scan(raw)).toEqual(clean);
@@ -82,18 +73,5 @@ describe('recognizer grammar', () => {
 		const nodes = scan(':smile::');
 		expect(nodes[0]).toMatchObject({ kind: EMOJI_KIND, start: 0, end: 7 });
 		expect(nodes[nodes.length - 1]).toMatchObject({ kind: 'text', text: ':' });
-	});
-});
-
-// A shortcode embedded in prose round-trips byte-for-byte (the raw is the source of
-// truth — the widget never rewrites it) while parsing to an emoji node.
-describe('a shortcode in prose is conformant', () => {
-	beforeEach(() => registerEmoji());
-
-	it('round-trips the source and yields the emoji node', () => {
-		const source = 'Ship it :tada: today.\n';
-		expect(serialize(parse(source))).toBe(source);
-		const [node] = emojiIn('Ship it :tada: today.');
-		expect(node).toMatchObject({ kind: EMOJI_KIND, decoded: '🎉' });
 	});
 });

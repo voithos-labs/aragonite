@@ -1,65 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-	cycleHeading,
-	insertHardBreak,
-	insertLiteralTab
-} from '$lib/components/blocks/text/text-keydown';
-
-describe('cycleHeading', () => {
-	it('adds a heading prefix when raw is a paragraph', () => {
-		const r = cycleHeading('Hello\n', 1, 0);
-		expect(r.newRaw).toBe('# Hello\n');
-		expect(r.caretOffset).toBe(2);
-	});
-
-	it('replaces an existing heading prefix with a different level', () => {
-		const r = cycleHeading('# Hello\n', 2, 4);
-		expect(r.newRaw).toBe('## Hello\n');
-		expect(r.caretOffset).toBe(5);
-	});
-
-	it('keeps the same prefix when the requested level matches (idempotent, not toggle-off)', () => {
-		const r = cycleHeading('# Hello\n', 1, 4);
-		expect(r.newRaw).toBe('# Hello\n');
-		expect(r.caretOffset).toBe(4);
-	});
-
-	it('strips an existing heading prefix when level is 0', () => {
-		const r = cycleHeading('## Hello\n', 0, 5);
-		expect(r.newRaw).toBe('Hello\n');
-		expect(r.caretOffset).toBe(2);
-	});
-
-	it('leaves a paragraph unchanged when level is 0', () => {
-		const r = cycleHeading('Hello\n', 0, 3);
-		expect(r.newRaw).toBe('Hello\n');
-		expect(r.caretOffset).toBe(3);
-	});
-
-	it('clamps caret to the new prefix when the cursor was inside the old prefix', () => {
-		const r = cycleHeading('## Hello\n', 1, 1);
-		expect(r.newRaw).toBe('# Hello\n');
-		expect(r.caretOffset).toBe(2);
-	});
-
-	it('preserves trailing CRLF when present', () => {
-		const r = cycleHeading('Hello\r\n', 3, 0);
-		expect(r.newRaw).toBe('### Hello\r\n');
-		expect(r.caretOffset).toBe(4);
-	});
-
-	it('handles raw with no trailing line ending', () => {
-		const r = cycleHeading('Hello', 1, 0);
-		expect(r.newRaw).toBe('# Hello');
-		expect(r.caretOffset).toBe(2);
-	});
-
-	it('handles empty raw', () => {
-		const r = cycleHeading('\n', 2, 0);
-		expect(r.newRaw).toBe('## \n');
-		expect(r.caretOffset).toBe(3);
-	});
-});
+import { insertHardBreak, insertLiteralTab } from '$lib/components/blocks/text/text-keydown';
 
 describe('insertHardBreak', () => {
 	it('inserts trailing-backslash + newline at offset', () => {
@@ -108,22 +48,14 @@ describe('insertHardBreak', () => {
 });
 
 describe('insertLiteralTab', () => {
-	it('inserts \\t at offset', () => {
-		const r = insertLiteralTab('foo\n', 3);
-		expect(r.newRaw).toBe('foo\t\n');
-		expect(r.caretOffset).toBe(4);
-	});
-
-	it('inserts at start', () => {
-		const r = insertLiteralTab('foo\n', 0);
-		expect(r.newRaw).toBe('\tfoo\n');
-		expect(r.caretOffset).toBe(1);
-	});
-
-	it('inserts in the middle', () => {
-		const r = insertLiteralTab('foo\n', 2);
-		expect(r.newRaw).toBe('fo\to\n');
-		expect(r.caretOffset).toBe(3);
+	it.each([
+		[0, '\tfoo\n', 1],
+		[2, 'fo\to\n', 3],
+		[3, 'foo\t\n', 4]
+	])('inserts at offset %i', (offset, newRaw, caretOffset) => {
+		const r = insertLiteralTab('foo\n', offset);
+		expect(r.newRaw).toBe(newRaw);
+		expect(r.caretOffset).toBe(caretOffset);
 	});
 
 	it('preserves trailing CRLF', () => {

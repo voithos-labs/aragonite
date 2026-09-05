@@ -1,102 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { createCrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
-import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createUndoManager } from '$lib/undo/manager';
-import { createSharingState } from '$lib/tree-operations/sharing';
-import { createEditorEvents } from '$lib/editor-events';
-import { parse } from '$lib/core/parser';
+import { describe, it, expect } from 'vitest';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
 import { buildLinkReferenceMap } from '$lib/core/inline/link-reference-resolver';
-import { mockRef, makeStickyColumn } from '$lib/test/harness/editor-actions';
-import type { BlockComponent } from '$lib/block-component';
+import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typed-char-env';
 import type { CstNode } from '$lib/core/nodes';
 import type { EditEvent } from '$lib/editor-events';
 import type { LinkReferenceResolver } from '$lib/core/inline/link-reference-resolver';
-import type { SelectionState } from '$lib/selection/selection-state.svelte';
-
-// ── Harness ──────────────────────────────────────────────────────────────────
-
-// Override focus to vi.fn() so cross-block dispatch tests can assert calls.
-const makeRef = () => mockRef({ focus: vi.fn() });
-
-function makeEnv(source: string) {
-	const doc = parse(source);
-	let blockIds = doc.children.map((_, i) => `id-${i}`);
-	let blockRefs: (BlockComponent | undefined)[] = doc.children.map(() => makeRef());
-	const events = createEditorEvents();
-	const selectionState = createSelectionState();
-	const stickyColumn = makeStickyColumn();
-	const deps = {
-		get doc() {
-			return doc;
-		},
-		get blockIds() {
-			return blockIds;
-		},
-		get blockRefs() {
-			return blockRefs;
-		},
-		setDoc: () => {},
-		setBlockIds: (v: string[]) => {
-			blockIds = v;
-		},
-		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			blockRefs = v;
-		},
-		undoManager: createUndoManager(),
-		sharing: createSharingState(),
-		stickyColumn,
-		selectionState,
-		getBlockElByPath: () => null,
-		revealPath: async (path: number[]) => (path.length === 1 ? (blockRefs[path[0]] ?? null) : null),
-		events
-	};
-	const controller = createUndoController(deps);
-	const blockEdit = createBlockEditActions(deps, controller);
-	return { doc, deps, events, selectionState, controller, blockEdit, stickyColumn };
-}
-
-function makeHandlers(
-	env: ReturnType<typeof makeEnv>,
-	myPath: number[],
-	getCursorOffset: () => number | null = () => 0
-) {
-	const stubEl = document.createElement('div');
-	return createCrossBlockHandlers({
-		getEl: () => stubEl,
-		getMyPath: () => myPath,
-		getIndex: () => myPath[0],
-		selection: env.selectionState,
-		getDoc: () => env.doc,
-		getBlockElByPath: () => null,
-		revealPath: env.deps.revealPath,
-		getEditorRoot: () => null,
-		getScrollHost: () => null,
-		getEditorLifetime: () => null,
-		stickyColumn: env.stickyColumn,
-		blockEdit: env.blockEdit,
-		controller: env.controller,
-		history: { requestUndo() {}, requestRedo() {} },
-		pluginEditor: undefined,
-		getPresentationMode: () => 'source' as const,
-		onCommandError: undefined,
-		getKeybindingOverrides: () => normalizeKeybindingOverrides(undefined),
-		pasteCoordinator: createPasteCoordinator(env.controller, env.deps.revealPath),
-		grammar: undefined,
-		events: env.events,
-		getCursorOffset,
-		afterReactivity: async () => {}
-	});
-}
-
-function selectAcross(selection: SelectionState, anchor: number[], focus: number[]) {
-	selection.enterCrossBlock({ path: anchor, offset: 0 }, { path: focus, offset: 0 });
-}
 
 /**
  * Mirror of the shell's own `edit` subscriber (`Editor.svelte`): rebuild the link-reference map
@@ -109,15 +18,6 @@ function trackLrdResolver(env: ReturnType<typeof makeEnv>): () => LinkReferenceR
 		if (lrdMapCouldChange(env.doc, e)) resolve = buildLinkReferenceMap(env.doc.children).resolve;
 	});
 	return () => resolve;
-}
-
-function makeBeforeInputEvent(typed: string): InputEvent {
-	const e = new (window as any).InputEvent('beforeinput', {
-		inputType: 'insertText',
-		data: typed,
-		cancelable: true
-	}) as InputEvent;
-	return e;
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -153,7 +53,7 @@ describe('cross-block typed character — A2/A3 event symmetry', () => {
 		// delete+input and leave a single merged block.
 		env.selectionState.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
-		const handlers = makeHandlers(env, [0], () => 5);
+		const handlers = makeHandlers(env, [0], { getCursorOffset: () => 5 });
 		await handlers.handleBeforeInput(makeBeforeInputEvent('X'));
 
 		expect(env.doc.children).toHaveLength(1);

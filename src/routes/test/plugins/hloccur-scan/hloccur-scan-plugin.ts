@@ -6,13 +6,15 @@ import { highlightOccurrencesPlugin } from '$lib/plugins/highlight-occurrences';
 declare global {
 	interface Window {
 		__hloccurScans?: number;
+		__hloccurTokenized?: number;
 	}
 }
 
-// Each spec navigates to a fresh page, so the counter starts undefined and the
-// readers' `?? 0` is the zero point — no module-scope window write on the SSR path.
+// Each spec navigates to a fresh page, so the counters start undefined and the readers'
+// `?? 0` is the zero point — no module-scope window write on the SSR path.
 export const hloccurScanProbePlugin = highlightOccurrencesPlugin({
-	onScan: () => {
+	onScan: ({ tokenizedLeaves }) => {
 		window.__hloccurScans = (window.__hloccurScans ?? 0) + 1;
+		window.__hloccurTokenized = (window.__hloccurTokenized ?? 0) + tokenizedLeaves;
 	}
 });

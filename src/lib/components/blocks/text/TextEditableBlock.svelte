@@ -1,17 +1,13 @@
 <script lang="ts">
 	import { getContext, tick, untrack } from 'svelte';
-	import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
-	import { type AmbientPrefix, type BlockComponent } from '../../../block-component';
+	import { CURSOR_START, type AmbientPrefix, type BlockComponent } from '../../../block-component';
 	import type { DocumentView, NodeView } from '../../../core/node-views';
 	import type { EditorRects } from '../../../editor-rects';
-	import { emitCommandError } from '../../../editor-events';
+	import { enterLinkCardAtCaret, linkCardTargetAt } from '../../link-card/link-card-entry';
 	import {
-		BLOCK_EDIT_KEY,
 		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
-		FOCUS_KEY,
-		HISTORY_KEY,
 		LIST_CONTEXT_KEY,
 		type EditorDoc,
 		type EditorPolicies,
@@ -19,29 +15,57 @@
 	} from '../../../editor-keys';
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
-	import { isProseKind } from '../../../core/inline';
+	import { getContentRange, isProseKind } from '../../../core/inline';
+	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 	import { isInlineWidget } from '../../../core/inline/inline-widgets';
 	import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
-	import { toggleInlineFormat } from './format-toggle';
-	import { cycleHeading, insertHardBreak, insertLiteralTab } from './text-keydown';
+	import {
+		createInlineFormatActiveMemo,
+		toggleInlineFormat
+	} from '../../../core/inline/format-toggle';
+	import {
+		inlineMarkForCommand,
+		type InlineMarkKind
+	} from '../../../schema/inline-construct-policy';
+	import {
+		cycleHeading,
+		demoteToParagraph,
+		insertHardBreak,
+		insertLiteralTab,
+		type TextEditResult
+	} from './text-keydown';
+	import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
+	import { blockNodeAt } from '../../../tree-operations/node-ops';
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
+	import { hidesStructuralSuffix } from './hidden-suffix';
+	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
+	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
-	import { assertInvariant } from '../../../invariants/assert';
+	import { assertInvariant } from '../../../assert';
+	import { paintsFocusedMarkers } from '../../../presentation-mode';
 	import { widgetElByStart } from './widget-adjacency';
-	import { handleSharedKeydown, handleSharedBeforeInput } from '../../../selection/shared-keydown';
+	import {
+		caretLandableBounds,
+		handleSharedKeydown,
+		handleSharedBeforeInput
+	} from '../../../selection/shared-keydown';
 	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
-	import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
+	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
 		domTextOffsetAtNode,
+		landableStartAbutsIsland,
 		rawTextOfNode,
-		createRangeAtDomTextOffsets
+		createRangeAtDomTextOffsets,
+		revealsNoMarkers,
+		screenVisibilityOf,
+		selectionFocusWalkOffset
 	} from '../../../cursor/widget-offset';
 	import { ambientSpanOf } from '../../../ambient/ambient-dom';
 	import {
@@ -50,9 +74,8 @@
 		toDomTextOffset
 	} from '../../../cursor/coordinate-spaces';
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
-	import { eventToChord } from '../../../schema/keybindings';
 	import { type CommandId } from '../../../schema/commands';
-	import { dispatchKeyCommand, type CommandErrorSink } from '../../../schema/block-commands';
+	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
 	import {
 		perfEnabled,
 		recordBlockRender,
@@ -69,7 +92,8 @@
 		index,
 		myPath = [],
 		blockClass = 'paragraph-block',
-		ambientPrefix = ''
+		ambientPrefix = '',
+		rects
 	}: {
 		node: NodeView;
 		index: number;
@@ -79,8 +103,8 @@
 		// Accepted for BlockComponentProps parity: this surface reads the doc from the
 		// document facet, and binding would shadow the global `document`.
 		document?: DocumentView;
-		// Accepted for BlockComponentProps parity; this surface navigates through the
-		// editor, not the rect seam.
+		// The surface itself navigates through the editor; this is forwarded to inline
+		// widgets whose own gesture jumps elsewhere in the document.
 		rects?: EditorRects;
 	} = $props();
 
@@ -88,24 +112,32 @@
 		typeof ambientPrefix === 'string' ? ambientPrefix : ambientPrefix.text
 	);
 
-	const blockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
-	const focusActions = getContext<FocusActions>(FOCUS_KEY);
-	const history = getContext<HistoryActions>(HISTORY_KEY);
+	const wiring = wireSurfaceContexts();
+	const {
+		blockEdit,
+		focusActions,
+		controller,
+		pasteCoordinator,
+		stickyColumn,
+		edgeAffinity,
+		selection,
+		getDoc,
+		getEditorRoot,
+		grammar,
+		activePlugins,
+		events: editorEvents,
+		linkRef
+	} = wiring.deps;
 	// Present inside a list item, whose ListItemBlock owns Tab-as-indent.
 	const listContext = getContext(LIST_CONTEXT_KEY);
 	const {
 		reorder,
-		controller,
-		pasteCoordinator,
-		stickyColumn,
-		selection,
+		pendingMarks,
 		widgetSelection,
-		registryView,
-		events: editorEvents,
+		linkCard,
 		decorations: decorationEngine
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
-		keybindingOverrides,
 		resolveImageUrl,
 		resolveLinkUrl,
 		imageLoadPolicy,
@@ -114,19 +146,29 @@
 		theme: getTheme,
 		onPasteImage
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const {
-		blockElLookup: getBlockElByPath,
-		doc: getDoc,
-		contentVersion: getContentVersion,
-		editorRoot: getEditorRoot,
-		scrollHost: getScrollHost,
-		lifetime: editorLifetime,
-		pluginEditor,
-		linkRef
-	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
+	const { contentVersion: getContentVersion } = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
-	const onCommandError: CommandErrorSink = (report) => emitCommandError(editorEvents, report);
+
+	/** The card's query for this surface, the cell's shape: `range` is the live selection at both
+	 *  the chord's arm and the pressed read, since prose owns no wrap policy of its own. */
+	const linkCardQuery = (contentEl: HTMLElement, range: { start: number; end: number } | null) => ({
+		contentEl,
+		block: node,
+		path: myPath,
+		linkRef,
+		mode: presentationMode,
+		selection: range,
+		crossBlockRange: selection.isCrossBlock
+	});
+	const enterLinkCard = () => {
+		if (el) {
+			enterLinkCardAtCaret({
+				...linkCardQuery(el, cursor.getRawSelection()),
+				card: linkCard
+			});
+		}
+	};
 	// A constant fallback keeps an empty island set out of the render key.
 	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
@@ -158,6 +200,7 @@
 	});
 
 	const editableSurface = createEditableSurface({
+		...wiring.deps,
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
 		isInputSuppressed: () => revealing,
@@ -182,33 +225,11 @@
 			preEditOffset = offset;
 		},
 		setPendingCursor: (offset) => setPendingCursorOffset(offset, 'surface'),
-		selection,
-		getDoc,
-		getBlockElByPath,
-		focusActions,
-		getEditorRoot,
-		getScrollHost,
-		getEditorLifetime: () => editorLifetime ?? null,
-		stickyColumn,
-		blockEdit,
-		controller,
-		history,
-		pluginEditor,
 		getPresentationMode: () => presentationMode,
-		onCommandError,
-		getKeybindingOverrides: keybindingOverrides,
-		pasteCoordinator,
-		grammar: registryView.grammar,
-		events: editorEvents,
-		getFocusOffset: () => {
-			if (!el) return null;
-			const sel = window.getSelection();
-			if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-			const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-			return toClampedRawOffset(content, ambientLength);
-		},
+		getFocusOffset: () => (el ? selectionFocusWalkOffset(el, ambientLength) : null),
 		getTextLen: () => liveDisplayLength(),
 		readText: () => readRawText(),
+		relocateComposedText: (after, composedAt) => compositionSeat.relocate(after, composedAt),
 		commitInput: (text, preEdit, saved) => {
 			const committed = text + trailingLineEnding(node.raw);
 			void blockEdit.updateBlockContent(index, committed, preEdit, saved);
@@ -274,8 +295,11 @@
 		crossBlock,
 		selection,
 		stickyColumn,
+		edgeAffinity,
 		blockEdit,
 		pasteCoordinator,
+		grammar,
+		activePlugins,
 		getDoc,
 		widgetSelection,
 		events: editorEvents,
@@ -284,6 +308,8 @@
 		isReadOnly: () => readOnly,
 		foldRevealBeforeMutation: () => widgetInteraction.foldRevealBeforeMutation(),
 		isRevealing: () => widgetInteraction.isRevealing(),
+		getPresentationMode: () => presentationMode,
+		getAmbientPrefix: () => ambientPrefixText,
 		readRevealedText: () => readRawText(),
 		get linkRef() {
 			return linkRef;
@@ -313,11 +339,15 @@
 		get index() {
 			return index;
 		},
+		get containerParent() {
+			return blockNodeAt(getDoc(), myPath.slice(0, -1));
+		},
 		get linkRef() {
 			return linkRef;
 		},
 		getEl: () => el ?? null,
 		getAmbientLength: () => ambientLength,
+		getAmbientPrefix: () => ambientPrefixText,
 		hasIslands: () =>
 			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
@@ -329,7 +359,34 @@
 		isRevealing: () => widgetInteraction.isRevealing(),
 		enterWidget: (widget, fromTrailingEdge) =>
 			widgetInteraction.enterWidget(widget, fromTrailingEdge),
-		isReading: () => readOnly
+		isReading: () => readOnly,
+		getEdgeAffinity: () => edgeAffinity.get(),
+		pendingMarks,
+		installedAs: 'block'
+	});
+
+	// The same seat the keydown dispatch takes, for the one insertion a keydown cannot reach.
+	const compositionSeat = createCompositionSeat({
+		getDisplayText: () => getDisplayText(),
+		getInlines: () => resolvedInlineContent(node, linkRef),
+		getAffinity: () => edgeAffinity.get(),
+		getScreen: () => screenVisibilityOf(el ?? null),
+		consumePendingMarks: () => pendingMarks.consume(),
+		restorePendingMarks: (marks) => pendingMarks.restore(marks),
+		getRawSelection: () => cursor.getRawSelection(),
+		// The same join seam `handleLiveSelectionEdit` takes, in the display bytes the seat's
+		// contract returns (commitInput re-appends the trailing line ending).
+		resolveRangeEdit: (range, typed) => {
+			const edit = resolveSelectionEdit(
+				node,
+				range,
+				typed,
+				presentationMode,
+				linkRef,
+				ambientPrefixText
+			);
+			return edit && { raw: trimTrailingLineEnding(edit.raw), caret: edit.caret };
+		}
 	});
 
 	const textRender = createTextRender({
@@ -357,6 +414,7 @@
 		getTheme,
 		getDocument: () => getDoc(),
 		getContentVersion,
+		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
 		get linkResolver(): LinkReferenceResolver | undefined {
 			return linkRef?.current;
 		},
@@ -394,11 +452,33 @@
 		return widgetInteraction.enterEdgeWidget(side);
 	}
 
+	export const claimRootClipboard = clipboardHandlers.claimRootClipboard;
+	export const insertMarkdown = clipboardHandlers.insertMarkdown;
+
+	export function snapCaretToPoint(clientX: number, clientY: number): void {
+		widgetInteraction.snapClickToWidgetEdge(clientX, clientY);
+	}
+
 	/** The display length the CARET walks — the DOM's while a reveal is open, since the
 	 *  CST hasn't seen that edit. Against a stale `node.raw`, an edited reveal at the
 	 *  block's end traps the caret: no press reads as "at the boundary". */
 	function liveDisplayLength(): number {
 		return widgetInteraction.isRevealing() ? readRawText().length : getDisplayText().length;
+	}
+
+	/** The offsets a caret can reach here, from the one home the arrow exits already read: a mode
+	 *  that paints no marker puts the block's own bytes out of reach, so every block-edge gate
+	 *  moves in to what the DOM can land rather than testing 0 / length. */
+	function caretBounds(): { start: number; end: number } {
+		return el ? caretLandableBounds(sharedCtx, el) : { start: 0, end: liveDisplayLength() };
+	}
+
+	/** The structural bytes this press gives up before any merge — a declared kind's, in a mode
+	 *  that paints none of them. Null everywhere else, and the cascade takes the press. */
+	function demoteBeforeMerge(offset: number): TextEditResult | null {
+		if (!el || !revealsNoMarkers(el)) return null;
+		if (tryGetBlockKindDescriptor(node.kind)?.contentStartBackspace !== 'demote-first') return null;
+		return demoteToParagraph(node.raw, getContentRange(node), offset);
 	}
 
 	/** One arm per command this block owns, split so the reveal fold sits between the
@@ -435,34 +515,64 @@
 				};
 			case 'block.mergePrev':
 				return {
-					applies: () => offset === 0 && !hasSelectionHelper(),
-					perform: () => void blockEdit.mergeWithPrevious(index)
+					// At-or-before, not equal: a caret door can still park on an offset the walk
+					// canonicalizes forward, and a strict test would make the press a dead key there.
+					applies: () => offset <= caretBounds().start && !hasSelectionHelper(),
+					perform: () => {
+						const demoted = demoteBeforeMerge(offset);
+						if (!demoted) return void blockEdit.mergeWithPrevious(index);
+						// A command is not typing: the demote is its own undo step, so one Ctrl+Z puts
+						// the heading back whole rather than unwinding the burst around it.
+						controller.isolateUndoEntry(() =>
+							blockEdit.updateBlockContent(index, demoted.newRaw, offset, demoted.caretOffset)
+						);
+						setPendingCursorOffset(demoted.caretOffset, 'demote');
+					}
 				};
 			case 'block.mergeNext':
 				return {
-					applies: () => offset === liveDisplayLength() && !hasSelectionHelper(),
+					// A block whose own structure sits AFTER its content cannot absorb the next one
+					// without surfacing it (live-mode.md § 4.5). The keydown dispatch consumes that press; this is
+					// the same rule for the callers that never pass through it.
+					applies: () =>
+						offset >= caretBounds().end &&
+						!hasSelectionHelper() &&
+						!hidesStructuralSuffix(el ?? null, node, liveDisplayLength()),
 					perform: () => void blockEdit.mergeWithNext(index)
 				};
-			case 'format.toggleStrong':
-				return always(() => toggleFormat('strong', selected ?? { start: offset, end: offset }));
-			case 'format.toggleEmphasis':
-				return always(() => toggleFormat('emphasis', selected ?? { start: offset, end: offset }));
+			case 'link.openCard':
+				// Consumed wherever the keymap binds it, entry or not: `reservedChords()` reports
+				// Mod+K as the editor's, and handing an unentered press back fires the browser
+				// default the host was told not to expect (Ctrl+K kills to end of line here).
+				return always(enterLinkCard);
 			case 'heading.cycle':
-				return always(() => {
-					// `arg` is untrusted `unknown` from the widened keybinding channel: an
-					// out-of-range value would throw a RangeError inside `repeat`, so fall
-					// back to the strip behavior.
-					const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
-					const { newRaw, caretOffset } = cycleHeading(node.raw, level, offset);
-					blockEdit.updateBlockContent(index, newRaw, offset, caretOffset);
-					setPendingCursorOffset(caretOffset, 'heading-cycle');
-				});
+				return {
+					// A heading marks PROSE. The raw-editable kinds bind this keymap too, and there
+					// an ATX prefix is content: it would destroy a link reference definition.
+					applies: () => isProseKind(node.kind),
+					perform: () => {
+						// `arg` is untrusted `unknown` from the widened keybinding channel: an
+						// out-of-range value would throw a RangeError inside `repeat`, so fall
+						// back to the strip behavior.
+						const level = typeof arg === 'number' && arg >= 0 && arg <= 6 ? arg : 0;
+						const cycled = cycleHeading(node.raw, getContentRange(node), level, offset);
+						if (!cycled) return;
+						blockEdit.updateBlockContent(index, cycled.newRaw, offset, cycled.caretOffset);
+						setPendingCursorOffset(cycled.caretOffset, 'heading-cycle');
+					}
+				};
 			case 'block.moveUp':
-				return always(() => reorder.nudgeReorderUnit(myPath, -1));
 			case 'block.moveDown':
-				return always(() => reorder.nudgeReorderUnit(myPath, 1));
-			default:
-				return null;
+				// Through `always`, not a bare opener line: every perform here rides the reveal fold.
+				return always(() => void reorderRunCommand(id, reorder, () => myPath));
+			default: {
+				// The format chords are rows, not arms: a construct that declares a mark names the
+				// command that toggles it, so a new markable kind costs a row here and nothing else.
+				const marked = inlineMarkForCommand(id);
+				return marked === null
+					? null
+					: always(() => toggleFormat(marked.kind, selected ?? { start: offset, end: offset }));
+			}
 		}
 	}
 
@@ -484,9 +594,29 @@
 		return true;
 	}
 
+	// A toolbar asks once per button on every selection change, so the buttons share the parse.
+	const formatActive = createInlineFormatActiveMemo();
+
+	// The pressed-state read: the same display, content and selection the toggle itself takes,
+	// and for the card the same construct its own entry resolves.
+	export function isCommandActive(id: CommandId): boolean {
+		const marked = inlineMarkForCommand(id);
+		if (!marked) {
+			// Both surfaces spell the id, as their run arms do: a registry for one command is premature.
+			if (id !== 'link.openCard' || !el) return false;
+			return linkCardTargetAt(linkCardQuery(el, cursor.getRawSelection())) !== null;
+		}
+		const caret = cursor.getRaw() ?? 0;
+		const selection = cursor.getRawSelection() ?? { start: caret, end: caret };
+		return formatActive(
+			{ display: getDisplayText(), content: getContentRange(node), selection },
+			marked.kind
+		);
+	}
+
 	// No arm reached through here mutates while a reveal is open (G1.26): a fire means a
-	// `runCommand` branch that skipped the fold. It guards the arms, not every entry path
-	// — a caller reaching `blockEdit` directly sees neither the fold nor this (issue #35).
+	// `runCommand` branch that skipped the fold. It guards the arms, not every entry path.
+	// TODO(#35): funnel the fold at every mutation entry path, not just the command arms.
 	function performBlockCommand(id: CommandId, perform: () => void): void {
 		assertInvariant('reveal-transition', () =>
 			widgetInteraction.isRevealing()
@@ -505,6 +635,9 @@
 		focusAtColumn,
 		isVerticallyTransparent,
 		enterEdgeWidget,
+		claimRootClipboard,
+		insertMarkdown,
+		snapCaretToPoint,
 		runCommand
 	} satisfies BlockComponent);
 
@@ -515,9 +648,10 @@
 	}
 
 	$effect(() => {
-		if (import.meta.env.DEV && ambientPrefixText && !isProseKind(node.kind)) {
-			console.warn(
-				`[TextEditableBlock] ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix. The ambient marker will not render correctly.`
+		if (ambientPrefixText && !isProseKind(node.kind)) {
+			devWarn(
+				'TextEditableBlock',
+				`ambientPrefix is prose-only; non-prose kind ${node.kind} received a non-empty ambient prefix, so the ambient marker will not render correctly`
 			);
 		}
 
@@ -549,12 +683,7 @@
 		markKeystrokeSettle();
 	});
 
-	// Windowed out while focused: hand focus to the editor root so the next keystroke
-	// routes through its document-level listener instead of falling to `<body>`.
-	$effect(() => {
-		const blockEl = el;
-		return () => parkFocusOnEditorRoot(blockEl ?? null, getEditorRoot());
-	});
+	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
 	// Asymmetric: clears only. The synthetic indicator is click-intent, armed nowhere but
 	// `snapClickToWidgetEdge`, so a caret reaching a boundary by other means never sets it.
@@ -628,11 +757,20 @@
 		return out;
 	}
 
-	const onCompositionStart = editableSurface.onCompositionStart;
-	const onCompositionEnd = editableSurface.onCompositionEnd;
+	// Captured before the surface's own handler: its cross-block half clears the affinity, and
+	// the first mid-composition `input` re-arms it to the typed side.
+	function onCompositionStart(): void {
+		compositionSeat.noteStart();
+		editableSurface.onCompositionStart();
+	}
+
+	function onCompositionEnd(): void {
+		editableSurface.onCompositionEnd();
+		compositionSeat.noteEnd();
+	}
 
 	async function onKeyDown(e: KeyboardEvent): Promise<void> {
-		if (composing) return;
+		if (composing || editableSurface.isDetached()) return;
 
 		preEditOffset = cursor.getRaw() ?? 0;
 
@@ -642,49 +780,66 @@
 
 		// Escape cancels a revealed source back to rendered; every other key edits the
 		// source natively or reaches the command seam below, which folds before mutating.
-		if (await widgetInteraction.handleRevealingKeydown(e)) return;
+		if ((await widgetInteraction.handleRevealingKeydown(e)) || editableSurface.isDetached()) return;
 
 		// Before handleSharedKeydown: selecting cleared the native range, so the shared
 		// ArrowLeft boundary branch would read offset 0 and move focus to a block that
 		// isn't there.
-		if (await widgetInteraction.handleSelectedWidgetKeydown(e)) return;
+		if ((await widgetInteraction.handleSelectedWidgetKeydown(e)) || editableSurface.isDetached())
+			return;
 
 		// The native default, with user-select:none on the widget, collapses the selection
 		// instead of stepping past it.
 		if (widgetInteraction.handleShiftArrowIntoWidget(e)) return;
 
-		if (await handleSharedKeydown(e, sharedCtx)) return;
+		if ((await handleSharedKeydown(e, sharedCtx)) || editableSurface.isDetached()) return;
 
 		// Every caret-edge construct routes through this one dispatch, keeping native
 		// contenteditable from corrupting the atomic bytes each stands for.
 		if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 
-		// Native Home lands at DOM 0, before the marker span; the user wants raw offset 0,
-		// immediately after the ambient span.
-		if (e.key === 'Home' && !e.shiftKey && ambientLength > 0 && el) {
+		// Native Home lands at DOM 0, before the marker span — or past a leading island no text
+		// node fronts; the user wants the block's start. Through the sentinel door,
+		// not a raw-0 DOM write: the landable clamp applies.
+		if (
+			e.key === 'Home' &&
+			!e.shiftKey &&
+			el &&
+			(ambientLength > 0 || landableStartAbutsIsland(el))
+		) {
 			e.preventDefault();
-			cursor.setToAmbientBoundary();
+			focus(CURSOR_START);
 			return;
 		}
 
-		const chord = eventToChord(e);
-		if (
-			chord &&
-			dispatchKeyCommand(
-				chord,
-				{ kind: node.kind, runCommand },
-				{ history, pluginEditor, getPresentationMode: () => presentationMode },
-				keybindingOverrides(),
-				onCommandError
-			)
-		) {
-			e.preventDefault();
-			return;
-		}
+		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
+	}
+
+	/**
+	 * A native ranged edit inside ONE block, in a mode that paints no delimiter: the engine would
+	 * write the runs the range crossed literally, so the edit goes through the join seam instead.
+	 * Declines wherever that seam has nothing to clean, leaving the engine its grapheme and IME
+	 * behavior.
+	 */
+	function handleLiveSelectionEdit(e: InputEvent): boolean {
+		return applyLiveRangeEdit(
+			e,
+			node,
+			cursor,
+			presentationMode,
+			linkRef,
+			ambientPrefixText,
+			widgetInteraction.isRevealing,
+			(edit) => {
+				void blockEdit.updateBlockContent(index, edit.raw, edit.range.start, edit.caret);
+				setPendingCursorOffset(edit.caret, 'live-selection-edit');
+			}
+		);
 	}
 
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
+		if (handleLiveSelectionEdit(e)) return;
 		// Soft-keyboard/IME insertLineBreak slipped past onKeyDown — swallow; Shift+Enter there owns hard breaks.
 		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();
@@ -715,13 +870,19 @@
 		lastSnapTargetOffset = null;
 	}
 
-	function onClick(): void {
+	function onClick(e: MouseEvent): void {
+		// An inline widget's own handler runs first, and a jump it starts can unmount this
+		// surface before the click reaches it; nothing below addresses a block that is gone.
+		if (!el) return;
 		const x = lastClickClientX;
 		const y = lastClickClientY;
 		lastClickClientX = null;
 		lastClickClientY = null;
 		cursor.clampOutOfAmbient();
-		widgetInteraction.snapClickToWidgetEdge(x, y);
+		widgetInteraction.snapClickToWidgetEdge(x, y, {
+			modified: e.ctrlKey || e.metaKey,
+			clickCount: e.detail
+		});
 	}
 
 	// ── Formatting shortcuts ────────────────────────────────────────────
@@ -729,19 +890,33 @@
 	// `range` is what the COMMAND read before it ran, and must not be re-read: a fold on
 	// the way in parks a caret that collapses the live selection, so the chord would find
 	// nothing to toggle. A collapsed range is the caret contract, not a bail.
-	function toggleFormat(
-		format: 'strong' | 'emphasis',
-		range: { start: number; end: number }
-	): void {
+	function toggleFormat(format: InlineMarkKind, range: { start: number; end: number }): void {
 		if (!el) return;
 
-		const { newDisplay, newSelStart, newSelEnd } = toggleInlineFormat(
-			getDisplayText(),
-			range,
-			format
-		);
+		// A surface painting no delimiter would hold the byte-pair strategy's abandoned `****` as
+		// invisible garbage the user can see the effect of but not explain: pend the mark and let
+		// the next insertion carry it instead (live-mode.md § 4.3). The preview rungs reveal the
+		// block the caret is in, so they show the pair and take the byte path.
+		if (!paintsFocusedMarkers(presentationMode) && range.start === range.end) {
+			// The insertion that spends the mark starts its own undo entry, so it is never
+			// folded into the burst the chord interrupted.
+			controller.flushDebouncedCheckpoint();
+			pendingMarks.toggle(format);
+			return;
+		}
 
-		blockEdit.updateBlockContent(index, newDisplay + trailingLineEnding(node.raw), newSelStart);
+		const toggled = toggleInlineFormat(
+			{ display: getDisplayText(), content: getContentRange(node), selection: range },
+			format,
+			presentationMode
+		);
+		if (!toggled) return;
+		const { newDisplay, newSelStart, newSelEnd } = toggled;
+
+		// A command is not typing: the toggle's bytes are their own undo step in every mode.
+		controller.isolateUndoEntry(() =>
+			blockEdit.updateBlockContent(index, newDisplay + trailingLineEnding(node.raw), newSelStart)
+		);
 
 		tick().then(() => {
 			setSelection(newSelStart, newSelEnd);

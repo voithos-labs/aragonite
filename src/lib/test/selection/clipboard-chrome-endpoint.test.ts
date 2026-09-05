@@ -3,46 +3,35 @@ import { parse } from '../../core/parser';
 import { getPluginMetadata, type AnyBlockKind } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
-import { __resetPasteSurfacesForTests } from '../../tree-operations/paste-surfaces';
-import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
 import { augmentBlockKind, getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
-import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
+import { DETAILS } from '$lib/plugins/details/details-kind';
+import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 
-// A cross-block copy whose END lands inside a container's reserved chrome (title/summary) used to
-// emit wrapper-less bytes that reparse to a bare paragraph, losing the container kind on paste.
+// A cross-block copy whose END lands inside a container's reserved chrome (title/summary) must
+// keep the wrapper: wrapper-less bytes reparse to a bare paragraph and lose the kind on paste.
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
 }
 
-function registerPlugins() {
-	// registerChromeLeaf registers a paste surface the schema reset leaves orphaned,
-	// so both registries reset before re-registering (a re-register would collide).
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
-	registerCalloutKind();
-	registerDetailsKind();
-}
-
 describe('cross-block copy ending in reserved chrome', () => {
-	beforeEach(registerPlugins);
+	beforeEach(registerChromePluginsForTests);
 
 	it('mid-title endpoint synthesizes a reparseable note with truncated title, empty body', () => {
-		const doc = parse('Above\n\n:::note Title\nBody\n:::\n\nBelow\n');
+		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 3));
-		const note = parse(text).children.find((c) => c.kind === 'note');
+		const note = parse(text).children.find((c) => c.kind === 'callout');
 		expect(note).toBeDefined();
-		expect(note!.children?.map((c) => c.kind)).toEqual(['note-title']);
+		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
 		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe('Tit');
 	});
 
 	it('whole-title endpoint (offset at chrome end) synthesizes the full title, empty body', () => {
-		const doc = parse('Above\n\n:::note Title\nBody\n:::\n\nBelow\n');
+		const doc = parse('Above\n\n:::callout Title\nBody\n:::\n\nBelow\n');
 		const text = collectCrossBlockText(doc, point([0], 2), point([1, 0], 5));
-		const note = parse(text).children.find((c) => c.kind === 'note');
-		expect(note!.children?.map((c) => c.kind)).toEqual(['note-title']);
+		const note = parse(text).children.find((c) => c.kind === 'callout');
+		expect(note!.children?.map((c) => c.kind)).toEqual(['callout-title']);
 		expect(trimTrailingLineEnding(note!.children![0].raw)).toBe('Title');
 	});
 

@@ -56,12 +56,10 @@ test.describe('image backspace/delete + type-replace', () => {
 		await widget.click();
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceNotContains('![cat]');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 
-	// Entering widget selection from the LEFT (ArrowRight/Delete at widget.start) must anchor the
-	// undo snapshot at widget.start; a hardcoded widget.end restored the caret on the far side.
 	test('undo after Delete from widget.start restores caret at widget.start', async ({ page }) => {
 		await editor.loadContent('![cat](/test-fixtures/sample.png)trail\n');
 		await editor.focusBlockStart(0);
@@ -70,7 +68,7 @@ test.describe('image backspace/delete + type-replace', () => {
 		await expect(page.locator('[data-image-overlay]')).toBeVisible();
 		await page.keyboard.press('Delete');
 		await editor.bridge.waitForSourceNotContains('![cat]');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 		// Use keyboard.press so the CST keydown intercept fires (insertText
 		// skips keydown and lands the char natively past the widget).

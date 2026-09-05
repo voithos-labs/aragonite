@@ -15,7 +15,7 @@ import {
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
-} from '../../harness/editor-actions';
+} from '$lib/test/harness/editor-actions';
 
 registerDetailsKind();
 

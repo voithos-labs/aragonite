@@ -1,6 +1,6 @@
 /**
  * G4.4 — `await tick()` is the only sanctioned sequencing primitive
- * (`docs/contributing/culture.md` § Sharp edges). Fails on any timing primitive outside
+ * (`docs/contributing/casebook.md` § "Only `await tick()` for sequencing"). Fails on any timing primitive outside
  * the allowlist of animation-throttle / wall-clock-debounce uses. Scope excludes `test/`
  * and `e2e/`: the Playwright harness legitimately double-rAFs to wait for paint, having
  * no `tick()` equivalent across the browser boundary.

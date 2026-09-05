@@ -1,12 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { takeDevWarns } from '../support/warn-gate';
 import { parse } from '../../core/parser';
 import { checkCrossBlockEndpointCoordinates } from '../../invariants/selection-endpoints';
 import { createSelectionState } from '../../selection/selection-state.svelte';
-
-afterEach(() => vi.unstubAllEnvs());
 
 // A table block plus a paragraph — [0] is the table, [1] the prose.
 const doc = () => parse('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
@@ -49,41 +46,112 @@ describe('G1.29 cross-block endpoint coordinates', () => {
 		);
 		expect(violation?.message).toContain('focus');
 	});
+
+	// Miss-analysis (M-3): the fixtures only ever put a char offset on a table, so the flag's
+	// other direction — a cell index stored against a block that has no cells — was never
+	// asked, and `cellCoordinate` short-circuited before any node was resolved.
+	it('flags a cell coordinate on a block that is not a table', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			doc(),
+			{ path: [1], offset: 1, cellCoordinate: true },
+			{ path: [0], offset: 0, cellCoordinate: true }
+		);
+		expect(violation?.code).toBe('endpoint-cell-coordinate-off-table');
+		expect(violation?.message).toContain('anchor');
+	});
+
+	it('ignores a cell coordinate whose path resolves to nothing', () => {
+		expect(
+			checkCrossBlockEndpointCoordinates(
+				doc(),
+				{ path: [9], offset: 1, cellCoordinate: true },
+				{ path: [1], offset: 0 }
+			)
+		).toBeNull();
+	});
+});
+
+// A thematic break is the built-in kind with no character positions: `---\n` admits
+// offsets 0 and 3 and nothing between.
+const breakDoc = () => parse('above\n\n---\n\nbelow\n');
+
+describe('G1.29 character-offset range', () => {
+	it('flags an offset past the end of the block raw', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			breakDoc(),
+			{ path: [0], offset: 6 },
+			{ path: [2], offset: 0 }
+		);
+		expect(violation?.code).toBe('endpoint-offset-out-of-range');
+		expect(violation?.message).toContain('anchor');
+	});
+
+	it('passes an offset at the display end', () => {
+		expect(
+			checkCrossBlockEndpointCoordinates(
+				breakDoc(),
+				{ path: [0], offset: 5 },
+				{ path: [2], offset: 0 }
+			)
+		).toBeNull();
+	});
+
+	it('flags an interior offset inside a whole-block kind', () => {
+		const violation = checkCrossBlockEndpointCoordinates(
+			breakDoc(),
+			{ path: [0], offset: 0 },
+			{ path: [1], offset: 1 }
+		);
+		expect(violation?.code).toBe('endpoint-whole-block-offset');
+		expect(violation?.message).toContain('focus');
+	});
+
+	it('passes both ends of a whole-block kind', () => {
+		for (const offset of [0, 3]) {
+			expect(
+				checkCrossBlockEndpointCoordinates(
+					breakDoc(),
+					{ path: [1], offset },
+					{ path: [2], offset: 0 }
+				)
+			).toBeNull();
+		}
+	});
 });
 
 // #normalizePoint's walk runs `path.length - 1` iterations, so a length-1 table path
 // passes through with its character offset intact — the shape the belt exists for.
 describe('G1.29 fires from the storing seam', () => {
 	it('warns when a length-1 table path is stored with a character offset', () => {
-		vi.stubEnv('DEV', true);
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
-		vi.mocked(devWarn).mockClear();
 
 		selection.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
-		expect(
-			vi
-				.mocked(devWarn)
-				.mock.calls.some(([tag]) => tag === 'invariant:cross-block-endpoint-coordinates')
-		).toBe(true);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([
+			'invariant:cross-block-endpoint-coordinates'
+		]);
+	});
+
+	it('stays silent when the funnel snapped a whole-block endpoint', () => {
+		const tree = breakDoc();
+		const selection = createSelectionState({ getDoc: () => tree });
+
+		selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 1 });
+
+		expect(selection.end).toEqual({ path: [1], offset: 3 });
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('stays silent for a normalized cell endpoint', () => {
-		vi.stubEnv('DEV', true);
 		const tree = doc();
 		const selection = createSelectionState({ getDoc: () => tree });
-		vi.mocked(devWarn).mockClear();
 
 		selection.enterCrossBlock(
 			{ path: [0], offset: 1, cellCoordinate: true },
 			{ path: [1], offset: 0 }
 		);
 
-		expect(
-			vi
-				.mocked(devWarn)
-				.mock.calls.some(([tag]) => tag === 'invariant:cross-block-endpoint-coordinates')
-		).toBe(false);
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

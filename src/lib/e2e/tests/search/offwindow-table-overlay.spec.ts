@@ -1,10 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import { capturePageErrors } from '../../page-probes';
-
-const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
+import { count, openFind, typeQuery } from './helpers';
 
 // The needle is spread across rows so the ACTIVE match is revealed at the top while deep
 // matching rows start off-window: search auto-reveals only the active match, and the rest
@@ -35,22 +33,26 @@ function row180Mounted(page: Page): Promise<boolean> {
 	);
 }
 
-// After scrolling, find a needle cell fully inside the editor viewport and report
-// whether a .match-overlay geometrically covers it (the repaint discriminator).
-function deepNeedleCovered(page: Page): Promise<{ found: boolean; covered: boolean }> {
-	return page.evaluate(() => {
+// After scrolling, find a cell fully inside the editor viewport (insets trim the accepted
+// band; a needle filters to matching cells) and report whether an overlay of the given
+// selector geometrically covers it — the repaint discriminator.
+function coveredCell(
+	page: Page,
+	args: { overlaySelector: string; needle?: string; insetTop: number; insetBottom: number }
+): Promise<{ found: boolean; covered: boolean }> {
+	return page.evaluate(({ overlaySelector, needle, insetTop, insetBottom }) => {
 		const ed = document.querySelector('.editor')!.getBoundingClientRect();
 		const cells = Array.from(
 			document.querySelectorAll('[data-table-row-idx] .table-cell')
 		) as HTMLElement[];
-		const needleCell = cells.find((c) => {
-			if (!(c.textContent ?? '').includes('ZZNEEDLE')) return false;
+		const cell = cells.find((c) => {
+			if (needle && !(c.textContent ?? '').includes(needle)) return false;
 			const r = c.getBoundingClientRect();
-			return r.height > 0 && r.top >= ed.top - 1 && r.bottom <= ed.bottom + 1;
+			return r.height > 0 && r.top >= ed.top + insetTop && r.bottom <= ed.bottom + insetBottom;
 		});
-		if (!needleCell) return { found: false, covered: false };
-		const cr = needleCell.getBoundingClientRect();
-		const overlays = Array.from(document.querySelectorAll('.match-overlay')) as HTMLElement[];
+		if (!cell) return { found: false, covered: false };
+		const cr = cell.getBoundingClientRect();
+		const overlays = Array.from(document.querySelectorAll(overlaySelector)) as HTMLElement[];
 		const covered = overlays.some((o) => {
 			const r = o.getBoundingClientRect();
 			return (
@@ -63,8 +65,16 @@ function deepNeedleCovered(page: Page): Promise<{ found: boolean; covered: boole
 			);
 		});
 		return { found: true, covered };
-	});
+	}, args);
 }
+
+const deepNeedleCovered = (page: Page) =>
+	coveredCell(page, {
+		overlaySelector: '.match-overlay',
+		needle: 'ZZNEEDLE',
+		insetTop: -1,
+		insetBottom: 1
+	});
 
 test('a deep off-window table-row match repaints its highlight after a single scroll into view', async ({
 	page
@@ -81,11 +91,9 @@ test('a deep off-window table-row match repaints its highlight after a single sc
 	expect(await page.locator('.vr-spacer').count()).toBeGreaterThan(0);
 	expect(await row180Mounted(page)).toBe(false);
 
-	await editor.clickBlock(0);
-	await page.keyboard.press(`${primaryModifier}+f`);
-	await findInput(page).waitFor({ state: 'visible' });
-	await page.keyboard.type('ZZNEEDLE');
-	await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*10/);
+	await openFind(editor);
+	await typeQuery(editor, 'ZZNEEDLE');
+	await expect(count(page)).toHaveText(/1\s*\/\s*10/);
 	await editor.waitForRenderFlush();
 
 	// The active (first) match is revealed at the top; the deep match (row 180)
@@ -108,35 +116,10 @@ test('a deep off-window table-row match repaints its highlight after a single sc
 	expect(pageErrors).toEqual([]);
 });
 
-// Whether a .selection-overlay geometrically covers a cell currently visible in the
-// editor viewport — the SelectionOverlay repaint discriminator, sibling to the search one.
-function visibleCellCovered(page: Page): Promise<{ found: boolean; covered: boolean }> {
-	return page.evaluate(() => {
-		const ed = document.querySelector('.editor')!.getBoundingClientRect();
-		const cells = Array.from(
-			document.querySelectorAll('[data-table-row-idx] .table-cell')
-		) as HTMLElement[];
-		const cell = cells.find((c) => {
-			const r = c.getBoundingClientRect();
-			return r.height > 0 && r.top >= ed.top + 40 && r.bottom <= ed.bottom - 1;
-		});
-		if (!cell) return { found: false, covered: false };
-		const cr = cell.getBoundingClientRect();
-		const overlays = Array.from(document.querySelectorAll('.selection-overlay')) as HTMLElement[];
-		const covered = overlays.some((o) => {
-			const r = o.getBoundingClientRect();
-			return (
-				r.width > 0 &&
-				r.height > 0 &&
-				r.left < cr.right &&
-				r.right > cr.left &&
-				r.top < cr.bottom &&
-				r.bottom > cr.top
-			);
-		});
-		return { found: true, covered };
-	});
-}
+// The SelectionOverlay repaint discriminator, sibling to the search one; the top inset
+// keeps the probe off the intro paragraph's band.
+const visibleCellCovered = (page: Page) =>
+	coveredCell(page, { overlaySelector: '.selection-overlay', insetTop: 40, insetBottom: -1 });
 
 test('a cross-block selection repaints over a deep off-window table row after scroll-in', async ({
 	page
@@ -154,11 +137,9 @@ test('a cross-block selection repaints over a deep off-window table row after sc
 	// Cross-block select from the intro paragraph to the end of the document, so the
 	// table is the focus endpoint and its cells are part of the selection.
 	await editor.clickBlock(0);
-	await page.keyboard.press(`${primaryModifier}+Shift+End`);
+	await page.keyboard.press('ControlOrMeta+Shift+End');
 	await editor.waitForRenderFlush();
-	expect(await page.evaluate(() => (window as any).__test.isCrossBlockSelection?.() ?? false)).toBe(
-		true
-	);
+	expect(await editor.bridge.isCrossBlockSelection()).toBe(true);
 
 	// Single scroll to bring deep rows into the mounted window.
 	await page.evaluate(() => {

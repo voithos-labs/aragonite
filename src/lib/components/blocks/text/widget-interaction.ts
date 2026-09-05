@@ -16,7 +16,8 @@ import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
 	isInlineWidget,
 	flattenInlineWidgets,
-	getInlineWidgetEditing
+	getInlineWidgetEditing,
+	isWidgetActivationClick
 } from '../../../core/inline/inline-widgets';
 import { isVerticallyTransparentNode } from '../../../core/inline/transparency';
 import { trimTrailingLineEnding, trailingLineEnding } from '../../../core/lines';
@@ -25,14 +26,18 @@ import {
 	toClampedRawOffset,
 	toDomTextOffset
 } from '../../../cursor/coordinate-spaces';
-import { domTextOffsetAtNode, createRangeAtDomTextOffsets } from '../../../cursor/widget-offset';
+import {
+	domTextOffsetAtNode,
+	createRangeAtDomTextOffsets,
+	selectionFocusWalkOffset
+} from '../../../cursor/widget-offset';
 import { createSourceReveal, type SourceReveal } from '../../../cursor/reveal-source';
 import {
 	traceRevealOpen,
 	traceRevealFold,
 	type RevealFoldReason
 } from '../../../debug/interaction-trace';
-import { assertInvariant } from '../../../invariants/assert';
+import { assertInvariant } from '../../../assert';
 import type { RevealFold } from '../editable-surface';
 import { caretIsInTextContent, hasModifier, isPlainTypingKey } from './click-snap-guard';
 import {
@@ -74,6 +79,14 @@ export interface WidgetInteractionDeps {
 	get linkRef(): LinkReferenceResolverRef | undefined;
 }
 
+/** The click a widget gesture reads off: the same event the widget's own handler sees. */
+export interface WidgetPress {
+	/** Ctrl/Cmd at the CLICK: with it, a widget claiming the activation click keeps the gesture. */
+	modified?: boolean;
+	/** `MouseEvent.detail`; two or more is a double-click, which takes the token it just revealed. */
+	clickCount?: number;
+}
+
 export interface WidgetInteraction {
 	/** Block holds only image/blank inline content, so vertical arrow traversal skips
 	 *  it: the widgets carry no column meaning. */
@@ -92,8 +105,9 @@ export interface WidgetInteraction {
 	/** Cross-block edge landing: a reveal-capable widget at the near edge opens its
 	 *  source, any other is selected. Returns whether an edge widget was entered. */
 	enterEdgeWidget(side: 'start' | 'end'): boolean;
-	/** Snap a click that landed outside any text node to the nearest widget edge. */
-	snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void;
+	/** Snap a click that landed outside any text node to the nearest widget edge, or open a
+	 *  reveal-source widget it hit. */
+	snapClickToWidgetEdge(clickX: number | null, clickY: number | null, press?: WidgetPress): void;
 	/** A reveal-source widget currently shows its editable `$…$` source. */
 	isRevealing(): boolean;
 	/** Escape (cancel to rendered) while source is shown. Enter is deliberately NOT
@@ -123,11 +137,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	}
 
 	// ── Reveal-source editing ──────────────────────────────────────────────────
-	// A reveal-source widget swaps its rendered island for editable source. The edit is
-	// ephemeral DOM (`onInput` stays suppressed) and re-renders on commit rather than per
-	// keystroke, so the whole edit lands as ONE undo entry. The lifecycle is one record —
-	// null = idle — and every exit funnels its state-clear through `resetReveal`, so a new
-	// exit only decides how the widget is restored, never which fields to hand-clear.
+	// A reveal-source widget swaps its rendered island for editable source. The edit is ephemeral
+	// DOM (`onInput` stays suppressed) and re-renders on commit, so it lands as ONE undo entry.
+	// Every exit funnels its state-clear through `resetReveal`, so a new exit decides only how the
+	// widget is restored.
 	interface RevealState {
 		kernel: SourceReveal;
 		/** Trailing-edge fallback for the commit caret when the source node is gone. */
@@ -402,6 +415,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return el !== null && hitTestRevealWidget(el, x, y) !== null;
 	}
 
+	// The whole-token select belongs to the double-click that OPENED a reveal, and nothing in
+	// the second click's own shape tells it apart from a later one inside the same source.
+	let revealOpenedByLastClick = false;
+
 	// Order is the whole point: resolve the target BEFORE folding, because the fold shifts
 	// layout and the click point only means something against pre-fold geometry, then
 	// re-locate by OFFSET, because an edited commit shifts raw positions by its delta.
@@ -436,8 +453,22 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		);
 		if (!target) return;
 		el.focus();
+		revealOpenedByLastClick = true;
 		// A click can't map to a source glyph — land at the leading edge (offset 0).
 		void startReveal(target, target.start, 0);
+	}
+
+	/** Take the whole revealed token; declines unless the native selection sits inside it. */
+	function selectRevealedSource(): boolean {
+		const source = activeSourceNode;
+		if (!revealState || !source) return false;
+		const selection = window.getSelection();
+		if (!selection || !selection.anchorNode || !source.contains(selection.anchorNode)) return false;
+		const range = document.createRange();
+		range.selectNodeContents(source);
+		selection.removeAllRanges();
+		selection.addRange(range);
+		return true;
 	}
 
 	function isRevealing(): boolean {
@@ -523,42 +554,38 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			e.preventDefault();
 			return true;
 		}
-		if (e.key === 'ArrowLeft') {
+		if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
 			e.preventDefault();
-			if (rawHasNoTextBefore(node.raw, widget.start)) {
+			const left = e.key === 'ArrowLeft';
+			const blankSide = left
+				? rawHasNoTextBefore(node.raw, widget.start)
+				: rawHasNoTextAfter(node.raw, widget.end);
+			if (blankSide) {
 				deps.widgetSelection.clear();
-				await deps.focusActions.moveFocus(deps.index - 1, 'end');
+				await deps.focusActions.moveFocus(deps.index + (left ? -1 : 1), left ? 'end' : 'start');
 			} else {
-				deps.cursor.setRaw(asRawOffset(widget.start));
+				deps.cursor.setRaw(asRawOffset(left ? widget.start : widget.end));
 				deps.widgetSelection.clear();
 			}
 			return true;
 		}
-		if (e.key === 'ArrowRight') {
-			e.preventDefault();
-			if (rawHasNoTextAfter(node.raw, widget.end)) {
-				deps.widgetSelection.clear();
-				await deps.focusActions.moveFocus(deps.index + 1, 'start');
-			} else {
-				deps.cursor.setRaw(asRawOffset(widget.end));
-				deps.widgetSelection.clear();
-			}
-			return true;
-		}
-		if (e.key === 'Backspace' || e.key === 'Delete') {
-			e.preventDefault();
-			// Reading mode still swallows — a selected widget owns its keys — but commits nothing.
-			if (isReading()) return true;
-			const newRaw = node.raw.slice(0, widget.start) + node.raw.slice(widget.end);
-			// Undo anchored at the pre-select caret, so Ctrl+Z restores the caret where the
-			// user actually was when selection took over.
+		// Reading mode still swallows — a selected widget owns its keys — but commits nothing.
+		// Undo anchored at the pre-select caret, so Ctrl+Z restores the caret where the user
+		// actually was when selection took over.
+		const spliceWidget = (text: string): void => {
+			if (isReading()) return;
+			const newRaw = node.raw.slice(0, widget.start) + text + node.raw.slice(widget.end);
 			void deps.blockEdit.updateBlockContent(
 				deps.index,
 				newRaw,
 				selectedWidget.preSelectOffset,
-				widget.start
+				widget.start + text.length
 			);
 			deps.widgetSelection.clear();
+		};
+		if (e.key === 'Backspace' || e.key === 'Delete') {
+			e.preventDefault();
+			spliceWidget('');
 			return true;
 		}
 		if (e.key === 'Escape') {
@@ -569,16 +596,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		if (isPlainTypingKey(e)) {
 			e.preventDefault();
-			if (isReading()) return true;
-			const typed = e.key;
-			const newRaw = node.raw.slice(0, widget.start) + typed + node.raw.slice(widget.end);
-			void deps.blockEdit.updateBlockContent(
-				deps.index,
-				newRaw,
-				selectedWidget.preSelectOffset,
-				widget.start + typed.length
-			);
-			deps.widgetSelection.clear();
+			spliceWidget(e.key);
 			return true;
 		}
 		// Every remaining key is swallowed, so navigation can't leak into the shared pipeline
@@ -636,16 +654,38 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		return true;
 	}
 
-	function snapClickToWidgetEdge(clickX: number | null, clickY: number | null): void {
+	function snapClickToWidgetEdge(
+		clickX: number | null,
+		clickY: number | null,
+		press: WidgetPress = {}
+	): void {
 		deps.setSnapTarget(null);
+		const doubleClick = (press.clickCount ?? 1) >= 2;
+		// Every double-click opens with a click of its own, so the opening click is where the
+		// flag is armed and the flag from any earlier gesture is dropped.
+		if (!doubleClick) revealOpenedByLastClick = false;
 		const el = deps.getEl();
 		if (!el || clickX === null) return;
 		// The point-in-rect test runs BEFORE the text-node guard below, so a column-aligned
 		// click on real text on another visual line falls through to the caret path.
-		if (clickY !== null && hitTestRevealWidget(el, clickX, clickY)) {
-			void revealFromClick(clickX, clickY);
-			return;
+		if (clickY !== null) {
+			const hit = hitTestRevealWidget(el, clickX, clickY);
+			if (hit) {
+				// Returns rather than falls through: the edge-snap below would focus this block and
+				// place a caret, stealing back what the widget's own navigation just landed.
+				if (
+					getInlineWidgetEditing(hit.inline.kind)?.claimsActivationClick &&
+					isWidgetActivationClick(press.modified ?? false, deps.getPresentationMode?.() ?? 'source')
+				) {
+					return;
+				}
+				void revealFromClick(clickX, clickY);
+				return;
+			}
 		}
+		// The first click of a double-click already revealed, so the second lands in the source
+		// text and the browser's word rule takes `[` or `$` as a word of its own.
+		if (doubleClick && revealOpenedByLastClick && selectRevealedSource()) return;
 		// A click in a real text node keeps the native caret; a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;
 		for (const inline of inlinesOf(deps.node)) {
@@ -653,33 +693,23 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
-			if (clickX > rect.right) {
-				el.focus();
-				deps.cursor.setRaw(asRawOffset(inline.end));
-				// `setRaw`'s walker may have landed in a trailing text node, where native renders.
-				if (!caretIsInTextContent(el, window.getSelection())) {
-					deps.setSnapTarget(inline.end);
-				}
-				return;
+			const snapTo = clickX > rect.right ? inline.end : clickX < rect.left ? inline.start : null;
+			if (snapTo === null) continue;
+			el.focus();
+			deps.cursor.setRaw(asRawOffset(snapTo));
+			// `setRaw`'s walker may have landed in a trailing text node, where native renders.
+			if (!caretIsInTextContent(el, window.getSelection())) {
+				deps.setSnapTarget(snapTo);
 			}
-			if (clickX < rect.left) {
-				el.focus();
-				deps.cursor.setRaw(asRawOffset(inline.start));
-				if (!caretIsInTextContent(el, window.getSelection())) {
-					deps.setSnapTarget(inline.start);
-				}
-				return;
-			}
+			return;
 		}
 	}
 
 	function widgetExtensionTarget(key: 'ArrowRight' | 'ArrowLeft'): number | null {
 		const el = deps.getEl();
 		if (!el) return null;
-		const sel = window.getSelection();
-		if (!sel || sel.focusNode === null || !el.contains(sel.focusNode)) return null;
-		const content = domTextOffsetAtNode(el, sel.focusNode, sel.focusOffset);
-		const focus = toClampedRawOffset(content, deps.getAmbientLength());
+		const focus = selectionFocusWalkOffset(el, deps.getAmbientLength());
+		if (focus === null) return null;
 		for (const inline of inlinesOf(deps.node)) {
 			if (!isInlineWidget(inline, deps.node.raw)) continue;
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {

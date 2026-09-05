@@ -8,26 +8,40 @@
 
 import type { CstNode } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
+import { spliceMany } from '../splice-many';
 import { rebuildContainerRawIfContainer } from '../../schema/container-raw';
+import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 
 /**
- * Terminate the deepest trailing leaf, then rebuild every container above it: a
- * container's raw is DERIVED from its children, so appending to it directly leaves the
- * two disagreeing (G1.1) and its tail item still unterminated.
+ * The child holding the node's last LINE, or null when the node's own raw holds it. Only a
+ * strip container serializes its children's raws as whole lines; a grid cell and an opaque
+ * body live inside a line their container emits, so the ending belongs to the container.
  */
-function terminateDeepestLeaf(node: CstNode, ending: '\n' | '\r\n'): void {
-	if (node.raw.endsWith('\n')) return;
+function lastLineOwningChild(node: CstNode): CstNode | null {
+	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 	const children = node.children;
-	if (!children || children.length === 0) {
+	if (!children || children.length === 0) return null;
+	return children[children.length - 1];
+}
+
+/**
+ * Terminate the deepest node that owns its own last line, then rebuild every strip container
+ * above it: such a container's raw is DERIVED from its children, so appending to it directly
+ * leaves the two disagreeing (G1.1) and its tail item still unterminated.
+ */
+function terminateLastLine(node: CstNode, ending: '\n' | '\r\n'): void {
+	if (node.raw.endsWith('\n')) return;
+	const child = lastLineOwningChild(node);
+	if (!child) {
 		node.raw += ending;
 		return;
 	}
-	terminateDeepestLeaf(children[children.length - 1], ending);
+	terminateLastLine(child, ending);
 	rebuildContainerRawIfContainer(node);
 }
 
 export function ensureListItemNewlineTerminated(item: CstNode, ending: '\n' | '\r\n'): void {
-	terminateDeepestLeaf(item, ending);
+	terminateLastLine(item, ending);
 }
 
 /** Normalize every pasted listItem in `items` (non-listItems pass through). */
@@ -50,5 +64,5 @@ export function spliceTerminatedItems(
 ): void {
 	const neighbour = (removeCount > 0 ? children[at] : undefined) ?? children[at - 1] ?? children[0];
 	newlineTerminateListItems(items, neighbour ? trailingLineEnding(neighbour.raw) : '\n');
-	children.splice(at, removeCount, ...items);
+	spliceMany(children, at, removeCount, items);
 }

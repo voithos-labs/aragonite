@@ -8,7 +8,8 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
-import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { cellAt } from './mount-table';
 
 beforeAll(installLayoutStubs);
 
@@ -19,14 +20,6 @@ afterEach(async () => {
 });
 
 const GRID = '| A | B |\n| --- | --- |\n| one | 2 |\n';
-
-function cell(rowIdx: number, colIdx: number): HTMLElement {
-	const table = blockHostAt(mounted!, [0]);
-	const row = table.querySelector(`[data-table-row-idx="${rowIdx}"]`);
-	const found = row?.querySelectorAll(':scope > .table-cell')[colIdx] as HTMLElement | undefined;
-	if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
-	return found;
-}
 
 /** jsdom builds no ClipboardEvent, so the payload rides a real dispatched event. */
 async function pasteInto(el: HTMLElement, text: string): Promise<void> {
@@ -64,7 +57,7 @@ function reparsedColumns(): number {
 describe('a paste into a cell lands on the cell’s own paste surface', () => {
 	it('escapes a pasted pipe, so the row keeps its column count', async () => {
 		mounted = mountEditor({ source: GRID });
-		const el = cell(1, 0);
+		const el = cellAt(mounted!, 1, 0);
 		caretAtCellEnd(el);
 
 		await pasteInto(el, 'x|y');
@@ -77,7 +70,7 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 		// A raw newline in `cell.raw` splits the row's bytes in two; the surface
 		// folds the lines to spaces rather than letting them through.
 		mounted = mountEditor({ source: GRID });
-		const el = cell(1, 0);
+		const el = cellAt(mounted!, 1, 0);
 		selectInCell(el, 0, 3);
 
 		await pasteInto(el, 'first\nsecond\nthird');
@@ -87,7 +80,7 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 
 	it('trims the pasted run rather than padding the cell', async () => {
 		mounted = mountEditor({ source: GRID });
-		const el = cell(1, 1);
+		const el = cellAt(mounted!, 1, 1);
 		selectInCell(el, 0, 1);
 
 		await pasteInto(el, '  spaced  \n');
@@ -97,7 +90,7 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 
 	it('replaces the cell’s selected range instead of inserting beside it', async () => {
 		mounted = mountEditor({ source: GRID });
-		const el = cell(1, 0);
+		const el = cellAt(mounted!, 1, 0);
 		selectInCell(el, 0, 3);
 
 		await pasteInto(el, 'two');
@@ -107,7 +100,7 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 
 	it('ignores an empty clipboard rather than committing a no-op edit', async () => {
 		mounted = mountEditor({ source: GRID });
-		const el = cell(1, 0);
+		const el = cellAt(mounted!, 1, 0);
 		el.focus();
 
 		await pasteInto(el, '');

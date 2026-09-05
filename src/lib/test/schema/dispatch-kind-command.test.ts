@@ -1,11 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { dispatchKindCommand, registerBlockCommand } from '$lib/schema/block-commands';
 import { __resetBlockCommandsForTests } from '$lib/schema/block-commands';
-import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { mintCommandId } from '$lib/schema/command-id';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 import type { CstNode } from '$lib/core/nodes';
+
+// No cross-block range in these cases; the seam's range decline has its own suite.
+const GATES = {
+	getPresentationMode: () => 'source' as const,
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
+};
 
 const listItemNode = (): CstNode => ({
 	kind: 'listItem',
@@ -14,13 +20,8 @@ const listItemNode = (): CstNode => ({
 	metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
 });
 
-// devWarn is silent under test by default — force dev/non-test so the dead-key
-// warn fires (pattern: src/lib/test/schema/dispatch-dead-key.test.ts).
 describe('container-bubble dispatch over the block-command registry', () => {
-	beforeEach(() => configureEditorEnv({ isDev: true, isTest: false }));
 	afterEach(() => {
-		resetEditorEnv();
-		__resetCommandWarningsForTests();
 		__resetBlockCommandsForTests();
 		vi.restoreAllMocks();
 	});
@@ -38,6 +39,7 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			{ kind: 'listItem', runCommand, getCommandContext: () => ({ node, updateMetadata }) },
+			GATES,
 			overrides
 		);
 
@@ -48,7 +50,6 @@ describe('container-bubble dispatch over the block-command registry', () => {
 	});
 
 	it('dead-keys and warns once when a bound plugin id has no registered handler', () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		// Minted but never registered on any kind → getBlockCommand misses.
 		const id = mintCommandId('demo.ghost');
 		const overrides = normalizeKeybindingOverrides([
@@ -56,20 +57,30 @@ describe('container-bubble dispatch over the block-command registry', () => {
 		]);
 		const runCommand = vi.fn(() => false);
 
-		const first = dispatchKindCommand('Mod+Shift+K', { kind: 'listItem', runCommand }, overrides);
-		const second = dispatchKindCommand('Mod+Shift+K', { kind: 'listItem', runCommand }, overrides);
+		const first = dispatchKindCommand(
+			'Mod+Shift+K',
+			{ kind: 'listItem', runCommand },
+			GATES,
+			overrides
+		);
+		const second = dispatchKindCommand(
+			'Mod+Shift+K',
+			{ kind: 'listItem', runCommand },
+			GATES,
+			overrides
+		);
 
 		expect(first).toBe(false);
 		expect(second).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
-		expect(warn).toHaveBeenCalledTimes(1);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 
 	it('falls through to runCommand for a built-in kind command with no command context', () => {
 		const runCommand = vi.fn(() => true);
 
 		// The built-in listItem keymap binds Tab → list.indent.
-		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand });
+		const handled = dispatchKindCommand('Tab', { kind: 'listItem', runCommand }, GATES);
 
 		expect(handled).toBe(true);
 		expect(runCommand).toHaveBeenCalledWith('list.indent', undefined);
@@ -77,8 +88,28 @@ describe('container-bubble dispatch over the block-command registry', () => {
 
 	it('returns false without warning when no binding resolves', () => {
 		const runCommand = vi.fn(() => false);
-		const handled = dispatchKindCommand('Mod+J', { kind: 'listItem', runCommand });
+		const handled = dispatchKindCommand('Mod+J', { kind: 'listItem', runCommand }, GATES);
 		expect(handled).toBe(false);
 		expect(runCommand).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	// Miss-analysis: the bubble's override tier had a test per SCOPE but none for the id CLASS it
+	// can resolve, so a global id resolving here fell into `runCommand`'s default arm and read as
+	// an ordinary decline.
+	it('declines a GLOBAL id an override resolved here, loudly — the bubble has no global tier', () => {
+		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+J', command: 'history.undo' }]);
+		const runCommand = vi.fn(() => false);
+
+		const handled = dispatchKindCommand(
+			'Mod+J',
+			{ kind: 'listItem', runCommand },
+			GATES,
+			overrides
+		);
+
+		expect(handled).toBe(false);
+		expect(runCommand).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
 	});
 });

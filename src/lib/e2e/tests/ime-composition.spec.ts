@@ -1,41 +1,12 @@
-import { type CDPSession, type Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
+import { attachIme } from '../simulation/ime';
 
 // Real IME composition via CDP, producing genuine compositionstart/update/end events
 // (requirements/ime-composition.md). Chromium's order, pinned by the first test: every
 // insertCompositionText fires with isComposing true BEFORE compositionend, and the post-end
 // CST commit is the surface's own funnel, not another DOM input event. These sequences are
 // G1.27's first deliberate real-browser exercise.
-
-class Ime {
-	private constructor(
-		private cdp: CDPSession,
-		private page: Page
-	) {}
-
-	static async attach(page: Page): Promise<Ime> {
-		return new Ime(await page.context().newCDPSession(page), page);
-	}
-
-	/** Set composition text and settle on its arrival in the focused element's DOM. */
-	async compose(text: string): Promise<void> {
-		await this.cdp.send('Input.imeSetComposition', {
-			text,
-			selectionStart: text.length,
-			selectionEnd: text.length
-		});
-		await this.page.waitForFunction(
-			(t) => (document.activeElement?.textContent ?? '').includes(t),
-			text,
-			{ timeout: 2000, polling: 16 }
-		);
-	}
-
-	async commit(text: string): Promise<void> {
-		await this.cdp.send('Input.insertText', { text });
-	}
-}
 
 function countOf(haystack: string, needle: string): number {
 	return haystack.split(needle).length - 1;
@@ -63,7 +34,7 @@ test.describe('IME composition', () => {
 			}
 			el.addEventListener('input', (e) => w.__ime.push(`input:${(e as InputEvent).isComposing}`));
 		});
-		const ime = await Ime.attach(page);
+		const ime = await attachIme(page);
 
 		await ime.compose('か');
 		await ime.compose('かん');
@@ -86,7 +57,7 @@ test.describe('IME composition', () => {
 	}) => {
 		await editor.loadContent('```\ncode\n```\n');
 		await editor.focusBlock(0, '```\ncode'.length);
-		const ime = await Ime.attach(page);
+		const ime = await attachIme(page);
 
 		await ime.compose('か');
 		await ime.compose('かん');
@@ -106,7 +77,7 @@ test.describe('IME composition', () => {
 		await editor.loadContent('| H |\n| :- |\n| Left |\n');
 		await page.locator('[role="cell"]').nth(1).click();
 		await page.keyboard.press('End');
-		const ime = await Ime.attach(page);
+		const ime = await attachIme(page);
 
 		await ime.compose('か');
 		await ime.compose('かん');
@@ -118,12 +89,24 @@ test.describe('IME composition', () => {
 		expect(await page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
 	});
 
+	test('a composed commit over a selection replaces it, leaving one copy', async ({ page }) => {
+		await editor.loadContent('hello world\n');
+		await editor.focusBlockEnd(0);
+		for (let i = 0; i < 'world'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
+		const ime = await attachIme(page);
+
+		await ime.compose('かん');
+		await ime.commit('かん');
+
+		await editor.bridge.waitForSourceEquals('hello かん\n');
+	});
+
 	test('undo after a composed commit restores the pre-composition text in one step', async ({
 		page
 	}) => {
 		await editor.loadContent('hello world\n');
 		await editor.focusBlockEnd(0);
-		const ime = await Ime.attach(page);
+		const ime = await attachIme(page);
 
 		await ime.compose('かん');
 		await ime.commit('かん');

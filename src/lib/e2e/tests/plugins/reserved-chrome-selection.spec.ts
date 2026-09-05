@@ -1,39 +1,38 @@
 import { test, expect } from '../../fixtures';
 import {
 	PluginsPage,
-	readNote,
+	readCallout,
 	activeBlockPath,
 	capturedErrors,
 	FIXTURE
 } from './reserved-chrome-helpers';
 
 /**
- * The `:::note` callout reserves child 0 as an editable `note-title` chrome leaf (see
+ * The `:::callout` callout reserves child 0 as an editable `callout-title` chrome leaf (see
  * src/routes/test/plugins/callout). Gate 1 — selection parity: a cross-block selection from the
  * paragraph above paints continuously INTO the title, and caret/undo land there, with zero new
  * selection machinery (the title carries a char offset, so none of the `kind === 'table'`
  * coordinate gates fire).
  */
-test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () => {
+test.describe('reserved child-0 chrome: selection parity', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
-	test('substrate: the title parses as a reserved child-0 note-title leaf', async ({ page }) => {
+	test('substrate: the title parses as a reserved child-0 callout-title leaf', async ({ page }) => {
 		await editor.loadContent(FIXTURE);
-		const note = await readNote(page, 1);
-		expect(note.kind).toBe('note');
-		expect(note.rootCount).toBe(2);
-		expect(note.childCount).toBe(2);
-		expect(note.childKinds).toEqual(['note-title', 'paragraph']);
-		expect(note.childTexts).toEqual(['Title', 'Body']);
+		const callout = await readCallout(page, 1);
+		expect(callout.kind).toBe('callout');
+		expect(callout.rootCount).toBe(2);
+		expect(callout.childCount).toBe(2);
+		expect(callout.childKinds).toEqual(['callout-title', 'paragraph']);
+		expect(callout.childTexts).toEqual(['Title', 'Body']);
 		// Non-strip container: raw carries the title in the opener line, and the
 		// document still round-trips (raw is authoritative for serialization).
-		expect(note.raw).toBe(':::note Title\nBody\n:::\n');
+		expect(callout.raw).toBe(':::callout Title\nBody\n:::\n');
 		expect(await editor.bridge.getSource()).toBe(FIXTURE);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -78,9 +77,9 @@ test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () =
 		page
 	}) => {
 		// The default reserved slot: a callout whose author has not typed a title.
-		await editor.loadContent('Above\n\n:::note\nBody\n:::\n');
-		const seed = await readNote(page, 1);
-		expect(seed.childKinds[0]).toBe('note-title');
+		await editor.loadContent('Above\n\n:::callout\nBody\n:::\n');
+		const seed = await readCallout(page, 1);
+		expect(seed.childKinds[0]).toBe('callout-title');
 		expect(seed.childTexts[0]).toBe('');
 
 		await editor.focusBlock(0, 2);
@@ -106,16 +105,16 @@ test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () =
 		await editor.waitForCrossBlock(true);
 
 		// Collapse to the focus edge (the title), then type — the character must land in the
-		// child-0 leaf, proving it is a real caret target. (The note-title kind survives the edit
+		// child-0 leaf, proving it is a real caret target. (The callout-title kind survives the edit
 		// via contextDependentKind, characterized separately; this gate is about the caret reaching
 		// path [1, 0].)
 		await page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.typeText('Z');
-		await editor.bridge.waitForSource((s) => /:::note [^\n]*Z/.test(s));
+		await editor.bridge.waitForSource((s) => /:::callout [^\n]*Z/.test(s));
 
-		const note = await readNote(page, 1);
-		expect(note.childTexts[0]).toContain('Z');
+		const callout = await readCallout(page, 1);
+		expect(callout.childTexts[0]).toContain('Z');
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -126,14 +125,14 @@ test.describe('Fork-A spike — reserved child-0 chrome: selection parity', () =
 		await editor.loadContent(FIXTURE);
 		await editor.focusBlockAtPath([1, 0], 5); // end of "Title"
 		await editor.typeText('!');
-		await editor.bridge.waitForSourceContains(':::note Title!');
+		await editor.bridge.waitForSourceContains(':::callout Title!');
 		await editor.waitForUndoBatchFlush();
 
 		// Poll the CST child text, not the source bytes: this epilogue is where the source-bytes
-		// wait once won the race a beat before the title child re-materialized, so readNote saw a
-		// childless note.
+		// wait once won the race a beat before the title child re-materialized, so readCallout saw a
+		// childless callout.
 		await editor.undo();
-		await expect.poll(() => readNote(page, 1).then((n) => n.childTexts[0])).toBe('Title');
+		await expect.poll(() => readCallout(page, 1).then((n) => n.childTexts[0])).toBe('Title');
 		// Undo's selection restore returns the caret to the title leaf.
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);

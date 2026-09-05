@@ -6,10 +6,14 @@
  */
 
 import type { GrammarView } from '../schema/block-openers';
+import type { PresentationMode } from '../presentation-mode';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
 import type { CstNode, Document } from '../core/nodes';
 import type { SelectionPoint } from './primitives';
 import type { SharingState } from '../tree-operations/sharing';
-import { walkBetween } from './primitives';
+import { parse } from '../core/parser';
+import { displayLength, terminateLine, trailingLineEnding } from '../core/lines';
+import { charOffsetOf, walkBetween } from './primitives';
 import {
 	comparePaths,
 	isStrictAncestorOf,
@@ -19,8 +23,14 @@ import {
 	pathsEqual
 } from './path-math';
 import { cascadeCleanupEmptyAncestors } from '../tree-operations/cleanup';
-import { deleteAtPath } from '../tree-operations/path-mutate';
-import { nodeAt } from '../tree-operations/node-ops';
+import { deleteAtPath, replaceAtPath } from '../tree-operations/path-mutate';
+import {
+	blockNodeAt,
+	cleanJoinedRaw,
+	emptyParagraph,
+	nodeAt,
+	normalizeOwnRaw
+} from '../tree-operations/node-ops';
 import {
 	ensureUnsharedPath,
 	rebuildUnsharedAncestry,
@@ -37,7 +47,7 @@ import {
 } from './range-delete-chrome';
 
 /** Subtree roots only: one splice per covered subtree, never a child-by-child emptying. */
-export function filterToSubtreeRoots(paths: number[][]): number[][] {
+function filterToSubtreeRoots(paths: number[][]): number[][] {
 	return paths.filter((p) => !paths.some((q) => isStrictAncestorOf(q, p)));
 }
 
@@ -59,15 +69,139 @@ export function deleteSubtreesIdentityGated(
 	for (const i of reverseSortedIndices) {
 		const path = deletionPaths[i];
 		if (nodeAt(doc, path) === targetNodes[i]) {
-			deleteAtPath(doc, path);
+			deleteAtPath(doc, path, sharing);
 			cascadeCleanupEmptyAncestors(doc, path, lcaPath, sharing);
 		}
 	}
 }
 
+/** The live-seam reads a prose truncation needs; both undefined outside live. */
+export interface LiveSeamContext {
+	presentationMode: PresentationMode | undefined;
+	linkRef: InlineResolverRef | undefined;
+}
+
+/**
+ * A wall-branch truncation is half a join: the runs it strands, their partner gone with the
+ * cut, are bytes the reader never saw, so a kept prose side crosses the registered cleaner
+ * (live-mode.md § 4.5), expressed as a join with the block's own edge. Identity outside live;
+ * a chrome child's raw write never routes here — the wall stays byte-literal.
+ */
+function cleanTruncatedProse(
+	node: CstNode,
+	kept: 'head' | 'tail',
+	cut: number,
+	live: LiveSeamContext
+): { raw: string; seam: number } {
+	const join =
+		kept === 'head'
+			? {
+					mergedRaw: node.raw.slice(0, cut),
+					seam: cut,
+					start: { node, offset: cut },
+					end: { node, offset: displayLength(node.raw) }
+				}
+			: {
+					mergedRaw: node.raw.slice(cut),
+					seam: 0,
+					start: { node, offset: 0 },
+					end: { node, offset: cut }
+				};
+	return cleanJoinedRaw({ ...join, linkRef: live.linkRef }, live.presentationMode);
+}
+
+/**
+ * Reparse the bytes surviving at an endpoint's slot, through the source kind's own write rule:
+ * the reparse re-derives metadata from bytes, so structure the truncation dropped and the rule
+ * restores (a fence closer) has to land before it. The slot's leading trivia rides across, and
+ * an empty slice gives a bare paragraph, on the source block's line ending (G4.20).
+ */
+export function reparseTruncatedEndpoint(node: CstNode, slice: string): CstNode[] {
+	const lineEnding = trailingLineEnding(node.raw);
+	const reparsed = parse(normalizeOwnRaw(node, slice) || lineEnding, { scope: 'fragment' });
+	if (reparsed.children.length === 0) {
+		return [emptyParagraph(node.leadingTrivia, lineEnding)];
+	}
+	const cloned = reparsed.children.slice();
+	cloned[0] = { ...cloned[0], leadingTrivia: node.leadingTrivia };
+	// The peeled trailing blank line has no follower slot here, so it stays in raw.
+	cloned[cloned.length - 1].raw += reparsed.suffix;
+	return cloned;
+}
+
+/**
+ * Install an endpoint's replacement, stamped as the live tree's own. The splice door settles the
+ * blank run a truncation left the slot in (G2.13); `sharing` owns the writes.
+ */
+export function installTruncatedEndpoint(
+	doc: Document,
+	path: number[],
+	replacement: CstNode[],
+	sharing: SharingState
+): void {
+	for (const node of replacement) sharing.stamp(node);
+	replaceAtPath(doc, path, replacement, sharing);
+}
+
+/**
+ * Truncate the start endpoint in place, after the planned deletion: a chrome start keeps its
+ * bytes literal by raw write; a prose head crosses the unpaired-run cleanup, then reinstalls
+ * through the endpoint reparse. Returns the seam the collapsed caret lands on. `isChrome` is
+ * the caller's own derivation, read before any splice moved the tree.
+ */
+export function truncateStartInPlace(
+	doc: Document,
+	start: SelectionPoint,
+	startBlock: CstNode,
+	isChrome: boolean,
+	live: LiveSeamContext,
+	sharing: SharingState,
+	tag: string
+): number {
+	const cut = charOffsetOf(start, tag);
+	const head = isChrome
+		? { raw: startBlock.raw.slice(0, cut), seam: cut }
+		: cleanTruncatedProse(startBlock, 'head', cut, live);
+	if (isChrome) {
+		startBlock.raw = terminateLine(head.raw, startBlock.raw);
+	} else {
+		installTruncatedEndpoint(
+			doc,
+			start.path,
+			reparseTruncatedEndpoint(startBlock, terminateLine(head.raw, startBlock.raw)),
+			sharing
+		);
+	}
+	return head.seam;
+}
+
+/**
+ * Truncate the end endpoint in place, before the planned deletion (its path is still live):
+ * chrome by raw write, prose through the cleanup + reparse. Returns the surviving tail node
+ * re-read through the tree (design rule 5), for a caller that must locate it after splices.
+ */
+export function truncateEndInPlace(
+	doc: Document,
+	end: SelectionPoint,
+	endBlock: CstNode,
+	isChrome: boolean,
+	live: LiveSeamContext,
+	sharing: SharingState,
+	tag: string
+): CstNode | null {
+	const cut = charOffsetOf(end, tag);
+	if (isChrome) {
+		endBlock.raw = endBlock.raw.slice(cut) || trailingLineEnding(endBlock.raw);
+		return endBlock;
+	}
+	const tail = cleanTruncatedProse(endBlock, 'tail', cut, live).raw;
+	installTruncatedEndpoint(doc, end.path, reparseTruncatedEndpoint(endBlock, tail), sharing);
+	return blockNodeAt(doc, end.path);
+}
+
 // ── Cross-block deletion plan (chrome + table branches) ─────────────────────
-// The cross-block branches interleave their endpoint replaceAtPath differently, so the steps
-// stay separate atoms the callers sequence explicitly.
+// The branches interleave endpoint truncation with applyPlannedDeletion differently (end
+// before, start after), so the truncation atoms take their call position from the caller.
 
 export interface EndWall {
 	container: ChromeContainer;
@@ -178,7 +312,8 @@ export function rebuildSharedAncestries(
 	grammar: GrammarView | undefined
 ): void {
 	for (const path of plan.deletionPaths) {
-		rebuildUnsharedAncestry(doc, path, sharing, grammar);
+		rebuildUnsharedAncestry(doc, path, sharing, null, grammar);
 	}
-	if (plan.chromeClearChain) rebuildUnsharedChain(doc, plan.chromeClearChain, sharing, grammar);
+	if (plan.chromeClearChain)
+		rebuildUnsharedChain(doc, plan.chromeClearChain, sharing, null, grammar);
 }

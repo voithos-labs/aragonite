@@ -1,11 +1,16 @@
 // Image-widget selection is mutually exclusive with caret and cross-block
 // selection; `select` fires `onSelect` so the editor shell can clear the others.
 
+import { pathsEqual } from '../../selection/path-math';
+
+/** What an outside-press dismiss handler must NOT treat as outside: the widget itself and
+ *  the overlay chrome anchored to it. One string, because both handlers must move together. */
+export const IMAGE_CHROME_SELECTOR = '[data-image-widget], [data-image-overlay]';
+
 export interface WidgetTarget {
-	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a
-	// popover commit must target the image it opened on. Safe to hold because widget
-	// selection is cleared on every structural edit and navigation, so it can never
-	// outlive a shift of its own path.
+	// A deliberate snapshot, unlike the click path's live resolve (widget-dom.ts): a popover commit
+	// must target the image it opened on. Safe to hold because widget selection clears on every
+	// structural edit and navigation, so it cannot outlive a shift of its own path.
 	paragraphPath: number[];
 	sourceStart: number;
 	// The caret's raw offset just before widget selection took over; drives the undo
@@ -40,14 +45,9 @@ export function createWidgetSelectionState(opts: CreateWidgetSelectionOpts): Wid
 		clear: () => {
 			selected = null;
 		},
-		isSelected: (path, start) => {
-			if (selected === null) return false;
-			if (selected.sourceStart !== start) return false;
-			if (selected.paragraphPath.length !== path.length) return false;
-			for (let i = 0; i < path.length; i++) {
-				if (selected.paragraphPath[i] !== path[i]) return false;
-			}
-			return true;
-		}
+		isSelected: (path, start) =>
+			selected !== null &&
+			selected.sourceStart === start &&
+			pathsEqual(selected.paragraphPath, path)
 	};
 }

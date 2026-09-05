@@ -6,7 +6,7 @@
  */
 
 import {
-	createBoundedMemo,
+	createScanIndex,
 	declarePluginInlineKind,
 	declarePluginKind,
 	registerInlineSyntax,
@@ -24,6 +24,7 @@ import {
 	type FenceOpen
 } from '$lib/plugin';
 import MathInline from './MathInline.svelte';
+import { registerMathBlockCompleter } from './math-completion';
 
 export const MATH_INLINE = 'math';
 export const MATH_BLOCK = 'mathBlock';
@@ -34,13 +35,6 @@ export const MATH_FENCE = 'mathFence';
 const isWhitespace = (ch: string) => /\s/.test(ch);
 const isDigit = (ch: string) => ch >= '0' && ch <= '9';
 
-/**
- * Materialized once per block, not searched per consultation: a paragraph of shell
- * prose (`$HOME $PATH $USER …`) declines at every `$`, each costing a full block scan.
- * Bounded rather than weak-keyed because a string cannot key a WeakMap.
- */
-const closerIndex = createBoundedMemo<string, Int32Array>({ cap: 2 });
-
 function indexMathClosers(raw: string): Int32Array {
 	const positions: number[] = [];
 	for (let i = 1; i < raw.length; i++) {
@@ -49,17 +43,9 @@ function indexMathClosers(raw: string): Int32Array {
 	return Int32Array.from(positions);
 }
 
-function firstCloserFrom(raw: string, from: number): number {
-	const positions = closerIndex(raw, () => indexMathClosers(raw));
-	let lo = 0;
-	let hi = positions.length;
-	while (lo < hi) {
-		const mid = (lo + hi) >>> 1;
-		if (positions[mid] < from) lo = mid + 1;
-		else hi = mid;
-	}
-	return lo < positions.length ? positions[lo] : -1;
-}
+// Indexed once per block, not searched per consultation: a paragraph of shell prose
+// (`$HOME $PATH $USER …`) would otherwise cost a full block scan at every `$`.
+const firstCloserFrom = createScanIndex(indexMathClosers);
 
 /**
  * The digit guard on the opener is what keeps `$5 and $10` currency, not math. The
@@ -140,6 +126,9 @@ export function registerMathBlock(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		// The revealed source takes Enter as a literal newline and never splits, so neither
+		// edge can grow a sibling.
+		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
 		closure: simpleLeafClosure({
 			focus: {
@@ -191,6 +180,9 @@ export function registerMathBlock(): void {
 		}
 	});
 
+	// The open/close pair needs its lines adjacent, which Enter alone can never type.
+	registerMathBlockCompleter(mathBlock);
+
 	// Co-registered so one install teaches both forms (the admonition/githubAlert precedent).
 	registerMathFence();
 }
@@ -213,6 +205,7 @@ export function registerMathFence(): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
+		gapEdges: 'both',
 		conformanceFixture: '```math\nx^2\n```\n',
 		closure: simpleLeafClosure({
 			focus: {
@@ -231,8 +224,8 @@ export function registerMathFence(): void {
 				mode: 'implemented',
 				via: 'render-primary reveal→edit→blur cycle commits as one undo entry'
 			},
-			// No note-taking simulation drives a ```math fence; the interactive path is
-			// pinned by the latex-math-fence e2e, a plugins battery rather than the oracle.
+			// No note-taking simulation drives a ```math fence; its interactive path is pinned
+			// by the plugins e2e battery instead.
 			simOracle: { mode: 'inherit-default' }
 		})
 	});

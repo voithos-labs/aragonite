@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installDragListener } from '../../selection/drag-pointer';
 import { createSelectionState } from '../../selection/selection-state.svelte';
+import { parse } from '../../core/parser';
 
 describe('installDragListener — lifetime cleanup', () => {
 	let editorRoot: HTMLElement;
@@ -63,26 +64,19 @@ describe('installDragListener — lifetime cleanup', () => {
 		expect(() => handle.dispose()).not.toThrow();
 	});
 
-	it('pointercancel disposes listeners just like pointerup', () => {
-		const before = countDocListeners();
-		installDragListener(makeCtx(), { path: [0], offset: 0 }, down());
-		expect(countDocListeners()).toBeGreaterThan(before);
+	// The signal and no-signal teardown paths differ in source, so both arms stay named.
+	for (const withSignal of [false, true]) {
+		it(`pointercancel disposes listeners just like pointerup (${withSignal ? 'lifetime signal' : 'no signal'})`, () => {
+			const signal = withSignal ? new AbortController().signal : undefined;
+			const before = countDocListeners();
+			installDragListener(makeCtx(signal), { path: [0], offset: 0 }, down());
+			expect(countDocListeners()).toBeGreaterThan(before);
 
-		document.dispatchEvent(new Event('pointercancel'));
+			document.dispatchEvent(new Event('pointercancel'));
 
-		expect(countDocListeners()).toBe(before);
-	});
-
-	it('pointercancel teardown is symmetric across signal/no-signal contexts', () => {
-		const controller = new AbortController();
-		const before = countDocListeners();
-		installDragListener(makeCtx(controller.signal), { path: [0], offset: 0 }, down());
-		expect(countDocListeners()).toBeGreaterThan(before);
-
-		document.dispatchEvent(new Event('pointercancel'));
-
-		expect(countDocListeners()).toBe(before);
-	});
+			expect(countDocListeners()).toBe(before);
+		});
+	}
 
 	// The shared session filters up/cancel to the pointer that opened the drag, but only
 	// table-reorder-drag pinned it; the cross-block, reorder and cell lifecycles carried no test.
@@ -98,6 +92,50 @@ describe('installDragListener — lifetime cleanup', () => {
 		// The owning pointer's release tears it down.
 		document.dispatchEvent(pointerEnd('pointerup', 1));
 		expect(countDocListeners()).toBe(before);
+	});
+});
+
+// Miss-analysis: the drag suite only ever counted listeners. The park is the drag's one
+// coordinate-space consumer and the only sibling of four that never translated a cell endpoint,
+// because nothing asserted WHERE it parks — only that the drag tore down cleanly.
+describe('installDragListener — where the drag parks its dispatch caret', () => {
+	const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
+	let editorRoot: HTMLElement;
+
+	beforeEach(() => {
+		editorRoot = document.createElement('div');
+		document.body.appendChild(editorRoot);
+	});
+
+	afterEach(() => editorRoot.remove());
+
+	it('parks in the focus CELL when a drag ends inside a table', () => {
+		const doc = parse(TABLE_LAST);
+		const selection = createSelectionState({ getDoc: () => doc });
+		const requested: number[][] = [];
+		// Cell index 3 of a 2-column table is row 1, col 1 — the flagged focus a drag into the
+		// last cell leaves (`block-hit-test.ts :: endpointAtPoint`).
+		selection.enterCrossBlock(
+			{ path: [0], offset: 0 },
+			{ path: [1], offset: 3, cellCoordinate: true }
+		);
+		installDragListener(
+			{
+				editorRoot,
+				scrollContainer: editorRoot,
+				selection,
+				getBlockElByPath: (path) => {
+					requested.push(path);
+					return document.createElement('div');
+				}
+			},
+			{ path: [0], offset: 0 },
+			down()
+		);
+
+		document.dispatchEvent(new MouseEvent('pointerup'));
+
+		expect(requested).toEqual([[1, 1, 1]]);
 	});
 });
 

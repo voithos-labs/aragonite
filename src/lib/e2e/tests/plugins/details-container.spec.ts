@@ -23,7 +23,6 @@ test.describe('plugin container: <details> collapsible', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
 		await editor.gotoDetails();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('substrate: ?seed=details mounts the DetailsBlock component, not a raw fallback', async ({
@@ -242,8 +241,8 @@ test.describe('plugin container: <details> collapsible', () => {
 		//
 		// KEEP THE OFFSET. This assertion is the ONLY guard on the commit doors' caret mapping: the
 		// landing goes through `refAt(i)?.focus`, and a unit pin would need jsdom plus mounted
-		// refs. Weakened to a path check it guards nothing — the shipped bug it caught landed the
-		// caret three units inside the word.
+		// refs. Weakened to a path check it guards nothing — a caret three units into the word
+		// passes it.
 		const sel = await page.evaluate(() => (window as any).__test.getSelectionPaths());
 		expect(sel.focus).toEqual({ path: [0, 2], offset: 13 });
 		expect(await capturedErrors(page)).toEqual([]);
@@ -259,7 +258,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		// Drag-select from the prose above into the middle of the summary, then copy.
 		await editor.dragFromTo([0], 2, [1, 0], 3);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		// Paste into "Below": the synthesized closer makes the bytes reparse to a
@@ -267,7 +266,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.clickBlock(2);
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.press('End');
-		await page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('<summary>Sum</summary>');
 
 		const pasted = await page.evaluate(() => {

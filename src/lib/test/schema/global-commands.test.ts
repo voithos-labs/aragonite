@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
-import {
-	registerGlobalCommand,
-	__resetPluginGlobalCommandsForTests
-} from '$lib/schema/global-commands';
+import { configureEditorEnv } from '$lib/env';
+import { allowDevWarns, takeDevWarns } from '../support/warn-gate';
+import { registerGlobalCommand } from '$lib/schema/global-commands';
 import {
 	getCommand,
 	resolveBinding,
 	resolveGlobalBinding,
-	isEditorGlobalChord,
+	isDefaultGlobalChord,
 	pluginGlobalBinding,
 	__resetPluginGlobalKeymapForTests,
 	__removePluginCommandsForTests,
@@ -16,6 +14,7 @@ import {
 } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
 import { __resetMintedCommandIdsForTests } from '$lib/schema/command-id';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	definePlugin,
 	installPlugins,
@@ -31,12 +30,12 @@ const editor = {
 } as never as EditorContext;
 const ctx = (over?: Partial<GlobalCommandContext>): GlobalCommandContext => ({
 	history: { requestUndo() {}, requestRedo() {} },
+	activation: everyInstalledPlugin,
 	pluginEditor: () => editor,
 	...over
 });
 
 beforeEach(() => {
-	__resetPluginGlobalCommandsForTests();
 	__resetPluginGlobalKeymapForTests();
 	__removePluginCommandsForTests();
 	__resetMintedCommandIdsForTests();
@@ -53,6 +52,26 @@ describe('registerGlobalCommand', () => {
 	it('declines (false) when the dispatch site supplies no pluginEditor', () => {
 		const id = registerGlobalCommand('demo.lone', () => true);
 		expect(getCommand(id)!(ctx({ pluginEditor: undefined }))).toBe(false);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['commands']);
+	});
+
+	// A plugin installed process-wide but absent from this editor's `plugins` prop resolves no
+	// context here. That is inert, not a dead key, so it must not spend the dead-key diagnostic.
+	it('declines quietly when the dispatching editor did not list the owning plugin', () => {
+		__resetInstalledPluginsForTests();
+		let ran = false;
+		let id!: ReturnType<typeof registerGlobalCommand>;
+		installPlugins([
+			definePlugin({
+				name: 'scoped',
+				setup() {
+					id = registerGlobalCommand('scoped.act', () => ((ran = true), true));
+				}
+			})
+		]);
+		expect(getCommand(id)!(ctx({ pluginEditor: () => undefined }))).toBe(false);
+		expect(ran).toBe(false);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('contains a handler throw and reports it through the injected sink', () => {
@@ -66,10 +85,14 @@ describe('registerGlobalCommand', () => {
 
 	it('chord registers into the plugin-global tier; built-in chords are unstealable', () => {
 		registerGlobalCommand('demo.chorded', () => true, { chord: 'Mod+Shift+9' });
-		expect(pluginGlobalBinding('Mod+Shift+9')?.command).toBe('demo.chorded');
-		expect(isEditorGlobalChord('Mod+Shift+9')).toBe(true);
-		expect(resolveGlobalBinding('Mod+Shift+9')?.command).toBe('demo.chorded');
-		expect(resolveBinding('Mod+Shift+9', 'paragraph')?.command).toBe('demo.chorded');
+		expect(pluginGlobalBinding('Mod+Shift+9', everyInstalledPlugin)?.command).toBe('demo.chorded');
+		expect(isDefaultGlobalChord('Mod+Shift+9', everyInstalledPlugin)).toBe(true);
+		expect(resolveGlobalBinding('Mod+Shift+9', undefined, everyInstalledPlugin)?.command).toBe(
+			'demo.chorded'
+		);
+		expect(
+			resolveBinding('Mod+Shift+9', 'paragraph', undefined, everyInstalledPlugin)?.command
+		).toBe('demo.chorded');
 		expect(() => registerGlobalCommand('demo.steal', () => true, { chord: 'Mod+Z' })).toThrow(
 			/Mod\+Z/
 		);
@@ -85,8 +108,8 @@ describe('registerGlobalCommand', () => {
 		expect(() => registerGlobalCommand('demo.malformed', () => true, { chord: 'Ctrl+W' })).toThrow(
 			/malformed/
 		);
-		expect(pluginGlobalBinding('W')).toBeNull();
-		expect(resolveBinding('W', 'paragraph')).toBeNull();
+		expect(pluginGlobalBinding('W', everyInstalledPlugin)).toBeNull();
+		expect(resolveBinding('W', 'paragraph', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
 	it('a chord collision leaves no partial state — the name can still be minted afterward', () => {
@@ -99,14 +122,15 @@ describe('registerGlobalCommand', () => {
 	it('a consumer global override disables a plugin-global chord', () => {
 		registerGlobalCommand('demo.overridable', () => true, { chord: 'Mod+Shift+8' });
 		const overrides = normalizeKeybindingOverrides([{ chord: 'Mod+Shift+8', command: null }]);
-		expect(resolveBinding('Mod+Shift+8', 'paragraph', overrides)).toBeNull();
+		expect(resolveBinding('Mod+Shift+8', 'paragraph', overrides, everyInstalledPlugin)).toBeNull();
 	});
 });
 
 // The SSR/HMR registrar-poison class: a re-evaluated registrar's chord collision must not
 // 500 the route. Only a same-command re-bind in dev-not-test softens; the rest still throw.
 describe('chorded global command survives dev re-eval', () => {
-	afterEach(() => resetEditorEnv());
+	// The dev valve announces every replace it performs; these cases are about what throws.
+	afterEach(() => allowDevWarns(['registry']));
 
 	it('re-binding the same command+chord replaces instead of throwing', () => {
 		configureEditorEnv({ isDev: true, isTest: false });
@@ -115,8 +139,10 @@ describe('chorded global command survives dev re-eval', () => {
 			registerGlobalCommand('demo.dev', () => true, { chord: 'Mod+Shift+7' })
 		).not.toThrow();
 		// One binding survives — a re-eval must not stack a duplicate.
-		expect(pluginGlobalBinding('Mod+Shift+7')?.command).toBe('demo.dev');
-		expect(resolveBinding('Mod+Shift+7', 'paragraph')?.command).toBe('demo.dev');
+		expect(pluginGlobalBinding('Mod+Shift+7', everyInstalledPlugin)?.command).toBe('demo.dev');
+		expect(
+			resolveBinding('Mod+Shift+7', 'paragraph', undefined, everyInstalledPlugin)?.command
+		).toBe('demo.dev');
 	});
 
 	it('a cross-command chord collision still throws under dev re-eval', () => {

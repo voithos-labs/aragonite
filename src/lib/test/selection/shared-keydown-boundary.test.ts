@@ -17,6 +17,7 @@ import {
 } from '../../selection/keyboard-extend';
 import { parse } from '../../core/parser';
 import { createStickyColumnState } from '../../cursor/sticky-column';
+import { createEdgeAffinityState } from '../../cursor/edge-affinity';
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 const toNext = vi.mocked(extendFocusToNextBlock);
@@ -27,21 +28,33 @@ function makeCtx(over: {
 	textLen: number;
 }): SharedKeydownContext {
 	const doc = parse('a\n\nb\n');
+	// Cast the members this fixture genuinely does not stand up, never the whole context: a
+	// blanket cast is what let a new required reader ship unanswered here.
 	return {
+		// No plugins stood up here, so every installed one is active.
+		activePlugins: undefined,
 		getEl: () => document.createElement('div'),
 		getCursorOffset: () => over.cursorOffset,
 		getFocusOffset: () => over.focusOffset,
+		// A detached element reads as no presentation root, so the bounds never walk it.
+		getAmbientLength: () => 0,
 		getTextLen: () => over.textLen,
 		getMyPath: () => [1],
 		getIndex: () => 1,
-		crossBlock: { handleKeyDown: async () => false, handleBeforeInput: async () => false },
-		selection: { resetSelectAllCount: () => {} },
+		crossBlock: {
+			handleKeyDown: async () => false,
+			handleBeforeInput: async () => false
+		} as unknown as SharedKeydownContext['crossBlock'],
+		selection: {
+			resetSelectAllCount: () => {}
+		} as unknown as SharedKeydownContext['selection'],
 		stickyColumn: createStickyColumnState(),
-		history: {},
-		focus: {},
+		edgeAffinity: createEdgeAffinityState(),
+		history: {} as SharedKeydownContext['history'],
+		focus: {} as SharedKeydownContext['focus'],
 		getDoc: () => doc,
 		getBlockElByPath: () => null
-	} as unknown as SharedKeydownContext;
+	};
 }
 
 function keydown(key: string): KeyboardEvent {

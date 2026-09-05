@@ -8,9 +8,23 @@ import {
 } from '$lib/schema/block-commands';
 import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeKeybindingOverrides } from '$lib/schema/keybinding-overrides';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import type { CstNode } from '$lib/core/nodes';
 
-const history = { history: { requestUndo() {}, requestRedo() {} } };
+const ctx = {
+	history: { requestUndo() {}, requestRedo() {} },
+	activation: everyInstalledPlugin,
+	getPresentationMode: () => 'source' as const,
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
+};
+
+// No cross-block range in these cases; the seam's range decline has its own suite.
+const GATES = {
+	getPresentationMode: () => 'source' as const,
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
+};
 const nodeOf = (kind: string): CstNode =>
 	({
 		kind: kind as CstNode['kind'],
@@ -40,7 +54,7 @@ describe('leaf-path dispatch of a minted block command', () => {
 		const handled = dispatchKeyCommand(
 			'Mod+Shift+K',
 			{ kind: 'paragraph', runCommand, getCommandContext: () => ({ node, updateMetadata }) },
-			history,
+			ctx,
 			overrides
 		);
 
@@ -71,7 +85,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 				runCommand: () => false,
 				getCommandContext: () => ({ node, updateMetadata: () => {} })
 			},
-			history,
+			ctx,
 			overrides,
 			(r) => reports.push(r)
 		);
@@ -98,8 +112,9 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 				runCommand: () => false,
 				getCommandContext: () => ({ node, updateMetadata: () => {} })
 			},
+			GATES,
 			overrides,
-			(r) => reports.push(r)
+			(r: CommandErrorReport) => reports.push(r)
 		);
 
 		expect(handled).toBe(true);
@@ -123,7 +138,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 					runCommand: () => false,
 					getCommandContext: () => ({ node, updateMetadata: () => {} })
 				},
-				history,
+				ctx,
 				overrides
 			)
 		).not.toThrow();
@@ -135,7 +150,7 @@ describe('a throwing plugin handler is contained at the dispatch seam', () => {
 		const runCommand = vi.fn(() => {
 			throw new Error('builtin boom');
 		});
-		expect(() => dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, history)).toThrow(
+		expect(() => dispatchKeyCommand('Mod+B', { kind: 'paragraph', runCommand }, ctx)).toThrow(
 			'builtin boom'
 		);
 	});

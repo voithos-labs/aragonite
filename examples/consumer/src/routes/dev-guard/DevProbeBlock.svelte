@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BlockList, createContainerBlock, type NodeView } from 'aragonite/plugin';
+	import { BlockList, createContainerBlock, type NodeView } from '@voithos-labs/aragonite/plugin';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 

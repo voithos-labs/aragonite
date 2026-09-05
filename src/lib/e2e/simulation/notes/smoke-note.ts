@@ -30,10 +30,12 @@ export const SMOKE_NOTE: NoteFixture = {
 		'Glucose',
 		'drive the reaction'
 	],
+	// Enter separates, so the note reads the way the gestures type it.
 	expectedMarkdown:
 		'Photosynthesis converts light energy into chemical energy.\n' +
 		'\n' +
 		'## Key players\n' +
+		'\n' +
 		'- Chloroplasts capture light\n' +
 		'- Water splits into oxygen\n' +
 		'- Glucose stores the energy\n' +

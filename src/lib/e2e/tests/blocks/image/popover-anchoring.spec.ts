@@ -1,5 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { waitForAllImagesLoaded } from './helpers';
 
 test.describe('image popover anchoring', () => {
 	let editor: EditorPage;
@@ -34,11 +35,7 @@ test.describe('image popover anchoring', () => {
 		await editor.loadContent(
 			'![one|400](/test-fixtures/sample.png)\n\n![two|200](/test-fixtures/sample.png)\n'
 		);
-		await page.waitForFunction(() =>
-			Array.from(document.querySelectorAll('[data-image-widget] img')).every(
-				(img) => (img as HTMLImageElement).complete
-			)
-		);
+		await waitForAllImagesLoaded(page);
 		const w2Box = await page.locator('[data-image-widget]').nth(1).boundingBox();
 		if (!w2Box) throw new Error('w2 box');
 		await page.mouse.click(w2Box.x + w2Box.width / 2, w2Box.y + w2Box.height / 2);

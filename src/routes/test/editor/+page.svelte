@@ -1,38 +1,29 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
-	import { parse } from '$lib/core/parser';
-	import {
-		dumpTree,
-		dumpUndoStack,
-		dumpOperationsLog,
-		dumpInteractionTrace
-	} from '$lib/debug/inspect';
-	import { interactionTraceSnapshot } from '$lib/debug/interaction-trace';
-	import { SHOWCASE_CONTENT } from '$lib/e2e/test-content';
+	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
-	import DebugPanel from './debug-panel/DebugPanel.svelte';
-	import SelectionToolbar from './SelectionToolbar.svelte';
-	import {
-		harnessPasteImage,
-		installTestProbes,
-		liveSelectionText,
-		dumpFocusedInlineTree
-	} from './test-probes';
+	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
+	import { createPanelState } from '../../debug-panel/panel-state.svelte';
+	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
+	import InsertToolbar from '../../InsertToolbar.svelte';
+	import SelectionToolbar from '../../SelectionToolbar.svelte';
+	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
-	let source = $state(SHOWCASE_CONTENT);
+	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
+	const param = (name: string): string | null =>
+		typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(name);
+
+	let source = $state(HARNESS_SHOWCASE_CONTENT);
 	let keybindings = $state<KeybindingOverride[] | undefined>(undefined);
 	// $state so the {#key} remount on toggle re-points the test probes and debug
 	// panel at the new editor instance (bind:this reassigns it).
 	let editor = $state<ReturnType<typeof Editor>>();
 
-	// `?dragHandles=false` starts with the hover drag handle disabled. blockDragHandles is
-	// set-once-at-mount, so the header checkbox remounts the editor via {#key}, carrying
-	// the live content across so edits survive.
-	let dragHandlesOn = $state(
-		typeof window === 'undefined' ||
-			new URLSearchParams(window.location.search).get('dragHandles') !== 'false'
-	);
+	// On by default here, unlike the library (opt-in), so the handle specs get it without a param;
+	// `?dragHandles=false` turns it off. Set-once-at-mount, so the header checkbox remounts via
+	// {#key}, carrying the content across.
+	let dragHandlesOn = $state(param('dragHandles') !== 'false');
 
 	function toggleDragHandles() {
 		if (editor) source = editor.getSource();
@@ -41,83 +32,53 @@
 
 	// The prop is set-once at mount, so the opt-in is a URL param and the per-image response
 	// is swapped behind this stable function. Off by default — that is the no-hook arm.
-	const onPasteImage =
-		typeof window !== 'undefined' &&
-		new URLSearchParams(window.location.search).get('imagePaste') === 'on'
-			? harnessPasteImage
-			: undefined;
+	const onPasteImage = param('imagePaste') === 'on' ? harnessPasteImage : undefined;
 
-	// `?header=on` mounts a host header inside the editor's scroll container. Off by
-	// default: a preamble shifts every block's geometry, which specs across the suite
-	// measure. Its toggle lives in the page header, OUTSIDE the scroll container, because
-	// clicking a control inside it would scroll the very position under test.
-	const headerOn =
-		typeof window !== 'undefined' &&
-		new URLSearchParams(window.location.search).get('header') === 'on';
+	// `?header=on` mounts a host header inside the editor's scroll container, off by default
+	// because a preamble shifts the block geometry specs across the suite measure. Its toggle
+	// sits OUTSIDE that container, so clicking it cannot scroll the position under test.
+	const headerOn = param('header') === 'on';
 	let headerTall = $state(false);
+
+	// `?paddedList=on` reproduces the documented host layout that pads the block list itself, so
+	// the visible side gutter reports the LIST as the click target rather than the editor root.
+	const paddedListOn = param('paddedList') === 'on';
+
+	// `?insertToolbar=on` mounts the shared insert strip above the editor. Off by default: a
+	// standing bar shifts the block geometry the rest of the suite measures.
+	const insertToolbarOn = param('insertToolbar') === 'on';
+
+	// `?searchAnchor=on` mounts a fixed pane OUTSIDE `.aragonite-editor-theme` as the find/replace
+	// bar's home. Off by default: it would overlay geometry the rest of the suite measures.
+	const searchAnchorOn = param('searchAnchor') === 'on';
+	let searchAnchorEl = $state<HTMLElement>();
+	let anchorAttached = $state(true);
+	// `?theme=light` starts in the light tokens; the header toggle still flips it live.
+	let editorTheme = $state(param('theme') === 'light' ? 'light' : 'dark');
 
 	// `?presentationMode=…` starts in that mode; the prop reads live, so the header
 	// toggles need no remount (unlike blockDragHandles).
-	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline'];
+	const PARAM_MODES: PresentationMode[] = ['reading', 'preview-block', 'preview-inline', 'live'];
 	let presentationMode = $state<PresentationMode>(
-		(typeof window !== 'undefined' &&
-			(PARAM_MODES.find(
-				(m) => m === new URLSearchParams(window.location.search).get('presentationMode')
-			) as PresentationMode | undefined)) ||
-			'source'
+		PARAM_MODES.find((m) => m === param('presentationMode')) ?? 'source'
 	);
 
 	// The testids are pinned by the presentation e2e.
 	const PRESENTATION_TOGGLES: { mode: PresentationMode; testid: string; label: string }[] = [
 		{ mode: 'reading', testid: 'presentation-toggle', label: 'Reading mode' },
 		{ mode: 'preview-block', testid: 'preview-block-toggle', label: 'Block preview' },
-		{ mode: 'preview-inline', testid: 'preview-inline-toggle', label: 'Inline preview' }
+		{ mode: 'preview-inline', testid: 'preview-inline-toggle', label: 'Inline preview' },
+		{ mode: 'live', testid: 'live-toggle', label: 'Live mode' }
 	];
 
-	// Records to a page-scoped sink instead of opening a window. Wired ONLY in reading
-	// mode: onLinkActivate REPLACES the default open-in-tab, so wiring it in source mode
-	// would swallow the native activation the link-clickability specs assert.
+	// Records to a page-scoped sink instead of opening a window. Wired ONLY in reading mode:
+	// onLinkActivate REPLACES the default open-in-tab, which source mode's specs assert on.
 	function recordLinkActivation(url: string) {
 		((window as unknown as { __linkActivations?: string[] }).__linkActivations ??= []).push(url);
 	}
 
-	// Bumped by editor ops AND native selectionchange: without the selectionchange half,
-	// clicking in a block moves the caret with no Svelte signal, so the panel never refreshes.
-	let panelTick = $state(0);
-
-	$effect(() => {
-		if (typeof window === 'undefined' || !editor) return;
-		const log = editor.__test.getOperationsLog?.();
-		if (!log) return;
-		const unsub = log.subscribe(() => {
-			panelTick += 1;
-		});
-		return () => unsub();
-	});
-
-	$effect(() => {
-		if (typeof document === 'undefined') return;
-		const onSelectionChange = () => {
-			panelTick += 1;
-		};
-		document.addEventListener('selectionchange', onSelectionChange);
-		return () => document.removeEventListener('selectionchange', onSelectionChange);
-	});
-
-	// MUST NOT feed back into the `source` prop: Editor re-initializes from source
-	// changes, which would wipe undo / selection / CST on every op.
-	const liveSource = $derived.by(() => {
-		void panelTick;
-		return editor?.getSource() ?? source;
-	});
-
-	// LIVE first: the panel's job is the state a reparse cannot express (a live-kind-vs-raw
-	// desync, a transient block the serializer trims). Where the two views differ IS the bug.
-	function cstSection(): string {
-		const reparse = `--- REPARSE OF getSource() ---\n${dumpTree(parse(liveSource))}`;
-		if (!editor) return reparse;
-		return `--- LIVE ---\n${dumpTree(editor.__test.getDocument())}\n\n${reparse}`;
-	}
+	const panel = createPanelState();
+	const panelFeed = createDebugPanelFeed(() => editor);
 
 	trackParityDocument(() => editor);
 
@@ -164,7 +125,9 @@
 	</div>
 {/snippet}
 
-<div class="test-harness aragonite-editor-theme">
+<!-- The host-chrome token block keys on the attribute sitting WITH the class, so a wrapper that
+     carries only the class gets editor tokens and stale chrome — the showcase route's shape. -->
+<div class="test-harness aragonite-editor-theme" data-editor-theme={editorTheme}>
 	<header class="demo-header">
 		<div class="demo-heading">
 			<h1 class="demo-title">aragonite</h1>
@@ -209,7 +172,10 @@
 		{/each}
 	</header>
 	<div class="demo-body">
-		<div class="editor-slot">
+		{#if insertToolbarOn}
+			<InsertToolbar {editor} />
+		{/if}
+		<div class="editor-slot" class:padded-list={paddedListOn}>
 			{#key dragHandlesOn}
 				<Editor
 					bind:this={editor}
@@ -220,46 +186,55 @@
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
 					{onPasteImage}
 					header={headerOn ? documentHero : undefined}
-					theme="dark"
+					theme={editorTheme}
+					searchBarAnchor={anchorAttached ? searchAnchorEl : null}
 				/>
 			{/key}
 			<SelectionToolbar {editor} />
 		</div>
-		<DebugPanel
-			rawSource={liveSource}
-			getCst={cstSection}
-			getSelection={() => {
-				void panelTick;
-				return liveSelectionText(editor);
-			}}
-			getUndoStack={() => {
-				void panelTick;
-				const stack = editor?.__test?.getUndoStack?.();
-				return stack ? dumpUndoStack(stack) : '(editor not ready)';
-			}}
-			getInlineTree={() => {
-				// panelTick read FIRST: if editor is undefined on the first evaluation, the
-				// early return below would skip the signal read and the derived would
-				// never subscribe.
-				void panelTick;
-				if (!editor) return '';
-				return dumpFocusedInlineTree(liveSource);
-			}}
-			getOpsLog={() => {
-				const log = editor?.__test?.getOperationsLog?.();
-				return log ? dumpOperationsLog(log) : '';
-			}}
-			getTrace={() => {
-				// The section's expand arms the recorder (DebugPanel.toggleTrace).
-				void panelTick;
-				return dumpInteractionTrace(interactionTraceSnapshot());
-			}}
-			opsLogTick={panelTick}
-		/>
+		<DebugPanel {panel} {...panelFeed} />
 	</div>
 </div>
 
+{#if searchAnchorOn}
+	<!-- Deliberately outside `.aragonite-editor-theme`: a themed ancestor here would resolve
+	     the bar's tokens for it and hide a seam that forgot to carry its own scope. -->
+	<div class="anchor-pane" data-testid="search-anchor" bind:this={searchAnchorEl}></div>
+	<div class="anchor-controls">
+		<button
+			type="button"
+			data-testid="anchor-toggle"
+			onclick={() => (anchorAttached = !anchorAttached)}
+		>
+			Anchor: {anchorAttached ? 'on' : 'off'}
+		</button>
+		<button
+			type="button"
+			data-testid="theme-toggle"
+			onclick={() => (editorTheme = editorTheme === 'dark' ? 'light' : 'dark')}
+		>
+			Theme: {editorTheme}
+		</button>
+	</div>
+{/if}
+
 <style>
+	/* Positioned, so the bar's own absolute placement resolves against the pane — the
+	   consumer side of "the anchor is the box". */
+	.anchor-pane {
+		position: fixed;
+		top: 8px;
+		right: 8px;
+		width: 420px;
+		height: 44px;
+	}
+	.anchor-controls {
+		position: fixed;
+		bottom: 8px;
+		right: 8px;
+		display: flex;
+		gap: 6px;
+	}
 	.test-harness {
 		width: 100vw;
 		height: 100vh;
@@ -342,5 +317,11 @@
 		flex-direction: column;
 		min-width: 0;
 		min-height: 0;
+	}
+	/* Puts the visible side gutter on the LIST rather than the root — the host layout the
+	   dead-space gesture has to claim through. */
+	.padded-list :global(.editor > .block-list) {
+		width: 100%;
+		padding: 0 24px;
 	}
 </style>

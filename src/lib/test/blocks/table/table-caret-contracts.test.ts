@@ -1,18 +1,13 @@
 // @vitest-environment jsdom
 //
-// The three contracts the table's own two layers owe the caret machinery, none of which a
-// reader of either component would guess and none of which anything else observes.
-//   · The grid and row markup contribute NO characters: a stray text node joins the raw-offset
-//     walk (`cursor/widget-offset.ts`) and shifts a parked cross-block caret by its length. The
-//     rule is a template-formatting habit that one reflow undoes, and only the rendered DOM can
-//     say whether it still holds.
-//   · The park door owes the opposite of the focus door — it must NOT end the live range,
-//     because the extend that reached it is still growing one. The G2.12 source scan reads
-//     focus FORWARDS and park CALLERS, so which of its child's doors a container lands through
-//     is invisible to it.
-//   · A path-addressed landing carries its offset down to the cell, which is how undo puts the
-//     caret back where the edit was rather than at the cell's start.
+// The three contracts the table's two layers owe the caret machinery, which nothing else
+// observes: the grid and row markup contribute NO characters (a stray text node joins the
+// raw-offset walk and shifts a parked caret by its length; only rendered DOM can say the
+// habit holds); the park door must NOT end the live range (G2.12 reads focus forwards and
+// park callers, so a container's inner door choice is invisible to it); and a path-addressed
+// landing carries its offset down to the cell, which is how undo restores the exact spot.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { CURSOR_END, CURSOR_START } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { installTableLayoutStubs, mountTable, type MountedTable } from './mount-table';
 
@@ -38,21 +33,31 @@ function ownTextOf(el: Element): string[] {
 		.map((child) => child.textContent ?? '');
 }
 
-describe('the table markup contributes no characters to the raw-offset walk', () => {
-	it('holds no text node between the corner, the column grips, and the rows', () => {
-		mounted = mountTable(GRID);
+// Both grip states, since `blockDragHandles` decides whether the grips render and each state
+// has its own adjacency: the corner-to-grip run when on, the `{#if}` boundaries when off.
+describe.each([true, false])(
+	'the table markup contributes no characters to the raw-offset walk (grips: %s)',
+	(grips) => {
+		const mountGripped = () => mountTable(GRID, { policies: { blockDragHandles: () => grips } });
 
-		expect(ownTextOf(mounted.el)).toEqual([]);
-	});
+		it('holds no text node between the corner, the column grips, and the rows', () => {
+			mounted = mountGripped();
 
-	it('holds none inside a row either, between its grip and its cells', () => {
-		mounted = mountTable(GRID);
+			// Non-vacuity: without this the grips-on run is the grips-off run under another name.
+			expect(mounted.el.querySelectorAll('[data-table-col-grip]')).toHaveLength(grips ? 2 : 0);
+			expect(ownTextOf(mounted.el)).toEqual([]);
+		});
 
-		const rows = mounted.el.querySelectorAll(':scope > [data-table-row-idx]');
-		expect(rows).toHaveLength(3);
-		for (const row of rows) expect(ownTextOf(row)).toEqual([]);
-	});
-});
+		it('holds none inside a row either, between its grip and its cells', () => {
+			mounted = mountGripped();
+
+			const rows = mounted.el.querySelectorAll(':scope > [data-table-row-idx]');
+			expect(rows).toHaveLength(3);
+			expect(mounted.el.querySelectorAll('[data-table-row-grip]')).toHaveLength(grips ? 3 : 0);
+			for (const row of rows) expect(ownTextOf(row)).toEqual([]);
+		});
+	}
+);
 
 describe('the table lands a caret through the door and at the offset it was asked for', () => {
 	it('parks in the corner cell without ending a live cross-block range', () => {
@@ -75,5 +80,18 @@ describe('the table lands a caret through the door and at the offset it was aske
 		mounted.block.focusByPath!([2, 1], 1);
 
 		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
+	});
+
+	// Miss-analysis (GH #111): the row's doors forwarded literal 0 whatever they received, and
+	// no test addressed a ROW-level landing — every pin went through the table or a full path.
+	it('a row-level door forwards the received sentinel, not literal 0', () => {
+		mounted = mountTable(GRID);
+		const row = mounted.block.getBlockComponentByPath!([2])!;
+
+		row.focus(CURSOR_END);
+		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 1], offset: 1 });
+
+		row.parkCaret!(CURSOR_START);
+		expect(mounted.block.getCursorPosition!()).toEqual({ path: [2, 0], offset: 0 });
 	});
 });

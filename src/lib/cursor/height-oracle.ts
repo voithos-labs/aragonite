@@ -5,7 +5,7 @@
  * stable block id, so structural index shifts and undo don't invalidate them.
  */
 import type { NodeView } from '../core/node-views';
-import { isCollapsedContainer } from '../schema/reserved-chrome';
+import { isCollapsedByDescriptor } from '../schema/reserved-chrome';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 
 // Any image form, capturing the alt segment for its `|WxH` size hint. The char-based prose
@@ -13,6 +13,8 @@ import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 const IMAGE_ALT = /!\[([^\]]*)\]/g;
 // Size hint inside the alt, e.g. `Square|200x200` or `photo|400` (width only).
 const SIZE_HINT = /\|(\d+)(?:x(\d+))?/;
+
+const NEWLINE = 10;
 
 export interface HeightOracleOptions {
 	lineHeight: number; // px per wrapped prose line
@@ -28,9 +30,8 @@ export interface HeightOracle {
 	recordMeasured(id: string, height: number): void;
 	/** measured(id) ?? estimate(node, width). */
 	height(id: string, node: NodeView, width: number): number;
-	/** Drop measured heights (call on container width change — wrap depends on width). */
-	invalidateWidth(): void;
-	clear(): void;
+	/** Drop every measured height; estimates carry the model until each block re-measures. */
+	dropMeasured(): void;
 }
 
 export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
@@ -43,7 +44,8 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 
 	function sourceLines(raw: string): number {
 		let n = 1;
-		for (let i = 0; i < raw.length; i++) if (raw[i] === '\n') n++;
+		// Code units, not `raw[i]`: the indexed read mints a one-character string per byte.
+		for (let i = 0; i < raw.length; i++) if (raw.charCodeAt(i) === NEWLINE) n++;
 		if (raw.endsWith('\n')) n--; // trailing newline shouldn't add a phantom line
 		return Math.max(1, n);
 	}
@@ -62,12 +64,14 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 	}
 
 	function estimate(node: NodeView, width: number): number {
+		// One registry lookup, read twice: the model seeds this once per block of the document.
+		const descriptor = tryGetBlockKindDescriptor(node.kind);
 		// A collapsed container's body lives in `raw` but never renders, so estimating from
 		// full `raw` over-counts it several-fold; only the chrome row paints.
-		if (isCollapsedContainer(node)) return opts.lineHeight + opts.blockChrome;
+		if (isCollapsedByDescriptor(descriptor, node)) return opts.lineHeight + opts.blockChrome;
 		// A descriptor's own O(1) estimate supersedes the built-in arms (a rendered artifact
 		// is far taller than its source text); the oracle still adds chrome.
-		const custom = tryGetBlockKindDescriptor(node.kind)?.estimateHeight;
+		const custom = descriptor?.estimateHeight;
 		if (custom) return custom(node, { width }) + opts.blockChrome;
 		const kind = node.kind;
 		const raw = node.raw;
@@ -98,6 +102,9 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			}
 			default: {
 				const prose = wrappedLines(raw.length, width) * opts.lineHeight + opts.blockChrome;
+				// Substring test first: the alt-capturing scan otherwise runs over every prose
+				// block in the document, and all but a handful carry no image at all.
+				if (!raw.includes('![')) return prose;
 				const images = imageHeights(raw);
 				return images > 0 ? Math.max(prose, images) : prose;
 			}
@@ -111,7 +118,6 @@ export function createHeightOracle(opts: HeightOracleOptions): HeightOracle {
 			measuredById.set(id, height);
 		},
 		height: (id, node, width) => measuredById.get(id) ?? estimate(node, width),
-		invalidateWidth: () => measuredById.clear(),
-		clear: () => measuredById.clear()
+		dropMeasured: () => measuredById.clear()
 	};
 }

@@ -33,9 +33,8 @@ test.describe('code fences — reading mode collapses the fence lines', () => {
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'reading');
 		await ep.waitForRenderFlush();
 
-		// Opener + closer gone, body untouched: ≈ 2 line-heights shorter. Pre-fix the
-		// bare `\n`s keep both blank lines, so the box does not shrink → red. The band
-		// also catches a half-fix that collapses only the top or only the bottom line.
+		// Opener + closer gone, body untouched: ≈ 2 line-heights shorter. The band is two-sided so
+		// a half-collapse — only the top or only the bottom line — fails as loudly as none.
 		const collapsed = sourceHeight - (await boxHeight(ep));
 		expect(collapsed).toBeGreaterThan(perLine * 1.5);
 		expect(collapsed).toBeLessThan(perLine * 2.5);
@@ -84,8 +83,8 @@ test.describe('code fences — an all-blank body keeps its blank lines in readin
 		// Both boxes collapse opener + closer; the content box loses two fence lines.
 		const lineHeight = (sourceContent - readingContent) / 2;
 
-		// Pre-fix the closer wrapper steals the blank body's terminating `\n`, so the
-		// all-blank box renders one line short of the content box → red below the band.
+		// A closer wrapper that steals the blank body's terminating `\n` renders the all-blank box
+		// one line short of the content box, which falls below the band.
 		expect(readingBlank).toBeGreaterThan(readingContent - lineHeight * 0.5);
 		expect(readingBlank).toBeLessThan(readingContent + lineHeight * 0.5);
 	});

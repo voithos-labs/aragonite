@@ -33,6 +33,9 @@ export interface AmbientCursorIO {
 	setRaw(offset: RawOffset): void;
 	/** Raw offsets of the anchor/focus endpoints of the current selection, or null. */
 	getRawSelection(): { start: RawOffset; end: RawOffset } | null;
+	/** Raw offsets of an arbitrary range inside this surface — an InputEvent's target range, which
+	 *  a word delete reports at a COLLAPSED caret and the selection therefore cannot answer. */
+	rawRangeOf(range: AbstractRange): { start: RawOffset; end: RawOffset } | null;
 	/** Ensure the caret sits outside the ambient marker region. No-op when `el`
 	 * isn't the active element or the caret is already out. */
 	clampOutOfAmbient(): void;
@@ -110,10 +113,12 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 	}
 
 	function clampOutOfAmbient(): void {
-		const ambientLength = deps.getAmbientLength();
-		if (ambientLength === 0) return;
+		// Liveness before the ambient read, as every other method here does it: the length is an
+		// owner-bound derived at the call site, and a surface unmounted mid-dispatch is a dead owner.
 		const live = readLiveRange();
 		if (live.state !== 'live' || !live.collapsed) return;
+		const ambientLength = deps.getAmbientLength();
+		if (ambientLength === 0) return;
 		const content = domTextOffsetAtNode(live.el, live.range.startContainer, live.range.startOffset);
 		if (content >= ambientLength) return;
 		setToAmbientBoundary();
@@ -125,24 +130,36 @@ export function createAmbientCursorIO(deps: AmbientCursorDeps): AmbientCursorIO 
 		// No snap-target fallback here, unlike `getRaw`: a single caret intent cannot stand
 		// in for one end of a pair, and the clamp below already maps the marker interior to
 		// raw 0 — the right boundary for a drag that began inside the marker.
-		const ambientLength = deps.getAmbientLength();
-		const { el, range } = live;
-		return {
-			start: toClampedRawOffset(
-				domTextOffsetAtNode(el, range.startContainer, range.startOffset),
-				ambientLength
-			),
-			end: toClampedRawOffset(
-				domTextOffsetAtNode(el, range.endContainer, range.endOffset),
-				ambientLength
-			)
-		};
+		return rawEndpointsOf(live.el, live.range, deps.getAmbientLength());
 	}
 
-	return { getRaw, setRaw, getRawSelection, clampOutOfAmbient, setToAmbientBoundary };
+	function rawRangeOf(range: AbstractRange): { start: RawOffset; end: RawOffset } | null {
+		const el = deps.getEl();
+		if (!el || !el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+		return rawEndpointsOf(el, range, deps.getAmbientLength());
+	}
+
+	return { getRaw, setRaw, getRawSelection, rawRangeOf, clampOutOfAmbient, setToAmbientBoundary };
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+function rawEndpointsOf(
+	el: HTMLElement,
+	range: AbstractRange,
+	ambientLength: number
+): { start: RawOffset; end: RawOffset } {
+	return {
+		start: toClampedRawOffset(
+			domTextOffsetAtNode(el, range.startContainer, range.startOffset),
+			ambientLength
+		),
+		end: toClampedRawOffset(
+			domTextOffsetAtNode(el, range.endContainer, range.endOffset),
+			ambientLength
+		)
+	};
+}
 
 /**
  * The preamble every reader of the live native selection shares. A dropped range is its

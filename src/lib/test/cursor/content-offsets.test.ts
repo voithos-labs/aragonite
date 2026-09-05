@@ -59,23 +59,9 @@ describe('content-offsets', () => {
 		});
 	});
 
+	// jsdom keeps activeElement on BODY, so the focused set/read round-trip lives in the e2e
+	// keyboard-navigation/ suite; only the unfocused null read is observable here.
 	describe('setCursorOffset / getCursorOffset round-trip', () => {
-		it.skip(
-			'sets and reads cursor at a specific offset — skipped: jsdom does not update ' +
-				'document.activeElement when .focus() is called on a div (activeElement stays BODY), ' +
-				'so getCursorOffset always returns null. Covered by e2e/tests/keyboard-navigation.spec.ts.',
-			() => {
-				container.textContent = 'hello world';
-				container.focus();
-
-				setCursorOffset(container, asDomTextOffset(6));
-				expect(getCursorOffset(container)).toBe(6);
-
-				setCursorOffset(container, asDomTextOffset(0));
-				expect(getCursorOffset(container)).toBe(0);
-			}
-		);
-
 		it('returns null when container is not focused', () => {
 			container.textContent = 'hello';
 			expect(getCursorOffset(container)).toBeNull();
@@ -103,7 +89,7 @@ describe('content-offsets', () => {
 			expect(getSelectionOffsets(container)).toBeNull();
 		});
 
-		// An endpoint outside the container is not this container's to measure: the old 0 fallback
+		// An endpoint outside the container is not this container's to measure: a 0 fallback would
 		// read as a real offset. Surfaces treat null as "not mine" and decline.
 		it('returns null when the selection reaches outside the container', () => {
 			container.textContent = 'abcdef';

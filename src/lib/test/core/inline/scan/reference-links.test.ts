@@ -1,4 +1,5 @@
 import {
+	codeNode,
 	describeScanCases,
 	emphasisNode,
 	imageNode,
@@ -127,8 +128,18 @@ describeScanCases(
 );
 
 describeScanCases(
+	'a valid inline tail wins over reference lookup',
+	[
+		['link form', '[foo](/x)', [linkNode(0, 9, [textNode(1, 4, 'foo')], '/x')]],
+		['image form', '![foo](/x)', [imageNode(0, 10, [textNode(2, 5, 'foo')], 'foo', '/x')]]
+	],
+	REFS
+);
+
+describeScanCases(
 	'reference links interact with the bracket stack like inline links',
 	[
+		['a reference label inside a code span stays code', '`[foo]`', [codeNode(0, 7, '[foo]')]],
 		[
 			'resolved reference link deactivates enclosing link openers',
 			'[a [foo][go] b](x)',

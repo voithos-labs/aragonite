@@ -5,15 +5,14 @@ import type { SelectionPoint } from './primitives';
 import type { Document } from '../core/nodes';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { BlockComponent } from '../block-component';
-import { CURSOR_END } from '../block-component';
 import {
 	readNativeCaretInBlock,
 	applyCollapsedCaret,
 	focusCollapsedCaret,
 	applySingleBlockRange,
-	clearNativeSelection,
-	offsetFromViewportPoint
+	clearNativeSelection
 } from './native-bridge';
+import { offsetFromViewportPoint } from '../cursor/point-offset';
 import type { BlockElLookup } from '../editor-keys';
 import {
 	nextPath,
@@ -25,8 +24,7 @@ import {
 	findCellPathForElement
 } from './path-lookup';
 import { nodeAt } from '../tree-operations/node-ops';
-import { comparePaths, isStrictAncestorOf } from './path-math';
-import { cellEndpointDeepPath } from './table-endpoint-snap';
+import { comparePaths, isStrictAncestorOf, pathsEqual } from './path-math';
 import { displayLength } from '../core/lines';
 
 // ── Enter / Collapse / Scroll ──────────────────────────────────────────────
@@ -70,15 +68,19 @@ export async function collapseCrossBlock(
 	selection.collapse();
 	clearNativeSelection();
 
-	const deepPath = cellEndpointDeepPath(doc, target);
-	if (deepPath) {
-		const cellRef = await revealPath(deepPath);
-		cellRef?.focus(to === 'end' ? CURSOR_END : 0);
-		return;
-	}
+	// The cell landing seats at the cell's own edge; from there it takes the SAME seat as a
+	// prose leaf. Seating through the cell's own focus door instead would skip the collapse
+	// ceremony, and the byte typed at the arrival would join the construct the cell opens with
+	// rather than land in front of it. Only the END side overrides the landing's own offset.
+	const landing = selection.cellLandingFor(target);
+	const point: SelectionPoint =
+		to === 'end' && !pathsEqual(landing.path, target.path)
+			? { path: landing.path, offset: leafOffsetEnd(doc, landing.path) }
+			: landing;
 
-	await revealPath(target.path);
-	focusCollapsedCaret(getBlockElByPath, target);
+	// The landable clamp (a caret may not sit past a hidden run) lives in applyCollapsedCaret.
+	await revealPath(landing.path);
+	focusCollapsedCaret(getBlockElByPath, point);
 }
 
 /**
@@ -172,7 +174,7 @@ export function extendFocusToPreviousBlock(
 }
 
 /**
- * Extend focus to the document edge (Ctrl+Shift+Home / Ctrl+Shift+End). A transparent edge
+ * Extend focus to the document edge (Mod+Shift+Home / Mod+Shift+End). A transparent edge
  * leaf is bypassed for the nearest text-bearing one, matching the cross-block extension path.
  */
 export function extendFocusToDocEdge(
@@ -229,8 +231,7 @@ export function selectWholeDocument(
 	// Paste-dispatch anchor, see enterCrossBlockFromKeyboard. A table focus normalizes to the
 	// table block, whose wrapper holds no caret, so park in its deep cell.
 	const focus = selection.focus;
-	const deepPath = focus && cellEndpointDeepPath(doc, focus);
-	const parkPoint = deepPath ? { path: deepPath, offset: 0 } : focus;
+	const parkPoint = focus && selection.cellLandingFor(focus);
 	const focusBlockEl = parkPoint ? getBlockElByPath?.(parkPoint.path) : null;
 	if (focusBlockEl && parkPoint) applyCollapsedCaret(focusBlockEl, parkPoint);
 	else clearNativeSelection();

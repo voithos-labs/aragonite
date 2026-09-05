@@ -3,11 +3,11 @@ import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { assertCoreOracles } from '../../simulation/invariants';
 import type { RangeInterruptGesture } from '../../simulation/gestures/range-interrupt';
+import { makeSimContext } from './helpers';
 
 // Deterministic reachability for the select-all → gesture → keystroke family: every gesture
 // fires once over a document shaped to reach it, so coverage never depends on which seed drew
@@ -22,11 +22,13 @@ const IMAGE_DOC = 'first para\n\nsecond para\n\n![diagram|440](/test-fixtures/sa
 const TABLE_TAIL_DOC = 'lead para\n\nmiddle para\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 const MATH_DOC = 'Alpha lead paragraph.\n\nBeta $x^2$ middle.\n\nGamma tail paragraph.\n';
 const BLOCK_MATH_DOC = 'Alpha lead paragraph.\n\n$$x^2$$\n\nGamma tail paragraph.\n';
-// The blank line under `# Overview` is load-bearing, not formatting: the TOC entry lands
-// its caret at that heading's offset 0, where the key demotes it to a paragraph. Tighten
-// the gap and the block below becomes a lazy continuation on reparse, reddening the
-// convergence oracle over the deferred class in issue #21 — nothing this probe tests.
+// The blank lines are fixture hygiene, not a workaround: a demotion at `# Overview` now
+// folds inside the commit either way, so live and reload agree at any spacing.
 const TOC_DOC = '# Overview\n\nSome prose here.\n\n## Details\n\n[[toc]]\n\nFooter line.\n';
+// A table FIRST, so the editor's leading padding is the gap boundary a click can reach; the
+// trailing paragraph is long enough to anchor the select-all the family builds from.
+const LEADING_TABLE_DOC =
+	'| a | b |\n| --- | --- |\n| 1 | 2 |\n\n```\ncode\n```\n\ntrailing paragraph\n';
 
 interface Probe {
 	/** The plugins route is only for gestures a bundled plugin's surface provides. */
@@ -46,6 +48,11 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 	'dead-space-margin': {
 		route: 'editor',
 		title: 'a click in the right margin lands a caret and ends the range',
+		doc: PROSE_DOC
+	},
+	'place-caret-at-point': {
+		route: 'editor',
+		title: 'a host shell’s placeCaretAtPoint lands a caret and ends the range',
 		doc: PROSE_DOC
 	},
 	'dead-space-below-table': {
@@ -97,6 +104,12 @@ const PROBES: Record<RangeInterruptGesture, Probe> = {
 		title: 'a TOC entry click types at the heading it navigated to',
 		doc: TOC_DOC,
 		ready: '.toc-block-nav'
+	},
+	'gap-caret-click': {
+		route: 'editor',
+		title: 'a click into a gap boundary ends the range and mints a paragraph there',
+		doc: LEADING_TABLE_DOC,
+		ready: '.table-block'
 	}
 };
 
@@ -118,8 +131,7 @@ async function runProbe(
 	if (probe.ready) await page.locator(probe.ready).first().waitFor({ state: 'visible' });
 	await editor.waitForRenderFlush();
 
-	const tracker = new ExpectationTracker(await editor.bridge.getSource());
-	const ctx: SimContext = { page, editor, tracker, errors, label: gesture };
+	const ctx = await makeSimContext(page, editor, gesture, { errors });
 	const g = new Gestures(ctx, makeRng(1));
 
 	await assertCoreOracles(ctx, `${gesture}: loaded`);

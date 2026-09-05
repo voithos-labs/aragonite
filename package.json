@@ -1,7 +1,7 @@
 {
-	"name": "aragonite",
-	"version": "0.9.35",
-	"description": "CST block editor for GFM Markdown",
+	"name": "@voithos-labs/aragonite",
+	"version": "0.10.1",
+	"description": "Svelte 5 block editor for GFM Markdown with byte-for-byte lossless round-trip and a plugin platform",
 	"keywords": [
 		"markdown",
 		"gfm",
@@ -10,9 +10,14 @@
 		"wysiwyg",
 		"contenteditable",
 		"syntax-tree",
-		"svelte"
+		"svelte",
+		"markdown-editor",
+		"lossless",
+		"plugin",
+		"commonmark",
+		"svelte5"
 	],
-	"homepage": "https://github.com/voithos-labs/aragonite#readme",
+	"homepage": "https://aragonite.dev",
 	"bugs": {
 		"url": "https://github.com/voithos-labs/aragonite/issues"
 	},
@@ -22,7 +27,10 @@
 	},
 	"author": "voithos-labs",
 	"type": "module",
-	"license": "GPL-3.0-or-later",
+	"license": "AGPL-3.0-or-later",
+	"engines": {
+		"node": "^20.19.0 || >=22.12.0"
+	},
 	"svelte": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
@@ -76,6 +84,11 @@
 			"svelte": "./dist/plugins/mermaid/renderer.js",
 			"default": "./dist/plugins/mermaid/renderer.js"
 		},
+		"./plugins/parrot": {
+			"types": "./dist/plugins/parrot/index.d.ts",
+			"svelte": "./dist/plugins/parrot/index.js",
+			"default": "./dist/plugins/parrot/index.js"
+		},
 		"./plugins/toc": {
 			"types": "./dist/plugins/toc/index.d.ts",
 			"svelte": "./dist/plugins/toc/index.js",
@@ -91,10 +104,13 @@
 			"svelte": "./dist/testing.js",
 			"default": "./dist/testing.js"
 		},
-		"./styles/editor-theme.css": "./dist/styles/editor-theme.css"
+		"./styles/editor-theme.css": "./dist/styles/editor-theme.css",
+		"./package.json": "./package.json"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"docs/guide",
+		"THIRD-PARTY-NOTICES.md"
 	],
 	"sideEffects": [
 		"**/*.css",
@@ -149,21 +165,26 @@
 		"test:e2e:a11y": "playwright test --project=e2e-a11y",
 		"test:e2e:search": "playwright test --project=e2e-search",
 		"test:e2e:vr": "playwright test --project=e2e-vr",
+		"test:e2e:webkit": "node scripts/run-with-env.mjs WEBKIT=1 -- playwright test --project=e2e-webkit",
+		"test:e2e:isolated": "node scripts/run-with-env.mjs E2E_ISOLATED=1 -- playwright test",
 		"perf:editor": "vitest bench --run src/lib/test/perf",
 		"perf:e2e": "node scripts/run-with-env.mjs PERF=1 -- playwright test --project=e2e-perf",
-		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 -- playwright test --project=e2e-perf",
-		"perf:check:prod": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 PERF_PROD=1 -- playwright test --project=e2e-perf-prod",
+		"perf:check": "node scripts/run-with-env.mjs PERF=1 PERF_GATE=1 PERF_PROD=1 -- playwright test --project=e2e-perf-prod",
 		"conformance:full": "node scripts/run-with-env.mjs CONFORMANCE_FULL=1 -- vitest run src/lib/test/gfm-conformance/full-sweep.test.ts",
 		"test:editor:property:fresh": "node scripts/run-with-env.mjs PROPERTY_FRESH=1 -- vitest run .property.test src/lib/test/core/directive/roundtrip-coverage.test.ts",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && npm run docs:pack:check && npm run lint:eslint",
+		"lint": "prettier --check . && npm run docs:pack:check && npm run docs:map:check && npm run lint:eslint",
 		"lint:eslint": "eslint .",
 		"docs:pack:check": "node scripts/build-docs-pack.mjs",
+		"docs:map:check": "node scripts/check-codebase-map.mjs",
+		"docs:capture:modes": "node scripts/run-with-env.mjs DOCS_CAPTURE=1 -- playwright test --project=e2e-capture",
 		"package": "svelte-kit sync && svelte-package && node scripts/prune-dist.mjs",
-		"prepack": "npm run package && node scripts/verify-pack.mjs"
+		"prepack": "npm run package && node scripts/verify-pack.mjs",
+		"prepare": "git config core.hooksPath .githooks || exit 0"
 	},
 	"dependencies": {
-		"highlight.js": "^11.11.1"
+		"esm-env": "^1.2.2",
+		"highlight.js": "^11.12.0"
 	},
 	"peerDependencies": {
 		"katex": "^0.17.0 || ^0.18.0",
@@ -179,35 +200,39 @@
 		}
 	},
 	"devDependencies": {
-		"@axe-core/playwright": "^4.11.3",
+		"@axe-core/playwright": "^4.13.0",
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.62.0",
 		"@sveltejs/adapter-static": "^3.0.0",
-		"@sveltejs/kit": "^2.70.1",
+		"@sveltejs/kit": "^2.70.3",
 		"@sveltejs/package": "^2.5.8",
-		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@types/commonmark": "^0.27.10",
-		"@types/node": "^22.19.20",
-		"@vitest/browser": "^4.1.10",
+		"@types/node": "^26.2.0",
+		"@vitest/browser": "^4.1.11",
 		"commonmark": "0.31.2",
-		"eslint": "^10.8.0",
-		"eslint-plugin-svelte": "^3.22.0",
+		"eslint": "^10.9.0",
+		"eslint-plugin-svelte": "^3.23.0",
 		"fast-check": "^4.9.0",
-		"globals": "^17.8.0",
+		"globals": "^17.11.0",
 		"jsdom": "^30.0.0",
-		"katex": "^0.18.1",
-		"mermaid": "^11.16.0",
+		"katex": "^0.18.4",
+		"mermaid": "^11.17.0",
 		"prettier": "^3.9.6",
-		"prettier-plugin-svelte": "^3.5.1",
-		"svelte": "^5.56.8",
-		"svelte-check": "^4.7.4",
-		"svelte-eslint-parser": "^1.8.0",
-		"typescript": "~5.6.2",
-		"typescript-eslint": "^8.65.0",
-		"vite": "^8.1.5",
-		"vitest": "^4.1.0"
+		"prettier-plugin-svelte": "^4.1.1",
+		"svelte": "^5.56.10",
+		"svelte-check": "^4.7.6",
+		"svelte-eslint-parser": "^1.8.1",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.67.0",
+		"vite": "^8.2.2",
+		"vitest": "^4.1.0",
+		"wrangler": "4.125.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.2"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

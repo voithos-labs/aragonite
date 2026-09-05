@@ -7,6 +7,7 @@ import type { ParsedLine } from '../lines';
 import { ESCAPABLE_PUNCTUATION } from '../escapable';
 import { joinRaw } from '../parser';
 import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
+import { matchSetextUnderline } from './paragraph';
 
 export function parseLinkReferenceDefinition(
 	lines: ParsedLine[],
@@ -57,7 +58,8 @@ function stripLeadingSpaces(s: string): string {
 
 /**
  * CommonMark §4.7 allows one line ending before the destination, so an empty same-line tail
- * defers to the next line. A next line that opens a block, or an empty one, declines.
+ * defers to the next line. A next line that opens a block or underlines the label line as a
+ * setext heading, and an empty one, decline.
  */
 function resolveDestinationSegment(
 	afterColon: string,
@@ -72,6 +74,7 @@ function resolveDestinationSegment(
 	if (nextLineIndex >= endIndex) return null;
 	const nextLine = lines[nextLineIndex];
 	if (lineInterruptsParagraph(nextLine.text)) return null;
+	if (matchSetextUnderline(nextLine.text)) return null;
 	const segment = stripLeadingSpaces(nextLine.text);
 	if (segment.length === 0) return null;
 	return { segment, segmentLine: nextLineIndex };
@@ -96,8 +99,10 @@ function matchLabelOpener(line: string): { label: string; afterColon: string } |
 	}
 	if (j >= line.length || line[j] !== ']') return null;
 	if (j + 1 >= line.length || line[j + 1] !== ':') return null;
-	if (j === labelStart) return null;
-	return { label: line.slice(labelStart, j), afterColon: line.slice(j + 2) };
+	const label = line.slice(labelStart, j);
+	// §4.7: a label holds at least one non-whitespace character.
+	if (label.trim() === '') return null;
+	return { label, afterColon: line.slice(j + 2) };
 }
 
 function parseUrl(s: string): { url: string; consumed: number } | null {
@@ -112,20 +117,21 @@ function parseUrl(s: string): { url: string; consumed: number } | null {
 	return { url: m[1], consumed: m[1].length };
 }
 
+const TITLE_CLOSER: Record<string, string> = { '"': '"', "'": "'", '(': ')' };
+
 function matchTitleSingleLine(s: string): { title: string; consumed: number } | null {
-	if (s.length === 0) return null;
-	const ch = s[0];
-	if (ch === '"' || ch === "'") {
-		const close = s.indexOf(ch, 1);
-		if (close === -1) return null;
-		return { title: s.slice(1, close), consumed: close + 1 };
-	}
-	if (ch === '(') {
-		const close = s.indexOf(')', 1);
-		if (close === -1) return null;
-		return { title: s.slice(1, close), consumed: close + 1 };
-	}
-	return null;
+	const closer = TITLE_CLOSER[s[0]];
+	if (!closer) return null;
+	const close = s.indexOf(closer, 1);
+	if (close === -1) return null;
+	return { title: s.slice(1, close), consumed: close + 1 };
+}
+
+/** A title iff `s` holds one well-formed title and nothing but spaces after it. */
+function wholeLineTitle(s: string): { title: string } | null {
+	const t = matchTitleSingleLine(s);
+	if (!t) return null;
+	return stripLeadingSpaces(s.slice(t.consumed)).length === 0 ? { title: t.title } : null;
 }
 
 /**
@@ -140,33 +146,13 @@ function resolveTitle(
 	endIndex: number
 ): { title: string | undefined; titleLine: number | null } | null {
 	if (afterUrl.length > 0) {
-		const parsed = parseTrailingTitle(afterUrl);
-		if (parsed === undefined) return null;
-		return { title: parsed, titleLine: null };
+		const trailing = wholeLineTitle(afterUrl);
+		if (!trailing) return null;
+		return { title: trailing.title, titleLine: null };
 	}
-	const next = consumeContinuationTitle(lines, continuationLine, endIndex);
-	if (next) return { title: next.title, titleLine: next.lineIndex };
+	if (continuationLine < endIndex) {
+		const next = wholeLineTitle(stripLeadingSpaces(lines[continuationLine].text));
+		if (next) return { title: next.title, titleLine: continuationLine };
+	}
 	return { title: undefined, titleLine: null };
-}
-
-function parseTrailingTitle(afterUrl: string): string | undefined {
-	const t = matchTitleSingleLine(afterUrl);
-	if (!t) return undefined;
-	const trailing = stripLeadingSpaces(afterUrl.slice(t.consumed));
-	return trailing.length === 0 ? t.title : undefined;
-}
-
-function consumeContinuationTitle(
-	lines: ParsedLine[],
-	lineIndex: number,
-	endIndex: number
-): { title: string; lineIndex: number } | null {
-	if (lineIndex >= endIndex) return null;
-	const stripped = stripLeadingSpaces(lines[lineIndex].text);
-	if (stripped.length === 0) return null;
-	const t = matchTitleSingleLine(stripped);
-	if (!t) return null;
-	const trailing = stripLeadingSpaces(stripped.slice(t.consumed));
-	if (trailing.length !== 0) return null;
-	return { title: t.title, lineIndex };
 }

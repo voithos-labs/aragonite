@@ -4,6 +4,8 @@
  */
 
 import type { AmbientPrefix } from '../block-component';
+import { domDescendants } from '../cursor/dom-walk';
+import { isAtomicInlineWidget, isHiddenMarkerText } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
 
 export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
@@ -63,9 +65,11 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 	if (!span) return false;
 	const range = document.createRange();
 	// Prefer the first text node after the span so visual-line geometry returns real rects;
-	// setStartAfter yields a collapsed range with no textbox in empty-item state.
+	// setStartAfter yields a collapsed range with no textbox in empty-item state. A hidden
+	// marker run next to the span is not that text node — it paints nothing, and descending
+	// into it would seat raw 0 inside unpainted bytes.
 	const textAfter = firstTextNodeAfter(span);
-	if (textAfter) {
+	if (textAfter && !isHiddenMarkerText(textAfter, blockEl)) {
 		range.setStart(textAfter, 0);
 	} else {
 		range.setStartAfter(span);
@@ -82,6 +86,8 @@ export function placeCaretAfterAmbientSpan(blockEl: HTMLElement): boolean {
 function firstTextNodeAfter(node: Node): Text | null {
 	let sibling = node.nextSibling;
 	while (sibling) {
+		// An atomic widget stands for raw bytes, so text past it is not raw 0.
+		if (isAtomicInlineWidget(sibling)) return null;
 		const text = firstTextDescendant(sibling);
 		if (text) return text;
 		sibling = sibling.nextSibling;
@@ -89,13 +95,13 @@ function firstTextNodeAfter(node: Node): Text | null {
 	return null;
 }
 
+// Unfiltered on the way down, unlike the measurable-text search it resembles
+// (`cursor/visual-lines.ts`): the caller judges hidden marker text once, at the top.
 function firstTextDescendant(node: Node): Text | null {
-	if (node.nodeType === Node.TEXT_NODE && (node.textContent?.length ?? 0) > 0) {
-		return node as Text;
-	}
-	for (const child of node.childNodes) {
-		const found = firstTextDescendant(child);
-		if (found) return found;
+	for (const current of domDescendants(node)) {
+		if (current.nodeType === Node.TEXT_NODE && (current.textContent?.length ?? 0) > 0) {
+			return current as Text;
+		}
 	}
 	return null;
 }

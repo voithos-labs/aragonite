@@ -1,12 +1,12 @@
 /**
- * Editor-root clipboard routing: cross-block copy/cut/paste for an event that reached
- * no block surface. An endpoint whose block hosts no text position leaves the native
- * selection empty, so Chromium dispatches at `document.body`, where no per-block
- * binding sees it. Sibling of `editor-root-keydown.ts`; reading-mode gates live at the
- * cross-block composer every arm calls into, not here.
+ * Editor-root clipboard routing: copy/cut/paste for an event that reached no block surface. A
+ * selection whose block hosts no text position leaves the native selection empty, so Chromium
+ * dispatches at `document.body`, where no per-block binding sees it. Reading-mode gates live at
+ * the arms each route calls into, not here.
  */
 
 import { claimsBodyChord } from '../active-editor';
+import type { BlockComponent } from '../block-component';
 import type { DocumentGetter, PasteImageHook } from '../editor-keys';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
@@ -26,6 +26,8 @@ export interface EditorRootClipboardDeps {
 	 *  run; `undefined` = no hook. */
 	onPasteImage: PasteImageHook | undefined;
 	events: EditorEvents;
+	/** The block owning the selected inline widget, or null when none is selected. */
+	getSelectedWidgetBlock(): BlockComponent | null;
 }
 
 export interface EditorRootClipboard {
@@ -34,6 +36,9 @@ export interface EditorRootClipboard {
 	handleCut(event: ClipboardEvent, root: HTMLElement): void;
 	handlePaste(event: ClipboardEvent, root: HTMLElement): void;
 }
+
+/** The two states whose events land here, in the order they are tried. */
+type RootClipboardTarget = { arm: 'widget'; block: BlockComponent } | { arm: 'cross-block' };
 
 export function createEditorRootClipboard(deps: EditorRootClipboardDeps): EditorRootClipboard {
 	const crossDeps: CrossBlockClipboardDeps = {
@@ -59,28 +64,37 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 	}
 
 	/**
-	 * `defaultPrevented` is the block surfaces' receipt: every arm of their shared
-	 * clipboard skeleton prevents before it writes. The one arm that declines to the
-	 * native default is a collapsed cell caret, which is never a cross-block selection.
+	 * Who owns an event that reached no block surface. `defaultPrevented` is the block surfaces'
+	 * receipt: every arm of their shared clipboard skeleton prevents before it writes, and the one
+	 * arm that declines to native is a collapsed cell caret, which is neither state below. Order
+	 * decides nothing — widget selection and cross-block selection clear each other.
 	 */
-	function claims(event: ClipboardEvent, root: HTMLElement): boolean {
-		if (event.defaultPrevented) return false;
-		if (!deps.selection.isCrossBlock) return false;
-		return landedNowhere(root, event.target);
+	function targetOf(event: ClipboardEvent, root: HTMLElement): RootClipboardTarget | null {
+		if (event.defaultPrevented) return null;
+		if (!landedNowhere(root, event.target)) return null;
+		const block = deps.getSelectedWidgetBlock();
+		if (block) return { arm: 'widget', block };
+		return deps.selection.isCrossBlock ? { arm: 'cross-block' } : null;
 	}
 
 	return {
 		handleCopy(event, root) {
-			if (!claims(event, root)) return;
-			writeCrossBlockCopy(event, crossDeps);
+			const target = targetOf(event, root);
+			if (!target) return;
+			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
+			else writeCrossBlockCopy(event, crossDeps);
 		},
 		handleCut(event, root) {
-			if (!claims(event, root)) return;
-			void writeCrossBlockCut(event, crossDeps);
+			const target = targetOf(event, root);
+			if (!target) return;
+			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
+			else void writeCrossBlockCut(event, crossDeps);
 		},
 		handlePaste(event, root) {
-			if (!claims(event, root)) return;
-			void paste(event);
+			const target = targetOf(event, root);
+			if (!target) return;
+			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
+			else void paste(event);
 		}
 	};
 
@@ -90,8 +104,8 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 	 * straight to the cross-block arm discarded it for want of any `text/plain`.
 	 */
 	async function paste(event: ClipboardEvent): Promise<void> {
-		// Read the range synchronously with the event, while `claims` still guarantees a
-		// cross-block selection — below the await, a read could only report nothing.
+		// Read the range synchronously with the event, while the cross-block arm still
+		// guarantees a selection — below the await, a read could only report nothing.
 		const rangeStartPath = deps.selection.start?.path.slice();
 		const images = imageArm.filesOf(event.clipboardData);
 		if (images.length === 0) {

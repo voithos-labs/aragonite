@@ -10,10 +10,13 @@ import type { Document } from './core/nodes';
 import type { LinkReferenceResolver } from './core/inline/link-reference-resolver';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { UserScrollport } from './cursor/scroll-ancestors';
+import type { Scrollport } from './cursor/scrollport';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverrideMap } from './schema/keybinding-overrides';
 import type { EditorContext } from './schema/plugin-install';
 import type { RegistryView } from './schema/registry-view';
+import type { PluginActivation } from './schema/plugin-activation';
+import type { CrossBlockCommandRouter } from './schema/block-commands';
 import type { EditorRects } from './editor-rects';
 import type { EditorEvents } from './editor-events';
 import type { UndoController } from './editor-actions/deps';
@@ -23,9 +26,12 @@ import type { SelectionState } from './selection/selection-state.svelte';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { StickyColumnState } from './cursor/sticky-column';
+import type { EdgeAffinityState } from './cursor/edge-affinity';
+import type { PendingMarksState } from './cursor/pending-marks';
 import type { RevealAnchorState } from './cursor/reveal-anchor';
 import type { HeightOracle } from './cursor/height-oracle';
 import type { WidgetSelectionState } from './components/image/widget-selection-state.svelte';
+import type { LinkCardState } from './components/link-card/link-card-state.svelte';
 
 // ── Shared value-shape types ─────────────────────────────────────────────────
 
@@ -49,11 +55,12 @@ export type PresentationModeGetter = () => PresentationMode;
 /** The editor's theme name, as reflected to `data-editor-theme`. An open string:
  *  built-ins are `'dark'`/`'light'`, and a consumer may name its own. */
 export type ThemeGetter = () => string;
-export type PluginEditorLookup = (pluginName: string) => EditorContext;
+/** `undefined` for a plugin installed in the process that this instance did not activate. */
+export type PluginEditorLookup = (pluginName: string) => EditorContext | undefined;
 export type BlockElLookup = (path: number[]) => HTMLElement | null;
 export type DocumentGetter = () => Document;
 export type FocusedPathGetter = () => number[] | null;
-export type WidthVersionGetter = () => number;
+export type VersionGetter = () => number;
 
 /** Resolver ref read by inline parsers in block components. Wrapped in a `{ current }`
  *  accessor so the shell can rebuild it after each commit without invalidating
@@ -121,8 +128,16 @@ export interface EditorServices {
 	selection: SelectionState;
 	search: SearchState;
 	stickyColumn: StickyColumnState;
+	/** Which side of an adjacent hidden marker run the caret means; the write seams read
+	 *  it and keep their own default when it answers null. */
+	edgeAffinity: EdgeAffinityState;
+	/** The constructs a collapsed-caret toggle promised the next insertion. Invalidated with
+	 *  the affinity, spent by the typing and composition seats. */
+	pendingMarks: PendingMarksState;
 	revealAnchor: RevealAnchorState;
 	widgetSelection: WidgetSelectionState;
+	/** The live-mode link card's target slot; `link.openCard` enters it from a kind's keymap. */
+	linkCard: LinkCardState;
 	controller: UndoController;
 	pasteCoordinator: PasteCommitCoordinator;
 	reorder: ReorderAction;
@@ -130,9 +145,15 @@ export interface EditorServices {
 	/** The instance's resolution over the global block definitions, so a per-instance
 	 *  enablement filter reaches the render path. */
 	registryView: RegistryView;
+	/** The plugins this instance activated, so a paste site scopes the transform pipeline
+	 *  the way `registryView` scopes the kinds. */
+	activePlugins: PluginActivation;
 	/** The instance's rect surface, delivered to every block component as a prop
 	 *  so a block can measure/reveal/scroll by path through the one seam. */
 	rects: EditorRects;
+	/** The arm a format command takes while a cross-block range is painted, threaded into every
+	 *  dispatch site's gates so the chord, the leaf rebind and the `runCommand` door share one. */
+	crossBlockCommands: CrossBlockCommandRouter;
 }
 
 /** Host-supplied render/behavior policies. The getter members read live editor state
@@ -142,8 +163,8 @@ export interface EditorPolicies {
 	resolveImageUrl: ResolveImageUrl;
 	resolveLinkUrl: ResolveLinkUrl;
 	imageLoadPolicy: () => ImageLoadPolicy;
-	/** Getter-wrapped set-once flag: render the mouse-only hover drag handle.
-	 *  False hides it; keyboard reorder stays available regardless. */
+	/** Getter-wrapped set-once flag: render the mouse-only hover affordances, the block drag
+	 *  handle and the table grips. False renders neither; the keyboard routes stay regardless. */
 	blockDragHandles: () => boolean;
 	presentationMode: PresentationModeGetter;
 	/** For a renderer that paints rather than styles: a plugin emitting its own colored
@@ -164,8 +185,7 @@ export const EDITOR_DOC_KEY = Symbol('editor-doc');
 export interface EditorDoc {
 	doc: DocumentGetter;
 	/** Changes whenever the document's bytes change — the only sound memo key over a
-	 *  document whose `$state` proxy is mutated in place and never changes identity.
-	 *  Lazy: reading it is what makes the editor compute it. */
+	 *  document whose `$state` proxy is mutated in place and never changes identity. */
 	contentVersion: () => number;
 	linkRef: LinkReferenceResolverRef;
 	/** Resolves a plugin's per-instance EditorContext — the one identity onEditor
@@ -180,16 +200,23 @@ export interface EditorDoc {
 	 *  scrolls. What BOUNDS the visible region is a separate answer held by the rect
 	 *  surface — see `cursor/scroll-ancestors`. */
 	scrollHost: () => UserScrollport | null;
+	/** The same scroller as `scrollHost`, in the shape windowing measures and writes it
+	 *  through. Null only before the root mounts. */
+	scrollport: () => Scrollport | null;
 	blockElLookup: BlockElLookup;
 	/** Live getter for the focused block's full path; drives per-level VR pins. */
 	focusedPath: FocusedPathGetter;
 	/** Per-kind height oracle (root-constructed); read by nested windowing scopes. */
 	heightOracle: HeightOracle;
-	/** False in host-scroll mode: no viewport to window against, so every scope mounts all
-	 *  its children. Set once at mount — a windowing scope reads it inside its window
-	 *  derived, so a live prop read would make it a keystroke-path dependency. */
-	windowingEnabled: () => boolean;
+	/** True while the editor holds the reader's place through a height mutation rather than
+	 *  leaving it to the host's native scroll anchoring. The `overflow-anchor` opt-out keys
+	 *  off the same fact, so the two can never both write one scroll position. */
+	correctsScroll: () => boolean;
 	/** Monotonic width-change counter the root bumps on an editor width resize, so
 	 *  every windowing scope rebuilds its model and re-measures at the new width. */
-	widthVersion: WidthVersionGetter;
+	widthVersion: VersionGetter;
+	/** Monotonic counter the root bumps when the SCROLLPORT's height changes. Its own
+	 *  signal, never `widthVersion`: a height resize re-wraps no prose, so bumping the
+	 *  width counter would drop every measured height for nothing. */
+	viewportHeightVersion: VersionGetter;
 }

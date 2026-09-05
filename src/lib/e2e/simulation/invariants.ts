@@ -119,7 +119,7 @@ export async function assertRoundTripStable(ctx: SimContext): Promise<void> {
  * tree against a reparse of its serialization. Checkpoint cadence, not per keystroke.
  */
 export async function assertParseConvergence(ctx: SimContext): Promise<void> {
-	const converges = await ctx.page.evaluate(() => (window as any).__test.parseConverged());
+	const converges = await ctx.editor.parseConverged();
 	if (!converges) {
 		const [source, tree] = await Promise.all([
 			ctx.editor.bridge.getSource(),
@@ -253,6 +253,17 @@ export async function undoRedoDifferential(
 	});
 
 	ctx.tracker.resync(after);
+}
+
+/** Entries currently on the undo stack. A gesture whose press count depends on how its
+ *  keystrokes batched unwinds by the DELTA rather than by a guessed number. */
+export async function undoStackDepth(ctx: SimContext): Promise<number> {
+	const dump: string = await ctx.page.evaluate(() => (window as any).__test.dumpUndoStack());
+	const match = /undo-depth=(\d+)/.exec(dump);
+	if (!match) {
+		throw new Error(`[${ctx.label}] could not read the undo depth from the bridge dump.`);
+	}
+	return Number(match[1]);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

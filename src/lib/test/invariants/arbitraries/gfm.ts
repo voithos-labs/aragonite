@@ -1,4 +1,5 @@
 import fc from 'fast-check';
+import { withDrawnLineEnding } from './line-endings';
 
 // Valid-ish GFM SOURCE strings, whose job is reaching the structured parser paths raw
 // garbage rarely does. Structural validity is never required: round-trip is byte-preserving
@@ -6,13 +7,31 @@ import fc from 'fast-check';
 
 // ── Leaf-block source fragments ─────────────────────────────────────────────
 
+// The minority arm, and `inline.ts`'s own vocabulary: what these words move is offset
+// ARITHMETIC (a multi-unit scalar under a slice), not the block grammar, so a rate high enough
+// to reach every structural lane is enough and ASCII stays the bulk of the bytes.
+export const nonAsciiWord = fc.constantFrom('汉字', '\u00e9m', 'e\u0301m', '😀', '👩‍👦');
+
+/**
+ * Construct-minting bytes inside prose. A pipe confined to the table arm makes a pipe-bearing
+ * NON-table line undrawable, and a block marker only ever seen at a line's own start never gets
+ * to interrupt one — both are shapes whose whole defect class is the disagreement between what
+ * the line looks like and what it parses as.
+ */
+const mintingWord = fc.constantFrom('|', 'a | b', '|x|', '#', '>', '- x', ':::', '`|`', '---');
+
 const inlineText = fc
 	.array(
 		fc.oneof(
-			fc.constantFrom('word', 'lorem', 'x', '42'),
-			fc.constantFrom('**b**', '_i_', '`c`', '~~s~~'),
-			fc.constantFrom('[t](u)', '![a](i.png)', '&copy;', '\\*', '<br>'),
-			fc.constantFrom('foo@bar.com', '<https://x.com>', 'www.x.com')
+			{ arbitrary: fc.constantFrom('word', 'lorem', 'x', '42'), weight: 4 },
+			{ arbitrary: fc.constantFrom('**b**', '_i_', '`c`', '~~s~~'), weight: 4 },
+			{
+				arbitrary: fc.constantFrom('[t](u)', '![a](i.png)', '&copy;', '\\*', '<br>'),
+				weight: 4
+			},
+			{ arbitrary: fc.constantFrom('foo@bar.com', '<https://x.com>', 'www.x.com'), weight: 4 },
+			{ arbitrary: mintingWord, weight: 3 },
+			{ arbitrary: nonAsciiWord, weight: 2 }
 		),
 		{ minLength: 1, maxLength: 5 }
 	)
@@ -73,11 +92,22 @@ const table = fc
 		return header + delim + rows;
 	});
 
-const blankTrivia = fc.constantFrom('', '\n', '\n\n', '\n\n\n');
+/**
+ * Blank runs, not just blank counts: one line separates and every later one is a block of
+ * its own (`design/syntax-tree.md`), so the run's LENGTH and each line's own bytes both move
+ * the parsed shape. Whitespace-only lines are blank under GFM §2.1 and must survive verbatim.
+ */
+const blankLine = fc.constantFrom('\n', ' \n', '  \n', '\t\n', ' \t \n');
+const blankRun = fc.array(blankLine, { maxLength: 4 }).map((lines) => lines.join(''));
 
 // ── Recursive document ──────────────────────────────────────────────────────
 
-const { block } = fc.letrec<{ block: string }>((tie) => ({
+const { block } = fc.letrec<{ block: string; body: string }>((tie) => ({
+	// Container bodies hold runs too: strip-and-recurse means the inner parse sees the same
+	// blank-line rule, and a container's rebuild has to reproduce the run's bytes.
+	body: fc
+		.array(fc.tuple(blankRun, tie('block')), { minLength: 1, maxLength: 2 })
+		.map((parts) => parts.map(([run, inner], i) => (i === 0 ? inner : run + inner)).join('')),
 	block: fc.oneof(
 		{ depthSize: 'small', maxDepth: 3 },
 		{ arbitrary: heading, weight: 3 },
@@ -89,7 +119,7 @@ const { block } = fc.letrec<{ block: string }>((tie) => ({
 		{ arbitrary: linkRefDef, weight: 1 },
 		{ arbitrary: table, weight: 2 },
 		{
-			arbitrary: tie('block').map((inner) =>
+			arbitrary: tie('body').map((inner) =>
 				inner
 					.split('\n')
 					.map((line, i, arr) => (i === arr.length - 1 && line === '' ? '' : '> ' + line))
@@ -99,7 +129,7 @@ const { block } = fc.letrec<{ block: string }>((tie) => ({
 		},
 		{
 			arbitrary: fc
-				.tuple(fc.constantFrom('- ', '* ', '+ ', '1. ', '- [ ] ', '- [x] '), tie('block'))
+				.tuple(fc.constantFrom('- ', '* ', '+ ', '1. ', '- [ ] ', '- [x] '), tie('body'))
 				.map(([marker, inner]) => {
 					const pad = ' '.repeat(marker.length);
 					return inner
@@ -115,20 +145,26 @@ const { block } = fc.letrec<{ block: string }>((tie) => ({
 }));
 
 const lfDoc = fc
-	.array(fc.tuple(blankTrivia, block), { minLength: 1, maxLength: 8 })
-	.map((parts) => parts.map(([trivia, b]) => trivia + b).join(''));
+	.array(fc.tuple(blankRun, block), { minLength: 1, maxLength: 8 })
+	.map((parts) => parts.map(([run, b]) => run + b).join(''));
+
+/** Valid-ish GFM source with bounded nesting depth (~3), emitted as a source STRING. */
+export const arbGfmDoc = withDrawnLineEnding(lfDoc);
 
 /**
- * Valid-ish GFM source with bounded nesting depth (~3), emitted as a source STRING.
- *
- * The line ending is a document-level draw because "a CRLF document containing a
- * structured block" is otherwise unreachable by every lane at once — the hole two shipped
- * byte-corruption defects lived in. Mapped at the top: the container arms split on `'\n'`
- * internally, so rewriting after they compose is what keeps the result byte-exact.
+ * The same blocks, but every gap holds at least one blank line — a real document's shape,
+ * and the lane an editing walk runs on. A TIGHT gap lets a split's kind change fold the next
+ * block into the new half (indented code cannot interrupt a paragraph), which is a separate
+ * defect class from the blank-line rule and would mask it.
  */
-export const arbGfmDoc = fc
-	.tuple(lfDoc, fc.boolean())
-	.map(([source, crlf]) => (crlf ? source.replace(/\n/g, '\r\n') : source));
+export const arbBlankSeparatedGfmDoc = withDrawnLineEnding(
+	fc
+		.array(fc.tuple(fc.array(blankLine, { minLength: 1, maxLength: 3 }), block), {
+			minLength: 1,
+			maxLength: 6
+		})
+		.map((parts) => parts.map(([run, b], i) => (i === 0 ? b : run.join('') + b)).join(''))
+);
 
 // ── Leading-indent dimension ────────────────────────────────────────────────
 
@@ -157,16 +193,18 @@ function indentBlock(source: string, indent: string, firstLineOnly: boolean): st
  * indenting only the opener leaves continuation lines at column 0, which is where a
  * container's prefix re-derivation and a lazy continuation disagree about the indent.
  */
-export const arbIndentedGfmDoc = fc
-	.array(fc.tuple(blankTrivia, blockIndent, block, fc.boolean()), {
-		minLength: 1,
-		maxLength: 6
-	})
-	.map((parts) =>
-		parts
-			.map(
-				([trivia, indent, source, firstLineOnly]) =>
-					trivia + indentBlock(source, indent, firstLineOnly)
-			)
-			.join('')
-	);
+export const arbIndentedGfmDoc = withDrawnLineEnding(
+	fc
+		.array(fc.tuple(blankRun, blockIndent, block, fc.boolean()), {
+			minLength: 1,
+			maxLength: 6
+		})
+		.map((parts) =>
+			parts
+				.map(
+					([trivia, indent, source, firstLineOnly]) =>
+						trivia + indentBlock(source, indent, firstLineOnly)
+				)
+				.join('')
+		)
+);

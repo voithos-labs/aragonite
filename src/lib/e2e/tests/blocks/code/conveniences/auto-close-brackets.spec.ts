@@ -1,6 +1,6 @@
 import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { expectBody, focusCodeBlockAtEnd } from './helpers';
+import { expectBody, focusCodeBlockAtEnd, focusCodeBody } from './helpers';
 
 test.describe('code block auto-close brackets', () => {
 	let editor: EditorPage;
@@ -12,9 +12,7 @@ test.describe('code block auto-close brackets', () => {
 
 	test('typing ( on an empty line inserts ( and ) with cursor between', async () => {
 		await editor.loadContent('```\n\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor);
 		await editor.typeSlowly('(');
 		await expectBody(editor, '()');
 		await editor.typeSlowly('x');
@@ -23,9 +21,7 @@ test.describe('code block auto-close brackets', () => {
 
 	test('typing [ and { also auto-pair', async () => {
 		await editor.loadContent('```\n\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor);
 		await editor.typeSlowly('[');
 		await editor.typeSlowly('{');
 		await expectBody(editor, '[{}]');
@@ -40,18 +36,14 @@ test.describe('code block auto-close brackets', () => {
 
 	test('typing ( before an identifier inserts only (', async () => {
 		await editor.loadContent('```\nfoo\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor);
 		await editor.typeSlowly('(');
 		await expectBody(editor, '(foo');
 	});
 
 	test('typing ( with a selection wraps the selection', async () => {
 		await editor.loadContent('```\nfoo\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor);
 		for (let i = 0; i < 3; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 		await editor.typeSlowly('(');
 		await expectBody(editor, '(foo)');

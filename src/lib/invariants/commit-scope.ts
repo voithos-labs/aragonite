@@ -1,17 +1,18 @@
 /**
- * Commit-in-progress flag (DEV-only), so the decoration engine can assert no source runs
- * inside a half-applied commit. A leaf, so both the ceremony (editor-actions) and the
- * engine (reactivity) read it downward; a flag in editor-actions would close a cycle.
+ * Commit-in-progress flag. The ceremony (editor-actions) brackets its synchronous body; the
+ * decoration engine (reactivity) reads it to keep a source off a half-applied tree. A leaf,
+ * so both read it downward — a flag in editor-actions would close a cycle. Never behind a
+ * build flag: the deferral is production behavior (G4.61).
  */
 
 let inCommit = false;
 
 export function beginCommit(): void {
-	if (import.meta.env.DEV) inCommit = true;
+	inCommit = true;
 }
 
 export function endCommit(): void {
-	if (import.meta.env.DEV) inCommit = false;
+	inCommit = false;
 }
 
 export function isCommitInProgress(): boolean {

@@ -17,8 +17,8 @@ test.describe('render-primary reveal click vs a live cross-block range', () => {
 		await editor.gotoPlugins('latex');
 		await editor.loadContent(DOC);
 		await editor.page.locator('[contenteditable="true"]').first().click();
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 	});
 
@@ -31,7 +31,7 @@ test.describe('render-primary reveal click vs a live cross-block range', () => {
 		await editor.waitForCrossBlock(false);
 
 		// What Backspace does to the revealed source is the reveal's business; what it
-		// must not do is consume the range. Pre-fix the whole document became "\n".
+		// must not do is consume the range — that collapses the whole document to "\n".
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
 

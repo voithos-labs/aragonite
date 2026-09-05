@@ -1,65 +1,69 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { rangeDelete } from '../../selection/range-delete';
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
-import type { CstNode, Document } from '../../core/nodes';
+import type { SelectionPoint } from '../../selection/primitives';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { TWO_COL_FOUR_ROW, TWO_COL_THREE_ROW, findTable } from './table-fixtures';
 
-function findTable(doc: Document): CstNode | null {
-	for (const child of doc.children) {
-		if (child.kind === 'table') return child;
-	}
-	return null;
+// rangeDelete is driven with hand-built endpoints, so the table arms see char offsets
+// SelectionState would have snapped to cell coordinates first.
+afterEach(() =>
+	allowDevWarns([
+		'deleteFromProseIntoTable:end',
+		'deleteFromTableIntoProse:start',
+		'deleteAcrossTwoTables:start',
+		'deleteAcrossTwoTables:end'
+	])
+);
+
+function run(source: string, start: SelectionPoint, end: SelectionPoint) {
+	const result = rangeDelete(
+		parse(source),
+		start,
+		end,
+		createSharingState(),
+		undefined,
+		undefined,
+		undefined
+	);
+	return { doc: result.newDoc, splices: result.tableRowSplices };
 }
-
-const TWO_COL_FOUR_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |\n';
-const TWO_COL_THREE_ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 describe('rangeDelete — tableRowSplices reporting', () => {
 	// The cross-block commit maps each endpoint table's scope descriptor from
 	// these splices (by node identity) instead of re-deriving snap math.
 	it('Case 1 reports the end table row prefix it removed', () => {
-		const doc = parse(`intro\n\n${TWO_COL_FOUR_ROW}`);
-
-		const result = rangeDelete(
-			doc,
+		const { doc, splices } = run(
+			`intro\n\n${TWO_COL_FOUR_ROW}`,
 			{ path: [0], offset: 2 },
-			{ path: [1], offset: 3 },
-			createSharingState(),
-			undefined
+			{ path: [1], offset: 3 }
 		);
 
-		const table = findTable(result.newDoc)!;
-		expect(result.tableRowSplices).toEqual([{ table, at: 0, count: 2 }]);
+		const table = findTable(doc)!;
+		expect(splices).toEqual([{ table, at: 0, count: 2 }]);
 	});
 
 	it('Case 2 reports the start table row suffix it removed', () => {
-		const doc = parse(`${TWO_COL_FOUR_ROW}\nafter\n`);
-
-		const result = rangeDelete(
-			doc,
+		const { doc, splices } = run(
+			`${TWO_COL_FOUR_ROW}\nafter\n`,
 			{ path: [0], offset: 2 },
-			{ path: [1], offset: 0 },
-			createSharingState(),
-			undefined
+			{ path: [1], offset: 0 }
 		);
 
-		const table = findTable(result.newDoc)!;
-		expect(result.tableRowSplices).toEqual([{ table, at: 1, count: 3 }]);
+		const table = findTable(doc)!;
+		expect(splices).toEqual([{ table, at: 1, count: 3 }]);
 	});
 
 	it('two-table span reports one splice per table', () => {
-		const doc = parse(`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`);
-
-		const result = rangeDelete(
-			doc,
+		const { doc, splices } = run(
+			`${TWO_COL_THREE_ROW}\n${TWO_COL_THREE_ROW}`,
 			{ path: [0], offset: 3 },
-			{ path: [1], offset: 2 },
-			createSharingState(),
-			undefined
+			{ path: [1], offset: 2 }
 		);
 
-		const [startTable, endTable] = result.newDoc.children;
-		expect(result.tableRowSplices).toEqual([
+		const [startTable, endTable] = doc.children;
+		expect(splices).toEqual([
 			{ table: startTable, at: 2, count: 1 },
 			{ table: endTable, at: 0, count: 1 }
 		]);
@@ -68,18 +72,14 @@ describe('rangeDelete — tableRowSplices reporting', () => {
 	it('partial-row coverage that removes no rows reports no splice', () => {
 		// End at cell 0: only half the header row is covered, so no whole row
 		// is removed and no splice may be reported.
-		const doc = parse(`intro\n\n${TWO_COL_FOUR_ROW}`);
-
-		const result = rangeDelete(
-			doc,
+		const { doc, splices } = run(
+			`intro\n\n${TWO_COL_FOUR_ROW}`,
 			{ path: [0], offset: 2 },
-			{ path: [1], offset: 0 },
-			createSharingState(),
-			undefined
+			{ path: [1], offset: 0 }
 		);
 
-		const table = findTable(result.newDoc)!;
+		const table = findTable(doc)!;
 		expect(table.children).toHaveLength(4);
-		expect(result.tableRowSplices).toEqual([]);
+		expect(splices).toEqual([]);
 	});
 });

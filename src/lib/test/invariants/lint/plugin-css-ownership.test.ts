@@ -16,9 +16,10 @@ function readsIn(code: string): string[] {
 	return [...code.matchAll(/var\(\s*(--[a-z0-9-]+)/g)].map((m) => m[1]);
 }
 
-/** Custom-property declarations (`--x:`), disjoint from `var(--x)` reads. */
+/** Custom-property declarations, disjoint from `var(--x)` reads. Both spellings a component
+ *  has: the CSS one (`--x:`) and Svelte's markup directive (`style:--x=`). */
 function declsIn(code: string): string[] {
-	return [...code.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]);
+	return [...code.matchAll(/(?:style:)?(--[a-z0-9-]+)\s*[:=]/g)].map((m) => m[1]);
 }
 
 function pluginComponentSources(): Array<{ rel: string; code: string }> {
@@ -76,6 +77,10 @@ describe('plugin CSS ownership — matcher non-vacuity', () => {
 
 	it('declsIn captures a declaration but not the var() read on the same line', () => {
 		expect(declsIn('--adm-accent: var(--adm-note);')).toEqual(['--adm-accent']);
+	});
+
+	it('declsIn captures the markup spelling of the same declaration', () => {
+		expect(declsIn('<div style:--parrot-rows={FRAME_ROWS}>')).toEqual(['--parrot-rows']);
 	});
 
 	it('a read absent from both allow-sets is flagged dead', () => {

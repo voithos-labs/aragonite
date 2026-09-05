@@ -5,6 +5,8 @@
  * opts in — is unit-testable without mounting the editor.
  */
 
+import { escalatedFenceLength } from '../core/parsers/fence-syntax';
+
 export interface DiagnosticsReportInput {
 	timestamp: string;
 	/** Tails pre-rendered by the debug engine. */
@@ -16,8 +18,12 @@ export interface DiagnosticsReportInput {
 	includeSource: boolean;
 }
 
+// A trace tail or a document body routinely holds a fence of its own, which would close the
+// section early and hand the maintainer a malformed report.
 function fenced(title: string, body: string): string {
-	return `## ${title}\n\n\`\`\`\n${body || '(empty)'}\n\`\`\``;
+	const text = body || '(empty)';
+	const fence = '`'.repeat(escalatedFenceLength(text, '`', 3));
+	return `## ${title}\n\n${fence}\n${text}\n${fence}`;
 }
 
 export function buildDiagnosticsReport(input: DiagnosticsReportInput): string {

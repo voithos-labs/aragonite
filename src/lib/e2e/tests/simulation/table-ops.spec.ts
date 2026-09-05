@@ -2,10 +2,10 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { assertCoreOracles } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated table proxy-class oracle. Tables are the most proxy-prone kind: keyed-children
 // containers whose rows are themselves keyed sub-containers, and no other gate exercises a
@@ -16,7 +16,9 @@ import { type SimContext, assertCoreOracles } from '../../simulation/invariants'
 // including an undo of one (the identity-survivor / childIds-clone path) — the two richest
 // proxy-class stressors.
 
-const START_TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
+// The leading paragraph is the live extend-park gesture's launch pad; every cell locator
+// below is grid-relative, so the extra block shifts nothing.
+const START_TABLE = 'Intro line above.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 async function columnCount(page: Page): Promise<number> {
 	return page.evaluate(() => {
@@ -43,8 +45,7 @@ test.describe('note-taking simulation: table row/column moves', () => {
 		await editor.waitForRenderFlush();
 		await expect(page.locator('.table-block')).toHaveCount(1);
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'table-ops' };
+		const ctx = await makeSimContext(page, editor, 'table-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
@@ -79,5 +80,10 @@ test.describe('note-taking simulation: table row/column moves', () => {
 		await g.undo();
 		await checkOracles('after-undo');
 		expect(await columnCount(page)).toBe(3);
+
+		// The re-routed cell-forward door (G2.12): an extend into the table parks the START
+		// sentinel in the revealed cell, and the whole detour moves no bytes.
+		await g.liveExtendIntoTablePark();
+		await checkOracles('after-live-extend-park');
 	});
 });

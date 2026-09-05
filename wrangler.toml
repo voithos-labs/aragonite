@@ -1,0 +1,19 @@
+# Assets-only Worker: no `main`, so Cloudflare serves the adapter-static build straight
+# from its edge and never bills a Worker invocation for it.
+name = "aragonite"
+compatibility_date = "2026-08-20"
+
+# The domain lives here rather than in the dashboard, so a deploy target is reviewable in a
+# diff like everything else. Cloudflare must already hold the zone for `aragonite.dev`.
+# Both hostnames are bound because a custom domain serves exactly the name it is given, and
+# people type `www.` whatever the link says.
+routes = [
+  { pattern = "aragonite.dev", custom_domain = true },
+  { pattern = "www.aragonite.dev", custom_domain = true }
+]
+
+[assets]
+directory = "./build"
+# Not `single-page-application`: that answers 200 and would have crawlers index every
+# client-routed path, and index.html is the prerendered showcase, not an empty shell.
+not_found_handling = "404-page"

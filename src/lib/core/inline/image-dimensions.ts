@@ -14,25 +14,9 @@ export interface ParsedImageAlt {
 
 export function parseImageDimensions(alt: string): ParsedImageAlt {
 	const lastPipe = boundedLastPipe(alt);
-	if (lastPipe === -1) {
-		return { displayAlt: alt, width: undefined, height: undefined };
-	}
-
-	const suffix = alt.slice(lastPipe + 1);
-	if (suffix === '') {
-		return { displayAlt: alt, width: undefined, height: undefined };
-	}
-
-	const dims = parseDimensionSuffix(suffix);
-	if (dims === null) {
-		return { displayAlt: alt, width: undefined, height: undefined };
-	}
-
-	return {
-		displayAlt: alt.slice(0, lastPipe),
-		width: dims.width,
-		height: dims.height
-	};
+	const dims = lastPipe === -1 ? null : parseDimensionSuffix(alt.slice(lastPipe + 1));
+	if (dims === null) return { displayAlt: alt, width: undefined, height: undefined };
+	return { displayAlt: alt.slice(0, lastPipe), width: dims.width, height: dims.height };
 }
 
 function boundedLastPipe(alt: string): number {

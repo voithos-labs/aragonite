@@ -33,11 +33,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The commit-message door below reads the PR's own commits.
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
+      # The commit-subject rule's second door: a contributor who never ran `npm ci` never
+      # installed the `commit-msg` hook. `HEAD^1..HEAD^2` on the checked-out merge ref is the
+      # PR's own commits, current base tip and all. The dev-to-main release PR is scoped out:
+      # its range is every commit on dev, which nobody in that PR wrote.
+      - name: Lint commit messages
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref != 'main'
+        run: node scripts/lint-commit-message.mjs --range HEAD^1..HEAD^2
       - run: npm ci
+      # The unit suite imports from examples/consumer, and vite resolves that file's tsconfig
+      # chain into the example's GENERATED kit config — absent on a fresh checkout until the
+      # example installs and syncs.
+      - run: npm ci
+        working-directory: examples/consumer
+      - run: npx svelte-kit sync
+        working-directory: examples/consumer
       - run: npm run lint
       - run: npm run check
       - run: npm run test:editor
@@ -54,7 +71,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       # Cache the browser download (~100MB per run); `playwright install` skips
@@ -78,7 +95,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: echo "PLAYWRIGHT_VERSION=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_ENV"
@@ -87,11 +104,11 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
       - run: npx playwright install --with-deps chromium
-      # perf:check:prod builds and previews the app, then gates the keystroke rows
-      # against that prod build (the e2e-perf-prod project) — a dev-server run would
-      # measure vite transform overhead, not the editor. The report-only rows exclude
-      # themselves via their own PERF_GATE skip, so this needs no row filter.
-      - run: npm run perf:check:prod
+      # perf:check builds and previews the app, then gates the keystroke rows against
+      # that prod build (the e2e-perf-prod project) — a dev-server run would measure vite
+      # transform overhead, not the editor. The report-only rows exclude themselves via
+      # their own PERF_GATE skip, so this needs no row filter.
+      - run: npm run perf:check
 
   consumer-smoke:
     runs-on: ubuntu-latest
@@ -99,7 +116,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: node scripts/consumer-smoke.mjs
@@ -115,5 +132,5 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
       - run: node scripts/verify-emoji-table.mjs

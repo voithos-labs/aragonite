@@ -5,21 +5,21 @@
 // source scan (invariants/lint/block-host-prop-thread) cannot see either.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
-import type { Document } from '$lib/core/nodes';
 import { registerBuiltInBlocks } from '$lib/components/built-in-blocks';
 import { registerBlockComponent, defineBlockComponent } from '$lib/schema/block-component-registry';
 import { createRegistryView } from '$lib/schema/registry-view';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import RecordingBlock from './fixtures/RecordingBlock.svelte';
-import {
-	declareComponentlessKind,
-	installBlockHostLayoutStubs,
-	mountBlockHost
-} from './mount-host';
+import { declareComponentlessKind, mountBlockHost } from './mount-host';
 import type { MountedHost } from './mount-host';
+import { installEditorDomStubsForTests } from '$lib/testing';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
+afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(() => {
-	installBlockHostLayoutStubs();
+	installEditorDomStubsForTests();
 	registerBuiltInBlocks();
 });
 
@@ -29,11 +29,6 @@ afterEach(async () => {
 	mounted = null;
 	__resetSchemaRegistriesForTests();
 });
-
-/** Reparent a parsed block onto a document of its own, so `[0]` addresses it. */
-function docOf(source: string): Document {
-	return parse(source);
-}
 
 // One source per kind class the dispatcher distinguishes, with the selector its
 // registered component owns.
@@ -58,7 +53,7 @@ const KIND_CLASSES: Array<{ label: string; source: string; kind: string; selecto
 describe('BlockHost dispatches each kind class to its registered component', () => {
 	for (const { label, source, kind, selector } of KIND_CLASSES) {
 		it(`renders the ${label} component and tags the host with its kind`, () => {
-			mounted = mountBlockHost(docOf(source));
+			mounted = mountBlockHost(parse(source));
 
 			expect(mounted.el.dataset.blockKind).toBe(kind);
 			expect(mounted.el.querySelector(selector)).not.toBeNull();
@@ -69,7 +64,7 @@ describe('BlockHost dispatches each kind class to its registered component', () 
 	}
 
 	it('applies the registry’s extraProps, which only the dispatcher can deliver', () => {
-		mounted = mountBlockHost(docOf('### three\n'));
+		mounted = mountBlockHost(parse('### three\n'));
 
 		expect(mounted.el.querySelector('.heading-3')).not.toBeNull();
 	});
@@ -79,7 +74,7 @@ describe('BlockHost dispatches each kind class to its registered component', () 
 		// means something once a plugin kind is shown to render one.
 		const kind = declareComponentlessKind('host-plugin');
 		registerBlockComponent(kind, defineBlockComponent(RecordingBlock));
-		const doc = docOf('plugin text\n');
+		const doc = parse('plugin text\n');
 		doc.children[0].kind = kind;
 
 		mounted = mountBlockHost(doc);
@@ -89,7 +84,7 @@ describe('BlockHost dispatches each kind class to its registered component', () 
 	});
 
 	it('addresses the block by its parent path plus its index', () => {
-		const doc = docOf('one\n\ntwo\n');
+		const doc = parse('one\n\ntwo\n');
 		mounted = mountBlockHost(doc, { index: 1, parentPath: [4, 2] });
 
 		expect(mounted.el.dataset.blockPath).toBe('[4,2,1]');
@@ -98,7 +93,7 @@ describe('BlockHost dispatches each kind class to its registered component', () 
 
 describe('BlockHost falls back to a raw-editable surface when no component resolves', () => {
 	it('renders a kind that has a descriptor but no component', () => {
-		const doc = docOf('orphan text\n');
+		const doc = parse('orphan text\n');
 		doc.children[0].kind = declareComponentlessKind('host-orphan');
 
 		mounted = mountBlockHost(doc);
@@ -113,7 +108,7 @@ describe('BlockHost falls back to a raw-editable surface when no component resol
 		// per-instance registry view: a host reading the globals would render it.
 		const kind = declareComponentlessKind('host-disabled');
 		registerBlockComponent(kind, defineBlockComponent(RecordingBlock));
-		const doc = docOf('disabled text\n');
+		const doc = parse('disabled text\n');
 		doc.children[0].kind = kind;
 
 		mounted = mountBlockHost(

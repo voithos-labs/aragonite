@@ -1,7 +1,7 @@
 import type { CstNode, TableAlignment } from '../nodes';
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
-import type { BlockOpenerResult } from '../../schema/block-openers';
+import { lineStartsOuterBlock, type BlockOpenerResult } from '../../schema/block-openers';
 
 // ── Cell splitter ──────────────────────────────────────────────────────────
 
@@ -13,30 +13,29 @@ export function splitRowCells(rowText: string): string[] {
 	const inner = head.endsWith('|') ? head.slice(0, -1) : head;
 	const cells: string[] = [];
 	let current = '';
-	let i = 0;
-	while (i < inner.length) {
+	let escaped = false;
+	for (let i = 0; i < inner.length; i++) {
 		const ch = inner[i];
-		if (ch === '|' && !isEscaped(inner, i)) {
+		if (ch === '|' && !escaped) {
 			cells.push(current.trim());
 			current = '';
-			i++;
 			continue;
 		}
 		current += ch;
-		i++;
+		escaped = ch === '\\' && !escaped;
 	}
 	cells.push(current.trim());
 	return cells;
 }
 
-function isEscaped(s: string, index: number): boolean {
-	let backslashes = 0;
-	let j = index - 1;
-	while (j >= 0 && s[j] === '\\') {
-		backslashes++;
-		j--;
-	}
-	return backslashes % 2 === 1;
+/**
+ * The cells a line offers as a table header row, or null when it offers none — the one home for
+ * the shape, so a row the continuation scan accepts and the Enter completer refuses cannot exist.
+ * Arity against the delimiter is the caller's check.
+ */
+export function tableHeaderCells(text: string): string[] | null {
+	if (!text.includes('|')) return null;
+	return splitRowCells(text);
 }
 
 // ── Delimiter row ──────────────────────────────────────────────────────────
@@ -74,8 +73,16 @@ export function parseTable(
 	leadingTrivia: string,
 	delimiter: { columnCount: number; alignments: TableAlignment[] }
 ): BlockOpenerResult {
+	// GFM: the table breaks at a blank line or the start of another block, so a body row is a
+	// pipe-carrying line no opener claims. No paragraph is open here, so nothing is transparent
+	// but the definition, which is never a block start.
 	let i = startIndex + 2;
-	while (i < endIndex && !isBlankLine(lines[i].text) && lines[i].text.includes('|')) {
+	while (
+		i < endIndex &&
+		!isBlankLine(lines[i].text) &&
+		lines[i].text.includes('|') &&
+		!lineStartsOuterBlock(lines[i], { paragraphOpen: false })
+	) {
 		i++;
 	}
 

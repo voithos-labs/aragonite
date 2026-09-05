@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures';
+import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { attachErrorCollector, type ErrorCollector } from '../../simulation/error-collector';
 
@@ -15,6 +16,31 @@ async function assertThrows(errors: ErrorCollector): Promise<void> {
 	}
 	expect(threw).toBe(true);
 }
+
+/** Console delivery to the Node listener is async, so a verdict is polled, never read once. */
+async function pollUntilThrows(errors: ErrorCollector, waive?: string[]): Promise<void> {
+	await expect
+		.poll(async () => {
+			try {
+				await errors.assertNone(waive);
+				return 'silent';
+			} catch {
+				return 'threw';
+			}
+		})
+		.toBe('threw');
+}
+
+const warnOnPage = (page: Page, text: string): Promise<void> =>
+	page.evaluate((t) => console.warn(t), text);
+
+/** Svelte's own emission shape, `%c` styling included, so the watch is read against the real one. */
+const svelteWarnOnPage = (page: Page, code: string): Promise<void> =>
+	page.evaluate(
+		(c) =>
+			console.warn(`%c[svelte] ${c}\n%cinjected fire`, 'font-weight: bold', 'font-weight: normal'),
+		code
+	);
 
 test.describe('simulation error collector', () => {
 	let editor: EditorPage;
@@ -43,19 +69,67 @@ test.describe('simulation error collector', () => {
 		await assertThrows(errors);
 	});
 
-	test('ignores a benign warning without the invariant marker', async ({ page }) => {
+	test('ignores a page warning that carries no aragonite sentinel', async ({ page }) => {
 		const errors = attachErrorCollector(page);
 		await errors.start();
-		await page.evaluate(() => console.warn('[some-subsystem] a benign dev warning'));
-		// Give the console event the same delivery window the marker test relies on.
+		await warnOnPage(page, '[some-dependency] a warning from outside the editor');
+		// Give the console event the same delivery window the sentinel tests rely on.
 		await page.waitForTimeout(200);
 		await errors.assertNone();
 	});
 });
 
-// Scoped to the one test that injects a fire: a file-level waiver would also cover
-// the three tests above, which trip no invariant and so must stay under the guard.
-test.describe('simulation error collector: invariant marker', () => {
+// Scoped per describe: a file-level declaration would also cover the tests above, which
+// trip nothing and so must stay under the shared fixture's watch.
+test.describe('simulation error collector: the dev-warn sentinel', () => {
+	test.use({ expectWarns: ['tree-ops'] });
+
+	test('reds on a plain dev warning, and the waiver silences that tag', async ({ page }) => {
+		await new EditorPage(page).goto();
+		const errors = attachErrorCollector(page);
+		await errors.start();
+		await warnOnPage(page, '[aragonite:tree-ops] injected dev warning');
+		await pollUntilThrows(errors);
+		await errors.assertNone(['tree-ops']);
+	});
+});
+
+// Svelte's runtime warns carry no sentinel, so both watches key on the `[svelte] <code>` head
+// instead. The `test.use` claim proves the spec watch saw it; the waiver proves the collector did.
+// Two codes, because the collector once carried a list of known ones: `derived_inert` is outside
+// any such list, so a narrowing reds here on detection rather than only on the waiver's spelling.
+for (const code of ['state_proxy_equality_mismatch', 'derived_inert']) {
+	test.describe(`simulation error collector: the svelte runtime channel (${code})`, () => {
+		test.use({ expectSvelteWarns: [code] });
+
+		test('reds on the runtime warning, and the waiver silences that code', async ({ page }) => {
+			await new EditorPage(page).goto();
+			const errors = attachErrorCollector(page);
+			await errors.start();
+			await svelteWarnOnPage(page, code);
+			await pollUntilThrows(errors);
+			await errors.assertNone([`svelte:${code}`]);
+		});
+	});
+}
+
+test.describe('simulation error collector: the waiver is per-tag', () => {
+	test.use({ expectWarns: ['tree-ops', 'state-registry'] });
+
+	test('waiving one tag leaves every other fire failing', async ({ page }) => {
+		await new EditorPage(page).goto();
+		const errors = attachErrorCollector(page);
+		await errors.start();
+		await warnOnPage(page, '[aragonite:state-registry] injected ref-slot fault');
+		await warnOnPage(page, '[aragonite:tree-ops] injected dev warning');
+		await pollUntilThrows(errors, ['state-registry']);
+		const report = await errors.assertNone(['state-registry']).catch((e: Error) => e.message);
+		expect(report).toContain('tree-ops');
+		expect(report).not.toContain('state-registry');
+	});
+});
+
+test.describe('simulation error collector: invariant fires', () => {
 	test.use({ expectInvariants: ['proof'] });
 
 	test('catches an invariant-marked dev warning', async ({ page }) => {
@@ -63,17 +137,7 @@ test.describe('simulation error collector: invariant marker', () => {
 		await editor.goto();
 		const errors = attachErrorCollector(page);
 		await errors.start();
-		await page.evaluate(() => console.warn('[invariant:proof] injected violation'));
-		// Console delivery to the Node listener is async; poll until it lands.
-		await expect
-			.poll(async () => {
-				try {
-					await errors.assertNone();
-					return 'silent';
-				} catch {
-					return 'threw';
-				}
-			})
-			.toBe('threw');
+		await warnOnPage(page, '[aragonite:invariant:proof] injected violation');
+		await pollUntilThrows(errors);
 	});
 });

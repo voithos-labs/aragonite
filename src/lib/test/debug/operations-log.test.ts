@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createOperationsLog } from '../../debug/operations-log';
+import { takeDevWarns } from '../support/warn-gate';
 
 describe('operations-log', () => {
 	it('records entries in insertion order', () => {
@@ -40,7 +41,6 @@ describe('operations-log', () => {
 
 	it('continues notifying remaining subscribers when one throws', () => {
 		const log = createOperationsLog(10);
-		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const throwing = vi.fn(() => {
 			throw new Error('boom');
 		});
@@ -52,8 +52,8 @@ describe('operations-log', () => {
 
 		expect(throwing).toHaveBeenCalledTimes(1);
 		expect(second).toHaveBeenCalledTimes(1);
-		expect(errSpy).toHaveBeenCalled();
-		errSpy.mockRestore();
+		// The dev-warn channel, not the console: a console line reds no gate (GH #246).
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['operations-log']);
 	});
 
 	it('tolerates a subscriber that unsubscribes itself during notification', () => {

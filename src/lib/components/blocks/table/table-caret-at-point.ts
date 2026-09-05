@@ -1,19 +1,19 @@
 /**
- * Table's `caretTargetAtPoint`: the cell a point lands a caret in, as a `[rowIdx,
- * colIdx]` path plus a within-cell offset. NEAREST, not exact — the difference from
- * `tableDragHitTest` beside it. The point arrives clamped into the table's box, so it
- * can sit in a gutter, a padding gap, or a windowing spacer and a caret must still
- * land; an exact `elementFromPoint` hit, which the drag needs, declines all three.
+ * Table's `caretTargetAtPoint`: the cell a point lands a caret in, as a `[rowIdx, colIdx]` path
+ * plus a within-cell offset. NEAREST, not exact — the difference from `tableDragHitTest` beside
+ * it. A point clamped into the table's box can sit in a gutter, a padding gap or a windowing
+ * spacer and must still land a caret, where an exact `elementFromPoint` hit declines.
  */
 
 import { CURSOR_END } from '../../../block-component';
+import type { CaretTarget } from '../../../schema/block-kind-descriptor';
 import { mountedRowEls, rowCellEls } from './cell-pointer';
 
 export function tableCaretAtPoint(
 	blockEl: HTMLElement,
 	clientX: number,
 	clientY: number
-): { path: number[]; offset: number } | null {
+): CaretTarget | null {
 	const tableEl = blockEl.querySelector(':scope > [role="table"]') as HTMLElement | null;
 	if (!tableEl) return null;
 

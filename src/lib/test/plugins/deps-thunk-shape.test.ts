@@ -1,16 +1,15 @@
 /**
- * Type pins for the freeze-surface liveness rule (docs/roadmap.md § Pre-1.0 item 1):
- * a live field on the public factory-deps interfaces is a thunk (`() => T`), so a
- * captured value no longer compiles. The `@ts-expect-error` directives ARE the
+ * Type pins for the freeze-surface liveness rule: a live field on the public
+ * factory-deps interfaces is a thunk (`() => T`), so a captured value no longer compiles. The `@ts-expect-error` directives ARE the
  * assertions — `npm run check` fails the day one starts compiling. `valueCaptureRejected`
  * is the load-bearing one: a getter and a value property are structurally identical,
  * so nothing but the thunk shape can reject a value capture.
  */
 import { describe, it, expect } from 'vitest';
-import { parse } from '../../core/parser';
-import type { NodeView } from '../../core/node-views';
-import type { ContainerBlockDeps } from '../../editor-actions/plugin/container';
-import type { EditableLeafDeps } from '../../components/blocks/editable-leaf';
+import { parse } from '$lib/core/parser';
+import type { NodeView } from '$lib/core/node-views';
+import type { ContainerBlockDeps } from '$lib/editor-actions/plugin/container';
+import type { EditableLeafDeps } from '$lib/components/blocks/editable-leaf';
 
 // Load-bearing: a value under the CORRECT new name. Fails only because `NodeView` is
 // not `() => NodeView` — value-capture of a live field, now uncompilable.

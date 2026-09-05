@@ -1,14 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { registerBlockListState } from '../../reactivity/state-registry';
-import { parse } from '../../core/parser';
+import { describe, it, expect, afterEach } from 'vitest';
+import { registerBlockListState } from '$lib/reactivity/state-registry';
+import { parse } from '$lib/core/parser';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeListContextAt
-} from '../harness/editor-actions';
-import { metadataOf, type CstNode } from '../../core/nodes';
+} from '$lib/test/harness/editor-actions';
+import { metadataOf, type CstNode } from '$lib/core/nodes';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// Hand-built list fixtures read as stale to the container-raw oracle, and a plural first half is
+// one of the split shapes under test.
+afterEach(() => allowDevWarns(['invariant:stale-raw', 'tree-ops']));
 
 const makeDeps = (docChildren: CstNode[]) => makeEditorActionsDeps(docChildren).deps;
+
+const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
 
 // ── splitItemAtOffset descriptor correctness ───────────────────────────────
 
@@ -79,6 +86,32 @@ describe('list-context — splitItemAtOffset', () => {
 
 		expect(liveList().children).toHaveLength(2);
 		expect(listState.innerBlockIds).toHaveLength(2);
+	});
+
+	// Miss-analysis (GH #98): every split pin here used a single-block first half, so
+	// `innerIndex + 1` always WAS the second half and the splice boundary went unobserved.
+	it('a plural first half stays whole; only the second half moves to the new item', async () => {
+		// Enter at the end of the blank line inside the item's indented code: the first half
+		// reparses to [code, blank], and the new item must start at the second half.
+		const doc = parse('- x\n\n      a\n\n\n      b\n');
+		const list = doc.children[0];
+		const item = list.children![0];
+		expect(item.children!.map((c) => c.kind)).toEqual(['paragraph', 'indentedCode']);
+
+		const deps = makeDeps([list]);
+		const liveItem = () => deps.doc.children[0].children![0];
+		const itemState = makeBlockListState(liveItem, ['para-0', 'code-1']);
+		registerBlockListState(item, itemState as any);
+
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
+
+		await listContext.splitItemAtOffset(0, 1, 7);
+
+		expect(liveItem().children!.map((c) => c.raw)).toEqual(['x\n', '    a\n', '\n']);
+		expect(itemState.innerBlockIds).toHaveLength(3);
+
+		const newItem = liveList().children![1];
+		expect(newItem.children!.map((c) => c.raw)).toEqual(['    b\n']);
 	});
 
 	it('task-item split keeps the task identity (taskItem + taskMarker paired)', async () => {
@@ -179,99 +212,67 @@ describe('list-context — insertItemAfter', () => {
 	});
 });
 
-// ── ordered-marker suffix normalization on indent / promote ────────────────
+// ── marker normalization on indent / promote ────────────────────────────────
 
-describe('list-context — ordered suffix adopts destination on move', () => {
-	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
-
-	it('indent: a "1. " item moved into a "1) " sublist adopts ") "', async () => {
-		// Parity with paste-absorb: the destination's suffix wins over the moved item's own.
-		const doc = parse('1. a\n   1) x\n2. b\n');
-		const list = doc.children[0];
-
+// Parity with paste-absorb: the DESTINATION list's marker wins over the moved item's own,
+// and the origin renumbers around the survivor it keeps.
+describe('list-context — a moved item adopts its destination marker', () => {
+	it.each([
+		{
+			name: 'indent: a "1. " item moved into a "1) " sublist adopts ") "',
+			source: '1. a\n   1) x\n2. b\n',
+			move: 'indent' as const,
+			outerIds: ['item-0', 'item-1'],
+			subIds: ['sub-0'],
+			destMarkers: ['1) ', '2) '],
+			originMarkers: ['1. ']
+		},
+		{
+			name: 'promote: a "1) " sub-item moved to a "1. " outer list adopts ". "',
+			source: '1. a\n   1) x\n   2) y\n',
+			move: 'promote' as const,
+			outerIds: ['item-0'],
+			subIds: ['sub-0', 'sub-1'],
+			destMarkers: ['1. ', '2. '],
+			originMarkers: ['1) ']
+		},
+		{
+			name: 'indent: a "- " item moved into a "* " sublist adopts "* "',
+			source: '- a\n  * x\n- b\n',
+			move: 'indent' as const,
+			outerIds: ['item-0', 'item-1'],
+			subIds: ['sub-0'],
+			destMarkers: ['* ', '* '],
+			originMarkers: ['- ']
+		},
+		{
+			name: 'promote: a "* " sub-item moved to a "- " outer list adopts "- "',
+			source: '- a\n  * x\n  * y\n',
+			move: 'promote' as const,
+			outerIds: ['item-0'],
+			subIds: ['sub-0', 'sub-1'],
+			destMarkers: ['- ', '- '],
+			originMarkers: ['* ']
+		}
+	])('$name', async ({ source, move, outerIds, subIds, destMarkers, originMarkers }) => {
+		const list = parse(source).children[0];
 		const deps = makeDeps([list]);
 		const liveSublist = () => deps.doc.children[0].children![0].children![1];
 		const sublist = list.children![0].children![1];
 		expect(sublist.kind).toBe('list');
-		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0']) as any);
+		// A promote needs a survivor left behind to renumber within the sublist.
+		expect(sublist.children).toHaveLength(subIds.length);
+		registerBlockListState(sublist, makeBlockListState(liveSublist, subIds) as any);
 
-		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, {
-			ids: ['item-0', 'item-1']
-		});
+		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: outerIds });
 
-		await listContext.indentItem(1);
+		if (move === 'indent') await listContext.indentItem(1);
+		else await listContext.promoteNestedItem(0, sublist, 0);
 
-		expect(markersOf(liveSublist())).toEqual(['1) ', '2) ']);
-		expect(liveSublist().children![1].raw.startsWith('2) ')).toBe(true);
-		expect(markersOf(liveList())).toEqual(['1. ']);
-	});
-
-	it('promote: a "1) " sub-item moved to a "1. " outer list adopts ". "', async () => {
-		// Two-item sublist so a survivor is left behind to renumber within the sublist.
-		const doc = parse('1. a\n   1) x\n   2) y\n');
-		const list = doc.children[0];
-
-		const deps = makeDeps([list]);
-		const liveSublist = () => deps.doc.children[0].children![0].children![1];
-		const sublist = list.children![0].children![1];
-		expect(sublist.kind).toBe('list');
-		expect(sublist.children).toHaveLength(2);
-		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0', 'sub-1']) as any);
-
-		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
-
-		await listContext.promoteNestedItem(0, sublist, 0);
-
-		expect(markersOf(liveList())).toEqual(['1. ', '2. ']);
-		expect(liveList().children![1].raw.startsWith('2. ')).toBe(true);
-		expect(markersOf(liveSublist())).toEqual(['1) ']);
-	});
-});
-
-// ── unordered glyph normalization on indent / promote ───────────────────────
-
-describe('list-context — unordered glyph adopts destination on move', () => {
-	const markersOf = (list: CstNode) => list.children!.map((c) => metadataOf(c, 'listItem').marker);
-
-	it('indent: a "- " item moved into a "* " sublist adopts "* "', async () => {
-		const doc = parse('- a\n  * x\n- b\n');
-		const list = doc.children[0];
-
-		const deps = makeDeps([list]);
-		const liveSublist = () => deps.doc.children[0].children![0].children![1];
-		const sublist = list.children![0].children![1];
-		expect(sublist.kind).toBe('list');
-		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0']) as any);
-
-		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, {
-			ids: ['item-0', 'item-1']
-		});
-
-		await listContext.indentItem(1);
-
-		expect(markersOf(liveSublist())).toEqual(['* ', '* ']);
-		expect(liveSublist().children![1].raw.startsWith('* ')).toBe(true);
-		expect(markersOf(liveList())).toEqual(['- ']);
-	});
-
-	it('promote: a "* " sub-item moved to a "- " outer list adopts "- "', async () => {
-		// Two-item sublist so promoting the first leaves a survivor that keeps "* ".
-		const doc = parse('- a\n  * x\n  * y\n');
-		const list = doc.children[0];
-
-		const deps = makeDeps([list]);
-		const liveSublist = () => deps.doc.children[0].children![0].children![1];
-		const sublist = list.children![0].children![1];
-		expect(sublist.kind).toBe('list');
-		expect(sublist.children).toHaveLength(2);
-		registerBlockListState(sublist, makeBlockListState(liveSublist, ['sub-0', 'sub-1']) as any);
-
-		const { listContext, getNode: liveList } = makeListContextAt(deps, 0, { ids: ['item-0'] });
-
-		await listContext.promoteNestedItem(0, sublist, 0);
-
-		expect(markersOf(liveList())).toEqual(['- ', '- ']);
-		expect(liveList().children![1].raw.startsWith('- ')).toBe(true);
-		expect(markersOf(liveSublist())).toEqual(['* ']);
+		const destination = move === 'indent' ? liveSublist : liveList;
+		const origin = move === 'indent' ? liveList : liveSublist;
+		expect(markersOf(destination())).toEqual(destMarkers);
+		expect(destination().children![1].raw.startsWith(destMarkers[1])).toBe(true);
+		expect(markersOf(origin())).toEqual(originMarkers);
 	});
 });

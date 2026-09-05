@@ -7,11 +7,19 @@
  */
 
 import type { MultiScopeTarget } from '../../action-contracts';
+import type { CstNode } from '../../core/nodes';
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { CrossBlockMutationContext } from './ops';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
-import { blockNodeAt, normalizeBodyWrite, updateNodeContent } from '../../tree-operations/node-ops';
+import {
+	blockNodeAt,
+	normalizeBodyWrite,
+	updateNodeContent,
+	writeOwnRaw,
+	settledCaretTarget,
+	type SettledContent
+} from '../../tree-operations/node-ops';
 import { focusCollapsedCaret } from '../native-bridge';
 import {
 	ensureUnsharedChild,
@@ -67,6 +75,7 @@ export async function handleCrossBlockTypeReplace(
 	const leafIndex = caret.path[caret.path.length - 1];
 	const scopeIsImmediateParent = scope.path.length === caret.path.length - 1;
 
+	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
 		snapshot: 'skip',
@@ -82,12 +91,17 @@ export async function handleCrossBlockTypeReplace(
 				const chain = ensureUnsharedPath(doc, caret.path, sharing);
 				const owned = chain[chain.length - 1] ?? ensureUnsharedNode(targetNode, sharing);
 				// Degraded, but still a body write: this arm splices raw with no reparse, so the
-				// owner's rule is all that stands between a typed `>` and a terminator line.
-				owned.raw = normalizeBodyWrite(
-					chain[chain.length - 2]?.kind,
-					owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
+				// container's rule and the leaf's own are all that stand between a typed `>` or
+				// backtick and a terminator line.
+				writeOwnRaw(
+					owned,
+					normalizeBodyWrite(
+						chain[chain.length - 2]?.kind,
+						owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset)
+					),
+					ctx.grammar
 				);
-				rebuildUnsharedChain(doc, chain, sharing, ctx.grammar);
+				rebuildUnsharedChain(doc, chain, sharing, null, ctx.grammar);
 				return [{ op: 'noop' }];
 			}
 
@@ -96,14 +110,15 @@ export async function handleCrossBlockTypeReplace(
 			// never introduces a blank line, so the multi-block replacement arm is unreachable.
 			const owned = ensureUnsharedChild(scopeView.node, leafIndex, sharing);
 			const newText = owned.raw.slice(0, charOffset) + typed + owned.raw.slice(charOffset);
-			const change = updateNodeContent(
-				{ children: scopeView.children, ownerKind: scopeView.node.kind },
+			settled = updateNodeContent(
+				{ children: scopeView.children, ownerKind: scopeView.node.kind, owner: scopeView.node },
 				leafIndex,
 				newText,
-				ctx.grammar
+				ctx.grammar,
+				sharing
 			);
-			stampStructuralChange(scopeView.children, change, sharing);
-			return [change];
+			stampStructuralChange(scopeView.children, settled.change, sharing);
+			return [settled.change];
 		},
 		op: {
 			kind: 'updateContent',
@@ -112,14 +127,26 @@ export async function handleCrossBlockTypeReplace(
 			detail: { length: targetNode.raw.length + typed.length },
 			eventPath: docPathFrom(caret.path)
 		},
-		afterTick: () => {
-			focusCollapsedCaret(ctx.getBlockElByPath, {
-				path: caret.path,
-				offset: caret.offset + typed.length
-			});
+		afterTick: async () => {
+			// A settle that absorbed the join above left the predecessor holding the typed bytes,
+			// so the leaf slot the delete resolved is no longer where the caret belongs.
+			const siblings = scopeChildrenOf(ctx, scope.path);
+			const target = settledCaretTarget(settled, leafIndex, caret.offset + typed.length, siblings);
+			const path = [...caret.path.slice(0, -1), target.index];
+			// The reveal above mounted the slot the delete resolved; a fold can land the caret on
+			// one the render window never held.
+			if (target.index !== leafIndex) await ctx.revealPath(path);
+			focusCollapsedCaret(ctx.getBlockElByPath, { path, offset: target.offset });
 		}
 	});
 	return true;
+}
+
+/** The scope's children, re-read after the commit: the ceremony replaces the node it published. */
+function scopeChildrenOf(ctx: CrossBlockDispatchContext, scopePath: number[]): readonly CstNode[] {
+	const doc = ctx.getDoc();
+	if (scopePath.length === 0) return doc.children;
+	return blockNodeAt(doc, scopePath)?.children ?? [];
 }
 
 /**

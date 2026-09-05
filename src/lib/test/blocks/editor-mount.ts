@@ -11,15 +11,8 @@ import { ambientLengthOf } from '$lib/ambient/ambient-dom';
 import { asRawOffset, toDomTextOffset } from '$lib/cursor/coordinate-spaces';
 import { createRangeFromOffsets } from '$lib/cursor/content-offsets';
 
-/** BlockHost measures its own height and scrolls reveals into view; jsdom has neither. */
-export function installLayoutStubs(): void {
-	(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
-		observe(): void {}
-		unobserve(): void {}
-		disconnect(): void {}
-	};
-	Element.prototype.scrollIntoView = () => {};
-}
+/** Every mount suite runs the published seam, so a plugin author's stub installer is gated here. */
+export { installEditorDomStubsForTests as installLayoutStubs } from '$lib/testing';
 
 export interface MountedEditor {
 	instance: EditorInstance;
@@ -76,6 +69,21 @@ export function placeCaret(el: HTMLElement, rawOffset: number): void {
 	const dom = toDomTextOffset(asRawOffset(rawOffset), ambientLengthOf(el));
 	const range = createRangeFromOffsets(el, dom, dom);
 	if (!range) throw new Error(`offset ${rawOffset} is out of range for this block`);
+	const selection = window.getSelection();
+	selection?.removeAllRanges();
+	selection?.addRange(range);
+}
+
+/** Select `[start, end)` of `el` as a native range, the way a drag inside one block leaves it. */
+export function selectRange(el: HTMLElement, start: number, end: number): void {
+	el.focus();
+	const ambient = ambientLengthOf(el);
+	const range = createRangeFromOffsets(
+		el,
+		toDomTextOffset(asRawOffset(start), ambient),
+		toDomTextOffset(asRawOffset(end), ambient)
+	);
+	if (!range) throw new Error(`range ${start}..${end} is out of range for this block`);
 	const selection = window.getSelection();
 	selection?.removeAllRanges();
 	selection?.addRange(range);

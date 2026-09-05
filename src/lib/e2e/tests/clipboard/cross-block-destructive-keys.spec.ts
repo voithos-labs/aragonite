@@ -1,6 +1,8 @@
 // A key over a cross-block selection must DELETE the range first, then dispatch its
 // block-level behavior at the collapsed caret. Falling through to the originating block's
-// onKeyDown applies the op to one raw while the selection visually persists.
+// onKeyDown applies the op to one raw while the selection visually persists. The format
+// toggles are the exception: they mark each block span in place rather than type-replace the
+// range, and the selection survives (#107).
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 
@@ -44,22 +46,21 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		expect(source).toContain('al\\');
 	});
 
-	test('Ctrl+B collapses cross-block (no stale selection over shifted indices)', async () => {
+	// A format toggle is NOT one of these keys: it marks each block's own span instead of
+	// deleting the range (#107 — the delete-then-dispatch arm turned the document into `****`).
+	// The selection survives, which is also what keeps it off shifted indices.
+	test('Ctrl+B marks each endpoint span and the range survives', async () => {
 		await editor.loadContent('alpha\n\nbeta\n');
 
 		await editor.focusBlockAtPath([0], 2);
 		await editor.shiftClickBlock([1], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+b');
-		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceNotContains('pha');
+		await editor.page.keyboard.press('ControlOrMeta+b');
+		// The anchor block's tail and the focus block's head, each marked on its own — no delete.
+		await editor.bridge.waitForSourceEquals('al**pha**\n\n**be**ta\n', 3000);
 
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		const source = await editor.bridge.getSource();
-		// Range deleted ("pha" and "be" removed), merged to "al" + "ta".
-		expect(source).not.toContain('pha');
-		expect(source).not.toContain('be');
+		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
 	});
 
 	test('Ctrl+2 collapses cross-block and converts merged block to H2', async () => {
@@ -69,7 +70,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.shiftClickBlock([1], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+2');
+		await editor.page.keyboard.press('ControlOrMeta+2');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains('## ');
 
@@ -86,7 +87,7 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.shiftClickBlock([1], 2);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+0');
+		await editor.page.keyboard.press('ControlOrMeta+0');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceNotContains('# ');
 

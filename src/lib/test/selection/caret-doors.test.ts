@@ -49,7 +49,7 @@ describe('placeCaret — the safe caret door', () => {
 		expect(h.landed).toBe(7);
 	});
 
-	// The T5 rule: subscribers read the editor back on notify, so an emission between the state write
+	// Subscribers read the editor back on notify, so an emission between the state write
 	// and the DOM landing reports a caret the landing is about to move.
 	it('notifies once, after the caret has landed', () => {
 		const h = liveRange();
@@ -90,6 +90,21 @@ describe('placeCaret — the safe caret door', () => {
 
 		expect(window.getSelection()?.rangeCount).toBe(0);
 		el.remove();
+	});
+
+	// The gap is the other editor-owned caret claim: a mint that left it standing would paint
+	// two carets at once.
+	it('ends a live gap caret and lands the caret, in one emission', () => {
+		const h = liveRange();
+		h.selection.clear();
+		h.selection.setGapCaret({ parentPath: [], index: 1 });
+		h.emissions.length = 0;
+
+		placeCaret(h.selection, h.park)(7);
+
+		expect(h.selection.gapCaret).toBeNull();
+		expect(h.landed).toBe(7);
+		expect(h.emissions.length).toBe(1);
 	});
 
 	it('nests inside a caller-owned batch without emitting early', () => {

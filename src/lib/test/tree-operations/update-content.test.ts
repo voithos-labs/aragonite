@@ -11,7 +11,7 @@ describe('updateNodeContent', () => {
 	it('updates the raw text of a node', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const change = updateNodeContent(doc, 0, 'World\n');
+		const { change } = updateNodeContent(doc, 0, 'World\n');
 		expect(doc.children[0].raw).toBe('World\n');
 		expect(change).toEqual({ op: 'noop' });
 	});
@@ -63,7 +63,7 @@ describe('updateNodeContent', () => {
 	it('kind change from paragraph to heading returns a same-slot replace', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const change = updateNodeContent(doc, 0, '## Hello\n');
+		const { change } = updateNodeContent(doc, 0, '## Hello\n');
 		expect(doc.children[0].kind).toBe('heading');
 		expect(doc.children[0].metadata).toEqual({ level: 2 });
 		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
@@ -72,7 +72,7 @@ describe('updateNodeContent', () => {
 	it('kind change from heading to paragraph returns a same-slot replace', () => {
 		const source = '## Hello\n';
 		const doc = parse(source);
-		const change = updateNodeContent(doc, 0, 'Hello\n');
+		const { change } = updateNodeContent(doc, 0, 'Hello\n');
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(change).toEqual(replacePreservingFirst(0, 1, 1));
 	});
@@ -80,13 +80,17 @@ describe('updateNodeContent', () => {
 	it('replace window tracks the block index', () => {
 		const source = 'A\n\nB\n';
 		const doc = parse(source);
-		const change = updateNodeContent(doc, 1, '# B\n');
+		const { change } = updateNodeContent(doc, 1, '# B\n');
 		expect(change).toEqual(replacePreservingFirst(1, 1, 1));
 	});
 
 	it('tableCell update writes raw only and returns noop', () => {
 		const cell: CstNode = { kind: 'tableCell', leadingTrivia: '', raw: 'a' };
-		const change = updateNodeContent({ children: [cell], ownerKind: undefined }, 0, 'ab');
+		const { change } = updateNodeContent(
+			{ children: [cell], ownerKind: undefined, owner: undefined },
+			0,
+			'ab'
+		);
 		expect(change).toEqual({ op: 'noop' });
 		expect(cell.raw).toBe('ab');
 		expect(cell.kind).toBe('tableCell');
@@ -103,7 +107,7 @@ describe('updateNodeContent', () => {
 	it('handles empty string content without crashing', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const change = updateNodeContent(doc, 0, '');
+		const { change } = updateNodeContent(doc, 0, '');
 		expect(doc.children[0].raw).toBe('');
 		expect(doc.children[0].kind).toBe('paragraph');
 		expect(change).toEqual({ op: 'noop' });
@@ -112,7 +116,7 @@ describe('updateNodeContent', () => {
 	it('multi-block content splits into sibling blocks (kind change on first)', () => {
 		const source = 'Hello\n';
 		const doc = parse(source);
-		const change = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n');
+		const { change } = updateNodeContent(doc, 0, '# Heading\n\nParagraph\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['heading', 'paragraph']);
 		expect(doc.children[0].raw).toBe('# Heading\n');
 		expect(doc.children[1].leadingTrivia).toBe('\n');
@@ -125,7 +129,7 @@ describe('updateNodeContent', () => {
 	it('same-kind multi-block content splits instead of cramming (fence + trailing paragraph)', () => {
 		const doc = parse('```\nx\n```\n');
 		const edited = '```\nx\n```\n\nhello\n';
-		const change = updateNodeContent(doc, 0, edited);
+		const { change } = updateNodeContent(doc, 0, edited);
 		expect(doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'paragraph']);
 		expect(doc.children[0].raw).toBe('```\nx\n```\n');
 		expect(doc.children[1].leadingTrivia).toBe('\n');
@@ -136,7 +140,7 @@ describe('updateNodeContent', () => {
 
 	it('paragraph edit whose second line interrupts splits (hard break + heading)', () => {
 		const doc = parse('foo\n');
-		const change = updateNodeContent(doc, 0, 'foo\\\n# bar\n');
+		const { change } = updateNodeContent(doc, 0, 'foo\\\n# bar\n');
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading']);
 		expect(doc.children[0].raw).toBe('foo\\\n');
 		expect(doc.children[1].raw).toBe('# bar\n');
@@ -187,13 +191,16 @@ describe('deleteNode', () => {
 		expect(ids).toEqual(['id-1', 'id-3']);
 	});
 
-	it('transfers leading trivia to the next block', () => {
+	it('leaves the next block one separator, not two', () => {
 		const source = 'A\n\nB\n\nC\n';
 		const doc = parse(source);
 		const triviaB = doc.children[1].leadingTrivia;
 		const triviaC = doc.children[2].leadingTrivia;
 		deleteNode(doc, 1);
-		expect(doc.children[1].leadingTrivia).toBe(triviaB + triviaC);
+		// Not triviaB + triviaC: the successor keeps its own separator, since a second blank
+		// line would reload as an empty paragraph the delete never left behind.
+		expect(triviaB).not.toBe('');
+		expect(doc.children[1].leadingTrivia).toBe(triviaC);
 	});
 });
 

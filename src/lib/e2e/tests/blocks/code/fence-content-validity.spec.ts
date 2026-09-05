@@ -36,20 +36,20 @@ test.describe('code block — content the fence cannot hold', () => {
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});
 
-	test('a paste lands in the info string without the backticks it carried', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('x`y'));
+	test('a paste lands in the info string without the backticks it carried', async () => {
+		await editor.seedClipboard('x`y');
 		await editor.focusBlock(0, 5);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('jsxy');
 
 		expect(await editor.bridge.getSource()).toBe('```jsxy\nconst x = 1\n```\n\n# Heading\n');
 	});
 
-	test('a pasted fence run on a body line grows the fence', async ({ page }) => {
-		await page.evaluate(() => navigator.clipboard.writeText('```'));
+	test('a pasted fence run on a body line grows the fence', async () => {
+		await editor.seedClipboard('```');
 		await editor.focusBlock(0, 17);
 		await editor.page.keyboard.press('Enter');
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('````');
 
 		expect(await editor.bridge.getSource()).toBe('````js\nconst x = 1\n```\n````\n\n# Heading\n');
@@ -109,8 +109,9 @@ test.describe('code block — closing a fence by typing it', () => {
 		await editor.typeText('```');
 		await editor.bridge.waitForSourceContains('code');
 
-		// The fixture's own blank line survives as the block's leading trivia.
-		expect(await editor.bridge.getSource()).toBe('\n```\ncode\n```\n');
+		// The fixture's blank line IS the block the caret sits in, so the fence fills it: a
+		// leading blank would be one more block, which the count below reads as the same doc.
+		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 		expect(await editor.bridge.getBlockKind(0)).toBe('fencedCode');
 	});

@@ -14,13 +14,7 @@ import {
 } from '$lib/components/blocks/text/text-clipboard';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
 import type { CstNode } from '$lib/core/nodes';
-
-interface Commit {
-	index: number;
-	raw: string;
-	before: number;
-	after: number;
-}
+import type { Commit } from './widget-selected-fixture';
 
 function capturingEvent() {
 	const store = new Map<string, string>();
@@ -30,15 +24,28 @@ function capturingEvent() {
 			setData: (type: string, value: string) => void store.set(type, value),
 			getData: (type: string) => store.get(type) ?? ''
 		},
-		payload: () => store.get('text/plain') ?? ''
+		payload: () => store.get('text/plain') ?? '',
+		/** Distinguishes a handler that wrote nothing from one that never ran at all. */
+		wrote: () => store.has('text/plain')
 	};
 }
 
-function harness(source: string, sourceStart: number) {
+interface HarnessOptions {
+	/** Omitted selection stands in for a widget selected on a DIFFERENT block. */
+	selectWidget?: boolean;
+	readOnly?: boolean;
+	/** The paste route consults the cross-block seam before the widget arm; every other
+	 *  route leaves the trap in place, which is what proves it never fell through. */
+	crossBlockDeclines?: boolean;
+}
+
+function harness(source: string, sourceStart: number, options: HarnessOptions = {}) {
 	const node: CstNode = parse(source).children[0];
 	const commits: Commit[] = [];
 	const widgetSelection = createWidgetSelectionState({ onSelect: () => {} });
-	widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+	if (options.selectWidget !== false) {
+		widgetSelection.select({ paragraphPath: [0], sourceStart, preSelectOffset: sourceStart });
+	}
 
 	const trap = new Proxy(
 		{},
@@ -61,8 +68,9 @@ function harness(source: string, sourceStart: number) {
 		},
 		cursor: { getRaw: () => null, getRawSelection: () => null },
 		selection: { isCrossBlock: false, anchor: null, focus: null },
-		crossBlock: trap,
+		crossBlock: options.crossBlockDeclines ? { handlePaste: async () => false } : trap,
 		stickyColumn: { reset: () => {} },
+		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
 		blockEdit: {
 			updateBlockContent: (index: number, raw: string, before: number, after: number) =>
 				void commits.push({ index, raw, before, after })
@@ -73,7 +81,7 @@ function harness(source: string, sourceStart: number) {
 		},
 		widgetSelection,
 		setPendingCursor: () => {},
-		isReadOnly: () => false,
+		isReadOnly: () => options.readOnly === true,
 		foldRevealBeforeMutation: () => null,
 		get linkRef() {
 			return undefined;
@@ -128,6 +136,62 @@ describe('createTextClipboard — selected-widget cut', () => {
 	});
 });
 
+// The root seam's arm: the browser dispatches at <body> when the paragraph holds no text
+// position, and the editor root hands the event back here. Forwarding to the same handlers the
+// caret route reaches is what carries the reading gate and the sticky reset along with it.
+describe('createTextClipboard — claimRootClipboard', () => {
+	it('routes each clipboard type to the arm the caret route reaches', async () => {
+		const copy = harness('lead![cat](x)\n', 4);
+		const copyEvent = capturingEvent();
+		copy.handlers.claimRootClipboard({ ...copyEvent, type: 'copy' } as never);
+		expect(copyEvent.payload()).toBe('![cat](x)');
+		expect(copy.commits).toEqual([]);
+
+		const cut = harness('lead![cat](x)\n', 4);
+		const cutEvent = capturingEvent();
+		cut.handlers.claimRootClipboard({ ...cutEvent, type: 'cut' } as never);
+		await tick();
+		expect(cutEvent.payload()).toBe('![cat](x)');
+		expect(cut.commits[0]).toEqual({ index: 0, raw: 'lead\n', before: 4, after: 4 });
+
+		const paste = harness('lead![cat](x)\n', 4, { crossBlockDeclines: true });
+		const pasteEvent = capturingEvent();
+		pasteEvent.clipboardData.setData('text/plain', 'PASTED');
+		paste.handlers.claimRootClipboard({ ...pasteEvent, type: 'paste' } as never);
+		await tick();
+		expect(paste.commits[0].raw).toBe('leadPASTED\n');
+	});
+
+	// The trap deps prove it: the guard must not reach a handler, or the block would answer
+	// for a widget selected somewhere else.
+	it('stays inert when the selected widget is not this block’s', () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4, { selectWidget: false });
+		const event = capturingEvent();
+		handlers.claimRootClipboard({ ...event, type: 'copy' } as never);
+		expect(event.wrote()).toBe(false);
+		expect(commits).toEqual([]);
+	});
+
+	it('stays inert for an event type no arm owns', () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4);
+		const event = capturingEvent();
+		handlers.claimRootClipboard({ ...event, type: 'beforeinput' } as never);
+		expect(event.wrote()).toBe(false);
+		expect(commits).toEqual([]);
+	});
+
+	// Reading mode degrades the cut to the copy path, which writes the visible selection
+	// (empty here) rather than the widget slice — so `wrote` is what says it ran at all.
+	it('carries the reading gate: a cut still writes, and commits nothing', async () => {
+		const { handlers, commits } = harness('lead![cat](x)\n', 4, { readOnly: true });
+		const event = capturingEvent();
+		handlers.claimRootClipboard({ ...event, type: 'cut' } as never);
+		await tick();
+		expect(event.wrote()).toBe(true);
+		expect(commits).toEqual([]);
+	});
+});
+
 // A fold whose commit changes the block's kind takes the structural path, whose completion is a
 // promise; both clipboard mutations must hold or they splice bytes the fold is still replacing.
 function foldSettleHarness() {
@@ -155,6 +219,7 @@ function foldSettleHarness() {
 		selection: { isCrossBlock: false, anchor: null, focus: null },
 		crossBlock: { handlePaste: async () => false, handleCut: async () => false },
 		stickyColumn: { reset: () => {} },
+		edgeAffinity: { reset: () => {}, get: () => null, note: () => {}, noteTyping: () => {} },
 		blockEdit: { updateBlockContent: () => void order.push('seam-commit') },
 		pasteCoordinator: {},
 		getDoc: () => null,

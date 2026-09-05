@@ -44,6 +44,9 @@ refinement that arrows step over while destructive keys select-then-delete for r
 - The same two-press delete on a list-item island (whose `data-source-*` _exclude_ the ambient
   `- ` marker, and whose commit addresses a nested child) deletes the right hidden range — the
   ambient-coordinate seam.
+- No two-press delete raises a dev warning. The fixture's source keeps its fixed offsets (that
+  is what pins the marker conventions above) but declines once the block no longer holds the
+  bytes, so the session models a well-formed source throughout.
 
 ## Edge cases
 

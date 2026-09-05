@@ -1,5 +1,6 @@
-import type { CstNode } from '../core/nodes';
-import type { DocumentView } from '../core/node-views';
+import { DEV } from 'esm-env';
+import { tick } from 'svelte';
+import type { DocumentView, NodeView } from '../core/node-views';
 import {
 	groupDecorationsByAncestor,
 	groupDecorationsByPath,
@@ -16,9 +17,9 @@ import type {
 	ReplaceDecoration,
 	WidgetDecoration
 } from './types';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { isCommitInProgress } from '../invariants/commit-scope';
-import { isProseKind } from '../core/inline';
+import { contentLengthOf, isProseKind } from '../core/inline';
 import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
 import { devWarn } from '../dev-warn';
 import { recordDecorationRun } from '../perf/instruments';
@@ -45,14 +46,10 @@ export type DecorationEngine = {
 	blockDecorationsForPath(path: number[]): BlockDecoration[];
 };
 
-interface SourceSlot {
-	source: DecorationSource;
-}
-
 export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEngine {
-	// Non-reactive registry state, index-aligned with `results`. Handles close over the slot
+	// Non-reactive registry state, index-aligned with `results`. Handles close over the source
 	// object, not its index, so a dispose mid-list never staleness-shifts a surviving handle.
-	const slots: SourceSlot[] = [];
+	const sources: DecorationSource[] = [];
 	const names = new Set<string>();
 	const warnedUnrenderableIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
@@ -64,18 +61,18 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	const byPath = $derived(groupDecorationsByPath(merged));
 	const byAncestor = $derived(groupDecorationsByAncestor(merged));
 
-	function runSlot(slot: SourceSlot): void {
-		const i = slots.indexOf(slot);
+	function runSource(source: DecorationSource): void {
+		const i = sources.indexOf(source);
 		if (i < 0) return; // disposed between schedule and run
 		recordDecorationRun();
 		let next: Decoration[];
 		try {
-			next = slot.source.provide(deps.getDoc(), { editEpoch });
+			next = source.provide(deps.getDoc(), { editEpoch });
 		} catch (error) {
-			deps.onSourceError?.(slot.source.name, error);
-			return; // keep the slot's prior decorations — a throw never blanks the view
+			deps.onSourceError?.(source.name, error);
+			return; // keep the source's prior decorations — a throw never blanks the view
 		}
-		warnUnrenderableIslands(slot.source.name, next);
+		warnUnrenderableIslands(source.name, next);
 		// An empty→empty re-run must not reassign `results`, or every keystroke would
 		// republish the derived buckets for sources that never emit.
 		if (results[i].length === 0 && next.length === 0) return;
@@ -84,36 +81,75 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		results = copy;
 	}
 
-	// Non-prose kinds run no inline pass, so they apply no islands. Flag that at the source
-	// seam rather than leaving the author to wonder why nothing rendered.
-	function islandSkipReason(kind: CstNode['kind']): string | null {
-		if (!isProseKind(kind)) return 'islands render only in prose blocks';
-		return null;
+	/**
+	 * Why the render path will apply nothing for this island, or null when it will. The
+	 * verdict belongs here and nowhere downstream: only this pass holds the decorations
+	 * beside the document they were derived from, so only here does an unrenderable island
+	 * mean the author placed it wrong rather than the document having moved since.
+	 */
+	function islandDefect(
+		dec: WidgetDecoration | ReplaceDecoration,
+		node: NodeView
+	): { key: string; message: string } | null {
+		// Non-prose kinds run no inline pass, so they apply no islands.
+		if (!isProseKind(node.kind)) {
+			return {
+				key: `non-prose\0${node.kind}`,
+				message: `on a non-prose ${node.kind} block; islands render only in prose blocks`
+			};
+		}
+		// An END offset, not a count: a heading's content starts past its marker, so reporting it as
+		// a byte total would name a number the author cannot place anything at.
+		const contentEnd = contentLengthOf(node);
+		const held = `the block's content ends at ${contentEnd}`;
+		if (dec.type === 'widget') {
+			if (dec.offset >= 0 && dec.offset <= contentEnd) return null;
+			return { key: 'range', message: `at offset ${dec.offset}, but ${held}` };
+		}
+		if (dec.start >= 0 && dec.start < dec.end && dec.end <= contentEnd) return null;
+		return { key: 'range', message: `at ${dec.start}..${dec.end}, but ${held}` };
 	}
 
 	function warnUnrenderableIslands(sourceName: string, decs: Decoration[]): void {
-		if (!import.meta.env.DEV) return;
+		if (!DEV) return;
 		const doc = deps.getDoc();
 		for (const dec of decs) {
 			if (dec.type !== 'widget' && dec.type !== 'replace') continue;
 			const node = nodeAt(doc, dec.path);
 			if (!node || !isBlockNode(node)) continue;
-			const reason = islandSkipReason(node.kind);
-			if (!reason) continue;
-			const key = `${sourceName}\0${node.kind}`;
+			const defect = islandDefect(dec, node);
+			if (!defect) continue;
+			const key = `${sourceName}\0${defect.key}`;
 			if (warnedUnrenderableIslands.has(key)) continue;
 			warnedUnrenderableIslands.add(key);
 			devWarn(
 				'decorations',
-				`source '${sourceName}' places a ${dec.type} island on a non-prose ${node.kind} block; ${reason}`,
+				`source '${sourceName}' places a ${dec.type} island ${defect.message}`,
 				{ path: dec.path }
 			);
 		}
 	}
 
+	// A source invalidating from its own `edit` handler is asking to re-run inside the commit
+	// that emitted the event; deferred here to one run per source once the commit publishes.
+	const deferred = new Set<DecorationSource>();
+	let flushQueued = false;
+
+	function runAfterCommit(source: DecorationSource): void {
+		deferred.add(source);
+		if (flushQueued) return;
+		flushQueued = true;
+		void tick().then(() => {
+			flushQueued = false;
+			const pending = [...deferred];
+			deferred.clear();
+			for (const source of pending) runSource(source);
+		});
+	}
+
 	function runAll(): void {
 		assertNotInCommit();
-		for (const slot of slots) runSlot(slot);
+		for (const source of sources) runSource(source);
 	}
 
 	function addSource(source: DecorationSource): DecorationSourceHandle {
@@ -123,17 +159,24 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			);
 		}
 		names.add(source.name);
-		const slot: SourceSlot = { source };
-		slots.push(slot);
+		sources.push(source);
 		results = [...results, []];
-		runSlot(slot);
+		runSource(source);
+		// Not `sources.indexOf`: dispose frees the name, so the same source object may be
+		// registered again, and this handle must stay inert over that second registration.
+		let live = true;
 		return {
-			invalidate: () => runSlot(slot),
+			invalidate: () => {
+				if (!live) return;
+				if (isCommitInProgress()) runAfterCommit(source);
+				else runSource(source);
+			},
 			dispose: () => {
-				const i = slots.indexOf(slot);
-				if (i < 0) return; // idempotent
-				slots.splice(i, 1);
-				names.delete(slot.source.name);
+				if (!live) return;
+				live = false;
+				const i = sources.indexOf(source);
+				sources.splice(i, 1);
+				names.delete(source.name);
 				results = results.filter((_, idx) => idx !== i);
 			}
 		};
@@ -146,7 +189,7 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	return {
 		addSource,
 		get sourceCount() {
-			return slots.length;
+			return sources.length;
 		},
 		notifyEdit() {
 			assertNotInCommit();

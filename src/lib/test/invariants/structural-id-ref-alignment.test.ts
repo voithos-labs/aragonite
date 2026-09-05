@@ -16,6 +16,7 @@ import {
 import { expectParseConverged } from '$lib/test/harness/parse-converged';
 import type { BlockComponent } from '$lib/block-component';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { replaceRefs } from '$lib/reactivity/publish-ref.svelte';
 import type { CstNode } from '$lib/core/nodes';
 
 /**
@@ -36,10 +37,16 @@ interface TopHarness {
 	refs: () => (BlockComponent | undefined)[];
 }
 
-function makeTop(raws: string[]): TopHarness {
-	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(
-		raws.map((r) => makeNode('paragraph', r))
-	);
+const makeTop = (raws: string[]): TopHarness => makeTopFrom(raws.join('\n'));
+
+/**
+ * Blank-separated like a parsed document — a tight paragraph pair is a lazy continuation, which
+ * the seam settle absorbs the way a reload would (GH #61) — plus the trailing blank line the
+ * parse folds into `suffix`. A children-only fixture cannot hold one, which left every arm that
+ * spends it unreachable from this lane (GH #168).
+ */
+function makeTopFrom(source: string): TopHarness {
+	const { deps, doc, getBlockIds, getBlockRefs } = makeEditorActionsDeps(parse(source + '\n'));
 	const controller = createUndoController(deps);
 	const actions = createBlockEditActions(deps, controller);
 	const reorder = createReorderAction(deps, controller);
@@ -102,7 +109,10 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		const h = makeTop(['hello\n', 'tail\n']);
 		const [id0, id1] = h.ids();
 
-		await h.actions.replaceBlock(0, [makeNode('paragraph', 'x\n'), makeNode('paragraph', 'y\n')]);
+		await h.actions.replaceBlock(0, [
+			makeNode('paragraph', 'x\n'),
+			{ ...makeNode('paragraph', 'y\n'), leadingTrivia: '\n' }
+		]);
 
 		assertAligned(h);
 		expect(h.doc.children.length).toBeGreaterThan(2);
@@ -120,11 +130,21 @@ describe('G2.8 top-level id↔ref↔children alignment', () => {
 		expect(h.ids()).toEqual([id1, id0, id2]);
 	});
 
+	// GH #168: the settle materializes the document's folded line when a delete leaves the tail
+	// blank, and a change that does not report the growth costs one id on the NEXT commit.
+	it('a delete whose settle mints the folded tail line keeps arrays aligned', async () => {
+		const h = makeTopFrom('alpha\n\n\nbeta\n');
+
+		await h.actions.deleteBlock(2);
+		assertAligned(h);
+		expect(h.doc.children).toHaveLength(3);
+
+		await h.actions.deleteBlock(0);
+		assertAligned(h);
+	});
+
 	it('round-trip stays byte-stable across a sequence of ops', async () => {
 		const h = makeTop(['one\n', 'two\n', 'three\n']);
-		// Byte round-trip only: makeTop's separator-less paragraphs serialize to a lazy
-		// continuation, non-convergent by construction. The convergence oracle bites in
-		// the container test below, whose fixture is a real parsed blockquote.
 		const stable = () => {
 			const live = serialize(h.doc);
 			expect(serialize(parse(live))).toBe(live);
@@ -161,7 +181,10 @@ function makeContainer(source: string): ContainerHarness {
 
 	const { deps, controller, state, bundle, getNode: node } = makeNestedHarness([initial]);
 	const reorder = createReorderAction(deps, controller);
-	state.innerBlockRefs = (initial.children ?? []).map(() => mockRef());
+	replaceRefs(
+		state.innerBlockRefs,
+		(initial.children ?? []).map(() => mockRef())
+	);
 
 	return { doc: deps.doc, node, state, bundle, reorder };
 }

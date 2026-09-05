@@ -1,13 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { createTableMutationsContext } from '$lib/editor-actions/table-context';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { maybeCommitTableCoverageDelete } from '$lib/selection/range-delete-table-coverage';
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import type { SelectionPoint } from '$lib/selection/primitives';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { makeBlockListState, makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { makeTableMutations } from './table-mutations-harness';
 import type { EditEvent } from '$lib/editor-events';
 
 // A column is not a child node, so column-shaped ops address the TABLE and carry the
@@ -19,37 +18,11 @@ const TABLE = '| a | b |\n| --- | --- |\n| c | d |\n';
 
 // ── Alignment ops (table-context) ────────────────────────────────────────────
 
-function makeTableMutations() {
-	const { deps, events } = makeEditorActionsDeps([parse(TABLE).children[0]]);
-	const liveTable = () => deps.doc.children[0];
-	const rowsState = makeBlockListState(liveTable, ['row-0', 'row-1']);
-	const controller = createUndoController(deps);
-	const edits: EditEvent[] = [];
-	events.on('edit', (e) => edits.push(e));
-	const mutations = createTableMutationsContext({
-		get node() {
-			return liveTable();
-		},
-		get myPath() {
-			return [0];
-		},
-		get rowsState() {
-			return rowsState;
-		},
-		get focusedCell() {
-			return { rowIdx: 1, colIdx: 1 };
-		},
-		parentContainerEdit: createContainerEditActions(deps, controller),
-		controller,
-		focusCell: vi.fn(),
-		announceReorder: vi.fn()
-	});
-	return { mutations, edits };
-}
+const alignmentEnv = () => makeTableMutations(TABLE, { rowIds: ['row-0', 'row-1'] });
 
 describe('alignment ops emit the table path with colIdx in the detail', () => {
 	it('cycleAlignment targets the table, not the column index', async () => {
-		const { mutations, edits } = makeTableMutations();
+		const { mutations, edits } = alignmentEnv();
 
 		await mutations.cycleAlignment(1);
 
@@ -62,7 +35,7 @@ describe('alignment ops emit the table path with colIdx in the detail', () => {
 	});
 
 	it('setColumnAlignment targets the table, not the column index', async () => {
-		const { mutations, edits } = makeTableMutations();
+		const { mutations, edits } = alignmentEnv();
 
 		await mutations.setColumnAlignment(1, 'center');
 
@@ -100,7 +73,9 @@ function makeColumnCoverageEnv() {
 		revealPath: deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined,
+		linkRef: undefined
 	};
 	return { deps, table, ctx, edits };
 }

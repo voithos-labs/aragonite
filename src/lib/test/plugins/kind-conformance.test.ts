@@ -10,12 +10,16 @@ import {
 	getBlockKindDescriptor
 } from '$lib/schema/block-kind-descriptor';
 import { listRegisteredOpeners } from '$lib/schema/block-openers';
-import { resetPluginPlatformForTests, runKindConformance } from '$lib/testing';
+import {
+	checkCopyIsRawByteSlice,
+	resetPluginPlatformForTests,
+	runKindConformance
+} from '$lib/testing';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import {
 	registerCalloutKind,
-	NOTE,
-	NOTE_TITLE
+	CALLOUT,
+	CALLOUT_TITLE
 } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 import { registerFootnoteDefinition } from '$lib/plugins/footnotes/footnote-definition';
@@ -25,13 +29,15 @@ import { ADMONITION, GITHUB_ALERT } from '$lib/plugins/admonitions/kinds';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind, MERMAID } from '$lib/plugins/mermaid/mermaid-kind';
 import { registerTocBlock, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
+import { parrotPlugin, PARROT } from '$lib/plugins/parrot';
+import { installPlugins } from '$lib';
 
 // The generic battery pointed at real PLUGIN kinds. They only exist once their setup
 // installs them, so each case resets and re-installs — the platform is register-once
-// (docs/contributing/culture.md).
+// (docs/contributing/casebook.md).
 
 const MEMO_KIND = () => declaredPluginKind(MEMO_BLOCK);
-const NOTE_KIND = () => declaredPluginKind(NOTE);
+const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 
 const statusOf = (report: Awaited<ReturnType<typeof runKindConformance>>, column: string) =>
 	report.cells.find((c) => c.column === column)?.status;
@@ -56,7 +62,7 @@ describe('kind conformance — plugin kinds enroll', () => {
 	// A container kind: round-trip (rebuildRaw) and merge-role eligibility execute;
 	// its kind-specific clipboard mechanism is boundary until the browser sweep.
 	it('executes round-trip and merge cells for a container kind', async () => {
-		const report = await runKindConformance(NOTE_KIND());
+		const report = await runKindConformance(CALLOUT_KIND());
 		expect(statusOf(report, 'roundTrip')).toBe('executed');
 		expect(statusOf(report, 'mergeBackspace')).toBe('executed');
 		expect(statusOf(report, 'clipboard')).toBe('boundary');
@@ -66,7 +72,7 @@ describe('kind conformance — plugin kinds enroll', () => {
 	// so no registered kind sits outside every battery.
 	it('every kind the dogfood registrars register executes its headless cells', async () => {
 		const registered = getAllRegisteredKinds().filter((k) => !isBuiltinBlockKind(k));
-		expect(registered).toContain(declaredPluginKind(NOTE_TITLE));
+		expect(registered).toContain(declaredPluginKind(CALLOUT_TITLE));
 		for (const k of registered) {
 			const report = await runKindConformance(k);
 			expect(new Set(report.cells.map((c) => c.column))).toEqual(
@@ -87,7 +93,10 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: () => void }[] = [
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
 	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
-	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
+	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock },
+	// The parrot's registrar is module-private (it keeps the guide's bytes), so its plugin
+	// unit is the door in — the same one a consumer installs through.
+	{ dir: 'parrot', kind: PARROT, install: () => installPlugins([parrotPlugin()]) }
 ];
 
 const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji']);
@@ -115,6 +124,17 @@ describe('kind conformance — bundled plugin kinds enroll', () => {
 			expect(statusOf(report, 'mergeBackspace')).toBe('executed');
 		}
 	);
+
+	// The kind whose clipboard cell claims a cross-block range carries it whole: the claim is
+	// the kit's byte check, not prose, since the runner routes an `implemented` cell to the
+	// browser sweep and would never execute it.
+	it('mermaid backs its cross-block clipboard claim with the byte-slice check', () => {
+		registerMermaidKind();
+		const kind = declaredPluginKind(MERMAID);
+		expect(() =>
+			checkCopyIsRawByteSlice(kind, getBlockKindDescriptor(kind).conformanceFixture!)
+		).not.toThrow();
+	});
 
 	// Lockstep, dir tier: both directions, so neither an unenrolled new plugin nor a
 	// stale entry for a deleted one survives.
@@ -195,6 +215,35 @@ describe('kind conformance — a broken plugin registration fails', () => {
 			}
 		});
 		await expect(runKindConformance(MEMO_KIND())).rejects.toThrow(/finds no match/);
+	});
+
+	// The kit drives the fixture's FIRST block as the subject (undo deletes it, the
+	// byte-slice copy sweeps from it), so a kind parked under a later one leaves the undo
+	// cell deleting a bystander and reporting `executed`.
+	it('rejects a conformanceFixture whose kind is not under the first block', async () => {
+		registerAdmonitions();
+		const alert = declaredPluginKind(GITHUB_ALERT);
+		augmentBlockKind(alert, {
+			conformanceFixture: 'lead paragraph\n\n> > [!NOTE]\n> > Heads up.\n'
+		});
+
+		await expect(runKindConformance(alert)).rejects.toThrow(
+			/conformanceFixture must open with the "githubAlert" block/
+		);
+	});
+
+	// The undo cell's trailing sentinel must parse as its OWN block: a fixture running to
+	// EOF swallows it, and deleting the doc's only block still pushes one entry.
+	it('rejects a conformanceFixture that swallows the undo cell sentinel', async () => {
+		registerMermaidKind();
+		const kind = declaredPluginKind(MERMAID);
+		const closure = getBlockKindDescriptor(kind).closure;
+		augmentBlockKind(kind, {
+			conformanceFixture: '```mermaid\ngraph TD\n',
+			closure: { ...closure, undo: { mode: 'inherit-default' } }
+		});
+
+		await expect(runKindConformance(kind)).rejects.toThrow(/trailing sentinel/);
 	});
 
 	// Parity with the container kit's `assertExemptionDocumented`: an exempt cell must

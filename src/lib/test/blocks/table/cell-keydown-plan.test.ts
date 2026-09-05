@@ -21,7 +21,8 @@ const state = (over: Partial<CellKeyState> = {}): CellKeyState => ({
 	columnCount: 3,
 	rowCount: 3,
 	offset: 1,
-	textLen: 3,
+	contentStart: 0,
+	contentEnd: 3,
 	collapsed: true,
 	selectAllCount: 0,
 	...over
@@ -129,6 +130,20 @@ describe('cellKeydownPlan: arrow boundary moves', () => {
 			{ offset: 3, collapsed: false },
 			{ kind: 'native' }
 		],
+		// A cell opening or closing with a run the mode paints nothing for: the hop fires at the
+		// offsets the caret can reach, not at raw 0 / raw length.
+		[
+			'ArrowLeft at a landable start short of 0',
+			key('ArrowLeft'),
+			{ offset: 1, contentStart: 1 },
+			cell(1, 0, 'end')
+		],
+		[
+			'ArrowRight at a landable end short of the raw length',
+			key('ArrowRight'),
+			{ offset: 5, contentEnd: 5 },
+			cell(1, 2, 'start')
+		],
 		['ArrowUp mid-table', key('ArrowUp'), {}, { ...cell(0, 1, 'start'), setStickyColumn: 1 }],
 		['ArrowUp top row', key('ArrowUp'), { rowIdx: 0 }, { kind: 'exit', direction: 'up' }],
 		['ArrowDown mid-table', key('ArrowDown'), {}, { ...cell(2, 1, 'start'), setStickyColumn: 1 }],
@@ -172,6 +187,18 @@ describe('cellKeydownPlan: backspace, delete, and native fallthrough', () => {
 			{ kind: 'native' }
 		],
 		['Backspace mid-text', key('Backspace'), {}, { kind: 'native' }],
+		[
+			'Backspace at a landable start short of 0',
+			key('Backspace'),
+			{ offset: 1, contentStart: 1 },
+			cell(1, 0, 'end')
+		],
+		[
+			'Delete at a landable end short of the raw length',
+			key('Delete'),
+			{ offset: 5, contentEnd: 5 },
+			cell(1, 2, 'start')
+		],
 		['Delete at end', key('Delete'), { offset: 3 }, cell(1, 2, 'start')],
 		[
 			'Delete at end with selection',

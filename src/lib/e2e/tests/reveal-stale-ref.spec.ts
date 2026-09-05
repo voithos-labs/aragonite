@@ -1,6 +1,5 @@
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
-import { primaryModifier } from '../platform';
 
 // A top-level slot holding a DETACHED off-window ref must be dropped and re-revealed, not
 // descended into. The stale slot is forged deterministically because the natural cleanup
@@ -30,7 +29,7 @@ test.describe('reveal into a stale top-level ref slot', () => {
 		expect(await page.evaluate(() => (window as any).__test.replantBlockRef(0))).toBe(true);
 
 		// Search-driven reveal into the first list item's unique text.
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await page.getByRole('textbox', { name: 'Find' }).waitFor({ state: 'visible' });
 		await page.keyboard.type('zebrafish');
 

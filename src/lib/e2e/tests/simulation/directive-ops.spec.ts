@@ -2,17 +2,16 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
-import { topLevelIndexOf } from './helpers';
+import { assertCoreOracles } from '../../simulation/invariants';
+import { makeSimContext, topLevelIndexOf } from './helpers';
 
 // Ungated directive-ops oracle for the `:::name` primitive, whose surface spans three tiers
 // (opaque container, not-mergeable leaf, atomic inline widget) and two dispatch paths (a
 // registered name resolving to a factory node, an unregistered one to the generic lossless
 // kinds) — none of which the oracle stack had seen under a state-accumulating watcher.
-// `:::note` and `:::mystery` drive both dispatch paths at parse.
+// `:::callout` and `:::mystery` drive both dispatch paths at parse.
 
 const DIRECTIVE_DOC =
 	'Lead paragraph.\n\n' +
@@ -20,7 +19,7 @@ const DIRECTIVE_DOC =
 	// depend on it — a plugin claiming it fails the generic count assertion loudly, by design.
 	':::mystery\nGeneric body.\n:::\n\n' +
 	'Middle paragraph.\n\n' +
-	':::note Note title\nRegistered body.\n:::\n\n' +
+	':::callout Note title\nRegistered body.\n:::\n\n' +
 	'Tail paragraph.\n';
 
 async function directiveBlockCount(page: Page): Promise<number> {
@@ -51,8 +50,7 @@ test.describe('directive-ops simulation', () => {
 		await expect(page.locator('.callout-block')).toHaveCount(1);
 		await expect(page.locator('.directive-block')).toHaveCount(1);
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'directive-ops' };
+		const ctx = await makeSimContext(page, editor, 'directive-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
@@ -105,7 +103,7 @@ test.describe('directive-ops simulation', () => {
 		await checkOracles('tip-body-split');
 
 		// ── Container tier (registered): edit the callout's body child ───────────
-		const noteIndex = await topLevelIndexOf(page, 'note');
+		const noteIndex = await topLevelIndexOf(page, 'callout');
 		await g.editContainerBody([noteIndex, 1], ' reg');
 		expect(await editor.bridge.getSource()).toContain('Registered body. reg');
 		await checkOracles('note-body-edit');
@@ -117,7 +115,7 @@ test.describe('directive-ops simulation', () => {
 		await editor.dragFromTo([tipIndex - 1], 40, [tipIndex + 1], 0);
 		await g.copySelection();
 
-		await g.clickToReposition([tipIndex + 1], 0);
+		await g.clickToReposition([tipIndex + 1]);
 		await page.keyboard.press('End');
 		await g.pasteHere();
 		await page.waitForFunction(

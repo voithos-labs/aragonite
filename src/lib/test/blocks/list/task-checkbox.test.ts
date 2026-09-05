@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildTaskItemAmbient } from '$lib/components/blocks/list/task-checkbox';
 import type { ListItemMetadata } from '$lib/core/nodes';
+import { takeDevWarns } from '../../support/warn-gate';
 
 function plainListMeta(): ListItemMetadata {
 	return { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null };
@@ -65,6 +66,7 @@ describe('buildTaskItemAmbient', () => {
 			vi.fn()
 		);
 		expect(result).toBe('- ');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['ListItemBlock']);
 	});
 
 	it('preserves a non-default list marker (e.g. ordered "1. ")', () => {

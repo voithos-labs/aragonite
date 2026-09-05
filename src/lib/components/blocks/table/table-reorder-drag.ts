@@ -1,13 +1,12 @@
 /**
- * Pointer drag-to-reorder for table rows and columns: a shared drag session paints a
- * single insertion line (no tree mutation, no reflow) and commits ONE move on release.
- * Both axes share the lifecycle and diverge only in geometry — rows are windowed under
- * a fixed header (absolute indices, autoscroll to mount off-window targets), columns
- * are neither, so an edge index maps straight to a column index.
+ * Pointer drag-to-reorder for table rows and columns: a shared drag session paints a single
+ * insertion line (no tree mutation, no reflow) and commits ONE move on release. The axes diverge
+ * only in geometry — rows are windowed under a fixed header, so their indices are absolute and
+ * off-window targets need autoscroll to mount; columns are neither.
  */
 
 import type { UserScrollport } from '../../../cursor/scroll-ancestors';
-import { rowDropIndex, columnDropIndex } from './table-drop-target';
+import { dropGapIndex } from './table-drop-target';
 import { createPointerDragSession, type PointerPosition } from '../../../selection/pointer-session';
 
 // Past this much pointer travel the gesture is a drag, not a menu-opening click.
@@ -121,7 +120,7 @@ export function startRowReorderDrag(down: PointerEvent, ctx: RowReorderDragConte
 			const geom = ctx.getGeometry();
 			if (!geom) return null;
 			// The LOCAL edge among mounted rows; gapIndices maps it to the absolute gap.
-			let edge = rowDropIndex(pointer.clientY, geom.rowEdges);
+			let edge = dropGapIndex(pointer.clientY, geom.rowEdges);
 			// Never land above the fixed header (gap 0); reachable only while row 0 is mounted.
 			if (geom.gapIndices[edge] < 1) edge = Math.min(edge + 1, geom.gapIndices.length - 1);
 			const gap = geom.gapIndices[edge];
@@ -171,7 +170,7 @@ export function startColumnReorderDrag(down: PointerEvent, ctx: ColumnReorderDra
 			const geom = ctx.getGeometry();
 			if (!geom) return null;
 			// Columns aren't windowed and have no header, so the edge index IS the drop gap.
-			const gap = columnDropIndex(pointer.clientX, geom.colEdges);
+			const gap = dropGapIndex(pointer.clientX, geom.colEdges);
 			// Insert semantics: removing the dragged column shifts later slots left by one.
 			const target = gap <= ctx.fromColIdx ? gap : gap - 1;
 			const dropTo = Math.max(0, Math.min(target, ctx.getColCount() - 1));

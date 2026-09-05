@@ -26,10 +26,7 @@ export function getCurrentCursorEditorRelativeX(el: HTMLElement): EditorX | null
 
 	const rect = firstUsefulRect(range);
 	const viewportX = asViewportX(rect ? rect.left : el.getBoundingClientRect().left);
-
-	const editor = el.closest('.editor') as HTMLElement | null;
-	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
-	return toEditorX(viewportX, editorLeft);
+	return toEditorX(viewportX, editorLeftOf(el));
 }
 
 export function getOffsetRect(container: HTMLElement, offset: DomTextOffset): DOMRect | null {
@@ -61,9 +58,7 @@ export function findOffsetNearestX(
 	const totalLen = containerDomTextLength(container);
 	if (totalLen <= minOffset) return minOffset;
 
-	const editor = container.closest('.editor') as HTMLElement | null;
-	const editorLeft = editor ? editor.getBoundingClientRect().left : 0;
-	const targetViewportX = toViewportX(editorRelativeX, editorLeft);
+	const targetViewportX = toViewportX(editorRelativeX, editorLeftOf(container));
 
 	// Only offsets near the probed edge can be the answer, so walk inward and stop a few
 	// lines past it: the band filter below discards anything further regardless, making
@@ -71,32 +66,27 @@ export function findOffsetNearestX(
 	const forward = from === 'above';
 	const STOP_AFTER_LINES = 3;
 	const candidates: { offset: DomTextOffset; rect: DOMRect }[] = [];
-	let edgeExtreme = forward ? Infinity : -Infinity; // min top (above) / max bottom (below)
+	// The probed edge's own line: min top (above) / max bottom (below), first candidate wins a tie.
+	let edgeRect: DOMRect | null = null;
 	let lineH = 0;
 	for (let k = 0; k <= totalLen - minOffset; k++) {
 		const offset = asDomTextOffset(forward ? minOffset + k : totalLen - k);
 		const rect = getOffsetRect(container, offset);
 		if (!rect) continue;
 		if (lineH === 0) lineH = Math.max(1, rect.bottom - rect.top);
-		if (candidates.length > 0) {
-			const distancePastEdge = forward ? rect.top - edgeExtreme : edgeExtreme - rect.bottom;
+		if (edgeRect) {
+			const distancePastEdge = forward ? rect.top - edgeRect.top : edgeRect.bottom - rect.bottom;
 			if (distancePastEdge > STOP_AFTER_LINES * lineH) break;
 		}
 		candidates.push({ offset, rect });
-		edgeExtreme = forward ? Math.min(edgeExtreme, rect.top) : Math.max(edgeExtreme, rect.bottom);
+		if (!edgeRect || (forward ? rect.top < edgeRect.top : rect.bottom > edgeRect.bottom)) {
+			edgeRect = rect;
+		}
 	}
-	if (candidates.length === 0) return minOffset;
+	if (!edgeRect) return minOffset;
 
-	const lineProbe =
-		from === 'above'
-			? candidates.reduce((best, c) => (c.rect.top < best.top ? c.rect : best), candidates[0].rect)
-			: candidates.reduce(
-					(best, c) => (c.rect.bottom > best.bottom ? c.rect : best),
-					candidates[0].rect
-				);
-
-	const lineTop = lineProbe.top;
-	const lineBottom = lineProbe.bottom;
+	const lineTop = edgeRect.top;
+	const lineBottom = edgeRect.bottom;
 	const lineHeight = Math.max(1, lineBottom - lineTop);
 	const tolerance = lineHeight * LINE_BAND_TOLERANCE;
 
@@ -113,4 +103,11 @@ export function findOffsetNearestX(
 	}
 
 	return bestOffset;
+}
+
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+function editorLeftOf(el: HTMLElement): number {
+	const editor = el.closest('.editor') as HTMLElement | null;
+	return editor ? editor.getBoundingClientRect().left : 0;
 }

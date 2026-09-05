@@ -1,14 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertCoreOracles,
-	assertParseConvergence
-} from '../../simulation/invariants';
+import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated decoration-ops oracle. plugin-ops already runs the decoration ENGINE under the
 // corruption oracles; this drives the INTERACTION surface — island caret/delete/typing and
@@ -57,8 +53,7 @@ test.describe('decoration-ops simulation', () => {
 		await expect(page.locator("[data-block-path='[1]'] [data-decoration-island]")).toHaveCount(1);
 		await expect(page.locator("[data-block-path='[2]'].sim-badged-block")).toHaveCount(1);
 
-		const tracker = new ExpectationTracker(loaded);
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'decoration-ops' };
+		const ctx = await makeSimContext(page, editor, 'decoration-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = async (label: string): Promise<void> => {

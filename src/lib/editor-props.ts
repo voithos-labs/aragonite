@@ -3,6 +3,7 @@
  * $props() and instance surface against these, so neither can drift from the component.
  */
 import type { Snippet } from 'svelte';
+import type { AnyBlockKind } from './core/nodes';
 import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
@@ -32,33 +33,49 @@ export interface EditorProps {
 	 *  (a title, properties panel, tag row). It scrolls away with the document rather than
 	 *  pinning, which is what lets the editor keep its own scrollport and windowing. */
 	header?: Snippet;
+	/** Opt into the pointer affordances: the block drag handle and the table's row and column
+	 *  grips (default off, so the surface stays gutter-free). A hover reveals them; touch, which
+	 *  has none, shows them outright. Keyboard reorder (Alt+Arrow) and the cell menu are always
+	 *  available and need no opt-in. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
+	/** Where the editor's own find/replace bar renders. Default (absent) keeps it pinned inside
+	 *  the editor root; an element relocates the SAME bar into it, theme scope included, so
+	 *  host-scroll embeds can put it in a pane's chrome instead of mid-page. Read live, and
+	 *  ignored while `searchBar` is false. Positioning inside it is the element's own business. */
+	searchBarAnchor?: HTMLElement | null;
 	/** Who owns the scroll, set once at mount. `'self'` (default) makes the root its own
-	 *  scrollport, so windowing keeps the mounted set O(viewport). `'host'` lets an
-	 *  ancestor scroll it: windowing never activates and EVERY block stays mounted, which
-	 *  suits a small embedded document, never a whole file. */
+	 *  scrollport. `'host'` lets an ancestor scroll it, and the editor windows against that
+	 *  scroller instead — so the mounted set stays O(viewport) either way. The one behavioural
+	 *  difference is scroll anchoring; the consumer guide's scrollMode section has the trade. */
 	scrollMode?: 'self' | 'host';
 	/** Theme name reflected to `data-editor-theme` on the editor root. Built-ins:
 	 *  `'dark'` (default) and `'light'`; any other value activates a consumer's
 	 *  own `.editor[data-editor-theme='<name>']` token block. */
 	theme?: string;
-	/** Read live, like `theme`. `'source'` (default) is styled-source editing; `'reading'`
-	 *  hides markers, renders widgets, and is read-only (selection/copy/navigation stay);
-	 *  `'preview-block'` and `'preview-inline'` are live-editing rungs that reveal source
-	 *  per focused block or per caret-touched construct. */
+	/** How the document presents, read live like `theme`; `'source'` by default. The consumer
+	 *  guide's Presentation modes section describes what each rung shows and allows. */
 	presentationMode?: PresentationMode;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
 	/** Plugins installed once, in array order, at mount. Set-once: a later change to
 	 *  this prop is ignored — installation is process-global and cannot re-run. An
-	 *  entry may be a bare unit or `{ plugin, options }` for per-instance options. */
+	 *  entry may be a bare unit or `{ plugin, options }` for per-instance options.
+	 *  The array is the enablement set too: this editor activates exactly what it
+	 *  lists, and no prop at all activates everything installed. */
 	plugins?: readonly EditorPluginEntry[];
 }
 
 /** The `bind:this` surface a consumer can name and hold a ref to. */
 export interface EditorInstance {
 	getSource(): string;
+	/**
+	 * The block kind at `path` (child indices from the document root), or null when the path
+	 * addresses no block: an out-of-range index, and the empty root path, which is the document
+	 * itself. A read, not a handle: the node stays inside the editor. A plugin block answers its
+	 * own declared kind name.
+	 */
+	getBlockKindAt(path: number[]): AnyBlockKind | null;
 	getSelection(): EditorSelection | null;
 	/**
 	 * Restore a `getSelection()` snapshot. Async because the target is scrolled into view
@@ -68,11 +85,67 @@ export interface EditorInstance {
 	 * and an unresolvable path or an unsettled scroll resolves false.
 	 */
 	setSelection(selection: EditorSelection): Promise<boolean>;
+	/**
+	 * Land the caret at a viewport point exactly as a click there would: the point clamps into the
+	 * nearest block's box, the block under it resolves the landing, a live cross-block range ends
+	 * first. For a shell owning chrome beside the document: the shell decides whether a click on
+	 * its own territory comes here, the editor decides where the caret goes. False when no
+	 * focusable landing resolves. A point below the whole document resolves against the CST, not
+	 * the rendered slice: past a windowed-out tail it claims the point and lands after the reveal.
+	 */
+	placeCaretAtPoint(x: number, y: number): boolean;
+	/**
+	 * Insert markdown at the caret exactly as pasting it would, minus the clipboard: paste
+	 * transforms, every container-aware strategy, delete-selection-first, one undo entry, and
+	 * focus at the end of the insertion. True means the pipeline took the text, not that its
+	 * commit has flushed — read the result back through the `edit` event. False, and nothing
+	 * mutates, when this editor holds no caret, in reading mode, or at a gap caret.
+	 */
+	insertMarkdown(md: string): boolean;
+	/**
+	 * Run a command by id at the focused surface, no chord in the path, so a consumer's
+	 * `keybindings` rebind cannot rewire a toolbar button. `TOOLBAR_COMMANDS` names the built-in
+	 * ids; a plugin's global name resolves ahead of the focused block, its per-block one stays
+	 * chord-only. Semantics match the chord: one undo entry, same caret — over a cross-block range
+	 * a format toggle marks every block it touches, a table by its cells. False, and nothing mutates,
+	 * on an unknown id, in reading mode, with nothing focused, and on the link editor over a range.
+	 */
+	runCommand(commandId: string): boolean;
+	/**
+	 * Whether `runCommand(id)` would reach that command's arm right now, asked at the seam that
+	 * would run it, so a host can grey a toolbar button out instead of hiding the affordance.
+	 * False wherever the door declines before dispatch: an unknown id, reading mode, a block-local
+	 * id with nothing focused (a gap caret included, where only the global ids stay live), and the
+	 * link editor while a cross-block range is painted. True is reachability, not success: the arm
+	 * that would run still decides whether it writes, and over a range it may reach no block at all.
+	 */
+	canRunCommand(commandId: string): boolean;
+	/**
+	 * Whether the command's toggle-state reads ON where a press would land — the read a toolbar
+	 * paints pressed from, answered by the same bytes the toggle would rewrite. State, not
+	 * admissibility, so a disabled button may still paint pressed. Over a cross-block range the
+	 * answer is the range's own coverage: true only where every block it touches carries the
+	 * mark; the link editor reads ON inside the construct its card would edit, in live mode
+	 * alone. False for an id with no state of its own, and with nothing focused.
+	 */
+	isCommandActive(commandId: string): boolean;
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
+	/**
+	 * Every MODIFIER chord this instance consumes, normalized (`Mod` covers Ctrl and Cmd).
+	 * Composed live from the kind keymaps, the command tables, the plugins this editor activated,
+	 * the `keybindings` overrides and the search option, so a host accelerator table is derived,
+	 * not hand-copied. Bare keys are out of contract: a focused document owns them. So is a
+	 * DISABLED chord (`command: null`), released for the host to claim app-wide yet still
+	 * swallowed INSIDE the editor, whose native fall-through would bypass the CST undo stack.
+	 */
+	reservedChords(): ReadonlySet<string>;
+	/** Whether this instance consumes that keystroke, answered with the editor's own chord
+	 *  normalization so a host never re-implements the Ctrl/Cmd fold. */
+	claimsChord(event: KeyboardEvent): boolean;
 }
 
 /**

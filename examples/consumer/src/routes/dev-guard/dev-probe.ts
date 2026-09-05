@@ -21,7 +21,7 @@ import {
 	type CstNode,
 	type EditorPlugin,
 	type ParsedDirective
-} from 'aragonite/plugin';
+} from '@voithos-labs/aragonite/plugin';
 import DevProbeBlock from './DevProbeBlock.svelte';
 
 export const DEVPROBE = 'devprobe';
@@ -74,12 +74,13 @@ export function devProbePlugin(): EditorPlugin {
 			registerBlockKind(declarePluginKind(DEVPROBE), {
 				mergeRole: 'container',
 				editable: true,
+				gapEdges: 'none',
 				supportsInline: false,
 				container: {
 					contract: 'opaque',
 					rebuildRaw: rebuildDevProbeRaw,
 					unwrapRole: {
-						firstChildBackspace: 'lift-first-child',
+						firstChildBackspace: 'lift-first-child-keep-container',
 						middleChildBackspace: 'default-merge'
 					}
 				},

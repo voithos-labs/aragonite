@@ -16,11 +16,7 @@ function readRepo(rel: string): string {
 }
 
 function readEditorCss(rel: string): string {
-	try {
-		return stripComments(readEditorFile(rel).text);
-	} catch {
-		return '';
-	}
+	return stripComments(readEditorFile(rel).text);
 }
 
 // ── Token families ────────────────────────────────────────────────────────────
@@ -94,11 +90,9 @@ const HOST_READ_NO_FALLBACK = /var\(\s*--(?:color|radius)-[a-z0-9-]+\s*\)/;
 
 describe('G4.6 CSS ownership — host-token reads carry a fallback', () => {
 	it('no host-token var() read is missing a fallback', () => {
-		const files = [
-			...collectEditorSources().map((f) => ({ rel: f.relPath, text: f.code })),
-			{ rel: 'styles/editor.css', text: readEditorCss('styles/editor.css') }
-		];
-		const offenders = files.filter((f) => HOST_READ_NO_FALLBACK.test(f.text)).map((f) => f.rel);
+		const offenders = editorCssSurfaces()
+			.filter((f) => HOST_READ_NO_FALLBACK.test(f.text))
+			.map((f) => f.rel);
 		expect(offenders, `host-token reads missing a fallback in: ${offenders.join(', ')}`).toEqual(
 			[]
 		);
@@ -124,6 +118,81 @@ describe('G4.6 CSS ownership — every token read belongs to a declared family',
 	});
 });
 
+// ── G4.6d: host-chrome defaults sit behind the opt-in class alone ────────────
+// A host-chrome default declared on `.editor` shadows what a themed host cascades from
+// `:root`, forcing every such consumer into bridge rules. The exception is host-family
+// names a host vocabulary does not carry: the editor supplies those in both modes.
+
+const EDITOR_SUPPLIED_HOST_NAMED = new Set([
+	'--color-bg-secondary',
+	'--color-bg-elevated',
+	'--color-bg-muted',
+	'--color-text-muted',
+	'--color-ui-faint'
+]);
+
+const HOST_CHROME_TOKENS = [
+	'--color-surface',
+	'--color-text-secondary',
+	'--color-text-primary',
+	'--color-border',
+	'--color-ui-muted',
+	'--color-ui-dulled',
+	'--color-accent',
+	'--color-selection',
+	'--color-error',
+	'--radius-ui',
+	'--radius-surface'
+];
+
+function themeRules(): Array<{ selector: string; body: string }> {
+	const css = stripComments(readEditorFile('styles/editor-theme.css').text);
+	return [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(([, selector, body]) => ({
+		selector: selector.trim(),
+		body
+	}));
+}
+
+describe('G4.6 CSS ownership — editor-theme.css keeps host-chrome defaults off `.editor`', () => {
+	it('no host-chrome token is declared in a rule that matches `.editor`', () => {
+		const offenders: string[] = [];
+		for (const { selector, body } of themeRules()) {
+			if (!selector.includes('.editor')) continue;
+			for (const [, name] of body.matchAll(/(--[a-z0-9-]+)\s*:/g)) {
+				if (HOST_TOKEN.test(name) && !EDITOR_SUPPLIED_HOST_NAMED.has(name)) {
+					offenders.push(`${name} under ${selector}`);
+				}
+			}
+		}
+		expect(offenders, `host-chrome defaults shadowing the consumer cascade: ${offenders}`).toEqual(
+			[]
+		);
+	});
+
+	it('the class-only tier declares every host-chrome token', () => {
+		const classOnly = themeRules()
+			.filter(({ selector }) => !selector.includes('.editor'))
+			.map(({ body }) => body)
+			.join('\n');
+		const missing = HOST_CHROME_TOKENS.filter(
+			(token) => !new RegExp(`${token}\\s*:`).test(classOnly)
+		);
+		expect(missing, `host-chrome tokens absent from the opt-in class: ${missing}`).toEqual([]);
+	});
+
+	it('every editor-supplied exemption is a live one (no stale entry)', () => {
+		const editorTier = themeRules()
+			.filter(({ selector }) => selector.includes('.editor'))
+			.map(({ body }) => body)
+			.join('\n');
+		for (const token of EDITOR_SUPPLIED_HOST_NAMED) {
+			expect(new RegExp(`${token}\\s*:`).test(editorTier), `${token} no longer declared`).toBe(
+				true
+			);
+		}
+	});
+});
+
 // ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────
 // Without these, a regex that silently stops matching lets every guard above pass on an
 // empty match set.
@@ -144,8 +213,8 @@ describe('G4.6 CSS ownership — matcher non-vacuity', () => {
 	});
 
 	it('HOST_READ_NO_FALLBACK flags a bare host read but accepts one with a fallback', () => {
-		expect(HOST_READ_NO_FALLBACK.test('var(--color-bg)')).toBe(true);
-		expect(HOST_READ_NO_FALLBACK.test('var(--color-bg, #fff)')).toBe(false);
+		expect(HOST_READ_NO_FALLBACK.test('var(--color-surface)')).toBe(true);
+		expect(HOST_READ_NO_FALLBACK.test('var(--color-surface, #fff)')).toBe(false);
 	});
 
 	it('the family split rejects an off-family token both guards would otherwise miss', () => {

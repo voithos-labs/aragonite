@@ -28,9 +28,9 @@ describe('footnote numbering (derived, first-reference order)', () => {
 	});
 
 	it('reuses the first number for a repeated reference', () => {
-		const refs = collectFootnoteReferences(parse('One [^x], two [^y], again [^x].\n'));
-		expect(refs.map((r) => r.label)).toEqual(['x', 'y', 'x']);
-		const numbers = assignFootnoteNumbers(parse('One [^x], two [^y], again [^x].\n'));
+		const doc = parse('One [^x], two [^y], again [^x].\n');
+		expect(collectFootnoteReferences(doc).map((r) => r.label)).toEqual(['x', 'y', 'x']);
+		const numbers = assignFootnoteNumbers(doc);
 		expect(numbers.size).toBe(2);
 		expect(numbers.get('x')).toBe(1);
 	});
@@ -44,6 +44,13 @@ describe('footnote numbering (derived, first-reference order)', () => {
 		const numbers = assignFootnoteNumbers(parse('Body text with no marks.\n\n[^unused]: A def.\n'));
 		expect(numbers.get('unused')).toBeUndefined();
 		expect(numbers.size).toBe(0);
+	});
+
+	// Miss-analysis: the back gesture landed at offset 0 because the walk recorded only the
+	// leaf path, and no test read what a caller would need to land beside the citation.
+	it('records where each reference ends, so the way back lands beside the citation', () => {
+		const refs = collectFootnoteReferences(parse('Body has [^a] and [^b] here.\n'));
+		expect(refs.map((r) => r.end)).toEqual([13, 22]);
 	});
 
 	it('finds a reference nested inside a container block', () => {

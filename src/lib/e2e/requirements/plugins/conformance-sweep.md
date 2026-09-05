@@ -15,6 +15,7 @@ behavioural suite; the per-kind specs keep owning depth.
 
 - implemented: caret in the paragraph above, ArrowDown enters the kind's block (or, for a container, its child subtree) and continues out to the paragraph below; a marker typed in the landing block appears there — the block is traversable, no caret trap.
 - not-supported (transparent / non-focusable): the walk reaches the paragraph below without the block ever taking focus — skipped, not trapped. (No enrolled kind currently declares this; the branch guards a future kind.)
+- the same walk runs a second time under `live`, the mode that hides markers: the outcome per kind is identical, and the shared fixture's `[invariant:…]` console watch is what the pass adds — a kind whose surface mints marker-only chrome parks a caret and types a byte with G1.33 armed. The mode is asserted from the editor's `data-presentation` attribute before the loop, since an unapplied mode would repeat the source pass under a live-sounding name.
 
 ## Selection paint
 
@@ -29,6 +30,11 @@ behavioural suite; the per-kind specs keep owning depth.
 ## Enrolment and reachability
 
 - Every registered kind with a `conformanceFixture` is swept.
-- Enrollment covers a known-kind floor (paragraph, heading, table, blockquote, mermaid, mathBlock, toc, note): a kind silently dropped from the bridge fails the floor instead of vanishing from the column tests. The floor is a subset assertion — new kinds enroll without touching it.
+- Enrollment covers a known-kind floor (paragraph, heading, table, blockquote, mermaid, mathBlock, toc, callout, admonition): a kind silently dropped from the bridge fails the floor instead of vanishing from the column tests. The floor is a subset assertion — new kinds enroll without touching it.
 - Loading each kind's document settles on exact source equality, not a substring probe — every sweep document carries both filler paragraphs, so a substring wait is satisfiable by the previous kind's stale document.
-- `admonition` is unreachable on this route: its `:::note` fixture is shadowed by the co-registered callout dogfood (which claims `:::note` first), so no admonition node mounts; the callout `note` entry sweeps the same container-directive behaviours. Any other unreachable kind is a regression.
+- Every enrolled kind mounts a node from its own fixture. No kind is allowed to be unreachable: an unclaimed fixture means a lost registrar or a directive name a second plugin took, and both are regressions.
+- Each load clears the document to empty first, so a kind whose fixture is byte-identical to the previous kind's (`list`/`listItem`, `table`/`tableRow`) still gets a real reload rather than inheriting the prior iteration's typed mutation. The document every kind is measured in is exactly three blocks — neighbour, fixture, neighbour — with no per-load residue, so the walk cost and the located block index are the same for the first swept kind and the last, whether the file runs whole or filtered.
+
+## Miss-analysis
+
+- Order dependence (issue #66): every test ran the file whole or a single test filtered, and nothing compared the two — a per-load counter that grew across all three column tests made each document longer than the last, so the sweep's walk blew its budget only in sequence. No test asserted that a sweep load's document shape is independent of how many loads preceded it, and the counter's carrier (leading blank lines) was documented as inert trivia when the parser materializes a leading blank run as paragraph blocks.

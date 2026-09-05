@@ -65,7 +65,7 @@ test('scrollTo to the document tail past undecoded images lands it in view, not 
 	await page.route('https://picsum.photos/**', () => {});
 
 	const editor = new EditorPage(page);
-	await editor.goto(); // default SHOWCASE_CONTENT — sized/unsized images + wide tables
+	await editor.goto(); // default HARNESS_SHOWCASE_CONTENT — sized/unsized images + wide tables
 
 	const last = (await cstBlockCount(page)) - 1;
 	const sel = JSON.stringify([last]);
@@ -76,9 +76,9 @@ test('scrollTo to the document tail past undecoded images lands it in view, not 
 	const resolved = await scrollTo(page, [last], { block: 'nearest' });
 	await editor.waitForRenderFlush();
 
-	// scrollTo's promise resolves only after the post-mount shrink settles, so the
-	// target is already at its final position here. Pre-fix, the tail measures ~0 above,
-	// the doc shrinks, and the browser clamps the reveal off it — stranded and unmounted.
+	// scrollTo's promise resolves only after the post-mount shrink settles, so the target is
+	// already at its final position here. Resolving earlier lets the doc shrink under the reveal
+	// and the browser clamps it off — stranded and unmounted.
 	const view = await blockViewport(page, [last]);
 	expect(view.mounted).toBe(true);
 	expect(view.inView).toBe(true);

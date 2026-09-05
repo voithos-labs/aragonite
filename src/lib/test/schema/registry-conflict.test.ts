@@ -20,6 +20,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const minimal = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
@@ -57,17 +58,6 @@ describe('schema registries are register-once', () => {
 
 	it('registerCommand throws on a built-in re-registration', () => {
 		expect(() => registerCommand('history.undo', () => true)).toThrow(/already registered/i);
-	});
-});
-
-describe('declarePluginKind collision rules', () => {
-	it('rejects a second declaration of the same name', () => {
-		declarePluginKind('dup-name');
-		expect(() => declarePluginKind('dup-name')).toThrow(/already declared/i);
-	});
-
-	it('rejects the reserved document sentinel', () => {
-		expect(() => declarePluginKind('document')).toThrow(/reserved/i);
 	});
 });
 

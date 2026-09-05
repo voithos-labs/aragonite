@@ -1,32 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { gateDescendOnCollapse } from '$lib/editor-actions/plugin/container';
 import { createBlockEditCore } from '$lib/editor-actions/block-edit-core';
-import type { CommitScope, ScopeCommitArgs } from '$lib/editor-actions/block-edit-scope';
-import { createSharingState } from '$lib/tree-operations/sharing';
 import type { CstNode } from '$lib/core/nodes';
 import type { BlockComponent } from '$lib/block-component';
-import { parse } from '$lib/core/parser';
+import { makeCommitScopeStub, parseLeaf as leaf } from '$lib/test/harness/editor-actions';
 
-function leaf(raw: string): CstNode {
-	return parse(raw).children[0];
-}
-
-// Runs the REAL mutate against a live children array, recording commits.
-function stubScope(children: CstNode[], refs: (BlockComponent | undefined)[] = []) {
-	const commits: ScopeCommitArgs[] = [];
-	const sharing = createSharingState();
-	const scope: CommitScope = {
-		children: () => children,
-		refAt: (i) => refs[i],
-		collapseEmptyReplaceToDelete: true,
-		async commit(args) {
-			commits.push(args);
-			args.mutate({ children, sharing, unshareChild: (i) => children[i] });
-			await args.afterTick?.();
-		}
-	};
-	return { scope, commits, children };
-}
+const stubScope = (children: CstNode[], refs: (BlockComponent | undefined)[] = []) =>
+	makeCommitScopeStub(children, { refs });
 
 describe('gateDescendOnCollapse (M3)', () => {
 	it('collapsed: consumes the key without minting a body or committing', async () => {

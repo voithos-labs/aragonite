@@ -6,7 +6,8 @@
 // document that came out. Scope: the NAVIGATION plans — the structural chords are keymap
 // bindings (cell-table-chords.test.ts). Editor mount, because every arm below commits.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { cellAt, pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);
 
@@ -20,22 +21,6 @@ afterEach(async () => {
 const GRID = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
 /** The cell element at `rowIdx`,`colIdx` of the table block at `[0]`. */
-function cell(rowIdx: number, colIdx: number): HTMLElement {
-	const table = blockHostAt(mounted!, [0]);
-	const row = table.querySelector(`[data-table-row-idx="${rowIdx}"]`);
-	const found = row?.querySelectorAll(':scope > .table-cell')[colIdx] as HTMLElement | undefined;
-	if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
-	return found;
-}
-
-/** Focus a cell and send it a key, settling the commit it may start. */
-async function pressInCell(rowIdx: number, colIdx: number, init: KeyboardEventInit): Promise<void> {
-	const el = cell(rowIdx, colIdx);
-	el.focus();
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await mounted!.settle();
-}
-
 function mountGrid(): void {
 	mounted = mountEditor({ source: GRID });
 }
@@ -44,33 +29,33 @@ describe('the cell translates a navigation plan into a focus move', () => {
 	it('Tab steps to the next column', async () => {
 		mountGrid();
 
-		await pressInCell(1, 0, { key: 'Tab' });
+		await pressInCell(mounted!, 1, 0, { key: 'Tab' });
 
-		expect(document.activeElement).toBe(cell(1, 1));
+		expect(document.activeElement).toBe(cellAt(mounted!, 1, 1));
 	});
 
 	it('Tab wraps to the first column of the next row', async () => {
 		mountGrid();
 
-		await pressInCell(1, 1, { key: 'Tab' });
+		await pressInCell(mounted!, 1, 1, { key: 'Tab' });
 
-		expect(document.activeElement).toBe(cell(2, 0));
+		expect(document.activeElement).toBe(cellAt(mounted!, 2, 0));
 	});
 
 	it('Shift+Tab steps back across the row boundary', async () => {
 		mountGrid();
 
-		await pressInCell(2, 0, { key: 'Tab', shiftKey: true });
+		await pressInCell(mounted!, 2, 0, { key: 'Tab', shiftKey: true });
 
-		expect(document.activeElement).toBe(cell(1, 1));
+		expect(document.activeElement).toBe(cellAt(mounted!, 1, 1));
 	});
 
 	it('Enter drops into the cell below, not to the next column', async () => {
 		mountGrid();
 
-		await pressInCell(0, 1, { key: 'Enter' });
+		await pressInCell(mounted!, 0, 1, { key: 'Enter' });
 
-		expect(document.activeElement).toBe(cell(1, 1));
+		expect(document.activeElement).toBe(cellAt(mounted!, 1, 1));
 	});
 });
 
@@ -78,16 +63,16 @@ describe('the cell translates the row-creating plans into real rows', () => {
 	it('Tab at the last cell of the last row appends a row and lands in it', async () => {
 		mountGrid();
 
-		await pressInCell(2, 1, { key: 'Tab' });
+		await pressInCell(mounted!, 2, 1, { key: 'Tab' });
 
 		expect(mounted!.source()).toBe(`${GRID}|  |  |\n`);
-		expect(document.activeElement).toBe(cell(3, 0));
+		expect(document.activeElement).toBe(cellAt(mounted!, 3, 0));
 	});
 
 	it('Enter in the last row appends a row too', async () => {
 		mountGrid();
 
-		await pressInCell(2, 0, { key: 'Enter' });
+		await pressInCell(mounted!, 2, 0, { key: 'Enter' });
 
 		expect(mounted!.source()).toBe(`${GRID}|  |  |\n`);
 	});

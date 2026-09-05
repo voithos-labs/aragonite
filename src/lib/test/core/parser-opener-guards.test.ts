@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import {
@@ -8,7 +8,7 @@ import {
 } from '../../schema/block-openers';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { configureEditorEnv, resetEditorEnv } from '../../env';
+import { takeDevWarns } from '../support/warn-gate';
 import type { Document } from '../../core/nodes';
 
 // Drives the parser's DEV trust checks without a real misbehaving plugin. The kind name is
@@ -28,13 +28,10 @@ function registerSyntheticOpener(
 
 describe('parser opener trust guards', () => {
 	beforeEach(() => __resetSchemaRegistriesForTests());
-	afterEach(() => resetEditorEnv());
 
 	// Two consecutive stuck dispatches, not one: the second proves the loop still terminates
 	// when every dispatch declines, the shape that hangs a tab without the decline.
 	it('declines a non-advancing opener instead of spinning the parse loop', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		registerSyntheticOpener('synthetic-stuck', '@@stuck@@', (ctx, kind) => ({
 			node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
 			consumed: 0 // claims no line — would spin the parse loop forever
@@ -48,16 +45,14 @@ describe('parser opener trust guards', () => {
 
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
 		expect(serialize(doc)).toBe(source);
-		expect(warnSpy).toHaveBeenCalledTimes(2);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/invariant:opener-advance/);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/synthetic-stuck/);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/declined/);
-		warnSpy.mockRestore();
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(2);
+		expect(fires[0].tag).toBe('invariant:opener-advance');
+		expect(fires[0].message).toMatch(/synthetic-stuck/);
+		expect(fires[0].message).toMatch(/declined/);
 	});
 
 	it('dev-warns, naming the kind, when raw does not byte-match the consumed lines', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		registerSyntheticOpener('synthetic-drift', '@@drift@@', (ctx, kind) => ({
 			node: { kind, leadingTrivia: ctx.leadingTrivia, raw: 'UNRELATED\n' },
 			consumed: 1
@@ -65,15 +60,13 @@ describe('parser opener trust guards', () => {
 
 		parse('@@drift@@\n');
 
-		expect(warnSpy).toHaveBeenCalledTimes(1);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/invariant:opener-raw/);
-		expect(warnSpy.mock.calls[0][0]).toMatch(/synthetic-drift/);
-		warnSpy.mockRestore();
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].tag).toBe('invariant:opener-raw');
+		expect(fires[0].message).toMatch(/synthetic-drift/);
 	});
 
 	it('leaves a faithful opener (advances, raw matches) untouched', () => {
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
 		registerSyntheticOpener('synthetic-good', '@@good@@', (ctx, kind) => ({
 			node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
 			consumed: 1
@@ -83,7 +76,6 @@ describe('parser opener trust guards', () => {
 
 		expect(doc.children).toHaveLength(1);
 		expect(doc.children[0].kind).toBe('synthetic-good');
-		expect(warnSpy).not.toHaveBeenCalled();
-		warnSpy.mockRestore();
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

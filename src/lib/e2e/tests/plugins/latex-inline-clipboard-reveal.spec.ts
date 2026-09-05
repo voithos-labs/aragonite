@@ -3,10 +3,10 @@ import { PluginsPage } from './helpers';
 
 /**
  * A clipboard mutation during an active inline-math source reveal must fold the reveal into the CST
- * before mutating — the reveal-fold clipboard seam. Pre-fix, paste spliced into the stale raw at a
- * DOM-derived offset and the re-render wiped the revealed edit while the reveal flag stayed stuck,
- * dropping every later keystroke. This drives the real reveal + synthetic paste to prove the
- * committed source carries the revealed edit AND that typing survives the paste.
+ * before mutating — the reveal-fold clipboard seam. Unfolded, a paste splices into the stale raw at
+ * a DOM-derived offset, the re-render wipes the revealed edit, and the stuck reveal flag drops
+ * every later keystroke. This drives the real reveal + synthetic paste to prove the committed
+ * source carries the revealed edit AND that typing survives the paste.
  */
 
 class MathClipboardPage extends PluginsPage {
@@ -59,11 +59,10 @@ test.describe('inline math: clipboard during an active source reveal', () => {
 
 		await editor.pastePlainText('P');
 
-		// The fold committed the revealed `QQ` to the CST — the exact splice-consistency
-		// the guard restores. Pre-fix this never lands (the re-render wiped it).
+		// The fold committed the revealed `QQ` to the CST — the splice-consistency the guard owes.
 		await editor.bridge.waitForSourceContains('QQ');
 
-		// Typing is no longer suppressed: the fold cleared the reveal flag.
+		// Typing is unsuppressed: the fold cleared the reveal flag.
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceContains('Z');
 
@@ -86,10 +85,10 @@ test.describe('inline math: clipboard during an active source reveal', () => {
 		await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('Shift+ArrowLeft');
 
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		// The clipboard holds exactly what the user selected and SEES — the live DOM
 		// edit — not the stale raw slice, which never carried `QQ` (uncommitted edit).
 		expect(clip).toBe('QQ');

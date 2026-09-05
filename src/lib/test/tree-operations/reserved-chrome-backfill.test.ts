@@ -10,6 +10,7 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 	const chrome = declarePluginKind('spec-chrome');
 	const container = declarePluginKind('spec-chrome-container');
 	registerBlockKind(chrome, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -17,6 +18,7 @@ function registerChromeContainer(): { container: AnyBlockKind; chrome: AnyBlockK
 		contextDependentKind: true
 	});
 	registerBlockKind(container, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -43,6 +45,7 @@ describe('ensureEditableContainers — reserved-chrome backfill', () => {
 	it('backfills only a bare paragraph for a container with no chrome declaration', () => {
 		const plain = declarePluginKind('spec-plain-container');
 		registerBlockKind(plain, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,

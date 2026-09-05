@@ -7,6 +7,10 @@
 // rendered directly above the body they label.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { installDirectiveStubs, mountDirective, type MountedDirective } from './mount-directive';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
+afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(installDirectiveStubs);
 

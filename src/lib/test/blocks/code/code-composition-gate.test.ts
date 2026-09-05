@@ -5,31 +5,11 @@
 // insertLineBreak mid-composition must not sync the CST; the same event after
 // compositionend splices its newline.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
-import CodeBlock from '$lib/components/blocks/code/CodeBlock.svelte';
-import { parse } from '$lib/core/parser';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { editorMountContext } from '../../harness/mount-context';
+import { mountCode, type MountedCode } from './mount-code';
 
 // Async handlers finish after the dispatch returns; one macrotask drains the
 // await chain (handleSharedBeforeInput) before the branch under test runs.
 const settle = () => new Promise((r) => setTimeout(r));
-
-function mountCodeBlock() {
-	const target = document.createElement('div');
-	document.body.appendChild(target);
-	const doc = parse('```\nhello\n```\n');
-	const blockEdit = makeStubBlockEdit();
-
-	const instance = mount(CodeBlock, {
-		target,
-		props: { node: doc.children[0], index: 0, myPath: [0] },
-		context: editorMountContext({ blockEdit, doc: { doc: () => doc } })
-	});
-	flushSync();
-	const el = target.querySelector('.code-block') as HTMLElement;
-	return { instance, el, blockEdit };
-}
 
 function lineBreak(): InputEvent {
 	return new InputEvent('beforeinput', {
@@ -39,13 +19,13 @@ function lineBreak(): InputEvent {
 	});
 }
 
-let mounted: ReturnType<typeof mountCodeBlock>;
+let mounted: MountedCode;
 
 beforeEach(() => {
-	mounted = mountCodeBlock();
+	mounted = mountCode('```\nhello\n```\n');
 });
 afterEach(async () => {
-	await unmount(mounted.instance);
+	await mounted.dispose();
 	document.body.innerHTML = '';
 });
 

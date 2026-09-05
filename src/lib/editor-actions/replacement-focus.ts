@@ -3,7 +3,8 @@
  * probe that picks structural-vs-typing, and the post-commit caret restore.
  */
 
-import { updateNodeContent, focusTargetInReplacement } from '../tree-operations';
+import { updateNodeContent } from '../tree-operations';
+import { settledCaretTarget, type SettledContent } from '../tree-operations/node-ops';
 import { makeBlockNode, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
@@ -13,48 +14,53 @@ import type { CommitScope } from './block-edit-scope';
 // ── Reparse probe ────────────────────────────────────────────────────────────
 
 /**
- * Preview the content update on a throwaway single-node probe to pick between the
- * structural commit and the routine typing path. The live tree is untouched — the
- * chosen branch runs the real mutation.
+ * Preview the content update on a throwaway single-node probe to pick between the structural
+ * commit and the routine typing path; the live tree is untouched. `tailSuffix` is the document's
+ * folded trailing line when `node` is the tail block, else `''`: blanking the tail materializes
+ * it, which is structural and must route into the ceremony.
  */
 export function previewContentReparse(
 	node: NodeView,
 	text: string,
 	grammar: Parameters<typeof updateNodeContent>[3],
-	ownerKind?: AnyBlockKind
+	ownerKind: AnyBlockKind | undefined,
+	tailSuffix: string
 ): StructuralChange {
 	const probe = makeBlockNode({
 		kind: node.kind,
 		leadingTrivia: node.leadingTrivia,
 		raw: node.raw
 	});
-	// The owner rides along or the probe answers about different bytes than the commit
-	// writes, and the branch picked here is not re-decided later.
-	return updateNodeContent({ children: [probe], ownerKind }, 0, text, grammar);
+	// The owner KIND rides along or the probe answers about different bytes than the commit
+	// writes; the owner node stays out — a probe must not write real wrap slots. The suffix
+	// rides by VALUE for the same reason: the probe's settle may only spend the copy.
+	return updateNodeContent(
+		{ children: [probe], ownerKind, owner: undefined, suffix: tailSuffix },
+		0,
+		text,
+		grammar
+	).change;
 }
 
 // ── Post-replacement focus ───────────────────────────────────────────────────
 
 /**
- * Restore the caret after a structural content commit; a multi-block replacement
- * descends to the offset's home block. A no-op when focus already moved on.
+ * Restore the caret after a structural content commit. A no-op when focus already moved on.
  */
 export function focusAfterContentReplace(
 	scopePath: number[],
 	at: number,
-	change: StructuralChange,
+	settled: SettledContent,
 	focusOffset: number,
 	scope: CommitScope
 ): void {
+	const { change } = settled;
 	const count = change.op === 'replace' ? change.newCount : 1;
-	if (focusMovedOutsideReplacement(scopePath, at, count)) return;
-	if (change.op === 'replace' && change.newCount > 1) {
-		const blocks = scope.children().slice(change.at, change.at + change.newCount);
-		const target = focusTargetInReplacement(blocks, focusOffset);
-		scope.refAt(change.at + target.index)?.focus(target.offset);
-		return;
-	}
-	scope.refAt(at)?.focus(focusOffset);
+	// The settled window, not the slot the gesture named: a fold above moved both.
+	const windowAt = change.op === 'replace' ? change.at : at;
+	if (focusMovedOutsideReplacement(scopePath, windowAt, count)) return;
+	const target = settledCaretTarget(settled, at, focusOffset, scope.children());
+	scope.refAt(target.index)?.focus(target.offset);
 }
 
 /**

@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 
 /**
  * Decoration island editing (requirements/decorations/island-editing.md). Islands are atomic
@@ -12,12 +11,20 @@ import { primaryModifier } from '../../platform';
 
 const ISLAND = '[data-decoration-island]';
 
+// Both sources place their island at a FIXED offset — that is what pins the offset
+// convention across marker shapes — but decline once the block no longer holds the bytes,
+// because a source is a pure function of the document it is handed.
 async function addReplaceIsland(page: Page, path: number[], start: number, end: number) {
 	await page.evaluate(
 		({ path, start, end }) => {
 			(window as any).__test.decorations.addSource({
 				name: 'e2e-replace-island',
-				provide: () => [{ type: 'replace', path, start, end, class: 'e2e-island' }]
+				provide: (doc: any) => {
+					let node: any = doc;
+					for (const index of path) node = node?.children?.[index];
+					const held = node ? String(node.raw).replace(/\r?\n$/, '').length : 0;
+					return held >= end ? [{ type: 'replace', path, start, end, class: 'e2e-island' }] : [];
+				}
 			});
 		},
 		{ path, start, end }
@@ -29,14 +36,20 @@ async function addWidgetIsland(page: Page, path: number[], offset: number) {
 		({ path, offset }) => {
 			(window as any).__test.decorations.addSource({
 				name: 'e2e-widget-island',
-				provide: () => [
-					{
-						type: 'widget',
-						path,
-						offset,
-						widget: { buildDom: () => document.createElement('span') }
-					}
-				]
+				provide: (doc: any) => {
+					let node: any = doc;
+					for (const index of path) node = node?.children?.[index];
+					const held = node ? String(node.raw).replace(/\r?\n$/, '').length : 0;
+					if (held < offset) return [];
+					return [
+						{
+							type: 'widget',
+							path,
+							offset,
+							widget: { buildDom: () => document.createElement('span') }
+						}
+					];
+				}
 			});
 		},
 		{ path, offset }
@@ -98,77 +111,79 @@ test.describe('decoration island editing', () => {
 		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 	});
 
-	test('Backspace against a replace island selects it whole, then deletes it in one undo', async ({
-		page
-	}) => {
-		await editor.loadContent('abHIDDENcd\n');
-		await addReplaceIsland(page, [0], 2, 8);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+	test.describe('the two-press delete', () => {
+		test('Backspace against a replace island selects it whole, then deletes it in one undo', async ({
+			page
+		}) => {
+			await editor.loadContent('abHIDDENcd\n');
+			await addReplaceIsland(page, [0], 2, 8);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await placeCaretAtIsland(page, 2, 'after');
-		await page.keyboard.press('Backspace');
-		await editor.waitForRenderFlush();
-		await expect(page.locator(`${ISLAND}.md-widget-selected`)).toHaveCount(1);
-		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
+			await placeCaretAtIsland(page, 2, 'after');
+			await page.keyboard.press('Backspace');
+			await editor.waitForRenderFlush();
+			await expect(page.locator(`${ISLAND}.md-widget-selected`)).toHaveCount(1);
+			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('abcd\n');
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('abcd\n');
 
-		await editor.undo();
-		await editor.bridge.waitForSourceContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
-	});
+			await editor.undo();
+			await editor.bridge.waitForSourceContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
+		});
 
-	test('Delete against a replace island leading edge selects then deletes the hidden range', async ({
-		page
-	}) => {
-		await editor.loadContent('abHIDDENcd\n');
-		await addReplaceIsland(page, [0], 2, 8);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+		test('Delete against a replace island leading edge selects then deletes the hidden range', async ({
+			page
+		}) => {
+			await editor.loadContent('abHIDDENcd\n');
+			await addReplaceIsland(page, [0], 2, 8);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await placeCaretAtIsland(page, 2, 'before');
-		await page.keyboard.press('Delete');
-		await editor.waitForRenderFlush();
-		expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
+			await placeCaretAtIsland(page, 2, 'before');
+			await page.keyboard.press('Delete');
+			await editor.waitForRenderFlush();
+			expect(await editor.bridge.getSource()).toBe('abHIDDENcd\n');
 
-		await page.keyboard.press('Delete');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('abcd\n');
-	});
+			await page.keyboard.press('Delete');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('abcd\n');
+		});
 
-	test('the two-press delete works on a heading island whose offsets include the marker', async ({
-		page
-	}) => {
-		await editor.loadContent('## abHIDDEN\n');
-		await addReplaceIsland(page, [0], 5, 11);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+		test('the two-press delete works on a heading island whose offsets include the marker', async ({
+			page
+		}) => {
+			await editor.loadContent('## abHIDDEN\n');
+			await addReplaceIsland(page, [0], 5, 11);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await editor.focusBlockEnd(0);
-		await page.keyboard.press('Backspace');
-		await editor.waitForRenderFlush();
-		expect(await editor.bridge.getSource()).toBe('## abHIDDEN\n');
+			await editor.focusBlockEnd(0);
+			await page.keyboard.press('Backspace');
+			await editor.waitForRenderFlush();
+			expect(await editor.bridge.getSource()).toBe('## abHIDDEN\n');
 
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('## ab\n');
-	});
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('## ab\n');
+		});
 
-	test('the two-press delete works on an ambient-prefixed list item (offsets exclude the marker)', async ({
-		page
-	}) => {
-		await editor.loadContent('- abHIDDENcd\n');
-		await addReplaceIsland(page, [0, 0, 0], 2, 8);
-		await expect(page.locator(ISLAND)).toHaveCount(1);
+		test('the two-press delete works on an ambient-prefixed list item (offsets exclude the marker)', async ({
+			page
+		}) => {
+			await editor.loadContent('- abHIDDENcd\n');
+			await addReplaceIsland(page, [0, 0, 0], 2, 8);
+			await expect(page.locator(ISLAND)).toHaveCount(1);
 
-		await placeCaretAtIsland(page, 2, 'after');
-		await page.keyboard.press('Backspace');
-		await editor.waitForRenderFlush();
-		expect(await editor.bridge.getSource()).toBe('- abHIDDENcd\n');
+			await placeCaretAtIsland(page, 2, 'after');
+			await page.keyboard.press('Backspace');
+			await editor.waitForRenderFlush();
+			expect(await editor.bridge.getSource()).toBe('- abHIDDENcd\n');
 
-		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('HIDDEN');
-		expect(await editor.bridge.getSource()).toBe('- abcd\n');
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceNotContains('HIDDEN');
+			expect(await editor.bridge.getSource()).toBe('- abcd\n');
+		});
 	});
 
 	test('a widget island is transparent to Backspace, deleting the adjacent real byte', async ({
@@ -220,10 +235,10 @@ test.describe('decoration island editing', () => {
 
 		await editor.focusBlockStart(0);
 		await page.keyboard.press('Shift+End');
-		await page.keyboard.press(`${primaryModifier}+c`);
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		const clip = await page.evaluate(() => navigator.clipboard.readText());
+		const clip = await editor.readClipboard();
 		expect(clip).toBe('hello');
 	});
 });

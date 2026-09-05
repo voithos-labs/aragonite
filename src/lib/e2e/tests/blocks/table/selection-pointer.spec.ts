@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { dragBetweenCells } from './helpers';
+import { boxesOf, dragBetweenBoxes, dragBetweenCells } from './helpers';
 
 const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
 
@@ -90,22 +90,11 @@ test.describe('table block: pointer selection', () => {
 
 	test('drag from cell out into paragraph below enters cross-block', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter.\n');
-		const cell = page.locator('[role="cell"]').nth(0);
-		const para = page.getByText('After.');
-		const cellBox = await cell.boundingBox();
-		const paraBox = await para.boundingBox();
-		if (!cellBox || !paraBox) throw new Error('missing boxes');
-		const sx = cellBox.x + cellBox.width / 2;
-		const sy = cellBox.y + cellBox.height / 2;
-		const ex = paraBox.x + paraBox.width / 2;
-		const ey = paraBox.y + paraBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [cellBox, paraBox] = await boxesOf(
+			page.locator('[role="cell"]').nth(0),
+			page.getByText('After.')
+		);
+		await dragBetweenBoxes(page, cellBox, paraBox);
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel!.anchor.path[0]).toBe(0);
@@ -119,22 +108,16 @@ test.describe('table block: pointer selection', () => {
 		page
 	}) => {
 		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR);
-		const para = page.getByText('Before.');
-		const targetCell = page.locator('[role="cell"]').last(); // last body cell "fff"
-		const paraBox = await para.boundingBox();
-		const cellBox = await targetCell.boundingBox();
-		if (!paraBox || !cellBox) throw new Error('missing boxes');
-		const sx = paraBox.x + 5;
-		const sy = paraBox.y + paraBox.height / 2;
-		const ex = cellBox.x + cellBox.width / 2;
-		const ey = cellBox.y + cellBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [paraBox, cellBox] = await boxesOf(
+			page.getByText('Before.'),
+			page.locator('[role="cell"]').last() // last body cell "fff"
+		);
+		// Anchor near the paragraph's start rather than its center, so the drag spans the whole text.
+		await dragBetweenBoxes(
+			page,
+			{ x: paraBox.x + 5, y: paraBox.y + paraBox.height / 2, width: 0, height: 0 },
+			cellBox
+		);
 		await editor.waitForCrossBlock(true);
 
 		await page.keyboard.press('ArrowRight'); // collapse to end (the focus cell)
@@ -148,22 +131,16 @@ test.describe('table block: pointer selection', () => {
 
 	test('drag from paragraph above into table enters cross-block', async ({ page }) => {
 		await editor.loadContent('Before.\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n');
-		const para = page.getByText('Before.');
-		const cell = page.locator('[role="cell"]').last();
-		const paraBox = await para.boundingBox();
-		const cellBox = await cell.boundingBox();
-		if (!paraBox || !cellBox) throw new Error('missing boxes');
-		const sx = paraBox.x + 5;
-		const sy = paraBox.y + paraBox.height / 2;
-		const ex = cellBox.x + cellBox.width / 2;
-		const ey = cellBox.y + cellBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [paraBox, cellBox] = await boxesOf(
+			page.getByText('Before.'),
+			page.locator('[role="cell"]').last()
+		);
+		// Anchor near the paragraph's start rather than its center, so the drag spans the whole text.
+		await dragBetweenBoxes(
+			page,
+			{ x: paraBox.x + 5, y: paraBox.y + paraBox.height / 2, width: 0, height: 0 },
+			cellBox
+		);
 		await editor.waitForCrossBlock(true);
 		const sel = await editor.bridge.getSelectionPaths();
 		expect(sel!.anchor.path[0]).toBe(0);
@@ -180,7 +157,7 @@ test.describe('table block: pointer selection', () => {
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowRight'); // collapse to the end (last cell)
 		// The collapse is async; settle before typing so the marker is a plain caret
@@ -204,7 +181,7 @@ test.describe('table block: pointer selection', () => {
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowLeft'); // collapse to the start (anchor cell)
 		await editor.waitForCrossBlock(false);
@@ -224,7 +201,7 @@ test.describe('table block: pointer selection', () => {
 		expect(await page.locator('.table-block > .vr-spacer').count()).toBe(0);
 
 		await page.locator('[role="cell"]').nth(3).click(); // first body cell "aaa"
-		await page.keyboard.press('Control+Shift+End');
+		await page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('ArrowDown'); // collapse to the end (last cell)
 		await editor.waitForCrossBlock(false);
@@ -244,9 +221,9 @@ test.describe('table block: pointer selection', () => {
 		await editor.loadContent('Before.\n\n' + TABLE_MULTICHAR + '\nAfter.\n');
 
 		await page.locator('[role="cell"]').nth(3).click();
-		await page.keyboard.press('Control+a'); // stage 1: cell
-		await page.keyboard.press('Control+a'); // stage 2: table (enters cross-block)
-		await page.keyboard.press('Control+a'); // stage 3: whole document
+		await page.keyboard.press('ControlOrMeta+a'); // stage 1: cell
+		await page.keyboard.press('ControlOrMeta+a'); // stage 2: table (enters cross-block)
+		await page.keyboard.press('ControlOrMeta+a'); // stage 3: whole document
 		await editor.waitForCrossBlock(true);
 
 		const sel = await editor.bridge.getSelectionPaths();

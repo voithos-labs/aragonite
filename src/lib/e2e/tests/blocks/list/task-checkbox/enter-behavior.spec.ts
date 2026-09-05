@@ -1,6 +1,5 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { waitForSourceContains } from './helpers';
 
 test.describe('task checkbox — Enter creates new task item', () => {
 	let editor: EditorPage;
@@ -14,7 +13,7 @@ test.describe('task checkbox — Enter creates new task item', () => {
 		await editor.loadContent('- [x] done\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'done'.length);
 		await editor.page.keyboard.press('Enter');
-		await waitForSourceContains(editor, '- [x] done\n- [ ] ');
+		await editor.bridge.waitForSourceContains('- [x] done\n- [ ] ');
 		expect((await editor.bridge.getSource()).trim()).toBe('- [x] done\n- [ ]');
 	});
 
@@ -22,7 +21,7 @@ test.describe('task checkbox — Enter creates new task item', () => {
 		await editor.loadContent('- [ ] pending\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'pending'.length);
 		await editor.page.keyboard.press('Enter');
-		await waitForSourceContains(editor, '- [ ] pending\n- [ ] ');
+		await editor.bridge.waitForSourceContains('- [ ] pending\n- [ ] ');
 		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] pending\n- [ ]');
 	});
 
@@ -30,7 +29,7 @@ test.describe('task checkbox — Enter creates new task item', () => {
 		await editor.loadContent('- plain\n');
 		await editor.focusBlockAtPath([0, 0, 0], 'plain'.length);
 		await editor.page.keyboard.press('Enter');
-		await waitForSourceContains(editor, '- plain\n- ');
+		await editor.bridge.waitForSourceContains('- plain\n- ');
 		expect((await editor.bridge.getSource()).trim()).toBe('- plain\n-');
 	});
 });

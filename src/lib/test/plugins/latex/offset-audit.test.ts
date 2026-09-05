@@ -5,9 +5,7 @@ import { serialize } from '$lib/core/serializer';
 import { computeInlineContent } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
-import { __resetInlineWidgetsForTests } from '$lib/core/inline/inline-widgets';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 
 // The atomic-island wrapper the render layer's portal builder stamps around a
@@ -37,19 +35,13 @@ function stampMathWidget(node: InlineNode): HTMLElement {
 const BLOCK_RAW = 'a $x^2$ b';
 const SOURCE = '$x^2$';
 
-function resetInlineState(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-
 beforeEach(() => {
-	resetInlineState();
+	resetPluginPlatformForTests();
 	registerMathInline();
 });
 
 afterEach(() => {
-	resetInlineState();
+	resetPluginPlatformForTests();
 	document.body.innerHTML = '';
 });
 

@@ -15,6 +15,14 @@ function envAcrossFirstTwo(presentationMode?: 'reading') {
 	return env;
 }
 
+// Ctrl and Cmd fold to one Mod, and `reservedChords()` publishes the folded chord, so both arms
+// owe both forms. Miss-analysis: the e2e cover presses `ControlOrMeta`, which is Meta only on
+// darwin and no runner is darwin, so half the chord went untested (#69).
+const DOC_EDGE_CHORDS = [
+	['Ctrl', { ctrlKey: true, shiftKey: true }],
+	['Cmd', { metaKey: true, shiftKey: true }]
+] as const;
+
 describe('cross-block keydown — collapse', () => {
 	for (const key of ['ArrowLeft', 'ArrowUp']) {
 		it(`${key} collapses to the range start`, async () => {
@@ -94,25 +102,37 @@ describe('cross-block keydown — extend', () => {
 		expect(env.selection.focus).toBeNull();
 	});
 
-	it('Ctrl+Shift+End extends to the document end', async () => {
-		const env = envAcrossFirstTwo();
+	for (const [mod, init] of DOC_EDGE_CHORDS) {
+		it(`${mod}+Shift+End extends to the document end`, async () => {
+			const env = envAcrossFirstTwo();
 
-		expect(await env.keydown.handleKeyDown(press('End', { ctrlKey: true, shiftKey: true }))).toBe(
-			true
-		);
+			expect(await env.keydown.handleKeyDown(press('End', init))).toBe(true);
 
-		expect(env.selection.focus?.path).toEqual([2]);
-	});
+			expect(env.selection.focus?.path).toEqual([2]);
+		});
 
-	it('Ctrl+Shift+Home extends backwards to the document start', async () => {
-		const env = makeKeydownEnv(SOURCE);
-		env.selection.enterCrossBlock({ path: [2], offset: 1 }, { path: [1], offset: 2 });
+		it(`${mod}+Shift+Home extends backwards to the document start`, async () => {
+			const env = makeKeydownEnv(SOURCE);
+			env.selection.enterCrossBlock({ path: [2], offset: 1 }, { path: [1], offset: 2 });
 
-		expect(await env.keydown.handleKeyDown(press('Home', { ctrlKey: true, shiftKey: true }))).toBe(
-			true
-		);
+			expect(await env.keydown.handleKeyDown(press('Home', init))).toBe(true);
 
-		expect(env.selection.focus?.path).toEqual([0]);
-		expect(env.selection.anchor?.path).toEqual([2]);
-	});
+			expect(env.selection.focus?.path).toEqual([0]);
+			expect(env.selection.anchor?.path).toEqual([2]);
+		});
+	}
+});
+
+describe('cross-block keydown — doc-edge from a collapsed caret', () => {
+	// The claim is what this arm can assert: entering cross-block reads the native caret, which
+	// needs `document.activeElement === blockEl`, and the env's block elements are detached.
+	for (const [mod, init] of DOC_EDGE_CHORDS) {
+		for (const key of ['End', 'Home']) {
+			it(`${mod}+Shift+${key} is claimed with no range yet open`, async () => {
+				const env = makeKeydownEnv(SOURCE);
+
+				expect(await env.keydown.handleKeyDown(press(key, init))).toBe(true);
+			});
+		}
+	}
 });

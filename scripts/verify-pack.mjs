@@ -22,10 +22,31 @@ if (
 	process.exit(1);
 }
 
+/**
+ * `npm pack --json` reported an array of pack results through npm 10 and switched to an
+ * object keyed by package name in npm 11; both carry the same per-package `files[]`.
+ * @param {string} json
+ * @returns {string[]}
+ */
+function packedPaths(json) {
+	const parsed = JSON.parse(json);
+	const results = Array.isArray(parsed) ? parsed : Object.values(parsed ?? {});
+	const files = results[0]?.files;
+	return Array.isArray(files) ? files.map((f) => f.path) : [];
+}
+
 // --ignore-scripts: without it the `prepack` script re-fires and its stdout corrupts the
 // --json output. execSync (shell) so the win32 `npm` → `npm.cmd` resolution works.
 const out = execSync('npm pack --dry-run --json --ignore-scripts', { encoding: 'utf8' });
-const files = JSON.parse(out)[0].files.map((f) => f.path);
+const files = packedPaths(out);
+
+// Non-vacuity: an unreadable pack report would make every check below pass over an empty
+// list. A real tarball always ships files.
+if (files.length === 0) {
+	console.error('verify-pack: `npm pack --json` reported no files — unrecognized output shape?');
+	process.exit(1);
+}
+
 const missing = REQUIRED.filter((p) => !files.includes(p));
 
 if (missing.length) {

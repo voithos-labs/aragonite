@@ -1,20 +1,23 @@
 /**
- * Reactive state for cross-block selection; `anchor`/`focus` are null in single-block
- * mode, where the native browser selection rules. Transitions: `docs/design/editor.md`
- * § Cross-block selection.
+ * Reactive state for the editor-owned selection modes: a cross-block `anchor`/`focus` pair,
+ * and the collapsed `gapCaret` (`gap-caret.ts`). Both are null in single-block mode, where the
+ * native browser selection rules, and the two are mutually exclusive here rather than at any
+ * call site. Transitions: `docs/design/editor.md` § Cross-block selection.
  */
 
 import type { DocumentView } from '../core/node-views';
 import { nodeAt } from '../tree-operations/node-ops';
-import type { SelectionPoint } from './primitives';
-import { normalize } from './primitives';
+import type { GapCaretPosition } from './gap-caret';
+import type { SelectionEndpoint, SelectionPoint } from './primitives';
+import { isWholeBlockEndpoint, normalize } from './primitives';
 import {
 	cellEndpointDeepPath,
 	normalizeTableEndpoint,
 	snapCrossBlockTableEndpoints
 } from './table-endpoint-snap';
+import { normalizeCharEndpoint } from './char-endpoint-snap';
 import { pathsEqual } from './path-math';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
 
 // ── Public factory ──────────────────────────────────────────────────────────
@@ -50,13 +53,27 @@ export interface SelectionState {
 	readonly start: SelectionPoint | null;
 	readonly end: SelectionPoint | null;
 	readonly selectAllCount: number;
+	/** The third mode: a collapsed caret in a between-blocks boundary (`gap-caret.ts`). */
+	readonly gapCaret: GapCaretPosition | null;
 
-	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void;
-	extendFocus(point: SelectionPoint): void;
+	// Every mutator below is silent when it changes nothing: a preamble that clears what is
+	// already clear must not wake a subscriber into re-reading an unmoved selection.
+	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void;
+	extendFocus(point: SelectionEndpoint): void;
 	collapse(): void;
 	clear(): void;
+	setGapCaret(pos: GapCaretPosition): void;
+	clearGapCaret(): void;
 	incrementSelectAllCount(): void;
 	resetSelectAllCount(): void;
+
+	/**
+	 * Fire the channel for a selection this state cannot see. Subscribers read the editor
+	 * back through `getSelection()`, which also answers for a NATIVE caret the restore road
+	 * lands and for a document a `source` swap replaced under it — neither of which moves a
+	 * field the mutators above guard on. Coalesces inside a {@link SelectionState.batch}.
+	 */
+	announceSelection(): void;
 
 	/**
 	 * Hold change notification until `mutate` returns, then fire once if anything mutated.
@@ -75,8 +92,13 @@ export interface SelectionState {
 		anchor: SelectionPoint,
 		focus: SelectionPoint
 	): 'collapsed' | 'single-block' | 'custom';
-	/** The deep `[table,row,col]` leaf path of a cell-coordinate point, else null. */
-	cellDeepPath(point: SelectionPoint): number[] | null;
+	/**
+	 * Where a caret lands for `point`: an endpoint inside a table addresses the table block by
+	 * cell INDEX, so its landing is the cell's own deep `[table,row,col]` leaf at offset 0.
+	 * Any other point lands as itself. Every reveal and every park goes through here, so no
+	 * caller can seat a cell index as a char offset on the table wrapper.
+	 */
+	cellLandingFor(point: SelectionPoint): SelectionPoint;
 }
 
 // ── Implementation ──────────────────────────────────────────────────────────
@@ -84,6 +106,7 @@ export interface SelectionState {
 class SelectionStateImpl implements SelectionState {
 	#anchor: SelectionPoint | null = $state(null);
 	#focus: SelectionPoint | null = $state(null);
+	#gapCaret: GapCaretPosition | null = $state(null);
 	#selectAllCount: number = $state(0);
 	#onChange?: () => void;
 	#getDoc?: () => DocumentView;
@@ -122,6 +145,13 @@ class SelectionStateImpl implements SelectionState {
 
 	get focus(): SelectionPoint | null {
 		return this.#focus;
+	}
+
+	// Copied out, as `setGapCaret` copies in: a consumer that mutates what it reads back
+	// would otherwise write state without notifying anyone.
+	get gapCaret(): GapCaretPosition | null {
+		const gap = this.#gapCaret;
+		return gap && { parentPath: gap.parentPath.slice(), index: gap.index };
 	}
 
 	get isCrossBlock(): boolean {
@@ -163,9 +193,10 @@ class SelectionStateImpl implements SelectionState {
 		return this.#selectAllCount;
 	}
 
-	enterCrossBlock(anchor: SelectionPoint, focus: SelectionPoint): void {
-		const a = this.#normalizePoint(anchor);
-		const f = this.#normalizePoint(focus);
+	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
+		this.#gapCaret = null;
+		const a = this.#normalizePoint(anchor, focus.path);
+		const f = this.#normalizePoint(focus, anchor.path);
 		// A same-path prose pair is a single-block range the browser owns; storing it mints an
 		// INVISIBLE cross-block state. Refuse it here so no entry path can. Intra-table rects
 		// share the table path but flag a cell coordinate, and the same-offset keyboard seed is
@@ -181,11 +212,12 @@ class SelectionStateImpl implements SelectionState {
 		this.#notify();
 	}
 
-	extendFocus(point: SelectionPoint): void {
+	extendFocus(point: SelectionEndpoint): void {
 		if (!this.#anchor) {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
-		const f = this.#normalizePoint(point);
+		this.#gapCaret = null;
+		const f = this.#normalizePoint(point, this.#anchor.path);
 		// A focus back on the anchor's prose leaf contracts to a single-block range. No
 		// `offset !== offset` guard, unlike #isSamePathProseRange: extendFocus never seeds, so
 		// landing exactly on the anchor offset is a collapse that must not be stored either.
@@ -203,8 +235,8 @@ class SelectionStateImpl implements SelectionState {
 		this.#notify();
 	}
 
-	// G1.29 at the storing seam: #normalizePoint is meant to make this unfireable, and did
-	// not for a length-1 table path. Both entries carry it because both store an endpoint pair.
+	// G1.29 at the storing seam, the belt behind #normalizePoint: both entries carry it because
+	// both store an endpoint pair.
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;
@@ -222,24 +254,62 @@ class SelectionStateImpl implements SelectionState {
 	}
 
 	// The funnel every entry path (keyboard, shift-click, drag, select-all, undo restore) goes
-	// through, so a table endpoint can never be stored as a deep cell path with a char offset.
-	// Never normalize at a call site instead. Idempotent; without getDoc, points pass raw.
-	#normalizePoint(point: SelectionPoint): SelectionPoint {
+	// through: a table endpoint can never be stored as a deep cell path with a char offset, and a
+	// char offset can never be stored outside the space its own block addresses (both funnels'
+	// headers). Never normalize at a call site instead. Idempotent; without a doc nothing can be
+	// measured, so points pass raw.
+	#normalizePoint(point: SelectionEndpoint, otherPath: readonly number[]): SelectionPoint {
 		const getDoc = this.#getDoc;
-		if (!getDoc || point.cellCoordinate) return point;
-		return normalizeTableEndpoint(getDoc(), point.path, point.offset);
+		if (!getDoc) {
+			return isWholeBlockEndpoint(point) ? { path: point.path.slice(), offset: 0 } : point;
+		}
+		const doc = getDoc();
+		if (isWholeBlockEndpoint(point)) return normalizeCharEndpoint(doc, point, otherPath);
+		if (point.cellCoordinate) return point;
+		const snapped = normalizeTableEndpoint(doc, point.path, point.offset);
+		return snapped.cellCoordinate ? snapped : normalizeCharEndpoint(doc, snapped, otherPath);
 	}
 
 	collapse(): void {
+		if (!this.#hasCaretClaim()) return;
 		this.#anchor = null;
 		this.#focus = null;
+		this.#gapCaret = null;
 		this.#notify();
 	}
 
 	clear(): void {
+		if (!this.#hasCaretClaim() && this.#selectAllCount === 0) return;
 		this.#anchor = null;
 		this.#focus = null;
+		this.#gapCaret = null;
 		this.#selectAllCount = 0;
+		this.#notify();
+	}
+
+	// Every field the two clears zero: a guard reading fewer of them would swallow the
+	// notification for the ones it does not see.
+	#hasCaretClaim(): boolean {
+		return this.#anchor !== null || this.#focus !== null || this.#gapCaret !== null;
+	}
+
+	// The mutual exclusion's other half: a gap and a range are never live together, and the
+	// copy is what keeps a caller's own position object from writing through.
+	setGapCaret(pos: GapCaretPosition): void {
+		this.#anchor = null;
+		this.#focus = null;
+		this.#gapCaret = { parentPath: pos.parentPath.slice(), index: pos.index };
+		this.#notify();
+	}
+
+	clearGapCaret(): void {
+		if (this.#gapCaret === null) return;
+		this.#gapCaret = null;
+		this.#notify();
+	}
+
+	incrementSelectAllCount(): void {
+		this.#selectAllCount += 1;
 		this.#notify();
 	}
 
@@ -258,24 +328,22 @@ class SelectionStateImpl implements SelectionState {
 		return node?.kind === 'table' ? 'custom' : 'single-block';
 	}
 
-	cellDeepPath(point: SelectionPoint): number[] | null {
+	cellLandingFor(point: SelectionPoint): SelectionPoint {
 		const getDoc = this.#getDoc;
-		if (!getDoc) return null;
-		// A context-established intra-table endpoint is unflagged though its offset is a cell
-		// index; mint the flag. cellEndpointDeepPath returns null for any non-table path.
-		const cellPoint: SelectionPoint = point.cellCoordinate
-			? point
-			: { path: point.path, offset: point.offset, cellCoordinate: true };
-		return cellEndpointDeepPath(getDoc(), cellPoint);
-	}
-
-	incrementSelectAllCount(): void {
-		this.#selectAllCount += 1;
-		this.#notify();
+		if (!getDoc) return point;
+		// Resolution is the door's, on the node kind: a context-established intra-table endpoint
+		// is unflagged and still a cell index, and a non-table path answers null.
+		const deepPath = cellEndpointDeepPath(getDoc(), point);
+		return deepPath ? { path: deepPath, offset: 0 } : point;
 	}
 
 	resetSelectAllCount(): void {
+		if (this.#selectAllCount === 0) return;
 		this.#selectAllCount = 0;
+		this.#notify();
+	}
+
+	announceSelection(): void {
 		this.#notify();
 	}
 }

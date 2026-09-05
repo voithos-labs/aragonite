@@ -18,18 +18,8 @@ export interface FootnoteReference {
 	label: string;
 	/** Doc-absolute block path of the prose leaf carrying the reference. */
 	path: number[];
-}
-
-function forEachLeaf(
-	children: readonly NodeView[],
-	visit: (leaf: NodeView, path: number[]) => void,
-	basePath: number[] = []
-): void {
-	children.forEach((node, index) => {
-		const path = [...basePath, index];
-		if (node.children && node.children.length > 0) forEachLeaf(node.children, visit, path);
-		else visit(node, path);
-	});
+	/** Raw offset just past the `[^label]` bytes in that leaf — where the way back lands. */
+	end: number;
 }
 
 function collectRefsInInline(
@@ -38,26 +28,67 @@ function collectRefsInInline(
 	out: FootnoteReference[]
 ): void {
 	for (const node of nodes) {
-		if (node.kind === FOOTNOTE_REF_KIND) out.push({ label: node.label ?? '', path });
+		if (node.kind === FOOTNOTE_REF_KIND) out.push({ label: node.label ?? '', path, end: node.end });
 		else if (node.children) collectRefsInInline(node.children, path, out);
 	}
 }
 
+function collectRefsInSubtree(node: NodeView, basePath: number[], out: FootnoteReference[]): void {
+	if (node.children && node.children.length > 0) {
+		node.children.forEach((child, index) => collectRefsInSubtree(child, [...basePath, index], out));
+		return;
+	}
+	if (!isProseKind(node.kind)) return;
+	collectRefsInInline(computeInlineContent(node), basePath, out);
+}
+
 export function collectFootnoteReferences(document: DocumentView): FootnoteReference[] {
 	const refs: FootnoteReference[] = [];
-	forEachLeaf(document.children, (leaf, path) => {
-		if (!isProseKind(leaf.kind)) return;
-		collectRefsInInline(computeInlineContent(leaf), path, refs);
-	});
+	const children = document.children;
+	for (let index = 0; index < children.length; index++) {
+		for (const ref of subtreeRefs(children[index])) {
+			refs.push({ label: ref.label, path: [index, ...ref.path], end: ref.end });
+		}
+	}
 	return refs;
 }
 
+/** Labels only, so the numbering a keystroke rebuilds allocates no rebased paths. */
 export function assignFootnoteNumbers(document: DocumentView): Map<string, number> {
 	const numbers = new Map<string, number>();
-	for (const ref of collectFootnoteReferences(document)) {
-		if (!numbers.has(ref.label)) numbers.set(ref.label, numbers.size + 1);
+	const children = document.children;
+	for (let index = 0; index < children.length; index++) {
+		for (const ref of subtreeRefs(children[index])) {
+			if (!numbers.has(ref.label)) numbers.set(ref.label, numbers.size + 1);
+		}
 	}
 	return numbers;
+}
+
+// ── Per-subtree contributions ────────────────────────────────────────────────
+
+interface SubtreeEntry {
+	raw: string;
+	kind: NodeView['kind'];
+	/** Subtree-relative paths; `collectFootnoteReferences` rebases them onto the top-level index. */
+	refs: FootnoteReference[];
+}
+
+const refsBySubtree = new WeakMap<NodeView, SubtreeEntry>();
+
+/**
+ * One top-level subtree's references, memoized against the bytes they came from, so a
+ * keystroke re-parses that subtree and reuses every other. Sound because the serializer
+ * never recurses (`editor.md` § 12): a subtree's `raw` is its whole byte image, kept so by
+ * the container-`raw` rebuild up the ancestry.
+ */
+function subtreeRefs(node: NodeView): readonly FootnoteReference[] {
+	const cached = refsBySubtree.get(node);
+	if (cached && cached.raw === node.raw && cached.kind === node.kind) return cached.refs;
+	const refs: FootnoteReference[] = [];
+	collectRefsInSubtree(node, [], refs);
+	refsBySubtree.set(node, { raw: node.raw, kind: node.kind, refs });
+	return refs;
 }
 
 // ── Per-version sharing ──────────────────────────────────────────────────────
@@ -68,9 +99,9 @@ const numberingByDocument = new WeakMap<
 >();
 
 /**
- * One numbering per flush; without it the walk ran once per widget. `contentVersion`
- * must be in the key: the `$state` document is mutated in place, so an identity-keyed
- * memo would hit forever and return a stale map.
+ * One numbering per flush rather than one per widget. `contentVersion` must be in the key:
+ * the `$state` document is mutated in place, so an identity-keyed memo would hit forever and
+ * return a stale map.
  */
 export function footnoteNumbersFor(
 	document: DocumentView,

@@ -1,0 +1,44 @@
+name: Proposal
+description: Something aragonite should be able to do and can't yet
+type: Feature
+body:
+  - type: textarea
+    id: what-you-want
+    attributes:
+      label: What you want
+      description: The capability, described from the outside.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-not-today
+    attributes:
+      label: Why the current surface cannot do it
+      description: What you tried and where it ran out. A workaround that almost works is useful evidence.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-shape
+    attributes:
+      label: Shape you would expect
+      description: Optional. A prop, a method, a directive, a sketch of the call site.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Optional. Where in the codebase it would sit. Issue forms can't apply labels from a dropdown, so a maintainer sets the real one at triage.
+      options:
+        - 'code-structure: internal structure and ergonomics'
+        - 'core-editing: parser, round-trip, tree ops, commits, undo, merge/split'
+        - 'virtual-rendering: windowing, reveal, scroll'
+        - 'plugin-containers: bundled plugins and container kinds'
+        - 'test-coverage: suite shape and coverage gaps'
+        - 'selection-caret: caret doors, gap caret, affinity, cross-block selection'
+        - 'clipboard-paste: copy, cut, paste pipeline and transforms'
+        - 'presentation: live, preview, reading paint and editing rules'
+
+  - type: markdown
+    attributes:
+      value: After 1.0, API proposals meet the plugin-contract freeze rules, so additive shapes land far more easily than ones that move existing surface.

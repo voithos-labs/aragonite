@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
 //
 // Canonical reset: every reveal exit path funnels through the one resetReveal, so all of them
-// land in the same observable idle state and the machine is reusable afterward. Guards the audit's
-// "a fourth exit path has no teardown to call" finding — a residual a hand-picked subset clear
-// would leave behind (a wedged `settling` flag, a stale record) surfaces as a broken second cycle.
+// land in the same observable idle state and the machine is reusable afterward. Anything an exit
+// path leaves behind (a wedged `settling` flag, a stale record) shows up as a broken second cycle.
 import { describe, it, expect } from 'vitest';
 import { createWidgetInteraction } from '$lib/components/blocks/text/widget-interaction';
 import { MATH_INLINE } from '$lib/plugins/latex/latex-kind';
-import { installMathInline, mountWidgetBlock, widgetInteractionDeps } from './math-widget-fixture';
+import {
+	installMathInline,
+	mountWidgetBlock,
+	placeCaretAt,
+	widgetInteractionDeps
+} from './math-widget-fixture';
 
 installMathInline();
 
@@ -39,19 +43,10 @@ function mountMathBlock() {
 		interaction.enterWidget(math, false);
 		await settle();
 	}
-	function placeCaretIn(target: Node, offset: number): void {
-		const range = document.createRange();
-		range.setStart(target, offset);
-		range.collapse(true);
-		const sel = window.getSelection()!;
-		sel.removeAllRanges();
-		sel.addRange(range);
-	}
 	return {
 		interaction,
 		el,
 		reveal,
-		placeCaretIn,
 		revealingMirror: () => revealingMirror,
 		sourceNode: () => el.childNodes[1] as Text,
 		trailingText: () => el.childNodes[2] as Text
@@ -71,7 +66,7 @@ describe('canonical reset — every exit lands in the same idle state', () => {
 		[
 			'selection-escape',
 			async (b) => {
-				b.placeCaretIn(b.trailingText(), 2);
+				placeCaretAt(b.trailingText(), 2);
 				b.interaction.foldRevealIfSelectionEscaped();
 				await settle();
 			}
@@ -109,7 +104,7 @@ describe('canonical reset — the machine is reusable after a fold', () => {
 
 		// The second escape-fold must still fire: a `settling` residual left true by a
 		// non-canonical reset would permanently disable it.
-		b.placeCaretIn(b.trailingText(), 2);
+		placeCaretAt(b.trailingText(), 2);
 		b.interaction.foldRevealIfSelectionEscaped();
 		await settle();
 		expect(b.interaction.isRevealing()).toBe(false);

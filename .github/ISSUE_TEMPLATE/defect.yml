@@ -1,0 +1,96 @@
+name: Defect
+description: Something in the editor is wrong and you can show it
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: The body holds the defect and nothing else. Skip the preamble and the apologies, we would much rather have the repro.
+
+  - type: textarea
+    id: what-is-wrong
+    attributes:
+      label: What is wrong
+      description: What happened, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: The smallest sequence that shows it. Markdown source plus the keys you pressed beats a description of the keys you pressed.
+      placeholder: |
+        Source:
+
+        - one
+          - two
+
+        Steps:
+        1. Put the caret at the end of "two"
+        2. Press Backspace twice
+        3. The item's text is gone but its list marker survives
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Version and browser
+      description: The aragonite version, and the browser you saw it in. Only chromium is tested, so a report from Safari or Firefox is welcome and reads differently.
+      placeholder: 0.10.0, Edge 141 on Windows 11
+    validations:
+      required: true
+
+  - type: dropdown
+    id: presentation-mode
+    attributes:
+      label: Presentation mode
+      description: Optional. Plenty of defects live in one mode only, and knowing which saves a round trip.
+      options:
+        - 'source: markers visible, the editing default'
+        - 'reading: markers hidden, surface inert'
+        - "preview-block: the caret's block reveals its markers"
+        - 'preview-inline: only the construct the caret touches reveals'
+        - 'live: markers hidden, still editable'
+        - 'more than one, or not sure'
+
+  - type: input
+    id: where-it-lives
+    attributes:
+      label: Where it lives
+      description: Files or subsystem, if you know. A guess is fine and a wrong guess costs nothing.
+      placeholder: src/lib/tree-operations/list.ts, or just "list editing"
+
+  - type: textarea
+    id: fix-direction
+    attributes:
+      label: Fix direction
+      description: Optional. A theory about the root cause, or the shape the fix probably takes, saves a round trip.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Your read on the blast radius. Issue forms can't apply labels from a dropdown, so a maintainer sets the real one at triage.
+      options:
+        - 'important: byte corruption or contract-breaking defect'
+        - 'minor: real defect, bounded harm'
+        - 'watch: observed signal, no confirmed defect or no repro'
+        - 'nit: cosmetic or hygiene'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Optional. Where in the codebase it sits. Issue forms can't apply labels from a dropdown, so a maintainer sets the real one at triage.
+      options:
+        - 'code-structure: internal structure and ergonomics'
+        - 'core-editing: parser, round-trip, tree ops, commits, undo, merge/split'
+        - 'virtual-rendering: windowing, reveal, scroll'
+        - 'plugin-containers: bundled plugins and container kinds'
+        - 'test-coverage: suite shape and coverage gaps'
+        - 'selection-caret: caret doors, gap caret, affinity, cross-block selection'
+        - 'clipboard-paste: copy, cut, paste pipeline and transforms'
+        - 'presentation: live, preview, reading paint and editing rules'

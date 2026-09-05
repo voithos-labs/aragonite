@@ -1,11 +1,12 @@
 /** Applies the results a paste surface hook produced to the document. */
 
-import { updateNodeContent } from '../node-ops';
+import { settledCaretTarget, updateNodeContent, type SettledContent } from '../node-ops';
 import { ensureUnsharedChild } from '../unshare';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { stampStructuralChange } from '../structural-change';
+import type { CstNode } from '../../core/nodes';
 import type { InlinePasteResult, StructuralPasteResult } from '../paste-surfaces';
-import type { PasteDispatchContext } from './dispatch';
+import type { PasteDispatchContext, InlineCaretLanding } from './dispatch';
 import { resolveParentScope } from './parent-scope';
 import { replaceBlockAtParent } from './replace-block-at-parent';
 
@@ -20,16 +21,16 @@ export async function applyInlineResult(
 	targetPath: number[],
 	result: InlinePasteResult,
 	ctx: PasteDispatchContext
-): Promise<void> {
+): Promise<InlineCaretLanding | undefined> {
 	if (ctx.undoEntry === 'join') {
-		await commitInlineJoin(targetPath, result, ctx);
-		return;
+		return commitInlineJoin(targetPath, result, ctx);
 	}
 
 	// Unawaited: the caller sets pendingCursorOffset in the same synchronous block, so both
 	// land in one reactive flush.
 	const blockIndex = targetPath[targetPath.length - 1];
 	void ctx.blockEdit.updateBlockContent(blockIndex, result.newRaw, result.caretOffset);
+	return undefined;
 }
 
 /**
@@ -43,10 +44,12 @@ async function commitInlineJoin(
 	targetPath: number[],
 	result: InlinePasteResult,
 	ctx: PasteDispatchContext
-): Promise<void> {
+): Promise<InlineCaretLanding | undefined> {
 	const scope = resolveParentScope(ctx.doc, targetPath, ctx.controller);
-	if (!scope) return;
+	if (!scope) return undefined;
 	const leafIndex = targetPath[targetPath.length - 1];
+	let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+	let siblings: readonly CstNode[] = [];
 
 	await ctx.controller.commitMultiScope({
 		scopes: [scope],
@@ -55,14 +58,16 @@ async function commitInlineJoin(
 			// The slot may still be snapshot-shared, and the funnel's same-kind branch writes
 			// its raw in place (G1.9).
 			ensureUnsharedChild(view, leafIndex, view.sharing);
-			const change = updateNodeContent(
-				{ children: view.children, ownerKind: view.node.kind },
+			settled = updateNodeContent(
+				{ children: view.children, ownerKind: view.node.kind, owner: view.node },
 				leafIndex,
 				result.newRaw,
-				ctx.grammar
+				ctx.grammar,
+				view.sharing
 			);
-			stampStructuralChange(view.children, change, view.sharing);
-			return [change];
+			siblings = view.children;
+			stampStructuralChange(view.children, settled.change, view.sharing);
+			return [settled.change];
 		},
 		op: {
 			kind: 'updateContent',
@@ -70,12 +75,18 @@ async function commitInlineJoin(
 			eventPath: docPathFrom(targetPath)
 		}
 	});
+
+	// The paste can demote the slot's kind, and a settle that absorbed the join above it left
+	// the predecessor holding the pasted bytes — so the caller's own caret target is stale.
+	const target = settledCaretTarget(settled, leafIndex, result.caretOffset, siblings);
+	return { path: [...targetPath.slice(0, -1), target.index], offset: target.offset };
 }
 
 export async function applyStructuralResult(
 	targetPath: number[],
 	result: StructuralPasteResult,
-	ctx: PasteDispatchContext
+	ctx: PasteDispatchContext,
+	trailingSeparator = ''
 ): Promise<void> {
 	await replaceBlockAtParent({
 		doc: ctx.doc,
@@ -85,6 +96,8 @@ export async function applyStructuralResult(
 		undoEntry: ctx.undoEntry ?? 'own',
 		focusReplacementIndex: result.focusReplacementIndex,
 		focusOffset: result.focusOffset,
-		source: 'paste-dispatch'
+		source: 'paste-dispatch',
+		trailingSeparator,
+		...(ctx.grammar ? { grammar: ctx.grammar } : {})
 	});
 }

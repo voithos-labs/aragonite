@@ -37,7 +37,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 		invariantFires = [];
 		page.on('console', (m: ConsoleMessage) => {
 			const type = m.type();
-			if ((type === 'warning' || type === 'error') && m.text().includes('[invariant:'))
+			if ((type === 'warning' || type === 'error') && m.text().includes('[aragonite:invariant:'))
 				invariantFires.push(m.text());
 		});
 
@@ -66,7 +66,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 		const details = blockOfKind(editorTwo, 'details');
 		expect(details).toBeDefined();
 		expect(details?.child0).toBe('details-summary');
-		expect(kindsOf(editorTwo)).toContain('note');
+		expect(kindsOf(editorTwo)).toContain('callout');
 		expect(kindsOf(editorTwo)).not.toContain('htmlBlock');
 	});
 
@@ -74,7 +74,7 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 		// Editor 1 parsed before detailsPlugin existed, and parsed documents never
 		// re-parse — so its `<details>` stays the built-in htmlBlock, never `details`.
 		expect(kindsOf(editorOne)).toContain('htmlBlock');
-		expect(kindsOf(editorOne)).toContain('note');
+		expect(kindsOf(editorOne)).toContain('callout');
 		expect(kindsOf(editorOne)).not.toContain('details');
 
 		// The fixture requires the tag and forbids the rest; only the multiplicity is
@@ -84,10 +84,10 @@ test.describe('plugins prop: staggered second-editor mount', () => {
 			.toBe(1);
 	});
 
-	test('the shared callout plugin resolves the note in both editors', () => {
-		const noteOne = blockOfKind(editorOne, 'note');
-		const noteTwo = blockOfKind(editorTwo, 'note');
-		expect(noteOne?.child0).toBe('note-title');
-		expect(noteTwo?.child0).toBe('note-title');
+	test('the shared callout plugin resolves the callout in both editors', () => {
+		const noteOne = blockOfKind(editorOne, 'callout');
+		const noteTwo = blockOfKind(editorTwo, 'callout');
+		expect(noteOne?.child0).toBe('callout-title');
+		expect(noteTwo?.child0).toBe('callout-title');
 	});
 });

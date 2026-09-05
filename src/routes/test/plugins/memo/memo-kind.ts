@@ -17,9 +17,8 @@ export const MEMO_BLOCK = 'memo';
 export function registerMemoBlock(): void {
 	const memo = declarePluginKind(MEMO_BLOCK);
 
-	// Harness-only commands over the editable-leaf tier's minted-command dispatch:
-	// `memo.tag` commits metadata through the sanctioned route, `memo.boom` throws so the
-	// seam's containment and 'command' error routing surface end-to-end.
+	// Harness-only commands over the editable-leaf tier's minted-command dispatch: `memo.tag`
+	// commits through the sanctioned route, `memo.boom` throws so containment surfaces.
 	const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
 		ctx.updateMetadata({ memoTagged: true });
 		return true;
@@ -29,6 +28,7 @@ export function registerMemoBlock(): void {
 	});
 
 	registerBlockKind(memo, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -55,9 +55,10 @@ export function registerMemoBlock(): void {
 	});
 
 	registerBlockOpener(memo, {
-		// `%%` collides with no built-in matcher; 25 sits between the block-math
-		// opener (15) and the shared `:::` directive opener (45).
-		priority: 25,
+		// `%%` collides with no built-in matcher; 27 sits between the block-math opener
+		// (15) and the shared `:::` directive opener (45), above the bundled parrot's 25
+		// so `%%parrot` lines go to the parrot.
+		priority: 27,
 		interruptsParagraph: (text) => text.startsWith('%%'),
 		tryOpen(ctx) {
 			if (!ctx.line.text.startsWith('%%')) return null;

@@ -90,3 +90,16 @@ describe('G2.5 pinned counterexamples', () => {
 		});
 	}
 });
+
+// The partition is blind to which pair a shared delimiter run binds to, so the four spellings the
+// shared lane draws at random get a deterministic floor of their own.
+describe('G2.5 asterisk delimiter nesting', () => {
+	const cases = ['*a *b* c*', '**a **b** c**', '**a *b** c*', '*a **b* c**'];
+
+	for (const source of cases) {
+		it(`partitions ${JSON.stringify(source)}`, () => {
+			const nodes = parseInline(source, 0, source.length);
+			assertPartition(nodes, 0, source.length);
+		});
+	}
+});

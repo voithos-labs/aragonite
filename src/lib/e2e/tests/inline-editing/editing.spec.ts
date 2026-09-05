@@ -10,6 +10,18 @@ A line with a [link](https://example.com) present.
 Plain paragraph for editing.
 `;
 
+const EDITS = [
+	{ name: 'after a bold span', block: 0, at: 'end', typed: ' tail', survives: ['**bold text**'] },
+	{ name: 'after a code span', block: 1, at: 'end', typed: ' more', survives: ['`inline code`'] },
+	{
+		name: 'before a bold span',
+		block: 0,
+		at: 'start',
+		typed: 'Prefix: ',
+		survives: ['**bold text**', '*italic text*']
+	}
+] as const;
+
 test.describe('inline editing — editing formatted content', () => {
 	let editor: EditorPage;
 
@@ -19,39 +31,19 @@ test.describe('inline editing — editing formatted content', () => {
 		await editor.loadContent(INLINE_CONTENT);
 	});
 
-	test('typing after bold span preserves formatting in source', async () => {
-		await editor.focusBlockEnd(0);
-		await editor.typeText(' tail');
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('**bold text**');
-		expect(src).toContain('tail');
-	});
+	// A byte typed at a block edge must not reach inside the constructs already there.
+	for (const { name, block, at, typed, survives } of EDITS) {
+		test(`typing ${name} leaves its markers intact`, async () => {
+			if (at === 'end') await editor.focusBlockEnd(block);
+			else await editor.focusBlockStart(block);
 
-	test('source round-trips after editing formatted content', async () => {
-		await editor.focusBlockEnd(1);
-		await editor.typeText(' more');
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('`inline code`');
-		expect(src).toContain('more');
-	});
+			await editor.typeText(typed);
+			await editor.bridge.waitForSourceContains(typed);
 
-	test('editing does not corrupt inline bold markers', async () => {
-		await editor.focusBlockStart(0);
-		await editor.typeText('Prefix: ');
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('**bold text**');
-		expect(src).toContain('*italic text*');
-		expect(src).toContain('Prefix: ');
-	});
-
-	test('click into formatted paragraph, type at end, source updates', async () => {
-		await editor.clickBlock(0);
-		await editor.focusBlockEnd(0);
-		await editor.typeText(' appended');
-		const src = await editor.bridge.getSource();
-		expect(src).toContain('**bold text**');
-		expect(src).toContain('appended');
-	});
+			const source = await editor.bridge.getSource();
+			for (const marker of survives) expect(source).toContain(marker);
+		});
+	}
 
 	test('typing bold in a split-created block renders strong element', async () => {
 		// Regression: split-created blocks had no inlineContent, so bold rendered as plain **text**.

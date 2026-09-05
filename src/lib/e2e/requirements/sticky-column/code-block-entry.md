@@ -12,4 +12,8 @@ Entering a code block via ArrowDown from the block above and via ArrowUp from th
 ## Edge cases
 
 - Landing body offset (not just pixel X) matches both directions: a typed marker lands at the same byte position in the serialized body regardless of entry direction
-- DEFAULT_CONTENT js code block from the `/test/editor` harness: matched sticky X from above and below produces symmetric landing X
+- DEFAULT_CONTENT js code block from the `/test/editor` harness: matched sticky X from above and below produces symmetric landing X. The two neighbours have different end columns, so their clicks quantize to different character boundaries; the bound is one measured character cell widened by exactly that gap, and it is asserted on every run whatever the gap measures
+
+## Miss analysis
+
+The landing comparison sat under `if (captureDelta < 5)`, so whether it ran at all was decided by the fixture's text, the host's font metrics and the viewport rather than by the editor. No gate catches an assertion that stops running: G4.23 pairs a requirement with its spec, it does not ask whether a scenario's assertion is reachable. The generalized answer: a spec never guards an assertion on measured data, the bound absorbs the measurement instead.

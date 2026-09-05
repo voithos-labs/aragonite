@@ -1,54 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { createContainerEditActions } from '$lib/editor-actions/container-edit';
-import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
-import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
-import {
-	makeNestedActionsDeps,
-	makeStubBlockEdit,
-	makeStubFocus,
-	makeEditorActionsDeps
-} from '$lib/test/harness/editor-actions';
-import type { EditEvent } from '$lib/editor-events';
+import { makeNestedHarness, makeTopHarness } from '$lib/test/harness/editor-actions';
 
 // Text parsing to MULTIPLE blocks must replace the block with all of them at both levels.
 // Cramming the extras into the first node's raw (the stuck-fence class) leaves the live
 // CST disagreeing with parse(serialize(doc)).
 
-function makeTop(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createUndoController(harness.deps);
-	const actions = createBlockEditActions(harness.deps, controller);
-	const edits: EditEvent[] = [];
-	harness.events.on('edit', (e) => edits.push(e));
-	return { ...harness, actions, edits };
-}
-
-function makeNested(source: string) {
-	const harness = makeEditorActionsDeps(parse(source).children);
-	const controller = createUndoController(harness.deps);
-	const bundle = createStandardNestedActions(
-		createBlockListState(() => harness.deps.doc.children[0]),
-		makeNestedActionsDeps({
-			index: 0,
-			getNode: () => harness.deps.doc.children[0],
-			path: [0],
-			parent: {
-				blockEdit: makeStubBlockEdit(),
-				focus: makeStubFocus(),
-				containerEdit: createContainerEditActions(harness.deps, controller)
-			}
-		})
-	);
-	return { ...harness, bundle };
-}
-
 describe('top-level updateBlockContent with multi-block text', () => {
 	it('replaces the block with every parsed block and resyncs ids/refs', async () => {
-		const h = makeTop('foo\n');
+		const h = makeTopHarness('foo\n');
 		await h.actions.updateBlockContent(0, 'foo\\\n# bar\n', 3, 8);
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['paragraph', 'heading']);
 		expect(h.deps.doc.children[0].raw).toBe('foo\\\n');
@@ -59,7 +19,7 @@ describe('top-level updateBlockContent with multi-block text', () => {
 	});
 
 	it('same-kind multi-block text splits too (the stuck-fence shape)', async () => {
-		const h = makeTop('```\nx\n```\n');
+		const h = makeTopHarness('```\nx\n```\n');
 		await h.actions.updateBlockContent(0, '```\nx\n```\n\nhello\n', 9, 16);
 		expect(h.deps.doc.children.map((c) => c.kind)).toEqual(['fencedCode', 'paragraph']);
 		expect(h.deps.doc.children[0].raw).toBe('```\nx\n```\n');
@@ -67,7 +27,7 @@ describe('top-level updateBlockContent with multi-block text', () => {
 	});
 
 	it('emits one updateContent edit at the block and snapshots for one-step undo', async () => {
-		const h = makeTop('foo\n');
+		const h = makeTopHarness('foo\n');
 		await h.actions.updateBlockContent(0, 'foo\\\n# bar\n', 3);
 		const update = h.edits.find((e) => e.op === 'updateContent');
 		expect(update).toBeDefined();
@@ -78,7 +38,7 @@ describe('top-level updateBlockContent with multi-block text', () => {
 	});
 
 	it('routine same-kind single-block typing is unchanged (no structural commit)', async () => {
-		const h = makeTop('foo\n');
+		const h = makeTopHarness('foo\n');
 		const before = h.getBlockIds();
 		await h.actions.updateBlockContent(0, 'foob\n', 3, 4);
 		expect(h.deps.doc.children).toHaveLength(1);
@@ -89,7 +49,7 @@ describe('top-level updateBlockContent with multi-block text', () => {
 
 describe('nested updateBlockContent with multi-block text', () => {
 	it('grows the container with every parsed block, childIds synced, raw rebuilt', async () => {
-		const h = makeNested('> foo\n');
+		const h = makeNestedHarness('> foo\n', { index: 0 });
 		await h.bundle.blockEdit.updateBlockContent(0, 'foo\\\n# bar\n', 3);
 		const bq = h.deps.doc.children[0];
 		expect(bq.children!.map((c) => c.kind)).toEqual(['paragraph', 'heading']);

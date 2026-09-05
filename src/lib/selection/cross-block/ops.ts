@@ -9,15 +9,16 @@
 import type { UndoEntryMode } from '../../action-contracts';
 import type { SelectionState } from '../selection-state.svelte';
 import type { GrammarView } from '../../schema/block-openers';
-import type { SelectionPoint } from '../primitives';
+import type { LinkReferenceResolverRef, PresentationModeGetter } from '../../editor-keys';
+import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import type { CstNode, Document } from '../../core/nodes';
 import type { BlockComponent } from '../../block-component';
 import type { CommitController, MultiScopeTarget } from '../../action-contracts';
 import { focusCollapsedCaret } from '../native-bridge';
 import { rangeDelete } from '../range-delete';
-import type { StructuralChange } from '../../tree-operations/structural-change';
+import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
-import { pathHasPrefix, pathsEqual } from '../path-math';
+import { pathsEqual } from '../path-math';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { getStateForNode } from '../../reactivity/state-registry';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
@@ -36,6 +37,12 @@ export interface CrossBlockMutationContext {
 	/** Block grammar for the delete's ancestry rebuild. Required-nullable so a new construction
 	 *  site can't silently skip the thread; `undefined` = global. */
 	grammar: GrammarView | undefined;
+	/** The effective mode the delete's join seam answers to (live-mode.md § 4.5). Required-nullable for the
+	 *  same reason as `grammar`; `undefined` reads as not-live, so the join stays byte-literal. */
+	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, so the seam parses the reference forms the render
+	 *  path drew. Required-nullable beside the mode. */
+	linkRef: LinkReferenceResolverRef | undefined;
 }
 
 /** Options for {@link performCrossBlockDelete}. Absent = plain delete, own snapshot and caret. */
@@ -157,27 +164,38 @@ async function commitPureTopLevelDelete(
 ): Promise<SelectionPoint | null> {
 	let collapsedCaret: SelectionPoint | null = null;
 
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom(start.path), offset: start.offset };
+	const snapshot = deleteSnapshot(options, start.path, start.offset);
 
+	const doc = ctx.getDoc();
 	await ctx.controller.commitStructural({
 		snapshot,
 		mutate: (topLevelChildren) => {
-			// Honest literal: rangeDelete only walks children; prefix/suffix are inert here.
+			// Prefix stays inert; the suffix rides the live document as accessors, so the
+			// tail settle can materialize the folded trailing line.
 			const proxyDoc: Document = {
 				kind: 'document',
 				prefix: '',
 				children: topLevelChildren,
-				suffix: ''
+				get suffix() {
+					return doc.suffix;
+				},
+				set suffix(value: string) {
+					doc.suffix = value;
+				}
 			};
-			const beforeLen = topLevelChildren.length;
-			const result = rangeDelete(proxyDoc, start, end, ctx.controller.sharing, ctx.grammar);
+			const ledger = trackChildIds(proxyDoc);
+			const result = rangeDelete(
+				proxyDoc,
+				start,
+				end,
+				ctx.controller.sharing,
+				ctx.grammar,
+				ctx.getPresentationMode?.(),
+				ctx.linkRef
+			);
 			collapsedCaret = result.collapsedCaret;
-			const afterLen = topLevelChildren.length;
 			ctx.selection.collapse();
-			return topLevelStructuralChange(start.path, end.path, beforeLen, afterLen);
+			return ledger.read();
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
 		afterTick: caretRestore ? () => caretRestore(collapsedCaret) : undefined
@@ -200,24 +218,15 @@ async function commitCrossContainerDelete(
 ): Promise<SelectionPoint | null> {
 	const touched = collectTouchedContainers(doc, start.path, end.path);
 	const scopes: MultiScopeTarget[] = [];
-	const containerPaths: number[][] = [];
-
-	// A table endpoint addresses the table block itself (cell-index offset). For ancestor-scope
-	// descriptors it behaves like a point one level deeper, so deepen it before computing.
-	const effStartPath = isTableAt(doc, start.path) ? [...start.path, 0] : start.path;
-	const effEndPath = isTableAt(doc, end.path) ? [...end.path, 0] : end.path;
 
 	// Doc scope goes first when the LCA is doc-level, so commitMultiScope publishes
 	// doc.children / blockIds / blockRefs atomically with the container scopes.
-	const lcaIsDocRoot = start.path[0] !== end.path[0];
-	if (lcaIsDocRoot) {
+	if (start.path[0] !== end.path[0]) {
 		scopes.push(ctx.controller.getDocScope());
-		containerPaths.push([]);
 	}
 
 	for (const t of touched) {
 		scopes.push({ node: t.node, state: t.state, path: t.path });
-		containerPaths.push(t.path);
 	}
 
 	let collapsedCaret: SelectionPoint | null = null;
@@ -226,33 +235,35 @@ async function commitCrossContainerDelete(
 		scopes,
 		// The selection start survives the delete (start-wins collapse), so its deep path is a
 		// resolving restore coordinate.
-		snapshot:
-			options?.undoEntry === 'join'
-				? 'skip'
-				: { path: docPathFrom(start.path), offset: start.offset },
+		snapshot: deleteSnapshot(options, start.path, start.offset),
 		mutate: (scopeViews) => {
 			const sharing = scopeViews[0].sharing;
-			// Read lengths BEFORE mutation: paths go stale as rangeDelete splices, while the owned
-			// scope views stay valid because splices happen in place.
-			const beforeLens = scopeViews.map((v) => v.children.length);
+			// Opened BEFORE the mutation: paths go stale as rangeDelete splices, while the owned
+			// scope nodes stay valid because splices happen in place.
+			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
 
-			const result = rangeDelete(doc, start, end, sharing, ctx.grammar);
+			const result = rangeDelete(
+				doc,
+				start,
+				end,
+				sharing,
+				ctx.grammar,
+				ctx.getPresentationMode?.(),
+				ctx.linkRef
+			);
 			collapsedCaret = result.collapsedCaret;
 			ctx.selection.collapse();
 
 			// An endpoint-table scope takes its descriptor from the row splice the table branch
 			// actually performed, matched on the owned node, never from re-derived snap math.
 			const rowSplices = result.tableRowSplices ?? [];
-			return containerPaths.map((p, i): StructuralChange => {
+			return ledgers.map((ledger, i): StructuralChange => {
 				const rowSplice = rowSplices.find((s) => s.table === scopeViews[i].node);
-				if (rowSplice) return { op: 'delete', at: rowSplice.at, count: rowSplice.count };
-				return computeScopeDescriptor(
-					p,
-					effStartPath,
-					effEndPath,
-					beforeLens[i],
-					scopeViews[i].children.length
-				);
+				const change = rowSplice
+					? ({ op: 'delete', at: rowSplice.at, count: rowSplice.count } as const)
+					: ledger.read();
+				ledger.release();
+				return change;
 			});
 		},
 		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
@@ -305,105 +316,4 @@ function collectTouchedContainers(
 		return 0;
 	});
 	return touched;
-}
-
-/** Exported for unit tests; internal-only — do not import outside test/. */
-export function __computeScopeDescriptorForTests(
-	ancestorPath: number[],
-	startPath: number[],
-	endPath: number[],
-	beforeLen: number,
-	afterLen: number
-): StructuralChange {
-	return computeScopeDescriptor(ancestorPath, startPath, endPath, beforeLen, afterLen);
-}
-
-/**
- * StructuralChange for one scope, at arbitrary depth. Table endpoints must arrive one level
- * deeper than the table path so a surviving table counts as a descended-into container.
- */
-function computeScopeDescriptor(
-	ancestorPath: number[],
-	startPath: number[],
-	endPath: number[],
-	beforeLen: number,
-	afterLen: number
-): StructuralChange {
-	const D = ancestorPath.length;
-	// Only count start/end that actually descend through this scope: [2] isn't an ancestor of [0,1].
-	const startDescends = pathHasPrefix(startPath, ancestorPath);
-	const endDescends = pathHasPrefix(endPath, ancestorPath);
-	const startIdx = startDescends && D < startPath.length ? startPath[D] : -1;
-	const endIdx = endDescends && D < endPath.length ? endPath[D] : -1;
-
-	let leftIdx = Number.MAX_SAFE_INTEGER;
-	let rightIdx = -1;
-	if (startIdx >= 0) {
-		leftIdx = Math.min(leftIdx, startIdx);
-		rightIdx = Math.max(rightIdx, startIdx);
-	}
-	if (endIdx >= 0) {
-		leftIdx = Math.min(leftIdx, endIdx);
-		rightIdx = Math.max(rightIdx, endIdx);
-	}
-
-	if (rightIdx < 0) return { op: 'noop' };
-
-	const removed = beforeLen - afterLen;
-
-	// No net removal in this scope: every slot in the window survived in place, so noop keeps
-	// the existing ids/refs (the pure top-level path's convention).
-	if (removed === 0) return { op: 'noop' };
-
-	// Mixed-depth: only one endpoint descends, but cascade-cleanup removed siblings from the
-	// other side. Extend the window so the descriptor reports the real splice.
-	if (startDescends !== endDescends) {
-		if (startDescends) {
-			rightIdx = Math.max(rightIdx, startIdx + removed);
-		} else {
-			leftIdx = Math.min(leftIdx, Math.max(0, endIdx - removed));
-		}
-	}
-
-	const count = rightIdx - leftIdx + 1;
-	const newCount = Math.max(0, count - removed);
-
-	const idMap: Record<number, number> = {};
-	// Leftmost carries the start block's id (merged, or an in-place-modified ancestor of it).
-	if (newCount > 0 && startIdx === leftIdx) {
-		idMap[0] = 0;
-	}
-	// Rightmost carries the end container's id when end descends strictly deeper.
-	const endSurvives = endIdx >= 0 && endIdx === rightIdx && D + 1 < endPath.length;
-	if (endSurvives && newCount > 1) {
-		idMap[newCount - 1] = count - 1;
-	}
-
-	return { op: 'replace', at: leftIdx, count, newCount, idMap };
-}
-
-/** StructuralChange for the top-level children array after an in-place rangeDelete. */
-function topLevelStructuralChange(
-	startPath: number[],
-	endPath: number[],
-	beforeLen: number,
-	afterLen: number
-): StructuralChange {
-	const startTop = startPath[0];
-	const endTop = endPath[0];
-	const removed = beforeLen - afterLen;
-
-	if (removed === 0) return { op: 'noop' };
-
-	const count = endTop - startTop + 1;
-	const newCount = count - removed;
-
-	// startTop always survives (merged, or in-place-modified); a nested end keeps endTop too.
-	const endIsTopLevel = endPath.length === 1;
-	const idMap: Record<number, number> = { 0: 0 };
-	if (!endIsTopLevel && newCount > 1) {
-		idMap[newCount - 1] = count - 1;
-	}
-
-	return { op: 'replace', at: startTop, count, newCount, idMap };
 }

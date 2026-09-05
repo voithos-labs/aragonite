@@ -6,14 +6,14 @@
  */
 import { untrack } from 'svelte';
 import type { HeightModel } from '../cursor/height-model';
+import type { Scrollport } from '../cursor/scrollport';
 
 export interface WindowInputs {
-	scrollTop: number; // editor scrollTop mapped into this list's coordinate range
+	scrollTop: number; // port scrollTop mapped into this list's coordinate range
 	viewportHeight: number;
 	overscan: number; // blocks to mount above and below the visible range
 	pinnedIndex: number | null; // focused/caret block to keep mounted
 	pinExtensionCap: number; // max blocks to extend the range by to keep the pin mounted
-	windowingEnabled: boolean; // false in host-scroll mode — no scrollport, so never activate
 	active: boolean; // current activation (for hysteresis)
 	activateAbovePx: number; // high watermark — activate when total exceeds it
 	deactivateBelowPx: number; // low watermark — deactivate when total drops below it
@@ -31,12 +31,9 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 	const n = model.size;
 	const total = model.total();
 
-	// The one activation decision in the feature: host-scroll mode reaches its never-active
-	// result through this gate rather than substituting its own window, so `active` can
-	// never disagree with what the consumer renders.
-	const active =
-		input.windowingEnabled &&
-		(input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx);
+	// The one activation decision in the feature: a scope windows purely on its own modeled
+	// height, so who owns the scroll changes which port is read and nothing else.
+	const active = input.active ? total >= input.deactivateBelowPx : total >= input.activateAbovePx;
 
 	if (!active || n === 0) {
 		return { active: false, start: 0, end: n, topSpacerPx: 0, bottomSpacerPx: 0 };
@@ -69,14 +66,11 @@ export function computeWindow(model: HeightModel, input: WindowInputs): WindowRe
 
 export interface BlockWindowDeps {
 	getModel: () => HeightModel;
-	getScrollEl: () => HTMLElement | null;
-	/** Map the scroll element's scrollTop into this list's own coordinate range. Identity for the top level. */
+	getPort: () => Scrollport | null;
+	/** Map the port's scrollTop into this list's own coordinate range. Identity for the top level. */
 	getLocalScrollTop: () => number;
 	getViewportHeight: () => number;
 	getPinnedIndex: () => number | null;
-	/** Static read (host-scroll is set once at mount): reading a live prop here would
-	 *  make it a dependency of the window derived, the editor's hottest path. */
-	windowingEnabled: () => boolean;
 	overscan: number;
 	pinExtensionCap: number;
 	activateAbovePx: number;
@@ -95,17 +89,21 @@ export interface BlockWindow {
 export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 	let active = $state(false);
 	let scrollTop = $state(0);
+	let unsubscribe: (() => void) | null = null;
 
 	const onScroll = () => {
 		scrollTop = deps.getLocalScrollTop();
 	};
 
 	$effect(() => {
-		const el = deps.getScrollEl();
-		if (!el) return;
+		const port = deps.getPort();
+		if (!port) return;
 		scrollTop = deps.getLocalScrollTop();
-		el.addEventListener('scroll', onScroll, { passive: true });
-		return () => el.removeEventListener('scroll', onScroll);
+		unsubscribe = port.subscribe(onScroll);
+		return () => {
+			unsubscribe?.();
+			unsubscribe = null;
+		};
 	});
 
 	const result = $derived.by(() => {
@@ -115,7 +113,6 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 			overscan: deps.overscan,
 			pinnedIndex: deps.getPinnedIndex(),
 			pinExtensionCap: deps.pinExtensionCap,
-			windowingEnabled: deps.windowingEnabled(),
 			active,
 			activateAbovePx: deps.activateAbovePx,
 			deactivateBelowPx: deps.deactivateBelowPx
@@ -140,8 +137,8 @@ export function createBlockWindow(deps: BlockWindowDeps): BlockWindow {
 			scrollTop = deps.getLocalScrollTop();
 		},
 		dispose() {
-			const el = deps.getScrollEl();
-			if (el) el.removeEventListener('scroll', onScroll);
+			unsubscribe?.();
+			unsubscribe = null;
 		}
 	};
 }

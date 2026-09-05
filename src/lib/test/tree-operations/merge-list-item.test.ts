@@ -7,7 +7,7 @@ import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import type { CstNode } from '../../core/nodes';
 
 // Backspace-at-start-of-list-item merge semantics. The worked examples mirror the table
-// in e2e/requirements/blocks/list/backspace.md.
+// in e2e/requirements/blocks/list/backspace/m1-merge.md.
 
 describe('mergeListItemIntoPrevious', () => {
 	function parseList(src: string): CstNode {
@@ -21,7 +21,14 @@ describe('mergeListItemIntoPrevious', () => {
 
 	// Every worked-example row reaches a text-bearing target; the null path has its own case.
 	function mergeExpectingTarget(list: CstNode, children: CstNode[], currentIndex: number) {
-		const result = mergeListItemIntoPrevious(list, children, currentIndex);
+		const result = mergeListItemIntoPrevious(
+			list,
+			children,
+			currentIndex,
+			undefined,
+			undefined,
+			undefined
+		);
 		if (!result) throw new Error('expected a merge target');
 		return result;
 	}
@@ -132,7 +139,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base is preserved across the merge', () => {
 		const list = parseList('3. First\n4. Second\n5. Third\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, undefined, undefined);
 
 		expect(list.children?.length).toBe(2);
 		const markers = list.children!.map((i) => (i.metadata as { marker: string }).marker);
@@ -143,7 +150,7 @@ describe('mergeListItemIntoPrevious', () => {
 	it('ordered list: non-1 base survives a 2-into-1 collapse', () => {
 		const list = parseList('3. First\n4. Second\n');
 
-		mergeListItemIntoPrevious(list, list.children!.slice(), 1);
+		mergeListItemIntoPrevious(list, list.children!.slice(), 1, undefined, undefined, undefined);
 
 		expect(list.children?.length).toBe(1);
 		const soleMarker = (list.children?.[0].metadata as { marker: string }).marker;
@@ -153,7 +160,9 @@ describe('mergeListItemIntoPrevious', () => {
 	it("itemIndex = 0 is rejected (caller's responsibility to handle)", () => {
 		const list = parseList('- A\n- B\n');
 
-		expect(() => mergeListItemIntoPrevious(list, list.children!.slice(), 0)).toThrow();
+		expect(() =>
+			mergeListItemIntoPrevious(list, list.children!.slice(), 0, undefined, undefined, undefined)
+		).toThrow();
 	});
 
 	it('opaque previous leaf (fenced code): returns null without throwing or mutating', () => {
@@ -163,7 +172,7 @@ describe('mergeListItemIntoPrevious', () => {
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1);
+		const result = mergeListItemIntoPrevious(list, children, 1, undefined, undefined, undefined);
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);
@@ -190,7 +199,7 @@ describe('mergeListItemIntoPrevious — collapsed container as previous leaf', (
 		const children = list.children!.slice();
 		const before = children.length;
 
-		const result = mergeListItemIntoPrevious(list, children, 1);
+		const result = mergeListItemIntoPrevious(list, children, 1, undefined, undefined, undefined);
 
 		expect(result).toBeNull();
 		expect(children.length).toBe(before);

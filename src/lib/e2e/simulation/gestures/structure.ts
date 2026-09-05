@@ -197,6 +197,41 @@ export async function toggleTask(ctx: SimContext, listItemPath: number[]): Promi
 	await actThenResync(ctx, () => checkbox.click());
 }
 
+/**
+ * The one insert that starts from no block at all: an edge key at `boundaryIndex`'s first
+ * position parks the between-blocks caret, and the next key mints a paragraph there (empty
+ * `text` = Enter). Both halves are asserted, or an arrival that entered the block would record
+ * an ordinary edit as gap coverage; the mint leaves the caret mid-document — a note's LAST
+ * gesture. Arrival 'arrow-up' serves the chrome containers, whose first-leaf Backspace is a
+ * deliberate no-op; the default keeps the Backspace-at-edge fallback under sim coverage.
+ */
+export async function mintAtGap(
+	ctx: SimContext,
+	boundaryIndex: number,
+	text: string,
+	options?: { arrival?: 'backspace' | 'arrow-up' }
+): Promise<void> {
+	await ctx.editor.clickBlockAtPath([boundaryIndex], 0);
+	await ctx.page.keyboard.press(options?.arrival === 'arrow-up' ? 'ArrowUp' : 'Backspace');
+	try {
+		await ctx.editor.bridge.waitForGapCaret({ parentPath: [], index: boundaryIndex });
+	} catch {
+		throw new Error(
+			`[${ctx.label}] mintAtGap: ${options?.arrival ?? 'backspace'} at block ${boundaryIndex} ` +
+				`parked no gap caret there, got ` +
+				`${JSON.stringify(await ctx.editor.bridge.getGapCaret())}; both neighbours must ` +
+				`declare the facing edge, and the arrival must fit the block's surface.`
+		);
+	}
+	await actThenResync(ctx, async () => {
+		if (text) await ctx.editor.typeSlowly(text);
+		else await ctx.page.keyboard.press('Enter');
+		// The mint's own focus of the new block is what ends the gap; without it the keys
+		// still belong to the proxy and the "minted" bytes came from somewhere else.
+		await ctx.editor.bridge.waitForGapCaret(null);
+	});
+}
+
 async function actThenResync(ctx: SimContext, act: () => Promise<void>): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	await act();

@@ -17,7 +17,7 @@ import type { CstNode } from '$lib/core/nodes';
  */
 function runM1AsCommit(list: CstNode, currentIndex: number): void {
 	const children = list.children!.slice();
-	mergeListItemIntoPrevious(list, children, currentIndex);
+	mergeListItemIntoPrevious(list, children, currentIndex, undefined, undefined, undefined);
 	const refs: undefined[] = new Array(list.children!.length).fill(undefined);
 	applyStructuralChangeToIdsRefs(
 		{ op: 'delete', at: currentIndex, count: 1 },

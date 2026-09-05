@@ -74,12 +74,11 @@ test.describe('selection — keyboard: shift+arrow contraction (D1)', () => {
 		await editor.page.keyboard.press('Shift+ArrowUp');
 		await editor.waitForCrossBlock(false);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 		await editor.clickBlock(1);
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('targetHello world');
-		expect(await editor.bridge.getSource()).toContain('targetHello world');
 	});
 });

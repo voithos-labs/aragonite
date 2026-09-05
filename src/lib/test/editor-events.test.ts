@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createEditorEvents, emitCommandError, type EditorError } from '$lib/editor-events';
+import { takeDevWarns } from './support/warn-gate';
+import { configureEditorEnv } from '$lib/env';
 import { asDocPath } from '$lib/selection/path-math';
 import { recordPluginKindOwner, __resetInstalledPluginsForTests } from '$lib/schema/plugin-install';
+import { makeNestedHarness } from './harness/editor-actions';
 import type { AnyBlockKind } from '$lib/core/nodes';
 
 describe('createEditorEvents', () => {
@@ -67,7 +70,6 @@ describe('createEditorEvents', () => {
 
 	it('a throwing subscriber does not starve downstream subscribers', () => {
 		const events = createEditorEvents();
-		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const called: string[] = [];
 
 		events.on('edit', () => called.push('a'));
@@ -80,76 +82,43 @@ describe('createEditorEvents', () => {
 		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
 
 		expect(called).toEqual(['a', 'b-throwing', 'c']);
-		expect(spy).toHaveBeenCalled();
-		spy.mockRestore();
+		// Through the dev-warn channel, not the console: a swallow no gate can see is how a
+		// subscriber overflowed the stack on every battery unnoticed (GH #246).
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['events']);
+	});
+
+	it('reports a swallowed subscriber throw to the console in a production build', () => {
+		configureEditorEnv({ isDev: false });
+		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const events = createEditorEvents();
+		const thrown = new Error('subscriber blew up');
+		events.on('edit', () => {
+			throw thrown;
+		});
+
+		events.emit('edit', { op: 'delete', path: [0], timestamp: 0 });
+
+		// devWarn is silent in production, so without a console arm the consumer's own exception
+		// vanishes where an unguarded throw would have surfaced (GH #246).
+		expect(errSpy.mock.calls.map((args) => args[args.length - 1])).toEqual([thrown]);
+		errSpy.mockRestore();
 	});
 
 	it('commitContainerStructural fires exactly one edit event per commit', async () => {
-		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
-		const { createUndoManager } = await import('$lib/undo/manager');
-		const { createSharingState } = await import('$lib/tree-operations/sharing');
-		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
-
-		const events = createEditorEvents();
+		const h = makeNestedHarness('- a\n- b\n');
 		let editCount = 0;
-		events.on('edit', (e) => {
+		h.events.on('edit', (e) => {
 			if (e.op !== 'input') editCount++;
 		});
 
-		const containerNode: any = {
-			kind: 'list',
-			leadingTrivia: '',
-			raw: '- a\n- b\n',
-			children: [
-				{ kind: 'listItem', leadingTrivia: '', raw: '- a\n' },
-				{ kind: 'listItem', leadingTrivia: '', raw: '- b\n' }
-			]
-		};
-		const doc: any = { kind: 'document', prefix: '', children: [containerNode], suffix: '' };
-		const blockIds = ['id0'];
-		const blockRefs: any[] = [undefined];
-
-		const deps: any = {
-			get doc() {
-				return doc;
-			},
-			get blockIds() {
-				return blockIds;
-			},
-			get blockRefs() {
-				return blockRefs;
-			},
-			setDoc: (v: any) => Object.assign(doc, v),
-			setBlockIds: () => {},
-			setBlockRefs: () => {},
-			undoManager: createUndoManager(),
-			sharing: createSharingState(),
-			stickyColumn: {
-				reset() {},
-				capture() {},
-				get current() {
-					return null;
-				}
-			},
-			selectionState: createSelectionState(),
-			getBlockElByPath: () => null,
-			operationsLog: undefined,
-			events
-		};
-
-		const controller = createUndoController(deps);
-		const state = {
-			innerBlockIds: ['li0', 'li1'],
-			innerBlockRefs: [undefined, undefined] as (any | undefined)[]
-		};
-
-		await controller.commitContainerStructural({
-			containerNode,
+		await h.controller.commitContainerStructural({
+			containerNode: h.getNode(),
 			path: [0],
-			state,
+			state: h.state,
 			snapshot: { path: asDocPath([0, 1]), offset: 0 },
-			mutate: ({ children }) => {
+			mutate: ({ node, children }) => {
 				children.splice(1, 1);
+				node.raw = '- a\n';
 				return { op: 'delete', at: 1, count: 1 };
 			},
 			op: { kind: 'delete', eventPath: asDocPath([0, 1]) }
@@ -176,15 +145,14 @@ describe('editor-events — error channel', () => {
 		expect(errors[0].origin).toBe('subscriber');
 	});
 
-	it('does not recurse when an error-subscriber itself throws (falls back to console.error)', () => {
+	it('does not recurse when an error-subscriber itself throws (reports instead)', () => {
 		const events = createEditorEvents();
-		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		events.on('error', () => {
 			throw new Error('error-handler boom');
 		});
 		expect(() => events.emit('error', { origin: 'render', error: new Error('x') })).not.toThrow();
-		expect(spy).toHaveBeenCalled();
-		spy.mockRestore();
+		const fires = takeDevWarns();
+		expect(fires.map((w) => `${w.tag}: ${w.message}`)).toEqual(['events: error subscriber threw']);
 	});
 });
 

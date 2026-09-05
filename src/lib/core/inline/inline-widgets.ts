@@ -13,6 +13,7 @@ import type { PresentationMode } from '../../presentation-mode';
 import { isLiveHtmlTag, buildLiveHtmlWidget } from './raw-html-widget';
 import { entityRendersGlyph, buildEntityWidget } from './entity-widget';
 import { registerOnce } from '../../schema/register-once';
+import { inlineDescendants } from './walk';
 
 /**
  * The atomic-widget shell every core builder shares. Its `data-*` attributes are the offset
@@ -26,6 +27,15 @@ export function mintWidgetShell(className: string, node: InlineNode): HTMLSpanEl
 	shell.dataset.sourceEnd = String(node.end);
 	shell.setAttribute('contenteditable', 'false');
 	return shell;
+}
+
+/** The raw byte range a shell carries, or null when the attributes are absent or malformed —
+ *  {@link mintWidgetShell}'s inverse, so the mint and every read-back move together. */
+export function widgetSourceRange(el: Element): { start: number; end: number } | null {
+	const start = parseInt(el.getAttribute('data-source-start') ?? '', 10);
+	const end = parseInt(el.getAttribute('data-source-end') ?? '', 10);
+	if (Number.isNaN(start) || Number.isNaN(end)) return null;
+	return { start, end };
 }
 
 /**
@@ -52,6 +62,19 @@ export interface InlineWidgetComponentProps {
 	 * Read it INSIDE the widget's `$derived`; that read is what subscribes it to edits anywhere.
 	 */
 	getContentVersion?: () => number;
+	/** `EditorRects.navigateTo`: reveal, scroll and land the caret at a raw offset in a block
+	 *  path. Absent in a bare harness, so a widget that navigates declines rather than throws. */
+	navigateTo?: (path: number[], offset?: number) => Promise<boolean>;
+}
+
+/**
+ * The editor's activation gesture, shared by the surface deciding whether to reveal and the
+ * widget deciding whether to act: a Ctrl/Cmd chord while editing, a plain click in reading
+ * mode, where there is no caret for a plain click to place. The link click's rule
+ * (`Editor.svelte`), applied to widgets.
+ */
+export function isWidgetActivationClick(modified: boolean, mode: PresentationMode): boolean {
+	return modified || mode === 'reading';
 }
 
 /** The closed vocabularies as values, so the published conformance kit checks a registration
@@ -70,6 +93,9 @@ export interface InlineWidgetEditingPolicy {
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;
+	/** The widget's own component handles an activation click ({@link isWidgetActivationClick}),
+	 *  so the surface stands its reveal down rather than unmounting the widget under it. */
+	claimsActivationClick?: boolean;
 }
 
 export interface InlineWidgetEditingContext {
@@ -153,22 +179,15 @@ export function getInlineWidgetComponent(
 }
 
 /**
- * Every live widget reachable from `nodes`, in document order. Recurses so a widget nested in a
+ * Every live widget reachable from `nodes`, in document order. Descends so a widget nested in a
  * non-widget parent is found (the `image` inside `[![alt][ref]][repo]`), but never into a
  * widget's own children, which are atomic. `raw` is the enclosing block's source.
  */
 export function flattenInlineWidgets(nodes: ReadonlyArray<InlineNode>, raw: string): InlineNode[] {
 	const out: InlineNode[] = [];
-	const visit = (list: ReadonlyArray<InlineNode>) => {
-		for (const node of list) {
-			if (isInlineWidget(node, raw)) {
-				out.push(node);
-				continue;
-			}
-			if (node.children) visit(node.children);
-		}
-	};
-	visit(nodes);
+	for (const node of inlineDescendants(nodes, (parent) => !isInlineWidget(parent, raw))) {
+		if (isInlineWidget(node, raw)) out.push(node);
+	}
 	return out;
 }
 

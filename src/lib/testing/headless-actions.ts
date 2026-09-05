@@ -1,7 +1,7 @@
 /**
  * Headless editor-actions environment for the published conformance kit. These stubs
  * restate rather than reuse the in-repo `test/harness` mocks, which are `vi.fn()`-based:
- * `aragonite/testing` is imported into an author's own suite, so a static runner import
+ * `@voithos-labs/aragonite/testing` is imported into an author's own suite, so a static runner import
  * would load Vitest for anyone reaching for `resetPluginPlatformForTests` alone.
  */
 
@@ -9,9 +9,11 @@ import type { BlockEditActions, FocusActions } from '../action-contracts';
 import type { BlockComponent } from '../block-component';
 import type { CstNode, Document } from '../core/nodes';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { EditorActionsDeps } from '../editor-actions/deps';
 import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { createBlockListState, type BlockListState } from '../reactivity/block-list-state.svelte';
+import { refSlotsOver, replaceRefs } from '../reactivity/publish-ref.svelte';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
@@ -32,10 +34,21 @@ export function stubStickyColumn(): StickyColumnState {
 	return { get: () => null, reset: () => {}, capture: () => {}, noteKey: () => {} };
 }
 
+export function stubEdgeAffinity(): EdgeAffinityState {
+	return {
+		get: () => null,
+		reset: () => {},
+		note: () => {},
+		noteTyping: () => {},
+		noteExtreme: () => {}
+	};
+}
+
 export function stubBlockEdit(): BlockEditActions {
 	return {
 		splitBlock: () => {},
 		descendToBody: () => {},
+		insertParagraph: () => {},
 		mergeWithPrevious: () => {},
 		mergeWithNext: () => {},
 		deleteBlock: () => {},
@@ -59,7 +72,9 @@ export function recordingFocus(): RecordingFocus {
 			moveFocusCalls.push(args);
 		},
 		// The focus-bubble consumers assert on moveFocus, never on a resolved component.
-		revealPath: async () => null
+		revealPath: async () => null,
+		// Headless: no rendered boundary to park a gap caret at.
+		tryGapStop: () => false
 	};
 }
 
@@ -72,7 +87,10 @@ export function recordingFocus(): RecordingFocus {
  */
 export function mountBlockListState(getNode: () => CstNode): BlockListState {
 	const state = createBlockListState(() => getNode());
-	state.innerBlockRefs = (getNode().children ?? []).map(() => stubBlockComponent());
+	replaceRefs(
+		state.innerBlockRefs,
+		(getNode().children ?? []).map(() => stubBlockComponent())
+	);
 	return state;
 }
 
@@ -88,7 +106,7 @@ export interface HeadlessActions {
 export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 	const doc: Document = { kind: 'document', prefix: '', children: docChildren, suffix: '' };
 	let blockIds = docChildren.map((_, i) => `block-${i}`);
-	let blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => stubBlockComponent());
+	const blockRefs: (BlockComponent | undefined)[] = docChildren.map(() => stubBlockComponent());
 	const events = createEditorEvents();
 	const deps: EditorActionsDeps = {
 		get doc() {
@@ -100,6 +118,7 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 		get blockRefs() {
 			return blockRefs;
 		},
+		blockRefSlots: refSlotsOver(blockRefs),
 		setDoc: (v: Document) => {
 			Object.assign(doc, v);
 		},
@@ -107,11 +126,13 @@ export function createHeadlessActions(docChildren: CstNode[]): HeadlessActions {
 			blockIds = v;
 		},
 		setBlockRefs: (v: (BlockComponent | undefined)[]) => {
-			blockRefs = v;
+			replaceRefs(blockRefs, v);
 		},
+		bumpContentVersion: () => {},
 		undoManager: createUndoManager(),
 		sharing: createSharingState(),
 		stickyColumn: stubStickyColumn(),
+		edgeAffinity: stubEdgeAffinity(),
 		selectionState: createSelectionState(),
 		getBlockElByPath: () => null,
 		revealPath: async (path: number[]) => {

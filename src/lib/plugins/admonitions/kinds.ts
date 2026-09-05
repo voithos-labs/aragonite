@@ -2,8 +2,6 @@
  * Shared vocabulary for the admonitions plugin, in its own module so registration
  * and the component agree on names without a circular import.
  */
-import { declarePluginKind, declaredPluginKind, type PluginBlockKind } from '$lib/plugin';
-
 export const ADMONITION = 'admonition';
 export const ADMONITION_TITLE = 'admonition-title';
 export const GITHUB_ALERT = 'githubAlert';
@@ -38,16 +36,4 @@ export interface AdmonitionMetadata {
  *  the source casing; readers lowercase through `coerceAdmonitionName` for display. */
 export interface GithubAlertMetadata {
 	alertType: string;
-}
-
-/** Safe to call repeatedly (re-import / HMR). */
-export function declareAdmonitionKinds(): { admonition: PluginBlockKind; title: PluginBlockKind } {
-	return {
-		admonition: declarePluginKind(ADMONITION),
-		title: declarePluginKind(ADMONITION_TITLE)
-	};
-}
-
-export function admonitionTitleKind(): PluginBlockKind {
-	return declaredPluginKind(ADMONITION_TITLE);
 }

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 //
 // What `blockAtPoint` hands back for each combination of the two point→internals descriptor hooks.
-// The `element` it returns is a per-CONSUMER answer: the drag consumers branch on
-// `foreignDragHitTest` alone and fall back to a character hit test on `element`, so handing them
-// the block WRAPPER yields a plausible-but-wrong offset across the whole subtree, not a decline.
-// `table` declares both hooks, so only a test kind per combination can reach the hazard.
+// `charSurface` is the load-bearing answer: a kind with no character positions must report none,
+// or a consumer hit-tests the block WRAPPER and gets a plausible-but-wrong offset across the whole
+// subtree instead of a decline. `table` declares both hooks, so only test kinds reach every arm.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { blockAtPoint } from '$lib/selection/block-hit-test';
+import { blockAtPoint, endpointAtPoint, type BlockHit } from '$lib/selection/block-hit-test';
+import { WHOLE_BLOCK_INPUT_ATTR } from '$lib/editor-actions/whole-block-focus-surface';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
 import { registerBlockKind } from '$lib/schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
@@ -49,7 +49,11 @@ describe('blockAtPoint hook plumbing', () => {
 	/** Register a kind with the given hooks and label the wrapper with it. */
 	function withKind(name: string, hooks: Record<string, unknown>) {
 		const kind = declarePluginKind(name);
-		registerBlockKind(kind, { ...leaf, ...hooks });
+		registerBlockKind(kind, {
+			gapEdges: 'none',
+			...leaf,
+			...hooks
+		});
 		wrapper.setAttribute('data-block-kind', kind);
 		return blockAtPoint(root, 10, 10);
 	}
@@ -59,26 +63,26 @@ describe('blockAtPoint hook plumbing', () => {
 		// drag, so the drag consumers keep a surface they can hit-test characters against.
 		const hit = withKind('caretOnlyKind', { caretTargetAtPoint: () => CARET_TARGET });
 
-		expect(hit?.element).toBe(editable);
+		expect(hit?.charSurface).toBe(editable);
 		expect(hit?.foreignDragHitTest).toBeUndefined();
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
 	});
 
-	it('gives a drag-addressed kind the WRAPPER — it has no character surface to offer', () => {
+	it('withdraws the surface from a drag-addressed kind — its editable is a CELL', () => {
 		const hit = withKind('dragOnlyKind', { foreignDragHitTest: () => 5 });
 
-		expect(hit?.element).toBe(wrapper);
+		expect(hit?.charSurface).toBeNull();
 		expect(hit?.foreignDragHitTest?.(10, 10)).toBe(5);
 		expect(hit?.caretTargetAtPoint).toBeUndefined();
 	});
 
-	it('gives a kind declaring both the wrapper and both hooks (the table)', () => {
+	it('withdraws it from a kind declaring both hooks (the table)', () => {
 		const hit = withKind('bothHooksKind', {
 			foreignDragHitTest: () => 5,
 			caretTargetAtPoint: () => CARET_TARGET
 		});
 
-		expect(hit?.element).toBe(wrapper);
+		expect(hit?.charSurface).toBeNull();
 		expect(hit?.foreignDragHitTest?.(10, 10)).toBe(5);
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
 	});
@@ -86,17 +90,59 @@ describe('blockAtPoint hook plumbing', () => {
 	it('gives a plain kind its editable surface and no hooks', () => {
 		const hit = withKind('plainKind', {});
 
-		expect(hit?.element).toBe(editable);
+		expect(hit?.charSurface).toBe(editable);
 		expect(hit?.foreignDragHitTest).toBeUndefined();
 		expect(hit?.caretTargetAtPoint).toBeUndefined();
 	});
 
-	it('falls back to the wrapper when a kind has no editable descendant', () => {
+	// The mermaid shape: a rendered body with no editable in it. Reporting the wrapper here is
+	// what let a drag mint a character offset out of an SVG's and a toolbar's text.
+	it('reports no surface when a kind renders no editable descendant', () => {
 		editable.remove();
 		document.elementFromPoint = (() => wrapper) as typeof document.elementFromPoint;
 		const hit = withKind('noSurfaceKind', { caretTargetAtPoint: () => CARET_TARGET });
 
-		expect(hit?.element).toBe(wrapper);
+		expect(hit?.charSurface).toBeNull();
 		expect(hit?.caretTargetAtPoint?.(10, 10)).toEqual(CARET_TARGET);
+	});
+
+	// Miss-analysis: the hit-test had no test at its own level for a wrapper whose only
+	// contenteditable is chrome, so the exclusion that keeps a drag released ON a whole-block
+	// kind selecting it whole could be deleted with 1055 tests staying green.
+	it('reports no surface when the only editable descendant is the hidden input host', () => {
+		editable.remove();
+		const rule = wrapper.appendChild(document.createElement('div'));
+		const host = wrapper.appendChild(document.createElement('div'));
+		host.setAttribute('contenteditable', 'true');
+		host.setAttribute(WHOLE_BLOCK_INPUT_ATTR, '');
+		// The host is click-through, so a release over the block lands on the painted body.
+		document.elementFromPoint = (() => rule) as typeof document.elementFromPoint;
+		const hit = withKind('wholeBlockKind', {});
+
+		expect(hit?.charSurface).toBeNull();
+		// Offering the host instead costs the drag its endpoint entirely: nothing paints
+		// characters there, so the release resolves to null and the block is never reached.
+		expect(hit && endpointAtPoint(hit, 10, 10)).toEqual({ path: [0], wholeBlock: true });
+	});
+});
+
+describe('endpointAtPoint — what a pointer may address', () => {
+	const hit = (over: Partial<BlockHit> = {}): BlockHit => ({
+		path: [2],
+		charSurface: null,
+		...over
+	});
+
+	it('addresses a surfaceless block as a whole unit', () => {
+		expect(endpointAtPoint(hit(), 10, 10)).toEqual({ path: [2], wholeBlock: true });
+	});
+
+	it('addresses a coordinate kind by cell index, and declines off-grid', () => {
+		expect(endpointAtPoint(hit({ foreignDragHitTest: () => 5 }), 10, 10)).toEqual({
+			path: [2],
+			offset: 5,
+			cellCoordinate: true
+		});
+		expect(endpointAtPoint(hit({ foreignDragHitTest: () => null }), 10, 10)).toBeNull();
 	});
 });

@@ -5,9 +5,6 @@ import { EditorPage } from '../../../editor-page';
 // trailing blocks back into on reload — the live tree diverges from a reparse of its own bytes. The
 // sole authoring escape is Enter on the empty trailing line (computeFenceExit's unclosed branch).
 
-const parseConverged = (editor: EditorPage) =>
-	editor.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
-
 test.describe('code block — unclosed-fence auto-close on escape', () => {
 	let editor: EditorPage;
 
@@ -29,7 +26,29 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n\nafter\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
-		expect(await parseConverged(editor)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
+	// The other sink that can leave a fence open: the keystroke that MINTS it. Without a closer
+	// the settle converges the live tree to the reload's reading, which swallows everything below
+	// (GH #180).
+	test('a fence opener typed above other blocks closes as it is minted', async ({ page }) => {
+		await editor.loadContent('Above\n\ntail\n');
+		await editor.getBlock(0).click();
+		await page.keyboard.press('End');
+		await page.keyboard.press('Enter');
+		await editor.typeSlowly('```');
+		await editor.bridge.waitForSourceContains('```\n```');
+
+		expect(await editor.bridge.getBlockKind(1)).toBe('fencedCode');
+		expect(await editor.getBlockText(2)).toBe('tail');
+		expect(await editor.parseConverged()).toBe(true);
+
+		// The caret stayed on the opener's own line, so Enter opens the body under it.
+		await page.keyboard.press('Enter');
+		await editor.typeText('code');
+		await editor.bridge.waitForSourceContains('```\ncode\n```');
+		expect(await editor.bridge.getSource()).toBe('Above\n\n```\ncode\n```\n\ntail\n');
 	});
 
 	test('one undo restores the open fence and removes the created block', async () => {
@@ -61,7 +80,7 @@ test.describe('code block — unclosed-fence auto-close on escape', () => {
 		await editor.typeText('below');
 		await editor.bridge.waitForSourceContains('below');
 
-		expect(await parseConverged(editor)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> ```\n> code\n> ```'); // closer minted, still quoted

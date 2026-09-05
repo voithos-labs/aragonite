@@ -10,18 +10,21 @@ import type { BlockComponent } from '../../block-component';
 import type {
 	BlockElLookup,
 	DocumentGetter,
+	LinkReferenceResolverRef,
 	PluginEditorLookup,
 	PresentationModeGetter
 } from '../../editor-keys';
 import type { UserScrollport } from '../../cursor/scroll-ancestors';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import type { CrossBlockMutationContext } from './ops';
 import type { CommitController } from '../../action-contracts';
 import type { KeybindingOverrideMap } from '../../schema/keybinding-overrides';
-import type { CommandErrorSink } from '../../schema/block-commands';
+import type { CommandErrorSink, CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
+import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { isReadingMode } from '../../presentation-mode';
 import { performCrossBlockDelete } from './ops';
@@ -48,6 +51,7 @@ export interface CrossBlockDispatchContext {
 	/** Aborted when the owning editor unmounts. See the document facet's `lifetime`. */
 	getEditorLifetime: () => AbortSignal | null;
 	stickyColumn: StickyColumnState;
+	edgeAffinity: EdgeAffinityState;
 	blockEdit: BlockEditActions;
 	controller: CommitController;
 	history: HistoryActions;
@@ -56,12 +60,21 @@ export interface CrossBlockDispatchContext {
 	pluginEditor: PluginEditorLookup | undefined;
 	/** The effective presentation mode; the destructive-branch reading gate keys off this. */
 	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, forwarded to the delete's join seam. Required-
+	 *  nullable like `pluginEditor`, so a new construction site can't silently skip the thread. */
+	linkRef: LinkReferenceResolverRef | undefined;
 	onCommandError: CommandErrorSink | undefined;
+	/** The arm a format chord takes over the live range; the seam routes there rather than
+	 *  declining. Non-nullable: without it a rewrite chord is swallowed and nothing else. */
+	crossBlockCommands: CrossBlockCommandRouter;
 	getKeybindingOverrides: () => KeybindingOverrideMap;
 	pasteCoordinator: PasteCommitCoordinator;
 	/** Block grammar forwarded to the join-paste reparse. Required-nullable like `pluginEditor`
 	 *  so a new construction site can't silently skip the thread; `undefined` = global. */
 	grammar: GrammarView | undefined;
+	/** The plugins this instance activated, forwarded to the paste-transform pipeline.
+	 *  Required-nullable like `grammar`; `undefined` means every installed plugin. */
+	activePlugins: PluginActivation | undefined;
 	/** The instance event surface, the paste arm's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;
@@ -77,8 +90,9 @@ export interface CrossBlockHandlers {
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent): boolean;
 	/** `replacement` stands in for the clipboard's own text, for a caller that already turned the
-	 *  payload into markdown and must not re-read the event past its awaits. */
-	handlePaste(e: ClipboardEvent, replacement?: string): Promise<boolean>;
+	 *  payload into markdown and must not re-read the event past its awaits. A null event is a
+	 *  programmatic insertion: no gesture to consume, so `replacement` carries the payload. */
+	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
 	/** Cross-block range delete for Cut handlers, after they synchronously wrote the clipboard. */
@@ -94,7 +108,9 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		controller: ctx.controller,
 		pushUndoSnapshot: () =>
 			ctx.controller.pushUndoSnapshot(ctx.getIndex(), ctx.getCursorOffset() ?? 0),
-		grammar: ctx.grammar
+		grammar: ctx.grammar,
+		getPresentationMode: ctx.getPresentationMode,
+		linkRef: ctx.linkRef
 	};
 
 	const keydown = createCrossBlockKeydown(ctx, mutationCtx);
@@ -111,7 +127,7 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handlePointerDown: pointer.handlePointerDown,
 		handlePaste: async (e, replacement) => {
 			if (reading()) {
-				e.preventDefault();
+				e?.preventDefault();
 				return true;
 			}
 			return handleCrossBlockPaste(ctx, mutationCtx, e, replacement);

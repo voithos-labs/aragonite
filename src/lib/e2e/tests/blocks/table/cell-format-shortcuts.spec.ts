@@ -22,7 +22,7 @@ test.describe('table cell: inline-format shortcuts', () => {
 	test('Ctrl+B bolds the selected text in a cell', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | world |\n');
 		await selectCellWord(page, 2, 'hello'.length);
-		await page.keyboard.press('Control+b');
+		await page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('**hello**');
 		expect(await editor.bridge.getSource()).toContain('| **hello** | world |');
 	});
@@ -30,7 +30,7 @@ test.describe('table cell: inline-format shortcuts', () => {
 	test('Ctrl+I italicizes the selected text in a cell', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | world |\n');
 		await selectCellWord(page, 2, 'hello'.length);
-		await page.keyboard.press('Control+i');
+		await page.keyboard.press('ControlOrMeta+i');
 		await editor.bridge.waitForSourceContains('*hello*');
 		expect(await editor.bridge.getSource()).toContain('| *hello* | world |');
 	});
@@ -41,7 +41,7 @@ test.describe('table cell: inline-format shortcuts', () => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| hello | world |\n');
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
-		await page.keyboard.press('Control+b');
+		await page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('hello****');
 
 		expect(await editor.bridge.getSource()).toContain('| hello**** | world |');
@@ -50,7 +50,7 @@ test.describe('table cell: inline-format shortcuts', () => {
 	test('Ctrl+B over already-bold cell content toggles it off', async ({ page }) => {
 		await editor.loadContent('| A | B |\n| --- | --- |\n| **hello** | world |\n');
 		await selectCellWord(page, 2, '**hello**'.length);
-		await page.keyboard.press('Control+b');
+		await page.keyboard.press('ControlOrMeta+b');
 		await editor.bridge.waitForSourceContains('| hello | world |');
 		expect(await editor.bridge.getSource()).not.toContain('**');
 	});

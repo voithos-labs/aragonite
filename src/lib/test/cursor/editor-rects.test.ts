@@ -24,7 +24,7 @@ function makeRects(el: HTMLElement | null, unmountedPath?: number[]) {
 		},
 		releaseAll: real.releaseAll
 	};
-	const landCaretAt = vi.fn(async (_path: number[]) => true);
+	const landCaretAt = vi.fn(async (_path: number[], _offset: number) => true);
 	const rects = createEditorRects({
 		getBlockElByPath: (path) =>
 			unmountedPath && JSON.stringify(path) === JSON.stringify(unmountedPath) ? null : el,
@@ -208,7 +208,13 @@ describe('EditorRects.navigateTo', () => {
 	it('lands the caret at the target through the restore road', async () => {
 		const { rects, landCaretAt } = makeRects(document.createElement('div'));
 		expect(await rects.navigateTo([4, 1])).toBe(true);
-		expect(landCaretAt).toHaveBeenCalledWith([4, 1]);
+		expect(landCaretAt).toHaveBeenCalledWith([4, 1], 0);
+	});
+
+	it('carries an offset to the landing, for a caller aiming past the block start', async () => {
+		const { rects, landCaretAt } = makeRects(document.createElement('div'));
+		expect(await rects.navigateTo([4, 1], 13)).toBe(true);
+		expect(landCaretAt).toHaveBeenCalledWith([4, 1], 13);
 	});
 
 	it('copies the path so a caller mutating its array cannot re-aim the landing', async () => {
@@ -217,6 +223,6 @@ describe('EditorRects.navigateTo', () => {
 		const done = rects.navigateTo(path);
 		path[1] = 7;
 		await done;
-		expect(landCaretAt).toHaveBeenCalledWith([4, 1]);
+		expect(landCaretAt).toHaveBeenCalledWith([4, 1], 0);
 	});
 });

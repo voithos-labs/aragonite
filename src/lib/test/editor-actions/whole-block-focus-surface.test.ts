@@ -1,13 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
-import {
-	composeWholeBlockFocusSurface,
-	createContainerBlockComponent
-} from '$lib/editor-actions/container-block-component';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
+import { composeWholeBlockFocusSurface } from '$lib/editor-actions/whole-block-focus-surface';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { makeShimDeps } from '$lib/test/harness/editor-actions';
 
 // A kind whose declared focus element is absent (a render-error state the plugin forgot
 // to cover) must degrade to a focusable box, never a no-op that strands the caret.
@@ -23,7 +20,6 @@ function mermaidNode(): CstNode {
 }
 
 beforeEach(() => {
-	vi.mocked(devWarn).mockClear();
 	document.body.innerHTML = '';
 });
 
@@ -37,7 +33,7 @@ describe('composeWholeBlockFocusSurface', () => {
 			() => 'mermaid'
 		);
 		expect(surface()).toBe(declared);
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('falls back to the box when the declared element is null, warning once with the kind', () => {
@@ -49,8 +45,9 @@ describe('composeWholeBlockFocusSurface', () => {
 		);
 		expect(surface()).toBe(boxEl);
 		expect(surface()).toBe(boxEl);
-		expect(devWarn).toHaveBeenCalledTimes(1);
-		expect(vi.mocked(devWarn).mock.calls[0][1]).toContain('mermaid');
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain('mermaid');
 	});
 
 	it('stays null while a plugin-owned editable inside the box holds focus (edit mode)', () => {
@@ -64,7 +61,7 @@ describe('composeWholeBlockFocusSurface', () => {
 			() => 'mermaid'
 		);
 		expect(surface()).toBeNull();
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('returns null when neither the declared element nor the box exists', () => {
@@ -77,25 +74,71 @@ describe('composeWholeBlockFocusSurface', () => {
 	});
 });
 
+// Miss-analysis: the one-tab-stop rule was prose beside the proxy's `tabIndex = 0`, and the only
+// case that measured a tab order drove the built-in separator — which already declares -1 in its
+// markup. Nothing read a SUPPLIED surface's tabindex, so the two kinds that declare 0 (mermaid's
+// five render states, the opaque-container fixture) satisfied every green test in the repo.
+describe('the declared surface leaves the tab order', () => {
+	function surfaceOver(getDeclared: () => HTMLElement | null) {
+		return composeWholeBlockFocusSurface(
+			getDeclared,
+			() => box(),
+			() => 'mermaid'
+		);
+	}
+
+	it('demotes a focusable non-editable surface, and leaves an unfocusable one alone', () => {
+		const declared = box();
+		declared.tabIndex = 0;
+		const plain = box();
+		expect(surfaceOver(() => declared)()).toBe(declared);
+		expect(declared.tabIndex).toBe(-1);
+		expect(surfaceOver(() => plain)()).toBe(plain);
+		expect(plain.hasAttribute('tabindex')).toBe(false);
+	});
+
+	// The plugin's own caret host: taking it out of the tab order would make the block's edit
+	// mode unreachable by keyboard.
+	it('leaves a natively editable declared surface in the tab order', () => {
+		const textarea = document.createElement('textarea');
+		document.body.appendChild(textarea);
+		expect(surfaceOver(() => textarea)()).toBe(textarea);
+		expect(textarea.tabIndex).toBe(0);
+	});
+
+	// A kind's declared element is per render state, so a demotion applied once at mount reaches
+	// only the state that happened to be showing — mermaid's loading surface, never its viewport.
+	it('demotes the surface a LATER render state supplies', () => {
+		const loading = box();
+		loading.tabIndex = 0;
+		const viewport = box();
+		viewport.tabIndex = 0;
+		let declared = loading;
+		const surface = surfaceOver(() => declared);
+
+		surface();
+		declared = viewport;
+		surface();
+
+		expect([loading.tabIndex, viewport.tabIndex]).toEqual([-1, -1]);
+	});
+});
+
 describe('container shim through a composed fallback surface', () => {
-	function shim(boxEl: HTMLElement) {
-		return createContainerBlockComponent({
-			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return [];
-			},
-			get nodeChildrenLength() {
-				return 0;
-			},
-			get node() {
-				return mermaidNode();
-			},
-			getFocusEl: composeWholeBlockFocusSurface(
-				() => null,
-				() => boxEl,
-				() => 'mermaid'
-			)
-		});
+	// Every shim here composes the fallback the describe above pins; the shim's focus is the subject.
+	afterEach(() => allowDevWarns(['container-block']));
+
+	function shim(boxEl: HTMLElement, declared: HTMLElement | null = null) {
+		return createContainerBlockComponent(
+			makeShimDeps([], {
+				node: mermaidNode(),
+				getFocusEl: composeWholeBlockFocusSurface(
+					() => declared,
+					() => boxEl,
+					() => 'mermaid'
+				)
+			})
+		);
 	}
 
 	it('focus() lands DOM focus on the box, minting tabindex for a plain div', () => {
@@ -111,6 +154,17 @@ describe('container shim through a composed fallback surface', () => {
 		shim(boxEl).focus(0);
 		expect(document.activeElement).toBe(boxEl);
 		expect(boxEl.getAttribute('tabindex')).toBe('0');
+	});
+
+	// An empty diagram declares its edit textarea as the focus surface: already in the tab
+	// order, so minting -1 took it out. The arm above guarded only an EXPLICIT tabindex.
+	it('focus() leaves an already-focusable surface’s tab order alone', () => {
+		const boxEl = box();
+		const textarea = document.createElement('textarea');
+		boxEl.appendChild(textarea);
+		shim(boxEl, textarea).focus(0);
+		expect(document.activeElement).toBe(textarea);
+		expect(textarea.hasAttribute('tabindex')).toBe(false);
 	});
 
 	it('focusAtColumn() (vertical entry) also lands on the box', () => {

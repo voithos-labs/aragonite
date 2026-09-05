@@ -1,21 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
 import { createFocusActions } from '$lib/editor-actions/focus/focus';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createBlockListState } from '$lib/reactivity/block-list-state.svelte';
 import { parse } from '$lib/core/parser';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
-	makeEditorActionsDeps,
 	makeNestedActionsDeps,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
-	makeStubFocus
-} from '../harness/editor-actions';
+	makeStubFocus,
+	makeTopHarness
+} from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
-import type { EditEvent } from '$lib/editor-events';
 
 // Forward-Delete at the end of a collapsed summary must exit past the container rather
 // than dead-end on the unmounted body (refAt(i+1) no-op) — a focus move, no mutation.
@@ -70,11 +68,8 @@ describe('collapsed container forward-merge exit', () => {
 	// `{ append: false }` stops it. Driven through the REAL action; the stub is position-blind.
 	it('mergeWithNext from a collapsed summary that is the last block appends nothing', async () => {
 		const details = parse(CLOSED_DETAILS).children[0];
-		const harness = makeEditorActionsDeps([details]);
-		const controller = createUndoController(harness.deps);
-		const realFocus = createFocusActions(harness.deps, controller);
-		const edits: EditEvent[] = [];
-		harness.events.on('edit', (e) => edits.push(e));
+		const harness = makeTopHarness([details]);
+		const realFocus = createFocusActions(harness.deps, harness.controller);
 
 		const state = createBlockListState(() => details);
 		const bundle = createStandardNestedActions(
@@ -94,6 +89,6 @@ describe('collapsed container forward-merge exit', () => {
 		await bundle.blockEdit.mergeWithNext(0);
 
 		expect(harness.doc.children).toHaveLength(1);
-		expect(edits.filter((e) => e.op === 'appendBlock')).toHaveLength(0);
+		expect(harness.edits.filter((e) => e.op === 'appendBlock')).toHaveLength(0);
 	});
 });

@@ -1,11 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
-vi.mock('../../dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '../../dev-warn';
+import { takeDevWarns } from '../support/warn-gate';
 import { parse } from '../../core/parser';
+import { serialize } from '../../core/serializer';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createHistoryActions } from '../../editor-actions/commit/history';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { createBlockEditActions } from '../../editor-actions/block-edit';
+import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
 
 function makeHarness(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -15,12 +16,6 @@ function makeHarness(source: string) {
 }
 
 describe('structural-sharing snapshots', () => {
-	beforeEach(() => {
-		vi.stubEnv('DEV', true);
-		vi.mocked(devWarn).mockClear();
-	});
-	afterEach(() => vi.unstubAllEnvs());
-
 	it('a snapshot push shares nodes instead of cloning them', () => {
 		const { deps, controller } = makeHarness('hello\n\nworld\n');
 		controller.pushUndoSnapshot(0, 0);
@@ -63,7 +58,23 @@ describe('structural-sharing snapshots', () => {
 		controller.pushUndoSnapshot(0, 0);
 		expect(deps.undoManager.getStacks().undo[0].integrity).toBeDefined();
 		await history.requestUndo();
-		expect(devWarn).not.toHaveBeenCalled();
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	// GH #73: filling a blank block hands its follower the separator the blank line had been —
+	// a node the caller's unshare never covered, since it only owns the block being typed into.
+	// Miss-analysis: every sharing case drove a write to the block the gesture NAMES, so the one
+	// op that writes a bystander's bytes had no pin.
+	it('a blank fill unshares the follower it hands the separator to', async () => {
+		const { deps, controller, history } = makeHarness('alpha\n\n\ndelta\n');
+		const actions = createBlockEditActions(deps, controller);
+		controller.pushUndoSnapshot(1, 0);
+
+		await actions.updateBlockContent(1, 'x\n');
+		await history.requestUndo();
+
+		expect(takeDevWarns()).toEqual([]);
+		expect(serialize(deps.doc)).toBe('alpha\n\n\ndelta\n');
 	});
 
 	it('mutating a shared node between push and restore trips the integrity oracle', async () => {
@@ -72,10 +83,56 @@ describe('structural-sharing snapshots', () => {
 		// Simulates a missed unshare: a raw write through a node the entry shares.
 		deps.doc.children[0].raw = 'corrupted\n';
 		await history.requestUndo();
-		expect(devWarn).toHaveBeenCalledWith(
-			'invariant:snapshot-integrity',
-			expect.stringContaining('undo: snapshot digest mismatch'),
-			'snapshot-integrity'
-		);
+		const fires = takeDevWarns();
+		expect(fires.map((w) => w.tag)).toEqual(['invariant:snapshot-integrity']);
+		expect(fires[0].message).toContain('undo: snapshot digest mismatch');
+		expect(fires[0].details).toBe('snapshot-integrity');
+	});
+	// GH #73: the nested door hands the follower the same separator, and the spine unshare copies
+	// the CONTAINER, so the snapshot's digest never sees a write to a still-shared grandchild.
+	// Miss-analysis: the oracle only descends the doc root, so no nested sharing case could fire it.
+	it('a blank fill inside a container unshares the follower it hands the separator to', async () => {
+		const h = makeNestedHarness('> alpha\n>\n>\n> delta\n', { index: 0 });
+		h.controller.pushUndoSnapshot(0, 0);
+		const shared = h.deps.undoManager.getStacks().undo[0].snapshot.children[0].children![2];
+		expect(shared.leadingTrivia).toBe('');
+
+		await h.bundle.blockEdit.updateBlockContent(1, 'x\n', 1);
+
+		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n> x\n>\n> delta\n');
+		expect(shared.leadingTrivia).toBe('');
+	});
+
+	// GH #96: the reverse transition takes a separator BACK, and the run member giving it up can
+	// sit two slots below the block the gesture names — the widest reach any settle has.
+	// Miss-analysis: the #73 cases pinned a write to the immediate follower, so a settle that
+	// walked further would have shipped its bystander writes unshared.
+	it('emptying a block unshares the run member two slots below it', async () => {
+		const { deps, controller } = makeHarness('Hello\n\nSecond\n');
+		const actions = createBlockEditActions(deps, controller);
+		await actions.splitBlock(0, 5);
+		await actions.splitBlock(1, 0);
+		await actions.updateBlockContent(1, 'x\n');
+		controller.pushUndoSnapshot(1, 0);
+		const shared = deps.undoManager.getStacks().undo.at(-1)!.snapshot.children[3];
+		expect(shared.leadingTrivia).toBe('\n');
+
+		await actions.updateBlockContent(1, '\n');
+
+		expect(serialize(deps.doc)).toBe('Hello\n\n\n\nSecond\n');
+		expect(shared.leadingTrivia).toBe('\n');
+		expect(deps.doc.children[3]).not.toBe(shared);
+	});
+
+	it('emptying a block inside a container unshares the follower it settles', async () => {
+		const h = makeNestedHarness('> alpha\n>\n> x\n>\n> delta\n', { index: 0 });
+		h.controller.pushUndoSnapshot(0, 0);
+		const shared = h.deps.undoManager.getStacks().undo[0].snapshot.children[0].children![2];
+		expect(shared.leadingTrivia).toBe('\n');
+
+		await h.bundle.blockEdit.updateBlockContent(1, '\n', 1);
+
+		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n>\n> delta\n');
+		expect(shared.leadingTrivia).toBe('\n');
 	});
 });

@@ -40,7 +40,7 @@ test.describe('table block: caret/selection recovery on undo', () => {
 		await page.locator('[role="cell"]').nth(4).click();
 
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('Control+Shift+Backspace');
+		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 | 3 |');
 
 		await editor.undo();

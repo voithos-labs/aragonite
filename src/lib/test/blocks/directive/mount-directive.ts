@@ -10,16 +10,13 @@ import DirectiveContainerBlock from '$lib/components/blocks/directive/DirectiveC
 import { activateDirectives } from '$lib/components/blocks/directive/activate-directives';
 import type { ContainerBlockComponent } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { editorMountContext, type MountContextOverrides } from '../../harness/mount-context';
 
 export function installDirectiveStubs(): void {
 	activateDirectives();
-	(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
-		observe(): void {}
-		unobserve(): void {}
-		disconnect(): void {}
-	};
+	installEditorDomStubsForTests();
 }
 
 export interface MountedDirective {

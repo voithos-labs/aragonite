@@ -75,3 +75,55 @@ describe('buildImageWidget — broken-URL cache (per-instance isolation)', () =>
 		expect(cacheB.size).toBe(0);
 	});
 });
+
+// Miss (#50): every widget-dom test asserted the widget's own DOM, none the path it emits, and
+// no fixture ever put a widget on a surface whose path the block-path walk stops short of.
+describe('buildImageWidget — the path a click emits', () => {
+	it('names the enclosing cell, not the table block the walk stops at (#50)', () => {
+		const host = document.createElement('div');
+		host.setAttribute('data-block-path', '[1]');
+		host.innerHTML =
+			'<div data-table-row-idx="1"><div role="cell"></div><div role="cell"></div></div>';
+		const cell = host.querySelectorAll('[role="cell"]')[1] as HTMLElement;
+		const widget = build(imageNode(), new Set<string>());
+		cell.appendChild(widget);
+		document.body.appendChild(host);
+
+		let emitted: number[] | null = null;
+		host.addEventListener('image-widget-select', (e) => {
+			emitted = ((e as CustomEvent).detail as { paragraphPath: number[] }).paragraphPath;
+		});
+		widget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+		// Row 1, column 1 of the table at [1]: the cell owns the bytes the widget renders.
+		expect(emitted).toEqual([1, 1, 1]);
+		host.remove();
+	});
+});
+
+// Miss-analysis: nothing asserted what a `|WxH` hint puts on the element, so the attribute pair
+// read as "sizes the rendered widget" (syntax-tree.md § Inline nodes) while the decoded natural
+// ratio silently won every layout back through the stylesheet's `height: auto`.
+describe('buildImageWidget — declared dimensions', () => {
+	function widgetFor(source: string): HTMLImageElement {
+		const node = parseInline(source, 0, source.length).find((n) => n.kind === 'image');
+		if (!node) throw new Error('expected an image node');
+		return buildImageWidget(node, source, {
+			resolveImageUrl: (u) => u,
+			imageLoadPolicy: 'auto',
+			brokenUrlCache: new Set<string>()
+		}).querySelector('img')!;
+	}
+
+	it('reserves the declared box as an aspect ratio the decode cannot overrule', () => {
+		const img = widgetFor('![cat|300x100](https://example.com/cat.png)');
+		expect([img.getAttribute('width'), img.getAttribute('height')]).toEqual(['300', '100']);
+		expect(img.style.aspectRatio).toBe('300 / 100');
+	});
+
+	it('leaves a width-only hint to derive its own height', () => {
+		const img = widgetFor('![cat|300](https://example.com/cat.png)');
+		expect(img.getAttribute('height')).toBeNull();
+		expect(img.style.aspectRatio).toBe('');
+	});
+});

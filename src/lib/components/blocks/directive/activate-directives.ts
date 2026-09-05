@@ -1,9 +1,8 @@
 /**
- * The public activation entry for the `:::name` directive primitive, on the
- * `aragonite/plugin` barrel: grammar plus the generic container and leaf render. A
- * pure-GFM consumer that never calls it leaves `:::` unclaimed. Lives in `components/`
- * because it binds Svelte components — core must not reach the component tree. Every
- * registration guards its public probe, so repeat calls and HMR re-runs are safe.
+ * The public activation entry for the `:::name` directive primitive, on the `@voithos-labs/aragonite/plugin`
+ * barrel: grammar plus the generic container and leaf render. A pure-GFM consumer that never calls
+ * it leaves `:::` unclaimed. Lives in `components/` because it binds Svelte components, which core
+ * must not reach. Every registration guards its public probe, so repeat calls are safe.
  */
 
 import { activateDirectiveGrammar } from '$lib/core/directive/activate';

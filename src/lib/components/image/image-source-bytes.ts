@@ -2,17 +2,17 @@
 // under it the GFM branch. The two live together because G4.21 requires the image
 // serializer to be named in exactly one module.
 
+import { encodeDestination, escapeTitle } from '../../core/inline/destination-bytes';
 import type { ImageFields, InlineNode } from '../../core/nodes';
 import { devWarn } from '../../dev-warn';
 
 // ── The write seam ──────────────────────────────────────────────────────────
 
 /**
- * Bytes to splice over `image`'s range, or `null` when the edit must be declined.
- * **Every image write path goes through here** (G4.21): a node an inline rung claimed
- * re-serializes through that rung's `rewriteImage` hook, since emitting the built-in
- * grammar over another syntax's bytes destroys them. Plugin-side contract:
- * docs/design/plugin-contract.md § Inline authoring.
+ * Bytes to splice over `image`'s range, or `null` when the edit must be declined. **Every image
+ * write path goes through here** (G4.21): a node an inline rung claimed re-serializes through that
+ * rung's `rewriteImage` hook, since built-in grammar over another syntax's bytes destroys them.
+ * Plugin-side contract: docs/design/plugin-contract.md § Inline authoring.
  */
 export function buildImageEditBytes(
 	image: InlineNode,
@@ -70,10 +70,6 @@ function buildDimSuffix(width: number | undefined, height: number | undefined): 
 	return `|${width}x${height}`;
 }
 
-function escapeTitle(title: string): string {
-	return title.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
 // Alt sits inside `[...]`, where an unescaped bracket closes the scan early. Unlike
 // `title` and `url` it carries RAW label bytes, so a blanket escape doubles every
 // backslash per commit; passing any backslash PAIR through untouched keeps it idempotent.
@@ -89,13 +85,4 @@ function escapeAlt(alt: string): string {
 		out += ch === '[' || ch === ']' || ch === '\\' ? '\\' + ch : ch;
 	}
 	return out;
-}
-
-// Bare destinations end at whitespace/`"`/`'` and carry parens only in balanced pairs
-// (CommonMark §6.3). Idempotent: an encoded URL has no literal stop-char left.
-function encodeDestination(url: string): string {
-	return url.replace(
-		/[ \t()"']/g,
-		(c) => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')
-	);
 }

@@ -8,7 +8,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { applyCollapsedCaret, applySelectionToDom } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { extendFocusToNextBlock } from '../../selection/keyboard-extend';
-import { makeStickyColumn } from '../harness/editor-actions';
+import { makeStickyColumn, makeEdgeAffinity } from '../harness/editor-actions';
 import { parse } from '../../core/parser';
 import type { EditorSelection } from '../../selection/primitives';
 
@@ -147,6 +147,7 @@ describe('SelectionState.batch', () => {
 	// whole lifetime — the failure worth guarding at the seam, not at call sites.
 	it('flushes and stays usable when the body throws', () => {
 		const { state, count } = counting();
+		state.setGapCaret({ parentPath: [], index: 1 });
 
 		expect(() =>
 			state.batch(() => {
@@ -154,39 +155,106 @@ describe('SelectionState.batch', () => {
 				throw new Error('boom');
 			})
 		).toThrow('boom');
-		expect(count()).toBe(1);
-
-		state.collapse();
 		expect(count()).toBe(2);
+
+		state.setGapCaret({ parentPath: [], index: 1 });
+		expect(count()).toBe(3);
 	});
 });
 
 // The restore road is the only entry path wrapped in a batch. These pin the counts of the paths
-// that are NOT, so the filed no-op-suppression work has a red-first baseline.
+// that are NOT: a mutator that changed nothing must stay silent, so a subscriber's read-back is
+// never woken by a gesture the selection slept through (#29).
 describe('unbatched entry-path emission counts', () => {
-	it('a pointerdown that collapses a cross-block selection notifies twice', () => {
+	it('a pointerdown that collapses a cross-block selection notifies once', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 		state.enterCrossBlock(at(0, 0), at(2, 3));
 		notifies = 0;
 
-		resetForPointerDown(state, makeStickyColumn(), false);
+		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
 
-		// The select-all counter reset and the clear are two separate mutations, and
-		// nothing coalesces them — the shape issue #29 files as noise.
-		expect(notifies).toBe(2);
+		// The counter was already 0, so only the clear is a real mutation.
+		expect(notifies).toBe(1);
 		expect(state.isCrossBlock).toBe(false);
 	});
 
-	it('a pointerdown with no cross-block selection standing still notifies once', () => {
+	it('a pointerdown with no cross-block selection standing notifies nothing', () => {
 		let notifies = 0;
 		const state = createSelectionState({ onChange: () => notifies++ });
 
-		resetForPointerDown(state, makeStickyColumn(), false);
+		resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), false);
 
-		// The counter was already 0 and nothing changed. This emission is the noise the
-		// ledger entry is about; the pin exists so removing it is a visible decision.
+		expect(notifies).toBe(0);
+	});
+
+	// The preamble is the native sibling of the caret door: both must end every editor-owned
+	// caret claim, or a click leaves a phantom gap painted beside the new caret.
+	it('a pointerdown ends a live gap caret, shift held or not', () => {
+		for (const isShift of [false, true]) {
+			let notifies = 0;
+			const state = createSelectionState({ onChange: () => notifies++ });
+			state.setGapCaret({ parentPath: [], index: 1 });
+			notifies = 0;
+
+			resetForPointerDown(state, makeStickyColumn(), makeEdgeAffinity(), isShift);
+
+			expect(state.gapCaret).toBeNull();
+			expect(notifies).toBe(1);
+		}
+	});
+
+	// Miss (#29): the doors were pinned through their callers, where a real mutation always rode
+	// along, so no test ever asked what a door does with nothing to change.
+	it('every mutator is silent when it changes nothing', () => {
+		let notifies = 0;
+		const state = createSelectionState({ onChange: () => notifies++ });
+
+		state.collapse();
+		state.clear();
+		state.resetSelectAllCount();
+		state.clearGapCaret();
+
+		expect(notifies).toBe(0);
+	});
+
+	it('a repeated clear notifies once — the first one is the mutation', () => {
+		let notifies = 0;
+		const state = createSelectionState({ onChange: () => notifies++ });
+		state.enterCrossBlock(at(0, 0), at(2, 3));
+		state.incrementSelectAllCount();
+		notifies = 0;
+
+		state.clear();
+		state.clear();
+
 		expect(notifies).toBe(1);
+	});
+
+	// The counter is the fourth field `clear` zeroes: guarding on the endpoints alone would
+	// swallow the notification that a Ctrl+A run was reset.
+	it('clear notifies for a standing select-all count with no endpoints', () => {
+		let notifies = 0;
+		const state = createSelectionState({ onChange: () => notifies++ });
+		state.incrementSelectAllCount();
+		notifies = 0;
+
+		state.clear();
+
+		expect(notifies).toBe(1);
+		expect(state.selectAllCount).toBe(0);
+	});
+
+	it('collapse notifies for a live gap caret with no endpoints', () => {
+		let notifies = 0;
+		const state = createSelectionState({ onChange: () => notifies++ });
+		state.setGapCaret({ parentPath: [], index: 1 });
+		notifies = 0;
+
+		state.collapse();
+
+		expect(notifies).toBe(1);
+		expect(state.gapCaret).toBeNull();
 	});
 
 	it('a keyboard extend past a block edge notifies twice: the seed, then the reach', () => {

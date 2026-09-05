@@ -3,7 +3,7 @@ import { updateNodeContent, splitNode } from '../../tree-operations/node-ops';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';
-import { rebuildTableRowRaw } from '../../schema/container-rebuilders';
+import { writeTableRow } from '../../schema/container-rebuilders';
 import { parse } from '../../core/parser';
 import { testClosure } from '$lib/test/support/closure';
 import type { CstNode } from '../../core/nodes';
@@ -11,6 +11,7 @@ import type { CstNode } from '../../core/nodes';
 function registerChromeKind() {
 	const chrome = declarePluginKind('spec-chrome');
 	registerBlockKind(chrome, {
+		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
@@ -27,7 +28,7 @@ describe('updateNodeContent — contextDependentKind stickiness', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
 
-		const change = updateNodeContent(parent as never, 0, 'TitleX\n');
+		const { change } = updateNodeContent(parent as never, 0, 'TitleX\n');
 
 		expect(parent.children[0].kind).toBe(chrome);
 		expect(parent.children[0].raw).toBe('TitleX\n');
@@ -61,7 +62,7 @@ describe('updateNodeContent — the kind’s normalizeRawWrite runs at the write
 			children: cellRaws.map((raw) => ({ kind: 'tableCell', leadingTrivia: '', raw }))
 		};
 		updateNodeContent(row as never, at, text);
-		rebuildTableRowRaw(row, '\n');
+		writeTableRow(row, '\n');
 		return bodyCellsOf(cellRaws.length, row.raw);
 	}
 
@@ -106,7 +107,7 @@ describe('splitNode — contextDependentKind is unsplittable', () => {
 		const chrome = registerChromeKind();
 		const parent = { children: [{ kind: chrome, leadingTrivia: '', raw: 'Title\n' }] as CstNode[] };
 
-		const change = splitNode(parent as never, 0, 3);
+		const { change } = splitNode(parent as never, 0, 3, undefined, undefined, undefined);
 
 		expect(change).toEqual({ op: 'noop' });
 		expect(parent.children).toHaveLength(1);
@@ -118,7 +119,7 @@ describe('splitNode — contextDependentKind is unsplittable', () => {
 		const parent = {
 			children: [{ kind: 'paragraph', leadingTrivia: '', raw: 'hello world\n' }] as CstNode[]
 		};
-		const change = splitNode(parent as never, 0, 5);
+		const { change } = splitNode(parent as never, 0, 5, undefined, undefined, undefined);
 		expect(change).toMatchObject({ op: 'replace', newCount: 2 });
 		expect(parent.children).toHaveLength(2);
 	});

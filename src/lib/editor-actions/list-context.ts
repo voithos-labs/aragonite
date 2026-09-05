@@ -5,19 +5,22 @@
  */
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
-import { FOCUS_LAST_START } from '../block-component';
-import type { CstNode } from '../core/nodes';
+import { CURSOR_EXACT_START, CURSOR_START, FOCUS_LAST_START } from '../block-component';
+import type { CstNode, ListItemMetadata } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { trailingLineEnding } from '../core/lines';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
-import type { MultiScopeTarget, UndoController } from './deps';
+import type { PresentationModeGetter } from '../editor-keys';
+import type { InlineResolverRef } from '../schema/inline-construct-policy';
+import type { MultiScopeTarget } from '../action-contracts';
+import type { UndoController } from './deps';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations/structural-change';
-import { splitNode as performSplit, emptyParagraph } from '../tree-operations';
+import { splitNode as performSplit, assertSplitLanding, emptyParagraph } from '../tree-operations';
 import { ensureUnsharedChild } from '../tree-operations/unshare';
 import { rebuildListRaw } from '../schema/container-rebuilders';
 import {
@@ -25,12 +28,9 @@ import {
 	normalizeItemMarkerToList,
 	bumpOrderedMarker
 } from '../tree-operations/list/ordered-markers';
-import {
-	buildListItem,
-	buildListShell,
-	readOrderedSuffix
-} from '../tree-operations/list/list-builders';
+import { buildListItem, buildListShell } from '../tree-operations/list/list-builders';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
+import { settleSublistSeparator } from '../tree-operations/list/sublist-separator';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { expectStateForNode } from '../reactivity/state-registry';
 import type { NodeScope } from './nested/nested-actions';
@@ -42,6 +42,25 @@ export interface ListContextDeps {
 	parentFocus: FocusActions;
 	parentListContext: ListContext | undefined;
 	controller: UndoController;
+	/** Live EFFECTIVE mode, for the mid-item split's byte rebalance. Nullable rather than
+	 *  optional so the one composing container answers. */
+	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, required-nullable beside the mode. */
+	linkRef: InlineResolverRef | undefined;
+}
+
+/** The Enter-minted follower: the previous item's marker bumped, its task-ness inherited unchecked. */
+function mintFollowerItem(prevMeta: ListItemMetadata | undefined, children: CstNode[]): CstNode {
+	const inheritTask = prevMeta?.taskItem === true;
+	return buildListItem(
+		{
+			marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
+			taskItem: inheritTask,
+			taskChecked: false,
+			taskMarker: inheritTask ? '[ ] ' : null
+		},
+		children
+	);
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {
@@ -60,26 +79,22 @@ export function createListContext(deps: ListContextDeps): ListContext {
 			const existingNestedList =
 				existingNestedIdx === -1 ? undefined : prevItem.children[existingNestedIdx];
 
-			// The destination scope is either an existing same-kind nested list or
-			// prevItem's children, where a new nested list gets appended.
-			const scopes: MultiScopeTarget[] = [{ node, state: deps.state, path: deps.scope.path }];
-
-			if (existingNestedList && existingNestedList.children) {
-				scopes.push({
-					node: existingNestedList,
-					state: expectStateForNode(existingNestedList),
-					path: [...deps.scope.path, itemIndex - 1, existingNestedIdx]
-				});
-			} else {
-				scopes.push({
-					node: prevItem,
-					state: expectStateForNode(prevItem),
-					path: [...deps.scope.path, itemIndex - 1]
-				});
-			}
+			// One predicate, one destination: a matching sublist adopts the item whether or not it
+			// holds any yet, so the scope push and the mutate branch cannot disagree about the seat.
+			const destination: MultiScopeTarget = existingNestedList
+				? {
+						node: existingNestedList,
+						state: expectStateForNode(existingNestedList),
+						path: [...deps.scope.path, itemIndex - 1, existingNestedIdx]
+					}
+				: {
+						node: prevItem,
+						state: expectStateForNode(prevItem),
+						path: [...deps.scope.path, itemIndex - 1]
+					};
 
 			await deps.controller.commitMultiScope({
-				scopes,
+				scopes: [{ node, state: deps.state, path: deps.scope.path }, destination],
 				snapshot: { path: extendDocPath(deps.scope.path, itemIndex), offset: 0 },
 				mutate: ([outerScope, destScope]) => {
 					const sharing = outerScope.sharing;
@@ -92,12 +107,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 						// Adopt the destination sublist's marker style, matching paste-absorb.
 						// A fresh shell (the else branch) has no convention to adopt.
 						const moved = ensureUnsharedChild(destList, destScope.children.length - 1, sharing);
-						if (ordered) {
-							const meta = metadataOf(moved, 'listItem');
-							meta.marker = meta.marker.replace(/\D.*$/, '') + readOrderedSuffix(destList);
-						} else {
-							normalizeItemMarkerToList(moved, destList);
-						}
+						normalizeItemMarkerToList(moved, destList);
 					} else {
 						const shell = buildListShell(ordered, [movedItem]);
 						sharing.stamp(shell);
@@ -110,6 +120,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// Renumber writes the moved item's marker — sharing unshares it.
 					renumberOrderedList(destList, 0, sharing);
 					rebuildListRaw(destList);
+					// After the rebuild: the separator question is asked of the sublist's own bytes.
+					settleSublistSeparator(destScope.children, destScope.children.length - 1);
 					renumberOrderedList(outerScope.node, itemIndex, sharing);
 
 					return [
@@ -143,16 +155,8 @@ export function createListContext(deps: ListContextDeps): ListContext {
 
 			if (!newItem) {
 				const prevItem = node.children[itemIndex];
-				const prevMeta = prevItem ? metadataOf(prevItem, 'listItem') : undefined;
-				const prevMarker = prevMeta?.marker ?? '- ';
-				const inheritTask = prevMeta?.taskItem === true;
-				newItem = buildListItem(
-					{
-						marker: bumpOrderedMarker(prevMarker),
-						taskItem: inheritTask,
-						taskChecked: false,
-						taskMarker: inheritTask ? '[ ] ' : null
-					},
+				newItem = mintFollowerItem(
+					prevItem ? metadataOf(prevItem, 'listItem') : undefined,
 					// The new item's body IS a line ending, so it takes the list's (G4.20);
 					// rebuildListItemRaw derives the item's raw from it.
 					[emptyParagraph('', trailingLineEnding(node.raw))]
@@ -205,38 +209,35 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					// not just the child that was split.
 					const preSpliceLen = itemChildren.length;
 
-					const splitChange = performSplit(
-						{ children: itemChildren, ownerKind: itemScope.node.kind },
+					const split = performSplit(
+						{ children: itemChildren, ownerKind: itemScope.node.kind, owner: itemScope.node },
 						innerIndex,
-						offset
+						offset,
+						sharing,
+						deps.getPresentationMode?.(),
+						deps.linkRef
 					);
-					stampStructuralChange(itemChildren, splitChange, sharing);
-					const secondHalf = itemChildren.splice(innerIndex + 1);
+					stampStructuralChange(itemChildren, split.change, sharing);
+					// The primitive's landing index, not `innerIndex + 1`: a plural first half
+					// stays with this item, and G1.34 holds the splice to it.
+					const landing = split.secondHalfIndex;
+					assertSplitLanding(split, landing);
+					const secondHalf = itemChildren.splice(landing);
 					if (secondHalf.length > 0) {
 						secondHalf[0].leadingTrivia = '';
 					}
 
-					const prevMeta = metadataOf(itemScope.node, 'listItem');
-					const inheritTask = prevMeta?.taskItem === true;
-					const newItem = buildListItem(
-						{
-							marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
-							taskItem: inheritTask,
-							taskChecked: false,
-							taskMarker: inheritTask ? '[ ] ' : null
-						},
-						secondHalf
-					);
+					const newItem = mintFollowerItem(metadataOf(itemScope.node, 'listItem'), secondHalf);
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);
 					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);
 
-					// Net item change: [innerIndex .. preSpliceLen) replaced by the single
-					// first-half leaf.
+					// Net item change: [innerIndex .. preSpliceLen) replaced by the first half's
+					// blocks — plural when the cut bytes reparse to more than one.
 					return [
 						{ op: 'insert', at: itemIndex + 1, count: 1 },
-						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, 1)
+						replacePreservingFirst(innerIndex, preSpliceLen - innerIndex, landing - innerIndex)
 					];
 				},
 				op: {
@@ -245,7 +246,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					eventPath: docPathFrom(deps.scope.path)
 				},
 				afterTick: () => {
-					deps.state.innerBlockRefs[itemIndex + 1]?.focus(0);
+					deps.state.innerBlockRefs[itemIndex + 1]?.focus(CURSOR_EXACT_START);
 				}
 			});
 		},
@@ -322,12 +323,6 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					}
 
 					normalizeItemMarkerToList(item, outerScope.node);
-					// normalizeItemMarkerToList only reconciles the glyph, so adopt the
-					// destination's punctuation suffix too, matching paste-absorb.
-					if (metadataOf(outerScope.node, 'list').ordered) {
-						const meta = metadataOf(item, 'listItem');
-						meta.marker = meta.marker.replace(/\D.*$/, '') + readOrderedSuffix(outerScope.node);
-					}
 
 					outerScope.children.splice(parentItemIdx + 1, 0, item);
 					changes[0] = { op: 'insert', at: parentItemIdx + 1, count: 1 };
@@ -342,7 +337,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					eventPath: docPathFrom(deps.scope.path)
 				},
 				afterTick: () => {
-					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(0);
+					deps.state.innerBlockRefs[parentItemIdx + 1]?.focus(CURSOR_START);
 				}
 			});
 		},

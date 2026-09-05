@@ -5,6 +5,7 @@
 
 import type { CstNode } from '../core/nodes';
 import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
+import type { ChildRawChange } from './child-spans';
 
 /**
  * Rebuild `raw` for every container along `path`, innermost first. The leaf at the tail of
@@ -43,7 +44,10 @@ export function rebuildContainerRaw(node: CstNode): void {
 	rebuild(node);
 }
 
-/** Rebuild `raw` when `node` has a rebuildRaw on its descriptor; no-op otherwise. */
-export function rebuildContainerRawIfContainer(node: CstNode): void {
-	tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node);
+/**
+ * Rebuild `raw` when `node` has a rebuildRaw on its descriptor; no-op otherwise. `changed` is
+ * the one-child hint (`child-spans.ts`); a rebuilder ignoring it re-derives the whole raw.
+ */
+export function rebuildContainerRawIfContainer(node: CstNode, changed?: ChildRawChange): void {
+	tryGetBlockKindDescriptor(node.kind)?.rebuildRaw?.(node, changed);
 }

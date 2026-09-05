@@ -62,6 +62,9 @@ function mount(
 			return linkRef;
 		},
 		resolveLinkUrl,
+		get presentationMode() {
+			return 'source' as const;
+		},
 		getDocument: () => undefined,
 		get islands() {
 			return islands;
@@ -134,6 +137,20 @@ describe('createCellRender', () => {
 		const { el, render } = mount('![[cat.png]]');
 		render.render();
 		expect(el.textContent).toBe('![[cat.png]]');
+	});
+
+	// A link with no text renders as two marker spans and nothing else, which a marker-hiding
+	// mode would paint as an empty cell with no caret position.
+	// Miss-analysis: the cell is the third surface minting marker spans, and the two prose
+	// surfaces carried the content-empty rule while this one was never asked the question.
+	it('stamps a cell whose whole content is chrome, and drops the stamp when text arrives', () => {
+		const ctx = mount('[](u)');
+		ctx.render.render();
+		expect(ctx.el.hasAttribute('data-content-empty')).toBe(true);
+
+		ctx.setRaw('[t](u)');
+		ctx.render.render();
+		expect(ctx.el.hasAttribute('data-content-empty')).toBe(false);
 	});
 
 	it('memoizes: a second render with unchanged raw does not rebuild', () => {
@@ -240,14 +257,6 @@ describe('createCellRender', () => {
 		expect(island?.getAttribute('data-source-end')).toBe('8');
 		// The covered bytes leave the DOM text; the island stands for them.
 		expect(el.textContent).not.toContain('SECRET');
-	});
-
-	it('an empty island set contributes nothing to the render key (zero-cost parity)', () => {
-		const { el, render } = mount('plain');
-		render.render();
-		const firstChild = el.firstChild;
-		render.render();
-		expect(el.firstChild).toBe(firstChild);
 	});
 
 	it('a signature change rebuilds; an equal signature does not', () => {

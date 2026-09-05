@@ -1,7 +1,14 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { FIXTURE_BYTES, cstBlockCount, spacerCount } from './vr-helpers';
+import {
+	FIXTURE_BYTES,
+	MAX_UNMOUNTED_EDGE_FRACTION,
+	TOP_LEVEL_HOSTS,
+	cstBlockCount,
+	mountedViewportSpan,
+	spacerCount
+} from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // Windowing bounds the mounted set: a doc whose estimated height clears the
@@ -13,6 +20,14 @@ function mountedBlockCount(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test.perf.snapshot().mountedBlockCount);
 }
 
+/** Every ceiling below pairs with this floor: a ceiling alone is satisfied by mounting
+ *  NOTHING, so only the span proves the slice covers what the reader can see. */
+async function expectMountedBandSpansViewport(page: Page, selector: string): Promise<void> {
+	const span = await mountedViewportSpan(page, selector);
+	expect(span.topGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
+	expect(span.bottomGapPx).toBeLessThan(span.viewportHeight * MAX_UNMOUNTED_EDGE_FRACTION);
+}
+
 // Total mounted BlockHosts, INCLUDING nested (comma-path) hosts. getDomBlockCount
 // counts top-level hosts only, so for a single giant container it would read ~1
 // whether or not the container windows — useless as a windowing assertion.
@@ -21,6 +36,9 @@ function allHostCount(page: Page): Promise<number> {
 }
 
 test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ page }) => {
+	// 1.2-1.5m alone on a laptop, nearly all of it the 2MB fixture load; a hang guard, not a
+	// budget, so it carries ~3x rather than reading red as calibration drifts.
+	test.setTimeout(300_000);
 	const pageErrors = capturePageErrors(page);
 	const editor = new EditorPage(page);
 	await editor.goto();
@@ -51,6 +69,7 @@ test('windowing bounds the mounted set on a multi-thousand-block doc', async ({ 
 	// Cross-check the gauge against the live census; they should agree within the
 	// 1-block baseline the balance was reset on.
 	expect(Math.abs(balance - domMounted)).toBeLessThanOrEqual(2);
+	await expectMountedBandSpansViewport(page, TOP_LEVEL_HOSTS);
 	// Without this a render-phase throw (state_unsafe_mutation) passes silently green.
 	expect(pageErrors).toEqual([]);
 });
@@ -106,6 +125,7 @@ test('mounted set stays bounded as document size grows (O(viewport), not O(doc))
 	expect(mountedSmall).toBeLessThan(60);
 	expect(mountedBig).toBeLessThan(60);
 	expect(Math.abs(mountedBig - mountedSmall)).toBeLessThanOrEqual(10);
+	await expectMountedBandSpansViewport(page, TOP_LEVEL_HOSTS);
 
 	expect(pageErrors).toEqual([]);
 });
@@ -136,13 +156,12 @@ test('giant single blockquote windows its children (phase 3 spike)', async ({ pa
 
 	// Spacers inside the blockquote (the top scope has one child, so it emits none —
 	// every spacer comes from the nested scope).
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.blockquote-block .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.blockquote-block')).toBeGreaterThan(0);
 
 	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
 	// paragraph count. getDomBlockCount excludes nested hosts, so census all paths.
 	expect(await allHostCount(page)).toBeLessThan(150);
+	await expectMountedBandSpansViewport(page, '[data-block-path]');
 
 	// Without this a render-phase throw in the windowed reconcile passes silently green.
 	expect(pageErrors).toEqual([]);
@@ -162,13 +181,12 @@ test('giant single list windows its items (phase 3)', async ({ page }) => {
 
 	// Windowed INSIDE the list itself — spacers come from the .list-block scope
 	// (the top scope has one child, so it emits none).
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.list-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.list-block >')).toBeGreaterThan(0);
 
 	// Mounted hosts (top-level + nested) bounded to viewport+overscan+pin, NOT the
 	// item count.
 	expect(await allHostCount(page)).toBeLessThan(200);
+	await expectMountedBandSpansViewport(page, '[data-block-path]');
 
 	expect(pageErrors).toEqual([]);
 });
@@ -186,14 +204,14 @@ test('giant single table windows its rows (phase 4)', async ({ page }) => {
 	expect(doc.children[0].children.length).toBeGreaterThan(2000);
 
 	// Spacers INSIDE the table grid (the top scope has one child, so it emits none).
-	expect(
-		await page.evaluate(() => document.querySelectorAll('.table-block > .vr-spacer').length)
-	).toBeGreaterThan(0);
+	expect(await spacerCount(page, '.table-block >')).toBeGreaterThan(0);
 
 	// Mounted rows bounded to viewport + overscan + pin, NOT the row count.
 	expect(
 		await page.evaluate(() => document.querySelectorAll('[data-table-row-idx]').length)
 	).toBeLessThan(120);
+	// Cells, not rows: a `display: contents` row has no box to span anything with.
+	await expectMountedBandSpansViewport(page, '[data-table-row-idx] > .table-cell');
 
 	// Deleting the spacers' `grid-column: 1 / -1` shifts cells one track and splits a row
 	// across two bands. Asserted on shared top, not width — a width check survives the shift.

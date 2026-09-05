@@ -1,8 +1,8 @@
 /**
- * Built-in block component registrations, applied by an explicit
- * `registerBuiltInBlocks()` call: a bare side-effect import is tree-shaken out of the
- * production build (see built-in-descriptors.ts). Lives in `components/` rather than
- * `schema/` so the schema layer keeps no downstream imports.
+ * Built-in block component registrations, applied by an explicit `registerBuiltInBlocks()` call:
+ * the `sideEffects` allowlist names dist paths and so never covers the src specifiers this
+ * library imports from itself, leaving a bare side-effect import here droppable. Lives in
+ * `components/` rather than `schema/` so the schema layer keeps no downstream imports.
  */
 
 import type { NodeView } from '../core/node-views';
@@ -15,8 +15,14 @@ import {
 import { augmentBuiltin } from '../schema/block-kind-descriptor';
 import { registerBuiltInDescriptors } from '../schema/built-in-descriptors';
 import { augmentInlineWidgetKind } from '../core/inline/inline-widgets';
+import {
+	registerLiveJoinSeamCleaner,
+	registerLiveSplitRebalancer
+} from '../schema/inline-construct-policy';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
 import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
+import { cleanLiveJoinSeam } from './blocks/text/live-join-seam';
+import { rebalanceLiveSplit } from './blocks/text/live-split-rebalance';
 import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 import CodeBlock from './blocks/code/CodeBlock.svelte';
 import ThematicBreakBlock from './blocks/ThematicBreakBlock.svelte';
@@ -87,4 +93,10 @@ export function registerBuiltInBlocks(): void {
 	// Image resize is editor-layer behavior, so the core image kind stays data-only
 	// and gains its selected-key handler here, where the render layer is reachable.
 	augmentInlineWidgetKind('image', { onSelectedKey: imageWidgetOnSelectedKey });
+
+	// The split rebalancer and the join-seam cleaner need the inline parser and the render path,
+	// neither of which `tree-operations` may import, so the policy table holds the slots and this
+	// layer fills them.
+	registerLiveSplitRebalancer(rebalanceLiveSplit);
+	registerLiveJoinSeamCleaner(cleanLiveJoinSeam);
 }

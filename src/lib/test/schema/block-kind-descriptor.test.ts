@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { BlockKind } from '../../core/nodes';
 import { ALL_BLOCK_KINDS } from '../../core/nodes';
+import { getContentRange } from '../../core/inline';
 import {
 	getBlockKindDescriptor,
 	registerBlockKind,
@@ -33,16 +34,29 @@ describe('block-kind-descriptor registry', () => {
 		}
 	});
 
-	it('assigns the merge roles pinned by the design spec', () => {
-		expect(getBlockKindDescriptor('paragraph').mergeRole).toBe('prose');
-		expect(getBlockKindDescriptor('heading').mergeRole).toBe('prose-absorber');
-		expect(getBlockKindDescriptor('setextHeading').mergeRole).toBe('prose-absorber');
-		expect(getBlockKindDescriptor('unrecognized').mergeRole).toBe('self-merge');
-		expect(getBlockKindDescriptor('thematicBreak').mergeRole).toBe('not-mergeable');
-		expect(getBlockKindDescriptor('fencedCode').mergeRole).toBe('not-mergeable');
-		expect(getBlockKindDescriptor('blockquote').mergeRole).toBe('container');
-		expect(getBlockKindDescriptor('list').mergeRole).toBe('container');
-		expect(getBlockKindDescriptor('listItem').mergeRole).toBe('container');
+	// Derived from ALL_BLOCK_KINDS, so a new kind with no row here fails by name — and
+	// merge-rules.test.ts can pin the eligibility rules per role rather than per kind pair.
+	it('assigns every kind the merge role pinned by the design spec', () => {
+		const roles = Object.fromEntries(
+			ALL_BLOCK_KINDS.map((kind) => [kind, getBlockKindDescriptor(kind).mergeRole])
+		);
+		expect(roles).toEqual({
+			heading: 'prose-absorber',
+			setextHeading: 'prose-absorber',
+			paragraph: 'prose',
+			fencedCode: 'not-mergeable',
+			thematicBreak: 'not-mergeable',
+			indentedCode: 'not-mergeable',
+			htmlBlock: 'not-mergeable',
+			linkReferenceDefinition: 'not-mergeable',
+			tableCell: 'not-mergeable',
+			unrecognized: 'self-merge',
+			blockquote: 'container',
+			list: 'container',
+			listItem: 'container',
+			table: 'not-mergeable',
+			tableRow: 'not-mergeable'
+		});
 	});
 });
 
@@ -77,32 +91,7 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(range).toEqual({ start: 0, end: 5 });
 	});
 
-	it('fencedCode does not support inline', () => {
-		expect(getBlockKindDescriptor('fencedCode').supportsInline).toBe(false);
-	});
-
-	it('non-prose leaf kinds do not support inline', () => {
-		const nonProseLeaves: BlockKind[] = [
-			'thematicBreak',
-			'indentedCode',
-			'htmlBlock',
-			'linkReferenceDefinition',
-			'unrecognized'
-		];
-		for (const kind of nonProseLeaves) {
-			expect(getBlockKindDescriptor(kind).supportsInline, `${kind}.supportsInline`).toBe(false);
-		}
-	});
-
-	it('containers do not support inline (delegate to children)', () => {
-		expect(getBlockKindDescriptor('list').supportsInline).toBe(false);
-		expect(getBlockKindDescriptor('blockquote').supportsInline).toBe(false);
-		expect(getBlockKindDescriptor('listItem').supportsInline).toBe(false);
-		expect(getBlockKindDescriptor('table').supportsInline).toBe(false);
-		expect(getBlockKindDescriptor('tableRow').supportsInline).toBe(false);
-	});
-
-	it('marks tableCell with supportsInline: true and exposes a whole-raw content range', () => {
+	it('marks tableCell with supportsInline: true and resolves a whole-raw content range', () => {
 		const d = getBlockKindDescriptor('tableCell');
 		expect(d.supportsInline).toBe(true);
 		expect(d.editable).toBe(true);
@@ -110,11 +99,11 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 		expect(d.mergeRole).toBe('not-mergeable');
 
 		const sampleCell = { kind: 'tableCell', leadingTrivia: '', raw: 'hello' } as const;
-		expect(d.getContentRange!(sampleCell)).toEqual({ start: 0, end: 5 });
+		expect(getContentRange(sampleCell)).toEqual({ start: 0, end: 5 });
 
 		// Empty cell — happens when buildRow pads short body rows.
 		const emptyCell = { kind: 'tableCell', leadingTrivia: '', raw: '' } as const;
-		expect(d.getContentRange!(emptyCell)).toEqual({ start: 0, end: 0 });
+		expect(getContentRange(emptyCell)).toEqual({ start: 0, end: 0 });
 	});
 
 	it('only paragraph/heading/setextHeading/tableCell support inline', () => {
@@ -124,19 +113,17 @@ describe('BlockKindDescriptor — supportsInline + getContentRange', () => {
 });
 
 describe('renderImagesAsWidgets descriptor flag', () => {
-	it('paragraph defaults to true', () => {
-		const d = getBlockKindDescriptor('paragraph');
-		expect(d.renderImagesAsWidgets ?? true).toBe(true);
-	});
-
-	it('heading defaults to true', () => {
-		const d = getBlockKindDescriptor('heading');
-		expect(d.renderImagesAsWidgets ?? true).toBe(true);
-	});
-
-	it('tableCell opts out (false)', () => {
-		const d = getBlockKindDescriptor('tableCell');
-		expect(d.renderImagesAsWidgets).toBe(false);
+	// Exact set over every kind, so a new kind opting out — or an existing one losing its
+	// opt-out — has to be a deliberate edit here rather than a silent widening.
+	it('tableCell is the only kind opting out; every other kind keeps the true default', () => {
+		const optedOut = ALL_BLOCK_KINDS.filter(
+			(kind) => getBlockKindDescriptor(kind).renderImagesAsWidgets === false
+		);
+		expect(optedOut).toEqual(['tableCell']);
+		for (const kind of ALL_BLOCK_KINDS) {
+			if (kind === 'tableCell') continue;
+			expect(getBlockKindDescriptor(kind).renderImagesAsWidgets ?? true, kind).toBe(true);
+		}
 	});
 });
 
@@ -183,6 +170,7 @@ describe('blockFocus — whole-block-focus opt-in', () => {
 	it('survives leaf registration', () => {
 		const kind = declarePluginKind('spec-leaf-focus');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
@@ -195,6 +183,7 @@ describe('blockFocus — whole-block-focus opt-in', () => {
 	it('survives registration alongside a container group (opaque childless block)', () => {
 		const kind = declarePluginKind('spec-container-focus');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,

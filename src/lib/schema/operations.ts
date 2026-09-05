@@ -8,11 +8,13 @@ export interface OperationDetailMap {
 	split: { at: number; itemIndex?: number; innerIndex?: number };
 	merge: { direction: 'prev' | 'next' };
 	reorder: { from: number; to: number };
-	delete:
-		| { crossBlock?: true; table?: 'whole'; action?: 'blockquoteExit'; innerIndex?: number }
-		| undefined;
+	delete: { crossBlock?: true; table?: 'whole' } | undefined;
 	input: { byteLength: number };
-	updateContent: { length: number };
+	/** `crossBlock` marks a write that spanned the range's other blocks too: `path` names one
+	 *  block, as every op does, and `length` is that block's. The `delete` twin reads the same.
+	 *  A toggle endpoint carrying a CELL INDEX names its grid, whose own bytes no write holds, so
+	 *  `length` is the grid's PRE-write length; a deep cell path names that cell like any block. */
+	updateContent: { length: number; crossBlock?: true };
 	replaceBlock:
 		| { count: number }
 		| {
@@ -35,6 +37,8 @@ export interface OperationDetailMap {
 				outerPath?: number[];
 		  };
 	appendBlock: { itemIndex?: number } | undefined;
+	/** Insert at an interior index; `appendBlock`'s sibling for a block minted BETWEEN two. */
+	insertBlock: undefined;
 	metadataUpdate: { fields: string[] };
 	undo: undefined;
 	redo: undefined;

@@ -1,8 +1,9 @@
 /**
- * Shared primitives for the source-scan guards (G4.1, G4.2, G4.4): editor source off
- * disk, asserted against structural patterns the type system can't express.
- * Comment-stripping matters — an invariant is documented in comments naming the very
- * tokens its scan looks for, so a raw substring match would flag its own documentation.
+ * Shared primitives for the source-scan guards: editor source off disk, asserted against
+ * structural patterns the type system can't express. Comment-stripping matters — an
+ * invariant is documented in comments naming the very tokens its scan looks for, so a raw
+ * substring match would flag its own documentation. The lexing itself is guarded by
+ * `scan-source.differential.test.ts` (G4.57), which holds it against TypeScript's own lexer.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -10,13 +11,15 @@ import path from 'node:path';
 
 export const EDITOR_SRC = path.resolve('src/lib');
 
+/** The demo/dev harness tree. Reachable only with `includeTests` — most of it sits under `test`. */
+export const ROUTES_SRC = path.resolve('src/routes');
+
 /**
  * The roots a repo-wide scan must cover: the library, plus the repo's only first-party
  * stand-ins for an external author (the reference plugins and the consumer example). A
  * rule that holds for `src/lib` and not for them ships a reference implementation that
  * models the violation. A genuinely library-internal lint opts out by passing
- * `EDITOR_SRC` explicitly and saying why. `src/routes` cannot be a root, since the walk
- * skips any directory named `test`.
+ * `EDITOR_SRC` explicitly and saying why.
  */
 export const REPO_WIDE_ROOTS = [
 	EDITOR_SRC,
@@ -29,38 +32,27 @@ export interface SourceFile {
 	relPath: string;
 	/** Raw file text, comments intact. */
 	text: string;
-	/** File text with line and block comments blanked to whitespace. */
+	/** File text with line, block and markup comments blanked to whitespace. */
 	code: string;
 }
 
 /**
- * Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a
- * code scan. Naive w.r.t. markers inside string/regex literals, which is acceptable: the
- * scans match call/read shapes rather than bare tokens.
+ * Blank comments to spaces, preserving offsets, so a token inside a comment can't trip a code
+ * scan. A marker inside a string, template or regex literal is text: blanking one truncates the
+ * line and drops whatever followed from the census that reads it.
  */
 export function stripComments(text: string): string {
 	let out = '';
 	let i = 0;
 	while (i < text.length) {
-		const two = text.slice(i, i + 2);
-		if (two === '//') {
-			while (i < text.length && text[i] !== '\n') {
-				out += ' ';
-				i++;
-			}
-		} else if (two === '/*') {
-			out += '  ';
-			i += 2;
-			while (i < text.length && text.slice(i, i + 2) !== '*/') {
-				out += text[i] === '\n' ? '\n' : ' ';
-				i++;
-			}
-			out += '  ';
-			i += 2;
-		} else {
+		const span = spanAt(text, i);
+		if (span === null) {
 			out += text[i];
 			i++;
+			continue;
 		}
+		out += strippedSpan(text, i, span);
+		i = span.end;
 	}
 	return out;
 }
@@ -68,8 +60,14 @@ export function stripComments(text: string): string {
 /**
  * Recursively collect `.ts`/`.svelte` files under `dir`, excluding test, e2e,
  * and `.d.ts`. With no argument, scans every root in `REPO_WIDE_ROOTS`.
+ * `includeTests` is for a rule that binds the whole packaged tree, not just runtime code;
+ * `includeStyles` adds `.css`, off by default so a code-shape scan never reads stylesheet
+ * text (a `url(//…)` would blank as a comment).
  */
-export function collectEditorSources(dir?: string): SourceFile[] {
+export function collectEditorSources(
+	dir?: string,
+	options: { includeTests?: boolean; includeStyles?: boolean } = {}
+): SourceFile[] {
 	const repoRoot = path.resolve('.');
 	const files: SourceFile[] = [];
 
@@ -77,13 +75,14 @@ export function collectEditorSources(dir?: string): SourceFile[] {
 		for (const entry of readdirSync(current, { withFileTypes: true })) {
 			const full = path.join(current, entry.name);
 			if (entry.isDirectory()) {
-				if (entry.name === 'test' || entry.name === 'e2e') continue;
+				if (!options.includeTests && (entry.name === 'test' || entry.name === 'e2e')) continue;
 				walk(full);
 				continue;
 			}
 			const isScannable =
 				(entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) ||
-				entry.name.endsWith('.svelte');
+				entry.name.endsWith('.svelte') ||
+				(options.includeStyles === true && entry.name.endsWith('.css'));
 			if (!isScannable) continue;
 			const text = readFileSync(full, 'utf8');
 			files.push({
@@ -107,4 +106,329 @@ export function readEditorFile(relFromEditor: string): SourceFile {
 		text,
 		code: stripComments(text)
 	};
+}
+
+// ── Literal-aware walk ───────────────────────────────────────────────────────
+
+/**
+ * Visit each character of `code` from `from` that is real code — strings, templates, comments
+ * and regex literals are stepped over whole, so a bracket, comma or semicolon inside one never
+ * reaches a census. Returns the index `visit` stopped at, or `code.length` if it ran out.
+ */
+export function walkCode(
+	code: string,
+	from: number,
+	visit: (ch: string, index: number) => boolean | void
+): number {
+	for (let i = from; i < code.length; i++) {
+		const span = spanAt(code, i);
+		if (span !== null) {
+			i = span.end - 1;
+			continue;
+		}
+		if (visit(code[i], i) === true) return i;
+	}
+	return code.length;
+}
+
+/**
+ * The non-code span starting at `i` — string, template, comment or regex literal — or null
+ * where code continues. The one place the lexing rules live.
+ */
+function spanAt(code: string, i: number): Span | null {
+	const ch = code[i];
+	if (ch === "'" || ch === '"') return { end: skipString(code, i), kind: 'literal' };
+	if (ch === '`') return { end: skipTemplate(code, i), kind: 'template' };
+	// Markup's comment form, unconditional rather than `.svelte`-only: the walk reaches this
+	// only in code position, and G4.57's TypeScript arm reds if a `.ts` file ever writes one.
+	if (ch === '<') {
+		return code.startsWith('<!--', i) ? { end: skipMarkupComment(code, i), kind: 'comment' } : null;
+	}
+	if (ch !== '/') return null;
+	if (code[i + 1] === '/') return { end: endOfLine(code, i), kind: 'comment' };
+	if (code[i + 1] === '*') return { end: skipBlockComment(code, i), kind: 'comment' };
+	const past = opensRegex(code, i) ? skipRegex(code, i) : null;
+	return past === null ? null : { end: past, kind: 'literal' };
+}
+
+interface Span {
+	end: number;
+	kind: 'comment' | 'template' | 'literal';
+}
+
+/** A span as `stripComments` writes it: a comment blanks, a template keeps its own bytes and
+ *  its `${…}` interpolations stay code. */
+function strippedSpan(text: string, start: number, span: Span): string {
+	const source = text.slice(start, span.end);
+	if (span.kind === 'comment') return source.replace(/[^\n]/g, ' ');
+	if (span.kind !== 'template') return source;
+	let out = '';
+	let at = start;
+	skipTemplate(text, start, (from, to) => {
+		out += text.slice(at, from) + stripComments(text.slice(from, to));
+		at = to;
+	});
+	return out + text.slice(at, span.end);
+}
+
+/** Index just past the string at `i`; an unterminated one ends at its line, as JS requires. */
+function skipString(code: string, i: number): number {
+	const quote = code[i];
+	for (let j = i + 1; j < code.length; j++) {
+		const ch = code[j];
+		if (ch === '\\') j++;
+		else if (ch === quote) return j + 1;
+		else if (ch === '\n') return j;
+	}
+	return code.length;
+}
+
+/** Index just past the template literal at `i`; `${…}` interpolations are walked as code. */
+function skipTemplate(
+	code: string,
+	i: number,
+	onInterpolation?: (start: number, end: number) => void
+): number {
+	for (let j = i + 1; j < code.length; j++) {
+		const ch = code[j];
+		if (ch === '\\') j++;
+		else if (ch === '`') return j + 1;
+		else if (ch === '$' && code[j + 1] === '{') {
+			let depth = 1;
+			const close = walkCode(code, j + 2, (c) => {
+				if (c === '{') depth++;
+				else if (c === '}') return --depth === 0;
+			});
+			onInterpolation?.(j + 2, close);
+			j = close;
+		}
+	}
+	return code.length;
+}
+
+function endOfLine(code: string, i: number): number {
+	const nl = code.indexOf('\n', i);
+	return nl < 0 ? code.length : nl;
+}
+
+function skipBlockComment(code: string, i: number): number {
+	const end = code.indexOf('*/', i + 2);
+	return end < 0 ? code.length : end + 2;
+}
+
+function skipMarkupComment(code: string, i: number): number {
+	const end = code.indexOf('-->', i + 4);
+	return end < 0 ? code.length : end + 3;
+}
+
+/** Index just past the regex literal at `i` and its flags, or null if it never closes. */
+function skipRegex(code: string, i: number): number | null {
+	let inClass = false;
+	for (let j = i + 1; j < code.length; j++) {
+		const ch = code[j];
+		if (ch === '\\') j++;
+		else if (ch === '\n') return null;
+		else if (inClass) inClass = ch !== ']';
+		else if (ch === '[') inClass = true;
+		else if (ch === '/') {
+			let end = j + 1;
+			while (end < code.length && code[end] >= 'a' && code[end] <= 'z') end++;
+			return end;
+		}
+	}
+	return null;
+}
+
+/**
+ * Operand position, which is where a `/` opens a regex; after a value it divides. `}` is not
+ * one: TypeScript's own parser finds no regex preceded by `}` anywhere in the tree, while
+ * Svelte markup (`{a}/{b}`) is full of the shape.
+ */
+const REGEX_OPERAND_CHARS = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';']);
+
+/** Reserved words an expression directly follows, so a `/` after one opens a regex (`if` for
+ *  Svelte's `{#if …}`). A plain identifier never joins: it can be a value. */
+const REGEX_OPERAND_WORDS = new Set([
+	'await',
+	'case',
+	'delete',
+	'do',
+	'else',
+	'if',
+	'in',
+	'instanceof',
+	'new',
+	'return',
+	'throw',
+	'typeof',
+	'void',
+	'yield'
+]);
+
+function opensRegex(code: string, at: number): boolean {
+	let i = at - 1;
+	while (i >= 0 && /\s/.test(code[i])) i--;
+	if (i < 0) return true;
+	if (code[i] === '>') return code[i - 1] === '=';
+	if (REGEX_OPERAND_CHARS.has(code[i])) return true;
+	let start = i + 1;
+	while (start > 0 && /[\w$]/.test(code[start - 1])) start--;
+	if (start > 0 && code[start - 1] === '.') return false;
+	return REGEX_OPERAND_WORDS.has(code.slice(start, i + 1));
+}
+
+// ── Lexical classification ───────────────────────────────────────────────────
+
+/** Class names in the order {@link lexicalClasses} numbers them. */
+export const LEXICAL_CLASSES = ['code', 'comment', 'string', 'template', 'regex'] as const;
+
+const [CODE, COMMENT, STRING, TEMPLATE, REGEX] = LEXICAL_CLASSES.map((_, index) => index);
+
+/** Each character's class, exported so the differential can hold this lexer against TypeScript's. */
+export function lexicalClasses(code: string): Uint8Array {
+	const out = new Uint8Array(code.length);
+	classifyRange(code, 0, code.length, out);
+	return out;
+}
+
+/** A template's `${…}` interiors are code, which is how `stripComments` already reads them. */
+function classifyRange(code: string, from: number, to: number, out: Uint8Array): void {
+	out.fill(CODE, from, to);
+	for (let i = from; i < to; i++) {
+		const span = spanAt(code, i);
+		if (span === null) continue;
+		const end = Math.min(span.end, to);
+		if (span.kind === 'comment') out.fill(COMMENT, i, end);
+		else if (span.kind === 'literal') out.fill(code[i] === '/' ? REGEX : STRING, i, end);
+		else {
+			out.fill(TEMPLATE, i, end);
+			skipTemplate(code, i, (start, close) => classifyRange(code, start, Math.min(close, to), out));
+		}
+		i = span.end - 1;
+	}
+}
+
+// ── Raw-write statements ─────────────────────────────────────────────────────
+
+/** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
+const MAX_STATEMENT_SPAN = 600;
+
+/**
+ * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and NOT at a
+ * newline: Prettier wraps exactly the long concatenations G4.20's literal arm reads, and
+ * stopping at the first newline truncates them to `.raw =` with no right-hand side in sight.
+ * G4.28 reads the same statements as its bare-write census.
+ */
+export function rawAssignments(
+	sources: SourceFile[]
+): Array<{ relPath: string; statement: string }> {
+	const out: Array<{ relPath: string; statement: string }> = [];
+	for (const f of sources) {
+		const re = /\.raw\s*\+?=(?!=)/g;
+		let m: RegExpExecArray | null;
+		while ((m = re.exec(f.code)) !== null) {
+			const limit = Math.min(f.code.length, m.index + MAX_STATEMENT_SPAN);
+			let depth = 0;
+			let end = limit;
+			walkCode(f.code, m.index, (c, i) => {
+				if (i >= limit) return true;
+				if (c === '(' || c === '[' || c === '{') depth++;
+				else if (c === ')' || c === ']' || c === '}') depth--;
+				else if (depth <= 0 && (c === ';' || (c === '\n' && f.code[i + 1] === '\n'))) {
+					end = i;
+					return true;
+				}
+			});
+			out.push({ relPath: f.relPath, statement: f.code.slice(m.index, end) });
+		}
+	}
+	return out;
+}
+
+// ── Call arguments ───────────────────────────────────────────────────────────
+
+/**
+ * A call to `name`. A spread (`...name(`) is one — the seam scans read call sites, and a result
+ * spread into an array is where one of them hid; a property access (`x.name(`) is not.
+ */
+function callSiteRegex(name: string): RegExp {
+	return new RegExp(`(?:(?<![\\w$.])|(?<=\\.\\.\\.))${name}\\s*\\(`, 'g');
+}
+
+/** The argument text of every call to `name`; pass comment-stripped code. Skips the declaration. */
+export function callsTo(code: string, name: string): string[] {
+	const out: string[] = [];
+	const re = callSiteRegex(name);
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(code)) !== null) {
+		if (/function\s+$/.test(code.slice(Math.max(0, m.index - 12), m.index))) continue;
+		const call = balancedCall(code, m.index + m[0].length);
+		if (call !== null) out.push(call);
+	}
+	return out;
+}
+
+/** Whether `code` calls `name` at all — the membership form of {@link callsTo}. */
+export function callsAnywhere(code: string, name: string): boolean {
+	return callSiteRegex(name).test(code);
+}
+
+/**
+ * Just after a call's opening paren to its matching close, parens balanced. A bracket inside a
+ * string, template, comment or regex literal cannot truncate the slot a census reads by position.
+ */
+export function balancedCall(code: string, openParenIndex: number): string | null {
+	let depth = 1;
+	const at = walkCode(code, openParenIndex, (ch) => {
+		if (ch === '(') depth++;
+		else if (ch === ')') return --depth === 0;
+	});
+	return at === code.length ? null : code.slice(openParenIndex, at);
+}
+
+/** A block's body from just after its opening brace to its matching close, braces balanced — the
+ *  {@link balancedCall} shape over `{}`, for a census that reads whole function bodies. */
+export function balancedBlock(code: string, openBraceIndex: number): string | null {
+	let depth = 1;
+	const at = walkCode(code, openBraceIndex, (ch) => {
+		if (ch === '{') depth++;
+		else if (ch === '}') return --depth === 0;
+	});
+	return at === code.length ? null : code.slice(openBraceIndex, at);
+}
+
+/** The region from the bracket at `openIndex` to its match, both ends included — the
+ *  {@link balancedCall} walk for a census that reads a whole `(…)` or `{…}` rather than an interior. */
+export function balancedRegion(code: string, openIndex: number): string | null {
+	const open = code[openIndex];
+	const close = open === '(' ? ')' : open === '[' ? ']' : '}';
+	let depth = 0;
+	const at = walkCode(code, openIndex, (ch) => {
+		if (ch === open) depth++;
+		else if (ch === close) return --depth === 0;
+	});
+	return at === code.length ? null : code.slice(openIndex, at + 1);
+}
+
+/** A call's top-level arguments: split on the commas outside every bracket and literal. */
+export function callArguments(args: string): string[] {
+	const out: string[] = [];
+	let depth = 0;
+	let start = 0;
+	walkCode(args, 0, (ch, i) => {
+		if (ch === '(' || ch === '[' || ch === '{') depth++;
+		else if (ch === ')' || ch === ']' || ch === '}') depth--;
+		else if (ch === ',' && depth === 0) {
+			out.push(args.slice(start, i).trim());
+			start = i + 1;
+		}
+	});
+	out.push(args.slice(start).trim());
+	return out;
+}
+
+/** The last top-level argument of a call's argument text — the slot the threading scans read. */
+export function lastArgument(args: string): string {
+	const parts = callArguments(args);
+	return parts[parts.length - 1];
 }

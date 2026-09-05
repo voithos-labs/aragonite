@@ -26,7 +26,9 @@ function soleTableEnv(source: string) {
 		revealPath: deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined,
+		linkRef: undefined
 	};
 	return { deps, table, ctx };
 }

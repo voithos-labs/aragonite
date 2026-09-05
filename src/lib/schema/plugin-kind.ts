@@ -11,9 +11,9 @@ import { devReplacesRegistration } from './register-once';
 
 const declaredPluginKinds = new Set<string>();
 
-// Structural sentinels a plugin kind must not shadow. `document` is `Document.kind`, not a
-// BlockKind, so it escapes the BLOCK_KIND_TABLE check below.
-const RESERVED_KIND_NAMES = new Set<string>(['document']);
+// Structural sentinels a plugin kind must not shadow: `document` is `Document.kind` and
+// `global` is the keybinding-override scope, so neither is in BLOCK_KIND_TABLE below.
+const RESERVED_KIND_NAMES = new Set<string>(['document', 'global']);
 
 export function declarePluginKind(name: string): PluginBlockKind {
 	if (!isValidPluginName(name)) {
@@ -57,6 +57,15 @@ export function declaredPluginKind(name: string): PluginBlockKind {
 	return name as PluginBlockKind;
 }
 
+/**
+ * Non-throwing declaration probe, so an idempotent module (HMR, a re-imported registrar) asks
+ * before declaring instead of catching {@link declarePluginKind}'s or {@link declaredPluginKind}'s
+ * throw.
+ */
+export function isBlockKindDeclared(name: string): boolean {
+	return declaredPluginKinds.has(name);
+}
+
 export function __clearDeclaredPluginKindsForTests(): void {
 	declaredPluginKinds.clear();
 }
@@ -91,10 +100,7 @@ export function declaredPluginInlineKind(name: string): PluginInlineKind {
 	return name as PluginInlineKind;
 }
 
-/**
- * The inline mirror of {@link isBlockKindRegistered}, so a plugin re-declaring idempotently
- * guards on this instead of catching {@link declaredPluginInlineKind}'s throw.
- */
+/** The inline mirror of {@link isBlockKindDeclared}. */
 export function isInlineKindDeclared(name: string): boolean {
 	return declaredPluginInlineKinds.has(name);
 }

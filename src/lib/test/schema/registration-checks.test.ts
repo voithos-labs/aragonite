@@ -1,6 +1,5 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import type { AnyBlockKind } from '$lib/core/nodes';
-import type { InvariantViolation } from '$lib/invariants/assert';
 import { checkLateOpenerRegistration } from '$lib/invariants/registry';
 import {
 	flushPendingRegistrationChecks,
@@ -19,10 +18,13 @@ import TextEditableBlock from '$lib/components/blocks/text/TextEditableBlock.sve
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { testClosure } from '$lib/test/support/closure';
+import { allowDevWarns, takeDevWarns } from '$lib/test/support/warn-gate';
+import { collector } from '$lib/test/harness/violation-collector';
 
 const containerGroup = { contract: 'opaque', rebuildRaw: () => {} } as const;
 
 const container: BlockKindRegistration = {
+	gapEdges: 'none',
 	mergeRole: 'container',
 	editable: true,
 	supportsInline: false,
@@ -31,6 +33,7 @@ const container: BlockKindRegistration = {
 };
 
 const leaf: BlockKindRegistration = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
@@ -48,22 +51,16 @@ const opener = (priority: number): BlockOpener => ({
 	interruptsParagraph: false
 });
 
-function collector() {
-	const violations: { tag: string; violation: InvariantViolation }[] = [];
-	const report = (tag: string, check: () => InvariantViolation | null): void => {
-		const violation = check();
-		if (violation) violations.push({ tag, violation });
-	};
-	const byTag = (tag: string) => violations.filter((v) => v.tag === tag);
-	return { violations, report, byTag };
-}
-
 // registerChromeLeaf also registers a register-once paste surface, which the
 // schema reset does not clear; reset it so chrome-leaf batches don't accumulate.
 beforeEach(() => {
 	__resetSchemaRegistriesForTests();
 	__resetPasteSurfacesForTests();
 });
+
+// The unit setup registers built-in descriptors, never components, so every flush this file
+// forces reports the completeness gap; the subject here is what else the flush finds.
+afterEach(() => allowDevWarns(['invariant:registry-completeness']));
 
 describe('checkLateOpenerRegistration', () => {
 	it('passes while the grammar is unconsumed', () => {
@@ -150,6 +147,7 @@ describe('flushPendingRegistrationChecks', () => {
 		const { violations, report } = collector();
 		flushPendingRegistrationChecks(report);
 		expect(violations).toEqual([]);
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:late-opener-registration');
 	});
 
 	it('resets both latches and the pending set via the schema reset', () => {
@@ -284,5 +282,42 @@ describe('closure coherence at the flush', () => {
 			kind: 'incoherent-closure',
 			column: 'mergeBackspace'
 		});
+	});
+});
+
+// The predicate is unit-tested in test/invariants/descriptor-field-coherence.test.ts; the
+// opener arm is the one the flush alone can supply, since no descriptor field records it.
+describe('descriptor field coherence at the flush', () => {
+	it('flags a context-dependent kind that also registers an opener', () => {
+		const kind = declarePluginKind('ctx-dependent-opener');
+		registerBlockKind(kind, { ...leaf, contextDependentKind: true });
+		registerBlockOpener(kind, opener(9111));
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('descriptor-field-coherence')).toHaveLength(1);
+		expect(byTag('descriptor-field-coherence')[0].violation.detail).toMatchObject({
+			kind: 'ctx-dependent-opener'
+		});
+	});
+
+	it('joins the opener across batches, so a later opener still enrols its kind', () => {
+		const kind = declarePluginKind('ctx-dependent-later-opener');
+		registerBlockKind(kind, { ...leaf, contextDependentKind: true });
+		flushPendingRegistrationChecks();
+		registerBlockOpener(kind, opener(9112));
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('descriptor-field-coherence')).toHaveLength(1);
+	});
+
+	it('stays silent for a context-dependent kind with no opener', () => {
+		const kind = declarePluginKind('ctx-dependent-clean');
+		registerBlockKind(kind, { ...leaf, contextDependentKind: true });
+
+		const { report, byTag } = collector();
+		flushPendingRegistrationChecks(report);
+		expect(byTag('descriptor-field-coherence')).toEqual([]);
 	});
 });

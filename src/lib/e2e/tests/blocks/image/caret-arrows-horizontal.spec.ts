@@ -14,7 +14,6 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		await editor.goto();
 	});
 
-	// Pre-fix this was a 4-press flow with two invisible steps.
 	test('ArrowLeft from below a standalone image: press 1 selects, press 2 lands above', async ({
 		page
 	}) => {
@@ -70,8 +69,7 @@ test.describe('horizontal arrow traversal around image widgets', () => {
 		expect(src).toMatch(/lead text\s*X\s*!\[pic\]/);
 	});
 
-	// Cursor-trap regression: the hidden source span used to attract the caret on cross-block
-	// focusAtColumn.
+	// Cursor trap: the hidden source span must not attract the caret on cross-block focusAtColumn.
 	test('cross-block ArrowUp landing on standalone image leaves a visible caret', async ({
 		page
 	}) => {

@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { applyIslandDecorations, type ApplyIslandsOpts } from '$lib/decorations/island-dom';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 import { mountDecorationWidget } from '$lib/decorations/widget-dom';
 import type { IndexedDecoration } from '$lib/decorations/buckets';
 import type { ReplaceDecoration, WidgetDecoration } from '$lib/decorations/types';
 import { rawTextOfNode } from '$lib/cursor/widget-offset';
 import { buildAmbientSpan } from '$lib/ambient/ambient-dom';
-import { parseInline } from '$lib/core/inline';
+import { contentLengthOf, parseInline } from '$lib/core/inline';
 import { renderInlineNodes } from '$lib/core/inline-render';
 
 function build(raw: string): DocumentFragment {
@@ -56,13 +56,17 @@ const idx = <D extends WidgetDecoration | ReplaceDecoration>(
 	index = 0
 ): IndexedDecoration<D> => ({ dec, index });
 
-const opts: ApplyIslandsOpts = { mountWidget: (spec, dec) => mountDecorationWidget(spec, dec) };
+/** Every fixture here renders its whole raw, so a paragraph over it is the CST the gate reads. */
+const optsFor = (raw: string): ApplyIslandsOpts => ({
+	mountWidget: (spec, dec) => mountDecorationWidget(spec, dec),
+	contentLength: contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw })
+});
 
 describe('applyIslandDecorations', () => {
 	it('widget island contributes zero raw bytes at its offset', () => {
 		const raw = 'hello world';
 		const frag = build(raw);
-		applyIslandDecorations(frag, raw, [idx(widgetAt(5))], opts);
+		applyIslandDecorations(frag, raw, [idx(widgetAt(5))], optsFor(raw));
 		const island = frag.querySelector('[data-decoration-island]')!;
 		expect(island.getAttribute('data-source-start')).toBe('5');
 		expect(island.getAttribute('data-source-end')).toBe('5');
@@ -74,7 +78,7 @@ describe('applyIslandDecorations', () => {
 	it('replace island carries the covered bytes and removes covered DOM', () => {
 		const raw = 'hide **me** now';
 		const frag = build(raw);
-		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], opts);
+		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], optsFor(raw));
 		expect(walkRawText(frag, raw)).toBe(raw);
 		expect(frag.textContent).not.toContain('me');
 	});
@@ -82,7 +86,7 @@ describe('applyIslandDecorations', () => {
 	it('replace range ending inside a styled wrapper splits the wrapper, bytes intact', () => {
 		const raw = 'ab **cd** ef';
 		const frag = build(raw);
-		applyIslandDecorations(frag, raw, [idx(replaceRange(0, 7))], opts); // ends inside **cd**
+		applyIslandDecorations(frag, raw, [idx(replaceRange(0, 7))], optsFor(raw)); // ends inside **cd**
 		expect(walkRawText(frag, raw)).toBe(raw);
 		expect(frag.querySelector('[data-decoration-island]')!.getAttribute('data-source-end')).toBe(
 			'7'
@@ -92,7 +96,7 @@ describe('applyIslandDecorations', () => {
 	it('two islands apply without offset drift (descending application)', () => {
 		const raw = 'one two three';
 		const frag = build(raw);
-		applyIslandDecorations(frag, raw, [idx(widgetAt(3)), idx(replaceRange(8, 13))], opts);
+		applyIslandDecorations(frag, raw, [idx(widgetAt(3)), idx(replaceRange(8, 13))], optsFor(raw));
 		expect(frag.querySelectorAll('[data-decoration-island]').length).toBe(2);
 		expect(walkRawText(frag, raw)).toBe(raw);
 	});
@@ -101,7 +105,7 @@ describe('applyIslandDecorations', () => {
 		const raw = 'task text';
 		const frag = build(raw);
 		frag.prepend(buildAmbientSpan('- ')); // ambient bytes are NOT in raw
-		applyIslandDecorations(frag, raw, [idx(widgetAt(0))], { ...opts, ambientLength: 2 });
+		applyIslandDecorations(frag, raw, [idx(widgetAt(0))], { ...optsFor(raw), ambientLength: 2 });
 		const island = frag.querySelector('[data-decoration-island]')!;
 		expect(island.previousSibling).toBe(frag.firstChild); // lands after the ambient span
 		expect(walkRawTextSkippingAmbient(frag, raw)).toBe(raw);
@@ -110,19 +114,43 @@ describe('applyIslandDecorations', () => {
 	it('block-own marker prefix counts as raw bytes', () => {
 		const raw = '## head';
 		const frag = buildWithMarkerPrefix(raw, 3);
-		applyIslandDecorations(frag, raw, [idx(replaceRange(3, 7))], opts);
+		applyIslandDecorations(frag, raw, [idx(replaceRange(3, 7))], optsFor(raw));
 		expect(walkRawText(frag, raw)).toBe(raw); // marker bytes still counted, content replaced
 		expect(frag.textContent).toBe('## ');
 	});
 
-	it('an out-of-range island is skipped, reported, and leaves the DOM untouched', () => {
+	// Miss-analysis: this pass never saw the document its decorations were derived from, and
+	// no test drove it with a mismatched pair — so the one shape it cannot judge, a decoration
+	// the document has since outgrown, was the shape it reported as an authoring error.
+	it('an island the content no longer holds is dropped silently — staleness is not the author’s', () => {
 		const raw = 'short';
 		const frag = build(raw);
 		const onSkipped = vi.fn();
-		applyIslandDecorations(frag, raw, [idx(replaceRange(2, 99))], { ...opts, onSkipped });
-		expect(onSkipped).toHaveBeenCalledOnce();
+		applyIslandDecorations(frag, raw, [idx(replaceRange(2, 99))], {
+			...optsFor(raw),
+			onSkipped
+		});
+		expect(onSkipped).not.toHaveBeenCalled();
 		expect(frag.querySelectorAll('[data-decoration-island]').length).toBe(0);
 		expect(frag.textContent).toBe(raw);
+	});
+
+	// A replace island holds bytes the DOM text no longer carries, so a bound measured off
+	// this pass's own output would shrink under it. The gate reads the CST's answer instead.
+	it('re-applies over a range a mounted island already covers', () => {
+		const raw = 'hide **me** now';
+		const frag = build(raw);
+		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], optsFor(raw));
+		const onSkipped = vi.fn();
+		applyIslandDecorations(frag, raw, [idx(replaceRange(5, 11))], {
+			...optsFor(raw),
+			onSkipped
+		});
+		expect(onSkipped).not.toHaveBeenCalled();
+		expect(frag.querySelector('[data-decoration-island]')!.getAttribute('data-source-end')).toBe(
+			'11'
+		);
+		expect(walkRawText(frag, raw)).toBe(raw);
 	});
 });
 
@@ -149,16 +177,6 @@ function buildWithAtomicWidget(
 // one snaps outward. Sole guard for that branch — the island property's corpus emits
 // no widgets, so its descending pass never reaches it.
 describe('replace boundary inside an atomic widget snaps outward', () => {
-	let warnSpy: ReturnType<typeof vi.spyOn>;
-	beforeEach(() => {
-		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false }); // let devWarn reach console
-	});
-	afterEach(() => {
-		warnSpy.mockRestore();
-		resetEditorEnv();
-	});
-
 	const raw = 'abIMAGEcd'; // 'ab' + widget over raw[2,7)='IMAGE' + 'cd'
 	const cases = [
 		{ name: 'start boundary snaps to the widget start', span: [4, 9], snapped: [2, 9] },
@@ -168,15 +186,15 @@ describe('replace boundary inside an atomic widget snaps outward', () => {
 	for (const { name, span, snapped } of cases) {
 		it(name, () => {
 			const frag = buildWithAtomicWidget(raw, 2, 7);
-			applyIslandDecorations(frag, raw, [idx(replaceRange(span[0], span[1]))], opts);
+			applyIslandDecorations(frag, raw, [idx(replaceRange(span[0], span[1]))], optsFor(raw));
 			const island = frag.querySelector('[data-decoration-island]')!;
 			expect(island.getAttribute('data-source-start')).toBe(String(snapped[0]));
 			expect(island.getAttribute('data-source-end')).toBe(String(snapped[1]));
 			expect(walkRawText(frag, raw)).toBe(raw);
-			expect(warnSpy).toHaveBeenCalledWith(
-				expect.stringContaining(
-					`snapped ${span[0]}..${span[1]} outward to ${snapped[0]}..${snapped[1]}`
-				)
+			const fires = takeDevWarns();
+			expect(fires).toHaveLength(1);
+			expect(fires[0].message).toContain(
+				`snapped ${span[0]}..${span[1]} outward to ${snapped[0]}..${snapped[1]}`
 			);
 		});
 	}

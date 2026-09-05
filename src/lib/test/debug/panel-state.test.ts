@@ -7,7 +7,7 @@ import {
 	writePanelState,
 	defaultPanelState,
 	type PanelStateShape
-} from '../../../routes/test/editor/debug-panel/panel-state.svelte';
+} from '../../../routes/debug-panel/panel-state.svelte';
 
 describe('panel-state persistence', () => {
 	beforeEach(() => {

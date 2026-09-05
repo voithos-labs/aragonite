@@ -2,6 +2,8 @@
 
 import {
 	CURSOR_END,
+	CURSOR_EXACT_START,
+	CURSOR_START,
 	FOCUS_LAST_START,
 	type BlockComponent,
 	type ContainerBlockComponent,
@@ -12,71 +14,81 @@ import {
 	dispatchFocusAtColumn,
 	dispatchGetBlockComponentByPath
 } from './focus/focus-dispatch';
-import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
+import { revealChildOrWait, type RefSlots } from '../reactivity/publish-ref.svelte';
+import type { AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { BlockEditActions, FocusActions } from '../action-contracts';
+import { runGlobalChordOnKind, type GlobalCommandContext } from '../schema/commands';
+import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
+import type { PluginActivation } from '../schema/plugin-activation';
+import { isCharacterKey } from '../schema/keybindings';
 import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { StickyColumnState } from '../cursor/sticky-column';
+import type { EdgeAffinityState } from '../cursor/edge-affinity';
 import type { SelectionState } from '../selection/selection-state.svelte';
 import { placeCaret } from '../selection/caret-doors';
+import {
+	focusWholeBlockEl,
+	holdsWholeBlockFocus,
+	type WholeBlockInputProxy
+} from './whole-block-focus-surface';
 import { devWarn } from '../dev-warn';
 
-// ── Whole-block focus surface ───────────────────────────────────────────────
-
-/**
- * A key originating in a plugin's own text-editing surface belongs to that surface,
- * never the whole-block affordances: Backspace inside an edit textarea edits text.
- */
-export function isEditableEventTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) return false;
-	const tag = target.tagName;
-	return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
+export interface EditorGlobalChordDeps extends Pick<
+	GlobalCommandContext,
+	'history' | 'pluginEditor' | 'onCommandError'
+> {
+	getKind: () => AnyBlockKind;
+	getKeybindingOverrides: () => KeybindingOverrideMap | undefined;
+	isReading: () => boolean;
+	/** Required here though optional on the context: a whole-block surface that skipped it
+	 *  would consume an unlisted plugin's chord. `undefined` = every installed plugin. */
+	activation: PluginActivation | undefined;
 }
 
 /**
- * The class guard behind `getFocusEl`: an absent declared element degrades to the
- * focusable box, never a silent no-op that strands the caret. The one legitimate null
- * survives — a plugin-owned editable inside the box holding focus.
+ * Undo/redo for a block that IS its own focus target: no inner leaf carries the global tier for
+ * it, and the editor root declines while focus sits on the block. `true` means consumed —
+ * including in reading mode, since bypassing `dispatchKeyCommand` would otherwise hand a read-only
+ * document the browser's native undo.
  */
-export function composeWholeBlockFocusSurface(
-	getFocusEl: () => HTMLElement | null | undefined,
-	getBoxEl: () => HTMLElement | null | undefined,
-	getKind: () => string
-): () => HTMLElement | null {
-	let warned = false;
-	return () => {
-		const declared = getFocusEl();
-		if (declared) return declared;
-		const box = getBoxEl();
-		if (!box) return null;
-		const active = document.activeElement;
-		if (isEditableEventTarget(active) && box.contains(active)) return null;
-		if (!warned) {
-			warned = true;
-			devWarn(
-				'container-block',
-				`whole-block kind "${getKind()}" supplied no focus element for this state; falling back to the box`
-			);
-		}
-		return box;
-	};
+export function handleEditorGlobalChord(chord: string, deps: EditorGlobalChordDeps): boolean {
+	return runGlobalChordOnKind(chord, deps.getKind(), deps.getKeybindingOverrides(), {
+		isReading: deps.isReading(),
+		history: deps.history,
+		pluginEditor: deps.pluginEditor,
+		onCommandError: deps.onCommandError,
+		activation: deps.activation
+	});
 }
 
-// The fallback box is a plain div, focusable only once a tabindex is minted. Never
-// overwrite an explicit one — that could remove tab-reachability.
-function focusWholeBlockEl(el: HTMLElement): void {
-	if (!el.hasAttribute('tabindex')) el.tabIndex = -1;
-	el.focus();
-}
-
-export interface WholeBlockKeyDeps {
+export interface BlockEdgeExitDeps {
 	getIndex: () => number;
-	getRaw: () => string;
-	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock'>;
 	focus: Pick<FocusActions, 'moveFocus'>;
+}
+
+/**
+ * The four plain-arrow exits out of a block, in the direction the key points. Shared by
+ * whole-block focus and the plugin container's `moveFocusOut`, so a surface that reaches its
+ * own edge lands the same way the built-ins do. False for any other key.
+ */
+export function focusAcrossBlockEdge(key: string, deps: BlockEdgeExitDeps): boolean {
+	const index = deps.getIndex();
+	if (key === 'ArrowUp') void deps.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
+	else if (key === 'ArrowLeft') void deps.focus.moveFocus(index - 1, 'end');
+	else if (key === 'ArrowDown') void deps.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
+	else if (key === 'ArrowRight') void deps.focus.moveFocus(index + 1, 'start');
+	else return false;
+	return true;
+}
+
+export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
+	getRaw: () => string;
+	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock' | 'insertParagraph'>;
 	isReading: () => boolean;
 	stickyColumn: Pick<StickyColumnState, 'noteKey'>;
+	edgeAffinity: Pick<EdgeAffinityState, 'note'>;
 }
 
 /**
@@ -84,9 +96,11 @@ export interface WholeBlockKeyDeps {
  * factory, so a new gate lands once instead of at both. Navigation never gates.
  */
 export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps): void {
-	// The classification door, before any branch: skipping it let a column captured
-	// outside survive a horizontal traversal through. No `measureX` — no caret here.
+	// The classification doors, before any branch: skipping them let a column captured
+	// outside survive a horizontal traversal through, and the arrival side the exit lands
+	// with is the same one an arrow means anywhere. No `measureX` — no caret here.
 	deps.stickyColumn.noteKey(e);
+	deps.edgeAffinity.note(e);
 
 	if (e.key === 'Enter') {
 		e.preventDefault();
@@ -108,22 +122,16 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 		return;
 	}
 
-	const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
-	if (!plainArrow) return;
-	const index = deps.getIndex();
-	if (e.key === 'ArrowUp') {
+	// A typed character has nowhere to land on a block that IS its own focus target, so it mints
+	// the paragraph below carrying it (`editor-actions/block-edit-core.ts :: insertParagraph`).
+	if (isCharacterKey(e.key) && !e.isComposing && !e.ctrlKey && !e.metaKey && !e.altKey) {
 		e.preventDefault();
-		void deps.focus.moveFocus(index - 1, { stickyColumnFrom: 'below' });
-	} else if (e.key === 'ArrowLeft') {
-		e.preventDefault();
-		void deps.focus.moveFocus(index - 1, 'end');
-	} else if (e.key === 'ArrowDown') {
-		e.preventDefault();
-		void deps.focus.moveFocus(index + 1, { stickyColumnFrom: 'above' });
-	} else if (e.key === 'ArrowRight') {
-		e.preventDefault();
-		void deps.focus.moveFocus(index + 1, 'start');
+		if (!deps.isReading()) void deps.blockEdit.insertParagraph(deps.getIndex() + 1, e.key);
+		return;
 	}
+
+	const plainArrow = !e.altKey && !e.ctrlKey && !e.metaKey;
+	if (plainArrow && focusAcrossBlockEdge(e.key, deps)) e.preventDefault();
 }
 
 // Copy is a read, so it never gates; cut's delete gates on reading mode and only runs
@@ -139,10 +147,16 @@ async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Pro
 }
 
 export interface ContainerBlockComponentDeps {
+	/** What the mounted surface reports as `editable`, mirroring the kind's descriptor flag;
+	 *  omitted stays `true`, the built-in containers' answer. A getter, never a snapshot. */
+	readonly editable?: boolean;
 	/** Ends a live cross-block range when `focus` lands a caret — a whole-block landing
 	 *  reaches no child to borrow it from. */
 	readonly selection: SelectionState;
 	readonly innerBlockRefs: (BlockComponent | undefined)[];
+	/** The same scope's slots — the array for the dispatch walks, this for the reveal's
+	 *  mount-wait, which needs an identity the array's replacement can't invalidate. */
+	readonly refSlots: RefSlots<BlockComponent>;
 	readonly nodeChildrenLength: number;
 	/** For the pure-data transparency test, which must work off-window where
 	 *  `innerBlockRefs` is sparse (VR-6). */
@@ -163,11 +177,16 @@ export interface ContainerBlockComponentDeps {
 	/** A childless opaque container has no child hosts to paint search/decoration
 	 *  rects, so `measurePartialRects` measures the block itself off this element. */
 	readonly getBoxEl?: () => HTMLElement | null | undefined;
+	/** The hidden editing host beside the declared surface, where whole-block focus lands. */
+	readonly inputProxy?: WholeBlockInputProxy;
 }
 
 export function createContainerBlockComponent(
 	deps: ContainerBlockComponentDeps
 ): ContainerBlockComponent {
+	const landFocus = (declared: HTMLElement) =>
+		deps.inputProxy ? deps.inputProxy.focus(declared) : focusWholeBlockEl(declared);
+
 	/**
 	 * `focus` lands in a child that never forwarded the park door; `parkCaret` skips it,
 	 * because for an extend a missed park costs a caret and `focus` costs the range.
@@ -177,17 +196,18 @@ export function createContainerBlockComponent(
 		// offset carries no meaning.
 		const focusEl = deps.getFocusEl?.();
 		if (focusEl) {
-			focusWholeBlockEl(focusEl);
+			landFocus(focusEl);
 			return;
 		}
 		if (deps.nodeChildrenLength === 0) return;
 		// Collapsed: only the chrome row is mounted, so a walk-in from below clamps to
 		// it rather than no-oping on the unmounted last child.
 		const last = deps.isCollapsed?.() ? 0 : deps.nodeChildrenLength - 1;
-		const child = offset === 0 ? deps.innerBlockRefs[0] : deps.innerBlockRefs[last];
+		const entersFirst = offset === 0 || offset === CURSOR_START || offset === CURSOR_EXACT_START;
+		const child = entersFirst ? deps.innerBlockRefs[0] : deps.innerBlockRefs[last];
 		if (!child) return;
 		if (offset === FOCUS_LAST_START) land(child, FOCUS_LAST_START);
-		else if (offset === 0) land(child, 0);
+		else if (entersFirst) land(child, offset);
 		else land(child, CURSOR_END);
 	}
 
@@ -196,13 +216,15 @@ export function createContainerBlockComponent(
 	}
 
 	return {
-		editable: true,
+		get editable() {
+			return deps.editable ?? true;
+		},
 		focusable: true,
 		focus: placeCaret(deps.selection, (offset) => walkInto(offset, (child, at) => child.focus(at))),
 		parkCaret,
 		getCursorOffset() {
 			const focusEl = deps.getFocusEl?.();
-			if (focusEl) return focusEl.contains(document.activeElement) ? 0 : null;
+			if (focusEl) return holdsWholeBlockFocus(focusEl, deps.inputProxy?.el()) ? 0 : null;
 			for (const ref of deps.innerBlockRefs) {
 				const offset = ref?.getCursorOffset();
 				if (offset !== null && offset !== undefined) return offset;
@@ -232,17 +254,12 @@ export function createContainerBlockComponent(
 			// Only a body target needs the door opened; the chrome row stays mounted.
 			// Awaited because everything below must run against the post-commit window.
 			if (head >= 1 && deps.isCollapsed?.()) await deps.expandCollapsed?.();
-			// publishRefSlot's cleanup is conditional, so a filled slot is a cache, not a
-			// mount oracle: without the window gate the mount-wait hangs on a stale child.
-			const isInWindow = deps.isInWindow;
 			if (deps.revealChild) {
 				await revealChildOrWait(head, {
+					slots: deps.refSlots,
 					childCount: deps.nodeChildrenLength,
-					getRef: (i) => deps.innerBlockRefs[i],
-					dropRef: (i) => (deps.innerBlockRefs[i] = undefined),
 					revealChild: deps.revealChild,
-					isStale: isInWindow ? (i) => !isInWindow(i) : undefined,
-					isInWindow
+					isInWindow: deps.isInWindow
 				});
 			}
 			const ref = deps.innerBlockRefs[head];
@@ -257,7 +274,7 @@ export function createContainerBlockComponent(
 			// block itself, mirroring the plain-arrow path.
 			const focusEl = deps.getFocusEl?.();
 			if (focusEl) {
-				focusWholeBlockEl(focusEl);
+				landFocus(focusEl);
 				return;
 			}
 			if (deps.nodeChildrenLength === 0) return;

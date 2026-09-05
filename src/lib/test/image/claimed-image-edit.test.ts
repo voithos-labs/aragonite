@@ -6,17 +6,15 @@
  */
 
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageWidgetOnSelectedKey } from '../../components/image/image-widget-editing';
 import { parse } from '../../core/parser';
 import { getInlineContent } from '../../core/inline/inline-cache';
 import { __resetInlineSyntaxForTests } from '../../core/inline/scan/plugin-syntax';
 import type { InlineWidgetEditingContext } from '../../core/inline/inline-widgets';
 import type { CstNode, InlineNode } from '../../core/nodes';
-import type { UndoController } from '../../editor-actions/deps';
-import type { EditorEvents } from '../../editor-events';
-import type { WidgetSelectionState } from '../../components/image/widget-selection-state.svelte';
+import { committerFor } from './committer-harness';
 import { registerWikiRung, rewriteWikiImage } from './wiki-image-rung';
+import { takeDevWarns } from '../support/warn-gate';
 
 afterEach(() => __resetInlineSyntaxForTests());
 
@@ -57,8 +55,8 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		expect(commit).toHaveBeenCalledWith('![[cat.png|320]]\n', 0, 16);
 	});
 
-	// The defect this suite exists for: the bytes used to come back
-	// `![cat.png|320](cat.png)`, silently replacing the consumer's grammar.
+	// A GFM fallback here would come back `![cat.png|320](cat.png)`, silently
+	// replacing the consumer's grammar.
 	it('commits nothing when the rung registered no hook', () => {
 		registerWikiRung();
 		const { consumed, commit } = keyboardResize('![[cat.png|300]]\n');
@@ -66,12 +64,14 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 		// The gesture was the widget's; handing the arrow on would move the caret
 		// out of a widget the user is still resizing.
 		expect(consumed).toBe(true);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit']);
 	});
 
 	it('commits nothing when the hook declines the edit', () => {
 		registerWikiRung(() => null);
 		const { commit } = keyboardResize('![[cat.png|300]]\n');
 		expect(commit).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit']);
 	});
 
 	it('leaves a GFM image resizing as GFM while the rung is registered', () => {
@@ -93,32 +93,6 @@ describe('Shift+Arrow resize of an image a rung claimed', () => {
 
 // ── The drag-resize / properties-popover commit path ─────────────────────────
 
-function committerFor(raw: string) {
-	const doc = parse(raw);
-	const controller = {
-		commitStructural: vi.fn(),
-		commitContainerStructural: vi.fn(),
-		commitMultiScope: vi.fn(),
-		pushUndoSnapshot: vi.fn(),
-		pushUndoSnapshotDebounced: vi.fn(),
-		getDocScope: vi.fn(),
-		captureCurrentState: vi.fn(),
-		collapsedSelectionAt: vi.fn()
-	} as unknown as UndoController;
-	const committer = createImageEditCommitter({
-		getDoc: () => doc,
-		getEditorEl: () => null,
-		widgetSelection: { getSelected: () => null } as unknown as WidgetSelectionState,
-		controller,
-		events: { emit: vi.fn(), on: vi.fn() } as unknown as EditorEvents
-	});
-	return {
-		committer,
-		controller,
-		target: { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 }
-	};
-}
-
 describe('a popover or drag commit on an image a rung claimed', () => {
 	it('builds the rung’s bytes and commits them', async () => {
 		registerWikiRung(rewriteWikiImage);
@@ -138,6 +112,7 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		committer.commitImageEdit(target, resized);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 
 	// The decline a consumer meets first: an embed names one file, so the popover's Alt row edits a
@@ -150,6 +125,7 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		committer.commitImageEdit(target, renamed);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 
 	// A hook may model only part of its own grammar's edits — the embed syntax has
@@ -162,5 +138,6 @@ describe('a popover or drag commit on an image a rung claimed', () => {
 		committer.commitImageEdit(target, titled);
 		await Promise.resolve();
 		expect(controller.commitStructural).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['image-edit', 'image-edit']);
 	});
 });

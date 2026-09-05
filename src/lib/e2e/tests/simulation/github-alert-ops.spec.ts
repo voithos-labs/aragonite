@@ -1,14 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertCoreOracles,
-	assertParseConvergence
-} from '../../simulation/invariants';
+import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated github-alert-ops oracle. A `> [!TYPE]` blockquote is its own `githubAlert` strip
 // container — bytes untouched, marker in the container raw only — so its formation,
@@ -40,8 +36,7 @@ test.describe('github-alert-ops simulation', () => {
 		await editor.loadContent(ALERT_DOC);
 		await editor.waitForRenderFlush();
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'github-alert-ops' };
+		const ctx = await makeSimContext(page, editor, 'github-alert-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = async (label: string): Promise<void> => {

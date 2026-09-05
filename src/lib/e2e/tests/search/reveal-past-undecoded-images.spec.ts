@@ -1,10 +1,9 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import { capturePageErrors } from '../../page-probes';
+import { count, openFind, typeQuery } from './helpers';
 
-const findInput = (page: Page) => page.getByRole('textbox', { name: 'Find' });
 const prevButton = (page: Page) => page.getByRole('button', { name: 'Previous match' });
 
 // Revealing a far match past undecoded images strands the viewport: the images measure ~0,
@@ -36,19 +35,17 @@ test('search Previous to a far match past undecoded images keeps the active high
 	await page.route('https://picsum.photos/**', () => {});
 
 	const editor = new EditorPage(page);
-	await editor.goto(); // default SHOWCASE_CONTENT
+	await editor.goto(); // default HARNESS_SHOWCASE_CONTENT
 
-	await editor.clickBlock(0);
-	await page.keyboard.press(`${primaryModifier}+f`);
-	await findInput(page).waitFor({ state: 'visible' });
-	await page.keyboard.type('list');
-	await expect(page.locator('.search-count')).toHaveText(/1\s*\/\s*11/);
+	await openFind(editor);
+	await typeQuery(editor, 'list');
+	await expect(count(page)).toHaveText(/1\s*\/\s*11/);
 	await editor.waitForRenderFlush();
 
 	// "Previous" wraps to the last match — the deep allowlist paragraph, far below the
 	// tables and undecoded images.
 	await prevButton(page).click();
-	await expect(page.locator('.search-count')).toHaveText(/11\s*\/\s*11/);
+	await expect(count(page)).toHaveText(/11\s*\/\s*11/);
 	await editor.waitForRenderFlush();
 
 	// Poll the reveal's paint+scroll outcome directly: the active match's block

@@ -52,7 +52,8 @@ describe('nodeAt — an out-of-range index resolves to nothing, either side', ()
 });
 
 describe('ensureEditableContainers', () => {
-	it('backfills an empty container with a paragraph child', () => {
+	// The backfilled paragraph subsumes the trailing-newline role, so innerPrefix clears with it.
+	it('backfills an empty item: paragraph child minted, innerPrefix cleared', () => {
 		const item: CstNode = {
 			kind: 'listItem',
 			leadingTrivia: '',
@@ -66,19 +67,6 @@ describe('ensureEditableContainers', () => {
 		expect(item.children).toHaveLength(1);
 		expect(item.children![0].kind).toBe('paragraph');
 		expect(item.children![0].raw).toBe('\n');
-	});
-
-	it('clears innerPrefix when backfilling — backfilled paragraph subsumes the trailing-newline role', () => {
-		const item: CstNode = {
-			kind: 'listItem',
-			leadingTrivia: '',
-			raw: '- \n',
-			metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null },
-			innerPrefix: '\n',
-			children: [],
-			innerSuffix: ''
-		};
-		ensureEditableContainers(item);
 		expect(item.innerPrefix).toBe('');
 	});
 
@@ -122,6 +110,7 @@ describe('ensureEditableContainers — whole-block-focus kinds stay childless', 
 	function wholeBlockNode(): CstNode {
 		const kind = declarePluginKind('node-ops-whole-block');
 		registerBlockKind(kind, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,

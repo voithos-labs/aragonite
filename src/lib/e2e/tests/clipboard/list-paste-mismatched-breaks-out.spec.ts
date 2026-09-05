@@ -14,12 +14,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('ordered list pasted into the middle of an unordered item splits the list', async () => {
 		await editor.loadContent('- Unordered three\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('1. Ordered first\n2. Ordered second\n3. Ordered third\n')
-		);
+		await editor.seedClipboard('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 9);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- three$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -36,10 +34,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('ordered list pasted at the end of an unordered item places paste after it', async () => {
 		await editor.loadContent('- Unordered\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('1. a\n2. b\n'));
+		await editor.seedClipboard('1. a\n2. b\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 'Unordered'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^2\. b$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -52,10 +50,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('ordered list pasted at the start of an unordered item places paste before it', async () => {
 		await editor.loadContent('- Unordered\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('1. a\n2. b\n'));
+		await editor.seedClipboard('1. a\n2. b\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 0);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^2\. b$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -71,12 +69,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 	// serialization ("3. Ordered" + "- third" → "3. Ordered- third").
 	test('ordered list without trailing newline pastes cleanly into unordered item', async () => {
 		await editor.loadContent('- Unordered first\n- Unordered second\n- Unordered third\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('1. first\n2. Ordered second\n3. Ordered')
-		);
+		await editor.seedClipboard('1. first\n2. Ordered second\n3. Ordered');
 
 		await editor.focusBlockAtPath([0, 2, 0], 'Unordered'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- third$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
@@ -87,15 +83,13 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('caret lands at the end of the pasted content, not the trailing residue', async () => {
 		await editor.loadContent('- Unordered three\n');
-		await editor.page.evaluate(() =>
-			navigator.clipboard.writeText('1. Ordered first\n2. Ordered second\n3. Ordered third\n')
-		);
+		await editor.seedClipboard('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 
 		// Break out in the MIDDLE of the item, so the residue "three" becomes the
 		// trailing second-half list. The caret must land at the end of the last
 		// PASTED item, never on the residue.
 		await editor.focusBlockAtPath([0, 0, 0], 9);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- three$/m);
 
 		await editor.page.keyboard.type('X');
@@ -110,10 +104,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 	test('unordered list pasted into ordered list item also breaks out (symmetry)', async () => {
 		await editor.loadContent('1. First target\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('- paste one\n- paste two\n'));
+		await editor.seedClipboard('- paste one\n- paste two\n');
 
 		await editor.focusBlockAtPath([0, 0, 0], 'First'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^2\. target$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');

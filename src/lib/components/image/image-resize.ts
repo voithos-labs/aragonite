@@ -29,13 +29,16 @@ export function snapWidth(width: number, maxWidth: number, snapThresholdPx: numb
 	return rounded;
 }
 
-export function resolveAspectLockedHeight(
-	newWidth: number,
-	naturalWidth: number,
-	naturalHeight: number
+/**
+ * The height a release persists — the one the drag showed. An aspect-locked drag lets the height
+ * follow the width, so it persists `|N` and leaves the derivation to the renderer; an unlocked
+ * drag holds the height the image already had, which only the explicit `|NxM` form can carry.
+ */
+export function resolveDraggedHeight(
+	aspectLocked: boolean,
+	previewHeight: number
 ): number | undefined {
-	// A not-yet-loaded image reports naturalWidth 0, so leave the height unset (the
-	// `|N` form) rather than committing `|Nx0`.
-	if (naturalWidth === 0) return undefined;
-	return Math.round((newWidth / naturalWidth) * naturalHeight);
+	// A widget that never laid out reports 0; `|Nx0` is worse than no hint at all.
+	if (aspectLocked || previewHeight < 1) return undefined;
+	return Math.round(previewHeight);
 }

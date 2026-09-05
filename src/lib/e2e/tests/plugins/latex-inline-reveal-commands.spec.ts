@@ -18,7 +18,6 @@ test.describe('block commands against a revealed inline source', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new MathRevealPage(page);
 		await editor.gotoPlugins('math');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('backspace-merging an emptied reveal does not resurrect the deleted math', async ({
@@ -103,7 +102,7 @@ test.describe('block commands against a revealed inline source', () => {
 		// collapse the range out from under the toggle.
 		await page.keyboard.press('Shift+ArrowLeft');
 		await page.keyboard.press('Shift+ArrowLeft');
-		await page.keyboard.press('Control+b');
+		await page.keyboard.press('ControlOrMeta+b');
 
 		await editor.bridge.waitForSourceContains('**');
 		expect(await editor.bridge.getSource()).toBe('$x**^q**2$ tail\n');
@@ -119,7 +118,7 @@ test.describe('block commands against a revealed inline source', () => {
 
 		// The always-applicable arms must see the edit too: a heading prefix written
 		// onto node.raw would drop the `q` the CST has not been told about.
-		await page.keyboard.press('Control+1');
+		await page.keyboard.press('ControlOrMeta+1');
 		await editor.bridge.waitForSourceContains('# ');
 		expect(await editor.bridge.getSource()).toBe('# $x^q2$ tail\n');
 		expect(await capturedErrors(page)).toEqual([]);
@@ -163,18 +162,23 @@ test.describe('the fold seam is core, not latex-local', () => {
 	}) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('footnotes-ref');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 		await editor.loadContent('above\n\n[^a]\n\n[^a]: note\n');
 		const ref = page.locator('.footnote-ref');
 		await expect(ref).toHaveCount(1);
 
 		await emptyThenMerge(editor, ref, ['[^a', '[^', '[', '']);
 		await editor.bridge.waitForBlockCount(2);
-		// The extra blank line is the editor's plain merge-an-emptied-middle-block shape
-		// (reproducible with no widget in the document); what this pins is that `[^a]` is gone from
-		// the merged bytes rather than resurrected.
-		expect(await editor.bridge.getSource()).toBe('above\n\n\n[^a]: note\n');
+		// The emptied block takes its own blank line with it — the plain
+		// merge-an-emptied-middle-block shape, reproducible with no widget in the document. What
+		// this pins is that `[^a]` is gone from the merged bytes rather than resurrected.
+		const merged = await editor.bridge.getSource();
+		expect(merged).toBe('above\n\n[^a]: note\n');
 		expect(await capturedErrors(page)).toEqual([]);
+
+		// A leftover blank line would reload as a block the live tree does not have, which is how
+		// the pre-materialization shape this once pinned went unnoticed.
+		await editor.loadContent(merged);
+		expect(await editor.bridge.getBlockCount()).toBe(2);
 	});
 
 	test('backspace-merging an emptied directive-text reveal does not resurrect it', async ({
@@ -182,7 +186,6 @@ test.describe('the fold seam is core, not latex-local', () => {
 	}) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 		await editor.loadContent('above\n\n:abbr[HTML]\n');
 		const widget = page.locator('.directive-text-widget');
 		await expect(widget).toHaveCount(1);

@@ -6,6 +6,7 @@
 import type { FocusActions, MoveFocusOptions } from '../../action-contracts';
 import {
 	CURSOR_END,
+	CURSOR_START,
 	type BlockComponent,
 	type FocusPosition,
 	type StickyColumnDirection
@@ -13,25 +14,39 @@ import {
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import { consumeStickyLanding } from './focus-landing';
 
-/**
- * Move focus within a container, or delegate upward when out of range. `childCount`
- * overrides `refs.length` for the upper bound: the two diverge for one render cycle
- * after a structural op, and without it the cursor escapes the container.
- */
+/** What the calling scope contributes to a move beyond the target itself. */
+export interface MoveFocusScope {
+	/** Overrides `refs.length` for the upper bound: the two diverge for one render cycle
+	 *  after a structural op, and without it the cursor escapes the container. */
+	childCount?: number;
+	/** The caller's own options, forwarded verbatim on upward delegation. */
+	options?: MoveFocusOptions;
+	/** Pre-bound to this scope's own boundaries (`selection/gap-caret.ts`). */
+	gapStop?: (boundaryIndex: number) => boolean;
+}
+
+/** Move focus within a container, or delegate upward when out of range. */
 export async function dispatchMoveFocus(
 	refs: (BlockComponent | undefined)[],
 	innerIndex: number,
 	position: FocusPosition,
 	stickyColumn: StickyColumnState,
 	parent: { focus: FocusActions; index: number },
-	childCount?: number,
-	options?: MoveFocusOptions
+	scope: MoveFocusScope = {}
 ): Promise<void> {
+	const { childCount, options, gapStop } = scope;
 	// Omit the options arg when unset so the common path stays a two-arg call.
 	const delegate = (targetIndex: number) =>
 		options
 			? parent.focus.moveFocus(targetIndex, position, options)
 			: parent.focus.moveFocus(targetIndex, position);
+	const step = traversalStep(position);
+	// Ahead of every ref read, so the CST alone decides the boundary and a windowed-out
+	// child cannot change the answer. The two scope edges are boundaries like any other:
+	// this is also what stops the delegate arms from leaving the container.
+	if (gapStop && step !== 0 && !options?.skipGapStop) {
+		if (gapStop(step > 0 ? innerIndex : innerIndex + 1)) return;
+	}
 	if (innerIndex < 0) {
 		await delegate(parent.index - 1);
 		return;
@@ -45,24 +60,15 @@ export async function dispatchMoveFocus(
 	const block = refs[innerIndex];
 	if (!block?.focusable) {
 		// A refless or non-focusable child must not dead-end the move — continue in
-		// its direction (editor.md § Focus Traversal).
-		const step = traversalStep(position);
+		// its direction (editor.md § Focus traversal).
 		if (step !== 0) {
-			await dispatchMoveFocus(
-				refs,
-				innerIndex + step,
-				position,
-				stickyColumn,
-				parent,
-				childCount,
-				options
-			);
+			await dispatchMoveFocus(refs, innerIndex + step, position, stickyColumn, parent, scope);
 		}
 		return;
 	}
 
 	await consumeStickyLanding(block, innerIndex, position, stickyColumn, (i) =>
-		dispatchMoveFocus(refs, i, position, stickyColumn, parent, childCount, options)
+		dispatchMoveFocus(refs, i, position, stickyColumn, parent, scope)
 	);
 }
 
@@ -129,7 +135,7 @@ export function dispatchFocusAtColumn(
 		if (!ref?.focusable) continue;
 		if (ref.isVerticallyTransparent?.()) continue;
 		if (ref.focusAtColumn) ref.focusAtColumn(x, from);
-		else ref.focus(from === 'above' ? 0 : CURSOR_END);
+		else ref.focus(from === 'above' ? CURSOR_START : CURSOR_END);
 		return;
 	}
 }

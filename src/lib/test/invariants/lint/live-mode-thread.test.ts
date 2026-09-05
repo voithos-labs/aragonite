@@ -1,0 +1,141 @@
+/**
+ * Sibling-path parity for the byte-moving seams' presentation mode, the twin of the two grammar
+ * threads: split rebalancing and join-seam cleanup run in live mode alone, so a caller that
+ * answers `undefined` silently ships byte-literal edits with delimiters on screen. Every
+ * crossing is required-nullable, so the type already stops an omission; what it cannot stop is
+ * a caller answering `undefined` because threading was inconvenient. Exempt: the published
+ * container-conformance kit, which is headless and has no mode to source.
+ */
+
+import { describe, it, expect } from 'vitest';
+import {
+	callArguments,
+	callsAnywhere,
+	callsTo,
+	collectEditorSources,
+	stripComments
+} from './scan-source';
+
+const CONFORMANCE_KIT = 'src/lib/testing/container-conformance.ts';
+
+/** Byte-moving sinks whose trailing argument is the mode, by the names their callers import
+ *  them under. `mergeIntoPrevDeepLeaf` and `rangeDelete` carry it last too. */
+const MODE_TRAILING_CALLS = [
+	'splitNode',
+	'performSplit',
+	'mergeWithNext',
+	'performMergeNext',
+	'mergeIntoPrevDeepLeaf',
+	'rangeDelete'
+] as const;
+
+/** Bundle factories whose deps object carries the mode and the resolver down to those sinks. */
+const MODE_BEARING_FACTORIES = ['createStandardNestedActions', 'createListContext'] as const;
+
+/** Both axes ride the same crossings: a rewrite told the mode but not the resolver parses a
+ *  reference form as brackets and declines, which is a marker leak wearing a decline's clothes. */
+const THREADED_AXES = ['getPresentationMode', 'linkRef'] as const;
+
+interface ModelessCall {
+	relPath: string;
+	call: string;
+}
+
+/** The mode rides SECOND to last, the resolver last: a sink is told both or neither, and only the
+ *  mode's `undefined` is a skipped thread — a harness with no definitions has no resolver to give. */
+function modeArgument(call: string): string {
+	const parts = callArguments(call);
+	return parts[parts.length - 2] ?? '';
+}
+
+/** Seam calls whose trailing mode argument is the literal `undefined`. Pass comment-stripped code. */
+function findModelessSeams(relPath: string, code: string): ModelessCall[] {
+	return MODE_TRAILING_CALLS.flatMap((sink) =>
+		callsTo(code, sink)
+			.filter((call) => modeArgument(call) === 'undefined')
+			.map((call) => ({ relPath, call }))
+	);
+}
+
+/** Factory calls that omit `getPresentationMode` or answer it with the literal `undefined`. */
+function findModelessBundles(relPath: string, code: string): ModelessCall[] {
+	return MODE_BEARING_FACTORIES.flatMap((factory) =>
+		callsTo(code, factory).flatMap((call) =>
+			THREADED_AXES.filter(
+				(axis) =>
+					!new RegExp(`\\b${axis}\\s*[,:}]`).test(call) ||
+					new RegExp(`\\b${axis}\\s*:\\s*undefined\\b`).test(call)
+			).map(() => ({ relPath, call }))
+		)
+	);
+}
+
+describe('live-mode thread source-scan', () => {
+	const sources = collectEditorSources().filter((f) => f.relPath !== CONFORMANCE_KIT);
+
+	it('found the seam sinks and the bundle factories to validate', () => {
+		const seamSites = sources.filter((f) =>
+			MODE_TRAILING_CALLS.some((sink) => callsAnywhere(f.code, sink))
+		);
+		const bundleSites = sources.filter((f) =>
+			MODE_BEARING_FACTORIES.some((factory) => callsAnywhere(f.code, factory))
+		);
+		// The shared block-edit core, the list mid-item split, the cross-block delete, node-ops.
+		expect(seamSites.length).toBeGreaterThan(3);
+		// Four built-in containers, the plugin container factory, the list context, declarations.
+		expect(bundleSites.length).toBeGreaterThan(5);
+	});
+
+	it('every seam sink is told which mode the bytes are being moved in', () => {
+		expect(sources.flatMap((f) => findModelessSeams(f.relPath, f.code))).toEqual([]);
+	});
+
+	it('every mode-bearing bundle threads a real getter on both axes', () => {
+		expect(sources.flatMap((f) => findModelessBundles(f.relPath, f.code))).toEqual([]);
+	});
+
+	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
+	// Through `stripComments` as the scan itself is, so a token in a comment is unreachable here
+	// for the same reason it is in production.
+
+	const seamsIn = (source: string) => findModelessSeams('synthetic.ts', stripComments(source));
+	const bundlesIn = (source: string) => findModelessBundles('synthetic.ts', stripComments(source));
+
+	it('matcher flags a split and a join whose MODE slot answers undefined', () => {
+		const bad =
+			'splitNode(parent, i, offset, undefined, linkRef);\nmergeWithNext(parent, i, undefined, ref);';
+		expect(seamsIn(bad)).toEqual([
+			{ relPath: 'synthetic.ts', call: 'parent, i, offset, undefined, linkRef' },
+			{ relPath: 'synthetic.ts', call: 'parent, i, undefined, ref' }
+		]);
+	});
+
+	it('matcher accepts a threaded mode, including a nested call expression', () => {
+		const good =
+			'splitNode(parent, i, offset, mode, undefined);\nperformSplit(p, i, o, deps.getPresentationMode?.());\n' +
+			'rangeDelete(doc, s, e, sharing, grammar, ctx.getPresentationMode?.(), undefined);';
+		expect(seamsIn(good)).toEqual([]);
+	});
+
+	it('matcher ignores the declaration and tokens in comments', () => {
+		const decl =
+			'export function splitNode(parent, blockIndex, offset, presentationMode, undefined) {}\n' +
+			'// performSplit(p, i, o, undefined, undefined) would be wrong';
+		expect(seamsIn(decl)).toEqual([]);
+	});
+
+	it('matcher flags a bundle that omits an axis and one that nulls it', () => {
+		const omitted = 'createStandardNestedActions(state, { scope, stickyColumn, parent });';
+		const nulled =
+			'createListContext({ scope, controller, getPresentationMode: undefined, linkRef });';
+		expect(bundlesIn(omitted)).toHaveLength(2);
+		expect(bundlesIn(nulled)).toHaveLength(1);
+	});
+
+	it('matcher accepts a bundle threading both axes by shorthand or by key', () => {
+		const good =
+			'createStandardNestedActions(state, { scope, getPresentationMode, linkRef, parent });\n' +
+			'createListContext({ scope, getPresentationMode: policies.presentationMode, linkRef });';
+		expect(bundlesIn(good)).toEqual([]);
+	});
+});

@@ -1,6 +1,10 @@
+<script lang="ts">
+	import { DRAG_HANDLE_TITLE } from '../a11y-strings';
+</script>
+
 <!-- aria-hidden + non-focusable: keyboard reorder (Alt+Arrow) is the operable,
 	screen-reader-visible path, so this mouse-only grip stays out of the tab/SR flow. -->
-<span class="block-drag-handle" aria-hidden="true" title="Drag to reorder — or Alt+↑ / Alt+↓">
+<span class="block-drag-handle" aria-hidden="true" title={DRAG_HANDLE_TITLE}>
 	<span class="grip"><span class="dots"></span></span>
 </span>
 
@@ -42,5 +46,21 @@
 		height: 0.85rem;
 		background-image: radial-gradient(currentColor 40%, transparent 45%);
 		background-size: 0.25rem 0.28rem;
+	}
+
+	/* Touch never fires the hover reveal, so the handle shows unasked. The pointer goes to the
+	   grip rather than the full-height strip, which would make the whole gutter unscrollable. */
+	@media (hover: none) {
+		.block-drag-handle {
+			opacity: 1;
+		}
+		.grip {
+			pointer-events: auto;
+			touch-action: none;
+			/* The whole gutter slot, not just the dots: 1rem of editor padding is all the width
+			   there is, and any more would reach over the line's first character. */
+			width: 100%;
+			justify-content: center;
+		}
 	}
 </style>

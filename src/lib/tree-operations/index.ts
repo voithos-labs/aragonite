@@ -1,7 +1,8 @@
-export type { NodeParent, MergeIntoPrevResult } from './node-ops';
+export type { NodeParent, MergeIntoPrevResult, MergeResult, SplitResult } from './node-ops';
 export {
 	splitNode,
-	mergeWithPrevious,
+	assertSplitLanding,
+	assertSingleNodeSink,
 	mergeWithNext,
 	mergeIntoPrevDeepLeaf,
 	deleteNode,
@@ -11,6 +12,9 @@ export {
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
 	emptyParagraph,
+	paragraphNode,
+	restoreSeparatorOnFill,
+	dropDoubledSeparator,
 	nodeAt
 } from './node-ops';
 
@@ -21,6 +25,7 @@ export { buildExitReplacement } from './list/exit-replacement';
 export { reconcileTaskMetadata } from './list/reconcile-task';
 
 export { unwrapFirstChildFromQuote } from './blockquote';
+export { liftFirstChildKeepingContainer } from './container-lift';
 
 export {
 	insertEmptyRow,
@@ -45,8 +50,6 @@ export {
 	rebuildUnsharedAncestry
 } from './unshare';
 
-export { buildPastedReplacement } from './paste-replacement';
+export { buildPastedReplacement } from './paste/paste-replacement';
 
 export { cloneDocument, cloneNode } from './clone';
-
-export { generateBlockId, assignIds } from '../block-id';

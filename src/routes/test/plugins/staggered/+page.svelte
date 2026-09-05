@@ -2,9 +2,8 @@
 	import { calloutPlugin } from '../callout/register';
 	import { detailsPlugin } from '$lib/plugins/details';
 
-	// Module scope so each factory runs once per process, not per (SSR) render: re-minting
-	// same-name plugin objects each render trips installPlugins' first-wins dev-warn.
-	// Editor 2 adds detailsPlugin — the staggered late-mount this harness exercises.
+	// Editor 2 adds detailsPlugin — the staggered late-mount this harness exercises. Its own
+	// units, not the shared demo set: a set every sibling route installs has no late rung left.
 	const callout = calloutPlugin();
 	const editorOnePlugins = [callout];
 	const editorTwoPlugins = [callout, detailsPlugin()];
@@ -12,7 +11,7 @@
 	// Editor 1 parses these bytes under callout only, so `<details>` falls to the built-in
 	// htmlBlock; editor 2 parses them after detailsPlugin registered, so it resolves.
 	const SEED = [
-		':::note Title',
+		':::callout Title',
 		'First',
 		':::',
 		'',

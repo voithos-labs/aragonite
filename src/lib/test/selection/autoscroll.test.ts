@@ -26,7 +26,7 @@ function makeTarget(rect: Partial<DOMRect>, scrolls: boolean): HTMLElement {
 
 const RECT = { left: 0, right: 100, top: 0, bottom: 100 } as Partial<DOMRect>;
 
-describe('createAutoScroll — rAF loop termination at scroll limits (E-F7)', () => {
+describe('createAutoScroll — rAF loop termination at scroll limits', () => {
 	let queue: FrameRequestCallback[];
 	let rafCalls: number;
 	let originalRaf: typeof requestAnimationFrame;

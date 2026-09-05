@@ -198,17 +198,20 @@ interface LeafBlockNodeBase extends BlockNodeBase {
 	innerPrefix?: undefined;
 	innerSuffix?: undefined;
 	childIds?: undefined;
+	childSpans?: undefined;
 }
 
 /**
  * G1.5 is one-directional (a container may be transiently childless mid-edit), so every
- * structural field stays optional. `childIds` mirrors `children` for keyed rendering.
+ * structural field stays optional. `childIds` mirrors `children` for keyed rendering;
+ * `childSpans` records where each child's bytes sit in `raw` (`schema/child-spans.ts`).
  */
 interface ContainerBlockNodeBase extends BlockNodeBase {
 	children?: CstNode[];
 	innerPrefix?: string;
 	innerSuffix?: string;
 	childIds?: string[];
+	childSpans?: Uint32Array;
 }
 
 export interface ParagraphNode extends LeafBlockNodeBase {
@@ -285,6 +288,7 @@ export interface PluginBlockNode extends BlockNodeBase {
 	innerPrefix?: string;
 	innerSuffix?: string;
 	childIds?: string[];
+	childSpans?: Uint32Array;
 }
 
 /** A genuine discriminated union: `switch (node.kind)` narrows `node.metadata` with no cast. */
@@ -348,6 +352,9 @@ export interface Document {
 	prefix: string;
 	children: CstNode[];
 	suffix: string;
+	/** The root's parallel id array while a caller keeps one here — the editor's own live ids
+	 *  are editor state, but the splice doors maintain whatever array the parent carries. */
+	childIds?: string[];
 }
 
 // ── Inline Node Types ──────────────────────────────────────────────────────

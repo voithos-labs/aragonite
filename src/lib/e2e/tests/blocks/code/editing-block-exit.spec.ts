@@ -68,11 +68,14 @@ test.describe('code block editing — edge cases', () => {
 	// Home in a fenced block lands the caret just after the opener's `\n`; native Backspace there
 	// deletes it, merging the body into the opener. Guard the boundary so the corruption is
 	// unreachable.
-	test('Backspace immediately after opener fence is a no-op', async () => {
+	test('Backspace immediately after opener fence edits nothing and parks at the document start', async () => {
 		await editor.loadContent('```\ncode\n```\n');
 		// Raw offset 4 — start of the body, just after the opener fence and its newline.
 		await editor.focusBlockAtPath([0], 4);
 		await editor.page.keyboard.press('Backspace');
+		// The fence leads the document, so the focus exit meets the start gap
+		// (requirements/selection/gap-caret-arrival.md) rather than dead-ending.
+		await editor.bridge.waitForGapCaret({ parentPath: [], index: 0 });
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
 	});

@@ -11,14 +11,14 @@ test.describe('table cell paste: caret at end of pasted content', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
 		await editor.goto();
-		await page.evaluate(() => navigator.clipboard.writeText(''));
+		await editor.seedClipboard('');
 	});
 
 	test('multi-block paste focuses the last pasted block, not the first', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.evaluate(() => navigator.clipboard.writeText('Para one.\n\n## Two\n'));
-		await page.keyboard.press('Control+v');
+		await editor.seedClipboard('Para one.\n\n## Two\n');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('## Two');
 
 		// Splits into [halfA, "Para one.", "## Two", halfB]. Typing must land at the

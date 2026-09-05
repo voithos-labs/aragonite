@@ -1,6 +1,6 @@
 import { test } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { expectBody, focusCodeBlockAtEnd } from './helpers';
+import { expectBody, focusCodeBlockAtEnd, focusCodeBody } from './helpers';
 
 test.describe('code block auto-close quotes', () => {
 	let editor: EditorPage;
@@ -12,9 +12,7 @@ test.describe('code block auto-close quotes', () => {
 
 	test('typing " on an empty line inserts a pair', async () => {
 		await editor.loadContent('```\n\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor);
 		await editor.typeSlowly('"');
 		await expectBody(editor, '""');
 		await editor.typeText('hi');
@@ -23,9 +21,7 @@ test.describe('code block auto-close quotes', () => {
 
 	test("typing ' between word chars (don|t) inserts only one quote", async () => {
 		await editor.loadContent('```\ndont\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 7; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor, 3);
 		await editor.typeSlowly("'");
 		await expectBody(editor, "don't");
 	});
@@ -39,9 +35,7 @@ test.describe('code block auto-close quotes', () => {
 
 	test('typing ` auto-pairs inside a backtick-fenced code block', async () => {
 		await editor.loadContent('```\n\n```\n');
-		await editor.getBlock(0).click();
-		await editor.focusBlockStart(0);
-		for (let i = 0; i < 4; i++) await editor.page.keyboard.press('ArrowRight');
+		await focusCodeBody(editor);
 		await editor.typeSlowly('`');
 		await expectBody(editor, '``');
 	});

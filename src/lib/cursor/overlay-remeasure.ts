@@ -5,6 +5,7 @@
  * mounts the new rows, so only the dep-based re-run measures post-commit.
  */
 
+import { untrack } from 'svelte';
 import type { BlockComponent } from '../block-component';
 import { firstScrollableDescendant, nearestScrollContainer } from './scroll-ancestors';
 
@@ -13,6 +14,10 @@ export function wireOverlayRemeasure(opts: {
 	editorRoot: HTMLElement | null;
 	blockRef: BlockComponent | undefined;
 	measure: () => void;
+	/** Run the SETUP measure untracked, for a caller whose `measure` reads the document: tracking
+	 *  it would tear down and re-wire these listeners on every keystroke. Scoped to that one call,
+	 *  never the whole wiring — the row-window read below must stay tracked either way. */
+	untrackSetupMeasure?: boolean;
 }): () => void {
 	const { el, editorRoot, blockRef, measure } = opts;
 
@@ -20,7 +25,8 @@ export function wireOverlayRemeasure(opts: {
 	// $derived. Must NOT be inside untrack().
 	blockRef?.mountedRowWindow?.();
 
-	measure();
+	if (opts.untrackSetupMeasure) untrack(measure);
+	else measure();
 
 	const scrollEl =
 		firstScrollableDescendant(el) ?? (editorRoot ? nearestScrollContainer(el, editorRoot) : null);

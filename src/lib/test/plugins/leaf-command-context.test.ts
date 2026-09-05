@@ -8,6 +8,7 @@ import { __resetCommandWarningsForTests } from '$lib/schema/commands';
 import { normalizeChordStrict } from '$lib/schema/keybindings';
 import type { KeybindingOverrideMap } from '$lib/schema/keybinding-overrides';
 import { declarePluginKind } from '$lib/schema/plugin-kind';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import {
 	recordPluginKindOwner,
 	__resetInstalledPluginsForTests,
@@ -38,7 +39,35 @@ function bindKindChord(
 	};
 }
 
-const history = { history: { requestUndo() {}, requestRedo() {} } };
+const GATES = {
+	history: { requestUndo() {}, requestRedo() {} },
+	activation: everyInstalledPlugin,
+	getPresentationMode: () => 'source' as const,
+	isCrossBlockRange: () => false,
+	crossBlockCommands: undefined
+};
+
+type BuildArgs = Parameters<typeof buildLeafCommandContext>;
+type CtxOverrides = Partial<Omit<BuildArgs[0], 'getIndex'> & BuildArgs[1]> & {
+	index?: number;
+	pluginEditor?: BuildArgs[2];
+};
+
+// getNode stays a thunk through the builder: the dispatch re-reads it, so capturing what
+// it returned would hide the node swap the liveness case below relies on.
+function buildCtx(over: CtxOverrides = {}) {
+	const {
+		getNode = () => leafNode(),
+		index = 0,
+		commandHooks,
+		updateBlockMetadata = vi.fn()
+	} = over;
+	return buildLeafCommandContext(
+		{ getNode, getIndex: () => index, commandHooks },
+		{ updateBlockMetadata },
+		over.pluginEditor
+	);
+}
 
 afterEach(() => {
 	__resetCommandWarningsForTests();
@@ -49,15 +78,7 @@ afterEach(() => {
 describe('editable-leaf command context', () => {
 	it('routes updateMetadata to blockEdit.updateBlockMetadata at the live index', () => {
 		const updateBlockMetadata = vi.fn();
-		const index = 3;
-		const ctx = buildLeafCommandContext(
-			{
-				getNode: () => leafNode(),
-				getIndex: () => index,
-				commandHooks: undefined
-			},
-			{ updateBlockMetadata }
-		);
+		const ctx = buildCtx({ index: 3, updateBlockMetadata });
 
 		ctx.updateMetadata({ code: 'x' });
 		expect(updateBlockMetadata).toHaveBeenCalledWith(3, { code: 'x' });
@@ -65,38 +86,13 @@ describe('editable-leaf command context', () => {
 
 	it('threads commandHooks so a handler reaches the component; absent → undefined', () => {
 		const hooks = { openEdit: vi.fn() };
-		const withHooks = buildLeafCommandContext(
-			{
-				getNode: () => leafNode(),
-				getIndex: () => 0,
-				commandHooks: () => hooks
-			},
-			{ updateBlockMetadata: vi.fn() }
-		);
-		expect(withHooks.hooks).toBe(hooks);
-
-		const without = buildLeafCommandContext(
-			{
-				getNode: () => leafNode(),
-				getIndex: () => 0,
-				commandHooks: undefined
-			},
-			{ updateBlockMetadata: vi.fn() }
-		);
-		expect(without.hooks).toBeUndefined();
+		expect(buildCtx({ commandHooks: () => hooks }).hooks).toBe(hooks);
+		expect(buildCtx().hooks).toBeUndefined();
 	});
 
 	it('reads getNode() live so a node swap is observed (thunks, never values)', () => {
 		let node = leafNode();
-		const build = () =>
-			buildLeafCommandContext(
-				{
-					getNode: () => node,
-					getIndex: () => 0,
-					commandHooks: undefined
-				},
-				{ updateBlockMetadata: vi.fn() }
-			);
+		const build = () => buildCtx({ getNode: () => node });
 
 		expect(build().node).toBe(node);
 		node = leafNode(leafAlt);
@@ -110,15 +106,7 @@ describe('editable-leaf command context', () => {
 			name === 'admonitions' ? fakeEditorContext : ({} as EditorContext)
 		);
 
-		const ctx = buildLeafCommandContext(
-			{
-				getNode: () => leafNode(),
-				getIndex: () => 0,
-				commandHooks: undefined
-			},
-			{ updateBlockMetadata: vi.fn() },
-			pluginEditor
-		);
+		const ctx = buildCtx({ pluginEditor });
 
 		expect(ctx.editor).toBe(fakeEditorContext);
 		expect(pluginEditor).toHaveBeenCalledWith('admonitions');
@@ -139,18 +127,10 @@ describe('editable-leaf command context', () => {
 		const target = {
 			kind: leaf,
 			runCommand: () => false,
-			getCommandContext: () =>
-				buildLeafCommandContext(
-					{
-						getNode: () => node,
-						getIndex: () => 0,
-						commandHooks: () => hooks
-					},
-					{ updateBlockMetadata: vi.fn() }
-				)
+			getCommandContext: () => buildCtx({ getNode: () => node, commandHooks: () => hooks })
 		};
 
-		const handled = dispatchKeyCommand('Mod+Shift+K', target, history, overrides);
+		const handled = dispatchKeyCommand('Mod+Shift+K', target, GATES, overrides);
 		expect(handled).toBe(true);
 		expect(hooks.openFocusView).toHaveBeenCalledTimes(1);
 	});

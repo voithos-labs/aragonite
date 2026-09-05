@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { ImageFields } from '../../core/nodes';
-	import type { WidgetTarget } from './widget-selection-state.svelte';
+	import { IMAGE_CHROME_SELECTOR, type WidgetTarget } from './widget-selection-state.svelte';
+	import { IMAGE_PROPERTIES_LABEL } from '../../a11y-strings';
 
 	let {
 		target,
@@ -25,7 +26,22 @@
 	let titleTouched = $state(false);
 	let popoverEl: HTMLDivElement | undefined = $state();
 
-	const initialBytes = untrack(() => buildBytes(target, fields));
+	// The seed is the BYTES, not the fields object: a rebuild mints a fresh one per render, so
+	// identity says nothing about whether the image moved.
+	let seedBytes = $state(untrack(() => buildBytes(target, fields)));
+
+	// The popover follows the document while it is open: an undo — or any write landing from
+	// outside this gesture — moves the image past the draft, and the dismiss commit would put the
+	// old bytes back. The in-flight draft is discarded rather than a committed change reverted.
+	$effect(() => {
+		const live = buildBytes(target, fields);
+		if (live === seedBytes) return;
+		seedBytes = live;
+		url = fields.url;
+		alt = fields.alt;
+		titleInput = fields.title ?? '';
+		titleTouched = false;
+	});
 
 	// The commit runs in $effect cleanup so dismiss, image-switch (key change) and
 	// programmatic clear all commit through one seam.
@@ -33,7 +49,7 @@
 		if (!popoverEl) return;
 		const handler = (e: PointerEvent) => {
 			const target = e.target as Element | null;
-			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
+			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
 			onDismiss();
 		};
 		document.addEventListener('pointerdown', handler, true);
@@ -64,7 +80,7 @@
 			...(fields.height !== undefined ? { height: fields.height } : {})
 		};
 		const newBytes = buildBytes(target, next);
-		if (newBytes === initialBytes) return;
+		if (newBytes === seedBytes) return;
 		onCommit(target, next);
 	}
 
@@ -86,7 +102,7 @@
 	bind:this={popoverEl}
 	class="md-image-properties"
 	role="dialog"
-	aria-label="Image properties"
+	aria-label={IMAGE_PROPERTIES_LABEL}
 	tabindex="-1"
 	onkeydown={handleKeyDown}
 >
@@ -126,11 +142,11 @@
 		gap: 8px;
 	}
 	input {
-		background: var(--color-bg, #2d3033);
-		color: var(--color-text, #eee);
+		background: var(--color-surface, #2d3033);
+		color: var(--color-text-secondary, #eee);
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		padding: 4px 6px;
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 		font-family: inherit;
 		font-size: 12px;
 	}

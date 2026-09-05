@@ -17,8 +17,8 @@
 	}
 </script>
 
-<!-- Mouse-only affordance: the cell chords are the operable, screen-reader path, so the
-	grip stays out of the tab/SR flow. Reveal is a pure-CSS host:hover rule in editor.css. -->
+<!-- Pointer-only affordance: the cell chords are the operable, screen-reader path, so the
+	grip stays out of the tab/SR flow. Reveal is pure CSS: hover in editor.css, touch below. -->
 <span class="table-grip-anchor table-grip-anchor-{axis}">
 	<span
 		class="table-grip table-grip-{axis}"
@@ -77,5 +77,15 @@
 		height: 1rem;
 		background-size: 0.35rem 0.25rem;
 		background-repeat: repeat-y;
+	}
+
+	/* Touch fires no hover, so the editor.css reveal never runs and an opted-in host's grips
+	   would be unreachable. `touch-action` keeps a reorder drag off the table's own scroll. */
+	@media (hover: none) {
+		.table-grip {
+			opacity: 1;
+			pointer-events: auto;
+			touch-action: none;
+		}
 	}
 </style>

@@ -5,9 +5,12 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import type { DocPath } from '../selection/path-math';
-import { assertInvariant } from './assert';
+import { assertInvariant } from '../assert';
 import { checkCommitPathAddressable } from './commit-paths';
-import { flushPendingRegistrationChecks } from '../schema/registration-checks';
+import {
+	flushPendingRegistrationChecks,
+	checkInlineConstructPoliciesAtMount
+} from '../schema/registration-checks';
 import {
 	checkStaleRaw,
 	checkOpaqueStaleRaw,
@@ -16,6 +19,7 @@ import {
 	checkCategoryFields
 } from './node-shape';
 import { checkContentRange } from './descriptor';
+import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 
 /**
@@ -31,6 +35,7 @@ export function assertCommittedNodes(nodes: CstNode[]): void {
 		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
+		assertInvariant('child-spans-lockstep', () => checkChildSpansLockstep(node));
 	}
 }
 
@@ -66,9 +71,22 @@ export function assertUndoTopIntegrity(entry: SnapshotEntry | undefined): void {
 }
 
 /**
+ * G1.36 consumer half, at each publish seam: the descriptor's own bounds check cannot see a
+ * change that fits its array while describing the wrong window, and a short id array reaches
+ * Svelte's keyed each as missing keys.
+ */
+export function assertIdsInLockstep(seam: string, idCount: number, childCount: number): void {
+	assertInvariant('ids-children-lockstep', () =>
+		checkIdsChildrenLockstep(seam, idCount, childCount)
+	);
+}
+
+/**
  * Registry-wide checks at the mount seam. The flush owns the once-latch: the first sweeps
- * the whole world, later mounts validate only registrations since the previous flush.
+ * the whole world, later mounts validate only registrations since the previous flush. The
+ * inline-policy check sits outside it — mount-only, and table-wide on every mount (G1.31).
  */
 export function runStartupInvariantChecks(): void {
 	flushPendingRegistrationChecks();
+	checkInlineConstructPoliciesAtMount();
 }

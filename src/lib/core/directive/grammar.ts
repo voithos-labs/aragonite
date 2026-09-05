@@ -4,6 +4,8 @@
  * the verbatim `info` (leading separator included), the body wrap, and a matched closer exactly.
  */
 
+import { escalateTerminatorRun } from '../terminator-escalation';
+
 // ── Opener / closer ───────────────────────────────────────────────────────────
 
 export type DirectiveTier = 'container' | 'leaf' | 'text';
@@ -48,13 +50,10 @@ export function isDirectiveCloser(lineText: string, openColonCount: number): boo
  * closer and ejects everything below it on reparse.
  */
 export function escalatedColonCount(body: string, minimum: number): number {
-	let required = minimum;
-	for (const line of body.split('\n')) {
-		// Splitting on `\n` leaves a CRLF body's `\r` on the tail; a closer line's text excludes it.
-		const text = line.endsWith('\r') ? line.slice(0, -1) : line;
-		if (text.length >= required && isDirectiveCloser(text, required)) required = text.length + 1;
-	}
-	return required;
+	// A closer line is colons end to end, so its own length IS the run.
+	return escalateTerminatorRun(body, minimum, (text, required) =>
+		isDirectiveCloser(text, required) ? text.length : null
+	);
 }
 
 // ── Serialize ─────────────────────────────────────────────────────────────────

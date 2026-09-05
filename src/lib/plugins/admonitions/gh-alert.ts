@@ -1,9 +1,8 @@
 /**
- * The single home for `> [!TYPE]` recognition, reused by the native `githubAlert`
- * opener (github-alert-kind.ts). Both converters run the parser's own extent authority
- * so CommonMark §5.1 lazy continuation lands identically, pinned by
- * `test/plugins/admonitions/converter-parity.test.ts`. On a whole document prefer the
- * wrapper in `convert-document.ts`: the stream scanner here is not fence-safe.
+ * The single home for `> [!TYPE]` recognition, reused by the native `githubAlert` opener.
+ * Both converters run the parser's own extent authority so CommonMark §5.1 lazy
+ * continuation lands identically. On a whole document prefer the wrapper in
+ * `convert-document.ts`: the stream scanner here is not fence-safe.
  */
 import { blockquoteExtent, escalatedColonCount, splitLines, type ParsedLine } from '$lib/plugin';
 import { ADMONITION_KINDS } from './kinds';
@@ -11,13 +10,6 @@ import { ADMONITION_KINDS } from './kinds';
 const ALERT_NAMES = new Set<string>(ADMONITION_KINDS);
 
 const CANONICAL_COLONS = 3;
-
-/** Fence lengthened past any colon run in the body, which would otherwise read as the
- *  container's own closer once this output is written into the document. */
-function wrapAsDirective(name: string, body: string[]): string[] {
-	const colons = ':'.repeat(escalatedColonCount(body.join('\n'), CANONICAL_COLONS));
-	return [`${colons}${name}`, ...body, colons];
-}
 
 /** Every `>` pattern here caps indent at CommonMark's 0–3 spaces: past that the line is
  *  indented code, and claiming it would promote a literal `>` to a marker on rebuild. */
@@ -42,19 +34,26 @@ export interface AlertConversion {
 	changed: boolean;
 }
 
-/** Each emitted line keeps its source line's ending so CRLF survives; the synthesized
- *  closer runs one line past the source, which is what the fallback covers. */
+/**
+ * Each emitted line keeps its source line ending so CRLF survives; the closer runs one line past
+ * the source, which is what the fallback covers. The body converts in the same pass: stripping a
+ * quote level promotes a nested `> [!TIP]` to a top-level marker a later pass would convert again.
+ */
 function emitDirective(name: string, source: ParsedLine[]): string {
-	const body = source.slice(1).map((line) => stripQuoteMarker(line.text));
-	const wrapped = wrapAsDirective(name, body);
 	const fallback = source.find((line) => line.lineEnding !== '')?.lineEnding ?? '\n';
-	const closerEnding = source[source.length - 1].lineEnding;
-	let out = '';
-	for (let i = 0; i < wrapped.length; i++) {
-		const isCloser = i === wrapped.length - 1;
-		out += wrapped[i] + (isCloser ? closerEnding : source[i].lineEnding || fallback);
-	}
-	return out;
+	const stripped = source
+		.slice(1)
+		.map((line) => stripQuoteMarker(line.text) + (line.lineEnding || fallback))
+		.join('');
+	const body = splitLines(convertGithubAlerts(stripped).converted);
+	// Fence lengthened past any colon run in the body, which would otherwise read as the
+	// container's own closer once this output is written into the document.
+	const colons = ':'.repeat(
+		escalatedColonCount(body.map((line) => line.text).join('\n'), CANONICAL_COLONS)
+	);
+	let out = `${colons}${name}${source[0].lineEnding || fallback}`;
+	for (let i = 0; i < body.length; i++) out += body[i].text + (body[i].lineEnding || fallback);
+	return out + colons + source[source.length - 1].lineEnding;
 }
 
 /** GitHub honors `[!TYPE]` only on the blockquote's first line; everything after,

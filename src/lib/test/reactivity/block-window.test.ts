@@ -10,7 +10,6 @@ const base = {
 	overscan: 2,
 	pinnedIndex: null as number | null,
 	pinExtensionCap: 100,
-	windowingEnabled: true,
 	active: true,
 	activateAbovePx: 1000, // hysteresis watermarks
 	deactivateBelowPx: 800
@@ -74,30 +73,22 @@ describe('computeWindow', () => {
 		expect(w.end).toBe(12);
 	});
 
+	// The budget is the ONLY gate on activation, whoever owns the scroll, so the inactive
+	// result is the whole of what a below-budget document renders: every child, no spacers.
 	it('deactivates when content height drops below the low watermark', () => {
 		const small = new HeightModel(new Array(10).fill(50)); // 500px total < 800
 		const w = computeWindow(small, { ...base, active: true });
 		expect(w.active).toBe(false);
+		expect(w.start).toBe(0);
+		expect(w.end).toBe(small.size);
+		expect(w.topSpacerPx).toBe(0);
+		expect(w.bottomSpacerPx).toBe(0);
 	});
 
 	it('does not reactivate until content exceeds the high watermark (hysteresis)', () => {
 		const mid = new HeightModel(new Array(18).fill(50)); // 900px: between 800 and 1000
 		expect(computeWindow(mid, { ...base, active: false }).active).toBe(false);
 		expect(computeWindow(mid, { ...base, active: true }).active).toBe(true);
-	});
-
-	// Host-scroll mode has no scrollport to window against, so the gate must outrank
-	// both the watermark and the hysteresis latch.
-	it('never activates while windowing is disabled', () => {
-		const tall = model(); // 5000px total, far above the high watermark
-		for (const active of [false, true]) {
-			const w = computeWindow(tall, { ...base, active, windowingEnabled: false });
-			expect(w.active).toBe(false);
-			expect(w.start).toBe(0);
-			expect(w.end).toBe(tall.size);
-			expect(w.topSpacerPx).toBe(0);
-			expect(w.bottomSpacerPx).toBe(0);
-		}
 	});
 
 	// The under-mount direction of the half-open boundary — a visible gap. The

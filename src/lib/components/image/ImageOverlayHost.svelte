@@ -3,6 +3,7 @@
 	import type { Document } from '../../core/nodes';
 	import type { PresentationMode } from '../../presentation-mode';
 	import type { UndoController } from '../../editor-actions/deps';
+	import type { GrammarView } from '../../schema/block-openers';
 	import { EDITOR_DOC_KEY, type EditorDoc } from '../../editor-keys';
 	import type { EditorEvents } from '../../editor-events';
 	import { installWidgetRangePainter } from '../../selection/widget-range-paint';
@@ -10,7 +11,10 @@
 	import ImageResizeHandles from './ImageResizeHandles.svelte';
 	import { createImageEditCommitter } from './image-edit-commit';
 	import { imageFieldsFromInline } from './image-source-bytes';
-	import type { WidgetSelectionState } from './widget-selection-state.svelte';
+	import {
+		IMAGE_CHROME_SELECTOR,
+		type WidgetSelectionState
+	} from './widget-selection-state.svelte';
 
 	// Mounted unconditionally by Editor: the effects below must observe
 	// widget-selection changes, so the selected-widget {#if} lives here.
@@ -22,6 +26,7 @@
 		getEditorEl,
 		getSelectionIsCustomRendered,
 		getPresentationMode,
+		grammar,
 		lifetime
 	}: {
 		widgetSelection: WidgetSelectionState;
@@ -31,6 +36,7 @@
 		getEditorEl: () => HTMLElement | null;
 		getSelectionIsCustomRendered: () => boolean;
 		getPresentationMode: () => PresentationMode;
+		grammar?: GrammarView;
 		lifetime: AbortSignal;
 	} = $props();
 
@@ -47,7 +53,8 @@
 		widgetSelection,
 		controller,
 		events,
-		linkRef
+		linkRef,
+		grammar
 	});
 
 	$effect(() => {
@@ -55,7 +62,7 @@
 		if (!root) return;
 		const handlePointerDown = (e: PointerEvent) => {
 			const target = e.target as Element | null;
-			if (target?.closest('[data-image-widget], [data-image-overlay]')) return;
+			if (target?.closest(IMAGE_CHROME_SELECTOR)) return;
 			widgetSelection.clear();
 		};
 		root.addEventListener('pointerdown', handlePointerDown);

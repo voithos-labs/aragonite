@@ -8,13 +8,14 @@
 import { CURSOR_END } from '../../../block-component';
 import { normalizeCellRaw } from '../../../schema/table-cell-raw';
 import type { CstNode } from '../../../core/nodes';
-import { blockNodeAt } from '../../../tree-operations/node-ops';
+import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { replaceBlockAtParent } from '../../../tree-operations/paste/replace-block-at-parent';
 import type {
 	InlinePasteResult,
 	PasteRange,
+	PasteSeam,
 	PasteSurface,
 	ScopedStructuralPasteInput
 } from '../../../tree-operations/paste-surfaces';
@@ -37,16 +38,21 @@ export function tableCellInlinePaste(
 	node: CstNode,
 	offset: number,
 	text: string,
-	preDelete?: PasteRange
+	preDelete?: PasteRange,
+	seam?: PasteSeam
 ): InlinePasteResult {
 	const cleaned = normalizeWhitespace(text);
 
-	let raw = node.raw;
-	let effectiveOffset = offset;
-	if (preDelete && preDelete.start < preDelete.end) {
-		raw = raw.slice(0, preDelete.start) + raw.slice(preDelete.end);
-		effectiveOffset = preDelete.start;
-	}
+	// The delete half crosses the join seam BEFORE the escaping stage (live-mode.md § 4.5): the
+	// seam reads and writes the cell's own display bytes, and `normalizeCellRaw` still runs at the
+	// sink over whatever they end up being.
+	const { display: raw, offset: effectiveOffset } = cutRangeFromDisplay(
+		node,
+		node.raw,
+		preDelete ?? { start: offset, end: offset },
+		seam?.presentationMode,
+		seam?.linkRef
+	);
 
 	const spliced = raw.slice(0, effectiveOffset) + cleaned + raw.slice(effectiveOffset);
 	// Escaped space, because the sink escapes the whole spliced raw and not just the
@@ -59,6 +65,7 @@ export function tableCellInlinePaste(
 
 export const tableCellPasteSurface: PasteSurface = {
 	kind: 'tableCell',
+	blankEdgesArePackaging: true,
 	onInlinePaste: tableCellInlinePaste,
 	onScopedStructuralPaste: tableCellScopedStructuralPaste
 };
@@ -77,7 +84,8 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 	const { firstHalf, secondHalf } = sliceTableAtRow(table, rowIdx, 'first');
 	const replacement: CstNode[] = [];
 	if (firstHalf) replacement.push(firstHalf);
-	replacement.push(...input.blocks);
+	// Appended, never spread: a paste can outnumber an argument list (G4.60).
+	for (const block of input.blocks) replacement.push(block);
 	if (secondHalf) replacement.push(secondHalf);
 
 	await replaceBlockAtParent({
@@ -89,6 +97,7 @@ async function tableCellScopedStructuralPaste(input: ScopedStructuralPasteInput)
 		// The last pasted block, before the second table half (the residue).
 		focusReplacementIndex: focusIndexBeforeResidue(replacement.length, secondHalf !== null),
 		focusOffset: CURSOR_END,
-		source: 'paste-dispatch-table-cell'
+		source: 'paste-dispatch-table-cell',
+		...(input.grammar ? { grammar: input.grammar } : {})
 	});
 }

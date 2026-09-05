@@ -17,8 +17,10 @@ const RESET_RE = /\bresetForPointerDown\s*\(/;
  *  whose own preamble is the reset. */
 const DELEGATE_RE = /\bcrossBlock\.handlePointerDown\s*\(/;
 /** A press handler of any spelling. The bundle-key form (`onpointerdown:`) is how a leaf
- *  hands its surface to a plugin component; omitting it hides `editable-leaf.ts`. */
-const POINTER_HANDLER_RE = /\bon(pointerdown|mousedown)\s*[=:]|['"](pointerdown|mousedown)['"]/;
+ *  hands its surface to a plugin component; omitting it hides `editable-leaf.ts`. A spread of
+ *  the leaf's `renderProps` binds the press without naming it, and hides the component. */
+const POINTER_HANDLER_RE =
+	/\bon(pointerdown|mousedown)\s*[=:]|['"](pointerdown|mousedown)['"]|\brenderProps\b/;
 /** A call THROUGH the park door, optional-call spelling included. A bare forward
  *  (`export const parkCaret = leaf.parkCaret;`) has no call and is not a caller. */
 const PARK_CALL_RE = /\.parkCaret\s*\??\.?\s*\(/;
@@ -75,11 +77,15 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/components/image/ImageProperties.svelte':
 		'document-capture dismiss-on-outside-press for the properties popover',
 	'src/lib/components/image/ImageResizeHandles.svelte': 'starts a resize drag',
+	'src/lib/components/link-card/LinkCardHost.svelte':
+		'document-capture dismiss-on-outside-press for the link card; the press that dismisses places its own caret through the ordinary door',
 	'src/lib/editor-actions/reorder-drag.ts': 'starts a block reorder drag off the handle',
 	'src/lib/plugins/details/DetailsBlock.svelte':
 		'preventDefault on the summary so the disclosure toggle takes no focus',
 	'src/lib/plugins/latex/BlockMath.svelte':
 		'binds the shared editable-leaf reveal handler; the reset lives there',
+	'src/lib/plugins/parrot/ParrotBlock.svelte':
+		'binds the shared editable-leaf reveal handler on its caption; the reset lives there',
 	'src/lib/plugins/toc/TocBlock.svelte':
 		'binds the shared editable-leaf reveal handler, plus entry navigation',
 	'src/lib/plugins/mermaid/MermaidBlock.svelte':

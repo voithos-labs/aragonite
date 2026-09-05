@@ -8,19 +8,16 @@ import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
+import { spliceMany } from '../splice-many';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
 import { containerPasteFor } from './container-paste';
 import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { newlineTerminateListItems } from '../list/terminator';
 import { trailingLineEnding } from '../../core/lines';
-import {
-	assembleListHalf,
-	buildListItemWithContent,
-	orderedBaseOf,
-	splitLeafForPaste
-} from '../list/list-builders';
+import { assembleListHalf, buildSplitItems } from '../list/list-builders';
+import { orderedBaseOf } from '../list/ordered-markers';
 import { findEnclosingListForPaste } from './find-enclosing-list';
-import { focusIndexBeforeResidue } from './focus-target';
+import { focusIndexBeforeResidue, landedPasteOffset, trackedPasteCaret } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { resolveParentScope } from './parent-scope';
 import type { PasteDispatchContext } from './dispatch';
@@ -36,6 +33,8 @@ export interface ListBreakOut {
 	innerIndex: number;
 	/** Caret offset within the target leaf's raw. */
 	offset: number;
+	/** The target leaf's bytes AFTER the paste's delete half. */
+	targetRaw?: string;
 }
 
 /**
@@ -47,7 +46,8 @@ export function findListBreakOut(
 	doc: Document,
 	targetPath: number[],
 	parsed: Document,
-	offset: number
+	offset: number,
+	targetRaw?: string
 ): ListBreakOut | null {
 	if (parsed.children.length === 0) return null;
 	const topBlock = parsed.children[0];
@@ -63,7 +63,8 @@ export function findListBreakOut(
 		listPath: enclosing.listPath,
 		itemIndex: enclosing.itemIndex,
 		innerIndex: enclosing.innerIndex,
-		offset
+		offset,
+		targetRaw
 	};
 }
 
@@ -84,7 +85,8 @@ export async function applyListBreakOut(
 		plan.itemIndex,
 		plan.innerIndex,
 		plan.offset,
-		pastedBlocks
+		pastedBlocks,
+		plan.targetRaw
 	);
 	if (replacement.length === 0) return;
 
@@ -93,12 +95,20 @@ export async function applyListBreakOut(
 	const parentScope = resolveParentScope(ctx.doc, plan.listPath, ctx.controller);
 	if (!parentScope) return;
 	const spliceIndex = plan.listPath[plan.listPath.length - 1];
+	// The last pasted block, never the second-half residue list — and carried through the settle,
+	// whose folds can move the slot out from under a landing chosen here.
+	const caret = trackedPasteCaret(
+		replacement,
+		spliceIndex,
+		focusIndexBeforeResidue(replacement.length, hasTrailingResidue),
+		CURSOR_END
+	);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [parentScope],
 		snapshot: ctx.undoEntry === 'join' ? 'skip' : { path: docPathFrom(plan.listPath), offset: 0 },
 		mutate: ([scopeView]) => {
-			scopeView.children.splice(spliceIndex, 1, ...replacement);
+			spliceMany(scopeView.children, spliceIndex, 1, replacement);
 			const change: StructuralChange = {
 				op: 'replace',
 				at: spliceIndex,
@@ -113,11 +123,13 @@ export async function applyListBreakOut(
 			detail: { source: 'list-break-out', listPath: plan.listPath },
 			eventPath: docPathFrom(plan.listPath)
 		},
+		trackCaret: [caret],
 		afterTick: () => {
-			// The last pasted block, never the second-half residue list.
-			const lastPastedIdx =
-				spliceIndex + focusIndexBeforeResidue(replacement.length, hasTrailingResidue);
-			return ctx.controller.landCaret([...parentScope.path, lastPastedIdx], CURSOR_END);
+			const landed = nodeAt(ctx.doc, parentScope.path)?.children?.[caret.index];
+			return ctx.controller.landCaret(
+				[...parentScope.path, caret.index],
+				landedPasteOffset(landed, caret, CURSOR_END)
+			);
 		}
 	});
 }
@@ -141,44 +153,24 @@ export function buildListBreakOutReplacement(
 	itemIndex: number,
 	innerIndex: number,
 	offset: number,
-	pastedBlocks: CstNode[]
+	pastedBlocks: CstNode[],
+	targetRaw?: string
 ): ListBreakOutReplacement {
 	const items = list.children ?? [];
 	const item = items[itemIndex];
 	if (!item?.children) return { replacement: [], hasTrailingResidue: false };
-	const targetLeaf = item.children[innerIndex];
-	if (!targetLeaf) return { replacement: [], hasTrailingResidue: false };
+	if (!item.children[innerIndex]) return { replacement: [], hasTrailingResidue: false };
 
-	const { leadingNode: leadingSliceNode, trailingNode: trailingSliceNode } = splitLeafForPaste(
-		targetLeaf,
-		offset
-	);
-
-	const itemChildrenBefore = item.children.slice(0, innerIndex).map(cloneNode);
-	const itemChildrenAfter = item.children.slice(innerIndex + 1).map(cloneNode);
-
-	const firstHalfItemChildren: CstNode[] = [...itemChildrenBefore];
-	if (leadingSliceNode) firstHalfItemChildren.push(leadingSliceNode);
-
-	const secondHalfItemChildren: CstNode[] = [];
-	if (trailingSliceNode) secondHalfItemChildren.push(trailingSliceNode);
-	for (const child of itemChildrenAfter) secondHalfItemChildren.push(child);
-	if (secondHalfItemChildren[0]) secondHalfItemChildren[0].leadingTrivia = '';
+	const { leadingItem, trailingItem } = buildSplitItems(item, innerIndex, offset, targetRaw);
 
 	const itemsBefore = items.slice(0, itemIndex).map(cloneNode);
 	const itemsAfter = items.slice(itemIndex + 1).map(cloneNode);
 	if (itemsAfter[0]) itemsAfter[0].leadingTrivia = '';
 
 	const firstHalfItems: CstNode[] = [...itemsBefore];
-	if (firstHalfItemChildren.length > 0) {
-		firstHalfItems.push(buildListItemWithContent(item, firstHalfItemChildren));
-	}
+	if (leadingItem) firstHalfItems.push(leadingItem);
 
-	const secondHalfItems: CstNode[] = [];
-	if (secondHalfItemChildren.length > 0) {
-		secondHalfItems.push(buildListItemWithContent(item, secondHalfItemChildren));
-	}
-	secondHalfItems.push(...itemsAfter);
+	const secondHalfItems: CstNode[] = trailingItem ? [trailingItem, ...itemsAfter] : [...itemsAfter];
 
 	const base = orderedBaseOf(items[0]);
 	const replacement: CstNode[] = [];

@@ -4,33 +4,73 @@
  * no upward delegation, no unwrap dispatch; the factories add those.
  */
 
-import { CURSOR_END } from '../block-component';
+import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import { displayLength, trailingLineEnding } from '../core/lines';
 import {
 	splitNode as performSplit,
+	assertSplitLanding,
+	type SplitResult,
 	mergeWithNext as performMergeNext,
+	type MergeResult,
 	mergeIntoPrevDeepLeaf,
 	deleteNode as performDelete,
 	ensureEditableContainers,
 	normalizeReplacementTrivia,
 	rebuildUnsharedChain,
-	emptyParagraph
+	restoreSeparatorOnFill,
+	dropDoubledSeparator,
+	emptyParagraph,
+	paragraphNode
 } from '../tree-operations';
 import {
 	replacePreservingFirst,
 	stampStructuralChange,
 	type StructuralChange
 } from '../tree-operations/structural-change';
+import { spliceMany } from '../tree-operations/splice-many';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import type { CommitAfterTick, UndoEntryMode } from '../action-contracts';
-import type { CommitScope } from './block-edit-scope';
-import { mergedElseFocusPrevious } from './merge-fallback';
+import type { CommitScope, MutationView } from './block-edit-scope';
+import { mergedElseFocusNext, mergedElseFocusPrevious } from './merge-fallback';
+
+/** The byte/settle sinks' owner answer, read live off the commit's owned view. */
+const bodyParentOf = (view: MutationView) => ({
+	children: view.children,
+	ownerKind: view.ownerKind,
+	owner: view.owner
+});
+
+/** The ineligible-merge cascade both directions share; `dir` names the neighbour side. */
+async function handleIneligibleNeighbor(scope: CommitScope, i: number, dir: -1 | 1): Promise<void> {
+	const neighbor = i + dir;
+	const neighborKind = scope.children()[neighbor].kind;
+	// A whole-block-focus neighbor is focused, not deleted: press one highlights it, a second
+	// press deletes it. Ordered first so a not-mergeable-but-editable kind never dead-ends here.
+	if (getBlockKindDescriptor(neighborKind).blockFocus === 'whole-block') {
+		scope.refAt(neighbor)?.focus(0);
+		return;
+	}
+	if (isBlockEditable(neighborKind)) {
+		scope.refAt(neighbor)?.focus(dir < 0 ? CURSOR_END : CURSOR_START);
+		return;
+	}
+	await scope.commit({
+		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
+		eventTarget: neighbor,
+		op: { kind: 'delete' },
+		mutate: (view) => performDelete(bodyParentOf(view), neighbor, view.sharing),
+		afterTick: () =>
+			scope.refAt(dir < 0 ? neighbor : i)?.focus(dir < 0 ? CURSOR_START : CURSOR_END),
+		discardIfNoop: true
+	});
+}
 
 export interface BlockEditCore {
 	split(i: number, offset: number): Promise<void>;
 	descendToBody(i: number): Promise<void>;
+	insertParagraph(i: number, text: string): Promise<void>;
 	mergeWithPreviousInterior(i: number): Promise<void>;
 	mergeWithNextInterior(i: number): Promise<void>;
 	deleteInterior(i: number): Promise<void>;
@@ -42,30 +82,40 @@ export interface BlockEditCore {
 	replaceBlock(
 		i: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number },
-		options?: { undoEntry?: UndoEntryMode }
+		focus?: { replacementIndex: number; offset: number; path?: number[] },
+		options?: { undoEntry?: UndoEntryMode; snapshotOffset?: number }
 	): Promise<void>;
 }
 
 export function createBlockEditCore(scope: CommitScope): BlockEditCore {
-	return {
+	const core: BlockEditCore = {
 		async split(i, offset) {
-			// Offset 0 is not special: empty block above, content below, caret on the
-			// content. A trivia-bump short-circuit here made Enter at block start a no-op.
+			// Offset 0 is not special: empty block above, content below, caret on the content. The
+			// landing is the primitive's answer, not `i + 1` — a plural first half pushes the
+			// second half further down, and G1.34 holds the seat to it.
+			let secondHalfIndex = i + 1;
+			let split: SplitResult | undefined;
 			await scope.commit({
 				snapshot: { index: i, offset },
 				eventTarget: i,
 				op: { kind: 'split', detail: { at: offset } },
 				mutate: (view) => {
-					const change = performSplit(
-						{ children: view.children, ownerKind: view.ownerKind },
+					split = performSplit(
+						bodyParentOf(view),
 						i,
-						offset
+						offset,
+						view.sharing,
+						view.getPresentationMode?.(),
+						view.linkRef
 					);
-					stampStructuralChange(view.children, change, view.sharing);
-					return change;
+					secondHalfIndex = split.secondHalfIndex;
+					stampStructuralChange(view.children, split.change, view.sharing);
+					return split.change;
 				},
-				afterTick: () => scope.refAt(i + 1)?.focus(0),
+				afterTick: () => {
+					if (split) assertSplitLanding(split, secondHalfIndex);
+					scope.refAt(secondHalfIndex)?.focus(CURSOR_EXACT_START);
+				},
 				// A single-line/chrome block splits to nothing, so discard rather than
 				// mint a dead entry on a rebound Enter.
 				discardIfNoop: true
@@ -77,7 +127,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			// A body child already exists: pure focus move, no undo entry. An absent ref
 			// (windowed-out, or a collapsed body) leaves the caret put — load-bearing.
 			if (i + 1 < children.length) {
-				scope.refAt(i + 1)?.focus(0);
+				scope.refAt(i + 1)?.focus(CURSOR_START);
 				return;
 			}
 			await scope.commit({
@@ -97,31 +147,45 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			});
 		},
 
+		/**
+		 * The between-blocks caret's mint (`selection/gap-caret.ts`). `i` is a BOUNDARY index,
+		 * so `children.length` appends; the caret lands after the text the paragraph carries.
+		 */
+		async insertParagraph(i, text) {
+			const children = scope.children();
+			// Both the separator and the paragraph's own bytes ARE line endings, so both take a
+			// real neighbour's (G4.20); a boundary always has one on at least one side.
+			const lineEnding = trailingLineEnding((children[i - 1] ?? children[i])?.raw ?? '\n');
+			await scope.commit({
+				snapshot: { index: i, offset: 0 },
+				eventTarget: i,
+				op: { kind: 'insertBlock' },
+				mutate: (view) => {
+					// Only the scope's head block owns no separator; anywhere else the mint owes
+					// its predecessor a blank line, whatever the displaced sibling carried.
+					const trivia = i > 0 ? lineEnding : (view.children[0]?.leadingTrivia ?? '');
+					view.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
+					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
+					stampStructuralChange(view.children, change, view.sharing);
+					// A gap-caret paragraph is a block of its own on BOTH sides, which the splice
+					// settle cannot infer: the displaced sibling is a body block now, not the head,
+					// so it owes its own separator, and an EMPTY mint is a blank line itself.
+					const parent = bodyParentOf(view);
+					restoreSeparatorOnFill(parent, i + 1, view.sharing);
+					dropDoubledSeparator(parent, i, view.sharing);
+					return change;
+				},
+				afterTick: () => scope.refAt(i)?.focus(displayLength(text))
+			});
+		},
+
 		async mergeWithPreviousInterior(i) {
 			const children = scope.children();
 			const prevKind = children[i - 1].kind;
 			const currKind = children[i].kind;
 
 			if (!isMergeEligible(prevKind, currKind)) {
-				// A whole-block-focus neighbor is focused, not deleted: press one
-				// highlights it, a second press on the now-focused block deletes it.
-				// Ordered first so a not-mergeable-but-editable kind never dead-ends here.
-				if (getBlockKindDescriptor(prevKind).blockFocus === 'whole-block') {
-					scope.refAt(i - 1)?.focus(0);
-					return;
-				}
-				if (!isBlockEditable(prevKind)) {
-					await scope.commit({
-						snapshot: { index: i, offset: 0 },
-						eventTarget: i - 1,
-						op: { kind: 'delete' },
-						mutate: (view) => performDelete({ children: view.children }, i - 1, view.sharing),
-						afterTick: () => scope.refAt(i - 1)?.focus(0),
-						discardIfNoop: true
-					});
-				} else {
-					scope.refAt(i - 1)?.focus(CURSOR_END);
-				}
+				await handleIneligibleNeighbor(scope, i, -1);
 				return;
 			}
 
@@ -131,7 +195,14 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'prev' } },
 				mutate: (view) => {
-					mergeResult = mergeIntoPrevDeepLeaf({ children: view.children }, i, view.sharing);
+					mergeResult = mergeIntoPrevDeepLeaf(
+						bodyParentOf(view),
+						i,
+						view.sharing,
+						view.getPresentationMode?.(),
+						view.linkRef,
+						view.grammar
+					);
 					return mergeResult?.change ?? { op: 'noop' };
 				},
 				afterTick: () => {
@@ -153,38 +224,32 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const nextKind = children[i + 1].kind;
 
 			if (!isMergeEligible(currKind, nextKind)) {
-				// Forward twin of the whole-block-focus fallback: Delete at the end of
-				// the block above focuses the opaque neighbor instead of deleting it.
-				if (getBlockKindDescriptor(nextKind).blockFocus === 'whole-block') {
-					scope.refAt(i + 1)?.focus(0);
-					return;
-				}
-				if (!isBlockEditable(nextKind)) {
-					await scope.commit({
-						snapshot: { index: i, offset: CURSOR_END },
-						eventTarget: i + 1,
-						op: { kind: 'delete' },
-						mutate: (view) => performDelete({ children: view.children }, i + 1, view.sharing),
-						afterTick: () => scope.refAt(i)?.focus(CURSOR_END),
-						discardIfNoop: true
-					});
-				} else {
-					scope.refAt(i + 1)?.focus(0);
-				}
+				await handleIneligibleNeighbor(scope, i, 1);
 				return;
 			}
 
-			const mergeOffset = displayLength(children[i].raw);
+			// The landing is the primitive's answer, not `displayLength` read ahead of it: a live
+			// seam cleanup drops runs on the first block's side and moves where the two met.
+			let merged: MergeResult = { change: { op: 'noop' }, joinOffset: 0 };
 			await scope.commit({
 				snapshot: { index: i, offset: CURSOR_END },
 				eventTarget: i,
 				op: { kind: 'merge', detail: { direction: 'next' } },
 				mutate: (view) => {
-					const change = performMergeNext({ children: view.children }, i);
-					stampStructuralChange(view.children, change, view.sharing);
-					return change;
+					merged = performMergeNext(
+						{ children: view.children },
+						i,
+						view.getPresentationMode?.(),
+						view.linkRef
+					);
+					stampStructuralChange(view.children, merged.change, view.sharing);
+					return merged.change;
 				},
-				afterTick: () => scope.refAt(i)?.focus(mergeOffset),
+				afterTick: () => {
+					if (mergedElseFocusNext(merged.change, scope.refAt(i + 1))) {
+						scope.refAt(i)?.focus(merged.joinOffset);
+					}
+				},
 				discardIfNoop: true
 			});
 		},
@@ -194,10 +259,10 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'delete' },
-				mutate: (view) => performDelete({ children: view.children }, i, view.sharing),
+				mutate: (view) => performDelete(bodyParentOf(view), i, view.sharing),
 				afterTick: () => {
 					const focusIdx = Math.min(i, scope.children().length - 1);
-					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(0);
+					if (focusIdx >= 0) scope.refAt(focusIdx)?.focus(CURSOR_START);
 				},
 				discardIfNoop: true
 			});
@@ -224,10 +289,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					// container's OPENER line (an alert's type), so the rebuilt bytes may open
 					// as a different kind. The document branch runs no chain rebuild of its
 					// own, so this is the only seam a top-level metadata write crosses.
+					// `folds: null` — the rebuild root is the commit's own scope array, whose
+					// descriptor this mutate has already fixed as `noop`.
 					const [reclassified] = rebuildUnsharedChain(
 						{ children: view.children },
 						[node],
 						view.sharing,
+						null,
 						view.grammar
 					);
 					touchedNodes.push(reclassified?.replacement ?? node);
@@ -240,8 +308,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		async replaceBlock(i, replacement, focus, options) {
 			const children = scope.children();
 			if (i < 0 || i >= children.length) return;
+			// `snapshotOffset` is where the caret WAS, which undo restores; `focus.offset` is where
+			// it lands. They part company when the replacement seats it inside a new structure.
 			const snapshot =
-				options?.undoEntry === 'join' ? 'skip' : { index: i, offset: focus?.offset ?? 0 };
+				options?.undoEntry === 'join'
+					? 'skip'
+					: { index: i, offset: options?.snapshotOffset ?? focus?.offset ?? 0 };
 			await scope.commit({
 				snapshot,
 				eventTarget: i,
@@ -260,16 +332,20 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					}
 					const normalized = normalizeReplacementTrivia(view.children[i], replacement);
 					for (const node of normalized) ensureEditableContainers(node);
-					view.children.splice(i, 1, ...normalized);
+					spliceMany(view.children, i, 1, normalized);
 					const change = replacePreservingFirst(i, 1, normalized.length);
 					stampStructuralChange(view.children, change, view.sharing);
 					return change;
 				},
 				afterTick: () => {
-					if (focus && replacement.length > 0)
-						scope.refAt(i + focus.replacementIndex)?.focus(focus.offset);
+					if (!focus || replacement.length === 0) return;
+					const ref = scope.refAt(i + focus.replacementIndex);
+					if (focus.path?.length) ref?.focusByPath?.(focus.path, focus.offset);
+					else ref?.focus(focus.offset);
 				}
 			});
 		}
 	};
+
+	return core;
 }

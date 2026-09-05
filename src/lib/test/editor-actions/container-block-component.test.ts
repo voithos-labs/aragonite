@@ -4,8 +4,9 @@ import { createContainerBlockComponent } from '$lib/editor-actions/container-blo
 import { CURSOR_END, FOCUS_LAST_START, type BlockComponent } from '$lib/block-component';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
+import { makeShimDeps } from '$lib/test/harness/editor-actions';
 
-function makeRef(): BlockComponent {
+function makeRef(overrides: Partial<BlockComponent> = {}): BlockComponent {
 	return {
 		focus: vi.fn(),
 		parkCaret: vi.fn(),
@@ -13,37 +14,39 @@ function makeRef(): BlockComponent {
 		focusAtColumn: vi.fn(),
 		getCursorOffset: vi.fn(() => null),
 		editable: true,
-		focusable: true
+		focusable: true,
+		...overrides
 	} as BlockComponent;
 }
 
-function listNode(childCount: number): CstNode {
-	const children: CstNode[] = Array.from({ length: childCount }, () => ({
-		kind: 'paragraph',
-		leadingTrivia: '',
-		raw: 'text\n'
-	}));
-	return { kind: 'list', leadingTrivia: '', raw: '', metadata: { ordered: false }, children };
-}
+const mermaidNode = (): CstNode =>
+	({ kind: 'mermaid' as AnyBlockKind, leadingTrivia: '', raw: '', children: [] }) as CstNode;
 
 function container(refs: BlockComponent[]): BlockComponent {
-	return createContainerBlockComponent({
-		selection: createSelectionState(),
-		get innerBlockRefs() {
-			return refs;
-		},
-		get nodeChildrenLength() {
-			return refs.length;
-		},
-		get node() {
-			return listNode(refs.length);
-		}
-	});
+	return createContainerBlockComponent(makeShimDeps(refs));
 }
 
 describe('createContainerBlockComponent', () => {
 	it('returns a BlockComponent with editable + focusable defaulted to true', () => {
 		const c = container([]);
+		expect(c.editable).toBe(true);
+		expect(c.focusable).toBe(true);
+	});
+
+	// Miss-analysis: the flag was a literal `true` with no reader, so no test could tell a
+	// declared value from the hardcode — the only pin was the default it never left.
+	it('reports the declared editable value, re-read live', () => {
+		let declared = false;
+		const c = createContainerBlockComponent(
+			makeShimDeps([], {
+				get editable() {
+					return declared;
+				}
+			})
+		);
+		expect(c.editable).toBe(false);
+		// A snapshot dep would freeze the first read; focusability is a separate axis.
+		declared = true;
 		expect(c.editable).toBe(true);
 		expect(c.focusable).toBe(true);
 	});
@@ -73,19 +76,7 @@ describe('createContainerBlockComponent', () => {
 	// The body is unmounted, so a walk-in from below must clamp to child 0, never the
 	// absent last ref.
 	function collapsedContainer(refs: BlockComponent[]): BlockComponent {
-		return createContainerBlockComponent({
-			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return refs;
-			},
-			get nodeChildrenLength() {
-				return refs.length;
-			},
-			get node() {
-				return listNode(refs.length);
-			},
-			isCollapsed: () => true
-		});
+		return createContainerBlockComponent(makeShimDeps(refs, { isCollapsed: () => true }));
 	}
 
 	it('collapsed: focus(FOCUS_LAST_START) clamps to child 0, not the last child', () => {
@@ -108,8 +99,7 @@ describe('createContainerBlockComponent', () => {
 
 	it('getCursorOffset returns first ref reporting an offset', () => {
 		const r1 = makeRef();
-		const r2 = makeRef();
-		(r2.getCursorOffset as any) = vi.fn(() => 7);
+		const r2 = makeRef({ getCursorOffset: () => 7 });
 		expect(container([r1, r2]).getCursorOffset()).toBe(7);
 	});
 
@@ -135,18 +125,9 @@ describe('createContainerBlockComponent', () => {
 				}
 			]
 		};
-		const c = createContainerBlockComponent({
-			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return [];
-			},
-			get nodeChildrenLength() {
-				return 1;
-			},
-			get node() {
-				return imageOnly;
-			}
-		});
+		const c = createContainerBlockComponent(
+			makeShimDeps([], { nodeChildrenLength: 1, node: imageOnly })
+		);
 		expect(c.isVerticallyTransparent?.()).toBe(true);
 	});
 
@@ -161,19 +142,7 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 	function withRange(refs: BlockComponent[]) {
 		const selection = createSelectionState();
 		selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [4], offset: 2 });
-		const api = createContainerBlockComponent({
-			selection,
-			get innerBlockRefs() {
-				return refs;
-			},
-			get nodeChildrenLength() {
-				return refs.length;
-			},
-			get node() {
-				return listNode(refs.length);
-			}
-		});
-		return { selection, api };
+		return { selection, api: createContainerBlockComponent(makeShimDeps(refs, { selection })) };
 	}
 
 	it('focus ends a live cross-block range', () => {
@@ -224,24 +193,9 @@ describe('createContainerBlockComponent — the two caret doors', () => {
 // getter, caret entry lands on that element instead of walking absent children.
 describe('createContainerBlockComponent — whole-block focus (getFocusEl)', () => {
 	function wholeBlock(focusEl: HTMLElement | null, refs: BlockComponent[] = []): BlockComponent {
-		return createContainerBlockComponent({
-			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return refs;
-			},
-			get nodeChildrenLength() {
-				return refs.length;
-			},
-			get node() {
-				return {
-					kind: 'mermaid' as AnyBlockKind,
-					leadingTrivia: '',
-					raw: '',
-					children: []
-				} as CstNode;
-			},
-			getFocusEl: () => focusEl
-		});
+		return createContainerBlockComponent(
+			makeShimDeps(refs, { node: mermaidNode(), getFocusEl: () => focusEl })
+		);
 	}
 
 	function focusableEl(): HTMLElement {
@@ -304,24 +258,13 @@ describe('createContainerBlockComponent — measurePartialRects (opaque single-u
 		childCount?: number;
 		getBoxEl?: () => HTMLElement | null | undefined;
 	}): BlockComponent {
-		return createContainerBlockComponent({
-			selection: createSelectionState(),
-			get innerBlockRefs() {
-				return [];
-			},
-			get nodeChildrenLength() {
-				return over.childCount ?? 0;
-			},
-			get node() {
-				return {
-					kind: 'mermaid' as AnyBlockKind,
-					leadingTrivia: '',
-					raw: '',
-					children: []
-				} as CstNode;
-			},
-			getBoxEl: over.getBoxEl
-		});
+		return createContainerBlockComponent(
+			makeShimDeps([], {
+				nodeChildrenLength: over.childCount ?? 0,
+				node: mermaidNode(),
+				getBoxEl: over.getBoxEl
+			})
+		);
 	}
 
 	it('is always present on the shim', () => {

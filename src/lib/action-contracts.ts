@@ -6,6 +6,7 @@
 import type { CstNode, TableAlignment } from './core/nodes';
 import type { NodeView } from './core/node-views';
 import type { StructuralChange } from './tree-operations/structural-change';
+import type { TrackedPosition } from './tree-operations/node-ops';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
@@ -49,6 +50,12 @@ export interface BlockEditActions {
 	 * it is the last child. An off-window next block leaves the caret put, key consumed.
 	 */
 	descendToBody(blockIndex: number): void | Promise<void>;
+	/**
+	 * @internal Mint a paragraph carrying `text` at a BOUNDARY of this scope, caret after
+	 * the text. `boundaryIndex === children.length` appends. The between-blocks caret's
+	 * insertion door (`selection/gap-caret.ts`).
+	 */
+	insertParagraph(boundaryIndex: number, text: string): void | Promise<void>;
 	mergeWithPrevious(blockIndex: number): void | Promise<void>;
 	mergeWithNext(blockIndex: number): void | Promise<void>;
 	deleteBlock(blockIndex: number): void | Promise<void>;
@@ -81,13 +88,15 @@ export interface BlockEditActions {
 	): void | Promise<void>;
 	/**
 	 * Replace the block at `blockIndex` with zero or more new blocks.
-	 * `replacement.length === 0` is equivalent to deleteBlock.
+	 * `replacement.length === 0` is equivalent to deleteBlock. `focus.path` addresses a caret
+	 * landing inside the replacement's own structure; `snapshotOffset` is where the caret was,
+	 * for the undo entry, and defaults to where it lands.
 	 */
 	replaceBlock(
 		blockIndex: number,
 		replacement: CstNode[],
-		focus?: { replacementIndex: number; offset: number },
-		options?: { undoEntry?: UndoEntryMode }
+		focus?: { replacementIndex: number; offset: number; path?: number[] },
+		options?: { undoEntry?: UndoEntryMode; snapshotOffset?: number }
 	): void | Promise<void>;
 }
 
@@ -98,6 +107,9 @@ export interface MoveFocusOptions {
 	 * are unaffected. Defaults to true (Enter/split rely on the append).
 	 */
 	append?: boolean;
+	/** @internal Set by a move that LEAVES a gap caret, so the boundary it just left
+	 *  cannot re-capture it. */
+	skipGapStop?: boolean;
 }
 
 export interface FocusActions {
@@ -108,6 +120,12 @@ export interface FocusActions {
 	): void | Promise<void>;
 	/** Mount an off-window top-level block before placing a caret in it; see EditorActionsDeps.revealPath. */
 	revealPath(path: number[]): Promise<BlockComponent | null>;
+	/**
+	 * @internal Park the caret at an eligible between-blocks boundary, reporting whether it
+	 * did. Required, not optional: a dropped forward makes every gap arrival below it
+	 * silently vanish.
+	 */
+	tryGapStop(parentPath: number[], boundaryIndex: number): boolean;
 }
 
 export interface HistoryActions {
@@ -132,9 +150,11 @@ export interface ContainerScope {
 export interface MultiScopeTarget {
 	/** Scope identity — a view suffices; the ceremony unshares the spine and mints the owned mutation view. */
 	node: NodeView;
+	/** The `BlockListState` shape the ceremony writes: ids by assignment, refs only in
+	 *  place — the array identity is the scope's, so a replacement strands its teardowns. */
 	state: {
 		innerBlockIds: string[];
-		innerBlockRefs: (BlockComponent | undefined)[];
+		readonly innerBlockRefs: (BlockComponent | undefined)[];
 	};
 	/** Doc-absolute path of `node`; the commit primitive unshares its spine. */
 	path: number[];
@@ -153,6 +173,12 @@ export interface CommitMultiScopeArgs<
 	op?: ScopedOpDescriptor;
 	afterTick?: CommitAfterTick;
 	discardIfNoop?: DiscardIfNoop;
+	/**
+	 * Caret positions the scopes' settles carry through their folds, parallel to `scopes` —
+	 * a fold re-tiles the bytes under a landing chosen before the settle ran. Written in
+	 * place, so `afterTick` reads the settled seat back off the object it passed in.
+	 */
+	trackCaret?: readonly (TrackedPosition | undefined)[];
 }
 
 export interface CommitStructuralArgs {
@@ -172,7 +198,7 @@ export interface CommitContainerStructuralArgs {
 	path: number[];
 	state: {
 		innerBlockIds: string[];
-		innerBlockRefs: (BlockComponent | undefined)[];
+		readonly innerBlockRefs: (BlockComponent | undefined)[];
 	};
 	snapshot: CommitSnapshotArg;
 	mutate: (scope: ContainerScope) => StructuralChange;
@@ -194,6 +220,9 @@ export interface CommitController {
 	pushUndoSnapshotPath(path: number[], offset: number): void;
 	/** Debounced typing snapshot; `leafPath` is the edited leaf's doc-absolute path. */
 	pushUndoSnapshotDebounced(leafPath: number[], offset: number, batchKey?: string | number): void;
+	/** Start the batch's pause window, once the keystroke's own edit has settled. Paired with
+	 *  every `pushUndoSnapshotDebounced`, or the batch never ends by pause. */
+	armUndoPause(): void;
 	commitStructural(args: CommitStructuralArgs): Promise<void>;
 	commitContainerStructural(args: CommitContainerStructuralArgs): Promise<void>;
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
@@ -208,6 +237,9 @@ export interface CommitController {
 	/** Flush the pending keystroke batch — emit its `input` event and clear the
 	 *  debounce timer — before a history swap, so the batch's bytes aren't lost. */
 	flushDebouncedCheckpoint(): void;
+	/** Run a command's byte write as its own undo entry. A command is not typing, so the
+	 *  keystroke batch breaks on BOTH sides: one Ctrl+Z takes the command and nothing else. */
+	isolateUndoEntry(write: () => void): void;
 }
 
 export interface ContainerEditActions {
@@ -217,6 +249,8 @@ export interface ContainerEditActions {
 	 * focus moves between sibling leaves.
 	 */
 	pushDebouncedCheckpoint(leafPath: number[], offset: number, batchKey?: string | number): void;
+	/** The checkpoint's other half: open the pause window once the keystroke's edit has settled. */
+	armDebouncedPause(): void;
 	/**
 	 * Publish a raw change made outside the commit primitive, forwarded unchanged through
 	 * nested containers. Raw rebuilds are NOT part of the nudge — out-of-ceremony writers
@@ -225,12 +259,16 @@ export interface ContainerEditActions {
 	nudgeReactivity(): void;
 	/**
 	 * Copy-path-on-write wrapper for out-of-ceremony writes (routine typing): unshares the
-	 * spine doc-root → `absPath`, calls `write` with the owned chain (outermost first),
-	 * rebuilds innermost-first. The caller still pushes its own checkpoint and nudges.
-	 * True means the rebuild re-derived a container's kind (typing the rest of a
-	 * `> [!TIP]` marker), remounting the edited leaf — the caller re-places the caret.
+	 * spine doc-root → `absPath`, calls `write` with the owned chain (outermost first) and the
+	 * epoch to own anything OFF that spine, then rebuilds innermost-first. The caller still pushes
+	 * its own checkpoint and nudges. True means the rebuild re-derived a container's kind (typing
+	 * out a `> [!TIP]` marker), remounting the edited leaf — the caller re-places the caret.
+	 * `write` returns the change its own settle made, so the wrapper can publish it.
 	 */
-	withUnsharedSpine(absPath: number[], write: (chain: CstNode[]) => void): boolean;
+	withUnsharedSpine(
+		absPath: number[],
+		write: (chain: CstNode[], sharing: SharingState) => StructuralChange | void
+	): boolean;
 	/**
 	 * Preferred entry for structural container mutations: spine unshare, snapshot,
 	 * publish, edit event, post-tick. `mutate` receives the OWNED container with its

@@ -23,7 +23,9 @@ function makeEnv(revealPath?: CrossBlockMutationContext['revealPath']) {
 		revealPath: revealPath ?? harness.deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined,
+		linkRef: undefined
 	};
 	return { ...harness, controller, mutCtx };
 }

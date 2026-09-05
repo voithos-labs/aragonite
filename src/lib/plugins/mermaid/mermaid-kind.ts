@@ -14,6 +14,7 @@ import {
 	getPluginMetadata,
 	matchFenceOpen,
 	matchFenceClose,
+	escalatedFenceLength,
 	OPENER_PRIORITIES,
 	type FenceOpen,
 	type CstNode
@@ -22,10 +23,9 @@ import {
 export const MERMAID = 'mermaid';
 
 /**
- * Everything `rebuildMermaidRaw` needs to re-emit the exact bytes, all primitives
- * because the undo clone shallow-copies metadata. `infoRaw` and `closerRaw` are
- * verbatim slices, trailing spaces and line ending included; `closerRaw` is `''`
- * when the fence is unterminated.
+ * Everything `rebuildMermaidRaw` needs to re-emit the exact bytes, all primitives because the
+ * undo clone shallow-copies metadata. The `*Raw` fields are verbatim slices, trailing spaces
+ * and line ending included.
  */
 export interface MermaidMetadata {
 	code: string;
@@ -55,17 +55,36 @@ export function joinMermaidBody(draft: string, lineEnding: string): string {
 	return draft.replaceAll('\n', lineEnding) + lineEnding;
 }
 
-/** The opener's inverse, and the byte path every code edit rides. */
+/**
+ * The opener's inverse, and the byte path every code edit rides. The body is a metadata string
+ * this kind never re-parses, so the fence is sized against it here — a diagram line that reads as
+ * this block's closer would otherwise truncate the block on its next load.
+ */
 export function rebuildMermaidRaw(node: CstNode): void {
 	const meta = getPluginMetadata<MermaidMetadata>(node);
 	if (!meta) return;
+	const marker = meta.fenceChar === '~' ? '~' : '`';
+	const fenceLength = escalatedFenceLength(meta.code, marker, meta.fenceLength);
 	node.raw =
 		meta.openerIndent +
-		meta.fenceChar.repeat(meta.fenceLength) +
+		marker.repeat(fenceLength) +
 		meta.infoRaw +
 		meta.openerLineEnding +
 		meta.code +
-		meta.closerRaw;
+		(fenceLength > meta.fenceLength
+			? grownCloser(meta.closerRaw, marker, fenceLength)
+			: meta.closerRaw);
+}
+
+/**
+ * Grow a verbatim closer line's run to `length`, keeping its indent, trailing spaces and line
+ * ending. An unterminated block has no closer line and gains none: the parser reads it to the end
+ * of input either way.
+ */
+function grownCloser(closerRaw: string, marker: '`' | '~', length: number): string {
+	const match = /^( {0,3})([`~]+)([\s\S]*)$/.exec(closerRaw);
+	if (!match) return closerRaw;
+	return match[1] + marker.repeat(Math.max(match[2].length, length)) + match[3];
 }
 
 // ── Component UI hooks ────────────────────────────────────────────────────────
@@ -105,6 +124,9 @@ export function registerMermaidKind(): void {
 		// ThematicBreak's focus-then-delete model: arrows stop on it, and a caret-adjacent
 		// Backspace focuses before a second press deletes.
 		blockFocus: 'whole-block',
+		// Leading edge only, for the same reason as thematicBreak: its focused Enter already
+		// inserts a paragraph below.
+		gapEdges: 'before',
 		container: {
 			// Raw is rebuilt from metadata alone, so it is exempt from the strip byte-check
 			// and guarded by the reparse + determinism probes instead.
@@ -132,7 +154,7 @@ export function registerMermaidKind(): void {
 			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect via the container shim' },
 			searchPaint: {
 				mode: 'implemented',
-				via: 'raw scans as a leaf, painted via the container shim measurePartialRects; replace skips it — metadata-derived raw (issue #41)'
+				via: 'raw scans as a leaf, painted via the container shim measurePartialRects; replace reparses the substituted bytes and applies when the kind survives'
 			},
 			reorder: {
 				mode: 'implemented',
@@ -144,7 +166,7 @@ export function registerMermaidKind(): void {
 			},
 			clipboard: {
 				mode: 'implemented',
-				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); cross-block slice inherits the default'
+				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); a cross-block range carries the unit whole, per the kit byte-slice check'
 			},
 			simOracle: {
 				mode: 'implemented',

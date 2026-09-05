@@ -24,12 +24,37 @@ describe('text-batch lifecycle', () => {
 	it('pause flush emits one input event with the batch byte count, next keystroke re-snapshots', () => {
 		const { batch, pushSnapshot, emitInput } = harness();
 		batch.keystroke([1], 0);
+		batch.armPause();
 		batch.keystroke([1], 1);
+		batch.armPause();
 		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS);
 		expect(emitInput).toHaveBeenCalledTimes(1);
 		expect(emitInput).toHaveBeenCalledWith([1], 2);
 		batch.keystroke([1], 2);
 		expect(pushSnapshot).toHaveBeenCalledTimes(2);
+	});
+
+	// Miss-analysis (#71): every case armed the pause inside `keystroke`, so nothing could tell
+	// a window that starts when the user stops typing from one that starts when the editor starts
+	// working — and on a host where a keystroke's own settle approaches 250ms those are the
+	// difference between one undo entry per burst and one per character.
+	it('the window opens at the arm, not at the keystroke: a slow settle spends no budget', () => {
+		const { batch, pushSnapshot } = harness();
+		batch.keystroke([1], 0);
+		// The keystroke's own processing, longer than the whole window.
+		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS * 2);
+		batch.armPause();
+		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS - 1);
+
+		batch.keystroke([1], 1);
+		expect(pushSnapshot, 'the burst stayed one batch').toHaveBeenCalledTimes(1);
+	});
+
+	it('arming with no live batch starts no window', () => {
+		const { batch, emitInput } = harness();
+		batch.armPause();
+		vi.advanceTimersByTime(UNDO_DEBOUNCE_MS);
+		expect(emitInput).not.toHaveBeenCalled();
 	});
 
 	it('batch-key change flushes the displaced batch and starts a new one (0.7.7 regression)', () => {

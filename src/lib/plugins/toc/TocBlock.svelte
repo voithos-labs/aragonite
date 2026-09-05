@@ -8,7 +8,7 @@
 		type EditorRects,
 		type NodeView
 	} from '$lib/plugin';
-	import { collectHeadings } from './heading-outline';
+	import { collectHeadings, resolveMaxDepth } from './heading-outline';
 	import { createNavigationQueue } from './navigation-queue';
 
 	let {
@@ -42,14 +42,16 @@
 		}
 	});
 
-	// The walk reads heading bytes through the prop, subscribing to the CST's $state
-	// proxy, so an edit above re-runs it; it stays uncached to keep the derived
-	// reactive-safe.
-	const headings = $derived(collectHeadings(document, maxDepth));
+	// Instance options win; the `maxDepth` prop is the factory argument, which a bare install
+	// (and only a bare install) is configured by.
+	const depth = $derived(resolveMaxDepth(leaf.getOptions(), maxDepth));
 
-	// Serialized per block (see `navigation-queue.ts` for why). `navigateTo` lands the
-	// caret as well as scrolling, so the entry button does not keep focus where the
-	// editor's chords cannot reach it. Without a rect surface, entries are inert.
+	// The walk reads heading bytes through the prop, subscribing to the CST's $state proxy, so
+	// an edit above re-runs it; it stays uncached to keep the derived reactive-safe.
+	const headings = $derived(collectHeadings(document, depth));
+
+	// Serialized per block (see `navigation-queue.ts` for why). `navigateTo` lands the caret as
+	// well as scrolling, so focus never stays where the editor's chords cannot reach it.
 	const navigation = createNavigationQueue({
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve()
 	});
@@ -73,6 +75,7 @@
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
 	export const runCommand = leaf.runCommand;
+	export const insertMarkdown = leaf.insertMarkdown;
 
 	void ({
 		editable,
@@ -84,7 +87,8 @@
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
-		runCommand
+		runCommand,
+		insertMarkdown
 	} satisfies BlockComponent);
 </script>
 
@@ -92,15 +96,14 @@
 	<div
 		bind:this={sourceEl}
 		{...leaf.surfaceProps}
-		class="toc-block-source"
+		class="toc-block-source md-source-surface"
 		aria-label="TOC source"
 	></div>
 {:else}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="toc-block-render"
 		aria-label="Table of contents (click to edit)"
-		onpointerdown={leaf.onRenderPointerDown}
+		{...leaf.renderProps}
 	>
 		<nav class="toc-block-nav" aria-label="Document headings">
 			{#if headings.length === 0}
@@ -128,21 +131,11 @@
 {/if}
 
 <style>
+	/* Deltas over the shared .md-source-surface (editor.css). */
 	.toc-block-source {
-		display: block;
-		width: 100%;
 		outline: none;
 		padding: 8px 12px;
-		font-family: var(--font-editor, ui-monospace, monospace);
-		font-size: 0.9em;
-		line-height: 1.5;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-accent, #567b67);
-		border-radius: 4px;
-		color: inherit;
 		white-space: pre;
-		box-sizing: border-box;
-		min-height: 1.4em;
 	}
 
 	.toc-block-render {
@@ -178,7 +171,7 @@
 		line-height: 1.6;
 		color: inherit;
 		cursor: pointer;
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 	}
 
 	.toc-block-item:hover {
@@ -214,5 +207,12 @@
 	.toc-block-empty {
 		font-size: 0.9em;
 		color: var(--color-text-muted, #aaaaaa);
+	}
+
+	/* The entry's own line box lands a pixel under the WCAG 2.5.8 minimum a thumb needs. */
+	@media (pointer: coarse) {
+		.toc-block-item {
+			min-height: 24px;
+		}
 	}
 </style>

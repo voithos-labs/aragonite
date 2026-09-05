@@ -10,10 +10,16 @@ import type { DocumentView, NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { ResolveImageUrl, ResolveLinkUrl } from '../../../editor-keys';
 import { buildAmbientSpan } from '../../../ambient/ambient-dom';
-import { computeInlineContent, getContentRange, isProseKind } from '../../../core/inline';
+import {
+	computeInlineContent,
+	contentLengthOf,
+	getContentRange,
+	isProseKind
+} from '../../../core/inline';
 import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
 import { renderInlineNodes, type ImageLoadPolicy } from '../../../core/inline-render';
 import type { DomTextOffset } from '../../../cursor/coordinate-spaces';
+import { CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome } from '../../../cursor/widget-offset';
 import {
 	captureFocusedCaretWalkOffset,
 	restoreCaretAtWalkOffset
@@ -57,6 +63,8 @@ export interface TextRenderDeps {
 	/** The editor's content version, so a widget can memoize a document-wide derivation
 	 *  on it. Absent in a bare harness. */
 	getContentVersion?: () => number;
+	/** The editor's navigation door, forwarded to widgets whose gesture jumps elsewhere. */
+	navigateTo?: (path: number[]) => Promise<boolean>;
 	get linkResolver(): LinkReferenceResolver | undefined;
 	/** A compact stamp changing exactly when the document's LRD signature does
 	 *  (`link-reference-resolver.ts` mints it), so a reference-bearing block folds this
@@ -112,7 +120,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		getPresentationMode: () => deps.presentationMode,
 		getTheme: deps.getTheme,
 		getDocument: deps.getDocument,
-		getContentVersion: deps.getContentVersion
+		getContentVersion: deps.getContentVersion,
+		navigateTo: deps.navigateTo
 	});
 	let islandDestroys: Array<() => void> = [];
 
@@ -221,6 +230,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		const renderKey = `${deps.ambientPrefixText}\0${node.raw}\0${refKeyPart}\0${imgKeyPart}\0${modeKeyPart}\0${node.kind}${islandRenderKeyPart(islands)}`;
 		const forceRebuild = opts?.forceRebuild ?? false;
 		const carryCaret = opts?.carryCaret ?? true;
+		let carriedCaret: DomTextOffset | null = null;
 
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) return;
@@ -237,6 +247,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 			destroyIslands();
 			el.replaceChildren(buildInlineDOM(content));
 			islandDestroys = applyIslandDecorations(el, node.raw, islands, {
+				contentLength: contentLengthOf(node),
 				ambientLength: deps.ambientPrefixText.length,
 				mountWidget: (spec, dec) => mountDecorationWidget(spec, dec, deps.reportRenderError),
 				onSkipped: (dec, reason) => devWarn('decorations', `island skipped: ${reason}`, dec)
@@ -246,7 +257,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				traceIslandsApplied(islands.length);
 			}
 			widgetPool.sweep();
-			if (caretWalkOffset !== null) restoreCaret(el, caretWalkOffset);
+			carriedCaret = caretWalkOffset;
 		} else {
 			// An empty pass sweeps any widget or island stranded by an in-place
 			// prose→non-prose kind change, which reuses this same component instance.
@@ -273,6 +284,9 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// early-return onto stale DOM.
 		lastRenderedKey = renderKey;
 		ensureBr(el);
+		// The stamp decides which spans the walk can land in, so it precedes the caret restore.
+		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
+		if (carriedCaret !== null) restoreCaret(el, carriedCaret);
 	}
 
 	return {

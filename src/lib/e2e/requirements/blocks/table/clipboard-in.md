@@ -6,6 +6,7 @@
 - Paste plain text containing `|`: pipes auto-escape to `\|` in the cell raw.
 - Paste plain text containing `\n`: newlines collapse to a single space; leading/trailing whitespace trimmed.
 - Paste a single-paragraph clipboard (no blank-line separators): same rules as plain text — single-paragraph clipboards take the inline path.
+- Paste text a copy wrapped in blank lines: the blank blocks at either edge are packaging, so one content paragraph still takes the inline path and the table stays whole.
 
 ## Happy paths (structural)
 
@@ -26,3 +27,12 @@
 
 - Sub-rectangle selection + paste plain text: cells inside the rectangle are cleared; pasted text lands inside the anchor cell. Cells outside the rectangle remain untouched. Single Ctrl+Z restores the original document.
 - Whole-table selection (Ctrl+A 2nd press) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
+
+## Miss-analysis
+
+- Blank-line materialization turned a copy's whitespace-only edge lines into blocks, which moved
+  an ordinary cell paste onto the break-the-table route; the sweep that followed the rule picked
+  its e2e projects by the files it touched, so e2e-blocks never ran. Under it sat the real gap:
+  the cell-paste family unit-tested its hooks and never the classification that chooses between
+  them, so no unit run could see a cell target take the wrong route. Both now have pins
+  (`dispatch-strategy.test.ts`, `cell-paste-classification.test.ts`).

@@ -1,12 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import {
 	PARAGRAPH,
 	PNG,
 	getCalls,
 	gotoWithHook,
-	parseConverged,
 	pasteFiles,
 	releaseImport,
 	setResponses
@@ -50,7 +48,7 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 		await page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('![[shot.png]]Xthird');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('the whole replacement is one undo entry', async ({ page }) => {
@@ -69,7 +67,7 @@ test.describe('image paste: cross-block replacement', () => {
 		// ONE press has to undo the delete AND the insertion together — otherwise the
 		// user is left staring at a document whose selection is gone and whose image
 		// never arrived.
-		await page.keyboard.press(`${primaryModifier}+z`);
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceNotContains('shot.png');
 		const restored = await editor.bridge.getSource();
 		expect(restored).toContain('second');
@@ -96,7 +94,7 @@ test.describe('image paste: cross-block replacement', () => {
 		const source = await editor.bridge.getSource();
 		expect(source).not.toContain('second');
 		expect(source.trim()).toBe('AB![[held.png]]third');
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	// A focus endpoint hosting no caret (an image-only paragraph) makes the park a no-op, so
@@ -108,8 +106,8 @@ test.describe('image paste: cross-block replacement', () => {
 		await editor.loadContent(`${PARAGRAPH}\nsecond\n\n![cat](/test-fixtures/sample.png)\n`);
 		await setResponses(page, [{ markdown: '![[shot.png]]' }]);
 		await editor.focusBlockEnd(0);
-		await page.keyboard.press('Control+a');
-		await page.keyboard.press('Control+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
 		await pasteFiles(page, [PNG], '', 'body');
@@ -119,7 +117,7 @@ test.describe('image paste: cross-block replacement', () => {
 		expect(source).not.toContain('second');
 		expect(source).not.toContain('sample.png');
 		expect(await getCalls(page)).toHaveLength(1);
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	// The cross-block delete has a table-specific branch, so a cell-anchored selection is its
@@ -147,7 +145,7 @@ test.describe('image paste: cross-block replacement', () => {
 		// The covered body row is gone; the range really was deleted.
 		expect(viaHook).not.toContain('| 1 | 2 |');
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
-		expect(await parseConverged(page)).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 
 		// A fresh NAVIGATION, not a second loadContent: the harness drives `source` as a prop, so
 		// re-assigning the string it already holds is a no-op that would leave the mutated document
@@ -155,8 +153,8 @@ test.describe('image paste: cross-block replacement', () => {
 		await editor.goto('?imagePaste=on');
 		await editor.loadContent(TABLE);
 		await selectOutOfCell();
-		await page.evaluate((md) => navigator.clipboard.writeText(md), MARKDOWN);
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.seedClipboard(MARKDOWN);
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('shot.png');
 
 		expect(await editor.bridge.getSource()).toBe(viaHook);

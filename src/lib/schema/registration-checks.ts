@@ -5,9 +5,14 @@
  * This module and block-openers reference each other, but only inside function bodies, and
  * neither calls the other during evaluation, so no cycle observes uninitialized state.
  */
-import { ALL_BLOCK_KINDS, type AnyBlockKind } from '../core/nodes';
+import {
+	ALL_BLOCK_KINDS,
+	isBuiltinInlineKind,
+	type AnyBlockKind,
+	type AnyInlineKind
+} from '../core/nodes';
 import type { ClosureCell } from './closure';
-import { assertInvariant, type InvariantViolation } from '../invariants/assert';
+import { assertInvariant, type InvariantViolation } from '../assert';
 import {
 	checkRegistryCompleteness,
 	checkOpenerRegistry,
@@ -16,12 +21,21 @@ import {
 	checkClosureCoherence,
 	checkLateOpenerRegistration,
 	checkMergeRoleVocabulary,
+	checkContentStartBackspace,
+	checkDescriptorFieldCoherence,
+	checkInlineConstructPolicy,
 	type ClosureCoherenceEntry,
+	type ContentStartBackspaceEntry,
+	type DescriptorFieldEntry,
 	type MergeRoleEntry
 } from '../invariants/registry';
+import { listInlineConstructPolicies } from './inline-construct-policy';
+import { isInlineKindDeclared } from './plugin-kind';
 import {
 	tryGetBlockKindDescriptor,
 	getAllRegisteredKinds,
+	isKnownMergeRole,
+	liftsFirstChild,
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import { getBlockComponent } from './block-component-registry';
@@ -94,10 +108,45 @@ const mergeRoleEntries = (kinds: readonly AnyBlockKind[]): MergeRoleEntry[] =>
 		return mergeRole === undefined ? [] : [{ kind, mergeRole }];
 	});
 
+const contentStartBackspaceEntries = (
+	kinds: readonly AnyBlockKind[]
+): ContentStartBackspaceEntry[] =>
+	kinds.map((kind) => {
+		const d = tryGetBlockKindDescriptor(kind);
+		return {
+			kind,
+			demotesFirst: d?.contentStartBackspace === 'demote-first',
+			declaresContentRange: d?.getContentRange !== undefined
+		};
+	});
+
+const descriptorFieldEntries = (
+	kinds: readonly AnyBlockKind[],
+	openerKinds: ReadonlySet<AnyBlockKind>
+): DescriptorFieldEntry[] =>
+	kinds.flatMap((kind) => {
+		const d = tryGetBlockKindDescriptor(kind);
+		if (!d) return [];
+		const firstChildBackspace = d.unwrapRole?.firstChildBackspace;
+		return [
+			{
+				kind,
+				declaresWholeBlockFocus: d.blockFocus === 'whole-block',
+				supportsInline: d.supportsInline,
+				declaresReservedChrome: d.reservedChrome !== undefined,
+				contextDependentKind: d.contextDependentKind === true,
+				hasOpener: openerKinds.has(kind),
+				unwrapLiftsFirstChild:
+					firstChildBackspace !== undefined && liftsFirstChild(firstChildBackspace),
+				unwrapKeepsReservedChrome: firstChildBackspace === 'keep-reserved-chrome'
+			}
+		];
+	});
+
 const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
 
 /**
- * Run the registry coherence checks (G1.2/10/11/17/18/24/30). The first call sweeps the whole
+ * Run the registry coherence checks (G1.2/10/11/17/18/24/30/32/37). The first call sweeps the whole
  * world; later calls validate only the kinds registered since, plus opener coherence over the
  * full registry (a new opener's priority collision is inherently cross-entry).
  */
@@ -123,8 +172,40 @@ export function flushPendingRegistrationChecks(
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor, hasComponent)
 	);
 	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
-	report('merge-role-vocabulary', () => checkMergeRoleVocabulary(mergeRoleEntries(kinds)));
+	report('descriptor-field-coherence', () =>
+		checkDescriptorFieldCoherence(
+			descriptorFieldEntries(kinds, new Set(listRegisteredOpeners().map((entry) => entry.kind)))
+		)
+	);
+	report('merge-role-vocabulary', () =>
+		checkMergeRoleVocabulary(mergeRoleEntries(kinds), isKnownMergeRole)
+	);
+	report('content-start-backspace', () =>
+		checkContentStartBackspace(contentStartBackspaceEntries(kinds))
+	);
 	for (const kind of work.lateOpeners) {
 		report('late-opener-registration', () => checkLateOpenerRegistration(kind, true));
 	}
+}
+
+const isKnownInlineKind = (kind: AnyInlineKind): boolean =>
+	isBuiltinInlineKind(kind) || isInlineKindDeclared(kind);
+
+/**
+ * G1.31, at the EDITOR-MOUNT flush alone. The rows register with the descriptors, but the
+ * policy's function hooks patch in from the component layer, which a parse-only unit test
+ * never loads — running this at the parser's flush would fire on an absence legal there.
+ * Table-wide rather than per-registration, so it does not ride the pending-kinds queue.
+ */
+export function checkInlineConstructPoliciesAtMount(
+	report: RegistrationCheckReport = assertInvariant
+): void {
+	report('inline-construct-policy', () =>
+		checkInlineConstructPolicy(
+			listInlineConstructPolicies(),
+			isKnownInlineKind,
+			isBuiltinInlineKind,
+			isBuiltinCommandId
+		)
+	);
 }

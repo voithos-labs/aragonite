@@ -1,6 +1,7 @@
 /**
- * The decoration-source shape on public doors only: onEditor wires a selection-driven
- * mark source, and the scan and its memo stay pure in the sibling modules.
+ * The decoration-source shape on public doors only: onEditor wires a mark source to the
+ * selection and edit channels, and the scan, its memo and the typing gate stay pure in
+ * the sibling modules.
  */
 
 import { definePlugin, type EditorPlugin } from '$lib/plugin';
@@ -8,10 +9,11 @@ import { createOccurrenceSource } from './occurrence-source';
 
 export interface HighlightOccurrencesOptions {
 	/**
-	 * Called when the word index is rebuilt: on an edit, not on a caret move. Public
-	 * so a harness asserts the memo against this wiring rather than a copy of it.
+	 * Called when the word index is rebuilt: on a document change, not on a caret move,
+	 * carrying how many leaves that rebuild had to tokenize. Public so a harness asserts
+	 * the memo against this wiring rather than a copy of it.
 	 */
-	onScan?: () => void;
+	onScan?: (stats: { tokenizedLeaves: number }) => void;
 }
 
 export function highlightOccurrencesPlugin(
@@ -23,12 +25,16 @@ export function highlightOccurrencesPlugin(
 			ctx.onEditor((editor) => {
 				const occurrences = createOccurrenceSource({ onScan: options.onScan });
 				const handle = editor.decorations.addSource(occurrences.source);
-				const off = editor.events.on('selectionChange', (selection) => {
+				const offSelection = editor.events.on('selectionChange', (selection) => {
 					occurrences.setSelection(selection);
 					handle.invalidate();
 				});
+				const offEdit = editor.events.on('edit', ({ op }) => {
+					if (occurrences.noteEdit(op)) handle.invalidate();
+				});
 				return () => {
-					off();
+					offSelection();
+					offEdit();
 					handle.dispose();
 				};
 			});

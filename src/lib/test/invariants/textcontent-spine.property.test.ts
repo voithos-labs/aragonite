@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode } from '../../core/nodes';
-import { parseInline } from '../../core/inline';
+import { contentLengthOf, parseInline } from '../../core/inline';
 import { renderInlineNodes } from '../../core/inline-render';
 import { buildAmbientSpan } from '../../ambient/ambient-dom';
 import { rawTextOfNode } from '../../cursor/widget-offset';
@@ -11,6 +11,11 @@ import { applyIslandDecorations } from '../../decorations/island-dom';
 import type { ReplaceDecoration, WidgetDecoration } from '../../decorations/types';
 import { mountDecorationWidget } from '../../decorations/widget-dom';
 import { arbAltOnlyImage, arbInlineSource, freshOrFixedSeed } from './arbitraries';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// Arbitrary replace spans land inside atomic widgets, and snapping outward is the behaviour under
+// test.
+afterEach(() => allowDevWarns(['decorations']));
 
 // G2.4: the rendered DOM's textContent reproduces the source bytes, so caret <-> offset
 // round-trips. The widget-free corpus excludes images and `<br>`, whose zero contribution
@@ -18,9 +23,13 @@ import { arbAltOnlyImage, arbInlineSource, freshOrFixedSeed } from './arbitrarie
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424242) } as const;
 
-function renderToContainer(nodes: InlineNode[], raw: string): HTMLElement {
+function renderToContainer(
+	nodes: InlineNode[],
+	raw: string,
+	options?: Parameters<typeof renderInlineNodes>[2]
+): HTMLElement {
 	const container = document.createElement('div');
-	container.appendChild(renderInlineNodes(nodes, raw));
+	container.appendChild(renderInlineNodes(nodes, raw, options));
 	return container;
 }
 
@@ -57,6 +66,16 @@ describe('G2.4 textContent spine (widget-free)', () => {
 		const container = renderToContainer(nodes, source);
 		expect(container.textContent).toBe(source);
 	});
+
+	// The spine is blind to which pair a shared delimiter run binds to, so the four spellings the
+	// shared lane draws at random get a deterministic floor of their own.
+	it.each(['*a *b* c*', '**a **b** c**', '**a *b** c*', '*a **b* c**'])(
+		'asterisk delimiter nesting renders byte-exact: %s',
+		(source) => {
+			const nodes = parseInline(source, 0, source.length);
+			expect(renderToContainer(nodes, source).textContent).toBe(source);
+		}
+	);
 });
 
 // Atomic widgets contribute 0 textContent — their bytes live in data-source-* attributes
@@ -86,8 +105,7 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 	it('image widget contributes 0; surrounding text remains', () => {
 		const source = 'see ![alt](/x.png) end';
 		const nodes = parseInline(source, 0, source.length);
-		const container = document.createElement('div');
-		container.appendChild(renderInlineNodes(nodes, source, { buildImageWidget }));
+		const container = renderToContainer(nodes, source, { buildImageWidget });
 		expect(container.textContent).toBe(expectedWithWidgetsRemoved(source, nodes));
 		expect(container.textContent).toBe('see  end');
 	});
@@ -95,8 +113,7 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 	it('<br> live widget contributes 0; surrounding text remains', () => {
 		const source = 'a<br>b';
 		const nodes = parseInline(source, 0, source.length);
-		const container = document.createElement('div');
-		container.appendChild(renderInlineNodes(nodes, source));
+		const container = renderToContainer(nodes, source);
 		expect(container.textContent).toBe(expectedWithWidgetsRemoved(source, nodes));
 		expect(container.textContent).toBe('ab');
 	});
@@ -104,8 +121,7 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 	it('a visible entity widget shows its glyph but the walk reads back its bytes', () => {
 		const source = 'a&copy;b';
 		const nodes = parseInline(source, 0, source.length);
-		const container = document.createElement('div');
-		container.appendChild(renderInlineNodes(nodes, source));
+		const container = renderToContainer(nodes, source);
 		// The widget contributes its glyph, so only the raw-aware walk recovers the bytes.
 		expect(container.textContent).toBe('a©b');
 		expect(rawTextOfNode(container, source)).toBe(source);
@@ -114,8 +130,7 @@ describe('G2.4 textContent spine (atomic-widget delta)', () => {
 	it('an invisible entity keeps its literal span, so textContent equals raw', () => {
 		const source = 'a&nbsp;b';
 		const nodes = parseInline(source, 0, source.length);
-		const container = document.createElement('div');
-		container.appendChild(renderInlineNodes(nodes, source));
+		const container = renderToContainer(nodes, source);
 		expect(container.querySelector('[data-inline-widget]')).toBeNull();
 		expect(container.textContent).toBe(source);
 	});
@@ -132,8 +147,7 @@ describe('G2.4 textContent spine (alt-only images)', () => {
 				if (node.start > 0) nodes.push({ kind: 'text', start: 0, end: node.start });
 				nodes.push(node);
 				if (node.end < raw.length) nodes.push({ kind: 'text', start: node.end, end: raw.length });
-				const container = document.createElement('div');
-				container.appendChild(renderInlineNodes(nodes, raw, { renderImagesAsWidgets: false }));
+				const container = renderToContainer(nodes, raw, { renderImagesAsWidgets: false });
 				expect(container.textContent).toBe(raw);
 			}),
 			PARAMS
@@ -194,8 +208,10 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 		const container = document.createElement('div');
 		if (prefix !== undefined) container.appendChild(buildAmbientSpan(prefix));
 		container.appendChild(renderInlineNodes(parseInline(source, 0, source.length), source));
-		applyIslandDecorations(container, source, toIslands(specs, source.length), {
+		const contentLength = contentLengthOf({ kind: 'paragraph', leadingTrivia: '', raw: source });
+		applyIslandDecorations(container, source, toIslands(specs, contentLength), {
 			...opts,
+			contentLength,
 			ambientLength: prefix?.length ?? 0
 		});
 		if (prefix === undefined) return rawTextOfNode(container, source);
@@ -247,5 +263,6 @@ describe('G2.4 textContent spine (decoration islands)', () => {
 			),
 			PARAMS
 		);
-	});
+		// ~2s alone; the full battery's worker saturation blows the default 5s cap.
+	}, 20_000);
 });

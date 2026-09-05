@@ -1,24 +1,16 @@
 // A scope `path` that does not address its `node` must bail, not fall back to the
 // caller's never-unshared node: the splice would land on the snapshot-shared node and
-// corrupt the freshest undo entry, silently — G1.19/G1.22 are dev-only warnings. The
-// sibling seam (`withUnsharedSpine`, G1.20) bails on the same input.
+// corrupt the freshest undo entry, silently — G1.19/G1.22 are dev-only warnings. Its
+// sibling (`withUnsharedSpine`, G1.20) rebuilds what the walk did reach instead.
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { parse } from '$lib/core/parser';
 import { concatChildren, serialize } from '$lib/core/serializer';
-import type { CstNode } from '$lib/core/nodes';
 import type { EditorError } from '$lib/editor-events';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
-
-function listItemNode(raw: string): CstNode {
-	return {
-		kind: 'listItem',
-		leadingTrivia: '',
-		raw,
-		metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
-	} as CstNode;
-}
+import { takeDevWarns } from '$lib/test/support/warn-gate';
+import { makeListItem } from '$lib/test/harness/list-fixtures';
 
 function harness(scopePath: number[]) {
 	const { deps, events } = makeEditorActionsDeps(parse('- a\n- b\n').children);
@@ -32,7 +24,7 @@ function harness(scopePath: number[]) {
 			scopes,
 			snapshot: 'skip',
 			mutate: ([scope]) => {
-				scope.children.push(listItemNode('- c\n'));
+				scope.children.push(makeListItem('- c\n'));
 				return [{ op: 'insert', at: scope.children.length - 1, count: 1 }];
 			}
 		});
@@ -56,6 +48,7 @@ describe('commitMultiScope bails on a scope path that ran off the tree', () => {
 			expect(concatChildren(sharedList.children ?? [])).toBe(sharedBefore);
 			expect(concatChildren(deps.doc.children[0].children ?? [])).toBe(sharedBefore);
 			expect(serialize(deps.doc)).toBe(treeBefore);
+			expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:multi-scope-scope-depth');
 		});
 	}
 
@@ -68,5 +61,6 @@ describe('commitMultiScope bails on a scope path that ran off the tree', () => {
 
 		expect(errors).toHaveLength(1);
 		expect(errors[0].origin).toBe('commit');
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:multi-scope-scope-depth');
 	});
 });

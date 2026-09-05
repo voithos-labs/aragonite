@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { wholeBlockInput } from '../../whole-block-input';
 
 // Whole-block atomic copy/cut through the shared `handleWholeBlockKeys` tail
 // (requirements/clipboard/whole-block-atomic-copy.md). Mod+C writes via
@@ -19,20 +20,19 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 	});
 
 	const breakBlock = () => editor.page.locator('.thematic-break-block');
-	const readClipboard = () => editor.page.evaluate(() => navigator.clipboard.readText());
 
 	async function focusBreakByArrow(): Promise<void> {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('ArrowDown');
-		await expect(breakBlock()).toBeFocused();
+		await expect(wholeBlockInput(breakBlock())).toBeFocused();
 	}
 
 	test('Mod+C copies the block markdown and leaves the document unchanged', async () => {
 		await focusBreakByArrow();
 		const before = await editor.bridge.getSource();
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
 	});
@@ -40,9 +40,9 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 	test('Mod+X copies the markdown, deletes the block, and one undo restores it', async () => {
 		const before = await editor.bridge.getSource();
 		await focusBreakByArrow();
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		await editor.bridge.waitForSourceNotContains('---');
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		await editor.undo();
@@ -53,16 +53,16 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 		await page.getByTestId('presentation-toggle').click();
 		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
 		await breakBlock().click();
-		await expect(breakBlock()).toBeFocused();
+		await expect(wholeBlockInput(breakBlock())).toBeFocused();
 		const before = await editor.bridge.getSource();
 
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
-		expect(await readClipboard()).toBe(BREAK_MD);
+		expect(await editor.readClipboard()).toBe(BREAK_MD);
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

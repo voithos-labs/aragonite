@@ -1,9 +1,9 @@
 /**
  * Pure paste pipeline for fenced code blocks: splice the text in, then hand the
- * result to the write seam every route shares (`code-fence-write.ts`).
+ * result to the write seam every route shares (`schema/fenced-code-raw.ts`).
  */
 
-import { reconcileFenceWrite } from './code-fence-write';
+import { reconcileFenceWrite } from '../../../schema/fenced-code-raw';
 
 export interface CodePasteInput {
 	display: string;

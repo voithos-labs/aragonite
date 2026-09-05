@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { progressiveScrollTo, UNWINDOWED_PROSE } from './vr-helpers';
+import { progressiveScrollTo, spacerCount, UNWINDOWED_PROSE } from './vr-helpers';
 import { capturePageErrors } from '../../page-probes';
 
 // Two writers of one scrollTop, colliding on purpose. The reveal anchor re-asserts an
@@ -174,7 +174,7 @@ test('a header resize compensates rather than re-places a reveal the anchor is n
 
 	// Vacuity: windowing really is inactive, and the target really is on screen already
 	// (so the reveal below moves nothing and the claim rides a mid-viewport block).
-	expect(await page.evaluate(() => document.querySelectorAll('.vr-spacer').length)).toBe(0);
+	expect(await spacerCount(page)).toBe(0);
 	const visibleTarget = 14;
 	const beforeReveal = await offsetInPort(visibleTarget);
 	expect(beforeReveal).toBeGreaterThan(100);

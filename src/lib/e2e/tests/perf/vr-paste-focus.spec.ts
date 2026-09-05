@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { spacerCount } from './vr-helpers';
 
 /**
  * VR-12 for the structural paste landing. The caret lands at the end of the pasted run — an
@@ -51,16 +52,16 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 		// Non-vacuity: without an active container window the landing ref is always
 		// mounted and this test could not observe VR-12 at all.
 		expect(
-			await page.evaluate(() => document.querySelectorAll('.list-block > .vr-spacer').length),
+			await spacerCount(page, '.list-block >'),
 			'container windowing is not active — the fixture no longer clears the watermark'
 		).toBeGreaterThan(0);
 
-		await page.evaluate((text) => navigator.clipboard.writeText(text), CLIPBOARD);
+		await editor.seedClipboard(CLIPBOARD);
 
 		// Paste into an item near the top of the mounted window, so the landing index
 		// (here + 40) is far below anything mounted.
 		await editor.clickBlockAtPath([0, TARGET_ITEM, 0], 'item 2'.length);
-		await page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains(LAST_PASTED_TEXT);
 
 		// The source is final at commit time, before the reveal has mounted the landing

@@ -21,8 +21,23 @@ asserting `assertNone` throws.
   established (`start()`) before a `loadContent`, yet the render-error injected
   after the resync is still caught — proving the editor's events instance is
   stable across a source-prop change
-- invariant violation is caught: a `[invariant:…]`-marked dev warning is
-  recorded and `assertNone` throws (the commit/bootstrap invariant seam routes
-  through this marker)
-- benign warnings are ignored: a plain `console.warn` without the marker does
-  not trip the collector (so real sessions stay green on expected dev warnings)
+- invariant violation is caught: a `[aragonite:invariant:…]`-marked dev warning
+  is recorded and `assertNone` throws (the commit/bootstrap invariant seam
+  routes through this marker)
+- every dev warning is caught, not just invariant fires: a plain
+  `[aragonite:…]` warning trips `assertNone`, so a diagnostic the editor emits
+  mid-session cannot ride out a green run
+- Svelte runtime warnings are caught by their code, not by a list of known ones:
+  a warning headed `[svelte] state_proxy_equality_mismatch`, emitted in Svelte's
+  own `%c` shape, trips `assertNone`, and the waiver that silences it
+  (`svelte:state_proxy_equality_mismatch`) reads the same at the spec watch and
+  at the checkpoint
+- the same holds for a code no list ever named: `[svelte] derived_inert` trips
+  `assertNone` too, so narrowing the collector back to the codes someone thought
+  to write down fails on detection, not merely on a waiver's spelling
+- warnings from outside the editor are ignored: a `console.warn` with no
+  `[aragonite:…]` head does not trip the collector, so a host page's own
+  diagnostics stay out of the verdict
+- the checkpoint waiver is per-tag: `assertNone(['tag'])` silences that tag's
+  fires and nothing else: an unwaived fire in the same session still throws,
+  and the report names it alone

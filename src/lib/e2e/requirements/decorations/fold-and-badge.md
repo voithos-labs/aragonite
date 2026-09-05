@@ -28,3 +28,6 @@ heading host. Scenarios run on `/test/plugins?seed=fold` / `?seed=fold-table` /
   the cell surface applies island decorations like the prose path — the covered
   bytes leave the DOM text but never leave `getSource()`, and the source seam
   raises no cells-unsupported dev-warn
+- an edge press selects the cell fold island whole and a second deletes its
+  covered range; the fold source is content-keyed, so it simply stops providing
+  and the session raises no dev warning

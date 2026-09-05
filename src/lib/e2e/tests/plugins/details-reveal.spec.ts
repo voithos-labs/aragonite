@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { primaryModifier } from '../../platform';
 import { DetailsPage, activeBlockPath, bodyHostCount, capturedErrors } from './details-helpers';
 
 /**
@@ -21,7 +20,6 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new DetailsPage(page);
 		await editor.gotoDetails();
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('search navigation into a collapsed body expands it and leaves a live caret', async ({
@@ -40,7 +38,7 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 		// Caret on the summary before Ctrl+F, so the search snapshots it and the on-close
 		// restore has a live, in-DOM target to land on.
 		await editor.focusBlockAtPath([0, 0], 3);
-		await page.keyboard.press(`${primaryModifier}+f`);
+		await page.keyboard.press('ControlOrMeta+f');
 		await page.getByRole('textbox', { name: 'Find' }).click();
 		await page.keyboard.type('Zebra');
 

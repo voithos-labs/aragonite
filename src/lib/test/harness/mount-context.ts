@@ -21,14 +21,19 @@ import type { Document } from '$lib/core/nodes';
 import type { DocumentView } from '$lib/core/node-views';
 import { createDecorationEngine } from '$lib/decorations/decoration-state.svelte';
 import { createWidgetSelectionState } from '$lib/components/image/widget-selection-state.svelte';
+import { createLinkCardState } from '$lib/components/link-card/link-card-state.svelte';
 import { defaultRegistryView } from '$lib/schema/registry-view';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { createEditorEvents } from '$lib/editor-events';
 import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { createRevealAnchorState } from '$lib/cursor/reveal-anchor';
 import { createHeightOracle } from '$lib/cursor/height-oracle';
+import { createScrollport, type Scrollport } from '$lib/cursor/scrollport';
 import { HEIGHT_ESTIMATES } from '$lib/cursor/typography-estimates';
 import {
 	makeStickyColumn,
+	makeEdgeAffinity,
+	makePendingMarks,
 	makeStubBlockEdit,
 	makeStubContainerEdit,
 	makeStubFocus
@@ -54,23 +59,41 @@ export interface MountContextOverrides {
  *  stub that answers only the members reached today drifts the moment a
  *  component reaches one more. The rest keep a `{}` cast. */
 function stubbedServices(getDoc: () => DocumentView): EditorServices {
+	const selection = createSelectionState();
 	return {
 		events: createEditorEvents(),
 		// Real, not a cast: BlockHost and its overlays call four engine members
 		// during mount, and a source-less engine answers all of them honestly.
 		decorations: createDecorationEngine({ getDoc }),
-		selection: createSelectionState(),
+		selection,
 		search: {} as EditorServices['search'],
 		stickyColumn: makeStickyColumn(),
+		edgeAffinity: makeEdgeAffinity(),
+		pendingMarks: makePendingMarks(),
 		revealAnchor: createRevealAnchorState(),
 		// Real: every keydown on an editable surface asks it what is selected.
 		widgetSelection: createWidgetSelectionState({ onSelect: () => {} }),
-		controller: {} as EditorServices['controller'],
+		// Real: a `link.openCard` press asks it to seat a target, and the entry rule reads it back.
+		// The guards mirror production so a component test exercises the entry gates it ships with.
+		linkCard: createLinkCardState({
+			onOpen: () => {},
+			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false,
+			canEnter: () => !selection.isCrossBlock,
+			canOpenCreate: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed === false
+		}),
+		// The two members a format toggle reaches on a bare mount; the rest keep the cast.
+		controller: {
+			flushDebouncedCheckpoint: () => {},
+			isolateUndoEntry: (write: () => void) => write()
+		} as EditorServices['controller'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
 		reorder: {} as EditorServices['reorder'],
 		reorderAnnounce: () => {},
 		registryView: defaultRegistryView,
-		rects: {} as EditorServices['rects']
+		activePlugins: everyInstalledPlugin,
+		rects: {} as EditorServices['rects'],
+		// Real, and inert: a bare mount has no cross-block range, so every arm answers no.
+		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false }
 	};
 }
 
@@ -112,8 +135,25 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 			imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 		}),
 		scrollHost: () => null,
-		windowingEnabled: () => true,
-		widthVersion: () => 0
+		scrollport: () => null,
+		correctsScroll: () => true,
+		widthVersion: () => 0,
+		viewportHeightVersion: () => 0
+	};
+}
+
+/** Self mode's own wiring: an editor root supplied without a port IS the port, so a harness
+ *  that stubs scroll geometry on the root gets windowing reading it, as in production. */
+function withDerivedScrollport(doc: EditorDoc): EditorDoc {
+	if (doc.scrollport() !== null) return doc;
+	let port: Scrollport | null = null;
+	return {
+		...doc,
+		scrollport: () => {
+			const el = doc.editorRoot();
+			if (el && !port) port = createScrollport(el);
+			return port;
+		}
 	};
 }
 
@@ -121,7 +161,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	const emptyDoc: Document = { kind: 'document', prefix: '', children: [], suffix: '' };
 	// The doc facet is assembled first so services that read the document (the
 	// decoration engine) see the override rather than the empty placeholder.
-	const doc: EditorDoc = { ...stubbedDoc(emptyDoc), ...overrides.doc };
+	const doc: EditorDoc = withDerivedScrollport({ ...stubbedDoc(emptyDoc), ...overrides.doc });
 	return new Map<symbol, unknown>([
 		[BLOCK_EDIT_KEY, overrides.blockEdit ?? makeStubBlockEdit()],
 		[FOCUS_KEY, overrides.focus ?? makeStubFocus()],

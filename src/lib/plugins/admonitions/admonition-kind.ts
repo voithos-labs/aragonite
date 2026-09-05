@@ -1,14 +1,15 @@
 /**
- * The reference `:::name` directive container: dispatch, descriptor, kind-cycle
- * command, title chrome leaf. Reuses the shared directive grammar rather than a
- * hand-written opener, so the fence bytes stay the round-trip truth.
+ * The reference `:::name` directive container. Reuses the shared directive grammar rather
+ * than a hand-written opener, so the fence bytes stay the round-trip truth.
  */
 import {
 	activateDirectives,
 	chromeChild,
 	containerClosure,
 	createDirectiveRebuild,
+	declarePluginKind,
 	defineBlockComponent,
+	DIRECTIVE_BODY_WRAP,
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockCommand,
@@ -23,10 +24,10 @@ import {
 	type PluginBlockKind
 } from '$lib/plugin';
 import {
+	ADMONITION,
 	ADMONITION_KINDS,
+	ADMONITION_TITLE,
 	coerceAdmonitionName,
-	declareAdmonitionKinds,
-	admonitionTitleKind,
 	type AdmonitionMetadata
 } from './kinds';
 import { githubAlertsPasteTransform } from './convert-document';
@@ -42,7 +43,7 @@ export interface AdmonitionsOptions {
 }
 
 /** Child 0 is the title (the opener line's info, editable); children 1+ are the body. */
-function admonitionFromDirective(kind: PluginBlockKind) {
+function admonitionFromDirective(kind: PluginBlockKind, titleKind: PluginBlockKind) {
 	return (parsed: ParsedDirective): CstNode => {
 		const title = parsed.fence.info.trim();
 		const node: CstNode = {
@@ -50,7 +51,7 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 			leadingTrivia: parsed.leadingTrivia,
 			raw: parsed.raw,
 			innerPrefix: parsed.body?.prefix ?? '',
-			children: [chromeChild(admonitionTitleKind(), title), ...(parsed.body?.children ?? [])],
+			children: [chromeChild(titleKind, title), ...(parsed.body?.children ?? [])],
 			innerSuffix: parsed.body?.suffix ?? ''
 		};
 		setPluginMetadata<AdmonitionMetadata>(node, {
@@ -71,8 +72,9 @@ const rebuildAdmonitionRaw = createDirectiveRebuild<AdmonitionMetadata>((meta) =
 export function registerAdmonitions(options?: AdmonitionsOptions): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
 
-	const { admonition, title } = declareAdmonitionKinds();
-	const build = admonitionFromDirective(admonition);
+	const admonition = declarePluginKind(ADMONITION);
+	const title = declarePluginKind(ADMONITION_TITLE);
+	const build = admonitionFromDirective(admonition, title);
 
 	// Every name resolves to one kind, which reads its variant back from metadata.
 	for (const name of ADMONITION_KINDS) {
@@ -95,12 +97,18 @@ export function registerAdmonitions(options?: AdmonitionsOptions): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
+		// Opaque tier rule: no textual escape hatch at either edge, so both take the gap caret.
+		gapEdges: 'both',
 		container: {
 			// The title lives in the opener line, so raw is not a strip of the children.
 			contract: 'opaque',
 			rebuildRaw: rebuildAdmonitionRaw,
+			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: title },
-			unwrapRole: { firstChildBackspace: 'lift-first-child', middleChildBackspace: 'default-merge' }
+			unwrapRole: {
+				firstChildBackspace: 'keep-reserved-chrome',
+				middleChildBackspace: 'default-merge'
+			}
 		},
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
 		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',

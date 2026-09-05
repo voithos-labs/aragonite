@@ -1,5 +1,5 @@
 /**
- * The inline-rung conformance kit, published at `aragonite/testing` — sibling of the block
+ * The inline-rung conformance kit, published at `@voithos-labs/aragonite/testing` — sibling of the block
  * layer's `runKindConformance` and the container kit. Reads the LIVE registry, so it
  * composes with `resetPluginPlatformForTests()` cycles. The four profile-declared cells are
  * required, not optional, since every one is invisible to byte round-trip; an exemption the
@@ -21,8 +21,8 @@ import {
 	getInlineWidgetComponent,
 	getInlineWidgetEditing,
 	isInlineWidget,
-	DELETE_GRANULARITIES as DELETE_GRANULARITY_VALUES,
-	ON_EDGE_POLICIES as ON_EDGE_POLICY_VALUES,
+	DELETE_GRANULARITIES,
+	ON_EDGE_POLICIES,
 	type InlineWidgetEditingPolicy
 } from '../core/inline/inline-widgets';
 import {
@@ -507,11 +507,6 @@ function assertWalkLengthIsRawLength(fixture: string): void {
 
 // ── editingPolicy ────────────────────────────────────────────────────────────
 
-// Derived from the type's own home: a member added there reaches the shipped kit,
-// which would otherwise reject a conforming plugin with no compile error in-repo.
-const DELETE_GRANULARITIES: readonly string[] = DELETE_GRANULARITY_VALUES;
-const ON_EDGE_VALUES: readonly string[] = ON_EDGE_POLICY_VALUES;
-
 /**
  * A policy field outside the caret-edge dispatch's vocabulary is read as absent and the
  * kind silently takes the default, with no byte differing.
@@ -524,6 +519,13 @@ function checkEditingPolicy(profile: InlineConformanceProfile, rung: InlineRung)
 		policy !== undefined,
 		`"${kind}" declares no editing policy — register one, or declare this cell exempt if the ` +
 			`widget takes the default select-then-delete behavior deliberately`
+	);
+	// An all-absent object is what the dispatch reads as no policy, so accepting one lets a kind
+	// clear the cell with a declaration that changes not one byte of behavior.
+	assert(
+		Object.values(policy).some((field) => field !== undefined),
+		`"${kind}" registers an editing policy with every field absent, which the caret-edge ` +
+			`dispatch reads exactly as no policy at all — declare a field, or declare this cell exempt`
 	);
 	assertPolicyVocabulary(policy, kind);
 
@@ -557,12 +559,19 @@ function assertPolicyVocabulary(policy: InlineWidgetEditingPolicy, kind: AnyInli
 	}
 	if (policy.onEdge !== undefined) {
 		assert(
-			ON_EDGE_VALUES.includes(policy.onEdge),
-			`"${kind}" onEdge is one of ${ON_EDGE_VALUES.join(' | ')}`
+			ON_EDGE_POLICIES.includes(policy.onEdge),
+			`"${kind}" onEdge is one of ${ON_EDGE_POLICIES.join(' | ')}`
 		);
 	}
 	if (policy.onSelectedKey !== undefined) {
 		assertIs(typeof policy.onSelectedKey, 'function', `"${kind}" onSelectedKey is callable`);
+	}
+	if (policy.claimsActivationClick !== undefined) {
+		assertIs(
+			typeof policy.claimsActivationClick,
+			'boolean',
+			`"${kind}" claimsActivationClick is a boolean`
+		);
 	}
 }
 

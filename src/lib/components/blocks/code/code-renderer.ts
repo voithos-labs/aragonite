@@ -8,7 +8,7 @@ import type { NodeView } from '../../../core/node-views';
 import { metadataOf } from '../../../core/nodes';
 import { trimTrailingLineEnding } from '../../../core/lines';
 import { devWarn } from '../../../dev-warn';
-import { assertInvariant } from '../../../invariants/assert';
+import { assertInvariant } from '../../../assert';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
 import hljs from 'highlight.js/lib/core';
 import { getLanguageGrammar } from './code-languages';
@@ -292,7 +292,7 @@ function findClosingFenceStart(
 	fenceMarker: '`' | '~',
 	fenceLength: number
 ): number {
-	const fencePattern = new RegExp(`^ {0,3}${escapeRegex(fenceMarker)}{${fenceLength},}\\s*$`);
+	const fencePattern = new RegExp(`^ {0,3}${fenceMarker}{${fenceLength},}\\s*$`);
 
 	let lineEnd = raw.length;
 	while (lineEnd > searchStart) {
@@ -307,8 +307,4 @@ function findClosingFenceStart(
 
 	// Unreachable when the parser's `closed` flag is consistent with raw.
 	return raw.length;
-}
-
-function escapeRegex(s: string): string {
-	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

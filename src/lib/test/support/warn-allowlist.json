@@ -1,0 +1,4 @@
+{
+	"$comment": "Sites whose devWarn legitimately fires during the unit run, keyed tag + site. Each entry is a diagnostic on a path the suite deliberately exercises, not an accepted defect; the list only shrinks. Every unlisted fire reds its owning test. src/lib/test/invariants/lint/warn-allowlist-freshness.test.ts keeps the rows honest against the source.",
+	"allow": []
+}

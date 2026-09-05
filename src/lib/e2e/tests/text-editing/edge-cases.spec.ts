@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { wholeBlockInput } from '../../whole-block-input';
 
 test.describe('text editing — edge cases', () => {
 	let editor: EditorPage;
@@ -20,16 +21,27 @@ test.describe('text editing — edge cases', () => {
 		expect(sourceAfter).toBe(sourceBefore);
 	});
 
-	test('Backspace at start of heading after heading — no merge, moves focus', async () => {
-		await editor.loadContent('# Heading A\n\n## Heading B\n');
-		const countBefore = await editor.bridge.getBlockCount();
+	// The caret is the whole outcome of the ineligible arm: source and block count cannot move,
+	// so asserting only those reads the press as dead (the shape issue #138 was filed as).
+	for (const [label, doc, landing] of [
+		['heading above heading', '# Heading A\n\n## Heading B\n', 11],
+		['prose above a prose-absorber', 'lorem\n\n# \n', 5]
+	] as const) {
+		test(`Backspace at a heading's start under ${label} — no merge, caret lands at its end`, async () => {
+			await editor.loadContent(doc);
+			const sourceBefore = await editor.bridge.getSource();
+			const countBefore = await editor.bridge.getBlockCount();
 
-		await editor.focusBlockStart(1);
-		await editor.page.keyboard.press('Backspace');
+			await editor.focusBlockStart(1);
+			await editor.page.keyboard.press('Backspace');
 
-		const countAfter = await editor.bridge.getBlockCount();
-		expect(countAfter).toBe(countBefore);
-	});
+			await expect
+				.poll(async () => await editor.bridge.getSelectionPaths())
+				.toMatchObject({ focus: { path: [0], offset: landing } });
+			expect(await editor.bridge.getBlockCount()).toBe(countBefore);
+			expect(await editor.bridge.getSource()).toBe(sourceBefore);
+		});
+	}
 
 	test('heading absorbs following paragraph on merge', async () => {
 		await editor.loadContent('# Title\n\nBody text\n');
@@ -53,7 +65,7 @@ test.describe('text editing — edge cases', () => {
 		await editor.focusBlockStart(2);
 		await editor.page.keyboard.press('Backspace');
 
-		await expect(breakBlock).toBeFocused();
+		await expect(wholeBlockInput(breakBlock)).toBeFocused();
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 		expect(await editor.bridge.getBlockCount()).toBe(countBefore);
@@ -92,11 +104,14 @@ test.describe('text editing — edge cases', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Enter');
 
-		const domCount = await editor.getDomBlockCount();
-		expect(domCount).toBe(2);
+		await editor.waitForBlockHostCount(2);
 		expect(await editor.bridge.getBlockKind(0)).toBe('heading');
-		// Empty block may be absorbed as trivia by the parser — verify via DOM.
-		const secondBlock = editor.getBlock(1);
-		await expect(secondBlock).toBeVisible();
+
+		// The empty block is in the bytes rather than folded into the heading's trailing
+		// trivia, so reloading them shows the same two blocks.
+		const src = await editor.bridge.getSource();
+		expect(src).toBe('# Heading\n\n\n');
+		await editor.loadContent(src);
+		expect(await editor.getDomBlockCount()).toBe(2);
 	});
 });

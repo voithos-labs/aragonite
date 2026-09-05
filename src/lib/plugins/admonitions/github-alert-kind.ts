@@ -14,13 +14,14 @@ import {
 	declaredPluginKind,
 	defineBlockComponent,
 	getPluginMetadata,
-	parse,
+	parseContainerBody,
 	registerBlockComponent,
 	registerBlockKind,
 	registerBlockOpener,
 	serializeChildren,
 	setPluginMetadata,
 	type BlockOpenerResult,
+	type ContainerBodyWrap,
 	type CstNode,
 	type OpenContext,
 	type ParsedLine
@@ -29,18 +30,25 @@ import { matchAlertMarker, stripQuoteMarker } from './gh-alert';
 import { GITHUB_ALERT, type GithubAlertMetadata } from './kinds';
 import AdmonitionBlock from './AdmonitionBlock.svelte';
 
+/** The `> [!TYPE]` marker line is the alert's own chrome, so a blank against it separates
+ *  rather than materializing; nothing closes the alert below. */
+const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true };
+
 function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const alertType = matchAlertMarker(ctx.line.text);
 	if (!alertType) return null;
 
-	// The built-in extent scan, not the marker regex, is the authority on whether this
-	// line opens a blockquote: declining when it claims nothing keeps a marker-rule
-	// drift from reaching the parse loop as a non-advancing return.
+	// The built-in extent scan, not the marker regex, is the authority on whether this line
+	// opens a blockquote: declining on a zero-line claim keeps a marker-rule drift from
+	// reaching the parse loop as a non-advancing return.
 	const { raw, nextIndex } = blockquoteExtent(ctx.lines, ctx.index, ctx.end);
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;
 
-	const body = parse(stripBody(ctx.lines, ctx.index + 1, nextIndex));
+	// A fresh parse entry, so the body's own line 0 must not read as the document top.
+	const body = parseContainerBody(stripBody(ctx.lines, ctx.index + 1, nextIndex), BODY_WRAP, {
+		scope: 'fragment'
+	});
 
 	const node: CstNode = {
 		kind: declaredPluginKind(GITHUB_ALERT),
@@ -106,6 +114,7 @@ export function registerGithubAlert(): void {
 	});
 
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
@@ -113,12 +122,12 @@ export function registerGithubAlert(): void {
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildGithubAlertRaw,
+			bodyWrap: BODY_WRAP,
 			// The alert is a blockquote with a marker, so it unwraps as one: lifting the
 			// first child out drops the marker and reparses plain.
 			unwrapRole: {
-				firstChildBackspace: 'lift-first-child',
-				middleChildBackspace: 'default-merge',
-				quoteShaped: true
+				firstChildBackspace: 'lift-first-child-drop-opener',
+				middleChildBackspace: 'default-merge'
 			},
 			// The marker is position-independent, so rebuildRaw re-emits it after a move.
 			reorderChildren: {}
@@ -132,7 +141,7 @@ export function registerGithubAlert(): void {
 			},
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child; default-merge) — Backspace at the body start lifts the first child out and drops the marker, leaving a plain blockquote'
+				via: 'mergeRole=container + unwrapRole (lift-first-child-drop-opener; default-merge) — Backspace at the body start lifts the first child out and drops the marker, leaving a plain blockquote'
 			},
 			undo: { mode: 'inherit-default' },
 			simOracle: {

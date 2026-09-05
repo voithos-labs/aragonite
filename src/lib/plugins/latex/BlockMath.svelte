@@ -57,6 +57,7 @@
 	export const setSelection = leaf.setSelection;
 	export const measurePartialRects = leaf.measurePartialRects;
 	export const runCommand = leaf.runCommand;
+	export const insertMarkdown = leaf.insertMarkdown;
 
 	void ({
 		editable,
@@ -68,7 +69,8 @@
 		getSelectedText,
 		setSelection,
 		measurePartialRects,
-		runCommand
+		runCommand,
+		insertMarkdown
 	} satisfies BlockComponent);
 </script>
 
@@ -76,7 +78,7 @@
 	<div
 		bind:this={sourceEl}
 		{...leaf.surfaceProps}
-		class="math-block-source"
+		class="math-block-source md-source-surface"
 		aria-label="Math source"
 	></div>
 {:else}
@@ -87,28 +89,18 @@
 		role="button"
 		tabindex="-1"
 		aria-label="Math (click to edit)"
-		onpointerdown={leaf.onRenderPointerDown}
+		{...leaf.renderProps}
 	></div>
 {/if}
 
 <style>
+	/* Deltas over the shared .md-source-surface (editor.css). */
 	.math-block-source {
-		display: block;
-		width: 100%;
 		outline: none;
 		padding: 12px;
-		font-family: var(--font-editor, ui-monospace, monospace);
-		font-size: 0.9em;
-		line-height: 1.5;
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-accent, #567b67);
-		border-radius: 4px;
-		color: inherit;
 		white-space: pre;
 		overflow-x: auto;
 		overflow-y: hidden;
-		box-sizing: border-box;
-		min-height: 1.4em;
 	}
 
 	.math-block-render {

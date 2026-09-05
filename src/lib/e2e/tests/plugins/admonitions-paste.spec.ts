@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures';
-import { primaryModifier } from '../../platform';
 import { PluginsPage, readDoc, roundTripStable } from './helpers';
 
 /**
@@ -25,8 +24,8 @@ test.describe('plugin admonitions — native alert paste', () => {
 		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockEnd(0);
-		await page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Handy note.\n'));
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.seedClipboard('> [!TIP]\n> Handy note.\n');
+		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		expect((await readDoc(page)).kinds).toContain('githubAlert');
@@ -43,12 +42,10 @@ test.describe('plugin admonitions — native alert paste', () => {
 	}) => {
 		await editor.loadContent('Intro paragraph.\n');
 		await editor.focusBlockEnd(0);
-		await page.evaluate(() =>
-			navigator.clipboard.writeText(
-				'> [!TIP]\n> Top-level alert.\n\n```md\n> [!NOTE]\n> Inside a fence.\n```\n'
-			)
+		await editor.seedClipboard(
+			'> [!TIP]\n> Top-level alert.\n\n```md\n> [!NOTE]\n> Inside a fence.\n```\n'
 		);
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		const source = await editor.bridge.getSource();
@@ -66,12 +63,12 @@ test.describe('plugin admonitions — native alert paste', () => {
 	test('whole-table-selection paste replaces the table with a native alert', async ({ page }) => {
 		await editor.loadContent('before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n');
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press(`${primaryModifier}+a`);
-		await page.keyboard.press(`${primaryModifier}+a`);
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
-		await page.evaluate(() => navigator.clipboard.writeText('> [!TIP]\n> Replaced table.\n'));
-		await page.keyboard.press(`${primaryModifier}+v`);
+		await editor.seedClipboard('> [!TIP]\n> Replaced table.\n');
+		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('> [!TIP]');
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');

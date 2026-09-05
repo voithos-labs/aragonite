@@ -16,13 +16,14 @@ import {
 	registerChromeLeaf,
 	setPluginMetadata,
 	getPluginMetadata,
-	parse,
+	parseContainerBody,
 	serializeChildren,
 	trimTrailingLineEnding,
 	matchFenceOpen,
 	matchFenceClose,
 	htmlBlockTagLineMatcher,
 	OPENER_PRIORITIES,
+	type ContainerBodyWrap,
 	type CstNode
 } from '$lib/plugin';
 
@@ -32,6 +33,9 @@ export const DETAILS_SUMMARY = 'details-summary';
 const OPEN_LINE = /^<details( open)?>$/;
 const SUMMARY_LINE = /^<summary>(.*)<\/summary>$/;
 const CLOSE_LINE = /^<\/details>$/;
+
+/** `<summary>` above and `</details>` below, so a blank against either belongs to the element. */
+const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true, beforeCloserLine: true };
 
 export interface DetailsMetadata {
 	open: boolean;
@@ -54,9 +58,8 @@ const canonicalTagLine = (text: string): TagVerdict =>
 const passthroughTagLine = htmlBlockTagLineMatcher('details');
 
 /**
- * A `</details>` inside a fenced code block is content on both sides of the round
- * trip, so neither the recognizer nor the escape may count it. Stateful across a run
- * of lines, because the fence is.
+ * A `</details>` inside a fenced code block is content on both sides of the round trip, so
+ * neither the recognizer nor the escape may count it. Stateful, because the fence is.
  */
 function createTagScanner(tagLine: (text: string) => TagVerdict) {
 	let fence: { marker: '`' | '~'; length: number } | null = null;
@@ -73,8 +76,6 @@ function createTagScanner(tagLine: (text: string) => TagVerdict) {
 		return tagLine(text);
 	};
 }
-
-const createDetailsTagScanner = () => createTagScanner(canonicalTagLine);
 
 function unpairedTagLines(
 	lines: readonly string[],
@@ -94,10 +95,9 @@ function unpairedTagLines(
 }
 
 /**
- * Two accountings, because the recognizer and a browser disagree about what a tag line
- * is; a pair balanced under one and split under the other only surfaces after the first
- * pass escapes a member, so only the fixpoint leaves neither renderer holding a stray.
- * Terminates because every round escapes a line and escaping never mints a tag.
+ * Two accountings, because the recognizer and a browser disagree about what a tag line is,
+ * and only the fixpoint leaves neither renderer holding a stray. Terminates because every
+ * round escapes a line and escaping never mints a tag.
  */
 function strayTagLines(lines: readonly string[]): Set<number> {
 	const escaped = new Set<number>();
@@ -176,16 +176,19 @@ export function registerDetailsKind(): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
+		// Opaque tier rule: no textual escape hatch at either edge, so both take the gap caret.
+		gapEdges: 'both',
 		container: {
 			contract: 'opaque',
 			rebuildRaw: rebuildDetailsRaw,
+			bodyWrap: BODY_WRAP,
 			reservedChrome: {
 				kind: detailsSummary,
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
 				expandPatch: () => ({ open: true }) satisfies Partial<DetailsMetadata>
 			},
 			unwrapRole: {
-				firstChildBackspace: 'lift-first-child',
+				firstChildBackspace: 'keep-reserved-chrome',
 				middleChildBackspace: 'default-merge'
 			},
 			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
@@ -218,8 +221,8 @@ export function registerDetailsKind(): void {
 	registerBlockOpener(details, {
 		// Slots into the gap just below htmlBlock, which else claims `<details>` as a type-6 block.
 		priority: OPENER_PRIORITIES.htmlBlock - 5,
-		// Defensive: htmlBlock's type-6 interrupt already covers the canonical opener and
-		// details wins the re-dispatch, so this only guards a future priority regression.
+		// Redundant with htmlBlock's type-6 interrupt, which details wins on re-dispatch; kept
+		// so the opener's paragraph behavior does not depend on that priority ordering.
 		interruptsParagraph: (line) => OPEN_LINE.test(line),
 		tryOpen(ctx) {
 			const openMatch = ctx.line.text.match(OPEN_LINE);
@@ -233,7 +236,7 @@ export function registerDetailsKind(): void {
 			// Depth-counted so nested details recurse via parse rather than closing early.
 			let depth = 1;
 			let closeIdx = -1;
-			const classify = createDetailsTagScanner();
+			const classify = createTagScanner(canonicalTagLine);
 			for (let i = summaryIdx + 1; i < ctx.end; i++) {
 				const tag = classify(ctx.lines[i].text);
 				if (tag === 'open') {
@@ -252,7 +255,8 @@ export function registerDetailsKind(): void {
 				.slice(summaryIdx + 1, closeIdx)
 				.map((l) => l.raw)
 				.join('');
-			const body = parse(bodyText);
+			// A fresh parse entry, so the body's own line 0 must not read as the document top.
+			const body = parseContainerBody(bodyText, BODY_WRAP, { scope: 'fragment' });
 			const raw = ctx.lines
 				.slice(ctx.index, closeIdx + 1)
 				.map((l) => l.raw)

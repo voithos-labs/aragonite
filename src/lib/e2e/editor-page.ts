@@ -1,6 +1,6 @@
 import { type Page, type Locator } from '@playwright/test';
-import { primaryModifier } from './platform';
 import { EditorBridge } from './editor-bridge';
+import { createClipboardArm, type ClipboardArm } from './clipboard-arm';
 import { generateFixture, type FixtureShape } from '../test/perf/fixtures/generate';
 import {
 	BLOCK_CONTENT_SELECTOR,
@@ -11,22 +11,29 @@ import {
 // one selector definition instead of inlining `:not(.selection-overlay)`.
 export { BLOCK_CONTENT_SELECTOR } from '../components/block-content-selector';
 
+/** Hang guard on the harness installing `window.__test`, not a budget for it: a battery
+ *  saturating one dev server pushes hydration well past the seconds a quiet host takes. */
+export const BRIDGE_INSTALL_TIMEOUT = 60_000;
+
 export class EditorPage {
 	readonly editorContainer: Locator;
 	readonly bridge: EditorBridge;
+	readonly clipboard: ClipboardArm;
 
 	constructor(public page: Page) {
 		this.editorContainer = page.locator('.editor');
 		this.bridge = new EditorBridge(page);
+		this.clipboard = createClipboardArm(page);
 	}
 
 	// ── Navigation ──────────────────────────────────────────────────────
 
 	async goto(query = '') {
+		await this.clipboard.install();
 		await this.page.goto(`/test/editor${query}`);
 		await this.editorContainer.waitFor({ state: 'visible' });
 		await this.page.waitForFunction(() => (window as any).__test !== undefined, null, {
-			timeout: 10_000
+			timeout: BRIDGE_INSTALL_TIMEOUT
 		});
 	}
 
@@ -37,7 +44,8 @@ export class EditorPage {
 		// serialize() normalizes trailing whitespace; compare on trimmed forms.
 		await this.page.waitForFunction(
 			(expected) => {
-				const actual = (window as any).__test.getSource() as string;
+				const actual = (window as any).__test?.getSource() as string | undefined;
+				if (actual === undefined) return false;
 				return actual.replace(/\s+$/, '') === expected.replace(/\s+$/, '');
 			},
 			md,
@@ -57,7 +65,8 @@ export class EditorPage {
 		const minLength = fixture.replace(/\s+$/, '').length;
 		await this.page.waitForFunction(
 			(min) => {
-				const doc = (window as any).__test.getDocument();
+				const doc = (window as any).__test?.getDocument();
+				if (!doc) return false;
 				let length = doc.prefix.length + doc.suffix.length;
 				for (const child of doc.children) length += child.leadingTrivia.length + child.raw.length;
 				return length >= min;
@@ -103,6 +112,11 @@ export class EditorPage {
 
 	async getBlockText(index: number): Promise<string> {
 		return (await this.getBlock(index).textContent()) ?? '';
+	}
+
+	/** The live tree still matches a reparse of its own serialization (see `testing/parse-convergence`). */
+	async parseConverged(): Promise<boolean> {
+		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
 	}
 
 	// 5s to match expect()'s default — a wait is a ceiling, not a measurement,
@@ -260,22 +274,30 @@ export class EditorPage {
 		await this.page.keyboard.type(text);
 	}
 
-	async typeInBlock(index: number, text: string) {
-		await this.clickBlock(index);
-		await this.page.keyboard.insertText(text);
-	}
-
-	// macOS binds undo/redo/select-all to Cmd; every other platform uses Ctrl.
 	async undo() {
-		await this.page.keyboard.press(`${primaryModifier}+z`);
+		await this.page.keyboard.press('ControlOrMeta+z');
 	}
 
 	async redo() {
-		await this.page.keyboard.press(`${primaryModifier}+Shift+z`);
+		await this.page.keyboard.press('ControlOrMeta+Shift+z');
 	}
 
 	async selectAll() {
-		await this.page.keyboard.press(`${primaryModifier}+a`);
+		await this.page.keyboard.press('ControlOrMeta+a');
+	}
+
+	// ── Clipboard ───────────────────────────────────────────────────────
+
+	async paste(): Promise<void> {
+		await this.clipboard.paste();
+	}
+
+	async seedClipboard(text: string): Promise<void> {
+		await this.clipboard.seed(text);
+	}
+
+	async readClipboard(): Promise<string> {
+		return this.clipboard.read();
 	}
 
 	// ── Drag & Shift+Click ──────────────────────────────────────────────
@@ -465,5 +487,9 @@ export class EditorPage {
 	 */
 	async waitForClipboardWrite(): Promise<void> {
 		await this.page.waitForTimeout(150);
+	}
+
+	async waitForClipboardContains(expected: string, timeout = 2000): Promise<void> {
+		await this.clipboard.waitForContains(expected, timeout);
 	}
 }

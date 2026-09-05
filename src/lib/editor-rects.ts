@@ -27,25 +27,22 @@ export interface EditorRects {
 	 *  true once the block's element is present. */
 	reveal(path: number[]): Promise<boolean>;
 	/**
-	 * Reveal (mount) the block at `path`, then scroll the viewport to it. `block` defaults
-	 * to `'nearest'`; `hold` (default true) keeps the reveal's pin afterward, so a later
-	 * layout shift cannot push the target back out of view. Resolves true only once the
-	 * position settles; a reveal superseded by a later one stops refining and reports
-	 * honest visibility instead of fighting it for the scroll. The pin is the reveal
-	 * anchor (`cursor/reveal-anchor.ts`), which host-scroll mode has no use for —
-	 * windowing never activates there.
+	 * Reveal (mount) the block at `path`, then scroll the viewport to it. `block` defaults to
+	 * `'nearest'`; `hold` (default true) keeps the reveal's pin afterward, so a later layout
+	 * shift cannot push the target back out. Resolves true only once the position settles; a
+	 * reveal superseded by a later one stops refining and reports honest visibility.
 	 */
 	scrollTo(
 		path: readonly number[],
 		opts?: { block?: 'nearest' | 'center'; hold?: boolean }
 	): Promise<boolean>;
 	/**
-	 * Navigate to `path`: reveal, scroll, and land the caret at the block's start, so the
-	 * next keystroke (Ctrl+Z included) addresses the document rather than the affordance
-	 * that was clicked. Runs the same restore road undo and `setSelection` use. True means
-	 * the caret landed AND the target settled into view.
+	 * Navigate to `path`: reveal, scroll, and land the caret at `offset` in it (default 0),
+	 * so the next keystroke (Ctrl+Z included) addresses the document rather than the
+	 * affordance that was clicked. Runs the same restore road undo and `setSelection` use.
+	 * True means the caret landed AND the target settled into view.
 	 */
-	navigateTo(path: readonly number[]): Promise<boolean>;
+	navigateTo(path: readonly number[], offset?: number): Promise<boolean>;
 }
 
 // Post-mount measure passes settle within a few Svelte flushes; `tick` is the repo's only
@@ -69,9 +66,9 @@ export function createEditorRects(deps: {
 	 *  editor's content. */
 	isHostChrome: (node: Node | null) => boolean;
 	revealAnchor: RevealAnchorState;
-	/** Land a caret at the start of `path` through the shared restore road. Injected
+	/** Land a caret at a raw offset in `path` through the shared restore road. Injected
 	 *  because this surface owns geometry, not the selection model. */
-	landCaretAt: (path: number[]) => Promise<boolean>;
+	landCaretAt: (path: number[], offset: number) => Promise<boolean>;
 }): EditorRects {
 	function isInView(el: HTMLElement, root: HTMLElement): boolean {
 		const br = el.getBoundingClientRect();
@@ -164,8 +161,8 @@ export function createEditorRects(deps: {
 			if (block === 'center' || !landed || opts?.hold === false) claim.release();
 			return landed;
 		},
-		navigateTo(path) {
-			return deps.landCaretAt([...path]);
+		navigateTo(path, offset = 0) {
+			return deps.landCaretAt([...path], offset);
 		}
 	};
 }

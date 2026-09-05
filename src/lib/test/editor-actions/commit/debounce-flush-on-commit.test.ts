@@ -1,16 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
-import { createBlockEditActions } from '$lib/editor-actions/block-edit';
-import { makeEditorActionsDeps, makeNode } from '$lib/test/harness/editor-actions';
+import { makeNode, makeTopHarness } from '$lib/test/harness/editor-actions';
 import type { EditEvent } from '$lib/editor-events';
 
 // ── A pending typing batch flushes as one input event before a structural commit ─
 
 describe('debounce flush on structural commit', () => {
 	it('mid-batch structural commit emits one buffered op:input event before its own op event', async () => {
-		const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { events, controller, actions } = makeTopHarness([makeNode('paragraph', 'hello\n')]);
 
 		const editHandler = vi.fn<(payload: EditEvent) => void>();
 		events.on('edit', editHandler);
@@ -38,9 +34,7 @@ describe('debounce flush on structural commit', () => {
 	});
 
 	it('no-typing structural commit does not emit a phantom input event', async () => {
-		const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'hello\n')]);
-		const controller = createUndoController(deps);
-		const actions = createBlockEditActions(deps, controller);
+		const { events, actions } = makeTopHarness([makeNode('paragraph', 'hello\n')]);
 
 		const editHandler = vi.fn<(payload: EditEvent) => void>();
 		events.on('edit', editHandler);

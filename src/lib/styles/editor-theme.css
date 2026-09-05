@@ -1,38 +1,66 @@
 /**
- * Editor default theme. Tokens are declared on `.editor` and on the opt-in
- * `.aragonite-editor-theme` class, never on `:root` — an extracted module must not inject
- * ~50 custom properties into a consumer's global scope. `:where()` keeps specificity at 0
- * so an override at `.editor { --x: … }` wins; `:root` does NOT, being shadowed by these
- * direct defaults. Light keys on `data-editor-theme='light'`; dark is the base. Every
- * component read also keeps an inline fallback (G4.6b).
+ * Editor default theme, in two tiers (consumer-guide.md § Theming). Host-chrome tokens
+ * default behind the opt-in `.aragonite-editor-theme` class ALONE, so a themed host's own
+ * cascade reaches the editor unbridged (G4.6d); editor-owned tokens — and the host-family
+ * names a host vocabulary does not carry — default on `.editor` too. `:where()` keeps
+ * specificity at 0 so `.editor { --x: … }` wins. Light keys on `data-editor-theme='light'`.
  */
 
-:where(.editor, .aragonite-editor-theme) {
+/* ── Host-chrome tier: the consumer's vocabulary, defaults behind the class ── */
+
+:where(.aragonite-editor-theme) {
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	/* Type-scale root: headings, code and markers are all `em`-relative, so one override
-	   scales the surface. Declared here, so it shadows any value inherited from a wrapper. */
+	   scales the surface. A themed host sets it on any ancestor instead. */
 	--editor-font-size: 1rem;
 
-	/* Host chrome tokens (dark defaults). Consumer-overridable; reads keep inline fallbacks. */
-	--color-bg: #1b1c21;
-	--color-bg-secondary: rgba(128, 128, 128, 0.12);
-	--color-bg-elevated: #2a2c33;
-	--color-bg-muted: #2a2a2a;
-	--color-text: #d6d9e0;
+	/* Corner radii by role: small controls (buttons, inputs, chips) and elevated surfaces
+	   (overlays, popovers). Chrome whose corner is neither keeps its own literal. */
+	--radius-ui: 3px;
+	--radius-surface: 8px;
+
+	--color-surface: #1b1c21;
+	--color-text-secondary: #d6d9e0;
 	--color-text-primary: #ffffff;
-	--color-text-muted: #aaaaaa;
 	--color-border: #3d4047;
 	--color-ui-muted: #a4a4a4;
 	--color-ui-dulled: #afb1b3;
-	--color-accent: #567b67;
-	--color-danger: #e06c75;
+	/* Split per mode: no single value clears AA on both a near-black and a white surface. */
+	--color-accent: #6c9d83;
+	/* Base the selection, search-match and reorder washes derive from, so one declaration
+	   moves all of them; the washes themselves stay editor-owned. */
+	--color-selection: #6496ff;
+	--color-error: #e06c75;
+}
+
+:where(.aragonite-editor-theme)[data-editor-theme='light'] {
+	--color-surface: #ffffff;
+	--color-text-secondary: #1f2328;
+	--color-text-primary: #000000;
+	--color-border: #d0d7de;
+	--color-ui-muted: #6e7781;
+	--color-ui-dulled: #8c959f;
+	--color-accent: #496e5b;
+	--color-selection: #6496ff;
+	--color-error: #cf222e;
+}
+
+/* ── Editor-owned tier: defaults on `.editor`, so they hold with or without the class ── */
+
+:where(.editor, .aragonite-editor-theme) {
+	/* Host-family surfaces a host theme rarely names, so the editor supplies both modes
+	   rather than falling back to a fixed veil over the host's palette. */
+	--color-bg-secondary: rgba(128, 128, 128, 0.12);
+	--color-bg-elevated: #2a2c33;
+	--color-bg-muted: #2a2a2a;
+	--color-text-muted: #aaaaaa;
 	/* Hover veil over an ALREADY-elevated surface, so it cannot reuse
 	   --color-bg-secondary, which is measured against the base bg. */
 	--color-ui-faint: rgba(255, 255, 255, 0.07);
 
-	/* Markdown syntax override points. Defaults are deliberately neutral, so the default
-	   rendering carries no extra palette; override any of them to colorize.
-	   Mode-independent — the chrome tokens they chain to carry the light/dark split. */
+	/* Markdown syntax override points, deliberately neutral so the default rendering carries no
+	   extra palette. Mode-independent: the chrome tokens they chain to carry the light/dark
+	   split. */
 	--syntax-heading: currentColor;
 	--syntax-emphasis: currentColor;
 	--syntax-link: var(--color-accent, #567b67);
@@ -46,15 +74,15 @@
 	--syntax-task-done: rgba(128, 128, 128, 0.7);
 
 	/* Code block syntax highlighting — monokai-inspired palette */
-	--code-tok-keyword: #f92672;
+	--code-tok-keyword: #ff79a8;
 	--code-tok-string: #e6db74;
 	--code-tok-number: #ae81ff;
 	--code-tok-literal: #ae81ff;
-	--code-tok-comment: #75715e;
+	--code-tok-comment: #9c9780;
 	--code-tok-type: #66d9ef;
 	--code-tok-function: #a6e22e;
 	--code-tok-variable: inherit;
-	--code-tok-operator: #f92672;
+	--code-tok-operator: #ff79a8;
 	--code-tok-punctuation: inherit;
 	--code-tok-meta: #fd971f;
 	--code-tok-attr: #a6e22e;
@@ -62,14 +90,16 @@
 	--code-tok-symbol: #ae81ff;
 	--code-tok-subst: inherit;
 	--code-tok-added: #a6e22e;
-	--code-tok-removed: #f92672;
+	--code-tok-removed: #ff79a8;
 	--code-tok-heading: #66d9ef;
 	--code-tok-link: #66d9ef;
 	--code-tok-unknown: inherit;
 
 	/* Presentational tokens (mode-independent). */
-	--selection-overlay-bg: rgba(100, 150, 255, 0.3);
-	--search-match-bg: rgba(120, 150, 255, 0.22);
+	/* Washes over the host-declarable selection base, alpha apart, so a host that names one
+	   base moves the selection, the search matches and the reorder chrome together. */
+	--selection-overlay-bg: color-mix(in srgb, var(--color-selection, #6496ff) 30%, transparent);
+	--search-match-bg: color-mix(in srgb, var(--color-selection, #6496ff) 22%, transparent);
 	/* Painted on top of the match text, so it must keep an alpha channel or it hides it. */
 	--search-match-active-bg: rgba(216, 166, 87, 0.55);
 	--md-ref-label-color: rgba(128, 128, 128, 0.45);
@@ -78,11 +108,10 @@
 	--md-unresolved-image-bg: rgba(192, 57, 43, 0.08);
 	--md-raw-html-color: rgba(120, 120, 120, 0.85);
 	--md-marker-hover-bg: rgba(128, 128, 128, 0.15);
-	--md-reorder-indicator: #6496ff;
-	/* Wash on the container being reordered within during a nested drag. Tinted with the
-	   reorder accent, not neutral grey, so the shift stays perceptible for low-contrast
-	   vision. */
-	--reorder-scope-bg: rgba(100, 150, 255, 0.14);
+	--md-reorder-indicator: var(--color-selection, #6496ff);
+	/* Wash on the container being reordered within during a nested drag. Tinted with the reorder
+	   accent, not neutral grey, so the shift stays perceptible for low-contrast vision. */
+	--reorder-scope-bg: color-mix(in srgb, var(--color-selection, #6496ff) 14%, transparent);
 	--syntax-marker-dim: 0.65;
 
 	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the
@@ -91,19 +120,10 @@
 }
 
 :where(.editor, .aragonite-editor-theme)[data-editor-theme='light'] {
-	/* Host chrome tokens (light) */
-	--color-bg: #ffffff;
 	--color-bg-secondary: rgba(0, 0, 0, 0.05);
 	--color-bg-elevated: #f5f6f8;
 	--color-bg-muted: #eaeaea;
-	--color-text: #1f2328;
-	--color-text-primary: #000000;
 	--color-text-muted: #57606a;
-	--color-border: #d0d7de;
-	--color-ui-muted: #6e7781;
-	--color-ui-dulled: #8c959f;
-	--color-accent: #567b67;
-	--color-danger: #cf222e;
 	--color-ui-faint: rgba(0, 0, 0, 0.06);
 
 	/* --syntax-* tokens are mode-independent — no light overrides. */
@@ -113,7 +133,7 @@
 	--code-tok-string: #0a3069;
 	--code-tok-number: #0550ae;
 	--code-tok-literal: #0550ae;
-	--code-tok-comment: #6e7781;
+	--code-tok-comment: #666f79;
 	--code-tok-type: #953800;
 	--code-tok-function: #8250df;
 	--code-tok-operator: #cf222e;

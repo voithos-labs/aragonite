@@ -12,6 +12,10 @@ import { CURSOR_END } from '$lib/block-component';
 import { parse } from '$lib/core/parser';
 import { editorMountContext } from '../../harness/mount-context';
 import { installLayoutStubs } from '../editor-mount';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
+afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(installLayoutStubs);
 

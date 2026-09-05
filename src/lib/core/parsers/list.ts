@@ -1,8 +1,7 @@
 /**
  * List parser with CommonMark §5.2 lazy continuation. "Open paragraph" is approximated per
  * line (non-blank, not a paragraph interrupter), as in the blockquote parser. Laziness reaches
- * only the item's own top-level paragraph, never one open inside a nested sub-list
- * (test/core/parsers/list-lazy-continuation.test.ts).
+ * only the item's own top-level paragraph, never one open inside a nested sub-list.
  */
 
 import type { CstNode } from '../nodes';
@@ -11,31 +10,20 @@ import { joinRaw, isBlankLine, parseBlocks } from '../parser';
 import {
 	defaultGrammarView,
 	lineInterruptsParagraph,
+	lineStartsOuterBlock,
 	type BlockOpenerResult
 } from '../../schema/block-openers';
 
 export function matchListItem(
 	text: string
 ): { marker: string; ordered: boolean; indent: number } | null {
-	const m = text.match(/^( {0,3})([-*+]\s+)/);
-	if (m) {
-		return {
-			marker: m[2],
-			ordered: false,
-			indent: m[0].length
-		};
-	}
-
-	const om = text.match(/^( {0,3})(\d{1,9}[.)]\s+)/);
-	if (om) {
-		return {
-			marker: om[2],
-			ordered: true,
-			indent: om[0].length
-		};
-	}
-
-	return null;
+	const m = text.match(/^( {0,3})((?:[-*+]|\d{1,9}[.)])\s+)/);
+	if (!m) return null;
+	return {
+		marker: m[2],
+		ordered: /^\d/.test(m[2]),
+		indent: m[0].length
+	};
 }
 
 function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string } | null {
@@ -44,12 +32,12 @@ function matchTaskCheckbox(text: string): { checked: boolean; rawMarker: string 
 }
 
 /**
- * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1`, so
- * "... is 2. bananas" is not a list. Standalone list parsing accepts any ordered number.
+ * CommonMark §5.2: a marker interrupts a paragraph only if bullet or starting at `1` AND its
+ * first item is non-empty, so neither "... is 2. bananas" nor a content-less marker is a list.
+ * Standalone list parsing (`matchListItem`) accepts both.
  */
 export function canInterruptParagraph(text: string): boolean {
-	if (/^ {0,3}[-*+]\s+/.test(text)) return true;
-	return /^ {0,3}1[.)]\s+/.test(text);
+	return /^ {0,3}(?:[-*+]|1[.)])[ \t]+\S/.test(text);
 }
 
 export function parseList(
@@ -57,7 +45,8 @@ export function parseList(
 	startIndex: number,
 	endIndex: number,
 	leadingTrivia: string,
-	depth: number = 0
+	depth: number = 0,
+	isDocumentParse: boolean = false
 ): BlockOpenerResult {
 	const firstMatch = matchListItem(lines[startIndex].text)!;
 	const ordered = firstMatch.ordered;
@@ -88,7 +77,11 @@ export function parseList(
 			} else if (getIndent(lines[i].text) >= contentIndent) {
 				paragraphOpen = wouldKeepParagraphOpen(lines[i].text.slice(contentIndent));
 				i++;
-			} else if (paragraphOpen && wouldKeepParagraphOpen(lines[i].text)) {
+			} else if (
+				paragraphOpen &&
+				wouldKeepParagraphOpen(lines[i].text) &&
+				!lineStartsOuterBlock(lines[i], { paragraphOpen: true })
+			) {
 				// Lazy continuation: the verbatim bytes stay in raw, and stripListItemLines
 				// feeds the paragraph parser one continuous paragraph.
 				i++;
@@ -113,7 +106,8 @@ export function parseList(
 			0,
 			strippedLines.length,
 			defaultGrammarView,
-			depth + 1
+			depth + 1,
+			isDocumentParse
 		);
 
 		items.push({
@@ -126,7 +120,7 @@ export function parseList(
 				taskChecked: task?.checked ?? false,
 				taskMarker: task?.rawMarker ?? null
 			},
-			innerPrefix: inner.prefix,
+			innerPrefix: '',
 			children: inner.children,
 			innerSuffix: inner.suffix
 		});
@@ -149,8 +143,7 @@ export function parseList(
 }
 
 function getIndent(text: string): number {
-	const m = text.match(/^( *)/);
-	return m ? m[1].length : 0;
+	return text.match(/^ */)![0].length;
 }
 
 /**

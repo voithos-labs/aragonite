@@ -51,6 +51,19 @@ test.describe('selection toolbar', () => {
 		await expect(page.locator(TOOLBAR)).toBeHidden();
 	});
 
+	// The recipe's focus rule: without the mousedown cancel the press moves focus to the button,
+	// the door resolves no surface, and the click silently does nothing.
+	test('the bold button wraps the selection without stealing the caret', async ({ page }) => {
+		await editor.loadContent('select some of this text\n\nsecond block\n');
+		await editor.focusBlock(0, 7);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+
+		await page.locator('[data-testid="toolbar-format.toggleStrong"]').click();
+
+		await editor.bridge.waitForSourceContains('select **some** of this text');
+	});
+
 	test('a mid-line start in a wrapped paragraph anchors at rect[0], not the union', async ({
 		page
 	}) => {
@@ -84,5 +97,113 @@ test.describe('selection toolbar', () => {
 			() => (window as any).__test.rects.blockRect([0]).top as number
 		);
 		expect(bar!.y + bar!.height).toBeLessThanOrEqual(blockTop + 1);
+	});
+
+	test('the bold button paints pressed inside bold text and unpressed outside', async ({
+		page
+	}) => {
+		await editor.loadContent('plain **bold words** after\n');
+		await editor.focusBlock(0, 8);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+
+		const bold = page.locator('[data-testid="toolbar-format.toggleStrong"]');
+		await expect(bold).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.locator('[data-testid="toolbar-format.toggleEmphasis"]')).toHaveAttribute(
+			'aria-pressed',
+			'false'
+		);
+
+		await editor.focusBlock(0, 0);
+		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(bold).toHaveAttribute('aria-pressed', 'false');
+	});
+
+	// The link editor is not a mark, so its pressed state is the construct the card would edit.
+	// Live mode alone: every other mode paints the destination and the chord opens nothing.
+	test('the link button paints pressed inside a link and unpressed outside it', async ({
+		page
+	}) => {
+		await editor.goto('?presentationMode=live');
+		// The link spans raw [6, 36); `linked words` is its text and ` after` follows.
+		await editor.loadContent('plain [linked words](https://x.test) after\n');
+		await editor.focusBlockAtPath([0], 8);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+
+		const link = page.locator('[data-testid="toolbar-link.openCard"]');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await expect(link).toHaveAttribute('aria-pressed', 'true');
+
+		await editor.focusBlockAtPath([0], 0);
+		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(link).toHaveAttribute('aria-pressed', 'false');
+
+		// What the paint promises: the same range presses through to that link's own card.
+		await editor.focusBlockAtPath([0], 8);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(link).toHaveAttribute('aria-pressed', 'true');
+		await link.click();
+
+		await expect(page.locator('[data-link-card]')).toBeVisible();
+		await expect(page.locator('[data-link-card] input')).toHaveValue('https://x.test');
+		await expect(page.locator('[data-link-card] input')).toBeFocused();
+	});
+
+	// The affordance the split owes a reader: the toggles stay live because they have a
+	// cross-block arm, and only the button the door would still refuse is visibly dead.
+	test('a cross-block selection greys only the link editor out', async ({ page }) => {
+		await editor.loadContent('first block here\n\nsecond block below\n');
+		await editor.focusBlockStart(0);
+		await editor.shiftClickBlock([1], 6);
+		await editor.waitForCrossBlock(true);
+
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await expect(page.locator('[data-testid="toolbar-format.toggleStrong"]')).toBeEnabled();
+		await expect(page.locator('[data-testid="toolbar-link.openCard"]')).toBeDisabled();
+	});
+
+	// The bar paints pressed for a run the press does not address: no content inside a bare
+	// delimiter, and an outer run that survives the inner strip.
+	test('the strike button declines over a bare delimiter and splits the outer run over the inner', async ({
+		page
+	}) => {
+		await editor.loadContent('~~a ~b~ c~~\n');
+		const strike = page.locator('[data-testid="toolbar-format.toggleStrikethrough"]');
+
+		await editor.focusBlock(0, 4);
+		await page.keyboard.press('Shift+ArrowRight');
+		await expect(strike).toHaveAttribute('aria-pressed', 'true');
+		await strike.click();
+
+		await editor.waitForNoSourceMutation();
+		expect(await editor.bridge.getSource()).toBe('~~a ~b~ c~~\n');
+		expect(await editor.bridge.getSelectionPaths()).toMatchObject({
+			anchor: { offset: 4 },
+			focus: { offset: 5 }
+		});
+		await expect(strike).toHaveAttribute('aria-pressed', 'true');
+
+		for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(strike).toHaveAttribute('aria-pressed', 'true');
+		await strike.click();
+
+		await editor.bridge.waitForSourceEquals('~~a~~ b ~~c~~\n');
+		await expect(strike).toHaveAttribute('aria-pressed', 'false');
+	});
+
+	test('the bold button over a cross-block selection wraps every block and paints pressed', async ({
+		page
+	}) => {
+		await editor.loadContent('first block\n\nsecond block\n');
+		await editor.focusBlock(0, 3);
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await editor.waitForCrossBlock(true);
+
+		const bold = page.locator('[data-testid="toolbar-format.toggleStrong"]');
+		await expect(bold).toHaveAttribute('aria-pressed', 'false');
+		await bold.click();
+
+		await editor.bridge.waitForSourceEquals('**first block**\n\n**second block**\n', 3000);
+		await expect(bold).toHaveAttribute('aria-pressed', 'true');
 	});
 });

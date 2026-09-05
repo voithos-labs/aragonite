@@ -1,15 +1,14 @@
-import { getInlineContent } from '../../core/inline/inline-cache';
+import { resolvedInlineContent } from '../../core/inline/inline-cache';
 import { flattenInlineWidgets } from '../../core/inline/inline-widgets';
-import type { CstNode, Document, ImageFields, InlineNode } from '../../core/nodes';
-import type { DocumentView, NodeView } from '../../core/node-views';
-import { isBlockNode } from '../../tree-operations/node-ops';
+import type { Document, ImageFields, InlineNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import type { LinkReferenceResolverRef } from '../../editor-keys';
-import { ensureUnsharedChild, ensureUnsharedPath } from '../../tree-operations/unshare';
-import { expectStateForNode } from '../../reactivity/state-registry';
 import type { UndoController } from '../../editor-actions/deps';
+import { createInlineRangeCommit } from '../../editor-actions/inline-range-commit';
 import type { EditorEvents } from '../../editor-events';
-import { docPathFrom } from '../../cursor/coordinate-spaces';
+import type { GrammarView } from '../../schema/block-openers';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
+import { blockNodeAt } from '../../tree-operations/node-ops';
 import { buildImageEditBytes } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 
@@ -22,13 +21,13 @@ export interface ImageEditCommitterDeps {
 	controller: UndoController;
 	events: EditorEvents;
 	linkRef?: LinkReferenceResolverRef;
+	/** The instance's grammar, for the leaf's own raw-write rule. Absent = the global grammar. */
+	grammar?: GrammarView;
 }
 
 export interface SelectedImageFields {
-	paragraph: NodeView;
 	image: InlineNode;
 	widgetEl: HTMLElement | null;
-	parent: DocumentView | NodeView;
 }
 
 export interface ImageEditCommitter {
@@ -51,28 +50,12 @@ export interface ImageEditCommitter {
 
 export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEditCommitter {
 	const { getDoc, getEditorEl, widgetSelection, controller, events } = deps;
-
-	function resolvePathToParagraph(path: number[]): {
-		paragraph: NodeView;
-		parent: DocumentView | NodeView;
-	} | null {
-		if (path.length === 0) return null;
-		let parent: DocumentView | NodeView = getDoc();
-		for (let i = 0; i < path.length - 1; i++) {
-			// Annotated: the `parent` reassignment otherwise cycles inference.
-			const next: NodeView | undefined = parent.children?.[path[i]];
-			if (!next) return null;
-			parent = next;
-		}
-		const paragraph = parent.children?.[path[path.length - 1]];
-		if (!paragraph) return null;
-		return { paragraph, parent };
-	}
+	const inlineRange = createInlineRangeCommit({ getDoc, controller, grammar: deps.grammar });
 
 	function findImageInParagraph(para: NodeView, sourceStart: number): InlineNode | null {
 		// Resolver-aware so a reference-style image resolves as the render path saw it,
 		// and flattened so an image nested in a link (`[![alt][ref]][repo]`) is found.
-		const inlines = getInlineContent(para, deps.linkRef?.current, deps.linkRef?.signature ?? '');
+		const inlines = resolvedInlineContent(para, deps.linkRef);
 		for (const widget of flattenInlineWidgets(inlines, para.raw)) {
 			if (widget.kind === 'image' && widget.start === sourceStart) return widget;
 		}
@@ -94,74 +77,20 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function getSelectedImageFields(): SelectedImageFields | null {
 		const sel = widgetSelection.getSelected();
 		if (!sel) return null;
-		const resolved = resolvePathToParagraph(sel.paragraphPath);
-		if (!resolved) return null;
-		const image = findImageInParagraph(resolved.paragraph, sel.sourceStart);
+		const paragraph = blockNodeAt(getDoc(), sel.paragraphPath);
+		if (!paragraph) return null;
+		const image = findImageInParagraph(paragraph, sel.sourceStart);
 		if (!image) return null;
-		return {
-			paragraph: resolved.paragraph,
-			image,
-			widgetEl: queryWidgetEl(sel.paragraphPath, sel.sourceStart),
-			parent: resolved.parent
-		};
-	}
-
-	async function commitParagraphRaw(paragraphPath: number[], newRaw: string): Promise<void> {
-		const resolved = resolvePathToParagraph(paragraphPath);
-		if (!resolved) return;
-		// Skip the commit so a no-op edit (a popover dismiss after a resize already
-		// wrote the change) adds no undo entry.
-		if (newRaw === resolved.paragraph.raw) return;
-		const snapshot = { path: docPathFrom(paragraphPath), offset: 0 };
-		const leafIdx = paragraphPath[paragraphPath.length - 1];
-		const writeRaw = (paragraph: CstNode) => {
-			paragraph.raw = newRaw;
-		};
-
-		if (paragraphPath.length === 1) {
-			await controller.commitStructural({
-				snapshot,
-				mutate: (children) => {
-					const [owned] = ensureUnsharedPath({ children }, [leafIdx], controller.sharing);
-					writeRaw(owned);
-					return { op: 'noop' as const };
-				},
-				op: {
-					kind: 'updateContent',
-					detail: { length: newRaw.length },
-					eventPath: docPathFrom(paragraphPath)
-				}
-			});
-			return;
-		}
-
-		const containerNode = resolved.parent;
-		// paragraphPath.length > 1, so the parent is a container node, never the root.
-		if (!isBlockNode(containerNode)) return;
-		await controller.commitContainerStructural({
-			containerNode,
-			path: paragraphPath.slice(0, -1),
-			state: expectStateForNode(containerNode),
-			snapshot,
-			mutate: (scope) => {
-				writeRaw(ensureUnsharedChild(scope.node, leafIdx, scope.sharing));
-				return { op: 'noop' as const };
-			},
-			op: {
-				kind: 'updateContent',
-				detail: { length: newRaw.length },
-				eventPath: docPathFrom(paragraphPath)
-			}
-		});
+		return { image, widgetEl: queryWidgetEl(sel.paragraphPath, sel.sourceStart) };
 	}
 
 	function resolveEdit(
 		target: WidgetTarget,
 		newFields: ImageFields
-	): { paragraph: NodeView; image: InlineNode; bytes: string } | null {
-		const resolved = resolvePathToParagraph(target.paragraphPath);
-		if (!resolved) return null;
-		const image = findImageInParagraph(resolved.paragraph, target.sourceStart);
+	): { image: InlineNode; bytes: string } | null {
+		const paragraph = blockNodeAt(getDoc(), target.paragraphPath);
+		if (!paragraph) return null;
+		const image = findImageInParagraph(paragraph, target.sourceStart);
 		if (!image) return null;
 		// Preserve the reference form when url/title are untouched: inlining the
 		// resolved url would orphan the LRD. Changing either is the user opting in.
@@ -169,8 +98,8 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 			image.label !== undefined && newFields.url === image.url && newFields.title === image.title
 				? { ...newFields, label: image.label }
 				: newFields;
-		const bytes = buildImageEditBytes(image, resolved.paragraph.raw, fields);
-		return bytes === null ? null : { paragraph: resolved.paragraph, image, bytes };
+		const bytes = buildImageEditBytes(image, paragraph.raw, fields);
+		return bytes === null ? null : { image, bytes };
 	}
 
 	function buildEditBytes(target: WidgetTarget, newFields: ImageFields): string | null {
@@ -180,11 +109,13 @@ export function createImageEditCommitter(deps: ImageEditCommitterDeps): ImageEdi
 	function commitImageEdit(target: WidgetTarget, newFields: ImageFields): void {
 		const edit = resolveEdit(target, newFields);
 		if (!edit) return;
-		const newRaw =
-			edit.paragraph.raw.slice(0, edit.image.start) +
-			edit.bytes +
-			edit.paragraph.raw.slice(edit.image.end);
-		void commitParagraphRaw(target.paragraphPath, newRaw);
+		void inlineRange.commitInlineRange(
+			target.paragraphPath,
+			edit.image.start,
+			edit.image.end,
+			edit.bytes,
+			0
+		);
 	}
 
 	function commitImageResize(newWidth: number, newHeight: number | undefined): void {

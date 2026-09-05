@@ -11,15 +11,17 @@
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_DOC_KEY,
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		LIST_CONTEXT_KEY,
+		type EditorDoc,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { metadataOf } from '../../../core/nodes';
-	import { isPreviewMode } from '../../../presentation-mode';
+	import { hidesMarkers } from '../../../presentation-mode';
 	import { displayLength } from '../../../core/lines';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
 	import { useContainerWindowing } from '../../../reactivity/use-container-windowing.svelte';
@@ -32,7 +34,7 @@
 	import { createContainerBlockComponent } from '../../../editor-actions/container-block-component';
 	import { buildTaskItemAmbient } from './task-checkbox';
 	import BlockList from '../../BlockList.svelte';
-	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import { eventToChord } from '../../../schema/keybindings';
 	import { dispatchKindCommand } from '../../../schema/block-commands';
 	import type { AnyCommandId } from '../../../schema/command-id';
@@ -42,14 +44,12 @@
 		node,
 		index,
 		myPath = [],
-		setRef,
-		getRef
+		slots
 	}: {
 		node: NodeView;
 		index: number;
 		myPath?: number[];
-		setRef?: (i: number, r: BlockComponent | undefined) => void;
-		getRef?: (i: number) => BlockComponent | undefined;
+		slots?: RefSlots<BlockComponent>;
 	} = $props();
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
@@ -61,6 +61,7 @@
 		blockDragHandles: getDragHandles,
 		presentationMode: getPresentationMode
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
 	const listContext = getContext<ListContext>(LIST_CONTEXT_KEY);
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
@@ -69,10 +70,10 @@
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 
-	// Reading and preview CSS tell bullet/ordered/task markers apart and the ambient
+	// The marker-hiding CSS tells bullet/ordered/task apart through this hook and the ambient
 	// span carries no such class. Absent in source, so that DOM stays byte-identical.
 	const presentationMarkerKind = $derived.by(() => {
-		if (presentationMode !== 'reading' && !isPreviewMode(presentationMode)) return undefined;
+		if (!hidesMarkers(presentationMode)) return undefined;
 		const meta = metadataOf(node, 'listItem');
 		if (meta?.taskItem) return 'task';
 		return /^\d/.test(meta?.marker ?? '-') ? 'ordered' : 'bullet';
@@ -136,6 +137,8 @@
 			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
+			getPresentationMode,
+			linkRef,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,
@@ -196,6 +199,7 @@
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
+		refSlots: listState.refSlots,
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
 		},
@@ -207,8 +211,8 @@
 	});
 
 	$effect(() => {
-		if (!setRef || !getRef) return;
-		return publishRefSlot(index, containerApi, setRef, getRef);
+		if (!slots) return;
+		return publishRefSlot(slots, index, containerApi, boxEl);
 	});
 
 	// ── Commands ────────────────────────────────────────────────────────
@@ -233,12 +237,21 @@
 	// preventDefaults only after an await, so a global tier here would re-fire undo/redo.
 	function handleKeydown(e: KeyboardEvent): void {
 		if (e.defaultPrevented) return;
-		// Both bubbled commands (list.indent/unindent) are edits; this caller has
-		// no pluginEditor lookup to hand the dispatcher's own gate, so it gates here.
-		if (readOnly) return;
 		const chord = eventToChord(e);
 		if (!chord) return;
-		if (dispatchKindCommand(chord, { kind: node.kind, runCommand }, keybindingOverrides())) {
+		if (
+			dispatchKindCommand(
+				chord,
+				{ kind: node.kind, runCommand },
+				{
+					getPresentationMode,
+					isCrossBlockRange: () => selection?.isCrossBlock ?? false,
+					// A container bubble carries no range command: the leaf below it owns the format ids.
+					crossBlockCommands: undefined
+				},
+				keybindingOverrides()
+			)
+		) {
 			e.preventDefault();
 		}
 	}
@@ -256,8 +269,7 @@
 		<BlockList
 			children={node.children ?? []}
 			blockIds={listState.innerBlockIds}
-			setRef={(i, r) => (listState.innerBlockRefs[i] = r)}
-			getRef={(i) => listState.innerBlockRefs[i]}
+			slots={listState.refSlots}
 			parentPath={myPath}
 			window={windowing.window}
 			ambientPrefixForFirst={buildTaskItemAmbient(metadataOf(node, 'listItem'), toggleTask)}

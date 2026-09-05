@@ -1,11 +1,12 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 import {
 	FIXTURE_BYTES,
+	gotoFlow,
 	progressiveScrollTo,
 	spacerCount,
+	TOP_LEVEL_HOSTS,
 	topVisibleHostTop,
 	UNWINDOWED_PROSE
 } from './vr-helpers';
@@ -16,7 +17,6 @@ import { capturePageErrors } from '../../page-probes';
 // while the title still scrolls away. The live hazard is a slot that CHANGES height while
 // the reader is scrolled deep, which routes through its own scroll compensation.
 
-const TOP_LEVEL_HOSTS = '[data-block-path]:not([data-block-path*=","])';
 // Enough to window several screens deep without paying the headline gate's
 // multi-MB load in every scroll case.
 const WINDOWED_BYTES = 500_000;
@@ -174,14 +174,14 @@ test('a text field in the header keeps its own Find chord', async ({ page }) => 
 	// "Focus is inside the root" stopped meaning "focus is in this editor's content" the
 	// moment the slot existed, so the host's text entry keeps the reserved chords.
 	await page.locator('[data-testid="hero-title"]').click();
-	await page.keyboard.press(`${primaryModifier}+f`);
+	await page.keyboard.press('ControlOrMeta+f');
 	await expect(page.locator('.search-bar')).toHaveCount(0);
 	expect(await focusedTestId()).toBe('hero-title');
 
 	// Control: the identical field mounted OUTSIDE the root already behaves this
 	// way, so the assertion above is about the slot, not about fields at large.
 	await page.locator('[data-testid="outside-title"]').click();
-	await page.keyboard.press(`${primaryModifier}+f`);
+	await page.keyboard.press('ControlOrMeta+f');
 	await expect(page.locator('.search-bar')).toHaveCount(0);
 	expect(await focusedTestId()).toBe('outside-title');
 	expect(pageErrors).toEqual([]);
@@ -227,7 +227,7 @@ test('the find bar overlays the header at the top of the document', async ({ pag
 	const editor = await gotoWithHeader(page);
 	await editor.loadContent(`${UNWINDOWED_PROSE}\n`);
 	await editor.focusBlockEnd(0);
-	await page.keyboard.press(`${primaryModifier}+f`);
+	await page.keyboard.press('ControlOrMeta+f');
 	await expect(page.locator('.search-bar')).toHaveCount(1);
 
 	// Accepted, and pinned so it stays a decision: the bar rides the editor's top
@@ -240,11 +240,6 @@ test('the find bar overlays the header at the top of the document', async ({ pag
 });
 
 // ── Host mode ───────────────────────────────────────────────────────────
-
-async function gotoFlow(page: Page): Promise<void> {
-	await page.goto('/test/flow');
-	await page.waitForFunction(() => (window as any).__flow !== undefined, null, { timeout: 10_000 });
-}
 
 const flowScrollTop = (page: Page): Promise<number> =>
 	page.evaluate(
@@ -289,7 +284,7 @@ test('the host-mode find bar sits at the editor top edge, over the header', asyn
 	const entry = page.locator('[data-testid="entry-header"]');
 
 	await entry.locator('[contenteditable]').first().click();
-	await page.keyboard.press(`${primaryModifier}+f`);
+	await page.keyboard.press('ControlOrMeta+f');
 	await expect(entry.locator('.search-bar')).toHaveCount(1);
 
 	// Persistently, in this mode: the root never scrolls, so the bar never rides

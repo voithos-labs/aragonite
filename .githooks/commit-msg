@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+// Node, not shell: the Windows shell is not to be trusted with a hook. A dynamic import of a
+// relative specifier resolves against this file under either module system, which an
+// extensionless entry point cannot rely on a static `import` to do.
+import('../scripts/lint-commit-message.mjs')
+	.then((lint) => process.exit(lint.checkMessageFile(process.argv[2]) ? 0 : 1))
+	.catch((error) => {
+		console.error(error);
+		process.exit(1);
+	});

@@ -70,9 +70,6 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		await g.pressEnter();
 		await g.typeText('---');
 		await g.pressEnter();
-		// A thematic break closes on its own line, so Enter after it mints no
-		// separator; this second press supplies the blank the break wants below it.
-		await g.softEnter();
 
 		await g.insertImage('chloroplast diagram', '/test-fixtures/sample.png');
 		await g.resizeImage('right', 2);
@@ -81,6 +78,17 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		// The checkbox's nearest pathed ancestor is the item's paragraph, not the
 		// list item — only the list and the item-paragraphs carry data-block-path.
 		await g.toggleTask([7, 0, 0]);
+
+		// Live mode's own rules over the intro paragraph, which carries every construct they
+		// need. Each gesture enters live, drives one rule and undoes it in one press, so the
+		// note's canonical end state is what it was before them.
+		await g.liveToggleFormat(1, 'notes', 'strikethrough');
+		await g.liveEdgeBackspace(1, 'cell division');
+		await g.liveLinkCardEdit('syllabus', 'https://bio.example/next');
+		// The re-routed caret doors (G2.12): a merge landing's seat, and the list item's Home.
+		await g.liveMergeLanding(1, 'Photosynthesis', 'These');
+		await g.liveListHomeSeat('Prophase condenses the chromosomes');
+		await g.checkpoint('live-rules', 'live-editing');
 	},
 	landmarks: [
 		'Cell Division and Photosynthesis',
@@ -92,21 +100,27 @@ export const BIOLOGY_NOTE: NoteFixture = {
 		'oxygen is released',
 		'chloroplast diagram'
 	],
+	// Enter separates: each heading typed on its own line stands one blank line above what
+	// follows, and the break's own Enter is the blank below it.
 	expectedMarkdown:
 		'# Cell Division and Photosynthesis\n' +
+		'\n' +
 		'These notes pair **cell division** with *photosynthesis*; run `mitosis()` and skim the [syllabus](https://bio.example/syllabus).\n' +
 		'\n' +
 		'## Mitosis phases\n' +
+		'\n' +
 		'- Prophase condenses the chromosomes\n' +
 		'  - Spindle fibers attach at the centromere\n' +
 		'- Telophase reforms two nuclei\n' +
 		'\n' +
 		'## Photosynthesis inputs\n' +
+		'\n' +
 		'1. Chloroplasts capture sunlight\n' +
 		'2. Water donates electrons\n' +
 		'3. Glucose stores the chemical energy\n' +
 		'\n' +
 		'## Study checklist\n' +
+		'\n' +
 		'- [x] Redraw the light reactions\n' +
 		'- [ ] Label oxygen as a byproduct\n' +
 		'\n' +

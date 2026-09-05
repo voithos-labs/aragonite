@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
+import { serialize } from '../../../core/serializer';
 import { describeRoundTrips } from '$lib/test/support/round-trip';
 
 // GFM §4.4: a paragraph absorbs a following indented line structurally, so the only rule
@@ -37,6 +38,28 @@ describe('indented code — never interrupts an open paragraph', () => {
 			'indentedCode'
 		]);
 	});
+});
+
+// Miss-analysis (C-M5): every fixture indented with literal spaces or a leading tab, so the
+// matcher's missing tab-column expansion — the one thematic-break.ts already carries — had no
+// case. Expected shapes verified against cmark-gfm via api.github.com/markdown.
+describe('indented code — a tab advances to the next 4-column stop (GFM §2.2)', () => {
+	const indents: { name: string; prefix: string; code: boolean }[] = [
+		{ name: 'two spaces then a tab', prefix: '  \t', code: true },
+		{ name: 'three spaces then a tab', prefix: '   \t', code: true },
+		{ name: 'one space then a tab', prefix: ' \t', code: true },
+		{ name: 'three spaces alone', prefix: '   ', code: false }
+	];
+
+	for (const { name, prefix, code } of indents) {
+		it(`reads ${name} as ${code ? 'code' : 'a paragraph'}`, () => {
+			const source = `${prefix}foo\n`;
+			expect(parse(source).children.map((n) => n.kind)).toEqual([
+				code ? 'indentedCode' : 'paragraph'
+			]);
+			expect(serialize(parse(source))).toBe(source);
+		});
+	}
 });
 
 describeRoundTrips('indented code — round-trips regardless of predecessor', [

@@ -77,14 +77,28 @@
 	background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 }
 
-/* Suppress native painting so it doesn't double up with SelectionOverlay's highlights.
-   Scoped to `.block-list` rather than every descendant: the find/replace bar is a sibling
-   inside the same root and must keep painting its own selection. */
+/* Suppress native painting so it doesn't double up with SelectionOverlay's highlights. Scoped
+   to `.block-list` because the find/replace bar is a sibling that must keep painting its own. */
 :where(.editor)[data-cross-block] .block-list ::selection {
 	background: transparent;
 }
 
 :where(.editor)[data-cross-block] [contenteditable] {
+	caret-color: transparent;
+}
+
+/* The whole-block editing host: invisible, but a REAL box — Chromium fires no `beforeinput` on a
+   zero-height editing host, which would silently cost it every keystroke. Click-through, so it
+   never steals a pointer from the surface it stands over; in-flight IME text paints here. */
+:where(.editor) .whole-block-input {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 1.2em;
+	overflow: hidden;
+	outline: none;
+	pointer-events: none;
 	caret-color: transparent;
 }
 
@@ -101,7 +115,7 @@
 	cursor: pointer;
 }
 
-/* Search's marks ride the base above; the class names are pinned by the search e2e suite. */
+/* Search's marks ride the base rule above. */
 :where(.editor) .match-overlay {
 	background: var(--search-match-bg);
 }
@@ -117,6 +131,13 @@
 /* Atomic non-editable inline chrome; the source's class layers styling on top. */
 :where(.editor) .decoration-island {
 	user-select: none;
+}
+
+/* The find bar is editor-level chrome and outranks a block affordance, so a per-block affordance
+   claiming the same top-right band yields it while the bar is open. Without this the pointer hits
+   the bar and the affordance is unreachable until search closes (#145). */
+.editor:has(> .search-anchor .search-bar) .code-lang-chip {
+	top: 52px;
 }
 
 :where(.editor) .md-image-widget {
@@ -150,11 +171,10 @@
 }
 
 /* Image-bearing list-item / blockquote paragraph: the ambient marker sits at the image's
-   bottom-left, pulled out of flow. `display: flex` would break caret placement past
-   contenteditable=false widgets (no anchor in flex empty space). The widget side of each
-   `:has()` is a DESCENDANT match, since a wrapping inline construct puts the widget one
-   level deeper; the marker side stays a child combinator, matching only the
-   structurally-injected prefix (per `buildAmbientSpan`), never inline `.md-marker` spans. */
+   bottom-left, pulled out of flow rather than laid out with `display: flex`, which leaves no
+   caret anchor past a contenteditable=false widget. The widget side of each `:has()` is a
+   descendant match, since a wrapping inline construct puts the widget one level deeper; the
+   marker side stays a child combinator, matching only the structurally-injected prefix. */
 :where(.editor)
 	.text-editable-block.paragraph-block:has(> .md-marker[contenteditable='false']):has(
 		.md-image-widget
@@ -179,21 +199,26 @@
 	min-height: 0;
 }
 
-/* An image wrapped in a link: left inline, the anchor stretches to full content width and
-   its `title` tooltip hovers over the empty space beside the image. Hug the widget so the
-   tooltip only covers the clickable image. */
+/* An image wrapped in a link: left inline, the anchor stretches to full content width and its
+   `title` tooltip hovers beside the image. Hug the widget so the tooltip covers only it. */
 :where(.editor) a.md-link-content:has(.md-image-widget) {
 	display: inline-block;
 	width: fit-content;
 }
 
-:where(.editor) .md-image-broken {
-	/* Keeps the inherited display:block: image widgets always force a visual line break,
-	   broken or not, so trailing text wraps to the next line. */
+/* An image with no pixels (broken, scheme-refused, or deferred by `imageLoadPolicy:
+   'placeholder'`) lays out 0×0 without this floor, unless a `|WxH` hint reserves its own box.
+   Display:block stays inherited: image widgets always force a visual line break. */
+:where(.editor) .md-image-broken,
+:where(.editor) .md-image-blocked,
+:where(.editor) .md-image-placeholder {
 	min-width: 100px;
 	min-height: 60px;
 	border: 1px dashed var(--color-ui-muted, #a4a4a4);
 	background: var(--color-bg-muted, #2a2a2a);
+}
+
+:where(.editor) .md-image-broken {
 	padding: 8px;
 	color: var(--color-text-muted, #aaa);
 	font-style: italic;
@@ -201,6 +226,12 @@
 
 :where(.editor) .md-image-broken img {
 	display: none;
+}
+
+/* Not on `.md-image-broken`: it has padding, and border-box would change its box. */
+:where(.editor) .md-image-blocked,
+:where(.editor) .md-image-placeholder {
+	box-sizing: border-box;
 }
 
 :where(.editor) .md-image-broken::before {
@@ -246,9 +277,8 @@
 	}
 }
 
-/* The synthetic caret REPLACES the native one: Chromium does sometimes render a caret at
-   the element-level offset beside a contenteditable=false island, and two at one position
-   reads as two carets. */
+/* The synthetic caret REPLACES the native one: Chromium does sometimes render a caret beside a
+   contenteditable=false island, and two at one position reads as two carets. */
 :where(.editor) .md-snap-caret-active {
 	caret-color: transparent;
 }
@@ -264,17 +294,16 @@
 	pointer-events: auto;
 }
 
-/* Scoped to the anchor so a blocked-scheme `span.md-link-content` (rendered without an
-   `<a>`) never looks clickable; `:not(:has(.md-image-widget))` keeps a wrapped image
-   widget from being underlined as if it were text. */
+/* Scoped to the anchor so a blocked-scheme `span.md-link-content` never looks clickable, and
+   excluding image widgets so a wrapped one is not underlined as if it were text. */
 :where(.editor) a.md-link-content:not(:has(.md-image-widget)) {
 	color: var(--syntax-link, var(--color-accent, #567b67));
 	text-decoration: underline;
 }
 
 /* A plain click edits; only Ctrl/Cmd+click activates the link (`Editor.svelte` mirrors the
-   modifier onto the root as `data-mod-active`). The explicit default overrides the UA
-   `<a href>` pointer so the caret-vs-pointer state is the editor's, not the browser's. */
+   modifier onto the root). Stated explicitly so the caret-vs-pointer state is the editor's,
+   not the UA's `<a href>` default. */
 :where(.editor) a.md-link-content,
 :where(.editor) .md-autolink {
 	cursor: text;
@@ -331,11 +360,26 @@
 	background: var(--vr-spacer-bg, rgba(128, 128, 128, 0.03));
 }
 
+/* One revealed-source identity for render-primary blocks (math, toc, mermaid): a plugin
+   component adds this class and keeps only its padding/overflow deltas. */
+:where(.editor) .md-source-surface {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 1.4em;
+	font-family: var(--font-editor, ui-monospace, monospace);
+	font-size: 0.9em;
+	line-height: 1.5;
+	color: inherit;
+	background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+	border: 1px solid var(--color-accent, #567b67);
+	border-radius: 4px;
+}
+
 /* ── Semantic syntax-token wiring ─────────────────────────────────────────────
-   Defaults in editor-theme.css are neutral, so these rules change nothing until a
-   consumer overrides a token; the repeated fallbacks keep a wholesale-replacement theme
-   rendering sanely. Rules whose construct is also colored by a component <style>
-   shorthand carry the extra selector weight to beat the Svelte scoping class. */
+   Defaults in editor-theme.css are neutral, so these rules change nothing until a consumer
+   overrides a token. Rules whose construct is also colored by a component <style> shorthand
+   carry the extra selector weight to beat the Svelte scoping class. */
 
 :where(.editor)
 	.text-editable-block:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6) {
@@ -359,7 +403,7 @@
 	border-left-color: var(--syntax-quote, var(--color-ui-muted, #a4a4a4));
 }
 
-:where(.editor) .thematic-break-block[role='separator'] > hr {
+:where(.editor) .thematic-break-rule[role='separator'] > hr {
 	border-top-color: var(--syntax-separator, var(--color-ui-muted, #a4a4a4));
 }
 
@@ -373,51 +417,57 @@
 	color: var(--syntax-task, currentColor);
 }
 
-/* Table grips reveal on table hover, in pure CSS with no per-grip reactive state. The
-   grip's own <style> holds the at-rest opacity:0/pointer-events:none, so a grip never
-   intercepts a caret click until then. */
+/* Table grips reveal on table hover, in pure CSS with no per-grip reactive state. The grip's
+   own <style> holds the at-rest state, so it never intercepts a caret click until then. */
 :where(.editor) [role='table']:hover [data-table-col-grip],
 :where(.editor) [role='table']:hover [data-table-row-grip] {
 	opacity: 1;
 	pointer-events: auto;
 }
 
-/* ── Rendered chrome, shared by reading + live preview ────────────────────────
-   Both modes hide source markers by CSS ONLY, never by omitting them from the render
+/* ── Rendered chrome, shared by every marker-hiding mode ──────────────────────
+   Every mode but source hides markers by CSS ONLY, never by omitting them from the render
    path: the raw-aware offset walk counts every DOM text node regardless of layout, so
-   hiding is what keeps the DOM↔raw coordinate space intact. Structural omission would
-   desync it and is forbidden. Keyed on an equal-specificity :is() so the per-mode rules
-   below win by source order. */
+   structural omission would desync the DOM↔raw coordinate space. Keyed on an
+   equal-specificity :is() so the per-mode rules below win by source order. */
 
-/* Inline markers and block-own prefixes are pure syntax in normal flow: removing them from
-   paint and native copy joins the text up rendered-style. Ambient container markers are
-   excluded here — they carry layout (below). */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
-	.md-marker:not([contenteditable='false']) {
-	display: none;
-}
-
-/* A fence line's `\n` is a bare text node CSS can't reach; the `.md-fence-line` wrapper
+/* .md-marker: inline markers and block-own prefixes are pure syntax in normal flow, so
+   dropping them from paint and native copy joins the text up rendered-style; ambient
+   container markers carry layout and keep their box below. */
+/* .md-fence-line: a fence line's `\n` is a bare text node CSS can't reach; the wrapper
    owns marker + newline, so collapsing it leaves no blank line at the box's edge. */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-']) .md-fence-line {
+/* .md-ref-label: resolution metadata, not content; a rendered document shows only the
+   link text. */
+/* .directive-marker: the container chrome (border/gutter) is the rendered form of a
+   directive fence; it never reveals, belonging to the container, not the focused leaf. */
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line, .md-ref-label, .directive-marker) {
 	display: none;
 }
 
-/* Resolution metadata, not content: a rendered document shows only the link text. */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-']) .md-ref-label {
-	display: none;
-}
-
-/* The container chrome (border/gutter) is the rendered form of a directive fence. It never
-   reveals, belonging to the container rather than the focused leaf. */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
-	.directive-marker {
-	display: none;
+/* Chrome with nothing behind it has nowhere to hide: a construct whose only bytes are its own
+   markers would paint as an empty line with no caret position, so an editable rung shows them
+   dimmed exactly as source does. Mirrored in `cursor/widget-offset.ts` (same two modes, same
+   two families); reading takes no keystrokes and keeps its silence. The `[contenteditable]`
+   qualifier scopes the stamp to the walk containers its JS twin reads, which is what a block
+   decoration spelling `data-content-empty` onto the block host cannot reach. */
+:where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
+	[contenteditable][data-content-empty]
+	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
+	display: inline;
 }
 
 /* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's
    ch width), so they keep their box: visibility, not display. */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
 	.list-item-block
 	.md-marker[contenteditable='false'] {
 	visibility: hidden;
@@ -425,7 +475,11 @@
 }
 
 /* `- ` hides and a rendered bullet paints in its slot, like blockquote's border. */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
 	.list-item-block[data-list-marker='bullet']
 	.md-marker[contenteditable='false']::before {
 	content: '•';
@@ -434,22 +488,30 @@
 }
 
 /* The ambient text IS the rendered number (`1. `), so it stays visible and undimmed. */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
 	.list-item-block[data-list-marker='ordered']
 	.md-marker[contenteditable='false'] {
 	visibility: visible;
 }
 
 /* GitHub task lists carry no bullet, so the `- ` prefix hides and the checkbox stays. */
-:where(.editor):is([data-presentation='reading'], [data-presentation^='preview-'])
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
 	visibility: visible;
 }
 
 /* ── Reading mode ─────────────────────────────────────────────────────────────
-   The marker-hiding families reading shares with live preview are in the section above;
-   reading adds only its read-only inertness on top. */
+   The marker-hiding families reading shares with the preview rungs and `live` are in the
+   section above; reading adds only its read-only inertness on top — `live` takes none of it. */
 
 /* pointer-events kills the toggle click at the CSS layer; the toggleTask guard is the JS
    belt. Toggling would rewrite the document, and reading mode writes no bytes. */
@@ -464,26 +526,17 @@
 	background-color: transparent;
 }
 
-/* Table grips leave with the mode — their menus and drags all mutate. */
-:where(.editor)[data-presentation='reading'] [data-table-col-grip],
-:where(.editor)[data-presentation='reading'] [data-table-row-grip] {
-	display: none;
-}
-
 /* No caret to place: links read as links and activate on plain click. */
 :where(.editor)[data-presentation='reading'] a.md-link-content,
 :where(.editor)[data-presentation='reading'] .md-autolink:not(.md-link-blocked) {
 	cursor: pointer;
 }
 
-/* ── Live preview (block + inline granularity) ────────────────────────────────
-   `preview-block` renders the focused block as full styled source; `preview-inline`
-   reveals only the constructs at the caret. Hiding stays CSS-only, so the caret's DOM
-   anchor survives a reveal and the markers appear around it without moving it.
-   Containment rule: markers hide broadly (above) and un-hide INSIDE the focused host, so
-   only the focused leaf reveals and nesting falls out right — the naive
-   `.block-host:not([data-focused])` would hide a focused leaf's markers through its
-   unfocused container ancestor. */
+/* ── Preview rungs (block + inline granularity) ───────────────────────────────
+   `preview-block` renders the focused block as full styled source; `preview-inline` reveals
+   only the constructs at the caret. Markers hide broadly (above) and un-hide INSIDE the
+   focused host: the naive `.block-host:not([data-focused])` would hide a focused leaf's
+   markers through its unfocused container ancestor. */
 
 /* All inline spans, so the reveal restores source layout exactly. */
 :where(.editor)[data-presentation='preview-block']
@@ -502,9 +555,8 @@
 	display: inline;
 }
 
-/* preview-inline is excluded on purpose: the ambient marker is contenteditable=false chrome
-   the caret can never enter, so at inline granularity it keeps its rendered form. Written
-   AFTER the shared hide rules so the equal-specificity ::before reset wins by source order. */
+/* preview-inline is excluded on purpose: the ambient marker is chrome the caret can never
+   enter, so at inline granularity it keeps its rendered form. */
 :where(.editor)[data-presentation='preview-block']
 	.block-host[data-focused]
 	.md-marker[contenteditable='false'] {
@@ -518,10 +570,9 @@
 }
 
 /* ── Inline-granular reveal (preview-inline's focused block) ──────────────────
-   The render stamps construct markers with data-construct-* and `construct-reveal.ts`
-   flips md-construct-reveal on the chain at the caret. Unstamped whole-block markers
-   reveal with block focus as under preview-block; table cells carry no stamps, so a
-   focused table degrades to preview-block behavior. */
+   The render stamps construct markers with data-construct-* and `construct-reveal.ts` flips
+   md-construct-reveal on the chain at the caret. Unstamped markers reveal with block focus as
+   under preview-block, so a table's stampless cells degrade to that behavior. */
 :where(.editor)[data-presentation='preview-inline']
 	.block-host[data-focused]
 	.md-marker:not([contenteditable='false']):not([data-construct-start]) {

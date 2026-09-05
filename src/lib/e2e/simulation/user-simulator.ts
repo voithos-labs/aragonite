@@ -17,7 +17,8 @@ import {
 	assertParseConvergence,
 	assertRoundTripStable,
 	assertSelectionValidity,
-	undoRedoDifferential
+	undoRedoDifferential,
+	undoStackDepth
 } from './invariants';
 
 export interface SessionOpts {
@@ -161,10 +162,12 @@ async function runCancellingDetours(ctx: SimContext, g: Gestures, rng: Rng): Pro
 	if (rng.chance(0.5)) await g.pause();
 
 	// Byte-stability across a presentation-mode flip. The seed picks which rung so the
-	// multi-seed runner spreads reading / preview-block / preview-inline across seeds —
-	// the flip must not perturb the clean built source under any live gesture state.
+	// multi-seed runner spreads every mode across seeds — the flip must not perturb the
+	// clean built source under any live gesture state.
 	if (rng.chance(0.7)) {
-		await g.flipPresentationMode(rng.pick(['reading', 'preview-block', 'preview-inline'] as const));
+		await g.flipPresentationMode(
+			rng.pick(['reading', 'preview-block', 'preview-inline', 'live'] as const)
+		);
 	}
 
 	// The two most dangerous surfaces, appended so the existing seed→detour mapping is
@@ -201,7 +204,7 @@ async function rangeInterruptDetour(ctx: SimContext, g: Gestures, rng: Rng): Pro
 /**
  * Drives a reorder BETWEEN edits and undo/redo — the interleaving that surfaces the
  * aliasing/unshare/stamp corruption a reorder can introduce, which the simulation is the only
- * oracle for (`docs/contributing/culture.md` § Testing shape). Block 0 is a heading or
+ * oracle for (`docs/contributing/rules.md` § Testing shape). Block 0 is a heading or
  * paragraph with a sibling below it in every note, so the move is never a no-op.
  */
 async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
@@ -222,7 +225,7 @@ async function reorderUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	await g.pause();
-	await g.clickToReposition([0], 0);
+	await g.clickToReposition([0]);
 	await ctx.page.keyboard.press('End');
 	await g.selectAndDelete(rng.int(3, 6));
 	await g.pause();
@@ -238,7 +241,7 @@ async function selectDeleteUndoDetour(ctx: SimContext, g: Gestures, rng: Rng): P
 async function copyPasteUndoDetour(ctx: SimContext, g: Gestures): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	await g.pause();
-	await g.clickToReposition([0], 0);
+	await g.clickToReposition([0]);
 	await ctx.page.keyboard.press('End');
 	await g.selectChars(4);
 	await g.copySelection();
@@ -263,13 +266,13 @@ async function crossBlockDestroyUndoDetour(ctx: SimContext, g: Gestures, rng: Rn
 	// paste-over needs a primed clipboard; copy from block 0 before the range is built
 	// (the copy collapses whatever is selected, so it must precede the cross-block build).
 	if (destroy === 'paste-over') {
-		await g.clickToReposition([0], 0);
+		await g.clickToReposition([0]);
 		await ctx.page.keyboard.press('End');
 		await g.selectChars(3);
 		await g.copySelection();
 	}
 
-	await g.clickToReposition([0], 0);
+	await g.clickToReposition([0]);
 	await ctx.page.keyboard.press('End');
 
 	const build = rng.pick(['shift-down', 'shift-click', 'select-all'] as const);
@@ -372,14 +375,4 @@ async function runFullSessionUndoUnwind(ctx: SimContext, initialSource: string):
 		);
 	}
 	ctx.tracker.resync(top);
-}
-
-/** Undo-stack depth from the debug bridge dump — the recorder parses it the same way. */
-async function undoStackDepth(ctx: SimContext): Promise<number> {
-	const dump: string = await ctx.page.evaluate(() => (window as any).__test.dumpUndoStack());
-	const match = /undo-depth=(\d+)/.exec(dump);
-	if (!match) {
-		throw new Error(`[${ctx.label}] undo-unwind: could not read undo depth from the bridge dump.`);
-	}
-	return Number(match[1]);
 }

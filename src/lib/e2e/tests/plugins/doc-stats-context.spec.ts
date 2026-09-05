@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { PluginsPage } from './helpers';
-import { primaryModifier } from '../../platform';
 
 // The doc-stats dogfood publishes one record per live editor to `window.__docStats`
 // (requirements/plugins/doc-stats-context.md) — the observable every gate here reads.
@@ -84,7 +83,7 @@ test.describe('doc-stats context spine: single instance', () => {
 	}) => {
 		await editor.clickBlock(0);
 		await poisonStats(page);
-		await page.keyboard.press(`${primaryModifier}+Shift+S`);
+		await page.keyboard.press('ControlOrMeta+Shift+S');
 		await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 2);
 	});
 });
@@ -111,7 +110,7 @@ test.describe('doc-stats context spine: attach survives a structural edit', () =
 		const editsAfterSplit = soleRecord(afterSplit).edits;
 		expect(editsAfterSplit).toBeGreaterThanOrEqual(1);
 
-		await page.keyboard.press(`${primaryModifier}+z`);
+		await page.keyboard.press('ControlOrMeta+z');
 		const afterUndo = await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 2);
 		expect(soleRecord(afterUndo).edits).toBeGreaterThan(editsAfterSplit);
 
@@ -120,7 +119,7 @@ test.describe('doc-stats context spine: attach survives a structural edit', () =
 		expect(soleRecord(afterType).blocks).toBe(2);
 
 		await poisonStats(page);
-		await page.keyboard.press(`${primaryModifier}+Shift+S`);
+		await page.keyboard.press('ControlOrMeta+Shift+S');
 		await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 2);
 	});
 });
@@ -148,7 +147,7 @@ test.describe('doc-stats context spine: two editors', () => {
 	test('the chord recomputes only the dispatching instance', async ({ page }) => {
 		await page.locator('.editor').nth(1).getByText('Para').click();
 		await poisonStats(page);
-		await page.keyboard.press(`${primaryModifier}+Shift+S`);
+		await page.keyboard.press('ControlOrMeta+Shift+S');
 
 		const stats = await waitForStats(page, (s) =>
 			Object.values(s).some((r) => r.label === 'right' && r.blocks === 2)

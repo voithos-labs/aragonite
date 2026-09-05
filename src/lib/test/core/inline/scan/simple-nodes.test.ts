@@ -71,6 +71,11 @@ describeScanCases('entities', [
 		'failed candidate does not mask a later entity',
 		'&am&amp;',
 		[textNode(0, 3, '&am'), entityNode(3, 8, '&')]
+	],
+	[
+		'decoded angle bracket does not start a tag',
+		'&lt;br&gt;',
+		[entityNode(0, 4, '<'), textNode(4, 6, 'br'), entityNode(6, 10, '>')]
 	]
 ]);
 

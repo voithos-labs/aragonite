@@ -8,7 +8,8 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { metadataOf } from '$lib/core/nodes';
-import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { cellAt } from './mount-table';
 
 beforeAll(installLayoutStubs);
 
@@ -20,17 +21,9 @@ afterEach(async () => {
 
 const GRID = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 
-function cell(rowIdx: number, colIdx: number): HTMLElement {
-	const table = blockHostAt(mounted!, [0]);
-	const row = table.querySelector(`[data-table-row-idx="${rowIdx}"]`);
-	const found = row?.querySelectorAll(':scope > .table-cell')[colIdx] as HTMLElement | undefined;
-	if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
-	return found;
-}
-
 /** Replace a cell's rendered text and fire the input the browser would. */
 async function typeInto(rowIdx: number, colIdx: number, text: string): Promise<void> {
-	const el = cell(rowIdx, colIdx);
+	const el = cellAt(mounted!, rowIdx, colIdx);
 	el.focus();
 	el.textContent = text;
 	el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
@@ -97,7 +90,7 @@ describe('a cell commits the bytes it was typed, escaped for its row', () => {
 describe('a composed (IME) cell edit commits once, through the same escape', () => {
 	it('holds the commit until composition ends, then escapes the composed text', async () => {
 		mounted = mountEditor({ source: GRID });
-		const el = cell(1, 0);
+		const el = cellAt(mounted!, 1, 0);
 		el.focus();
 
 		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));

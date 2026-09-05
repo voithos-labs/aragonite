@@ -1,6 +1,5 @@
-import { test, expect } from '../../fixtures';
+import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 
 test.describe('undo cursor anchoring', () => {
 	let editor: EditorPage;
@@ -18,21 +17,17 @@ test.describe('undo cursor anchoring', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('Hello\n');
 		await editor.typeText('!');
-		await editor.bridge.waitForSourceContains('!Hello');
-		const source = await editor.bridge.getSource();
-		expect(source.startsWith('!Hello')).toBe(true);
+		await editor.bridge.waitForSource((s) => s.startsWith('!Hello'));
 	});
 
 	test('C3: undo after Ctrl+1 heading returns caret to pre-edit position', async () => {
 		await editor.loadContent('Title\n');
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press(`${primaryModifier}+1`);
+		await editor.page.keyboard.press('ControlOrMeta+1');
 		await editor.bridge.waitForSourceMatches(/^# Title$/m);
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('Title\n');
 		await editor.typeText('!');
-		await editor.bridge.waitForSourceContains('!Title');
-		const source = await editor.bridge.getSource();
-		expect(source.startsWith('!Title')).toBe(true);
+		await editor.bridge.waitForSource((s) => s.startsWith('!Title'));
 	});
 });

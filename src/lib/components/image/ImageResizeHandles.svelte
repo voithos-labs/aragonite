@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { EditorEvents } from '../../editor-events';
-	import { clampWidth, snapWidth, resolveAspectLockedHeight, MIN_WIDTH } from './image-resize';
+	import { clampWidth, snapWidth, resolveDraggedHeight, MIN_WIDTH } from './image-resize';
 	import { devWarn } from '../../dev-warn';
 
 	let {
@@ -20,8 +20,8 @@
 	let dragState: {
 		startX: number;
 		startWidth: number;
+		startHeight: number;
 		naturalWidth: number;
-		naturalHeight: number;
 		aspectLocked: boolean;
 		currentWidth: number;
 	} | null = $state(null);
@@ -67,7 +67,7 @@
 	function startDrag(e: PointerEvent) {
 		const img = imgEl();
 		if (!img) return;
-		const startWidth = img.getBoundingClientRect().width;
+		const { width: startWidth, height: startHeight } = img.getBoundingClientRect();
 		// Unmeasurable width makes every snap run against 0 and commit a tiny image
 		// whichever way the drag goes; bail before pointer capture.
 		if (startWidth < MIN_WIDTH || editorContentWidth < MIN_WIDTH) return;
@@ -77,8 +77,8 @@
 		dragState = {
 			startX: e.clientX,
 			startWidth,
+			startHeight,
 			naturalWidth: img.naturalWidth,
-			naturalHeight: img.naturalHeight,
 			aspectLocked: !e.shiftKey,
 			currentWidth: startWidth
 		};
@@ -98,20 +98,21 @@
 		const img = imgEl();
 		if (!img) return;
 		img.style.width = `${snapped}px`;
-		if (dragState.aspectLocked && dragState.naturalWidth > 0) {
-			const h = resolveAspectLockedHeight(snapped, dragState.naturalWidth, dragState.naturalHeight);
-			img.style.height = `${h}px`;
-		}
+		// Shift unlocks the aspect: the height stays where the user found it and the image
+		// distorts. Locked, the stylesheet's `height: auto` derives it from the new width.
+		img.style.height = dragState.aspectLocked ? '' : `${dragState.startHeight}px`;
 	}
 
 	function endDrag(e: PointerEvent) {
 		if (!dragState) return;
-		const finalWidth = dragState.currentWidth;
-		const startWidth = dragState.startWidth;
-		const aspectLocked = dragState.aspectLocked;
-		const naturalW = dragState.naturalWidth;
-		const naturalH = dragState.naturalHeight;
-		const startX = dragState.startX;
+		const {
+			currentWidth: finalWidth,
+			startWidth,
+			startHeight,
+			startX,
+			aspectLocked,
+			naturalWidth
+		} = dragState;
 		dragState = null;
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		// Click-and-release with no drag: skip commit so undo stack stays clean.
@@ -124,17 +125,12 @@
 				finalWidth,
 				dx: e.clientX - startX,
 				editorContentWidth,
-				naturalWidth: naturalW,
+				naturalWidth,
 				imgRectWidth: imgEl()?.getBoundingClientRect().width,
 				imgWidthAttr: imgEl()?.getAttribute('width')
 			});
 		}
-		// Aspect-locked persists `|N` and lets the renderer derive the height; only an
-		// unlocked drag writes the explicit `|NxM` form.
-		const newHeight = aspectLocked
-			? undefined
-			: resolveAspectLockedHeight(finalWidth, naturalW, naturalH);
-		onCommit(Math.round(finalWidth), newHeight);
+		onCommit(Math.round(finalWidth), resolveDraggedHeight(aspectLocked, startHeight));
 	}
 
 	function cancelDrag(e: PointerEvent) {

@@ -5,18 +5,22 @@ import { createSelectionState } from '$lib/selection/selection-state.svelte';
 import { registerEditor, __resetActiveEditorForTests } from '$lib/active-editor';
 import { parse } from '$lib/core/parser';
 import { createEditorEvents, type EditorError } from '$lib/editor-events';
+import type { BlockComponent } from '$lib/block-component';
 import type { PasteImageHook } from '$lib/editor-keys';
 import type { CrossBlockHandlers } from '$lib/selection/cross-block/dispatch';
 
 // The escape this seam exists for: Chromium retargets the clipboard event to <body>
-// when the cross-block park found no caret. Driven through `target`, not
-// `activeElement` — a block still held focus in every real reproduction.
+// when the selection found no caret to park — a cross-block endpoint, or a selected
+// inline widget. Driven through `target`, not `activeElement` — a block still held
+// focus in every real reproduction.
 
 interface HarnessOptions {
 	onPasteImage?: PasteImageHook;
 	/** What the cross-block seam answers — false stands in for a selection that
 	 *  collapsed while a host import was in flight. */
 	crossBlockClaims?: boolean;
+	/** Stands in for the block owning a selected inline widget. */
+	widgetBlock?: BlockComponent | null;
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -51,7 +55,8 @@ function harness(options: HarnessOptions = {}) {
 		getDoc: () => doc,
 		crossBlock,
 		onPasteImage: options.onPasteImage,
-		events
+		events,
+		getSelectedWidgetBlock: () => options.widgetBlock ?? null
 	});
 
 	function fire(
@@ -62,6 +67,7 @@ function harness(options: HarnessOptions = {}) {
 		const written = new Map<string, string>();
 		let preventCount = prevented ? 1 : 0;
 		const event = {
+			type,
 			target,
 			get defaultPrevented() {
 				return preventCount > 0;
@@ -155,6 +161,63 @@ describe('editor-root clipboard routing', () => {
 
 		h.fire('paste', document.body);
 		expect(h.pasted).toEqual([undefined]);
+	});
+
+	// A selected inline widget is the second state whose event lands here: selecting one
+	// clears the native selection, and in a block with no text position nothing re-seats it.
+	describe('selected-widget arm', () => {
+		function widgetBlock() {
+			const seen: string[] = [];
+			const block = {
+				claimRootClipboard: (e: ClipboardEvent) => void seen.push(e.type)
+			} as unknown as BlockComponent;
+			return { block, seen };
+		}
+
+		for (const type of ['copy', 'cut', 'paste'] as const) {
+			it(`forwards a ${type} to the owning block with no cross-block selection live`, () => {
+				const { block, seen } = widgetBlock();
+				const h = harness({ widgetBlock: block });
+
+				h.fire(type, document.body);
+
+				expect(seen).toEqual([type]);
+				// The cross-block arms must not double-run: they would write the empty range.
+				expect(h.pasted).toEqual([]);
+			});
+		}
+
+		it('declines a target that is not dead space, widget selected or not', () => {
+			const { block, seen } = widgetBlock();
+			const h = harness({ widgetBlock: block });
+			const input = document.createElement('input');
+			h.root.append(input);
+
+			h.fire('copy', input);
+
+			expect(seen).toEqual([]);
+		});
+
+		it('declines when a block surface already claimed the event', () => {
+			const { block, seen } = widgetBlock();
+			const h = harness({ widgetBlock: block });
+
+			h.fire('copy', document.body, { prevented: true });
+
+			expect(seen).toEqual([]);
+		});
+
+		// The editor never presents both states at once, so the widget target is terminal:
+		// writing the cross-block range too would serve a selection the seam's own caller
+		// cannot have handed it. The block here writes nothing, so any write is the range's.
+		it('never falls through to the cross-block arm, even with a range live', () => {
+			const { block, seen } = widgetBlock();
+			const h = harness({ widgetBlock: block });
+			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
+
+			expect(h.fire('copy', document.body).written.size).toBe(0);
+			expect(seen).toEqual(['copy']);
+		});
 	});
 
 	// The host hook must be offered the files before the cross-block arm, which

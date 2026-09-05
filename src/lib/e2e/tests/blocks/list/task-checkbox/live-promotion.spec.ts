@@ -1,6 +1,5 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
-import { waitForSourceContains } from './helpers';
 
 test.describe('task checkbox — live promotion from typing', () => {
 	let editor: EditorPage;
@@ -14,7 +13,7 @@ test.describe('task checkbox — live promotion from typing', () => {
 		await editor.loadContent('- plain\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.typeSlowly('[ ] ');
-		await waitForSourceContains(editor, '[ ] plain');
+		await editor.bridge.waitForSourceContains('[ ] plain');
 		await editor.page.waitForSelector('.task-checkbox', { timeout: 2000 });
 		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] plain');
 	});
@@ -23,7 +22,7 @@ test.describe('task checkbox — live promotion from typing', () => {
 		await editor.loadContent('- work\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.typeSlowly('[x] ');
-		await waitForSourceContains(editor, '[x] work');
+		await editor.bridge.waitForSourceContains('[x] work');
 		await editor.page.waitForSelector('.list-item-block[data-task-checked="true"]', {
 			timeout: 2000
 		});

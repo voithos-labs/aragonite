@@ -5,8 +5,8 @@ import { admonitionsPlugin, convertGithubAlerts } from '$lib/plugins/admonitions
 import { stripQuoteMarker } from '$lib/plugins/admonitions/gh-alert';
 
 // The plugin's quote grammar is capped at CommonMark's 0–3 space block indent,
-// like the built-in blockquote's. Over-accepting made the plugin strip a `>` the
-// built-in keeps literal, so an edit rewrote prose into a quote marker.
+// like the built-in blockquote's. Over-accepting strips a `>` the built-in keeps
+// literal, so an edit rewrites prose into a quote marker.
 beforeAll(() => {
 	installPlugins([admonitionsPlugin()]);
 });
@@ -34,9 +34,7 @@ describe('githubAlert body keeps bytes the built-in blockquote keeps', () => {
 		expect(serialize(parse(source))).toBe(source);
 	});
 
-	// B9-8: a lazy-continuation line's literal `> ` used to be eaten on parse and
-	// re-emitted as a real quote marker on rebuild, silently changing what the line
-	// means. The rebuild may canonicalize the prefix; it must not change the content.
+	// The rebuild may canonicalize the prefix; it must not change the content.
 	it('does not turn a lazy-continuation line into a quote marker on rebuild', () => {
 		const alert = parse('> [!NOTE]\n> a\n    > b\n').children[0];
 		const before = alert.children!.map((c) => c.raw).join('');

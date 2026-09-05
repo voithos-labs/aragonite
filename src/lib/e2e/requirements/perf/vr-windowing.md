@@ -14,6 +14,7 @@ docs and for a single giant blockquote / list / table container.
 
 ## Edge cases
 
+- Every mounted-set ceiling carries a coverage FLOOR: the mounted boxes' span reaches both edges of the scrollport, at every scope the ceiling is asserted at. A ceiling alone is satisfied by mounting nothing, so without the floor a window that leaves the reader looking at bare spacer reads green.
 - Spacers are present only when windowing is active; the small-doc path emits none.
 - Windowed spacers carry a placeholder background (VR-8 skeleton): a spacer's computed background is a non-transparent placeholder tint (the editor.css `--vr-spacer-bg` token), not the unreachable gap — removing the rule or the token drops the alpha to 0 and fails the check.
 

@@ -7,7 +7,7 @@
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
-import { displayLength } from '../core/lines';
+import { displayLength, trimTrailingLineEnding } from '../core/lines';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
 import type { ClosureCell, ClosureColumn } from '../schema/closure';
@@ -17,8 +17,10 @@ import {
 	type MergeRole
 } from '../schema/block-kind-descriptor';
 import { isMergeEligible } from '../schema/merge-rules';
+import { isWholeBlockUnit } from '../schema/whole-block-unit';
 import { collectCrossBlockText } from '../selection/clipboard-text';
 import type { SelectionPoint } from '../selection/primitives';
+import { createSelectionState } from '../selection/selection-state.svelte';
 import { pathsEqual } from '../selection/path-math';
 import { scanDocument } from '../search/document-scan';
 import { compileMatcher } from '../search/matcher';
@@ -132,6 +134,15 @@ function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): Kind
 	if (!nodePath) {
 		fail(`kind conformance failed for "${kind}": conformanceFixture parses to no "${kind}" node`);
 	}
+	// The one place every executor receives the fixture, so the position contract they drive
+	// `doc.children[0]` on (undo deletes it, the byte-slice copy sweeps from it) is settled here.
+	if (nodePath[0] !== 0) {
+		fail(
+			`kind conformance failed for "${kind}": conformanceFixture must open with the "${kind}" ` +
+				`block (found under top-level index ${nodePath[0]}) — the kit drives the fixture's first ` +
+				`block and rides its own sentinel beside it`
+		);
+	}
 	return { kind, descriptor, fixture, doc, node: nodeAtPath(doc, nodePath), nodePath };
 }
 
@@ -193,7 +204,8 @@ async function executeCell(
 			return {
 				status: 'boundary',
 				detail:
-					'note-taking simulation under the corruption oracles — executed in the e2e sim battery'
+					'note-taking simulation under the corruption oracles — run by the platform sweep ' +
+					'over the kinds it enrolls, never by this runner'
 			};
 	}
 }
@@ -313,8 +325,12 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 			detail: `no conformanceFixture — undo depth runs in the ${BROWSER_SWEEP}`
 		};
 
-	// The trailing sentinel guarantees a second block to delete.
 	const doc = parse(ctx.fixture + '\n\nundo sentinel\n');
+	assert(
+		doc.children.length > 1,
+		`the kit's trailing sentinel parses beside the "${ctx.kind}" fixture rather than being ` +
+			`swallowed by it, so there is a second block to delete`
+	);
 	const { deps } = createHeadlessActions(doc.children);
 	const controller = createUndoController(deps);
 	const blockEdit = createBlockEditActions(deps, controller);
@@ -355,29 +371,101 @@ function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellResu
 
 // ── Exported executors (direct-drive for regression tests) ───────────────────
 
-const CLIPBOARD_SENTINEL = '\n\nclipboard sentinel\n';
+const TRAILING_SENTINEL = '\n\nclipboard sentinel\n';
+const LEADING_SENTINEL = 'clipboard lead\n\n';
 
 /**
- * Assert the DEFAULT copy ceremony over `kind`'s fixture is a pure raw byte slice — the
- * honest meaning of `clipboard: inherit-default`. A kind that synthesizes on copy
- * diverges and this throws. Exported so a regression test can drive it against a kind
- * the runner would otherwise route to a custom check.
+ * Assert the default cross-block copy over `kind`'s fixture carries its bytes with no
+ * kind-specific synthesis, at BOTH endpoint roles — the honest meaning of
+ * `clipboard: inherit-default`. Endpoints ride the real selection funnel, so the expectation is
+ * the contract, never a re-derivation of the slice under test. Fixture contract: `fixture`
+ * parses to `kind` at `children[0]`; the kit adds its sentinel block on the sweeping side.
  */
 export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
-	const doc = parse(fixture + CLIPBOARD_SENTINEL);
-	assertIs(doc.children[0].kind, kind, `"${kind}" is the top-level copy subject`);
+	assertIs(
+		parse(fixture).children[0]?.kind,
+		kind,
+		`"${kind}" is the top-level copy subject: a conformanceFixture must parse to its kind ` +
+			`at children[0], and the kit adds its own sentinel block on the sweeping side`
+	);
+	checkCopyFromKind(kind, fixture);
+	checkCopyIntoKind(kind, fixture);
+}
+
+/** The kind as the range START: its tail, then the sentinel's head. */
+function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
+	const doc = parse(fixture + TRAILING_SENTINEL);
 	const lastIndex = doc.children.length - 1;
 	assert(lastIndex >= 1, 'fixture + sentinel yields a second block to copy across');
 	const kindNode = doc.children[0];
 	const sentinel = doc.children[lastIndex];
-	const startOffset = displayLength(kindNode.raw) > 1 ? 1 : 0;
+	const startOffset = interiorOffset(kindNode);
 	const endOffset = displayLength(sentinel.raw);
-	const start: SelectionPoint = { path: [0], offset: startOffset };
-	const end: SelectionPoint = { path: [lastIndex], offset: endOffset };
-	const copied = collectCrossBlockText(doc, start, end);
-	const expected =
-		kindNode.raw.slice(startOffset) + sentinel.leadingTrivia + sentinel.raw.slice(0, endOffset);
-	assertIs(copied, expected, `"${kind}" copy is a raw byte slice — no kind-specific synthesis`);
+	const copied = copyThroughFunnel(
+		doc,
+		{ path: [0], offset: startOffset },
+		{ path: [lastIndex], offset: endOffset }
+	);
+	const tail = isWholeBlockUnit(kindNode) ? kindNode.raw : kindNode.raw.slice(startOffset);
+	assertIs(
+		copied,
+		tail +
+			bytesBetween(doc.children, 1, lastIndex) +
+			sentinel.leadingTrivia +
+			sentinel.raw.slice(0, endOffset),
+		`"${kind}" copy is a raw byte slice — no kind-specific synthesis`
+	);
+}
+
+/** The kind as the range END, the role a start-only check never exercises. */
+function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
+	const doc = parse(LEADING_SENTINEL + fixture);
+	const kindIndex = doc.children.length - 1;
+	assert(kindIndex >= 1, 'sentinel + fixture yields a block to copy across from');
+	const sentinel = doc.children[0];
+	const kindNode = doc.children[kindIndex];
+	const startOffset = interiorOffset(sentinel);
+	const copied = copyThroughFunnel(
+		doc,
+		{ path: [0], offset: startOffset },
+		{ path: [kindIndex], offset: interiorOffset(kindNode) }
+	);
+	const head = isWholeBlockUnit(kindNode)
+		? trimTrailingLineEnding(kindNode.raw)
+		: kindNode.raw.slice(0, interiorOffset(kindNode));
+	assertIs(
+		copied,
+		sentinel.raw.slice(startOffset) +
+			bytesBetween(doc.children, 1, kindIndex) +
+			kindNode.leadingTrivia +
+			head,
+		`"${kind}" copy is a raw byte slice — no kind-specific synthesis`
+	);
+}
+
+/** The blocks a sweep crosses whole: a blank run beside the sentinel materializes as these. */
+function bytesBetween(children: CstNode[], from: number, to: number): string {
+	return children
+		.slice(from, to)
+		.map((node) => node.leadingTrivia + node.raw)
+		.join('');
+}
+
+/**
+ * The production mint→store→slice chain: endpoints normalize in `SelectionState` exactly as a
+ * gesture's would, so a kind whose offsets the funnel rewrites is copied as the editor copies it.
+ */
+function copyThroughFunnel(doc: Document, anchor: SelectionPoint, focus: SelectionPoint): string {
+	const selection = createSelectionState({ getDoc: () => doc });
+	selection.enterCrossBlock(anchor, focus);
+	const { start, end } = selection;
+	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
+	return collectCrossBlockText(doc, start, end);
+}
+
+/** An offset strictly inside the block, so a kind that snaps its endpoints is seen doing it. */
+function interiorOffset(node: CstNode): number {
+	return displayLength(node.raw) > 1 ? 1 : 0;
 }
 
 // ── Internal helpers ─────────────────────────────────────────────────────────

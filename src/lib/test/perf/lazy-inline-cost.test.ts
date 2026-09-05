@@ -12,6 +12,11 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '../../perf/instruments';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// The measurement edits a snapshotted node by writing raw directly rather than through the commit
+// ceremony, which is what the shared-node oracle reports.
+afterEach(() => allowDevWarns(['invariant:snapshot-integrity']));
 
 // inlineComputeCount has a single production caller, computeInlineContent, so it is an
 // exact meter of how often the inline tree is built — a re-introduced eager parse bumps
@@ -33,7 +38,8 @@ describe('lazy inline: common keystroke computes once', () => {
 	it('updateNodeContent parses no inline; the render compute is the only one', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
-			ownerKind: undefined
+			ownerKind: undefined,
+			owner: undefined
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n');
@@ -48,7 +54,8 @@ describe('lazy inline: common keystroke computes once', () => {
 	it('an off-render accessor read computes on demand, not eagerly', () => {
 		const parent = {
 			children: [para('alpha\n'), para('beta\n'), para('gamma\n')],
-			ownerKind: undefined
+			ownerKind: undefined,
+			owner: undefined
 		};
 
 		updateNodeContent(parent, 1, 'beta!\n');

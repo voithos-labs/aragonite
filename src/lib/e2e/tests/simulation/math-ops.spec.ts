@@ -1,10 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import { type SimContext, assertCoreOracles } from '../../simulation/invariants';
+import { assertCoreOracles } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated math-ops oracle. Math is the first NONZERO-INTERIOR inline widget (KaTeX renders
 // real glyph text nodes) and the first render-primary block, so its byte survival and
@@ -43,8 +43,7 @@ test.describe('math-ops simulation', () => {
 		await editor.loadContent(MATH_DOC);
 		await editor.waitForRenderFlush();
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'math-ops' };
+		const ctx = await makeSimContext(page, editor, 'math-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
@@ -110,8 +109,7 @@ test.describe('math-ops simulation', () => {
 		// first hit; wait for the SVG before driving the focus gestures.
 		await expect(page.locator('.mermaid-viewport svg')).toHaveCount(1, { timeout: 30_000 });
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'mermaid-focus' };
+		const ctx = await makeSimContext(page, editor, 'mermaid-focus', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);
@@ -139,8 +137,7 @@ test.describe('math-ops simulation', () => {
 		await expect(page.locator('.math-block-render')).toHaveCount(1);
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathFence');
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'math-fence' };
+		const ctx = await makeSimContext(page, editor, 'math-fence', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = (label: string) => assertCoreOracles(ctx, label);

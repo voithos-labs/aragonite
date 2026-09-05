@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('$lib/dev-warn', () => ({ devWarn: vi.fn() }));
-import { devWarn } from '$lib/dev-warn';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 import { createBoundedMemo } from '$lib/bounded-memo';
 
 describe('createBoundedMemo', () => {
@@ -114,14 +113,12 @@ describe('createBoundedMemo', () => {
 // than throw — cap 0 otherwise reads as "caching is off" until an author debugs it.
 describe('createBoundedMemo with a non-positive cap', () => {
 	it('dev-warns at creation and clamps to a usable cap', () => {
-		vi.mocked(devWarn).mockClear();
-
 		const memo = createBoundedMemo<string, number>({ cap: 0 });
 		const compute = vi.fn(() => 1);
 		memo('k', compute);
 		memo('k', compute);
 
-		expect(vi.mocked(devWarn)).toHaveBeenCalledTimes(1);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['bounded-memo']);
 		expect(compute).toHaveBeenCalledTimes(1);
 	});
 });

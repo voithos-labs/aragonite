@@ -1,7 +1,8 @@
 {
-	"recorded": "2026-07-24",
+	"recorded": "2026-08-26",
+	"reVerified": "2026-08-26 — the e2e rows are one epoch measured on the PRODUCTION build (the `perf:check` route), replacing the 2026-07-24 dev-build epoch: the instrument changed, so the values were re-recorded rather than re-verified. Container-interior rows fell from 52.1/29.1 ms (dev, pre child-spans) to 3.3/3.0 ms; every other keystroke row read at or below its dev value; the giant-single-paragraph rows were re-measured after a bisected toolbar regression was fixed the same day. giant-single-list-interior-10MB is blessed from the gate's own run (its p95 is the first keystroke after load, which seeds the spans once); its loadMs is the same fixture's giant-single-list-10MB load.",
 	"machine": "AMD Ryzen 7 7700 (8 cores / 16 threads), 31GB RAM, Windows 11 Home 10.0.26200, Node v24.5.0",
-	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. Bench time rows last refreshed 2026-06-20; e2e rows re-blessed 2026-07-24.",
+	"note": "Time rows (parse / snapshotPush / snapshotDigest / ancestryRebuild) are REPORT-ONLY references, not gates — measured by `npm run perf:editor` (vitest bench). They are point-in-time and environment-sensitive: a same-machine re-measure can drift roughly ±10-40% with no code change (thermal / OS / Node state), so read them as orders of magnitude, not exact targets. The ENFORCED numbers are `e2e` (keystroke latency, gated by `npm run perf:check`, which builds and previews the app and measures that) and `counters` (structural amplification, hard ceilings in counters.test.ts; amplification.test.ts is its report-only sibling). DEV invariant assertions run under vitest, so snapshot rows are conservative upper bounds vs production. 10MB rows use a 3s time floor so sample counts stay honest. parse / snapshot* rows last refreshed 2026-06-20; ancestryRebuild rows re-blessed as one epoch 2026-08-26, measured with the perf instruments armed, which keeps the dev-only splice belt out of them; the two `interior of a 1MB list` rows were recorded the same day and are the hinted-vs-full comparison for the child-spans rebuild (6.3x on plain objects; the browser gap is larger, since the proxy reads it removes do not exist in node).",
 	"parse": {
 		"flat-prose-100KB": {
 			"mean-ms": 0.2944,
@@ -207,24 +208,84 @@
 	},
 	"ancestryRebuild": {
 		"depth-8-many-tiny-lists-1MB": {
-			"mean-ms": 0.0016,
-			"rme-pct": 6.42,
-			"samples": 305154
+			"mean-ms": 0.0048,
+			"rme-pct": 6.71,
+			"samples": 104137
 		},
 		"breadth-single-100KB-list": {
-			"mean-ms": 0.0408,
-			"rme-pct": 1.22,
-			"samples": 12245
+			"mean-ms": 0.0719,
+			"rme-pct": 1.63,
+			"samples": 6954
 		},
 		"breadth-single-1MB-list": {
-			"mean-ms": 0.5699,
-			"rme-pct": 3.51,
-			"samples": 880
+			"mean-ms": 1.3117,
+			"rme-pct": 3.87,
+			"samples": 382
 		},
 		"breadth-single-10MB-list": {
-			"mean-ms": 19.0752,
-			"rme-pct": 6.44,
-			"samples": 158
+			"mean-ms": 20.8644,
+			"rme-pct": 3.89,
+			"samples": 144
+		},
+		"combined-depth-4x1KB-per-level": {
+			"mean-ms": 0.0272,
+			"rme-pct": 15.83,
+			"samples": 19028
+		},
+		"combined-depth-4x10KB-per-level": {
+			"mean-ms": 0.1859,
+			"rme-pct": 3.61,
+			"samples": 2690
+		},
+		"combined-depth-4x50KB-per-level": {
+			"mean-ms": 1.0994,
+			"rme-pct": 4.38,
+			"samples": 456
+		},
+		"combined-depth-8x1KB-per-level": {
+			"mean-ms": 0.0822,
+			"rme-pct": 6.31,
+			"samples": 6080
+		},
+		"combined-depth-8x10KB-per-level": {
+			"mean-ms": 0.6601,
+			"rme-pct": 4.54,
+			"samples": 758
+		},
+		"combined-depth-8x50KB-per-level": {
+			"mean-ms": 3.827,
+			"rme-pct": 2.91,
+			"samples": 131
+		},
+		"combined-depth-12x1KB-per-level": {
+			"mean-ms": 0.2099,
+			"rme-pct": 14.5,
+			"samples": 2382
+		},
+		"combined-depth-12x10KB-per-level": {
+			"mean-ms": 1.4112,
+			"rme-pct": 3.78,
+			"samples": 355
+		},
+		"combined-depth-12x50KB-per-level": {
+			"mean-ms": 8.1351,
+			"rme-pct": 2.7,
+			"samples": 62
+		},
+		"combined-depth-16x100KB-per-level-adversarial": {
+			"mean-ms": 27.7084,
+			"rme-pct": 2.75,
+			"samples": 20
+		},
+		"interior-1MB-list-full": {
+			"mean-ms": 1.7158,
+			"rme-pct": 3.97,
+			"samples": 292
+		},
+		"interior-1MB-list-spliced": {
+			"mean-ms": 0.2717,
+			"rme-pct": 5.4,
+			"samples": 1841
 		}
 	},
 	"counters": {
@@ -234,151 +295,166 @@
 		"table-heavy-1MB-amplification": 1.96
 	},
 	"e2e": {
-		"note": "Dev server with DEV invariant assertions active — conservative upper bounds. Re-blessed 2026-07-16 from the overnight perf:e2e run — the first re-measure after the 0.9.26/0.9.27 milestones, which the 2026-06 baseline predated. Keystroke p50 stays O(viewport), ~2.5-4.4ms for every shape at every size; single-giant-paragraph remains the one non-viewport-bounded keystroke axis (intra-block span rebuild, ~117ms @ 1MB, ~1.2s @ 10MB), recorded-not-gated. Load is O(node-count) reactive-tree materialization (script-bound; mount VR-bounded), sub-second at realistic sizes, ~4.5s at the 392k-block 10MB many-small-blocks extreme (22s in the 2026-06 baseline). History: the 2026-06-21 re-bless removed a harness artifact (the per-keystroke settle summed docLengthInPage over the whole $state-proxy children array), which is why flat 10MB rows were once excluded from the gate. The perf gate enforces every renderable shape at <=1MB and at 10MB. 10MB rows: 15 keystrokes; others 30.",
+		"note": "Dev server with DEV invariant assertions active — conservative upper bounds. Re-blessed 2026-07-16 from the overnight perf:e2e run — the first re-measure after the 0.9.26/0.9.27 milestones, which the 2026-06 baseline predated. Keystroke p50 stays O(viewport), ~2.5-4.4ms for every shape at every size; single-giant-paragraph remains the one non-viewport-bounded keystroke axis (intra-block span rebuild, ~117ms @ 1MB, ~1.2s @ 10MB), recorded-not-gated. Load is O(node-count) reactive-tree materialization (script-bound; mount VR-bounded), sub-second at realistic sizes, ~4.5s at the 392k-block 10MB many-small-blocks extreme (22s in the 2026-06 baseline). History: the 2026-06-21 re-bless removed a harness artifact (the per-keystroke settle summed docLengthInPage over the whole $state-proxy children array), which is why flat 10MB rows were once excluded from the gate. The perf gate enforces every renderable shape at <=1MB and at 10MB. 10MB rows: 15 keystrokes; others 30. The two `-live` rows carry live mode's own keystroke gate, and every field they record — loadMs, keystrokeP50Ms and keystrokeP95Ms — is its source twin's recorded value exactly (flat-prose-1MB and nested-containers-1MB). Method and why: on the host that added them, live and source measured within run noise of each other and in BOTH directions across rows and re-runs (live 7.1 vs source 8.2 on one pass, live 7.8 vs source 7.0 on another), so no ratio between them is reproducible and any derived number would tighten or loosen the live gate on evidence that does not exist. Carrying the twin's values states the contract these rows exist for: a live row outside its source twin's band means per-keystroke work entered with the hidden-run walk. That host also runs the recorded rows ~2.3x slow, so its absolute numbers belong to no row here — re-measure both live rows on the recorded machine at the next re-bless.",
 		"flat-prose-100KB": {
-			"loadMs": 54.3,
-			"keystrokeP50Ms": 3.8,
-			"keystrokeP95Ms": 6.3
-		},
-		"flat-prose-1MB": {
-			"loadMs": 105.6,
-			"keystrokeP50Ms": 3.5,
-			"keystrokeP95Ms": 6.5
-		},
-		"flat-prose-10MB": {
-			"loadMs": 697.8,
-			"keystrokeP50Ms": 3.8,
-			"keystrokeP95Ms": 128.7
-		},
-		"nested-containers-100KB": {
-			"loadMs": 151.6,
-			"keystrokeP50Ms": 3,
-			"keystrokeP95Ms": 5.7
-		},
-		"nested-containers-1MB": {
-			"loadMs": 246.4,
-			"keystrokeP50Ms": 2.9,
-			"keystrokeP95Ms": 4.3
-		},
-		"nested-containers-10MB": {
-			"loadMs": 1438.9,
-			"keystrokeP50Ms": 2.9,
-			"keystrokeP95Ms": 90.5
-		},
-		"many-small-blocks-100KB": {
-			"loadMs": 71.2,
-			"keystrokeP50Ms": 2.9,
-			"keystrokeP95Ms": 5.9
-		},
-		"many-small-blocks-1MB": {
-			"loadMs": 374.3,
-			"keystrokeP50Ms": 2.6,
-			"keystrokeP95Ms": 4.4
-		},
-		"many-small-blocks-10MB": {
-			"loadMs": 4537.9,
-			"keystrokeP50Ms": 3.7,
-			"keystrokeP95Ms": 542.1
-		},
-		"single-giant-paragraph-100KB": {
-			"loadMs": 33.1,
-			"keystrokeP50Ms": 12.7,
-			"keystrokeP95Ms": 17
-		},
-		"single-giant-paragraph-1MB": {
-			"loadMs": 129.4,
-			"keystrokeP50Ms": 99,
-			"keystrokeP95Ms": 138.6
-		},
-		"single-giant-paragraph-10MB": {
-			"loadMs": 981.9,
-			"keystrokeP50Ms": 1175.1,
-			"keystrokeP95Ms": 1301.7
-		},
-		"reference-heavy-100KB": {
-			"loadMs": 54.3,
-			"keystrokeP50Ms": 3.4,
-			"keystrokeP95Ms": 6.2
-		},
-		"reference-heavy-1MB": {
-			"loadMs": 147.8,
-			"keystrokeP50Ms": 3.9,
+			"loadMs": 45.1,
+			"keystrokeP50Ms": 2.8,
 			"keystrokeP95Ms": 7
 		},
-		"reference-heavy-10MB": {
-			"loadMs": 1314.9,
+		"flat-prose-1MB": {
+			"loadMs": 72.3,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 6.4
+		},
+		"flat-prose-10MB": {
+			"loadMs": 466.7,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 33.5
+		},
+		"nested-containers-100KB": {
+			"loadMs": 107,
+			"keystrokeP50Ms": 2.4,
+			"keystrokeP95Ms": 5.3
+		},
+		"nested-containers-1MB": {
+			"loadMs": 200.8,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 4.6
+		},
+		"nested-containers-10MB": {
+			"loadMs": 992.6,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 36.2
+		},
+		"many-small-blocks-100KB": {
+			"loadMs": 48.8,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 3.3
+		},
+		"many-small-blocks-1MB": {
+			"loadMs": 176.5,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 3.9
+		},
+		"many-small-blocks-10MB": {
+			"loadMs": 1971.8,
+			"keystrokeP50Ms": 2.4,
+			"keystrokeP95Ms": 157.8
+		},
+		"single-giant-paragraph-100KB": {
+			"loadMs": 33.5,
+			"keystrokeP50Ms": 12.1,
+			"keystrokeP95Ms": 15.4
+		},
+		"single-giant-paragraph-1MB": {
+			"loadMs": 104.7,
+			"keystrokeP50Ms": 99.8,
+			"keystrokeP95Ms": 121.9
+		},
+		"single-giant-paragraph-10MB": {
+			"loadMs": 929,
+			"keystrokeP50Ms": 1185.9,
+			"keystrokeP95Ms": 1270.6
+		},
+		"reference-heavy-100KB": {
+			"loadMs": 46,
 			"keystrokeP50Ms": 3.1,
-			"keystrokeP95Ms": 149.1
+			"keystrokeP95Ms": 5.2
+		},
+		"reference-heavy-1MB": {
+			"loadMs": 100.3,
+			"keystrokeP50Ms": 2.9,
+			"keystrokeP95Ms": 6.1
+		},
+		"reference-heavy-10MB": {
+			"loadMs": 764,
+			"keystrokeP50Ms": 2.8,
+			"keystrokeP95Ms": 71
 		},
 		"table-heavy-100KB": {
-			"loadMs": 118.9,
-			"keystrokeP50Ms": 2.6,
-			"keystrokeP95Ms": 3.2
+			"loadMs": 78.7,
+			"keystrokeP50Ms": 2.4,
+			"keystrokeP95Ms": 4.7
 		},
 		"table-heavy-1MB": {
-			"loadMs": 165.3,
-			"keystrokeP50Ms": 2.5,
-			"keystrokeP95Ms": 3.2
+			"loadMs": 147.5,
+			"keystrokeP50Ms": 2.4,
+			"keystrokeP95Ms": 3.3
 		},
 		"table-heavy-10MB": {
-			"loadMs": 696.8,
-			"keystrokeP50Ms": 2.9,
-			"keystrokeP95Ms": 86.3
+			"loadMs": 590.9,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 14.6
 		},
 		"giant-single-list-100KB": {
-			"loadMs": 101.7,
+			"loadMs": 70,
 			"keystrokeP50Ms": 2.4,
 			"keystrokeP95Ms": 3.2
 		},
 		"giant-single-list-1MB": {
-			"loadMs": 338.3,
-			"keystrokeP50Ms": 2.6,
-			"keystrokeP95Ms": 4.8
+			"loadMs": 208.7,
+			"keystrokeP50Ms": 2.4,
+			"keystrokeP95Ms": 3.4
 		},
 		"giant-single-list-10MB": {
-			"loadMs": 2999,
-			"keystrokeP50Ms": 3.1,
-			"keystrokeP95Ms": 74.7
+			"loadMs": 1692.1,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 5.1
 		},
 		"giant-single-blockquote-100KB": {
-			"loadMs": 71.5,
-			"keystrokeP50Ms": 2.4,
-			"keystrokeP95Ms": 2.7
+			"loadMs": 60.7,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 6.5
 		},
 		"giant-single-blockquote-1MB": {
-			"loadMs": 216.1,
-			"keystrokeP50Ms": 2.5,
-			"keystrokeP95Ms": 4.5
+			"loadMs": 152.1,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 3.6
 		},
 		"giant-single-blockquote-10MB": {
-			"loadMs": 2057.5,
-			"keystrokeP50Ms": 2.6,
-			"keystrokeP95Ms": 79.8
+			"loadMs": 1164.2,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 7.7
 		},
 		"giant-single-table-100KB": {
-			"loadMs": 72.1,
-			"keystrokeP50Ms": 2.7,
-			"keystrokeP95Ms": 3.8
+			"loadMs": 52.4,
+			"keystrokeP50Ms": 2.3,
+			"keystrokeP95Ms": 3.1
 		},
 		"giant-single-table-1MB": {
-			"loadMs": 249.7,
-			"keystrokeP50Ms": 2.9,
-			"keystrokeP95Ms": 4.4
+			"loadMs": 163.5,
+			"keystrokeP50Ms": 2.6,
+			"keystrokeP95Ms": 3.2
 		},
 		"giant-single-table-10MB": {
-			"loadMs": 2322.9,
-			"keystrokeP50Ms": 2.6,
-			"keystrokeP95Ms": 74.9
+			"loadMs": 1340.4,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 8.2
 		},
-		"giant-single-list-head-1MB": {
-			"loadMs": 338.1,
-			"keystrokeP50Ms": 52.1,
-			"keystrokeP95Ms": 55.3
+		"giant-single-list-interior-1MB": {
+			"loadMs": 210.9,
+			"keystrokeP50Ms": 3.3,
+			"keystrokeP95Ms": 5
 		},
-		"giant-single-blockquote-head-1MB": {
-			"loadMs": 218.9,
-			"keystrokeP50Ms": 29.1,
-			"keystrokeP95Ms": 31.3
+		"giant-single-blockquote-interior-1MB": {
+			"loadMs": 146.8,
+			"keystrokeP50Ms": 3,
+			"keystrokeP95Ms": 4.3
+		},
+		"flat-prose-1MB-live": {
+			"loadMs": 72.3,
+			"keystrokeP50Ms": 2.7,
+			"keystrokeP95Ms": 6.4
+		},
+		"nested-containers-1MB-live": {
+			"loadMs": 200.8,
+			"keystrokeP50Ms": 2.5,
+			"keystrokeP95Ms": 4.6
+		},
+		"giant-single-list-interior-10MB": {
+			"loadMs": 1636.4,
+			"keystrokeP50Ms": 5.4,
+			"keystrokeP95Ms": 692.5
 		}
 	}
 }

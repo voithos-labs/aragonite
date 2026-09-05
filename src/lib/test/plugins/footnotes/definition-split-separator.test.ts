@@ -18,7 +18,14 @@ describe('footnote definition Enter at the end of the body', () => {
 	it('keeps the typed second child a second child on reparse', () => {
 		const doc = parse('[^a]: one\n');
 		const def = doc.children[0];
-		splitNode({ children: def.children!, ownerKind: def.kind }, 0, 'one'.length);
+		splitNode(
+			{ children: def.children!, ownerKind: def.kind, owner: def },
+			0,
+			'one'.length,
+			undefined,
+			undefined,
+			undefined
+		);
 		def.children![1].raw = 'two\n';
 		rebuildFootnoteDefRaw(def);
 

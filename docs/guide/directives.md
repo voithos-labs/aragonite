@@ -1,8 +1,6 @@
-# Authoring Directives
+# Directives
 
-## What a directive is
-
-Markdown has no syntax for "a box with a name on it" — no callout, no admonition, no embed. The `:::name` family is the community's answer, and aragonite implements it: a fenced construct with a **name** the editor dispatches on.
+Markdown has no syntax for "a box with a name on it" (e.g. no callout, no admonition, no embed, nothing). The community settled on `:::name` fences instead, and aragonite speaks that dialect: a fence with a **name**, and the editor hands the whole thing to whichever plugin claimed the name.
 
 ```
 :::note Heads up
@@ -10,43 +8,47 @@ Some body markdown.
 :::
 ```
 
-A plugin claims the name `note` and gets a real block kind for it — its own component, keymap, and commands. Any name **nobody** claims still parses, renders as a plain labelled box, and serializes back byte-for-byte. That second half is the point: **a document written with your plugin survives being opened without it.**
+Claim the `note` name and you get a real block kind for it: your own component, keymap, commands, the works. A name nobody claimed still parses, renders as a plain labelled box, and saves back byte for byte (i.e. a document written with your plugin survives being opened without it).
 
-This guide is for plugin authors. Read the [plugin author guide](plugin-guide.md) first — directives replace the parsing half of a plugin, not the registration machinery underneath it.
+---
 
-Directives are **opt-in**. A consumer who never calls `activateDirectives()` leaves `:::` unclaimed and parses plain GFM.
+<details>
+<summary>So, what are directives?</summary>
+<p>A named box in Markdown, written as a <code>:::name</code> fence, that a plugin can claim by name and turn into its own block</p>
+</details>
 
-## One opener, dispatched by name
+---
 
-A single shared opener owns every `:::` / `::` / `:` fence and dispatches on the name. N plugins therefore never fight over opener priority — the classic failure of the per-plugin opener, where the first registrant greedily claims _every_ `:::xxx` fence and no second plugin can own its own name.
+This page assumes you have read the [plugin guide](plugin-guide.md). Directives replace the parsing half of a plugin (you don't write an opener; defined in the next section), not the registration underneath it (you still have to declare a kind).
+
+## One opener for everyone
+
+There is exactly one opener (opener /ˈōp(ə)nər/: the part of the aragonite parser that recognizes the syntax a block starts with. Each block kind usually brings its own; a paragraph is what you get when none of them match.) for `:::`, `::` and `:`, and it dispatches on the name. Your plugin never registers an opener of its own.
+
+The reason is the way this feature usually gets built wrong: if every plugin registered its own `:::` opener, the first one to register would greedily claim every `:::whatever` fence, and no second plugin could ever own its own name. One shared opener, a registry lookup by name, done.
 
 ```
 :::name info…
-      │  one shared opener (owns :::/::/: ; dispatches by name)
+      │  the one opener
       ▼
   registry lookup by (tier, name)
-      ├─ registered   → the plugin's own kind
-      │                 (its full descriptor: chrome, collapse, keymap, commands)
-      └─ unregistered → generic fallback kind
-                        (fence bytes kept as metadata; body parsed as plain
-                         children; renders generically; round-trips byte-for-byte)
+      ├─ registered   → your kind
+      └─ unregistered → the generic box
 ```
 
 ## The three tiers
 
-| Tier          | Syntax                 | Colons | Placement | Body / content                        |
-| ------------- | ---------------------- | ------ | --------- | ------------------------------------- |
-| **Container** | `:::name info` … `:::` | ≥ 3    | block     | nested block markdown, real children  |
-| **Leaf**      | `::name info`          | 2      | block     | single line, no children              |
-| **Text**      | `:name[label]{attrs}`  | 1      | inline    | atomic widget, source-reveal on focus |
+| Tier          | Syntax                 | Colons    | Where  | Body                                    |
+| ------------- | ---------------------- | --------- | ------ | --------------------------------------- |
+| **Container** | `:::name info` … `:::` | 3 or more | block  | nested markdown, real child blocks      |
+| **Leaf**      | `::name info`          | 2         | block  | one line, no children                   |
+| **Text**      | `:name[label]{attrs}`  | 1         | inline | an atomic widget, source shown on focus |
 
-- **Colon count is the tier boundary**, exactly: `:` = text, `::` = leaf, `:::`+ = container.
-- **A name** is a leading letter followed by letters, digits, or hyphens — no underscore. It is the dispatch key.
-- **The text tier is conservative.** `:name` claims a span only when immediately followed by `[` or `{`. A bare `:name`, `:smile:`, `10:30`, and `http://` all stay literal.
+The colon count is the tier (one colon is text, two is a leaf, three or more is a container). A name is a letter followed by letters, digits or hyphens (no underscores). And the text tier is deliberately shy: `:name` only counts when a `[` or `{` follows immediately, so `:smile:`, `10:30` and `http://` all stay plain text, as they should.
 
-### Fence-length nesting
+**Nesting containers.** The closing syntax for a container follows a simple rule: it closes on the first line that (only) contains a sequence of colons with length >= the length of the opening colons. This is, coincidentally, the same rule used for the code fences (in that case it's backticks instead of colons).
 
-A container closes on the first line that is a colon run **at least as long** as its opener and nothing else — the same length rule fenced code blocks apply to backticks. A bare `:::` inside a 3-colon container's body closes it early, so nesting a `:::` container means the outer fence must be longer:
+As a consequence, to nest containers, the outer fence has to be longer:
 
 ```
 ::::note          outer opens with 4 colons
@@ -56,65 +58,166 @@ inner body
 ::::              outer closes (4 ≥ 4)
 ```
 
-You only author that length rule. On the write side the editor holds it for you: when an edit leaves a colon run inside a container's body, the rebuild lengthens that container's own fence past the longest run before re-emitting it, so the body stays inside instead of the container closing early. Deleting the colliding line narrows the fence back for as long as that container is live. It does not narrow across a reload: the widened opener is what the file now says, so the reparsed container starts from `::::` and keeps it.
+---
 
-## Registering a directive
+<details>
+<summary>Pasting BS into the Container</summary>
+Don't worry, we've got A-Hole protection. Pasting a ::: into a container won't ruin things - the editor lengthens the note's fence so the paste doesn't close it; delete the line again and the fence shrinks back.
 
-`registerDirective(tier, name, definition)` maps a `(tier, name)` to a kind. The tier scopes the key, so a container and a leaf may share a name.
+So,
 
-**Registration is once, and a duplicate throws** — the `customElements` model the schema registries follow. There is no unregister and no silent override.
+```
+:::note
+Some text.
+:::
+```
 
-- **Registered name → the plugin's own kind.** The definition points at a kind the plugin declared, and optionally supplies a factory that builds the node from the parsed fence. The directive layer replaces only the _opener_; the kind keeps everything a first-class block has — descriptor, chrome, collapse probe, keymap, commands.
-- **Unregistered name → generic fallback.** `:::anything` with no matching registration round-trips through a generic kind, rendering as a plain labelled box with a dimmed marker.
-- **Many names may map to one kind.** Register `note` and `warning` against a single kind that reads the name back from its own metadata.
+turns into:
 
-**When two plugins want the same name, the platform does not pick a winner — it throws.** First-wins is a _convention_ you opt into, not a built-in: guard the call with `isDirectiveRegistered(tier, name)` and skip your own registration when the name is already claimed. Both plugins then load, the name stays bound to whichever registered first, and nothing errors. Skip the guard and the second plugin's `registerDirective` throws on install.
+```
+::::note
+Some text.
+:::
+::::
+```
 
-### Per-tier factory contract
+so to speak. One thing: the widened fence is what gets saved, so after a reload the container simply is a `::::` container and stays one; the shrink-back only happens while it's live in the editor.
+</details>
 
-`fromDirective` — the factory that builds a node from the parsed fence — is required, optional, or rejected by tier. Enforced at registration, so a mismatch fails loud instead of silently no-op'ing at dispatch:
+---
 
-| Tier      | `fromDirective` | Why                                                              |
-| --------- | --------------- | ---------------------------------------------------------------- |
-| Container | **required**    | a kind-only container would orphan the generic `rebuildRaw` path |
-| Leaf      | optional        | kind-only restamps the kind; a factory builds the node           |
-| Text      | **rejected**    | inline nodes are kind-only — a factory is never consulted        |
+## Claiming a name
 
-A container's `rebuildRaw` re-emits the fence after every structural edit. Don't hand-write it: `createDirectiveRebuild` owns the title→opener line, the body serialization, and the authored line ending (the byte a hand-rolled copy silently drops on CRLF input). The plugin guide's walkthrough uses it.
+```ts
+registerDirective(tier, name, definition);
+```
 
-### The losslessness guarantee
+A tier has to be passed in for registering, so a container and a leaf may share a name. A few things to know:
 
-A document authored with a directive **whose plugin is not installed** opens, edits, and serializes **byte-for-byte**. The generic fallback captures every fence byte — opener colons, the verbatim info, the closer run, the body's blank-line wrap — as reconstruction inputs, and the container declares the opaque contract, making its `raw` authoritative.
+- **A duplicate register throws.** Same as `customElements`, same as every other registry in aragonite: no silent override. The second `registerDirective` throws on install, which is a rude way for your user to find out. If you want first-wins, opt into it yourself: check `isDirectiveRegistered(tier, name)` and skip your registration when the name is taken.
+- **Binding a name to a kind.** You declare a kind as usual (see plugin guide); registerDirective binds a name to it and, for containers, gives it a fromDirective that builds your node from the parsed fence. e.g.
 
-This is the round-trip a plugin platform needs: uninstalling a plugin never corrupts a saved document.
+```ts
+registerDirective('container', 'note', {
+	kind: NOTE, // the kind you declared
+	fromDirective: (parsed) => {
+		// how to build one from a ':::note' fence
+		const node: CstNode = {
+			kind: NOTE,
+			leadingTrivia: parsed.leadingTrivia,
+			raw: parsed.raw,
+			innerPrefix: parsed.body?.prefix ?? '',
+			// the title rides as child 0 (a chrome leaf; see the plugin guide)
+			children: [chromeChild(NOTE_TITLE, parsed.fence.info.trim()), ...(parsed.body?.children ?? [])],
+			innerSuffix: parsed.body?.suffix ?? ''
+		};
+		setPluginMetadata(node, {
+			name: parsed.fence.name,
+			// the four fence fields createDirectiveRebuild needs, under these exact names
+			colonCount: parsed.fence.colonCount,
+			closerColonCount: parsed.closerColonCount,
+			closerNewline: parsed.closerNewline,
+			lineEnding: parsed.lineEnding
+		});
+		return node;
+	}
+});
+```
 
-## Attributes
+- **Binding many names to one kind.** Name to kind is not a one to one relationship - it can be many to one. Say you want `:::note`, `:::warning` and `:::tip`, and they all behave the same (same component, same keymap, same collapse), differing only in colour and icon. Rather than declaring three kinds, declare one, call it callout, and register all three names against it:
 
-Everything after the name on the opener line is a **verbatim `info` string**, captured including its leading separator. The info is the **round-trip truth** — it is never re-parsed to reconstruct bytes.
+```ts
+registerDirective('container', 'note',    { kind: CALLOUT, fromDirective: build });
+registerDirective('container', 'warning', { kind: CALLOUT, fromDirective: build });
+registerDirective('container', 'tip',     { kind: CALLOUT, fromDirective: build });
+```
 
-`parseDirectiveAttributes(info)` is an **opt-in, pure** reader that pulls the remark `[label]{attrs}` convention out of the info, yielding `{ label, id, classes, properties }`. A directive uses it only if it wants that convention; a bare-title directive (`:::note My Title`) reads its info opaquely and ignores the helper.
+The factory (broadly, a function that takes the parsed pieces of a fence (its name, info string, body, etc.) and builds the corresponding block's node) (aka fromDirective in this case) just keeps the name in the node's metadata so the component knows which one it is.
 
-**Known limitation:** the helper is `info → structure` only. There is no inverse. A directive that _edits_ attributes rewrites its info string itself, through metadata plus its `rebuildRaw` — the proven container path. An inverse is an additive follow-on if a consumer needs one.
+### When is `fromDirective` required?
 
-## Activation
+`fromDirective` is required, optional or refused depending on the tier (and yes, it fails loud):
 
-Directives ship inert. `activateDirectives()` turns the grammar on: the generic fallback kinds and their render, the `:::` / `::` block openers, and the inline `:` recognizer. One call activates all of it.
+| Tier      | `fromDirective` | Why                                                                                    |
+| --------- | --------------- | -------------------------------------------------------------------------------------- |
+| Container | required        | a container has to build its own node, or the generic rebuild has nothing to work with |
+| Leaf      | optional        | without one, the leaf just restamps its kind; with one, you build the node             |
+| Text      | refused         | inline nodes are kind-only; a factory would never be called                            |
 
-Call it once at startup, **before the editor first parses**. The opener must register before a parse consumes the grammar, or an already-parsed document will not re-parse (a dev-mode warn flags a late call).
+p.s. Please, for chrissake, don't hand-write `rebuildRaw` for a container, lest you enjoy watching a car crash. `createDirectiveRebuild` does all of it; the plugin guide's walkthrough shows it in use.
 
-Activation is a **call, not an import side effect**: importing an `aragonite/plugin` authoring symbol does not claim `:::`. A plugin calls `activateDirectives()` _and_ registers its directives; a pure-GFM consumer that does neither keeps `:::` unclaimed. The call is idempotent, so multiple plugins — and HMR re-runs — can each make it safely.
+## The info string and attributes
 
-## Public authoring surface
+Everything after the name on the opener line is the **info string**. For `:::note Heads up` that's `' Heads up'`, leading space included, so trim it before you show it.
 
-On `aragonite/plugin`, labelled **pre-freeze / unstable** (refined against real consumers until the open-source release):
+If you want the remark-style `[label]{#id .class key=value}` convention, `parseDirectiveAttributes(info)` reads it into `{ label, id, classes, properties }`. It is opt-in and pure: a directive whose "info" is just a title (`:::note My Title`) never calls it.
 
-| Entry                      | Role                                                                      |
-| -------------------------- | ------------------------------------------------------------------------- |
-| `activateDirectives`       | turn the grammar on; call once at startup, before the first parse         |
-| `registerDirective`        | map a `(tier, name)` to a kind                                            |
-| `isDirectiveRegistered`    | probe a `(tier, name)`; the first-wins guard                              |
-| `parseDirectiveAttributes` | opt-in `info → { label, id, classes, properties }` reader (no inverse)    |
-| `serializeDirective`       | lossless fence serializer a registered kind's `rebuildRaw` uses           |
-| `createDirectiveRebuild`   | build the `rebuildRaw` for a container whose child 0 is an editable title |
+```ts
+parseDirectiveAttributes('[Heads up]{#intro .warning level=3}');
+// { label: 'Heads up', id: 'intro', classes: ['warning'], properties: { level: '3' } }
 
-with the supporting types `DirectiveTier`, `DirectiveDefinition`, `ParsedDirective`, `DirectiveFence`, and `DirectiveAttributes`.
+parseDirectiveAttributes(' Heads up');
+// { classes: [], properties: {} }
+```
+
+One limitation though: the helper goes one way, info to structure, not the inverse. A directive that edits its attributes rewrites its own info string (through its metadata and `rebuildRaw`, the same path a title edit takes). If a real plugin needs the inverse, it is an additive addition; raise an issue and present your case.
+
+## Switching it on
+
+Directives ship inert. `activateDirectives()` turns the grammar on (the generic boxes, the `:::` and `::` block openers, and the inline `:` recognizer).
+
+Remember, call it once at startup, before the editor first parses anything (a document parsed before the call will not re-parse, and a dev-mode warning will call you out). The call is also idempotent, so several plugins (and hot-reload re-runs) can each make it without stepping on each other.
+
+## What you get on `@voithos-labs/aragonite/plugin`
+
+Everything here is marked pre-freeze, meaning it may still change shape until 1.0.
+
+The ones you will actually use:
+
+| Entry                    | When you reach for it                                                                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activateDirectives`     | once, at startup, to turn directives on at all                                                                                                                             |
+| `registerDirective`      | to claim a name for your kind (this whole page)                                                                                                                            |
+| `isDirectiveRegistered`  | to check whether a name is already taken, if you want first-wins instead of a throw                                                                                        |
+| `createDirectiveRebuild` | to get a `rebuildRaw` for your container without writing one (the thing you were told not to hand-write); it assumes your child 0 is the editable title on the opener line |
+| `DIRECTIVE_BODY_WRAP`    | put it in your container kind's `bodyWrap`; it tells the parser how a `:::` body is wrapped in blank lines                                                                 |
+
+The ones you probably won't:
+
+| Entry                      | When you reach for it                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `parseDirectiveAttributes` | if your info strings use the `[label]{#id .class key=value}` convention and you want them read into an object |
+| `serializeDirective`       | writes a fence back out from its parts; `createDirectiveRebuild` already calls it for you                     |
+| `escalatedColonCount`      | how many colons a fence needs to hold a given body; only if you build `:::name` text by hand                  |
+
+Plus the types: `DirectiveTier`, `DirectiveDefinition`, `ParsedDirective`, `DirectiveFence` and `DirectiveAttributes`.
+
+The one type worth knowing by heart is `ParsedDirective`, because it is what your `fromDirective` gets handed:
+
+| Field                                             | What it is                                                                                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fence`                                           | the opener line, taken apart: `tier`, `colonCount`, `name`, `info`                                                                                 |
+| `body`                                            | everything between the fences, already parsed (a leaf has none); its `children` become your node's body blocks                                     |
+| `leadingTrivia`, `raw`                            | the blank lines before the block, and the block's exact source text; copy both onto your node untouched, or it will not save back to what was read |
+| `closerColonCount`, `closerNewline`, `lineEnding` | how the closing fence looked and which line ending the file used, so the fence can be written back exactly, CRLF included                          |
+
+For the `:::note Heads up` fence at the top of this page, your factory gets:
+
+```ts
+{
+	fence: { tier: 'container', colonCount: 3, name: 'note', info: ' Heads up' },
+	body: {
+		kind: 'document',
+		prefix: '',
+		children: [/* the "Some body markdown." paragraph, already parsed */],
+		suffix: ''
+	},
+	leadingTrivia: '',
+	raw: ':::note Heads up\nSome body markdown.\n:::\n',
+	closerColonCount: 3,
+	closerNewline: true,
+	lineEnding: '\n'
+}
+```
+
+One thing to know before you write your metadata type: `createDirectiveRebuild` needs it to carry `colonCount`, `closerColonCount`, `closerNewline` and `lineEnding`, under exactly those names. Those four are how it writes the fence back identical to the one it read. The compiler will tell you if one is missing; now you also know why.

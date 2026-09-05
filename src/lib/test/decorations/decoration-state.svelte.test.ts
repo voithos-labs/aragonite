@@ -1,28 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { configureEditorEnv, resetEditorEnv } from '../../env';
-import type { Decoration, DecorationWidgetSpec } from '../../decorations/types';
+import { mark, replace, widget } from './fixtures/decorations';
 
 const doc = parse('one\n\ntwo\n');
-
-// Opaque widget payload — never invoked by the engine, so no DOM is needed.
-const stubWidget: DecorationWidgetSpec = { buildDom: () => ({}) as HTMLElement };
-const mark = (path: number[]): Decoration => ({ type: 'mark', path, start: 0, end: 1, class: 'x' });
-const widget = (path: number[], offset: number): Decoration => ({
-	type: 'widget',
-	path,
-	offset,
-	widget: stubWidget
-});
-const replace = (path: number[], start: number, end: number): Decoration => ({
-	type: 'replace',
-	path,
-	start,
-	end
-});
 
 function makeEngine(onSourceError?: (name: string, error: unknown) => void) {
 	return createDecorationEngine({ getDoc: () => doc, onSourceError });
@@ -115,6 +98,20 @@ describe('createDecorationEngine', () => {
 		expect(() => engine.addSource({ name: 'd', provide: () => [] })).not.toThrow();
 	});
 
+	// Miss-analysis: dispose idempotence was pinned only by re-registering a DIFFERENT literal
+	// under the freed name, so a registry keyed on the source object itself looked identical.
+	it('leaves a disposed handle inert over a re-registration of the same source object', () => {
+		const engine = makeEngine();
+		const source = { name: 'toggled', provide: () => [mark([0])] };
+		const stale = engine.addSource(source);
+		stale.dispose();
+
+		engine.addSource(source);
+		stale.dispose();
+		expect(engine.sourceCount).toBe(1);
+		expect(engine.marksForPath([0])).toHaveLength(1);
+	});
+
 	it('contains a throwing source and preserves siblings', () => {
 		const errors: string[] = [];
 		const engine = createDecorationEngine({
@@ -156,11 +153,11 @@ describe('createDecorationEngine', () => {
 		const engine = makeEngine();
 		engine.addSource({
 			name: 'isl',
-			provide: () => [widget([0], 5), replace([0], 2, 3), widget([0], 0), mark([0])]
+			provide: () => [widget([0], 3), replace([0], 1, 2), widget([0], 0), mark([0])]
 		});
 		const islands = engine.islandsForPath([0]);
 		const positions = islands.map((i) => (i.dec.type === 'widget' ? i.dec.offset : i.dec.start));
-		expect(positions).toEqual([0, 2, 5]);
+		expect(positions).toEqual([0, 1, 3]);
 	});
 
 	it('marksForDescendants reads the ancestor bucket; blockDecorationsForPath returns block decorations', () => {
@@ -198,75 +195,5 @@ describe('createDecorationEngine', () => {
 		expect(engine.sourceCount).toBe(2);
 		a.dispose();
 		expect(engine.sourceCount).toBe(1);
-	});
-});
-
-// [1] thematicBreak and [2] fencedCode render no inline pass, so an island targeting
-// them never appears — the engine flags that at the source seam rather than silently.
-const mixedDoc = parse('para\n\n---\n\n```\ncode\n```\n');
-
-describe('non-prose island dev-warn', () => {
-	let warnSpy: ReturnType<typeof vi.spyOn>;
-	beforeEach(() => {
-		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false }); // let devWarn reach console
-	});
-	afterEach(() => {
-		warnSpy.mockRestore();
-		resetEditorEnv();
-	});
-
-	function makeMixedEngine() {
-		return createDecorationEngine({ getDoc: () => mixedDoc });
-	}
-
-	it('warns naming the source, kind, and path when a widget island targets a non-prose block', () => {
-		makeMixedEngine().addSource({ name: 'w', provide: () => [widget([1], 0)] });
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining(
-				"source 'w' places a widget island on a non-prose thematicBreak block"
-			),
-			{ path: [1] }
-		);
-	});
-
-	it('warns for a replace island on a fenced code block', () => {
-		makeMixedEngine().addSource({ name: 'r', provide: () => [replace([2], 0, 1)] });
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining('places a replace island on a non-prose fencedCode block'),
-			{ path: [2] }
-		);
-	});
-
-	it('stays silent for an island on a table cell — the cell surface applies islands', () => {
-		const tableDoc = parse('| a | b |\n| --- | --- |\n| c | d |\n');
-		const engine = createDecorationEngine({ getDoc: () => tableDoc });
-		engine.addSource({ name: 'cell', provide: () => [replace([0, 0, 0], 0, 1)] });
-		expect(warnSpy).not.toHaveBeenCalled();
-	});
-
-	it('stays silent for islands on a prose block and for mark/block decorations anywhere', () => {
-		makeMixedEngine().addSource({
-			name: 'ok',
-			provide: () => [
-				widget([0], 0),
-				replace([0], 0, 1),
-				mark([1]),
-				{ type: 'block', path: [2], class: 'b' }
-			]
-		});
-		expect(warnSpy).not.toHaveBeenCalled();
-	});
-
-	it('warns once per source+kind, not per island or per re-run', () => {
-		const engine = makeMixedEngine();
-		const handle = engine.addSource({
-			name: 'w',
-			provide: () => [widget([1], 0), replace([1], 0, 1)] // two islands, same non-prose kind
-		});
-		expect(warnSpy).toHaveBeenCalledTimes(1);
-		handle.invalidate();
-		engine.notifyEdit();
-		expect(warnSpy).toHaveBeenCalledTimes(1); // subsequent runs stay quiet
 	});
 });

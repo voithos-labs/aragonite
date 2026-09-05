@@ -1,24 +1,24 @@
 /**
  * Per-container-kind raw rebuilders. Separate from container-raw.ts (the ancestry dispatch) so
- * the built-in registrations can declare rebuildRaw directly: this file imports only core/,
- * while the dispatch must import the registry, and same-file would cycle.
+ * the built-in registrations can declare rebuildRaw directly: this file reaches no registry,
+ * while the dispatch must import one, and same-file would cycle. The strip and concat shapes
+ * live in child-spans.ts; each kind here contributes only its own per-line syntax.
  */
 
 import type { CstNode, TableAlignment } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
-import { concatChildren } from '../core/serializer';
-import { splitLines, trailingLineEnding } from '../core/lines';
+import { trailingLineEnding } from '../core/lines';
+import { rebuildConcatRaw, rebuildStripRaw, type ChildRawChange } from './child-spans';
 
 // ── Blockquote ───────────────────────────────────────────────────────────────
 
 /** Rebuild a blockquote's `raw`: `> ` on content lines, `>` on blank lines. */
-export function rebuildBlockquoteRaw(node: CstNode): void {
+export function rebuildBlockquoteRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children) return;
-
-	node.raw = splitLines(innerContentOf(node))
-		.map((line) => (line.text === '' ? '>' : '> ' + line.text) + line.lineEnding)
-		.join('');
+	rebuildStripRaw(node, quoteLine, changed);
 }
+
+const quoteLine = (text: string): string => (text === '' ? '>' : '> ' + text);
 
 // ── List ─────────────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ export function rebuildBlockquoteRaw(node: CstNode): void {
  * Rebuild a list item's `raw`: marker on the first line, indentation on continuations. Blank
  * lines stay unindented — GFM loose-list form.
  */
-export function rebuildListItemRaw(node: CstNode): void {
+export function rebuildListItemRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children || !node.metadata) return;
 
 	const meta = metadataOf(node, 'listItem');
@@ -34,24 +34,34 @@ export function rebuildListItemRaw(node: CstNode): void {
 	const taskMarker = meta.taskMarker ?? '';
 	const indent = ' '.repeat(marker.length);
 
-	node.raw = splitLines(innerContentOf(node))
-		.map((line, i) => {
-			if (i === 0) return marker + taskMarker + line.text + line.lineEnding;
-			if (line.text === '') return line.lineEnding;
-			return indent + line.text + line.lineEnding;
-		})
-		.join('');
+	rebuildStripRaw(
+		node,
+		(text, first) => {
+			if (first) return marker + taskMarker + text;
+			return text === '' ? '' : indent + text;
+		},
+		changed
+	);
 }
 
-export function rebuildListRaw(node: CstNode): void {
+export function rebuildListRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children) return;
-	node.raw = concatChildren(node.children);
+	rebuildConcatRaw(node, changed);
 }
 
 // ── Table ────────────────────────────────────────────────────────────────────
 
-/** `| c0 | c1 | ... |` plus `lineEnding` (single-space padding). */
-export function rebuildTableRowRaw(node: CstNode, lineEnding = trailingLineEnding(node.raw)): void {
+/** `| c0 | c1 | ... |` plus the row's own ending (single-space padding). */
+export function rebuildTableRowRaw(node: CstNode): void {
+	writeTableRow(node, trailingLineEnding(node.raw));
+}
+
+/**
+ * The same bytes under an ending the row does not own: a row minted by a structural op has no
+ * authored one, so the TABLE dictates it. Split from the descriptor-shaped rebuilder above
+ * because `rebuildRaw`'s second parameter is the changed-child hint.
+ */
+export function writeTableRow(node: CstNode, lineEnding: string): void {
 	if (!node.children) return;
 	const cells = node.children.map((c) => c.raw);
 	node.raw = '| ' + cells.join(' | ') + ' |' + lineEnding;
@@ -68,7 +78,7 @@ export function rebuildTableRaw(node: CstNode): void {
 	if (!node.children) return;
 	const meta = metadataOf(node, 'table');
 	const lineEnding = trailingLineEnding(node.raw);
-	for (const row of node.children) rebuildTableRowRaw(row, lineEnding);
+	for (const row of node.children) writeTableRow(row, lineEnding);
 	const headerRow = node.children[0];
 	const bodyRows = node.children.slice(1);
 
@@ -95,11 +105,4 @@ function formatAlignmentCell(a: TableAlignment): string {
 			throw new Error(`Unknown alignment: ${_exhaustive}`);
 		}
 	}
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/** The bytes a `strip` container re-prefixes: inner trivia around its serialized children. */
-function innerContentOf(node: CstNode): string {
-	return (node.innerPrefix ?? '') + concatChildren(node.children!) + (node.innerSuffix ?? '');
 }

@@ -3,6 +3,8 @@
  * raw.slice. Atomic widgets break that by design, contributing their own text or none and
  * carrying source bytes on `data-source-*`, so a raw offset is recovered only through the shared
  * walk (cursor/widget-offset.ts), never by counting textContent. Stated both ways by G2.4.
+ *
+ * Which of the spans minted here a mode leaves on screen is `inline/visibility.ts`.
  */
 
 import type { InlineNode } from './nodes';
@@ -67,9 +69,12 @@ function sourceSpan(raw: string, node: InlineNode, className: string): HTMLSpanE
 	return span;
 }
 
-// The one url-policy choke point for both href sinks. Undefined means absent or blocked, which
-// the caller reads as "render an inert span".
-function resolveHref(opts: RenderInlineOptions, url: string | undefined): string | undefined {
+/** The one href funnel for every sink — a consumer's rewrite, then the scheme allowlist; undefined
+ *  reads as "render inert". Exported: the link card's Open button hands over a user-typed URL. */
+export function resolveHref(
+	opts: RenderInlineOptions,
+	url: string | undefined
+): string | undefined {
 	if (url === undefined) return undefined;
 	const resolved = (opts.resolveLinkUrl ?? ((u) => u))(url);
 	// A type-violating resolver returning null/undefined degrades to an inert span, never a throw.
@@ -85,22 +90,23 @@ function renderInlineCode(
 	opts: RenderInlineOptions
 ): DocumentFragment {
 	const frag = document.createDocumentFragment();
-	// Read back off `raw`, not inferred from `node.text`: every span emitted here must be a slice
-	// of raw rather than a parsed field that happens to agree.
+	// Every span is a slice of raw, never a parsed field that happens to agree — and each is its
+	// OWN slice: the opening fence is capped at half the node and the closing one read back off
+	// the tail, so a node nobody parsed (a plugin mint over unfenced bytes) still emits its bytes
+	// exactly once (G2.4).
+	const fenceLimit = node.start + Math.floor((node.end - node.start) / 2);
 	let contentStart = node.start;
-	while (contentStart < node.end && raw[contentStart] === '`') contentStart++;
-	const tickLen = contentStart - node.start;
-	const ticks = raw.slice(node.start, contentStart);
-	const content = raw.slice(contentStart, node.end - tickLen);
+	while (contentStart < fenceLimit && raw[contentStart] === '`') contentStart++;
+	const contentEnd = node.end - (contentStart - node.start);
 
-	frag.appendChild(tagConstruct(markerSpan(ticks), node, opts));
+	frag.appendChild(tagConstruct(markerSpan(raw.slice(node.start, contentStart)), node, opts));
 
 	const code = document.createElement('code');
 	code.className = 'inline-code-content';
-	code.textContent = content;
+	code.textContent = raw.slice(contentStart, contentEnd);
 	frag.appendChild(code);
 
-	frag.appendChild(tagConstruct(markerSpan(ticks), node, opts));
+	frag.appendChild(tagConstruct(markerSpan(raw.slice(contentEnd, node.end)), node, opts));
 	return frag;
 }
 
@@ -160,7 +166,9 @@ function openWrapped(
 
 // ── Links ────────────────────────────────────────────────────────────────────
 
-// Markers come from raw.slice: the parsed url/title can differ from the source bytes.
+// Markers come from raw.slice: the parsed url/title can differ from the source bytes. Every
+// split point is clamped to node.end — a plugin mint need not carry the bytes GFM's own link
+// does, and a search running past the node would render the NEXT node's source (G2.4).
 function openLink(
 	node: InlineNode,
 	raw: string,
@@ -170,11 +178,10 @@ function openLink(
 	const children = node.children ?? [];
 	if (children.length === 0) {
 		// Empty link text: [](url)
-		const mid = raw.indexOf(']', node.start);
-		container.appendChild(
-			tagConstruct(markerSpan(raw.slice(node.start, mid !== -1 ? mid : node.end)), node, opts)
-		);
-		if (mid !== -1) {
+		const bracket = raw.indexOf(']', node.start);
+		const mid = bracket !== -1 && bracket < node.end ? bracket : node.end;
+		container.appendChild(tagConstruct(markerSpan(raw.slice(node.start, mid)), node, opts));
+		if (mid < node.end) {
 			container.appendChild(tagConstruct(markerSpan(raw.slice(mid, node.end)), node, opts));
 		}
 		return null;
@@ -184,7 +191,9 @@ function openLink(
 	// The close marker splits into the text bracket's `]` and the trailing marker. Reference forms
 	// get their own `md-ref-label` class so CSS can dim them harder than inline markers.
 	const closingTextBracket =
-		raw[lastChild.end] === ']' ? raw.slice(lastChild.end, lastChild.end + 1) : '';
+		lastChild.end < node.end && raw[lastChild.end] === ']'
+			? raw.slice(lastChild.end, lastChild.end + 1)
+			: '';
 	const trailingMarker = raw.slice(lastChild.end + (closingTextBracket ? 1 : 0), node.end);
 
 	container.appendChild(
@@ -195,7 +204,9 @@ function openLink(
 	linkEl.className = href !== undefined ? 'md-link-content' : 'md-link-content md-link-blocked';
 	if (href !== undefined) {
 		linkEl.setAttribute('href', href);
-		if (node.title !== undefined) linkEl.setAttribute('title', node.title);
+		// The author's title, else the resolved destination: live mode hides the URL, and hover
+		// is the one affordance disclosing where an untitled link actually goes.
+		linkEl.setAttribute('title', node.title ?? href);
 	}
 
 	const trailing: Node[] = [];
@@ -223,6 +234,34 @@ function openLink(
 			for (const marker of trailing) container.appendChild(marker);
 		}
 	};
+}
+
+// ── Autolinks ────────────────────────────────────────────────────────────────
+
+/**
+ * The angle form's `<`/`>` are construct syntax, so they render as markers the mode CSS can hide;
+ * the bare URL/www/email forms are url text throughout. Read off the raw bytes, never `node.url`:
+ * the bare forms synthesize a url (`http://`, `mailto:`) that is not a slice of the source.
+ */
+function appendAutolink(
+	node: InlineNode,
+	raw: string,
+	opts: RenderInlineOptions,
+	container: Node
+): void {
+	const href = resolveHref(opts, node.url);
+	const el = document.createElement(href !== undefined ? 'a' : 'span');
+	el.className = href !== undefined ? 'md-autolink' : 'md-autolink md-link-blocked';
+	if (href !== undefined) el.setAttribute('href', href);
+
+	const isAngleForm = raw[node.start] === '<' && raw[node.end - 1] === '>';
+	const textStart = isAngleForm ? node.start + 1 : node.start;
+	const textEnd = isAngleForm ? node.end - 1 : node.end;
+	el.textContent = raw.slice(textStart, textEnd);
+
+	if (isAngleForm) container.appendChild(markerSpan(raw.slice(node.start, textStart)));
+	container.appendChild(el);
+	if (isAngleForm) container.appendChild(markerSpan(raw.slice(textEnd, node.end)));
 }
 
 // ── Images ───────────────────────────────────────────────────────────────────
@@ -284,7 +323,14 @@ function renderNode(
 			// a `<br>` would diverge across browsers.
 			const breakRaw = raw.slice(node.start, node.end);
 			const nlIdx = breakRaw.indexOf('\n');
-			const lineEndingStart = nlIdx > 0 && breakRaw[nlIdx - 1] === '\r' ? nlIdx - 1 : nlIdx;
+			// A node carrying no line ending (a plugin mint) is all marker: a -1 here would
+			// slice from the end and drop bytes.
+			const lineEndingStart =
+				nlIdx === -1
+					? breakRaw.length
+					: nlIdx > 0 && breakRaw[nlIdx - 1] === '\r'
+						? nlIdx - 1
+						: nlIdx;
 			if (lineEndingStart > 0) {
 				container.appendChild(markerSpan(breakRaw.slice(0, lineEndingStart)));
 			}
@@ -310,28 +356,13 @@ function renderNode(
 			return null;
 		}
 
-		case 'autolink': {
-			const href = resolveHref(opts, node.url);
-			const el = document.createElement(href !== undefined ? 'a' : 'span');
-			el.className = href !== undefined ? 'md-autolink' : 'md-autolink md-link-blocked';
-			if (href !== undefined) el.setAttribute('href', href);
-			el.textContent = raw.slice(node.start, node.end);
-			container.appendChild(el);
+		case 'autolink':
+			appendAutolink(node, raw, opts, container);
 			return null;
-		}
 
 		case 'escape':
 			container.appendChild(markerSpan(raw[node.start]));
 			container.appendChild(document.createTextNode(raw.slice(node.start + 1, node.end)));
-			return null;
-
-		case 'entityReference':
-			// An invisible reference is not a widget, so the builder returns null and it keeps
-			// its literal-source span.
-			container.appendChild(
-				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-					sourceSpan(raw, node, 'md-entity')
-			);
 			return null;
 
 		case 'unresolvedReference':
@@ -346,19 +377,23 @@ function renderNode(
 			);
 			return null;
 
+		case 'entityReference':
 		case 'rawHtml':
-			container.appendChild(
-				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-					sourceSpan(raw, node, 'md-raw-html')
-			);
-			return null;
-
 		default:
-			// Anything the registry does not claim falls back to raw source, mirroring the
-			// unknown-block fallback so every byte round-trips.
+			// An invisible entity is not a widget, so the builder returns null and it keeps its
+			// literal-source span; anything the registry does not claim falls back the same way,
+			// mirroring the unknown-block fallback so every byte round-trips.
 			container.appendChild(
 				buildCoreInlineWidget(node, raw, opts.buildPortalWidget) ??
-					sourceSpan(raw, node, 'md-unknown-inline')
+					sourceSpan(
+						raw,
+						node,
+						node.kind === 'entityReference'
+							? 'md-entity'
+							: node.kind === 'rawHtml'
+								? 'md-raw-html'
+								: 'md-unknown-inline'
+					)
 			);
 			return null;
 	}

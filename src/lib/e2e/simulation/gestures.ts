@@ -13,6 +13,7 @@ import {
 	hardBreakAt,
 	indent,
 	indentEmptyItem,
+	mintAtGap,
 	nestQuote,
 	outdent,
 	outdentEmptyItem,
@@ -74,6 +75,20 @@ import {
 import { lateCorrection } from './gestures/correction';
 import { flipPresentationMode } from './gestures/presentation';
 import {
+	liveDemoteHeading,
+	liveEdgeBackspace,
+	liveExtendIntoTablePark,
+	liveLinkCardEdit,
+	liveListHomeSeat,
+	liveMergeLanding,
+	liveSplitInsideConstruct,
+	liveToggleFormat,
+	liveTypeFenceOpener,
+	liveTypeHeadingOpener,
+	liveTypeTableOpener,
+	type LiveFormat
+} from './gestures/live-editing';
+import {
 	cutSelection,
 	deleteSelection,
 	extendSelectionAcross,
@@ -115,7 +130,7 @@ export interface GestureOpts {
 export class Gestures {
 	private readonly typoRate: number;
 	private readonly onCheckpoint?: (label: string, gesture: string) => Promise<void>;
-	/** Set by a gesture that parks the caret away from the document end (see `hardBreakAt`). */
+	/** Set by a gesture that parks the caret away from the document end. */
 	private caretParkedMidBlock = false;
 
 	constructor(
@@ -143,9 +158,9 @@ export class Gestures {
 		// surface as a source mismatch naming the wrong culprit. Fail at the real cause.
 		if (this.caretParkedMidBlock) {
 			throw new Error(
-				`[${this.ctx.label}] typeText after hardBreakAt: the caret is parked mid-block, ` +
-					`which the tracker's document-end model cannot predict. hardBreakAt must be a ` +
-					`note's last build gesture.`
+				`[${this.ctx.label}] typeText after hardBreakAt or mintAtGap: the caret is parked ` +
+					`mid-document, which the tracker's document-end model cannot predict. Both must ` +
+					`be a note's last build gesture.`
 			);
 		}
 		for (const ch of text) {
@@ -173,7 +188,7 @@ export class Gestures {
 	 * assertion; the offset resyncs to whatever the click produced. Offset-precise or nested
 	 * clicks go through `editor.clickBlockAtPath`.
 	 */
-	async clickToReposition(targetBlockPath: number[], _offset: number): Promise<void> {
+	async clickToReposition(targetBlockPath: number[]): Promise<void> {
 		const { editor, tracker } = this.ctx;
 		await editor.clickBlock(targetBlockPath[0]);
 		await editor.waitForRenderFlush();
@@ -292,6 +307,20 @@ export class Gestures {
 		return toggleTask(this.ctx, listItemPath);
 	}
 
+	/**
+	 * Mint a paragraph at the between-blocks caret before `boundaryIndex`: the insert whose
+	 * commit path no other gesture reaches, since the boundary belongs to no block's surface.
+	 * Empty `text` presses Enter. Leaves the caret mid-document — a note's LAST gesture.
+	 */
+	async mintAtGap(
+		boundaryIndex: number,
+		text: string,
+		options?: { arrival?: 'backspace' | 'arrow-up' }
+	): Promise<void> {
+		await mintAtGap(this.ctx, boundaryIndex, text, options);
+		this.caretParkedMidBlock = true;
+	}
+
 	insertImage(alt: string, url: string): Promise<void> {
 		return insertImage(this.ctx, alt, url);
 	}
@@ -405,7 +434,7 @@ export class Gestures {
 	}
 
 	// A minted-command chord that bubbles from a callout leaf to the container handler.
-	// Resyncs around the opener-byte rewrite; needs a loaded `:::note` callout.
+	// Resyncs around the opener-byte rewrite; needs a loaded `:::callout` callout.
 	setCalloutKind(): Promise<void> {
 		return setCalloutKind(this.ctx);
 	}
@@ -568,8 +597,73 @@ export class Gestures {
 	 * Auto-behavior, so it settles on the mode attribute and resyncs — the byte-stability
 	 * oracle the loaded-ops battery otherwise never sees.
 	 */
-	flipPresentationMode(mode: 'reading' | 'preview-block' | 'preview-inline'): Promise<void> {
+	flipPresentationMode(
+		mode: 'reading' | 'preview-block' | 'preview-inline' | 'live'
+	): Promise<void> {
 		return flipPresentationMode(this.ctx, mode);
+	}
+
+	// ── Live-mode editing ───────────────────────────────────────────────────────
+	// Each enters live through the toggle, drives one live-only rule, and undoes what it spent —
+	// so every one nets to identity and a note fixture can fire it mid-session.
+
+	/** Toggle a mark over a selected word; `strikethrough` and `inlineCode` are live's two new
+	 *  chords, and all three write bytes immediately at a RANGE. */
+	liveToggleFormat(blockIndex: number, word: string, format: LiveFormat): Promise<void> {
+		return liveToggleFormat(this.ctx, blockIndex, word, format);
+	}
+
+	/** Backspace at a construct's trailing content edge takes the visible character, not the
+	 *  delimiter native editing would have reached. */
+	liveEdgeBackspace(blockIndex: number, content: string): Promise<void> {
+		return liveEdgeBackspace(this.ctx, blockIndex, content);
+	}
+
+	/** Backspace at a heading's content start demotes it before any merge. */
+	liveDemoteHeading(blockIndex: number): Promise<void> {
+		return liveDemoteHeading(this.ctx, blockIndex);
+	}
+
+	/** Enter inside a construct closes and reopens it, leaving both halves balanced. */
+	liveSplitInsideConstruct(blockIndex: number, content: string): Promise<void> {
+		return liveSplitInsideConstruct(this.ctx, blockIndex, content);
+	}
+
+	/** Click a rendered link, rewrite its destination in the card, Enter to commit. */
+	liveLinkCardEdit(linkText: string, url: string): Promise<void> {
+		return liveLinkCardEdit(this.ctx, linkText, url);
+	}
+
+	/** Backspace-merge a block into its predecessor, then type ONE byte at the seam the
+	 *  landing door seated (two entries, two undos). */
+	liveMergeLanding(blockIndex: number, seamBefore: string, seamAfter: string): Promise<void> {
+		return liveMergeLanding(this.ctx, blockIndex, seamBefore, seamAfter);
+	}
+
+	/** Home in a list item seats through the sentinel door; one byte opens the line. */
+	liveListHomeSeat(itemText: string): Promise<void> {
+		return liveListHomeSeat(this.ctx, itemText);
+	}
+
+	/** Extend into a table (the cell arm parks the START sentinel) and collapse — byte-free. */
+	liveExtendIntoTablePark(): Promise<void> {
+		return liveExtendIntoTablePark(this.ctx);
+	}
+
+	/** Type `#` onto a fresh line below `blockIndex`, then its text: the mint resyncs, the text
+	 *  predicts. */
+	liveTypeHeadingOpener(blockIndex: number, text: string): Promise<void> {
+		return liveTypeHeadingOpener(this.ctx, blockIndex, text);
+	}
+
+	/** The same on a fence: three backticks mint the block, the info string settles on its line. */
+	liveTypeFenceOpener(blockIndex: number, info: string): Promise<void> {
+		return liveTypeFenceOpener(this.ctx, blockIndex, info);
+	}
+
+	/** The adjacent-line member: the header row predicts byte for byte, Enter mints the grid. */
+	liveTypeTableOpener(blockIndex: number, cells: string[]): Promise<void> {
+		return liveTypeTableOpener(this.ctx, blockIndex, cells);
 	}
 
 	// ── Decoration islands + block decoration (plugins route, `?seed=sim`) ────────

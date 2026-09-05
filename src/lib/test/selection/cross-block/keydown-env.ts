@@ -9,10 +9,14 @@ import type { PresentationMode } from '$lib/presentation-mode';
 import type { CrossBlockDispatchContext } from '$lib/selection/cross-block/dispatch';
 import type { CrossBlockMutationContext } from '$lib/selection/cross-block/ops';
 import { createCrossBlockKeydown } from '$lib/selection/cross-block/keydown';
+import { createCrossBlockCommands } from '$lib/selection/cross-block/format-toggle';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
 import { createStickyColumnState } from '$lib/cursor/sticky-column';
+import type { Document } from '$lib/core/nodes';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
+import { installEditorDomStubsForTests } from '$lib/testing';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 
 export interface KeydownEnvOptions {
@@ -27,13 +31,14 @@ export interface KeydownEnvOptions {
 	offWindowPaths?: number[][];
 }
 
-export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
+export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOptions = {}) {
 	// The extend arms scroll the moved endpoint into view; jsdom has no layout.
-	Element.prototype.scrollIntoView = () => {};
-	const harness = makeEditorActionsDeps(parse(source).children);
+	installEditorDomStubsForTests();
+	const harness = makeEditorActionsDeps(typeof source === 'string' ? parse(source) : source);
 	const controller = createUndoController(harness.deps);
 	const selection = harness.deps.selectionState;
 	const stickyColumn = createStickyColumnState();
+	const edgeAffinity = createEdgeAffinityState();
 
 	// One element per path: the extend walk reads element identity, never geometry.
 	const blockEls = new Map<string, HTMLElement>();
@@ -61,8 +66,23 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined,
+		linkRef: undefined
 	};
+
+	const getPresentationMode = opts.presentationMode ? () => opts.presentationMode! : undefined;
+	// The real arm, so a rewrite chord over a range moves the bytes it would move in production.
+	const crossBlockCommands = createCrossBlockCommands({
+		selection,
+		getDoc: () => harness.deps.doc,
+		getBlockElByPath,
+		revealPath,
+		controller,
+		getPresentationMode,
+		grammar: undefined,
+		getContentVersion: harness.contentVersion
+	});
 
 	const onCommandError = vi.fn();
 	const ctx = {
@@ -74,11 +94,13 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		getBlockElByPath,
 		revealPath,
 		stickyColumn,
+		edgeAffinity,
 		controller,
 		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 		pluginEditor: undefined,
-		getPresentationMode: opts.presentationMode ? () => opts.presentationMode! : undefined,
+		getPresentationMode,
 		onCommandError,
+		crossBlockCommands,
 		getKeybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		afterReactivity: async () => {}
 	} as unknown as CrossBlockDispatchContext;
@@ -87,11 +109,13 @@ export function makeKeydownEnv(source: string, opts: KeydownEnvOptions = {}) {
 		...harness,
 		selection,
 		stickyColumn,
+		edgeAffinity,
 		controller,
 		ctx,
 		mutCtx,
 		revealed,
 		revealPath,
+		crossBlockCommands,
 		onCommandError,
 		keydown: createCrossBlockKeydown(ctx, mutCtx),
 		source: () => serialize(harness.deps.doc)

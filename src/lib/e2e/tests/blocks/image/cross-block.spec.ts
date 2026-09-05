@@ -46,12 +46,11 @@ test.describe('image cross-block selection', () => {
 		// Observe the delete before undoing: otherwise the restore predicate is satisfied by the
 		// document as loaded, and a Backspace that never fired passes.
 		await editor.bridge.waitForSourceNotContains('![cat]');
-		await page.keyboard.press('Control+z');
+		await page.keyboard.press('ControlOrMeta+z');
 		await editor.bridge.waitForSourceContains('![cat]');
 	});
 
-	// A drag that STARTS on the image must reach the block's cross-block machinery: while the
-	// widget swallowed its own pointerdown, no drag could originate from an image.
+	// The widget must not swallow its own pointerdown, or no drag can originate from an image.
 	test('drag starting on an image widget into the next block enters cross-block', async ({
 		page
 	}) => {

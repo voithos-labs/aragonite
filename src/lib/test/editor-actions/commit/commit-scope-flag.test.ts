@@ -9,10 +9,10 @@ import {
 	type StructuralChange
 } from '$lib/tree-operations/structural-change';
 
-// The ceremony brackets its synchronous body with this DEV flag so the decoration
-// engine can assert no source re-runs inside a half-applied commit.
+// The ceremony brackets its synchronous body with this flag so the decoration engine can
+// keep a source off a half-applied commit.
 describe('commit-scope flag', () => {
-	it('tracks an explicit begin/end pair (confirming the mechanism is live under DEV)', () => {
+	it('tracks an explicit begin/end pair', () => {
 		expect(isCommitInProgress()).toBe(false);
 		beginCommit();
 		try {
@@ -47,7 +47,8 @@ describe('commit-scope flag', () => {
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (children) => {
 				flagInsideMutate = isCommitInProgress();
-				children.push(makeNode('paragraph', 'world\n'));
+				// Separated: two trivia-less paragraphs reload as one, which the settle converges.
+				children.push({ ...makeNode('paragraph', 'world\n'), leadingTrivia: '\n' });
 				const change: StructuralChange = { op: 'insert', at: children.length - 1, count: 1 };
 				stampStructuralChange(children, change, deps.sharing);
 				return change;

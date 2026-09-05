@@ -2,56 +2,29 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createContainerBlockComponent } from '$lib/editor-actions/container-block-component';
 import type { BlockComponent } from '$lib/block-component';
-import type { CstNode } from '$lib/core/nodes';
-import { createSelectionState } from '$lib/selection/selection-state.svelte';
+import { makeShimDeps, mockRef } from '$lib/test/harness/editor-actions';
 
 // A reveal aimed into a COLLAPSED container opens its expand door first, so the descent
 // runs against the post-expansion window instead of dead-ending on the clamp. The door
 // itself is composed a layer up and pinned in `test/plugins/expand-door.test.ts`.
-
-function makeRef(): BlockComponent {
-	return { focus: vi.fn(), getCursorOffset: vi.fn(() => null), editable: true, focusable: true };
-}
-
-function node(childCount: number): CstNode {
-	return {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: '',
-		metadata: { ordered: false },
-		children: Array.from({ length: childCount }, () => ({
-			kind: 'paragraph' as const,
-			leadingTrivia: '',
-			raw: 'text\n'
-		}))
-	};
-}
 
 function shim(over: {
 	refs: (BlockComponent | undefined)[];
 	isCollapsed?: () => boolean;
 	expandCollapsed?: () => Promise<boolean>;
 }): BlockComponent {
-	return createContainerBlockComponent({
-		selection: createSelectionState(),
-		get innerBlockRefs() {
-			return over.refs;
-		},
-		get nodeChildrenLength() {
-			return over.refs.length;
-		},
-		get node() {
-			return node(over.refs.length);
-		},
-		isCollapsed: over.isCollapsed,
-		expandCollapsed: over.expandCollapsed
-	});
+	return createContainerBlockComponent(
+		makeShimDeps(over.refs, {
+			isCollapsed: over.isCollapsed,
+			expandCollapsed: over.expandCollapsed
+		})
+	);
 }
 
 describe('revealByPath — expanding a collapsed container', () => {
 	it('opens the door for a body target and resolves the child the expansion mounted', async () => {
-		const body = makeRef();
-		const refs: (BlockComponent | undefined)[] = [makeRef(), undefined];
+		const body = mockRef();
+		const refs: (BlockComponent | undefined)[] = [mockRef(), undefined];
 		// Awaiting the door before reading the slot is the whole ordering contract.
 		const expandCollapsed = vi.fn(async () => {
 			refs[1] = body;
@@ -67,7 +40,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 	});
 
 	it('leaves the chrome row alone — child 0 stays mounted while collapsed', async () => {
-		const chrome = makeRef();
+		const chrome = mockRef();
 		const expandCollapsed = vi.fn(async () => true);
 
 		const resolved = await shim({
@@ -82,7 +55,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 
 	it('does not open the door for an already-open container', async () => {
 		const expandCollapsed = vi.fn(async () => true);
-		const refs = [makeRef(), makeRef()];
+		const refs = [mockRef(), mockRef()];
 
 		await shim({ refs, isCollapsed: () => false, expandCollapsed }).revealByPath!([1]);
 
@@ -93,7 +66,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 	// the door existed.
 	it('degrades when the kind declares no door', async () => {
 		const resolved = await shim({
-			refs: [makeRef(), undefined],
+			refs: [mockRef(), undefined],
 			isCollapsed: () => true
 		}).revealByPath!([1]);
 
@@ -102,8 +75,8 @@ describe('revealByPath — expanding a collapsed container', () => {
 
 	it('expands every collapsed ancestor on the path, outermost first', async () => {
 		const order: string[] = [];
-		const target = makeRef();
-		const innerRefs: (BlockComponent | undefined)[] = [makeRef(), undefined];
+		const target = mockRef();
+		const innerRefs: (BlockComponent | undefined)[] = [mockRef(), undefined];
 		const inner = shim({
 			refs: innerRefs,
 			isCollapsed: () => true,
@@ -113,7 +86,7 @@ describe('revealByPath — expanding a collapsed container', () => {
 				return true;
 			}
 		});
-		const outerRefs: (BlockComponent | undefined)[] = [makeRef(), undefined];
+		const outerRefs: (BlockComponent | undefined)[] = [mockRef(), undefined];
 		const outer = shim({
 			refs: outerRefs,
 			isCollapsed: () => true,

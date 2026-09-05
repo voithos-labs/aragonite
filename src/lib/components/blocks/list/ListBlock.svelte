@@ -6,14 +6,17 @@
 		FocusActions,
 		ListContext
 	} from '../../../action-contracts';
-	import type { BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		LIST_CONTEXT_KEY,
+		type EditorDoc,
+		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
 	import { createListContext } from '../../../editor-actions/list-context';
@@ -36,6 +39,10 @@
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const { controller, stickyColumn, selection, registryView } =
 		getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const getPresentationMode = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.presentationMode;
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
 	const listState = createBlockListState(() => node);
 
@@ -63,6 +70,8 @@
 			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
+			getPresentationMode,
+			linkRef,
 			parentListContext,
 			parent: {
 				blockEdit: parentBlockEdit,
@@ -81,7 +90,9 @@
 		parentBlockEdit,
 		parentFocus,
 		parentListContext,
-		controller
+		controller,
+		getPresentationMode,
+		linkRef
 	});
 
 	setContext(LIST_CONTEXT_KEY, listContext);
@@ -111,6 +122,7 @@
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
+		refSlots: listState.refSlots,
 		get nodeChildrenLength() {
 			return node.children?.length ?? 0;
 		},
@@ -120,13 +132,6 @@
 		revealChild: windowing.revealChild,
 		isInWindow: windowing.isInWindow
 	});
-
-	function setItemRef(i: number, r: BlockComponent | undefined): void {
-		listState.innerBlockRefs[i] = r;
-	}
-	function getItemRef(i: number): BlockComponent | undefined {
-		return listState.innerBlockRefs[i];
-	}
 </script>
 
 <div class="list-block" bind:this={boxEl}>
@@ -142,8 +147,7 @@
 			node={item}
 			index={absoluteIndex}
 			myPath={[...myPath, absoluteIndex]}
-			setRef={setItemRef}
-			getRef={getItemRef}
+			slots={listState.refSlots}
 		/>
 	{/each}
 	{#if win.active}

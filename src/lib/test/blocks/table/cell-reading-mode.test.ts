@@ -6,8 +6,8 @@
 // row-appending end of Tab/Enter is a NAVIGATION plan reading mode must keep, so the keydown
 // switch's default arm carries a guard the seam cannot supply. One test per side of the split.
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
-import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
-import { installTableLayoutStubs } from './mount-table';
+import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { cellAt, installTableLayoutStubs, pressInCell } from './mount-table';
 import { mountCell, type MountedCell } from './mount-cell';
 
 let restoreLayout: () => void;
@@ -29,21 +29,6 @@ afterEach(async () => {
 
 const GRID = '| A | B |\n| --- | --- |\n| one | 2 |\n';
 
-function cell(rowIdx: number, colIdx: number): HTMLElement {
-	const host = blockHostAt(mounted!, [0]);
-	const row = host.querySelector(`[data-table-row-idx="${rowIdx}"]`);
-	const found = row?.querySelectorAll(':scope > .table-cell')[colIdx] as HTMLElement | undefined;
-	if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
-	return found;
-}
-
-async function pressInCell(rowIdx: number, colIdx: number, init: KeyboardEventInit): Promise<void> {
-	const el = cell(rowIdx, colIdx);
-	el.focus();
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await mounted!.settle();
-}
-
 function mountReading(): void {
 	mounted = mountEditor({ source: GRID, presentationMode: 'reading' });
 }
@@ -52,13 +37,13 @@ describe('a reading-mode cell refuses every mutation', () => {
 	it('renders as non-editable', () => {
 		mountReading();
 
-		expect(cell(1, 0).getAttribute('contenteditable')).toBe('false');
+		expect(cellAt(mounted!, 1, 0).getAttribute('contenteditable')).toBe('false');
 	});
 
 	it('swallows the delete-row chord', async () => {
 		mountReading();
 
-		await pressInCell(1, 0, { key: 'Backspace', ctrlKey: true, shiftKey: true });
+		await pressInCell(mounted!, 1, 0, { key: 'Backspace', ctrlKey: true, shiftKey: true });
 
 		expect(mounted!.source()).toBe(GRID);
 	});
@@ -66,7 +51,7 @@ describe('a reading-mode cell refuses every mutation', () => {
 	it('swallows the insert-column chord', async () => {
 		mountReading();
 
-		await pressInCell(1, 0, { key: 'ArrowRight', altKey: true, shiftKey: true });
+		await pressInCell(mounted!, 1, 0, { key: 'ArrowRight', altKey: true, shiftKey: true });
 
 		expect(mounted!.source()).toBe(GRID);
 	});
@@ -74,14 +59,14 @@ describe('a reading-mode cell refuses every mutation', () => {
 	it('swallows the row-append Tab at the last cell', async () => {
 		mountReading();
 
-		await pressInCell(1, 1, { key: 'Tab' });
+		await pressInCell(mounted!, 1, 1, { key: 'Tab' });
 
 		expect(mounted!.source()).toBe(GRID);
 	});
 
 	it('drops a paste on the floor', async () => {
 		mountReading();
-		const el = cell(1, 0);
+		const el = cellAt(mounted!, 1, 0);
 		el.focus();
 		const event = new Event('paste', { bubbles: true, cancelable: true });
 		Object.defineProperty(event, 'clipboardData', {
@@ -100,17 +85,17 @@ describe('a reading-mode cell still navigates', () => {
 		// and 'exit', so the grid stays walkable.
 		mountReading();
 
-		await pressInCell(1, 0, { key: 'Tab' });
+		await pressInCell(mounted!, 1, 0, { key: 'Tab' });
 
-		expect(document.activeElement).toBe(cell(1, 1));
+		expect(document.activeElement).toBe(cellAt(mounted!, 1, 1));
 	});
 
 	it('lets an arrow move down a row', async () => {
 		mountReading();
 
-		await pressInCell(0, 0, { key: 'ArrowDown' });
+		await pressInCell(mounted!, 0, 0, { key: 'ArrowDown' });
 
-		expect(document.activeElement).toBe(cell(1, 0));
+		expect(document.activeElement).toBe(cellAt(mounted!, 1, 0));
 	});
 });
 

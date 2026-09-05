@@ -4,12 +4,14 @@
  * dispatcher.
  */
 
-import { CURSOR_END } from '../block-component';
+import { CURSOR_END, CURSOR_START } from '../block-component';
+import type { CstNode } from '../core/nodes';
 import type { UnwrapRole } from '../schema/block-kind-descriptor';
 import {
 	deleteNode as performDelete,
 	unwrapFirstItemFromList,
 	unwrapFirstChildFromQuote,
+	liftFirstChildKeepingContainer,
 	mergeListItemIntoPrevious,
 	renumberOrderedList,
 	isItemUserEmpty
@@ -17,6 +19,7 @@ import {
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import { mergedElseFocusPrevious } from './merge-fallback';
+import { scopeParentOf } from './block-edit-scope';
 import { extendDocPath } from '../cursor/coordinate-spaces';
 
 export interface UnwrapStrategyDeps {
@@ -24,13 +27,43 @@ export interface UnwrapStrategyDeps {
 	state: BlockListState;
 }
 
+/** Drop a user-empty item and renumber from its slot; `land` seats the caret the strategy chose. */
+async function deleteEmptyItem(
+	{ deps, state }: UnwrapStrategyDeps,
+	itemIndex: number,
+	land: () => void
+): Promise<void> {
+	await deps.parent.containerEdit.commitContainer({
+		containerNode: deps.node,
+		path: deps.path,
+		state,
+		snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
+		mutate: (scope) => {
+			const change = performDelete(scopeParentOf(scope), itemIndex, scope.sharing);
+			renumberOrderedList(scope.node, itemIndex, scope.sharing);
+			return change;
+		},
+		op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
+		afterTick: land
+	});
+}
+
 // ── First-child strategies ──────────────────────────────────────────────────
 
-/** Rule U2: lift the first child out of a container that declares the quoteShaped
- *  capability; a chrome container sharing this strategy no-ops (empty replacement). */
-async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
-	const node = deps.node;
-	const replacement = unwrapFirstChildFromQuote(node);
+/** Rule U2 for the quote shape: the opener lives on the first line, so the lift drops it. */
+async function liftFirstChildDroppingOpener({ deps }: UnwrapStrategyDeps): Promise<void> {
+	await spliceLift(deps, unwrapFirstChildFromQuote(deps.node));
+}
+
+/** Rule U2 for a container whose syntax survives the lift: the remainder keeps its kind. */
+async function liftFirstChildAndKeepContainer({ deps }: UnwrapStrategyDeps): Promise<void> {
+	await spliceLift(deps, liftFirstChildKeepingContainer(deps.node));
+}
+
+/** Rule U2's declared decline: child 0 is the container's chrome, and a lift would carry it out. */
+async function keepReservedChrome(): Promise<void> {}
+
+async function spliceLift(deps: NestedActionsDeps, replacement: CstNode[]): Promise<void> {
 	if (replacement.length === 0) return;
 	await deps.parent.blockEdit.replaceBlock(deps.index, replacement, {
 		replacementIndex: 0,
@@ -39,7 +72,8 @@ async function liftFirstChild({ deps }: UnwrapStrategyDeps): Promise<void> {
 }
 
 /** List first-item cascade: nested promote / empty delete / empty-sole delete-list / Rule U1. */
-async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promise<void> {
+async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<void> {
+	const { deps, state } = strategy;
 	const node = deps.node;
 	const index = deps.index;
 	if (!node.children) return;
@@ -57,20 +91,8 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 	const firstChildEmpty = isItemUserEmpty(item);
 
 	if (firstChildEmpty && node.children.length > 1) {
-		await deps.parent.containerEdit.commitContainer({
-			containerNode: node,
-			path: deps.path,
-			state,
-			snapshot: { path: extendDocPath(deps.path, 0), offset: 0 },
-			mutate: (scope) => {
-				const change = performDelete({ children: scope.children }, 0, scope.sharing);
-				renumberOrderedList(scope.node, 0, scope.sharing);
-				return change;
-			},
-			op: { kind: 'delete', eventPath: extendDocPath(deps.path, 0) },
-			afterTick: () => {
-				state.innerBlockRefs[0]?.focus(0);
-			}
+		await deleteEmptyItem(strategy, 0, () => {
+			state.innerBlockRefs[0]?.focus(CURSOR_START);
 		});
 	} else if (firstChildEmpty && node.children.length === 1) {
 		await deps.parent.blockEdit.deleteBlock(index);
@@ -89,28 +111,17 @@ async function listItemCascadeFirst({ deps, state }: UnwrapStrategyDeps): Promis
 
 /** List middle-item: empty delete+renumber, else Rule M1 merge into deepest text above. */
 async function listItemCascadeMiddle(
-	{ deps, state }: UnwrapStrategyDeps,
+	strategy: UnwrapStrategyDeps,
 	itemIndex: number
 ): Promise<void> {
+	const { deps, state } = strategy;
 	const node = deps.node;
 	if (!node.children) return;
 
 	const item = node.children[itemIndex];
 	if (isItemUserEmpty(item)) {
-		await deps.parent.containerEdit.commitContainer({
-			containerNode: node,
-			path: deps.path,
-			state,
-			snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
-			mutate: (scope) => {
-				const change = performDelete({ children: scope.children }, itemIndex, scope.sharing);
-				renumberOrderedList(scope.node, itemIndex, scope.sharing);
-				return change;
-			},
-			op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
-			afterTick: () => {
-				state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
-			}
+		await deleteEmptyItem(strategy, itemIndex, () => {
+			state.innerBlockRefs[itemIndex - 1]?.focus(CURSOR_END);
 		});
 		return;
 	}
@@ -128,7 +139,9 @@ async function listItemCascadeMiddle(
 				scope.node,
 				scope.children,
 				itemIndex,
-				scope.sharing
+				scope.sharing,
+				deps.getPresentationMode?.(),
+				deps.linkRef
 			);
 			mergePoint = result?.mergePoint ?? null;
 			return mergePoint ? { op: 'delete', at: itemIndex, count: 1 } : { op: 'noop' };
@@ -156,7 +169,9 @@ export const firstChildUnwrapStrategies: Record<
 	UnwrapRole['firstChildBackspace'],
 	(deps: UnwrapStrategyDeps) => Promise<void>
 > = {
-	'lift-first-child': liftFirstChild,
+	'lift-first-child-drop-opener': liftFirstChildDroppingOpener,
+	'lift-first-child-keep-container': liftFirstChildAndKeepContainer,
+	'keep-reserved-chrome': keepReservedChrome,
 	'list-item-cascade': listItemCascadeFirst
 };
 

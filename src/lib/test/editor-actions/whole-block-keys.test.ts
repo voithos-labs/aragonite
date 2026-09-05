@@ -6,21 +6,34 @@ import {
 import { displayLength } from '$lib/core/lines';
 import { createStickyColumnState, type StickyColumnState } from '$lib/cursor/sticky-column';
 import { asEditorX } from '$lib/cursor/coordinate-spaces';
+import { createEdgeAffinityState } from '$lib/cursor/edge-affinity';
+import { takeDevWarns } from '$lib/test/support/warn-gate';
 
 function makeDeps(isReading = () => false) {
 	const splitBlock = vi.fn();
 	const deleteBlock = vi.fn();
+	const insertParagraph = vi.fn();
 	const moveFocus = vi.fn();
 	const stickyColumn = createStickyColumnState();
+	const edgeAffinity = createEdgeAffinityState();
 	const deps: WholeBlockKeyDeps = {
 		getIndex: () => 2,
 		getRaw: () => '---\n',
-		blockEdit: { splitBlock, deleteBlock },
+		blockEdit: { splitBlock, deleteBlock, insertParagraph },
 		focus: { moveFocus },
 		isReading,
-		stickyColumn
+		stickyColumn,
+		edgeAffinity
 	};
-	return { deps, splitBlock, deleteBlock, moveFocus, stickyColumn };
+	return {
+		deps,
+		splitBlock,
+		deleteBlock,
+		insertParagraph,
+		moveFocus,
+		stickyColumn,
+		edgeAffinity
+	};
 }
 
 function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
@@ -89,13 +102,50 @@ describe('handleWholeBlockKeys', () => {
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 
-	it('ignores a printable key', () => {
-		const { deps, splitBlock, deleteBlock, moveFocus } = makeDeps();
+	// Miss-analysis: this file's own printable case asserted the drop it should have questioned —
+	// every branch was pinned except the key class with no branch at all.
+	it.each(['a', 'A', ' ', 'é'])('the printable %o mints a paragraph below carrying it', (key) => {
+		const { deps, insertParagraph, splitBlock, moveFocus } = makeDeps();
+		const e = press(key, { shiftKey: key === 'A' });
+		handleWholeBlockKeys(e, deps);
+		expect(insertParagraph).toHaveBeenCalledWith(3, key);
+		expect(splitBlock).not.toHaveBeenCalled();
+		expect(moveFocus).not.toHaveBeenCalled();
+		expect(e.preventDefault).toHaveBeenCalled();
+	});
+
+	it('the printable mint gates on reading mode but still consumes the key', () => {
+		const { deps, insertParagraph } = makeDeps(() => true);
 		const e = press('a');
 		handleWholeBlockKeys(e, deps);
-		expect(splitBlock).not.toHaveBeenCalled();
-		expect(deleteBlock).not.toHaveBeenCalled();
-		expect(moveFocus).not.toHaveBeenCalled();
+		expect(insertParagraph).not.toHaveBeenCalled();
+		expect(e.preventDefault).toHaveBeenCalled();
+	});
+
+	it('declines a mid-composition character, whose bytes the IME has not committed', () => {
+		const { deps, insertParagraph } = makeDeps();
+		const e = press('a', { isComposing: true });
+		handleWholeBlockKeys(e, deps);
+		expect(insertParagraph).not.toHaveBeenCalled();
+		expect(e.preventDefault).not.toHaveBeenCalled();
+	});
+
+	it.each([{ ctrlKey: true }, { metaKey: true }, { altKey: true }])(
+		'leaves a chorded character (%o) to the caller',
+		(mods) => {
+			const { deps, insertParagraph } = makeDeps();
+			const e = press('b', mods);
+			handleWholeBlockKeys(e, deps);
+			expect(insertParagraph).not.toHaveBeenCalled();
+			expect(e.preventDefault).not.toHaveBeenCalled();
+		}
+	);
+
+	it.each(['Tab', 'Escape', 'Dead'])('leaves the non-printable %s to the caller', (key) => {
+		const { deps, insertParagraph } = makeDeps();
+		const e = press(key);
+		handleWholeBlockKeys(e, deps);
+		expect(insertParagraph).not.toHaveBeenCalled();
 		expect(e.preventDefault).not.toHaveBeenCalled();
 	});
 });
@@ -199,6 +249,7 @@ describe('handleWholeBlockKeys — Mod+C / Mod+X clipboard', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(deleteBlock).not.toHaveBeenCalled();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['container-block']);
 	});
 
 	it('leaves Mod+Shift+C and Alt+C untouched (not a copy chord)', () => {

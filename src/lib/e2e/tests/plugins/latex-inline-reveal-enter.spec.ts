@@ -3,12 +3,9 @@ import { capturedErrors } from './helpers';
 import { MathRevealPage } from './latex-reveal-helpers';
 
 /**
- * Enter's block meaning inside a revealed inline source. The reveal used to claim the key as a
- * commit gesture, which cost the user the press twice over: at a source edge it moved the caret
- * past the widget instead of splitting, and on a source already broken into plain text it did
- * nothing visible, so the split needed a second press. Enter now commits the edit AND splits,
- * through the fold seam (`latex-inline-reveal-commands.spec.ts`); Escape stays the reveal's only
- * key. Each case asserts the split structurally (block count + bytes) and the caret by typing.
+ * Enter's block meaning inside a revealed inline source: it commits the edit AND splits, through
+ * the fold seam (`latex-inline-reveal-commands.spec.ts`); Escape stays the reveal's only key.
+ * Each case asserts the split structurally (block count + bytes) and the caret by typing.
  */
 
 test.describe('Enter splits a block whose inline source is revealed', () => {
@@ -17,7 +14,6 @@ test.describe('Enter splits a block whose inline source is revealed', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new MathRevealPage(page);
 		await editor.gotoPlugins('math');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('at the revealed leading edge it splits and keeps the caret before the math', async ({

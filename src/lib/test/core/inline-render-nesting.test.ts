@@ -27,7 +27,8 @@ describe('inline render at input-controlled nesting depth', () => {
 	it('renders past the recursion ceiling with full byte coverage', () => {
 		const raw = '*'.repeat(8_000) + 'a' + '*'.repeat(8_000);
 		expect(render(raw).textContent).toBe(raw);
-	}, 60_000);
+		// ~28s alone; a saturated full battery erases a 2x margin, so the cap carries 6x.
+	}, 180_000);
 
 	it('resolves an offset past the recursion ceiling', () => {
 		const raw = '*'.repeat(32_000) + 'a' + '*'.repeat(32_000);

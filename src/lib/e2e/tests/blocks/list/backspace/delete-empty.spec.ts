@@ -43,7 +43,6 @@ test.describe('list Backspace — delete empty item', () => {
 		expect(source).not.toMatch(/^- /m);
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('AboveZ');
-		expect(await editor.bridge.getSource()).toContain('AboveZ');
 	});
 
 	test('Backspace on empty only item when list is first block deletes the list', async () => {

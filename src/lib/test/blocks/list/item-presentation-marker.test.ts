@@ -9,6 +9,10 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import type { PresentationMode } from '$lib/presentation-mode';
 import { installLayoutStubs } from '../editor-mount';
 import { mountItem, type MountedItem } from './mount-item';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// The harness mounts BlockHost without the component layer, so unregistered kinds render raw.
+afterEach(() => allowDevWarns(['block-host']));
 
 beforeAll(installLayoutStubs);
 
@@ -39,9 +43,12 @@ describe('the list marker hook is presentation-only', () => {
 		expect(markerAttrIn('reading', source)).toBe(marker);
 	});
 
-	// Both live-preview rungs share reading's marker-hiding CSS families, so they need
-	// the same hook; only reading is covered in the browser.
-	it.each(['preview-block', 'preview-inline'] as const)('%s names the marker kind too', (mode) => {
-		expect(markerAttrIn(mode, '1. alpha\n')).toBe('ordered');
-	});
+	// Every other mode shares reading's marker-hiding CSS families, so each needs the same
+	// hook; without it a live bullet is a blank hanging indent (no ::before slot to paint).
+	it.each(['preview-block', 'preview-inline', 'live'] as const)(
+		'%s names the marker kind too',
+		(mode) => {
+			expect(markerAttrIn(mode, '1. alpha\n')).toBe('ordered');
+		}
+	);
 });

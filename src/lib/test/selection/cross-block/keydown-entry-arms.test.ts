@@ -81,14 +81,17 @@ describe('cross-block keydown — compositionstart', () => {
 		expect(env.selection.isCrossBlock).toBe(true);
 	});
 
-	// The sticky column resets unconditionally, before the range check: a composition is a horizontal
-	// edit, so a column captured by an earlier vertical arrow must not survive it.
-	it('resets the sticky column even when it declines', () => {
+	// Both ephemeral caret states reset unconditionally, before the range check: a composition is
+	// an edit, so neither a column captured by an earlier vertical arrow nor the side an earlier
+	// arrival recorded may survive it.
+	it('resets the sticky column and the edge affinity even when it declines', () => {
 		const env = makeKeydownEnv(SOURCE);
 		env.stickyColumn.capture(asEditorX(600));
+		env.edgeAffinity.note({ key: 'ArrowRight', altKey: false });
 
 		env.keydown.handleCompositionStart();
 
 		expect(env.stickyColumn.get()).toBeNull();
+		expect(env.edgeAffinity.get()).toBeNull();
 	});
 });

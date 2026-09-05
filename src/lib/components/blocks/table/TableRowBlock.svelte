@@ -5,14 +5,18 @@
 		ContainerEditActions,
 		FocusActions
 	} from '../../../action-contracts';
-	import type { BlockComponent } from '../../../block-component';
+	import { CURSOR_END, CURSOR_START, type BlockComponent } from '../../../block-component';
 	import type { NodeView } from '../../../core/node-views';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
+		EDITOR_DOC_KEY,
+		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		FOCUS_KEY,
 		PARENT_SCOPE_SINK_KEY,
+		type EditorDoc,
+		type EditorPolicies,
 		type EditorServices,
 		type ParentScopeSink
 	} from '../../../editor-keys';
@@ -24,7 +28,7 @@
 		setNestedActionsContexts,
 		type NodeScope
 	} from '../../../editor-actions/nested/nested-actions';
-	import { publishRefSlot } from '../../../reactivity/publish-ref.svelte';
+	import { publishRefSlot, type RefSlots } from '../../../reactivity/publish-ref.svelte';
 	import TableCellBlock from './TableCellBlock.svelte';
 	import TableGrip from './TableGrip.svelte';
 
@@ -32,34 +36,41 @@
 		node,
 		index,
 		id,
-		rowIdx,
 		columnCount,
 		rowCount,
 		alignments = [],
 		myPath = [],
-		setRef,
-		getRef,
+		slots,
 		onOpenRowMenu,
-		onRowGripPointerDown
+		onRowGripPointerDown,
+		showGrips
 	}: {
 		node: NodeView;
 		index: number;
 		id: string;
-		rowIdx: number;
 		columnCount: number;
 		rowCount: number;
 		alignments?: readonly TableAlignment[];
 		myPath?: number[];
-		setRef?: (i: number, r: BlockComponent | undefined) => void;
-		getRef?: (i: number) => BlockComponent | undefined;
+		slots?: RefSlots<BlockComponent>;
 		onOpenRowMenu?: (rowIdx: number, e: MouseEvent) => void;
 		onRowGripPointerDown?: (rowIdx: number, e: PointerEvent) => void;
+		/** The table's `blockDragHandles` read, passed down rather than re-read: the row grip
+		 *  and the gutter track it fills are one decision. */
+		showGrips: boolean;
 	} = $props();
+
+	// A row's position among the table's children IS its row index.
+	const rowIdx = $derived(index);
 
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
 	const { stickyColumn, registryView } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
+	const getPresentationMode = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.presentationMode;
+	const linkRef = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.linkRef;
 
 	const cellsState = createBlockListState(() => node);
 
@@ -114,6 +125,8 @@
 		scope,
 		stickyColumn,
 		grammar: registryView.grammar,
+		getPresentationMode,
+		linkRef,
 		parent: {
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
@@ -128,12 +141,21 @@
 	export const editable = true;
 	export const focusable = true;
 
-	export function focus(_offset: number): void {
-		cellsState.innerBlockRefs[0]?.focus(0);
+	// The TableBlock twin's rule: a start arrival enters the first cell, anything else the
+	// last, and the sentinel rides into the cell so its door clamps and classifies.
+	function rowLanding(offset: number): { colIdx: number; at: number } {
+		const atStart = offset === 0 || offset === CURSOR_START;
+		return atStart ? { colIdx: 0, at: CURSOR_START } : { colIdx: columnCount - 1, at: CURSOR_END };
 	}
 
-	export function parkCaret(_offset: number): void {
-		cellsState.innerBlockRefs[0]?.parkCaret?.(0);
+	export function focus(offset: number): void {
+		const { colIdx, at } = rowLanding(offset);
+		cellsState.innerBlockRefs[colIdx]?.focus(at);
+	}
+
+	export function parkCaret(offset: number): void {
+		const { colIdx, at } = rowLanding(offset);
+		cellsState.innerBlockRefs[colIdx]?.parkCaret?.(at);
 	}
 
 	export function getCursorOffset(): number | null {
@@ -164,20 +186,11 @@
 		return null;
 	}
 
-	void ({
-		editable,
-		focusable,
-		focus,
-		parkCaret,
-		getCursorOffset,
-		getCursorPosition,
-		focusByPath,
-		getBlockComponentByPath
-	} satisfies BlockComponent);
-
+	// The ONE surface literal, the cell's twin: a row reaches every caller through its published
+	// slot, so a second literal to type-check against would only be a decoy.
 	$effect(() => {
-		if (!setRef || !getRef) return;
-		const self: BlockComponent = {
+		if (!slots) return;
+		const self = {
 			editable,
 			focusable,
 			focus,
@@ -186,38 +199,29 @@
 			getCursorPosition,
 			focusByPath,
 			getBlockComponentByPath
-		};
-		return publishRefSlot(index, self, setRef, getRef);
+		} satisfies BlockComponent;
+		return publishRefSlot(slots, index, self, rowEl);
 	});
-
-	function setCellRef(i: number, r: BlockComponent | undefined): void {
-		cellsState.innerBlockRefs[i] = r;
-	}
-	function getCellRef(i: number): BlockComponent | undefined {
-		return cellsState.innerBlockRefs[i];
-	}
 </script>
 
 <!-- The grip is the row's first child so it lands in the table's zero-width gutter track
 	and the cells fill the rest. No whitespace between it and the cells: a stray text node
 	joins the table's raw-offset walk and misplaces a parked cross-block caret. -->
 <div bind:this={rowEl} class="table-row" role="row" data-table-row-idx={rowIdx}>
-	<TableGrip
-		axis="row"
-		onActivate={(e) => onOpenRowMenu?.(rowIdx, e)}
-		onpointerdown={(e) => onRowGripPointerDown?.(rowIdx, e)}
-	/>{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
+	{#if showGrips}<TableGrip
+			axis="row"
+			onActivate={(e) => onOpenRowMenu?.(rowIdx, e)}
+			onpointerdown={(e) => onRowGripPointerDown?.(rowIdx, e)}
+		/>{/if}{#each node.children ?? [] as cellNode, colIdx (cellsState.innerBlockIds[colIdx])}
 		<TableCellBlock
 			node={cellNode}
 			index={colIdx}
 			myPath={[...myPath, colIdx]}
 			{rowIdx}
-			{colIdx}
 			{columnCount}
 			{rowCount}
 			alignment={alignments[colIdx] ?? 'none'}
-			setRef={setCellRef}
-			getRef={getCellRef}
+			slots={cellsState.refSlots}
 		/>
 	{/each}
 </div>

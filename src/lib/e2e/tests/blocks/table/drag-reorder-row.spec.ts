@@ -2,6 +2,7 @@ import { test, expect } from '../../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../../editor-page';
 import { getContainerParityMismatches } from '../../../container-parity';
+import { capturePageErrors } from '../../../page-probes';
 
 // Header + 3 body rows. Cells render row-major, header first; row grips are one
 // per CST row, so nth(0) is the header grip and nth(1) the first body row.
@@ -79,8 +80,7 @@ test.describe('table block: mouse drag row reorder', () => {
 	});
 
 	test('row drag is single-undo and parity-clean', async ({ page }) => {
-		const errs: string[] = [];
-		page.on('pageerror', (e) => errs.push(e.message));
+		const errs = capturePageErrors(page);
 		await editor.loadContent(T);
 		await dragRowGripPastNext(page);
 		await editor.bridge.waitForSourceMatches(/\| 3 \| 4 \|[\s\S]*\| 1 \| 2 \|/);

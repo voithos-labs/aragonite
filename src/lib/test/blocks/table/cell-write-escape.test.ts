@@ -4,15 +4,15 @@
 // the row wider than the delimiter's column count and the parser truncates the last column,
 // silently. Three gestures compute their own bytes and commit them: Mod+B, Shift+Enter, and the
 // menu Cut. Each committed text is read through the write sink, where the kind's escape runs —
-// measuring at the component's own call would only prove the gesture escaped its own bytes.
+// measuring at the component's own call would only prove the gesture escaped its own bytes. The
+// toggle refuses to splice inside the escape at all, so Mod+B is pinned on both sides of that.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { tick } from 'svelte';
 import type { CstNode } from '$lib/core/nodes';
 import { splitRowCells } from '$lib/core/parsers/table';
 import { updateNodeContent } from '$lib/tree-operations/node-ops';
-import { rebuildTableRowRaw } from '$lib/schema/container-rebuilders';
+import { writeTableRow } from '$lib/schema/container-rebuilders';
 import { makeStubBlockEdit } from '../../harness/editor-actions';
-import { mountCell } from './mount-cell';
+import { mountCell, settleTicks } from './mount-cell';
 
 // The cell holds `a\|b` — an escaped pipe. The renderer emits the backslash as a marker span and
 // the `|` as text, so both bytes are in textContent and the caret can sit between them.
@@ -28,9 +28,7 @@ function committedRaw(blockEdit: ReturnType<typeof makeStubBlockEdit>): string {
 // The before-input handler awaits the shared prelude before committing, so the
 // commit lands several microtasks after dispatch.
 async function settleCommit(blockEdit: ReturnType<typeof makeStubBlockEdit>): Promise<void> {
-	for (let i = 0; i < 8 && vi.mocked(blockEdit.updateBlockContent).mock.calls.length === 0; i++) {
-		await tick();
-	}
+	await settleTicks(() => vi.mocked(blockEdit.updateBlockContent).mock.calls.length > 0);
 }
 
 /** Cells the row reparses into once the sink has written the gesture's text. */
@@ -46,7 +44,7 @@ function reparsedCells(committed: string): string[] {
 		]
 	};
 	updateNodeContent(row as never, 0, committed);
-	rebuildTableRowRaw(row, '\n');
+	writeTableRow(row, '\n');
 	return splitRowCells(row.raw);
 }
 
@@ -57,15 +55,27 @@ afterEach(async () => {
 });
 
 describe('table cell write paths escape the pipes they free', () => {
-	it('Mod+B over the escape keeps the row at two cells', () => {
+	it('Mod+B around the escape keeps the row at two cells', () => {
+		mounted = mountCell(ESCAPED);
+		const { el, blockEdit } = mounted;
+		el.focus();
+		mounted.instance.setSelection(1, 3);
+
+		expect(mounted.instance.runCommand('format.toggleStrong')).toBe(true);
+
+		expect(reparsedCells(committedRaw(blockEdit))).toEqual(['a**\\|**b', 'keep']);
+	});
+
+	// Splicing between the backslash and the pipe would free the pipe, so the toggle declines: the
+	// sink's escape is the second line of defence here, not the first.
+	it('Mod+B cutting into the escape writes nothing at all', () => {
 		mounted = mountCell(ESCAPED);
 		const { el, blockEdit } = mounted;
 		el.focus();
 		mounted.instance.setSelection(0, 2);
 
 		expect(mounted.instance.runCommand('format.toggleStrong')).toBe(true);
-
-		expect(reparsedCells(committedRaw(blockEdit))).toEqual(['**a\\**\\|b', 'keep']);
+		expect(vi.mocked(blockEdit.updateBlockContent).mock.calls).toEqual([]);
 	});
 
 	it('Shift+Enter between the backslash and the pipe keeps the row at two cells', async () => {

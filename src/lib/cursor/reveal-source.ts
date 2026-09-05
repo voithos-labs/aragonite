@@ -9,7 +9,7 @@
 import { tick } from 'svelte';
 import { asRawOffset, toDomTextOffset } from './coordinate-spaces';
 import { restoreCaretAtWalkOffset } from './focused-caret';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
 import { checkRevealSourceLength } from '../invariants/inline-transitions';
 
 export interface SourceRevealDeps {

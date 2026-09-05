@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createSelectionState } from '../../selection/selection-state.svelte';
 import { selectWholeDocument } from '../../selection/keyboard-extend';
 import { rangeDelete } from '../../selection/range-delete';
@@ -8,6 +8,11 @@ import { serialize } from '../../core/serializer';
 import { createSharingState } from '../../tree-operations/sharing';
 import { expectParseConverged } from '../harness/parse-converged';
 import type { CstNode, Document } from '../../core/nodes';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+
+// The raw deep-cell points fed in are pre-normalization by construction; normalizing them is the
+// subject.
+afterEach(() => allowDevWarns(['invariant:cross-block-endpoint-coordinates']));
 
 const TABLE_FIRST = '| A | B |\n| --- | --- |\n| 1 | 2 |\n\npara\n';
 const TABLE_LAST = 'para\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n';
@@ -44,7 +49,7 @@ function assertDeleteConverged(doc: Document): void {
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof makeState>) {
-	return rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined);
+	return rangeDelete(doc, s.start!, s.end!, createSharingState(), undefined, undefined, undefined);
 }
 
 describe('table endpoints normalize at the selection-state choke point', () => {

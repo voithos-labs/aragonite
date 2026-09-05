@@ -1,13 +1,16 @@
 /**
  * Pure primitives for cross-block selection: types, document-order walking, overlay
- * classification. No DOM, no state. Path-level predicates live in `./path-math`.
+ * classification, the delete-commit snapshot rule. No DOM, no state. Path-level predicates
+ * live in `./path-math`.
  */
 
+import type { CommitSnapshotArg, UndoEntryMode } from '../action-contracts';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { comparePaths, isPathBetween } from './path-math';
+import { comparePaths, isPathBetween, pathHasPrefix } from './path-math';
 import {
 	asCellIndex,
 	asRawOffset,
+	docPathFrom,
 	type CellIndex,
 	type RawOffset
 } from '../cursor/coordinate-spaces';
@@ -38,6 +41,22 @@ export interface CellSelectionPoint {
  */
 export type SelectionPoint = CharSelectionPoint | CellSelectionPoint;
 
+/** An endpoint whose block offered no position to land on; the funnel resolves the side. */
+export interface WholeBlockEndpoint {
+	path: number[];
+	wholeBlock: true;
+}
+
+/**
+ * What an entry path may hand the selection funnel. Only {@link SelectionPoint} is ever
+ * stored, so an unresolved endpoint cannot reach a consumer.
+ */
+export type SelectionEndpoint = SelectionPoint | WholeBlockEndpoint;
+
+export function isWholeBlockEndpoint(endpoint: SelectionEndpoint): endpoint is WholeBlockEndpoint {
+	return 'wholeBlock' in endpoint;
+}
+
 /**
  * Anchor/focus pair. Same path + same offset is collapsed; same path + different offsets
  * is a single-block range the browser owns (SelectionState stays null); different paths
@@ -66,7 +85,13 @@ export function cellIndexOf(point: SelectionPoint, tag: string): CellIndex {
 
 // ── Normalization ──────────────────────────────────────────────────────────
 
-/** `{start, end}` in document order: by path, then by offset when paths match. */
+/**
+ * `{start, end}` in document order: by path, then by offset when paths match. Published on the
+ * consumer barrel as `normalizeSelection`, which is what a host anchors UI to. The offset tiebreak
+ * is coordinate-space agnostic: two endpoints sharing a table's path carry row-major CELL indices,
+ * whose order IS document order inside that table. A caller with no selection has nothing to
+ * order, since `getSelection()` answers null with nothing focused and at a gap caret.
+ */
 export function normalize(selection: EditorSelection): {
 	start: SelectionPoint;
 	end: SelectionPoint;
@@ -77,6 +102,17 @@ export function normalize(selection: EditorSelection): {
 	if (cmp > 0) return { start: focus, end: anchor };
 	if (anchor.offset <= focus.offset) return { start: anchor, end: focus };
 	return { start: focus, end: anchor };
+}
+
+// ── Undo snapshot ──────────────────────────────────────────────────────────
+
+/** A join delete rides the caller's snapshot; every other one seats undo at its own coordinate. */
+export function deleteSnapshot(
+	options: { undoEntry?: UndoEntryMode } | undefined,
+	path: number[],
+	offset = 0
+): CommitSnapshotArg {
+	return options?.undoEntry === 'join' ? 'skip' : { path: docPathFrom(path), offset };
 }
 
 // ── Range walk ─────────────────────────────────────────────────────────────
@@ -94,11 +130,9 @@ export function walkBetween(doc: DocumentView, start: number[], end: number[]): 
 		if (!node.children) return;
 		for (let i = 0; i < node.children.length; i++) {
 			const childPath = [...path, i];
-			// Skip subtrees that are entirely before start or after end.
-			const firstDescendant = [...childPath];
-			const lastDescendant = [...childPath, ...Array(8).fill(Number.MAX_SAFE_INTEGER)];
-			if (comparePaths(lastDescendant, start) <= 0) continue;
-			if (comparePaths(firstDescendant, end) >= 0) break;
+			// Skip subtrees entirely before start (an ancestor of start still holds it) or after end.
+			if (!pathHasPrefix(start, childPath) && comparePaths(childPath, start) < 0) continue;
+			if (comparePaths(childPath, end) >= 0) break;
 			visit(node.children[i], childPath);
 		}
 	}

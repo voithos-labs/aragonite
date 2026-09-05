@@ -54,6 +54,12 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 	const errors: unknown[] = [];
 	const deps: ClipboardSurfaceDeps = {
 		stickyColumn: { reset: () => {} } as never,
+		edgeAffinity: {
+			reset: () => {},
+			get: () => null,
+			note: () => {},
+			noteTyping: () => {}
+		} as never,
 		selection: { isCrossBlock: false } as never,
 		getDoc: () => null as never,
 		crossBlock: {
@@ -73,7 +79,7 @@ function harness(over: Partial<ClipboardSurfaceDeps> = {}, state = liveSurface()
 		} as never,
 		onPasteImage: undefined,
 		cutTail: () => {},
-		pasteTail: (_e, text, foldedCaret) => {
+		pasteTail: (text, foldedCaret) => {
 			inserted.push(text);
 			folds.push(foldedCaret);
 		},

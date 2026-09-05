@@ -1,6 +1,6 @@
-# Feature: Fork-A Spike — Reserved-child-0 Chrome rangeDelete Wall
+# Feature: Reserved-child-0 Chrome rangeDelete Wall
 
-The `:::note` callout reserves child index 0 as an editable `note-title` chrome
+The `:::callout` callout reserves child index 0 as an editable `callout-title` chrome
 leaf. This gate proves the rangeDelete chrome wall. Behavioral gate: CST/selection
 read by path via `window.__test`, not visuals.
 
@@ -10,7 +10,7 @@ Nothing merges across the note's wall: outside endpoints truncate in place,
 covered chrome clears (never node-deletes), and the container dies only when
 the range consumes its whole subtree from outside.
 
-- full title coverage: Delete over a selection from the paragraph above through the whole title clears the chrome to an EMPTY note-title — the body never hoists into the opener line; undo restores byte-for-byte
+- full title coverage: Delete over a selection from the paragraph above through the whole title clears the chrome to an EMPTY callout-title — the body never hoists into the opener line; undo restores byte-for-byte
 - gesture parity: the historical Delete-into-title keyboard gesture (whose sticky column lands at title offset 0) truncates the paragraph above and leaves the chrome intact
 - partial title coverage: the title keeps its uncovered tail in the chrome leaf, never merged into the paragraph above
 - chrome-between: a selection from above the callout into a body child truncates the start in place, clears the chrome, and keeps the end body child's tail in place (later body children untouched)

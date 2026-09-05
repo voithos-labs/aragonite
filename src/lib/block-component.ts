@@ -1,9 +1,9 @@
 /**
- * The view-layer contract every rendered block satisfies, plus the cursor sentinels
- * and ambient-prefix shape blocks produce. Orchestration reaches a block only through
- * this interface, so a capability a block lacks is an omitted optional member rather
- * than a kind check upstream. Authoritative for external authors: each member's
- * docstring states its contract (docs/design/editor.md § The block interface).
+ * The view-layer contract every rendered block satisfies, plus the cursor sentinels and
+ * ambient-prefix shape blocks produce. Orchestration reaches a block only through this flat
+ * interface, so a capability a block lacks is an omitted optional member rather than a kind
+ * check upstream; `ContainerBlockComponent` is the one promoted tier. Authoritative for
+ * external authors: each member's docstring states its own contract.
  */
 
 import type { DocumentView, NodeView } from './core/node-views';
@@ -15,6 +15,14 @@ declare const cursorEndBrand: unique symbol;
 /** Branded `number`: a focus offset meaning "end of content", not a position. */
 export type CursorEnd = number & { readonly [cursorEndBrand]: true };
 
+declare const cursorStartBrand: unique symbol;
+/** Branded `number`: a focus offset meaning "start of content", not a position. */
+export type CursorStart = number & { readonly [cursorStartBrand]: true };
+
+declare const cursorExactStartBrand: unique symbol;
+/** Branded `number`: a focus offset meaning "raw byte 0 exactly, unclamped". */
+export type CursorExactStart = number & { readonly [cursorExactStartBrand]: true };
+
 declare const selectionEndBrand: unique symbol;
 /** Branded `number`: a measurePartialRects endOffset meaning "end of range". */
 export type SelectionEnd = number & { readonly [selectionEndBrand]: true };
@@ -25,6 +33,20 @@ export type SelectionEnd = number & { readonly [selectionEndBrand]: true };
  * there — a finite sentinel lands mid-block once content outgrows it.
  */
 export const CURSOR_END = Number.MAX_SAFE_INTEGER as CursorEnd;
+
+/**
+ * "Place cursor at start of content" — {@link CURSOR_END}'s twin, and NOT a synonym for 0. A
+ * mode that paints no marker puts raw 0 out of the caret's reach behind a leading construct, so
+ * an ARRIVAL says this and the door seats it on the first landable offset.
+ */
+export const CURSOR_START = -2 as CursorStart;
+
+/**
+ * "Raw byte 0 exactly" — the ONE seat the park door does not clamp. A live split's continuation
+ * reopens a construct at byte 0 and typing must continue inside it (live-mode.md § 4.4), which
+ * the landable clamp would move outside; every other caller wants the clamp (G2.12).
+ */
+export const CURSOR_EXACT_START = -3 as CursorExactStart;
 
 /** Cascade focus to the last descendant and place the cursor at its start. */
 export const FOCUS_LAST_START = -1;
@@ -58,7 +80,9 @@ export interface AmbientInteractiveRange {
 	className: string;
 	role?: 'checkbox';
 	ariaChecked?: boolean;
-	onClick: () => void;
+	/** The click lands on the range's own span, before the leaf's caret handling; a handler
+	 *  reading the chord (`isWidgetActivationClick`) stops propagation to keep the gesture. */
+	onClick: (e: MouseEvent) => void;
 }
 
 export type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };
@@ -88,18 +112,16 @@ export interface BlockComponentProps {
 
 export interface BlockComponent {
 	/**
-	 * Place the caret at `offset`, focusing the surface, and end any live cross-block
-	 * range — the safe default door. `CURSOR_END` and `FOCUS_LAST_START` (`-1`) arrive
-	 * through this same `number`; an out-of-range offset must clamp, never throw.
-	 * Implement by minting `selection/caret-doors.ts`' `placeCaret` over {@link parkCaret},
-	 * never by hand: the range-ending has to be batched with the landing.
+	 * Place the caret at `offset`, focusing the surface, and end any live cross-block range — the
+	 * safe default door over {@link parkCaret}, since the range-ending batches with the landing.
+	 * Also takes the four caret sentinels above, which stay internal (none is on
+	 * `@voithos-labs/aragonite/plugin`). Clamping is required; never throw.
 	 */
 	focus(offset: number): void;
 	/**
 	 * `focus` WITHOUT the range-ending: seat the caret and touch nothing else. For
 	 * selection-extend paths only (G2.12 guards the callers), where a `focus` would
-	 * cancel the range still being grown; any other caller wants `focus`. Both doors are
-	 * pinned by `e2e/tests/selection/public-caret-doors.spec.ts`.
+	 * cancel the range still being grown; any other caller wants `focus`.
 	 */
 	parkCaret?(offset: number): void;
 	/**
@@ -128,6 +150,14 @@ export interface BlockComponent {
 	focusAtColumn?(x: number, from: StickyColumnDirection): void;
 	/** Cascade focus down a path of child indices to reach a leaf at the given offset. */
 	focusByPath?(path: number[], offset: number): void;
+	/**
+	 * Apply this surface's own click-intent caret snap for a viewport point inside its box,
+	 * after a landing has been placed. A caret that fell at an atomic widget's edge has no
+	 * visual representation there, so the prose surface moves it onto the edge and paints the
+	 * indicator Chromium omits; one that landed in real text is left alone. Omitted by
+	 * surfaces with no such snap.
+	 */
+	snapCaretToPoint?(clientX: number, clientY: number): void;
 	/**
 	 * Descend child indices to the BlockComponent at the leaf, or null if the path
 	 * doesn't resolve. Empty `path` returns this component. Containers implement it.
@@ -182,10 +212,30 @@ export interface BlockComponent {
 	 */
 	runCommand?(id: import('./schema/command-id').AnyCommandId, arg?: unknown): boolean;
 	/**
+	 * Whether the command's toggle-state reads ON at the surface's own caret or selection —
+	 * the read a toolbar paints a pressed state from. Absent, or an id with no toggle-state,
+	 * reads inactive.
+	 */
+	isCommandActive?(id: import('./schema/command-id').AnyCommandId): boolean;
+	/**
 	 * Current raw-offset selection in an editable leaf, a collapsed caret as
 	 * `{start: n, end: n}`. Captured before a right-click menu steals focus.
 	 */
 	getSelectionOffsets?(): { start: number; end: number } | null;
+	/**
+	 * Claim a copy/cut/paste the editor root received because a selection state this block
+	 * owns seats no native caret: a selected inline widget in a block with no text position
+	 * leaves the native selection empty, so the browser dispatches at `<body>`. The claim is
+	 * unconditional once the root has targeted this block, so there is nothing to report back:
+	 * the seam offers the event to one arm only, and never re-offers it elsewhere.
+	 */
+	claimRootClipboard?(event: ClipboardEvent): void;
+	/**
+	 * Insert markdown at this surface's caret exactly as pasting it would, minus the
+	 * clipboard — the block half of `EditorInstance.insertMarkdown`. True means the paste
+	 * pipeline took the text, not that its commit has flushed. Omitted by non-editable blocks.
+	 */
+	insertMarkdown?(md: string): boolean;
 	/**
 	 * Run a clipboard action from the table cell's right-click menu against the offsets
 	 * captured at menu-open (focus/selection may have moved since).
@@ -195,9 +245,9 @@ export interface BlockComponent {
 		sel: { start: number; end: number }
 	): Promise<void>;
 	/**
-	 * Whether this component's own surface takes text input. NOT the flag the editor
-	 * gates on: merge eligibility and search read the *descriptor*'s `editable` for the
-	 * kind. Keep the two in agreement.
+	 * Whether this component's own surface takes text input — a REPORT, never a gate. The
+	 * kind's descriptor `editable` is the declaration and the only flag the editor gates on
+	 * (merge eligibility, search scanning); this mirrors it for the mounted surface.
 	 */
 	readonly editable: boolean;
 	/** Whether focus may land on this block at all. This is the flag focus dispatch reads. */

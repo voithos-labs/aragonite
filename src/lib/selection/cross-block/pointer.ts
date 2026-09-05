@@ -6,10 +6,13 @@
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { SelectionState } from '../selection-state.svelte';
 import type { StickyColumnState } from '../../cursor/sticky-column';
+import type { EdgeAffinityState } from '../../cursor/edge-affinity';
 import { handleShiftClick } from '../keyboard-extend';
 import { findBlockPathForElement } from '../path-lookup';
-import { clearNativeSelection, offsetFromViewportPoint } from '../native-bridge';
+import { clearNativeSelection } from '../native-bridge';
+import { offsetFromViewportPoint } from '../../cursor/point-offset';
 import { installDragListener } from '../drag-pointer';
+import { devWarn } from '../../dev-warn';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -26,15 +29,21 @@ export function createCrossBlockPointer(ctx: CrossBlockDispatchContext): CrossBl
 /**
  * Shared pointerdown preamble for any block that intercepts cross-block input. Resets
  * sticky-column and the select-all counter, and on a non-shift press clears any active
- * cross-block selection so a fresh drag doesn't extend the prior range.
+ * cross-block selection so a fresh drag doesn't extend the prior range. The native sibling of
+ * `caret-doors.ts`, so it ends the gap caret too.
  */
 export function resetForPointerDown(
 	selection: SelectionState,
 	stickyColumn: StickyColumnState,
+	edgeAffinity: EdgeAffinityState,
 	isShift: boolean
 ): void {
 	stickyColumn.reset();
+	edgeAffinity.reset();
 	selection.resetSelectAllCount();
+	// Unconditional, unlike the range arm: the gap is collapsed-only, so a shift-press has no
+	// range to grow from it. Silent when no gap is live.
+	selection.clearGapCaret();
 	if (!isShift && selection.isCrossBlock) {
 		selection.clear();
 		clearNativeSelection();
@@ -49,7 +58,7 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 	const { selection } = ctx;
 	const myPath = ctx.getMyPath();
 
-	resetForPointerDown(selection, ctx.stickyColumn, e.shiftKey);
+	resetForPointerDown(selection, ctx.stickyColumn, ctx.edgeAffinity, e.shiftKey);
 
 	if (e.shiftKey) {
 		const prevActive = document.activeElement;
@@ -83,11 +92,10 @@ function handlePointerDown(ctx: CrossBlockDispatchContext, e: PointerEvent): boo
 		const anchorPoint = { path: myPath.slice(), offset };
 		const lifetimeSignal = ctx.getEditorLifetime();
 		if (!lifetimeSignal) {
-			if (import.meta.env.DEV) {
-				console.warn(
-					'[cross-block-dispatch] editor lifetime signal unavailable; skipping drag install to avoid document-listener leak on unmount'
-				);
-			}
+			devWarn(
+				'cross-block-dispatch',
+				'editor lifetime signal unavailable; skipping drag install to avoid document-listener leak on unmount'
+			);
 			return false;
 		}
 		installDragListener(

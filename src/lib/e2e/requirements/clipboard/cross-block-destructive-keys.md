@@ -29,13 +29,14 @@ Select from mid-first-paragraph to mid-second-paragraph; press Shift+Enter.
 The range is deleted and a trailing `\` is inserted at the collapsed caret
 inside the merged paragraph (GFM hard line break).
 
-### 3. Ctrl+B does nothing disruptive when there's nothing to wrap
+### 3. Ctrl+B marks each block's own span and does not delete the range
 
-Select from mid-first-paragraph to mid-second-paragraph; press Ctrl+B. The
-range is deleted; since the post-delete caret has no selected text to wrap,
-the block-level handler inserts empty `****` markers at the caret or is a
-no-op. Either way, the selection is collapsed and the document does not
-retain the stale cross-block selection over shifted indices.
+Select from mid-first-paragraph to mid-second-paragraph; press Ctrl+B. This
+key is NOT a delete-then-dispatch key: the range is not deleted, and each
+block the range touches is marked over its own span — the anchor block's
+tail, the focus block's head — as one undo entry. The cross-block selection
+survives the press, which is what keeps it off shifted indices; a delete
+here is the `****` regression (#107) this file was written for.
 
 ### 4. Ctrl+0 strips heading prefix at the merge target
 

@@ -5,6 +5,13 @@
 		type ClipboardAction
 	} from './table-menu-model';
 	import type { TableAxisAction } from '../../../action-contracts';
+	import {
+		ALIGN_CENTER,
+		ALIGN_LEFT,
+		ALIGN_RIGHT,
+		COLUMN_ALIGNMENT,
+		TABLE_ACTIONS
+	} from '../../../a11y-strings';
 
 	let {
 		items,
@@ -99,13 +106,13 @@
 		const last = stops.length - 1;
 		switch (e.key) {
 			case 'ArrowDown':
-				e.preventDefault();
-				focusStop(current === -1 ? 0 : current + 1);
-				return;
 			case 'ArrowUp':
+			case 'Tab': {
 				e.preventDefault();
-				focusStop(current === -1 ? last : current - 1);
+				const back = e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey);
+				focusStop(current === -1 ? (back ? last : 0) : current + (back ? -1 : 1));
 				return;
+			}
 			case 'Home':
 				e.preventDefault();
 				focusStop(0);
@@ -113,11 +120,6 @@
 			case 'End':
 				e.preventDefault();
 				focusStop(last);
-				return;
-			case 'Tab':
-				e.preventDefault();
-				if (e.shiftKey) focusStop(current === -1 ? last : current - 1);
-				else focusStop(current === -1 ? 0 : current + 1);
 				return;
 			case 'ArrowRight':
 			case 'ArrowLeft':
@@ -141,9 +143,9 @@
 	// 'none' renders identically to 'left', so the left segment reads active for both.
 	// Visible text stays L/C/R; the accessible name carries the full word.
 	const alignmentSegments = [
-		{ value: 'left', label: 'L', name: 'Left' },
-		{ value: 'center', label: 'C', name: 'Center' },
-		{ value: 'right', label: 'R', name: 'Right' }
+		{ value: 'left', label: 'L', name: ALIGN_LEFT },
+		{ value: 'center', label: 'C', name: ALIGN_CENTER },
+		{ value: 'right', label: 'R', name: ALIGN_RIGHT }
 	] as const;
 </script>
 
@@ -151,7 +153,7 @@
 	bind:this={menuEl}
 	class="table-action-menu"
 	role="menu"
-	aria-label="Table actions"
+	aria-label={TABLE_ACTIONS}
 	tabindex="-1"
 	style:left="{clamped ? clamped.x : x}px"
 	style:top="{clamped ? clamped.y : y}px"
@@ -177,7 +179,7 @@
 		{:else if item.kind === 'separator'}
 			<div class="table-action-menu-separator" role="separator"></div>
 		{:else}
-			<div class="table-action-menu-alignment" role="group" aria-label="Column alignment">
+			<div class="table-action-menu-alignment" role="group" aria-label={COLUMN_ALIGNMENT}>
 				{#each alignmentSegments as seg (seg.value)}
 					{@const active =
 						item.current === seg.value || (seg.value === 'left' && item.current === 'none')}
@@ -204,7 +206,7 @@
 		padding: 0.25rem;
 		display: flex;
 		flex-direction: column;
-		background: var(--color-bg, #fff);
+		background: var(--color-surface, #fff);
 		border: 1px solid var(--color-ui-muted, #a4a4a4);
 		border-radius: 6px;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);

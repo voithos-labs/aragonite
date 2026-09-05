@@ -6,7 +6,7 @@ import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import { listRegisteredOpeners } from '../schema/block-openers';
 import { isDirectiveKind } from '../core/directive/registry';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 // ── G1.5: category ↔ field legality ──────────────────────────────────────────
 
@@ -27,6 +27,12 @@ export function checkCategoryFields(node: CstNode): InvariantViolation | null {
 	}
 	if (!d.isContainer && node.innerSuffix !== undefined) {
 		return illegalField(node.kind, 'innerSuffix', 'leaf carries container structural field');
+	}
+	// Only a body sitting under a chrome line of the container's own can peel a blank into
+	// `innerPrefix` (`core/parser.parseContainerBody`); elsewhere the body opens on the
+	// container's first line and a filled slot emits a line no parse can produce.
+	if (d.bodyWrap?.afterOpenerLine !== true && node.innerPrefix) {
+		return illegalField(node.kind, 'innerPrefix', 'container declares no opener-line body wrap');
 	}
 	return null;
 }
@@ -51,11 +57,9 @@ function illegalField(kind: string, field: string, why: string): InvariantViolat
 export function checkStaleRaw(node: CstNode): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'strip') return null;
 
-	// `listItem` is never a top-level block, so its raw re-parses to a wrapping `list`;
-	// unwrap one level by kind to reach the grammatical correspondent.
-	const top = parse(node.raw).children[0];
-	const correspondent =
-		top?.kind === node.kind ? top : top?.children?.find((c) => c.kind === node.kind);
+	// Document scope because the oracle gets no document position: fragment would fire on
+	// every legitimate position-scoped node at the top.
+	const correspondent = soleCorrespondent(parse(node.raw, { scope: 'document' }).children, node);
 
 	if (!rawFaithful(correspondent, node)) {
 		return {
@@ -67,6 +71,20 @@ export function checkStaleRaw(node: CstNode): InvariantViolation | null {
 		};
 	}
 	return null;
+}
+
+/**
+ * The one block `node.raw` must reparse to, or undefined. Singularity is the invariant's other
+ * half: bytes belonging to a following sibling leave the first block's inner content intact, so
+ * comparing that block alone would read a container whose raw has grown as faithful. `listItem`
+ * is never a top-level block, so its raw reparses to a wrapping `list` holding it alone.
+ */
+function soleCorrespondent(blocks: CstNode[], node: CstNode): CstNode | undefined {
+	if (blocks.length !== 1) return undefined;
+	const top = blocks[0];
+	if (top.kind === node.kind) return top;
+	const wrapped = top.children ?? [];
+	return wrapped.length === 1 && wrapped[0].kind === node.kind ? wrapped[0] : undefined;
 }
 
 const MAX_RAW_IN_DETAIL = 200;
@@ -116,7 +134,9 @@ function stripContainerChildren(node: CstNode): CstNode[] {
 export function checkOpaqueStaleRaw(node: CstNode): InvariantViolation | null {
 	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
 
-	const blocks = parse(node.raw).children;
+	// Document scope for the same reason as G1.1's probe: the node arrives without its
+	// document position, and fragment would fire on a legitimate position-scoped node.
+	const blocks = parse(node.raw, { scope: 'document' }).children;
 	if (blocks.length !== 1 || blocks[0].kind !== node.kind) {
 		if (!hasStandaloneRecognizer(node.kind)) return null;
 		return {

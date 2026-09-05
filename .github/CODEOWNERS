@@ -1,3 +1,3 @@
 # Review routing for the required code-owner reviews (branch protection).
-# One row while there is one maintainer; split paths as maintainers join.
-* @DanielZFLiu
+# Either maintainer satisfies a review, so neither waits on the other to merge.
+* @DanielZFLiu @finnrw

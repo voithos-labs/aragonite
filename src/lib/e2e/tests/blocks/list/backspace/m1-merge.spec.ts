@@ -16,11 +16,8 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		await second.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceContains('Item oneItem two');
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Item oneItem two');
-		expect((source.match(/^- /gm) ?? []).length).toBe(1);
+		// Byte-exact: equality pins the surviving single marker the way a count cannot.
+		await editor.bridge.waitForSourceEquals('- Item oneItem two\n');
 	});
 
 	test('M1 row 2: current item has nested sub-list; nested absorbed into target', async () => {
@@ -105,9 +102,8 @@ test.describe('list Backspace — M1 merge on non-first item', () => {
 		expect(source).toContain('AlphaZBeta');
 	});
 
-	// Live children-vs-childIds parity at every container depth: the M1 helper once mutated an
-	// inner container's `children` without extending `childIds`, so Svelte's keyed each logged
-	// `each_key_duplicate` for the trailing undefined keys.
+	// `children` extended without `childIds` gives the trailing keyed-each entries undefined keys,
+	// which Svelte reports as `each_key_duplicate` — hence the console watch below.
 	test('M1 keeps children/childIds parity at every depth (rows 3+4 shape)', async ({ page }) => {
 		const consoleErrors: string[] = [];
 		page.on('console', (m) => {

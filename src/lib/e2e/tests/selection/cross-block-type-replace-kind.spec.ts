@@ -28,7 +28,7 @@ test.describe('cross-block type-replace — kind re-derivation', () => {
 		await editor.loadContent('aaa\n\nbbb\n');
 
 		await editor.focusBlockStart(0);
-		await editor.page.keyboard.press('Control+Shift+End');
+		await editor.page.keyboard.press('ControlOrMeta+Shift+End');
 		await editor.waitForCrossBlock(true);
 
 		await editor.typeSlowly('#');

@@ -255,7 +255,9 @@ async function runListOp(
 		parentBlockEdit: makeStubBlockEdit(),
 		parentFocus: makeStubFocus(),
 		parentListContext: undefined,
-		controller: h.controller
+		controller: h.controller,
+		getPresentationMode: undefined,
+		linkRef: undefined
 	});
 
 	if (op.t === 'insertItem') {
@@ -403,7 +405,9 @@ async function runRangeDelete(
 		revealPath: h.deps.revealPath,
 		controller: h.controller,
 		pushUndoSnapshot: () => h.controller.pushUndoSnapshot(startIdx, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined,
+		linkRef: undefined
 	});
 }
 

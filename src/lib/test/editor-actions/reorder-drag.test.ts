@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { installReorderDrag } from '../../editor-actions/reorder-drag';
+import { installReorderDrag } from '$lib/editor-actions/reorder-drag';
 
 // Guards the root pointerdown listener's lifecycle: the unmount-mid-session leak class
 // e2e cannot reach. The per-drag document listeners are covered by the Escape/no-op e2e.

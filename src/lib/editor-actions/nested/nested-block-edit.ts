@@ -13,16 +13,14 @@ import {
 	ensureUnsharedChild,
 	reconcileTaskMetadata
 } from '../../tree-operations';
-import {
-	stampStructuralChange,
-	type StructuralChange
-} from '../../tree-operations/structural-change';
+import type { SettledContent } from '../../tree-operations/node-ops';
+import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';
-import { assertInvariant } from '../../invariants/assert';
+import { assertInvariant } from '../../assert';
 import type { NestedActionsDeps } from './nested-actions';
 import { firstChildUnwrapStrategies, middleChildUnwrapStrategies } from '../unwrap-strategies';
-import { createContainerScope } from '../block-edit-scope';
+import { createContainerScope, scopeParentOf } from '../block-edit-scope';
 import { createBlockEditCore } from '../block-edit-core';
 import { previewContentReparse, focusAfterContentReplace } from '../replacement-focus';
 import { extendDocPath } from '../../cursor/coordinate-spaces';
@@ -55,6 +53,11 @@ export function createNestedBlockEdit(
 		async descendToBody(innerIndex) {
 			if (!deps.node.children) return;
 			await core.descendToBody(innerIndex);
+		},
+
+		async insertParagraph(boundaryIndex, text) {
+			if (!deps.node.children) return;
+			await core.insertParagraph(boundaryIndex, text);
 		},
 
 		async mergeWithPrevious(innerIndex) {
@@ -91,10 +94,9 @@ export function createNestedBlockEdit(
 				return parent.blockEdit.mergeWithNext(deps.index);
 			}
 
-			// A collapsed container's body is unmounted, so forward-Delete exits past the
-			// container rather than dead-ending on the invisible body — a focus move, no
-			// mutation. `append: false` keeps the last-block case inert: without it,
-			// exiting past the final block mints a trailing paragraph.
+			// A collapsed container's body is unmounted, so forward-Delete exits past the container
+			// rather than dead-ending on the invisible body — a focus move, no mutation.
+			// `append: false` keeps the last-block case inert rather than minting a paragraph.
 			if (isCollapsedContainer(deps.node)) {
 				await parent.focus.moveFocus(deps.index + 1, 'start', { append: false });
 				return;
@@ -128,90 +130,127 @@ export function createNestedBlockEdit(
 			preEditOffset?: number,
 			postEditFocusOffset?: number
 		): Promise<void> {
-			if (!deps.node.children) return;
-
-			const preview = previewContentReparse(
-				deps.node.children[innerIndex],
-				text,
-				deps.grammar,
-				deps.node.kind
-			);
-
-			const leafPath = extendDocPath(deps.path, innerIndex);
-
-			if (preview.op !== 'noop') {
-				// Mapped, because a caret measured before the rewrite names a position in
-				// bytes that never landed. Reachable here and not only on the routine path:
-				// completing `</details>` is a kind change, and a kind change commits.
-				const focusOffset = mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0);
-				let change: StructuralChange = { op: 'noop' };
-				await parent.containerEdit.commitContainer({
-					containerNode: deps.node,
-					path: deps.path,
-					state,
-					snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
-					mutate: (scope) => {
-						ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
-						change = performUpdate(
-							{ children: scope.children, ownerKind: scope.node.kind },
-							innerIndex,
-							text,
-							deps.grammar
-						);
-						stampStructuralChange(scope.children, change, scope.sharing);
-						return change;
-					},
-					op: {
-						kind: 'updateContent',
-						detail: { length: text.length },
-						eventPath: leafPath
-					},
-					afterTick: () =>
-						focusAfterContentReplace(deps.path, innerIndex, change, focusOffset, scope)
-				});
-				return;
-			}
-
-			// Routine typing — debounced undo path, no structural commit. The inner leaf's
-			// id is the batch key, so a focus move between sibling leaves breaks the batch.
-			parent.containerEdit.pushDebouncedCheckpoint(
-				leafPath,
-				preEditOffset ?? 0,
-				state.innerBlockIds[innerIndex]
-			);
-			const reclassified = parent.containerEdit.withUnsharedSpine(leafPath, (chain) => {
-				assertInvariant('unshared-spine-depth', () =>
-					chain.length === leafPath.length
-						? null
-						: {
-								code: 'unshared-spine-depth',
-								message: `withUnsharedSpine: chain depth ${chain.length} != leaf path depth ${leafPath.length}`
-							}
-				);
-				const ownedContainer = chain[leafPath.length - 2];
-				if (!ownedContainer?.children) return;
-				performUpdate(
-					{ children: ownedContainer.children, ownerKind: ownedContainer.kind },
-					innerIndex,
-					text,
-					deps.grammar
-				);
-				// taskItem metadata is extracted at parse time from the first stripped
-				// line, so without this it freezes while the serialized source drifts.
-				if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
-					reconcileTaskMetadata(ownedContainer);
-				}
-			});
-			parent.containerEdit.nudgeReactivity();
-			// The rebuild re-kinded a container on this spine (a typed `> [!TIP]` marker
-			// moves into the container's own bytes), so the edited leaf no longer exists.
-			// Re-enter at the container's start; its focus walk lands in the body.
-			if (reclassified) {
-				await tick();
-				await parent.focus.moveFocus(deps.index, 'start');
+			// The batch's pause window opens once this keystroke's own work is done, throw
+			// included: an unarmed batch never ends by pause.
+			try {
+				await applyContentUpdate(innerIndex, text, preEditOffset, postEditFocusOffset);
+			} finally {
+				parent.containerEdit.armDebouncedPause();
 			}
 		}
 	};
+
+	async function applyContentUpdate(
+		innerIndex: number,
+		text: string,
+		preEditOffset?: number,
+		postEditFocusOffset?: number
+	): Promise<void> {
+		if (!deps.node.children) return;
+
+		// No tail suffix: the document-level fold has no container twin yet.
+		const preview = previewContentReparse(
+			deps.node.children[innerIndex],
+			text,
+			deps.grammar,
+			deps.node.kind,
+			''
+		);
+
+		const leafPath = extendDocPath(deps.path, innerIndex);
+
+		if (preview.op !== 'noop') {
+			// Mapped, because a caret measured before the rewrite names a position in
+			// bytes that never landed. Reachable here and not only on the routine path:
+			// completing `</details>` is a kind change, and a kind change commits.
+			const focusOffset = mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0);
+			let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+			await parent.containerEdit.commitContainer({
+				containerNode: deps.node,
+				path: deps.path,
+				state,
+				snapshot: { path: leafPath, offset: preEditOffset ?? 0 },
+				mutate: (scope) => {
+					ensureUnsharedChild(scope.node, innerIndex, scope.sharing);
+					settled = performUpdate(
+						scopeParentOf(scope),
+						innerIndex,
+						text,
+						deps.grammar,
+						scope.sharing
+					);
+					stampStructuralChange(scope.children, settled.change, scope.sharing);
+					return settled.change;
+				},
+				op: {
+					kind: 'updateContent',
+					detail: { length: text.length },
+					eventPath: leafPath
+				},
+				afterTick: () =>
+					focusAfterContentReplace(deps.path, innerIndex, settled, focusOffset, scope)
+			});
+			return;
+		}
+
+		// Routine typing — debounced undo path, no structural commit. The inner leaf's
+		// id is the batch key, so a focus move between sibling leaves breaks the batch.
+		parent.containerEdit.pushDebouncedCheckpoint(
+			leafPath,
+			preEditOffset ?? 0,
+			state.innerBlockIds[innerIndex]
+		);
+		let settled: SettledContent = { change: { op: 'noop' }, textStart: 0 };
+		const reclassified = parent.containerEdit.withUnsharedSpine(leafPath, (chain, sharing) => {
+			assertInvariant('unshared-spine-depth', () =>
+				chain.length === leafPath.length
+					? null
+					: {
+							code: 'unshared-spine-depth',
+							message: `withUnsharedSpine: chain depth ${chain.length} != leaf path depth ${leafPath.length}`
+						}
+			);
+			const ownedContainer = chain[leafPath.length - 2];
+			if (!ownedContainer?.children) return;
+			settled = performUpdate(
+				{
+					children: ownedContainer.children,
+					ownerKind: ownedContainer.kind,
+					owner: ownedContainer
+				},
+				innerIndex,
+				text,
+				deps.grammar,
+				sharing
+			);
+			// taskItem metadata is extracted at parse time from the first stripped
+			// line, so without this it freezes while the serialized source drifts.
+			if (ownedContainer.kind === 'listItem' && innerIndex === 0) {
+				reconcileTaskMetadata(ownedContainer);
+			}
+			return settled.change;
+		});
+		parent.containerEdit.nudgeReactivity();
+		// The rebuild re-kinded a container on this spine (a typed `> [!TIP]` marker
+		// moves into the container's own bytes), so the edited leaf no longer exists.
+		// Re-enter at the container's start; its focus walk lands in the body.
+		if (reclassified) {
+			await tick();
+			await parent.focus.moveFocus(deps.index, 'start');
+			return;
+		}
+		// A blank-fill settle can fold here, which the single-node preview probe cannot see;
+		// the spine wrapper published the splice, and the caret follows the re-tiled bytes.
+		if (settled.change.op === 'noop') return;
+		await tick();
+		focusAfterContentReplace(
+			deps.path,
+			innerIndex,
+			settled,
+			mapCommittedOffset(text, postEditFocusOffset ?? preEditOffset ?? 0),
+			scope
+		);
+	}
 
 	return blockEdit;
 }

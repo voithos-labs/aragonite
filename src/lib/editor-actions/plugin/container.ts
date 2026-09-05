@@ -5,6 +5,7 @@
  * ancestor contexts and `useContainerWindowing` sets its own.
  */
 
+import { DEV } from 'esm-env';
 import { getContext } from 'svelte';
 import type { ComponentProps } from 'svelte';
 // Type-only, erased at build: no runtime edge to `components/` here. It buys the
@@ -15,10 +16,12 @@ import type {
 	CommitAfterTick,
 	ContainerEditActions,
 	FocusActions,
+	HistoryActions,
 	MoveFocusOptions
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { AmbientPrefix, BlockComponent, ContainerBlockComponent } from '../../block-component';
+import { getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { expandContainerPatch, isCollapsedContainer } from '../../schema/reserved-chrome';
 import { dispatchKindCommand, type KindCommandTarget } from '../../schema/block-commands';
 import { eventToChord } from '../../schema/keybindings';
@@ -31,23 +34,31 @@ import {
 	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
 	FOCUS_KEY,
+	HISTORY_KEY,
 	type EditorDoc,
 	type EditorPolicies,
 	type EditorServices,
 	type PluginEditorLookup
 } from '../../editor-keys';
 import { emitCommandError } from '../../editor-events';
-import { pluginKindOwner } from '../../schema/plugin-install';
+import { owningPluginEditor } from '../../schema/plugin-install';
 import { createBlockListState } from '../../reactivity/block-list-state.svelte';
 import type { WindowResult } from '../../reactivity/block-window.svelte';
+import type { RefSlots } from '../../reactivity/publish-ref.svelte';
 import { useContainerWindowing } from '../../reactivity/use-container-windowing.svelte';
-import { createBlockquoteOverrides } from '../blockquote-overrides';
+import { createContainerExitOverrides } from '../container-exit-overrides';
+import {
+	createContainerBlockComponent,
+	focusAcrossBlockEdge,
+	handleEditorGlobalChord,
+	handleWholeBlockKeys
+} from '../container-block-component';
 import {
 	composeWholeBlockFocusSurface,
-	createContainerBlockComponent,
-	handleWholeBlockKeys,
+	createWholeBlockInputProxy,
+	holdsWholeBlockFocus,
 	isEditableEventTarget
-} from '../container-block-component';
+} from '../whole-block-focus-surface';
 import {
 	createStandardNestedActions,
 	setNestedActionsContexts,
@@ -88,8 +99,7 @@ export interface ContainerBlockDeps {
 export interface ContainerBlockListProps {
 	children: readonly NodeView[];
 	blockIds: string[];
-	setRef: (i: number, r: BlockComponent | undefined) => void;
-	getRef: (i: number) => BlockComponent | undefined;
+	slots: RefSlots<BlockComponent>;
 	parentPath?: number[];
 	window?: WindowResult;
 	reorderable?: boolean;
@@ -127,6 +137,12 @@ export interface ContainerBlock {
 	 * rather than CSS must key its render on this and re-render when it changes.
 	 */
 	getTheme(): string;
+	/**
+	 * This editor instance's options for the plugin owning this block's kind — the
+	 * `{ plugin, options }` entry's channel, so two editors in one process configure the
+	 * same kind differently. `unknown`, like `commandHooks`: the plugin narrows it.
+	 */
+	getOptions(): unknown;
 	/** The `BlockComponent` surface the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
 	/**
@@ -142,6 +158,13 @@ export interface ContainerBlock {
 	 * this kind's keymap. Kind-only, so a bubbled undo/redo never double-fires.
 	 */
 	handleKeydown(e: KeyboardEvent): void;
+	/**
+	 * Hand the caret to the neighbour a plain arrow points at — the boundary exit for a
+	 * plugin-owned editable whose caret has reached its own edge. Routes through the
+	 * editor's focus traversal, so the landing inherits skip-non-focusable, container
+	 * entry and windowing reveal. False for a modified or non-arrow key: leave it native.
+	 */
+	moveFocusOut(e: KeyboardEvent): boolean;
 }
 
 // ── Collapse gates ───────────────────────────────────────────────────────────
@@ -159,11 +182,7 @@ export function composeCollapseProbe(
 	if (!explicit) return () => isCollapsedContainer(getNode());
 	return () => {
 		const value = explicit();
-		if (
-			import.meta.env.DEV &&
-			value !== isCollapsedContainer(getNode()) &&
-			!isReadingMode(getPresentationMode)
-		) {
+		if (DEV && value !== isCollapsedContainer(getNode()) && !isReadingMode(getPresentationMode)) {
 			devWarn(
 				'plugin-container',
 				`isCollapsed dep disagrees with the declared reservedChrome.isCollapsed probe for kind "${getNode().kind}"`
@@ -190,6 +209,27 @@ export function composeExpandDoor(deps: {
 		if (!patch) return false;
 		await deps.commit(patch);
 		return true;
+	};
+}
+
+/**
+ * The `updateOwnMetadata` gate: reading mode writes no bytes (plugin-contract.md), so the
+ * commit declines as a no-op and DEV names the kind that knocked.
+ */
+export function composeMetadataDoor(deps: {
+	getNode: () => NodeView;
+	getPresentationMode: () => PresentationMode;
+	commit: (patch: Record<string, unknown>, afterTick?: CommitAfterTick) => void | Promise<void>;
+}): ContainerBlock['updateOwnMetadata'] {
+	return (patch, afterTick) => {
+		if (isReadingMode(deps.getPresentationMode)) {
+			devWarn(
+				'plugin-container',
+				`updateOwnMetadata declined: reading mode writes no bytes (kind "${deps.getNode().kind}")`
+			);
+			return;
+		}
+		return deps.commit(patch, afterTick);
 	};
 }
 
@@ -248,8 +288,7 @@ export function composeCollapseGates(
 /**
  * The kind-command target a plugin container bubbles into `dispatchKindCommand`.
  * `runCommand` is inert — a plugin container owns no built-in kind commands, so a
- * chord resolves only through a registered one. The `?? ''` arm gives an unowned kind
- * the base per-instance EditorContext.
+ * chord resolves only through a registered one.
  */
 export function buildContainerKindTarget(
 	deps: Pick<ContainerBlockDeps, 'getNode' | 'commandHooks'>,
@@ -267,7 +306,7 @@ export function buildContainerKindTarget(
 				void updateOwnMetadata(patch);
 			},
 			hooks: deps.commandHooks?.(),
-			editor: pluginEditor?.(pluginKindOwner(deps.getNode().kind) ?? '')
+			editor: owningPluginEditor(pluginEditor, deps.getNode().kind)
 		})
 	};
 }
@@ -278,20 +317,27 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const parentBlockEdit = getContext<BlockEditActions>(BLOCK_EDIT_KEY);
 	const parentFocus = getContext<FocusActions>(FOCUS_KEY);
 	const parentContainerEdit = getContext<ContainerEditActions>(CONTAINER_EDIT_KEY);
+	const history = getContext<HistoryActions>(HISTORY_KEY);
 	const {
-		controller,
 		stickyColumn,
+		edgeAffinity,
 		selection,
 		reorder,
 		events: editorEvents,
-		registryView
+		registryView,
+		activePlugins
 	} = getContext<EditorServices>(EDITOR_SERVICES_KEY);
 	const {
 		keybindingOverrides,
 		presentationMode: getPresentationMode,
 		theme: getTheme
 	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
-	const pluginEditor = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.pluginEditor;
+	const editorDoc = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY);
+	const pluginEditor = editorDoc?.pluginEditor;
+	const linkRef = editorDoc?.linkRef;
+
+	// Resolved by the kind's recorded owner, like the kind-command context's `editor`.
+	const getOptions = (): unknown => owningPluginEditor(pluginEditor, deps.getNode().kind)?.options;
 
 	const listState = createBlockListState(deps.getNode);
 
@@ -311,18 +357,12 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 	const collapsed = composeCollapseProbe(deps.isCollapsed, deps.getNode, getPresentationMode);
 
-	const blockquoteOverrides = createBlockquoteOverrides({
-		scope,
-		state: listState,
-		parentBlockEdit,
-		parentFocus,
-		controller
-	});
+	const containerExitOverrides = createContainerExitOverrides({ scope, parentBlockEdit });
 
 	// All three override the same `defaults`, so they coexist; for a non-collapsing
 	// container the gates are inert.
 	const overrideFactory: NestedActionsOverrideFactory = (defaults) =>
-		composeCollapseGates(blockquoteOverrides(defaults), {
+		composeCollapseGates(containerExitOverrides(defaults), {
 			descendToBody: gateDescendOnCollapse(collapsed, defaults.blockEdit.descendToBody),
 			moveFocus: gateMoveFocusOnCollapse(
 				collapsed,
@@ -338,6 +378,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			scope,
 			stickyColumn,
 			grammar: registryView.grammar,
+			getPresentationMode,
+			linkRef,
 			parent: {
 				blockEdit: parentBlockEdit,
 				focus: parentFocus,
@@ -370,6 +412,17 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			)
 		: undefined;
 
+	// The editing host AltGr and IME input arrive through: keydown alone drops both, and a
+	// whole-block kind has no editable surface of its own to catch them.
+	const inputProxy = wholeBlockSurface
+		? createWholeBlockInputProxy({
+				getBoxEl: () => deps.getBoxEl(),
+				getFocusEl: wholeBlockSurface,
+				isReading: () => isReadingMode(getPresentationMode),
+				mint: (text) => void parentBlockEdit.insertParagraph(deps.getIndex() + 1, text)
+			})
+		: undefined;
+
 	// Through a closure, not the `updateOwnMetadata` value: that const is declared
 	// below, and is only ever read at reveal time.
 	const expandCollapsed = composeExpandDoor({
@@ -380,10 +433,15 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	});
 
 	const containerApi = createContainerBlockComponent({
+		// The kind's descriptor is the declaration; the mounted surface only reports it.
+		get editable() {
+			return getBlockKindDescriptor(deps.getNode().kind).editable;
+		},
 		selection,
 		get innerBlockRefs() {
 			return listState.innerBlockRefs;
 		},
+		refSlots: listState.refSlots,
 		get nodeChildrenLength() {
 			return deps.getNode().children?.length ?? 0;
 		},
@@ -395,7 +453,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		isCollapsed: collapsed,
 		expandCollapsed,
 		getFocusEl: wholeBlockSurface,
-		getBoxEl: () => deps.getBoxEl()
+		getBoxEl: () => deps.getBoxEl(),
+		inputProxy
 	});
 
 	const blockListProps: ContainerBlockListProps = {
@@ -405,8 +464,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		get blockIds() {
 			return listState.innerBlockIds;
 		},
-		setRef: (i, r) => (listState.innerBlockRefs[i] = r),
-		getRef: (i) => listState.innerBlockRefs[i],
+		slots: listState.refSlots,
 		get parentPath() {
 			return deps.getPath();
 		},
@@ -421,22 +479,48 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		}
 	};
 
-	const updateOwnMetadata: ContainerBlock['updateOwnMetadata'] = (patch, afterTick) =>
-		parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick });
+	const updateOwnMetadata = composeMetadataDoor({
+		getNode: deps.getNode,
+		getPresentationMode,
+		commit: (patch, afterTick) =>
+			parentBlockEdit.updateBlockMetadata(deps.getIndex(), patch, { afterTick })
+	});
 
 	const kindTarget = buildContainerKindTarget(deps, updateOwnMetadata, pluginEditor);
+
+	const globalChordDeps = {
+		getKind: () => deps.getNode().kind,
+		history,
+		pluginEditor,
+		onCommandError: (report: Parameters<typeof emitCommandError>[1]) =>
+			emitCommandError(editorEvents, report),
+		getKeybindingOverrides: keybindingOverrides,
+		isReading: () => isReadingMode(getPresentationMode),
+		activation: activePlugins
+	};
 
 	const handleKeydown = (e: KeyboardEvent): void => {
 		if (e.defaultPrevented) return;
 		const chord = eventToChord(e);
+		// Own-surface only: a chord bubbling from an inner leaf already met the global tier
+		// there, and re-firing it here would double-fire.
+		if (chord && ownsWholeBlockFocus(e) && handleEditorGlobalChord(chord, globalChordDeps)) {
+			e.preventDefault();
+			return;
+		}
 		if (
 			chord &&
 			dispatchKindCommand(
 				chord,
 				kindTarget,
+				// A container bubble carries no range command: the leaf below it owns the format ids.
+				{
+					getPresentationMode,
+					isCrossBlockRange: () => selection.isCrossBlock,
+					crossBlockCommands: undefined
+				},
 				keybindingOverrides(),
-				(report) => emitCommandError(editorEvents, report),
-				getPresentationMode
+				(report) => emitCommandError(editorEvents, report)
 			)
 		) {
 			e.preventDefault();
@@ -445,14 +529,32 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleWholeBlockKeydown(e);
 	};
 
-	// The whole-block-focus affordances, dispatched from the wrapper's bubble phase.
-	// The three gates keep a focused sibling (a toolbar button would double-fire its
-	// click and an Enter split) and a plugin's own editable surface untouched.
-	function handleWholeBlockKeydown(e: KeyboardEvent): void {
-		if (!wholeBlockSurface) return;
+	const moveFocusOut = (e: KeyboardEvent): boolean => {
+		if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return false;
+		// Classified through the doors before the move (G2.10 / G4.31). A plugin editable
+		// exposes no caret X to measure, so a vertical exit carries the column it arrived
+		// with, exactly as a whole-block pass-through does.
+		stickyColumn.noteKey(e);
+		edgeAffinity.note(e);
+		return focusAcrossBlockEdge(e.key, { getIndex: deps.getIndex, focus: parentFocus });
+	};
+
+	// The three gates keep a focused sibling (a toolbar button would double-fire its click
+	// and an Enter split) and a plugin's own editable surface untouched.
+	function ownsWholeBlockFocus(e: KeyboardEvent): boolean {
+		if (!wholeBlockSurface) return false;
+		const proxy = inputProxy?.el();
+		// Identity, not the attribute alone: a proxy keydown bubbling up from a nested block
+		// would otherwise read as this one's.
+		if (proxy && e.target === proxy) return true;
 		const focusEl = wholeBlockSurface();
-		if (!focusEl || !focusEl.contains(document.activeElement)) return;
-		if (isEditableEventTarget(e.target)) return;
+		if (!holdsWholeBlockFocus(focusEl, proxy)) return false;
+		return !isEditableEventTarget(e.target);
+	}
+
+	// The whole-block-focus affordances, dispatched from the wrapper's bubble phase.
+	function handleWholeBlockKeydown(e: KeyboardEvent): void {
+		if (!ownsWholeBlockFocus(e)) return;
 
 		// A whole-block surface is tabindex-focusable independent of contenteditable,
 		// so this path is live in reading mode: arrows stay, edits gate.
@@ -460,14 +562,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 
 		// Alt-arrow reorder is inline because `runCommand` is inert here, so unlike
 		// ThematicBreak it cannot come from dispatchKindCommand.
-		if (e.key === 'ArrowUp' && e.altKey) {
+		if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
 			e.preventDefault();
-			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), -1);
-			return;
-		}
-		if (e.key === 'ArrowDown' && e.altKey) {
-			e.preventDefault();
-			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), 1);
+			if (!reading) void reorder.nudgeReorderUnit(deps.getPath(), e.key === 'ArrowUp' ? -1 : 1);
 			return;
 		}
 
@@ -477,7 +574,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
 			isReading: () => reading,
-			stickyColumn
+			stickyColumn,
+			edgeAffinity
 		});
 	}
 
@@ -486,7 +584,9 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		containerApi,
 		updateOwnMetadata,
 		handleKeydown,
+		moveFocusOut,
 		getPresentationMode,
-		getTheme
+		getTheme,
+		getOptions
 	};
 }

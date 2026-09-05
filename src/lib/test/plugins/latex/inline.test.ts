@@ -4,14 +4,12 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseInline, computeInlineContent } from '$lib/core/inline';
 import type { InlineNode } from '$lib/core/nodes';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
 import {
 	buildCoreInlineWidget,
 	getInlineWidgetComponent,
-	getInlineWidgetEditing,
-	__resetInlineWidgetsForTests
+	getInlineWidgetEditing
 } from '$lib/core/inline/inline-widgets';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import {
 	renderInlineMath,
@@ -19,14 +17,8 @@ import {
 	type MathRenderer
 } from '$lib/plugins/latex/math-renderer';
 
-function resetInlineState(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-
-beforeEach(resetInlineState);
-afterEach(resetInlineState);
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 const isMath = (n: InlineNode) => n.kind === MATH_INLINE;
 const mathNodesIn = (raw: string) => parseInline(raw, 0, raw.length).filter(isMath);

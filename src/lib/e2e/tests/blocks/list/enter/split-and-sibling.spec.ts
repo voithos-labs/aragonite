@@ -32,7 +32,7 @@ test.describe('list Enter — sibling creation and mid-item split', () => {
 		expect(source).toContain('- World');
 	});
 
-	// Regression: mid-item Enter used to push two undo snapshots; must collapse to one.
+	// Regression: mid-item Enter must collapse to one undo snapshot, not two.
 	test('Enter in middle of item: one Ctrl+Z restores original item', async () => {
 		await editor.loadContent('- HelloWorld\n');
 		const before = await editor.bridge.getSource();
@@ -47,6 +47,5 @@ test.describe('list Enter — sibling creation and mid-item split', () => {
 		expect(await editor.bridge.getSource()).toContain('- Hello');
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(before);
-		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

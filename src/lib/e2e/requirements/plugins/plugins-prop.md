@@ -13,12 +13,12 @@ is a fresh process, so the e2e covers only the reload path here.
 
 ## Happy paths
 
-- prop installs the first listed plugin before parse: the default callout seed's first block is a `note` container whose child 0 is `note-title` — never a `paragraph` (grammar off) or `directiveContainer` (grammar on, callout not registered)
+- prop installs the first listed plugin before parse: the default callout seed's first block is a `callout` container whose child 0 is `callout-title` — never a `paragraph` (grammar off) or `directiveContainer` (grammar on, callout not registered)
 - prop installs every listed plugin, not just the first: the admonitions seed parses an `admonition` kind into the document, proving a plugin at the end of the array installed before the seed parsed
 
 ## Edge cases
 
-- reload re-runs the prop cleanly: navigating to the callout seed a second time still yields a `note` container at mount, with no invariant console fire and stable round-trip — the prop pathway is not first-load-only
+- reload re-runs the prop cleanly: navigating to the callout seed a second time still yields a `callout` container at mount, with no invariant console fire and stable round-trip — the prop pathway is not first-load-only
 
 Staggered second-editor mounts are `plugins-prop-staggered.md`'s subject (1:1 with
 its spec file).

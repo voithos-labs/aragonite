@@ -17,9 +17,6 @@ test.describe('keyboard navigation', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('XSecond paragraph');
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('XSecond paragraph');
 	});
 
 	test('ArrowUp at start of block moves focus to previous block', async () => {
@@ -29,9 +26,6 @@ test.describe('keyboard navigation', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('Y');
 		await editor.bridge.waitForSourceContains('YFirst paragraph.');
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('YFirst paragraph.');
 	});
 
 	test('ArrowDown at end of last block creates new paragraph', async () => {
@@ -46,8 +40,6 @@ test.describe('keyboard navigation', () => {
 
 		const countAfter = await editor.getDomBlockCount();
 		expect(countAfter).toBe(countBefore + 1);
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Z');
 	});
 
 	test('ArrowUp at start of first block does nothing', async () => {
@@ -56,12 +48,20 @@ test.describe('keyboard navigation', () => {
 		await editor.focusBlockStart(0);
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('A');
+		// Anchored to the start of the source: a caret ArrowUp moved to END of block satisfies a
+		// bare `contains`, which is the regression this predicate rules out.
 		await editor.bridge.waitForSource((s) => s.startsWith('AFirst paragraph'));
+	});
 
-		// Pre-tightened, this regex accepted the regression case where ArrowUp
-		// moved the caret to end-of-block. Anchor to start-of-source.
-		const source = await editor.bridge.getSource();
-		expect(source.startsWith('AFirst paragraph')).toBe(true);
+	// A heading's own marker span is its first child, so the first-visual-line check reads
+	// geometry rather than a text node — the arrival paragraphs never exercise.
+	test('ArrowUp at the top of a block moves into the heading above', async () => {
+		await editor.loadContent('# Title\n\nParagraph text.\n');
+
+		await editor.focusBlock(1, 0);
+		await editor.page.keyboard.press('ArrowUp');
+		await editor.typeText('!');
+		await editor.bridge.waitForSourceContains('!# Title');
 	});
 
 	test('ArrowDown into container block enters first child', async () => {
@@ -71,9 +71,6 @@ test.describe('keyboard navigation', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('Q');
 		await editor.bridge.waitForSourceMatches(/> .*Inside quoteQ|> .*QInside quote/);
-
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/> .*Inside quoteQ|> .*QInside quote/);
 	});
 
 	test('ArrowUp out of container block exits to block before', async () => {
@@ -85,9 +82,6 @@ test.describe('keyboard navigation', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('B');
 		await editor.bridge.waitForSourceMatches(/^[^>].*B/m);
-
-		const source = await editor.bridge.getSource();
-		expect(source).toMatch(/^[^>].*B/m);
 	});
 
 	test('ArrowDown on empty block moves to the next block', async () => {
@@ -99,8 +93,6 @@ test.describe('keyboard navigation', () => {
 		await editor.page.keyboard.press('ArrowDown');
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('XBelow.');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('XBelow.');
 	});
 
 	test('navigate down through multiple blocks and type in final', async () => {
@@ -115,10 +107,6 @@ test.describe('keyboard navigation', () => {
 		await editor.bridge.waitForSource(
 			(s) => s.includes('Block two.!') || s.includes('Block three.!')
 		);
-
-		const source = await editor.bridge.getSource();
-		const hasExcl = source.includes('Block two.!') || source.includes('Block three.!');
-		expect(hasExcl).toBe(true);
 	});
 
 	test('navigate up then type at start of first block', async () => {
@@ -128,8 +116,5 @@ test.describe('keyboard navigation', () => {
 		await editor.page.keyboard.press('ArrowUp');
 		await editor.typeText('hi ');
 		await editor.bridge.waitForSourceContains('hi Hello.');
-
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('hi Hello.');
 	});
 });

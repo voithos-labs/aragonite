@@ -103,4 +103,11 @@ describe('table parser: structure', () => {
 		expect(para.kind).toBe('paragraph');
 		expect(para.raw).toContain('Not a row');
 	});
+
+	// Miss-analysis: mutation-testing tableHeaderCells showed dropping its pipe guard flipped
+	// pipeless prose above a delimiter row into a table with every suite green (GFM § 4.10).
+	it('refuses a header row with no pipe: prose above a delimiter line stays a paragraph', () => {
+		const doc = parse('plain prose\n| --- |\n');
+		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph']);
+	});
 });

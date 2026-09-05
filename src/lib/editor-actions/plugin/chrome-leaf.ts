@@ -1,9 +1,8 @@
 /**
- * Register a container-chrome leaf kind: editable text at a reserved child slot of a
- * plugin container (a callout title, a details summary). The container declares the
- * slot via `reservedChrome`; this seam supplies the leaf. Chrome only, never a seam
- * for standalone recognizer-backed kinds — the reserved-chrome contract is a
- * single-line, plain-text child (`docs/design/plugin-contract.md`).
+ * Register a container-chrome leaf kind: editable text at a reserved child slot of a plugin
+ * container (a callout title, a details summary). The container declares the slot via
+ * `reservedChrome`; this seam supplies the leaf. Chrome only, never standalone recognizer-backed
+ * kinds — the contract is a single-line, plain-text child (`docs/design/plugin-contract.md`).
  */
 
 import type { Component } from 'svelte';
@@ -56,6 +55,7 @@ export function registerChromeLeaf<
 	P extends Partial<BlockComponentProps> & Record<string, unknown>
 >(kind: AnyBlockKind, component: Component<P, BlockComponent>, opts: ChromeLeafOptions = {}): void {
 	registerBlockKind(kind, {
+		gapEdges: 'none',
 		mergeRole: opts.mergeRole ?? 'not-mergeable',
 		editable: true,
 		supportsInline: false,

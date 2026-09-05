@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { type SimContext } from '../invariants';
+import { waitForNodeCount } from './node-count';
 
 // Footnote gestures (plugins route, `?seed=footnotes`), spanning two tiers: the `[^label]: `
 // strip-container definition and the `[^label]` inline reference widget. Each gates on the
@@ -77,26 +78,48 @@ export async function splitFootnoteDefinitionBody(
 }
 
 /**
- * The footnote-def is `not-mergeable`, so the walk delegates upward and the parent declines:
- * the caret moves and the bytes never change. Confirms byte-identity by a positive RE-READ
- * after the settle window — absence of mutation cannot be waited for as a delta.
+ * Backspace at the first body child's start lifts that child out of the definition
+ * (`lift-first-child-keep-container`): it becomes the paragraph before the marker and the rest
+ * of the body stays under it; a single-child definition dissolves into that paragraph. Gates on
+ * the source changing, then asserts the shape by re-reading the tree.
  */
 export async function footnoteDefinitionExitBackspace(
 	ctx: SimContext,
 	bodyPath: number[]
 ): Promise<void> {
 	const { page, editor, tracker } = ctx;
+	const defIndex = bodyPath[0];
 	const before = await editor.bridge.getSource();
+	const counts = await containerAndRootCounts(page, defIndex);
 
 	await editor.clickBlockAtPath(bodyPath, 0);
 	await page.keyboard.press('Home');
 	await page.keyboard.press('Backspace');
-	await editor.waitForNoSourceMutation();
+	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
+	await editor.waitForRenderFlush();
 
+	const shape = await page.evaluate((i) => {
+		const doc = (window as any).__test.getDocument();
+		return {
+			liftedKind: doc.children[i]?.kind ?? null,
+			nextKind: doc.children[i + 1]?.kind ?? null,
+			nextChildren: doc.children[i + 1]?.children?.length ?? 0,
+			root: doc.children.length
+		};
+	}, defIndex);
+	const keepsContainer = counts.children > 1;
+	const lifted =
+		shape.liftedKind === 'paragraph' &&
+		(keepsContainer
+			? shape.nextKind === 'footnote-def' &&
+				shape.nextChildren === counts.children - 1 &&
+				shape.root === counts.root + 1
+			: shape.root === counts.root);
 	const after = await editor.bridge.getSource();
-	if (after !== before) {
+	if (!lifted) {
 		throw new Error(
-			`[${ctx.label}] footnote-def unwrapped on Backspace-at-start (not-mergeable violated).\n` +
+			`[${ctx.label}] footnote-def Backspace-at-start did not lift the first body child ` +
+				`(${JSON.stringify(shape)} from ${JSON.stringify(counts)}).\n` +
 				`BEFORE: ${JSON.stringify(before)}\nAFTER:  ${JSON.stringify(after)}`
 		);
 	}
@@ -245,12 +268,4 @@ async function containerAndRootCounts(
 		const doc = (window as any).__test.getDocument();
 		return { children: doc.children[i]?.children?.length ?? 0, root: doc.children.length };
 	}, defIndex);
-}
-
-async function waitForNodeCount(ctx: SimContext, selector: string, count: number): Promise<void> {
-	await ctx.page.waitForFunction(
-		({ sel, n }) => document.querySelectorAll(sel).length === n,
-		{ sel: selector, n: count },
-		{ timeout: 2000, polling: 16 }
-	);
 }

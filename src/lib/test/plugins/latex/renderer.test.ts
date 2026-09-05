@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * The katex adapter — the engine half of the core/adapter split, reached through the
- * `aragonite/plugins/latex/renderer` subpath. Anything that needs a real katex render
+ * `@voithos-labs/aragonite/plugins/latex/renderer` subpath. Anything that needs a real katex render
  * lives here; the engine-free memo seam is proven in `math-renderer.test.ts`.
  */
 import { describe, it, expect } from 'vitest';

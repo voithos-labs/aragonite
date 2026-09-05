@@ -1,6 +1,6 @@
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
-import { dragBetweenCells, readClipboard } from './helpers';
+import { boxesOf, dragBetweenBoxes, dragBetweenCells } from './helpers';
 
 const TABLE_2BODY = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 const TABLE_ALIGNED = '| A | B | C |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
@@ -12,7 +12,7 @@ test.describe('table block: clipboard cut', () => {
 		editor = new EditorPage(page);
 		await editor.goto();
 		// Reset clipboard so leakage between tests cannot mask a missing write.
-		await page.evaluate(() => navigator.clipboard.writeText(''));
+		await editor.seedClipboard('');
 	});
 
 	test('intra-cell Ctrl+X removes selected text from cell and writes it to clipboard', async ({
@@ -22,9 +22,9 @@ test.describe('table block: clipboard cut', () => {
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 
-		await expect.poll(() => readClipboard(page)).toBe('hello');
+		await expect.poll(() => editor.readClipboard()).toBe('hello');
 		await editor.bridge.waitForSourceContains('|  | 2 |');
 		await editor.bridge.waitForSourceNotContains('hello');
 	});
@@ -37,7 +37,7 @@ test.describe('table block: clipboard cut', () => {
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
 		for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+ArrowLeft');
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('hello');
 
 		await editor.undo();
@@ -51,9 +51,11 @@ test.describe('table block: clipboard cut', () => {
 		// 2x2 rectangle: cells 0..4 spans rows 0..1 cols 0..1 — header "A,B" + body "1,2".
 		await dragBetweenCells(page, 0, 4);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 
-		await expect.poll(() => readClipboard(page)).toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
+		await expect
+			.poll(() => editor.readClipboard())
+			.toBe('| A | B |\n| :--- | :---: |\n| 1 | 2 |\n');
 		await editor.bridge.waitForSourceContains('|  |  | C |');
 		await editor.bridge.waitForSourceContains('|  |  | 3 |');
 		await editor.bridge.waitForSourceContains('| 4 | 5 | 6 |');
@@ -69,27 +71,16 @@ test.describe('table block: clipboard cut', () => {
 		await page.keyboard.press('End');
 		// Drag rather than Shift+ArrowDown: keyboard entry from inside a cell routes through the
 		// table's keyboard-extend path, which is not what this test is about.
-		const from = page.locator('[role="cell"]').nth(2);
-		const to = page.getByText('follow paragraph');
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [cell, paragraph] = await boxesOf(
+			page.locator('[role="cell"]').nth(2),
+			page.getByText('follow paragraph')
+		);
+		await dragBetweenBoxes(page, cell, paragraph);
 		await editor.waitForCrossBlock(true);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 
-		const clip = await readClipboard(page);
+		const clip = await editor.readClipboard();
 		expect(clip).toContain('1');
 		expect(clip).toContain('follow paragraph');
 
@@ -111,28 +102,14 @@ test.describe('table block: clipboard cut', () => {
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
-		const from = page.getByText('head');
-		const to = page.locator('[role="cell"]').nth(4); // a2
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [head, a2] = await boxesOf(page.getByText('head'), page.locator('[role="cell"]').nth(4));
+		await dragBetweenBoxes(page, head, a2);
 		await editor.waitForCrossBlock(true);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('a1');
 
-		const clip = await readClipboard(page);
+		const clip = await editor.readClipboard();
 		const surviving = await editor.bridge.getSource();
 		for (const value of ['a1', 'a2', 'a3', 'b1', 'b2', 'b3']) {
 			const copied = clip.includes(value);
@@ -153,28 +130,17 @@ test.describe('table block: clipboard cut', () => {
 		await editor.loadContent(
 			'head\n\n| Ha | Hb | Hc |\n| --- | --- | --- |\n| a1 | a2 | a3 |\n| b1 | b2 | b3 |\n'
 		);
-		const from = page.locator('[role="cell"]').nth(4); // a2 (mid-column)
-		const to = page.getByText('head');
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [a2, head] = await boxesOf(
+			page.locator('[role="cell"]').nth(4), // a2 (mid-column)
+			page.getByText('head')
+		);
+		await dragBetweenBoxes(page, a2, head);
 		await editor.waitForCrossBlock(true);
 
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('a1');
 
-		const clip = await readClipboard(page);
+		const clip = await editor.readClipboard();
 		const surviving = await editor.bridge.getSource();
 		for (const value of ['a1', 'a2', 'a3', 'b1', 'b2', 'b3']) {
 			const copied = clip.includes(value);
@@ -190,24 +156,13 @@ test.describe('table block: clipboard cut', () => {
 		await editor.loadContent(original);
 		await page.locator('[role="cell"]').nth(2).click();
 		await page.keyboard.press('End');
-		const from = page.locator('[role="cell"]').nth(2);
-		const to = page.getByText('follow paragraph');
-		const fromBox = await from.boundingBox();
-		const toBox = await to.boundingBox();
-		if (!fromBox || !toBox) throw new Error('missing bounding box');
-		const sx = fromBox.x + fromBox.width / 2;
-		const sy = fromBox.y + fromBox.height / 2;
-		const ex = toBox.x + toBox.width / 2;
-		const ey = toBox.y + toBox.height / 2;
-		await page.mouse.move(sx, sy);
-		await page.mouse.down();
-		for (let i = 1; i <= 12; i++) {
-			const t = i / 12;
-			await page.mouse.move(sx + (ex - sx) * t, sy + (ey - sy) * t);
-		}
-		await page.mouse.up();
+		const [cell, paragraph] = await boxesOf(
+			page.locator('[role="cell"]').nth(2),
+			page.getByText('follow paragraph')
+		);
+		await dragBetweenBoxes(page, cell, paragraph);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Control+x');
+		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 
 		await editor.undo();

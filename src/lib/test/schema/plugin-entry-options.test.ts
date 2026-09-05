@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
 	definePlugin,
 	normalizePluginEntries,
 	__resetInstalledPluginsForTests
 } from '$lib/schema/plugin-install';
-import { configureEditorEnv, resetEditorEnv } from '$lib/env';
+import { takeDevWarns } from '../support/warn-gate';
 
 beforeEach(() => __resetInstalledPluginsForTests());
 
@@ -26,21 +26,14 @@ describe('normalizePluginEntries', () => {
 
 	it('dev-warns on the same plugin listed twice; first entry wins', () => {
 		const a = p();
-		const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		// devWarn no-ops in a test env; force dev-not-test so the warn is observable.
-		configureEditorEnv({ isDev: true, isTest: false });
-		try {
-			const { plugins, optionsByName } = normalizePluginEntries([
-				{ plugin: a, options: { n: 1 } },
-				{ plugin: a, options: { n: 2 } }
-			]);
-			expect(plugins).toEqual([a]);
-			expect(optionsByName.get('p')).toEqual({ n: 1 });
-			expect(spy).toHaveBeenCalledTimes(1);
-			expect(spy.mock.calls[0].join(' ')).toMatch(/listed twice/);
-		} finally {
-			resetEditorEnv();
-			spy.mockRestore();
-		}
+		const { plugins, optionsByName } = normalizePluginEntries([
+			{ plugin: a, options: { n: 1 } },
+			{ plugin: a, options: { n: 2 } }
+		]);
+		expect(plugins).toEqual([a]);
+		expect(optionsByName.get('p')).toEqual({ n: 1 });
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toMatch(/listed twice/);
 	});
 });

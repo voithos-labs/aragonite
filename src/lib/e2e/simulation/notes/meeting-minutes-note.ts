@@ -70,22 +70,29 @@ export const MEETING_MINUTES_NOTE: NoteFixture = {
 		'Priya wires the feature flag',
 		'Notes archived after the sync'
 	],
+	// Enter separates, so a heading typed on its own line stands one blank line above what
+	// follows it — the note is written the way it is typed, which is what the oracle asks.
 	expectedMarkdown:
 		'# Sprint Sync — June 1\n' +
+		'\n' +
 		'## Attendees\n' +
+		'\n' +
 		'- Dana (facilitator)\n' +
 		'- Lee (notes)\n' +
 		'- Priya (eng)\n' +
 		'\n' +
 		'## Decision\n' +
+		'\n' +
 		'> Ship the editor beta behind a flag this week.\n' +
 		'\n' +
 		'## Agenda\n' +
+		'\n' +
 		'1. Review last sprint\n' +
 		'2. Triage the bug backlog\n' +
 		'3. Plan the beta rollout\n' +
 		'\n' +
 		'## Action items\n' +
+		'\n' +
 		'- [ ] Dana drafts the rollout note\n' +
 		'  - [ ] Circulate for review by Thursday\n' +
 		'- [ ] Priya wires the feature flag\n' +

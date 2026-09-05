@@ -1,13 +1,15 @@
 /**
  * Registers the built-in block openers. Lives beside the matchers because
  * schema/block-kind-descriptor.ts importing them would cycle (parsers/* import
- * parser.ts, which reads the opener registry). Called explicitly from core/parser.ts:
- * a bare side-effect import is tree-shaken out of the production build.
+ * parser.ts, which reads the opener registry). Called explicitly from core/parser.ts: the
+ * `sideEffects` allowlist names dist paths, never the src specifier used here, so a bare
+ * side-effect import would be droppable.
  */
 
 import { registerBlockOpener } from '../../schema/block-openers';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
-import { matchFenceOpen, parseFencedCode } from './fenced-code';
+import { matchFenceOpen } from './fence-syntax';
+import { parseFencedCode } from './fenced-code';
 import { matchHeading } from './heading';
 import { matchThematicBreak } from './thematic-break';
 import { matchBlockquote, parseBlockquote } from './blockquote';
@@ -84,7 +86,14 @@ export function registerBuiltInOpeners(): void {
 		priority: OPENER_PRIORITIES.blockquote,
 		tryOpen(ctx) {
 			if (!matchBlockquote(ctx.line.text)) return null;
-			return parseBlockquote(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.depth);
+			return parseBlockquote(
+				ctx.lines,
+				ctx.index,
+				ctx.end,
+				ctx.leadingTrivia,
+				ctx.depth,
+				ctx.isDocumentParse
+			);
 		},
 		interruptsParagraph: matchBlockquote
 	});
@@ -93,7 +102,14 @@ export function registerBuiltInOpeners(): void {
 		priority: OPENER_PRIORITIES.list,
 		tryOpen(ctx) {
 			if (!matchListItem(ctx.line.text)) return null;
-			return parseList(ctx.lines, ctx.index, ctx.end, ctx.leadingTrivia, ctx.depth);
+			return parseList(
+				ctx.lines,
+				ctx.index,
+				ctx.end,
+				ctx.leadingTrivia,
+				ctx.depth,
+				ctx.isDocumentParse
+			);
 		},
 		interruptsParagraph: listCanInterrupt
 	});

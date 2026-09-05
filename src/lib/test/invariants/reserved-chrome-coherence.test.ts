@@ -54,8 +54,6 @@ describe('checkReservedChromeCoherence (G1.18)', () => {
 		).toBeNull();
 	});
 
-	// The declarer's own shape is checked before its chrome kind's registrations,
-	// so a non-container declarer reports that — not an incidental chrome gap.
 	it('reports the non-container declarer before any chrome-kind gap', () => {
 		const violation = checkReservedChromeCoherence(
 			[{ kind: kind('callout'), isContainer: false, reservedChromeKind: kind('calloutTitle') }],

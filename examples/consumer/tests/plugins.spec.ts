@@ -25,7 +25,7 @@ test('callout mounts as a container and round-trips an edit', async ({ page }) =
 	await body.press('End');
 	await page.keyboard.type('!');
 	await expect.poll(() => getSource(page)).toContain('Callout body!');
-	expect(await getSource(page)).toContain(':::note Title');
+	expect(await getSource(page)).toContain(':::callout Title');
 });
 
 test('details renders its summary chrome and body', async ({ page }) => {
@@ -43,7 +43,7 @@ test('inline math renders as a widget, not literal dollars', async ({ page }) =>
 });
 
 test('math paints once — katex.min.css rides the packaged renderer adapter', async ({ page }) => {
-	// The stylesheet rides `aragonite/plugins/latex/renderer` as a bare side-effect import.
+	// The stylesheet rides `@voithos-labs/aragonite/plugins/latex/renderer` as a bare side-effect import.
 	// Without it KaTeX's `.katex-mathml` a11y half lays out at glyph size beside the render.
 	const widget = page.locator('.math-inline-widget').first();
 	await expect(widget.locator('.katex-html')).toHaveCount(1);

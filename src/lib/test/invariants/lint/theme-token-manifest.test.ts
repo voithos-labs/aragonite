@@ -10,44 +10,39 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { readEditorFile, stripComments } from './scan-source';
+import { declaredValue, LIGHT_SELECTOR, themeBlocks } from './theme-css';
 
 const THEMED_TOKENS = [
-	'--color-bg',
+	'--color-surface',
 	'--color-bg-secondary',
 	'--color-bg-elevated',
 	'--color-bg-muted',
-	'--color-text',
+	'--color-text-secondary',
 	'--color-text-primary',
 	'--color-text-muted',
 	'--color-ui-muted',
 	'--color-ui-dulled',
 	'--color-ui-faint',
 	'--color-accent',
+	'--color-selection',
 	'--color-border',
-	'--color-danger'
+	'--color-error'
 ];
 
-const MODE_INDEPENDENT_TOKENS = ['--font-editor', '--editor-font-size'];
+const MODE_INDEPENDENT_TOKENS = [
+	'--font-editor',
+	'--editor-font-size',
+	'--radius-ui',
+	'--radius-surface'
+];
 
 /** Themed tokens whose light value deliberately repeats the dark one, with the reason. */
 const MODE_BLIND_BY_DESIGN: Record<string, string> = {
-	'--color-accent': 'one brand accent, chosen to read on both palettes'
+	'--color-selection': 'one selection base, carried into both palettes by its washes'
 };
-
-const LIGHT_SELECTOR = "[data-editor-theme='light']";
-
-function themeBlocks(): { base: string; light: string } {
-	const css = stripComments(readEditorFile('styles/editor-theme.css').text);
-	const splitAt = css.indexOf(LIGHT_SELECTOR);
-	return { base: css.slice(0, splitAt), light: css.slice(splitAt) };
-}
 
 function declares(block: string, token: string): boolean {
 	return new RegExp(`${token}\\s*:`).test(block);
-}
-
-function declaredValue(block: string, token: string): string | null {
-	return block.match(new RegExp(`${token}\\s*:\\s*([^;]+);`))?.[1].trim() ?? null;
 }
 
 // ── The published manifest ──────────────────────────────────────────────────
@@ -101,12 +96,14 @@ describe('theme-token manifest ↔ editor-theme.css', () => {
 	it('the block split and matcher are non-vacuous', () => {
 		const css = stripComments(readEditorFile('styles/editor-theme.css').text);
 		expect(css.indexOf(LIGHT_SELECTOR)).toBeGreaterThan(0);
-		expect(declares(base, '--color-danger')).toBe(true);
-		expect(declares(light, '--color-danger')).toBe(true);
+		expect(declares(base, '--color-error')).toBe(true);
+		expect(declares(light, '--color-error')).toBe(true);
 		expect(declares(light, '--font-editor')).toBe(false);
 		expect(declares(base, '--not-a-real-token')).toBe(false);
 		// The value reader must distinguish two declarations of the same token.
-		expect(declaredValue(base, '--color-bg')).not.toBe(declaredValue(light, '--color-bg'));
+		expect(declaredValue(base, '--color-surface')).not.toBe(
+			declaredValue(light, '--color-surface')
+		);
 		expect(declaredValue(base, '--not-a-real-token')).toBeNull();
 	});
 });

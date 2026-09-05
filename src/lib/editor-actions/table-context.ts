@@ -10,11 +10,22 @@ import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
-import type { MultiScopeTarget, UndoController } from './deps';
+import type { MultiScopeTarget } from '../action-contracts';
+import type { UndoController } from './deps';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { BlockListState } from '../reactivity/block-list-state.svelte';
 import { getStateForNode } from '../reactivity/state-registry';
-import { assertInvariant } from '../invariants/assert';
+import { assertInvariant } from '../assert';
+import {
+	columnAligned,
+	COLUMN_ALIGNMENT_CLEARED,
+	DELETED_COLUMN,
+	DELETED_ROW,
+	INSERTED_COLUMN,
+	INSERTED_ROW,
+	movedColumnToPosition,
+	movedRowToPosition
+} from '../a11y-strings';
 import { ensureUnsharedChildren } from '../tree-operations/unshare';
 import { rebuildTableRowRaw, rebuildTableRaw } from '../schema/container-rebuilders';
 import { reorderChildren } from '../tree-operations/reorder';
@@ -112,7 +123,7 @@ export function createTableMutationsContext(
 			},
 			afterTick: () => {
 				focusCell(insertAt, 0, 'start');
-				deps.announceReorder('Inserted row');
+				deps.announceReorder(INSERTED_ROW);
 			}
 		});
 	}
@@ -181,7 +192,7 @@ export function createTableMutationsContext(
 			afterTick: () => {
 				const targetRow = focusedCell?.rowIdx ?? 0;
 				focusCell(targetRow, insertAt, 'start');
-				deps.announceReorder('Inserted column');
+				deps.announceReorder(INSERTED_COLUMN);
 			}
 		});
 	}
@@ -212,7 +223,7 @@ export function createTableMutationsContext(
 			op: { kind: 'tableReorderRow', detail: { from, to }, eventPath: extendDocPath(myPath, to) },
 			afterTick: () => {
 				focusCell(to, col, 'start');
-				deps.announceReorder(`Moved row to position ${to} of ${rowCount - 1}`);
+				deps.announceReorder(movedRowToPosition(to, rowCount - 1));
 			}
 		});
 	}
@@ -238,7 +249,7 @@ export function createTableMutationsContext(
 			op: { kind: 'tableReorderColumn', detail: { from, to } },
 			afterTick: () => {
 				focusCell(row, to, 'start');
-				deps.announceReorder(`Moved column to position ${to + 1} of ${columnCount}`);
+				deps.announceReorder(movedColumnToPosition(to + 1, columnCount));
 			}
 		});
 	}
@@ -282,7 +293,7 @@ export function createTableMutationsContext(
 					eventPath: extendDocPath(myPath, rowIdx)
 				},
 				afterTick: () => {
-					deps.announceReorder('Deleted row');
+					deps.announceReorder(DELETED_ROW);
 					// Read through `deps.node`: the captured `node` is the pre-commit object
 					// the snapshot still shares, so its child count is stale after the delete.
 					const newRowCount = deps.node.children?.length ?? 0;
@@ -303,7 +314,7 @@ export function createTableMutationsContext(
 				mutateColumns: (table) => mutDeleteColumn(table, colIdx),
 				op: { kind: 'tableDeleteColumn', detail: { colIdx } },
 				afterTick: () => {
-					deps.announceReorder('Deleted column');
+					deps.announceReorder(DELETED_COLUMN);
 					// deps.node, not the stale pre-commit capture — see deleteRow.
 					const newColumnCount = metadataOf(deps.node, 'table').columnCount;
 					if (newColumnCount === 0) return;
@@ -351,7 +362,7 @@ export function createTableMutationsContext(
 				afterTick: () => {
 					focusCell(cell?.rowIdx ?? 0, colIdx, 'start');
 					deps.announceReorder(
-						alignment === 'none' ? 'Column alignment cleared' : `Column aligned ${alignment}`
+						alignment === 'none' ? COLUMN_ALIGNMENT_CLEARED : columnAligned(alignment)
 					);
 				}
 			});

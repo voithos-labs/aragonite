@@ -8,19 +8,17 @@
 import { registerBlockOpener, isBlockOpenerRegistered } from '../../schema/block-openers';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { declaredPluginKind } from '../../schema/plugin-kind';
-import {
-	makeBlockNode,
-	setPluginMetadata,
-	type AnyBlockKind,
-	type CstNode,
-	type Document
-} from '../nodes';
-import { parseBlocks, joinRaw } from '../parser';
-import { splitLines, trailingLineEnding, type ParsedLine } from '../lines';
-import { defaultGrammarView } from '../../schema/block-openers';
+import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type CstNode } from '../nodes';
+import { parseContainerBody, joinRaw } from '../parser';
+import { trailingLineEnding, type ParsedLine } from '../lines';
 import { matchDirectiveOpener, isDirectiveCloser } from './grammar';
 import { resolveBlockDirectiveFactory, resolveDirective, type ParsedDirective } from './registry';
-import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF, type DirectiveContainerMetadata } from './kinds';
+import {
+	DIRECTIVE_BODY_WRAP,
+	DIRECTIVE_CONTAINER,
+	DIRECTIVE_LEAF,
+	type DirectiveContainerMetadata
+} from './kinds';
 
 export function registerDirectiveOpeners(): void {
 	if (isBlockOpenerRegistered(DIRECTIVE_CONTAINER)) return; // idempotent for HMR / re-import
@@ -70,10 +68,12 @@ export function registerDirectiveOpeners(): void {
 			const closerLine = ctx.lines[closerIdx];
 			const bodyText = joinRaw(ctx.lines, ctx.index + 1, closerIdx);
 			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
-			// One nesting level deeper, so nested directives share the container-depth cap.
-			const bodyLines = splitLines(bodyText);
-			const inner = parseBlocks(bodyLines, 0, bodyLines.length, defaultGrammarView, ctx.depth + 1);
-			const body: Document = { kind: 'document', ...inner };
+			// One nesting level deeper, so nested directives share the container-depth cap; the
+			// body stays inside this parse entry, so it inherits its scope.
+			const body = parseContainerBody(bodyText, DIRECTIVE_BODY_WRAP, {
+				scope: ctx.isDocumentParse ? 'document' : 'fragment',
+				depth: ctx.depth + 1
+			});
 			// isDirectiveCloser guarantees an all-colon line, so its length IS the colon count.
 			const closerColonCount = closerLine.text.length;
 			const closerNewline = closerLine.raw.endsWith('\n');
@@ -118,12 +118,11 @@ export function registerDirectiveOpeners(): void {
 // A closer is an all-colon line, closing any opener whose colon count is <= its length.
 // Positions are indexed once per line array, keyed by array identity, because an
 // unclosed-opener flood otherwise rescans to EOF per opener (O(n^2)). `maxCounts` is a max-tree
-// over `counts`, so "first closer at or after k with a long enough run" is a descent, at a cost
-// indifferent to how the run lengths are distributed.
+// over the closer run lengths, so "first closer at or after k with a long enough run" is a
+// descent, at a cost indifferent to how the run lengths are distributed.
 interface CloserIndex {
 	positions: Int32Array;
-	counts: Int32Array;
-	/** Heap-layout max-tree over `counts`, padded to `leafBase` leaves. */
+	/** Heap-layout max-tree over the closer run lengths, padded to `leafBase` leaves. */
 	maxCounts: Int32Array;
 	leafBase: number;
 }
@@ -149,12 +148,7 @@ function closerIndex(lines: ParsedLine[]): CloserIndex {
 	for (let i = leafBase - 1; i >= 1; i--) {
 		maxCounts[i] = Math.max(maxCounts[2 * i], maxCounts[2 * i + 1]);
 	}
-	const index: CloserIndex = {
-		positions: Int32Array.from(positions),
-		counts: Int32Array.from(counts),
-		maxCounts,
-		leafBase
-	};
+	const index: CloserIndex = { positions: Int32Array.from(positions), maxCounts, leafBase };
 	closerIndexCache.set(lines, index);
 	return index;
 }
@@ -191,6 +185,6 @@ function findDirectiveCloser(
 		else hi = mid;
 	}
 	const slot = firstCloserAtLeast(index, lo, colonCount);
-	if (slot === -1 || slot >= positions.length || positions[slot] >= end) return -1;
+	if (slot === -1 || positions[slot] >= end) return -1;
 	return positions[slot];
 }

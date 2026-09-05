@@ -1,12 +1,11 @@
 /**
  * G4.14 — component props reading the CST hold readonly views. A component annotating
  * `node: CstNode` compiles (a mutable is assignable to its readonly view, and the
- * registration boundary in block-component-registry.ts erases prop types), so the type
- * system cannot hold this position and the scan is the channel that catches the drift:
- * every `.svelte` prop naming a node or the document must be typed `NodeView` /
- * `DocumentView` (G1.9, `core/node-views.ts`).
- * The doc-owning root is the sole legitimate mutable holder. Scoped to `.svelte`, since
- * the same regex over `.ts` would flag owned mutables that core layers legitimately pass.
+ * registration boundary erases prop types), so the type system cannot hold this position
+ * and the scan catches the drift: every `.svelte` prop naming a node or the document is
+ * typed `NodeView` / `DocumentView` (G1.9, `core/node-views.ts`). The doc-owning root is
+ * the sole legitimate mutable holder; scoped to `.svelte`, since the same regex over `.ts`
+ * would flag owned mutables core layers legitimately pass.
  */
 
 import { describe, it, expect } from 'vitest';

@@ -1,11 +1,26 @@
 /**
  * Cursor / range / selection helpers for contenteditable text surfaces. Offsets count DOM
  * text characters ambient-inclusively (`Range.toString()` does not skip
- * contenteditable=false islands), so they are `DomTextOffset`. An offset inside an atomic
- * inline widget snaps to that widget's leading or trailing edge.
+ * contenteditable=false islands), so they are `DomTextOffset`. An offset inside a span the
+ * cursor may not enter — an atomic inline widget, or marker text the mode hides — snaps to
+ * that span's leading or trailing edge.
  */
 
 import { asDomTextOffset, type DomTextOffset } from './coordinate-spaces';
+import { domDescendants } from './dom-walk';
+import { isAtomicInlineWidget, isHiddenMarkerRoot } from './widget-offset';
+
+/**
+ * Length of a span the cursor may not enter, or null when it is transparent. Atomic widgets
+ * and marker text the mode paints nothing for are both opaque: an offset inside either has
+ * no position to seat, and hiding is classified at its one home, never re-derived here.
+ */
+function opaqueSpanLength(node: Node, container: HTMLElement): number | null {
+	if (node.nodeType !== Node.ELEMENT_NODE) return null;
+	const el = node as Element;
+	if (!isAtomicInlineWidget(el) && !isHiddenMarkerRoot(el, container)) return null;
+	return el.textContent?.length ?? 0;
+}
 
 export function createRangeFromOffsets(
 	container: HTMLElement,
@@ -15,26 +30,33 @@ export function createRangeFromOffsets(
 	const range = document.createRange();
 	let charCount = 0;
 	let startSet = false;
+	let endFound = false;
 
-	function walk(node: Node): boolean {
-		// The cursor never lands inside an atomic widget: snap to the nearer edge.
-		if (
-			node.nodeType === Node.ELEMENT_NODE &&
-			(node as Element).matches?.('[data-inline-widget]')
-		) {
-			const len = (node as Element).textContent?.length ?? 0;
-			if (!startSet && start <= charCount + len) {
+	// One classification per node, though the walk and the body below both ask: the read is a
+	// `contains` plus a `closest` per element, and a caret seat spends this walk on every step.
+	const opaque = new Map<Node, number | null>();
+	const opaqueLengthOf = (node: Node): number | null => {
+		if (!opaque.has(node)) opaque.set(node, opaqueSpanLength(node, container));
+		return opaque.get(node) ?? null;
+	};
+
+	for (const node of domDescendants(container, (node) => opaqueLengthOf(node) === null)) {
+		// The cursor never lands inside an opaque span: snap to the nearer edge.
+		const opaqueLen = opaqueLengthOf(node);
+		if (opaqueLen !== null) {
+			if (!startSet && start <= charCount + opaqueLen) {
 				if (start <= charCount) range.setStartBefore(node);
 				else range.setStartAfter(node);
 				startSet = true;
 			}
-			if (startSet && end <= charCount + len) {
+			if (startSet && end <= charCount + opaqueLen) {
 				if (end <= charCount) range.setEndBefore(node);
 				else range.setEndAfter(node);
-				return true;
+				endFound = true;
+				break;
 			}
-			charCount += len;
-			return false;
+			charCount += opaqueLen;
+			continue;
 		}
 		if (node.nodeType === Node.TEXT_NODE) {
 			const len = node.textContent?.length ?? 0;
@@ -44,18 +66,13 @@ export function createRangeFromOffsets(
 			}
 			if (startSet && charCount + len >= end) {
 				range.setEnd(node, end - charCount);
-				return true;
+				endFound = true;
+				break;
 			}
 			charCount += len;
-		} else {
-			for (const child of node.childNodes) {
-				if (walk(child)) return true;
-			}
 		}
-		return false;
 	}
 
-	const endFound = walk(container);
 	if (!startSet) {
 		range.selectNodeContents(container);
 		range.collapse(false);

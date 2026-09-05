@@ -3,14 +3,11 @@
 // one routes through window.getSelection.)
 
 /**
- * Structural-sharing undo keystone: random op sequences over the real action
- * factories with undo/redo interleaved, since a single missed copy-path-on-write
- * corrupts one entry and nothing but a byte comparison catches it.
- *
- * Convergence runs at the SETTLED endpoint only. A mid-paragraph split leaves two
- * blocks that serialize as one paragraph (a soft split — block-edit-core.test.ts):
- * a legal live-tree-vs-raw divergence per-op, so only the drained endpoint can
- * catch a restoration whose bytes are right but whose live structure drifted.
+ * Structural-sharing undo keystone: random op sequences over the real action factories
+ * with undo/redo interleaved, since one missed copy-path-on-write corrupts one entry and
+ * only a byte comparison catches it. Convergence runs at the SETTLED endpoint only: a
+ * mid-paragraph split legally serializes as one paragraph per-op (a soft split), so only
+ * the drained endpoint catches a restoration whose bytes are right but structure drifted.
  */
 
 import { describe, it, expect } from 'vitest';

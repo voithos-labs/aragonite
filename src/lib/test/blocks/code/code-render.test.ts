@@ -1,28 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderCodeBlock } from '../../../components/blocks/code/code-renderer';
+import { renderCodeBlock } from '$lib/components/blocks/code/code-renderer';
 import {
 	bootstrapCodeLanguages,
 	__resetBootForTests
-} from '../../../components/blocks/code/code-bootstrap';
-import { __resetRegistryForTests } from '../../../components/blocks/code/code-languages';
-import { trimTrailingLineEnding } from '../../../core/lines';
-import type { CstNode } from '../../../core/nodes';
-
-function makeFencedCodeNode(
-	raw: string,
-	info = '',
-	closed = true,
-	fenceMarker: '`' | '~' = '`',
-	fenceLength = 3
-): CstNode {
-	return {
-		kind: 'fencedCode',
-		leadingTrivia: '',
-		raw,
-		metadata: { fenceMarker, fenceLength, info, closed }
-	};
-}
+} from '$lib/components/blocks/code/code-bootstrap';
+import { __resetRegistryForTests } from '$lib/components/blocks/code/code-languages';
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import type { CstNode } from '$lib/core/nodes';
+import { fencedCode } from './fenced-code-fixture';
 
 // Language registry is register-once; reset + re-bootstrap before every test so a
 // leaked registration can't let one describe's grammar bleed into the next.
@@ -34,7 +20,7 @@ beforeEach(() => {
 
 describe('renderCodeBlock', () => {
 	it('renders opener marker + tokenized body + closer marker', () => {
-		const node = makeFencedCodeNode('```javascript\nconst x = 42;\n```\n', 'javascript');
+		const node = fencedCode('```javascript\nconst x = 42;\n```\n', 'javascript');
 		const frag = renderCodeBlock(node);
 
 		const markers = frag.querySelectorAll('.md-marker');
@@ -46,7 +32,7 @@ describe('renderCodeBlock', () => {
 	});
 
 	it('renders info string with .md-lang class', () => {
-		const node = makeFencedCodeNode('```python\nprint()\n```\n', 'python');
+		const node = fencedCode('```python\nprint()\n```\n', 'python');
 		const frag = renderCodeBlock(node);
 
 		const langSpan = frag.querySelector('.md-lang');
@@ -54,53 +40,25 @@ describe('renderCodeBlock', () => {
 		expect(langSpan?.textContent).toBe('python');
 	});
 
-	it('preserves textContent invariant — closed fence with highlighting', () => {
-		const node = makeFencedCodeNode('```javascript\nconst x = 42;\n```\n', 'javascript');
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
+	const shapes: Array<[string, CstNode]> = [
+		[
+			'closed fence with highlighting',
+			fencedCode('```javascript\nconst x = 42;\n```\n', 'javascript')
+		],
+		['closed fence without info string', fencedCode('```\nhello\nworld\n```\n')],
+		['unclosed fence', fencedCode('```js\nconst x = 1\n', 'js', { closed: false })],
+		['empty body', fencedCode('```\n```\n')],
+		['tilde fences', fencedCode('~~~yaml\nkey: value\n~~~\n', 'yaml', { fenceMarker: '~' })],
+		['unknown language', fencedCode('```klingon\nkapla\n```\n', 'klingon')],
+		['fresh unclosed fence (opener only)', fencedCode('```\n', '', { closed: false })],
+		['single blank-line body', fencedCode('```\n\n```\n')]
+	];
 
-	it('preserves textContent invariant — closed fence without info string', () => {
-		const node = makeFencedCodeNode('```\nhello\nworld\n```\n');
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
-
-	it('preserves textContent invariant — unclosed fence', () => {
-		const node = makeFencedCodeNode('```js\nconst x = 1\n', 'js', false);
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
-
-	it('preserves textContent invariant — empty body', () => {
-		const node = makeFencedCodeNode('```\n```\n');
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
-
-	it('preserves textContent invariant — tilde fences', () => {
-		const node = makeFencedCodeNode('~~~yaml\nkey: value\n~~~\n', 'yaml', true, '~');
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
-
-	it('preserves textContent invariant — unknown language', () => {
-		const node = makeFencedCodeNode('```klingon\nkapla\n```\n', 'klingon');
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
-
-	it('preserves textContent invariant — fresh unclosed fence (opener only + trailing \\n)', () => {
-		const node = makeFencedCodeNode('```\n', '', false);
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
-
-	it('preserves textContent invariant — single blank-line body', () => {
-		const node = makeFencedCodeNode('```\n\n```\n');
-		const frag = renderCodeBlock(node);
-		expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
-	});
+	for (const [name, node] of shapes) {
+		it(`preserves textContent invariant — ${name}`, () => {
+			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
+		});
+	}
 });
 
 // Each fence line is wrapped so reading/preview modes can collapse the whole line with
@@ -111,7 +69,7 @@ describe('renderCodeBlock — fence-line wrappers', () => {
 	}
 
 	it('wraps opener and closer, opener owns its trailing `\\n`', () => {
-		const node = makeFencedCodeNode('```javascript\nconst x = 42;\n```\n', 'javascript');
+		const node = fencedCode('```javascript\nconst x = 42;\n```\n', 'javascript');
 		const lines = fenceLines(renderCodeBlock(node));
 
 		expect(lines.length).toBe(2);
@@ -124,7 +82,7 @@ describe('renderCodeBlock — fence-line wrappers', () => {
 	});
 
 	it('closer wrapper owns the line break that precedes it (bottom blank collapses)', () => {
-		const node = makeFencedCodeNode('```\nhello\n```\n');
+		const node = fencedCode('```\nhello\n```\n');
 		const lines = fenceLines(renderCodeBlock(node));
 		const closer = lines[1];
 
@@ -135,7 +93,7 @@ describe('renderCodeBlock — fence-line wrappers', () => {
 	});
 
 	it('empty-body closer carries no leading `\\n` (opener `\\n` is the only separator)', () => {
-		const node = makeFencedCodeNode('```\n```\n');
+		const node = fencedCode('```\n```\n');
 		const lines = fenceLines(renderCodeBlock(node));
 
 		expect(lines.length).toBe(2);
@@ -144,7 +102,7 @@ describe('renderCodeBlock — fence-line wrappers', () => {
 	});
 
 	it('an unclosed fence wraps only the opener line', () => {
-		const node = makeFencedCodeNode('```js\nconst x = 1\n', 'js', false);
+		const node = fencedCode('```js\nconst x = 1\n', 'js', { closed: false });
 		const lines = fenceLines(renderCodeBlock(node));
 
 		expect(lines.length).toBe(1);
@@ -161,7 +119,7 @@ describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces
 			const pad = ' '.repeat(indent);
 			it(`preserves textContent — ${indent}-space ${marker} opener`, () => {
 				const raw = `${pad}${fence}js\ncode\n${fence}\n`;
-				const node = makeFencedCodeNode(raw, 'js', true, marker, 3);
+				const node = fencedCode(raw, 'js', { fenceMarker: marker });
 				const frag = renderCodeBlock(node);
 				expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
 			});
@@ -170,7 +128,7 @@ describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces
 
 	it('round-trips indented-opener bytes through the textContent readback (CodeBlock readText)', () => {
 		const raw = '  ```js\nconst x = 1\n```\n';
-		const node = makeFencedCodeNode(raw, 'js');
+		const node = fencedCode(raw, 'js');
 		const host = document.createElement('div');
 		host.appendChild(renderCodeBlock(node));
 		// CodeBlock.readText() is el.textContent; commitInput writes readText() + '\n'.
@@ -182,12 +140,12 @@ describe('renderCodeBlock — indented opener fence (parser accepts 0–3 spaces
 // stray or dropped trailing `\r` is a CRLF round-trip corruption; interiors are pinned below.
 describe('renderCodeBlock — CRLF trailing line ending', () => {
 	const shapes: Array<[string, CstNode]> = [
-		['closed no-info', makeFencedCodeNode('```\r\nhello\r\nworld\r\n```\r\n')],
-		['no-body', makeFencedCodeNode('```\r\n```\r\n')],
-		['unclosed', makeFencedCodeNode('```\r\ncode\r\n', '', false)],
-		['fresh unclosed (opener only)', makeFencedCodeNode('```\r\n', '', false)],
-		['tilde', makeFencedCodeNode('~~~\r\nkey: value\r\n~~~\r\n', '', true, '~')],
-		['indented opener', makeFencedCodeNode('  ```\r\ncode\r\n```\r\n')]
+		['closed no-info', fencedCode('```\r\nhello\r\nworld\r\n```\r\n')],
+		['no-body', fencedCode('```\r\n```\r\n')],
+		['unclosed', fencedCode('```\r\ncode\r\n', '', { closed: false })],
+		['fresh unclosed (opener only)', fencedCode('```\r\n', '', { closed: false })],
+		['tilde', fencedCode('~~~\r\nkey: value\r\n~~~\r\n', '', { fenceMarker: '~' })],
+		['indented opener', fencedCode('  ```\r\ncode\r\n```\r\n')]
 	];
 
 	for (const [name, node] of shapes) {
@@ -202,7 +160,7 @@ describe('renderCodeBlock — CRLF trailing line ending', () => {
 describe('renderCodeBlock — all-blank body byte parity', () => {
 	for (const blanks of [1, 2, 3]) {
 		it(`preserves textContent — ${blanks} blank line(s)`, () => {
-			const node = makeFencedCodeNode('```\n' + '\n'.repeat(blanks) + '```\n');
+			const node = fencedCode('```\n' + '\n'.repeat(blanks) + '```\n');
 			expect(renderCodeBlock(node).textContent).toBe(trimTrailingLineEnding(node.raw));
 		});
 	}
@@ -216,7 +174,7 @@ describe('renderCodeBlock — closer without a final line ending', () => {
 		['CRLF', '```\r\ncode\r\n```']
 	] as const) {
 		it(`preserves textContent — ${name}`, () => {
-			const node = makeFencedCodeNode(raw);
+			const node = fencedCode(raw);
 			const frag = renderCodeBlock(node);
 			expect(frag.textContent).toBe(raw);
 			expect(frag.textContent).toBe(trimTrailingLineEnding(node.raw));
@@ -228,27 +186,21 @@ describe('renderCodeBlock — closer without a final line ending', () => {
 // restores each line's own ending positionally, reaching `\n` INSIDE token spans too.
 describe('renderCodeBlock — CRLF interior in the language path', () => {
 	const shapes: Array<[string, CstNode]> = [
-		[
-			'multi-line tagged body',
-			makeFencedCodeNode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js')
-		],
+		['multi-line tagged body', fencedCode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js')],
 		[
 			'token spanning lines (template string)',
-			makeFencedCodeNode('```js\r\nconst s = `a\r\nb\r\nc`\r\n```\r\n', 'js')
+			fencedCode('```js\r\nconst s = `a\r\nb\r\nc`\r\n```\r\n', 'js')
 		],
 		[
 			'token spanning lines (block comment)',
-			makeFencedCodeNode('```js\r\n/* a\r\nb\r\nc */\r\nlet x = 1\r\n```\r\n', 'js')
+			fencedCode('```js\r\n/* a\r\nb\r\nc */\r\nlet x = 1\r\n```\r\n', 'js')
 		],
-		[
-			'mixed \\r\\n and \\n lines',
-			makeFencedCodeNode('```js\r\nlet a = 1\nlet b = 2\r\n```\r\n', 'js')
-		],
+		['mixed \\r\\n and \\n lines', fencedCode('```js\r\nlet a = 1\nlet b = 2\r\n```\r\n', 'js')],
 		[
 			'unclosed tagged body',
-			makeFencedCodeNode('```js\r\nlet a = 1\r\nlet b = 2\r\n', 'js', false)
+			fencedCode('```js\r\nlet a = 1\r\nlet b = 2\r\n', 'js', { closed: false })
 		],
-		['fresh unclosed tagged (opener only)', makeFencedCodeNode('```js\r\n', 'js', false)]
+		['fresh unclosed tagged (opener only)', fencedCode('```js\r\n', 'js', { closed: false })]
 	];
 
 	for (const [name, node] of shapes) {
@@ -258,14 +210,14 @@ describe('renderCodeBlock — CRLF interior in the language path', () => {
 	}
 
 	it('restores the interior `\\r` while highlighting still resolves tokens', () => {
-		const node = makeFencedCodeNode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js');
+		const node = fencedCode('```js\r\nlet a = 1\r\nlet b = 2\r\n```\r\n', 'js');
 		const frag = renderCodeBlock(node);
 		expect(frag.querySelector('.code-tok-keyword')?.textContent).toBe('let');
 		expect(frag.textContent).toContain('let a = 1\r\nlet b = 2');
 	});
 
 	it('a token span still wraps the whole multi-line literal after restore', () => {
-		const node = makeFencedCodeNode('```js\r\nconst s = `a\r\nb`\r\n```\r\n', 'js');
+		const node = fencedCode('```js\r\nconst s = `a\r\nb`\r\n```\r\n', 'js');
 		const frag = renderCodeBlock(node);
 		expect(frag.querySelector('.code-tok-string')?.textContent).toBe('`a\r\nb`');
 	});

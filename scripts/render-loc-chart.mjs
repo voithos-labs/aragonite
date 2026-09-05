@@ -67,9 +67,18 @@ const shown = data.reduce((a, b) => a + b.loc, 0);
 console.log(`total ${total} lines across ${files.length} files; ${shown} bucketed`);
 for (const d of data) console.log(`  ${String(d.loc).padStart(6)}  ${d.label}`);
 
+// A new src/lib/<dir>/ must join a bucket, or it vanishes from the bars while still inflating
+// the headline the bars are read against.
+if (shown !== total) {
+	const unbucketed = [...byModule.keys()].filter((m) => !BUCKETS.some((b) => b.dirs.includes(m)));
+	console.error(
+		`loc chart: buckets cover ${shown} of ${total} lines. Unbucketed: ${unbucketed.join(', ') || 'none — a module is counted by two buckets'}`
+	);
+	process.exit(1);
+}
+
 // ── Render ───────────────────────────────────────────────────────────────────
 
-// Base palette + this chart's bar color.
 const THEMES = {
 	light: { ...BASE_THEMES.light, bar: '#2a78d6' },
 	dark: { ...BASE_THEMES.dark, bar: '#3987e5' }

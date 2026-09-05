@@ -1,7 +1,7 @@
 <script lang="ts">
-	// Collapse-ness has one definition, the descriptor's `reservedChrome.isCollapsed`
-	// probe. The reader's transient disclosure layers over it by feeding the factory
-	// the effective state, so the window clamp, focus clamp and caret never disagree.
+	// Collapse-ness has one definition, the descriptor's `reservedChrome.isCollapsed` probe.
+	// The reader's transient disclosure layers over it by feeding the factory the effective
+	// state, so the window clamp, focus clamp and caret never disagree.
 	import {
 		BlockList,
 		createContainerBlock,
@@ -38,10 +38,9 @@
 
 	function commitDisclosure() {
 		const isOpen = open;
-		// Collapsing while the caret sits in a body child orphans it (the clamp unmounts
-		// the body), so move it to the summary in the commit's afterTick. Read the caret
-		// before the commit: the toggle suppresses mousedown, so a mouse toggle leaves it
-		// in the body.
+		// Collapsing unmounts the body, orphaning a caret inside it, so move it to the summary
+		// in the commit's afterTick. Read before the commit: the toggle suppresses mousedown,
+		// so a mouse toggle leaves the caret in the body.
 		const pos = isOpen ? (containerApi.getCursorPosition?.() ?? null) : null;
 		const caretInBody = pos != null && pos.path[0] >= 1;
 		updateOwnMetadata({ open: !isOpen }, caretInBody ? () => containerApi.focus(0) : undefined);
@@ -76,9 +75,8 @@
 		border-left: 3px solid var(--color-border, #3d4047);
 	}
 
-	/* A real focusable button (keyboard disclosure), so it is a sibling of BlockList.
-	   Safe: the windowing lookup resolves `:scope > .block-list`, which only needs
-	   BlockList to stay a direct child, not the sole one. */
+	/* A real focusable button (keyboard disclosure), so it is a sibling of BlockList: the
+	   windowing lookup needs BlockList to stay a direct child, not the sole one. */
 	.details-toggle {
 		position: absolute;
 		left: 0.45em;
@@ -115,7 +113,7 @@
 	.details-toggle:focus-visible {
 		outline: 2px solid var(--color-accent, #567b67);
 		outline-offset: 1px;
-		border-radius: 3px;
+		border-radius: var(--radius-ui, 3px);
 	}
 
 	/* The summary leaf is promoted to a title row by CSS alone; it stays a real block

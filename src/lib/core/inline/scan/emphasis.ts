@@ -2,10 +2,11 @@
  * Delimiter runs (`*` `_` `~`) and CommonMark §6.2 phase 2 matching: a faithful port of
  * commonmark.js 0.31.2 processEmphasis (openers_bottom, odd-match on original run lengths,
  * closer re-use). The reference's two linked lists are overlays here, not pointers on the nodes.
+ * commonmark.js is (c) 2014 John MacFarlane, BSD-2-Clause; see THIRD-PARTY-NOTICES.md.
  */
 
 import type { InlineNode } from '../../nodes';
-import { assertInvariant } from '../../../invariants/assert';
+import { assertInvariant } from '../../../assert';
 import { appendNode, type Delimiter, type ScanContext } from './scan-state';
 
 // ── Flanking classification (§6.2 phase 1) ──────────────────────────────────
@@ -45,7 +46,7 @@ function codePointBefore(raw: string, pos: number): string {
  * CommonMark §6.2 flanking over code points. Neighbors are read from raw unclamped: context
  * outside [start, end) still counts, as the spec's source-text reading implies.
  */
-export function classifyDelimiterRun(
+function classifyDelimiterRun(
 	raw: string,
 	runStart: number,
 	runEnd: number,

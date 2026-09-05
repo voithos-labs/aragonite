@@ -7,14 +7,16 @@ import type { CstNode } from '../../core/nodes';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function parseList(src: string): CstNode {
+function parseListDoc(src: string) {
 	const doc = parse(src);
 	const list = doc.children[0];
 	if (list?.kind !== 'list') {
 		throw new Error(`expected list, got ${list?.kind}`);
 	}
-	return list;
+	return { doc, list };
 }
+
+const parseList = (src: string): CstNode => parseListDoc(src).list;
 
 function blankFirstParagraph(item: CstNode): void {
 	const first = item.children?.[0];
@@ -127,33 +129,19 @@ describe('buildExitReplacement', () => {
 		expect(paragraphIndex).toBe(0);
 	});
 
-	it('ordered middle exit: second half continues the sequence across the gap', () => {
-		const list = parseList('1. one\n2. two\n3. three\n4. four\n');
+	// The exit slot does not burn a number, from base 1 or any preserved starting number.
+	it.each([1, 5])('ordered middle exit from base %i continues the sequence', (base) => {
+		const list = parseList(`${base}. a\n${base + 1}. b\n${base + 2}. c\n${base + 3}. d\n`);
 		blankFirstParagraph(list.children![2]);
 
 		const { blocks } = buildExitReplacement(list, 2);
 
 		expect(blocks).toHaveLength(3);
-		const firstHalf = blocks[0];
-		const secondHalf = blocks[2];
-		expect((firstHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^1\./);
-		expect((firstHalf.children?.[1].metadata as { marker: string }).marker).toMatch(/^2\./);
-		// The exit slot does not burn a number.
-		expect((secondHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^3\./);
-	});
-
-	it('ordered middle exit preserves a non-1 starting number across both halves', () => {
-		const list = parseList('5. five\n6. six\n7. seven\n8. eight\n');
-		blankFirstParagraph(list.children![2]);
-
-		const { blocks } = buildExitReplacement(list, 2);
-
-		expect(blocks).toHaveLength(3);
-		const firstHalf = blocks[0];
-		const secondHalf = blocks[2];
-		expect((firstHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^5\./);
-		expect((firstHalf.children?.[1].metadata as { marker: string }).marker).toMatch(/^6\./);
-		expect((secondHalf.children?.[0].metadata as { marker: string }).marker).toMatch(/^7\./);
+		const markerOf = (half: CstNode, i: number) =>
+			(half.children?.[i].metadata as { marker: string }).marker;
+		expect(markerOf(blocks[0], 0)).toMatch(new RegExp(`^${base}\\.`));
+		expect(markerOf(blocks[0], 1)).toMatch(new RegExp(`^${base + 1}\\.`));
+		expect(markerOf(blocks[2], 0)).toMatch(new RegExp(`^${base + 2}\\.`));
 	});
 
 	it('input list is not mutated', () => {
@@ -172,9 +160,7 @@ describe('buildExitReplacement', () => {
 // paragraph owns the separator.
 describe('buildExitReplacement blank-line separator (parse convergence)', () => {
 	it('last-item exit: a typed line after the surviving list stays a separate paragraph', () => {
-		const doc = parse('- First\n- Last\n');
-		const list = doc.children[0];
-		if (list.kind !== 'list') throw new Error('expected list');
+		const { doc, list } = parseListDoc('- First\n- Last\n');
 		blankFirstParagraph(list.children![1]);
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
@@ -186,9 +172,7 @@ describe('buildExitReplacement blank-line separator (parse convergence)', () => 
 	});
 
 	it('middle exit: the paragraph between the two list halves converges when typed into', () => {
-		const doc = parse('- A\n- B\n- C\n');
-		const list = doc.children[0];
-		if (list.kind !== 'list') throw new Error('expected list');
+		const { doc, list } = parseListDoc('- A\n- B\n- C\n');
 		blankFirstParagraph(list.children![1]);
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 1);
@@ -199,9 +183,7 @@ describe('buildExitReplacement blank-line separator (parse convergence)', () => 
 	});
 
 	it('first-item exit keeps the paragraph at the front without a leading separator', () => {
-		const doc = parse('- First\n- Second\n');
-		const list = doc.children[0];
-		if (list.kind !== 'list') throw new Error('expected list');
+		const { list } = parseListDoc('- First\n- Second\n');
 		blankFirstParagraph(list.children![0]);
 
 		const { blocks, paragraphIndex } = buildExitReplacement(list, 0);

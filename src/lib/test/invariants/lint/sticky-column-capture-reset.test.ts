@@ -31,7 +31,8 @@ const CAPTURE_SITES: Record<string, string> = {
 const KEYDOWN_SEAM_FILES = [
 	'src/lib/selection/shared-keydown.ts',
 	'src/lib/selection/cross-block/keydown.ts',
-	'src/lib/editor-actions/container-block-component.ts'
+	'src/lib/editor-actions/container-block-component.ts',
+	'src/lib/editor-actions/plugin/container.ts'
 ];
 
 /** Direct `reset()` calls a keydown file may keep, with why and how many. */

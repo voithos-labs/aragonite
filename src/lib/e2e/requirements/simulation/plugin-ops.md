@@ -1,6 +1,6 @@
 # Feature: Plugin-container ops (note-taking simulation)
 
-A loaded-ops session over a mixed document holding a `:::note` callout and an
+A loaded-ops session over a mixed document holding a `:::callout` callout and an
 open `<details>` collapsible, with prose and a list between them. The gesture
 vocabulary drives real edits across both plugin containers while the note
 simulation's oracle stack — structured error + invariant-console watcher, live-CST

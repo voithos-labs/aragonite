@@ -34,7 +34,9 @@ function makeEnv(source: string) {
 		revealPath: harness.deps.revealPath,
 		controller,
 		pushUndoSnapshot: () => controller.pushUndoSnapshot(0, 0),
-		grammar: undefined
+		grammar: undefined,
+		getPresentationMode: undefined,
+		linkRef: undefined
 	};
 	return {
 		...harness,

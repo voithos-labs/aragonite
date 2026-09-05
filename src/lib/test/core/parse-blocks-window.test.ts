@@ -7,7 +7,7 @@ import { parseBlocks } from '../../core/parser';
 import { splitLines } from '../../core/lines';
 
 function flat(r: ReturnType<typeof parseBlocks>): string {
-	return r.prefix + r.children.map((c) => c.leadingTrivia + c.raw).join('') + r.suffix;
+	return r.children.map((c) => c.leadingTrivia + c.raw).join('') + r.suffix;
 }
 
 function expectWindowEqualsSliceParse(source: string, start: number, end: number): void {

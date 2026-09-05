@@ -18,7 +18,6 @@ test.describe('plugin inline emoji shortcodes', () => {
 	test.beforeEach(async ({ page }) => {
 		editor = new PluginsPage(page);
 		await editor.gotoPlugins('emoji');
-		await page.evaluate(() => (window as any).__test.startErrorCapture());
 	});
 
 	test('renders a seeded shortcode as a glyph widget, bytes preserved', async () => {
@@ -80,10 +79,10 @@ test.describe('plugin inline emoji shortcodes', () => {
 	test('copying a range containing the reference yields the :name: bytes', async ({ page }) => {
 		await editor.focusBlockStart(0);
 		await editor.selectAll();
-		await page.keyboard.press('Control+c');
+		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
-		const copied = await page.evaluate(() => navigator.clipboard.readText());
+		const copied = await editor.readClipboard();
 		expect(copied).toContain(':smile:');
 		expect(copied).not.toContain('😄');
 		expect(await capturedErrors(page)).toEqual([]);

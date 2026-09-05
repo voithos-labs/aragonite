@@ -1,4 +1,5 @@
 import { type SimContext } from '../invariants';
+import { arrowRightToOffset, cursorOffset } from './caret-walk';
 
 // Emoji shortcode atomic-widget gestures (plugins route, `?seed=emoji`). The widget
 // contributes its GLYPH, not its raw, and the shortcode is typed MID-prose, so the tracker's
@@ -25,24 +26,6 @@ async function emojiSpan(
 		throw new Error(`[${ctx.label}] no emoji widget in block ${blockIndex}`);
 	}
 	return span;
-}
-
-async function cursorOffset(ctx: SimContext, blockIndex: number): Promise<number | null> {
-	return ctx.page.evaluate(
-		(i) => (window as any).__test.getBlockCursorSurface([i]).cursorOffset,
-		blockIndex
-	);
-}
-
-async function walkTo(ctx: SimContext, blockIndex: number, target: number): Promise<void> {
-	await ctx.editor.focusBlockStart(blockIndex);
-	for (let guard = 0; guard <= target + 8; guard++) {
-		if ((await cursorOffset(ctx, blockIndex)) === target) return;
-		await ctx.page.keyboard.press('ArrowRight');
-	}
-	throw new Error(
-		`[${ctx.label}] could not walk the caret to offset ${target} in block ${blockIndex}`
-	);
 }
 
 /**
@@ -76,7 +59,7 @@ export async function stepOverEmoji(ctx: SimContext, blockIndex: number): Promis
 	const { page, editor, tracker } = ctx;
 	const { start, end } = await emojiSpan(ctx, blockIndex);
 
-	await walkTo(ctx, blockIndex, start);
+	await arrowRightToOffset(ctx, blockIndex, start);
 	await page.keyboard.press('ArrowRight');
 	if ((await cursorOffset(ctx, blockIndex)) !== end) {
 		throw new Error(
@@ -102,7 +85,7 @@ export async function atomicDeleteEmoji(ctx: SimContext, blockIndex: number): Pr
 	const before = await editor.bridge.getSource();
 	const glyphsBefore = await page.locator(EMOJI).count();
 
-	await walkTo(ctx, blockIndex, end);
+	await arrowRightToOffset(ctx, blockIndex, end);
 	await page.keyboard.press('Backspace');
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	if ((await page.locator(EMOJI).count()) !== glyphsBefore - 1) {

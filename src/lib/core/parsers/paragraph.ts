@@ -6,7 +6,7 @@
 import type { ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
-import { matchTableDelimiterRow, parseTable, splitRowCells } from './table';
+import { matchTableDelimiterRow, parseTable, tableHeaderCells } from './table';
 
 export function parseParagraph(
 	lines: ParsedLine[],
@@ -16,13 +16,10 @@ export function parseParagraph(
 ): BlockOpenerResult {
 	if (startIndex + 1 < endIndex) {
 		const delimiter = matchTableDelimiterRow(lines[startIndex + 1].text);
+		const header = tableHeaderCells(lines[startIndex].text);
 		// GFM §4.10: a header/delimiter count mismatch is no table; accepting it would
 		// truncate surplus header cells out of the model.
-		if (
-			delimiter &&
-			lines[startIndex].text.includes('|') &&
-			splitRowCells(lines[startIndex].text).length === delimiter.columnCount
-		) {
+		if (delimiter && header && header.length === delimiter.columnCount) {
 			return parseTable(lines, startIndex, endIndex, leadingTrivia, delimiter);
 		}
 	}
@@ -48,7 +45,7 @@ export function parseParagraph(
 	};
 }
 
-function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
+export function matchSetextUnderline(text: string): { level: 1 | 2 } | null {
 	if (/^ {0,3}=+\s*$/.test(text)) return { level: 1 };
 	if (/^ {0,3}-+\s*$/.test(text)) return { level: 2 };
 	return null;

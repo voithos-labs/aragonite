@@ -6,12 +6,12 @@
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
-import type { CellSelectionPoint, SelectionPoint } from './primitives';
+import type { SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
-import { offsetFromViewportPoint, applyCollapsedCaret } from './native-bridge';
+import { applyCollapsedCaret } from './native-bridge';
 import { comparePaths } from './path-math';
 import { createPointerDragSession } from './pointer-session';
-import { blockAtPoint } from './block-hit-test';
+import { blockNearPoint } from './nearest-block';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,10 +34,13 @@ export function installDragListener(
 	down: PointerEvent
 ): { dispose(): void } {
 	function processMove(clientX: number, clientY: number): void {
-		const hit = blockAtPoint(ctx.editorRoot, clientX, clientY);
-		if (!hit) return;
+		// The nearest block, not the one under the pointer: moves coalesce to one per frame, so a
+		// burst ending in the margin would otherwise discard every on-block sample in it, and an
+		// autoscrolling drag sends nothing but off-block points.
+		const near = blockNearPoint(ctx.editorRoot, clientX, clientY);
+		if (!near) return;
 
-		if (comparePaths(hit.path, anchorPoint.path) === 0) {
+		if (comparePaths(near.path, anchorPoint.path) === 0) {
 			if (ctx.selection.isCrossBlock) {
 				// Pointer returned to the anchor block: collapse so the overlay stops painting a
 				// stale remote range. The browser's drag has been extending the native selection
@@ -47,17 +50,8 @@ export function installDragListener(
 			return;
 		}
 
-		const isCellCoordinate = !!hit.foreignDragHitTest;
-		const offset = isCellCoordinate
-			? hit.foreignDragHitTest!(clientX, clientY)
-			: offsetFromViewportPoint(hit.element, clientX, clientY);
-		if (offset === null) return;
-
-		// A table endpoint's offset is a row-major cell index, not a char offset; the flag
-		// routes collapse/reveal to the deep cell, matching the keyboard path.
-		const focusPoint: SelectionPoint = isCellCoordinate
-			? ({ path: hit.path, offset, cellCoordinate: true } satisfies CellSelectionPoint)
-			: { path: hit.path, offset };
+		const focusPoint = near.endpointHere();
+		if (!focusPoint) return;
 		if (!ctx.selection.isCrossBlock) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {
@@ -104,8 +98,12 @@ export function installDragListener(
  * Chromium routes paste events to <body>. The highlight still comes from SelectionOverlay.
  */
 function parkCaretInFocusBlock(ctx: DragContext): void {
-	if (!ctx.selection.focus) return;
-	const blockEl = ctx.getBlockElByPath(ctx.selection.focus.path);
+	const focus = ctx.selection.focus;
+	if (!focus) return;
+	// A drag ending inside a table leaves a focus addressing the table block by cell index; the
+	// landing is the cell that actually holds a caret.
+	const landing = ctx.selection.cellLandingFor(focus);
+	const blockEl = ctx.getBlockElByPath(landing.path);
 	if (!blockEl) return;
-	applyCollapsedCaret(blockEl, ctx.selection.focus);
+	applyCollapsedCaret(blockEl, landing);
 }

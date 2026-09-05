@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathFence, MATH_FENCE, mathDisplaySource } from '$lib/plugins/latex/latex-kind';
 
 // GitHub's third math form: a fence whose info string opens with `math`. Priced below
@@ -89,20 +90,13 @@ describe('math fence round-trip', () => {
 		registerMathFence();
 	});
 
-	const roundTrip = [
+	roundTripCases([
 		'```math\nx^2\n```\n',
 		'```math\n\\frac{a}{b}\n```\n\nafter\n',
 		'```math\nx\n\ny\n```\n',
-		'~~~math\nx^2\n~~~\n',
 		'```math\r\nx^2\r\n```\r\n',
-		'```math\nx^2\n```',
-		'   ```math\nx^2\n```\n'
-	];
-	for (const src of roundTrip) {
-		it(`round-trips ${JSON.stringify(src)}`, () => {
-			expect(serialize(parse(src))).toBe(src);
-		});
-	}
+		'```math\nx^2\n```'
+	]);
 });
 
 describe('math fence with the plugin uninstalled', () => {

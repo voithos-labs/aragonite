@@ -7,9 +7,16 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources } from './scan-source';
+import { balancedCall, balancedRegion, collectEditorSources } from './scan-source';
 
-const DISPATCH_TOKENS = ['dispatchKeyCommand(', 'dispatchKindCommand(', 'getCommand('];
+const DISPATCH_TOKENS = [
+	'dispatchKeyCommand(',
+	'dispatchKindCommand(',
+	'getCommand(',
+	'runGlobalChord(',
+	'runGlobalChordOnKind(',
+	'runCommandById('
+];
 
 // Dispatcher definitions + the post-gate `getCommand(binding.command)` live here.
 const GATE_OWNER_FILES = new Set([
@@ -20,40 +27,31 @@ const GATE_OWNER_FILES = new Set([
 // Sites gated by a LOCAL reading/readOnly guard instead of a threaded
 // getPresentationMode → the regex the guard must keep present.
 const LOCAL_GATE_SITES: Record<string, RegExp> = {
-	'src/lib/components/blocks/list/ListItemBlock.svelte': /\breadOnly\b/,
+	'src/lib/components/GapCaret.svelte': /isReading,/,
 	'src/lib/components/editor-root-keydown.ts': /=== 'reading'/,
-	'src/lib/components/blocks/ThematicBreakBlock.svelte': /isReading\s*\(/
+	'src/lib/editor-actions/container-block-component.ts': /isReading\s*\(/
 };
 
 // Set equality trips the day a new editable surface is born — the dominant future-site
 // risk, since a new block kind is a new component file.
 const DISPATCH_SITE_FILES = [
-	'src/lib/components/blocks/editable-leaf.ts',
-	'src/lib/components/blocks/ThematicBreakBlock.svelte',
-	'src/lib/components/blocks/code/CodeBlock.svelte',
-	'src/lib/components/blocks/text/TextEditableBlock.svelte',
-	'src/lib/components/blocks/table/TableCellBlock.svelte',
+	'src/lib/components/blocks/surface-wiring.svelte.ts',
 	'src/lib/editor-actions/plugin/container.ts',
+	'src/lib/editor-actions/container-block-component.ts',
 	'src/lib/selection/cross-block/keydown.ts',
 	'src/lib/components/blocks/list/ListItemBlock.svelte',
-	'src/lib/components/editor-root-keydown.ts'
+	'src/lib/components/editor-root-keydown.ts',
+	'src/lib/components/GapCaret.svelte',
+	'src/lib/components/Editor.svelte'
 ];
-
-/** Balanced-paren argument substring of the call whose opening `(` is at `openIdx`. */
-function callArgs(code: string, openIdx: number): string {
-	let depth = 0;
-	for (let i = openIdx; i < code.length; i++) {
-		if (code[i] === '(') depth++;
-		else if (code[i] === ')' && --depth === 0) return code.slice(openIdx + 1, i);
-	}
-	return code.slice(openIdx + 1);
-}
 
 interface DispatchSite {
 	relPath: string;
 	args: string;
 }
 
+/** Sites are collected by substring, not `callsTo`: a method-spelled dispatch
+ *  (`ctx.dispatchKeyCommand(`) is one, and the shared matcher's lookbehind rejects it. */
 function collectDispatchSites(): DispatchSite[] {
 	const sites: DispatchSite[] = [];
 	for (const file of collectEditorSources()) {
@@ -63,7 +61,10 @@ function collectDispatchSites(): DispatchSite[] {
 			for (;;) {
 				const at = file.code.indexOf(token, from);
 				if (at < 0) break;
-				sites.push({ relPath: file.relPath, args: callArgs(file.code, at + token.length - 1) });
+				sites.push({
+					relPath: file.relPath,
+					args: balancedCall(file.code, at + token.length) ?? ''
+				});
 				from = at + token.length;
 			}
 		}
@@ -71,20 +72,46 @@ function collectDispatchSites(): DispatchSite[] {
 	return sites;
 }
 
-const isThreaded = (args: string): boolean => args.includes('getPresentationMode');
+const GATE_GETTER = 'getPresentationMode';
+
+const IDENTIFIER_RE = /^[A-Za-z_$][\w$]*$/;
+
+/** The object literal a same-file `const <name> = { … }` binds, braces balanced. */
+function namedObjectLiteral(code: string, name: string): string | null {
+	const decl = new RegExp(`\\bconst\\s+${name}\\b[^=]*=\\s*\\{`).exec(code);
+	return decl === null ? null : balancedRegion(code, decl.index + decl[0].length - 1);
+}
+
+/**
+ * True when the site reaches the gate: the getter inline in the argument list, or inside the
+ * object literal a bare-identifier argument resolves to. Resolving from the CALL SITE is the
+ * point: a door rewired to a context that skips the getter fails, where a file-wide regex for
+ * the old context's name would still pass.
+ */
+function isThreaded(args: string, code: string): boolean {
+	if (args.includes(GATE_GETTER)) return true;
+	return args
+		.split(',')
+		.map((arg) => arg.trim())
+		.filter((arg) => IDENTIFIER_RE.test(arg))
+		.some((name) => namedObjectLiteral(code, name)?.includes(GATE_GETTER) ?? false);
+}
 
 describe('G4.19 reading-gate two-arm parity guard', () => {
 	const codeByPath = new Map(collectEditorSources().map((f) => [f.relPath, f.code]));
+	const codeOf = (relPath: string): string => codeByPath.get(relPath) ?? '';
 	const sites = collectDispatchSites();
 	const hasLocalGate = (relPath: string): boolean =>
-		LOCAL_GATE_SITES[relPath]?.test(codeByPath.get(relPath) ?? '') ?? false;
+		LOCAL_GATE_SITES[relPath]?.test(codeOf(relPath)) ?? false;
 
 	it('found dispatch sites to inspect', () => {
 		expect(sites.length).toBeGreaterThan(0);
 	});
 
 	it('every command-dispatch site threads getPresentationMode or carries a local reading gate', () => {
-		const ungated = sites.filter((s) => !isThreaded(s.args) && !hasLocalGate(s.relPath));
+		const ungated = sites.filter(
+			(s) => !isThreaded(s.args, codeOf(s.relPath)) && !hasLocalGate(s.relPath)
+		);
 		expect(ungated.map((s) => s.relPath)).toEqual([]);
 	});
 
@@ -98,41 +125,62 @@ describe('G4.19 reading-gate two-arm parity guard', () => {
 			const fileSites = sites.filter((s) => s.relPath === relPath);
 			expect(fileSites.length, `no dispatch site in ${relPath}`).toBeGreaterThan(0);
 			expect(
-				fileSites.some((s) => !isThreaded(s.args)),
+				fileSites.some((s) => !isThreaded(s.args, codeOf(relPath))),
 				`${relPath} threads every site — its local-gate entry is dead`
 			).toBe(true);
-			expect(re.test(codeByPath.get(relPath) ?? ''), `gate regex missing in ${relPath}`).toBe(true);
+			expect(re.test(codeOf(relPath)), `gate regex missing in ${relPath}`).toBe(true);
 		}
 	});
 
 	// ── Matcher self-tests (non-vacuity) ─────────────────────────────────────
 
-	it('callArgs returns the balanced argument list, nested parens included', () => {
+	it('the argument walker returns the balanced argument list, nested parens included', () => {
 		const code = 'dispatchKeyCommand(chord, ctx(), { getPresentationMode })';
-		expect(callArgs(code, 'dispatchKeyCommand'.length)).toBe(
+		expect(balancedCall(code, 'dispatchKeyCommand'.length + 1)).toBe(
 			'chord, ctx(), { getPresentationMode }'
 		);
 	});
 
+	// Miss-analysis: the private brace walk had no literal awareness at all, and every case fed it
+	// a plain literal, so the short region a quoted brace ends was never read for the getter.
+	it('a brace inside a string does not end the literal an argument names', () => {
+		const gated = "const ctx = {\n\tlabel: '}',\n\tgetPresentationMode: () => mode\n};";
+		expect(isThreaded('chord, target, ctx', gated)).toBe(true);
+	});
+
 	it('threaded detection keys on getPresentationMode presence', () => {
-		expect(isThreaded('chord, target, { history, getPresentationMode }')).toBe(true);
-		expect(isThreaded('chord, target, { history, pluginEditor }')).toBe(false);
+		expect(isThreaded('chord, target, { history, getPresentationMode }', '')).toBe(true);
+		expect(isThreaded('chord, target, { history, pluginEditor }', '')).toBe(false);
+	});
+
+	it('a named context argument is threaded only when its own literal carries the getter', () => {
+		const gated = 'const ctx = {\n\thistory,\n\tgetPresentationMode: () => effectiveMode\n};';
+		const ungated = 'const other = {\n\thistory,\n\tpluginEditor\n};';
+		expect(isThreaded('id, undefined, target(), ctx, sink', gated)).toBe(true);
+		expect(isThreaded('id, undefined, target(), other, sink', ungated)).toBe(false);
+		// The door rewired to a context that skips the gate: the gated const still exists in the
+		// file, so a file-wide name regex would pass here.
+		expect(isThreaded('id, undefined, target(), other, sink', `${gated}\n${ungated}`)).toBe(false);
+	});
+
+	// Non-vacuity for the arm itself: the real door site carries no inline getter, so the whole
+	// file rests on the named-context resolution above.
+	it('the runCommand door reaches the gate through its named context, not inline', () => {
+		const doorSites = sites.filter((s) => s.relPath === 'src/lib/components/Editor.svelte');
+		expect(doorSites.length).toBe(1);
+		expect(doorSites[0].args.includes(GATE_GETTER)).toBe(false);
+		expect(isThreaded(doorSites[0].args, codeOf('src/lib/components/Editor.svelte'))).toBe(true);
 	});
 
 	it('each local-gate regex matches its guard and rejects unrelated text', () => {
-		expect(
-			LOCAL_GATE_SITES['src/lib/components/blocks/list/ListItemBlock.svelte'].test(
-				'if (readOnly) return;'
-			)
-		).toBe(true);
 		expect(
 			LOCAL_GATE_SITES['src/lib/components/editor-root-keydown.ts'].test(
 				"if (deps.mode === 'reading') return;"
 			)
 		).toBe(true);
 		expect(
-			LOCAL_GATE_SITES['src/lib/components/blocks/ThematicBreakBlock.svelte'].test(
-				'if (isReading()) return;'
+			LOCAL_GATE_SITES['src/lib/editor-actions/container-block-component.ts'].test(
+				'if (deps.isReading()) return true;'
 			)
 		).toBe(true);
 		expect(

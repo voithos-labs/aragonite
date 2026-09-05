@@ -4,7 +4,7 @@
  * cross-block range delete. Subset (cell) coverage returns null for the caller's cell-clear.
  */
 
-import type { SelectionPoint } from './primitives';
+import { deleteSnapshot, type SelectionPoint } from './primitives';
 import type { CstNode } from '../core/nodes';
 import { metadataOf } from '../core/nodes';
 import type { MultiScopeTarget } from '../action-contracts';
@@ -73,36 +73,39 @@ export async function maybeCommitTableCoverageDelete(
 	// Same-path intra-table endpoints are context-established, not flagged, so they read directly.
 	const coverage = classifyTableSelectionCoverage(start.offset, end.offset, columnCount, rowCount);
 
-	if (coverage.kind === 'cells') return null;
-
-	if (coverage.kind === 'table') {
-		const caret = await commitFullTableDelete(ctx, start, options, caretRestore);
-		return { caret };
+	switch (coverage.kind) {
+		case 'cells':
+			return null;
+		case 'table':
+			return { caret: await commitFullTableDelete(ctx, start, options, caretRestore) };
+		case 'row': {
+			// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a silent no-op, since
+			// falling through to a cell-clear would rewrite the user's intent.
+			if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
+			const caret = await commitRowDelete(
+				ctx,
+				table,
+				start,
+				coverage.rowIdx,
+				options,
+				caretRestore
+			);
+			return { caret };
+		}
+		case 'column': {
+			// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
+			if (!canDeleteColumn(columnCount)) return { caret: null };
+			const caret = await commitColumnDelete(
+				ctx,
+				table,
+				start,
+				coverage.colIdx,
+				options,
+				caretRestore
+			);
+			return { caret };
+		}
 	}
-
-	if (coverage.kind === 'row') {
-		// Mirror Ctrl+Shift+Backspace: ≥1 body row must remain. Refusal is a silent no-op, since
-		// falling through to a cell-clear would rewrite the user's intent.
-		if (!canDeleteRow(coverage.rowIdx, rowCount)) return { caret: null };
-		const caret = await commitRowDelete(ctx, table, start, coverage.rowIdx, options, caretRestore);
-		return { caret };
-	}
-
-	if (coverage.kind === 'column') {
-		// Mirror Alt+Shift+Backspace: ≥2 columns must remain.
-		if (!canDeleteColumn(columnCount)) return { caret: null };
-		const caret = await commitColumnDelete(
-			ctx,
-			table,
-			start,
-			coverage.colIdx,
-			options,
-			caretRestore
-		);
-		return { caret };
-	}
-
-	return null;
 }
 
 async function commitFullTableDelete(
@@ -112,10 +115,7 @@ async function commitFullTableDelete(
 	caretRestore: ((caret: SelectionPoint | null) => void) | undefined
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom([tableIdx]), offset: 0 };
+	const snapshot = deleteSnapshot(options, [tableIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitStructural({
@@ -124,7 +124,11 @@ async function commitFullTableDelete(
 			// Read before the delete: with the table gone no block is left to take an ending
 			// from, and the filler below IS a line ending (G4.20).
 			const lineEnding = trailingLineEnding(children[tableIdx]?.raw ?? '\n');
-			const change = deleteNode({ children }, tableIdx, ctx.controller.sharing);
+			const change = deleteNode(
+				{ children, ownerKind: undefined, owner: undefined },
+				tableIdx,
+				ctx.controller.sharing
+			);
 			ctx.selection.collapse();
 			// A sole-table doc empties to zero blocks, stranding the caret on <body>. Materialize
 			// a filler in the same commit so undo restores the table in one step.
@@ -159,10 +163,7 @@ async function commitRowDelete(
 ): Promise<SelectionPoint | null> {
 	const tableIdx = start.path[0];
 	const rowsState = expectStateForNode(table);
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom([tableIdx, rowIdx]), offset: 0 };
+	const snapshot = deleteSnapshot(options, [tableIdx, rowIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitContainerStructural({
@@ -213,10 +214,7 @@ async function commitColumnDelete(
 		{ node: table, state: rowsState, path: [tableIdx] },
 		...mountedRowScopes
 	];
-	const snapshot =
-		options?.undoEntry === 'join'
-			? ('skip' as const)
-			: { path: docPathFrom([tableIdx]), offset: 0 };
+	const snapshot = deleteSnapshot(options, [tableIdx]);
 
 	let collapsedCaret: SelectionPoint | null = null;
 	await ctx.controller.commitMultiScope({

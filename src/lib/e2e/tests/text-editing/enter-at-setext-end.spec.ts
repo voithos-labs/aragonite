@@ -31,8 +31,10 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 
 			expect(await editor.bridge.getBlockKind(0)).toBe('setextHeading');
 			expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
-			await editor.bridge.waitForSourceEquals(content + '\n');
-			expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+			// The empty half is a blank BLOCK, so it takes a separator of its own: without one
+			// the reload would read the single trailing blank as the document suffix.
+			await editor.bridge.waitForSourceEquals(content + '\n\n');
+			expect(await editor.parseConverged()).toBe(true);
 
 			const selection = await editor.bridge.getSelectionPaths();
 			expect(selection?.focus).toEqual({ path: [1], offset: 0 });
@@ -48,7 +50,7 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 		expect(await editor.bridge.getBlockKind(0)).toBe('setextHeading');
 		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
 		await editor.bridge.waitForSourceEquals('Ti\n=====\ntle\n');
-		expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+		expect(await editor.parseConverged()).toBe(true);
 	});
 
 	test('real click + End + Enter — typing lands in the empty block below', async () => {
@@ -60,6 +62,6 @@ test.describe('text editing — Enter at the end of a setext title', () => {
 
 		expect(await editor.bridge.getBlockKind(0)).toBe('setextHeading');
 		await editor.typeSlowly('X');
-		await editor.bridge.waitForSourceEquals('Title\n=====\nX\n');
+		await editor.bridge.waitForSourceEquals('Title\n=====\n\nX\n');
 	});
 });

@@ -15,11 +15,11 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.focusBlockAtPath([0, 0], 0);
 		await editor.shiftClickBlock([0, 0], 'inside bq'.length);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		await editor.focusBlockAtPath([1], 'target para'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('target parainside bq');
 
 		const src = await editor.bridge.getSource();
@@ -33,11 +33,11 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.focusBlockAtPath([0], 0);
 		await editor.shiftClickBlock([0], 'outer para'.length);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		await editor.focusBlockAtPath([1, 0], 'target inside bq'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/> target inside bqouter para/);
 
 		const src = await editor.bridge.getSource();
@@ -51,12 +51,12 @@ test.describe('clipboard exploration: cross-container round-trip', () => {
 		await editor.shiftClickBlock([1], 'outer para'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		await editor.loadContent('destination\n');
 		await editor.focusBlockAtPath([0], 'destination'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/destination[\s\S]*outer para/);
 
 		const src = await editor.bridge.getSource();

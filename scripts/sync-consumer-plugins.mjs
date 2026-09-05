@@ -10,9 +10,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src/routes/test/plugins');
 const OUT = join(ROOT, 'examples/consumer/src/plugins');
 
-// Bundled-tier plugins ship in-package (aragonite/plugins/*), so the consumer imports
-// those subpaths directly. Only callout stays a synced source: it is the external
-// *authoring* validator, not a distribution channel for shipped plugins.
+// Bundled-tier plugins ship in-package, so the consumer imports those subpaths directly. Only
+// callout stays a synced source: it is the external *authoring* validator.
 const MANIFEST = {
 	callout: ['callout-kind.ts', 'register.ts', 'CalloutBlock.svelte']
 };
@@ -27,7 +26,7 @@ for (const [plugin, files] of Object.entries(MANIFEST)) {
 	for (const file of files) {
 		const text = readFileSync(join(SRC, plugin, file), 'utf8').replace(
 			BARREL_SPECIFIER,
-			(_match, quote, subpath) => `${quote}aragonite${subpath ?? ''}${quote}`
+			(_match, quote, subpath) => `${quote}@voithos-labs/aragonite${subpath ?? ''}${quote}`
 		);
 		for (const line of text.split('\n')) {
 			if (line.includes('$lib/')) offenders.push(`${plugin}/${file}: ${line.trim()}`);

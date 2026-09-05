@@ -2,18 +2,20 @@ import type { CstNode } from '../core/nodes';
 import { displayLength } from '../core/lines';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { getContentRange, type ContentRange } from '../core/inline';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 /**
- * G1.8 — a prose kind's content range stays within its raw:
- * `0 <= start <= end <= displayLength(raw)`. `getRange` is a parameter so a negative test
- * can inject an out-of-bounds range without touching the descriptor registry.
+ * G1.8 — a content range stays within its raw: `0 <= start <= end <= displayLength(raw)`.
+ * Every kind that HAS a range is covered, not just the prose ones: a non-prose kind may declare
+ * `getContentRange` (the directive leaf does) and the range is consumed unconditionally.
+ * `getRange` is a parameter so a negative test can inject a bad range without touching the registry.
  */
 export function checkContentRange(
 	node: CstNode,
 	getRange: (node: CstNode) => ContentRange = getContentRange
 ): InvariantViolation | null {
-	if (!getBlockKindDescriptor(node.kind).supportsInline) return null;
+	const descriptor = getBlockKindDescriptor(node.kind);
+	if (!descriptor.supportsInline && descriptor.getContentRange === undefined) return null;
 
 	const { start, end } = getRange(node);
 	const len = displayLength(node.raw);

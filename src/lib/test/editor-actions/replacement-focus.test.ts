@@ -75,12 +75,14 @@ describe('previewContentReparse reads the owning container', () => {
 	const bodyParagraph = () => parse('body\n').children[0];
 
 	it('reports a kind change for a bare terminator with no owner to escape it', () => {
-		expect(previewContentReparse(bodyParagraph(), '</details>\n', undefined).op).not.toBe('noop');
+		expect(
+			previewContentReparse(bodyParagraph(), '</details>\n', undefined, undefined, '').op
+		).not.toBe('noop');
 	});
 
 	it('reports a same-kind edit once the details owner escapes the same text', () => {
 		const owner = declaredPluginKind(DETAILS);
-		expect(previewContentReparse(bodyParagraph(), '</details>\n', undefined, owner).op).toBe(
+		expect(previewContentReparse(bodyParagraph(), '</details>\n', undefined, owner, '').op).toBe(
 			'noop'
 		);
 	});

@@ -13,13 +13,21 @@ import type {
 } from '../../action-contracts';
 import type { NodeView } from '../../core/node-views';
 import type { GrammarView } from '../../schema/block-openers';
-import { BLOCK_EDIT_KEY, CONTAINER_EDIT_KEY, FOCUS_KEY, HISTORY_KEY } from '../../editor-keys';
-import { assertInvariant } from '../../invariants/assert';
+import {
+	BLOCK_EDIT_KEY,
+	CONTAINER_EDIT_KEY,
+	FOCUS_KEY,
+	HISTORY_KEY,
+	type PresentationModeGetter
+} from '../../editor-keys';
+import { assertInvariant } from '../../assert';
 import { checkNoContainerHistoryKey } from '../../invariants/context-keys';
 import type { StickyColumnState } from '../../cursor/sticky-column';
 import type { BlockListState } from '../../reactivity/block-list-state.svelte';
 import { createNestedBlockEdit } from './nested-block-edit';
 import { createNestedFocus } from './nested-focus';
+import { withEnterCompletion } from '../enter-completion';
+import type { InlineResolverRef } from '../../schema/inline-construct-policy';
 
 export interface NestedActionsBundle {
 	blockEdit: BlockEditActions;
@@ -48,6 +56,11 @@ export interface NestedActionsDeps {
 	/** The instance's block grammar, so a disabled kind's opener stays skipped when a
 	 *  nested block re-parses. Absent = the global grammar. */
 	grammar?: GrammarView;
+	/** Live EFFECTIVE mode, for interior mutations whose bytes depend on what the mode paints
+	 *  (the split rebalance). Nullable rather than optional so each container answers. */
+	getPresentationMode: PresentationModeGetter | undefined;
+	/** The instance's link-reference resolver, required-nullable beside the mode. */
+	linkRef: InlineResolverRef | undefined;
 	/** Enclosing list's context, when this container is a list nested in one. */
 	parentListContext?: ListContext;
 	parent: {
@@ -91,6 +104,8 @@ export function createStandardNestedActions(
 		},
 		stickyColumn: input.stickyColumn,
 		grammar: input.grammar,
+		getPresentationMode: input.getPresentationMode,
+		linkRef: input.linkRef,
 		parentListContext: input.parentListContext,
 		parent: input.parent
 	};
@@ -101,17 +116,22 @@ export function createStandardNestedActions(
 	const containerEdit = deps.parent.containerEdit;
 
 	const defaults: NestedActionsBundle = { blockEdit, focus, containerEdit };
-	if (!overrideFactory) return defaults;
+	// Above the override spread, so a container replacing `splitBlock` keeps the completion arm
+	// its subtree owes. `defaults` stays undecorated: an override chaining back into it is
+	// already past the consult, and re-entering would spend one press on two.
+	const childAt = (index: number) => deps.node.children?.[index];
+	if (!overrideFactory) {
+		return { ...defaults, blockEdit: withEnterCompletion(blockEdit, childAt) };
+	}
 
 	const overrides = overrideFactory(defaults);
 	return {
-		blockEdit: { ...blockEdit, ...(overrides.blockEdit ?? {}) },
+		blockEdit: withEnterCompletion({ ...blockEdit, ...(overrides.blockEdit ?? {}) }, childAt),
 		focus: { ...focus, ...(overrides.focus ?? {}) },
 		containerEdit: { ...containerEdit, ...(overrides.containerEdit ?? {}) }
 	};
 }
 
-/** Set the three container sub-interface contexts in one call. */
 export function setNestedActionsContexts(bundle: NestedActionsBundle): void {
 	const keys = [BLOCK_EDIT_KEY, FOCUS_KEY, CONTAINER_EDIT_KEY];
 	assertInvariant('container-history-key', () => checkNoContainerHistoryKey(keys, HISTORY_KEY));

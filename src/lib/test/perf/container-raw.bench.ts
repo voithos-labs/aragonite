@@ -6,9 +6,15 @@
 import { bench, describe } from 'vitest';
 import type { CstNode } from '../../core/nodes';
 import { parse } from '../../core/parser';
+import { enablePerfInstruments } from '../../perf/instruments';
+import { dropChildSpans } from '../../schema/child-spans';
 import { createSharingState } from '../../tree-operations/sharing';
 import { rebuildUnsharedChain } from '../../tree-operations/unshare';
 import { generateDeepNested, generateFixture } from './fixtures/generate';
+
+// Every row below would otherwise time G1.38's dev-only re-derive alongside the rebuild it
+// belts, which is the one thing these numbers must not include.
+enablePerfInstruments();
 
 function deepestChain(node: CstNode, chain: CstNode[] = []): CstNode[] {
 	chain.push(node);
@@ -29,7 +35,7 @@ function benchAncestryRebuild(
 	bench(
 		label,
 		() => {
-			rebuildUnsharedChain(root, chain, sharing, undefined);
+			rebuildUnsharedChain(root, chain, sharing, null, undefined);
 		},
 		{ warmupIterations: 1, ...opts }
 	);
@@ -63,6 +69,50 @@ describe('ancestry rebuild — breadth axis', () => {
 	for (const [label, bytes, opts] of SIZES) {
 		const doc = parse(singleFlatList(bytes));
 		benchAncestryRebuild(`rebuild breadth: single ${label} list`, doc.children[0], opts);
+	}
+});
+
+// The keystroke the breadth axis is really about: an edit deep INSIDE a large container, which
+// pays the same re-join as one at its head. The two arms are the two paths: `full` re-joins every
+// child (what a caller passing no hint gets), `spliced` rewrites the changed child's region. Plain
+// objects understate the difference, since the axis the splice removes is the `$state` proxy read
+// per child; `test/tree-operations/ancestry-splice-read-bounds.test.ts` counts those.
+describe('ancestry rebuild — interior keystroke, hint vs full', () => {
+	const doc = parse(singleFlatList(1_000_000));
+	const list = doc.children[0];
+	const middle = Math.floor(list.children!.length / 2);
+	const path = [0, middle, 0];
+
+	for (const hinted of [false, true]) {
+		const item = list.children![middle];
+		const chain = [list, item, item.children![0]];
+		const sharing = createSharingState();
+		rebuildUnsharedChain(list, chain, sharing, null, undefined);
+		const leaf = chain[2];
+		let longer = false;
+		bench(
+			`rebuild interior of a 1MB list (${hinted ? 'spliced' : 'full'})`,
+			() => {
+				const leafPreviousRaw = leaf.raw;
+				// Alternating lengths, so the span shift is measured rather than skipped.
+				longer = !longer;
+				leaf.raw = longer ? 'item edited\n' : 'item edit\n';
+				// The label, made true by construction: no spans, no region to rewrite.
+				if (!hinted) {
+					dropChildSpans(list);
+					dropChildSpans(item);
+				}
+				rebuildUnsharedChain(
+					list,
+					chain,
+					sharing,
+					null,
+					undefined,
+					hinted ? { path, leafPreviousRaw } : undefined
+				);
+			},
+			{ warmupIterations: 1, iterations: 20 }
+		);
 	}
 });
 

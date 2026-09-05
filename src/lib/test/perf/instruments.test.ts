@@ -9,10 +9,10 @@ import {
 	enablePerfInstruments,
 	markKeystrokeSettle,
 	markKeystrokeStart,
-	perfEnabled,
 	perfSnapshot,
 	recordBlockRender,
 	recordDecorationRun,
+	recordFormatCoverageRead,
 	recordInlineCompute,
 	recordIslandKeyScan,
 	recordIslandRebuild,
@@ -32,6 +32,7 @@ const EMPTY: PerfSnapshot = {
 	parseMsTotal: 0,
 	parseBlockCount: 0,
 	inlineComputeCount: 0,
+	formatCoverageReads: 0,
 	undoLiveBytes: 0,
 	undoEntryCount: 0,
 	blockRenderCount: 0,
@@ -49,6 +50,7 @@ function recordOneOfEach(): void {
 	recordRebuildDepth(3);
 	recordParse(1.5, 10);
 	recordInlineCompute();
+	recordFormatCoverageRead();
 	setUndoGauge(1000, 2);
 	recordBlockRender(2);
 	recordDecorationRun();
@@ -62,14 +64,22 @@ beforeEach(() => {
 	resetPerfInstruments();
 	disablePerfInstruments();
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+	vi.unstubAllEnvs();
+	vi.doUnmock('esm-env');
+	vi.resetModules();
+});
 
 describe('perf instruments', () => {
-	it('enable is a no-op outside dev and Vitest', () => {
-		vi.stubEnv('DEV', false);
+	// `DEV` is a build-time constant, so the production arm of the switch is reachable
+	// only by re-importing the module against a false one.
+	it('enable is a no-op outside dev and Vitest', async () => {
+		vi.resetModules();
+		vi.doMock('esm-env', () => ({ DEV: false }));
 		vi.stubEnv('VITEST', '');
-		enablePerfInstruments();
-		expect(perfEnabled()).toBe(false);
+		const production = await import('../../perf/instruments');
+		production.enablePerfInstruments();
+		expect(production.perfEnabled()).toBe(false);
 	});
 
 	it('records nothing while disabled', () => {
@@ -190,7 +200,7 @@ describe('perf seams', () => {
 		// Nested paragraph's spine: list > listItem > list > listItem > paragraph.
 		const chain = ensureUnsharedPath(doc, [0, 0, 1, 0, 0], sharing);
 		enablePerfInstruments();
-		rebuildUnsharedChain(doc, chain, sharing, undefined);
+		rebuildUnsharedChain(doc, chain, sharing, null, undefined);
 		expect(perfSnapshot().rebuildDepths).toEqual({ 5: 1 });
 	});
 });

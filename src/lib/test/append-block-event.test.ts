@@ -1,66 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import type { EditEvent } from '$lib/editor-events';
+import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
+import { createFocusActions } from '$lib/editor-actions/focus/focus';
+import { parse } from '$lib/core/parser';
+import { makeEditorActionsDeps } from './harness/editor-actions';
 
 describe('moveFocus past the last block', () => {
 	it('emits op=appendBlock and no op=split', async () => {
-		const { createEditorEvents } = await import('$lib/editor-events');
-		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
-		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');
-		const { createUndoManager } = await import('$lib/undo/manager');
-		const { createSharingState } = await import('$lib/tree-operations/sharing');
-		const { createSelectionState } = await import('$lib/selection/selection-state.svelte');
-
-		const events = createEditorEvents();
+		const { deps, doc, events } = makeEditorActionsDeps([
+			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' } as any
+		]);
 		const captured: EditEvent[] = [];
 		events.on('edit', (e) => captured.push(e));
 
-		const doc: any = {
-			kind: 'document',
-			prefix: '',
-			children: [{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' }],
-			suffix: ''
-		};
-		const blockIds = ['id0'];
-		const blockRefs: any[] = [undefined];
-
-		const deps: any = {
-			get doc() {
-				return doc;
-			},
-			get blockIds() {
-				return blockIds;
-			},
-			get blockRefs() {
-				return blockRefs;
-			},
-			setDoc: (v: any) => Object.assign(doc, v),
-			setBlockIds: (ids: string[]) => {
-				blockIds.length = 0;
-				blockIds.push(...ids);
-			},
-			setBlockRefs: (refs: any[]) => {
-				blockRefs.length = 0;
-				blockRefs.push(...refs);
-			},
-			undoManager: createUndoManager(),
-			sharing: createSharingState(),
-			stickyColumn: {
-				reset() {},
-				capture() {},
-				get current() {
-					return null;
-				},
-				get() {
-					return null;
-				}
-			},
-			selectionState: createSelectionState(),
-			getBlockElByPath: () => null,
-			events
-		};
-
-		const controller = createUndoController(deps);
-		const focus = createFocusActions(deps, controller);
+		const focus = createFocusActions(deps, createUndoController(deps));
 
 		await focus.moveFocus(doc.children.length, 'start');
 
@@ -75,11 +28,6 @@ describe('moveFocus past the last block', () => {
 	// Separator and paragraph are both pure line ending, so both take the document's
 	// (G4.20) — a defaulted `\n` pair puts two lone LFs at the end of a CRLF file.
 	it('takes the last block’s line ending for both the separator and the paragraph', async () => {
-		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
-		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');
-		const { makeEditorActionsDeps } = await import('./harness/editor-actions');
-		const { parse } = await import('$lib/core/parser');
-
 		const { deps, doc } = makeEditorActionsDeps(parse('hello\r\n').children);
 		const focus = createFocusActions(deps, createUndoController(deps));
 
@@ -90,10 +38,6 @@ describe('moveFocus past the last block', () => {
 	});
 
 	it('with { append: false } is a no-op at the document end — no block, no event', async () => {
-		const { createUndoController } = await import('$lib/editor-actions/commit/undo-controller');
-		const { createFocusActions } = await import('$lib/editor-actions/focus/focus');
-		const { makeEditorActionsDeps } = await import('./harness/editor-actions');
-
 		const { deps, doc, events } = makeEditorActionsDeps([
 			{ kind: 'paragraph', leadingTrivia: '\n', raw: 'hello\n' } as any
 		]);

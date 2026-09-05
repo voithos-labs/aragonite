@@ -51,10 +51,10 @@ describe('createHeightOracle', () => {
 		expect(o.height('id-2', node, 800)).toBe(24 + 16);
 	});
 
-	it('invalidateWidth clears measured heights (wrap depends on width)', () => {
+	it('dropMeasured falls every id back to its estimate', () => {
 		const o = createHeightOracle(opts);
 		o.recordMeasured('id-1', 99);
-		o.invalidateWidth();
+		o.dropMeasured();
 		expect(o.measured('id-1')).toBeUndefined();
 	});
 
@@ -79,7 +79,7 @@ describe('createHeightOracle', () => {
 	});
 
 	// Containers use a child-count-aware arm: at least one line + chrome per child, and at least the
-	// blob-wrap of the materialized raw. The prior blob-only fall-through undercounted several-fold.
+	// blob-wrap of the materialized raw — a blob-only estimate undercounts a several-child container.
 	it('estimates a child-less container by its blob-wrap (no children term)', () => {
 		const o = createHeightOracle(opts);
 		const quote: CstNode = {
@@ -109,8 +109,8 @@ describe('createHeightOracle', () => {
 			metadata: { ordered: false },
 			children: [{}, {}, {}, {}, {}] as CstNode[]
 		};
-		// Identical raw, more children => taller. The old blob-only estimate gave
-		// both the same (~1 line) height — the central undercount this arm fixes.
+		// Identical raw, more children => taller: a raw-only estimate gives both the
+		// same ~1-line height.
 		expect(o.estimate(many, 800)).toBeGreaterThan(o.estimate(few, 800));
 		expect(o.estimate(many, 800)).toBe(5 * (24 + 16)); // 5 children, >= one line + chrome each
 	});
@@ -218,6 +218,7 @@ describe('createHeightOracle', () => {
 		const summary = declarePluginKind('oracle-collapsible-chrome');
 		const collapsible = declarePluginKind('oracle-collapsible');
 		registerBlockKind(collapsible, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
@@ -250,6 +251,7 @@ describe('createHeightOracle', () => {
 		const o = createHeightOracle(opts);
 		const estimated = declarePluginKind('oracle-estimate-height');
 		registerBlockKind(estimated, {
+			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,
@@ -267,6 +269,7 @@ describe('createHeightOracle', () => {
 		const summary = declarePluginKind('oracle-estimate-chrome');
 		const collapsible = declarePluginKind('oracle-estimate-collapsed');
 		registerBlockKind(collapsible, {
+			gapEdges: 'none',
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
@@ -280,12 +283,5 @@ describe('createHeightOracle', () => {
 		});
 		const node: CstNode = { kind: collapsible, leadingTrivia: '', raw: 'x'.repeat(2000) };
 		expect(o.estimate(node, 600)).toBe(opts.lineHeight + opts.blockChrome);
-	});
-
-	it('clear() empties the measured cache', () => {
-		const o = createHeightOracle(opts);
-		o.recordMeasured('id-1', 99);
-		o.clear();
-		expect(o.measured('id-1')).toBeUndefined();
 	});
 });

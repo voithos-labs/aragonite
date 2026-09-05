@@ -2,12 +2,11 @@ import type { Editor, PastedImage, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { parseConverges } from '$lib/testing/parse-convergence';
-import { parseInline, getContentRange, isProseKind } from '$lib/core/inline';
-import { findBlockPathForElement } from '$lib/selection/path-lookup';
-import { isBlockNode, nodeAt } from '$lib/tree-operations/node-ops';
+import { nodeAt } from '$lib/tree-operations/node-ops';
 import { spliceChildren } from '$lib/tree-operations/children';
 import { getStateForNode } from '$lib/reactivity/state-registry';
 import type { BlockKind, CstNode, Document } from '$lib/core/nodes';
+import type { GapCaretPosition } from '$lib/selection/gap-caret';
 import type { EditorSelection } from '$lib/selection/primitives';
 import type { DecorationSource, DecorationSourceHandle } from '$lib/decorations/types';
 import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
@@ -19,12 +18,20 @@ import {
 } from '$lib/schema/block-kind-descriptor';
 import { registerBlockComponent } from '$lib/schema/block-component-registry';
 import {
+	isPasteTransformRegistered,
+	registerPasteTransform
+} from '$lib/tree-operations/paste/paste-transforms';
+import {
 	dumpTree,
 	dumpUndoStack,
-	dumpInlineTree,
 	dumpOperationsLog,
 	dumpInteractionTrace
 } from '$lib/debug/inspect';
+import {
+	dumpFocusedInlineTree,
+	isCrossBlockSnapshot,
+	liveSelectionText
+} from '../../debug-panel/panel-sections';
 import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/perf/instruments';
 import {
 	enableInteractionTrace,
@@ -36,9 +43,8 @@ import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
 
-// These kinds only trip BlockHost fallback paths, never a real editing surface, so
-// every cross-cutting system is honestly not-supported; mergeBackspace stays
-// non-inherit to satisfy the not-mergeable coherence rule.
+// These kinds only trip BlockHost fallback paths, never a real editing surface, so every
+// cross-cutting system is honestly not-supported.
 const HARNESS_PROBE_CLOSURE: ClosureBlock = {
 	roundTrip: { mode: 'inherit-default' },
 	focus: {
@@ -59,92 +65,6 @@ export interface TestProbeDeps {
 	setSource: (md: string) => void;
 	setKeybindings: (overrides: KeybindingOverride[] | undefined) => void;
 	setPresentationMode: (mode: PresentationMode) => void;
-}
-
-// ── Selection inspection (shared with the DebugPanel getters) ──────────────
-
-// Prefers the range's container over document.activeElement so the path still
-// resolves once focus moved to the panel; the last selection still points into the editor.
-export function getFocusedBlockPath(): number[] | null {
-	if (typeof window === 'undefined') return null;
-	const sel = window.getSelection();
-	if (!sel || sel.rangeCount === 0) return null;
-	const node = sel.getRangeAt(0).startContainer;
-	const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
-	return findBlockPathForElement(el);
-}
-
-export function dumpFocusedInlineTree(source: string): string {
-	const path = getFocusedBlockPath();
-	if (!path) return '';
-	const doc = parse(source);
-	const node = nodeAt(doc, path);
-	if (!node || !isBlockNode(node) || !isProseKind(node.kind)) return '';
-	const range = getContentRange(node);
-	const inline = parseInline(node.raw, range.start, range.end);
-	return dumpInlineTree(inline);
-}
-
-function isCrossBlockSnapshot(sel: {
-	anchor: { path: number[] };
-	focus: { path: number[] };
-}): boolean {
-	const a = sel.anchor.path;
-	const f = sel.focus.path;
-	if (a.length !== f.length) return true;
-	for (let i = 0; i < a.length; i++) {
-		if (a[i] !== f[i]) return true;
-	}
-	return false;
-}
-
-function describeNode(node: Node): string {
-	if (node.nodeType === Node.TEXT_NODE) return '#text';
-	if (node.nodeType === Node.ELEMENT_NODE) {
-		const el = node as Element;
-		const cls =
-			typeof el.className === 'string' && el.className ? '.' + el.className.split(' ')[0] : '';
-		return el.tagName.toLowerCase() + cls;
-	}
-	return '#' + node.nodeType;
-}
-
-// editor.getSelection()'s cross-block branch only populates while SelectionState is
-// active, so single-block carets fall back to reading the native selection.
-export function liveSelectionText(editor: EditorInstance | undefined): string {
-	const editorSel = editor?.getSelection();
-	if (editorSel && isCrossBlockSnapshot(editorSel)) {
-		const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
-		return `anchor=${fmt(editorSel.anchor)} focus=${fmt(editorSel.focus)} cross-block=true`;
-	}
-	if (typeof window === 'undefined') return '(no selection)';
-	const nativeSel = window.getSelection();
-	if (!nativeSel || nativeSel.rangeCount === 0) return '(no selection)';
-	const range = nativeSel.getRangeAt(0);
-	const startNode = range.startContainer;
-	const endNode = range.endContainer;
-	const startEl =
-		startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : (startNode as Element);
-	const endEl = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : (endNode as Element);
-	const startPath = findBlockPathForElement(startEl);
-	const endPath = findBlockPathForElement(endEl);
-	if (!startPath || !endPath) return '(no selection in editor)';
-	const lines = [
-		`mode=single-block${range.collapsed ? ' (caret)' : ' (range)'}`,
-		`anchor=[${startPath.join(',')}] focus=[${endPath.join(',')}]`,
-		// Native Range offsets are child-index counts against startContainer/endContainer,
-		// not raw offsets; the `raw:` line below carries the CST-coordinate values.
-		`range: startContainer=${describeNode(range.startContainer)} startOffset=${range.startOffset} endContainer=${describeNode(range.endContainer)} endOffset=${range.endOffset}`
-	];
-	if (editorSel) {
-		const fmt = (p: { path: number[]; offset: number }) => `[${p.path.join(',')}]@${p.offset}`;
-		lines.push(`raw: anchor=${fmt(editorSel.anchor)} focus=${fmt(editorSel.focus)}`);
-	}
-	if (!range.collapsed) {
-		const selected = nativeSel.toString();
-		if (selected) lines.push(`selected=${JSON.stringify(selected)}`);
-	}
-	return lines.join('\n');
 }
 
 // ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
@@ -187,9 +107,8 @@ function firstTextLeafToken(node: CstNode): string | null {
 	return node.raw.match(/[A-Za-z0-9]+/)?.[0] ?? null;
 }
 
-// One row per kind that declares a conformanceFixture, parsed in the ROUTE's registry:
-// a fixture shadowed by another plugin's directive (admonition's `:::note` under the
-// co-registered callout) carries a null token, so the sweep records that reachability
+// One row per kind declaring a conformanceFixture, parsed in the ROUTE's registry: a fixture
+// another plugin's opener claims yields a null token, so the sweep records that reachability
 // gap rather than the bridge hiding it.
 function collectConformanceEntries(): ConformanceSweepEntry[] {
 	const entries: ConformanceSweepEntry[] = [];
@@ -268,6 +187,15 @@ const editOpProbe = createSessionProbe<string[]>(() => []);
 const errorProbe = createSessionProbe<string[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
+
+/** A container whose registered BlockListState has drifted from its children. */
+interface StateDrift {
+	path: number[];
+	kind: string;
+	childrenLen: number;
+	idsLen: number;
+	refsLen: number;
+}
 
 /** One `selectionChange` payload, flattened so it survives `page.evaluate`. */
 interface SelectionChangeRecord {
@@ -357,15 +285,12 @@ export function installTestProbes({
 		setPresentationMode: (mode: PresentationMode) => {
 			setPresentationMode(mode);
 		},
-		// getBlockCount / getBlockKind / dumpTree read the LIVE CST, not parse(getSource()):
-		// a reparse can't see a live-kind-vs-raw desync or a transient block the serializer
-		// trims. (dumpInlineTree stays on the reparse — inline structure, not liveness.)
+		// getBlockCount / getBlockKind / dumpTree read the LIVE CST, not parse(getSource()): a
+		// reparse can't see a live-kind-vs-raw desync or a transient block the serializer trims.
 		getBlockCount: () => editor.__test.getDocument().children.length,
-		// Fires a nested container scope's windowing rebuild WITHOUT moving the scroll (the
-		// VR-2 above-fold anchor-remap path), unlike setSource or undo. Root paths are
-		// rejected: root ids live in a separate `blockIds` array this helper can't reach.
-		// Ancestor raw stays STALE, so assert through getDocument() or parseConverged(),
-		// never getSource()/roundTripStable().
+		// Fires a nested container scope's windowing rebuild WITHOUT moving the scroll, unlike
+		// setSource or undo; root paths are rejected because root ids live in a separate array.
+		// Ancestor raw stays STALE, so assert through getDocument() or parseConverged().
 		spliceContainerChildren: (
 			path: number[],
 			at: number,
@@ -376,18 +301,19 @@ export function installTestProbes({
 			const container = nodeAt(editor.__test.getDocument(), path) as CstNode | null;
 			if (!container) return;
 			const inserted = markdown ? parse(markdown).children : [];
-			spliceChildren(container, at, removeCount, ...inserted);
+			spliceChildren(container, at, removeCount, inserted);
 			container.children = [...(container.children ?? [])];
 		},
 		getBlockKind: (index: number) => editor.__test.getDocument().children[index]?.kind ?? '',
 		getConformanceEntries: (): ConformanceSweepEntry[] => collectConformanceEntries(),
-		// A descriptor with NO registered component reaches BlockHost's no-component branch
-		// and its visible-raw fallback. The kind stays outside ALL_BLOCK_KINDS so the
-		// startup registry-completeness check is unperturbed.
+		// A descriptor with NO registered component reaches BlockHost's no-component branch and
+		// its visible-raw fallback. Outside ALL_BLOCK_KINDS, so the startup completeness check
+		// stays unperturbed.
 		makeBlockOrphan: (index: number): void => {
 			const kind = 'orphanTest' as BlockKind;
 			if (!tryGetBlockKindDescriptor(kind)) {
 				registerBlockKind(kind, {
+					gapEdges: 'none',
 					mergeRole: 'not-mergeable',
 					editable: true,
 					supportsInline: false,
@@ -406,6 +332,7 @@ export function installTestProbes({
 			const kind = 'throwTest' as BlockKind;
 			if (!tryGetBlockKindDescriptor(kind)) {
 				registerBlockKind(kind, {
+					gapEdges: 'none',
 					mergeRole: 'not-mergeable',
 					editable: false,
 					supportsInline: false,
@@ -429,6 +356,8 @@ export function installTestProbes({
 		// turns every `false` assertion into a false pass, and the mirror is document-global
 		// (wrong editor on a two-editor route). Same rule `editor-rects.ts` carries.
 		isCrossBlockActive: (): boolean => editor.__test.isCrossBlockActive(),
+		// The third selection mode, read from the state for the same reason as above.
+		getGapCaret: (): GapCaretPosition | null => editor.__test.getGapCaret(),
 		// Narrower than the mode above: an intra-table rectangle turns that on while both
 		// endpoints keep the table's own path.
 		isCrossBlockSelection: (): boolean => {
@@ -448,14 +377,30 @@ export function installTestProbes({
 		// the endpoint UNION variant it got, and the path-only projection drops `cellCoordinate`.
 		getSelection: (): EditorSelection | null => editor.getSelection(),
 		setSelection: (selection: EditorSelection): Promise<boolean> => editor.setSelection(selection),
+		// The real instance door, called the way a shell answering a click on its own chrome
+		// calls it — viewport coordinates the shell read off its own element.
+		placeCaretAtPoint: (x: number, y: number): boolean => editor.placeCaretAtPoint(x, y),
+		// The programmatic insertion door, called the way a consumer toolbar calls it.
+		insertMarkdown: (md: string): boolean => editor.insertMarkdown(md),
+		// The semantic command door, called the way a selection toolbar's button calls it: a
+		// bare id, no chord, no keydown.
+		runCommand: (commandId: string): boolean => editor.runCommand(commandId),
+		// A plugin-shaped paste transform without a plugin. Transforms are register-once and
+		// process-global, so the probe asks before registering rather than catching the throw.
+		registerPasteTransform: (name: string, find: string, replace: string): void => {
+			if (isPasteTransformRegistered(name)) return;
+			registerPasteTransform({
+				name,
+				transform: (text) => (text.includes(find) ? text.split(find).join(replace) : null)
+			});
+		},
 		roundTripStable: (): boolean => {
 			const src = editor.getSource();
 			return serialize(parse(src)) === src;
 		},
-		// The live-tree convergence oracle. roundTripStable above is a tautology as a
-		// mutation oracle (serialize(parse(s)) === s holds for all valid GFM); this compares
-		// the LIVE CST against a reparse of its own serialization, so a tree left diverging
-		// from its raw (stale kind, stale grid, split-separator drift) is caught.
+		// The live-tree convergence oracle, unlike roundTripStable above, which is a tautology
+		// for all valid GFM: this compares the LIVE CST against a reparse of its own
+		// serialization, catching a tree left diverging from its raw.
 		parseConverged: (): boolean => parseConverges(editor.__test.getDocument()),
 		// The bar shows a match count instead of "N replaced" whenever matches survive a
 		// replace (skipped container matches), so specs read the replaced count here.
@@ -553,11 +498,9 @@ export function installTestProbes({
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
-		// ── Edit-event capture / counting probes ──────────────────────────
-		// startEditCount and startEditOpCapture share one accumulator (a count is its
-		// length), so no spec may run both at once; a second start replaces the first.
-		startEditCount: (): void => editOpProbe.start(subscribeEditOps),
-		stopEditCount: (): number => editOpProbe.stop().length,
+		// ── Edit-event capture probe ──────────────────────────────────────
+		// One accumulator; a second start replaces the first. A caller wanting a count
+		// takes the capture's length.
 		startEditOpCapture: (): void => editOpProbe.start(subscribeEditOps),
 		stopEditOpCapture: (): string[] => editOpProbe.stop(),
 		// ── Error-event capture probe ─────────────────────────────────────
@@ -596,9 +539,9 @@ export function installTestProbes({
 		// ── BlockComponent surface probe ─────────────────────────────────
 		/**
 		 * The public `BlockComponent` caret doors a plugin-authored container calls
-		 * directly, unreachable from gesture-level specs (every built-in caret placement
-		 * goes through a pointer or keyboard path first). `parkCaret` is optional on the
-		 * contract, so its probe reports false rather than falling back to the clearing verb.
+		 * directly, unreachable from gesture-level specs (every built-in caret placement goes
+		 * through a pointer or keyboard path first). `parkCaret` is optional on the contract, so
+		 * its probe reports false rather than falling back to the clearing verb.
 		 */
 		focusBlockComponent: (path: number[], offset: number): boolean => {
 			const block = editor.__test.getBlockComponent(path);
@@ -632,27 +575,14 @@ export function installTestProbes({
 		},
 		// ── BlockListState consistency probe ─────────────────────────────
 		/**
-		 * Walks the LIVE CST, not a re-parse, for containers whose registered
-		 * BlockListState has drifted in length from node.children. Throws rather than
-		 * reporting `[]` when containers exist but none resolved a state: call sites
-		 * assert `toEqual([])`, so a registration regression would turn every one of them
-		 * vacuously green. Same loud-on-absent shape as `e2e/container-parity.ts`.
+		 * Walks the LIVE CST for containers whose registered BlockListState has drifted in
+		 * length from node.children. Throws rather than reporting `[]` when containers exist but
+		 * none resolved a state: call sites assert `toEqual([])`, which a registration
+		 * regression would otherwise turn vacuously green.
 		 */
-		auditBlockListStateConsistency: (): Array<{
-			path: number[];
-			kind: string;
-			childrenLen: number;
-			idsLen: number;
-			refsLen: number;
-		}> => {
+		auditBlockListStateConsistency: (): StateDrift[] => {
 			const doc = editor.__test.getDocument();
-			const violations: Array<{
-				path: number[];
-				kind: string;
-				childrenLen: number;
-				idsLen: number;
-				refsLen: number;
-			}> = [];
+			const violations: StateDrift[] = [];
 			let containers = 0;
 			let resolved = 0;
 			function walk(node: CstNode, path: number[]): void {

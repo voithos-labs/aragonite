@@ -17,8 +17,12 @@ left, else insert the pair and put the caret between its halves.
 - Ctrl+B at a caret in the middle of a plain word inserts the pair there — it does not
   toggle the whole word (no word-boundary rule exists in this editor).
 - One Ctrl+Z after the insert removes the pair and restores the caret's text.
-- Text typed inside the pair joins the same undo entry: one Ctrl+Z removes the pair AND the
-  typing. The toggle joins the typing checkpoint it opened, the ordinary batching rule for a
-  content edit at a caret.
+- Text typed inside the pair unwinds on its own: the toggle is a command, not typing, so it
+  breaks the keystroke batch on both sides. One Ctrl+Z takes the typing and leaves the pair; a
+  second takes the pair.
 - In a table cell, Ctrl+B at a collapsed caret inserts the pair through the CST and
   never lets the browser's own bold command inject a `<b>` element.
+
+Miss-analysis (the undo-granularity row): the toggle's granularity changed deliberately, and the
+suite's contradicting pin lived in a project the changing task's gate list did not name — gates
+derive from the files touched, and `format-toggle.ts` reaches this spec.

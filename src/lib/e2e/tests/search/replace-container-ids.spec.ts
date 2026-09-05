@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { primaryModifier } from '../../platform';
 
 // Replace All must not reparse a top-level subtree WITHOUT childIds: a reused container
 // component fed the fresh node renders `undefined` keys, and a list item with two or more
@@ -8,12 +7,12 @@ import { primaryModifier } from '../../platform';
 test.describe('search — replace preserves container ids', () => {
 	test('Replace All over "list" never desyncs nested container ids', async ({ page }) => {
 		const editor = new EditorPage(page);
-		await editor.goto(); // SHOWCASE_CONTENT by default — do not loadContent
+		await editor.goto(); // HARNESS_SHOWCASE_CONTENT by default — do not loadContent
 
 		await page.evaluate(() => (window as any).__test.startErrorCapture());
 
 		await editor.clickBlock(0);
-		await page.keyboard.press(`${primaryModifier}+h`);
+		await page.keyboard.press('ControlOrMeta+h');
 		const replaceInput = page.getByRole('textbox', { name: 'Replace' });
 		await replaceInput.waitFor({ state: 'visible' });
 

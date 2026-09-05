@@ -1,5 +1,5 @@
-import type { AnyBlockKind, BlockKind } from '../core/nodes';
-import type { InvariantViolation } from './assert';
+import type { AnyBlockKind, AnyInlineKind, BlockKind } from '../core/nodes';
+import type { InvariantViolation } from '../assert';
 
 /**
  * Registry predicates take every lookup as a parameter — pure by construction, and a
@@ -256,18 +256,186 @@ export function checkClosureCoherence(
 	return null;
 }
 
+export interface InlineConstructPolicyEntry {
+	kind: AnyInlineKind;
+	revealable: boolean;
+	autoUnwrapOnEmpty: boolean;
+	splitBehavior: 'close-and-reopen' | 'plain';
+	/** The mark vocabulary, for a kind a format chord addresses. */
+	mark?: { nestingRank: number; command: string };
+}
+
+/**
+ * G1.31 — inline-construct policy coherence: a row names a kind the inline vocabulary holds; the
+ * marker-rewriting behaviors belong only to kinds whose markers the reveal can address; no two mark
+ * rows claim one nesting rank or one command; and no plugin row's mark claims a built-in command id.
+ * A mistyped kind is silent, a rewrite on a never-revealed kind edits markers the author cannot see,
+ * and a tied or built-in command leaves which meaning answers to each surface's own lookup order.
+ */
+export function checkInlineConstructPolicy(
+	entries: readonly InlineConstructPolicyEntry[],
+	isKnownInlineKind: (kind: AnyInlineKind) => boolean,
+	isBuiltinInlineKind: (kind: AnyInlineKind) => boolean,
+	isBuiltinCommandId: (id: string) => boolean
+): InvariantViolation | null {
+	const ranks = new Map<number, AnyInlineKind>();
+	const commands = new Map<string, AnyInlineKind>();
+	for (const entry of entries) {
+		if (!isKnownInlineKind(entry.kind)) {
+			return {
+				code: 'inline-construct-policy',
+				message: `inline-construct policy registered for "${entry.kind}", which is neither a built-in inline kind nor a declared plugin one — the row is unreachable`,
+				detail: { kind: entry.kind, issue: 'unknown-kind' }
+			};
+		}
+		if (entry.mark) {
+			const clash = markClashOf(entry.kind, entry.mark, ranks, commands);
+			if (clash) return clash;
+			// The built-in vocabulary is closed and every id in it already answers somewhere, so a
+			// plugin mark claiming one shadows that meaning on whichever surface consults the mark
+			// table first — and the surfaces do not agree on where in their lookup that is.
+			if (!isBuiltinInlineKind(entry.kind) && isBuiltinCommandId(entry.mark.command)) {
+				return {
+					code: 'inline-construct-policy',
+					message: `kind "${entry.kind}" claims built-in command "${entry.mark.command}" for its mark — that id already has a built-in meaning; mint a plugin command id for the mark`,
+					detail: { kind: entry.kind, command: entry.mark.command, issue: 'builtin-command' }
+				};
+			}
+		}
+		if (entry.revealable) continue;
+		const column =
+			entry.splitBehavior === 'close-and-reopen'
+				? 'splitBehavior'
+				: entry.autoUnwrapOnEmpty
+					? 'autoUnwrapOnEmpty'
+					: undefined;
+		if (column !== undefined) {
+			return {
+				code: 'inline-construct-policy',
+				message: `kind "${entry.kind}" is not revealable but its ${column} rewrites markers — a never-revealed construct's markers stay hidden, so the rewrite is invisible; mark the kind revealable or make the behavior atomic`,
+				detail: { kind: entry.kind, column }
+			};
+		}
+	}
+	return null;
+}
+
+function markClashOf(
+	kind: AnyInlineKind,
+	mark: { nestingRank: number; command: string },
+	ranks: Map<number, AnyInlineKind>,
+	commands: Map<string, AnyInlineKind>
+): InvariantViolation | null {
+	const rankHolder = ranks.get(mark.nestingRank);
+	if (rankHolder !== undefined) {
+		return {
+			code: 'inline-construct-policy',
+			message: `kinds "${rankHolder}" and "${kind}" share mark nesting rank ${mark.nestingRank} — which one wraps the other would fall to registration order`,
+			detail: { kinds: [rankHolder, kind], nestingRank: mark.nestingRank }
+		};
+	}
+	const commandHolder = commands.get(mark.command);
+	if (commandHolder !== undefined) {
+		return {
+			code: 'inline-construct-policy',
+			message: `kinds "${commandHolder}" and "${kind}" both claim command "${mark.command}" — one press cannot toggle two marks`,
+			detail: { kinds: [commandHolder, kind], command: mark.command }
+		};
+	}
+	ranks.set(mark.nestingRank, kind);
+	commands.set(mark.command, kind);
+	return null;
+}
+
+export interface DescriptorFieldEntry {
+	kind: AnyBlockKind;
+	declaresWholeBlockFocus: boolean;
+	supportsInline: boolean;
+	declaresReservedChrome: boolean;
+	contextDependentKind: boolean;
+	hasOpener: boolean;
+	unwrapLiftsFirstChild: boolean;
+	unwrapKeepsReservedChrome: boolean;
+}
+
+/**
+ * G1.37 — descriptor-vs-descriptor coherence: field pairs the type can represent and the kind
+ * cannot mean together. Each is silently inert rather than loud, so nothing fails until a
+ * gesture reaches the kind. G1.24 is the sibling over closure cells; this one reads the
+ * declarations alone.
+ */
+export function checkDescriptorFieldCoherence(
+	entries: readonly DescriptorFieldEntry[]
+): InvariantViolation | null {
+	for (const entry of entries) {
+		if (entry.contextDependentKind && entry.hasOpener) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares contextDependentKind but registers an opener — the field suppresses the reparse that would re-derive the kind, so a kind the parser CAN recognize stops re-deriving; drop one`,
+				detail: { kind: entry.kind, fields: ['contextDependentKind', 'opener'] }
+			};
+		}
+		if (entry.declaresWholeBlockFocus && entry.supportsInline) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and supportsInline — a whole-block unit's only addressable offsets are 0 and its display length, so inline constructs parsed from its raw have no caret positions to live at`,
+				detail: { kind: entry.kind, fields: ['blockFocus', 'supportsInline'] }
+			};
+		}
+		if (entry.declaresWholeBlockFocus && entry.declaresReservedChrome) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares blockFocus: 'whole-block' and reservedChrome — the chrome slot is always present, so the kind is never childless and the focus-then-delete model it declares can never engage`,
+				detail: { kind: entry.kind, fields: ['blockFocus', 'reservedChrome'] }
+			};
+		}
+		if (entry.declaresReservedChrome && entry.unwrapLiftsFirstChild) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares reservedChrome and a lifting firstChildBackspace — child 0 is the chrome row, so Backspace at its start would carry the container's own title out as a sibling block; declare 'keep-reserved-chrome'`,
+				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
+			};
+		}
+		if (entry.unwrapKeepsReservedChrome && !entry.declaresReservedChrome) {
+			return {
+				code: 'descriptor-field-coherence',
+				message: `kind "${entry.kind}" declares firstChildBackspace: 'keep-reserved-chrome' without reservedChrome — child 0 is body, so the declared decline makes Backspace at the body start a dead key; declare a lifting strategy`,
+				detail: { kind: entry.kind, fields: ['reservedChrome', 'firstChildBackspace'] }
+			};
+		}
+	}
+	return null;
+}
+
+export interface ContentStartBackspaceEntry {
+	kind: AnyBlockKind;
+	demotesFirst: boolean;
+	declaresContentRange: boolean;
+}
+
+/**
+ * G1.32 — a kind demoting on Backspace at its content start declares where that content starts.
+ * Without the hook the content range IS the whole display, so the arm never fires and the
+ * declaration reads as behavior the kind does not have — silent, and only at the keystroke.
+ */
+export function checkContentStartBackspace(
+	entries: readonly ContentStartBackspaceEntry[]
+): InvariantViolation | null {
+	for (const { kind, demotesFirst, declaresContentRange } of entries) {
+		if (!demotesFirst || declaresContentRange) continue;
+		return {
+			code: 'content-start-backspace',
+			message: `kind "${kind}" declares contentStartBackspace but no getContentRange — its content starts at raw 0, where the demote arm never fires and the declaration is silently inert`,
+			detail: { kind }
+		};
+	}
+	return null;
+}
+
 export interface MergeRoleEntry {
 	kind: AnyBlockKind;
 	mergeRole: string;
 }
-
-const MERGE_ROLES: ReadonlySet<string> = new Set([
-	'prose',
-	'prose-absorber',
-	'container',
-	'self-merge',
-	'not-mergeable'
-]);
 
 /**
  * G1.30 — every registered kind declares a `mergeRole` from the known vocabulary. A
@@ -275,10 +443,11 @@ const MERGE_ROLES: ReadonlySet<string> = new Set([
  * dispatcher fall through silently on every gesture that reaches the kind.
  */
 export function checkMergeRoleVocabulary(
-	entries: readonly MergeRoleEntry[]
+	entries: readonly MergeRoleEntry[],
+	isKnownMergeRole: (role: string) => boolean
 ): InvariantViolation | null {
 	for (const { kind, mergeRole } of entries) {
-		if (!MERGE_ROLES.has(mergeRole)) {
+		if (!isKnownMergeRole(mergeRole)) {
 			return {
 				code: 'merge-role-vocabulary',
 				message: `kind "${kind}" declares unknown mergeRole "${mergeRole}"`,

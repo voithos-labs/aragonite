@@ -1,14 +1,10 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
 import { Gestures } from '../../simulation/gestures';
-import { ExpectationTracker } from '../../simulation/expectation';
 import { attachErrorCollector } from '../../simulation/error-collector';
 import { makeRng } from '../../simulation/rng';
-import {
-	type SimContext,
-	assertCoreOracles,
-	assertParseConvergence
-} from '../../simulation/invariants';
+import { assertCoreOracles, assertParseConvergence } from '../../simulation/invariants';
+import { makeSimContext } from './helpers';
 
 // Ungated footnote-ops oracle, spanning two tiers the oracle stack had never seen under a
 // state-accumulating watcher: the `[^label]: ` strip-container definition (whose Enter-in-body
@@ -43,8 +39,7 @@ test.describe('footnote-ops simulation', () => {
 		await expect(page.locator('.footnote-ref')).toHaveCount(1);
 		await expect(page.locator('.footnote-def')).toHaveCount(1);
 
-		const tracker = new ExpectationTracker(await editor.bridge.getSource());
-		const ctx: SimContext = { page, editor, tracker, errors, label: 'footnote-ops' };
+		const ctx = await makeSimContext(page, editor, 'footnote-ops', { errors });
 		const g = new Gestures(ctx, makeRng(1));
 
 		const checkOracles = async (label: string) => {
@@ -97,13 +92,18 @@ test.describe('footnote-ops simulation', () => {
 		expect(await editor.bridge.getSource()).toContain('Continued note.');
 		await checkOracles('definition-body-continued');
 
-		// Backspace at the definition's first body child start delegates upward
-		// (not-mergeable) — byte-identical, never an unwrap into loose paragraphs.
+		// Backspace at the definition's first body child start lifts that child out as the
+		// paragraph before the marker; the continuation stays under the marker.
+		const beforeExit = await editor.bridge.getSource();
 		await g.footnoteDefinitionExitBackspace([defIndex, 0]);
 		await checkOracles('definition-exit-backspace');
 
 		// ── Undo unwind across the definition edits and the reference delete ────────
 		await g.pause();
+		await g.undo();
+		expect(await editor.bridge.getSource()).toBe(beforeExit);
+		await checkOracles('undo-exit-backspace');
+
 		await g.undo();
 		await checkOracles('undo-continuation');
 

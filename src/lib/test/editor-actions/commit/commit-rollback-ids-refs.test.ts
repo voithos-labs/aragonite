@@ -1,20 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import type { BlockListState } from '$lib/reactivity/block-list-state.svelte';
+import { refSlotsOver } from '$lib/reactivity/publish-ref.svelte';
 import { makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { CstNode } from '$lib/core/nodes';
+import { makeListNode } from '$lib/test/harness/list-fixtures';
 
-function makeContainer(childRaws: string[]): CstNode {
-	return {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: childRaws.join(''),
-		children: childRaws.map((r) => ({ kind: 'listItem', leadingTrivia: '', raw: r })),
-		childIds: childRaws.map((_, i) => `c-${i}`)
-	} as CstNode;
-}
+const makeContainer = (childRaws: string[]): CstNode =>
+	makeListNode(childRaws, { childIds: childRaws.map((_, i) => `c-${i}`) });
 
 // publishScopeView writes each scope's ids/refs into reactive state BEFORE the
 // ancestor-raw rebuild, so a later throw leaves them reflecting a rolled-back mutation.
@@ -29,22 +24,23 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 		const idsBefore = [...getBlockIds()];
 		const refsBefore = [...getBlockRefs()];
 
-		// Throws on the FIRST write (publish) and succeeds after (rollback), so the fault
-		// lands once the doc scope has already published its grown ids/refs.
-		let refsWrites = 0;
-		let stashedRefs: (unknown | undefined)[] = [];
+		// Armed once `mutate` has run, so the fault lands on the publish pass rather than the
+		// prepare reads before it, and disarms so the rollback's own read still resolves.
+		let armed = false;
+		const stashedRefs: BlockListState['innerBlockRefs'] = [];
 		const throwingState: BlockListState = {
 			get innerBlockIds() {
 				return deps.doc.children[1].childIds ?? [];
 			},
 			set innerBlockIds(_v: string[]) {},
 			get innerBlockRefs() {
-				return stashedRefs as never;
+				if (armed) {
+					armed = false;
+					throw new Error('publish boom');
+				}
+				return stashedRefs;
 			},
-			set innerBlockRefs(v) {
-				if (refsWrites++ === 0) throw new Error('publish boom');
-				stashedRefs = v as unknown[];
-			}
+			refSlots: refSlotsOver(stashedRefs)
 		};
 
 		const scopes: MultiScopeTarget[] = [
@@ -59,6 +55,7 @@ describe('commitMultiScope — ids/refs rollback on a post-publish throw', () =>
 				mutate: ([docScope]) => {
 					// A fresh id makes the doc-scope publish rewrite blockIds — the mutation to undo.
 					docScope.children.push({ kind: 'paragraph', leadingTrivia: '', raw: 'x\n' } as CstNode);
+					armed = true;
 					return [{ op: 'insert', at: docScope.children.length - 1, count: 1 }, { op: 'noop' }];
 				}
 			})

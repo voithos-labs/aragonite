@@ -24,6 +24,11 @@ describeScanCases('uri autolinks', [
 	['one-char scheme is not an autolink', '<a:b>', [textNode(0, 5, '<a:b>')]],
 	['two-char scheme is the minimum', '<ab:c>', [autolinkNode(0, 6, 'ab:c')]],
 	[
+		'scheme may contain +, -, and . after the first letter',
+		'<a+b-c.d://x>',
+		[autolinkNode(0, 13, 'a+b-c.d://x')]
+	],
+	[
 		'32-char scheme is the maximum',
 		'<' + 'a'.repeat(32) + ':x>',
 		[autolinkNode(0, 36, 'a'.repeat(32) + ':x')]
@@ -49,6 +54,14 @@ describeScanCases('email autolinks', [
 		[autolinkNode(0, 5, 'mailto:a@b')]
 	],
 	['domain segment ending in dash is rejected', '<a@b-.c>', [textNode(0, 8, '<a@b-.c>')]]
+]);
+
+describeScanCases('angle forms that fail both grammars stay literal', [
+	['space in the local part', '<foo @bar.com>', [textNode(0, 14, '<foo @bar.com>')]],
+	['empty local part', '<@bar.com>', [textNode(0, 10, '<@bar.com>')]],
+	['empty angle pair', '<>', [textNode(0, 2, '<>')]],
+	['trailing dot in the domain', '<foo@bar.>', [textNode(0, 10, '<foo@bar.>')]],
+	['final domain segment ending in dash', '<a@b.c->', [textNode(0, 8, '<a@b.c->')]]
 ]);
 
 describeScanCases('autolinks win the `<` dispatch over brackets', [

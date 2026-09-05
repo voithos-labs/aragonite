@@ -1,9 +1,8 @@
 /**
- * preview-inline's construct-reveal trigger: an inline construct's markers stay
- * CSS-hidden until the caret enters its INCLUSIVE `[start, end]`, revealing the whole
- * chain of enclosing constructs. Reveal is a class flip on `data-construct-*` spans —
- * the DOM text never changes, so raw offsets survive it, and the affinity contract is
- * "raw offset + inclusive edges" (spec: the preview-inline-affinity e2e requirement).
+ * preview-inline's construct-reveal trigger: an inline construct's markers stay CSS-hidden until
+ * the caret enters its INCLUSIVE `[start, end]`, revealing the whole enclosing chain. Reveal is a
+ * class flip on `data-construct-*` spans, so the DOM text never changes and raw offsets survive it
+ * (spec: the preview-inline-affinity e2e requirement).
  */
 
 import { tick } from 'svelte';
@@ -11,27 +10,16 @@ import type { InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { PresentationMode } from '../../../presentation-mode';
 import type { LinkReferenceResolverRef } from '../../../editor-keys';
+import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
+import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
 import { toClampedRawOffset } from '../../../cursor/coordinate-spaces';
-import { domTextOffsetAtNode } from '../../../cursor/widget-offset';
+import { CONSTRUCT_REVEAL_CLASS, domTextOffsetAtNode } from '../../../cursor/widget-offset';
 import {
 	isInteractionTraceEnabled,
 	traceRevealOpen,
 	traceRevealFold
 } from '../../../debug/interaction-trace';
-
-export const CONSTRUCT_REVEAL_CLASS = 'md-construct-reveal';
-
-/** The marker-bearing inline kinds the reveal covers. Images ride along for their
- *  alt-only rendering; widget-rendered images have no marker spans to flip. */
-const REVEALABLE_KINDS: ReadonlySet<InlineNode['kind']> = new Set([
-	'emphasis',
-	'strong',
-	'strikethrough',
-	'inlineCode',
-	'link',
-	'image'
-]);
 
 // ── Chain math (pure) ────────────────────────────────────────────────────────
 
@@ -40,17 +28,13 @@ const REVEALABLE_KINDS: ReadonlySet<InlineNode['kind']> = new Set([
  * first; at a boundary shared by adjacent siblings both are collected.
  */
 export function constructChainAtOffset(nodes: InlineNode[], offset: number): InlineNode[] {
+	// A child lies inside its parent's range, so a node that misses the offset prunes its subtree.
+	const holds = (node: InlineNode): boolean => offset >= node.start && offset <= node.end;
 	const chain: InlineNode[] = [];
-	collectChain(nodes, offset, chain);
-	return chain;
-}
-
-function collectChain(nodes: InlineNode[], offset: number, out: InlineNode[]): void {
-	for (const node of nodes) {
-		if (offset < node.start || offset > node.end) continue;
-		if (REVEALABLE_KINDS.has(node.kind)) out.push(node);
-		if (node.children && node.children.length > 0) collectChain(node.children, offset, out);
+	for (const node of inlineDescendants(nodes, holds)) {
+		if (holds(node) && isRevealableInlineKind(node.kind)) chain.push(node);
 	}
+	return chain;
 }
 
 // ── Trigger (DOM class flips) ────────────────────────────────────────────────

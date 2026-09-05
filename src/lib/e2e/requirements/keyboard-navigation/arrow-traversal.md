@@ -1,11 +1,14 @@
 # Feature: Keyboard Navigation — Arrow Traversal
 
-Focus traversal across block boundaries via arrow keys.
+Focus traversal across block boundaries via arrow keys, including the geometry checks (visual line
+position rather than logical caret position) that decide when the boundary is reached.
 
 ## Happy paths
 
 - ArrowDown at end of block moves to next: typing after ArrowDown affects the next block
 - ArrowUp at start of block moves to previous: typing after ArrowUp affects the previous block
+- ArrowUp on the first visual line moves to the previous block when that block is a heading, whose
+  marker span is a non-text first child: the geometry check, not a text-node read, finds the edge
 
 ## Edge cases
 

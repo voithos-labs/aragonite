@@ -1,7 +1,6 @@
 import { test, expect } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { PluginsPage, activeBlockPath } from './helpers';
-import { primaryModifier } from '../../platform';
 
 // The three DOM-only closure columns, executed per registered kind. One test per COLUMN iterates
 // the live registry entries, soft-collects a failure line per kind, and rolls them into a final
@@ -27,11 +26,6 @@ const BEFORE = 'top filler';
 const AFTER = 'end filler';
 const NEIGHBOUR_TOKEN = 'filler';
 
-// `admonition`'s `:::note` fixture is shadowed by the co-registered callout dogfood on
-// /test/plugins, so no admonition node mounts; the callout `note` entry sweeps the same
-// container-directive DOM behaviours. Any OTHER unreachable kind is a real regression.
-const FIXTURE_UNREACHABLE = new Set(['admonition']);
-
 const WALK_LIMIT = 30;
 
 // Every column test iterates whatever the bridge returns, so a kind silently dropped from
@@ -45,7 +39,8 @@ const ENROLLMENT_FLOOR = [
 	'mermaid',
 	'mathBlock',
 	'toc',
-	'note'
+	'callout',
+	'admonition'
 ];
 
 // ── Enrollment ────────────────────────────────────────────────────────────────
@@ -62,11 +57,17 @@ test('enrollment covers the known-kind floor', async ({ page }) => {
 
 // ── Locate ──────────────────────────────────────────────────────────────────
 
-// Every load gets a unique leading-trivia prefix: the harness's setSource writes a `source` $state
-// and a same-value write is a Svelte no-op, so with two kinds sharing a byte-identical fixture doc
-// a prior iteration's typed mutation would survive into the next kind's run. Blank lines are
-// lossless leadingTrivia — no block, no searchable text, block indices unchanged.
-let loadSeq = 0;
+// Clear to empty before every load: the editor reloads on `source !== lastSource`, so two kinds
+// sharing a byte-identical fixture (list/listItem, table/tableRow) would skip the reload and
+// inherit the prior iteration's typed mutation. Every sweep document carries both fillers, so a
+// blank serialization is a state no fixture load can be mistaken for.
+async function clearDocument(page: Page): Promise<void> {
+	await page.evaluate(() => (window as any).__test.setSource(''));
+	await page.waitForFunction(() => (window as any).__test.getSource().trim() === '', null, {
+		timeout: 3000,
+		polling: 16
+	});
+}
 
 // Load `BEFORE / fixture / AFTER` and resolve the fixture block. The kind is sought only among the
 // MIDDLE blocks: `paragraph`'s fixture is itself a paragraph, so a whole-document scan would match
@@ -76,11 +77,10 @@ async function loadAndLocate(
 	plugins: PluginsPage,
 	entry: SweepEntry
 ): Promise<{ topIndex: number | null; afterIndex: number }> {
-	const doc = `${'\n'.repeat(loadSeq++)}${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
+	const doc = `${BEFORE}\n\n${entry.fixture}\n\n${AFTER}\n`;
+	await clearDocument(page);
 	await page.evaluate((d) => (window as any).__test.setSource(d), doc);
-	// Exact-source settle: every sweep document carries both fillers, so an includes() predicate is
-	// satisfiable by the PRIOR kind's stale document. serialize() normalizes trailing whitespace;
-	// compare trimmed forms.
+	// serialize() normalizes trailing whitespace; compare trimmed forms.
 	await page.waitForFunction(
 		(expected) => {
 			const actual = (window as any).__test.getSource() as string;
@@ -128,7 +128,7 @@ async function matchOverlaysIn(page: Page, topIndex: number): Promise<number> {
 
 async function openSearch(page: Page, plugins: PluginsPage, find: Locator): Promise<void> {
 	await plugins.clickBlock(0);
-	await page.keyboard.press(`${primaryModifier}+f`);
+	await page.keyboard.press('ControlOrMeta+f');
 	await find.waitFor({ state: 'visible' });
 }
 
@@ -210,9 +210,18 @@ async function activeMatchEverLandsIn(
 
 // ── Focus walk ────────────────────────────────────────────────────────────────
 
-test('focus walk enters and exits each kind without trapping', async ({ page }) => {
-	const plugins = new PluginsPage(page);
-	await plugins.gotoPlugins();
+interface SweepResult {
+	failures: string[];
+	unreachable: string[];
+}
+
+/** Every enrolled kind must mount from its own fixture; an unreachable one is a lost registrar. */
+function expectSweepClean({ failures, unreachable }: SweepResult): void {
+	expect(unreachable, 'enrolled kinds whose fixture mounted no node').toEqual([]);
+	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+}
+
+async function sweepFocusWalk(page: Page, plugins: PluginsPage): Promise<SweepResult> {
 	const entries: SweepEntry[] = await page.evaluate(() =>
 		(window as any).__test.getConformanceEntries()
 	);
@@ -267,8 +276,25 @@ test('focus walk enters and exits each kind without trapping', async ({ page }) 
 		}
 	}
 
-	expect(unreachable.sort()).toEqual([...FIXTURE_UNREACHABLE].sort());
-	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+	return { failures, unreachable };
+}
+
+test('focus walk enters and exits each kind without trapping', async ({ page }) => {
+	const plugins = new PluginsPage(page);
+	await plugins.gotoPlugins();
+	expectSweepClean(await sweepFocusWalk(page, plugins));
+});
+
+// The same walk under a marker-hiding mode, where a caret park and a typed byte are what G1.33
+// watches: a kind minting marker-only chrome into its own surface fires on the shared fixture's
+// console watch here rather than in a consumer's document.
+test('focus walk under live mode enters and exits each kind, tripping no invariant', async ({
+	page
+}) => {
+	const plugins = new PluginsPage(page);
+	await plugins.gotoPlugins();
+	await plugins.setPresentationMode('live');
+	expectSweepClean(await sweepFocusWalk(page, plugins));
 });
 
 // ── Selection paint ────────────────────────────────────────────────────────────
@@ -305,8 +331,7 @@ test('cross-block selection paints within each kind', async ({ page }) => {
 		await page.keyboard.press('ArrowRight');
 	}
 
-	expect(unreachable.sort()).toEqual([...FIXTURE_UNREACHABLE].sort());
-	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+	expectSweepClean({ failures, unreachable });
 });
 
 // ── Search paint ───────────────────────────────────────────────────────────────
@@ -383,6 +408,5 @@ test('search paints or degrades per kind', async ({ page }) => {
 		await closeSearch(page, find);
 	}
 
-	expect(unreachable.sort()).toEqual([...FIXTURE_UNREACHABLE].sort());
-	expect(failures, `\n${failures.join('\n')}`).toEqual([]);
+	expectSweepClean({ failures, unreachable });
 });

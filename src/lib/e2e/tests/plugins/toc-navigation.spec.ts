@@ -1,6 +1,6 @@
 import { test, expect } from '../../fixtures';
-import type { Locator, Page } from '@playwright/test';
-import { PluginsPage, activeBlockPath } from './helpers';
+import type { Locator } from '@playwright/test';
+import { PluginsPage, activeBlockPath, blockView, tocEntry } from './helpers';
 import { capturePageErrors } from '../../page-probes';
 
 /**
@@ -26,26 +26,13 @@ class TocNavPage extends PluginsPage {
 		return this.page.locator("[data-block-path='[0]'] .toc-block-item");
 	}
 	entry(label: string): Locator {
-		return this.items().filter({ hasText: label });
+		return tocEntry(this.page, label);
 	}
 	async load(md: string): Promise<void> {
 		await this.gotoPlugins('toc');
 		await this.loadContent(md);
 		await expect(this.render).toBeVisible();
 	}
-}
-
-// In-view = the heading's block box intersects the editor viewport; independent of
-// scrollTo's own check so the assertion isn't tautological.
-function blockView(page: Page, index: number): Promise<{ mounted: boolean; inView: boolean }> {
-	return page.evaluate((i) => {
-		const editorEl = document.querySelector('.editor') as HTMLElement;
-		const er = editorEl.getBoundingClientRect();
-		const block = document.querySelector(`[data-block-path='[${i}]']`) as HTMLElement | null;
-		if (!block) return { mounted: false, inView: false };
-		const br = block.getBoundingClientRect();
-		return { mounted: true, inView: br.top < er.bottom && br.bottom > er.top };
-	}, index);
 }
 
 // A tall document: `[[toc]]` at the top, then h1/h2 amid filler, a deep h3 far below
@@ -104,27 +91,27 @@ test.describe('toc outline: click-to-navigate', () => {
 
 		// Scrolling to the target mounts it in view; the top-of-doc toc block itself
 		// windows out on the way, which is why "no reveal" is pinned on a short doc below.
-		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+		await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
 		expect(errors).toEqual([]);
 	});
 
 	test('navigates in reading mode, placing the selection with no editable target', async ({
 		page
 	}) => {
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await editor.setPresentationMode('reading');
 		await expect(page.locator(`[data-block-path='[${target}]']`)).toHaveCount(0);
 
 		await editor.entry('Deep Target Heading').click();
 		await editor.waitForRenderFlush();
 
-		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+		await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
 		// Reading mode turns contenteditable off, so no block can hold the caret as activeElement —
 		// the native range is the observable that the selection landed, and it is what makes the
-		// navigation's write the same write in both modes.
+		// navigation's write the same write in both modes. Offset 4 is the landable start past the
+		// hidden `### ` run: the caret door clamps every landing (G4.36), reading mode included.
 		expect(await editor.bridge.getSelection()).toEqual({
-			anchor: { path: [target], offset: 0 },
-			focus: { path: [target], offset: 0 }
+			anchor: { path: [target], offset: 4 },
+			focus: { path: [target], offset: 4 }
 		});
 	});
 
@@ -135,8 +122,7 @@ test.describe('toc outline: click-to-navigate', () => {
 			page
 		}) => {
 			if (mode === 'reading') {
-				await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
-				await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+				await editor.setPresentationMode('reading');
 			}
 			const errors = capturePageErrors(page);
 			await expect(page.locator(`[data-block-path='[${target}]']`)).toHaveCount(0);
@@ -147,7 +133,7 @@ test.describe('toc outline: click-to-navigate', () => {
 			await page.keyboard.press('Enter');
 			await editor.waitForRenderFlush();
 
-			await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+			await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
 			expect(errors).toEqual([]);
 		});
 	}
@@ -162,7 +148,7 @@ test.describe('toc outline: click-to-navigate', () => {
 		await editor.entry('Deep Target Heading').click();
 		await editor.waitForRenderFlush();
 
-		await expect.poll(() => blockView(page, target)).toEqual({ mounted: true, inView: true });
+		await expect.poll(() => blockView(page, [target])).toEqual({ mounted: true, inView: true });
 		expect(errors).toEqual([]);
 	});
 
@@ -208,14 +194,13 @@ test.describe('toc outline: gesture ownership (entry vs block)', () => {
 	test('in reading mode a non-entry click is inert — no reveal, no navigation', async ({
 		page
 	}) => {
-		await page.evaluate(() => (window as any).__test.setPresentationMode('reading'));
-		await expect(editor.editorContainer).toHaveAttribute('data-presentation', 'reading');
+		await editor.setPresentationMode('reading');
 		const errors = capturePageErrors(page);
 
 		await editor.render.click({ position: { x: 2, y: 2 } });
 		await editor.waitForRenderFlush();
 
-		// Reading mode gates the reveal (`onRenderPointerDown` early-returns on isReading),
+		// Reading mode gates the reveal (the folded view's reveal handler early-returns on isReading),
 		// and a non-entry click reaches no navigation button: the outline just stays shown.
 		await expect(editor.source).toHaveCount(0);
 		await expect(editor.render).toBeVisible();

@@ -4,6 +4,27 @@
  * forward rescan to EOF turns a run-length ladder quadratic.
  */
 
+/**
+ * Wrap `content` as a code span. The fence runs one backtick past the longest run it encloses, so
+ * nothing inside can close it; content touching a backtick at either edge takes a space pad too,
+ * without which the fence and that byte merge into one longer run and the span closes elsewhere.
+ */
+export function wrapAsCodeSpan(content: string): string {
+	const fence = '`'.repeat(longestBacktickRun(content) + 1);
+	const pad = content.startsWith('`') || content.endsWith('`') ? ' ' : '';
+	return fence + pad + content + pad + fence;
+}
+
+function longestBacktickRun(text: string): number {
+	let longest = 0;
+	let run = 0;
+	for (const char of text) {
+		run = char === '`' ? run + 1 : 0;
+		if (run > longest) longest = run;
+	}
+	return longest;
+}
+
 /** Run start positions by run length, ascending within each length. */
 export type BacktickRunIndex = Map<number, number[]>;
 

@@ -10,7 +10,7 @@ import type { Document } from '../../core/nodes';
 import type { SelectionState } from '../selection-state.svelte';
 import { tableCellCount } from '../table-endpoint-snap';
 import { CURSOR_END } from '../../block-component';
-import { normalizeLineEndings, trailingLineEnding } from '../../core/lines';
+import { normalizeLineEndings } from '../../core/lines';
 import { performCrossBlockDelete } from './ops';
 import { charOffsetOf } from '../primitives';
 import { focusCollapsedCaret } from '../native-bridge';
@@ -19,7 +19,6 @@ import { applyPasteTransforms } from '../../tree-operations/paste/paste-transfor
 import { parse } from '../../core/parser';
 import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-ops';
 import { pathsEqual } from '../path-math';
-import { materializeBlankLines } from '../../tree-operations/paste/strategy';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';
 import { emitClipboardError } from '../../editor-events';
@@ -27,20 +26,21 @@ import { emitClipboardError } from '../../editor-events';
 export async function handleCrossBlockPaste(
 	ctx: CrossBlockDispatchContext,
 	mutCtx: CrossBlockMutationContext,
-	e: ClipboardEvent,
+	e: ClipboardEvent | null,
 	replacement?: string
 ): Promise<boolean> {
 	if (!ctx.selection.isCrossBlock) return false;
 
 	ctx.stickyColumn.reset();
+	ctx.edgeAffinity.reset();
 	ctx.selection.resetSelectAllCount();
-	e.preventDefault();
+	e?.preventDefault();
 	// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
 	// clipboard read, and `??` would make that depend on callers never passing ''.
 	const pasted =
 		replacement !== undefined
 			? replacement
-			: normalizeLineEndings(e.clipboardData?.getData('text/plain') ?? '');
+			: normalizeLineEndings(e?.clipboardData?.getData('text/plain') ?? '');
 	if (!pasted) return true;
 
 	const doc = ctx.getDoc();
@@ -75,6 +75,9 @@ export async function handleCrossBlockPaste(
 		return true;
 	}
 
+	// No `preDelete`: the range is already gone. `performCrossBlockDelete` above took it through
+	// `rangeDelete`, which crosses the join seam itself, so this dispatch inserts at a caret the
+	// cleanup already seated — handing it a range would delete a second time.
 	const result = await pasteDispatch(
 		{
 			pastedText: pasted,
@@ -86,11 +89,15 @@ export async function handleCrossBlockPaste(
 			blockEdit: ctx.blockEdit,
 			controller: ctx.pasteCoordinator,
 			undoEntry: 'join',
-			grammar: ctx.grammar
+			grammar: ctx.grammar,
+			activePlugins: ctx.activePlugins
 		}
 	);
 
-	await landCaretAfterPaste(ctx, caret.path, result.inlineCaretOffset);
+	// A settle that absorbed the join above the target moved the caret to a slot this gesture
+	// never revealed, so mount it before the landing reads for its element.
+	if (result.inlineCaretPath) await ctx.revealPath(result.inlineCaretPath);
+	await landCaretAfterPaste(ctx, result.inlineCaretPath ?? caret.path, result.inlineCaretOffset);
 	return true;
 }
 
@@ -145,15 +152,17 @@ async function replaceTableWithPaste(
 	const tablePath = ctx.selection.anchor!.path;
 	const doc = ctx.getDoc();
 
-	// This route never reaches pasteDispatch, so the paste transforms run here too; the rule
-	// lives in the helper, applied at both sites.
-	const parsed = parse(applyPasteTransforms(pasted));
+	// This route never reaches pasteDispatch, so the paste transforms and the instance grammar
+	// ride here too; both rules live in the helper, applied at both sites.
+	const parsed = parse(applyPasteTransforms(pasted, ctx.activePlugins), {
+		grammar: ctx.grammar,
+		scope: 'fragment'
+	});
 	if (parsed.children.length === 0) return;
 
 	const tableNode = blockNodeAt(doc, tablePath);
 	if (!tableNode) return;
-	const blocks = materializeBlankLines(parsed.children, trailingLineEnding(tableNode.raw));
-	const replacement = normalizeReplacementTrivia(tableNode, blocks);
+	const replacement = normalizeReplacementTrivia(tableNode, parsed.children);
 	for (const node of replacement) ensureEditableContainers(node);
 
 	mutCtx.pushUndoSnapshot();
@@ -167,6 +176,10 @@ async function replaceTableWithPaste(
 		undoEntry: 'join',
 		focusReplacementIndex: replacement.length - 1,
 		focusOffset: CURSOR_END,
-		source: 'cross-block-paste-whole-table'
+		source: 'cross-block-paste-whole-table',
+		...(ctx.grammar ? { grammar: ctx.grammar } : {}),
+		// Nothing is reattached behind the clipboard here — the table's whole slot is the target —
+		// so the trailing blank rides in unfiltered (`paste/dispatch.ts` states the rule).
+		trailingSeparator: parsed.suffix
 	});
 }

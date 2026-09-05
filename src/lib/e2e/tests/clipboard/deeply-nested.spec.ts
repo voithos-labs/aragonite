@@ -11,10 +11,10 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 	test('paste multi-paragraph into a nested list item (list > item > paragraph)', async () => {
 		await editor.loadContent('- outer\n  - nested target\n- tail\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('pasted one\n\npasted two\n'));
+		await editor.seedClipboard('pasted one\n\npasted two\n');
 
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 'nested target'.length);
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('pasted one');
 
 		const src = await editor.bridge.getSource();
@@ -24,11 +24,11 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 	test('paste structural into list item inside blockquote (blockquote > list > item > paragraph)', async () => {
 		await editor.loadContent('> - bq item\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('# Heading\n\npara\n'));
+		await editor.seedClipboard('# Heading\n\npara\n');
 
 		await editor.focusBlockAtPath([0, 0, 0, 0], 0);
 		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('Heading');
 
 		const src = await editor.bridge.getSource();
@@ -38,13 +38,13 @@ test.describe('clipboard exploration: deeply nested', () => {
 
 	test('cross-block paste inside deeply nested list replaces selection', async () => {
 		await editor.loadContent('- A\n  - B1\n  - B2\n  - B3\n- C\n');
-		await editor.page.evaluate(() => navigator.clipboard.writeText('- X1\n- X2\n'));
+		await editor.seedClipboard('- X1\n- X2\n');
 
 		await editor.focusBlockAtPath([0, 0, 1, 0, 0], 0);
 		await editor.shiftClickBlock([0, 0, 1, 2, 0], 'B3'.length);
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('X1');
 
 		const src = await editor.bridge.getSource();

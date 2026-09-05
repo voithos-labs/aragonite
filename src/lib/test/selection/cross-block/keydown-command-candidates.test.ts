@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 //
-// Command-candidate keys (Enter, Tab, Mod+B/I, Mod+0-6) are owned by the block at the caret, so
-// over a cross-block range they delete then dispatch. Dispatching first would run against stale
-// indices; deleting without dispatching would swallow the keystroke. The reveal target is the
-// authoritative post-delete caret, not the pre-delete start path — they differ for a table end.
+// Command-candidate keys (Enter, Tab, Mod+0-6) are owned by the block at the caret, so over a
+// cross-block range they delete then dispatch. Dispatching first would run against stale indices;
+// deleting without dispatching would swallow the keystroke. The reveal target is the authoritative
+// post-delete caret, not the pre-delete start path — they differ for a table end. The format
+// toggles are NOT candidates: they take the cross-block arm, which marks each block's own span
+// rather than type-replacing the range (#107).
 import { describe, it, expect, vi } from 'vitest';
 import { mockRef } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
@@ -44,9 +46,9 @@ describe('cross-block keydown — command candidates', () => {
 		const env = makeKeydownEnv('# head\n\npara\n', { revealTo: mockRef({ runCommand }) });
 		env.selection.enterCrossBlock({ path: [0], offset: 6 }, { path: [1], offset: 4 });
 
-		await env.keydown.handleKeyDown(press('b', { ctrlKey: true }));
+		await env.keydown.handleKeyDown(press('1', { ctrlKey: true }));
 
-		expect(runCommand).toHaveBeenCalledWith('format.toggleStrong', undefined);
+		expect(runCommand).toHaveBeenCalledWith('heading.cycle', 1);
 	});
 
 	// Reading mode: consumed (the range must not reach a per-block handler) but neither
@@ -80,6 +82,46 @@ describe('cross-block keydown — command candidates', () => {
 			expect(runCommand).not.toHaveBeenCalled();
 		});
 	}
+
+	// Every format toggle is claimed but NOT a candidate: no delete, no redispatch at a collapsed
+	// caret — the arm that deleted first turned a document into `****` (#107). It reaches the
+	// cross-block arm instead, which marks each block's own span in place.
+	for (const [chord, key, init, mark] of [
+		['Mod+B', 'b', { ctrlKey: true }, '**'],
+		['Mod+I', 'i', { ctrlKey: true }, '*'],
+		['Mod+E', 'e', { ctrlKey: true }, '`'],
+		['Mod+Shift+X', 'x', { ctrlKey: true, shiftKey: true }, '~~']
+	] as const) {
+		it(`${chord} is consumed, deletes nothing and marks each block's own span`, async () => {
+			const { env, runCommand } = envWithCommandTarget();
+
+			const event = press(key, init);
+			expect(await env.keydown.handleKeyDown(event)).toBe(true);
+
+			expect(event.defaultPrevented).toBe(true);
+			// The anchor's tail and the focus block's head, each marked alone, with the block past
+			// the range untouched — which is what a delete-then-redispatch arm could not leave.
+			expect(env.source()).toBe(`a${mark}lpha${mark}
+
+${mark}be${mark}ta
+
+gamma
+`);
+			// The seam routes ahead of the block-local tier, so the focused surface is never asked.
+			expect(runCommand).not.toHaveBeenCalled();
+		});
+	}
+
+	// The whole-block cut reads Mod+X off the keydown with its own `!e.shiftKey` guard, so a
+	// candidate arm that took the unshifted form would delete the range out from under it.
+	it('Mod+X is not a candidate — the unshifted chord is the whole-block cut', async () => {
+		const { env, runCommand } = envWithCommandTarget();
+
+		expect(await env.keydown.handleKeyDown(press('x', { ctrlKey: true }))).toBe(false);
+
+		expect(env.source()).toBe(SOURCE);
+		expect(runCommand).not.toHaveBeenCalled();
+	});
 
 	it('Mod+Shift+B is not a candidate — the shifted chord belongs to the block', async () => {
 		const { env, runCommand } = envWithCommandTarget();

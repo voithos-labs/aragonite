@@ -14,6 +14,15 @@ export default defineConfig({
 	},
 	test: {
 		include: ['src/lib/test/**/*.test.ts', 'src/lib/e2e/lint/**/*.test.ts'],
-		setupFiles: ['./src/lib/test/support/register-built-ins.ts']
+		setupFiles: [
+			'./src/lib/test/support/register-built-ins.ts',
+			'./src/lib/test/support/warn-gate.ts'
+		],
+		// The warn gate's claim doors sit in file-level afterEach hooks that must run before the
+		// setup file's verdict hook; 'stack' is what reverses "after" hooks into that order.
+		sequence: { hooks: 'stack' },
+		// The warn gate's per-file freshness aggregate keys on module state, which is per-file
+		// only while workers isolate; pinned so a speed experiment cannot silently blur it.
+		isolate: true
 	}
 });

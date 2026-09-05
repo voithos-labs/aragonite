@@ -1,13 +1,11 @@
 /**
- * G4.22 — settle-predicate vacuity. THE RULE: inside one `test()` body, a settle predicate
- * must describe the POST-operation shape, something no preceding `loadContent` document
- * already satisfies. A predicate already true on the loaded document returns on its first
- * poll and synchronizes on nothing, so a gesture that silently no-ops satisfies the chain.
- *
- * Limits of a green run: only `loadContent(<literal>)` seeds the already-true set, and a
- * helper-built fixture skips the test rather than guessing. Checking stops at the first
- * DISCRIMINATING settle after each load, since everything past a real transition is a state
- * this scan cannot model. Function-predicate variants are out of scope.
+ * G4.22 — settle-predicate vacuity. Inside one `test()` body, a settle predicate must
+ * describe the POST-operation shape, something no preceding `loadContent` document already
+ * satisfies: a predicate already true returns on its first poll and synchronizes on nothing,
+ * so a gesture that silently no-ops satisfies the chain. Limits of a green run: only
+ * `loadContent(<literal>)` seeds the already-true set (helper-built fixtures skip rather
+ * than guess), checking stops at the first DISCRIMINATING settle after each load, and
+ * function-predicate variants are out of scope.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';

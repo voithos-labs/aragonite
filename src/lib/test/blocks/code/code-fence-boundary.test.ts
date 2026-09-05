@@ -7,26 +7,11 @@ import {
 	crossesFenceBoundary,
 	fenceEditSpan,
 	isStructureOnlyRange
-} from '../../../components/blocks/code/code-fence-boundary';
-import { computeCodeEnter } from '../../../components/blocks/code/code-enter';
-import { indentLines } from '../../../components/blocks/code/code-indent';
-import { trimTrailingLineEnding } from '../../../core/lines';
-import type { CstNode } from '../../../core/nodes';
-
-function fencedCode(
-	raw: string,
-	info = '',
-	closed = true,
-	fenceMarker: '`' | '~' = '`',
-	fenceLength = 3
-): CstNode {
-	return {
-		kind: 'fencedCode',
-		leadingTrivia: '',
-		raw,
-		metadata: { fenceMarker, fenceLength, info, closed }
-	};
-}
+} from '$lib/components/blocks/code/code-fence-boundary';
+import { computeCodeEnter } from '$lib/components/blocks/code/code-enter';
+import { indentLines } from '$lib/components/blocks/code/code-indent';
+import { trimTrailingLineEnding } from '$lib/core/lines';
+import { fencedCode } from './fenced-code-fixture';
 
 describe('classifyFenceBoundary', () => {
 	// raw `` ```\ncode\n```\n ``: opener=[0,4) body=[4,9) closer=[9,12) in display
@@ -95,7 +80,7 @@ describe('classifyFenceBoundary', () => {
 
 	it('unclosed fence: only the opener boundary guards Backspace; no closer boundary', () => {
 		// raw `` ```js\nconst x\n ``: opener=[0,6) body=[6,14) — no closer.
-		const unclosed = fencedCode('```js\nconst x\n', 'js', false);
+		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(classifyFenceBoundary({ node: unclosed, offset: 6, forward: false })).toEqual({
 			kind: 'exitPrev'
 		});
@@ -105,7 +90,7 @@ describe('classifyFenceBoundary', () => {
 	});
 
 	it('opener-only fence (no `\\n` yet) allows all in-block editing', () => {
-		const fresh = fencedCode('```', '', false);
+		const fresh = fencedCode('```', '', { closed: false });
 		for (const offset of [0, 1, 3]) {
 			expect(classifyFenceBoundary({ node: fresh, offset, forward: false })).toEqual({
 				kind: 'allow'
@@ -138,7 +123,7 @@ describe('classifyFenceBoundary', () => {
 
 	it('tilde fence is treated identically to backtick', () => {
 		// raw `~~~yaml\nkey: 1\n~~~\n`: opener=[0,8) body=[8,15) closer=[15,18) display.
-		const tilde = fencedCode('~~~yaml\nkey: 1\n~~~\n', 'yaml', true, '~');
+		const tilde = fencedCode('~~~yaml\nkey: 1\n~~~\n', 'yaml', { fenceMarker: '~' });
 		expect(classifyFenceBoundary({ node: tilde, offset: 8, forward: false })).toEqual({
 			kind: 'exitPrev'
 		});
@@ -185,7 +170,7 @@ describe('clampEnterOffsetToBody', () => {
 	});
 
 	it('opener-only fence clamps interior offsets to the opener end', () => {
-		const fresh = fencedCode('```', '', false);
+		const fresh = fencedCode('```', '', { closed: false });
 		expect(clampEnterOffsetToBody(fresh, 1)).toBe(3);
 		expect(clampEnterOffsetToBody(fresh, 3)).toBe(3);
 	});
@@ -228,12 +213,12 @@ describe('clampRangeToBody', () => {
 	});
 
 	it('an unclosed fence clamps only at the opener; its body runs to the display end', () => {
-		const unclosed = fencedCode('```js\nconst x\n', 'js', false);
+		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(clampRangeToBody(unclosed, { start: 0, end: 13 })).toEqual({ start: 6, end: 13 });
 	});
 
 	it('a fence with no body line yet collapses every offset onto the display end', () => {
-		const fresh = fencedCode('```\n', '', false);
+		const fresh = fencedCode('```\n', '', { closed: false });
 		expect(clampRangeToBody(fresh, { start: 0, end: 3 })).toEqual({ start: 3, end: 3 });
 	});
 
@@ -283,7 +268,7 @@ describe('crossesFenceBoundary', () => {
 	// A fence with no closer has nothing to orphan: retyping the markers is how a just-typed
 	// ` ``` ` is undone, and it demotes the block without absorbing anything (parser-verified).
 	it('is false inside the marker run of an UNCLOSED fence', () => {
-		const unclosed = fencedCode('```js\nconst x\n', 'js', false);
+		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(crossesFenceBoundary(unclosed, { start: 0, end: 3 })).toBe(false);
 		expect(crossesFenceBoundary(unclosed, { start: 0, end: 5 })).toBe(false);
 		expect(crossesFenceBoundary(unclosed, { start: 1, end: 1 })).toBe(false);
@@ -335,7 +320,7 @@ describe('crossesFenceBoundary', () => {
 
 	it('an unclosed fence has no closer region; its body runs to the display end', () => {
 		// "```js\nconst x\n": opener text [0,5) · body [6,13].
-		const unclosed = fencedCode('```js\nconst x\n', 'js', false);
+		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(crossesFenceBoundary(unclosed, { start: 6, end: 13 })).toBe(false);
 		expect(crossesFenceBoundary(unclosed, { start: 4, end: 13 })).toBe(true);
 	});
@@ -353,7 +338,7 @@ describe('crossesFenceBoundary', () => {
 	// The block a user has just typed ` ``` ` into: no closer, so selecting it all and
 	// deleting must still work — otherwise the fence cannot be un-typed.
 	it('an opener-only fence is all one region', () => {
-		const fresh = fencedCode('```', '', false);
+		const fresh = fencedCode('```', '', { closed: false });
 		expect(crossesFenceBoundary(fresh, { start: 0, end: 3 })).toBe(false);
 	});
 });
@@ -458,7 +443,7 @@ describe('computeFenceRangedEdit', () => {
 	});
 
 	it('rewrites an unclosed fence’s marker run verbatim — nothing to orphan', () => {
-		const unclosed = fencedCode('```js\nconst x\n', 'js', false);
+		const unclosed = fencedCode('```js\nconst x\n', 'js', { closed: false });
 		expect(computeFenceRangedEdit(unclosed, { start: 0, end: 3 }, '')).toEqual({
 			newText: 'js\nconst x',
 			newCursor: 0

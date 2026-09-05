@@ -1,21 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
-import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { createSearchState } from '../../search/search-state.svelte';
+import { makeSearchHarness } from './harness';
 
 // A swap and an in-place edit both bump the edit epoch, so the generation counter is
 // the only discriminator: the `source` prop branch alone bumps it.
 function makeSwapHarness(source: string) {
 	let doc = parse(source);
 	let generation = 0;
-	const engine = createDecorationEngine({ getDoc: () => doc });
-	const state = createSearchState({
+	const { engine, state } = makeSearchHarness(source, {
 		getDoc: () => doc,
-		getDocumentGeneration: () => generation,
-		decorations: engine,
-		replace: { replaceOne: async () => 0, replaceAll: async () => 0 },
-		reveal: async () => null,
-		onClose: () => {}
+		getDocumentGeneration: () => generation
 	});
 	return {
 		state,

@@ -42,8 +42,8 @@ export interface RegexExecutorOptions {
 // ── Worker ───────────────────────────────────────────────────────────────────
 
 // Self-contained by necessity: a Blob worker has no module graph, so this repeats
-// `execAll`'s loop. `regex-executor-parity.test.ts` fails the day they diverge.
-const WORKER_SOURCE = `
+// `execAll`'s loop. `test/search/regex-worker-parity.test.ts` fails the day they diverge.
+export const regexScanWorkerSource = `
 self.onmessage = (event) => {
 	const { texts, pattern, flags, epoch } = event.data;
 	let re;
@@ -67,9 +67,6 @@ self.onmessage = (event) => {
 	self.postMessage({ epoch, ok: true, ranges });
 };
 `;
-
-/** Exported for the parity test; the executor is the only runtime reader. */
-export const regexScanWorkerSource = WORKER_SOURCE;
 
 interface WorkerReply {
 	epoch: number;
@@ -128,7 +125,9 @@ export function createRegexExecutor(options: RegexExecutorOptions = {}): RegexEx
 			return null;
 		}
 		try {
-			const url = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'text/javascript' }));
+			const url = URL.createObjectURL(
+				new Blob([regexScanWorkerSource], { type: 'text/javascript' })
+			);
 			worker = new Worker(url);
 			URL.revokeObjectURL(url); // the worker holds its own reference past revocation
 			return worker;

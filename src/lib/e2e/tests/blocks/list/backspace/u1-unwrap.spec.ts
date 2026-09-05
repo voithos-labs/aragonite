@@ -28,16 +28,11 @@ test.describe('list Backspace — U1 unwrap on first item', () => {
 		await item.click();
 		await editor.page.keyboard.press('Home');
 		await editor.page.keyboard.press('Backspace');
-		await editor.bridge.waitForSource((s) => !/^- /m.test(s));
-
-		const source = await editor.bridge.getSource();
-		expect(source).not.toMatch(/^- /m);
-		expect(source).toContain('Solo');
+		// Byte-exact: the marker's raw-0 offset translation must leave no residue of the list.
+		await editor.bridge.waitForSourceEquals('Solo\n');
 
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('ZSolo');
-		const after = await editor.bridge.getSource();
-		expect(after).toContain('ZSolo');
 	});
 
 	test('Backspace on first item with matching-type nested sub-list: nested items promote to parent list level', async () => {

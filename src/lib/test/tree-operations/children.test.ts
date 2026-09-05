@@ -45,22 +45,34 @@ describe('spliceChildren', () => {
 	] as const)('%s keeps childIds aligned with children', (_label, at, removeCount, itemCount) => {
 		const c = bq([para('a\n'), para('b\n')], ['id-a', 'id-b']);
 		const items = Array.from({ length: itemCount }, (_, i) => para(`n${i}\n`));
-		spliceChildren(c, at, removeCount, ...items);
+		spliceChildren(c, at, removeCount, items);
 		expect(c.children).toHaveLength(2 - removeCount + itemCount);
 		expect(c.childIds).toHaveLength(c.children!.length);
 	});
 
-	it('preserves survivor ids and fabricates fresh ids for inserted items', () => {
+	// Miss-analysis: this case asserted the replaced slot took a FRESH id, which read as a
+	// deliberate contract; nothing compared the door against its in-commit-scope twin, where
+	// `replacePreservingFirst` has always let a replacement's head continue the slot.
+	it('a replacement’s head continues its slot; survivors and later slots keep their own', () => {
 		const c = bq([para('a\n'), para('b\n'), para('c\n')], ['id-a', 'id-b', 'id-c']);
-		spliceChildren(c, 1, 1, para('x\n'));
+		spliceChildren(c, 1, 1, [para('x\n'), para('y\n')]);
 		expect(c.childIds![0]).toBe('id-a');
-		expect(c.childIds![2]).toBe('id-c');
+		expect(c.childIds![1]).toBe('id-b');
+		expect(c.childIds![2]).not.toBe('id-b');
+		expect(c.childIds![3]).toBe('id-c');
+	});
+
+	it('a pure insert mints fresh ids and shifts the slots below', () => {
+		const c = bq([para('a\n'), para('b\n')], ['id-a', 'id-b']);
+		spliceChildren(c, 1, 0, [para('x\n')]);
+		expect(c.childIds![0]).toBe('id-a');
 		expect(c.childIds![1]).not.toBe('id-b');
+		expect(c.childIds![2]).toBe('id-b');
 	});
 
 	it('leaves childIds absent on a container that has none', () => {
 		const c = bq([para('a\n'), para('b\n')]);
-		spliceChildren(c, 0, 1);
+		spliceChildren(c, 0, 1, []);
 		expect(c.children).toHaveLength(1);
 		expect(c.childIds).toBeUndefined();
 	});

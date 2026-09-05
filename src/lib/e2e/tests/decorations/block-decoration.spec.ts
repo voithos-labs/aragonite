@@ -113,6 +113,47 @@ test.describe('block decorations', () => {
 		await expect(page.locator(`${HOST} > .decoration-badge`)).toHaveCount(0);
 	});
 
+	// The refusal reports itself, so the fixture's warn watch is told to require exactly that
+	// tag here: the decoration being dropped silently would be the defect.
+	test.describe('a reserved attribute name', () => {
+		test.use({ expectWarns: ['decorations'] });
+
+		test('is refused, the rest still land', async ({ page }) => {
+			await editor.loadContent('reserved\n');
+			await page.evaluate(() => {
+				(window as any).__test.decorations.addSource({
+					name: 'e2e-reserved',
+					provide: () => [
+						{
+							type: 'block',
+							path: [0],
+							class: 'e2e-reserved',
+							attrs: { 'data-content-empty': '', 'data-e2e-kept': '1' }
+						}
+					]
+				});
+			});
+
+			await expect(page.locator(`${HOST}.e2e-reserved[data-e2e-kept='1']`)).toHaveCount(1);
+			await expect(page.locator(`${HOST}[data-content-empty]`)).toHaveCount(0);
+		});
+	});
+
+	// The other half of the same hazard, independent of the refusal above: the override reads the
+	// walk container the JS twin reads, so a stamp on the ancestor host paints nothing.
+	test('a content-empty stamp on the host paints no marker under live', async ({ page }) => {
+		await editor.goto('?presentationMode=live');
+		await editor.loadContent('# heading\n');
+		const marker = page.locator(`${HOST} .md-marker`).first();
+		await expect(marker).toHaveCSS('display', 'none');
+
+		await page.evaluate((host) => {
+			document.querySelector(host)?.setAttribute('data-content-empty', '');
+		}, HOST);
+
+		await expect(marker).toHaveCSS('display', 'none');
+	});
+
 	test('a badged block still types and splits normally', async ({ page }) => {
 		await editor.loadContent('hello\n');
 		await page.evaluate(() => {

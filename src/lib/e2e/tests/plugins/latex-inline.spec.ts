@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
-import { type Page } from '@playwright/test';
-import { PluginsPage, revealWidget, roundTripStable } from './helpers';
+import { PluginsPage, revealWidget, roundTripStable, textRunCenter } from './helpers';
 import { capturePageErrors } from '../../page-probes';
+import { attachIme } from '../../simulation/ime';
 
 /**
  * Inline `$…$` math: select → reveal editable source → commit re-renders (design §"Inline edit UX",
@@ -64,35 +64,6 @@ class MathPage extends PluginsPage {
 	}
 }
 
-// Playwright exposes no IME API, so a composition is simulated by firing the real
-// compositionstart/input/compositionend the editor listens to and inserting the composed text at
-// the caret as the browser would. Everything else here is real input. The CDP driver
-// `ime-composition.spec.ts` uses would be the honest route (issue #46).
-async function composeIntoCaret(page: Page, text: string): Promise<void> {
-	await page.evaluate((composed) => {
-		const el = document.activeElement as HTMLElement | null;
-		const sel = window.getSelection();
-		if (!el || !sel || sel.rangeCount === 0) return;
-		const range = sel.getRangeAt(0);
-		const node = range.startContainer;
-		const at = range.startOffset;
-		el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-		if (node.nodeType === Node.TEXT_NODE) {
-			const t = node as Text;
-			t.data = t.data.slice(0, at) + composed + t.data.slice(at);
-			const r = document.createRange();
-			r.setStart(t, at + composed.length);
-			r.collapse(true);
-			sel.removeAllRanges();
-			sel.addRange(r);
-		}
-		el.dispatchEvent(
-			new InputEvent('input', { bubbles: true, inputType: 'insertCompositionText', data: composed })
-		);
-		el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: composed }));
-	}, text);
-}
-
 test.describe('plugin inline math: select → reveal-source editing', () => {
 	let editor: MathPage;
 
@@ -109,6 +80,18 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect(await editor.getBlockText(0)).toContain('$x^2$');
 		// Reveal is a view toggle — the source has not changed.
 		expect(await editor.bridge.getSource()).toContain('Before $x^2$ after');
+	});
+
+	// The rule is the reveal choke point's, not the footnote widget's: the first click reveals,
+	// and the browser's word rule would take `$` from the source as a word of its own.
+	test('a double-click on the rendered math selects the whole revealed token', async ({ page }) => {
+		const box = await editor.mathWidget.boundingBox();
+		if (!box) throw new Error('math widget has no bounding box');
+
+		await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+		await editor.waitForRenderFlush();
+
+		await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('$x^2$');
 	});
 
 	test('clicking column-aligned text on another visual line places the caret, not reveal', async ({
@@ -168,7 +151,7 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		await page.keyboard.press('ArrowRight');
 		await page.keyboard.type('y');
 		// End carries the caret out of the source, which is what folds an edited reveal.
-		// Enter no longer commits — it is the block's split key (latex-inline-reveal-commands).
+		// Enter does not commit — it is the block's split key (latex-inline-reveal-commands).
 		await page.keyboard.press('End');
 
 		await expect(editor.mathWidget).toHaveCount(1);
@@ -216,7 +199,9 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 	test('IME composition in the revealed source commits only on blur', async ({ page }) => {
 		await editor.revealByClick();
 		await page.keyboard.press('ArrowRight');
-		await composeIntoCaret(page, 'yy');
+		const ime = await attachIme(page);
+		await ime.compose('yy');
+		await ime.commit('yy');
 
 		// Composition is ephemeral: nothing committed to the CST yet.
 		await editor.waitForRenderFlush();
@@ -282,13 +267,38 @@ test.describe('plugin inline math: select → reveal-source editing', () => {
 		expect([paths!.anchor.path[0], paths!.focus.path[0]].sort()).toEqual([0, 1]);
 
 		// Blur while the cross-block selection is live. No mouse/keyboard gesture moves focus off
-		// the block without collapsing the selection, so the blur is fired directly (mirrors this
-		// file's IME carve-out). The commit must bail on cross-block, not fold the source out from
-		// under the anchored endpoint.
+		// the block without collapsing the selection, so the blur is fired directly. The commit must
+		// bail on cross-block, not fold the source out from under the anchored endpoint.
 		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 		await editor.waitForRenderFlush();
 
 		await expect(editor.mathWidget).toHaveCount(0);
 		expect(pageErrors).toEqual([]);
 	});
+});
+
+// The whole-token rule belongs to the double-click that OPENED the reveal. Once the source is
+// showing, it is ordinary text and the browser's word rule owns the gesture.
+test.describe('plugin inline math: a double-click inside an open reveal', () => {
+	for (const mode of ['source', 'live'] as const) {
+		test(`${mode} mode: takes the word, not the whole token`, async ({ page }) => {
+			const editor = new MathPage(page);
+			await editor.gotoPlugins('math');
+			await editor.loadContent('Before $alpha beta gamma$ after\n\nNext\n');
+			await editor.setPresentationMode(mode);
+			await expect(editor.mathWidget).toHaveCount(1);
+
+			await editor.revealByClick();
+
+			const word = await textRunCenter(page, [0], 'beta');
+			await page.mouse.dblclick(word.x, word.y);
+			await editor.waitForRenderFlush();
+
+			// Trimmed: the browser's word rule carries the trailing space, and what discriminates
+			// is that the `$` delimiters are outside the selection.
+			await expect
+				.poll(() => page.evaluate(() => window.getSelection()?.toString().trim()))
+				.toBe('beta');
+		});
+	}
 });

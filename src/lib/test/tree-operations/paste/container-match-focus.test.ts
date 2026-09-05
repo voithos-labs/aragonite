@@ -7,60 +7,30 @@
 import { describe, it, expect, vi } from 'vitest';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { parse } from '$lib/core/parser';
-import { createSharingState, type SharingState } from '$lib/tree-operations/sharing';
-import { rebuildOwnedContainer } from '$lib/tree-operations/unshare';
 import {
-	expectStateForNode,
-	getStateForNode,
-	registerBlockListState
-} from '$lib/reactivity/state-registry';
-import { makeStubBlockEdit } from '../../harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
+	makeRunningPasteController,
+	makeStubBlockEdit,
+	registerStubBlockListState
+} from '../../harness/editor-actions';
 import type { UndoEntryMode } from '$lib/action-contracts';
-import { CURSOR_END, type BlockComponent } from '$lib/block-component';
+import { CURSOR_END } from '$lib/block-component';
 import type { PasteCommitCoordinator } from '$lib/tree-operations/paste/paste-deps';
 
-function registerStubState(node: CstNode): void {
-	registerBlockListState(node, {
-		innerBlockIds: (node.children ?? []).map((_, i) => `iid-${i}`),
-		innerBlockRefs: (node.children ?? []).map(() => undefined as BlockComponent | undefined)
-	} as unknown as Parameters<typeof registerBlockListState>[1]);
-}
-
-/** Owned-scope protocol plus the post-tick callback the real ceremony runs — the
- *  part the sibling paste suites stub away. */
+/** The harness owned-scope protocol plus the post-tick callback the real ceremony runs —
+ *  the part the sibling paste suites stub away. */
 function landingController(): {
 	controller: PasteCommitCoordinator;
 	landCaret: ReturnType<typeof vi.fn>;
 } {
 	const landCaret = vi.fn(async () => {});
+	const base = makeRunningPasteController();
 	const controller = {
-		sharing: createSharingState(),
-		getDocScope: vi.fn(),
-		resolveState: getStateForNode,
-		expectState: expectStateForNode,
+		...base,
 		landCaret,
-		commitMultiScope: vi.fn(
-			async ({
-				scopes,
-				mutate,
-				afterTick
-			}: {
-				scopes: { node: CstNode }[];
-				mutate: (v: { children: CstNode[]; node: CstNode; sharing: SharingState }[]) => unknown;
-				afterTick?: () => void | Promise<void>;
-			}) => {
-				const sharing = createSharingState();
-				const views = scopes.map((s) => {
-					const children = [...(s.node.children ?? [])];
-					s.node.children = children;
-					return { children, node: s.node, sharing };
-				});
-				mutate(views);
-				for (const s of scopes) rebuildOwnedContainer(s.node, sharing);
-				await afterTick?.();
-			}
-		)
+		commitMultiScope: vi.fn(async (args: { afterTick?: () => void | Promise<void> }) => {
+			await (base.commitMultiScope as (a: unknown) => Promise<void>)(args);
+			await args.afterTick?.();
+		})
 	} as unknown as PasteCommitCoordinator;
 	return { controller, landCaret };
 }
@@ -75,7 +45,7 @@ async function pasteInto(
 	undoEntry: UndoEntryMode
 ) {
 	const { controller, landCaret } = landingController();
-	registerStubState(doc.children[0]);
+	registerStubBlockListState(doc.children[0]);
 	await pasteDispatch(
 		{ pastedText, targetPath, offset },
 		{ doc, blockEdit: makeStubBlockEdit(), controller, undoEntry }

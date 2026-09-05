@@ -6,7 +6,9 @@
  */
 
 import { type Page } from '@playwright/test';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
+import type { PresentationMode } from '../../../presentation-mode';
 import {
 	generateFixture,
 	generateDeepNested,
@@ -75,6 +77,15 @@ export async function waitForBlock0Len(page: Page, min: number, timeout: number)
 	);
 }
 
+/** One definition of the results protocol every perf row reports through: a console line the
+ *  run log is scraped for, and a JSON file under `perf-results/`. */
+export function writePerfResult(consolePrefix: string, fileStem: string, result: object): void {
+	const line = JSON.stringify(result);
+	console.log(`${consolePrefix} ${line}`);
+	mkdirSync('perf-results', { recursive: true });
+	writeFileSync(`perf-results/${fileStem}.json`, line + '\n');
+}
+
 export function percentileMs(samples: number[], p: number): number {
 	const sorted = [...samples].sort((a, b) => a - b);
 	return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
@@ -83,6 +94,56 @@ export function percentileMs(samples: number[], p: number): number {
 export interface DocumentTypingMeasurement extends LatencyMeasurement {
 	/** Widgets matching a row's `requireWidget`, counted on the loaded document. */
 	mountedWidgets?: number;
+}
+
+// ── Measurement steps ───────────────────────────────────────────────────────
+// Every measure function below composes these in its own order; the sequence of awaits IS
+// the measurement, so a step is moved or added only with a fresh baseline.
+
+async function loadFixture(page: Page, editor: EditorPage, fixture: string): Promise<number> {
+	const loadStart = performance.now();
+	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
+	// serialize() may trim trailing whitespace, so settle on the trimmed length.
+	await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
+	await editor.waitForRenderFlush();
+	return performance.now() - loadStart;
+}
+
+/** A row that typed into an unmounted host measured the wrong thing, silently: the keystroke
+ *  lands on `<body>` and the settle times out instead of reporting. */
+async function assertMounted(page: Page, path: number[], what: string): Promise<void> {
+	const pathAttr = JSON.stringify(path);
+	const mounted = await page.evaluate(
+		(attr) => !!document.querySelector(`[data-block-path='${attr}']`),
+		pathAttr
+	);
+	if (!mounted)
+		throw new Error(`${what} ${pathAttr} is not mounted — windowing left it off-window`);
+}
+
+async function block0Length(page: Page): Promise<number> {
+	return page.evaluate(() => {
+		const c = (window as any).__test.getDocument().children[0];
+		return c.leadingTrivia.length + c.raw.length;
+	});
+}
+
+/** One `x` per sample, each timed to the +1-length commit block 0 must show whatever leaf
+ *  took the keystroke — the ancestry rebuild propagates it up to the root. */
+async function sampleKeystrokes(
+	page: Page,
+	editor: EditorPage,
+	base0: number,
+	keystrokes: number
+): Promise<number[]> {
+	const samples: number[] = [];
+	for (let i = 1; i <= keystrokes; i++) {
+		const keyStart = performance.now();
+		await editor.typeSlowly('x');
+		await waitForBlock0Len(page, base0 + i, KEYSTROKE_TIMEOUT_MS);
+		samples.push(performance.now() - keyStart);
+	}
+	return samples;
 }
 
 /**
@@ -98,12 +159,7 @@ export async function measureTypingIntoDocument(
 	keystrokes: number,
 	requireWidget?: string
 ): Promise<DocumentTypingMeasurement> {
-	const loadStart = performance.now();
-	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
-	// serialize() may trim trailing whitespace, so settle on the trimmed length.
-	await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
-	await editor.waitForRenderFlush();
-	const loadMs = performance.now() - loadStart;
+	const loadMs = await loadFixture(page, editor, fixture);
 
 	// Counted before typing: the mounted set is what a per-keystroke derivation runs
 	// against, so a row that measured zero widgets measured the wrong mechanism.
@@ -114,28 +170,10 @@ export async function measureTypingIntoDocument(
 			throw new Error(`no ${requireWidget} mounted — the rung is not live on this route`);
 	}
 
-	const targetBlock = 0;
-	await editor.focusBlockEnd(targetBlock);
-	const mounted = await page.evaluate(
-		(i) => !!document.querySelector(`[data-block-path='${JSON.stringify([i])}']`),
-		targetBlock
-	);
-	if (!mounted)
-		throw new Error(
-			`perf target block ${targetBlock} is not mounted — windowing left it off-window`
-		);
-	const base0 = await page.evaluate(() => {
-		const c = (window as any).__test.getDocument().children[0];
-		return c.leadingTrivia.length + c.raw.length;
-	});
-
-	const samples: number[] = [];
-	for (let i = 1; i <= keystrokes; i++) {
-		const keyStart = performance.now();
-		await editor.typeSlowly('x');
-		await waitForBlock0Len(page, base0 + i, KEYSTROKE_TIMEOUT_MS);
-		samples.push(performance.now() - keyStart);
-	}
+	await editor.focusBlockEnd(0);
+	await assertMounted(page, [0], 'perf target block');
+	const base0 = await block0Length(page);
+	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
 
 	return {
 		loadMs,
@@ -147,16 +185,19 @@ export async function measureTypingIntoDocument(
 }
 
 /**
- * Load a generated fixture on the standard editor route and time typing into it.
+ * Load a generated fixture on the standard editor route and time typing into it. `mode` is the
+ * presentation rung the route starts in — the axis, not a second measurement: a rung that made
+ * a keystroke cost more must show up on the same samples the source rows are read from.
  */
 export async function measureTypingLatency(
 	page: Page,
 	editor: EditorPage,
 	shape: FixtureShape,
 	bytes: number,
-	keystrokes: number
+	keystrokes: number,
+	mode: PresentationMode = 'source'
 ): Promise<LatencyMeasurement> {
-	await editor.goto();
+	await editor.goto(mode === 'source' ? '' : `?presentationMode=${mode}`);
 	const fixture = NEEDS_PROSE_TARGET.has(shape)
 		? PROSE_TARGET + '\n' + generateFixture(shape, bytes)
 		: generateFixture(shape, bytes);
@@ -164,51 +205,31 @@ export async function measureTypingLatency(
 }
 
 /**
- * The container-interior companion to {@link measureTypingLatency}. Typing into a giant
- * container's FIRST child rewrites the container's own opener line every keystroke — the
- * gesture the kind re-derivation gate must elide, and the one axis a prose-target row can
- * never see. Block 0 IS the container here, so the same block-0 settle applies.
+ * The container-interior companion to {@link measureTypingLatency}: the axis a prose-target row
+ * can never see, since every one of those types AHEAD of the container. The caret sits at the
+ * container's first child because that is the child windowing guarantees mounted, and it is also
+ * the expensive end — a first-child keystroke moves the container's own opener line, so it pays
+ * the kind re-derivation gate and the slot seam ask a mid-container keystroke skips.
  */
-export async function measureContainerHeadTyping(
+export async function measureContainerInteriorTyping(
 	page: Page,
 	editor: EditorPage,
 	shape: FixtureShape,
-	headLeafPath: number[],
+	leafPath: number[],
 	bytes: number,
 	keystrokes: number
 ): Promise<LatencyMeasurement> {
 	await editor.goto();
 	const fixture = generateFixture(shape, bytes);
 
-	const loadStart = performance.now();
-	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
-	await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
-	await editor.waitForRenderFlush();
-	const loadMs = performance.now() - loadStart;
-
-	const pathAttr = JSON.stringify(headLeafPath);
-	const mounted = await page.evaluate(
-		(attr) => !!document.querySelector(`[data-block-path='${attr}']`),
-		pathAttr
-	);
-	if (!mounted)
-		throw new Error(`container head ${pathAttr} is not mounted — windowing left it off-window`);
+	const loadMs = await loadFixture(page, editor, fixture);
+	await assertMounted(page, leafPath, 'container interior');
 
 	// Overshooting the leaf's own length lands in focusBlockAtPath's clamp-to-end
-	// fallback, so the caret sits at the head leaf's end whatever its content is.
-	await editor.focusBlockAtPath(headLeafPath, Number.MAX_SAFE_INTEGER);
-	const base0 = await page.evaluate(() => {
-		const c = (window as any).__test.getDocument().children[0];
-		return c.leadingTrivia.length + c.raw.length;
-	});
-
-	const samples: number[] = [];
-	for (let i = 1; i <= keystrokes; i++) {
-		const keyStart = performance.now();
-		await editor.typeSlowly('x');
-		await waitForBlock0Len(page, base0 + i, KEYSTROKE_TIMEOUT_MS);
-		samples.push(performance.now() - keyStart);
-	}
+	// fallback, so the caret sits at that leaf's end whatever its content is.
+	await editor.focusBlockAtPath(leafPath, Number.MAX_SAFE_INTEGER);
+	const base0 = await block0Length(page);
+	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
 
 	return {
 		loadMs,
@@ -233,35 +254,15 @@ export async function measureDeepNestedTyping(
 	await editor.goto();
 	const fixture = generateDeepNested(depth, bytesPerLevel);
 
-	const loadStart = performance.now();
-	await page.evaluate((content) => (window as any).__test.setSource(content), fixture);
-	await waitForDocLength(page, fixture.replace(/\s+$/, '').length, LOAD_TIMEOUT_MS);
-	await editor.waitForRenderFlush();
-	const loadMs = performance.now() - loadStart;
+	const loadMs = await loadFixture(page, editor, fixture);
 
 	const leafPath = deepNestedLeafPath(depth);
-	const pathAttr = JSON.stringify(leafPath);
-	const mounted = await page.evaluate(
-		(attr) => !!document.querySelector(`[data-block-path='${attr}']`),
-		pathAttr
-	);
-	if (!mounted)
-		throw new Error(`deep leaf ${pathAttr} is not mounted — nested windowing left it off-window`);
+	await assertMounted(page, leafPath, 'deep leaf');
 
 	// Overshoots into focusBlockAtPath's clamp-to-end fallback, which is exactly end-of-leaf.
 	await editor.focusBlockAtPath(leafPath, bytesPerLevel);
-	const base0 = await page.evaluate(() => {
-		const c = (window as any).__test.getDocument().children[0];
-		return c.leadingTrivia.length + c.raw.length;
-	});
-
-	const samples: number[] = [];
-	for (let i = 1; i <= keystrokes; i++) {
-		const keyStart = performance.now();
-		await editor.typeSlowly('x');
-		await waitForBlock0Len(page, base0 + i, KEYSTROKE_TIMEOUT_MS);
-		samples.push(performance.now() - keyStart);
-	}
+	const base0 = await block0Length(page);
+	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
 
 	// Instrumented and untimed, because the render count is what separates rebuild cost
 	// from a render cascade — and instrumentation would distort the timings above.

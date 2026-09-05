@@ -6,65 +6,51 @@
 
 import type { CstNode, ListMetadata } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
+import type { PresentationMode } from '../../presentation-mode';
+import type { InlineResolverRef } from '../../schema/inline-construct-policy';
 import { metadataOf } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
+import { cleanJoinedRaw } from '../node-ops';
 import type { SharingState } from '../sharing';
 import { cloneMetadata, cloneNode } from '../clone';
 import { rebuildAncestryRaw } from '../../schema/container-raw';
-import { rebuildListRaw, rebuildListItemRaw } from '../../schema/container-rebuilders';
+import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
-import { renumberOrderedList } from './ordered-markers';
+import { orderedBaseOf, renumberOrderedList, renumberOrderedListFrom } from './ordered-markers';
+import { partitionItemChildren } from './item-partition';
 import { ensureUnsharedChild, ensureUnsharedNode, ensureUnsharedPath } from '../unshare';
 import { assignIds } from '../../block-id';
 import { pushChild } from '../children';
 
 /**
- * Unwrap a list's first item (Rule U1) without mutating the input. Output order: lifted
- * non-list children and mismatched-type sub-lists first, then the shrunk parent list with
- * matching-type sub-list items prepended and ordered markers renumbered.
+ * Unwrap a list's first item (Rule U1) without mutating the input. Output order: the item's
+ * non-promoting children lifted in place, then the shrunk parent list with the promoted
+ * sub-list items prepended and ordered markers renumbered.
  */
 export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
 		return [];
 	}
 
-	const clonedList: CstNode = cloneNode(list);
-	const parentOrdered = metadataOf(clonedList, 'list')?.ordered ?? false;
+	const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
 
-	const firstItem = clonedList.children![0];
+	const firstItem = list.children[0];
 	if (!firstItem.children || firstItem.children.length === 0) {
 		// Empty item: nothing to lift, so return the shrunk list.
+		const clonedList: CstNode = cloneNode(list);
 		const rest = clonedList.children!.slice(1);
 		if (rest.length === 0) return [];
 		clonedList.children = rest;
+		// childIds pairs by index, so it slices with the children or every survivor
+		// inherits its predecessor's id.
+		clonedList.childIds = clonedList.childIds?.slice(1);
 		rebuildListRaw(clonedList);
 		return [clonedList];
 	}
 
-	const liftedBlocks: CstNode[] = [];
-	const promotedItems: CstNode[] = [];
+	const { promotedItems, liftedBlocks } = partitionItemChildren(firstItem.children, parentOrdered);
 
-	for (const child of firstItem.children) {
-		if (child.kind === 'list') {
-			const childOrdered = metadataOf(child, 'list')?.ordered ?? false;
-			if (childOrdered === parentOrdered) {
-				if (child.children) {
-					for (const item of child.children) {
-						item.leadingTrivia = '';
-						promotedItems.push(item);
-					}
-				}
-			} else {
-				child.leadingTrivia = '';
-				liftedBlocks.push(child);
-			}
-		} else {
-			child.leadingTrivia = '';
-			liftedBlocks.push(child);
-		}
-	}
-
-	const restItems = clonedList.children!.slice(1);
+	const restItems = list.children.slice(1).map(cloneNode);
 	const remainingItems = [...promotedItems, ...restItems];
 
 	if (remainingItems.length === 0) {
@@ -77,23 +63,17 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		kind: 'list',
 		leadingTrivia: '',
 		raw: '',
-		metadata: clonedList.metadata
-			? (cloneMetadata(clonedList.metadata) as ListMetadata)
+		metadata: list.metadata
+			? (cloneMetadata(list.metadata) as ListMetadata)
 			: { ordered: parentOrdered },
 		children: remainingItems,
 		childIds: assignIds(remainingItems),
-		innerPrefix: clonedList.innerPrefix ?? '',
-		innerSuffix: clonedList.innerSuffix ?? ''
+		innerPrefix: list.innerPrefix ?? '',
+		innerSuffix: list.innerSuffix ?? ''
 	};
 
-	// Preserve the original list's starting number: seed item 0, then continue from item 1.
-	if (parentOrdered) {
-		const base = parseInt(metadataOf(firstItem, 'listItem').marker, 10) || 1;
-		const firstMeta = metadataOf(remainingItems[0], 'listItem');
-		firstMeta.marker = String(base) + firstMeta.marker.replace(/^\d+/, '');
-		rebuildListItemRaw(remainingItems[0]);
-		renumberOrderedList(remainingList, 1);
-	}
+	// Preserve the original list's starting number.
+	renumberOrderedListFrom(remainingList, orderedBaseOf(firstItem));
 
 	rebuildListRaw(remainingList);
 
@@ -101,10 +81,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 	return liftedBlocks;
 }
 
-/**
- * M1's target-finder: a path from `list` down to the deepest visible prose leaf of the
- * previous item, or null when no prose leaf is reachable.
- */
+/** M1's target-finder; null when no prose leaf is reachable. */
 function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): number[] | null {
 	if (!list.children || targetItemIndex < 0 || targetItemIndex >= list.children.length) {
 		return null;
@@ -112,6 +89,27 @@ function findDeepestVisibleTextTarget(list: CstNode, targetItemIndex: number): n
 	const startItem = list.children[targetItemIndex];
 	const result = walkToDeepestMergeLeaf(startItem, [targetItemIndex]);
 	return result ? result.path : null;
+}
+
+/**
+ * The depth-1 sibling list that "preserve absolute indent" promotes into: the last list
+ * child of the merge target's top-level item, only when the target sits deep enough
+ * (path length >= 4). Unshares the list it resolves.
+ */
+function depthOneListFor(
+	list: CstNode,
+	targetPath: number[],
+	sharing?: SharingState
+): CstNode | null {
+	if (targetPath.length < 4) return null;
+	const depthOneParent = list.children![targetPath[0]];
+	if (!depthOneParent.children) return null;
+	const idx = depthOneParent.children.findLastIndex((c) => c.kind === 'list');
+	if (idx === -1) return null;
+	const depthOneList = sharing
+		? ensureUnsharedChild(depthOneParent, idx, sharing)
+		: depthOneParent.children[idx];
+	return depthOneList.children ? depthOneList : null;
 }
 
 /**
@@ -135,30 +133,16 @@ function relocateRemainingChildren(
 
 	for (const child of remainingChildren) {
 		if (child.kind === 'list' && child.children) {
-			if (targetPath.length >= 4) {
-				const depthOneParent = list.children![targetPath[0]];
-				if (depthOneParent.children) {
-					let depthOneIdx = -1;
-					for (let i = 0; i < depthOneParent.children.length; i++) {
-						if (depthOneParent.children[i].kind === 'list') depthOneIdx = i;
-					}
-					const depthOneList =
-						depthOneIdx === -1
-							? undefined
-							: sharing
-								? ensureUnsharedChild(depthOneParent, depthOneIdx, sharing)
-								: depthOneParent.children[depthOneIdx];
-					if (depthOneList && depthOneList.children) {
-						for (let i = 0; i < child.children.length; i++) {
-							const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
-							item.leadingTrivia = '';
-							// discovered-descendant mutation, see node-ops.ts header
-							pushChild(depthOneList, item);
-						}
-						rebuildListRaw(depthOneList);
-						continue;
-					}
+			const depthOneList = depthOneListFor(list, targetPath, sharing);
+			if (depthOneList) {
+				for (let i = 0; i < child.children.length; i++) {
+					const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
+					item.leadingTrivia = '';
+					// discovered-descendant mutation, see node-ops.ts header
+					pushChild(depthOneList, item);
 				}
+				rebuildListRaw(depthOneList);
+				continue;
 			}
 			// discovered-descendant mutation, see node-ops.ts header
 			pushChild(targetItem, child);
@@ -183,7 +167,9 @@ export function mergeListItemIntoPrevious(
 	list: CstNode,
 	children: CstNode[],
 	currentIndex: number,
-	sharing?: SharingState
+	sharing: SharingState | undefined,
+	presentationMode: PresentationMode | undefined,
+	linkRef: InlineResolverRef | undefined
 ): { mergePoint: { targetPath: number[]; offset: number } } | null {
 	// Targeting may read `list.children`, but the final splice MUST land in `children`
 	// (`node-ops.ts` header).
@@ -216,7 +202,6 @@ export function mergeListItemIntoPrevious(
 		throw new Error('mergeListItemIntoPrevious: target path does not end at a paragraph');
 	}
 	const targetOriginalText = (targetParagraph.raw ?? '').replace(/\r?\n$/, '');
-	const mergeOffset = targetOriginalText.length;
 
 	const currentItem = children[currentIndex];
 	if (
@@ -231,7 +216,22 @@ export function mergeListItemIntoPrevious(
 	const currentFirstText = (currentFirstParagraph.raw ?? '').replace(/\r?\n$/, '');
 
 	const lineEnding = trailingLineEnding(targetParagraph.raw ?? '');
-	targetParagraph.raw = targetOriginalText + currentFirstText + lineEnding;
+	// Every destructive join crosses the seam cleaner, M1 included: a literal concatenation
+	// surfaces the marker runs the join orphaned, which live paints for nobody.
+	const joined = cleanJoinedRaw(
+		{
+			mergedRaw: targetOriginalText + currentFirstText,
+			seam: targetOriginalText.length,
+			start: { node: targetParagraph, offset: targetOriginalText.length },
+			end: { node: currentFirstParagraph, offset: 0 },
+			linkRef
+		},
+		presentationMode
+	);
+	// The caret rides the CLEANED seam: a run dropped on the target's side moves where the
+	// two halves met.
+	const mergeOffset = joined.seam;
+	targetParagraph.raw = joined.raw + lineEnding;
 
 	relocateRemainingChildren(list, targetPath, targetItem, currentItem, lineEnding, sharing);
 

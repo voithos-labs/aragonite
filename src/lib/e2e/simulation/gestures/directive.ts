@@ -1,4 +1,5 @@
 import { type SimContext } from '../invariants';
+import { waitForNodeCount } from './node-count';
 
 // Directive gestures for the `:::name` primitive (plugins route only). Each gates on an
 // observable promotion or widget swap and RESYNCS around the reparse — never predicts across
@@ -47,7 +48,7 @@ export async function revealEditTextDirective(
 	const widgetsBefore = await page.locator(TEXT_WIDGET).count();
 
 	await page.locator(TEXT_WIDGET).first().click();
-	await waitForWidgetCount(ctx, widgetsBefore - 1);
+	await waitForNodeCount(ctx, TEXT_WIDGET, widgetsBefore - 1);
 	for (let i = 0; i < stepIn; i++) await page.keyboard.press('ArrowRight');
 	await page.keyboard.type(text);
 
@@ -73,7 +74,7 @@ export async function insertLeafDirective(
 
 	await editor.typeSlowly(`::${name} ${info}`);
 	await editor.bridge.waitForSourceContains(`::${name} ${info}`);
-	await waitForLeafCount(ctx, leavesBefore + 1);
+	await waitForNodeCount(ctx, LEAF, leavesBefore + 1);
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
 }
@@ -140,22 +141,4 @@ export async function editContainerBody(
 	await editor.bridge.waitForSourceWith((s, prev) => s !== prev, before);
 	await editor.waitForRenderFlush();
 	tracker.resync(await editor.bridge.getSource());
-}
-
-// ── Internal ────────────────────────────────────────────────────────────────
-
-function waitForWidgetCount(ctx: SimContext, count: number): Promise<void> {
-	return waitForNodeCount(ctx, TEXT_WIDGET, count);
-}
-
-function waitForLeafCount(ctx: SimContext, count: number): Promise<void> {
-	return waitForNodeCount(ctx, LEAF, count);
-}
-
-async function waitForNodeCount(ctx: SimContext, selector: string, count: number): Promise<void> {
-	await ctx.page.waitForFunction(
-		({ sel, n }) => document.querySelectorAll(sel).length === n,
-		{ sel: selector, n: count },
-		{ timeout: 2000, polling: 16 }
-	);
 }

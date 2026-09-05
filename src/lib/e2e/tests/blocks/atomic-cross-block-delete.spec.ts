@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { type Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
-import { waitForClipboardContains } from '../clipboard/complex-copy-paste/helpers';
+import { roundTripStable } from '../plugins/helpers';
 
 const CODE_FIXTURE = 'before alpha\n\n```\nconst x = 42;\n```\n\nafter omega\n';
 const BREAK_FIXTURE = 'before alpha\n\n---\n\nafter omega\n';
@@ -73,11 +73,11 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 			await selectAcrossAtomic(editor);
 			await editor.waitForCrossBlock(true);
 			errors.clear();
-			await editor.page.keyboard.press('Control+x');
+			await editor.page.keyboard.press('ControlOrMeta+x');
 			await editor.bridge.waitForSourceNotContains(variant.body);
 
-			await waitForClipboardContains(editor, variant.body);
-			const clip = await editor.page.evaluate(() => navigator.clipboard.readText());
+			await editor.waitForClipboardContains(variant.body);
+			const clip = await editor.readClipboard();
 			expect(clip).toContain(variant.body);
 
 			await assertSoundProse(editor, variant.body);
@@ -91,8 +91,8 @@ test.describe('cross-block delete + cut through an atomic leaf block', () => {
 // is blind.
 async function assertSoundProse(editor: EditorPage, body: string): Promise<void> {
 	const source = await editor.bridge.getSource();
-	expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
-	expect(await editor.page.evaluate(() => (window as any).__test.parseConverged())).toBe(true);
+	expect(await roundTripStable(editor.page)).toBe(true);
+	expect(await editor.parseConverged()).toBe(true);
 	expect(source).not.toContain(body);
 	expect(source).not.toContain('```');
 	expect(source).toContain('before');

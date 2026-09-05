@@ -1,8 +1,17 @@
 import { test, expect } from '../../../../fixtures';
 import { EditorPage } from '../../../../editor-page';
+import { roundTripStable } from '../../../plugins/helpers';
 
 // The exited source must collapse the empty continuation marker at every nesting depth: ancestor
 // quotes must rebuild too, or their stale raw leaks a stranded `> >` / `> > >` line.
+
+/** One rung of the exit ladder, settled on the source it rewrites. */
+async function pressEnterUntilSourceChanges(editor: EditorPage): Promise<void> {
+	const before = await editor.bridge.getSource();
+	await editor.page.keyboard.press('Enter');
+	await editor.bridge.waitForSourceWith((s, b) => s !== b, before);
+}
+
 test.describe('blockquote navigation — exit on empty trailing line', () => {
 	let editor: EditorPage;
 
@@ -30,11 +39,12 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		// A bare `>` BETWEEN quoted lines is the paragraph separator Enter mints;
 		// the stranded marker this guards is one the quote ends on.
 		expect(source).not.toMatch(/^>[ \t]*\n(?!>)/m);
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	// Exiting a NESTED quote once rebuilt the inner quote's raw but left the outer's stale,
-	// stranding `> >`.
+	// stranding `> >`. The exit ladders one level per Enter, the list outdent's convention,
+	// so reaching the document takes one press per depth.
 	test('nested quote (depth 2) exit leaves no stranded "> >" line', async () => {
 		await editor.loadContent('> Outer\n> > Inner\n');
 		const inner = editor.page.locator('[contenteditable="true"]', { hasText: /^Inner$/ });
@@ -42,13 +52,14 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(5);
+		await pressEnterUntilSourceChanges(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^[^>]/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> > Inner');
 		expect(source).not.toMatch(/^> >\s*$/m);
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
 	// Depth-3 discriminates a full ancestor-chain rebuild from a one-level patch:
@@ -60,12 +71,14 @@ test.describe('blockquote navigation — exit on empty trailing line', () => {
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.press('Enter');
 		await editor.waitForBlockHostCount(5);
+		await pressEnterUntilSourceChanges(editor);
+		await pressEnterUntilSourceChanges(editor);
 		await editor.page.keyboard.press('Enter');
 		await editor.bridge.waitForSourceMatches(/^[^>]/m);
 
 		const source = await editor.bridge.getSource();
 		expect(source).toContain('> > > Deep');
 		expect(source).not.toMatch(/^> >(?: >)?\s*$/m);
-		expect(await editor.page.evaluate(() => (window as any).__test.roundTripStable())).toBe(true);
+		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 });

@@ -1,6 +1,5 @@
-// Shared building blocks for the README chart renderers: the dataviz base palette, the
-// SVG entity escaper, and the `<text>` builder. Each renderer spreads its chart-specific
-// colors over the base theme, so a palette change lands in one place.
+// Shared building blocks for the README chart renderers. Each renderer spreads its
+// chart-specific colors over the base theme, so a palette change lands in one place.
 
 const FONT = 'system-ui, sans-serif';
 
@@ -24,7 +23,6 @@ export const THEMES = {
 
 export const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// The returned helper appends one `<text>` element to `sink` per call.
 export function textBuilder(theme, sink) {
 	return (
 		x,

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { setContext, tick, onMount } from 'svelte';
+	import { setContext, tick, onMount, untrack } from 'svelte';
 	import '../styles/editor.css';
 	import type { BlockComponent } from '../block-component';
-	import type { Document } from '../core/nodes';
+	import type { AnyBlockKind, Document } from '../core/nodes';
 	import type { EditorProps, EditorInstance, EditorDiagnostics } from '../editor-props';
 	import type { EditorEvents } from '../editor-events';
 	import {
@@ -16,6 +16,7 @@
 		type BlockElLookup,
 		type DocumentGetter,
 		type EditorDoc,
+		type LinkReferenceResolverRef,
 		type EditorPolicies,
 		type EditorServices,
 		type PluginEditorLookup,
@@ -23,6 +24,8 @@
 		type ResolveLinkUrl
 	} from '../editor-keys';
 	import { createStickyColumnState } from '../cursor/sticky-column';
+	import { createEdgeAffinityState } from '../cursor/edge-affinity';
+	import { createPendingMarksState } from '../cursor/pending-marks';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
 	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
@@ -31,21 +34,23 @@
 		userScrollportFor,
 		type UserScrollport
 	} from '../cursor/scroll-ancestors';
+	import { createScrollport, type Scrollport } from '../cursor/scrollport';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
-	import { revealChildOrWait } from '../reactivity/publish-ref.svelte';
+	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
+	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
+	import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-ops';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
-	import { trailingLineEnding } from '../core/lines';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { advanceSignatureEpoch, lrdMapCouldChange } from './lrd-map-gate';
 	import {
@@ -54,7 +59,7 @@
 	} from '../core/inline/link-reference-resolver';
 	import { createUndoManager } from '../undo/manager';
 	import { createSharingState } from '../tree-operations/sharing';
-	import { createEditorEvents, emitCommandError } from '../editor-events';
+	import { createEditorEvents, emitBlockedLinkError, emitCommandError } from '../editor-events';
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
@@ -75,26 +80,61 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
-	import { readBlockPath } from '../selection/path-lookup';
+	import { findSurfacePathForElement, readBlockPath } from '../selection/path-lookup';
+	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
+	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
 	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
 	import {
+		installEditorBlurAnnouncer,
+		installModActiveTracker,
+		installSelectionChangeBridge,
+		installViewportHeightWatcher,
+		onRoot,
+		removeAll
+	} from './editor-root-listeners';
+	import { collectReservedChords, chordIsClaimed } from '../schema/reserved-chords';
+	import { portalInto } from './portal';
+	import {
 		registerEditor,
 		unregisterEditor,
 		markEditorInteracted,
-		releaseInteractedEditor
+		releaseInteractedEditor,
+		isTextEntrySurface
 	} from '../active-editor';
-	import type { CommandErrorSink } from '../schema/block-commands';
+	import { ambientLengthOf } from '../ambient/ambient-dom';
+	import { toClampedRawOffset } from '../cursor/coordinate-spaces';
+	import { domTextOffsetAtNode } from '../cursor/widget-offset';
+	import {
+		canRunCommandById,
+		isCommandActiveById,
+		runCommandById,
+		type CommandDispatchContext,
+		type CommandErrorSink,
+		type KindCommandTarget
+	} from '../schema/block-commands';
+	import type { AnyCommandId } from '../schema/command-id';
 	import { installPlugins, normalizePluginEntries } from '../schema/plugin-install';
+	import {
+		activationFor,
+		everyInstalledPlugin,
+		kindEnablementFor
+	} from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
-	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import { bothEnable, createRegistryView, type KindEnablement } from '../schema/registry-view';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
+	import LinkCardHost from './link-card/LinkCardHost.svelte';
+	import { createLinkCardState } from './link-card/link-card-state.svelte';
+	import { LINK_ELEMENT_SELECTOR, resolveLinkAtPoint } from './blocks/text/link-at-point';
 	import { runStartupInvariantChecks } from '../invariants/install';
+	import { assertInvariant } from '../assert';
+	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
+	import { checkLandableCaret } from '../invariants/landable-caret';
 	import { registerBuiltInBlocks } from './built-in-blocks';
 	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
 
@@ -112,8 +152,9 @@
 		onLinkActivate,
 		onPasteImage,
 		header,
-		blockDragHandles = true,
+		blockDragHandles = false,
 		searchBar = true,
+		searchBarAnchor,
 		keybindings,
 		theme = 'dark',
 		presentationMode = 'source',
@@ -154,11 +195,29 @@
 		return resolvedClipBounds;
 	}
 
+	// The scrollport every windowing scope measures and writes, over the SAME scroller the
+	// autoscroll seam resolves — so the mode picks the target and nothing downstream branches
+	// on it. Memoized with that resolution.
+	let scrollport: Scrollport | null = null;
+	function getScrollport(): Scrollport | null {
+		if (!scrollport) {
+			const target = getScrollHost();
+			if (target) scrollport = createScrollport(target);
+		}
+		return scrollport;
+	}
+
 	// Install before initDocument parses `source`, so plugin openers/directives are live
 	// for the seed grammar. Set-once by contract — a later prop change is ignored.
 	// svelte-ignore state_referenced_locally
 	const pluginEntries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
 	if (pluginEntries) installPlugins(pluginEntries.plugins);
+
+	// The prop IS the enablement set: this editor activates exactly what it listed. No prop
+	// means no restriction, so everything installed in the process stays active here.
+	const activePlugins = pluginEntries
+		? activationFor(pluginEntries.plugins.map((p) => p.name))
+		: everyInstalledPlugin;
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
@@ -172,7 +231,9 @@
 	const resolveImageUrlImpl: ResolveImageUrl = (u) => (resolveImageUrl ? resolveImageUrl(u) : u);
 	const resolveLinkUrlImpl: ResolveLinkUrl = (u) => (resolveLinkUrl ? resolveLinkUrl(u) : u);
 	const activateLink = (url: string, event: MouseEvent) =>
-		(onLinkActivate ?? defaultLinkActivation)(url, event);
+		onLinkActivate
+			? onLinkActivate(url, event)
+			: defaultLinkActivation(url, event, (blocked) => emitBlockedLinkError(events, blocked));
 
 	// ── State ───────────────────────────────────────────────────────────
 
@@ -181,11 +242,11 @@
 		resolver: LinkReferenceResolver;
 		signature: string;
 	} {
-		const d = parse(src);
+		const d = parse(src, { scope: 'document' });
 		if (d.children.length === 0) {
-			// A blank-lines-only source parses to zero blocks; the caret placeholder
-			// takes the source's own ending (G4.20), so a CRLF file gains no lone LF.
-			d.children.push(emptyParagraph('', trailingLineEnding(src)));
+			// Only the empty source parses to zero blocks — a blank line is a block of its
+			// own — so there is no authored ending to inherit and LF is the whole answer.
+			d.children.push(emptyParagraph('', '\n'));
 		}
 		for (const child of d.children) {
 			ensureEditableContainers(child);
@@ -201,31 +262,68 @@
 	let doc = $state<Document>(initial.doc);
 	// svelte-ignore state_referenced_locally
 	let blockIds = $state<string[]>(assignIds(doc.children));
+	// Bumped by every byte-writing door. Inline widgets derive on it directly, and the
+	// decoration engine's `editEpoch` rides it a tick later.
+	const contentVersion = createContentVersion();
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
 	let signatureEpoch = $state<number>(0);
-	// Plain array: $state's mutation guards revert writes from a BlockHost publish
-	// that fires during the post-undo reactive flush.
-	let blockRefs: (BlockComponent | undefined)[] = [];
+	/** One ref for every reader — the block components through context and the action bundles
+	 *  through their deps — so a post-commit rebuild reaches both without re-binding either. */
+	const linkRefView: LinkReferenceResolverRef = {
+		get current(): LinkReferenceResolver {
+			return currentResolver;
+		},
+		get signature(): string {
+			return currentSignature;
+		},
+		get epoch(): number {
+			return signatureEpoch;
+		}
+	};
+	// Plain, not `$state`: the top-level scope's slot storage (see `refSlotsOver`).
+	const blockRefs: (BlockComponent | undefined)[] = [];
+	const blockRefSlots = refSlotsOver(blockRefs);
 	let editorEl: HTMLDivElement | undefined = $state();
+	// Inside a themed host the editor sits under no opt-in class, and the portaled search
+	// bar must not carry one either: the class's defaults would shadow the host tokens the
+	// anchor already inherits.
+	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
 	let headerEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	const undoManager = createUndoManager();
 	const sharing = createSharingState();
 	const stickyColumn = createStickyColumnState();
+	// Composed, not wired seam by seam: the marks are ephemeral caret state with the affinity's
+	// exact lifetime, so every door that invalidates the arrival side drops them by construction.
+	const pendingMarks = createPendingMarksState();
+	const edgeAffinity = createEdgeAffinityState({ onInvalidate: pendingMarks.reset });
 	const revealAnchor = createRevealAnchorState();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
 	// getSelection is function-hoisted below — callback reads the fresh snapshot each time.
 	const selectionState = createSelectionState({
-		onChange: () => events.emit('selectionChange', getSelection()),
+		onChange: () => {
+			// The other half of the mutual exclusion `onSelect` carries: a range opened while a
+			// widget is selected (select-all declines to the widget's own keydown) would leave
+			// both live, and every dispatch keyed on "a widget is selected" would answer for
+			// the document-wide selection the user is looking at.
+			if (selectionState.isCrossBlock) widgetSelection.clear();
+			events.emit('selectionChange', getSelection());
+		},
 		getDoc: () => doc
 	});
 	const widgetSelection = createWidgetSelectionState({
 		onSelect: () => {
 			window.getSelection()?.removeAllRanges();
-			selectionState.clear();
+			// Announced like the `source` swap: dropping the native range ends the document
+			// caret without moving a field the clear guards on, and the native `selectionchange`
+			// it fires bails on the empty range before it reaches the channel.
+			selectionState.batch(() => {
+				selectionState.clear();
+				selectionState.announceSelection();
+			});
 		}
 	});
 
@@ -246,7 +344,7 @@
 
 	$effect(() => {
 		const dispose = events.on('edit', (e) => {
-			operationsLog?.record({
+			operationsLog.record({
 				op: e.op,
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
@@ -267,16 +365,16 @@
 		return () => dispose();
 	});
 
-	// The one bump site for `editEpoch` ("the document changed" — a commit or a whole
-	// `source` swap). Deferred a tick so no source reads a half-applied tree, and
-	// skipped with no source registered: zero keystroke work by default (perf:check).
-	function notifyDocumentChanged(): void {
-		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
-	}
-
+	// The one bump site for `editEpoch`. It rides the content version rather than the `edit`
+	// event, whose `input` is batched across a typing burst and would leave every source a
+	// pause behind the bytes; the tick keeps a source off a half-applied tree, and the
+	// no-source skip keeps an undecorated editor at zero keystroke work (perf:check).
+	let notifiedVersion = contentVersion.read();
 	$effect(() => {
-		const dispose = events.on('edit', () => notifyDocumentChanged());
-		return () => dispose();
+		const version = contentVersion.read();
+		if (version === notifiedVersion) return; // the mount run announces nothing
+		notifiedVersion = version;
+		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
 	});
 
 	// Counts whole-document REPLACEMENTS, which the edit epoch cannot tell from a
@@ -284,7 +382,7 @@
 	// which must register no reactive dependency.
 	let documentGeneration = 0;
 
-	// `source !== lastSource` guard is load-bearing — see `docs/design/editor.md` § Reactive State Plumbing.
+	// `source !== lastSource` guard is load-bearing — see `docs/design/editor.md` § Reactive state plumbing.
 	// svelte-ignore state_referenced_locally
 	let lastSource = source;
 	$effect(() => {
@@ -296,11 +394,22 @@
 			lastSource = source;
 			const reset = initDocument(source);
 			doc = reset.doc;
+			contentVersion.bump();
 			blockIds = assignIds(doc.children);
-			blockRefs = [];
+			blockRefs.length = 0;
+			// Block ids never recur, so every measured height now keys a block that cannot
+			// come back: the scopes reseed from estimates exactly as they do on first load.
+			heightOracle.dropMeasured();
 			undoManager.clear();
 			stickyColumn.reset();
-			selectionState.clear();
+			edgeAffinity.reset();
+			// Announced, not left to the clear: the swap usually arrives on a plain caret, which
+			// is native-only, so nothing editor-owned moves and subscribers would keep painting
+			// the outgoing document's selection. Batched, so a real range still emits once.
+			selectionState.batch(() => {
+				selectionState.clear();
+				selectionState.announceSelection();
+			});
 			documentGeneration++;
 			// The resolver refreshes unconditionally — the old one closes over the
 			// swapped-out doc — but the epoch bumps only on a differing LRD signature.
@@ -308,33 +417,8 @@
 			currentResolver = reset.resolver;
 			currentSignature = next.signature;
 			signatureEpoch = next.epoch;
-			notifyDocumentChanged();
 		}
 	});
-
-	// ── Listener ritual ─────────────────────────────────────────────────
-	//
-	// Every root listener installs on an $effect and removes on its teardown. Retyping
-	// that pair per site is how a cleanup drifts, so these two capture the target and
-	// the handler once. Typed off `Event`, not the per-target event maps: those names
-	// are type-only, and this file runs on ESLint's untyped net.
-
-	function onRoot<E extends Event>(
-		target: EventTarget,
-		type: string,
-		handler: (event: E) => void,
-		options?: { capture?: boolean; passive?: boolean }
-	): () => void {
-		const listener = handler as (event: Event) => void;
-		target.addEventListener(type, listener, options);
-		// Removal matches on capture alone: `passive` is an add-time hint the remove
-		// signature rejects.
-		return () => target.removeEventListener(type, listener, options?.capture);
-	}
-
-	function removeAll(...removers: (() => void)[]): () => void {
-		return () => removers.forEach((remove) => remove());
-	}
 
 	/**
 	 * The host's own chrome, mounted inside this root. Every rule meaning "this is the
@@ -346,18 +430,83 @@
 		return !!node && !!headerEl && headerEl.contains(node);
 	}
 
+	// ── Dead-space caret ────────────────────────────────────────────────
+
 	// A click in the root's padding or below the last block places a caret rather than
 	// doing nothing. `getBlockComponent` is hoisted; the reset closure defers its reads.
 	const deadSpaceCaret = createDeadSpaceCaret({
 		getBlockComponent,
-		resetSelectionForClick: () => resetForPointerDown(selectionState, stickyColumn, false)
+		resetSelectionForClick: () =>
+			resetForPointerDown(selectionState, stickyColumn, edgeAffinity, false),
+		gapScope: {
+			getDoc: () => doc,
+			selection: selectionState,
+			getPresentationMode: () => effectiveMode
+		},
+		lastBlockIndex: () => doc.children.length - 1,
+		revealBlock: (index) => revealPath([index])
 	});
+
+	// ── Link card door ──────────────────────────────────────────────────
+
+	// The caret snapshot and the entry guards ride the STATE, not the callers, so entry path N+1
+	// cannot forget them. All three decline a cross-block range absolutely; on a same-block one
+	// they split by gesture: an unasked-for click must not interrupt it, the create gesture wraps
+	// it, and the chord has already resolved it against the construct it opens.
+	const linkCard = createLinkCardState({
+		onOpen: () => linkCardCaret.saveCurrent(),
+		canOpen: () => !selectionState.isCrossBlock && window.getSelection()?.isCollapsed !== false,
+		canEnter: () => !selectionState.isCrossBlock,
+		canOpenCreate: () =>
+			!selectionState.isCrossBlock && window.getSelection()?.isCollapsed === false
+	});
+
+	/** Open the card on the link `el` renders, or report that nothing there is one. The caret has
+	 *  already landed from mousedown, which is the one the state snapshots. */
+	function openLinkCard(el: Element): boolean {
+		const path = findSurfacePathForElement(el);
+		if (!path) return false;
+		const block = nodeAt(doc, path);
+		if (block === null || !isBlockNode(block)) return false;
+		const contentEl = getBlockElByPath(path);
+		if (!contentEl) return false;
+		const hit = resolveLinkAtPoint({ contentEl, block, path, linkRef: linkRefView });
+		if (!hit) return false;
+		return linkCard.open(hit.target);
+	}
+
+	// The card belongs to live mode alone; any other mode paints the destination bytes already.
+	$effect(() => {
+		if (effectiveMode !== 'live') linkCard.close();
+	});
+
+	// ── Hidden-run class probe ──────────────────────────────────────────
+
+	// Once per mode change, the probe pays the getComputedStyle the per-keystroke hidden-run
+	// predicate cannot afford, so the two class vocabularies cannot drift silently.
+	$effect(() => {
+		void effectiveMode;
+		if (!editorEl) return;
+		const root = editorEl;
+		assertInvariant('marker-css-parity', () => checkMarkerCssParity(root));
+	});
+
+	// ── Root gesture listeners ──────────────────────────────────────────
 
 	$effect(() => {
 		if (!editorEl) return;
 		const root = editorEl;
 		const handleClick = (e: MouseEvent) => {
 			const target = e.target as Element | null;
+			// Ahead of the anchor arm: a blocked-scheme link renders as a SPAN, and it is exactly
+			// the link a user opens the card to fix. Mod-click still activates, below.
+			if (effectiveMode === 'live' && !e.ctrlKey && !e.metaKey) {
+				const linkEl = target?.closest(LINK_ELEMENT_SELECTOR);
+				if (linkEl && !isHostChrome(linkEl) && openLinkCard(linkEl)) {
+					e.preventDefault();
+					return;
+				}
+			}
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			// The helper claims only clicks whose target IS the root, so nothing the
 			// editor renders is touched.
@@ -386,17 +535,19 @@
 		);
 	});
 
-	// Release on the next user-intent gesture, so the anchor holds only through the
-	// post-reveal settle. NOT on `scroll`: a programmatic correctAnchor write fires
-	// `scroll` itself and would self-release the anchor mid-settle.
+	// Release on the next user-intent gesture, so the anchor holds only through the post-reveal
+	// settle. NOT on `scroll`: a programmatic correctAnchor write fires `scroll` itself and
+	// would self-release mid-settle. On the resolved PORT, not the root — the pin fights
+	// whoever scrolls the port, and in host mode that gesture lands outside the editor.
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
+		const target = getScrollHost();
+		if (!target) return;
 		const release = () => revealAnchor.releaseAll();
 		return removeAll(
-			onRoot(root, 'keydown', release),
-			onRoot(root, 'pointerdown', release),
-			onRoot(root, 'wheel', release, { passive: true })
+			onRoot(target, 'keydown', release),
+			onRoot(target, 'pointerdown', release),
+			onRoot(target, 'wheel', release, { passive: true })
 		);
 	});
 
@@ -408,6 +559,7 @@
 			const next = e.relatedTarget as Node | null;
 			if (next && root.contains(next)) return;
 			stickyColumn.reset();
+			edgeAffinity.reset();
 		});
 	});
 
@@ -415,7 +567,10 @@
 	// would make it wait for the bind and re-install on every root change.
 	$effect(() =>
 		onRoot(document, 'visibilitychange', () => {
-			if (document.visibilityState === 'hidden') stickyColumn.reset();
+			if (document.visibilityState === 'hidden') {
+				stickyColumn.reset();
+				edgeAffinity.reset();
+			}
 		})
 	);
 
@@ -433,6 +588,8 @@
 			unregisterEditor(root);
 		};
 	});
+
+	// ── Block element and component lookup ──────────────────────────────
 
 	// The measurement surface for cross-block caret math. Table cells carry no
 	// data-block-path (they render without BlockHost), so a deep cell path resolves
@@ -479,16 +636,9 @@
 		// a spurious cross-level wake, and — load-bearing for VR-5 — degrades instead of
 		// hanging when a stale model left `top` outside the recomputed window.
 		await revealChildOrWait(top, {
+			slots: blockRefSlots,
 			childCount: doc.children.length,
-			getRef: (i) => blockRefs[i],
 			revealChild: topWindowing.revealChild,
-			// The windowed each-block's conditional cleanup can strand a detached ref in
-			// its slot, which would silently no-op the reveal; dropping it lets the
-			// scroll and a fresh mount run.
-			dropRef: (i) => {
-				blockRefs[i] = undefined;
-			},
-			isStale: (i) => !topWindowing.isInWindow(i),
 			isInWindow: topWindowing.isInWindow
 		});
 		const ref = blockRefs[top];
@@ -499,12 +649,18 @@
 			: (ref.getBlockComponentByPath?.(path.slice(1)) ?? null);
 	}
 
-	// The instance's resolution over the global block definitions: without an
-	// enablement door it reads the global registry verbatim.
+	// The instance's resolution over the global block definitions: an unlisted plugin's kind
+	// resolves no component here and its opener leaves this grammar. A prop-less editor reads
+	// the global registry verbatim.
+	// The harness door composes rather than replaces: widening past what the prop activated
+	// would prove a resolution the shipped path cannot reach.
 	// svelte-ignore state_referenced_locally
-	const registryView = createRegistryView(
-		__registryEnablement ? { isEnabled: __registryEnablement } : undefined
-	);
+	const registryView = createRegistryView({
+		isEnabled: bothEnable(
+			pluginEntries ? kindEnablementFor(activePlugins) : undefined,
+			__registryEnablement
+		)
+	});
 
 	const editorActionsDeps: EditorActionsDeps = {
 		get doc() {
@@ -516,25 +672,28 @@
 		get blockRefs() {
 			return blockRefs;
 		},
+		blockRefSlots,
 		setDoc: (v) => {
 			doc = v;
 		},
+		bumpContentVersion: contentVersion.bump,
 		setBlockIds: (v) => {
 			blockIds = v;
 		},
-		// In-place mutation — closures capture this array, reassignment would orphan their writes.
-		setBlockRefs: (v) => {
-			blockRefs.length = v.length;
-			for (let i = 0; i < v.length; i++) blockRefs[i] = v[i];
-		},
+		setBlockRefs: (v) => replaceRefs(blockRefs, v),
 		undoManager,
 		sharing,
 		stickyColumn,
+		edgeAffinity,
 		selectionState,
 		getBlockElByPath,
 		revealPath,
 		events,
-		grammar: registryView.grammar
+		grammar: registryView.grammar,
+		getPresentationMode: () => effectiveMode,
+		get linkRef() {
+			return linkRefView;
+		}
 	};
 	const { blockEdit, focus, history, containerEdit, controller } =
 		createEditorActions(editorActionsDeps);
@@ -542,11 +701,6 @@
 	// A getter, so block components read the live doc at keystroke time rather than
 	// the snapshot they mounted with.
 	const getDoc: DocumentGetter = () => doc;
-
-	// The edit epoch's twin at render cadence: a keystroke changes this immediately,
-	// while `editEpoch` waits for the typing batch to flush. Inline widgets derive at
-	// render cadence and need this one. Lazy — nothing computes until a reader asks.
-	const contentVersion = createContentVersion(getDoc);
 
 	// Ahead of the plugin contexts because the plugin door hands its registry into
 	// createEditorPluginContexts below.
@@ -571,7 +725,7 @@
 		revealAnchor,
 		// A navigation holds its pin, unlike the consumer restore door: nothing follows
 		// it that wants the viewport back, and the band should outlive a late decode.
-		landCaretAt: async (path) => (await restoreThroughRevealRoad(caretAt(path), true)) === 'applied'
+		landCaretAt: landCaretAtOffset
 	});
 
 	// After getDoc so it reuses that one live-doc closure: a second getDoc would be a
@@ -587,7 +741,8 @@
 		// The one injection point of the mode into the dispatch tiers; they read it back
 		// through the pluginEditor lookup they already thread.
 		getPresentationMode: () => effectiveMode,
-		getTheme: () => theme
+		getTheme: () => theme,
+		activation: activePlugins
 	});
 
 	// One definition, threaded by every dispatch tier that can reach a plugin-global
@@ -597,7 +752,7 @@
 
 	// onMount, NEVER a plain $effect: attachAll synchronously runs plugin callbacks that
 	// read reactive state, so an effect would take doc.children as a dependency and the
-	// first structural edit would dispose every subscription (culture.md's re-init scar).
+	// first structural edit would dispose every subscription (casebook.md's re-init scar).
 	onMount(() => {
 		pluginContexts.attachAll(({ plugin, error }) =>
 			events.emit('error', { origin: 'subscriber', error, context: { plugin } })
@@ -620,9 +775,11 @@
 
 	const pasteCoordinator = createPasteCoordinator(controller, revealPath);
 
-	// Pre-search caret, snapshotted on open and restored on close. Plain `let`, like
-	// focusedPath: only read and written from imperative handlers.
-	let savedRange: Range | null = null;
+	// The document caret while chrome holds focus (selection/caret-restore.ts). One instance PER
+	// consumer: a card opened over an open search bar would otherwise overwrite the pre-search
+	// caret with its own, and closing the bar would land the user at the link.
+	const searchCaret = createCaretRestore(() => editorEl ?? null);
+	const linkCardCaret = createCaretRestore(() => editorEl ?? null);
 
 	const searchReplace = createSearchReplace(editorActionsDeps, controller);
 	// Find stays live in reading mode; replace is an edit and no-ops at this seam.
@@ -641,21 +798,7 @@
 		// default, which is what search wants), so the band's async image-decode churn
 		// can't clamp the reveal off the match.
 		reveal: (p) => rects.scrollTo(p),
-		onClose: () => {
-			// Restore the native caret when its container is still in the DOM; otherwise
-			// focus the root so cross-block keyboard routing survives.
-			if (savedRange && editorEl?.contains(savedRange.startContainer)) {
-				const node = savedRange.startContainer;
-				const host = node instanceof Element ? node : node.parentElement;
-				host?.closest<HTMLElement>('[contenteditable]')?.focus();
-				const sel = window.getSelection();
-				sel?.removeAllRanges();
-				sel?.addRange(savedRange);
-			} else {
-				editorEl?.focus();
-			}
-			savedRange = null;
-		}
+		onClose: searchCaret.restore
 	});
 	// Lives here, not in SearchBar, so the root Ctrl+H and the bar's chevron share one
 	// source of truth.
@@ -669,10 +812,23 @@
 		reorderAnnouncement = message;
 	};
 	const reorder = createReorderAction(editorActionsDeps, controller, (to, total) => {
-		announceReorder(`Moved block to position ${to + 1} of ${total}`);
+		announceReorder(movedBlockToPosition(to + 1, total));
 	});
 
 	// ── Context provision ───────────────────────────────────────────────
+
+	// One per instance, shared by every dispatch site's gates: the chord arm, a leaf's rebound
+	// chord and the `runCommand` door must reach the same cross-block road.
+	const crossBlockCommands = createCrossBlockCommands({
+		selection: selectionState,
+		getDoc,
+		getBlockElByPath,
+		revealPath,
+		controller,
+		getPresentationMode: () => effectiveMode,
+		grammar: registryView.grammar,
+		getContentVersion: contentVersion.read
+	});
 
 	// The action bundles stay per-key so a container re-provides exactly what it
 	// overrides; HISTORY is G1.4's single-provider subject. The rest rides three facets.
@@ -687,22 +843,27 @@
 		selection: selectionState,
 		search: searchState,
 		stickyColumn,
+		edgeAffinity,
+		pendingMarks,
 		revealAnchor,
 		widgetSelection,
+		linkCard,
 		controller,
 		pasteCoordinator,
 		reorder,
 		reorderAnnounce: announceReorder,
 		registryView,
-		rects
+		activePlugins,
+		rects,
+		crossBlockCommands
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
 		resolveImageUrl: resolveImageUrlImpl,
 		resolveLinkUrl: resolveLinkUrlImpl,
 		imageLoadPolicy: () => imageLoadPolicy,
-		// Reading mode forces the handle off through the prop's own funnel; both render
-		// sites read this one getter.
+		// Reading mode forces the affordances off through the prop's own funnel; the handle
+		// and the table grips all read this one getter.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
 		presentationMode: () => effectiveMode,
 		theme: () => theme,
@@ -718,20 +879,82 @@
 
 	// ── Root DOM effects ────────────────────────────────────────────────
 
-	// Mode flips are blur-class events: a live reveal or composition must fold through
-	// the existing blur choke points before the surface goes inert, so blur the active
-	// element rather than invent a new fold path.
+	/** The focused leaf's caret as (path, raw offset): the per-backend road while a leaf holds
+	 *  focus, else the native range a toggle click leaves behind while chrome takes focus. */
+	function captureFlipCaret(): { path: number[]; offset: number } | null {
+		if (selectionState.isCrossBlock || selectionState.gapCaret) return null;
+		const focused = readCurrentSelection(selectionState, blockRefs)?.focus;
+		if (focused) return { path: focused.path, offset: focused.offset };
+		const sel = window.getSelection();
+		if (!sel?.focusNode || !editorEl?.contains(sel.focusNode) || isHostChrome(sel.focusNode))
+			return null;
+		const node = sel.focusNode;
+		const el = node instanceof Element ? node : node.parentElement;
+		const path = findSurfacePathForElement(el);
+		if (!path) return null;
+		const contentEl = getBlockElByPath(path);
+		if (!contentEl?.contains(node)) return null;
+		const offset = toClampedRawOffset(
+			domTextOffsetAtNode(contentEl, node, sel.focusOffset),
+			ambientLengthOf(contentEl)
+		);
+		return { path, offset };
+	}
+
+	// The flip's PRE phase, the last moment the outgoing mode owns the DOM: past it the mode's
+	// render key has rebuilt every block from its own CST bytes, and the reveal's ephemeral edit
+	// is gone. Reading keeps its entry snapshot — no caret of its own to recapture on the way out.
+	let flipCaret: { path: number[]; offset: number } | null = null;
+	// svelte-ignore state_referenced_locally
+	let preFlipSeenMode = effectiveMode;
+	$effect.pre(() => {
+		const mode = effectiveMode;
+		if (mode === preFlipSeenMode) return;
+		const from = preFlipSeenMode;
+		preFlipSeenMode = mode;
+		untrack(() => {
+			if (from !== 'reading') flipCaret = captureFlipCaret();
+			// A flip is a blur-class event: a live reveal or composition folds through the existing
+			// blur choke point. Host chrome is exempt, or a mode toggle blurs a title field mid-edit.
+			const active = document.activeElement;
+			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active)) {
+				active.blur();
+				// A blur the editor performs announces the selection it drops: the document listener
+				// only reports a range the browser still anchors in the root, and this one is gone.
+				events.emit('selectionChange', getSelection());
+			}
+		});
+	});
+
 	// svelte-ignore state_referenced_locally
 	let lastEffectiveMode = effectiveMode;
 	$effect(() => {
 		const mode = effectiveMode;
 		if (mode === lastEffectiveMode) return;
 		lastEffectiveMode = mode;
+		// Which markers paint just changed, so a side recorded against the old geometry
+		// no longer names the offset the user meant.
+		edgeAffinity.reset();
+		// Hidden markers re-wrap prose, so every measured height is the other mode's. Not paired
+		// with `widthVersion++`: the flip has blurred, so a rebuild here loses the caret pin.
+		heightOracle.dropMeasured();
 		if (mode === 'reading') {
-			// Header chrome keeps its focus, or a mode toggle blurs a title field mid-edit.
-			const active = document.activeElement;
-			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active))
-				active.blur();
+			// The gap is an editor-owned caret no DOM blur can reach, so the flip clears it
+			// rather than each arrival path.
+			selectionState.clearGapCaret();
+		} else if (flipCaret) {
+			const caret = flipCaret;
+			flipCaret = null;
+			void (async () => {
+				// A post-tick focus like every structural op's; the road clamps the saved offset
+				// into the destination mode's landable range at the door. Yielding to a focused
+				// text-entry surface keeps the restore from stealing a host field mid-typing.
+				// The reveal is the bare MOUNT: a flip is a view operation, so it re-seats the
+				// caret without writing the scrollport the reader chose.
+				await tick();
+				if (effectiveMode !== mode || isTextEntrySurface(document.activeElement)) return;
+				await restoreThroughRevealRoad(caretAt(caret.path, caret.offset), 'mount');
+			})();
 		}
 		events.emit('presentationModeChange', mode);
 	});
@@ -748,42 +971,20 @@
 	});
 
 	// CSS keys on `data-cross-block` to hide the native caret and selection highlight
-	// while the overlay paints the cross-block range.
+	// while the overlay paints the cross-block range. Keyed on the OVERLAY's own predicate:
+	// a state it declines to paint must not also lose the caret, or the screen shows neither.
 	$effect(() => {
 		if (!editorEl) return;
-		if (selectionState.isCrossBlock) {
+		if (selectionState.isCustomRendered) {
 			editorEl.setAttribute('data-cross-block', '');
 		} else {
 			editorEl.removeAttribute('data-cross-block');
 		}
 	});
 
-	// Only Ctrl/Cmd+click activates a link, so CSS switches links to a pointer cursor
-	// off `data-mod-active`. Reset on blur and visibility loss, or a modifier released
-	// while the page is unfocused sticks the cursor on.
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
-		// Track the last reflected state so ordinary typing never touches the DOM,
-		// keeping the attribute write off the keystroke hot path (perf:check).
-		let active = false;
-		const apply = (next: boolean) => {
-			if (next === active) return;
-			active = next;
-			if (next) root.setAttribute('data-mod-active', '');
-			else root.removeAttribute('data-mod-active');
-		};
-		const onKey = (e: KeyboardEvent) => apply(e.ctrlKey || e.metaKey);
-		const reset = () => apply(false);
-		const onVisibility = () => {
-			if (document.visibilityState === 'hidden') apply(false);
-		};
-		return removeAll(
-			onRoot(document, 'keydown', onKey),
-			onRoot(document, 'keyup', onKey),
-			onRoot(window, 'blur', reset),
-			onRoot(document, 'visibilitychange', onVisibility)
-		);
+		return installModActiveTracker(editorEl);
 	});
 
 	// A delegated handle-drag on the root, torn down on unmount via the lifetime signal.
@@ -802,31 +1003,28 @@
 		return () => handle.dispose();
 	});
 
-	// Single-block caret motion never goes through SelectionState, so without this
-	// bridge subscribers miss every intra-block move. Scoped to this root to avoid
-	// noise from selections elsewhere on the page.
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
-		const handler = () => {
-			const sel = window.getSelection();
-			if (!sel || sel.rangeCount === 0) return;
-			const anchorNode = sel.anchorNode;
-			if (!anchorNode || !root.contains(anchorNode)) return;
-			// A selection in host chrome is not a document selection: emitting there
-			// reports this editor's own unchanged selection on every header caret move.
-			if (isHostChrome(anchorNode)) return;
-			events.emit('selectionChange', getSelection());
-		};
-		return onRoot(document, 'selectionchange', handler);
+		return installSelectionChangeBridge({
+			root: editorEl,
+			isHostChrome,
+			emit: () => events.emit('selectionChange', getSelection())
+		});
+	});
+
+	$effect(() => {
+		if (!editorEl) return;
+		return installEditorBlurAnnouncer({
+			root: editorEl,
+			emit: () => events.emit('selectionChange', getSelection())
+		});
 	});
 
 	// ── Editor-root keydown routing ──────────────────────────────────────
 	//
-	// When the caret's block windows out, focus drops to <body> and the per-block
-	// keydown handlers go silent, so this editor-scope handler reuses the same
-	// cross-block composer with the root and the focus path standing in for `getEl`
-	// (a mount guard) and `getMyPath` (a fallback).
+	// When the caret's block windows out, focus drops to <body> and the per-block keydown handlers
+	// go silent, so this editor-scope handler reuses the same cross-block composer with the root
+	// and the focus path standing in for `getEl` and `getMyPath`.
 	const editorCrossBlock = createCrossBlockHandlers({
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
@@ -839,15 +1037,19 @@
 		getScrollHost,
 		getEditorLifetime: () => lifetimeController.signal,
 		stickyColumn,
+		edgeAffinity,
 		blockEdit,
 		controller,
 		history,
 		pluginEditor: pluginEditorLookup,
 		getPresentationMode: () => effectiveMode,
+		linkRef: linkRefView,
 		onCommandError: commandErrorSink,
+		crossBlockCommands,
 		pasteCoordinator,
 		getKeybindingOverrides: () => overridesMap,
 		grammar: registryView.grammar,
+		activePlugins,
 		events,
 		getCursorOffset: () => selectionState.focus?.offset ?? null,
 		afterReactivity: () => tick()
@@ -875,10 +1077,11 @@
 		search: searchState,
 		history,
 		pluginEditor: pluginEditorLookup,
+		activation: activePlugins,
 		onCommandError: commandErrorSink,
 		crossBlock: editorCrossBlock,
 		isHostChrome,
-		saveSearchRange: (range) => (savedRange = range),
+		saveSearchRange: searchCaret.save,
 		setReplaceExpanded: (expanded) => (replaceExpanded = expanded)
 	});
 
@@ -892,10 +1095,9 @@
 
 	// ── Editor-root clipboard routing ────────────────────────────────────
 	//
-	// The keydown sibling's counterpart: a cross-block Ctrl+C/X/V that Chromium
-	// retargeted to <body> because the parked caret found no text position. Same
-	// containment — the arms claim only events landing on THIS root, or on the body
-	// with this instance holding the body-chord claim.
+	// The keydown sibling's counterpart: a Ctrl+C/X/V that Chromium retargeted to <body> because
+	// the selection found no text position to park a caret in. Same containment — the arms claim
+	// only events landing on THIS root, or on the body with this instance holding the chord claim.
 	const rootClipboard = createEditorRootClipboard({
 		selection: selectionState,
 		getDoc,
@@ -904,7 +1106,11 @@
 		get onPasteImage() {
 			return onPasteImage;
 		},
-		events
+		events,
+		getSelectedWidgetBlock: () => {
+			const selected = widgetSelection.getSelected();
+			return selected ? getBlockComponent(selected.paragraphPath) : null;
+		}
 	});
 
 	$effect(() => {
@@ -918,7 +1124,7 @@
 		);
 	});
 
-	// ── Virtual rendering (top-level windowing) ──────────────────────────
+	// ── Height oracle ───────────────────────────────────────────────────
 
 	// How far the host scaled the type off the size HEIGHT_ESTIMATES were calibrated
 	// at. Plain `let`, not `$state`: the oracle reads it inside `estimate()`, the
@@ -942,9 +1148,11 @@
 		imageBlockMinHeight: HEIGHT_ESTIMATES.imageBlockMinHeight
 	});
 
+	// ── Resize invalidation ─────────────────────────────────────────────
+
 	// A WIDTH change re-wraps prose, staling every cached height, so the scopes rebuild
-	// off this counter; a height-only resize is ignored. ResizeObserver's per-callback
-	// batching is the coalescing — no setTimeout/rAF debounce (G4.4).
+	// off this counter; a height-only resize spares the measured cache. ResizeObserver's
+	// per-callback batching is the coalescing — no setTimeout/rAF debounce (G4.4).
 	let widthVersion = $state(0);
 	$effect(() => {
 		const el = editorEl;
@@ -954,12 +1162,26 @@
 			const width = el.clientWidth;
 			if (width === lastWidth) return;
 			lastWidth = width;
-			heightOracle.invalidateWidth();
+			heightOracle.dropMeasured();
 			widthVersion++;
 		});
 		observer.observe(el);
 		return () => observer.disconnect();
 	});
+
+	// The slice's own axis, watched on the RESOLVED port: the window's extent comes from the
+	// scrollport's height, so a height-only resize otherwise leaves the newly-exposed band as
+	// bare spacer until the next scroll. Its own counter, never `widthVersion` — that one
+	// drops every measured height, which a resize re-wrapping no prose has not earned.
+	let viewportHeightVersion = $state(0);
+	$effect(() => {
+		if (!editorEl) return;
+		const target = getScrollHost();
+		if (!target) return;
+		return installViewportHeightWatcher(target, () => viewportHeightVersion++);
+	});
+
+	// ── Type scale ──────────────────────────────────────────────────────
 
 	// The width change's sibling: a font-size move puts estimates off several-fold, so a
 	// document whose true height clears the activation watermark can fail to window at
@@ -970,7 +1192,7 @@
 		// Sub-percent moves are sub-pixel on a line box — not worth a full rebuild.
 		if (!(next > 0) || Math.abs(next - typeScale) < 0.01) return;
 		typeScale = next;
-		heightOracle.invalidateWidth();
+		heightOracle.dropMeasured();
 		widthVersion++;
 	}
 	$effect(() => {
@@ -985,15 +1207,17 @@
 		return () => observer.disconnect();
 	});
 
-	// The header slot's height lives outside the height model and `overflow-anchor` is
-	// off (VR-2), so a growing header would slide the document under the reader.
-	// Compensate from the SLOT's own resize, never a scroll or model change, so this
-	// composes with `correctAnchor` instead of double-correcting; a reveal already
-	// holding the scroll outranks it and is asked, not re-placed.
+	// ── Header slot compensation ────────────────────────────────────────
+
+	// The header slot's height lives outside the height model, so while the editor owns the
+	// correction a growing header would slide the document under the reader. Compensating from
+	// the SLOT's own resize is what composes with `correctAnchor` instead of double-correcting;
+	// a reveal already holding the scroll outranks it.
 	$effect(() => {
 		const el = headerEl;
-		const scrollEl = editorEl;
-		if (hostScroll || !el || !scrollEl) return;
+		if (!el || !editorEl) return;
+		const port = getScrollport();
+		if (!port) return;
 		let lastHeight = el.getBoundingClientRect().height;
 		const observer = new ResizeObserver((entries) => {
 			// Border boxes throughout, seed and fallback alike, so a browser without
@@ -1002,12 +1226,14 @@
 			const height = box ? box.blockSize : el.getBoundingClientRect().height;
 			const delta = height - lastHeight;
 			lastHeight = height;
-			if (delta === 0 || scrollEl.scrollTop === 0) return;
-			if (!topWindowing.revealHoldsScroll()) scrollEl.scrollTop += delta;
+			if (delta === 0 || !ownsScrollCorrection() || port.scrollTop() === 0) return;
+			if (!topWindowing.revealHoldsScroll()) port.setScrollTop(port.scrollTop() + delta);
 		});
 		observer.observe(el);
 		return () => observer.disconnect();
 	});
+
+	// ── Focus attribution ───────────────────────────────────────────────
 
 	// Drives each windowing scope's per-level pin, so a scroll that pushes the caret
 	// off-screen never tears down native focus/IME. Plain `let`, not $state: focusout
@@ -1051,6 +1277,14 @@
 			setFocusedHost(host as HTMLElement);
 			const path = readBlockPath(host);
 			focusedPath = path && path.length > 0 ? path : null;
+			// G1.33 at the seam every caret door crosses: a door seats a caret by focusing the
+			// surface, whoever minted it, so a consumer's own door inherits the guard here.
+			const landed = e.target;
+			if (landed instanceof HTMLElement) {
+				assertInvariant('landable-caret', () =>
+					checkLandableCaret(landed, effectiveMode, path ?? [])
+				);
+			}
 		};
 		const onFocusOut = (e: FocusEvent) => {
 			const next = e.relatedTarget as Node | null;
@@ -1060,31 +1294,25 @@
 		};
 		return removeAll(onRoot(root, 'focusin', onFocusIn), onRoot(root, 'focusout', onFocusOut));
 	});
+	// ── Top-level windowing ─────────────────────────────────────────────
+
 	// Assembled here, after the windowing signals it carries exist; the block
 	// components and the windowing hook below both read it back through getContext.
 	setContext(EDITOR_DOC_KEY, {
 		doc: getDoc,
-		contentVersion,
-		linkRef: {
-			get current(): LinkReferenceResolver {
-				return currentResolver;
-			},
-			get signature(): string {
-				return currentSignature;
-			},
-			get epoch(): number {
-				return signatureEpoch;
-			}
-		},
+		contentVersion: contentVersion.read,
+		linkRef: linkRefView,
 		pluginEditor: pluginEditorLookup,
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
 		scrollHost: getScrollHost,
+		scrollport: getScrollport,
 		blockElLookup: getBlockElByPath,
 		focusedPath: () => focusedPath,
 		heightOracle,
-		windowingEnabled: () => !hostScroll,
-		widthVersion: () => widthVersion
+		correctsScroll: ownsScrollCorrection,
+		widthVersion: () => widthVersion,
+		viewportHeightVersion: () => viewportHeightVersion
 	} satisfies EditorDoc);
 
 	// getListEl is the inner .block-list wrapper, never editorEl (== scrollEl): it
@@ -1099,10 +1327,32 @@
 		provideLeafChannel: true
 	});
 
+	// Plain `let`, not $state or $derived: the correction path asks this mid-measure, where
+	// evaluating the window derived would force the layout read the batched pass exists to
+	// avoid (VR-4). Nothing reactive reads it — the root's own attribute reads the derived,
+	// so the flag lags the attribute one flush at a watermark crossing (measured harmless).
+	let rootWindowingActive = false;
+	$effect(() => {
+		rootWindowingActive = topWindowing.window.active;
+	});
+
+	// Who holds the reader's place through a height mutation. Self mode always; host mode only
+	// while windowing runs, since below the budget the host's own native anchoring does it and
+	// both correcting would double-count. The `overflow-anchor` opt-out keys off the same fact.
+	function ownsScrollCorrection(): boolean {
+		return !hostScroll || rootWindowingActive;
+	}
+
 	// ── Public API ──────────────────────────────────────────────────────
 
 	export function getSource(): string {
 		return serialize(doc);
+	}
+
+	// The kind alone, never the node: a host reads the tree's shape without holding a handle into
+	// it. See `editor-props.ts` for the contract.
+	export function getBlockKindAt(path: number[]): AnyBlockKind | null {
+		return blockNodeAt(doc, path)?.kind ?? null;
 	}
 
 	/**
@@ -1114,26 +1364,35 @@
 	}
 
 	/**
-	 * The one restore road: resolve + clamp, reveal through the SCROLLING primitive,
-	 * place — the mount primitive can't promise a focus block IN VIEW, since overscan
-	 * keeps blocks mounted past the fold. `hold` decides whether the reveal's pin
-	 * outlives the call: a navigation holds, a consumer restore hands the viewport back
-	 * so a kept pin can't override the scroll the host writes next.
+	 * The one restore road: resolve + clamp, reveal, place. `reveal` picks which reveal. The two
+	 * scrolling ones differ in whether the pin outlives the call — a navigation holds, a consumer
+	 * restore hands the viewport back so a kept pin can't override the host's next scroll — and
+	 * `mount` is the history swap's bare mount, which promises no block IN VIEW (overscan keeps
+	 * blocks mounted past the fold) and in exchange writes no scrollport.
 	 */
 	function restoreThroughRevealRoad(
 		selection: EditorSelection,
-		hold: boolean
+		reveal: 'hold' | 'release' | 'mount'
 	): Promise<SelectionRestoreOutcome> {
 		return restoreSelection(selection, {
 			getDoc,
 			selectionState,
 			getBlockElByPath,
-			revealTarget: (path) => rects.scrollTo(path, { block: 'nearest', hold })
+			revealTarget: async (path) =>
+				reveal === 'mount'
+					? (await revealPath(path)) !== null
+					: rects.scrollTo(path, { block: 'nearest', hold: reveal === 'hold' })
 		});
 	}
 
-	function caretAt(path: number[]): EditorSelection {
-		return { anchor: { path, offset: 0 }, focus: { path, offset: 0 } };
+	function caretAt(path: number[], offset = 0): EditorSelection {
+		return { anchor: { path, offset }, focus: { path, offset } };
+	}
+
+	/** Land the caret at a raw offset through the shared restore road — the link card's return
+	 *  door after a commit, so the next keystroke (Ctrl+Z included) addresses the document. */
+	async function landCaretAtOffset(path: number[], offset: number): Promise<boolean> {
+		return (await restoreThroughRevealRoad(caretAt(path, offset), 'hold')) === 'applied';
 	}
 
 	/**
@@ -1143,7 +1402,92 @@
 	 * mid-settle owns the viewport and makes this false, a user gesture does not.
 	 */
 	export async function setSelection(selection: EditorSelection): Promise<boolean> {
-		return (await restoreThroughRevealRoad(selection, false)) === 'applied';
+		return (await restoreThroughRevealRoad(selection, 'release')) === 'applied';
+	}
+
+	// The dead-space click's own landing walk, minus the press/target discrimination a host
+	// caller has already done for itself. See `editor-props.ts` for the contract.
+	export function placeCaretAtPoint(x: number, y: number): boolean {
+		return editorEl ? deadSpaceCaret.placeAtPoint(editorEl, x, y) : false;
+	}
+
+	/**
+	 * The block path behind `document.activeElement`, for the public doors that address the
+	 * focused surface. A gap caret declines: its proxy is not a block, and a NESTED gap's proxy
+	 * sits inside its container's host, which must not receive what was aimed at the gap.
+	 */
+	function focusedSurfacePath(): number[] | null {
+		if (selectionState.gapCaret) return null;
+		const active = document.activeElement;
+		if (!(active instanceof HTMLElement) || !editorEl?.contains(active)) return null;
+		return findSurfacePathForElement(active);
+	}
+
+	// Routed to the focused SURFACE, the way a paste event is: everything the pipeline owes
+	// (transforms, delete-first, one undo entry, focus) lives below that seam, not here. See
+	// `editor-props.ts` for the contract.
+	export function insertMarkdown(md: string): boolean {
+		const path = focusedSurfacePath();
+		if (!path) return false;
+		return getBlockComponent(path)?.insertMarkdown?.(md) ?? false;
+	}
+
+	const commandDispatchContext: CommandDispatchContext = {
+		history,
+		pluginEditor: pluginEditorLookup,
+		activation: activePlugins,
+		getPresentationMode: () => effectiveMode,
+		isCrossBlockRange: () => selectionState.isCrossBlock,
+		crossBlockCommands: crossBlockCommands
+	};
+
+	// A gap caret focuses a proxy, not a block, so no block-local command has a surface to run
+	// on; global ones still reach the seam, exactly as the gap caret's own chord proxy does.
+	function focusedCommandTarget(): KindCommandTarget | null {
+		const path = focusedSurfacePath();
+		if (!path) return null;
+		const component = getBlockComponent(path);
+		const node = blockNodeAt(doc, path);
+		if (!component?.runCommand || !node) return null;
+		return {
+			kind: node.kind,
+			runCommand: (id, arg) => component.runCommand!(id, arg),
+			isCommandActive: component.isCommandActive
+				? (id) => component.isCommandActive!(id)
+				: undefined
+		};
+	}
+
+	// The door only resolves the focused surface; every rule (the reading gate, the cross-block
+	// range decline, the arms themselves) lives below the seam. See `editor-props.ts`.
+	export function runCommand(commandId: string): boolean {
+		return runCommandById(
+			commandId as AnyCommandId,
+			undefined,
+			focusedCommandTarget(),
+			commandDispatchContext,
+			commandErrorSink
+		);
+	}
+
+	// The same seam the door dispatches through, so what a host greys out and what a click declines
+	// cannot drift. See `editor-props.ts` for the contract.
+	export function canRunCommand(commandId: string): boolean {
+		return canRunCommandById(
+			commandId as AnyCommandId,
+			focusedCommandTarget(),
+			commandDispatchContext
+		);
+	}
+
+	// State, not admissibility: the focused surface reports its own toggle-state, so a toolbar's
+	// pressed paint reads the same bytes the toggle would rewrite. See `editor-props.ts`.
+	export function isCommandActive(commandId: string): boolean {
+		return isCommandActiveById(
+			commandId as AnyCommandId,
+			focusedCommandTarget(),
+			commandDispatchContext
+		);
 	}
 
 	export function getEvents(): EditorEvents {
@@ -1160,6 +1504,20 @@
 
 	export function getRects(): EditorRects {
 		return rects;
+	}
+
+	// Recomposed per call rather than derived: the kind and plugin registries are
+	// process-global and mutate outside this component's reactive graph.
+	export function reservedChords(): ReadonlySet<string> {
+		return collectReservedChords({
+			searchBar,
+			keybindings: overridesMap,
+			activation: activePlugins
+		});
+	}
+
+	export function claimsChord(event: KeyboardEvent): boolean {
+		return chordIsClaimed(event, reservedChords());
 	}
 
 	// Reads the public snapshot, so it covers single-block carets the cross-block
@@ -1195,21 +1553,22 @@
 	// Compile-time conformance: the published handle can't drift from the exports.
 	void ({
 		getSource,
+		getBlockKindAt,
 		getSelection,
 		setSelection,
+		placeCaretAtPoint,
+		insertMarkdown,
+		runCommand,
+		canRunCommand,
+		isCommandActive,
 		getEvents,
 		getSearch,
 		getDecorations,
 		getRects,
-		getDiagnostics
+		getDiagnostics,
+		reservedChords,
+		claimsChord
 	} satisfies EditorInstance);
-
-	function setBlockRefSlot(i: number, r: BlockComponent | undefined): void {
-		blockRefs[i] = r;
-	}
-	function getBlockRefSlot(i: number): BlockComponent | undefined {
-		return blockRefs[i];
-	}
 
 	// ── Test-only surface ───────────────────────────────────────────────
 
@@ -1229,6 +1588,9 @@
 
 	export const __test = {
 		getDocument,
+		// The swap door's only oracle: every other door is reachable headlessly, but the
+		// `source` prop's reset lives in this component.
+		getContentVersion: contentVersion.read,
 		getBlockComponent,
 		getUndoStack,
 		getOperationsLog,
@@ -1236,13 +1598,22 @@
 		// writes the attribute, and an intra-table rectangle keeps one path on both
 		// endpoints, so neither the DOM nor getSelection() answers this reliably.
 		isCrossBlockActive: () => selectionState.isCrossBlock,
+		// The gap caret has no public selection shape and no paint yet, so the state is the
+		// only place arrival can be observed.
+		getGapCaret: () => selectionState.gapCaret,
 		// The engine, not the `addSource`-only public registry: the derived per-path
 		// buckets are the only oracle for a stale bucket, since jsdom measures every
 		// range at zero width and no overlay ever paints there.
 		getDecorationEngine: () => decorationEngine,
-		// Constructs the stale-slot artifact the windowed each-block's cleanup can
-		// leave behind (see revealPath's isStale wiring); e2e-only.
-		setBlockRefSlot
+		// The measured-height cache is root-constructed and handed down through context,
+		// so its lifetime against a document swap has no headless seam either.
+		getHeightOracle: () => heightOracle,
+		// The one signal a windowing scope rebuilds off when no id moved, so it is the
+		// oracle for a mode flip having asked for the rebuild it needs.
+		getWidthVersion: () => widthVersion,
+		// Constructs the detached-slot artifact the windowed each-block's cleanup can
+		// leave behind (see `isSlotDetached`); e2e-only.
+		setBlockRefSlot: blockRefSlots.set
 	};
 </script>
 
@@ -1255,15 +1626,23 @@
 	class="editor"
 	data-editor-theme={theme}
 	data-scroll-mode={hostScroll ? 'host' : undefined}
+	data-windowing={topWindowing.window.active ? 'active' : undefined}
 	data-presentation={effectiveMode === 'source' ? undefined : effectiveMode}
 	bind:this={editorEl}
 	tabindex="-1"
 	role="group"
-	aria-label="Markdown editor"
+	aria-label={EDITOR_LABEL}
 >
 	{#if searchBar}
-		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. -->
-		<div class="search-anchor">
+		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. Portaled
+		     out, it drops that positioning (the consumer's element is the box) and carries the
+		     editor's own theme scope, since custom properties resolve by DOM ancestry. -->
+		<div
+			class:search-anchor={!searchBarAnchor}
+			class:aragonite-editor-theme={!!searchBarAnchor && inThemedScope}
+			data-editor-theme={searchBarAnchor ? theme : undefined}
+			{@attach portalInto(searchBarAnchor)}
+		>
 			<SearchBar
 				replaceExpanded={replaceExpanded && canReplace}
 				onToggleReplace={() => (replaceExpanded = canReplace && !replaceExpanded)}
@@ -1281,8 +1660,7 @@
 	<BlockList
 		children={doc.children}
 		{blockIds}
-		setRef={setBlockRefSlot}
-		getRef={getBlockRefSlot}
+		slots={blockRefSlots}
 		parentPath={[]}
 		window={topWindowing.window}
 		reorderable={true}
@@ -1295,7 +1673,22 @@
 		getEditorEl={() => editorEl ?? null}
 		getSelectionIsCustomRendered={() => selectionState.isCustomRendered}
 		getPresentationMode={() => effectiveMode}
+		grammar={registryView.grammar}
 		lifetime={lifetimeController.signal}
+	/>
+	<LinkCardHost
+		card={linkCard}
+		{controller}
+		{events}
+		{getDoc}
+		getEditorEl={() => editorEl ?? null}
+		measureRange={rects.rangeRects}
+		landCaret={landCaretAtOffset}
+		{activateLink}
+		resolveLinkUrl={resolveLinkUrlImpl}
+		caretRestore={linkCardCaret}
+		linkRef={linkRefView}
+		grammar={registryView.grammar}
 	/>
 	<div class="editor-sr-live" role="status" aria-live="polite">{selectionDescription}</div>
 	<div class="editor-sr-live-reorder" role="status" aria-live="polite">{reorderAnnouncement}</div>
@@ -1337,11 +1730,10 @@
 		position: relative;
 	}
 
-	/* Embedded flow mode: an ancestor owns the scroll, so the root drops its scrollport
-	   and the standalone-widget chrome that would box every entry of a journal. Native
-	   anchoring returns with the scrollport — the VR-2 opt-out exists for hand-corrected
-	   windowing, which never activates here, and `none` would exclude the subtree from
-	   the HOST's anchor candidates entirely. */
+	/* Embedded flow mode: an ancestor owns the scroll, so the root drops its scrollport and the
+	   standalone-widget chrome that would box every entry of a journal. Below the windowing
+	   budget nothing corrects by hand, so native anchoring is restored — `none` would strip the
+	   subtree from the HOST's anchor candidates and hold nothing in its place. */
 	.editor[data-scroll-mode='host'] {
 		overflow-y: visible;
 		overflow-anchor: auto;
@@ -1349,6 +1741,13 @@
 		flex: none;
 		border: none;
 		padding: 0;
+	}
+
+	/* The stated trade of windowing under host scroll: native anchoring and the manual
+	   correction cannot coexist, so an active editor withdraws its own subtree from the host's
+	   anchor candidates and holds the line itself (VR-2). The host's scroller is untouched. */
+	.editor[data-scroll-mode='host'][data-windowing='active'] {
+		overflow-anchor: none;
 	}
 
 	/* Absolute and zero-width so it takes no part in layout; never `display: none`,

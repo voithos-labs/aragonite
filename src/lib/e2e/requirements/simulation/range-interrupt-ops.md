@@ -21,7 +21,8 @@ Two legal outcomes, and each gesture is pinned to exactly one:
   place.
 - **gesture-landing** — the gesture ended the range, so the key lands where the gesture
   left it pointed: one character at the caret, or the whole block the gesture selected,
-  or (for a reveal) nothing at all until the escape commits it.
+  or (for a reveal) nothing at all until the escape commits it, or (for a gap caret) a
+  freshly minted paragraph at the boundary.
 
 The assertion is byte equality against the pinned one, never membership in the pair.
 Membership is the trap this family exists to avoid: with the reset neutered, a
@@ -50,6 +51,7 @@ not about.
 | ------------------------ | ----------- | ----------------------- | ------------------------------------------ |
 | `dead-space-below`       | select-all  | one-char document       | **key at the caret in the last block**     |
 | `dead-space-margin`      | select-all  | one-char document       | **key at the caret at that line's end**    |
+| `place-caret-at-point`   | select-all  | one-char document       | **key at the caret in the last block**     |
 | `dead-space-below-table` | select-all  | one-char document       | **key at the caret in the nearest cell**   |
 | `image-click`            | select-all  | one-char document       | **the selected image block replaced**      |
 | `drag-handle-press`      | prose range | **range span replaced** | key at the caret the press left            |
@@ -58,6 +60,7 @@ not about.
 | `inline-reveal-click`    | select-all  | one-char document       | **no byte moves until the escape commits** |
 | `block-reveal-click`     | select-all  | one-char document       | **no byte moves until the blur commits**   |
 | `toc-entry-click`        | select-all  | one-char document       | **key at the heading it navigated to**     |
+| `gap-caret-click`        | select-all  | one-char document       | **a paragraph minted at the boundary**     |
 
 Contracts come from observation of each gesture over a live range, not from the lint's
 caret/non-caret classification — pinning to that would make this suite a mirror of the
@@ -79,12 +82,25 @@ leaf bytes are contiguous inside its ancestors' raw — a cell's raw sits verbat
 its row's, the row's inside the table's — which is exactly the property a strip container
 lacks, and the resolver reports null rather than guessing when it does not hold.
 
+`gap-caret-click` is the row whose landing is outside the selection union entirely. The
+gap caret is not a `SelectionPoint`, so `getSelectionPaths` answers null while one is
+live and the boundary is read off the gap probe instead; a landing that is missing,
+nested, or past the span table fails loud rather than being predicted at. The key does
+not enter a block there; it MINTS one, so the prediction is the key's own line plus the
+blank line GFM owes between two blocks, inserted at the first byte of the block the
+boundary precedes. Root bands tile flush, so the editor's leading padding above a
+gap-declaring first block is the one band-less strip a pointer can reach, which makes the
+document's start the only gap boundary this family arrives at by click.
+
 ## Happy paths
 
 - dead-space click below the last block: the range ends, the caret lands at the last
   block's end, and the key inserts there. Every other byte survives
 - dead-space click in the right margin: same contract through the same handler, a
   different band
+- `placeCaretAtPoint` with a point below the document: the consumer door onto the same
+  landing, reached with no press and no click target in front of it, so it owes the
+  range-ending by its own route
 - Escape: collapses the range to its anchor and the key inserts there
 - TOC entry click: the range ends, the caret lands at the target heading, and the key
   inserts there. The landing goes through `rects.navigateTo`, not through any pointer
@@ -92,6 +108,10 @@ lacks, and the resolver reports null rather than guessing when it does not hold.
 - inline reveal click: the range ends, the reveal opens, and the typed key is ephemeral
   DOM — the source holds byte-identical until the caret escapes the reveal, which
   commits it inside the formula
+- gap-caret click above a leading table: the range ends, the caret parks at the document's
+  own start boundary, and the key mints a paragraph carrying it there. The third selection
+  mode reaching the corruption oracle at all is the point, because a mint at a boundary no
+  editing surface can reach is exactly where a separator bug would hide
 - render-primary block reveal click: the same, committed by a blur onto a sibling leaf
   rather than a caret escape. These are two different doors, and only this one owns the
   reset: an inline island sits inside a text block, so its click reaches the cross-block
@@ -130,6 +150,8 @@ lacks, and the resolver reports null rather than guessing when it does not hold.
   into the baseline
 - a gesture pinned to a caret outcome that leaves the cross-block range live fails
   before the keystroke, naming the stranded range
+- a gap-pinned gesture that parked no gap, or parked one nested or past the span table,
+  fails before the keystroke rather than predicting against a boundary nothing sits at
 - a gesture pinned to the range outcome whose endpoints moved fails the same way
 - the top-level byte spans are checked against a reconstruction of the source, so an
   arithmetic drift fails loud instead of shifting every prediction by the same offset
@@ -145,7 +167,9 @@ lacks, and the resolver reports null rather than guessing when it does not hold.
 - every gesture is a real mouse or keyboard action: clicks at computed dead-space
   points, a hover then press/release on the reorder grip, real chords for the find bar,
   a click on the painted KaTeX glyphs rather than the island center (a center click
-  degenerates to a corner outside the hit-test)
+  degenerates to a corner outside the hit-test). `place-caret-at-point` is the one
+  exception and not a shortcut: the public method IS the door a host shell drives, so
+  calling it is the real interaction
 - the keystroke is one printable letter chosen absent from the source, so its insertion
   index is unique and no check can latch onto a coincidence
 - every probe closes with a real undo back to the pre-gesture source, so the family can

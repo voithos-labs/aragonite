@@ -44,13 +44,11 @@ test.describe('fold fixture', () => {
 });
 
 test.describe('fold fixture: islands in table cells', () => {
+	// "Never dev-warns" rides the shared fixture: the retired cells-unsupported warning is a
+	// `[aragonite:decorations]` sentinel fire, which the teardown watch fails undeclared.
 	test('a fold range in a cell renders one … island, never dev-warns, and stays byte-safe', async ({
 		page
 	}) => {
-		const warnings: string[] = [];
-		page.on('console', (msg) => {
-			if (msg.type() === 'warning') warnings.push(msg.text());
-		});
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('fold-table');
 		await editor.bridge.waitForSourceContains('SECRET');
@@ -60,39 +58,37 @@ test.describe('fold fixture: islands in table cells', () => {
 		await expect(page.locator(`${ISLAND} .fold-ellipsis`)).toHaveText('…');
 		await expect(page.getByRole('cell').first()).not.toContainText('SECRET');
 		expect(await editor.bridge.getSource()).toBe(FOLD_TABLE_SEED);
-		// The retired cells-unsupported warning must not fire for a cell path.
-		const islandWarn = (w: string) =>
-			w.includes('places a replace island on a non-prose tableCell');
-		expect(warnings.filter(islandWarn)).toHaveLength(0);
 	});
 
-	test('an edge press selects the cell fold island whole, then deletes its hidden range', async ({
-		page
-	}) => {
-		const editor = new PluginsPage(page);
-		await editor.gotoPlugins('fold-table');
-		await editor.bridge.waitForSourceContains('SECRET');
-		await editor.waitForRenderFlush();
+	test.describe('after the covered range is gone', () => {
+		test('an edge press selects the cell fold island whole, then deletes its hidden range', async ({
+			page
+		}) => {
+			const editor = new PluginsPage(page);
+			await editor.gotoPlugins('fold-table');
+			await editor.bridge.waitForSourceContains('SECRET');
+			await editor.waitForRenderFlush();
 
-		// Focus the island cell without clicking it (its left edge carries the row
-		// grip, and the `…` opens the fold): enter the sibling cell and Shift+Tab back.
-		await page.getByRole('cell').nth(1).click();
-		await page.keyboard.press('Shift+Tab');
-		await expect(page.getByRole('cell').first()).toBeFocused();
-		await page.keyboard.press('Home');
-		await page.keyboard.press('ArrowRight'); // past `a`
-		await page.keyboard.press('ArrowRight'); // past the space → island leading edge
+			// Focus the island cell without clicking it (its left edge carries the row
+			// grip, and the `…` opens the fold): enter the sibling cell and Shift+Tab back.
+			await page.getByRole('cell').nth(1).click();
+			await page.keyboard.press('Shift+Tab');
+			await expect(page.getByRole('cell').first()).toBeFocused();
+			await page.keyboard.press('Home');
+			await page.keyboard.press('ArrowRight'); // past `a`
+			await page.keyboard.press('ArrowRight'); // past the space → island leading edge
 
-		// First Delete selects the whole island (a hidden byte is the only thing to
-		// eat); the second deletes its covered range through the CST as one edit.
-		await page.keyboard.press('Delete');
-		await page.keyboard.press('Delete');
+			// First Delete selects the whole island (a hidden byte is the only thing to
+			// eat); the second deletes its covered range through the CST as one edit.
+			await page.keyboard.press('Delete');
+			await page.keyboard.press('Delete');
 
-		await expect(page.locator(ISLAND)).toHaveCount(0);
-		const source = await editor.bridge.getSource();
-		expect(source).not.toContain('SECRET');
-		// The covered bytes left getSource, and the row kept both columns.
-		expect(source).toBe('| a  b | c |\n| --- | --- |\n| d | e |\n');
+			await expect(page.locator(ISLAND)).toHaveCount(0);
+			const source = await editor.bridge.getSource();
+			expect(source).not.toContain('SECRET');
+			// The covered bytes left getSource, and the row kept both columns.
+			expect(source).toBe('| a  b | c |\n| --- | --- |\n| d | e |\n');
+		});
 	});
 });
 

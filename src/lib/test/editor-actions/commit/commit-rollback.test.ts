@@ -1,19 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { asDocPath } from '$lib/selection/path-math';
-import type { MultiScopeTarget } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
 import { concatChildren, serialize } from '$lib/core/serializer';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
 import type { UndoEntry } from '$lib/undo/types';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { makeListItem, makeListNode } from '$lib/test/harness/list-fixtures';
 
-function makeContainerNode(childRaws: string[]): any {
-	return {
-		kind: 'list',
-		leadingTrivia: '',
-		raw: childRaws.join(''),
-		children: childRaws.map((r) => ({ kind: 'listItem', leadingTrivia: '', raw: r }))
-	};
-}
+// The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
+// oracle reads them as stale.
+afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 function stackBytes(entries: UndoEntry[]): string[] {
 	return entries.map((e) => serialize(e.snapshot));
@@ -23,7 +20,7 @@ function stackBytes(entries: UndoEntry[]): string[] {
 
 describe('commit ceremony — rollback on mutation throw', () => {
 	it('rolls the undo stack back and emits error when a commit mutation throws', async () => {
-		const { deps, events } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const { deps, events } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
@@ -47,7 +44,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 	});
 
 	it('restores the redo stack, not just undo, after a throwing commit', async () => {
-		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
@@ -57,12 +54,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({
-					kind: 'listItem',
-					leadingTrivia: '',
-					raw: '- c\n',
-					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
-				});
+				scope.children.push(makeListItem('- c\n'));
 				return [{ op: 'insert', at: 2, count: 1 }];
 			}
 		});
@@ -87,7 +79,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 	});
 
 	it('leaves the live tree byte-identical when a container mutation splices then throws', async () => {
-		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
@@ -113,7 +105,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 	});
 
 	it('rolls back an in-place splice on a node already unshared earlier in the same undo unit', async () => {
-		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
@@ -122,12 +114,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 			scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([scope]) => {
-				scope.children.push({
-					kind: 'listItem',
-					leadingTrivia: '',
-					raw: '- c\n',
-					metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
-				});
+				scope.children.push(makeListItem('- c\n'));
 				return [{ op: 'insert', at: 2, count: 1 }];
 			}
 		});
@@ -154,10 +141,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 	});
 
 	it('leaves the document scope byte-identical when a top-level mutation splices then throws', async () => {
-		const { deps } = makeEditorActionsDeps([
-			makeContainerNode(['- a\n']),
-			makeContainerNode(['- b\n'])
-		]);
+		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n']), makeListNode(['- b\n'])]);
 		const controller = createUndoController(deps);
 
 		const serializedBefore = serialize(deps.doc);
@@ -180,7 +164,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 	// The integrated frame guard: every other case pins the stacks or the tree, never
 	// both, so dropping either register from the consolidated rollback surfaces only here.
 	it('a splice-then-throw restores the document AND both stacks together', async () => {
-		const { deps } = makeEditorActionsDeps([makeContainerNode(['- a\n', '- b\n'])]);
+		const { deps } = makeEditorActionsDeps([makeListNode(['- a\n', '- b\n'])]);
 		const state = makeBlockListState(() => deps.doc.children[0], ['id-a', 'id-b']);
 		const controller = createUndoController(deps);
 
@@ -190,12 +174,7 @@ describe('commit ceremony — rollback on mutation throw', () => {
 				scopes: [{ node: deps.doc.children[0], state, path: [0] }],
 				snapshot: { path: asDocPath([0]), offset: 0 },
 				mutate: ([scope]) => {
-					scope.children.push({
-						kind: 'listItem',
-						leadingTrivia: '',
-						raw,
-						metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
-					});
+					scope.children.push(makeListItem(raw));
 					return [{ op: 'insert', at, count: 1 }];
 				}
 			});

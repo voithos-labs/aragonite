@@ -13,18 +13,18 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.loadContent('first para\n\nsecond para\n\nthird para\n');
 		await editor.focusBlockStart(0);
 
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 
 		await editor.page.keyboard.press('ArrowRight');
 		await editor.waitForCrossBlock(false);
 		await editor.focusBlockEnd(2);
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/first para[\s\S]*first para/);
 
 		const source = await editor.bridge.getSource();
@@ -41,11 +41,11 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
 		await editor.focusBlockStart(0);
 
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceNotContains('alpha');
 
@@ -61,8 +61,8 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.loadContent('alpha\n\nbeta\n\ngamma\n');
 		await editor.focusBlockStart(0);
 
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 		await editor.page.keyboard.press('Backspace');
 		await editor.waitForCrossBlock(false);
@@ -83,7 +83,7 @@ test.describe('select-all clipboard round-trip', () => {
 		const item = editor.page.locator('[contenteditable="true"]', { hasText: 'Hello' });
 		await item.click();
 
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.page.waitForFunction(
 			() => (window.getSelection()?.toString() ?? '') === 'Hello',
 			null,
@@ -95,7 +95,7 @@ test.describe('select-all clipboard round-trip', () => {
 		);
 		expect(firstSelection).toBe('Hello');
 
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
 
 		const paths = await editor.bridge.getSelectionPaths();
@@ -118,14 +118,14 @@ test.describe('select-all clipboard round-trip', () => {
 		await editor.loadContent('one\n\ntwo\n\nthree\n');
 		await editor.focusBlockStart(0);
 
-		await editor.page.keyboard.press('Control+a');
-		await editor.page.keyboard.press('Control+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
+		await editor.page.keyboard.press('ControlOrMeta+a');
 		await editor.waitForCrossBlock(true);
-		await editor.page.keyboard.press('Control+x');
+		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceNotContains('one');
 
-		await editor.page.keyboard.press('Control+v');
+		await editor.paste();
 		await editor.bridge.waitForSourceContains('one');
 
 		const source = await editor.bridge.getSource();

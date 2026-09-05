@@ -1,0 +1,54 @@
+name: Consumer smoke
+# The one gate no `dev` commit otherwise runs: CI fires on pull requests and `main` only, so a
+# break here used to surface weeks later wearing someone else's PR.
+on:
+  push:
+    branches: [dev]
+    # A subset on purpose: `npm run package` packs all of `src/lib`, and paying a full matrix
+    # per `dev` push costs more than the recall this filter trades away.
+    paths:
+      - 'examples/consumer/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/lib/index.ts'
+      - 'src/lib/plugin.ts'
+      - 'src/lib/testing.ts'
+      - 'src/lib/testing/**'
+      # The consumer's plugins route imports every bundled subpath by its published name.
+      - 'src/lib/plugins/**'
+      # Synced into the consumer by `sync-consumer-plugins.mjs` as the external-author probe.
+      - 'src/routes/test/plugins/**'
+      - 'svelte.config.js'
+      - 'vite.config.js'
+      - 'scripts/consumer-smoke.mjs'
+      - 'scripts/pack-manifest.mjs'
+      - 'scripts/prune-dist.mjs'
+      - 'scripts/sync-consumer-plugins.mjs'
+      - 'scripts/verify-pack.mjs'
+      - '.github/workflows/consumer-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# `dev` lands in bursts and no branch protection reads this job's per-commit record, so a
+# superseded run is waste rather than history.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
+# The steps are ci.yml's `consumer-smoke` job, which stays the pull-request door. The job id
+# differs from that one on purpose: a required status check matches by context name, so two
+# jobs sharing one would let either satisfy the rule if this workflow ever ran on a PR.
+jobs:
+  consumer-smoke-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node scripts/consumer-smoke.mjs

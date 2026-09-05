@@ -4,6 +4,7 @@
  * that only arms in dev/Vitest, leaving production one boolean check per record call.
  * Internal — never exported from the editor barrel.
  */
+import { DEV } from 'esm-env';
 import type { DocumentView } from '../core/node-views';
 
 declare const process: { env?: Record<string, string | undefined> } | undefined;
@@ -18,6 +19,8 @@ export interface PerfSnapshot {
 	parseMsTotal: number;
 	parseBlockCount: number;
 	inlineComputeCount: number;
+	/** Inline-format coverage reads that actually parsed — the pressed-state read's cost. */
+	formatCoverageReads: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -44,6 +47,7 @@ function emptySnapshot(): PerfSnapshot {
 		parseMsTotal: 0,
 		parseBlockCount: 0,
 		inlineComputeCount: 0,
+		formatCoverageReads: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -60,7 +64,7 @@ function emptySnapshot(): PerfSnapshot {
 // ── Switch and readout ──────────────────────────────────────────────────────
 
 export function enablePerfInstruments(): void {
-	if (import.meta.env.DEV || (typeof process !== 'undefined' && process?.env?.VITEST)) {
+	if (DEV || (typeof process !== 'undefined' && process?.env?.VITEST)) {
 		enabled = true;
 	}
 }
@@ -117,6 +121,11 @@ export function recordInlineCompute(): void {
 	counters.inlineComputeCount++;
 }
 
+export function recordFormatCoverageRead(): void {
+	if (!enabled) return;
+	counters.formatCoverageReads++;
+}
+
 export function setUndoGauge(liveBytes: number, entryCount: number): void {
 	if (!enabled) return;
 	counters.undoLiveBytes = liveBytes;
@@ -130,8 +139,8 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 	if (path) counters.blockRenderPaths.push(path.join(','));
 }
 
-// notifyEdit runs every source, so a typing pass records edits × sources — the ceiling
-// that catches a per-block cascade.
+// notifyEdit runs every source, so a typing pass records keystrokes × sources — the
+// ceiling that catches a per-block cascade.
 export function recordDecorationRun(): void {
 	if (!enabled) return;
 	counters.decorationRuns++;

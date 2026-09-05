@@ -6,13 +6,14 @@ import {
 	resolveKindBinding
 } from '$lib/schema/commands';
 import { dispatchKeyCommand } from '$lib/schema/block-commands';
+import { everyInstalledPlugin } from '$lib/schema/plugin-activation';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 describe('global command registry', () => {
 	it('registers undo/redo and runs them via the context', () => {
 		const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
-		getCommand('history.undo')!({ history });
-		getCommand('history.redo')!({ history });
+		getCommand('history.undo')!({ history, activation: everyInstalledPlugin });
+		getCommand('history.redo')!({ history, activation: everyInstalledPlugin });
 		expect(history.requestUndo).toHaveBeenCalledOnce();
 		expect(history.requestRedo).toHaveBeenCalledOnce();
 	});
@@ -24,7 +25,13 @@ describe('global command registry', () => {
 });
 
 describe('dispatchKeyCommand', () => {
-	const ctx = { history: { requestUndo: vi.fn(), requestRedo: vi.fn() } };
+	const ctx = {
+		history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
+		activation: everyInstalledPlugin,
+		getPresentationMode: () => 'source' as const,
+		isCrossBlockRange: () => false,
+		crossBlockCommands: undefined
+	};
 	it('routes a global chord to the global command (no runCommand call)', () => {
 		const runCommand = vi.fn(() => true);
 		expect(dispatchKeyCommand('Mod+Z', { kind: 'paragraph', runCommand }, ctx)).toBe(true);
@@ -63,11 +70,15 @@ describe('resolveBinding order', () => {
 			augmentBuiltin('paragraph', {
 				keymap: [{ chord: 'Mod+Z', command: 'block.split' }]
 			});
-			expect(resolveBinding('Mod+Z', 'paragraph')?.command).toBe('block.split');
+			expect(resolveBinding('Mod+Z', 'paragraph', undefined, everyInstalledPlugin)?.command).toBe(
+				'block.split'
+			);
 		} finally {
 			augmentBuiltin('paragraph', { keymap: real.keymap });
 		}
-		expect(resolveBinding('Mod+Z', 'fencedCode')?.command).toBe('history.undo');
+		expect(resolveBinding('Mod+Z', 'fencedCode', undefined, everyInstalledPlugin)?.command).toBe(
+			'history.undo'
+		);
 	});
 });
 
@@ -100,7 +111,9 @@ describe('fencedCode keymap', () => {
 
 	it('resolves each transformative chord to its command', () => {
 		for (const [chord, command] of FENCED_CODE_BINDINGS) {
-			expect(resolveBinding(chord, 'fencedCode')?.command).toBe(command);
+			expect(resolveBinding(chord, 'fencedCode', undefined, everyInstalledPlugin)?.command).toBe(
+				command
+			);
 		}
 	});
 });
@@ -124,6 +137,8 @@ describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
 		// Alt+Arrow is the row reorder here, so the whole-block move takes Mod+Alt.
 		['Mod+Alt+ArrowUp', 'block.moveUp'],
 		['Mod+Alt+ArrowDown', 'block.moveDown'],
+		// The three below also carry cross-block dispatch: it routes a post-delete chord
+		// to the focused cell's runCommand, which resolves against this keymap.
 		['Enter', 'cell.enter'],
 		['Tab', 'cell.tab'],
 		['Shift+Tab', 'cell.shiftTab']
@@ -131,7 +146,10 @@ describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
 
 	it('resolves each chord to its command', () => {
 		for (const [chord, command] of TABLE_CELL_BINDINGS) {
-			expect(resolveBinding(chord, 'tableCell')?.command, chord).toBe(command);
+			expect(
+				resolveBinding(chord, 'tableCell', undefined, everyInstalledPlugin)?.command,
+				chord
+			).toBe(command);
 		}
 	});
 
@@ -139,14 +157,14 @@ describe('tableCell keymap — the table’s whole keyboard vocabulary', () => {
 		// Cell navigation and the three-stage select-all read where the caret sits inside
 		// the cell, which a chord cannot express, so they stay with the keydown plan.
 		for (const chord of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) {
-			expect(resolveBinding(chord, 'tableCell'), chord).toBeNull();
+			expect(resolveBinding(chord, 'tableCell', undefined, everyInstalledPlugin), chord).toBeNull();
 		}
-		expect(resolveBinding('Mod+A', 'tableCell')).toBeNull();
+		expect(resolveBinding('Mod+A', 'tableCell', undefined, everyInstalledPlugin)).toBeNull();
 	});
 
 	it('binds the whole-table move on the table’s CHILD kind, not the table', () => {
 		// The table block never holds the caret; a chord resolved against it is dead.
-		expect(resolveBinding('Mod+Alt+ArrowUp', 'table')).toBeNull();
+		expect(resolveBinding('Mod+Alt+ArrowUp', 'table', undefined, everyInstalledPlugin)).toBeNull();
 	});
 });
 
@@ -154,10 +172,16 @@ describe('thematicBreak keymap — keyboard reorder', () => {
 	// The hr's drag handle tooltip promises Alt+↑/↓. Plain arrows stay unbound so the
 	// component's own focus-navigation handles them.
 	it('binds Alt+↑/↓ to block move and leaves plain arrows unbound', () => {
-		expect(resolveBinding('Alt+ArrowUp', 'thematicBreak')?.command).toBe('block.moveUp');
-		expect(resolveBinding('Alt+ArrowDown', 'thematicBreak')?.command).toBe('block.moveDown');
-		expect(resolveBinding('ArrowUp', 'thematicBreak')).toBeNull();
-		expect(resolveBinding('ArrowDown', 'thematicBreak')).toBeNull();
+		expect(
+			resolveBinding('Alt+ArrowUp', 'thematicBreak', undefined, everyInstalledPlugin)?.command
+		).toBe('block.moveUp');
+		expect(
+			resolveBinding('Alt+ArrowDown', 'thematicBreak', undefined, everyInstalledPlugin)?.command
+		).toBe('block.moveDown');
+		expect(resolveBinding('ArrowUp', 'thematicBreak', undefined, everyInstalledPlugin)).toBeNull();
+		expect(
+			resolveBinding('ArrowDown', 'thematicBreak', undefined, everyInstalledPlugin)
+		).toBeNull();
 	});
 });
 
@@ -165,18 +189,12 @@ describe('listItem keymap', () => {
 	// Tab/Shift+Tab indent/unindent the item; ListItemBlock's bubble handler
 	// dispatches these after the inner paragraph's block.insertTab declines.
 	it('resolves Tab/Shift+Tab to indent/unindent', () => {
-		expect(resolveBinding('Tab', 'listItem')?.command).toBe('list.indent');
-		expect(resolveBinding('Shift+Tab', 'listItem')?.command).toBe('list.unindent');
-	});
-});
-
-describe('tableCell keymap', () => {
-	// Enter/Tab/Shift+Tab resolve to cell commands so the cross-block dispatch
-	// can route a post-delete chord to a focused cell's runCommand.
-	it('resolves Enter/Tab/Shift+Tab to cell commands', () => {
-		expect(resolveBinding('Enter', 'tableCell')?.command).toBe('cell.enter');
-		expect(resolveBinding('Tab', 'tableCell')?.command).toBe('cell.tab');
-		expect(resolveBinding('Shift+Tab', 'tableCell')?.command).toBe('cell.shiftTab');
+		expect(resolveBinding('Tab', 'listItem', undefined, everyInstalledPlugin)?.command).toBe(
+			'list.indent'
+		);
+		expect(resolveBinding('Shift+Tab', 'listItem', undefined, everyInstalledPlugin)?.command).toBe(
+			'list.unindent'
+		);
 	});
 });
 
@@ -195,10 +213,14 @@ describe('text-editable keymap breadth', () => {
 
 	it('covers prose AND raw-editable kinds', () => {
 		for (const kind of TEXT_EDITABLE_KINDS) {
-			expect(resolveBinding('Enter', kind)?.command).toBe('block.split');
-			expect(resolveBinding('Backspace', kind)?.command).toBe('block.mergePrev');
+			expect(resolveBinding('Enter', kind, undefined, everyInstalledPlugin)?.command).toBe(
+				'block.split'
+			);
+			expect(resolveBinding('Backspace', kind, undefined, everyInstalledPlugin)?.command).toBe(
+				'block.mergePrev'
+			);
 		}
-		expect(resolveBinding('Mod+3', 'paragraph')).toMatchObject({
+		expect(resolveBinding('Mod+3', 'paragraph', undefined, everyInstalledPlugin)).toMatchObject({
 			command: 'heading.cycle',
 			arg: 3
 		});

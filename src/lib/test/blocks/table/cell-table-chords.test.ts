@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 //
 // The table's structural keyboard vocabulary end to end: a real keystroke on a real cell, and
-// the document that came out. These chords used to be predicates in `cell-keydown-plan.ts` and
-// were pinned there against a hand-built input; they are `tableCell` keymap bindings now, so the
-// planner can only be asked to DECLINE them (cell-keydown-plan.test.ts) and the behavior has to
-// be pinned where it happens. Editor mount, because every arm commits and replaces the node.
+// the document that came out. These chords are `tableCell` keymap bindings, so the planner can
+// only be asked to DECLINE them (cell-keydown-plan.test.ts) and the behavior has to be pinned
+// where it happens. Editor mount, because every arm commits and replaces the node.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { blockHostAt, installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { installLayoutStubs, mountEditor, type MountedEditor } from '../editor-mount';
+import { pressInCell } from './mount-table';
 
 beforeAll(installLayoutStubs);
 
@@ -18,26 +18,6 @@ afterEach(async () => {
 
 // 3 rows × 2 columns; row 0 is the header, row 2 the last body row.
 const GRID = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
-
-function cell(rowIdx: number, colIdx: number, tablePath: number[] = [0]): HTMLElement {
-	const table = blockHostAt(mounted!, tablePath);
-	const row = table.querySelector(`[data-table-row-idx="${rowIdx}"]`);
-	const found = row?.querySelectorAll(':scope > .table-cell')[colIdx] as HTMLElement | undefined;
-	if (!found) throw new Error(`no mounted cell at ${rowIdx},${colIdx}`);
-	return found;
-}
-
-async function pressInCell(
-	rowIdx: number,
-	colIdx: number,
-	init: KeyboardEventInit,
-	tablePath: number[] = [0]
-): Promise<void> {
-	const el = cell(rowIdx, colIdx, tablePath);
-	el.focus();
-	el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-	await mounted!.settle();
-}
 
 describe('a chord in a cell mutates the table it names', () => {
 	// [name, key init, cell pressed in, source after]
@@ -114,7 +94,7 @@ describe('a chord in a cell mutates the table it names', () => {
 		it(name, async () => {
 			mounted = mountEditor({ source: GRID });
 
-			await pressInCell(rowIdx, colIdx, init);
+			await pressInCell(mounted!, rowIdx, colIdx, init);
 
 			expect(mounted.source()).toBe(after);
 		});
@@ -125,7 +105,7 @@ describe('a chord in a cell mutates the table it names', () => {
 	it('Alt+ArrowUp on the first body row leaves the table alone', async () => {
 		mounted = mountEditor({ source: GRID });
 
-		await pressInCell(1, 0, { key: 'ArrowUp', altKey: true });
+		await pressInCell(mounted!, 1, 0, { key: 'ArrowUp', altKey: true });
 
 		expect(mounted.source()).toBe(GRID);
 	});
@@ -135,7 +115,7 @@ describe('a chord in a cell mutates the table it names', () => {
 	it('indexes the mutation off the caret’s own cell, not the first one', async () => {
 		mounted = mountEditor({ source: GRID });
 
-		await pressInCell(2, 1, { key: 'Enter', ctrlKey: true });
+		await pressInCell(mounted!, 2, 1, { key: 'Enter', ctrlKey: true });
 
 		expect(mounted.source()).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n|  |  |\n');
 	});
@@ -151,7 +131,7 @@ describe('Mod+Alt+Arrow reorders the whole table among its siblings', () => {
 	it('moves the table above its previous sibling', async () => {
 		mounted = mountEditor({ source: DOC });
 
-		await pressInCell(1, 0, { key: 'ArrowUp', ctrlKey: true, altKey: true }, [1]);
+		await pressInCell(mounted!, 1, 0, { key: 'ArrowUp', ctrlKey: true, altKey: true }, [1]);
 
 		expect(mounted.source()).toBe(`${GRID}\nlead\n`);
 	});
@@ -159,7 +139,7 @@ describe('Mod+Alt+Arrow reorders the whole table among its siblings', () => {
 	it('moves the table below its next sibling', async () => {
 		mounted = mountEditor({ source: `${GRID}\ntail\n` });
 
-		await pressInCell(1, 0, { key: 'ArrowDown', ctrlKey: true, altKey: true });
+		await pressInCell(mounted!, 1, 0, { key: 'ArrowDown', ctrlKey: true, altKey: true });
 
 		expect(mounted.source()).toBe(`tail\n\n${GRID}`);
 	});
@@ -167,7 +147,7 @@ describe('Mod+Alt+Arrow reorders the whole table among its siblings', () => {
 	it('announces the move like every other kind’s reorder', async () => {
 		mounted = mountEditor({ source: DOC });
 
-		await pressInCell(1, 0, { key: 'ArrowUp', ctrlKey: true, altKey: true }, [1]);
+		await pressInCell(mounted!, 1, 0, { key: 'ArrowUp', ctrlKey: true, altKey: true }, [1]);
 
 		expect(announcement()).toBe('Moved block to position 1 of 2');
 	});
@@ -177,7 +157,7 @@ describe('Mod+Alt+Arrow reorders the whole table among its siblings', () => {
 	it('leaves the row reorder on the bare Alt chord', async () => {
 		mounted = mountEditor({ source: DOC });
 
-		await pressInCell(1, 0, { key: 'ArrowDown', altKey: true }, [1]);
+		await pressInCell(mounted!, 1, 0, { key: 'ArrowDown', altKey: true }, [1]);
 
 		expect(mounted.source()).toBe(`lead\n\n| A | B |\n| --- | --- |\n| 3 | 4 |\n| 1 | 2 |\n`);
 	});
@@ -185,7 +165,7 @@ describe('Mod+Alt+Arrow reorders the whole table among its siblings', () => {
 	it('is a no-op at the document boundary', async () => {
 		mounted = mountEditor({ source: GRID });
 
-		await pressInCell(1, 0, { key: 'ArrowUp', ctrlKey: true, altKey: true });
+		await pressInCell(mounted!, 1, 0, { key: 'ArrowUp', ctrlKey: true, altKey: true });
 
 		expect(mounted.source()).toBe(GRID);
 	});

@@ -12,9 +12,9 @@ test.describe('typing and paste after click-snap', () => {
 		await editor.goto();
 	});
 
-	// Chromium parks the caret at image.end when clicking at the wrap boundary; the snap-fallback
-	// keydown intercept used to route typing through the CST there and teleport it. It now fires
-	// only when Chromium dropped the caret.
+	// Chromium parks the caret at image.end when clicking at the wrap boundary, so the
+	// snap-fallback keydown intercept must fire only where Chromium dropped the caret — routing
+	// typing through the CST here teleports it.
 	test('typing at the wrap boundary after an inline image inserts natively (no teleport)', async ({
 		page
 	}) => {
@@ -44,9 +44,7 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src.startsWith('Lorem')).toBe(true);
 	});
 
-	// Typing twice after click-snap put the second char before the image: `pendingCursorOffset` was
-	// not restored after the intercept's CST update, so the caret fell back to element-level offset
-	// 0.
+	// Two chars, because an unrestored `pendingCursorOffset` only shows on the second one.
 	test('typing twice after click-snap appends to the same position (no caret jump)', async ({
 		page
 	}) => {
@@ -138,9 +136,6 @@ test.describe('typing and paste after click-snap', () => {
 		expect(src).not.toMatch(/^- \\\n {2}!/m);
 	});
 
-	// Paste read `cursor.getRaw() ?? 0` directly; with the click-snap caret parked at element level
-	// getRaw returned null and the paste landed at offset 0. Every caller now goes through the
-	// snap-aware getRaw.
 	test('paste in click-snap state lands at snap target, not offset 0', async ({ page }) => {
 		await editor.loadContent(LIST_IMAGE_DOC);
 		await waitForFirstImageLoaded(page);

@@ -1,40 +1,21 @@
-/**
- * Inline-vs-structural paste strategy selection and blank-line materialization.
- */
-
-import type { CstNode, Document } from '../../core/nodes';
+import type { CstNode } from '../../core/nodes';
 import type { PasteStrategy } from './dispatch';
-import { emptyParagraph } from '../node-ops';
+import { isBlankParagraph } from '../../core/parser';
 
-export function pickPasteStrategy(parsed: Document): PasteStrategy {
-	if (parsed.children.length === 1 && parsed.children[0].kind === 'paragraph') {
-		return 'inline';
-	}
-	return 'structural';
+/**
+ * The clipboard's content blocks: a blank block at either edge is the copy's packaging, which a
+ * surface holding no blocks classifies past. Empty when nothing but packaging came across.
+ */
+export function contentBlocks(blocks: readonly CstNode[]): readonly CstNode[] {
+	let start = 0;
+	let end = blocks.length;
+	while (start < end && isBlankParagraph(blocks[start])) start++;
+	while (end > start && isBlankParagraph(blocks[end - 1])) end--;
+	return blocks.slice(start, end);
 }
 
-/**
- * Convert blank-line trivia into explicit empty-paragraph blocks (top-level only), so a
- * pasted blank line renders as a visible row: the parser collapses blanks into
- * `leadingTrivia`, which serializes the same but does not render. Paste is the only path
- * that materializes a row — a known asymmetry with typing, not a property to preserve.
- * `lineEnding` is the TARGET document's: entry points normalize the clipboard to LF (G4.20).
- */
-export function materializeBlankLines(blocks: CstNode[], lineEnding: string): CstNode[] {
-	if (blocks.length <= 1) return blocks;
-	const out: CstNode[] = [blocks[0]];
-	for (let i = 1; i < blocks.length; i++) {
-		const block = blocks[i];
-		const trivia = block.leadingTrivia ?? '';
-		const newlineCount = (trivia.match(/\n/g) ?? []).length;
-		if (newlineCount >= 1) {
-			for (let j = 0; j < newlineCount; j++) {
-				out.push(emptyParagraph('', lineEnding));
-			}
-			out.push({ ...block, leadingTrivia: '' });
-		} else {
-			out.push(block);
-		}
-	}
-	return out;
+/** One paragraph is text any leaf can take inline; anything else is structure. */
+export function pickPasteStrategy(blocks: readonly CstNode[]): PasteStrategy {
+	if (blocks.length === 0) return 'inline';
+	return blocks.length === 1 && blocks[0].kind === 'paragraph' ? 'inline' : 'structural';
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { unwrapFirstItemFromList } from '../../tree-operations';
+import { assertContainerParity, seedChildIdsRecursive } from '../harness/container-parity';
 import type { CstNode } from '../../core/nodes';
 
 describe('unwrapFirstItemFromList', () => {
@@ -87,15 +88,6 @@ describe('unwrapFirstItemFromList', () => {
 		expect(result[1].children?.length).toBe(2);
 	});
 
-	it('single-item list, paragraph only: remaining list omitted entirely', () => {
-		const list = parseList('- Solo\n');
-
-		const result = unwrapFirstItemFromList(list);
-
-		expect(result).toHaveLength(1);
-		expect(result[0].kind).toBe('paragraph');
-	});
-
 	it('ordered list: remaining items renumber from the original base', () => {
 		const list = parseList('1. First\n2. Second\n3. Third\n');
 
@@ -125,6 +117,21 @@ describe('unwrapFirstItemFromList', () => {
 		const remaining = result[result.length - 1];
 		expect(remaining.kind).toBe('list');
 		expect(remaining.children?.[0].raw ?? '').toContain('Second');
+	});
+
+	// Miss-analysis: the empty-first-item branch had no case of its own, and children/childIds
+	// parity was asserted for M1 only.
+	it('empty first item: each surviving item keeps its own id in the shrunk list', () => {
+		const list = parseList('- Empty\n- Second\n- Third\n');
+		list.children![0].children = [];
+		seedChildIdsRecursive(list);
+		const secondId = list.childIds![1];
+
+		const result = unwrapFirstItemFromList(list);
+
+		expect(result).toHaveLength(1);
+		assertContainerParity(result[0]);
+		expect(result[0].childIds![0]).toBe(secondId);
 	});
 
 	it('input list is not mutated', () => {

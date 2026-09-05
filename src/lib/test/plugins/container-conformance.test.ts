@@ -6,34 +6,34 @@ import {
 	runContainerConformance,
 	type ContainerConformanceProfile
 } from '$lib/testing';
-import { registerCalloutKind, NOTE } from '../../../routes/test/plugins/callout/callout-kind';
+import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
 
 // The G4.3 kit pointed at real PLUGIN containers, the audience it is billed for. Unlike
 // the built-in sweep (`test/invariants/container-conformance.test.ts`), which derives
 // its kinds from the registry, an author opts in explicitly with a profile.
 
-const NOTE_KIND = () => declaredPluginKind(NOTE);
+const CALLOUT_KIND = () => declaredPluginKind(CALLOUT);
 const DETAILS_KIND = () => declaredPluginKind(DETAILS);
 
-// outer `::::note` > inner `:::note` (child 1, after the reserved title) > [title, para, para].
-const NESTED_NOTES = '::::note Outer\n:::note Inner\nA\n\nB\n:::\n::::\n';
+// outer `::::callout` > inner `:::callout` (child 1, after the reserved title) > [title, para, para].
+const NESTED_CALLOUTS = '::::callout Outer\n:::callout Inner\nA\n\nB\n:::\n::::\n';
 
-// `:::note` > `<details>` (child 1) > [summary, para, para] — a plugin container
-// nested in a DIFFERENT plugin container, so the chain is not note-shaped.
-const NOTE_WRAPPING_DETAILS =
-	':::note Wrapper\n<details open>\n<summary>S</summary>\n\nA\n\nB\n\n</details>\n:::\n';
+// `:::callout` > `<details>` (child 1) > [summary, para, para] — a plugin container
+// nested in a DIFFERENT plugin container, so the chain is not callout-shaped.
+const CALLOUT_WRAPPING_DETAILS =
+	':::callout Wrapper\n<details open>\n<summary>S</summary>\n\nA\n\nB\n\n</details>\n:::\n';
 
 const NO_MULTI_SCOPE_OP =
 	'the callout/details containers own no ≥2-scope author op — their inner ops ' +
 	'(split/merge/delete) are single-scope, like the blockquote';
 
-const noteProfile: ContainerConformanceProfile = {
-	deepNesting: { source: NESTED_NOTES, leafPath: [0, 1, 1] },
-	localIndexFixture: { source: NESTED_NOTES, containerChain: [0, 1], targetChild: 2 },
-	focusSource: ':::note T\nA\n\nB\n:::\n',
+const calloutProfile: ContainerConformanceProfile = {
+	deepNesting: { source: NESTED_CALLOUTS, leafPath: [0, 1, 1] },
+	localIndexFixture: { source: NESTED_CALLOUTS, containerChain: [0, 1], targetChild: 2 },
+	focusSource: ':::callout T\nA\n\nB\n:::\n',
 	terminatorCollisionFixture: {
-		source: ':::note T\nbody\n:::\n',
+		source: ':::callout T\nbody\n:::\n',
 		bodyRaw: 'before\n:::\nafter\n'
 	},
 	localIndex: { mode: 'assert' },
@@ -44,8 +44,8 @@ const noteProfile: ContainerConformanceProfile = {
 };
 
 const detailsProfile: ContainerConformanceProfile = {
-	deepNesting: { source: NOTE_WRAPPING_DETAILS, leafPath: [0, 1, 1] },
-	localIndexFixture: { source: NOTE_WRAPPING_DETAILS, containerChain: [0, 1], targetChild: 2 },
+	deepNesting: { source: CALLOUT_WRAPPING_DETAILS, leafPath: [0, 1, 1] },
+	localIndexFixture: { source: CALLOUT_WRAPPING_DETAILS, containerChain: [0, 1], targetChild: 2 },
 	focusSource: '<details open>\n<summary>S</summary>\n\nA\n\nB\n\n</details>\n',
 	// The two containers repair the same collision by opposite means (callout grows its
 	// fence, details escapes the bytes), and the cell accepts both.
@@ -68,9 +68,9 @@ describe('G4.3 conformance kit — plugin containers', () => {
 	});
 
 	it('runs the whole kit over the callout container', async () => {
-		const report = await runContainerConformance(NOTE_KIND(), noteProfile);
+		const report = await runContainerConformance(CALLOUT_KIND(), calloutProfile);
 
-		expect(report.kind).toBe(NOTE);
+		expect(report.kind).toBe(CALLOUT);
 		expect(report.cells.map((c) => `${c.cell}:${c.status}`)).toEqual([
 			'localIndex:asserted',
 			'ancestry:asserted',
@@ -100,7 +100,7 @@ describe('G4.3 conformance kit — plugin containers', () => {
 	// Non-vacuity for the ancestry cell: an opaque container rebuilds from its direct
 	// children, so rebuilding outer-first must leave the root's raw stale.
 	it('ancestry check is non-vacuous: an outer-first rebuild leaves the callout root stale', () => {
-		expect(reversedAncestryLeavesRootStale(noteProfile)).toBe(true);
+		expect(reversedAncestryLeavesRootStale(calloutProfile)).toBe(true);
 	});
 });
 
@@ -128,7 +128,7 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 	it('fails declaration sanity when unwrapRole names a strategy the registries do not implement', async () => {
 		// The cast is the point: a JS plugin can declare an unwrapRole nothing
 		// implements, and the nested Backspace dispatcher indexes it unguarded.
-		augmentBlockKind(NOTE_KIND(), {
+		augmentBlockKind(CALLOUT_KIND(), {
 			container: {
 				unwrapRole: {
 					firstChildBackspace: 'no-such-strategy' as UnwrapRole['firstChildBackspace'],
@@ -137,8 +137,8 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 			}
 		});
 
-		await expect(runContainerConformance(NOTE_KIND(), noteProfile)).rejects.toThrow(
-			/declarations: note first-child unwrap strategy "no-such-strategy" is implemented/
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout first-child unwrap strategy "no-such-strategy" is implemented/
 		);
 	});
 
@@ -146,19 +146,64 @@ describe('G4.3 conformance kit — a broken plugin container fails', () => {
 	// not pass on a tree it never saw the kind in.
 	it('fails a deepNesting fixture whose tree holds no node of the kind', async () => {
 		await expect(
-			runContainerConformance(NOTE_KIND(), {
-				...noteProfile,
+			runContainerConformance(CALLOUT_KIND(), {
+				...calloutProfile,
 				deepNesting: { source: '> a\n>\n> b\n', leafPath: [0, 1] }
 			})
-		).rejects.toThrow(/ancestry: "note" is on the leaf's ancestry/);
+		).rejects.toThrow(/ancestry: "callout" is on the leaf's ancestry/);
+	});
+
+	// `bodyWrite` exists only to repair a terminator collision, so a profile excusing that
+	// cell ships the repair unprobed behind a reason that reads reviewed.
+	it('fails declaration sanity when bodyWrite ships with an excused terminatorCollision cell', async () => {
+		await expect(
+			runContainerConformance(DETAILS_KIND(), {
+				...detailsProfile,
+				terminatorCollision: {
+					mode: 'boundary',
+					reason: 'red-test bait: excusing the one cell that drives the bodyWrite repair'
+				}
+			})
+		).rejects.toThrow(/declarations: details declares container\.bodyWrite/);
+	});
+
+	// The bodyWrap probe reads the descriptor's OWN fixture, so a container carrying none
+	// leaves the declaration unprobed while the cell still reports asserted.
+	it('fails declaration sanity when the container carries no conformanceFixture', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: undefined });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout declares no conformanceFixture/
+		);
+	});
+
+	// Miss-analysis (#78): the broken-container suite probed every fail() branch of the bodyWrap
+	// probe but never its carve-out return, so the silent skip of a nested fixture had no red.
+	// Callout is the adversarial pick: its recognizer is the shared ::: opener, not its own.
+	it('fails declaration sanity when the conformanceFixture nests the kind', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { conformanceFixture: '> :::callout T\n> body\n> :::\n' });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout conformanceFixture must open a "callout" at the top level/
+		);
+	});
+
+	// A fence container re-emits its body lines verbatim, so consuming the user's space would
+	// swallow a byte no rebuild gives back — the declaration is the lie, not the rebuild.
+	it('fails declaration sanity when contentStartSpace ships on a rebuild that mints no marker space', async () => {
+		augmentBlockKind(CALLOUT_KIND(), { container: { contentStartSpace: 'complete-marker' } });
+
+		await expect(runContainerConformance(CALLOUT_KIND(), calloutProfile)).rejects.toThrow(
+			/declarations: callout declares container\.contentStartSpace/
+		);
 	});
 
 	it('refuses an exempt cell whose reason is not substantive', async () => {
 		await expect(
-			runContainerConformance(NOTE_KIND(), {
-				...noteProfile,
+			runContainerConformance(CALLOUT_KIND(), {
+				...calloutProfile,
 				multiScope: { mode: 'exempt', reason: 'n/a' }
 			})
-		).rejects.toThrow(/multiScope: note multiScope exempt reason is documented/);
+		).rejects.toThrow(/multiScope: callout multiScope exempt reason is documented/);
 	});
 });

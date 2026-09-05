@@ -10,6 +10,8 @@
 ## Edge cases
 
 - Cut then undo restores the original document.
+- Cut from a block's first character into the next block keeps the blank line above the survivor,
+  so reloading the cut source still shows two blocks.
 - Backspace merges endpoint blocks into one (start block survives).
 - Cross-block delete spanning three blocks leaves only the merged result.
 - Type-replace inserts the character at the correct offset in the merged block.
@@ -19,3 +21,9 @@
 
 - Select across two paragraphs via Shift+ArrowDown, Ctrl+X: removes range, cursor at merge point.
 - Select across three blocks, Backspace: single merged block remains.
+
+## Miss-analysis
+
+- The dropped separator (#60) shipped because every cross-block delete fixture selected from
+  MID-block, and from the document's FIRST block, whose leading trivia is empty either way; the
+  byte assertions also never reloaded their result, which is the only place the loss shows.

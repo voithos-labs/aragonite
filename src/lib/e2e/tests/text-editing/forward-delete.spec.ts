@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { wholeBlockInput } from '../../whole-block-input';
 
 test.describe('forward delete', () => {
 	let editor: EditorPage;
@@ -15,8 +16,6 @@ test.describe('forward delete', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForSourceContains('# HelloWorld');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('# HelloWorld');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
 	});
 
@@ -25,8 +24,6 @@ test.describe('forward delete', () => {
 		await editor.focusBlock(0, 5);
 		await editor.page.keyboard.press('Delete');
 		await editor.bridge.waitForSourceContains('Helloworld');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('Helloworld');
 	});
 
 	// Forward twin of the Backspace two-step (text-editing/edge-cases.spec.ts): the
@@ -39,7 +36,7 @@ test.describe('forward delete', () => {
 		await editor.focusBlockEnd(0);
 		await editor.page.keyboard.press('Delete');
 
-		await expect(editor.page.locator('.thematic-break-block')).toBeFocused();
+		await expect(wholeBlockInput(editor.page.locator('.thematic-break-block'))).toBeFocused();
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 

@@ -18,11 +18,10 @@ describe('unwrapRole declarations resolve to registered strategies', () => {
 		}
 	});
 
-	it('blockquote and list declare the legacy wiring; listItem stays undeclared (delegates up)', () => {
+	it('blockquote and list declare the built-in wiring; listItem stays undeclared (delegates up)', () => {
 		expect(tryGetBlockKindDescriptor('blockquote')?.unwrapRole).toEqual({
-			firstChildBackspace: 'lift-first-child',
-			middleChildBackspace: 'default-merge',
-			quoteShaped: true
+			firstChildBackspace: 'lift-first-child-drop-opener',
+			middleChildBackspace: 'default-merge'
 		});
 		expect(tryGetBlockKindDescriptor('list')?.unwrapRole).toEqual({
 			firstChildBackspace: 'list-item-cascade',

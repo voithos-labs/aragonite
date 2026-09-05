@@ -9,18 +9,13 @@
 
 import { claimsBodyChord, isForeignTextEntry } from '../active-editor';
 import type { PluginEditorLookup } from '../editor-keys';
+import type { PluginActivation } from '../schema/plugin-activation';
 import type { PresentationMode } from '../presentation-mode';
 import type { SearchState } from '../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 import type { CommandErrorSink } from '../schema/block-commands';
 import type { KeybindingOverrideMap } from '../schema/keybinding-overrides';
-import {
-	getCommand,
-	isEditorGlobalChord,
-	isReservedUiChord,
-	resolveGlobalBinding,
-	type GlobalCommandContext
-} from '../schema/commands';
+import { isReservedUiChord, runGlobalChord, type GlobalCommandContext } from '../schema/commands';
 import { eventToChord } from '../schema/keybindings';
 
 export interface EditorRootKeydownDeps {
@@ -36,6 +31,9 @@ export interface EditorRootKeydownDeps {
 	search: SearchState;
 	history: GlobalCommandContext['history'];
 	pluginEditor: PluginEditorLookup;
+	/** The plugins this instance activated, so the root claims only its own plugins'
+	 *  chords. `undefined` = every installed plugin. */
+	activation: PluginActivation | undefined;
 	onCommandError: CommandErrorSink;
 	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown'>;
 	/** True for nodes in the host's `header` slot: they sit inside `root.contains`
@@ -95,9 +93,10 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 	}
 
 	/**
-	 * Undo/redo, plugin-global chords and cross-block motion fire only when no block
-	 * holds focus. Unlike the search chords, these collide with a focused outside
-	 * element's native behavior (a text input owns Mod+Z), so they yield to it.
+	 * Undo/redo, plugin-global chords and cross-block motion fire only when no block holds focus:
+	 * unlike the search chords, these collide with a focused outside element's native behavior (a
+	 * text input owns Mod+Z). The gap caret's proxy is focused DOM of its own and resolves the same
+	 * chords at the target (`GapCaret.svelte`), so this arm stays out of its way.
 	 */
 	function ownsWindowedOutCaret(root: HTMLElement, active: Element | null): boolean {
 		const noElementFocused = active === null || active === root.ownerDocument.body;
@@ -119,19 +118,20 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 			if (handleSearchChords(event, root, chord, active)) return;
 			if (!ownsWindowedOutCaret(root, active)) return;
 
-			// No block is focused here, so resolve at global scope. This branch runs
-			// getCommand directly rather than dispatchKeyCommand, so it carries the
-			// reading-mode gate itself — sibling: ThematicBreakBlock.
-			if (chord && isEditorGlobalChord(chord)) {
+			// No block is focused here, so resolve at global scope — override tier included, or a
+			// consumer's global rebind would be dead at this surface alone. The seam carries the
+			// reading gate and answers whether the press was consumed.
+			if (
+				chord &&
+				runGlobalChord(chord, deps.keybindingOverrides, {
+					isReading: deps.mode === 'reading',
+					history: deps.history,
+					pluginEditor: deps.pluginEditor,
+					activation: deps.activation,
+					onCommandError: deps.onCommandError
+				})
+			) {
 				event.preventDefault();
-				if (deps.mode === 'reading') return;
-				const binding = resolveGlobalBinding(chord, deps.keybindingOverrides);
-				if (binding)
-					getCommand(binding.command)?.({
-						history: deps.history,
-						pluginEditor: deps.pluginEditor,
-						onCommandError: deps.onCommandError
-					});
 				return;
 			}
 

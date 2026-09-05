@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
 	registerPasteTransform,
 	applyPasteTransforms,
@@ -10,7 +10,12 @@ import {
 	installPlugins,
 	__resetInstalledPluginsForTests
 } from '../../../schema/plugin-install';
-import { configureEditorEnv, resetEditorEnv } from '../../../env';
+import { activationFor } from '../../../schema/plugin-activation';
+import { allowDevWarns, takeDevWarns } from '../../support/warn-gate';
+
+// The ordering fixtures append unconditionally, so the dev idempotence probe warns on them;
+// only the containment cases below are about the diagnostic itself.
+afterEach(() => allowDevWarns(['paste-transform']));
 
 function appending(name: string, suffix: string): PasteTransform {
 	return { name, transform: (text) => text + suffix };
@@ -85,26 +90,17 @@ describe('paste-transforms registry', () => {
 });
 
 describe('paste-transforms containment', () => {
-	let warnSpy: ReturnType<typeof vi.spyOn>;
-
 	beforeEach(() => {
 		__resetPasteTransformsForTests();
 		__resetInstalledPluginsForTests();
-		warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		configureEditorEnv({ isDev: true, isTest: false });
-	});
-	afterEach(() => {
-		warnSpy.mockRestore();
-		resetEditorEnv();
 	});
 
 	it('treats a throwing transform as a decline, leaving the text untouched', () => {
 		registerPasteTransform(throwingOnCall('thrower', 1).transform);
 		expect(applyPasteTransforms('seed')).toBe('seed');
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("transform 'thrower' threw in the paste pipeline"),
-			expect.anything()
-		);
+		const fires = takeDevWarns();
+		expect(fires).toHaveLength(1);
+		expect(fires[0].message).toContain("transform 'thrower' threw in the paste pipeline");
 	});
 
 	it('runs a later transform on the untouched text after an earlier one throws', () => {
@@ -127,13 +123,11 @@ describe('paste-transforms containment', () => {
 		applyPasteTransforms('seed');
 		// The message names the probe, not a decline: a "declining" message would send the
 		// author debugging a working paste.
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("transform 'probe-thrower' threw in the dev idempotence probe"),
-			expect.anything()
+		const messages = takeDevWarns().map((w) => w.message);
+		expect(messages).toContainEqual(
+			expect.stringContaining("transform 'probe-thrower' threw in the dev idempotence probe")
 		);
-		// The non-idempotent warning takes no details, so a single-argument call is the whole
-		// shape of the message this must not be confused with.
-		expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('not idempotent'));
+		expect(messages).not.toContainEqual(expect.stringContaining('not idempotent'));
 	});
 
 	// Keeps the negative assertion above honest: the non-idempotent message is live, so its
@@ -141,6 +135,39 @@ describe('paste-transforms containment', () => {
 	it('still reports a genuinely non-idempotent rewrite under its own message', () => {
 		registerPasteTransform(appending('grows', '!'));
 		applyPasteTransforms('seed');
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("'grows' is not idempotent"));
+		expect(takeDevWarns().map((w) => w.message)).toContainEqual(
+			expect.stringContaining("'grows' is not idempotent")
+		);
+	});
+});
+
+describe('per-instance activation over the transform pipeline', () => {
+	beforeEach(() => {
+		__resetPasteTransformsForTests();
+		__resetInstalledPluginsForTests();
+	});
+
+	/** Installs `name`, whose setup registers a transform appending `suffix`. */
+	function installTransformPlugin(name: string, suffix: string): void {
+		installPlugins([
+			definePlugin({ name, setup: () => registerPasteTransform(appending(name, suffix)) })
+		]);
+	}
+
+	it('runs only the transforms of the plugins an instance listed', () => {
+		installTransformPlugin('listed', '-1');
+		installTransformPlugin('unlisted', '-2');
+		expect(applyPasteTransforms('seed', activationFor(['listed']))).toBe('seed-1');
+	});
+
+	it('runs every installed transform when the instance passes no activation', () => {
+		installTransformPlugin('listed', '-1');
+		installTransformPlugin('unlisted', '-2');
+		expect(applyPasteTransforms('seed')).toBe('seed-1-2');
+	});
+
+	it('never gates a transform no plugin owns', () => {
+		registerPasteTransform(appending('ownerless', '!'));
+		expect(applyPasteTransforms('seed', activationFor([]))).toBe('seed!');
 	});
 });

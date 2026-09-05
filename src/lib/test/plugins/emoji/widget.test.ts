@@ -1,21 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
-import {
-	getInlineWidgetEditing,
-	__resetInlineWidgetsForTests
-} from '$lib/core/inline/inline-widgets';
-import { __resetInlineSyntaxForTests } from '$lib/core/inline/scan/plugin-syntax';
-import { __clearDeclaredPluginInlineKindsForTests } from '$lib/schema/plugin-kind';
+import { getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerEmoji, buildEmojiWidget, EMOJI_KIND } from '$lib/plugins/emoji/emoji-recognizer';
 
-function resetInline(): void {
-	__resetInlineSyntaxForTests();
-	__resetInlineWidgetsForTests();
-	__clearDeclaredPluginInlineKindsForTests();
-}
-beforeEach(resetInline);
-afterEach(resetInline);
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 // The decoded-entity mold: a `[data-inline-widget]` island whose text is the glyph
 // and whose source bytes ride `data-source-*`, so the raw-aware walk reads `:smile:`

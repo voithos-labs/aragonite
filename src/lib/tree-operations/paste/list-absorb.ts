@@ -12,17 +12,11 @@ import { metadataOf } from '../../core/nodes';
 import { nodeAt, ensureEditableContainers } from '../node-ops';
 import { cloneNode } from '../clone';
 import { containerPasteFor } from './container-paste';
-import { rebuildListItemRaw } from '../../schema/container-rebuilders';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';
-import { renumberOrderedList, normalizeItemMarkerToList } from '../list/ordered-markers';
+import { renumberOrderedList, templatePastedItemMarkers } from '../list/ordered-markers';
 import { spliceTerminatedItems } from '../list/terminator';
 import { containerScopeState } from './parent-scope';
-import {
-	buildListItemWithContent,
-	orderedBaseOf,
-	readOrderedSuffix,
-	splitLeafForPaste
-} from '../list/list-builders';
+import { buildSplitItems } from '../list/list-builders';
 import { findEnclosingListForPaste } from './find-enclosing-list';
 import { focusIndexBeforeResidue } from './focus-target';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
@@ -35,6 +29,8 @@ export interface ListAbsorb {
 	itemIndex: number;
 	innerIndex: number;
 	offset: number;
+	/** The target leaf's bytes AFTER the paste's delete half. */
+	targetRaw?: string;
 }
 
 /**
@@ -47,7 +43,8 @@ export function findListAbsorb(
 	doc: Document,
 	targetPath: number[],
 	parsed: Document,
-	offset: number
+	offset: number,
+	targetRaw?: string
 ): ListAbsorb | null {
 	if (parsed.children.length !== 1) return null;
 	const topBlock = parsed.children[0];
@@ -63,7 +60,8 @@ export function findListAbsorb(
 		listPath: enclosing.listPath,
 		itemIndex: enclosing.itemIndex,
 		innerIndex: enclosing.innerIndex,
-		offset
+		offset,
+		targetRaw
 	};
 }
 
@@ -82,10 +80,14 @@ export async function applyListAbsorb(
 
 	const item = outer.children[plan.itemIndex];
 	if (!item?.children) return;
-	const targetLeaf = item.children[plan.innerIndex];
-	if (!targetLeaf) return;
+	if (!item.children[plan.innerIndex]) return;
 
-	const { leadingItem, trailingItem } = buildSplitItems(item, plan.innerIndex, plan.offset);
+	const { leadingItem, trailingItem } = buildSplitItems(
+		item,
+		plan.innerIndex,
+		plan.offset,
+		plan.targetRaw
+	);
 	const pastedItems = (pastedList.children ?? []).map((c) => cloneNode(c));
 
 	const replacement: CstNode[] = [];
@@ -97,24 +99,7 @@ export async function applyListAbsorb(
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
 
-	// Precompute-before-splice: `$state` wraps entries lazily, so a mutation to a
-	// newly-spliced item bypasses reactivity. Only already-proxied items are renumbered
-	// after the splice.
-	if (outerOrdered) {
-		const suffix = readOrderedSuffix(outer);
-		for (let i = 0; i < replacement.length; i++) {
-			const item = replacement[i];
-			const meta = metadataOf(item, 'listItem');
-			if (meta) {
-				meta.marker = String(orderedBaseOf(outer.children[0]) + plan.itemIndex + i) + suffix;
-				rebuildListItemRaw(item);
-			}
-		}
-	} else {
-		// Template the bullet glyph from the enclosing list, so a `*` paste into a `- ` list
-		// serializes as one list to reference parsers, not two.
-		for (const item of replacement) normalizeItemMarkerToList(item, outer);
-	}
+	templatePastedItemMarkers(replacement, outer, plan.itemIndex);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
@@ -151,37 +136,4 @@ export async function applyListAbsorb(
 			return ctx.controller.landCaret([...plan.listPath, lastPastedIdx], CURSOR_END);
 		}
 	});
-}
-
-// ── Split builder ────────────────────────────────────────────────────────────
-
-/**
- * The leading and trailing items replacing `item` when a paste absorbs at
- * `(innerIndex, offset)`. Either side is null when the caret sits flush against a boundary.
- */
-function buildSplitItems(
-	item: CstNode,
-	innerIndex: number,
-	offset: number
-): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
-	if (!item.children) return { leadingItem: null, trailingItem: null };
-	const targetLeaf = item.children[innerIndex];
-	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
-
-	const { leadingNode, trailingNode } = splitLeafForPaste(targetLeaf, offset);
-
-	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);
-	if (leadingNode) leadingChildren.push(leadingNode);
-
-	const trailingChildren: CstNode[] = [];
-	if (trailingNode) trailingChildren.push(trailingNode);
-	for (const c of item.children.slice(innerIndex + 1)) trailingChildren.push(cloneNode(c));
-	if (trailingChildren[0]) trailingChildren[0].leadingTrivia = '';
-
-	return {
-		leadingItem:
-			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren) : null,
-		trailingItem:
-			trailingChildren.length > 0 ? buildListItemWithContent(item, trailingChildren) : null
-	};
 }

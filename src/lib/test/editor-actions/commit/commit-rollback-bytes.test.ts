@@ -9,9 +9,16 @@ import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
 import { asDocPath } from '$lib/selection/path-math';
 import type { CstNode } from '$lib/core/nodes';
-import type { EditorActionsDeps, MultiScopeTarget, UndoController } from '$lib/editor-actions/deps';
+import type { MultiScopeTarget } from '$lib/action-contracts';
+import type { EditorActionsDeps, UndoController } from '$lib/editor-actions/deps';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { makeBlockListState, makeEditorActionsDeps } from '$lib/test/harness/editor-actions';
+import { allowDevWarns } from '$lib/test/support/warn-gate';
+import { makeListItem } from '$lib/test/harness/list-fixtures';
+
+// The scope fixtures are minimal hand-built containers, not parser output, so the container-raw
+// oracle reads them as stale.
+afterEach(() => allowDevWarns(['invariant:stale-raw']));
 
 /** `serialize()` reads only top-level raws, so it cannot see an inner container
  *  whose bytes the rebuild rewrote before the throw. */
@@ -42,15 +49,6 @@ function throwListRebuildAfter(okCalls: number): void {
 			}
 		}
 	});
-}
-
-function listItemNode(raw: string): CstNode {
-	return {
-		kind: 'listItem',
-		leadingTrivia: '',
-		raw,
-		metadata: { marker: '- ', taskItem: false, taskChecked: false, taskMarker: null }
-	} as CstNode;
 }
 
 /** Outer list whose first item holds a nested list: two scopes, two chain depths. */
@@ -85,7 +83,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 			scopes: scopes(),
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([, innerScope]) => {
-				innerScope.children.push(listItemNode('  - y\n'));
+				innerScope.children.push(makeListItem('  - y\n'));
 				return [{ op: 'noop' }, { op: 'insert', at: 1, count: 1 }];
 			}
 		});
@@ -101,7 +99,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 				scopes: scopes(),
 				snapshot: 'skip',
 				mutate: ([, innerScope]) => {
-					innerScope.children.push(listItemNode('  - z\n'));
+					innerScope.children.push(makeListItem('  - z\n'));
 					return [{ op: 'noop' }, { op: 'insert', at: 2, count: 1 }];
 				}
 			})
@@ -120,7 +118,7 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 			scopes: scopes(),
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: ([, innerScope]) => {
-				innerScope.children.push(listItemNode('  - y\n'));
+				innerScope.children.push(makeListItem('  - y\n'));
 				return [{ op: 'noop' }, { op: 'insert', at: 1, count: 1 }];
 			}
 		});
@@ -162,6 +160,30 @@ describe('commit ceremony — byte rollback across the chain rebuild', () => {
 
 		expect(collectRaws(deps.doc.children)).toEqual(rawsBefore);
 		expect(serialize(deps.doc)).toBe(treeBefore);
+	});
+
+	// The document's folded trailing line is a byte register of its own: the tail settle spends it
+	// through live accessors while the children it belonged to are still an unpublished copy, so a
+	// throw that restores the tree without it leaves the line gone and nothing to notice.
+	it('restores the document suffix a throwing commit had already spent', async () => {
+		const { deps } = makeEditorActionsDeps(parse('alpha\n\n'));
+		const controller = createUndoController(deps);
+		expect(deps.doc.suffix).toBe('\n');
+
+		await expect(
+			controller.commitStructural({
+				snapshot: { path: asDocPath([0]), offset: 0 },
+				mutate: (children) => {
+					// What the tail settle does when it materializes the folded line.
+					children.push({ kind: 'paragraph', leadingTrivia: '', raw: deps.doc.suffix });
+					deps.doc.suffix = '';
+					throw new Error('mutation blew up');
+				}
+			})
+		).rejects.toThrow('mutation blew up');
+
+		expect(deps.doc.suffix).toBe('\n');
+		expect(serialize(deps.doc)).toBe('alpha\n\n');
 	});
 
 	// The same residual with no plugin and no throw: `discardIfNoop` rolls back AFTER

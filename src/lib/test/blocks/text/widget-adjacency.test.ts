@@ -126,7 +126,7 @@ describe('findWidgetNodeByStart', () => {
 });
 
 // `[![cat][shot]][repo]` parses to a link whose child is the image, so the finders must reach
-// into the link's children — pre-fix a click-selected image-in-link never resolved.
+// into the link's children to resolve a click-selected image-in-link.
 describe('widget nested inside a link node', () => {
 	const NESTED_RAW = '[![cat][shot]][repo]';
 	const nestedImage: InlineNode = {

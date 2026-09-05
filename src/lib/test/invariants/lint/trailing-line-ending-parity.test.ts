@@ -1,6 +1,6 @@
 /**
  * G4.20 — trailing-line-ending reconstruction parity across keystroke-commit sites
- * (`docs/contributing/culture.md` § The bug shape to fear): a site that reads a block's
+ * (`docs/contributing/rules.md` § The bug shape to fear): a site that reads a block's
  * text back rebuilds the ending as `trailingLineEnding(<node>.raw)`, never a literal
  * newline, which downgrades a CRLF block and breaks round-trip. Reconstruction stays a
  * call-site duty because a block at EOF may legitimately lack an ending. Five arms, all
@@ -9,57 +9,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { collectEditorSources, type SourceFile } from './scan-source';
+import {
+	balancedRegion,
+	callArguments,
+	collectEditorSources,
+	rawAssignments,
+	type SourceFile
+} from './scan-source';
 
 // ── Source extraction ────────────────────────────────────────────────────────
-
-/** From the bracket at `openIdx`, the balanced `(...)`/`{...}` region; strings skipped. */
-function balancedRegion(code: string, openIdx: number): string {
-	const open = code[openIdx];
-	const close = open === '(' ? ')' : '}';
-	let depth = 0;
-	let quote: string | null = null;
-	for (let i = openIdx; i < code.length; i++) {
-		const c = code[i];
-		if (quote) {
-			if (c === '\\') i++;
-			else if (c === quote) quote = null;
-			continue;
-		}
-		if (c === "'" || c === '"' || c === '`') quote = c;
-		else if (c === open) depth++;
-		else if (c === close && --depth === 0) return code.slice(openIdx, i + 1);
-	}
-	return code.slice(openIdx);
-}
-
-/** Split a call's argument list (no surrounding parens) on top-level commas. */
-function splitTopLevelArgs(argList: string): string[] {
-	const args: string[] = [];
-	let depth = 0;
-	let quote: string | null = null;
-	let cur = '';
-	for (let i = 0; i < argList.length; i++) {
-		const c = argList[i];
-		if (quote) {
-			cur += c;
-			if (c === '\\') cur += argList[++i] ?? '';
-			else if (c === quote) quote = null;
-			continue;
-		}
-		if (c === "'" || c === '"' || c === '`') quote = c;
-		else if (c === '(' || c === '[' || c === '{') depth++;
-		else if (c === ')' || c === ']' || c === '}') depth--;
-		if (c === ',' && depth === 0) {
-			args.push(cur);
-			cur = '';
-			continue;
-		}
-		cur += c;
-	}
-	if (cur.trim().length > 0) args.push(cur);
-	return args.map((a) => a.trim());
-}
 
 /** The content (2nd) argument of every `updateBlockContent(` call in `code`. */
 function contentArgs(code: string): string[] {
@@ -68,7 +26,8 @@ function contentArgs(code: string): string[] {
 	let m: RegExpExecArray | null;
 	while ((m = re.exec(code)) !== null) {
 		const region = balancedRegion(code, code.indexOf('(', m.index));
-		const args = splitTopLevelArgs(region.slice(1, -1));
+		if (region === null) continue;
+		const args = callArguments(region.slice(1, -1));
 		if (args.length >= 2) out.push(args[1]);
 	}
 	return out;
@@ -106,10 +65,12 @@ function containerRebuilders(sources: SourceFile[]): RebuilderBody[] {
 		let m: RegExpExecArray | null;
 		while ((m = re.exec(f.code)) !== null) {
 			const parenIdx = f.code.indexOf('(', m.index);
-			const afterParams = parenIdx + balancedRegion(f.code, parenIdx).length;
-			const braceIdx = f.code.indexOf('{', afterParams);
-			if (braceIdx === -1) continue;
-			out.push({ relPath: f.relPath, name: m[1], body: balancedRegion(f.code, braceIdx) });
+			const params = balancedRegion(f.code, parenIdx);
+			if (params === null) continue;
+			const braceIdx = f.code.indexOf('{', parenIdx + params.length);
+			const body = braceIdx === -1 ? null : balancedRegion(f.code, braceIdx);
+			if (body === null) continue;
+			out.push({ relPath: f.relPath, name: m[1], body });
 		}
 	}
 	return out;
@@ -123,7 +84,9 @@ function commitInputFunnels(sources: SourceFile[]): CommitFunnel[] {
 		let m: RegExpExecArray | null;
 		while ((m = re.exec(f.code)) !== null) {
 			const body = balancedRegion(f.code, f.code.indexOf('{', m.index));
-			if (/\bupdateBlockContent\s*\(/.test(body)) out.push({ relPath: f.relPath, body });
+			if (body !== null && /\bupdateBlockContent\s*\(/.test(body)) {
+				out.push({ relPath: f.relPath, body });
+			}
 		}
 	}
 	return out;
@@ -181,49 +144,16 @@ const TERNARY_RULE =
 	'call `trailingLineEnding(raw)`. Twelve inline copies of it were the source contributors ' +
 	'copied from, and copy #13 dropped the CRLF arm four separate times';
 
+/** `raw.slice(displayLength(raw))` — `ownTrailingLineEnding`'s body, the ending a block's own
+ *  bytes carry rather than the one the document uses. */
+const INLINE_OWN_ENDING_SLICE = /\.slice\s*\(\s*displayLength\s*\(/;
+
+const OWN_ENDING_RULE =
+	`the \`.slice(displayLength(raw))\` ending complement belongs to ${LINE_ENDING_SEAM} alone — ` +
+	'call `ownTrailingLineEnding(raw)`. It answers the other half of the same question, so a ' +
+	'copy of it is the ternary copies again with the seam one call further away';
+
 // ── Arm 5 support: the rule's domain ─────────────────────────────────────────
-
-/** Bound on a statement's span, so a missing semicolon can't swallow the rest of the file. */
-const MAX_STATEMENT_SPAN = 600;
-
-/**
- * Every `<expr>.raw = …;` / `.raw += …;` statement, terminated at the semicolon and NOT
- * at a newline: Prettier wraps exactly the long concatenations this arm exists to catch,
- * and stopping at the first newline truncates them to `.raw =` with no literal in sight.
- */
-function rawAssignments(sources: SourceFile[]): Array<{ relPath: string; statement: string }> {
-	const out: Array<{ relPath: string; statement: string }> = [];
-	for (const f of sources) {
-		const re = /\.raw\s*\+?=(?!=)/g;
-		let m: RegExpExecArray | null;
-		while ((m = re.exec(f.code)) !== null) {
-			let depth = 0;
-			let quote: string | null = null;
-			const limit = Math.min(f.code.length, m.index + MAX_STATEMENT_SPAN);
-			let end = limit;
-			for (let i = m.index; i < limit; i++) {
-				const c = f.code[i];
-				if (quote) {
-					if (c === '\\') i++;
-					else if (c === quote) quote = null;
-					continue;
-				}
-				if (c === "'" || c === '"' || c === '`') quote = c;
-				else if (c === '(' || c === '[' || c === '{') depth++;
-				else if (c === ')' || c === ']' || c === '}') depth--;
-				else if (c === ';' && depth <= 0) {
-					end = i;
-					break;
-				} else if (c === '\n' && f.code[i + 1] === '\n' && depth <= 0) {
-					end = i;
-					break;
-				}
-			}
-			out.push({ relPath: f.relPath, statement: f.code.slice(m.index, end) });
-		}
-	}
-	return out;
-}
 
 /**
  * Writes that legitimately mint a newline literal into a node's bytes. The count is part
@@ -332,11 +262,21 @@ describe('G4.20 trailing-line-ending seam exclusivity', () => {
 		expect(copies, TERNARY_RULE).toEqual([]);
 	});
 
-	it('the seam still holds the expression the rule redirects to', () => {
+	it('no file outside core/lines.ts writes the ending complement longhand', () => {
+		const copies = sources
+			.filter((f) => f.relPath !== LINE_ENDING_SEAM)
+			.filter((f) => INLINE_OWN_ENDING_SLICE.test(f.code))
+			.map((f) => f.relPath);
+		expect(copies, OWN_ENDING_RULE).toEqual([]);
+	});
+
+	it('the seam still holds both expressions the rules redirect to', () => {
 		const seam = sources.find((f) => f.relPath === LINE_ENDING_SEAM);
 		expect(seam, `line-ending seam not found: ${LINE_ENDING_SEAM}`).toBeDefined();
 		expect(INLINE_ENDING_TERNARY.test(seam!.code)).toBe(true);
+		expect(INLINE_OWN_ENDING_SLICE.test(seam!.code)).toBe(true);
 		expect(seam!.code).toContain('export function trailingLineEnding');
+		expect(seam!.code).toContain('export function ownTrailingLineEnding');
 	});
 });
 
@@ -430,6 +370,14 @@ describe('G4.20 — extractor and matcher self-tests', () => {
 		const found = containerRebuilders([{ relPath: 'x', text: src, code: src }]);
 		expect(found.map((fn) => fn.name)).toEqual(['rebuildXRaw']);
 		expect(found[0].body).toBe('{ node.raw = a + e; }');
+	});
+
+	// Miss-analysis: the private region walk skipped strings but not regex literals, and its cases
+	// only ever fed it strings, so the body it truncated at a regex brace was never read back.
+	it('rebuilder scan reads the body past a brace inside a regex literal', () => {
+		const src = 'function rebuildXRaw(n: P): void { node.raw = a.replace(/}/g, b) + e; }';
+		const found = containerRebuilders([{ relPath: 'x', text: src, code: src }]);
+		expect(found[0].body).toBe('{ node.raw = a.replace(/}/g, b) + e; }');
 	});
 
 	it('ternary matcher flags the longhand copy and passes the seam call', () => {

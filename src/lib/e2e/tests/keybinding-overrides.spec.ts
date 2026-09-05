@@ -6,9 +6,6 @@ async function setKeybindings(editor: EditorPage, overrides: KeybindingOverride[
 	await editor.page.evaluate((ov) => (window as any).__test.setKeybindings(ov), overrides);
 }
 
-const source = (editor: EditorPage) =>
-	editor.page.evaluate(() => (window as any).__test.getSource() as string);
-
 test.describe('keybinding-override prop', () => {
 	let editor: EditorPage;
 
@@ -23,9 +20,9 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.locator('.text-editable-block').first().click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type(' world');
-		await expect.poll(() => source(editor)).toContain('hello world');
-		await editor.page.keyboard.press('Control+y');
-		await expect.poll(() => source(editor)).not.toContain('world');
+		await expect.poll(() => editor.bridge.getSource()).toContain('hello world');
+		await editor.page.keyboard.press('ControlOrMeta+y');
+		await expect.poll(() => editor.bridge.getSource()).not.toContain('world');
 	});
 
 	test('disable: Mod+Z no longer undoes; clearing the prop restores it', async () => {
@@ -34,22 +31,28 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.locator('.text-editable-block').first().click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('X');
-		await editor.page.keyboard.press('Control+z');
-		await expect.poll(() => source(editor)).toContain('helloX');
+		await editor.page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => editor.bridge.getSource()).toContain('helloX');
 
 		// Clearing the prop restores the built-in undo, proving overrides never mutated the keymap.
 		await setKeybindings(editor, undefined);
-		await editor.page.keyboard.press('Control+z');
-		await expect.poll(() => source(editor)).not.toContain('helloX');
+		await editor.page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => editor.bridge.getSource()).not.toContain('helloX');
 	});
 
-	test('malformed chord (Ctrl+B) is dropped and does not bind bare B', async () => {
-		await editor.loadContent('hello\n');
-		await setKeybindings(editor, [{ chord: 'Ctrl+B', command: 'history.undo' }]);
-		await editor.page.locator('.text-editable-block').first().click();
-		await editor.page.keyboard.press('End');
-		await editor.page.keyboard.type('b'); // would trigger the misbound undo if 'B' were bound
-		await expect.poll(() => source(editor)).toContain('hellob');
+	// Dropping the entry silently would leave an author guessing why their chord is inert,
+	// so the parser's report is part of the contract this case pins.
+	test.describe('a malformed chord', () => {
+		test.use({ expectWarns: ['keybindings'] });
+
+		test('(Ctrl+B) is dropped and does not bind bare B', async () => {
+			await editor.loadContent('hello\n');
+			await setKeybindings(editor, [{ chord: 'Ctrl+B', command: 'history.undo' }]);
+			await editor.page.locator('.text-editable-block').first().click();
+			await editor.page.keyboard.press('End');
+			await editor.page.keyboard.type('b'); // would trigger the misbound undo if 'B' were bound
+			await expect.poll(() => editor.bridge.getSource()).toContain('hellob');
+		});
 	});
 
 	// Kind-scoped override over a TextEditableBlock leaf: resolveBinding's kind tier.
@@ -64,18 +67,18 @@ test.describe('keybinding-override prop', () => {
 		await heading.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('Z');
-		await expect.poll(() => source(editor)).toContain('titleZ');
-		await editor.page.keyboard.press('Control+Alt+y');
-		await expect.poll(() => source(editor)).not.toContain('titleZ');
+		await expect.poll(() => editor.bridge.getSource()).toContain('titleZ');
+		await editor.page.keyboard.press('ControlOrMeta+Alt+y');
+		await expect.poll(() => editor.bridge.getSource()).not.toContain('titleZ');
 
 		const para = editor.page.locator('.text-editable-block', { hasText: 'para' });
 		await para.click();
 		await editor.page.keyboard.press('End');
 		await editor.page.keyboard.type('Z');
-		await expect.poll(() => source(editor)).toContain('paraZ');
-		await editor.page.keyboard.press('Control+Alt+y'); // unbound here — no undo
+		await expect.poll(() => editor.bridge.getSource()).toContain('paraZ');
+		await editor.page.keyboard.press('ControlOrMeta+Alt+y'); // unbound here — no undo
 		await editor.bridge.waitForSourceContains('paraZ');
-		expect(await source(editor)).toContain('paraZ');
+		expect(await editor.bridge.getSource()).toContain('paraZ');
 	});
 
 	// Container-bubble path: the list-item leaf paragraph declines Tab, so the chord
@@ -89,13 +92,12 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('Tab');
 
 		await editor.waitForNoSourceMutation();
-		expect(await source(editor)).not.toMatch(/- one\n {2}- two/);
-		expect(await source(editor)).toContain('- two');
+		expect(await editor.bridge.getSource()).not.toMatch(/- one\n {2}- two/);
+		expect(await editor.bridge.getSource()).toContain('- two');
 	});
 
 	// Global (kind-less) scope reaches the container bubble too: resolveKindBinding
 	// consults override(global), so a global Tab-disable stops the list indent.
-	// Pre-fix the bubble ignored global overrides and Tab still indented the item.
 	test('global scope: disabling Tab stops the list indent at the bubble', async () => {
 		await editor.loadContent('- one\n- two\n');
 		await setKeybindings(editor, [{ chord: 'Tab', command: null }]);
@@ -105,8 +107,32 @@ test.describe('keybinding-override prop', () => {
 		await editor.page.keyboard.press('Tab');
 
 		await editor.waitForNoSourceMutation();
-		expect(await source(editor)).not.toMatch(/- one\n {2}- two/);
-		expect(await source(editor)).toContain('- two');
+		expect(await editor.bridge.getSource()).not.toMatch(/- one\n {2}- two/);
+		expect(await editor.bridge.getSource()).toContain('- two');
+	});
+});
+
+// The gap caret's proxy is focused DOM of its own, so the editor root's arm declines and the
+// proxy resolves the global tier itself. No leaf is focused and there is no kind scope to fall
+// back on, which makes it the surface where an override-blind pre-gate is fatal rather than
+// merely wrong: nothing else on the path can run the rebound command.
+test.describe('override fires where no block holds focus', () => {
+	test('Mod+Alt+U undo fires at the gap caret between two blocks', async ({ page }) => {
+		const editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent('| a | b |\n| - | - |\n| c | d |\n\n```\ncode\n```\n');
+		await setKeybindings(editor, [{ chord: 'Mod+Alt+U', command: 'history.undo' }]);
+
+		await editor.page.locator('[role="cell"]').nth(3).click();
+		await editor.page.keyboard.press('End');
+		await editor.page.keyboard.type('Z');
+		await expect.poll(() => editor.bridge.getSource()).toContain('dZ');
+
+		await editor.page.keyboard.press('ArrowDown');
+		await editor.bridge.waitForGapCaret({ parentPath: [], index: 1 });
+
+		await editor.page.keyboard.press('ControlOrMeta+Alt+u');
+		await expect.poll(() => editor.bridge.getSource()).not.toContain('dZ');
 	});
 });
 
@@ -131,9 +157,9 @@ test.describe('override fires on every leaf dispatch surface', () => {
 			await editor.page.locator(s.focus).first().click();
 			await editor.page.keyboard.press('End');
 			await editor.page.keyboard.type('Z');
-			await expect.poll(() => source(editor)).toContain('Z');
-			await editor.page.keyboard.press('Control+Alt+u');
-			await expect.poll(() => source(editor)).not.toContain('Z');
+			await expect.poll(() => editor.bridge.getSource()).toContain('Z');
+			await editor.page.keyboard.press('ControlOrMeta+Alt+u');
+			await expect.poll(() => editor.bridge.getSource()).not.toContain('Z');
 		});
 	}
 });

@@ -7,7 +7,7 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import type { DocPath } from '../selection/path-math';
-import type { InvariantViolation } from './assert';
+import type { InvariantViolation } from '../assert';
 
 export function checkCommitPathAddressable(
 	doc: Document,

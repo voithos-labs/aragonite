@@ -11,6 +11,7 @@ import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
 import { testClosure } from '$lib/test/support/closure';
 
 const leaf = {
+	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
@@ -18,7 +19,7 @@ const leaf = {
 } as const;
 
 const UNWRAP = {
-	firstChildBackspace: 'lift-first-child',
+	firstChildBackspace: 'lift-first-child-keep-container',
 	middleChildBackspace: 'default-merge'
 } as const;
 

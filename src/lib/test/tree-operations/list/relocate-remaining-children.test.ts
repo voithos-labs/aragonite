@@ -15,7 +15,14 @@ function mergeAndConverge(src: string, currentIndex: number): { doc: Document; s
 	if (list?.kind !== 'list') {
 		throw new Error(`expected list, got ${list?.kind}`);
 	}
-	mergeListItemIntoPrevious(list, list.children!.slice(), currentIndex);
+	mergeListItemIntoPrevious(
+		list,
+		list.children!.slice(),
+		currentIndex,
+		undefined,
+		undefined,
+		undefined
+	);
 	return { doc, source: serialize(doc) };
 }
 
