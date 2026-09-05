@@ -30,6 +30,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           path-to-document: 'https://github.com/voithos-labs/aragonite/blob/main/CLA.md'
+          # A merged thread stays open; a signature is on record either way.
+          lock-pullrequest-aftermerge: false
           path-to-signatures: 'signatures/cla.json'
           # Off `main` on purpose: the bot pushes each signature, and main's protection forbids it.
           branch: 'cla-signatures'

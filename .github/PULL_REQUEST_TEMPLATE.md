@@ -14,4 +14,4 @@ Skip `npm run perf:check` unless you happen to be on the desktop the baselines w
 ## Before you hit submit
 
 - Target `dev`. `main` only takes release merges.
-- First pull request? The CLA check asks you to sign [`CLA.md`](../CLA.md) with one comment, and it covers every pull request after.
+- First pull request? The CLA check asks you to sign [`CLA.md`](https://github.com/voithos-labs/aragonite/blob/main/CLA.md) with one comment, and it covers every pull request after.
