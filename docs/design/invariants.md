@@ -836,6 +836,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.58 | One commit-message rule, enforced at the hook and in CI                       | L       |
 | G4.59 | The VR tag catalog and the tags cited in source are one set                   | L       |
 | G4.60 | Every spread into a call's argument list declares what bounds its count       | L       |
+| G4.61 | The commit scope is set in production, not behind a build flag                | L       |
 | G4.62 | Every code token clears AA on the surface and the fence, in both themes       | L       |
 
 ### The entries
@@ -1340,6 +1341,12 @@ what this replaces: the fix that closed the first three sites missed a fourth in
 key is the file plus its enclosing function, so a second spread added inside a declared function
 inherits that row's reason — the granularity a reviewer checks by hand.
 `lint/spread-call-census.test.ts`.
+**G4.61 · The production commit scope.** `invariants/commit-scope.ts` imports no build flag and
+sets `inCommit` at statement position, both writes bare. The flag routes the decoration engine's
+in-commit `invalidate()` deferral, not only the DEV assertion it started as, so a `DEV` guard on
+its writes would run a source over a half-published tree in production alone: `esm-env` resolves
+DEV to true under vitest, which leaves no behavior test able to see it. A source scan is the only
+rung that can. `lint/commit-scope-production.test.ts`.
 **G4.62 · Code-token contrast.** Every `--code-tok-*` color `editor-theme.css` declares clears WCAG
 AA (4.5:1) against both backgrounds code paints on — `--color-surface` and the fence,
 `--color-bg-secondary` composited over it — in each theme. Computed from the declarations rather
