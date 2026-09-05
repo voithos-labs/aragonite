@@ -38,6 +38,7 @@ describe('directive container Backspace unwrap (U2)', () => {
 		await pressKeyAt(mounted, [0, 0], 0, BACKSPACE);
 
 		expect(mounted.source()).toBe('first\n\n:::spoiler\n\nsecond\n\n:::\n');
+		expect(mounted.instance.getSelection()?.focus).toEqual({ path: [0], offset: 0 });
 	});
 
 	it('unwraps a sole body block into a bare paragraph', async () => {
