@@ -74,7 +74,7 @@ export async function mergeGithubAlertMiddleChild(
 }
 
 /**
- * `lift-first-child`: the alert loses its kind and its body reparses as a plain block.
+ * `lift-first-child-drop-opener`: the alert loses its kind, its body reparses as a plain block.
  * Asserts exactly ONE alert vanished (robust to sibling alerts elsewhere in the session) and
  * that the `:::` form never appears.
  */

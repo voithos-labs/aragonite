@@ -586,7 +586,10 @@ registered opener suppresses the reparse for a kind the parser CAN recognize, so
 re-deriving. `blockFocus: 'whole-block'` beside `supportsInline` parses inline constructs into a
 surface whose only addressable offsets are 0 and its display length. `blockFocus` beside
 `reservedChrome` declares the focus-then-delete model on a kind the chrome slot keeps from ever
-being childless. Each is silently inert rather than loud, so nothing fails until a gesture reaches
+being childless. The last pair reads `unwrapRole.firstChildBackspace` against `reservedChrome` in
+both directions: a lifting strategy would carry the chrome row out of its own container, and the
+`'keep-reserved-chrome'` decline on a container whose child 0 is body makes Backspace there a dead
+key. Each is silently inert rather than loud, so nothing fails until a gesture reaches
 the kind. G1.24 is the sibling over the closure cells; this one never reads them. Predicate
 `checkDescriptorFieldCoherence` (`registry.ts`) · bootstrap · `descriptor-field-coherence.test.ts`.
 

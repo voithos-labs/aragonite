@@ -37,7 +37,7 @@ single-newline lazy-merge divergence — convergence runs unconditionally.
   gesture, so a regression in the middle-child unwrapRole cannot record a corrupted tree
   as truth
 - Backspace at the very start of the first body block lifts the first child out and drops
-  the marker (the container `lift-first-child`): exactly one `githubAlert` vanishes, its
+  the marker (the container `lift-first-child-drop-opener`): exactly one `githubAlert` vanishes, its
   body reparses as a plain block, and the bytes are never rewritten to `:::`
 - every promotion/merge/unwrap lands mid-document, never the end-of-document append the
   expectation tracker predicts, so each gesture settles on an observable structural signal

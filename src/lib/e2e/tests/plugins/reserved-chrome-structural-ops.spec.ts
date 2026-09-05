@@ -65,10 +65,8 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 		await page.keyboard.press('Backspace');
 		await editor.waitForNoSourceMutation();
 
-		// firstChildBackspace='lift-first-child' resolves to unwrapFirstChildFromQuote, gated on
-		// the container descriptor's unwrapRole.quoteShaped capability. The callout omits it, so
-		// the tree-op returns [] and the strategy early-returns — the chrome is neither lifted nor
-		// destroyed.
+		// The callout declares firstChildBackspace='keep-reserved-chrome', the strategy that says
+		// child 0 is chrome: no lift runs, so the title is neither carried out nor destroyed.
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);

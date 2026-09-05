@@ -709,8 +709,11 @@ function registerConspiracy(): void {
 			// trips a dev assertion the moment someone edits a conspiracy with a blank first line.
 			bodyWrap: DIRECTIVE_BODY_WRAP,
 			reservedChrome: { kind: conspiracyTitle },
+			// Child 0 is the title, so Backspace at its start must not lift it out of the
+			// conspiracy. A container whose child 0 is body lifts instead:
+			// `'lift-first-child-keep-container'`, or `'-drop-opener'` for a quote shape.
 			unwrapRole: {
-				firstChildBackspace: 'lift-first-child',
+				firstChildBackspace: 'keep-reserved-chrome',
 				middleChildBackspace: 'default-merge'
 			}
 			// Declare `reorderChildren` here if your container's direct children should
@@ -1130,7 +1133,7 @@ The contract guarantees the empty leaf's presence, not its look. An empty-state 
 - `'before'` / `'after'` / `'both'` opens the named edges to a between-blocks caret, where typing or Enter inserts a paragraph.
 - `'none'` says your surface already hosts insertion at both edges.
 
-The field is required so the no-gap answer is a decision you wrote down, never an omission. The bundled kinds set the precedent: an opaque container whose fences leave no textual way out (the callouts, details, the generic directive container) declares `'both'`; a container whose children can already escape at its boundary (a blockquote's unwrap, a list's exit) declares `'none'`.
+The field is required so the no-gap answer is a decision you wrote down, never an omission. The bundled kinds set the precedent: an opaque container whose fences leave no textual way out (the callouts, details, the generic directive container) declares `'both'`; a container whose own edges are prose the caret can already stand on (a blockquote's marked lines, a list item's) declares `'none'`.
 
 Nested-editor interiors (a second editor whose state serializes as an opaque blob) are **rejected permanently**. They break the lossless round-trip. There's no version of this that gets built (and yes, people ask).
 

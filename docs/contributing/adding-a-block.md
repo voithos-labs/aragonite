@@ -142,9 +142,8 @@ container: {
 	rebuildRaw: rebuildBlockquoteRaw,
 	containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 	unwrapRole: {
-		firstChildBackspace: 'lift-first-child',
-		middleChildBackspace: 'default-merge',
-		quoteShaped: true
+		firstChildBackspace: 'lift-first-child-drop-opener',
+		middleChildBackspace: 'default-merge'
 	},
 	contentStartSpace: 'complete-marker',
 	reorderChildren: {}
