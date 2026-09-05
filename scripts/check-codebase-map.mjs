@@ -274,11 +274,12 @@ export function headingsOf(text) {
 /**
  * The anchor each heading defines. The strict half of {@link headingsOf}, whose looser spellings
  * exist for a prose citer: a `#fragment` link means one slug, so an approximation of it resolves.
+ * Fences go first — a `# comment` in a shell snippet defines no anchor a reader can reach.
  * @param {string} text
  * @returns {Set<string>}
  */
 export function anchorsOf(text) {
-	return new Set(headingLines(text).map(slug));
+	return new Set(headingLines(stripFencedBlocks(text)).map(slug));
 }
 
 /**
