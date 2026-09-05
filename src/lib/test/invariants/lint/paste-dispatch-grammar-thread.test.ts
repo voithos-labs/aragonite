@@ -64,6 +64,15 @@ describe('pasteDispatch grammar-thread source-scan', () => {
 		expect(findGrammarlessCalls('synthetic.ts', explicit)).toEqual([]);
 	});
 
+	// The shape the next paste route is most likely born with, and the one a key-name scan
+	// cannot see through.
+	it('matcher flags a context spread that names no grammar', () => {
+		const spread = 'pasteDispatch(input, { ...ctx, seam });';
+		expect(findGrammarlessCalls('synthetic.ts', spread)).toEqual([
+			{ relPath: 'synthetic.ts', call: 'input, { ...ctx, seam }' }
+		]);
+	});
+
 	it('matcher ignores the declaration and tokens in comments', () => {
 		const decl =
 			'export async function pasteDispatch(input, ctx) {}\n' +
