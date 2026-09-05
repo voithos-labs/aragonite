@@ -75,7 +75,12 @@
 	 */
 	function handleGlobalChord(
 		event: KeyboardEvent,
-		deps: { history: HistoryActions; doc: EditorDoc; events: EditorServices['events'] }
+		deps: {
+			history: HistoryActions;
+			doc: EditorDoc;
+			events: EditorServices['events'];
+			activation: EditorServices['activePlugins'];
+		}
 	): boolean {
 		const chord = eventToChord(event);
 		if (!chord) return false;
@@ -83,7 +88,7 @@
 			isReading,
 			history: deps.history,
 			pluginEditor: deps.doc.pluginEditor,
-			activation: services?.activePlugins,
+			activation: deps.activation,
 			onCommandError: (report) => emitCommandError(deps.events, report)
 		});
 		if (consumed) event.preventDefault();
@@ -92,7 +97,13 @@
 
 	function onKeyDown(event: KeyboardEvent): void {
 		if (history && editorDoc && services) {
-			if (handleGlobalChord(event, { history, doc: editorDoc, events: services.events })) return;
+			const deps = {
+				history,
+				doc: editorDoc,
+				events: services.events,
+				activation: services.activePlugins
+			};
+			if (handleGlobalChord(event, deps)) return;
 		}
 		// Any other modified chord belongs to whatever the root or the host does with it.
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
