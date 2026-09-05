@@ -1,6 +1,6 @@
 // One-shot: apply main-branch protection. Needs gh authenticated as a repo admin, and a repo
 // the API will take it on: protection is plan-gated, so a private free-plan repo answers 403.
-// Contexts are ci.yml's job names, held in step by
+// Contexts are ci.yml's job names plus the externals declared below, both held in step by
 // `src/lib/test/invariants/lint/branch-protection-contexts.test.ts`. Admins are exempt so a
 // maintainer is never locked out of their own repo when the other one is unreachable; the price
 // is that an admin can also merge past a red check, deliberately and visibly.
@@ -12,22 +12,32 @@ import { execFileSync } from 'node:child_process';
 const REPO = 'voithos-labs/aragonite';
 const BRANCH = 'main';
 
+// Every check ci.yml reports, each matrix job spelled the way GitHub names it.
+const CI_CONTEXTS = [
+	'unit',
+	'e2e (1/4)',
+	'e2e (2/4)',
+	'e2e (3/4)',
+	'e2e (4/4)',
+	'perf',
+	'consumer-smoke',
+	'emoji-table'
+];
+
+// Checks reported from outside ci.yml, each named against the workflow that reports it so the
+// test can hold the pair. An undeclared workflow reporting a required name is a way past the door.
+const EXTERNAL_CONTEXTS = {
+	// Signing the CLA is a merge gate, and its bot answers from its own workflow.
+	'cla.yml': ['cla']
+};
+
 const protection = {
 	required_status_checks: {
 		// Not strict: a PR need not be rebased onto every push to main first. The matrix costs
 		// ~20 minutes, so strict mode would re-queue every open PR on every merge, and the run on
 		// push to main catches what a stale base lets through.
 		strict: false,
-		contexts: [
-			'unit',
-			'e2e (1/4)',
-			'e2e (2/4)',
-			'e2e (3/4)',
-			'e2e (4/4)',
-			'perf',
-			'consumer-smoke',
-			'emoji-table'
-		]
+		contexts: [...CI_CONTEXTS, ...Object.values(EXTERNAL_CONTEXTS).flat()]
 	},
 	enforce_admins: false,
 	// Present with a count of 1, so every change arrives as a PR and an outside fork's PR needs

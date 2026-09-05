@@ -1,9 +1,10 @@
 /**
- * The required status-check contexts in `scripts/apply-branch-protection.mjs` are ci.yml's job
- * ids, each matrix job expanded the way GitHub names its checks. Hand-kept, the list rots in two
- * silent directions: a renamed job leaves every PR waiting on a check that never reports, and a
- * dropped context leaves a job running while gating nothing. Neither shows before the flip to
- * public, since the API plan-gates protection on a private free-plan repo.
+ * The required status-check contexts in `scripts/apply-branch-protection.mjs` come in two halves:
+ * ci.yml's job ids, each matrix job expanded the way GitHub names its checks, and the externals
+ * declared there against the workflow reporting each one. Hand-kept, the list rots in two silent
+ * directions: a context nothing reports leaves every PR waiting forever, and a dropped one leaves
+ * a job running while gating nothing. Neither shows before the flip to public, since the API
+ * plan-gates protection on a private free-plan repo.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -81,37 +82,105 @@ export function checkNames(yaml: string): string[] {
 
 // ── The protection rule ──────────────────────────────────────────────────────
 
-/** The `contexts:` array the branch-protection payload sends. */
-export function requiredContexts(script: string): string[] {
-	const array = /contexts:\s*\[([^\]]*)\]/.exec(script);
-	if (array === null) throw new Error('apply-branch-protection.mjs declares no contexts array');
-	return array[1]
-		.split('\n')
-		.map((line) => /^\s*'([^']*)',?\s*(?:\/\/.*)?$/.exec(line)?.[1])
-		.filter((context): context is string => context !== undefined);
+/** Single-quoted strings in a slice of the script, `//` comments dropped first. */
+function quotedStrings(source: string): string[] {
+	return [...source.replace(/\/\/.*$/gm, '').matchAll(/'([^']*)'/g)].map((match) => match[1]);
 }
 
-const ci = checkNames(readFileSync(path.join(WORKFLOWS, CI), 'utf8'));
-const required = requiredContexts(readFileSync(SCRIPT, 'utf8'));
+/** The `CI_CONTEXTS` array: the half of the rule ci.yml itself reports. */
+export function ciContexts(script: string): string[] {
+	const array = /const CI_CONTEXTS = \[([^\]]*)\]/.exec(script);
+	if (array === null) throw new Error('apply-branch-protection.mjs declares no CI_CONTEXTS array');
+	return quotedStrings(array[1]);
+}
+
+/** The `EXTERNAL_CONTEXTS` map: workflow file → the checks it is trusted to report. */
+export function externalContexts(script: string): Map<string, string[]> {
+	const block = /const EXTERNAL_CONTEXTS = \{([\s\S]*?)\n\};/.exec(script);
+	if (block === null) {
+		throw new Error('apply-branch-protection.mjs declares no EXTERNAL_CONTEXTS map');
+	}
+	const declared = new Map<string, string[]>();
+	for (const line of block[1].replace(/\/\/.*$/gm, '').split('\n')) {
+		const entry = /^\s*'([^']+)':\s*\[([^\]]*)\]/.exec(line);
+		if (entry !== null) declared.set(entry[1], quotedStrings(entry[2]));
+	}
+	return declared;
+}
+
+/** Declared externals the named workflow does not report — a missing file, a renamed job. */
+export function unreportedExternals(
+	declared: Map<string, string[]>,
+	reported: Map<string, string[]>
+): string[] {
+	const hits: string[] = [];
+	for (const [file, names] of declared) {
+		const actual = reported.get(file);
+		if (actual === undefined) {
+			hits.push(`${file}: no such workflow`);
+			continue;
+		}
+		for (const name of names) if (!actual.includes(name)) hits.push(`${file}: ${name}`);
+	}
+	return hits;
+}
+
+/** Required checks a workflow reports without being declared as that check's reporter. */
+export function undeclaredReporters(
+	required: string[],
+	declared: Map<string, string[]>,
+	reported: Map<string, string[]>
+): string[] {
+	const hits: string[] = [];
+	for (const [file, names] of reported) {
+		for (const name of names) {
+			if (!required.includes(name)) continue;
+			if (declared.get(file)?.includes(name)) continue;
+			hits.push(`${file}: ${name}`);
+		}
+	}
+	return hits;
+}
+
+const workflowChecks = new Map(
+	readdirSync(WORKFLOWS)
+		.filter((file) => file.endsWith('.yml'))
+		.map((file): [string, string[]] => [
+			file,
+			checkNames(readFileSync(path.join(WORKFLOWS, file), 'utf8'))
+		])
+);
+const ci = workflowChecks.get(CI) ?? [];
+const script = readFileSync(SCRIPT, 'utf8');
+const declaredCi = ciContexts(script);
+const declaredExternal = externalContexts(script);
+const required = [...declaredCi, ...[...declaredExternal.values()].flat()];
 
 // ── The gate ─────────────────────────────────────────────────────────────────
 
-describe('branch protection ↔ ci.yml job names', () => {
+describe('branch protection ↔ workflow check names', () => {
 	it('requires exactly the checks ci.yml reports', () => {
 		expect(
-			[...required].sort(),
-			`the contexts array in ${path.basename(SCRIPT)} and ${CI}'s job names have diverged — a context ci.yml never reports blocks every PR forever, and a job with no context gates nothing`
+			[...declaredCi].sort(),
+			`CI_CONTEXTS in ${path.basename(SCRIPT)} and ${CI}'s job names have diverged — a context ci.yml never reports blocks every PR forever, and a job with no context gates nothing`
 		).toEqual([...ci].sort());
 	});
 
-	it('no other workflow reports a check name the rule requires', () => {
-		const colliding = readdirSync(WORKFLOWS)
-			.filter((file) => file !== CI && file.endsWith('.yml'))
-			.flatMap((file) =>
-				checkNames(readFileSync(path.join(WORKFLOWS, file), 'utf8'))
-					.filter((name) => required.includes(name))
-					.map((name) => `${file}: ${name}`)
-			);
+	it('every declared external is reported by the workflow named for it', () => {
+		const unreported = unreportedExternals(declaredExternal, workflowChecks);
+		expect(
+			unreported,
+			`EXTERNAL_CONTEXTS names a check its workflow never reports, which blocks every PR forever: ${unreported.join(', ')}`
+		).toEqual([]);
+		expect(
+			[...declaredExternal.values()].flat().filter((name) => ci.includes(name)),
+			'a name declared external that ci.yml also reports would be required twice, satisfiable from either side'
+		).toEqual([]);
+	});
+
+	it('no undeclared workflow reports a check name the rule requires', () => {
+		const outsideCi = new Map([...workflowChecks].filter(([file]) => file !== CI));
+		const colliding = undeclaredReporters(required, declaredExternal, outsideCi);
 		expect(
 			colliding,
 			`a second workflow reporting a required check satisfies the rule from outside the PR door: ${colliding.join(', ')}`
@@ -128,7 +197,8 @@ describe('branch-protection context readers — self-tests', () => {
 		expect(ci.length).toBeGreaterThan(4);
 		expect(ci).toContain('unit');
 		expect(ci.filter((name) => name.startsWith('e2e '))).toHaveLength(4);
-		expect(required.length).toBe(ci.length);
+		expect(declaredCi.length).toBe(ci.length);
+		expect(declaredExternal.get('cla.yml')).toEqual(['cla']);
 	});
 
 	it('follows a job rename rather than the hand-written list', () => {
@@ -174,10 +244,35 @@ describe('branch-protection context readers — self-tests', () => {
 		expect(() => checkNames(yaml)).toThrow(/include/);
 	});
 
-	it('reads the contexts array and drops its comments', () => {
+	it('reads both halves of the rule, comments dropped, and refuses a missing one', () => {
 		expect(
-			requiredContexts("contexts: [\n\t// a note\n\t'unit',\n\t'e2e (1/4)' // trailing\n]")
+			ciContexts("const CI_CONTEXTS = [\n\t// a note\n\t'unit',\n\t'e2e (1/4)' // trailing\n]")
 		).toEqual(['unit', 'e2e (1/4)']);
-		expect(() => requiredContexts('const protection = {};')).toThrow();
+		expect(() => ciContexts('const protection = {};')).toThrow(/CI_CONTEXTS/);
+		expect(
+			externalContexts("const EXTERNAL_CONTEXTS = {\n\t// why\n\t'cla.yml': ['cla', 'dco']\n};")
+		).toEqual(new Map([['cla.yml', ['cla', 'dco']]]));
+		expect(() => externalContexts('const protection = {};')).toThrow(/EXTERNAL_CONTEXTS/);
+	});
+
+	it('reds on an external declared for a workflow that does not report it', () => {
+		const declared = new Map([['cla.yml', ['cla']]]);
+		expect(unreportedExternals(declared, new Map([['cla.yml', ['cla']]]))).toEqual([]);
+		expect(unreportedExternals(declared, new Map([['cla.yml', ['signature']]]))).toEqual([
+			'cla.yml: cla'
+		]);
+		expect(unreportedExternals(declared, new Map())).toEqual(['cla.yml: no such workflow']);
+	});
+
+	it('reds on a required name an undeclared workflow reports, pair by pair', () => {
+		const declared = new Map([['cla.yml', ['cla']]]);
+		const names = ['unit', 'cla'];
+		expect(undeclaredReporters(names, declared, new Map([['cla.yml', ['cla']]]))).toEqual([]);
+		expect(undeclaredReporters(names, declared, new Map([['cla.yml', ['cla', 'unit']]]))).toEqual([
+			'cla.yml: unit'
+		]);
+		expect(undeclaredReporters(names, declared, new Map([['deploy.yml', ['cla']]]))).toEqual([
+			'deploy.yml: cla'
+		]);
 	});
 });
