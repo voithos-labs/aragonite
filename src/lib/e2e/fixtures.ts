@@ -21,6 +21,9 @@ interface WarnFixtures {
 const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
 const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
 
+/** A prefix `expectWarns` may not carry: each namespace has a door of its own. */
+const NAMESPACED = /^(invariant|svelte):/;
+
 /** The two console heads share one tag namespace, so one watch and one claim door cover both. */
 function fireOf(m: ConsoleMessage): { tag: string; text: string } | null {
 	const text = `${m.type()}: ${m.text()}`;
@@ -28,11 +31,13 @@ function fireOf(m: ConsoleMessage): { tag: string; text: string } | null {
 	if (sentinel) return { tag: sentinel, text };
 	const code = SVELTE_CODE.exec(m.text())?.[1];
 	if (!code) return null;
+	// Under the dev server every Svelte warn reports Vite's console proxy as its origin, which
+	// names nothing; the code inside the text is the whole signal there.
 	const at = m.location();
-	return {
-		tag: `svelte:${code}`,
-		text: `${text}\n  at ${at.url}:${at.lineNumber}:${at.columnNumber}`
-	};
+	const origin = at.url.includes('@vite/client')
+		? ''
+		: `\n  at ${at.url}:${at.lineNumber}:${at.columnNumber}`;
+	return { tag: `svelte:${code}`, text: `${text}${origin}` };
 }
 
 export const test = base.extend<WarnFixtures>({
@@ -40,6 +45,13 @@ export const test = base.extend<WarnFixtures>({
 	expectWarns: [[], { option: true }],
 	expectSvelteWarns: [[], { option: true }],
 	page: async ({ page, expectInvariants, expectWarns, expectSvelteWarns }, use) => {
+		const namespaced = expectWarns.filter((tag) => NAMESPACED.test(tag));
+		expect(
+			namespaced,
+			`expectWarns names plain devWarn tags: [${namespaced.join(', ')}] belongs in ` +
+				'expectInvariants or expectSvelteWarns, spelled without its prefix'
+		).toEqual([]);
+
 		const fires: { tag: string; text: string }[] = [];
 		const onConsole = (m: ConsoleMessage) => {
 			const type = m.type();

@@ -96,18 +96,22 @@ test.describe('simulation error collector: the dev-warn sentinel', () => {
 
 // Svelte's runtime warns carry no sentinel, so both watches key on the `[svelte] <code>` head
 // instead. The `test.use` claim proves the spec watch saw it; the waiver proves the collector did.
-test.describe('simulation error collector: the svelte runtime channel', () => {
-	test.use({ expectSvelteWarns: ['state_proxy_equality_mismatch'] });
+// Two codes, because the collector once carried a list of known ones: `derived_inert` is outside
+// any such list, so a narrowing reds here on detection rather than only on the waiver's spelling.
+for (const code of ['state_proxy_equality_mismatch', 'derived_inert']) {
+	test.describe(`simulation error collector: the svelte runtime channel (${code})`, () => {
+		test.use({ expectSvelteWarns: [code] });
 
-	test('reds on a svelte runtime warning, and the waiver silences that code', async ({ page }) => {
-		await new EditorPage(page).goto();
-		const errors = attachErrorCollector(page);
-		await errors.start();
-		await svelteWarnOnPage(page, 'state_proxy_equality_mismatch');
-		await pollUntilThrows(errors);
-		await errors.assertNone(['svelte:state_proxy_equality_mismatch']);
+		test('reds on the runtime warning, and the waiver silences that code', async ({ page }) => {
+			await new EditorPage(page).goto();
+			const errors = attachErrorCollector(page);
+			await errors.start();
+			await svelteWarnOnPage(page, code);
+			await pollUntilThrows(errors);
+			await errors.assertNone([`svelte:${code}`]);
+		});
 	});
-});
+}
 
 test.describe('simulation error collector: the waiver is per-tag', () => {
 	test.use({ expectWarns: ['tree-ops', 'state-registry'] });

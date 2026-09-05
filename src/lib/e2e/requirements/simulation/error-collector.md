@@ -32,6 +32,9 @@ asserting `assertNone` throws.
   own `%c` shape, trips `assertNone`, and the waiver that silences it
   (`svelte:state_proxy_equality_mismatch`) reads the same at the spec watch and
   at the checkpoint
+- the same holds for a code no list ever named: `[svelte] derived_inert` trips
+  `assertNone` too, so narrowing the collector back to the codes someone thought
+  to write down fails on detection, not merely on a waiver's spelling
 - warnings from outside the editor are ignored: a `console.warn` with no
   `[aragonite:…]` head does not trip the collector, so a host page's own
   diagnostics stay out of the verdict
