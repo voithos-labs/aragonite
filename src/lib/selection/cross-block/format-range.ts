@@ -156,8 +156,7 @@ function spansInRange(doc: DocumentView, start: SelectionPoint, end: SelectionPo
 			const child = children[index];
 			if (child.children) {
 				if (tryGetBlockKindDescriptor(child.kind)?.containerContract === 'grid') {
-					// Appended, never spread: a covered-cell count past the engine's argument
-					// limit raises "Maximum call stack size exceeded" at the call.
+					// Appended, never spread: covered cells outnumber an argument list (G4.60).
 					for (const span of gridSpans(child, here, start, end)) spans.push(span);
 				} else {
 					visit(child, here);

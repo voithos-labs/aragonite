@@ -835,6 +835,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.57 | The source-scan lexer agrees with TypeScript's                                | L       |
 | G4.58 | One commit-message rule, enforced at the hook and in CI                       | L       |
 | G4.59 | The VR tag catalog and the tags cited in source are one set                   | L       |
+| G4.60 | Every spread into a call's argument list declares what bounds its count       | L       |
 
 ### The entries
 
@@ -1324,6 +1325,18 @@ cites is the one the catalog's own text says to delete. The corpus is the librar
 its e2e requirement files, read as raw text rather than through the house comment-stripping lexer,
 since a citation is almost always a comment and that lexer erases exactly the population this scan
 counts. `lint/vr-tag-census.test.ts`.
+
+**G4.60 · Spread-into-call declarations.** Every spread into a call's ARGUMENT LIST in shipped
+source is declared with what bounds its count. A spread hands the engine one argument per element,
+and a list past its limit raises "Maximum call stack size exceeded" at the call, which strands the
+operation with nothing rendered (#246). A declaration is one of two modes: a `bounded` site names
+the ceiling its count can't pass (a literal group, `MAX_UNDO`, the parser's nesting cap), and a
+`gap` site says the count follows the document, which is the honest reading for the splice family
+under `tree-operations/` that a paste scales. Array-literal spread (`[...x]`) has no argument list
+and is out of scope; a rest parameter names one array and never grows a call, so the scan reads the
+`function` keyword before and the body or arrow after to tell the two apart. Hand enumeration is
+what this replaces: the fix that closed the first three sites missed a fourth in its own file.
+`lint/spread-call-census.test.ts`.
 
 ## Accessibility
 
