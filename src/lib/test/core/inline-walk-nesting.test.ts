@@ -20,7 +20,8 @@ afterEach(() => __resetInlineSyntaxForTests());
 // against a recursive walk.
 const MODEL_DEPTH = 32_000;
 // jsdom's insert bookkeeping is superlinear in tree depth (a native DOM is not), so the
-// environment, not the walk, caps the one pin that renders.
+// environment, not the walk, caps the one pin that renders. The margin is thin — a recursive
+// twin overflows a few thousand levels below this — so a roomier stack greens the pin.
 const RENDER_DEPTH = 8_000;
 
 /**
@@ -133,5 +134,5 @@ describe('inline tree walks at input-controlled nesting depth', () => {
 				.map((run) => run.text)
 				.join('')
 		).toBe('ab');
-	}, 180_000);
+	}, 600_000);
 });
