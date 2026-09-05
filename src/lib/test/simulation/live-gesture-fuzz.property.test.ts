@@ -27,7 +27,8 @@ import '$lib/components/built-in-blocks';
 // its bytes back as inline text, so none could see a candidate whose bytes re-read as a different
 // BLOCK — and no generator drew a document holding a childless construct between two literal runs.
 
-const SEED = freshOrFixedSeed(606060);
+const FIXED_SEED = 606060;
+const SEED = freshOrFixedSeed(FIXED_SEED);
 /** Matches the property suites' per-run cost: ~1200 gestures, each applied twice and judged. The
  *  deep lane is a knob rather than a bigger default, since the sweep runs inside `npm test`. */
 const DOCS = Number(process.env.LIVE_FUZZ_DOCS ?? 100);
@@ -79,12 +80,16 @@ describe('live-mode gestures at hidden edges', () => {
 
 	// The three gestures whose offset a CALLER computes rather than the engine reporting it: a
 	// mid-scalar one reaches the seam, and a silent well-formedness oracle means its snap held.
-	// Single digits at the default budget, so a zero is a thin draw before it is a defect.
-	it('draws offsets inside a surrogate pair, at the doors that take a raw one', () => {
-		expect(stats.midScalar.enter).toBeGreaterThan(0);
-		expect(stats.midScalar['range-delete']).toBeGreaterThan(0);
-		expect(stats.midScalar['cross-format-toggle']).toBeGreaterThan(0);
-	});
+	// Single digits at the default budget, so the floor is the FIXED seed's coverage guarantee: the
+	// fresh lane exists to surface finds, and a red over a thin draw would bury them in noise.
+	it.runIf(SEED === FIXED_SEED)(
+		'draws offsets inside a surrogate pair, at the doors that take a raw one',
+		() => {
+			expect(stats.midScalar.enter).toBeGreaterThan(0);
+			expect(stats.midScalar['range-delete']).toBeGreaterThan(0);
+			expect(stats.midScalar['cross-format-toggle']).toBeGreaterThan(0);
+		}
+	);
 
 	/**
 	 * The unnamed bucket, held to a ceiling rather than left unbounded. Every entry is a divergence
