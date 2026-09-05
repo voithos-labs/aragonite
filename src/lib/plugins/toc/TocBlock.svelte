@@ -208,4 +208,11 @@
 		font-size: 0.9em;
 		color: var(--color-text-muted, #aaaaaa);
 	}
+
+	/* The entry's own line box lands a pixel under the WCAG 2.5.8 minimum a thumb needs. */
+	@media (pointer: coarse) {
+		.toc-block-item {
+			min-height: 24px;
+		}
+	}
 </style>
