@@ -14,4 +14,4 @@ Skip `npm run perf:check` unless you happen to be on the desktop the baselines w
 ## Before you hit submit
 
 - Target `dev`. `main` only takes release merges.
-- By submitting this you're licensing the change under AGPL-3.0-or-later, same as the rest of the project.
+- First pull request? The CLA check asks you to sign [`CLA.md`](../CLA.md) with one comment, and it covers every pull request after.

@@ -173,6 +173,10 @@ Note,
 2. Task is the form for work the codebase owes itself (a coverage gap, a refactor, a doc job, etc.); it asks for an edit site and an acceptance signal instead of a repro.
 3. Yes, I see the open count. The issues, in this repo, partly acts as a to-watch ledger; `severity: watch` tracks observed signals with no confirmed defect, those and `severity: minor` stay open - i believe knowing of their existence is relatively more improtant than recklessly tidying them away.
 
+## The paperwork
+
+One thing before your first pull request lands: sign the contributor license agreement, [`CLA.md`](CLA.md). It's a comment on the pull request, the bot tells you the exact sentence, and it covers every pull request after. Short version: you keep your copyright, your code stays open source forever, and voithos-labs gets to license the project as a whole under other terms too (the app this editor came out of is under a different license). Read the whole thing anyway; it's a page.
+
 ## 2 ton slab of stone
 
 ![stone](./docs/assets/stone.png)
