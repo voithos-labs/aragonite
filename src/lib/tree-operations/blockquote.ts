@@ -9,10 +9,10 @@ import { trailingLineEnding } from '../core/lines';
 
 /**
  * Unwrap a quote-shaped container's first child (Rule U2), returning fresh clones without
- * mutating the input. Eligibility is the caller's declared `lift-first-child-drop-opener`,
- * not a kind name. The remainder is always a plain blockquote: a marker like `[!TYPE]` lives
- * only on the opener line, so lifting a body child out drops it and the rest reparses as an
- * ordinary quote.
+ * mutating the input. It lifts whatever container it is handed; the `lift-first-child-drop-opener`
+ * strategy is what restricts the callers. The remainder is always a plain blockquote: a marker like
+ * `[!TYPE]` lives only on the opener line, so lifting a body child out drops it and the rest
+ * reparses as an ordinary quote.
  */
 export function unwrapFirstChildFromQuote(container: NodeView): CstNode[] {
 	if (!container.children || container.children.length === 0) {

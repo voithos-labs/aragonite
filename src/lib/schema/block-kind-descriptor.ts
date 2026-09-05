@@ -27,11 +27,21 @@ export type MergeRole = (typeof MERGE_ROLES)[number];
 export const isKnownMergeRole = (role: string): boolean =>
 	(MERGE_ROLES as readonly string[]).includes(role);
 
-/** The first-child strategies that carry child 0 out of the container. One home, like MERGE_ROLES. */
-export const LIFTING_FIRST_CHILD_BACKSPACE = [
-	'lift-first-child-drop-opener',
-	'lift-first-child-keep-container'
-] as const;
+/**
+ * The first-child Backspace strategies, each answering whether it carries child 0 out of the
+ * container. G1.37's chrome arms read that answer, so a new strategy cannot arrive without one.
+ */
+const FIRST_CHILD_BACKSPACE_LIFTS = {
+	'lift-first-child-drop-opener': true,
+	'lift-first-child-keep-container': true,
+	'keep-reserved-chrome': false,
+	'list-item-cascade': false
+} as const;
+
+export type FirstChildBackspace = keyof typeof FIRST_CHILD_BACKSPACE_LIFTS;
+
+export const liftsFirstChild = (strategy: FirstChildBackspace): boolean =>
+	FIRST_CHILD_BACKSPACE_LIFTS[strategy];
 
 /**
  * Backspace-at-start behavior for a container's children; strategies live in
@@ -45,14 +55,9 @@ export interface UnwrapRole {
 	 * re-emits, so the remainder keeps its kind; `'keep-reserved-chrome'` declines, because
 	 * child 0 is the container's chrome and a lift would carry it out.
 	 */
-	firstChildBackspace:
-		(typeof LIFTING_FIRST_CHILD_BACKSPACE)[number] | 'keep-reserved-chrome' | 'list-item-cascade';
+	firstChildBackspace: FirstChildBackspace;
 	middleChildBackspace: 'default-merge' | 'list-item-cascade';
 }
-
-/** G1.37's chrome arms read the tuple, so a new lifting strategy joins them by being listed. */
-export const liftsFirstChild = (strategy: UnwrapRole['firstChildBackspace']): boolean =>
-	(LIFTING_FIRST_CHILD_BACKSPACE as readonly string[]).includes(strategy);
 
 /**
  * A container whose direct children reorder among themselves (Alt+Arrow / drag handle). The
