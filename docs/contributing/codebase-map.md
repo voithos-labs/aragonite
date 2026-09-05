@@ -245,9 +245,9 @@ insert in `src/lib/editor-actions/list-context.ts`, the chain rebuild in
 `docs/design/syntax-tree.md` § Blank lines before touching any of it: two byte-equivalent trivia
 shapes exist, and which one you're holding decides which helper applies.
 
-Its sibling family is the **seam absorb**, for the joins no separator can hold apart (a list
+Its sibling family is the **seam absorb**, for the joins the reload reads as one block (a list
 newly standing above indented code, a demoted heading no longer interrupting the paragraph under
-it); the tree converges to the reload's reading of such a join, and `docs/design/editor.md` § 8
+it, a paragraph put directly above its own `===` underline); the tree converges to the reload's reading of such a join, and `docs/design/editor.md` § 8
 says why. `src/lib/tree-operations/node-ops.ts` :: `absorbSeamReading` answers one join, and
 everything that disturbs one owes it the question: `splitNode` asks it directly, while
 `deleteNode`, every settling return of `updateNodeContent`, the splice funnel behind
