@@ -251,16 +251,34 @@ export function headingKeys(heading) {
 
 /**
  * @param {string} text
+ * @returns {string[]}
+ */
+function headingLines(text) {
+	return text.split('\n').flatMap((line) => {
+		const heading = /^#{1,6}\s+(.+?)\s*$/.exec(line);
+		return heading ? [heading[1]] : [];
+	});
+}
+
+/**
+ * @param {string} text
  * @returns {Set<string>}
  */
 export function headingsOf(text) {
 	/** @type {Set<string>} */
 	const keys = new Set();
-	for (const line of text.split('\n')) {
-		const heading = /^#{1,6}\s+(.+?)\s*$/.exec(line);
-		if (heading) for (const key of headingKeys(heading[1])) keys.add(key);
-	}
+	for (const heading of headingLines(text)) for (const key of headingKeys(heading)) keys.add(key);
 	return keys;
+}
+
+/**
+ * The anchor each heading defines. The strict half of {@link headingsOf}, whose looser spellings
+ * exist for a prose citer: a `#fragment` link means one slug, so an approximation of it resolves.
+ * @param {string} text
+ * @returns {Set<string>}
+ */
+export function anchorsOf(text) {
+	return new Set(headingLines(text).map(slug));
 }
 
 /**

@@ -1,7 +1,8 @@
 // Two documentation gates, both run on every invocation. With a <dir> argument the pack
 // is also written there (the directory is cleared first — see the refusal below).
 // Gate 1: the public docs pack (docs/guide/, subfolders included) leaves the repo as one tree, so
-// every relative pointer must land on a file the pack carries — a doc, or an asset beside it.
+// every relative pointer must land on a file the pack carries — a doc, or an asset beside it — and
+// a `#fragment` on one must name a heading that doc still has.
 // Gate 2: the rest of the corpus (README, CONTRIBUTING, docs/) must have every relative link
 // resolve to a real file or directory.
 import { execSync } from 'node:child_process';
@@ -16,6 +17,7 @@ import {
 	unlinkSync
 } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
+import { anchorsOf } from './check-codebase-map.mjs';
 
 const SOURCE_DIR = 'docs/guide';
 
@@ -43,12 +45,21 @@ if (packNames.length === 0) {
 const INLINE_TARGET = /\]\(([^)]+)\)/g; // `[text](t)` and `![alt](t)` (the latter contains `](t)`)
 const REFERENCE_TARGET = /^[ \t]*\[[^\]]+\]:[ \t]*(\S+)/gm; // `[label]: t` link definitions
 
-function normalizeTarget(raw) {
+/** A target unwrapped and stripped of its link title, fragment still attached. */
+function cleanTarget(raw) {
 	let target = raw.trim();
 	if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1).trim();
-	target = target.replace(/\s+["'].*$/s, ''); // drop a link title: `t "Title"`
-	target = target.split('#')[0]; // drop the fragment
-	return target.replace(/^\.\//, '');
+	return target.replace(/\s+["'].*$/s, ''); // drop a link title: `t "Title"`
+}
+
+function normalizeTarget(raw) {
+	return cleanTarget(raw).split('#')[0].replace(/^\.\//, '');
+}
+
+/** The `#fragment` a target carries, or `''` where it names a whole file. */
+function targetFragment(raw) {
+	const at = cleanTarget(raw).indexOf('#');
+	return at < 0 ? '' : cleanTarget(raw).slice(at + 1);
 }
 
 function isExternal(target) {
@@ -60,7 +71,16 @@ function isExternal(target) {
 	);
 }
 
+const anchorIndex = new Map();
+function anchorsIn(name) {
+	if (!anchorIndex.has(name)) {
+		anchorIndex.set(name, anchorsOf(readFileSync(join(SOURCE_DIR, name), 'utf8')));
+	}
+	return anchorIndex.get(name);
+}
+
 const deadPointers = [];
+const deadAnchors = [];
 for (const name of packNames) {
 	const text = readFileSync(join(SOURCE_DIR, name), 'utf8');
 	const rawTargets = [
@@ -69,15 +89,27 @@ for (const name of packNames) {
 	];
 	for (const raw of rawTargets) {
 		const target = normalizeTarget(raw);
-		if (target === '' || isExternal(target)) continue; // pure anchor or off-pack URL
-		// A `..` that climbs out of the pack can never land on a listed file.
-		if (packFiles.includes(posix.normalize(posix.join(posix.dirname(name), target)))) continue;
-		deadPointers.push(`${name}: ${raw.trim()}`);
+		if (isExternal(target)) continue; // off-pack URL
+		// A `..` that climbs out of the pack can never land on a listed file; an empty target is
+		// this doc's own anchor.
+		const doc = target === '' ? name : posix.normalize(posix.join(posix.dirname(name), target));
+		if (!packFiles.includes(doc)) {
+			deadPointers.push(`${name}: ${raw.trim()}`);
+			continue;
+		}
+		const fragment = targetFragment(raw);
+		if (fragment === '' || !doc.endsWith('.md')) continue;
+		if (!anchorsIn(doc).has(fragment)) deadAnchors.push(`${name}: ${raw.trim()}`);
 	}
 }
 if (deadPointers.length > 0) {
 	console.error('docs-pack: dead pointers (every target must name a file the pack ships):');
 	for (const hit of deadPointers) console.error(`  ${hit}`);
+	process.exit(1);
+}
+if (deadAnchors.length > 0) {
+	console.error('docs-pack: dangling anchors (every #fragment must name a heading its doc has):');
+	for (const hit of deadAnchors) console.error(`  ${hit}`);
 	process.exit(1);
 }
 

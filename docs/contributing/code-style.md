@@ -88,7 +88,7 @@ npm run lint     # check
 `npm run lint` sits in the commit gate (the checks that must be green before a commit), and it's actually four checks in a row:
 
 1. the Prettier check
-2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, and links in the published guide may not leave it
+2. the docs-pack link gate (`scripts/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide may not leave it, and an `#anchor` inside the guide must name a heading its target doc still carries
 3. the codebase-map reference gate (`scripts/check-codebase-map.mjs`): every `src/`, `docs/`, or `scripts/` path a design or contributing doc names in backticks must still exist on disk, and every `<doc>.md § Section name` pointer in the tree must still name a heading that doc carries
 4. ESLint
 
