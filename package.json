@@ -227,7 +227,7 @@
 		"typescript-eslint": "^8.67.0",
 		"vite": "^8.2.2",
 		"vitest": "^4.1.0",
-		"wrangler": "4.125.0"
+		"wrangler": "4.128.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.2"
