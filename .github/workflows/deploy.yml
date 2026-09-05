@@ -1,7 +1,12 @@
 name: Deploy
 
-# TODO(#282): also fire on a merge to `main`, once the first manual run is verified.
+# Fires after CI passes on main rather than on the push itself, so a red main never
+# deploys. The manual trigger stays for a re-run.
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -18,9 +23,15 @@ concurrency:
 # rides the same lockfile and dependabot lane as everything else.
 jobs:
   deploy:
+    # `branches` filters the triggering run's head branch, which a fork's own `main` also
+    # matches, so the event is pinned to a push as well.
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The commit CI passed, not whatever main points at by the time this runs.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
