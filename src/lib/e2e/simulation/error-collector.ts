@@ -3,19 +3,25 @@ import type { Page } from '@playwright/test';
 export interface ErrorCollector {
 	/** Call once at session start, before any gesture. */
 	start(): Promise<void>;
-	/** Throw if any channel recorded a failure since `start`. `waive` names the devWarn tags
-	 *  this checkpoint provokes on purpose (e.g. `['tree-ops']`); everything else reds. */
+	/** Throw if any channel recorded a failure since `start`. `waive` names the tags this
+	 *  checkpoint provokes on purpose (`['tree-ops']`, `['svelte:derived_inert']`); everything
+	 *  else reds. */
 	assertNone(waive?: string[]): Promise<void>;
 }
 
 /** Every editor dev warning, invariant fires included: `devWarn` heads them all. */
 const SENTINEL_TAG = /\[aragonite:([^\]]+)\]/;
 
-/** Svelte's own runtime warn for the raw-vs-proxy ref-slot class, so it carries no sentinel. */
-const RUNTIME_WARNINGS = ['state_proxy_equality_mismatch'];
+/** Svelte's own runtime warnings carry no sentinel; they head their code instead. */
+const SVELTE_CODE = /\[svelte\]\s+([a-z0-9_]+)/;
 
-/** The tag of an unsentinelled runtime warn: waivable only by an explicit empty-string tag. */
-const UNTAGGED = '';
+/** The two console heads share one tag namespace, so one waiver list covers both. */
+function warnTagOf(text: string): string | null {
+	const sentinel = SENTINEL_TAG.exec(text)?.[1];
+	if (sentinel) return sentinel;
+	const code = SVELTE_CODE.exec(text)?.[1];
+	return code ? `svelte:${code}` : null;
+}
 
 /**
  * Three channels a long session must stay clean on: console errors + pageerrors,
@@ -34,10 +40,8 @@ export function attachErrorCollector(page: Page): ErrorCollector {
 			return;
 		}
 		if (type !== 'warning') return;
-		const tag = SENTINEL_TAG.exec(m.text())?.[1];
-		if (tag !== undefined) warnings.push({ tag, text: `failing warning: ${m.text()}` });
-		else if (RUNTIME_WARNINGS.some((mark) => m.text().includes(mark)))
-			warnings.push({ tag: UNTAGGED, text: `failing warning: ${m.text()}` });
+		const tag = warnTagOf(m.text());
+		if (tag) warnings.push({ tag, text: `failing warning: ${m.text()}` });
 	});
 	return {
 		async start() {

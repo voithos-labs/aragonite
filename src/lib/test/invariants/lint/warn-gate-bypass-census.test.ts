@@ -1,8 +1,8 @@
 /**
  * G4.41 — nothing under `src/lib` reads dev warnings around the fail-on-warn gate. A file that
  * mocks `dev-warn` replaces the function the sink lives in, and a file that spies `console.warn`
- * reads a channel a registered sink silences: either way the gate is blind for that whole file,
- * and a guard firing there passes unnoticed. One file pins the arm itself and says so below.
+ * reads a channel a registered sink silences while taking Svelte's runtime warnings off the gate:
+ * either way the gate is blind for that whole file. One file pins the arm itself and says so below.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -45,7 +45,8 @@ describe('G4.41 warn-gate bypass census', () => {
 		expect(
 			paths(sources, spiesConsoleWarn),
 			'a registered sink takes reporting over, so a console spy sees nothing a dev warning ' +
-				'wrote; a test asserting on one is asserting on silence'
+				'wrote and hides every Svelte runtime warning from the gate; a test asserting on ' +
+				'one is asserting on silence'
 		).toEqual(Object.keys(CONSOLE_WARN_READERS).sort());
 	});
 

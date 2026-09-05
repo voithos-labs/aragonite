@@ -34,6 +34,14 @@ async function pollUntilThrows(errors: ErrorCollector, waive?: string[]): Promis
 const warnOnPage = (page: Page, text: string): Promise<void> =>
 	page.evaluate((t) => console.warn(t), text);
 
+/** Svelte's own emission shape, `%c` styling included, so the watch is read against the real one. */
+const svelteWarnOnPage = (page: Page, code: string): Promise<void> =>
+	page.evaluate(
+		(c) =>
+			console.warn(`%c[svelte] ${c}\n%cinjected fire`, 'font-weight: bold', 'font-weight: normal'),
+		code
+	);
+
 test.describe('simulation error collector', () => {
 	let editor: EditorPage;
 
@@ -61,15 +69,6 @@ test.describe('simulation error collector', () => {
 		await assertThrows(errors);
 	});
 
-	// Svelte's own runtime warn for the raw-vs-proxy ref-slot class: no sentinel to key on,
-	// so the collector carries the literal mark.
-	test('catches a state_proxy_equality_mismatch warning', async ({ page }) => {
-		const errors = attachErrorCollector(page);
-		await errors.start();
-		await warnOnPage(page, 'state_proxy_equality_mismatch injected ref-slot fault');
-		await pollUntilThrows(errors);
-	});
-
 	test('ignores a page warning that carries no aragonite sentinel', async ({ page }) => {
 		const errors = attachErrorCollector(page);
 		await errors.start();
@@ -92,6 +91,21 @@ test.describe('simulation error collector: the dev-warn sentinel', () => {
 		await warnOnPage(page, '[aragonite:tree-ops] injected dev warning');
 		await pollUntilThrows(errors);
 		await errors.assertNone(['tree-ops']);
+	});
+});
+
+// Svelte's runtime warns carry no sentinel, so both watches key on the `[svelte] <code>` head
+// instead. The `test.use` claim proves the spec watch saw it; the waiver proves the collector did.
+test.describe('simulation error collector: the svelte runtime channel', () => {
+	test.use({ expectSvelteWarns: ['state_proxy_equality_mismatch'] });
+
+	test('reds on a svelte runtime warning, and the waiver silences that code', async ({ page }) => {
+		await new EditorPage(page).goto();
+		const errors = attachErrorCollector(page);
+		await errors.start();
+		await svelteWarnOnPage(page, 'state_proxy_equality_mismatch');
+		await pollUntilThrows(errors);
+		await errors.assertNone(['svelte:state_proxy_equality_mismatch']);
 	});
 });
 

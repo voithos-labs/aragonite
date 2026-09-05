@@ -27,9 +27,11 @@ asserting `assertNone` throws.
 - every dev warning is caught, not just invariant fires: a plain
   `[aragonite:…]` warning trips `assertNone`, so a diagnostic the editor emits
   mid-session cannot ride out a green run
-- ref-slot proxy warnings are caught: a `state_proxy_equality_mismatch`
-  warning trips `assertNone`, so the raw-vs-proxy ref-slot class reds the gate
-  the day it returns, and Svelte's runtime warn carries no sentinel to key on
+- Svelte runtime warnings are caught by their code, not by a list of known ones:
+  a warning headed `[svelte] state_proxy_equality_mismatch`, emitted in Svelte's
+  own `%c` shape, trips `assertNone`, and the waiver that silences it
+  (`svelte:state_proxy_equality_mismatch`) reads the same at the spec watch and
+  at the checkpoint
 - warnings from outside the editor are ignored: a `console.warn` with no
   `[aragonite:…]` head does not trip the collector, so a host page's own
   diagnostics stay out of the verdict

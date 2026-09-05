@@ -1,11 +1,11 @@
 /**
- * Fail-on-warn unit gate (Vitest setup). Every `devWarn` fire reds its owning test unless the
- * test claims it (`takeDevWarns` to assert on it, `drainDevWarns` to discard it, `allowDevWarns`
- * for a file's incidental tags) or the site is allowlisted for the whole run. Reads the
- * structured sink, never a console spy, because suites shadow `console.warn`. The claim doors are
- * file-level `afterEach` hooks, so the config pins `sequence.hooks: 'stack'` to order them first.
- * A per-file `afterAll` closes the two holes a per-test verdict cannot see: a declared tag that
- * no longer fires, and a fire that outlived every test.
+ * Fail-on-warn unit gate (Vitest setup). Every `devWarn` fire and every Svelte runtime warning
+ * reds its owning test unless the test claims it (`takeDevWarns` to assert on it, `drainDevWarns`
+ * to discard it, `allowDevWarns` for a file's incidental tags) or the site is allowlisted for the
+ * whole run. The claim doors are file-level `afterEach` hooks, so the config pins
+ * `sequence.hooks: 'stack'` to order them first. A per-file `afterAll` closes the two holes a
+ * per-test verdict cannot see: a declared tag that no longer fires, and a fire that outlived
+ * every test.
  */
 
 import { afterAll, afterEach, expect } from 'vitest';
@@ -124,6 +124,37 @@ const gateSink: DevWarnSink = (entry) => {
 };
 
 setDevWarnSink(gateSink);
+
+// ── The Svelte runtime channel ───────────────────────────────────────────────
+
+/** Svelte's runtime warnings print through `console.warn` and nowhere else, headed
+ *  `%c[svelte] <code>`; they join the sink under a `svelte:` tag so one claim door covers both. */
+const SVELTE_WARN = /\[svelte\]\s+([a-z0-9_]+)/;
+
+const PRINT = Symbol.for('aragonite:warn-gate:print');
+
+type WatchedWarn = typeof console.warn & { [PRINT]?: typeof console.warn };
+
+function watchSvelteWarns(): void {
+	// Vitest may hand a later file the console a previous one wrapped; unwrap first so the
+	// watch reads THIS file's sink rather than chaining onto a dead module instance.
+	const print = (console.warn as WatchedWarn)[PRINT] ?? console.warn;
+	const watch: WatchedWarn = (...args: unknown[]) => {
+		const code = SVELTE_WARN.exec(String(args[0]))?.[1];
+		if (code === undefined) {
+			print(...args);
+			return;
+		}
+		gateSink({
+			tag: `svelte:${code}`,
+			message: String(args[0]).replace(/%c/g, '').replace(/\n/g, ' ')
+		});
+	};
+	watch[PRINT] = print;
+	console.warn = watch;
+}
+
+watchSvelteWarns();
 
 const STOLEN_SINK =
 	'This test replaced the devWarn sink and never restored it, so the fail-on-warn gate was ' +
