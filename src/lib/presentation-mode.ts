@@ -40,6 +40,18 @@ export function isPreviewMode(mode: PresentationMode): boolean {
 }
 
 /**
+ * Whether virtual rendering may window a mode's blocks. Live is the one mode that never
+ * windows: its blocks are the heavy ones (highlighted code, rendered math, diagrams), so a
+ * window that mounts and unmounts a couple of them on EVERY scroll event — plus the measure
+ * batch and the scroll correction that follow — turned a wheel tick into a visible hitch,
+ * and the per-block height estimates it depends on are least reliable there, which is the
+ * jump. Every block stays mounted instead, at the cost of a long document's mount time.
+ */
+export function windowsBlocks(mode: PresentationMode): boolean {
+	return mode !== 'live';
+}
+
+/**
  * Whether the mode paints a marker in the block the caret is in: styled source always, and the
  * preview rungs by revealing that block. The question every seam writing at the caret asks, since
  * a rewrite may only drop bytes the reader never saw (live-mode.md § 2).

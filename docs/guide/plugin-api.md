@@ -188,6 +188,7 @@ Register **before mounting an editor**: a block already on screen re-tokenizes o
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerLanguage` | Add a grammar under a name, with optional aliases; idempotent, so a repeat call with the same name is a no-op                          |
 | `listLanguages`    | Every registered name and alias, sorted — what the code block's language picker offers                                                 |
+| `highlightCode`    | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface   |
 | `LanguageGrammar`  | The registry's read shape: the resolved name and its definition                                                                        |
 | `LanguageFn`       | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
 

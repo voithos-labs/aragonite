@@ -1,15 +1,18 @@
 import { getContext, setContext } from 'svelte';
 import {
 	EDITOR_DOC_KEY,
+	EDITOR_POLICIES_KEY,
 	EDITOR_SERVICES_KEY,
 	PARENT_SCOPE_SINK_KEY,
 	RECORD_BLOCK_HEIGHT_KEY,
 	type BlockElLookup,
 	type BlockMeasureChannel,
 	type EditorDoc,
+	type EditorPolicies,
 	type EditorServices,
 	type ParentScopeSink
 } from '../editor-keys';
+import { windowsBlocks } from '../presentation-mode';
 import type { NodeView } from '../core/node-views';
 import type { RevealTarget } from '../cursor/reveal-anchor';
 import {
@@ -83,6 +86,11 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
 	const parentSink = getContext<ParentScopeSink | undefined>(PARENT_SCOPE_SINK_KEY);
 	const revealAnchor = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY)?.revealAnchor;
+	// The mode is read live inside the window derived, so a flip to or from live re-decides
+	// activation on the next recompute rather than at this scope's next mount.
+	const presentationMode = getContext<EditorPolicies | undefined>(
+		EDITOR_POLICIES_KEY
+	)?.presentationMode;
 	// Single-claimant: nested scopes keep top-of-viewport anchoring, or their deltas would
 	// fight over one scrollTop.
 	const claimsRevealAnchor = opts.getParentPath().length === 0;
@@ -112,7 +120,8 @@ export function useContainerWindowing(opts: ContainerWindowingOpts): ListWindowi
 		overscan: 6,
 		pinExtensionCap: 100,
 		activateAbovePx: 4000,
-		deactivateBelowPx: 3000
+		deactivateBelowPx: 3000,
+		windowingSuppressed: () => !windowsBlocks(presentationMode?.() ?? 'source')
 	});
 
 	if (opts.provideLeafChannel) {

@@ -104,6 +104,9 @@ export type { BlockCompleter, CompletionResult } from './schema/block-completion
 // An unregistered language is not an error — the fence still round-trips, just untokenized.
 export { registerLanguage, listLanguages } from './components/blocks/code/code-languages';
 export type { LanguageGrammar } from './components/blocks/code/code-languages';
+// The code block's own tokenizer, for a plugin whose source surface wants the same highlighting
+// (block math paints its LaTeX with it). Text-preserving: the fragment's textContent is `body`.
+export { tokenizeBody as highlightCode } from './components/blocks/code/code-renderer';
 // Re-exported so a host names the grammar type without importing highlight.js itself, which
 // it holds only transitively.
 export type { LanguageFn } from 'highlight.js';

@@ -68,6 +68,9 @@ export interface ListWindowingDeps {
 	pinExtensionCap: number;
 	activateAbovePx: number;
 	deactivateBelowPx: number;
+	/** True while windowing is withheld regardless of height (live mode); every scope of the
+	 *  editor reads the same answer, so no scope windows while its siblings do not. */
+	windowingSuppressed?: () => boolean;
 }
 
 export interface ListWindowing {
@@ -358,7 +361,8 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		overscan: deps.overscan,
 		pinExtensionCap: deps.pinExtensionCap,
 		activateAbovePx: deps.activateAbovePx,
-		deactivateBelowPx: deps.deactivateBelowPx
+		deactivateBelowPx: deps.deactivateBelowPx,
+		getSuppressed: deps.windowingSuppressed
 	});
 
 	// The collapse clamp substituted at the returned surface. While collapsed this doesn't

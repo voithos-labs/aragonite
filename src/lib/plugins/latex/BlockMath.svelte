@@ -13,6 +13,7 @@
 	const MATH_PREVIEW_SHOW = 'Show the rendered preview';
 	import { renderDisplayMath } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
+	import { renderMathSource } from './math-source';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -26,6 +27,9 @@
 	// Per-instance and per-session: a reader who folds the preview away is asking about THIS
 	// equation while they edit it, not setting a preference for the document.
 	let previewOpen = $state(true);
+	// The in-flight source while revealed: a render-primary edit reaches the CST only on blur,
+	// so the live preview reads the surface, not the node. Null when nothing is in flight.
+	let draft = $state<string | null>(null);
 
 	const leaf = createEditableLeaf({
 		getNode: () => node,
@@ -36,8 +40,23 @@
 		isRevealed: () => revealed,
 		setRevealed: (value) => {
 			revealed = value;
+			draft = null;
+		},
+		renderSource: renderMathSource,
+		onSourceEdit: (text) => {
+			draft = text;
 		}
 	});
+
+	// The edits the leaf applies itself report through `onSourceEdit`; this is the native path
+	// (a composition's commit), where the highlight goes stale until repainted. The leaf's own
+	// handler runs first so the IME bookkeeping it owns is untouched.
+	function onSourceInput(e: Event): void {
+		leaf.surfaceProps.oninput();
+		if ((e as InputEvent).isComposing) return;
+		leaf.repaintSource();
+		draft = sourceEl?.textContent ?? null;
+	}
 
 	// ── View rendering ──────────────────────────────────────────────────────────
 
@@ -47,7 +66,7 @@
 		if (!renderEl) return;
 		// Runs while REVEALED as well: the split keeps a live preview beside the source, so the
 		// equation re-renders as it is typed rather than only when the source folds away.
-		renderEl.replaceChildren(renderDisplayMath(mathDisplaySource(leaf.sourceText)).dom);
+		renderEl.replaceChildren(renderDisplayMath(mathDisplaySource(draft ?? leaf.sourceText)).dom);
 		renderCount += 1;
 		renderEl.dataset.renderCount = String(renderCount);
 	});
@@ -96,6 +115,7 @@
 			<div
 				bind:this={sourceEl}
 				{...leaf.surfaceProps}
+				oninput={onSourceInput}
 				class="math-block-source md-source-surface"
 				aria-label="Math source"
 			></div>
@@ -165,6 +185,12 @@
 		grid-template-columns: 1fr 1fr;
 		align-items: stretch;
 		gap: 6px;
+	}
+
+	/* Two equations with no blank line between them are two blocks; without a gap their fills
+	   touch and read as one. Padding, not margin: the height model measures the host's box. */
+	:global(.block-host[data-block-kind='mathBlock'] + .block-host[data-block-kind='mathBlock']) {
+		padding-top: 0.5em;
 	}
 
 	/* Each half is its own card, and the containing block for its eye. */

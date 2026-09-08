@@ -22,7 +22,8 @@ import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
 	setCursorOffset,
 	getCursorOffset,
-	getSelectionOffsets
+	getSelectionOffsets,
+	getRangeOffsets
 } from '../../cursor/content-offsets';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
@@ -32,6 +33,11 @@ import {
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
+import {
+	CONTENT_EMPTY_ATTR,
+	clampToLandableRaw,
+	holdsOnlyMarkerChrome
+} from '../../cursor/widget-offset';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
@@ -71,6 +77,18 @@ export interface EditableLeafDeps {
 	 * platform treats it as `unknown`; the plugin casts it.
 	 */
 	commandHooks?: () => unknown;
+	/**
+	 * Paints the source as DOM instead of one text node — fence lines the mode CSS hides,
+	 * highlight tokens. Must keep `fragment.textContent === text` (G1.28); the offset walk sees
+	 * through spans, and hidden marker runs behave as they do in a code block.
+	 */
+	renderSource?(text: string): DocumentFragment;
+	/**
+	 * The surface's text after each edit the leaf applies itself (a painted source's typing,
+	 * deleting, Enter). A render-primary host keeping a live preview reads this: the CST sees
+	 * the edit only on blur, and a cancelled `beforeinput` fires no `input` event.
+	 */
+	onSourceEdit?(text: string): void;
 }
 
 /**
@@ -86,6 +104,7 @@ export interface EditableLeafSurfaceProps {
 	role: 'textbox';
 	spellcheck: 'false';
 	oninput: () => void;
+	onbeforeinput: (e: InputEvent) => void;
 	onkeydown: (e: KeyboardEvent) => void | Promise<void>;
 	oncopy: (e: ClipboardEvent) => void;
 	oncut: (e: ClipboardEvent) => Promise<void>;
@@ -114,6 +133,12 @@ export interface EditableLeafRenderProps {
 export interface EditableLeaf {
 	/** The block's source minus its trailing line ending — the editable text. */
 	readonly sourceText: string;
+
+	/**
+	 * Re-run `renderSource` over the surface's CURRENT text with the caret kept, for a host
+	 * that repaints as the user types (highlighting goes stale otherwise). No-op without it.
+	 */
+	repaintSource(): void;
 
 	/** The one-spread source surface (attributes + handlers + view/park attachments). */
 	surfaceProps: EditableLeafSurfaceProps;
@@ -377,6 +402,26 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── View sync ──────────────────────────────────────────────────────────────
 
+	// The one place source bytes become DOM. A painter's chrome-only case (a fence with no body
+	// line) takes the same stamp a code block does, so its markers paint while focused.
+	function paintSource(el: HTMLElement, text: string): void {
+		if (deps.renderSource) {
+			el.replaceChildren(deps.renderSource(text));
+			el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
+		} else {
+			el.textContent = text;
+		}
+		anchorTrailingNewline(el);
+	}
+
+	function repaintSource(): void {
+		const el = deps.getEl();
+		if (!el || !deps.renderSource || composing) return;
+		const offset = getCursorOffset(el);
+		paintSource(el, el.textContent ?? '');
+		if (offset !== null) setCursorOffset(el, asDomTextOffset(offset));
+	}
+
 	function syncSource(): void {
 		const text = sourceText();
 		const el = deps.getEl();
@@ -384,8 +429,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const pending = pendingCursor;
 		pendingCursor = null;
 		if ((el.textContent ?? '') !== text) {
-			el.textContent = text;
-			anchorTrailingNewline(el);
+			paintSource(el, text);
 			// Restore only under a live caret — an external rewrite (undo, structural
 			// replace) must not steal focus.
 			consumePendingRestore(el, pending, (offset) => setCursorOffset(el, asDomTextOffset(offset)));
@@ -399,8 +443,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// inject <div>/<br> that vanish from textContent.
 	function spliceSourceText(el: HTMLElement, start: number, end: number, insert: string): void {
 		const text = el.textContent ?? '';
-		el.textContent = text.slice(0, start) + insert + text.slice(end);
-		anchorTrailingNewline(el);
+		const next = text.slice(0, start) + insert + text.slice(end);
+		paintSource(el, next);
+		deps.onSourceEdit?.(next);
 		preEditOffset = start;
 		setCursorOffset(el, asDomTextOffset(start + insert.length));
 		if (mode === 'plain') editableSurface.onInput();
@@ -474,6 +519,43 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	}
 
+	/**
+	 * A painted source takes plain text edits here, not from the engine: Chromium treats a lone
+	 * `\n` text node as a placeholder and replaces it on insert (a fresh `$$` block lost the line
+	 * before its closer), and a native delete has no notion of hidden chrome. The edit range is
+	 * clamped to the landable span, so nothing reaches a fence line. Composition stays native.
+	 */
+	function onBeforeInput(e: InputEvent): void {
+		if (!deps.renderSource || composing || e.isComposing) return;
+		const el = deps.getEl();
+		if (!el) return;
+		let insert: string;
+		switch (e.inputType) {
+			case 'insertText':
+				insert = e.data ?? '';
+				break;
+			case 'insertLineBreak':
+			case 'insertParagraph':
+				insert = '\n';
+				break;
+			case 'deleteContentBackward':
+			case 'deleteContentForward':
+			case 'deleteWordBackward':
+			case 'deleteWordForward':
+				insert = '';
+				break;
+			default:
+				return;
+		}
+		const target = e.getTargetRanges()[0];
+		const range = target ? getRangeOffsets(el, target) : null;
+		if (!range) return;
+		e.preventDefault();
+		const start = clampToLandableRaw(el, range.start, 0);
+		const end = Math.max(start, clampToLandableRaw(el, range.end, 0));
+		spliceSourceText(el, start, end, insert);
+	}
+
 	function onPointerDown(e: PointerEvent): void {
 		void crossBlock.handlePointerDown(e);
 	}
@@ -518,6 +600,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		role: 'textbox' as const,
 		spellcheck: 'false' as const,
 		oninput: editableSurface.onInput,
+		onbeforeinput: onBeforeInput,
 		onkeydown: handleKeydown,
 		oncopy: clipboard.onCopy,
 		oncut: clipboard.onCut,
@@ -562,6 +645,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		get sourceText() {
 			return sourceText();
 		},
+		repaintSource,
 
 		surfaceProps,
 		renderProps,

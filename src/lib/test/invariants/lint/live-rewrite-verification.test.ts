@@ -71,6 +71,7 @@ const MARKER_FAMILY_NAMERS: Record<string, string> = {
 	'src/lib/ambient/ambient-dom.ts': 'mints that same island',
 	'src/lib/components/blocks/text/text-render.ts': "mints the block's own prefix span",
 	'src/lib/components/blocks/code/code-renderer.ts': 'mints the fence marker spans',
+	'src/lib/plugins/latex/math-source.ts': 'mints the `$$` fence marker spans',
 	'src/lib/invariants/marker-css-parity.ts': 'mounts one probe span per family for the DEV probe'
 };
 
