@@ -495,7 +495,16 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 		return { node: sibling, offset: side === 'before' ? (sibling.textContent?.length ?? 0) : 0 };
 	}
 	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
+	// A pending hard break's first anchor (`inline-render.ts`) ends the line the marker sat on;
+	// the seat past the marker is the start of the next one, which is after that anchor.
+	if (side === 'after' && isBreakAnchor(sibling)) return { node: parent, offset: idx + 2 };
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
+}
+
+function isBreakAnchor(node: Node | null): boolean {
+	return (
+		node instanceof HTMLElement && node.tagName === 'BR' && node.dataset.caretAnchor === 'break'
+	);
 }
 
 type WalkSegment =

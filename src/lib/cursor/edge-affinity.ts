@@ -82,10 +82,17 @@ export function classifyArrivalKey(key: string, metaKey = false): EdgeAffinityAc
 	// macOS Cmd+Arrow is the line extreme — a seat, not a step, so it takes Home/End's
 	// construct-relative answer. Windows/Linux never deliver meta+arrow to the page.
 	if (metaKey && (key === 'ArrowLeft' || key === 'ArrowRight')) return 'outside';
-	// A step stops on the side of the run it approached from, so one press never changes which
-	// construct the caret is in: forward keys reach the near side, backward keys the far one.
-	if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') return 'near';
-	if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') return 'far';
+	// A HORIZONTAL step crosses the run it meets, so one press moves the caret through a
+	// delimiter in reading order: Right enters at an opener and leaves at a closer, Left the
+	// mirror. Stopping on the approached side instead cost two presses at every hidden run —
+	// and since both offsets paint one pixel, the first press moved nothing on screen, which
+	// is what made a code span feel impossible to get out of.
+	if (key === 'ArrowRight') return 'far';
+	if (key === 'ArrowLeft') return 'near';
+	// VERTICAL motion lands by column rather than stepping across a run, so it keeps the
+	// approached side: the run is beside where the caret arrived, not something it crossed.
+	if (key === 'ArrowDown' || key === 'PageDown') return 'near';
+	if (key === 'ArrowUp' || key === 'PageUp') return 'far';
 	// A line extreme is construct-relative, not directional: `Home` before a line-leading
 	// construct means before its opener, which is the run's EARLIER side — the opposite
 	// walk-order answer from `End` after a line-trailing one.

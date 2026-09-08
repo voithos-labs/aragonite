@@ -147,6 +147,12 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 			claims: handlePendingMarks
 		},
 		{
+			id: 'transitional-hard-break',
+			reason:
+				'a hard break at the end of a block has no following line yet, so its own position is where the next byte starts that line',
+			claims: handleTransitionalHardBreak
+		},
+		{
 			id: 'cst-widget',
 			reason: 'a key aimed at an atomic construct is the widget branch’s before any byte rule',
 			claims: handleCstWidget
@@ -556,6 +562,29 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	}
 
 	// ── Pending marks (the toggle seat) ────────────────────────────────────────
+
+	/**
+	 * The byte that completes a hard break made at the END of a block. `insertHardBreak` writes
+	 * `\\` plus the block's ending there, but that ending IS the block's trailing one, so the
+	 * display stops at the backslash and the caret has nowhere to sit past it. The next
+	 * printable key is what supplies the following line: it lands AFTER the break rather than
+	 * between the backslash and its newline, where it would read as content and undo the break.
+	 */
+	function handleTransitionalHardBreak(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
+		if (deps.isReading()) return false;
+		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		const d = display();
+		// Only at the very end, and only when the block's last byte is the break's backslash.
+		if (caretOffset !== d.length || !d.endsWith('\\')) return false;
+		// An escaped backslash (`\\\\`) is content, not a break.
+		if (d.endsWith('\\\\')) return false;
+		const ending = trailingLineEnding(deps.node.raw);
+		e.preventDefault();
+		deps.setSnapTarget(null);
+		const next = d + ending + e.key;
+		writeDisplay(next, next.length, 'transitional-hard-break', caretOffset);
+		return true;
+	}
 
 	/**
 	 * A printable key while a collapsed-caret toggle has marks pending. Marks are the newer

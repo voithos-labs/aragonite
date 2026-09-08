@@ -450,15 +450,23 @@
 }
 
 /* Chrome with nothing behind it has nowhere to hide: a construct whose only bytes are its own
-   markers would paint as an empty line with no caret position, so an editable rung shows them
-   dimmed exactly as source does. Mirrored in `cursor/widget-offset.ts` (same two modes, same
-   two families); reading takes no keystrokes and keeps its silence. The `[contenteditable]`
-   qualifier scopes the stamp to the walk containers its JS twin reads, which is what a block
-   decoration spelling `data-content-empty` onto the block host cannot reach. */
+   markers has no caret position, so an editable rung shows them dimmed as source does — but
+   only while the surface holds focus, since the seat is for a caret and a block nobody is in
+   reads as the empty construct it is. Mirrored in `cursor/widget-offset.ts` (same modes, same
+   families); reading keeps its silence. `[contenteditable]` scopes the stamp to the walk
+   containers its JS twin reads, which a decoration on the block host cannot reach. */
 :where(.editor):is([data-presentation^='preview-'], [data-presentation='live'])
-	[contenteditable][data-content-empty]
+	[contenteditable][data-content-empty]:focus-within
 	:is(.md-marker:not([contenteditable='false']), .md-fence-line) {
 	display: inline;
+}
+
+/* Two fences with no blank line between them are two boxes; without a gap they read as one
+   split box. Padding, not margin: the height model measures the host's border box. */
+:where(.editor)
+	.block-host[data-block-kind='fencedCode']
+	+ .block-host[data-block-kind='fencedCode'] {
+	padding-top: 0.5em;
 }
 
 /* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's
@@ -498,7 +506,10 @@
 	visibility: visible;
 }
 
-/* GitHub task lists carry no bullet, so the `- ` prefix hides and the checkbox stays. */
+/* GitHub task lists carry no bullet, so the `- ` prefix hides and the checkbox stays — but as
+   a BOX rather than the literal `[ ]` glyphs. The span keeps its box (visibility, not display)
+   because the hanging indent is keyed to its ch width; the glyphs hide inside it and the
+   pseudo-elements paint the control in their slot. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -506,7 +517,70 @@
 	)
 	.list-item-block[data-list-marker='task']
 	.task-checkbox {
+	visibility: hidden;
+	position: relative;
+	/* A fixed slot: `[ ]` and `[x]` differ in width in a proportional face, so the hidden
+	   glyphs would shift the item's text on every toggle. The margin puts back the space that
+	   follows them in the marker; the marker's own text is untouched. */
+	display: inline-block;
+	width: 1.1em;
+	margin-right: 0.3em;
+}
+
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.task-checkbox::before {
+	content: '';
 	visibility: visible;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 0.96em;
+	height: 0.96em;
+	transform: translate(-50%, -50%);
+	box-sizing: border-box;
+	border: 1.5px solid var(--color-ui-muted, #8f8f89);
+	border-radius: 4px;
+	background: transparent;
+}
+
+/* Checked: the box fills with the accent and a tick is drawn over it — two borders of a
+   rotated box, which needs no glyph and scales with the type. */
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-task-checked='true']
+	.task-checkbox::before {
+	background: var(--color-accent, #567b67);
+	border-color: var(--color-accent, #567b67);
+}
+
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-task-checked='true']
+	.task-checkbox::after {
+	content: '';
+	visibility: visible;
+	position: absolute;
+	/* The slot's centre, nudged up and right: the visible strokes are the L's right and
+	   bottom edges, which rotation swings down and left. */
+	left: 54%;
+	top: 44%;
+	width: 0.24em;
+	height: 0.46em;
+	box-sizing: border-box;
+	border: solid var(--color-accent-contrast, #ffffff);
+	border-width: 0 2px 2px 0;
+	transform: translate(-50%, -50%) rotate(45deg);
 }
 
 /* ── Reading mode ─────────────────────────────────────────────────────────────
@@ -548,6 +622,15 @@
 /* Code fence lines are whole-block markers, so both preview modes reveal them on focus. */
 :where(.editor)[data-presentation^='preview-'] .block-host[data-focused] .md-fence-line {
 	display: inline;
+}
+
+/* The body's caret anchor stands in for the closer line while that line hides (see
+   `code-renderer.ts`); wherever the closer paints it would add a blank line instead. */
+:where(.editor):not([data-presentation]) br[data-caret-anchor='closer'],
+:where(.editor)[data-presentation^='preview-']
+	.block-host[data-focused]
+	br[data-caret-anchor='closer'] {
+	display: none;
 }
 
 /* Reference labels reveal on the focused block under preview-block. */

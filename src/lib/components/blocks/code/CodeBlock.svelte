@@ -60,7 +60,6 @@
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
 	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
-	import { pathsEqual } from '../../../selection/path-math';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -249,24 +248,62 @@
 	}
 
 	/**
-	 * A fence the user just authored: an edit landed on THIS block, it carries no language
-	 * and no body, and the caret is inside it. That conjunction is what separates authoring
-	 * from the two states that must not steal focus — a document load (nothing focused, no
-	 * edit at this path) and a click into an existing empty fence (focused, but no edit).
-	 *
-	 * Event-driven rather than a mount-time read: the creating commit seats the caret after
-	 * this component mounts, so anything sampling focus at mount races it and loses.
+	 * A fence with no language and no body, the moment it takes focus. Gated on FIRST focus
+	 * per mount, not on the creating edit: a block made by an insert command mounts AFTER the
+	 * commit that made it and never hears that edit, so the caret arriving is the only signal
+	 * every creation path shares. Loading a document focuses nothing and opens no pickers.
 	 */
 	let autoOpenLanguage = $state(false);
-	$effect(() =>
-		editorEvents.on('edit', (e) => {
-			if (autoOpenLanguage || readOnly || !showRail) return;
-			if (!pathsEqual(e.path, myPath)) return;
-			if (infoString !== '' || bodyText().trim() !== '') return;
-			if (!el?.contains(document.activeElement)) return;
-			autoOpenLanguage = true;
-		})
-	);
+	let languageOffered = false;
+	function onSurfaceFocus(): void {
+		if (languageOffered || readOnly || !showRail) return;
+		languageOffered = true;
+		const offerLanguage = infoString === '' && bodyText().trim() === '';
+		// Deferred past the commit's OWN focus work. Creating a fence focuses this surface
+		// twice — once as it mounts, once when the commit seats its caret — and opening on the
+		// first would put the field up only for the second to blur it straight back down. A
+		// fence that is still bare is completed first (language or not), so the picker opens
+		// over a real block.
+		void tick().then(() => {
+			const completed = completeBareFence();
+			if (!offerLanguage) return;
+			if (completed) {
+				void tick().then(() => {
+					autoOpenLanguage = true;
+				});
+			} else {
+				autoOpenLanguage = true;
+			}
+		});
+	}
+
+	/**
+	 * A fence with no body line — a just-typed opener, or an opener glued to its closer — is a
+	 * block whose only bytes are its own chrome: nowhere for a caret, so the markers must paint.
+	 * Writes opener, one empty body line, closer, with the caret on that line. Block math gets
+	 * this from the Enter-completion seam, which a fence cannot use: ``` parses as an (unclosed)
+	 * fence the moment it is typed, so no paragraph is left for that seam to claim.
+	 */
+	function completeBareFence(): boolean {
+		if (!el) return false;
+		const meta = metadataOf(node, 'fencedCode');
+		const slice = sliceFencedCode(node);
+		const text = getDisplayText();
+		const ending = trailingLineEnding(node.raw);
+		const offset = backend.getRaw() ?? 0;
+		if (!meta.closed) {
+			if (slice.body.trim() !== '') return false;
+			const closer = meta.fenceMarker.repeat(meta.fenceLength);
+			const completed = text + ending + ending + closer;
+			pendingCursorOffset = commitDisplay(completed, offset, text.length + ending.length);
+			return true;
+		}
+		if (slice.body !== '') return false;
+		const openerLength = slice.openerLine.length;
+		const completed = text.slice(0, openerLength) + ending + text.slice(openerLength);
+		pendingCursorOffset = commitDisplay(completed, offset, openerLength);
+		return true;
+	}
 
 	async function copyBody(): Promise<boolean> {
 		try {
@@ -297,10 +334,26 @@
 		returnCaretToBody();
 	}
 
-	// This block's own door, not `moveFocus`: the chip is chrome over one block, and a
-	// traversal to it stops at the gap above instead. The seat waits for the commit's render.
+	/**
+	 * This block's own door, not `moveFocus`: the rail is chrome over one block. Offset 0 is
+	 * NOT the body — on an UNCLOSED fence the opener run counts as content by design (that is
+	 * what lets a just-typed ` ``` ` be deleted back out), so `focus(0)` parks the caret BEFORE
+	 * the backticks and the next keystroke rewrites the opener. `clampRangeToBody` clamps
+	 * unconditionally, which is the "wherever the body starts" this needs.
+	 */
 	function returnCaretToBody(): void {
-		void tick().then(() => focus(0));
+		// Focus first and SEAT through the pending-caret channel the render effect drains. A
+		// bare `focus()` after a tick raced the commit's own re-render, which replaces every
+		// child of the walk container and dropped the seat on the floor.
+		el?.focus({ preventScroll: true });
+		void tick().then(() => {
+			// Read the body AFTER the commit lands. Writing a language lengthens the opener, so
+			// an offset measured against the pre-commit node points into the info string that
+			// just grew — the caret arrived inside `js` and typing split it.
+			const at = clampRangeToBody(node, { start: 0, end: 0 }).start;
+			pendingCursorOffset = at;
+			focus(at);
+		});
 	}
 
 	// ── Event handlers ────────────────────────────────────────────────────────
@@ -491,6 +544,15 @@
 			offset === 0 ||
 			classifyFenceBoundary({ node, offset, forward: false }).kind === 'exitPrev'
 		) {
+			// At the top of an EMPTY fence the block is the only thing the press could mean:
+			// there is no text to delete and nothing to merge, and stepping the caret out
+			// leaves a block the user just asked to be rid of. A fence with a body keeps the
+			// step-out — one press must never take code with it.
+			if (bodyText().trim() === '') {
+				void blockEdit.deleteBlock(index);
+				focusActions.moveFocus(index - 1, 'end');
+				return true;
+			}
 			focusActions.moveFocus(index - 1, 'end');
 			return true;
 		}
@@ -528,6 +590,18 @@
 		const offset = backend.getRaw() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
+
+		// Source mode paints the markers and never completes a bare fence on focus, so Enter is
+		// where it happens there; the marker-hiding rungs already did it as the caret arrived.
+		if (completeBareFence()) {
+			if (infoString === '' && !readOnly && !languageOffered) {
+				languageOffered = true;
+				void tick().then(() => {
+					autoOpenLanguage = true;
+				});
+			}
+			return true;
+		}
 
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind === 'closeAndExit') {
@@ -719,6 +793,7 @@
 	role="textbox"
 	spellcheck="false"
 	oninput={onInput}
+	onfocus={onSurfaceFocus}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}
 	oncopy={onCopy}
@@ -768,7 +843,10 @@
 
 	/* The caret is the primary focus signal inside the box; the border only warms, so a
 	   click into code does not flash a heavy ring across the page. */
-	.code-block:focus {
+	/* Focus lives in the rail's search field while the picker is open — outside this element —
+	   so the block would otherwise drop its focused look mid-interaction. */
+	.code-block:focus,
+	.code-block:has(~ :global(.code-rail-open)) {
 		border-color: var(--color-border, #3d4047);
 	}
 

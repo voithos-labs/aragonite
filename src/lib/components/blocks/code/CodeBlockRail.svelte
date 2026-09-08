@@ -116,6 +116,18 @@
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
 		// a bare Enter would re-commit what is already set.
 		activeIndex = 0;
+		// A provisional placement at the trigger, BEFORE the popout renders. Without it the
+		// popout mounts parked at the viewport's top-left corner while it waits to be measured,
+		// and focusing the field inside it drags the page up there — which is the scroll
+		// jumping to the top on creating a code block. The measure below refines it.
+		const anchor = chipEl?.getBoundingClientRect();
+		if (anchor) {
+			listAt = {
+				x: Math.max(EDGE_MARGIN, anchor.right - 200),
+				y: anchor.bottom + ANCHOR_GAP,
+				maxHeight: MAX_POPOUT_HEIGHT
+			};
+		}
 		void tick().then(() => {
 			// `preventScroll`: the rail is already on screen, and a scroll here would land as a
 			// genuine scroll event on the reposition path below.
@@ -262,14 +274,13 @@
 	function placeAgainst(anchor: HTMLElement | undefined, popout: HTMLElement): Placement {
 		const a = (anchor ?? popout).getBoundingClientRect();
 		const size = popout.getBoundingClientRect();
+		// ALWAYS downward. Flipping above when the room below ran short made the menu appear
+		// on whichever side the block happened to sit, so the same gesture opened in two
+		// directions; a menu that is always under its trigger is the predictable one. When the
+		// room is short the popout scrolls inside what is there instead of moving.
 		const roomBelow = window.innerHeight - a.bottom - ANCHOR_GAP - EDGE_MARGIN;
-		const roomAbove = a.top - ANCHOR_GAP - EDGE_MARGIN;
-		const goBelow = size.height <= roomBelow || roomBelow >= roomAbove;
-		const room = Math.max(120, goBelow ? roomBelow : roomAbove);
-		const maxHeight = Math.min(MAX_POPOUT_HEIGHT, room);
-		const y = goBelow
-			? a.bottom + ANCHOR_GAP
-			: a.top - ANCHOR_GAP - Math.min(size.height, maxHeight);
+		const maxHeight = Math.min(MAX_POPOUT_HEIGHT, Math.max(120, roomBelow));
+		const y = a.bottom + ANCHOR_GAP;
 		// Right-aligned to the trigger, then held inside the viewport horizontally only.
 		const maxX = Math.max(EDGE_MARGIN, window.innerWidth - size.width - EDGE_MARGIN);
 		const x = Math.min(Math.max(EDGE_MARGIN, a.right - size.width), maxX);
@@ -342,6 +353,7 @@
 <div
 	bind:this={railEl}
 	class="code-rail"
+	class:code-rail-open={editing || menuOpen}
 	role="group"
 	aria-label={CODE_RAIL_LABEL}
 	onfocusout={onRailFocusOut}
@@ -506,7 +518,8 @@
 	   combinators, so an outer container's hover never reveals a nested block's rail. */
 	:global(.block-host:hover) > .code-rail,
 	:global(.code-block:focus) ~ .code-rail,
-	.code-rail:focus-within {
+	.code-rail:focus-within,
+	.code-rail-open {
 		opacity: 1;
 		pointer-events: auto;
 	}

@@ -37,6 +37,12 @@ export interface RenderInlineOptions {
 	 */
 	buildPortalWidget?: (node: InlineNode, raw: string) => HTMLElement | null;
 	/**
+	 * Paint a lone backslash ending the display as the hard break it is about to become: the
+	 * byte as a (hidden) marker plus two `br` anchors so the caret has a second line to sit on.
+	 * Only for a mode that hides markers; the DOM stays byte-identical elsewhere.
+	 */
+	pendingBreakSeat?: boolean;
+	/**
 	 * Stamp marker spans with the construct's raw range, so preview-inline's reveal trigger can
 	 * address them. Attributes only, leaving textContent and the offset walk untouched. Off by
 	 * default so the DOM stays byte-identical outside preview-inline.
@@ -423,7 +429,34 @@ export function renderInlineNodes(
 		const child = renderNode(frame.nodes[frame.index++], raw, opts, frame.content);
 		if (child !== null) stack.push(child);
 	}
+	if (opts.pendingBreakSeat) paintPendingBreak(nodes, raw, root.content);
 	return root.content;
+}
+
+/**
+ * `insertHardBreak` at the end of a block writes `\` whose line ending IS the block's trailing
+ * one, so until the next key supplies the following line CommonMark (and the scanner) read the
+ * byte as literal text. Left as text it shows as a stray backslash and the caret stays on the
+ * first line; painted like this the user sees the new line they asked for. A `br` adds no
+ * textContent, so G1.28 holds; the walk seats offset `length` after the first anchor.
+ */
+function paintPendingBreak(nodes: InlineNode[], raw: string, frag: DocumentFragment): void {
+	const last = nodes[nodes.length - 1];
+	if (!last || last.kind !== 'text' || raw[last.end - 1] !== '\\') return;
+	const rest = raw.slice(last.end);
+	if (rest !== '' && rest !== '\n' && rest !== '\r\n') return;
+	const tail = frag.lastChild;
+	if (!tail || tail.nodeType !== Node.TEXT_NODE || !tail.textContent?.endsWith('\\')) return;
+	if (tail.textContent.length === 1) tail.remove();
+	else tail.textContent = tail.textContent.slice(0, -1);
+	const marker = markerSpan('\\');
+	marker.classList.add('md-break-pending');
+	frag.appendChild(marker);
+	for (let i = 0; i < 2; i++) {
+		const anchor = document.createElement('br');
+		anchor.dataset.caretAnchor = 'break';
+		frag.appendChild(anchor);
+	}
 }
 
 // ── Cursor mapping ───────────────────────────────────────────────────────────

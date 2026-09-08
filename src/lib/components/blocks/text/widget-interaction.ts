@@ -416,6 +416,9 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		x: number,
 		y: number
 	): { inline: InlineNode } | null {
+		// Feature-detected: jsdom implements no hit testing, and the rect scan below is the
+		// answer there — the same shape as `getTargetRanges`' detection on the code surface.
+		if (typeof document.elementFromPoint !== 'function') return null;
 		const at = document.elementFromPoint(x, y);
 		const island =
 			at instanceof Element ? at.closest('[data-inline-widget][data-source-start]') : null;

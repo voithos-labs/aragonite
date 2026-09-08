@@ -143,10 +143,11 @@
 		padding: 14px 0;
 	}
 
-	/* `:focus-within`: whole-block focus lands on the host, not the separator. */
+	/* `:focus-within`: whole-block focus lands on the host, not the separator. Painted as the
+	   SAME wash the selection overlay uses, not an accent ring: a rule that showed focus one
+	   way and selection another read as two different states of the same block. */
 	.thematic-break-block:focus-within .thematic-break-rule {
-		outline: 2px solid var(--color-accent, #567b67);
-		outline-offset: 2px;
+		background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 		border-radius: 2px;
 	}
 
