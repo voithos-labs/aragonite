@@ -1733,9 +1733,10 @@
 		   double-corrects. Do NOT restore `overflow-anchor` (VR-2). */
 		overflow-anchor: none;
 		scrollbar-width: thin;
-		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 4px;
+		scrollbar-color: var(--color-border, #3e3e3b) transparent;
+		/* No box of its own. A document is the page's content, not a widget sitting on it, and
+		   an outline around the whole editor reads as a form field the moment the host gives it
+		   a column. A host that wants the frame draws it on its own container. */
 		/* Containing block for the image overlay portal. */
 		position: relative;
 	}

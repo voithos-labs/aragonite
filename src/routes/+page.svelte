@@ -231,10 +231,15 @@
 		font-size: 0.85rem;
 		color: var(--color-accent, #567b67);
 	}
+	/* A reading column, not the whole window: the editor ships into an app pane, and a
+	   document run edge-to-edge across a wide screen misrepresents how it reads. */
 	.showcase-editor {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
+		width: 100%;
+		max-width: 1000px;
+		margin: 0 auto;
 		min-width: 0;
 		min-height: 0;
 	}
