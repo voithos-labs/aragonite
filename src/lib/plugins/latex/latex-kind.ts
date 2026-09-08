@@ -80,7 +80,13 @@ export function registerMathInline(): void {
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
 		component: MathInline,
-		editing: { revealSource: true }
+		editing: {
+			revealSource: true,
+			// `$…$`: one delimiter each side, so a revealing click seats the caret on the last
+			// character of the formula rather than past its closing `$`.
+			revealContentSpan: (source) =>
+				source.length >= 2 ? { start: 1, end: source.length - 1 } : null
+		}
 	});
 }
 

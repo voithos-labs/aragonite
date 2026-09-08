@@ -14,7 +14,6 @@ import type { WidgetSelectionState } from '../../image/widget-selection-state.sv
 import type { AmbientCursorIO } from '../../../ambient/ambient-cursor';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import {
-	isInlineWidget,
 	flattenInlineWidgets,
 	getInlineWidgetEditing,
 	isWidgetActivationClick
@@ -134,6 +133,18 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	// around reference-style image widgets breaks cursor and clipboard offsets.
 	function inlinesOf(node: NodeView): InlineNode[] {
 		return resolvedInlineContent(node, deps.linkRef);
+	}
+
+	/**
+	 * Every widget in this block, DESCENDING into non-widget parents. The flat inline list is
+	 * the wrong shape to scan for widgets: a construct wrapping one — emphasis around a math
+	 * span, a link around an image — hides it, and every pointer and arrow-key path that
+	 * scanned the flat list simply did not see it. `> *… $L/9 \times 10^{20}$ …*` is the case
+	 * that surfaced it: the quote's whole text is one emphasis node, so nothing inside it was
+	 * ever clickable.
+	 */
+	function widgetsOf(): InlineNode[] {
+		return flattenInlineWidgets(inlinesOf(deps.node), deps.node.raw);
 	}
 
 	// ── Reveal-source editing ──────────────────────────────────────────────────
@@ -392,13 +403,63 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	// The ONE hit test the pointerdown probe, the click dispatch, and the post-fold
 	// re-resolve share.
+	/**
+	 * What the pointer is actually over, asked of the DOM rather than of a rectangle. An
+	 * island's border box is not what the reader sees: a KaTeX render (a superscript, a
+	 * fraction) paints ABOVE and BELOW its own box, so a click on the visible glyphs missed
+	 * the rect by a pixel or two and the widget looked inert to the mouse while the keyboard
+	 * reached it fine. `elementFromPoint` has no such gap — it answers with whatever is
+	 * painted at the point, overflow included.
+	 */
+	function revealWidgetFromDom(
+		el: HTMLElement,
+		x: number,
+		y: number
+	): { inline: InlineNode } | null {
+		const at = document.elementFromPoint(x, y);
+		const island =
+			at instanceof Element ? at.closest('[data-inline-widget][data-source-start]') : null;
+		// Containment guard: the point may sit over another block's widget entirely.
+		if (!island || !el.contains(island)) return null;
+		const start = Number(island.getAttribute('data-source-start'));
+		if (!Number.isInteger(start)) return null;
+		const inline = widgetsOf().find(
+			(n) => n.start === start && getInlineWidgetEditing(n.kind)?.revealSource
+		);
+		return inline ? { inline } : null;
+	}
+
+	/**
+	 * The caret a click on a rendered widget wants: the END of the widget's own content, INSIDE
+	 * its delimiters, so typing continues the construct rather than escaping it. `text` is the
+	 * content the kind parsed out, located in the source slice; a kind that carries none (or
+	 * whose content is not a literal substring) falls back to the trailing edge.
+	 */
+	function insideEndOffset(inline: InlineNode): number {
+		const source = deps.node.raw.slice(inline.start, inline.end);
+		const span = getInlineWidgetEditing(inline.kind)?.revealContentSpan?.(source);
+		if (span && span.end >= 0 && span.end <= source.length) return span.end;
+		// A kind that names no span but parsed its content out: locate that text literally.
+		const text = inline.text;
+		if (text) {
+			const at = source.indexOf(text);
+			if (at !== -1) return at + text.length;
+		}
+		return source.length;
+	}
+
 	function hitTestRevealWidget(
 		el: HTMLElement,
 		x: number,
 		y: number
 	): { inline: InlineNode } | null {
-		for (const inline of inlinesOf(deps.node)) {
-			if (!isInlineWidget(inline, deps.node.raw)) continue;
+		const painted = revealWidgetFromDom(el, x, y);
+		if (painted) return painted;
+		// Fallback for a point the DOM cannot answer for (a synthetic call with no element
+		// under it): the original box test, which still covers a widget that paints inside
+		// its own bounds.
+
+		for (const inline of widgetsOf()) {
 			if (!getInlineWidgetEditing(inline.kind)?.revealSource) continue;
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
@@ -445,17 +506,15 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				if (revealedStart < targetStart) targetStart += deps.node.raw.length - rawBefore;
 			}
 		}
-		const target = inlinesOf(deps.node).find(
-			(n) =>
-				n.start === targetStart &&
-				isInlineWidget(n, deps.node.raw) &&
-				getInlineWidgetEditing(n.kind)?.revealSource
+		const target = widgetsOf().find(
+			(n) => n.start === targetStart && getInlineWidgetEditing(n.kind)?.revealSource
 		);
 		if (!target) return;
 		el.focus();
 		revealOpenedByLastClick = true;
-		// A click can't map to a source glyph — land at the leading edge (offset 0).
-		void startReveal(target, target.start, 0);
+		// A click can't map to a source glyph, so it lands at the end of the content rather
+		// than guessing: the caret sits inside the delimiters, ready to type.
+		void startReveal(target, target.start, insideEndOffset(target));
 	}
 
 	/** Take the whole revealed token; declines unless the native selection sits inside it. */
@@ -688,8 +747,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (doubleClick && revealOpenedByLastClick && selectRevealedSource()) return;
 		// A click in a real text node keeps the native caret; a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;
-		for (const inline of inlinesOf(deps.node)) {
-			if (!isInlineWidget(inline, deps.node.raw)) continue;
+		for (const inline of widgetsOf()) {
 			const widget = widgetElByStart(el, inline.start);
 			if (!widget) continue;
 			const rect = widget.getBoundingClientRect();
@@ -710,8 +768,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (!el) return null;
 		const focus = selectionFocusWalkOffset(el, deps.getAmbientLength());
 		if (focus === null) return null;
-		for (const inline of inlinesOf(deps.node)) {
-			if (!isInlineWidget(inline, deps.node.raw)) continue;
+		for (const inline of widgetsOf()) {
 			if (key === 'ArrowRight' && focus >= inline.start && focus < inline.end) {
 				return inline.end;
 			}

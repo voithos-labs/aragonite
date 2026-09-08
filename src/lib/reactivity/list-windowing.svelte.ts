@@ -228,6 +228,20 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		return true;
 	}
 
+	/**
+	 * Which block this correction holds still: the top-of-viewport one by default, the FOCUSED
+	 * one when it sits at or below the fold. Clicking a construct that reveals its source (a
+	 * math block, a paragraph holding inline math) resizes that block and folds whichever was
+	 * revealed before it; anchored on the viewport top, both slide the clicked block out from
+	 * under the pointer. Anchoring on the focused block holds its start offset instead, so it
+	 * stays put and only the content after it reflows.
+	 */
+	function anchorIndexFor(topIndex: number): number {
+		const pinned = pinnedIndex();
+		if (pinned === null || pinned < topIndex || pinned >= model.size) return topIndex;
+		return pinned;
+	}
+
 	// Hold the anchor block's screen position across a height mutation that would otherwise
 	// slide the visible content (VR-2) — native `overflow-anchor` is off wherever this runs, so
 	// nothing else holds the line. The delta comes from the Fenwick model, not
@@ -237,7 +251,7 @@ export function createListWindowing(deps: ListWindowingDeps): ListWindowing {
 		if (skipWhileHostAnchors(mutate)) return;
 		if (reassertRevealAnchor(mutate)) return;
 		const port = deps.getPort();
-		const anchorIndex = model.indexAtOffset(localScrollTop());
+		const anchorIndex = anchorIndexFor(model.indexAtOffset(localScrollTop()));
 		const before = model.offsetOf(anchorIndex);
 		mutate();
 		const delta = model.offsetOf(anchorIndex) - before;

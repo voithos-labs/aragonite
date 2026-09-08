@@ -35,7 +35,7 @@
 	/* Base the selection, search-match and reorder washes derive from, so one declaration
 	   moves all of them; the washes themselves stay editor-owned. Tracking the accent means
 	   a host that recolors one recolors all four. */
-	--color-selection: var(--color-accent);
+	--color-selection: var(--color-accent, #567b67);
 	--color-error: #ff5f57;
 }
 
@@ -47,6 +47,7 @@
 	--color-ui-muted: #83837b;
 	--color-ui-dulled: #71716a;
 	--color-accent: #567b67;
+	--color-selection: var(--color-accent, #567b67);
 	--color-error: #d03025;
 }
 
@@ -143,20 +144,20 @@
 	/* --syntax-* tokens are mode-independent — no light overrides. */
 
 	/* Code block syntax highlighting — GitHub Light-inspired palette */
-	--code-tok-keyword: #cf222e;
+	--code-tok-keyword: #c1202b;
 	--code-tok-string: #0a3069;
 	--code-tok-number: #0550ae;
 	--code-tok-literal: #0550ae;
-	--code-tok-comment: #666f79;
+	--code-tok-comment: #5c646d;
 	--code-tok-type: #953800;
-	--code-tok-function: #8250df;
-	--code-tok-operator: #cf222e;
+	--code-tok-function: #7447c6;
+	--code-tok-operator: #c1202b;
 	--code-tok-meta: #953800;
 	--code-tok-attr: #116329;
 	--code-tok-regexp: #116329;
 	--code-tok-symbol: #0550ae;
 	--code-tok-added: #116329;
-	--code-tok-removed: #cf222e;
+	--code-tok-removed: #c1202b;
 	--code-tok-heading: #0550ae;
 	--code-tok-link: #0550ae;
 
