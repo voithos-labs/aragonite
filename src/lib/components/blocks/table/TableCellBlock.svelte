@@ -1060,13 +1060,18 @@
 ></div>
 
 <style>
+	/* Two sides only. The grid has no `border-collapse`, so a cell drawing all four put two
+	   1px lines on every shared edge — visibly heavier inside the table than around it. The
+	   container draws the top and left, these draw the right and bottom, and every rule in
+	   the grid is one line wide. */
 	.table-cell {
 		outline: none;
 		padding: 4px 8px;
 		min-height: 1.4em;
 		white-space: pre-wrap;
 		word-wrap: break-word;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-right: 1px solid var(--color-border, #3e3e3b);
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
 	}
 	.table-cell:focus {
 		outline: 2px solid var(--color-accent, #567b67);

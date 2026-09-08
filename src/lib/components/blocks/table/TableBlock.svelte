@@ -722,7 +722,10 @@
 		max-width: 100%;
 		overflow-x: auto;
 		scrollbar-width: thin;
-		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
+		scrollbar-color: var(--color-border, #3e3e3b) transparent;
+		/* The two sides the cells do not draw — see `.table-cell`. */
+		border-top: 1px solid var(--color-border, #3e3e3b);
+		border-left: 1px solid var(--color-border, #3e3e3b);
 	}
 	/* Spacers are direct grid children; span all columns to reserve a full row band. */
 	.vr-spacer {
@@ -756,7 +759,7 @@
 		background: transparent;
 	}
 	.table-block::-webkit-scrollbar-thumb {
-		background: var(--color-ui-muted, #a4a4a4);
+		background: var(--color-border, #3e3e3b);
 		border-radius: 3px;
 	}
 	.table-block::-webkit-scrollbar-thumb:hover {
