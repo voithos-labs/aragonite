@@ -72,6 +72,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 		'row-grip forwarder; same as the column grip',
 	'src/lib/components/blocks/table/TableGrip.svelte':
 		'selects a row/column rectangle — a selection gesture, not a caret one',
+	'src/lib/components/blocks/code/CodeBlockRail.svelte':
+		'preventDefault on a language-list option so the field keeps focus long enough to commit the pick; the caret returns through the block’s own door afterwards',
 	'src/lib/components/image/ImageOverlayHost.svelte':
 		'widget selection + overlay placement; the caret stays where it was',
 	'src/lib/components/image/ImageProperties.svelte':

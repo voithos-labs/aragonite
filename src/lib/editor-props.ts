@@ -4,7 +4,13 @@
  */
 import type { Snippet } from 'svelte';
 import type { AnyBlockKind } from './core/nodes';
-import type { PasteImageHook, ResolveImageUrl, ResolveLinkUrl } from './editor-keys';
+import type {
+	CodeMenuItemsHook,
+	PasteImageHook,
+	ResolveImageUrl,
+	ResolveLinkUrl,
+	RunCodeHook
+} from './editor-keys';
 import type { ImageLoadPolicy } from './core/inline-render';
 import type { PresentationMode } from './presentation-mode';
 import type { KeybindingOverride } from './schema/keybinding-overrides';
@@ -29,6 +35,14 @@ export interface EditorProps {
 	 *  in order and the markdown returned is inserted at the caret; `null` skips it.
 	 *  Installing it takes the WHOLE paste — the clipboard's `text/plain` is not pasted. */
 	onPasteImage?: PasteImageHook;
+	/** Execution hook for code blocks, set once at mount. The editor runs nothing itself:
+	 *  installing this is what puts the run affordance on a code block's rail, and the host
+	 *  owns the engine, the result, and where output goes. Absent, no run affordance renders. */
+	onRunCode?: RunCodeHook;
+	/** Overflow-menu hook for code blocks, set once at mount and consulted each time a menu
+	 *  opens so items can read live state. Absent, or returning nothing, renders no overflow
+	 *  affordance — the editor has no app-level actions of its own to offer there. */
+	codeMenuItems?: CodeMenuItemsHook;
 	/** Host chrome rendered INSIDE the editor's scroll container, above the first block
 	 *  (a title, properties panel, tag row). It scrolls away with the document rather than
 	 *  pinning, which is what lets the editor keep its own scrollport and windowing. */

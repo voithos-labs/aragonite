@@ -97,6 +97,20 @@ export { OPENER_PRIORITIES } from './schema/opener-priorities';
 export { registerBlockCompleter } from './schema/block-completions';
 export type { BlockCompleter, CompletionResult } from './schema/block-completions';
 
+// ── Code-block languages (pre-freeze) ────────────────────────────────────────
+// The syntax-highlighting registry behind fenced code. The editor bootstraps a small
+// curated set (every grammar is static bundle weight for every consumer), so a host that
+// needs more registers them itself. Register BEFORE mounting an editor: a block already on
+// screen re-tokenizes only when its own bytes next change.
+//
+// An UNREGISTERED language is not an error — the fence still authors, commits and round-trips,
+// and its body simply renders untokenized.
+export { registerLanguage, listLanguages } from './components/blocks/code/code-languages';
+export type { LanguageGrammar } from './components/blocks/code/code-languages';
+// Re-exported so a host names the grammar type without importing highlight.js itself, which
+// it holds only transitively.
+export type { LanguageFn } from 'highlight.js';
+
 // ── Command vocabulary + keybindings (pre-freeze) ────────────────────────────
 // The built-in half; a plugin's own commands are minted in the section below.
 export type { CommandId } from './schema/commands';

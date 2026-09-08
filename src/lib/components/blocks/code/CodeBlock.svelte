@@ -5,6 +5,7 @@
 	import {
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
+		type CodeRunRequest,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
@@ -25,7 +26,7 @@
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
-	import { renderCodeBlock } from './code-renderer';
+	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
 	import {
 		getLineLeadingWhitespace,
 		isBetweenEmptyPair,
@@ -40,7 +41,7 @@
 		writeFenceInfo
 	} from '../../../schema/fenced-code-raw';
 	import { hidesMarkers } from '../../../presentation-mode';
-	import CodeLanguageChip from './CodeLanguageChip.svelte';
+	import CodeBlockRail from './CodeBlockRail.svelte';
 	import { computeFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
@@ -59,6 +60,7 @@
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
 	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
+	import { pathsEqual } from '../../../selection/path-math';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -80,15 +82,16 @@
 		events: editorEvents
 	} = wiring.deps;
 	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { presentationMode: getPresentationMode, onPasteImage } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		presentationMode: getPresentationMode,
+		onPasteImage,
+		onRunCode,
+		codeMenuItems
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
-	// The walk container's own stamp, kept as state rather than re-derived: it is what
-	// decides whether this block paints its fence chrome, and so whether it needs a chip.
-	let contentEmpty = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
@@ -192,9 +195,10 @@
 
 		el.replaceChildren(renderCodeBlock(node));
 		anchorTrailingNewline(el);
-		const chromeOnly = holdsOnlyMarkerChrome(el);
-		el.toggleAttribute(CONTENT_EMPTY_ATTR, chromeOnly);
-		contentEmpty = chromeOnly;
+		// The walk container's own stamp, and the only surviving consumer of the emptiness
+		// read: both the marker-hiding CSS and the caret walk key off this attribute. The
+		// rail no longer gates on it — a content-empty fence gets one either way.
+		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		lastRenderedRaw = node.raw;
 
 		// Restore only while this block still holds focus: an edit reparsing to multiple
@@ -224,12 +228,56 @@
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
-	// ── The language chip ─────────────────────────────────────────────────────
+	// ── The rail ──────────────────────────────────────────────────────────────
 
-	// The chip stands in for fence chrome the mode paints nothing for, so it shows exactly
-	// where that chrome is missing: never in source, never on a block painting its own.
-	const showChip = $derived(hidesMarkers(presentationMode) && !contentEmpty);
+	// The rail stands in for fence chrome the mode paints nothing for: never in source, which
+	// paints its own always. A content-empty block DOES paint dimmed markers of its own and
+	// still gets the rail — the picker is the authoring path now, and a fence with no language
+	// is exactly where it is wanted. The two overlapping is the same accepted redundancy as a
+	// focused preview block showing fence and rail together.
+	const showRail = $derived(hidesMarkers(presentationMode));
 	const infoString = $derived(metadataOf(node, 'fencedCode').info);
+
+	/** The fence body alone, which is what a host executes or a copy writes — never the
+	 *  opener and closer lines, which are this block's syntax rather than its content. */
+	function bodyText(): string {
+		return sliceFencedCode(node).body;
+	}
+
+	function runRequest(): CodeRunRequest {
+		return { code: bodyText(), info: infoString, path: myPath };
+	}
+
+	/**
+	 * A fence the user just authored: an edit landed on THIS block, it carries no language
+	 * and no body, and the caret is inside it. That conjunction is what separates authoring
+	 * from the two states that must not steal focus — a document load (nothing focused, no
+	 * edit at this path) and a click into an existing empty fence (focused, but no edit).
+	 *
+	 * Event-driven rather than a mount-time read: the creating commit seats the caret after
+	 * this component mounts, so anything sampling focus at mount races it and loses.
+	 */
+	let autoOpenLanguage = $state(false);
+	$effect(() =>
+		editorEvents.on('edit', (e) => {
+			if (autoOpenLanguage || readOnly || !showRail) return;
+			if (!pathsEqual(e.path, myPath)) return;
+			if (infoString !== '' || bodyText().trim() !== '') return;
+			if (!el?.contains(document.activeElement)) return;
+			autoOpenLanguage = true;
+		})
+	);
+
+	async function copyBody(): Promise<boolean> {
+		try {
+			await navigator.clipboard.writeText(bodyText());
+			return true;
+		} catch {
+			// A denied or absent clipboard is the host's business, not an editor error: the
+			// affordance simply reports nothing copied.
+			return false;
+		}
+	}
 
 	// The chip's write: the opener's info span, through the display funnel so the fence rule
 	// runs over it, isolated so no typing burst on either side joins its undo entry.
@@ -682,26 +730,32 @@
 ></div>
 <!-- Beside the walk container, never inside it: the render effect replaces that element's
 	children on every commit, and the offset walk counts everything that survives there. -->
-{#if showChip}
-	<CodeLanguageChip
+{#if showRail}
+	<CodeBlockRail
 		info={infoString}
 		editable={!readOnly}
+		autoOpen={autoOpenLanguage}
 		onCommit={commitLanguage}
 		onCancel={(returnCaret) => returnCaret && returnCaretToBody()}
+		onRun={onRunCode ? () => onRunCode(runRequest()) : undefined}
+		onCopy={copyBody}
+		menuItems={codeMenuItems ? () => codeMenuItems(runRequest()) : undefined}
 	/>
 {/if}
 
 <style>
+	/* A recessed slab rather than an outlined field: the fill carries the block and the
+	   border only closes its edge, so a page of prose reads code as a surface it sits on. */
 	.code-block {
 		width: 100%;
 		outline: none;
-		padding: 12px;
-		font-family: var(--font-editor, ui-monospace, monospace);
+		padding: 14px 16px;
+		font-family: var(--font-code, ui-monospace, monospace);
 		font-size: 0.9em;
-		line-height: 1.5;
+		line-height: 1.55;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 4px;
+		border: 1px solid transparent;
+		border-radius: var(--radius-surface, 8px);
 		color: inherit;
 		white-space: pre;
 		overflow-x: auto;
@@ -709,10 +763,19 @@
 		tab-size: 4;
 		box-sizing: border-box;
 		min-height: 1.4em;
+		transition: border-color 120ms ease-out;
 	}
 
+	/* The caret is the primary focus signal inside the box; the border only warms, so a
+	   click into code does not flash a heavy ring across the page. */
 	.code-block:focus {
-		border-color: var(--color-accent, #567b67);
+		border-color: var(--color-border, #3d4047);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.code-block {
+			transition: none;
+		}
 	}
 
 	.code-block :global(.md-marker) {

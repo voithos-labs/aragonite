@@ -19,6 +19,13 @@ export const LINK_CARD_OPEN = 'Open link';
 export const LINK_CARD_REMOVE = 'Remove link';
 export const CODE_LANGUAGE_FIELD = 'Code block language';
 
+export const CODE_RUN_LABEL = 'Run code block';
+export const CODE_COPY_LABEL = 'Copy code';
+export const CODE_COPIED_LABEL = 'Code copied';
+export const CODE_MENU_LABEL = 'Code block actions';
+export const CODE_RAIL_LABEL = 'Code block controls';
+export const CODE_LANGUAGE_LIST = 'Code block languages';
+
 /** Chrome, not an announcement: the language chip's accessible name. */
 export function codeLanguageLabel(language: string): string {
 	return `Code language: ${language}`;

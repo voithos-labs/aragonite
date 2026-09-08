@@ -42,7 +42,7 @@
 	}
 	.directive-marker {
 		display: block;
-		font-family: var(--font-editor, ui-monospace, monospace);
+		font-family: var(--font-code, ui-monospace, monospace);
 		opacity: var(--syntax-marker-dim, 0.65);
 		user-select: none;
 		-webkit-user-select: none;

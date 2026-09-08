@@ -986,7 +986,7 @@
 	}
 
 	.text-editable-block.raw-block {
-		font-family: var(--font-editor, ui-monospace, monospace);
+		font-family: var(--font-code, ui-monospace, monospace);
 		font-size: 0.9em;
 		opacity: 0.85;
 	}
@@ -998,7 +998,7 @@
 	}
 
 	.text-editable-block :global(.inline-code-content) {
-		font-family: var(--font-editor, ui-monospace, monospace);
+		font-family: var(--font-code, ui-monospace, monospace);
 		font-size: 0.9em;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 		border-radius: 3px;

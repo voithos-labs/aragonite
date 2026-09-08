@@ -37,10 +37,15 @@ Those per-change lines are subject lines in their own right and carry every line
 `scripts/lint-commit-message.mjs` holds the only definition of the shape above, and the same
 script runs at two checkpoints, so nothing above depends on you remembering it:
 
-| Checkpoint        | Where                                                                                 | Catches                                   |
-| ----------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `commit-msg` hook | `.githooks/`, wired by `npm install` (a `prepare` script sets git's `core.hooksPath`) | every local commit, before it exists      |
-| CI step           | the `unit` job, over the pull request's own commits                                   | a contributor who never ran `npm install` |
+| Checkpoint        | Where                                                                                 | Catches                                   | Blocks?       |
+| ----------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- | ------------- |
+| `commit-msg` hook | `.githooks/`, wired by `npm install` (a `prepare` script sets git's `core.hooksPath`) | every local commit, as it is written      | no — advisory |
+| CI step           | the `unit` job, over the pull request's own commits                                   | a contributor who never ran `npm install` | yes           |
+
+The local hook **reports and lets the commit through**: a convention is worth knowing, not worth
+losing a written message to. Set `ARAGONITE_STRICT_COMMIT=1` to have it block instead. CI still
+lints a pull request's own commits, so the shape is what lands on a branch either way — the hook
+is there to tell you early, not to stand in your way while you work.
 
 What it reads:
 

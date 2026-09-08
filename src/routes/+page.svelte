@@ -157,8 +157,23 @@
 		display: flex;
 		flex-direction: column;
 		/* The wrapper carries the theme tokens, so the page chrome flips with the editor. */
-		background: var(--color-surface, #1b1c21);
-		color: var(--color-text-secondary, #d6d9e0);
+		background: var(--color-bg, #2c2c2a);
+		color: var(--color-text-secondary, #cfcfca);
+		/* The host app's two faces: a PROPORTIONAL surface, and code that stays monospace
+		   whatever the surface is. Set on the wrapper, which is where a consumer sets them. */
+		--font-editor: 'Inter', system-ui, sans-serif;
+		--font-code: 'JetBrains Mono', ui-monospace, monospace;
+		font-family: var(--font-ui, system-ui, sans-serif);
+	}
+
+	/* Soft Light: the page chrome flips with the editor, off the same stamp. */
+	.showcase[data-editor-theme='light'] {
+		--color-bg: #dfddd7;
+		--color-border: #c9c7c0;
+		--color-text-primary: #2a2a27;
+		--color-text-secondary: #4a4a45;
+		--color-ui-dulled: #71716a;
+		--color-ui-muted: #83837b;
 	}
 	.showcase-header {
 		flex: 0 0 auto;
@@ -167,8 +182,8 @@
 		align-items: baseline;
 		gap: 0.6rem;
 		padding: 0.75rem 1rem;
-		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
-		font-family: var(--font-editor, ui-monospace, monospace);
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
+		font-family: var(--font-ui, system-ui, sans-serif);
 	}
 	.showcase-title {
 		font-size: 1.1rem;
@@ -183,8 +198,8 @@
 		display: inline-flex;
 		gap: 2px;
 		padding: 2px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 6px;
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 8px;
 	}
 	.showcase-mode,
 	.showcase-toggle {
@@ -201,8 +216,8 @@
 	}
 	.showcase-mode.active,
 	.showcase-toggle.active {
-		color: var(--color-text-primary, #fff);
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.18));
+		color: var(--color-text-primary, #e8e8e5);
+		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
 	}
 	.showcase-toggle:disabled {
 		opacity: 0.4;

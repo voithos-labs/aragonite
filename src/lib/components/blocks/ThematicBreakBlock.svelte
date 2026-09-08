@@ -136,9 +136,11 @@
 		position: relative;
 	}
 
+	/* The rule is a hairline, so the SPACE around it is what reads as a division. Cramped
+	   padding on a heavy line reads as a border instead. */
 	.thematic-break-rule {
 		outline: none;
-		padding: 8px 0;
+		padding: 14px 0;
 	}
 
 	/* `:focus-within`: whole-block focus lands on the host, not the separator. */
@@ -150,7 +152,9 @@
 
 	hr {
 		border: none;
-		border-top: 2px solid var(--color-ui-muted, #a4a4a4);
+		/* A hairline on the BORDER token, not the muted-UI one: a divider separates, and at
+		   2px of mid-grey it competed with the text it sits between. */
+		border-top: 1px solid var(--color-border, #3e3e3b);
 		margin: 0;
 	}
 </style>

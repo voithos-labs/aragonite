@@ -7,23 +7,25 @@
 }
 
 :root {
-	/* ── Default Theme (Dark) ────────────────────────────────────────────────────
-	 * Fallback chrome tokens for the isolated demo route (/test/editor). The editor
-	 * owns its own content tokens (editor-theme.css, scoped to .editor /
-	 * .aragonite-editor-theme); these cover the surrounding page chrome only.
+	/* ── Soft Dark ───────────────────────────────────────────────────────────────
+	 * Page-chrome tokens for the demo routes, matching the host app's own Soft Dark /
+	 * Soft Light themes. The editor owns its content tokens (editor-theme.css, scoped to
+	 * .editor / .aragonite-editor-theme); these cover the surrounding page chrome only.
 	 */
 
-	--color-bg: #2d3033;
-	--color-border: #3a3d40;
+	--color-bg: #2c2c2a;
+	--color-border: #3e3e3b;
 
-	--color-text-primary: #ffffff;
-	--color-text-secondary: #e6e5e5;
+	--color-text-primary: #e8e8e5;
+	--color-text-secondary: #cfcfca;
 
-	--color-ui-dulled: #afb1b3;
-	--color-ui-muted: #a4a4a4;
+	--color-ui-dulled: #a3a39d;
+	--color-ui-muted: #8f8f89;
 
 	--color-accent: #567b67;
 
+	/* The page-chrome face only. The editor's two faces are the demo COMPONENT's to set,
+	   on its own themed wrapper — G4.6a keeps editor-owned tokens out of this file. */
 	--font-ui: 'Inter', system-ui, sans-serif;
 }
 

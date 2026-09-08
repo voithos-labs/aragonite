@@ -151,6 +151,8 @@
 		imageLoadPolicy = 'auto',
 		onLinkActivate,
 		onPasteImage,
+		onRunCode,
+		codeMenuItems,
 		header,
 		blockDragHandles = false,
 		searchBar = true,
@@ -873,6 +875,13 @@
 		// `svelte/no-unused-svelte-ignore` won't let us suppress.
 		get onPasteImage() {
 			return onPasteImage;
+		},
+		// Accessors for the same reason as onPasteImage above.
+		get onRunCode() {
+			return onRunCode;
+		},
+		get codeMenuItems() {
+			return codeMenuItems;
 		},
 		brokenImageUrls
 	} satisfies EditorPolicies);

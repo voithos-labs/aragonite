@@ -26,6 +26,7 @@ The groups, in page order:
 | [Kind declaration](#kind-declaration)                   | Minting a new block type's identity                                                          |
 | [The block-kind descriptor](#the-block-kind-descriptor) | Telling the editor how your block type behaves, and the checklist every one must fill in     |
 | [The component registry](#the-component-registry)       | Binding a block type to the Svelte component that renders it                                 |
+| [Code-block languages](#code-block-languages)           | Adding syntax-highlighting grammars beyond the bundled set                                   |
 | [The parser opener](#the-parser-opener)                 | Teaching the parser to recognize your block's syntax                                         |
 | [Enter completion](#enter-completion)                   | Letting one typed line become a construct whose lines must sit together                      |
 | [Registration probes](#registration-probes)             | Checking what's already registered, so a module that runs twice stays safe                   |
@@ -176,6 +177,28 @@ _(pre-freeze / unstable)_ The container factory's sibling for leaves; the full s
 | `EditableLeafSurfaceProps`, `EditableLeafRenderProps` | The two spreads: the source surface's, and the folded rendered view's (a render-primary block spreads both)                                            |
 | `EditableLeafDeps`                                    | The factory's inputs: live getters for the node, the index, the path, and your source element, plus the static `mode` and `singleLine` settings        |
 | `StickyColumnDirection`                               | Which vertical direction the caret is entering your block from, handed to `focusAtColumn` so the column carries across lines                           |
+
+### Code-block languages
+
+_(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor bootstraps a curated set — javascript, typescript, python, rust, go, bash, json, yaml, sql, html, css, java, c, cpp, ruby, markdown, diff, plus their aliases — because every grammar is static bundle weight for every consumer. A host needing more registers them itself.
+
+Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error — the fence still authors, commits and round-trips, and its body renders untokenized.
+
+| Export             | Role                                                                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `registerLanguage` | Add a grammar under a name, with optional aliases; idempotent, so a repeat call with the same name is a no-op                          |
+| `listLanguages`    | Every registered name and alias, sorted — what the code block's language picker offers                                                 |
+| `LanguageGrammar`  | The registry's read shape: the resolved name and its definition                                                                        |
+| `LanguageFn`       | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
+
+```ts
+import { registerLanguage } from '@voithos-labs/aragonite/plugin';
+import elixir from 'highlight.js/lib/languages/elixir';
+
+registerLanguage('elixir', elixir, ['ex', 'exs']);
+```
+
+Aliases are offered as their own rows in the picker, so a user typing `ex` finds it without knowing it resolves to `elixir`.
 
 ### Inline authoring
 

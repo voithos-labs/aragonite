@@ -37,6 +37,17 @@ export function getLanguageGrammar(infoString: string): LanguageGrammar | null {
 	return grammars.get(resolvedName) ?? null;
 }
 
+/**
+ * Every registered grammar name, plus every alias, sorted — what the language picker
+ * offers. Aliases are listed as their own entries: a user typing `js` should find it
+ * rather than having to know it resolves to `javascript`.
+ */
+export function listLanguages(): string[] {
+	const names = new Set<string>(grammars.keys());
+	for (const alias of aliases.keys()) names.add(alias);
+	return [...names].sort();
+}
+
 /** Test-only: clear all registered languages. */
 export function __resetRegistryForTests(): void {
 	grammars.clear();
