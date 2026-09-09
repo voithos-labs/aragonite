@@ -445,7 +445,8 @@
 	function guardFenceRangedEdit(e: InputEvent): boolean {
 		if (composing || !el) return false;
 		const range = pendingEditRange(e, el);
-		if (!range || !crossesFenceBoundary(node, range)) return false;
+		if (!range) return false;
+		if (!crossesFenceBoundary(node, range)) return guardHiddenFenceDelete(e, range);
 
 		e.preventDefault();
 		const insert = rangedEditInsertion(e, fenceEditSpan(node, range));
@@ -455,6 +456,27 @@
 		// Mobile/IME beforeinput arrives without a preceding keydown, so the undo
 		// anchor reads fresh rather than trusting preEditOffset (see the soft-break arm).
 		pendingCursorOffset = commitDisplay(edit.newText, backend.getRaw() ?? 0, edit.newCursor);
+		return true;
+	}
+
+	/**
+	 * A delete while the fence lines hide is applied here, whatever range the engine reports:
+	 * Chromium, deleting the last visible character of a line, also removes the unrendered nodes
+	 * beside it — the opener's whole fence line — so a Backspace on the last body character
+	 * left `\n\`\`\`` and reparsed the block into a fresh fence. The span is clamped to the body.
+	 */
+	function guardHiddenFenceDelete(e: InputEvent, range: CodeRange): boolean {
+		if (!showRail || !/^delete(?!By)/.test(e.inputType)) return false;
+		e.preventDefault();
+		const span = clampRangeToBody(node, range);
+		if (span.end > span.start) {
+			const text = getDisplayText();
+			pendingCursorOffset = commitDisplay(
+				text.slice(0, span.start) + text.slice(span.end),
+				backend.getRaw() ?? 0,
+				span.start
+			);
+		}
 		return true;
 	}
 
