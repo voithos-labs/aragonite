@@ -74,7 +74,11 @@
 		if (!renderEl) return;
 		// Runs while REVEALED as well: the split keeps a live preview beside the source, so the
 		// equation re-renders as it is typed rather than only when the source folds away.
-		renderEl.replaceChildren(renderDisplayMath(mathDisplaySource(draft ?? leaf.sourceText)).dom);
+		const source = mathDisplaySource(draft ?? leaf.sourceText);
+		renderEl.replaceChildren(renderDisplayMath(source).dom);
+		// An equation with nothing in it renders nothing, which folded would be an invisible block
+		// the user cannot find to delete; it keeps the card's fill instead, like an empty fence.
+		renderEl.toggleAttribute('data-empty', source.trim() === '');
 		renderCount += 1;
 		renderEl.dataset.renderCount = String(renderCount);
 	});
@@ -254,6 +258,12 @@
 		border: 1px solid transparent;
 		border-radius: 8px;
 		overflow-x: auto;
+	}
+
+	/* Folded and empty: the fill stays, so there is a box to see and click into. */
+	.math-block:not(.math-block-editing) .math-block-render[data-empty] {
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+		min-height: 2.6em;
 	}
 
 	/* At rest the render is the whole block and a hover tint is its only affordance; inside a
