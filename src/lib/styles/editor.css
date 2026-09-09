@@ -461,12 +461,12 @@
 	display: inline;
 }
 
-/* Two fences with no blank line between them are two boxes; without a gap they read as one
-   split box. Padding, not margin: the height model measures the host's border box. */
-:where(.editor)
-	.block-host[data-block-kind='fencedCode']
-	+ .block-host[data-block-kind='fencedCode'] {
-	padding-top: 0.5em;
+/* A code block or table is a box, and prose gives it nothing to stand off from: blocks stack flush,
+   with only a text line's own leading between them. The box brings its own breathing room —
+   about a text line's leading each side, so code-to-code and code-to-prose match. Padding,
+   not margin: the height model measures the host's border box. */
+:where(.editor) .block-host:is([data-block-kind='fencedCode'], [data-block-kind='table']) {
+	padding-block: 6px;
 }
 
 /* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's
@@ -506,10 +506,21 @@
 	visibility: visible;
 }
 
-/* GitHub task lists carry no bullet, so the `- ` prefix hides and the checkbox stays — but as
-   a BOX rather than the literal `[ ]` glyphs. The span keeps its box (visibility, not display)
-   because the hanging indent is keyed to its ch width; the glyphs hide inside it and the
-   pseudo-elements paint the control in their slot. */
+/* GitHub task lists: no bullet, the box at the margin, the text one gap after it. The `- `
+   marker collapses to nothing (its bytes stay for the walk), the `[ ]` span becomes a fixed
+   slot so checked and unchecked are the same width, and the box paints in that slot. */
+:where(.editor):is(
+		[data-presentation='reading'],
+		[data-presentation^='preview-'],
+		[data-presentation='live']
+	)
+	.list-item-block[data-list-marker='task']
+	.task-list-marker {
+	display: inline-block;
+	width: 0;
+	overflow: hidden;
+}
+
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -519,12 +530,11 @@
 	.task-checkbox {
 	visibility: hidden;
 	position: relative;
-	/* A fixed slot: `[ ]` and `[x]` differ in width in a proportional face, so the hidden
-	   glyphs would shift the item's text on every toggle. The margin puts back the space that
-	   follows them in the marker; the marker's own text is untouched. */
 	display: inline-block;
-	width: 1.1em;
-	margin-right: 0.3em;
+	/* Slot + gap; `TASK_HANGING_INDENT` in task-checkbox.ts is these plus the trailing space. */
+	width: 1.2em;
+	margin-right: 0.65em;
+	vertical-align: baseline;
 }
 
 :where(.editor):is(
@@ -539,17 +549,17 @@
 	position: absolute;
 	left: 50%;
 	top: 50%;
-	width: 0.96em;
-	height: 0.96em;
+	width: 1.2em;
+	height: 1.2em;
 	transform: translate(-50%, -50%);
 	box-sizing: border-box;
 	border: 1.5px solid var(--color-ui-muted, #8f8f89);
-	border-radius: 4px;
+	border-radius: 0.28em;
 	background: transparent;
 }
 
-/* Checked: the box fills with the accent and a tick is drawn over it — two borders of a
-   rotated box, which needs no glyph and scales with the type. */
+/* Checked: the box fills with the text colour and the tick is cut from it in the page's
+   background — two borders of a rotated box, so it needs no glyph and scales with the type. */
 :where(.editor):is(
 		[data-presentation='reading'],
 		[data-presentation^='preview-'],
@@ -557,8 +567,8 @@
 	)
 	.list-item-block[data-task-checked='true']
 	.task-checkbox::before {
-	background: var(--color-accent, #567b67);
-	border-color: var(--color-accent, #567b67);
+	background: var(--color-text-primary, currentColor);
+	border-color: var(--color-text-primary, currentColor);
 }
 
 :where(.editor):is(
@@ -573,13 +583,13 @@
 	position: absolute;
 	/* The slot's centre, nudged up and right: the visible strokes are the L's right and
 	   bottom edges, which rotation swings down and left. */
-	left: 54%;
-	top: 44%;
-	width: 0.24em;
-	height: 0.46em;
+	left: 53%;
+	top: 45%;
+	width: 0.32em;
+	height: 0.6em;
 	box-sizing: border-box;
-	border: solid var(--color-accent-contrast, #ffffff);
-	border-width: 0 2px 2px 0;
+	border: solid var(--color-bg, #2c2c2a);
+	border-width: 0 0.15em 0.15em 0;
 	transform: translate(-50%, -50%) rotate(45deg);
 }
 

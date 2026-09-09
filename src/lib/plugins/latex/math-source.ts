@@ -51,6 +51,20 @@ function fenceLine(text: string): HTMLSpanElement {
 	return line;
 }
 
+/**
+ * A `$$` block with no body LINE — `$$$$`, `$$\n$$`, a whitespace-only one-liner — has nowhere
+ * for a caret to sit once the fence lines hide, and Backspace has no byte it could mean. The
+ * completion every such block takes as its source is revealed: opener, one empty body line,
+ * closer, caret on that line. A block that already has a body line, blank or not, is left alone.
+ */
+export function completeBareMathSource(text: string): { text: string; caret: number } | null {
+	const { opener, body, closer } = sliceMathSource(text);
+	if (!opener || !closer) return null;
+	if (body.includes('\n') || body.trim() !== '') return null;
+	const completed = `${FENCE}\n\n${FENCE}`;
+	return { text: completed, caret: FENCE.length + 1 };
+}
+
 export function renderMathSource(text: string): DocumentFragment {
 	const { opener, body, closer } = sliceMathSource(text);
 	const frag = document.createDocumentFragment();

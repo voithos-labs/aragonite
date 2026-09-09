@@ -496,11 +496,11 @@
 <style>
 	/* Bare controls over the code box's top-right — no container of their own, so the code
 	   they sit above reads through between them. Positioned against the block host, whose
-	   box the code box fills, and out of the code box's own scroller so a horizontal scroll
-	   leaves them where they are. */
+	   box the code box fills below the host's 6px stand-off (editor.css, fencedCode), and out
+	   of the code box's own scroller so a horizontal scroll leaves them where they are. */
 	.code-rail {
 		position: absolute;
-		top: 6px;
+		top: 12px;
 		right: 8px;
 		z-index: 1;
 		display: flex;

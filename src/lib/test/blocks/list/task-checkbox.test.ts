@@ -44,8 +44,10 @@ describe('buildTaskItemAmbient', () => {
 					role: 'checkbox',
 					ariaChecked: true,
 					onClick: onToggle
-				}
-			]
+				},
+				{ start: 0, end: 2, className: 'task-list-marker', onClick: expect.any(Function) }
+			],
+			indent: '2.1em'
 		});
 	});
 

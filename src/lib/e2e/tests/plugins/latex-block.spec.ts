@@ -56,6 +56,37 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		await editor.gotoMathSeed('mathblock');
 	});
 
+	// A block with no body line — the one-line `$$$$`, or `$$` over `$$` — reveals as opener,
+	// one empty body line and closer, so the caret has a line to sit on; Backspace on that line is
+	// then the block's deletion, in live mode and source mode alike.
+	for (const mode of ['live', 'source'] as const) {
+		test(`an empty block gains a body line on reveal and Backspace deletes it (${mode})`, async ({
+			page
+		}) => {
+			await editor.setPresentationMode(mode);
+			await editor.loadContent('Before\n\n$$$$\n');
+			await editor.render.click();
+			await expect(editor.source).toHaveText('$$\n\n$$');
+
+			await page.keyboard.press('Backspace');
+			await editor.bridge.waitForSourceEquals('Before\n');
+			expect(await editor.bridge.getBlockCount()).toBe(1);
+			// The press lands the caret in the block above, as the code block's deletion does.
+			await expect(editor.getBlock(0)).toContainText('Before');
+			expect(await editor.selectionInBlock(0)).toBe(true);
+		});
+	}
+
+	test('Backspace at the start of a body with content does not delete the block', async ({
+		page
+	}) => {
+		await editor.render.click();
+		await page.keyboard.press('Home');
+		await page.keyboard.press('Backspace');
+		await editor.getBlock(0).click();
+		await editor.bridge.waitForSourceEquals('Before\n\n$$x^2$$\n\nAfter\n');
+	});
+
 	test('renders the KaTeX display by default without exposing the source', async () => {
 		await expect(editor.renderedKatex).toHaveCount(1);
 		await expect(editor.source).toHaveCount(0);

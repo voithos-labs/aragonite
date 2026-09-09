@@ -35,6 +35,7 @@ import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
 import {
 	CONTENT_EMPTY_ATTR,
+	chromeFreeText,
 	clampToLandableRaw,
 	holdsOnlyMarkerChrome
 } from '../../cursor/widget-offset';
@@ -89,6 +90,13 @@ export interface EditableLeafDeps {
 	 * the edit only on blur, and a cancelled `beforeinput` fires no `input` event.
 	 */
 	onSourceEdit?(text: string): void;
+	/**
+	 * A source that is only its own chrome (a `$$$$` with no body line), completed to the shape
+	 * a caret can sit in, with where the caret goes. Applied as the source is revealed, so the
+	 * block the user just entered is one they can type into and delete; null leaves the bytes
+	 * alone. The edit is the reveal's own, committed on blur like any other.
+	 */
+	completeBareSource?(text: string): { text: string; caret: number } | null;
 }
 
 /**
@@ -219,6 +227,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const wiring = wireSurfaceContexts();
 	const {
 		blockEdit,
+		focusActions,
 		stickyColumn,
 		edgeAffinity,
 		selection,
@@ -326,6 +335,19 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	});
 
+	// Every open goes through here rather than the kernel directly, so a chrome-only source is
+	// completed (see `EditableLeafDeps.completeBareSource`) whatever door revealed it.
+	async function revealSource(atSourceOffset = 0): Promise<void> {
+		await revealKernel.reveal(atSourceOffset);
+		const el = deps.getEl();
+		if (!el || !deps.completeBareSource || !isRevealed() || isReading()) return;
+		const completed = deps.completeBareSource(el.textContent ?? '');
+		if (!completed) return;
+		paintSource(el, completed.text);
+		deps.onSourceEdit?.(completed.text);
+		setCursorOffset(el, asDomTextOffset(completed.caret));
+	}
+
 	// ── Commit ─────────────────────────────────────────────────────────────────
 
 	// Returns the commit's own promise, so a caller that has to act on the committed bytes
@@ -371,7 +393,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			// Reading mode: a rendered view has no source to reveal; focus is a no-op
 			// and block-level traversal passes over.
 			if (isReading()) return;
-			void revealKernel.reveal(offset);
+			void revealSource(offset);
 			return;
 		}
 		surface.parkCaret(offset);
@@ -387,7 +409,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				if (isReading()) return;
 				// Through the kernel like every other open, so this entry gets the same trace pair,
 				// length assert and reveal base; it seats a caret at 0, which the column re-seats.
-				await revealKernel.reveal();
+				await revealSource();
 			}
 			if (!deps.getEl()) return;
 			surface.focusAtColumn(x, from);
@@ -495,6 +517,30 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (composing || !el) return;
 		preEditOffset = getCursorOffset(el) ?? 0;
 
+		// Backspace in a painted source that holds nothing but its own chrome deletes the block, as
+		// it does in a code block: an empty body has no byte the press could mean, and a seat that
+		// only steps out (or eats the one blank line) leaves a block the user just asked to be rid
+		// of. In every mode — the gate is the byte BEFORE the caret: whitespace, or nothing, so a
+		// press that sits right after a visible marker still edits that marker in source mode.
+		if (e.key === 'Backspace' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			const offset = deps.renderSource ? getCursorOffset(el) : null;
+			const text = el.textContent ?? '';
+			if (
+				offset !== null &&
+				(offset === 0 || /\s/.test(text[offset - 1] ?? '')) &&
+				!hasSelectionIn(el) &&
+				chromeFreeText(el).trim() === ''
+			) {
+				e.preventDefault();
+				revealedBase = null;
+				deps.setRevealed?.(false);
+				const index = deps.getIndex();
+				await blockEdit.deleteBlock(index);
+				void focusActions.moveFocus(index - 1, 'end');
+				return;
+			}
+		}
+
 		if ((await handleSharedKeydown(e, editableSurface.sharedCtx)) || editableSurface.isDetached())
 			return;
 
@@ -556,6 +602,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		spliceSourceText(el, start, end, insert);
 	}
 
+	function hasSelectionIn(el: HTMLElement): boolean {
+		const sel = window.getSelection();
+		return Boolean(sel && !sel.isCollapsed && el.contains(sel.anchorNode));
+	}
+
 	function onPointerDown(e: PointerEvent): void {
 		void crossBlock.handlePointerDown(e);
 	}
@@ -579,7 +630,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		// crossBlock.handlePointerDown: that hit-tests against the SOURCE text, which the
 		// rendered view is not.
 		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
-		void revealKernel.reveal(revealOffsetAt(e));
+		void revealSource(revealOffsetAt(e));
 	}
 
 	// The revealed source owns the press and has already spent the chord, so a spread the fold
@@ -677,7 +728,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		reveal: (offset = 0) => {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
-			return isReading() ? Promise.resolve() : revealKernel.reveal(offset);
+			return isReading() ? Promise.resolve() : revealSource(offset);
 		},
 		commitSource: (edited) => void commitSource(edited)
 	};

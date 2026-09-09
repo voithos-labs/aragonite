@@ -111,6 +111,12 @@
 	const ambientPrefixText = $derived(
 		typeof ambientPrefix === 'string' ? ambientPrefix : ambientPrefix.text
 	);
+	// The hanging indent is the prefix's painted width: its text width by default, or what a
+	// prefix painting itself as chrome (the task box) declares.
+	const ambientIndent = $derived(
+		(typeof ambientPrefix === 'string' ? undefined : ambientPrefix.indent) ??
+			`${ambientPrefixText.length}ch`
+	);
 
 	const wiring = wireSurfaceContexts();
 	const {
@@ -933,8 +939,8 @@
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
 	role="textbox"
-	style:text-indent={ambientPrefixText ? `-${ambientLength}ch` : null}
-	style:padding-left={ambientPrefixText ? `${ambientLength}ch` : null}
+	style:text-indent={ambientPrefixText ? `-${ambientIndent}` : null}
+	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={onKeyDown}
 	onbeforeinput={onBeforeInput}

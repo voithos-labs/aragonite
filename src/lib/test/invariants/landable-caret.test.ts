@@ -19,6 +19,9 @@ function block(mode: string | undefined, marker: string, stamped = false): HTMLE
 	el.appendChild(span);
 	root.appendChild(el);
 	document.body.appendChild(root);
+	// The stamp paints only under focus (the stylesheet's `:focus-within` rung), which is the
+	// state "once its chrome paints" asks about.
+	if (stamped) el.focus();
 	return el;
 }
 

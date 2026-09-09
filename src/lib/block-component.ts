@@ -85,7 +85,17 @@ export interface AmbientInteractiveRange {
 	onClick: (e: MouseEvent) => void;
 }
 
-export type AmbientPrefix = string | { text: string; interactive?: AmbientInteractiveRange[] };
+export type AmbientPrefix =
+	| string
+	| {
+			text: string;
+			interactive?: AmbientInteractiveRange[];
+			/**
+			 * The hanging indent the rendered prefix needs, when its painted width is not its text
+			 * width (a task item's `- [ ] ` paints as one box). Defaults to one `ch` per character.
+			 */
+			indent?: string;
+	  };
 
 // ── BlockComponentProps ──────────────────────────────────────────────────────
 

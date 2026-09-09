@@ -14,7 +14,8 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 	outer.className = 'md-marker';
 	outer.setAttribute('contenteditable', 'false');
 
-	const ranges = normalized.interactive ?? [];
+	// Document order, whatever order the host listed them in: the walk below is a single pass.
+	const ranges = [...(normalized.interactive ?? [])].sort((a, b) => a.start - b.start);
 	let cursor = 0;
 
 	for (const range of ranges) {

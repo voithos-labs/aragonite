@@ -13,7 +13,7 @@
 	const MATH_PREVIEW_SHOW = 'Show the rendered preview';
 	import { renderDisplayMath } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
-	import { renderMathSource } from './math-source';
+	import { completeBareMathSource, renderMathSource } from './math-source';
 
 	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
 
@@ -43,10 +43,18 @@
 			draft = null;
 		},
 		renderSource: renderMathSource,
+		completeBareSource: completeBareMathSource,
 		onSourceEdit: (text) => {
 			draft = text;
 		}
 	});
+
+	// While editing, the preview is a sibling of the surface that holds focus: its scrollbar (a
+	// wide equation overflows the half-width card) must not take that focus, since losing it is
+	// what folds the editor. Same device as the eye button; a fold click is a click while folded.
+	function keepSourceFocus(e: MouseEvent): void {
+		if (revealed) e.preventDefault();
+	}
 
 	// The edits the leaf applies itself report through `onSourceEdit`; this is the native path
 	// (a composition's commit), where the highlight goes stale until repainted. The leaf's own
@@ -134,6 +142,7 @@
 				tabindex="-1"
 				aria-label="Math (click to edit)"
 				{...leaf.renderProps}
+				onmousedown={keepSourceFocus}
 			></div>
 			{#if revealed}
 				{@render previewToggle(false)}
@@ -187,10 +196,11 @@
 		gap: 6px;
 	}
 
-	/* Two equations with no blank line between them are two blocks; without a gap their fills
-	   touch and read as one. Padding, not margin: the height model measures the host's box. */
-	:global(.block-host[data-block-kind='mathBlock'] + .block-host[data-block-kind='mathBlock']) {
-		padding-top: 0.5em;
+	/* The equation's cards are boxes like a code block's, and take the same stand-off from their
+	   neighbours (editor.css, fencedCode). Padding, not margin: the height model measures the
+	   host's box. */
+	:global(.block-host[data-block-kind='mathBlock']) {
+		padding-block: 6px;
 	}
 
 	/* Each half is its own card, and the containing block for its eye. */

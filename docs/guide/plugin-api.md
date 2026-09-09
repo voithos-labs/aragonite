@@ -119,7 +119,7 @@ _(pre-freeze / unstable)_ The recipe: [Typing a multi-line construct into existe
 | Export                   | Role                                                                                                                                    |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerBlockCompleter` | Let one typed line complete into a grammar whose lines must sit adjacent, which Enter alone can never type                              |
-| `BlockCompleter`         | The contract: `tryComplete(line)` claims with a result, or declines with null                                                           |
+| `BlockCompleter`         | The contract: `tryComplete(line)` claims with a result, or declines with null; `onType: true` also consults it as the line is typed     |
 | `CompletionResult`       | A claim: the lines to insert, endings omitted (the editor attaches the document's own), plus where the caret seats inside the insertion |
 
 ### Registration probes
@@ -188,7 +188,7 @@ Register **before mounting an editor**: a block already on screen re-tokenizes o
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `registerLanguage` | Add a grammar under a name, with optional aliases; idempotent, so a repeat call with the same name is a no-op                          |
 | `listLanguages`    | Every registered name and alias, sorted — what the code block's language picker offers                                                 |
-| `highlightCode`    | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface   |
+| `highlightCode`    | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface  |
 | `LanguageGrammar`  | The registry's read shape: the resolved name and its definition                                                                        |
 | `LanguageFn`       | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
 
