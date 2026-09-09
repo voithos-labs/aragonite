@@ -52,7 +52,10 @@ export function installDragListener(
 				// underneath all along, so handing back gives the right single-block highlight.
 				ctx.selection.collapse();
 			}
-			if (ctx.paintSameBlock) paintSameBlockRange(near.endpointHere());
+			if (ctx.paintSameBlock) {
+				if ('offset' in anchorPoint) paintSameBlockRange(near.endpointHere());
+				else takeAnchorBlockWhole();
+			}
 			return;
 		}
 
@@ -63,6 +66,19 @@ export function installDragListener(
 		} else {
 			ctx.selection.extendFocus(focusPoint);
 		}
+	}
+
+	// A whole-block anchor (a table, an equation) has nothing to paint natively either, and a range
+	// that only appears once the pointer reaches ANOTHER block reads as a drag that does nothing.
+	// The block is taken whole the moment the pointer moves, where the block paints itself as a
+	// single-block range (a table does); a kind that cannot stays unselected until the drag leaves.
+	function takeAnchorBlockWhole(): void {
+		if (ctx.selection.isCrossBlock) return;
+		// Both ends whole: the pointer's position INSIDE the block is not a rectangle to grow (a
+		// press beside a table dragged up over it would otherwise select the rows below the
+		// pointer, the opposite of the sweep). The block is the unit until the drag leaves it.
+		ctx.selection.enterCrossBlock(anchorPoint, { path: anchorPoint.path.slice(), wholeBlock: true });
+		if (!ctx.selection.isCustomRendered) ctx.selection.clear();
 	}
 
 	// A margin-started drag has no native selection under it, so the range inside the anchor

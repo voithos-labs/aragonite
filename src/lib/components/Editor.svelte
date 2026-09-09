@@ -673,11 +673,18 @@
 			// press and release targets meet at the root); with a range just painted, it is no
 			// click to answer.
 			if (!anchor) {
+				const pressed = marginDrag;
 				const dragged =
-					marginDrag &&
+					pressed &&
 					(Math.abs(e.clientX - marginDown.x) > 3 || Math.abs(e.clientY - marginDown.y) > 3);
 				marginDrag = false;
-				if (!dragged) deadSpaceCaret.handleClick(root, e);
+				if (dragged) return;
+				if (deadSpaceCaret.handleClick(root, e)) return;
+				// A press on a block HOST's own box (the padding beside a table) is dead space the
+				// click helper does not claim; a release that did not move still places the caret.
+				if (pressed && e.target instanceof Element && e.target.classList.contains('block-host')) {
+					placeCaretAtPoint(e.clientX, e.clientY);
+				}
 				return;
 			}
 			// Host chrome follows the page's link behaviour, not plain-click-edits.
@@ -722,6 +729,12 @@
 			if (!anchor) return;
 			marginDrag = true;
 			resetForPointerDown(selectionState, stickyColumn, edgeAffinity, false);
+			// A block that runs its own drag from a nearby press (a table's cell rectangle) takes
+			// it; the generic drag is for blocks that have none.
+			if (!('offset' in anchor)) {
+				const component = getBlockComponent(anchor.path);
+				if (component?.startDragAtPoint?.(e.clientX, e.clientY, e)) return;
+			}
 			installDragListener(
 				{
 					editorRoot: root,

@@ -169,6 +169,13 @@ export interface BlockComponent {
 	 */
 	snapCaretToPoint?(clientX: number, clientY: number): void;
 	/**
+	 * A press beside the block (the editor's margin, the host's own padding) that may become a
+	 * drag: start the block's OWN drag anchored at the leaf nearest the point — a table's cell
+	 * rectangle — exactly as a press on that leaf would. True when it did; false leaves the press
+	 * to the editor's generic drag.
+	 */
+	startDragAtPoint?(clientX: number, clientY: number, event: PointerEvent): boolean;
+	/**
 	 * Descend child indices to the BlockComponent at the leaf, or null if the path
 	 * doesn't resolve. Empty `path` returns this component. Containers implement it.
 	 */

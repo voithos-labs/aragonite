@@ -141,11 +141,13 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		const hit = blockAtPoint(root, probeX, probeY);
 		if (!hit) return null;
 		const landing = landingFor(hit, probeX, probeY);
-		if (!landing || landing.path.length > 0) return null;
-		// No character surface to measure against (a rendered equation names its landing): the
-		// block is the unit, and the funnel picks the side by the drag's direction. An offset here
-		// would put a range END at the block's start and leave the block out.
-		if (!hit.charSurface) return { path: hit.path.slice(), wholeBlock: true };
+		if (!landing) return null;
+		// No character surface to measure against — a rendered equation names its landing, a table
+		// names a cell — so the block is the unit, and the funnel picks the side by the drag's
+		// direction. An offset would put a range END at the block's start and leave it out; a cell
+		// would make the drag a caret placement in the nearest column, which is what a press beside
+		// a table did before.
+		if (!hit.charSurface || landing.path.length > 0) return { path: hit.path.slice(), wholeBlock: true };
 		return { path: hit.path.slice(), offset: landing.offset };
 	}
 

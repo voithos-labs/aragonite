@@ -32,7 +32,8 @@
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/caret-doors';
 	import { columnNearestX } from './cell-x-mapping';
-	import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';
+	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
+	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { intraTableRect } from './cell-clipboard';
 	import { selectedCells } from './selected-cells';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
@@ -662,6 +663,24 @@
 
 	export function mountedRowWindow(): { start: number; end: number } {
 		return { start: win.start, end: win.end };
+	}
+
+	// A press beside the table runs the same cell drag a press IN a cell runs, anchored at the
+	// nearest cell — so a sweep that starts in the margin grows the same rectangle it would from
+	// that cell, and leaves the table as a cross-block range the same way.
+	export function startDragAtPoint(clientX: number, clientY: number, e: PointerEvent): boolean {
+		if (!tableEl || readOnly) return false;
+		const host = tableEl.parentElement;
+		const target = host ? tableCaretAtPoint(host, clientX, clientY) : null;
+		const editorRoot = getEditorRoot();
+		if (!target || !editorRoot) return false;
+		const [rowIdx, colIdx] = target.path;
+		installCellDragListener(
+			{ editorRoot, selection, lifetimeSignal: editorLifetime },
+			{ tableEl, tablePath: myPath.slice(), rowIdx, colIdx, columnCount },
+			e
+		);
+		return true;
 	}
 
 	function cellElementAt(rowIdx: number, colIdx: number): HTMLElement | null {
