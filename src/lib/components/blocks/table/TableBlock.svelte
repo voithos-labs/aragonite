@@ -828,7 +828,7 @@
 		align-items: stretch;
 	}
 	.table-add-zone-row {
-		height: 26px;
+		height: 22px;
 		padding-top: 4px;
 		flex-direction: column;
 		align-items: stretch;
@@ -858,7 +858,7 @@
 		width: 18px;
 	}
 	.table-add-row {
-		height: 18px;
+		height: 16px;
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.table-add {

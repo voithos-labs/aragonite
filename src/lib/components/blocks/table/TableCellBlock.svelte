@@ -663,23 +663,13 @@
 				if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 				return;
 			}
-			// Cells override the document-level 2-stage Ctrl+A with a 3-stage table-aware
-			// variant; the intra-cell step stays native.
+			// The document-level two-stage Ctrl+A, cell first: the intra-cell step stays native,
+			// the second press takes the document.
 			case 'select-all-step':
 				selection.incrementSelectAllCount();
 				if (plan.step === 'native') return;
 				e.preventDefault();
-				if (plan.step === 'table') {
-					const tablePath = myPath.slice(0, -2);
-					// Flagged row-major like the drag/shift-click anchor, so a later
-					// exit-the-table extend snaps its whole row.
-					selection.enterCrossBlock(
-						{ path: tablePath, offset: 0, cellCoordinate: true } satisfies CellSelectionPoint,
-						{ path: tablePath, offset: columnCount * rowCount - 1 }
-					);
-				} else {
-					selectWholeDocument(selection, getDoc(), getBlockElByPath);
-				}
+				selectWholeDocument(selection, getDoc(), getBlockElByPath);
 				return;
 			default:
 				e.preventDefault();

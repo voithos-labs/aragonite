@@ -24,8 +24,8 @@
 		'preview-inline',
 		'live'
 	];
-	let presentationMode = $state<PresentationMode>('source');
-	let theme = $state<'dark' | 'light'>('dark');
+	let presentationMode = $state<PresentationMode>('live');
+	let theme = $state<'dark' | 'light'>('light');
 
 	// The showcase installs no probe surface, so `trackParityDocument` is the only thing
 	// putting its container-dense document under the teardown parity net.
@@ -243,17 +243,21 @@
 		font-size: 0.85rem;
 		color: var(--color-accent, #567b67);
 	}
-	/* A reading column, not the whole window: the editor ships into an app pane, and a
-	   document run edge-to-edge across a wide screen misrepresents how it reads. */
+	/* A reading column, not the whole window — but the SCROLLER is the whole window's width, so
+	   the scrollbar sits at the screen's edge and the margins are the editor's own dead space
+	   (a drag can start there). The column is the root's padding, centred at 1000px. */
 	.showcase-editor {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
 		width: 100%;
-		max-width: 1000px;
-		margin: 0 auto;
 		min-width: 0;
 		min-height: 0;
+	}
+	.showcase-editor :global(.editor) {
+		box-sizing: border-box;
+		padding-left: max(1rem, calc((100% - 1000px) / 2));
+		padding-right: max(1rem, calc((100% - 1000px) / 2));
 	}
 	/* The library paints the overlay's geometry and leaves its color to the host page. */
 	.showcase-editor :global(.decoration-overlay.hl-occurrence) {

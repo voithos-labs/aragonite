@@ -37,6 +37,7 @@
 	import { createScrollport, type Scrollport } from '../cursor/scrollport';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
+	import { installDragListener } from '../selection/drag-pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
 	import { useContainerWindowing } from '../reactivity/use-container-windowing.svelte';
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
@@ -44,6 +45,7 @@
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
+	import BlockMenu from './menu/BlockMenu.svelte';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
@@ -450,6 +452,49 @@
 		revealBlock: (index) => revealPath([index])
 	});
 
+	// ── Block menu ──────────────────────────────────────────────────────
+
+	// Opened by the bottom `+` and by a right-click on prose with nothing selected; a right-click
+	// over a selection leaves the formatting popover (the host's) in charge and only suppresses
+	// the native menu. Tables run their own cell menu and have prevented the default first.
+	let blockMenu = $state<{ x: number; y: number; anchor: () => { x: number; y: number } } | null>(
+		null
+	);
+
+	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
+		const rect = el.getBoundingClientRect();
+		const dx = point.x - rect.left;
+		const dy = point.y - rect.top;
+		return () => {
+			const now = el.getBoundingClientRect();
+			return { x: now.left + dx, y: now.top + dy };
+		};
+	}
+
+	function onRootContextMenu(e: MouseEvent): void {
+		if (e.defaultPrevented || effectiveMode === 'reading' || !editorEl) return;
+		const target = e.target instanceof Element ? e.target : null;
+		if (!target || isHostChrome(target)) return;
+		e.preventDefault();
+		const native = window.getSelection();
+		if (native && !native.isCollapsed && editorEl.contains(native.anchorNode)) return;
+		if (!placeCaretAtPoint(e.clientX, e.clientY)) return;
+		const point = { x: e.clientX, y: e.clientY };
+		blockMenu = { ...point, anchor: anchorOn(target.closest('.block-host') ?? editorEl, point) };
+	}
+
+	async function onTailPlus(button: HTMLElement): Promise<void> {
+		await blockEdit.insertParagraph(doc.children.length, '');
+		const rect = button.getBoundingClientRect();
+		const point = { x: rect.left, y: rect.bottom + 4 };
+		blockMenu = { ...point, anchor: anchorOn(button, point) };
+	}
+
+	function pickBlock(md: string): void {
+		blockMenu = null;
+		insertMarkdown(md);
+	}
+
 	// ── Link card door ──────────────────────────────────────────────────
 
 	// The caret snapshot and the entry guards ride the STATE, not the callers, so entry path N+1
@@ -512,9 +557,15 @@
 			}
 			const anchor = target?.closest('a[href]') as HTMLAnchorElement | null;
 			// The helper claims only clicks whose target IS the root, so nothing the
-			// editor renders is touched.
+			// editor renders is touched. A margin drag's release arrives as a root click too (the
+			// press and release targets meet at the root); with a range just painted, it is no
+			// click to answer.
 			if (!anchor) {
-				deadSpaceCaret.handleClick(root, e);
+				const dragged =
+					marginDrag &&
+					(Math.abs(e.clientX - marginDown.x) > 3 || Math.abs(e.clientY - marginDown.y) > 3);
+				marginDrag = false;
+				if (!dragged) deadSpaceCaret.handleClick(root, e);
 				return;
 			}
 			// Host chrome follows the page's link behaviour, not plain-click-edits.
@@ -532,9 +583,41 @@
 				e.preventDefault();
 			}
 		};
+		// A drag that STARTS in the margin: the browser cannot grow a selection from a
+		// non-editable press into an editable block, so the editor runs the drag itself, anchored
+		// where a click there would land. The mousedown's default is suppressed so the browser
+		// starts no selection of its own to fight it; `click` still fires for the caret placement.
+		let marginDrag = false;
+		let marginDown = { x: 0, y: 0 };
+		const startMarginDrag = (e: PointerEvent) => {
+			marginDrag = false;
+			marginDown = { x: e.clientX, y: e.clientY };
+			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+			if (effectiveMode === 'reading' || !deadSpaceCaret.isDeadSpaceTarget(root, e.target)) return;
+			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
+			if (!anchor) return;
+			marginDrag = true;
+			resetForPointerDown(selectionState, stickyColumn, edgeAffinity, false);
+			installDragListener(
+				{
+					editorRoot: root,
+					scrollContainer: getScrollHost() ?? root,
+					selection: selectionState,
+					getBlockElByPath,
+					lifetimeSignal: lifetimeController.signal,
+					paintSameBlock: true
+				},
+				anchor,
+				e
+			);
+		};
 		return removeAll(
 			onRoot(root, 'click', handleClick),
-			onRoot(root, 'mousedown', (e: MouseEvent) => deadSpaceCaret.notePress(root, e))
+			onRoot(root, 'pointerdown', startMarginDrag),
+			onRoot(root, 'mousedown', (e: MouseEvent) => {
+				deadSpaceCaret.notePress(root, e);
+				if (marginDrag) e.preventDefault();
+			})
 		);
 	});
 
@@ -1470,10 +1553,10 @@
 
 	// The door only resolves the focused surface; every rule (the reading gate, the cross-block
 	// range decline, the arms themselves) lives below the seam. See `editor-props.ts`.
-	export function runCommand(commandId: string): boolean {
+	export function runCommand(commandId: string, arg?: unknown): boolean {
 		return runCommandById(
 			commandId as AnyCommandId,
-			undefined,
+			arg,
 			focusedCommandTarget(),
 			commandDispatchContext,
 			commandErrorSink
@@ -1642,6 +1725,7 @@
 	tabindex="-1"
 	role="group"
 	aria-label={EDITOR_LABEL}
+	oncontextmenu={onRootContextMenu}
 >
 	{#if searchBar}
 		<!-- Zero-height sticky anchor, so the bar doesn't scroll away with content. Portaled
@@ -1676,7 +1760,21 @@
 		reorderable={true}
 	/>
 	<!-- A sibling of the list like the header: the windowing scope wants the list bare. -->
-	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
+	<TailInsert
+		{blockEdit}
+		childCount={doc.children.length}
+		readOnly={effectiveMode === 'reading'}
+		onPlus={(button) => void onTailPlus(button)}
+	/>
+	{#if blockMenu}
+		<BlockMenu
+			x={blockMenu.x}
+			y={blockMenu.y}
+			anchor={blockMenu.anchor}
+			onPick={pickBlock}
+			onClose={() => (blockMenu = null)}
+		/>
+	{/if}
 	<ImageOverlayHost
 		{widgetSelection}
 		{controller}

@@ -249,6 +249,12 @@
 	pointer-events: none;
 }
 
+/* The tint IS the widget's selection paint: native `::selection` on the text inside it (a KaTeX
+   box is text) would stack a second wash on the same pixels. */
+:where(.editor) [data-inline-widget].md-widget-selected ::selection {
+	background: transparent;
+}
+
 /* Synthetic caret on the snap-target edge — Chromium doesn't reliably render
    the live caret adjacent to a contenteditable=false neighbor. */
 :where(.editor) [data-inline-widget].md-snap-after::before,
@@ -541,10 +547,12 @@
 	padding-block: 6px;
 }
 
-/* Room on the right for the add-column strip (`TableBlock.svelte`): the table's max width is
-   this box, so a full-width table still leaves the strip inside the editor's scroll box. */
+/* Room for the add strips (`TableBlock.svelte`) INSIDE the host's box: on the right so a
+   full-width table still leaves the column strip inside the editor's scroll box, and below so
+   the row strip never lies over whatever follows the table (the trailing insert row, a block). */
 :where(.editor) .block-host[data-block-kind='table'] {
 	padding-right: 30px;
+	padding-bottom: 24px;
 }
 
 /* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's

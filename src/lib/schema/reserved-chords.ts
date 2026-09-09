@@ -72,6 +72,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: "Backwards step of the open card's focus trap, plus the entry chord swallowed as a no-op where the focus already is — the kind keymaps claim it everywhere else. Escape lives on the host, which must also close a card the document still holds the caret for."
 	},
 	{
+		file: 'components/menu/BlockMenu.svelte',
+		chords: [],
+		keys: ['ArrowDown', 'ArrowUp', 'Enter', 'Escape'],
+		note: 'The open block menu steps and picks; the modifier read is the guard that leaves every chord to the editor.'
+	},
+	{
 		file: 'components/blocks/table/TableActionMenu.svelte',
 		chords: ['Shift+Tab'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'End', 'Escape', 'Home', 'Tab'],

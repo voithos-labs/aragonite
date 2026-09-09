@@ -15,34 +15,45 @@
 	} from '$lib';
 	import MenuIcon, { type MenuIconName } from '$lib/components/menu/MenuIcon.svelte';
 
-	// Two groups, the way Notion's bar reads: the marks on the text, then what wraps it.
-	const BUTTONS: readonly { icon: MenuIconName; title: string; command: string; group: number }[] =
-		[
-			{ icon: 'bold', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong, group: 0 },
-			{
-				icon: 'italic',
-				title: 'Italic (Ctrl/Cmd+I)',
-				command: TOOLBAR_COMMANDS.toggleEmphasis,
-				group: 0
-			},
-			{
-				icon: 'strikethrough',
-				title: 'Strikethrough (Ctrl/Cmd+Shift+X)',
-				command: TOOLBAR_COMMANDS.toggleStrikethrough,
-				group: 0
-			},
-			{
-				icon: 'code',
-				title: 'Inline code (Ctrl/Cmd+E)',
-				command: TOOLBAR_COMMANDS.toggleCode,
-				group: 1
-			},
-			{ icon: 'link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink, group: 1 }
-		];
+	// Notion's selection popover: a row of the marks, then labelled rows for what acts on the
+	// selection as a whole. The marks toggle in place; the rows read as menu items.
+	const MARKS: readonly { icon: MenuIconName; title: string; command: string }[] = [
+		{ icon: 'bold', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong },
+		{ icon: 'italic', title: 'Italic (Ctrl/Cmd+I)', command: TOOLBAR_COMMANDS.toggleEmphasis },
+		{
+			icon: 'strikethrough',
+			title: 'Strikethrough (Ctrl/Cmd+Shift+X)',
+			command: TOOLBAR_COMMANDS.toggleStrikethrough
+		},
+		{ icon: 'code', title: 'Inline code (Ctrl/Cmd+E)', command: TOOLBAR_COMMANDS.toggleCode }
+	];
+	const ROWS: readonly { icon: MenuIconName; label: string; command: string }[] = [
+		{ icon: 'link', label: 'Link', command: TOOLBAR_COMMANDS.editLink }
+	];
+	// "Set heading": the existing `heading.cycle` arm with its level argument — 0 is normal text.
+	const TURN_INTO_COMMAND = 'heading.cycle';
+	const TURN_INTO: readonly { label: string; level: number }[] = [
+		{ label: 'Normal text', level: 0 },
+		{ label: 'Heading 1', level: 1 },
+		{ label: 'Heading 2', level: 2 },
+		{ label: 'Heading 3', level: 3 }
+	];
+	const BUTTONS = [...MARKS, ...ROWS, { command: TURN_INTO_COMMAND }];
+	const PROSE_KINDS: ReadonlySet<string> = new Set(['paragraph', 'heading', 'setextHeading']);
+	let turnIntoOpen = $state(false);
+	let blockKind = $state<string | null>(null);
+
+	function copySelection(): void {
+		const text = window.getSelection()?.toString() ?? '';
+		if (text) void navigator.clipboard.writeText(text);
+		placement = null;
+	}
 
 	interface Placement {
 		x: number;
 		y: number;
+		/** The selection's first rect, for the flip above when there is no room below. */
+		flipY: number;
 	}
 
 	// Only the host knows where its own fixed chrome ends, so the clearance floor arrives as a
@@ -54,6 +65,25 @@
 	let declined = $state<ReadonlySet<string>>(new Set());
 	let active = $state<ReadonlySet<string>>(new Set());
 	let current: EditorSelection | null = null;
+	let barEl: HTMLDivElement | undefined = $state();
+
+	// The bar's own size, measured once it is in the DOM, so the placement can keep it on screen:
+	// pushed left at the right edge, flipped above the selection when there is no room below.
+	let size = $state<{ w: number; h: number } | null>(null);
+	$effect(() => {
+		if (!barEl || !placement) return;
+		const rect = barEl.getBoundingClientRect();
+		size = { w: rect.width, h: rect.height };
+	});
+	const shown = $derived.by(() => {
+		if (!placement) return null;
+		if (!size) return { x: placement.x, y: placement.y };
+		const margin = 8;
+		let { x, y } = placement;
+		if (x + size.w > window.innerWidth - margin) x = Math.max(margin, window.innerWidth - margin - size.w);
+		if (y + size.h > window.innerHeight - margin) y = Math.max(topInset + 4, placement.flipY - size.h - BAR_GAP);
+		return { x, y };
+	});
 
 	$effect(() => {
 		if (!editor) return;
@@ -82,7 +112,13 @@
 
 	function update(selection: EditorSelection | null): void {
 		current = selection;
-		placement = selection ? place(selection) : null;
+		turnIntoOpen = false;
+		blockKind = selection
+			? (editor?.getBlockKindAt(normalizeSelection(selection).start.path) ?? null)
+			: null;
+		// Prose only: over a code fence or an equation's source the marks mean nothing, so the bar
+		// stays away rather than opening greyed out.
+		placement = selection && blockKind !== null && PROSE_KINDS.has(blockKind) ? place(selection) : null;
 		// Asked per selection change, not per render: the answers are snapshots of this selection.
 		declined = new Set(
 			BUTTONS.filter((b) => !editor?.canRunCommand(b.command)).map((b) => b.command)
@@ -96,87 +132,169 @@
 		const { start, end } = normalizeSelection(selection);
 		const sameBlock = start.path.join('.') === end.path.join('.');
 		if (!sameBlock) {
-			// Rects from the start offset through the start block's last measurable position.
-			const rects = editor!.getRects().rangeRects(start.path, start.offset, SELECTION_END);
-			return rects.length ? above(rects[0]) : null;
+			// The bar hangs off where the selection ENDS, so the end block's rects come first. A
+			// selection that starts at the very end of one block (a drag that left the block
+			// upward, or began at the previous paragraph's end) leaves the start block's remaining
+			// range empty, so that read is a fallback, and the start block's whole box the last one.
+			const rects = editor!.getRects();
+			const endRects =
+				editor!.getBlockKindAt(end.path) !== 'table' && end.offset > 0
+					? rects.rangeRects(end.path, 0, end.offset)
+					: [];
+			const anchored = endRects.length
+				? endRects
+				: rects.rangeRects(start.path, start.offset, SELECTION_END);
+			const measured = anchored.length ? anchored : rects.rangeRects(start.path, 0, SELECTION_END);
+			return measured.length ? belowRight(measured) : null;
 		}
 		// An intra-table rectangle shares the table's path and carries cell indices on endpoints the
 		// flag need not mark, so the kind read is what excludes it rather than the flag.
 		if (editor!.getBlockKindAt(start.path) === 'table') return null;
 		if (start.offset === end.offset) return null;
 		const rects = editor!.getRects().rangeRects(start.path, start.offset, end.offset);
-		return rects.length ? above(rects[0]) : null;
+		return rects.length ? belowRight(rects) : null;
 	}
 
-	/** How far above the selection the bar sits: its own height plus a gap, so the buttons never
-	 *  cover the line the user selected. A selection too close to the host's chrome flips the bar
-	 *  below itself instead, so it never lands on controls it does not own. */
-	const BAR_CLEARANCE = 40;
-	const BAR_GAP = 8;
+	/** The bar opens like a menu: below the selection's last line and to the right of where it
+	 *  ends, never over the text. The clamp above pushes it left at the viewport edge and flips it
+	 *  above the first line when there is no room below. */
+	const BAR_GAP = 6;
 
-	function above(rect: DOMRect): Placement | null {
+	function belowRight(rects: DOMRect[]): Placement | null {
+		const first = rects[0];
+		const last = rects[rects.length - 1];
 		// Scrolled out from under the host's chrome or off the bottom: nothing to anchor to.
-		if (rect.bottom < topInset || rect.top > window.innerHeight) return null;
-		const y = rect.top - BAR_CLEARANCE;
-		return y >= topInset + 4 ? { x: rect.left, y } : { x: rect.left, y: rect.bottom + BAR_GAP };
+		if (last.bottom < topInset || first.top > window.innerHeight) return null;
+		return { x: last.right + BAR_GAP, y: last.bottom + BAR_GAP, flipY: first.top };
 	}
 
 	// The id, not a synthesized chord: a host rebind moves the shortcut and leaves the button. A
 	// declined run means the bar's premise went stale under it, so the boolean hides the bar.
-	function fire(command: string): void {
-		if (editor && !editor.runCommand(command)) placement = null;
+	function fire(command: string, arg?: unknown): void {
+		turnIntoOpen = false;
+		if (editor && !editor.runCommand(command, arg)) placement = null;
 	}
 </script>
 
-{#if placement}
+{#if shown}
 	<div
+		bind:this={barEl}
 		class="selection-toolbar"
 		data-testid="selection-toolbar"
-		style:left="{placement.x}px"
-		style:top="{placement.y}px"
+		style:left="{shown.x}px"
+		style:top="{shown.y}px"
+		role="toolbar"
+		aria-label="Selection formatting"
+		tabindex="-1"
+		onpointerleave={() => (turnIntoOpen = false)}
 	>
-		{#each BUTTONS as button, i (button.command)}
-			{#if i > 0 && BUTTONS[i - 1].group !== button.group}
-				<span class="toolbar-divider" aria-hidden="true"></span>
-			{/if}
+		<div class="toolbar-marks">
+			{#each MARKS as button (button.command)}
+				<button
+					type="button"
+					class="toolbar-btn"
+					data-testid="toolbar-{button.command}"
+					title={button.title}
+					disabled={declined.has(button.command)}
+					aria-pressed={active.has(button.command)}
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => fire(button.command)}
+				>
+					<MenuIcon name={button.icon} size={16} />
+				</button>
+			{/each}
+		</div>
+		<div class="toolbar-divider" aria-hidden="true"></div>
+		<div
+			class="toolbar-flyout-host"
+			role="presentation"
+			onpointerenter={() => (turnIntoOpen = !declined.has(TURN_INTO_COMMAND))}
+		>
 			<button
 				type="button"
-				class="toolbar-btn"
-				data-testid="toolbar-{button.command}"
-				title={button.title}
-				disabled={declined.has(button.command)}
-				aria-pressed={active.has(button.command)}
+				class="toolbar-row"
+				data-testid="toolbar-set-heading"
+				disabled={declined.has(TURN_INTO_COMMAND)}
+				aria-haspopup="menu"
+				aria-expanded={turnIntoOpen}
 				onmousedown={(e) => e.preventDefault()}
-				onclick={() => fire(button.command)}
+				onclick={() => (turnIntoOpen = !turnIntoOpen)}
 			>
-				<MenuIcon name={button.icon} size={16} />
+				<span class="toolbar-row-icon"><MenuIcon name="heading" size={14} /></span>
+				<span class="toolbar-row-label">Set heading</span>
+				<span class="toolbar-row-icon"><MenuIcon name="chevron-right" size={13} /></span>
+			</button>
+			{#if turnIntoOpen}
+				<div class="toolbar-flyout" role="menu">
+					{#each TURN_INTO as option (option.level)}
+						{@const current = option.level === 0 ? blockKind === 'paragraph' : false}
+						<button
+							type="button"
+							class="toolbar-row"
+							role="menuitemradio"
+							data-testid="toolbar-set-heading-{option.level}"
+							aria-checked={current}
+							onmousedown={(e) => e.preventDefault()}
+							onclick={() => fire(TURN_INTO_COMMAND, option.level)}
+						>
+							<span class="toolbar-row-label">{option.label}</span>
+							{#if current}<span class="toolbar-row-icon"><MenuIcon name="check" size={13} /></span>{/if}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+		{#each ROWS as row (row.command)}
+			<button
+				type="button"
+				class="toolbar-row"
+				data-testid="toolbar-{row.command}"
+				disabled={declined.has(row.command)}
+				aria-pressed={active.has(row.command)}
+				onmousedown={(e) => e.preventDefault()}
+				onclick={() => fire(row.command)}
+			>
+				<span class="toolbar-row-icon"><MenuIcon name={row.icon} size={14} /></span>
+				<span>{row.label}</span>
 			</button>
 		{/each}
+		<button
+			type="button"
+			class="toolbar-row"
+			data-testid="toolbar-copy"
+			onmousedown={(e) => e.preventDefault()}
+			onclick={copySelection}
+		>
+			<span class="toolbar-row-icon"><MenuIcon name="copy" size={14} /></span>
+			<span>Copy</span>
+		</button>
 	</div>
 {/if}
 
 <style>
-	/* limestone's menu surface, laid flat: a raised hairlined pill of icon buttons. */
+	/* limestone's menu surface, in Notion's popover shape: marks across the top, rows below. */
 	.selection-toolbar {
 		position: fixed;
 		z-index: 100;
 		display: flex;
-		align-items: center;
-		gap: 2px;
+		flex-direction: column;
+		min-width: 188px;
 		padding: 4px;
 		border: 1px solid var(--color-border, #3e3e3b);
 		border-radius: 8px;
 		background: var(--color-bg, #2c2c2a);
-		color: var(--color-ui-muted, #8f8f89);
+		color: var(--color-text-primary, #e8e8e5);
 		font-family: var(--font-ui, system-ui, sans-serif);
+		font-size: 13px;
+		line-height: 1.4;
 		white-space: nowrap;
 		box-shadow: var(--menu-shadow, 0 8px 24px rgba(0, 0, 0, 0.3));
 	}
-	.toolbar-divider {
-		width: 1px;
-		height: 18px;
-		margin: 0 4px;
-		background: var(--color-border, #3e3e3b);
+	.toolbar-marks {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		padding: 2px;
 	}
 	.toolbar-btn {
 		display: inline-flex;
@@ -188,7 +306,7 @@
 		border: none;
 		border-radius: 5px;
 		background: transparent;
-		color: inherit;
+		color: var(--color-ui-muted, #8f8f89);
 		cursor: pointer;
 	}
 	.toolbar-btn:hover:not(:disabled),
@@ -196,7 +314,55 @@
 		color: var(--color-text-primary, #e8e8e5);
 		background: var(--menu-item-hover, rgba(255, 255, 255, 0.07));
 	}
-	.toolbar-btn:disabled {
+	.toolbar-divider {
+		height: 1px;
+		margin: 4px 6px;
+		background: var(--color-border, #3e3e3b);
+	}
+	.toolbar-row {
+		display: flex;
+		align-items: center;
+		gap: 9px;
+		width: 100%;
+		padding: 7px 10px;
+		border: none;
+		border-radius: 5px;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+	.toolbar-row:hover:not(:disabled),
+	.toolbar-row[aria-pressed='true'] {
+		background: var(--menu-item-hover, rgba(255, 255, 255, 0.07));
+	}
+	.toolbar-row-icon {
+		display: inline-flex;
+		align-items: center;
+		color: var(--color-ui-muted, #8f8f89);
+	}
+	.toolbar-row-label {
+		flex: 1;
+	}
+	/* limestone's submenu: a second surface hung off the row's right edge. */
+	.toolbar-flyout-host {
+		position: relative;
+	}
+	.toolbar-flyout {
+		position: absolute;
+		left: 100%;
+		top: -4px;
+		margin-left: 4px;
+		min-width: 150px;
+		padding: 4px;
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 8px;
+		background: var(--color-bg, #2c2c2a);
+		box-shadow: var(--menu-shadow, 0 8px 24px rgba(0, 0, 0, 0.3));
+	}
+	.toolbar-btn:disabled,
+	.toolbar-row:disabled {
 		opacity: 0.4;
 		cursor: default;
 	}

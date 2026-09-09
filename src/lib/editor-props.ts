@@ -119,14 +119,13 @@ export interface EditorInstance {
 	 */
 	insertMarkdown(md: string): boolean;
 	/**
-	 * Run a command by id at the focused surface, no chord in the path, so a consumer's
-	 * `keybindings` rebind cannot rewire a toolbar button. `TOOLBAR_COMMANDS` names the built-in
-	 * ids; a plugin's global name resolves ahead of the focused block, its per-block one stays
-	 * chord-only. Semantics match the chord: one undo entry, same caret — over a cross-block range
-	 * a format toggle marks every block it touches, a table by its cells. False, and nothing mutates,
-	 * on an unknown id, in reading mode, with nothing focused, and on the link editor over a range.
+	 * Run a command by id at the focused surface, or across a painted range where the id has a
+	 * cross-block arm (a format toggle marks every block it touches, a table by its cells). False,
+	 * and nothing mutates, on an unknown id, in reading mode, with nothing focused, and on the link
+	 * editor over a range. `arg` reaches the arm as a keybinding's argument would (`heading.cycle`
+	 * takes the level, 0 for plain text); an arm that takes none ignores it.
 	 */
-	runCommand(commandId: string): boolean;
+	runCommand(commandId: string, arg?: unknown): boolean;
 	/**
 	 * Whether `runCommand(id)` would reach that command's arm right now, asked at the seam that
 	 * would run it, so a host can grey a toolbar button out instead of hiding the affordance.

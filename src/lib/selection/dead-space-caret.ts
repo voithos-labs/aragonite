@@ -13,6 +13,7 @@ import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
+import type { SelectionPoint } from './primitives';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -45,6 +46,14 @@ export interface DeadSpaceCaret {
 	 * was claimed; a point past a windowed-out tail claims it and lands after the reveal.
 	 */
 	placeAtPoint(root: HTMLElement, x: number, y: number): boolean;
+	/** Whether a press target is the editor's dead space (the root, or a block list inside it). */
+	isDeadSpaceTarget(root: HTMLElement, target: EventTarget | null): boolean;
+	/**
+	 * The selection point a drag STARTING in dead space anchors at: the same landing a click there
+	 * would take, without taking it. Character surfaces only — a coordinate-addressed kind (a
+	 * table) anchors nothing, and the press falls through to whatever it did before.
+	 */
+	anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionPoint | null;
 }
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
@@ -119,7 +128,25 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		return true;
 	}
 
+	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionPoint | null {
+		const blocks = measureBlocks(root);
+		const band = nearestBand(
+			blocks.map((b) => b.rect),
+			y
+		);
+		if (!band) return null;
+		if (band.belowAll && lastMountedTopLevel(blocks) !== deps.lastBlockIndex()) return null;
+		const { x: probeX, y: probeY } = probePointIn(blocks[band.index].rect, x, y, band.belowAll);
+		const hit = blockAtPoint(root, probeX, probeY);
+		if (!hit) return null;
+		const landing = landingFor(hit, probeX, probeY);
+		if (!landing || landing.path.length > 0) return null;
+		return { path: hit.path.slice(), offset: landing.offset };
+	}
+
 	return {
+		isDeadSpaceTarget: isDeadSpace,
+		anchorAtPoint,
 		notePress(root, event) {
 			pressedOnDeadSpace =
 				isDeadSpace(root, event.target) &&

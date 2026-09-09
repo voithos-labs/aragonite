@@ -8,7 +8,7 @@ import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
 import type { SelectionPoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
-import { applyCollapsedCaret } from './native-bridge';
+import { applyCollapsedCaret, applySingleBlockRange } from './native-bridge';
 import { comparePaths } from './path-math';
 import { createPointerDragSession } from './pointer-session';
 import { blockNearPoint } from './nearest-block';
@@ -23,6 +23,11 @@ export interface DragContext {
 	getBlockElByPath: BlockElLookup;
 	/** Aborted on editor unmount; forwarded to the session's teardown. */
 	lifetimeSignal?: AbortSignal;
+	/**
+	 * The press began outside every editable surface (the editor's margin), so no native drag
+	 * is extending a selection underneath: the session paints the same-block range itself.
+	 */
+	paintSameBlock?: boolean;
 }
 
 // ── Public entry ───────────────────────────────────────────────────────────
@@ -47,6 +52,7 @@ export function installDragListener(
 				// underneath all along, so handing back gives the right single-block highlight.
 				ctx.selection.collapse();
 			}
+			if (ctx.paintSameBlock) paintSameBlockRange(near.endpointHere());
 			return;
 		}
 
@@ -57,6 +63,24 @@ export function installDragListener(
 		} else {
 			ctx.selection.extendFocus(focusPoint);
 		}
+	}
+
+	// A margin-started drag has no native selection under it, so the range inside the anchor
+	// block is written here, and the block takes focus so the range is live for the next key.
+	function paintSameBlockRange(
+		focusPoint: ReturnType<NonNullable<ReturnType<typeof blockNearPoint>>['endpointHere']>
+	): void {
+		if (!focusPoint || !('offset' in focusPoint) || !('offset' in anchorPoint)) return;
+		const blockEl = ctx.getBlockElByPath(anchorPoint.path);
+		if (!blockEl) return;
+		// A no-op once it holds focus; the range is a DOM Range, so it is written low-to-high (a
+		// drag from the right margin leftward would otherwise collapse it).
+		blockEl.focus({ preventScroll: true });
+		applySingleBlockRange(
+			blockEl,
+			Math.min(anchorPoint.offset, focusPoint.offset),
+			Math.max(anchorPoint.offset, focusPoint.offset)
+		);
 	}
 
 	// Pointer may land on a scrollable element directly (the table's `.table-block` edge), so

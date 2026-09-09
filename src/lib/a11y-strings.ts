@@ -55,6 +55,7 @@ export const ADD_ROW_BELOW = 'Add row';
 export const ADD_COLUMN_RIGHT = 'Add column';
 export const TAIL_ADD_ROW = 'Add a line below';
 export const TAIL_ADD_BLOCK = 'Add a block';
+export const BLOCK_MENU_LABEL = 'Insert a block';
 export const ALIGN_LEFT = 'Left';
 export const ALIGN_CENTER = 'Center';
 export const ALIGN_RIGHT = 'Right';

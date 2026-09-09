@@ -12,9 +12,15 @@
 	let {
 		blockEdit,
 		childCount,
-		readOnly
-	}: { blockEdit: BlockEditActions | undefined; childCount: number; readOnly: boolean } =
-		$props();
+		readOnly,
+		onPlus
+	}: {
+		blockEdit: BlockEditActions | undefined;
+		childCount: number;
+		readOnly: boolean;
+		/** The `+`: the editor appends the paragraph and opens the block menu over it. */
+		onPlus: (button: HTMLElement) => void;
+	} = $props();
 
 	// The mint's own focus lands the caret; the mousedown is swallowed so nothing else seats one.
 	function append(): void {
@@ -31,7 +37,7 @@
 			aria-label={TAIL_ADD_BLOCK}
 			title={TAIL_ADD_BLOCK}
 			onmousedown={(e) => e.preventDefault()}
-			onclick={append}><MenuIcon name="plus" size={14} /></button
+			onclick={(e) => onPlus(e.currentTarget)}><MenuIcon name="plus" size={14} /></button
 		>
 		<button
 			type="button"
@@ -64,19 +70,21 @@
 		outline-offset: -1px;
 		border-radius: 4px;
 	}
+	/* In the editor's gutter, exactly where a block's drag handle sits (`BlockDragHandle`): the
+	   root's 1rem padding holds a 0.85rem slot, and this is the handle of the imaginary last line. */
 	.editor-tail-plus {
 		position: absolute;
-		left: -26px;
+		left: -1rem;
 		top: 50%;
 		transform: translateY(-50%);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 22px;
-		height: 22px;
+		width: 1rem;
+		height: 1rem;
 		padding: 0;
 		border: 0;
-		border-radius: 4px;
+		border-radius: 3px;
 		background: transparent;
 		color: var(--color-ui-muted, #8f8f89);
 		cursor: pointer;

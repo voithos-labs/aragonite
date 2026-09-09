@@ -67,7 +67,9 @@
 		height: number;
 	}
 
-	/** Merge rects on the same visual line into a single rect to prevent double-highlight. */
+	/** Merge rects on the same visual line into a single rect to prevent double-highlight. Same
+	 *  line means vertically overlapping, not equal tops: an inline widget (a KaTeX box) stands
+	 *  taller than the text beside it, and two rects painted over one span read twice as dark. */
 	function mergeRectsPerLine(rects: LocalRect[]): LocalRect[] {
 		if (rects.length <= 1) return rects;
 		const sorted = [...rects].sort((a, b) => a.top - b.top);
@@ -76,7 +78,8 @@
 
 		for (let i = 1; i < sorted.length; i++) {
 			const r = sorted[i];
-			if (Math.abs(r.top - current.top) < 2) {
+			const overlap = Math.min(current.top + current.height, r.top + r.height) - Math.max(current.top, r.top);
+			if (overlap > Math.min(current.height, r.height) * 0.5) {
 				const left = Math.min(current.left, r.left);
 				const right = Math.max(current.left + current.width, r.left + r.width);
 				const top = Math.min(current.top, r.top);

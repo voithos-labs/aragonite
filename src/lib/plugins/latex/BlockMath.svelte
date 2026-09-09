@@ -9,10 +9,10 @@
 	// so this component owns only the render↔source swap visuals.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 	// Plugin-local like the other labels here: bundled plugins import only the public barrel.
-	// The three ways the source and its preview can share the block while editing. Side by side
-	// is the default because it moves the page least; stacked suits a long equation; source
-	// alone is the quiet one. The toggle cycles them and names the NEXT layout.
-	type MathLayout = 'split' | 'stacked' | 'source';
+	// The three ways the source and its preview can share the block while editing (see
+	// `math-layout.ts`); the host's plugin options pick the starting one. The toggle cycles
+	// them and names the NEXT layout.
+	type MathLayout = MathBlockLayout;
 	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
 		split: 'stacked',
 		stacked: 'source',
@@ -26,8 +26,15 @@
 	import { renderDisplayMath } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
 	import { completeBareMathSource, renderMathSource } from './math-source';
+	import { resolveDefaultLayout, type MathBlockLayout } from './math-layout';
 
-	let { node, index, myPath = [] }: { node: NodeView; index: number; myPath?: number[] } = $props();
+	let {
+		node,
+		index,
+		myPath = [],
+		blockLayout = 'split'
+	}: { node: NodeView; index: number; myPath?: number[]; blockLayout?: MathBlockLayout } =
+		$props();
 
 	// eslint-disable-next-line no-useless-assignment -- <script module> counter read by the next instance mount
 	const mountId = nextMountId++;
@@ -36,10 +43,6 @@
 	let sourceEl: HTMLDivElement | undefined = $state();
 	let renderEl: HTMLDivElement | undefined = $state();
 	let revealed = $state(false);
-	// Per-instance and per-session: a reader who folds the preview away is asking about THIS
-	// equation while they edit it, not setting a preference for the document.
-	let layout = $state<MathLayout>('split');
-	const previewOpen = $derived(layout !== 'source');
 	// The in-flight source while revealed: a render-primary edit reaches the CST only on blur,
 	// so the live preview reads the surface, not the node. Null when nothing is in flight.
 	let draft = $state<string | null>(null);
@@ -68,6 +71,13 @@
 	function keepSourceFocus(e: MouseEvent): void {
 		if (revealed) e.preventDefault();
 	}
+
+	// Per-instance and per-session: a reader who changes the layout is asking about THIS equation
+	// while they edit it, not setting a preference for the document. The starting layout is the
+	// host's: this editor's plugin options, else the factory's default.
+	// svelte-ignore state_referenced_locally
+	let layout = $state<MathLayout>(resolveDefaultLayout(leaf.getOptions(), blockLayout));
+	const previewOpen = $derived(layout !== 'source');
 
 	// The edits the leaf applies itself report through `onSourceEdit`; this is the native path
 	// (a composition's commit), where the highlight goes stale until repainted. The leaf's own
