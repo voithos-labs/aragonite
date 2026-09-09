@@ -20,6 +20,11 @@
 		label: string;
 		icon?: MenuIconName;
 		danger?: boolean;
+		disabled?: boolean;
+		/** A separator row; nothing else on the entry is read. */
+		divider?: boolean;
+		/** A flyout: hover or ArrowRight opens these beside the row; a pick is one of THEIR ids. */
+		children?: MenuEntry[];
 	}
 
 	// Blocks that stand on their own when empty. A heading is not one — it is text turned into a
@@ -42,12 +47,29 @@
 		}
 	];
 
-	/** The insert list: the built-ins plus each installed plugin's block. */
-	export function insertMenuEntries(): (MenuEntry & { md: string })[] {
-		return [
+	/** Every insertable block, keyed by id, for resolving a pick from either level of the menu. */
+	export function insertSnippets(): Map<string, string> {
+		const all = [
 			...BUILT_IN,
 			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
 		];
+		return new Map(all.map((item) => [item.id, item.md]));
+	}
+
+	const COMMON = new Set(['bullet', 'numbered', 'todo', 'code', 'table', 'math']);
+
+	/** The insert menu: the common blocks, the rest behind "More blocks". */
+	export function insertMenuEntries(): MenuEntry[] {
+		const all = [
+			...BUILT_IN,
+			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
+		];
+		const row = ({ id, label, icon }: BlockMenuItem): MenuEntry => ({ id, label, icon });
+		const common = all.filter((item) => COMMON.has(item.id)).map(row);
+		const more = all.filter((item) => !COMMON.has(item.id)).map(row);
+		return more.length
+			? [...common, { id: 'more', label: 'More blocks', icon: 'plus', children: more }]
+			: common;
 	}
 </script>
 
@@ -77,6 +99,26 @@
 
 	let menuEl: HTMLDivElement | undefined = $state();
 	let activeIndex = $state(0);
+	/** The open flyout: the index of its parent row, and the active child inside it. */
+	let flyout = $state<{ row: number; child: number } | null>(null);
+	const selectable = $derived(items.map((item, i) => (item.divider || item.disabled ? -1 : i)));
+	function step(from: number, delta: number): number {
+		const n = items.length;
+		let i = from;
+		for (let k = 0; k < n; k++) {
+			i = (i + delta + n) % n;
+			if (selectable[i] !== -1) return i;
+		}
+		return from;
+	}
+	function pick(entry: MenuEntry): void {
+		if (entry.disabled || entry.divider) return;
+		if (entry.children) {
+			flyout = { row: items.indexOf(entry), child: 0 };
+			return;
+		}
+		onPick(entry.id);
+	}
 
 	// Same anchoring as the table's menu: follows the content, clamped once when first sized.
 	// svelte-ignore state_referenced_locally
@@ -122,21 +164,38 @@
 		};
 		const onKeyDown = (e: KeyboardEvent) => {
 			if (e.altKey || e.ctrlKey || e.metaKey) return;
+			const open = flyout;
+			const children = open ? (items[open.row].children ?? []) : [];
 			switch (e.key) {
 				case 'Escape':
 					claim(e);
-					onClose();
+					if (open) flyout = null;
+					else onClose();
 					return;
 				case 'ArrowDown':
 				case 'ArrowUp': {
 					claim(e);
-					const n = items.length;
-					activeIndex = (activeIndex + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+					const delta = e.key === 'ArrowDown' ? 1 : -1;
+					if (open) flyout = { ...open, child: (open.child + delta + children.length) % children.length };
+					else activeIndex = step(activeIndex, delta);
 					return;
 				}
+				case 'ArrowRight':
+					if (items[activeIndex]?.children) {
+						claim(e);
+						flyout = { row: activeIndex, child: 0 };
+					}
+					return;
+				case 'ArrowLeft':
+					if (open) {
+						claim(e);
+						flyout = null;
+					}
+					return;
 				case 'Enter':
 					claim(e);
-					onPick(items[activeIndex].id);
+					if (open) onPick(children[open.child].id);
+					else pick(items[activeIndex]);
 					return;
 			}
 		};
@@ -158,21 +217,54 @@
 	style:top="{top}px"
 >
 	{#each items as item, i (item.id)}
-		<button
-			type="button"
-			role="menuitem"
-			tabindex="-1"
-			class="md-menu-item block-menu-item"
-			class:block-menu-danger={item.danger}
-			data-active={i === activeIndex ? 'true' : undefined}
-			data-testid="block-menu-{item.id}"
-			onmousedown={(e) => e.preventDefault()}
-			onpointerenter={() => (activeIndex = i)}
-			onclick={() => onPick(item.id)}
-		>
-			{#if item.icon}<span class="md-menu-icon"><MenuIcon name={item.icon} /></span>{/if}
-			<span>{item.label}</span>
-		</button>
+		{#if item.divider}
+			<div class="md-menu-divider" role="separator"></div>
+		{:else}
+			<div class="block-menu-row" role="presentation">
+				<button
+					type="button"
+					role="menuitem"
+					tabindex="-1"
+					class="md-menu-item block-menu-item"
+					class:block-menu-danger={item.danger}
+					disabled={item.disabled}
+					data-active={i === activeIndex ? 'true' : undefined}
+					data-testid="block-menu-{item.id}"
+					aria-haspopup={item.children ? 'menu' : undefined}
+					aria-expanded={item.children ? flyout?.row === i : undefined}
+					onmousedown={(e) => e.preventDefault()}
+					onpointerenter={() => {
+						activeIndex = i;
+						flyout = item.children ? { row: i, child: 0 } : null;
+					}}
+					onclick={() => pick(item)}
+				>
+					{#if item.icon}<span class="md-menu-icon"><MenuIcon name={item.icon} /></span>{/if}
+					<span class="block-menu-label">{item.label}</span>
+					{#if item.children}<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>{/if}
+				</button>
+				{#if item.children && flyout?.row === i}
+					<div class="md-menu block-menu block-menu-flyout" role="menu">
+						{#each item.children as child, j (child.id)}
+							<button
+								type="button"
+								role="menuitem"
+								tabindex="-1"
+								class="md-menu-item block-menu-item"
+								data-active={flyout.child === j ? 'true' : undefined}
+								data-testid="block-menu-{child.id}"
+								onmousedown={(e) => e.preventDefault()}
+								onpointerenter={() => (flyout = { row: i, child: j })}
+								onclick={() => onPick(child.id)}
+							>
+								{#if child.icon}<span class="md-menu-icon"><MenuIcon name={child.icon} /></span>{/if}
+								<span class="block-menu-label">{child.label}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
 	{/each}
 </div>
 
@@ -180,6 +272,19 @@
 	/* Surface and rows are the shared `.md-menu` family (editor.css). */
 	.block-menu {
 		min-width: 188px;
+	}
+	.block-menu-row {
+		position: relative;
+	}
+	.block-menu-label {
+		flex: 1;
+	}
+	/* limestone's submenu: a second surface hung off the row's right edge. */
+	.block-menu-flyout {
+		position: absolute;
+		left: 100%;
+		top: -4px;
+		margin-left: 4px;
 	}
 	.block-menu-danger,
 	.block-menu-danger .md-menu-icon {

@@ -50,9 +50,10 @@
 		movedBlockToPosition
 	} from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
-	import BlockMenu, { insertMenuEntries, type MenuEntry } from './menu/BlockMenu.svelte';
+	import BlockMenu, { insertMenuEntries, insertSnippets, type MenuEntry } from './menu/BlockMenu.svelte';
+	import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
 	import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
-	import { registerDefaultContextActions } from './menu/default-context-actions';
+	import { isProseBackground, registerDefaultContextActions } from './menu/default-context-actions';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
@@ -484,25 +485,33 @@
 		};
 	}
 
-	// A right-click is the block's CONTEXT menu: the actions its kind registered, then the
-	// defaults every block has. The browser's own menu never shows inside an editing surface;
-	// over a selection the formatting popover (the host's) is the affordance instead.
+	// A right-click on a BLOCK — a fence, an equation, an image — is that block's context menu:
+	// its kind's registered actions, then the defaults. Prose is the page's background and keeps
+	// the browser's own menu (spelling, the platform's clipboard), as does a selection, whose
+	// affordance is the host's formatting popover. The margin shows nothing at all.
 	function onRootContextMenu(e: MouseEvent): void {
 		if (e.defaultPrevented || effectiveMode === 'reading' || !editorEl) return;
 		const target = e.target instanceof Element ? e.target : null;
 		if (!target || isHostChrome(target)) return;
 		e.preventDefault();
-		const native = window.getSelection();
-		if (native && !native.isCollapsed && editorEl.contains(native.anchorNode)) return;
 		const host = target.closest<HTMLElement>('.block-host[data-block-path]');
 		const path = pathOf(host);
-		if (!host || !path || path.length !== 1) return;
+		if (!host || !path) return;
+		const point = { x: e.clientX, y: e.clientY };
+		const native = window.getSelection();
+		const selected = !!native && !native.isCollapsed && editorEl.contains(native.anchorNode);
+		// A selection's menu is the clipboard's, over the selection as it stands. So is prose's
+		// (the page's background), at a caret placed where the press landed; a nested block (a
+		// fence inside a list item) takes the same for now.
+		const node = path.length === 1 ? doc.children[path[0]] : undefined;
+		if (selected || !node || isProseBackground(node)) {
+			if (!selected) placeCaretAtPoint(e.clientX, e.clientY);
+			openClipboardMenu(point, host);
+			return;
+		}
 		const index = path[0];
-		const node = doc.children[index];
-		if (!node) return;
 		const actions = blockContextActionsFor(node, path);
 		if (actions.length === 0) return;
-		const point = { x: e.clientX, y: e.clientY };
 		const ctx = {
 			node,
 			path,
@@ -531,6 +540,43 @@
 		};
 	}
 
+	// The editing surface a paste goes to: whatever editable holds focus inside the root.
+	function focusedEditable(): HTMLElement | null {
+		const active = document.activeElement;
+		return active instanceof HTMLElement && editorEl?.contains(active) && active.isContentEditable
+			? active
+			: null;
+	}
+
+	function clipboardRows(): MenuEntry[] {
+		const selected = !!focusedEditable() && !(window.getSelection()?.isCollapsed ?? true);
+		return [
+			{ id: 'clip.cut', label: 'Cut', icon: 'scissors', disabled: !selected },
+			{ id: 'clip.copy', label: 'Copy', icon: 'copy', disabled: !selected },
+			{ id: 'clip.paste', label: 'Paste', icon: 'clipboard' },
+			{ id: 'clip.paste-plain', label: 'Paste as plain text', icon: 'type' }
+		];
+	}
+
+	function runClipboardRow(id: string): boolean {
+		if (!id.startsWith('clip.')) return false;
+		void runClipboardAction(id.slice('clip.'.length) as ClipboardAction, focusedEditable());
+		return true;
+	}
+
+	function openClipboardMenu(point: { x: number; y: number }, anchorEl: Element): void {
+		blockMenu = {
+			...point,
+			anchor: anchorOn(anchorEl, point),
+			items: clipboardRows(),
+			label: BLOCK_ACTIONS_LABEL,
+			pick: (id) => {
+				blockMenu = null;
+				runClipboardRow(id);
+			}
+		};
+	}
+
 	function pathOf(host: HTMLElement | null): number[] | null {
 		const raw = host?.dataset.blockPath;
 		if (!raw) return null;
@@ -546,16 +592,17 @@
 		await blockEdit.insertParagraph(doc.children.length, '');
 		const rect = button.getBoundingClientRect();
 		const point = { x: rect.left, y: rect.bottom + 4 };
-		const entries = insertMenuEntries();
+		const snippets = insertSnippets();
 		blockMenu = {
 			...point,
 			anchor: anchorOn(button, point),
-			items: entries,
+			items: [...insertMenuEntries(), { id: 'sep', label: '', divider: true }, ...clipboardRows()],
 			label: BLOCK_MENU_LABEL,
 			pick: (id) => {
 				blockMenu = null;
-				const entry = entries.find((item) => item.id === id);
-				if (entry) insertMarkdown(entry.md);
+				if (runClipboardRow(id)) return;
+				const md = snippets.get(id);
+				if (md) insertMarkdown(md);
 			}
 		};
 	}

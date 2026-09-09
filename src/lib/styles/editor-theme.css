@@ -140,7 +140,7 @@
 }
 
 :where(.editor, .aragonite-editor-theme)[data-editor-theme='light'] {
-	--color-bg-secondary: rgba(0, 0, 0, 0.05);
+	--color-bg-secondary: rgba(0, 0, 0, 0.035);
 	--color-bg-elevated: #f5f6f8;
 	--color-bg-muted: #eaeaea;
 	--color-text-muted: #57606a;

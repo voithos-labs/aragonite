@@ -74,7 +74,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/menu/BlockMenu.svelte',
 		chords: [],
-		keys: ['ArrowDown', 'ArrowUp', 'Enter', 'Escape'],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape'],
 		note: 'The open block menu steps and picks; the modifier read is the guard that leaves every chord to the editor.'
 	},
 	{
