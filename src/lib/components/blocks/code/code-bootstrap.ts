@@ -9,6 +9,7 @@ import {
 	__removePasteSurfaceForTests
 } from '../../../tree-operations/paste-surfaces';
 import { codePasteSurface } from './code-paste-surface';
+import { registerCodeContextActions } from './code-context-actions';
 
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -57,6 +58,7 @@ export function bootstrapCodeLanguages(): void {
 	registerLanguage('latex', latex, ['tex']);
 
 	registerPasteSurface(codePasteSurface);
+	registerCodeContextActions();
 }
 
 /** Test-only: reset the booted flag and unregister the paste surface, so a

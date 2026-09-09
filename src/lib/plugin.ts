@@ -119,6 +119,13 @@ export type { KeyBinding } from './schema/keybindings';
 // ── Command mint (pre-freeze) ────────────────────────────────────────────────
 // A (kind, name) block-command mints a PluginCommandId; AnyCommandId spans built-in and minted.
 export { registerBlockCommand } from './schema/block-commands';
+// The block context menu: a kind's right-click actions, empty unless something registers them.
+export { registerBlockContextActions } from './schema/context-actions';
+export type {
+	BlockContextAction,
+	BlockActionContext,
+	BlockContextActionProvider
+} from './schema/context-actions';
 export type { BlockCommandContext, BlockCommandHandler } from './schema/block-commands';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 // A global command is process-wide but runs against the dispatching instance's EditorContext.

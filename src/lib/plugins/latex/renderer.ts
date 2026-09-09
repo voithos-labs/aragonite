@@ -11,9 +11,9 @@ import 'katex/dist/katex.min.css';
 import type { MathRenderer } from './math-renderer';
 
 /**
- * `throwOnError: false` keeps a malformed formula from crashing the editor, but its fallback
- * renders the source verbatim, a bare raw-source strip A5 forbids: hence the `.katex-error`
- * detection and the legible message swapped in for it.
+ * `throwOnError: false` keeps a malformed formula from crashing the editor; its fallback is
+ * swapped for the source painted as an error — red, in the code face, the parser's message on
+ * hover — so a broken formula reads as what the author typed, not as a sentence about it.
  */
 export const katexRenderer: MathRenderer = (source, { display }) => {
 	const container = document.createElement('span');
@@ -29,14 +29,21 @@ export const katexRenderer: MathRenderer = (source, { display }) => {
 			/^ParseError:\s*/,
 			''
 		);
-		return { dom: buildErrorNode(message), error: message };
+		return { dom: buildErrorNode(source, message), error: message };
 	}
 	return { dom: container };
 };
 
-function buildErrorNode(message: string): HTMLElement {
+function buildErrorNode(source: string, message: string): HTMLElement {
 	const span = document.createElement('span');
 	span.className = 'math-error';
-	span.textContent = `Math error: ${message}`;
+	span.textContent = source;
+	span.title = message;
+	// Inline style rather than a stylesheet: the span lands inside any prose block, where no
+	// plugin sheet is guaranteed to be mounted.
+	span.style.color = 'var(--color-error, #d03025)';
+	span.style.fontFamily = 'var(--font-code, ui-monospace, monospace)';
+	span.style.fontSize = '0.9em';
+	span.style.cursor = 'help';
 	return span;
 }

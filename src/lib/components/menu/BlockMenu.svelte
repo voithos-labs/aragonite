@@ -1,20 +1,25 @@
-<script lang="ts">
+<script lang="ts" module>
 	/**
-	 * The block picker: what the bottom `+` and a right-click on prose open. Each row inserts a
-	 * Markdown snippet at the caret through the same door the host's toolbar uses, so a plugin's
-	 * block is listed only while that plugin is installed. Pointer- and keyboard-driven without
-	 * ever taking focus: the caret the menu will insert at stays exactly where it is.
+	 * A limestone-styled list menu the editor opens at a point: the block picker behind the
+	 * bottom `+` (rows insert Markdown at the caret) and a block's context menu (rows run that
+	 * kind's registered actions). Pointer- and keyboard-driven without ever taking focus, so the
+	 * caret it acts on stays exactly where it is.
 	 */
 	import { isPluginInstalled } from '../../schema/plugin-install';
-	import { clampMenuToViewport } from '../blocks/table/table-menu-model';
-	import { BLOCK_MENU_LABEL } from '../../a11y-strings';
-	import MenuIcon, { type MenuIconName } from './MenuIcon.svelte';
+	import type { MenuIconName } from './MenuIcon.svelte';
 
 	interface BlockMenuItem {
 		id: string;
 		label: string;
 		icon: MenuIconName;
 		md: string;
+	}
+
+	export interface MenuEntry {
+		id: string;
+		label: string;
+		icon?: MenuIconName;
+		danger?: boolean;
 	}
 
 	// Blocks that stand on their own when empty. A heading is not one — it is text turned into a
@@ -37,10 +42,26 @@
 		}
 	];
 
+	/** The insert list: the built-ins plus each installed plugin's block. */
+	export function insertMenuEntries(): (MenuEntry & { md: string })[] {
+		return [
+			...BUILT_IN,
+			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
+		];
+	}
+</script>
+
+<script lang="ts">
+	import { clampMenuToViewport } from '../blocks/table/table-menu-model';
+	import { BLOCK_MENU_LABEL } from '../../a11y-strings';
+	import MenuIcon from './MenuIcon.svelte';
+
 	let {
 		x,
 		y,
 		anchor,
+		items,
+		label = BLOCK_MENU_LABEL,
 		onPick,
 		onClose
 	}: {
@@ -48,14 +69,11 @@
 		y: number;
 		/** Where the open point is NOW, re-read on scroll and resize so the menu stays on it. */
 		anchor?: () => { x: number; y: number } | null;
-		onPick: (md: string) => void;
+		items: MenuEntry[];
+		label?: string;
+		onPick: (id: string) => void;
 		onClose: () => void;
 	} = $props();
-
-	const items = $derived([
-		...BUILT_IN,
-		...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
-	]);
 
 	let menuEl: HTMLDivElement | undefined = $state();
 	let activeIndex = $state(0);
@@ -118,7 +136,7 @@
 				}
 				case 'Enter':
 					claim(e);
-					onPick(items[activeIndex].md);
+					onPick(items[activeIndex].id);
 					return;
 			}
 		};
@@ -135,7 +153,7 @@
 	bind:this={menuEl}
 	class="md-menu block-menu"
 	role="menu"
-	aria-label={BLOCK_MENU_LABEL}
+	aria-label={label}
 	style:left="{left}px"
 	style:top="{top}px"
 >
@@ -145,13 +163,14 @@
 			role="menuitem"
 			tabindex="-1"
 			class="md-menu-item block-menu-item"
+			class:block-menu-danger={item.danger}
 			data-active={i === activeIndex ? 'true' : undefined}
 			data-testid="block-menu-{item.id}"
 			onmousedown={(e) => e.preventDefault()}
 			onpointerenter={() => (activeIndex = i)}
-			onclick={() => onPick(item.md)}
+			onclick={() => onPick(item.id)}
 		>
-			<span class="md-menu-icon"><MenuIcon name={item.icon} /></span>
+			{#if item.icon}<span class="md-menu-icon"><MenuIcon name={item.icon} /></span>{/if}
 			<span>{item.label}</span>
 		</button>
 	{/each}
@@ -161,5 +180,9 @@
 	/* Surface and rows are the shared `.md-menu` family (editor.css). */
 	.block-menu {
 		min-width: 188px;
+	}
+	.block-menu-danger,
+	.block-menu-danger .md-menu-icon {
+		color: var(--color-error, #d03025);
 	}
 </style>

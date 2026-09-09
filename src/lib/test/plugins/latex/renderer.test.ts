@@ -18,18 +18,18 @@ describe('katexRenderer', () => {
 		expect(dom.querySelector('.katex-mathml')).not.toBeNull();
 	});
 
-	// A5 — invalid math surfaces a legible inline message, never KaTeX's raw
-	// `.katex-error` source strip. This adapter-level proof is A5's primary guard;
-	// latex-acceptance.spec.ts ties it to the live widget-build path in a browser.
-	it('renders invalid math as a legible error node, never the raw source (A5)', () => {
+	// A5 — invalid math surfaces as an ERROR the reader can see and explain, never KaTeX's bare
+	// `.katex-error` strip: the source itself, painted as an error, with the parser's message
+	// on hover. This adapter-level proof is A5's primary guard; latex-acceptance.spec.ts ties it
+	// to the live widget-build path in a browser.
+	it('renders invalid math as its source marked as an error, with the message on hover (A5)', () => {
 		const source = '\\frac{';
 		const { dom, error } = katexRenderer(source, { display: false });
 
 		expect(error).toBeTruthy();
-		const text = dom.textContent ?? '';
-		// KaTeX's throwOnError:false emits a strip whose text IS the raw source;
-		// the adapter must replace it with a human message.
-		expect(text).not.toBe(source);
-		expect(text.toLowerCase()).toContain('error');
+		expect(dom.classList.contains('math-error')).toBe(true);
+		expect(dom.textContent).toBe(source);
+		expect(dom.title.toLowerCase()).toContain('error');
+		expect(dom.querySelector('.katex-error')).toBeNull();
 	});
 });

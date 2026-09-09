@@ -13,7 +13,7 @@ import { measureBlocks, nearestBand, probePointIn, type MeasuredBlock } from './
 import { placeGapCaret } from './caret-doors';
 import { canGapStop, type GapStopScope } from './gap-caret';
 import { offsetFromViewportPoint } from '../cursor/point-offset';
-import type { SelectionPoint } from './primitives';
+import type { SelectionEndpoint } from './primitives';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -49,11 +49,12 @@ export interface DeadSpaceCaret {
 	/** Whether a press target is the editor's dead space (the root, or a block list inside it). */
 	isDeadSpaceTarget(root: HTMLElement, target: EventTarget | null): boolean;
 	/**
-	 * The selection point a drag STARTING in dead space anchors at: the same landing a click there
-	 * would take, without taking it. Character surfaces only — a coordinate-addressed kind (a
-	 * table) anchors nothing, and the press falls through to whatever it did before.
+	 * The endpoint a drag STARTING in dead space (or on a block's rendered face) anchors at: the
+	 * landing a click there would take, without taking it. A character surface anchors at that
+	 * offset; a rendered leaf (an equation) anchors as a WHOLE block, so the range takes it entire
+	 * whichever way the drag goes. A coordinate-addressed kind (a table) anchors nothing.
 	 */
-	anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionPoint | null;
+	anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null;
 }
 
 export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
@@ -128,7 +129,7 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		return true;
 	}
 
-	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionPoint | null {
+	function anchorAtPoint(root: HTMLElement, x: number, y: number): SelectionEndpoint | null {
 		const blocks = measureBlocks(root);
 		const band = nearestBand(
 			blocks.map((b) => b.rect),
@@ -141,6 +142,10 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		if (!hit) return null;
 		const landing = landingFor(hit, probeX, probeY);
 		if (!landing || landing.path.length > 0) return null;
+		// No character surface to measure against (a rendered equation names its landing): the
+		// block is the unit, and the funnel picks the side by the drag's direction. An offset here
+		// would put a range END at the block's start and leave the block out.
+		if (!hit.charSurface) return { path: hit.path.slice(), wholeBlock: true };
 		return { path: hit.path.slice(), offset: landing.offset };
 	}
 

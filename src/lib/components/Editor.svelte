@@ -43,9 +43,16 @@
 	import { refSlotsOver, replaceRefs, revealChildOrWait } from '../reactivity/publish-ref.svelte';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
+	import {
+		BLOCK_ACTIONS_LABEL,
+		BLOCK_MENU_LABEL,
+		EDITOR_LABEL,
+		movedBlockToPosition
+	} from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
-	import BlockMenu from './menu/BlockMenu.svelte';
+	import BlockMenu, { insertMenuEntries, type MenuEntry } from './menu/BlockMenu.svelte';
+	import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
+	import { registerDefaultContextActions } from './menu/default-context-actions';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
@@ -143,6 +150,7 @@
 
 	registerBuiltInBlocks();
 	bootstrapCodeLanguages();
+	registerDefaultContextActions();
 	runStartupInvariantChecks();
 
 	// `__registryEnablement` is a harness-only door; the intersection keeps it off the
@@ -457,9 +465,14 @@
 	// Opened by the bottom `+` and by a right-click on prose with nothing selected; a right-click
 	// over a selection leaves the formatting popover (the host's) in charge and only suppresses
 	// the native menu. Tables run their own cell menu and have prevented the default first.
-	let blockMenu = $state<{ x: number; y: number; anchor: () => { x: number; y: number } } | null>(
-		null
-	);
+	let blockMenu = $state<{
+		x: number;
+		y: number;
+		anchor: () => { x: number; y: number };
+		items: MenuEntry[];
+		label: string;
+		pick: (id: string) => void;
+	} | null>(null);
 
 	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
 		const rect = el.getBoundingClientRect();
@@ -471,6 +484,9 @@
 		};
 	}
 
+	// A right-click is the block's CONTEXT menu: the actions its kind registered, then the
+	// defaults every block has. The browser's own menu never shows inside an editing surface;
+	// over a selection the formatting popover (the host's) is the affordance instead.
 	function onRootContextMenu(e: MouseEvent): void {
 		if (e.defaultPrevented || effectiveMode === 'reading' || !editorEl) return;
 		const target = e.target instanceof Element ? e.target : null;
@@ -478,21 +494,70 @@
 		e.preventDefault();
 		const native = window.getSelection();
 		if (native && !native.isCollapsed && editorEl.contains(native.anchorNode)) return;
-		if (!placeCaretAtPoint(e.clientX, e.clientY)) return;
+		const host = target.closest<HTMLElement>('.block-host[data-block-path]');
+		const path = pathOf(host);
+		if (!host || !path || path.length !== 1) return;
+		const index = path[0];
+		const node = doc.children[index];
+		if (!node) return;
+		const actions = blockContextActionsFor(node, path);
+		if (actions.length === 0) return;
 		const point = { x: e.clientX, y: e.clientY };
-		blockMenu = { ...point, anchor: anchorOn(target.closest('.block-host') ?? editorEl, point) };
+		const ctx = {
+			node,
+			path,
+			deleteBlock: async () => {
+				await blockEdit.deleteBlock(index);
+			},
+			replaceRaw: async (raw: string) => {
+				await blockEdit.updateBlockContent(index, raw);
+			}
+		};
+		blockMenu = {
+			...point,
+			anchor: anchorOn(host, point),
+			items: actions.map(({ id, label, icon, danger }) => ({
+				id,
+				label,
+				icon: icon as MenuEntry['icon'],
+				danger
+			})),
+			label: BLOCK_ACTIONS_LABEL,
+			pick: (id) => {
+				blockMenu = null;
+				const action = actions.find((a: BlockContextAction) => a.id === id);
+				if (action) void action.run(ctx);
+			}
+		};
+	}
+
+	function pathOf(host: HTMLElement | null): number[] | null {
+		const raw = host?.dataset.blockPath;
+		if (!raw) return null;
+		try {
+			const parsed: unknown = JSON.parse(raw);
+			return Array.isArray(parsed) && parsed.every((n) => typeof n === 'number') ? parsed : null;
+		} catch {
+			return null;
+		}
 	}
 
 	async function onTailPlus(button: HTMLElement): Promise<void> {
 		await blockEdit.insertParagraph(doc.children.length, '');
 		const rect = button.getBoundingClientRect();
 		const point = { x: rect.left, y: rect.bottom + 4 };
-		blockMenu = { ...point, anchor: anchorOn(button, point) };
-	}
-
-	function pickBlock(md: string): void {
-		blockMenu = null;
-		insertMarkdown(md);
+		const entries = insertMenuEntries();
+		blockMenu = {
+			...point,
+			anchor: anchorOn(button, point),
+			items: entries,
+			label: BLOCK_MENU_LABEL,
+			pick: (id) => {
+				blockMenu = null;
+				const entry = entries.find((item) => item.id === id);
+				if (entry) insertMarkdown(entry.md);
+			}
+		};
 	}
 
 	// ── Link card door ──────────────────────────────────────────────────
@@ -583,6 +648,18 @@
 				e.preventDefault();
 			}
 		};
+		// Dead space, and the parts of a block that are neither editable nor controls: a rendered
+		// equation, a diagram, a card's rendered face. A press on any of them cannot grow a native
+		// selection, so the editor's drag runs from it.
+		const NOT_A_DRAG_START =
+			'[contenteditable="true"], button, input, textarea, select, a, summary, [role="checkbox"], ' +
+			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle, ' +
+			'[data-table-col-grip], [data-table-row-grip], .table-grip';
+		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {
+			if (deadSpaceCaret.isDeadSpaceTarget(rootEl, target)) return true;
+			if (!(target instanceof Element) || !rootEl.contains(target)) return false;
+			return target.closest(NOT_A_DRAG_START) === null;
+		};
 		// A drag that STARTS in the margin: the browser cannot grow a selection from a
 		// non-editable press into an editable block, so the editor runs the drag itself, anchored
 		// where a click there would land. The mousedown's default is suppressed so the browser
@@ -593,7 +670,7 @@
 			marginDrag = false;
 			marginDown = { x: e.clientX, y: e.clientY };
 			if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
-			if (effectiveMode === 'reading' || !deadSpaceCaret.isDeadSpaceTarget(root, e.target)) return;
+			if (effectiveMode === 'reading' || !dragStartsHere(root, e.target)) return;
 			const anchor = deadSpaceCaret.anchorAtPoint(root, e.clientX, e.clientY);
 			if (!anchor) return;
 			marginDrag = true;
@@ -1771,7 +1848,9 @@
 			x={blockMenu.x}
 			y={blockMenu.y}
 			anchor={blockMenu.anchor}
-			onPick={pickBlock}
+			items={blockMenu.items}
+			label={blockMenu.label}
+			onPick={blockMenu.pick}
 			onClose={() => (blockMenu = null)}
 		/>
 	{/if}

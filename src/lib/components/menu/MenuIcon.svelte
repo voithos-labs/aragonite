@@ -6,6 +6,7 @@
 	 */
 	const GLYPHS = {
 		plus: ['M5 12h14', 'M12 5v14'],
+		type: ['M4 7V4h16v3', 'M9 20h6', 'M12 4v16'],
 		trash: [
 			'M3 6h18',
 			'M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6',
@@ -63,7 +64,18 @@
 		],
 		info: ['M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0', 'M12 16v-4', 'M12 8h.01'],
 		'chevron-right': ['m9 18 6-6-6-6'],
+		'chevron-down': ['m6 9 6 6 6-6'],
 		check: ['M20 6 9 17l-5-5']
+	} as const;
+
+	/**
+	 * The marks as LETTERS, the way a formatting bar draws them: a bold B, a slanted I, an S with
+	 * its own line through it. Lucide's stroked outlines of these read as clip art at 16px.
+	 */
+	const LETTERS = {
+		bold: { text: 'B', weight: 800, italic: false, strike: false },
+		italic: { text: 'I', weight: 500, italic: true, strike: false },
+		strikethrough: { text: 'S', weight: 600, italic: false, strike: true }
 	} as const;
 
 	export type MenuIconName = keyof typeof GLYPHS;
@@ -71,20 +83,39 @@
 
 <script lang="ts">
 	let { name, size = 14 }: { name: MenuIconName; size?: number } = $props();
+	const letter = $derived(name in LETTERS ? LETTERS[name as keyof typeof LETTERS] : null);
 </script>
 
-<svg
-	viewBox="0 0 24 24"
-	width={size}
-	height={size}
-	fill="none"
-	stroke="currentColor"
-	stroke-width="1.75"
-	stroke-linecap="round"
-	stroke-linejoin="round"
-	aria-hidden="true"
->
-	{#each GLYPHS[name] as d (d)}
-		<path {d} />
-	{/each}
-</svg>
+{#if letter}
+	<svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+		<text
+			x="12"
+			y="17.5"
+			text-anchor="middle"
+			font-family="Georgia, 'Times New Roman', serif"
+			font-size="17"
+			font-weight={letter.weight}
+			font-style={letter.italic ? 'italic' : 'normal'}
+			fill="currentColor">{letter.text}</text
+		>
+		{#if letter.strike}
+			<path d="M5 12.5h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+		{/if}
+	</svg>
+{:else}
+	<svg
+		viewBox="0 0 24 24"
+		width={size}
+		height={size}
+		fill="none"
+		stroke="currentColor"
+		stroke-width="1.75"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		aria-hidden="true"
+	>
+		{#each GLYPHS[name] as d (d)}
+			<path {d} />
+		{/each}
+	</svg>
+{/if}

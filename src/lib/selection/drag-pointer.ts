@@ -6,7 +6,7 @@
 
 import type { UserScrollport } from '../cursor/scroll-ancestors';
 import type { SelectionState } from './selection-state.svelte';
-import type { SelectionPoint } from './primitives';
+import type { SelectionEndpoint } from './primitives';
 import type { BlockElLookup } from '../editor-keys';
 import { applyCollapsedCaret, applySingleBlockRange } from './native-bridge';
 import { comparePaths } from './path-math';
@@ -35,7 +35,7 @@ export interface DragContext {
 /** Document-level pointer listeners for a cross-block drag started at `down`, plus a disposer. */
 export function installDragListener(
 	ctx: DragContext,
-	anchorPoint: SelectionPoint,
+	anchorPoint: SelectionEndpoint,
 	down: PointerEvent
 ): { dispose(): void } {
 	function processMove(clientX: number, clientY: number): void {

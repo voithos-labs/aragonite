@@ -132,8 +132,10 @@ export interface EditableLeafSurfaceProps {
  * stand down while the source is up, so the spread may sit on a wrapper the fold keeps.
  */
 export interface EditableLeafRenderProps {
-	/** Reveal-on-click (shift-click extends a selection instead). */
+	/** Notes the press; the reveal is the CLICK's (shift-click extends a selection instead). */
 	onpointerdown: (e: PointerEvent) => void;
+	/** Reveal on a click that did not drag — a press that moved is a selection, not an entry. */
+	onclick: (e: MouseEvent) => void;
 	/** Chord dispatch at this block's kind: the global tier, then its own commands. */
 	onkeydown: (e: KeyboardEvent) => void;
 }
@@ -327,10 +329,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		showSource: () => {
 			traceRevealOpen('leaf');
 			revealedBase = sourceText();
+			sourceUndo = [];
+			sourceRedo = [];
 			deps.setRevealed?.(true);
 		},
 		showRendered: () => {
 			revealedBase = null;
+			sourceUndo = [];
+			sourceRedo = [];
 			deps.setRevealed?.(false);
 		}
 	});
@@ -460,11 +466,33 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── Event handlers ─────────────────────────────────────────────────────────
 
+	// The open reveal's own edit history (painted sources only): every splice pushes the text it
+	// replaced, and the undo chords pop it back. Cleared as the reveal opens and folds.
+	interface SourceEntry {
+		text: string;
+		caret: number;
+	}
+	let sourceUndo: SourceEntry[] = [];
+	let sourceRedo: SourceEntry[] = [];
+
+	function restoreSourceEntry(el: HTMLElement, from: SourceEntry[], to: SourceEntry[]): void {
+		const entry = from.pop();
+		if (!entry) return;
+		to.push({ text: el.textContent ?? '', caret: getCursorOffset(el) ?? 0 });
+		paintSource(el, entry.text);
+		setCursorOffset(el, asDomTextOffset(entry.caret));
+		deps.onSourceEdit?.(entry.text);
+	}
+
 	// Splice `insert` over the source text node's [start, end) and reseat the caret. A
 	// DOM-text mutation keeps the offset walk exact where a native Enter/cut/paste would
 	// inject <div>/<br> that vanish from textContent.
 	function spliceSourceText(el: HTMLElement, start: number, end: number, insert: string): void {
 		const text = el.textContent ?? '';
+		if (deps.renderSource) {
+			sourceUndo.push({ text, caret: getCursorOffset(el) ?? start });
+			sourceRedo = [];
+		}
 		const next = text.slice(0, start) + insert + text.slice(end);
 		paintSource(el, next);
 		deps.onSourceEdit?.(next);
@@ -516,6 +544,25 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const el = deps.getEl();
 		if (composing || !el) return;
 		preEditOffset = getCursorOffset(el) ?? 0;
+
+		// Undo INSIDE an open reveal steps back through this session's own edits: the document's
+		// history sees the session as one entry written on blur, so until then Mod+Z had nothing
+		// to undo. Once the local stack is spent the chord falls through to the document's.
+		if (deps.renderSource && isRevealed() && (e.ctrlKey || e.metaKey) && !e.altKey) {
+			const key = e.key.toUpperCase();
+			const undo = key === 'Z' && !e.shiftKey;
+			const redo = (key === 'Z' && e.shiftKey) || (key === 'Y' && !e.shiftKey);
+			if (undo && sourceUndo.length > 0) {
+				e.preventDefault();
+				restoreSourceEntry(el, sourceUndo, sourceRedo);
+				return;
+			}
+			if (redo && sourceRedo.length > 0) {
+				e.preventDefault();
+				restoreSourceEntry(el, sourceRedo, sourceUndo);
+				return;
+			}
+		}
 
 		// Backspace in a painted source that holds nothing but its own chrome deletes the block, as
 		// it does in a code block: an empty body has no byte the press could mean, and a seat that
@@ -614,22 +661,30 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// The rendered view and the source are different strings, so only the kind can map a point
 	// to a source offset: `caretTargetAtPoint` is that one declaration, and a kind naming none
 	// reveals at the source start. The host, not the component root, is what the hook is bound to.
-	function revealOffsetAt(e: PointerEvent): number {
+	function revealOffsetAt(e: MouseEvent): number {
 		const host = getBlockElByPath(deps.getPath())?.closest('[data-block-path]');
 		if (!(host instanceof HTMLElement)) return 0;
 		const descriptor = tryGetBlockKindDescriptor(deps.getNode().kind);
 		return descriptor?.caretTargetAtPoint?.(host, e.clientX, e.clientY)?.offset ?? 0;
 	}
 
+	// The press only notes where it landed: revealing on the press swallowed every drag that
+	// began on a rendered equation. The editor's own drag runs from such a press (its root
+	// handler), and the CLICK — a release that did not move — is what reveals.
+	let renderPress: { x: number; y: number } | null = null;
 	function onRenderPointerDown(e: PointerEvent): void {
-		// Shift-click extends a selection; a plain click reveals. Reading mode: no reveal
-		// and no preventDefault, so native selection over the rendered view stays live.
-		if (e.shiftKey || isReading()) return;
-		e.preventDefault();
+		renderPress = e.shiftKey || isReading() ? null : { x: e.clientX, y: e.clientY };
+	}
+
+	function onRenderClick(e: MouseEvent): void {
+		const press = renderPress;
+		renderPress = null;
+		if (!press || e.shiftKey || isReading()) return;
+		if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
 		// The reveal lands a caret, so this owes the shared preamble. NOT through
 		// crossBlock.handlePointerDown: that hit-tests against the SOURCE text, which the
 		// rendered view is not.
-		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
+		resetForPointerDown(selection, stickyColumn, edgeAffinity, false);
 		void revealSource(revealOffsetAt(e));
 	}
 
@@ -638,6 +693,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const renderProps: EditableLeafRenderProps = {
 		onpointerdown: (e) => {
 			if (!isRevealed()) onRenderPointerDown(e);
+		},
+		onclick: (e) => {
+			if (!isRevealed()) onRenderClick(e);
 		},
 		onkeydown: (e) => {
 			if (!isRevealed()) void dispatchChord(e);

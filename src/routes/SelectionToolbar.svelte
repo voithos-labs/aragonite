@@ -17,18 +17,26 @@
 
 	// Notion's selection popover: a row of the marks, then labelled rows for what acts on the
 	// selection as a whole. The marks toggle in place; the rows read as menu items.
-	const MARKS: readonly { icon: MenuIconName; title: string; command: string }[] = [
-		{ icon: 'bold', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong },
-		{ icon: 'italic', title: 'Italic (Ctrl/Cmd+I)', command: TOOLBAR_COMMANDS.toggleEmphasis },
+	// The bar: the three marks and the link. Beneath it, as rows: the heading picker, inline code
+	// and copy. The bar sets the card's width.
+	const MARKS: readonly { icon: MenuIconName; title: string; command: string; size: number }[] = [
+		{ icon: 'bold', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong, size: 16 },
+		{
+			icon: 'italic',
+			title: 'Italic (Ctrl/Cmd+I)',
+			command: TOOLBAR_COMMANDS.toggleEmphasis,
+			size: 16
+		},
 		{
 			icon: 'strikethrough',
 			title: 'Strikethrough (Ctrl/Cmd+Shift+X)',
-			command: TOOLBAR_COMMANDS.toggleStrikethrough
+			command: TOOLBAR_COMMANDS.toggleStrikethrough,
+			size: 16
 		},
-		{ icon: 'code', title: 'Inline code (Ctrl/Cmd+E)', command: TOOLBAR_COMMANDS.toggleCode }
+		{ icon: 'link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink, size: 13 }
 	];
 	const ROWS: readonly { icon: MenuIconName; label: string; command: string }[] = [
-		{ icon: 'link', label: 'Link', command: TOOLBAR_COMMANDS.editLink }
+		{ icon: 'code', label: 'Inline code', command: TOOLBAR_COMMANDS.toggleCode }
 	];
 	// "Set heading": the existing `heading.cycle` arm with its level argument — 0 is normal text.
 	const TURN_INTO_COMMAND = 'heading.cycle';
@@ -39,6 +47,8 @@
 		{ label: 'Heading 3', level: 3 }
 	];
 	const BUTTONS = [...MARKS, ...ROWS, { command: TURN_INTO_COMMAND }];
+	// The bar's width, which the rows must fit inside: four buttons and their gaps, plus padding.
+	const BAR_BUTTON = 34;
 	const PROSE_KINDS: ReadonlySet<string> = new Set(['paragraph', 'heading', 'setextHeading']);
 	let turnIntoOpen = $state(false);
 	let blockKind = $state<string | null>(null);
@@ -183,6 +193,7 @@
 		data-testid="selection-toolbar"
 		style:left="{shown.x}px"
 		style:top="{shown.y}px"
+		style:--bar-button="{BAR_BUTTON}px"
 		role="toolbar"
 		aria-label="Selection formatting"
 		tabindex="-1"
@@ -200,7 +211,7 @@
 					onmousedown={(e) => e.preventDefault()}
 					onclick={() => fire(button.command)}
 				>
-					<MenuIcon name={button.icon} size={16} />
+					<MenuIcon name={button.icon} size={button.size} />
 				</button>
 			{/each}
 		</div>
@@ -255,7 +266,8 @@
 				onclick={() => fire(row.command)}
 			>
 				<span class="toolbar-row-icon"><MenuIcon name={row.icon} size={14} /></span>
-				<span>{row.label}</span>
+				<span class="toolbar-row-label">{row.label}</span>
+				{#if active.has(row.command)}<span class="toolbar-row-icon"><MenuIcon name="check" size={13} /></span>{/if}
 			</button>
 		{/each}
 		<button
@@ -278,7 +290,9 @@
 		z-index: 100;
 		display: flex;
 		flex-direction: column;
-		min-width: 188px;
+		/* The bar sets the width: four buttons, three gaps, the padding. Rows fit inside it. */
+		width: calc(4 * var(--bar-button) + 3 * 2px + 2 * 4px);
+		box-sizing: border-box;
 		padding: 4px;
 		border: 1px solid var(--color-border, #3e3e3b);
 		border-radius: 8px;
@@ -300,7 +314,7 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 30px;
+		width: var(--bar-button);
 		height: 30px;
 		padding: 0;
 		border: none;
@@ -333,8 +347,7 @@
 		text-align: left;
 		cursor: pointer;
 	}
-	.toolbar-row:hover:not(:disabled),
-	.toolbar-row[aria-pressed='true'] {
+	.toolbar-row:hover:not(:disabled) {
 		background: var(--menu-item-hover, rgba(255, 255, 255, 0.07));
 	}
 	.toolbar-row-icon {
@@ -349,6 +362,12 @@
 	.toolbar-flyout-host {
 		position: relative;
 	}
+	.toolbar-row {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	/* limestone's submenu: a second surface hung off the row's right edge. */
 	.toolbar-flyout {
 		position: absolute;
 		left: 100%;
