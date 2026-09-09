@@ -64,6 +64,8 @@ const CARET_GESTURE_DOORS: Record<string, Door> = {
  * one above; there is no third answer, which is the whole point of the guard.
  */
 const NON_CARET_PRESS_FILES: Record<string, string> = {
+	'src/lib/components/TailInsert.svelte':
+		'swallows the press so no caret seats under it; the paragraph it mints focuses itself',
 	'src/lib/components/blocks/table/TableActionMenu.svelte':
 		'document-capture dismiss-on-outside-press for the menu',
 	'src/lib/components/blocks/table/TableBlock.svelte':

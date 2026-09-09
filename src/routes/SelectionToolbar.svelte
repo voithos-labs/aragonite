@@ -15,17 +15,30 @@
 	} from '$lib';
 	import MenuIcon, { type MenuIconName } from '$lib/components/menu/MenuIcon.svelte';
 
-	const BUTTONS: readonly { icon: MenuIconName; title: string; command: string }[] = [
-		{ icon: 'bold', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong },
-		{ icon: 'italic', title: 'Italic (Ctrl/Cmd+I)', command: TOOLBAR_COMMANDS.toggleEmphasis },
-		{
-			icon: 'strikethrough',
-			title: 'Strikethrough (Ctrl/Cmd+Shift+X)',
-			command: TOOLBAR_COMMANDS.toggleStrikethrough
-		},
-		{ icon: 'code', title: 'Inline code (Ctrl/Cmd+E)', command: TOOLBAR_COMMANDS.toggleCode },
-		{ icon: 'link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink }
-	];
+	// Two groups, the way Notion's bar reads: the marks on the text, then what wraps it.
+	const BUTTONS: readonly { icon: MenuIconName; title: string; command: string; group: number }[] =
+		[
+			{ icon: 'bold', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong, group: 0 },
+			{
+				icon: 'italic',
+				title: 'Italic (Ctrl/Cmd+I)',
+				command: TOOLBAR_COMMANDS.toggleEmphasis,
+				group: 0
+			},
+			{
+				icon: 'strikethrough',
+				title: 'Strikethrough (Ctrl/Cmd+Shift+X)',
+				command: TOOLBAR_COMMANDS.toggleStrikethrough,
+				group: 0
+			},
+			{
+				icon: 'code',
+				title: 'Inline code (Ctrl/Cmd+E)',
+				command: TOOLBAR_COMMANDS.toggleCode,
+				group: 1
+			},
+			{ icon: 'link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink, group: 1 }
+		];
 
 	interface Placement {
 		x: number;
@@ -122,7 +135,10 @@
 		style:left="{placement.x}px"
 		style:top="{placement.y}px"
 	>
-		{#each BUTTONS as button (button.command)}
+		{#each BUTTONS as button, i (button.command)}
+			{#if i > 0 && BUTTONS[i - 1].group !== button.group}
+				<span class="toolbar-divider" aria-hidden="true"></span>
+			{/if}
 			<button
 				type="button"
 				class="toolbar-btn"
@@ -133,7 +149,7 @@
 				onmousedown={(e) => e.preventDefault()}
 				onclick={() => fire(button.command)}
 			>
-				<MenuIcon name={button.icon} size={15} />
+				<MenuIcon name={button.icon} size={16} />
 			</button>
 		{/each}
 	</div>
@@ -156,12 +172,18 @@
 		white-space: nowrap;
 		box-shadow: var(--menu-shadow, 0 8px 24px rgba(0, 0, 0, 0.3));
 	}
+	.toolbar-divider {
+		width: 1px;
+		height: 18px;
+		margin: 0 4px;
+		background: var(--color-border, #3e3e3b);
+	}
 	.toolbar-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
+		width: 30px;
+		height: 30px;
 		padding: 0;
 		border: none;
 		border-radius: 5px;

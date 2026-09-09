@@ -136,6 +136,10 @@ export function registerMathBlock(): void {
 		// edge can grow a sibling.
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
+		// A click on the rendered equation seats the caret at the END of the source, as a click on
+		// inline math does; the leaf clamps it inside the fence. (Past the end is fine: the reveal
+		// clamps to the source length first.)
+		caretTargetAtPoint: () => ({ path: [], offset: Number.MAX_SAFE_INTEGER }),
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',

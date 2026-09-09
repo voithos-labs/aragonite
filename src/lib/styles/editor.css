@@ -394,6 +394,13 @@
 	color: var(--syntax-code, currentColor);
 }
 
+/* An inline widget's source while it is revealed for editing (`$x$`, a footnote ref): the
+   inline-code wash, so the span being edited reads as a span, in the prose face so the line
+   does not reflow around it. */
+::highlight(md-inline-reveal) {
+	background-color: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+}
+
 /* Raw-HTML block source text; inline raw HTML keeps --md-raw-html-color above. */
 :where(.editor) .text-editable-block.raw-block {
 	color: var(--syntax-comment, currentColor);
@@ -532,6 +539,12 @@
    not margin: the height model measures the host's border box. */
 :where(.editor) .block-host:is([data-block-kind='fencedCode'], [data-block-kind='table']) {
 	padding-block: 6px;
+}
+
+/* Room on the right for the add-column strip (`TableBlock.svelte`): the table's max width is
+   this box, so a full-width table still leaves the strip inside the editor's scroll box. */
+:where(.editor) .block-host[data-block-kind='table'] {
+	padding-right: 30px;
 }
 
 /* Ambient list markers own the hanging indent (padding/text-indent are keyed to the span's

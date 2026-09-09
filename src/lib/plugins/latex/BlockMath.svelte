@@ -9,8 +9,20 @@
 	// so this component owns only the render↔source swap visuals.
 	import { createEditableLeaf, type BlockComponent, type NodeView } from '$lib/plugin';
 	// Plugin-local like the other labels here: bundled plugins import only the public barrel.
-	const MATH_PREVIEW_HIDE = 'Hide the rendered preview';
-	const MATH_PREVIEW_SHOW = 'Show the rendered preview';
+	// The three ways the source and its preview can share the block while editing. Side by side
+	// is the default because it moves the page least; stacked suits a long equation; source
+	// alone is the quiet one. The toggle cycles them and names the NEXT layout.
+	type MathLayout = 'split' | 'stacked' | 'source';
+	const LAYOUT_NEXT: Record<MathLayout, MathLayout> = {
+		split: 'stacked',
+		stacked: 'source',
+		source: 'split'
+	};
+	const LAYOUT_TITLE: Record<MathLayout, string> = {
+		split: 'Preview beside the source',
+		stacked: 'Preview below the source',
+		source: 'Source only'
+	};
 	import { renderDisplayMath } from './math-renderer';
 	import { mathDisplaySource } from './latex-kind';
 	import { completeBareMathSource, renderMathSource } from './math-source';
@@ -26,7 +38,8 @@
 	let revealed = $state(false);
 	// Per-instance and per-session: a reader who folds the preview away is asking about THIS
 	// equation while they edit it, not setting a preference for the document.
-	let previewOpen = $state(true);
+	let layout = $state<MathLayout>('split');
+	const previewOpen = $derived(layout !== 'source');
 	// The in-flight source while revealed: a render-primary edit reaches the CST only on blur,
 	// so the live preview reads the surface, not the node. Null when nothing is in flight.
 	let draft = $state<string | null>(null);
@@ -120,7 +133,8 @@
 <div
 	class="math-block"
 	class:math-block-editing={revealed}
-	class:math-block-split={revealed && previewOpen}
+	class:math-block-split={revealed && layout === 'split'}
+	class:math-block-stacked={revealed && layout === 'stacked'}
 >
 	{#if revealed}
 		<div class="math-block-card">
@@ -132,7 +146,7 @@
 				aria-label="Math source"
 			></div>
 			{#if !previewOpen}
-				{@render previewToggle(true)}
+				{@render layoutToggle()}
 			{/if}
 		</div>
 	{/if}
@@ -149,20 +163,21 @@
 				onmousedown={keepSourceFocus}
 			></div>
 			{#if revealed}
-				{@render previewToggle(false)}
+				{@render layoutToggle()}
 			{/if}
 		</div>
 	{/if}
 </div>
 
-{#snippet previewToggle(folded: boolean)}
+{#snippet layoutToggle()}
+	{@const next = LAYOUT_NEXT[layout]}
 	<button
 		type="button"
 		class="math-preview-toggle"
-		aria-label={folded ? MATH_PREVIEW_SHOW : MATH_PREVIEW_HIDE}
-		title={folded ? MATH_PREVIEW_SHOW : MATH_PREVIEW_HIDE}
+		aria-label={LAYOUT_TITLE[next]}
+		title={LAYOUT_TITLE[next]}
 		onmousedown={(e) => e.preventDefault()}
-		onclick={() => (previewOpen = folded)}
+		onclick={() => (layout = next)}
 	>
 		<svg
 			viewBox="0 0 24 24"
@@ -175,16 +190,16 @@
 			stroke-linejoin="round"
 			aria-hidden="true"
 		>
-			{#if folded}
+			{#if layout === 'split'}
+				<rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" />
+			{:else if layout === 'stacked'}
+				<rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 12h18" />
+			{:else}
 				<path
 					d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"
 				/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" /><path
 					d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"
 				/><path d="m2 2 20 20" />
-			{:else}
-				<path
-					d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"
-				/><circle cx="12" cy="12" r="3" />
 			{/if}
 		</svg>
 	</button>
@@ -197,6 +212,14 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		align-items: stretch;
+		gap: 6px;
+	}
+
+	/* Stacked: the source over its preview, each the block's full width — for the equation too
+	   long to read at half width. Not the default: it grows the block and reshuffles the page. */
+	.math-block-stacked {
+		display: grid;
+		grid-template-columns: 1fr;
 		gap: 6px;
 	}
 
@@ -271,7 +294,7 @@
 
 	/* At rest the render is the whole block and a hover tint is its only affordance; inside a
 	   card the fill is already there, so the tint would double it. */
-	.math-block:not(.math-block-split) .math-block-render:hover {
+	.math-block:not(.math-block-editing) .math-block-render:hover {
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 	}
 

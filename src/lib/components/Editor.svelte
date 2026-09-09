@@ -43,6 +43,7 @@
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL, movedBlockToPosition } from '../a11y-strings';
+	import TailInsert from './TailInsert.svelte';
 	import type { EditorSelection } from '../selection/primitives';
 	import { createWidgetSelectionState } from './image/widget-selection-state.svelte';
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
@@ -1674,6 +1675,8 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
+	<!-- A sibling of the list like the header: the windowing scope wants the list bare. -->
+	<TailInsert {blockEdit} childCount={doc.children.length} readOnly={effectiveMode === 'reading'} />
 	<ImageOverlayHost
 		{widgetSelection}
 		{controller}

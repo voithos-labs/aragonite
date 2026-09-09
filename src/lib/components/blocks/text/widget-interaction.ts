@@ -126,6 +126,44 @@ export interface WidgetInteraction {
 	isPointOnRevealWidget(x: number, y: number): boolean;
 }
 
+/**
+ * The inline-code wash over a revealed source, painted through the CSS Custom Highlight API
+ * (`::highlight(md-inline-reveal)` in editor.css) rather than a wrapper span: the reveal's
+ * contract, and every offset read on it, is that the source is a bare text node in the block.
+ * The range selects the NODE, so it keeps covering the text as typing grows it. Absent the API
+ * (jsdom, an old engine) the source simply shows unwashed.
+ */
+const REVEAL_HIGHLIGHT = 'md-inline-reveal';
+const washRanges = new WeakMap<Text, Range>();
+
+function revealHighlight(): Highlight | null {
+	if (typeof CSS === 'undefined' || !('highlights' in CSS) || typeof Highlight !== 'function') {
+		return null;
+	}
+	let highlight = CSS.highlights.get(REVEAL_HIGHLIGHT);
+	if (!highlight) {
+		highlight = new Highlight();
+		CSS.highlights.set(REVEAL_HIGHLIGHT, highlight);
+	}
+	return highlight;
+}
+
+function washRevealedSource(node: Text): void {
+	const highlight = revealHighlight();
+	if (!highlight) return;
+	const range = document.createRange();
+	range.selectNode(node);
+	washRanges.set(node, range);
+	highlight.add(range);
+}
+
+function unwashRevealedSource(node: Text): void {
+	const range = washRanges.get(node);
+	if (!range) return;
+	washRanges.delete(node);
+	revealHighlight()?.delete(range);
+}
+
 export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInteraction {
 	const isReading = () => deps.getPresentationMode?.() === 'reading';
 
@@ -184,6 +222,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 
 	function restoreRenderedWidget(): void {
 		if (activeSourceNode === null || revealedWidget === null) return;
+		unwashRevealedSource(activeSourceNode);
 		activeSourceNode.replaceWith(revealedWidget);
 		activeSourceNode = null;
 		revealedWidget = null;
@@ -243,6 +282,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				revealedWidget = widget;
 				activeSourceNode = document.createTextNode(source);
 				widget.replaceWith(activeSourceNode);
+				washRevealedSource(activeSourceNode);
 			},
 			// Re-inserts the exact element the swap detached, still current because the edit
 			// was discarded. The persist path re-renders reactively instead.
@@ -293,6 +333,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		const { caretBefore, originalDisplay } = active;
 		// The reactive re-render rebuilds the island, so drop the swap handles without a
 		// DOM restore, then run the canonical teardown.
+		if (sourceNode) unwashRevealedSource(sourceNode);
 		activeSourceNode = null;
 		revealedWidget = null;
 		resetReveal();

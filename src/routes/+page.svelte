@@ -37,6 +37,7 @@
 	let source = $state(SHOWCASE_DOCUMENT);
 	let dragHandles = $state(false);
 	let occurrences = $state(false);
+	let selectionMenu = $state(true);
 	const showcasePlugins = $derived(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES);
 
 	function toggleDragHandles() {
@@ -92,6 +93,17 @@
 		<button
 			type="button"
 			class="showcase-toggle"
+			class:active={selectionMenu}
+			data-testid="selection-menu-toggle"
+			aria-pressed={selectionMenu}
+			title="Show the formatting menu over a selection"
+			onclick={() => (selectionMenu = !selectionMenu)}
+		>
+			selection menu
+		</button>
+		<button
+			type="button"
+			class="showcase-toggle"
 			class:active={occurrences}
 			data-testid="occurrences-toggle"
 			aria-pressed={occurrences}
@@ -143,7 +155,7 @@
 				{theme}
 			/>
 		{/key}
-		{#if presentationMode === 'live'}
+		{#if presentationMode === 'live' && selectionMenu}
 			<SelectionToolbar {editor} topInset={headerHeight} />
 		{/if}
 	</div>
