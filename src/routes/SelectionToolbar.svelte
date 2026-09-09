@@ -1,9 +1,10 @@
 <script lang="ts">
 	/**
 	 * Consumer-side rect-API example, mounted by the showcase and the dev harness alike: no
-	 * plugin, no internal imports, no native selection reads. The bar re-anchors on the next
-	 * selection change, not on scroll, and its buttons run command ids rather than synthetic
-	 * chords (consumer-guide.md § Recipe: a selection toolbar).
+	 * plugin, no internal imports, no native selection reads. The bar re-anchors on every
+	 * selection change and on scroll, so it stays with the text it acts on, and its buttons
+	 * run command ids rather than synthetic chords (consumer-guide.md § Recipe: a selection
+	 * toolbar).
 	 */
 	import {
 		SELECTION_END,
@@ -12,18 +13,19 @@
 		type EditorInstance,
 		type EditorSelection
 	} from '$lib';
+	import MenuIcon, { type MenuIconName } from '$lib/components/menu/MenuIcon.svelte';
 
-	const BUTTONS = [
-		{ label: 'B', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong },
-		{ label: 'I', title: 'Italic (Ctrl/Cmd+I)', command: TOOLBAR_COMMANDS.toggleEmphasis },
+	const BUTTONS: readonly { icon: MenuIconName; title: string; command: string }[] = [
+		{ icon: 'bold', title: 'Bold (Ctrl/Cmd+B)', command: TOOLBAR_COMMANDS.toggleStrong },
+		{ icon: 'italic', title: 'Italic (Ctrl/Cmd+I)', command: TOOLBAR_COMMANDS.toggleEmphasis },
 		{
-			label: 'S',
+			icon: 'strikethrough',
 			title: 'Strikethrough (Ctrl/Cmd+Shift+X)',
 			command: TOOLBAR_COMMANDS.toggleStrikethrough
 		},
-		{ label: '<>', title: 'Inline code (Ctrl/Cmd+E)', command: TOOLBAR_COMMANDS.toggleCode },
-		{ label: 'Link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink }
-	] as const;
+		{ icon: 'code', title: 'Inline code (Ctrl/Cmd+E)', command: TOOLBAR_COMMANDS.toggleCode },
+		{ icon: 'link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink }
+	];
 
 	interface Placement {
 		x: number;
@@ -38,13 +40,35 @@
 	let placement = $state<Placement | null>(null);
 	let declined = $state<ReadonlySet<string>>(new Set());
 	let active = $state<ReadonlySet<string>>(new Set());
+	let current: EditorSelection | null = null;
 
 	$effect(() => {
 		if (!editor) return;
 		return editor.getEvents().on('selectionChange', update);
 	});
 
+	// Sticky with the text: the rects are viewport coordinates, so a scroll or resize moves the
+	// selection under the bar and the bar re-measures. One frame per burst, not one per event.
+	$effect(() => {
+		let frame = 0;
+		const reanchor = () => {
+			if (frame || !current) return;
+			frame = requestAnimationFrame(() => {
+				frame = 0;
+				placement = current ? place(current) : null;
+			});
+		};
+		window.addEventListener('scroll', reanchor, { capture: true, passive: true });
+		window.addEventListener('resize', reanchor, { passive: true });
+		return () => {
+			window.removeEventListener('scroll', reanchor, { capture: true });
+			window.removeEventListener('resize', reanchor);
+			if (frame) cancelAnimationFrame(frame);
+		};
+	});
+
 	function update(selection: EditorSelection | null): void {
+		current = selection;
 		placement = selection ? place(selection) : null;
 		// Asked per selection change, not per render: the answers are snapshots of this selection.
 		declined = new Set(
@@ -77,7 +101,9 @@
 	const BAR_CLEARANCE = 40;
 	const BAR_GAP = 8;
 
-	function above(rect: DOMRect): Placement {
+	function above(rect: DOMRect): Placement | null {
+		// Scrolled out from under the host's chrome or off the bottom: nothing to anchor to.
+		if (rect.bottom < topInset || rect.top > window.innerHeight) return null;
 		const y = rect.top - BAR_CLEARANCE;
 		return y >= topInset + 4 ? { x: rect.left, y } : { x: rect.left, y: rect.bottom + BAR_GAP };
 	}
@@ -107,47 +133,49 @@
 				onmousedown={(e) => e.preventDefault()}
 				onclick={() => fire(button.command)}
 			>
-				{button.label}
+				<MenuIcon name={button.icon} size={15} />
 			</button>
 		{/each}
 	</div>
 {/if}
 
 <style>
+	/* limestone's menu surface, laid flat: a raised hairlined pill of icon buttons. */
 	.selection-toolbar {
 		position: fixed;
 		z-index: 100;
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
-		padding: 0.25rem 0.35rem;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 6px;
-		background: var(--color-surface, #1b1c21);
-		color: var(--color-text-secondary, #888);
-		font-family: var(--font-editor, ui-monospace, monospace);
-		font-size: 0.75rem;
+		gap: 2px;
+		padding: 4px;
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 8px;
+		background: var(--color-bg, #2c2c2a);
+		color: var(--color-ui-muted, #8f8f89);
+		font-family: var(--font-ui, system-ui, sans-serif);
 		white-space: nowrap;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+		box-shadow: var(--menu-shadow, 0 8px 24px rgba(0, 0, 0, 0.3));
 	}
 	.toolbar-btn {
-		padding: 0.15rem 0.4rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		padding: 0;
 		border: none;
-		border-radius: 4px;
+		border-radius: 5px;
 		background: transparent;
 		color: inherit;
-		font-family: inherit;
-		font-size: inherit;
-		line-height: 1.2;
 		cursor: pointer;
 	}
 	.toolbar-btn:hover:not(:disabled),
 	.toolbar-btn[aria-pressed='true'] {
-		color: var(--color-text-primary, #fff);
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.18));
+		color: var(--color-text-primary, #e8e8e5);
+		background: var(--menu-item-hover, rgba(255, 255, 255, 0.07));
 	}
 	.toolbar-btn:disabled {
-		opacity: 0.45;
+		opacity: 0.4;
 		cursor: default;
 	}
 </style>

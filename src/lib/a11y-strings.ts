@@ -51,6 +51,8 @@ export const SEARCH_CLOSE_LABEL = 'Close search';
 
 export const TABLE_ACTIONS = 'Table actions';
 export const COLUMN_ALIGNMENT = 'Column alignment';
+export const ADD_ROW_BELOW = 'Add row';
+export const ADD_COLUMN_RIGHT = 'Add column';
 export const ALIGN_LEFT = 'Left';
 export const ALIGN_CENTER = 'Center';
 export const ALIGN_RIGHT = 'Right';

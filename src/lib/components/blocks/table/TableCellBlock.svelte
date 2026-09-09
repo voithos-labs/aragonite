@@ -982,7 +982,7 @@
 		// mutating: execCommand needs the restored range, paste needs a focused caret.
 		stickyColumn.reset();
 		edgeAffinity.reset();
-		el.focus();
+		el.focus({ preventScroll: true });
 		if (action === 'paste') {
 			let raw: string;
 			try {

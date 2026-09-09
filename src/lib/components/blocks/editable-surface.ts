@@ -263,7 +263,9 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function parkCaret(offset: number): void {
 		const el = deps.getEl();
 		if (!el) return;
-		el.focus();
+		// `preventScroll`: seating a caret must not move the page — the reveal path scrolls when a
+		// target is off-screen; an implicit focus scroll jumped the document on every table edit.
+		el.focus({ preventScroll: true });
 		if (offset === CURSOR_EXACT_START) {
 			deps.backend.setRaw(asRawOffset(0));
 			return;
@@ -279,7 +281,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	function focusAtColumn(x: number, from: StickyColumnDirection): void {
 		const el = deps.getEl();
 		if (!el) return;
-		el.focus();
+		el.focus({ preventScroll: true });
 		const ambientLength = deps.getAmbientLength();
 		// minOffset = the walk position of raw 0 keeps the scan out of the marker region.
 		const minOffset = toDomTextOffset(asRawOffset(0), ambientLength);

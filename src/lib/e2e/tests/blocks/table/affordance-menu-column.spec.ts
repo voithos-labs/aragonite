@@ -142,7 +142,7 @@ test.describe('table block: column affordance menu', () => {
 		await page.locator('[data-table-col-grip]').nth(0).click(); // center-aligned column A
 
 		const align = page.getByRole('group', { name: 'Column alignment' });
-		await expect(align.locator('.alignment-segment.active')).toHaveText('C');
+		await expect(align.locator('.alignment-segment.active')).toHaveAttribute('aria-label', /center/i);
 	});
 
 	test('the alignment control sets the targeted (non-first) column to center', async ({ page }) => {

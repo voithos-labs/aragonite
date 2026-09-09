@@ -15,5 +15,5 @@
 
 - [ ] check list renders upsettingly, should look like this:
       ![alt text](image-2.png), like this, edge align, no account fill, check nicely placed, size relative to text perfect
-- [ ] image editing, image drag handle, drag-image-onto-image to make a carousel
+- [ ] image editing, image drag handle, drag-image-onto-image to make a carousel, and selection, and copy and paste
 - [ ] drag handles for things that make sense

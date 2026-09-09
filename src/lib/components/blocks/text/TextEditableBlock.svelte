@@ -16,6 +16,7 @@
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { getContentRange, isProseKind } from '../../../core/inline';
+	import { headingLevel } from '../../../core/nodes';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
@@ -499,7 +500,18 @@
 		const always = (perform: () => void) => ({ applies: () => true, perform });
 		switch (id) {
 			case 'block.split':
-				return always(() => blockEdit.splitBlock(index, offset));
+				return always(() => {
+					// Enter at the head of a heading's text moves the heading DOWN under a new empty
+					// line, rather than leaving an empty heading above and demoting the text: the
+					// marker belongs with its text, and an empty heading is nothing anyone asked for.
+					const content = getContentRange(node);
+					const atHead =
+						headingLevel(node) !== null &&
+						content.start > 0 &&
+						offset <= content.start &&
+						content.end > content.start;
+					return blockEdit.splitBlock(index, atHead ? 0 : offset);
+				});
 			case 'chrome.descendToBody':
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
@@ -874,6 +886,18 @@
 		// Persist a revealed source edit before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
+		demoteEmptyHeadingOnBlur();
+	}
+
+	// An ATX heading left with no text is a marker standing over nothing: unfocused it paints
+	// nothing (the chrome-only stamp is focus-scoped), so the block would survive invisibly and
+	// resurface as a `#` on the next click. It becomes the empty paragraph it looks like.
+	function demoteEmptyHeadingOnBlur(): void {
+		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
+		const content = getContentRange(node);
+		if (content.start === 0 || content.end > content.start) return;
+		const demoted = demoteToParagraph(node.raw, content, 0);
+		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 0);
 	}
 
 	function onClick(e: MouseEvent): void {

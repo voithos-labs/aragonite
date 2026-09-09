@@ -127,6 +127,12 @@
 	   over a white one. Editor-owned rather than host-family, since a host palette names
 	   colors, not elevation. */
 	--menu-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+	/* The rest of the host app's menu family, so a menu here is the host's menu to the pixel. */
+	--menu-item-hover: rgba(255, 255, 255, 0.07);
+	--menu-search-divider: rgba(255, 255, 255, 0.08);
+	--menu-scrollbar-thumb: rgba(255, 255, 255, 0.18);
+	--menu-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+	--font-ui: 'Inter', system-ui, sans-serif;
 
 	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the
 	   window recompute reads as "loading" rather than a white tear. */
@@ -140,6 +146,11 @@
 	--color-text-muted: #57606a;
 	--color-ui-faint: rgba(0, 0, 0, 0.06);
 	--menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+	--menu-item-hover: rgba(0, 0, 0, 0.05);
+	--menu-search-divider: rgba(0, 0, 0, 0.07);
+	--menu-scrollbar-thumb: rgba(0, 0, 0, 0.2);
+	--menu-scrollbar-thumb-hover: rgba(0, 0, 0, 0.32);
+	--font-ui: 'Inter', system-ui, sans-serif;
 
 	/* --syntax-* tokens are mode-independent — no light overrides. */
 

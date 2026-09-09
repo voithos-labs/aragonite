@@ -4,14 +4,12 @@
 		CODE_COPY_LABEL,
 		CODE_COPIED_LABEL,
 		CODE_LANGUAGE_FIELD,
-		CODE_LANGUAGE_LIST,
 		CODE_MENU_LABEL,
 		CODE_RAIL_LABEL,
 		CODE_RUN_LABEL,
 		codeLanguageLabel
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../editor-keys';
-	import { clampMenuToViewport } from '../table/table-menu-model';
 	import { listLanguages } from './code-languages';
 
 	// The chrome for the modes that paint no fence: the language door plus whatever action
@@ -59,7 +57,6 @@
 	// the highlight is only a where-you-stand marker, and a language the registry does not
 	// carry (an unregistered grammar, or a bare mount that registered none) would otherwise
 	// have no entry to seat on, so a bare Enter would rewrite it to the list's first row.
-	let engaged = $state(false);
 	let activeIndex = $state(0);
 	let copied = $state(false);
 	let menuOpen = $state(false);
@@ -110,7 +107,6 @@
 		if (!editable) return;
 		draft = '';
 		filtering = false;
-		engaged = false;
 		menuOpen = false;
 		editing = true;
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
@@ -164,12 +160,10 @@
 			onCancel(true);
 		} else if (e.key === 'ArrowDown') {
 			e.preventDefault();
-			engaged = true;
 			activeIndex = suggestions.length === 0 ? 0 : (activeIndex + 1) % suggestions.length;
 			scrollActiveIntoView();
 		} else if (e.key === 'ArrowUp') {
 			e.preventDefault();
-			engaged = true;
 			activeIndex =
 				suggestions.length === 0 ? 0 : (activeIndex - 1 + suggestions.length) % suggestions.length;
 			scrollActiveIntoView();
@@ -344,8 +338,11 @@
 		stroke-width="1.75"
 		stroke-linecap="round"
 		stroke-linejoin="round"
-		aria-hidden="true">{@html paths}</svg
+		aria-hidden="true"
 	>
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -- static lucide path markup from this module's own constants -->
+		{@html paths}
+	</svg>
 {/snippet}
 
 <!-- `group`, not `toolbar`: these controls belong together, but a toolbar promises
@@ -414,7 +411,7 @@
 </div>
 
 {#if editing}
-	<div bind:this={pickerEl} class="code-rail-popout code-lang-picker" style={popoutStyle(listAt)}>
+	<div bind:this={pickerEl} class="md-menu code-rail-popout code-lang-picker" style={popoutStyle(listAt)}>
 		<div class="code-lang-search">
 			{@render icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>')}
 			<input
@@ -430,7 +427,6 @@
 				placeholder="Search for a language…"
 				oninput={() => {
 					filtering = true;
-					engaged = true;
 					activeIndex = 0;
 				}}
 				onkeydown={onFieldKeyDown}
@@ -474,7 +470,7 @@
 {#if menuOpen}
 	<ul
 		bind:this={menuEl}
-		class="code-rail-popout code-rail-menu"
+		class="md-menu code-rail-popout code-rail-menu"
 		role="menu"
 		aria-label={CODE_MENU_LABEL}
 		style={popoutStyle(menuAt)}
@@ -575,21 +571,14 @@
 	}
 
 	/* The host app's menu surface, so a code block's menus read as the app's own. */
+	/* Surface, hairline, shadow, face and colour come from the shared `.md-menu` (editor.css);
+	   this adds only the picker's own layout. */
 	.code-rail-popout {
-		position: fixed;
-		z-index: 30;
 		display: flex;
 		flex-direction: column;
 		min-width: 200px;
 		margin: 0;
-		padding: 4px;
 		list-style: none;
-		border-radius: var(--radius-surface, 8px);
-		background: var(--color-surface, #1a1a19);
-		border: 1px solid var(--color-border, #3e3e3b);
-		box-shadow: var(--menu-shadow);
-		font-size: 13px;
-		color: var(--color-text-primary, #e8e8e5);
 		overflow: hidden;
 	}
 
@@ -602,7 +591,7 @@
 		flex: 0 0 auto;
 		margin: -4px -4px 4px;
 		padding: 8px 12px;
-		border-bottom: 1px solid var(--color-border, #3e3e3b);
+		border-bottom: 1px solid var(--menu-search-divider, rgba(255, 255, 255, 0.08));
 		color: var(--color-ui-muted, #8f8f89);
 	}
 
@@ -640,20 +629,21 @@
 		background: transparent;
 	}
 	.code-lang-list::-webkit-scrollbar-thumb {
-		background: var(--color-border, #3e3e3b);
+		background: var(--menu-scrollbar-thumb, rgba(255, 255, 255, 0.18));
 	}
 	.code-lang-list {
 		scrollbar-width: thin;
-		scrollbar-color: var(--color-border, #3e3e3b) transparent;
+		scrollbar-color: var(--menu-scrollbar-thumb, rgba(255, 255, 255, 0.18)) transparent;
 	}
 
 	.code-rail-popout button {
-		gap: 8px;
+		gap: 9px;
 		width: 100%;
 		justify-content: flex-start;
-		padding: 5px 10px;
+		padding: 7px 10px;
 		border-radius: 5px;
 		color: inherit;
+		font: inherit;
 		text-align: left;
 		white-space: nowrap;
 	}
@@ -665,17 +655,17 @@
 		text-overflow: ellipsis;
 	}
 
-	/* The accent marks what is set, inline on its own row — the host app's selected-row
-	   idiom. Hover is a neutral wash, so the two states never compete. */
+	/* The check marks what is set, inline on its own row, in the text colour: the host app
+	   colours no text with its accent, and its menus are what these copy. */
 	.code-lang-check {
 		display: inline-flex;
 		flex-shrink: 0;
-		color: var(--color-accent, #567b67);
+		color: var(--color-text-primary, #e8e8e5);
 	}
 
 	.code-rail-popout button:hover:not(:disabled),
 	.code-lang-list button[data-active='true'] {
-		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
+		background: var(--menu-item-hover, rgba(255, 255, 255, 0.07));
 		color: inherit;
 	}
 
