@@ -36,7 +36,7 @@
 	// blockDragHandles and the plugin set are both set-once at mount, so their toggles remount
 	// the editor via {#key}, carrying the live content across so a visitor's edits survive.
 	let source = $state(SHOWCASE_DOCUMENT);
-	let dragHandles = $state(false);
+	let dragHandles = $state(true);
 	let occurrences = $state(false);
 	let selectionMenu = $state(true);
 	const showcasePlugins = $derived(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES);

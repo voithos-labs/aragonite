@@ -146,7 +146,7 @@
 	class:math-block-stacked={revealed && layout === 'stacked'}
 >
 	{#if revealed}
-		<div class="math-block-card" data-drag-anchor>
+		<div class="math-block-card">
 			<div
 				bind:this={sourceEl}
 				{...leaf.surfaceProps}
@@ -162,7 +162,7 @@
 		</div>
 	{/if}
 	{#if !revealed || previewOpen}
-		<div class="math-block-card" data-drag-anchor>
+		<div class="math-block-card">
 			<div
 				bind:this={renderEl}
 				class="math-block-render"

@@ -107,8 +107,7 @@ test.describe('table action menu: keyboard + announcements', () => {
 	});
 
 	test('Left/Right arrows move focus within the alignment trio', async ({ page }) => {
-		await page.hover('[role="table"]');
-		await page.locator('[data-table-col-grip]').nth(1).click(); // column B (non-first)
+		await page.locator('[role="cell"]').nth(3).click({ button: 'right' }); // body cell, column B
 		await expect(page.getByRole('menu')).toBeVisible();
 
 		const focused = page.locator('[role="menu"] :focus');

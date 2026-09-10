@@ -74,17 +74,15 @@ describe('blockquote delegates to its inner BlockList', () => {
 
 	// The seam defaults `reorderable` to false; the blockquote overrides it at its own call
 	// site, so dropping that prop is a silent affordance loss — children render, undraggable.
-	// Headings, not paragraphs: a paragraph is a background block and renders no handle even
-	// as a reorder unit, so it cannot witness the handle half of the assertion.
+	// Reorder UNIT, not grip: prose carries no drag handle (`components/drag-handle.ts`), so the
+	// class is the whole claim here — the quote's children are addressable by reorder, unlike
+	// an opaque container's rows, which the directive test pins.
 	it('marks its children as reorder units, unlike the seam default', () => {
-		mounted = mountQuote('> # alpha\n>\n> # beta\n', true);
+		mounted = mountQuote('> alpha\n>\n> beta\n', true);
 
 		const hosts = mounted.target.querySelectorAll('.blockquote-block > .block-list > .block-host');
 
 		expect(hosts.length).toBe(2);
-		for (const host of hosts) {
-			expect(host.classList.contains('reorder-host')).toBe(true);
-			expect(host.querySelector(':scope > .block-drag-handle')).not.toBeNull();
-		}
+		for (const host of hosts) expect(host.classList.contains('reorder-host')).toBe(true);
 	});
 });

@@ -1,6 +1,6 @@
 # Feature: Table action menu keyboard + screen-reader access
 
-The table affordance menu ships with mouse triggers (grips, right-click). This
+The table affordance menu ships with one mouse trigger, a right-click on a cell. This
 covers the keyboard-only path into and through the menu, and the live-region
 announcements for the structural ops that the mouse path also reaches.
 

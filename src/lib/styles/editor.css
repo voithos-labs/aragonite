@@ -168,6 +168,9 @@
 	max-width: 100%;
 	height: auto;
 	display: block;
+	/* Enough to take the hard corner off a photo sitting in prose, not enough to read as a
+	   card: half the surface radius the block chrome uses. */
+	border-radius: 4px;
 }
 
 /* A cropped image: the widget is the frame (width and aspect set inline from the `|WxH` hint,
@@ -175,6 +178,13 @@
 :where(.editor) .md-image-widget.md-image-cropped {
 	overflow: hidden;
 	max-width: 100%;
+	/* The frame clips the picture, so the rounding belongs to it; the picture inside is square
+	   again or its own corners would cut inside the frame's. */
+	border-radius: 4px;
+}
+
+:where(.editor) .md-image-widget.md-image-cropped img {
+	border-radius: 0;
 }
 
 :where(.editor) .md-image-widget.md-image-cropped img {
@@ -282,12 +292,14 @@
 	pointer-events: none;
 }
 
+/* Clear of the widget's own edge: against a picture, a caret drawn tight to the frame reads as
+   part of the border rather than as a caret waiting for the next character. */
 :where(.editor) [data-inline-widget].md-snap-after::before {
-	right: -2px;
+	right: -4px;
 }
 
 :where(.editor) [data-inline-widget].md-snap-before::before {
-	left: -2px;
+	left: -4px;
 }
 
 @keyframes md-snap-caret-blink {

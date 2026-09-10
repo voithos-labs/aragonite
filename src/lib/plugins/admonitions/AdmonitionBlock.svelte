@@ -48,7 +48,7 @@
 	{#if isAlert}
 		<!-- Static badge: contenteditable=false keeps the caret in the body, where the
 		     alert's real content lives. -->
-		<div class="admonition-title" contenteditable="false" aria-hidden="true" data-drag-anchor></div>
+		<div class="admonition-title" contenteditable="false" aria-hidden="true"></div>
 	{/if}
 	<BlockList {...blockListProps} />
 </div>

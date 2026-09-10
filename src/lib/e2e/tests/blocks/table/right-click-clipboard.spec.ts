@@ -15,18 +15,23 @@ test.describe('table block: cell right-click clipboard', () => {
 		await editor.loadContent(TABLE);
 	});
 
-	test('the cell menu shows Cut/Copy/Paste; grip menus do not', async ({ page }) => {
+	// The clipboard trio is the cell menu's own top-level group; the axis flyouts carry only
+	// their inserts and moves. (That a single-axis target gets no clipboard items at all is the
+	// model's contract, covered in test/blocks/table/table-menu-model.test.ts.)
+	test('the cell menu shows Cut/Copy/Paste at the top level, not inside the axis flyouts', async ({
+		page
+	}) => {
 		await page.locator('[role="cell"]').nth(2).click({ button: 'right' });
 		await expect(page.getByRole('menuitem', { name: /^cut$/i })).toBeVisible();
 		await expect(page.getByRole('menuitem', { name: /^copy$/i })).toBeVisible();
 		await expect(page.getByRole('menuitem', { name: /^paste$/i })).toBeVisible();
-		await page.keyboard.press('Escape');
 
-		await page.hover('[role="table"]');
-		await page.locator('[data-table-col-grip]').nth(0).click();
-		await expect(page.getByRole('menu')).toBeVisible();
-		await expect(page.getByRole('menuitem', { name: /^copy$/i })).toHaveCount(0);
-		await expect(page.getByRole('menuitem', { name: /^paste$/i })).toHaveCount(0);
+		const flyout = page.locator('.table-action-menu-flyout');
+		for (const group of ['Row', 'Column'] as const) {
+			await page.getByRole('menuitem', { name: group, exact: true }).hover();
+			await expect(flyout).toBeVisible();
+			await expect(flyout.getByRole('menuitem', { name: /^(cut|copy|paste)$/i })).toHaveCount(0);
+		}
 	});
 
 	test('Copy writes the cell selection to the clipboard', async ({ page }) => {

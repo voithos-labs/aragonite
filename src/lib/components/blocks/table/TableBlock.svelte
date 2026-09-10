@@ -86,14 +86,14 @@
 		lifetime: editorLifetime,
 		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const { presentationMode: getPresentationMode, blockDragHandles: getDragHandles } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item mutates the table, so reading mode declines to open it and the
 	// native context menu (with Copy) shows instead.
 	const readOnly = $derived(getPresentationMode() === 'reading');
-	// The block handle's switch covers the grips: one mouse-only affordance policy, and the
-	// getter already folds reading mode in.
-	const showGrips = $derived(getDragHandles());
+	// Off, always: a table's own block handle moves the table, and every row/column action —
+	// insert, delete, move, align — lives in the right-click cell menu. Per-row and per-column
+	// grips put a second gutter inside the block for gestures that menu already covers.
+	const showGrips = false;
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -793,10 +793,12 @@
 			style="left:{columnDragLine.left}px;top:{columnDragLine.top}px;height:{columnDragLine.height}px"
 		></div>
 	{/if}
-</div>{#if addGeometry}<div
+</div>
+{#if addGeometry}<div
 		class="table-add-zone table-add-zone-column"
 		class:table-add-pinned={addAffordance.column}
-		style="left:{addGeometry.left + addGeometry.width}px;top:{addGeometry.top}px;height:{addGeometry.height}px"
+		style="left:{addGeometry.left +
+			addGeometry.width}px;top:{addGeometry.top}px;height:{addGeometry.height}px"
 	>
 		<button
 			type="button"
@@ -804,12 +806,15 @@
 			aria-label={ADD_COLUMN_RIGHT}
 			title={ADD_COLUMN_RIGHT}
 			onmousedown={(e) => e.preventDefault()}
-			onclick={() => void ctx.insertColumnRight(columnCount - 1)}><MenuIcon name="plus" size={12} /></button
+			onclick={() => void ctx.insertColumnRight(columnCount - 1)}
+			><MenuIcon name="plus" size={12} /></button
 		>
-	</div><div
+	</div>
+	<div
 		class="table-add-zone table-add-zone-row"
 		class:table-add-pinned={addAffordance.row}
-		style="left:{addGeometry.left}px;top:{addGeometry.top + addGeometry.height}px;width:{addGeometry.width}px"
+		style="left:{addGeometry.left}px;top:{addGeometry.top +
+			addGeometry.height}px;width:{addGeometry.width}px"
 	>
 		<button
 			type="button"
@@ -817,7 +822,8 @@
 			aria-label={ADD_ROW_BELOW}
 			title={ADD_ROW_BELOW}
 			onmousedown={(e) => e.preventDefault()}
-			onclick={() => void ctx.insertRowBelow(rowCount - 1)}><MenuIcon name="plus" size={12} /></button
+			onclick={() => void ctx.insertRowBelow(rowCount - 1)}
+			><MenuIcon name="plus" size={12} /></button
 		>
 	</div>{/if}
 

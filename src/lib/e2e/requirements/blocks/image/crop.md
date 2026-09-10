@@ -17,6 +17,8 @@ own tail on the Obsidian-style size hint (`image-dimensions.ts`, `image-source-b
 
 - the crop button mounts a pan surface over the image with corner brackets; the resize grip
   steps aside meanwhile
+- a double click on the picture starts the crop too (a single click only selects it), and
+  leaves no text range behind
 - the brackets are the frame's handles: dragging one resizes the frame (and so its aspect),
   anchored where the image sits in the flow, between 32px and the column width
 - drag pans against the pointer by the share of the overflow it covered; an axis with no

@@ -173,7 +173,7 @@
 		onRunCode,
 		codeMenuItems,
 		header,
-		blockDragHandles = false,
+		blockDragHandles = true,
 		searchBar = true,
 		searchBarAnchor,
 		keybindings,
@@ -2020,7 +2020,9 @@
 	.editor {
 		width: 100%;
 		flex: 1;
-		padding: 1rem;
+		/* Wider on the left: the drag grip lives in that gutter, 1.25rem out from the content,
+		   and the rest of this padding is what keeps it off the scroll container's border. */
+		padding: 1rem 1rem 1rem 1.5rem;
 		font-family: var(--font-editor, ui-monospace, monospace);
 		/* The type-scale root: every construct sizes in `em` off this, so one
 		   declaration scales the whole surface. */

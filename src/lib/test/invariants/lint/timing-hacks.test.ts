@@ -19,6 +19,9 @@ const ALLOWLIST: Record<string, string> = {
 	// The fold a drag's release owes runs after the frame that measured the range under the
 	// pointer; the blur it answers arrives inside that frame.
 	'src/lib/components/blocks/editable-leaf.ts': 'rAF fold of a revealed source after a range drag',
+	// The grip is its own hit target before any hover, so it must be placed where it will
+	// appear; the block it measures has not laid out on the tick its handle mounts.
+	'src/lib/components/drag-handle.ts': 'rAF placement of the grip once its block has laid out',
 	// The ONE home for drag coalescing: every drag lifecycle runs on this session.
 	'src/lib/selection/pointer-session.ts': 'rAF pointermove coalescing (shared drag session)',
 	// Wall-clock pause detection, which microtask-grained tick() cannot express.

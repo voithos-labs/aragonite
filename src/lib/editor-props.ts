@@ -47,10 +47,12 @@ export interface EditorProps {
 	 *  (a title, properties panel, tag row). It scrolls away with the document rather than
 	 *  pinning, which is what lets the editor keep its own scrollport and windowing. */
 	header?: Snippet;
-	/** Opt into the pointer affordances: the block drag handle and the table's row and column
-	 *  grips (default off, so the surface stays gutter-free; reading mode never shows them). A
-	 *  hover reveals them; touch, which has none, shows them outright. Paragraphs carry no
-	 *  handle. Keyboard reorder (Alt+Arrow) and the cell menu are always available. */
+	/** The block drag handle (default on; reading mode never shows it). A hover reveals it;
+	 *  touch, which has none, shows it outright. Only the blocks a reader picks up whole carry
+	 *  one — code, tables, equations, diagrams, pictures, list items, dividers, cards — never
+	 *  prose (paragraph, heading, quote, note). `false` removes them, except on a picture,
+	 *  whose grip is the only pointer road to move it. Keyboard reorder (Alt+Arrow) is always
+	 *  available, as is the table's right-click cell menu. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** Where the editor's own find/replace bar renders. Default (absent) keeps it pinned inside

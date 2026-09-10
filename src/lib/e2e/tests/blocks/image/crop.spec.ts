@@ -21,6 +21,25 @@ test.describe('image crop', () => {
 		return widget;
 	}
 
+	test('a double click on the picture starts the crop', async ({ page }) => {
+		await editor.loadContent('![cat|200x200](/test-fixtures/sample.png)\n');
+		await waitForFirstImageLoaded(page);
+		const widget = page.locator('[data-image-widget]').first();
+
+		// A single click only selects it: the toolbar appears, the pan surface does not.
+		await widget.click();
+		await expect(page.locator('.md-image-properties')).toBeVisible();
+		await expect(page.locator('.md-image-crop-surface')).toHaveCount(0);
+
+		await widget.dblclick();
+		await expect(page.locator('.md-image-crop-surface')).toBeVisible();
+		// A crop is not a text gesture: the double click leaves no range behind.
+		expect(await page.evaluate(() => String(document.getSelection()))).toBe('');
+
+		await page.keyboard.press('Escape');
+		await expect(page.locator('.md-image-crop-surface')).toHaveCount(0);
+	});
+
 	test('a drag pans the window and the tick writes the crop into the hint', async ({ page }) => {
 		// A square frame on a landscape fixture: the cover fit overflows sideways, so a drag pans x.
 		await editor.loadContent('![cat|200x200](/test-fixtures/sample.png)\n');

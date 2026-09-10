@@ -266,6 +266,24 @@
 		cornerDrag = null;
 	}
 
+	// A double click on the picture is the crop gesture: the first click selects the image, so
+	// by the second the toolbar (and this listener) is already mounted. On the document, since
+	// each commit rebuilds the widget and a listener bound to one goes stale with it.
+	$effect(() => {
+		const onDoubleClick = (e: MouseEvent) => {
+			if (cropping) return;
+			const widget = getWidgetEl();
+			if (!widget || !(e.target instanceof Node) || !widget.contains(e.target)) return;
+			e.preventDefault();
+			// The double click leaves a native range across the widget; a crop is not a text
+			// gesture, so it goes.
+			document.getSelection()?.removeAllRanges();
+			startCrop();
+		};
+		document.addEventListener('dblclick', onDoubleClick);
+		return () => document.removeEventListener('dblclick', onDoubleClick);
+	});
+
 	$effect(() => {
 		if (!cropping) return;
 		const onKey = (e: KeyboardEvent) => {
@@ -391,7 +409,7 @@
 			type="button"
 			class="md-image-btn"
 			aria-label={IMAGE_CROP}
-			title={IMAGE_CROP}
+			title="{IMAGE_CROP} — or double-click it"
 			onclick={startCrop}
 		>
 			<MenuIcon name="crop" />

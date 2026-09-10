@@ -4,7 +4,7 @@ import { pollAutoscrollPast } from '../../autoscroll';
 
 // Drop index is direction-dependent (removing the dragged block shifts later indices), so DOWN, UP,
 // and a within-container drag are all covered to catch an off-by-one. The top-level blocks are
-// headings: a paragraph is a background block and renders no handle.
+// code cards: prose carries no handle to press (`components/drag-handle.ts`).
 test.describe('drag to reorder', () => {
 	let editor: EditorPage;
 
@@ -44,13 +44,13 @@ test.describe('drag to reorder', () => {
 	}
 
 	test('drag a top-level block DOWN past two siblings', async () => {
-		await editor.loadContent('# A\n\n# B\n\n# C\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'A', '.block-host', 'C', true);
 		await editor.bridge.waitForSourceMatches(/B[\s\S]*C[\s\S]*A/);
 	});
 
 	test('drag a top-level block UP to the top', async () => {
-		await editor.loadContent('# A\n\n# B\n\n# C\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'C', '.block-host', 'A', false);
 		await editor.bridge.waitForSourceMatches(/C[\s\S]*A[\s\S]*B/);
 	});
@@ -81,7 +81,7 @@ test.describe('drag to reorder', () => {
 	// A top-level drag's scope IS the document — there is no container to mark, so
 	// the cue must not appear (marking the whole editor would be noise).
 	test('a top-level drag marks no scope container', async () => {
-		await editor.loadContent('# A\n\n# B\n\n# C\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		const handle = await handleCenter('.block-host', 'B');
 		await editor.page.mouse.move(handle.x, handle.y);
 		await editor.page.mouse.down();
@@ -93,7 +93,7 @@ test.describe('drag to reorder', () => {
 	});
 
 	test('press and release without moving is a no-op (and pushes no undo entry)', async () => {
-		await editor.loadContent('# A\n\n# B\n\n# C\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		const before = await editor.bridge.getSource();
 
 		const handle = await handleCenter('.block-host', 'B');
@@ -111,7 +111,7 @@ test.describe('drag to reorder', () => {
 	});
 
 	test('Escape cancels an in-progress drag', async () => {
-		await editor.loadContent('# A\n\n# B\n\n# C\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		const before = await editor.bridge.getSource();
 
 		const handle = await handleCenter('.block-host', 'A');
@@ -128,7 +128,7 @@ test.describe('drag to reorder', () => {
 	});
 
 	test('dragging the handle starts no text selection', async () => {
-		await editor.loadContent('# A\n\n# B\n\n# C\n');
+		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'A', '.block-host', 'C', true);
 
 		const selected = await editor.page.evaluate(() => window.getSelection()?.toString() ?? '');
@@ -137,10 +137,10 @@ test.describe('drag to reorder', () => {
 
 	test('drag toward the bottom edge autoscrolls past virtualized blocks and drops', async () => {
 		// Far more blocks than fit in the viewport, so blocks below the fold are virtualized
-		// out — the drop target is unreachable without autoscroll. Headings: a paragraph is a
-		// background block and carries no handle to press.
+		// out — the drop target is unreachable without autoscroll. Code cards: prose carries no
+		// handle to press.
 		await editor.loadContent(
-			Array.from({ length: 150 }, (_, i) => '### para ' + i).join('\n\n') + '\n'
+			Array.from({ length: 150 }, (_, i) => '```\npara ' + i + '\n```').join('\n\n') + '\n'
 		);
 		const editorEl = editor.page.locator('.editor');
 
@@ -189,7 +189,7 @@ test.describe('drag to reorder', () => {
 
 		// para 0 committed a move into the off-window region: it now follows some
 		// later paragraph in the source. Exact landing index is irrelevant.
-		await editor.bridge.waitForSourceMatches(/para 1[\s\S]*\n### para 0\n/);
+		await editor.bridge.waitForSourceMatches(/para 1[\s\S]*\npara 0\n```/);
 		// And the document is intact — no block dropped or duplicated.
 		expect(await editor.bridge.getBlockCount()).toBe(150);
 	});

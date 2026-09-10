@@ -18,14 +18,14 @@
 <style>
 	.block-drag-handle {
 		position: absolute;
-		/* Sits inside the editor's own 1rem padding, so the grip clears the block's left
+		/* Sits inside the editor's own left padding, so the grip clears the block's left
 		   border instead of being clipped behind it (overflow-x:auto). */
-		left: -0.85rem;
+		left: -1.25rem;
 		/* Spans gutter to content-left (width === |left|) so a pointer gliding from the
 		   block never crosses an un-hovered gap, which would hide the handle and — being
 		   pointer-events:none once hidden — strand it. Stopping AT content-left keeps
 		   line-start caret/marker clicks from being hijacked into a drag. */
-		width: 0.85rem;
+		width: 1.25rem;
 		/* Full-height hit strip so the handle is reachable at ANY height; the visible
 		   grip sits on the block's first line. */
 		top: 0;
@@ -37,8 +37,12 @@
 		color: var(--color-ui-muted, #a4a4a4);
 	}
 
-	/* Centred on the measured first line (an inline `top`, written by the hover attachment);
-	   before any hover, and on touch, the host's own half line-height stands in. */
+	/* Flush left in the strip (the glyph ends a few px clear of the content), centred on the
+	   measured band that `alignDragHandle` writes as an inline `top`.
+
+	   ALWAYS hittable, unlike the strip around it: a grip reachable only by first hovering its
+	   block is a flyout you traverse the block to get to. Its own box, not the full-height
+	   strip, which would swallow every gutter click the block has. */
 	.grip {
 		position: absolute;
 		left: 0;
@@ -48,17 +52,24 @@
 		transform: translateY(-50%);
 		display: flex;
 		align-items: center;
-		justify-content: center;
+		justify-content: flex-start;
+		pointer-events: auto;
 	}
 
-	/* Touch never fires the hover reveal, so the handle shows unasked. The pointer goes to the
-	   grip rather than the full-height strip, which would make the whole gutter unscrollable. */
+	/* The hit target is bigger than the glyph: a 16px box in a gutter is a target the pointer
+	   misses between two rows, and a miss here reads as the grip belonging to the block above. */
+	.grip::before {
+		content: '';
+		position: absolute;
+		inset: -8px -4px;
+	}
+
+	/* Touch never fires the hover reveal, so the handle shows unasked. */
 	@media (hover: none) {
 		.block-drag-handle {
 			opacity: 1;
 		}
 		.grip {
-			pointer-events: auto;
 			touch-action: none;
 		}
 	}
