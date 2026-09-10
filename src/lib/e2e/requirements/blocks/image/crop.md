@@ -26,3 +26,7 @@ own tail on the Obsidian-style size hint (`image-dimensions.ts`, `image-source-b
   restores the image untouched, with no source change and no undo entry
 - a committed crop renders as a fixed frame (`md-image-cropped`, `object-fit: cover`) the image
   pans inside; resizing it keeps the frame's shape
+- the resize grip on a cropped image resizes the FRAME, previewed on the frame rather than on
+  the picture panned inside it: the picture keeps covering the frame at every point of the drag,
+  and the frame keeps its shape (Shift unlocks nothing here — the brackets change a frame's
+  aspect)

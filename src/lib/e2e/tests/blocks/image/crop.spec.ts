@@ -115,6 +115,40 @@ test.describe('image crop', () => {
 		await editor.bridge.waitForSourceContains('![cat|300x150@50,50]');
 	});
 
+	// The grip previewed on the <img>, which for a crop is the picture panned inside the frame,
+	// not the box being resized: mid-drag it bulged out of its frame, and above zoom 1 the drag
+	// started from the painted picture's width and jumped.
+	test('the grip previews on the frame while resizing a cropped image', async ({ page }) => {
+		await editor.loadContent('![cat|300x150@30,60,2](/test-fixtures/sample.png)\n');
+		await waitForFirstImageLoaded(page);
+		const widget = page.locator('[data-image-widget]').first();
+		await widget.click();
+
+		const geometry = () =>
+			page.evaluate(() => {
+				const w = document.querySelector('[data-image-widget]')!.getBoundingClientRect();
+				const i = document.querySelector('[data-image-widget] img')!.getBoundingClientRect();
+				return { fw: w.width, fh: w.height, iw: i.width, ih: i.height };
+			});
+
+		const before = await geometry();
+		const hb = (await page.locator('.md-resize-handle').boundingBox())!;
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(hb.x + hb.width / 2 + 60, hb.y + hb.height / 2, { steps: 6 });
+
+		const during = await geometry();
+		// The frame follows the pointer and keeps its shape...
+		expect(during.fw).toBeGreaterThan(before.fw + 40);
+		expect(during.fw / during.fh).toBeCloseTo(before.fw / before.fh, 2);
+		// ...and the picture still covers it rather than spilling out.
+		expect(during.iw).toBeGreaterThanOrEqual(during.fw - 1);
+		expect(during.ih).toBeGreaterThanOrEqual(during.fh - 1);
+
+		await page.mouse.up();
+		await editor.bridge.waitForSourceMatches(/!\[cat\|\d+x\d+@30,60,2\]/);
+	});
+
 	test('resizing a cropped image keeps the frame shape', async ({ page }) => {
 		await editor.loadContent('![cat|200x100@30,60](/test-fixtures/sample.png)\n');
 		await waitForFirstImageLoaded(page);

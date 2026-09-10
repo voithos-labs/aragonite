@@ -64,10 +64,25 @@
 		return getWidgetEl()?.querySelector('img') ?? null;
 	}
 
+	/**
+	 * What the drag measures and previews on. A cropped image is a FRAME (the widget) with the
+	 * picture panned inside it, so the `<img>` is neither the size being changed nor the box the
+	 * user is dragging: previewing on it bulges the picture out of its frame, and at a zoom above
+	 * 1 the drag would start from the painted image's width and jump.
+	 */
+	function isCropped(): boolean {
+		return getWidgetEl()?.classList.contains('md-image-cropped') ?? false;
+	}
+
+	function previewEl(): HTMLElement | null {
+		return isCropped() ? getWidgetEl() : imgEl();
+	}
+
 	function startDrag(e: PointerEvent) {
 		const img = imgEl();
-		if (!img) return;
-		const { width: startWidth, height: startHeight } = img.getBoundingClientRect();
+		const preview = previewEl();
+		if (!img || !preview) return;
+		const { width: startWidth, height: startHeight } = preview.getBoundingClientRect();
 		// Unmeasurable width makes every snap run against 0 and commit a tiny image
 		// whichever way the drag goes; bail before pointer capture.
 		if (startWidth < MIN_WIDTH || editorContentWidth < MIN_WIDTH) return;
@@ -79,7 +94,10 @@
 			startWidth,
 			startHeight,
 			naturalWidth: img.naturalWidth,
-			aspectLocked: !e.shiftKey,
+			// A crop's frame keeps its shape through a resize (`commitImageResize` derives the
+			// height from it), so Shift has nothing to unlock here; the crop session's corner
+			// brackets are where a frame's aspect changes.
+			aspectLocked: isCropped() || !e.shiftKey,
 			currentWidth: startWidth
 		};
 	}
@@ -95,12 +113,13 @@
 		const clamped = clampWidth(proposed, editorContentWidth);
 		const snapped = snapWidth(clamped, editorContentWidth, SNAP_THRESHOLD_PX);
 		dragState.currentWidth = snapped;
-		const img = imgEl();
-		if (!img) return;
-		img.style.width = `${snapped}px`;
+		const preview = previewEl();
+		if (!preview) return;
+		preview.style.width = `${snapped}px`;
 		// Shift unlocks the aspect: the height stays where the user found it and the image
-		// distorts. Locked, the stylesheet's `height: auto` derives it from the new width.
-		img.style.height = dragState.aspectLocked ? '' : `${dragState.startHeight}px`;
+		// distorts. Locked, the frame's own `aspect-ratio` (cropped) or the stylesheet's
+		// `height: auto` (plain) derives it from the new width.
+		preview.style.height = dragState.aspectLocked ? '' : `${dragState.startHeight}px`;
 	}
 
 	function endDrag(e: PointerEvent) {
@@ -126,20 +145,28 @@
 				dx: e.clientX - startX,
 				editorContentWidth,
 				naturalWidth,
-				imgRectWidth: imgEl()?.getBoundingClientRect().width,
+				imgRectWidth: previewEl()?.getBoundingClientRect().width,
 				imgWidthAttr: imgEl()?.getAttribute('width')
 			});
 		}
 		onCommit(Math.round(finalWidth), resolveDraggedHeight(aspectLocked, startHeight));
 	}
 
+	/** The frame's committed width, from the `|WxH` hint the widget was built with. */
+	function restoreFrameWidth(widget: HTMLElement): void {
+		const width = imgEl()?.getAttribute('width');
+		if (width) widget.style.width = `${width}px`;
+	}
+
 	function cancelDrag(e: PointerEvent) {
 		if (!dragState) return;
-		// Fall back to the widget's committed width/height attributes.
-		const img = imgEl();
-		if (img) {
-			img.style.width = '';
-			img.style.height = '';
+		// Fall back to the committed geometry: the widget's width/height attributes, or for a
+		// cropped image the frame width `applyCropToWidget` wrote.
+		const preview = previewEl();
+		if (preview) {
+			preview.style.height = '';
+			if (preview === imgEl()) preview.style.width = '';
+			else restoreFrameWidth(preview);
 		}
 		dragState = null;
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
