@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { keepFlyoutOnScreen } from '../../menu/flyout-placement';
 	import {
 		clampMenuToViewport,
 		type TableMenuItem,
@@ -279,7 +280,12 @@
 					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
 				</button>
 				{#if openGroup === item.id}
-					<div class="md-menu table-action-menu-flyout" role="menu" aria-label={item.label}>
+					<div
+						class="md-menu table-action-menu-flyout"
+						role="menu"
+						aria-label={item.label}
+						{@attach keepFlyoutOnScreen}
+					>
 						{#each item.items as sub, j (j)}
 							{#if sub.kind === 'action' || sub.kind === 'clipboard'}
 								{@render actionRow(sub)}

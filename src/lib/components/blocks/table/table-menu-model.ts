@@ -31,6 +31,25 @@ export function clampMenuToViewport(
 	};
 }
 
+/**
+ * Where a flyout hung off its parent row ends up on screen: shifted UP just enough to clear the
+ * viewport bottom (never above the top margin) and, when its right edge would overflow, flipped
+ * to the parent menu's left side. Shifting vertically keeps the hovered row pointing into it;
+ * flipping horizontally keeps it off its own parent. Pure, so the two flyouts share one rule.
+ */
+export function flyoutPlacement(
+	flyout: { top: number; bottom: number; right: number; width: number },
+	parentMenu: { left: number },
+	viewport: { width: number; height: number },
+	margin = 8
+): { dy: number; flip: boolean } {
+	const overflow = flyout.bottom + margin - viewport.height;
+	const dy = overflow > 0 ? -Math.min(overflow, Math.max(0, flyout.top - margin)) : 0;
+	const overflowsRight = flyout.right + margin > viewport.width;
+	const fitsLeft = parentMenu.left - flyout.width - margin >= 0;
+	return { dy, flip: overflowsRight && fitsLeft };
+}
+
 export type TableMenuItem =
 	// `index` is the action's own axis index, so a both-axes cell menu routes each item
 	// to the right coordinate without the dispatcher tracking which group it came from.

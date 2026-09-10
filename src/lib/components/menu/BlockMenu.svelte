@@ -84,6 +84,7 @@
 <script lang="ts">
 	import { clampMenuToViewport } from '../blocks/table/table-menu-model';
 	import { BLOCK_MENU_LABEL } from '../../a11y-strings';
+	import { keepFlyoutOnScreen } from './flyout-placement';
 	import MenuIcon from './MenuIcon.svelte';
 
 	let {
@@ -252,7 +253,7 @@
 					{#if item.children}<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>{/if}
 				</button>
 				{#if item.children && flyout?.row === i}
-					<div class="md-menu block-menu block-menu-flyout" role="menu">
+					<div class="md-menu block-menu block-menu-flyout" role="menu" {@attach keepFlyoutOnScreen}>
 						{#each item.children as child, j (child.id)}
 							<button
 								type="button"

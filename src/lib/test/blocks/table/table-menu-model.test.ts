@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+	flyoutPlacement,
 	tableMenuItems,
 	type TableMenuItem
 } from '../../../components/blocks/table/table-menu-model';
@@ -283,5 +284,25 @@ describe('tableMenuItems: group selection by target shape', () => {
 		]);
 		expect(items[3]).toMatchObject({ kind: 'action', action: 'deleteRow' });
 		expect(items[4]).toMatchObject({ kind: 'action', action: 'deleteColumn' });
+	});
+});
+
+describe('flyoutPlacement', () => {
+	const viewport = { width: 1000, height: 600 };
+
+	it('shifts a flyout up just enough to clear the viewport bottom', () => {
+		const at = { top: 500, bottom: 700, right: 400, width: 200 };
+		expect(flyoutPlacement(at, { left: 100 }, viewport)).toEqual({ dy: -108, flip: false });
+	});
+
+	it('never shifts above the top margin', () => {
+		const at = { top: 20, bottom: 800, right: 400, width: 200 };
+		expect(flyoutPlacement(at, { left: 100 }, viewport).dy).toBe(-12);
+	});
+
+	it('flips to the parent menu\'s left when the right edge overflows and the left fits', () => {
+		const at = { top: 100, bottom: 300, right: 1100, width: 200 };
+		expect(flyoutPlacement(at, { left: 700 }, viewport)).toEqual({ dy: 0, flip: true });
+		expect(flyoutPlacement(at, { left: 100 }, viewport).flip).toBe(false);
 	});
 });
