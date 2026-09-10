@@ -10,6 +10,7 @@ import { isBlockNode, nodeAt } from '../../../tree-operations/node-ops';
 import { pathsEqual } from '../../../selection/path-math';
 import { cellRowCol } from '../../../cursor/coordinate-spaces';
 import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';
+import { rectangleGrid } from '../../../tree-operations/table-grid-clipboard';
 
 export interface CellClipboardDeps {
 	selection: SelectionState;
@@ -50,5 +51,41 @@ export function intraTableRectPayload(deps: CellClipboardDeps): string | null {
 		tableNode,
 		{ rowIdx: a.row, colIdx: a.col },
 		{ rowIdx: b.row, colIdx: b.col }
+	);
+}
+
+/** The rectangle's bounds in row/column terms, or null when the selection isn't one. */
+export function intraTableRectBounds(
+	deps: CellClipboardDeps
+): { tablePath: number[]; top: number; left: number; rows: number; cols: number } | null {
+	const rect = intraTableRect(deps.selection);
+	if (!rect) return null;
+	const tableNode = nodeAt(deps.getDoc(), rect.tablePath);
+	if (!tableNode || !isBlockNode(tableNode) || tableNode.kind !== 'table') return null;
+	const colCount = metadataOf(tableNode, 'table').columnCount;
+	const a = cellRowCol(rect.anchorCellIdx, colCount);
+	const b = cellRowCol(rect.focusCellIdx, colCount);
+	const top = Math.min(a.row, b.row);
+	const left = Math.min(a.col, b.col);
+	return {
+		tablePath: rect.tablePath,
+		top,
+		left,
+		rows: Math.max(a.row, b.row) - top + 1,
+		cols: Math.max(a.col, b.col) - left + 1
+	};
+}
+
+/** The rectangle's cell texts as a grid (pipes unescaped), for the spreadsheet formats. */
+export function intraTableRectGrid(deps: CellClipboardDeps): string[][] | null {
+	const bounds = intraTableRectBounds(deps);
+	if (!bounds) return null;
+	const tableNode = nodeAt(deps.getDoc(), bounds.tablePath);
+	if (!tableNode || !isBlockNode(tableNode)) return null;
+	const { top, left, rows, cols } = bounds;
+	return rectangleGrid(
+		tableNode,
+		{ rowIdx: top, colIdx: left },
+		{ rowIdx: top + rows - 1, colIdx: left + cols - 1 }
 	);
 }

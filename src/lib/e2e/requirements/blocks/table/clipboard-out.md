@@ -13,6 +13,12 @@
 - Sub-table inherits column alignments sliced from the source — pending Plan 4. Concrete: from `| :--- | :---: | ---: |`, copying cols 0..1 yields `:---` and `:---:`.
 - Whole-table copy after Ctrl+A 2nd press emits the table's raw — pending Plan 4 (2nd-press semantics).
 
+## Spreadsheet interchange
+
+- A rectangle copy (and cut) also writes `text/html` holding a plain `<table>` of the same cells,
+  which is the format Excel and Sheets read; `text/plain` stays the GFM sub-table, so a paste into
+  prose is still a table and a paste into another table's cells is still a grid.
+
 ## User interactions
 
 - Ctrl+A inside an empty cell with no text produces an empty clipboard string.

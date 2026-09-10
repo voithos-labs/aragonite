@@ -17,6 +17,16 @@ way on its own; a plugin trigger opts in with `autoPair: true` on `registerInlin
   writes the byte through the CST).
 - A backtick pairs the same way, and the closing press steps over the hidden closer.
 
+## The emphasis family
+
+- `*` and `_` pair singly (`*|*`); a second press inside the pair grows it to `**|**` rather than
+  stepping, since a double run is the next construct up. Neither pairs straight after a word byte
+  (`2*3`, `snake_case`).
+- `~` pairs only as a double run: a single tilde strikes in GFM, so `~5 minutes` must stay prose;
+  `~|` plus `~` is `~~|~~`.
+- Typing the closing delimiter inside a closing run steps over it byte by byte, and the byte after
+  the run lands outside the construct (an unpainted run moves the caret's side, not the caret).
+
 ## The empty pair
 
 - A first body byte that makes the pair no construct drops the twin: `$5` is a price, `$ ` a shell

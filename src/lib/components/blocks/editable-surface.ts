@@ -445,6 +445,9 @@ export interface ClipboardSurfaceDeps {
 	copyPreHook?: (e: ClipboardEvent) => boolean;
 	/** Pre-cross-block cut arm (selected-widget splice, intra-table rect cut). */
 	cutPreHook?: (e: ClipboardEvent) => boolean | Promise<boolean>;
+	/** Pre-cross-block paste arm, handed the normalized text while a live rectangle is still
+	 *  readable (a grid into a table's cells). True when it consumed the paste. */
+	pastePreHook?: (text: string) => boolean | Promise<boolean>;
 	/** The intra-block copy payload; owns its preventDefault. Omit to write the
 	 *  visible selection string (code, leaf); text and the cell slice their raw. */
 	copyTail?: (e: ClipboardEvent) => void;
@@ -537,6 +540,7 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 	async function insertPastedText(text: string, e: ClipboardEvent | null): Promise<void> {
 		const fold = deps.foldReveal?.() ?? null;
 		await fold?.settled;
+		if (text && deps.pastePreHook && (await deps.pastePreHook(text))) return;
 		if (await deps.crossBlock.handlePaste(e, text)) return;
 		deps.stickyColumn.reset();
 		deps.edgeAffinity.reset();

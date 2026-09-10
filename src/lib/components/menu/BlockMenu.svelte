@@ -56,6 +56,14 @@
 		return new Map(all.map((item) => [item.id, item.md]));
 	}
 
+	/** Every insertable block as one flat list, for a flyout that is already a level down. */
+	export function insertFlyoutEntries(): MenuEntry[] {
+		return [
+			...BUILT_IN,
+			...FROM_PLUGINS.filter((entry) => isPluginInstalled(entry.plugin)).map((entry) => entry.item)
+		].map(({ id, label, icon }) => ({ id, label, icon }));
+	}
+
 	const COMMON = new Set(['bullet', 'numbered', 'todo', 'code', 'table', 'math']);
 
 	/** The insert menu: the common blocks, the rest behind "More blocks". */

@@ -56,6 +56,20 @@ test.describe('inline delimiter auto-pair', () => {
 		expect(await editor.bridge.getSource()).toBe('pay x\n');
 	});
 
+	// The emphasis family: `**` typed ahead of an existing bold run pairs with its own twin, and
+	// the byte after the just-closed run lands outside it.
+	test('** and ~~ pair with their own twins and close cleanly', async ({ page }) => {
+		await editor.loadContent('text and **bold** later\n');
+		await editor.focusBlock(0, 5);
+		await page.keyboard.type('**ab** z');
+		await editor.bridge.waitForSourceContains('text **ab** zand **bold** later');
+
+		await editor.loadContent('text and ~~gone~~ later\n');
+		await editor.focusBlock(0, 5);
+		await page.keyboard.type('~~ab~~ z');
+		await editor.bridge.waitForSourceContains('text ~~ab~~ zand ~~gone~~ later');
+	});
+
 	// The step-over is what keeps the block openers three and two keystrokes.
 	test('three backticks are still a fence', async ({ page }) => {
 		await editor.loadContent('above\n\n\n');

@@ -52,7 +52,12 @@
 		movedBlockToPosition
 	} from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
-	import BlockMenu, { insertMenuEntries, insertSnippets, type MenuEntry } from './menu/BlockMenu.svelte';
+	import BlockMenu, {
+		insertFlyoutEntries,
+		insertMenuEntries,
+		insertSnippets,
+		type MenuEntry
+	} from './menu/BlockMenu.svelte';
 	import { runClipboardAction, type ClipboardAction } from './menu/clipboard-actions';
 	import { blockContextActionsFor, type BlockContextAction } from '../schema/context-actions';
 	import { isProseBackground, registerDefaultContextActions } from './menu/default-context-actions';
@@ -517,7 +522,10 @@
 		const node = path.length === 1 ? doc.children[path[0]] : undefined;
 		if (selected || !node || isProseBackground(node)) {
 			if (!selected) placeCaretAtPoint(e.clientX, e.clientY);
-			openClipboardMenu(point, host);
+			// Top-level prose is where a sibling block makes sense; a nested block or a selection
+			// gets the clipboard alone.
+			const insertAfter = !selected && node && isProseBackground(node) ? path[0] : null;
+			openClipboardMenu(point, host, insertAfter);
 			return;
 		}
 		const index = path[0];
@@ -575,17 +583,39 @@
 		return true;
 	}
 
-	function openClipboardMenu(point: { x: number; y: number }, anchorEl: Element): void {
+	/** `insertAfter` names the top-level block an "Insert block" flyout mints an empty sibling
+	 *  after; null leaves the menu to the clipboard rows alone. */
+	function openClipboardMenu(
+		point: { x: number; y: number },
+		anchorEl: Element,
+		insertAfter: number | null = null
+	): void {
+		const insert: MenuEntry[] =
+			insertAfter === null
+				? []
+				: [
+						{ id: 'sep', label: '', divider: true },
+						{ id: 'insert', label: 'Insert block', icon: 'plus', children: insertFlyoutEntries() }
+					];
 		blockMenu = {
 			...point,
 			anchor: anchorOn(anchorEl, point),
-			items: clipboardRows(),
+			items: [...clipboardRows(), ...insert],
 			label: BLOCK_ACTIONS_LABEL,
 			pick: (id) => {
 				blockMenu = null;
-				runClipboardRow(id);
+				if (runClipboardRow(id)) return;
+				const md = insertSnippets().get(id);
+				if (md && insertAfter !== null) void insertBlockAfter(insertAfter, md);
 			}
 		};
+	}
+
+	// The same two steps the tail's `+` takes: mint the empty paragraph, which lands the caret in
+	// it, then hand the snippet to the surface that now holds focus.
+	async function insertBlockAfter(index: number, md: string): Promise<void> {
+		await blockEdit.insertParagraph(index + 1, '');
+		insertMarkdown(md);
 	}
 
 	function pathOf(host: HTMLElement | null): number[] | null {

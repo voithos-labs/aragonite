@@ -238,6 +238,7 @@
 	}
 
 	const mutations = createTableMutationsContext({
+		grammar: registryView.grammar,
 		get node() {
 			return node;
 		},

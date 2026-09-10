@@ -38,6 +38,7 @@ import { resolveEdgeSeat, type EdgeSeat } from './edge-seat';
 import { deleteRangeRaw } from './live-selection-edit';
 import { resolveMarkedInsertion } from './pending-mark-insert';
 import { widgetAtCursor } from './widget-adjacency';
+import { resolveDelimiterAutoPair } from './delimiter-autopair';
 
 /** The subset of the inline-widget vocabulary the internal island policies reuse,
  *  expressed in the same terms without leaking into the public API. */
@@ -641,6 +642,10 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 	 */
 	function handleConstructSeat(e: KeyboardEvent, caretOffset: RawOffset | null): boolean {
 		if (!isPlainTypingKey(e) || caretOffset === null || hasSelectionHelper()) return false;
+		// A delimiter typed over its own closer is the auto-pair's step-over, which the beforeinput
+		// arm owns (delimiter-autopair.ts); seated outside the run it would be typed instead.
+		const autoPair = resolveDelimiterAutoPair(display(), getContentRange(deps.node), caretOffset, e.key);
+		if (autoPair?.kind === 'step-over') return false;
 		const el = deps.getEl();
 		const seat = el && typingSeatAt(el, caretOffset, e.key);
 		if (!seat) return false;

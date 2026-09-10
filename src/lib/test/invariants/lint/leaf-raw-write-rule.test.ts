@@ -21,6 +21,8 @@ const CAPABILITY_SITES: Record<string, string> = {
 
 /** Every sink that writes a leaf's raw in place and owes the kind's rule. */
 const READER_SITES: Record<string, string> = {
+	'src/lib/editor-actions/table-context.ts':
+		'pasteGrid, writing each pasted cell text in place through the tableCell rule',
 	[SINK]: 'the reader itself, plus the context-dependent-kind write',
 	'src/lib/editor-actions/search-replace.ts': 'substitutes into a private clone',
 	'src/lib/selection/range-delete.ts': 'the same-block merge writes raw with no reparse',

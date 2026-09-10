@@ -51,24 +51,39 @@ test.describe('table block: paste in', () => {
 	// through the cell's row-level blockEdit) leaves the substrings a `waitForSourceContains`
 	// checks intact while the surrounding structure rots.
 
-	test('pasting a markdown table breaks and splices around the paste row', async ({ page }) => {
+	// A grid is data for the cells, not a block to splice between them: a GFM table, or the tabs a
+	// spreadsheet writes, fills from the caret's cell and grows the table to fit, in one commit.
+	test('pasting a markdown table fills cells from the caret and grows the table', async ({
+		page
+	}) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
 		await editor.seedClipboard('| X | Y |\n| --- | --- |\n| 9 | 8 |\n');
 		await editor.paste();
-		await editor.bridge.waitForSourceContains('| X | Y |');
+		await editor.bridge.waitForSourceContains('| 9 | 8 |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			['| A | B |', '| --- | --- |', '| X | Y |', '| 9 | 8 |'].join('\n')
+		);
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+	});
+
+	test('pasting tab-separated rows appends the rows and columns they need', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('[role="cell"]').nth(5).click(); // "4": row 2, col 1
+		await editor.seedClipboard('p\tq\tr\ns\tt\tu\n');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('| s | t | u |');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			[
-				'| A | B |',
-				'| --- | --- |',
-				'| 1 | 2 |',
-				'| X | Y |',
-				'| --- | --- |',
-				'| 9 | 8 |',
-				'| 3 | 4 |',
-				'| --- | --- |'
+				'| A | B |  |  |',
+				'| --- | --- | --- | --- |',
+				'| 1 | 2 |  |  |',
+				'| 3 | p | q | r |',
+				'|  | s | t | u |'
 			].join('\n')
 		);
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(TABLE_2BODY, 3000);
 	});
 
 	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
@@ -174,6 +189,21 @@ test.describe('table block: paste in', () => {
 		await editor.bridge.waitForSourceContains('| hello |  |');
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
 			['| A | B |', '| --- | --- |', '| hello |  |', '|  |  |'].join('\n')
+		);
+	});
+
+	// A spreadsheet tiles a smaller grid over a selection whose sides are multiples of it.
+	test('sub-rectangle selection + paste a grid tiles it over the rectangle', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await dragBetweenCells(page, 2, 5);
+		await editor.waitForCrossBlock(true);
+
+		await editor.seedClipboard('x\ty');
+		await editor.paste();
+
+		await editor.bridge.waitForSourceContains('| x | y |\n| x | y |');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
+			['| A | B |', '| --- | --- |', '| x | y |', '| x | y |'].join('\n')
 		);
 	});
 

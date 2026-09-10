@@ -33,7 +33,7 @@
 			command: TOOLBAR_COMMANDS.toggleStrikethrough,
 			size: 16
 		},
-		{ icon: 'link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink, size: 13 }
+		{ icon: 'link', title: 'Edit link (Ctrl/Cmd+K)', command: TOOLBAR_COMMANDS.editLink, size: 12 }
 	];
 	const ROWS: readonly { icon: MenuIconName; label: string; command: string }[] = [
 		{ icon: 'code', label: 'Inline code', command: TOOLBAR_COMMANDS.toggleCode }

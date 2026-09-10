@@ -29,6 +29,14 @@
 	import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 	import { applyLiveRangeEdit } from '../text/live-selection-edit';
 	import {
+		gridToHtmlTable,
+		parseClipboardGrid,
+		tileGridTo
+	} from '../../../tree-operations/table-grid-clipboard';
+	import { tableCellCount } from '../../../selection/table-endpoint-snap';
+	import { pathsEqual } from '../../../selection/path-math';
+	import { isBlockNode, nodeAt } from '../../../tree-operations/node-ops';
+	import {
 		resolveDelimiterAutoPair,
 		resolveEmptyPairBackspace,
 		stepsOverRevealedCloser
@@ -64,7 +72,7 @@
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import { intraTableRectPayload } from './cell-clipboard';
+	import { intraTableRectPayload, intraTableRectBounds, intraTableRectGrid } from './cell-clipboard';
 	import { escapedCellOffset } from './table-cell-paste';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
@@ -880,6 +888,36 @@
 	// Copy/cut/paste through the shared skeleton. The cell's extra arms are the intra-table
 	// rectangle (copied as a GFM sub-table) and the intra-cell raw slice, which preserves
 	// widget bytes like `<br>` that the browser's rendered-textContent copy drops.
+	// The rectangle's spreadsheet form rides beside the GFM: Excel and Sheets read text/html.
+	function writeRectHtml(e: ClipboardEvent): void {
+		const grid = intraTableRectGrid({ selection, getDoc });
+		if (grid) e.clipboardData?.setData('text/html', gridToHtmlTable(grid));
+	}
+
+	// A grid (tabs from a spreadsheet, or a GFM table) fills cells from here — the rectangle's
+	// top-left when one is live, else this cell — growing the table to fit. A whole-table
+	// selection keeps its replace route; a non-grid payload keeps the ordinary paste.
+	async function pasteGridHere(text: string): Promise<boolean> {
+		const grid = parseClipboardGrid(text);
+		if (!grid) return false;
+		const tablePath = myPath.slice(0, -2);
+		const bounds = intraTableRectBounds({ selection, getDoc });
+		const inThisTable = bounds !== null && pathsEqual(bounds.tablePath, tablePath);
+		if (bounds && !inThisTable) return false;
+		const tableNode = nodeAt(getDoc(), tablePath);
+		const wholeTable =
+			bounds !== null &&
+			tableNode !== null &&
+			isBlockNode(tableNode) &&
+			bounds.rows * bounds.cols === tableCellCount(tableNode);
+		if (wholeTable) return false;
+		const origin = bounds ? { rowIdx: bounds.top, colIdx: bounds.left } : { rowIdx, colIdx };
+		const fitted = bounds ? tileGridTo(grid, bounds.rows, bounds.cols) : grid;
+		if (bounds) selection.collapse();
+		await tableContext.pasteGrid(origin, fitted);
+		return true;
+	}
+
 	const clipboard = createClipboardHandlers({
 		stickyColumn,
 		edgeAffinity,
@@ -896,8 +934,10 @@
 			if (rectPayload === null) return false;
 			e.preventDefault();
 			e.clipboardData?.setData('text/plain', rectPayload);
+			writeRectHtml(e);
 			return true;
 		},
+		pastePreHook: pasteGridHere,
 		// During a reveal the swapped DOM holds an edit `node.raw` hasn't seen; copy never
 		// mutates, so it slices the live DOM text rather than folding first.
 		copyTail: (e) => {
@@ -916,6 +956,7 @@
 			const rectPayload = intraTableRectPayload({ selection, getDoc });
 			if (rectPayload === null) return false;
 			e.clipboardData?.setData('text/plain', rectPayload);
+			writeRectHtml(e);
 			await crossBlock.performCrossBlockDeleteFromEvent();
 			return true;
 		},
