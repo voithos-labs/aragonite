@@ -39,6 +39,8 @@ export function buildTaskItemAmbient(
 				role: 'checkbox',
 				// single source of truth: derive from the keyed marker (in the render memo key), not parallel taskChecked
 				ariaChecked: isTaskMarkerChecked(metadata.taskMarker),
+				// The painted box is taller than the text beside it; the grip centres on the box.
+				dragAnchor: true,
 				onClick: onToggle
 			},
 			// The list marker gets a span of its own so the rendered modes can collapse its width:

@@ -13,6 +13,7 @@
 	import SelectionOverlay from './SelectionOverlay.svelte';
 	import DecorationOverlay from './DecorationOverlay.svelte';
 	import BlockDragHandle from './BlockDragHandle.svelte';
+	import { showsDragHandle } from './drag-handle';
 	import TextEditableBlock from './blocks/text/TextEditableBlock.svelte';
 	import { defaultRegistryView } from '../schema/registry-view';
 	import { FAILED_BLOCK_LABEL } from '../a11y-strings';
@@ -65,6 +66,8 @@
 	// $derived, not a mount-time snapshot: a runtime prop toggle must reach blocks
 	// that window in after the change.
 	const dragHandles = $derived(getDragHandles?.() ?? false);
+	// A reorder unit without a grip (a paragraph) is still a drop neighbour and keyboard-movable.
+	const showsHandle = $derived(reorderable && dragHandles && showsDragHandle(node.kind));
 
 	let myPath = $derived([...parentPath, index]);
 
@@ -233,7 +236,7 @@
 <div
 	class={[
 		'block-host',
-		{ 'reorder-host': reorderable && dragHandles },
+		{ 'reorder-host': reorderable && dragHandles, 'handle-host': showsHandle },
 		...blockDecs.flatMap((d) => d.class ?? [])
 	]}
 	data-block-path={JSON.stringify(myPath)}
@@ -291,7 +294,7 @@
 	/>
 	<!-- Rendered LAST so the block-el lookup still resolves block content as its
 		 first match. -->
-	{#if reorderable && dragHandles}
+	{#if showsHandle}
 		<BlockDragHandle />
 	{/if}
 </div>
@@ -302,9 +305,10 @@
 	}
 
 	/* Pure-CSS hover reveal: no per-block reactive state on a path whose cost scales
-	   with mounted-component count. Global because reorder hosts nest; the `:not(:has(
-	   ...))` reveals the innermost hovered handle, not a staircase of ancestors. */
-	:global(.reorder-host:hover:not(:has(.reorder-host:hover)) > .block-drag-handle) {
+	   with mounted-component count. Global because handle hosts nest; the `:not(:has(
+	   ...))` reveals the innermost hovered handle, not a staircase of ancestors. A gripless
+	   unit (a paragraph in a quote) is no host, so hovering it reveals its container's. */
+	:global(.handle-host:hover:not(:has(.handle-host:hover)) > .block-drag-handle) {
 		opacity: 1;
 		pointer-events: auto;
 	}

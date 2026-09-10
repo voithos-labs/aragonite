@@ -253,8 +253,11 @@ function landingFor(hit: BlockHit, probeX: number, probeY: number): CaretTarget 
 	if (hit.caretTargetAtPoint) return hit.caretTargetAtPoint(probeX, probeY);
 	// A kind with only the drag hook addresses cells and named no caret landing.
 	if (hit.foreignDragHitTest) return null;
+	// A leaf with no character surface (a rule, a folded equation) reached here was pressed on
+	// its own box: the block itself is the landing, and its `focus` ignores the offset.
+	if (!hit.charSurface) return { path: [], offset: 0 };
 	// Reading mode flips contenteditable off, and a non-editable leaf has no character position.
-	if (!hit.charSurface?.matches('[contenteditable="true"]')) return null;
+	if (!hit.charSurface.matches('[contenteditable="true"]')) return null;
 	const offset = offsetFromViewportPoint(hit.charSurface, probeX, probeY);
 	return offset === null ? null : { path: [], offset };
 }

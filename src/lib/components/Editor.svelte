@@ -721,9 +721,10 @@
 				marginDrag = false;
 				if (dragged) return;
 				if (deadSpaceCaret.handleClick(root, e)) return;
-				// A press on a block HOST's own box (the padding beside a table) is dead space the
-				// click helper does not claim; a release that did not move still places the caret.
-				if (pressed && e.target instanceof Element && e.target.classList.contains('block-host')) {
+				// A press the editor took on a block (a host's own padding beside a table, a rule, a
+				// folded equation's face) that did not move is a click on it: the click helper
+				// claims only dead space, so the same landing is resolved here.
+				if (pressed && !deadSpaceCaret.isDeadSpaceTarget(root, e.target)) {
 					if (placeCaretAtPoint(e.clientX, e.clientY)) return;
 				}
 				// Declined everywhere: a click on nothing still LEAVES what was being edited (a

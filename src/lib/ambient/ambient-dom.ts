@@ -4,6 +4,7 @@
  */
 
 import type { AmbientPrefix } from '../block-component';
+import { DRAG_ANCHOR_ATTR } from '../components/block-content-selector';
 import { domDescendants } from '../cursor/dom-walk';
 import { isAtomicInlineWidget, isHiddenMarkerText } from '../cursor/widget-offset';
 import { devWarn } from '../dev-warn';
@@ -35,6 +36,7 @@ export function buildAmbientSpan(prefix: AmbientPrefix): HTMLSpanElement {
 		if (range.ariaChecked !== undefined) {
 			inner.setAttribute('aria-checked', String(range.ariaChecked));
 		}
+		if (range.dragAnchor) inner.setAttribute(DRAG_ANCHOR_ATTR, '');
 		inner.textContent = normalized.text.slice(range.start, range.end);
 		inner.addEventListener('click', range.onClick);
 		outer.appendChild(inner);

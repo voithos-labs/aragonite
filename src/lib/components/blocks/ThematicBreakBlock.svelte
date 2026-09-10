@@ -132,7 +132,7 @@
 <div bind:this={boxEl} class="thematic-break-block" onkeydown={onKeyDown}>
 	<!-- Focusable by pointer and by the editor, never by Tab: the host beside it is the block's
 	     one tab stop. The role/naming question is the 1.1 shell a11y decision. -->
-	<div bind:this={el} tabindex="-1" class="thematic-break-rule" role="separator">
+	<div bind:this={el} tabindex="-1" class="thematic-break-rule" role="separator" data-drag-anchor>
 		<hr />
 	</div>
 </div>

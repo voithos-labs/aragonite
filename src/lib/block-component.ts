@@ -80,6 +80,8 @@ export interface AmbientInteractiveRange {
 	className: string;
 	role?: 'checkbox';
 	ariaChecked?: boolean;
+	/** The block's drag grip centres on this span's box rather than on its text line. */
+	dragAnchor?: boolean;
 	/** The click lands on the range's own span, before the leaf's caret handling; a handler
 	 *  reading the chord (`isWidgetActivationClick`) stops propagation to keep the gesture. */
 	onClick: (e: MouseEvent) => void;

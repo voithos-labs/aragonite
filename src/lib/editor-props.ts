@@ -48,9 +48,9 @@ export interface EditorProps {
 	 *  pinning, which is what lets the editor keep its own scrollport and windowing. */
 	header?: Snippet;
 	/** Opt into the pointer affordances: the block drag handle and the table's row and column
-	 *  grips (default off, so the surface stays gutter-free). A hover reveals them; touch, which
-	 *  has none, shows them outright. Keyboard reorder (Alt+Arrow) and the cell menu are always
-	 *  available and need no opt-in. */
+	 *  grips (default off, so the surface stays gutter-free; reading mode never shows them). A
+	 *  hover reveals them; touch, which has none, shows them outright. Paragraphs carry no
+	 *  handle. Keyboard reorder (Alt+Arrow) and the cell menu are always available. */
 	blockDragHandles?: boolean;
 	searchBar?: boolean;
 	/** Where the editor's own find/replace bar renders. Default (absent) keeps it pinned inside

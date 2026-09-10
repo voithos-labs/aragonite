@@ -33,8 +33,7 @@
 		index,
 		myPath = [],
 		blockLayout = 'split'
-	}: { node: NodeView; index: number; myPath?: number[]; blockLayout?: MathBlockLayout } =
-		$props();
+	}: { node: NodeView; index: number; myPath?: number[]; blockLayout?: MathBlockLayout } = $props();
 
 	// eslint-disable-next-line no-useless-assignment -- <script module> counter read by the next instance mount
 	const mountId = nextMountId++;
@@ -147,7 +146,7 @@
 	class:math-block-stacked={revealed && layout === 'stacked'}
 >
 	{#if revealed}
-		<div class="math-block-card">
+		<div class="math-block-card" data-drag-anchor>
 			<div
 				bind:this={sourceEl}
 				{...leaf.surfaceProps}
@@ -163,7 +162,7 @@
 		</div>
 	{/if}
 	{#if !revealed || previewOpen}
-		<div class="math-block-card">
+		<div class="math-block-card" data-drag-anchor>
 			<div
 				bind:this={renderEl}
 				class="math-block-render"

@@ -13,3 +13,8 @@ export const BLOCK_CONTENT_SELECTOR = ':scope > :not(.selection-overlay):not(.de
  *  must be named — the decoration overlay is one per painted mark, not per block. */
 export const BLOCK_CONTENT_LOCATOR_SELECTOR =
 	':scope > *:not(.selection-overlay):not(.decoration-overlay):not(.block-drag-handle):not(.decoration-badge):not(.code-rail)';
+
+/** Marks the element a block's drag grip centres on (`drag-handle.ts`); absent, the block's
+ *  first line of text is it. Here rather than beside the handle so the ambient-prefix DOM
+ *  builder can set it without reaching into the components layer. */
+export const DRAG_ANCHOR_ATTR = 'data-drag-anchor';

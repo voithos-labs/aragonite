@@ -32,6 +32,10 @@ claiming only root-targeted clicks leaves that band inert.
   caret placement).
 - A document ending in a thematic break declines: a rule holds no character position,
   so the click must not hand it the whole-block focus that a click ON the rule means.
+- A click ON a block with no character surface (the rule, a folded equation's face) focuses
+  that block: the editor takes such a press for its own drag, so a release that did not move
+  resolves the landing the browser's default would have given (the divider then answers
+  Alt+Arrow, the equation opens).
 - The same for every block with no character surface: a table, a rendered equation, a
   diagram. Prose has a line for a click beside it to land on (Google Docs lands the caret
   on that line, and so does this editor); these do not, so a click that was not ON the block

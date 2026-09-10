@@ -10,6 +10,21 @@ This task adds presence + gating only — no drag behavior yet.
 - hover a list item: exactly one handle reveals in the item subtree
 - hover a blockquote child: its drag handle reveals
 
+## Which blocks carry one
+
+- a paragraph is the page's background: no handle, though it stays a reorder unit
+  (`reorder-host`, keyboard reorder, a drop neighbour)
+- every other reorder unit carries one: headings, list items, quotes, code, tables, cards
+- hovering a quoted paragraph reveals the blockquote's own handle (a gripless child is no host)
+
+## Grip glyph and placement
+
+- the grip is the lucide `grip-vertical` glyph (six dots), 16px, muted
+- the grip centres on the block's first visual line, measured on hover: a heading's own
+  line, the first code line inside the card (not the card edge), a task item's checkbox,
+  the divider's rule; a block declares another seat with `data-drag-anchor`
+- before any hover (and on touch, which never hovers) the host's half line-height stands in
+
 ## Edge cases
 
 - handle is hidden (opacity 0) until its host is hovered — pure-CSS reveal, no reactive state

@@ -260,6 +260,7 @@
 <div
 	class="list-item-block"
 	class:reorder-host={dragHandles}
+	class:handle-host={dragHandles}
 	data-task-checked={taskCheckedAttr}
 	data-list-marker={presentationMarkerKind}
 	bind:this={boxEl}
@@ -289,7 +290,7 @@
 		align-items: flex-start;
 	}
 
-	/* Hover reveal is the shared global `.reorder-host` rule in BlockHost; it reveals
+	/* Hover reveal is the shared global `.handle-host` rule in BlockHost; it reveals
 	   only the innermost hovered unit, so a sub-item's hover never lights the parent. */
 
 	.list-item-content {

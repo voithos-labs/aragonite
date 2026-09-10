@@ -74,8 +74,10 @@ describe('blockquote delegates to its inner BlockList', () => {
 
 	// The seam defaults `reorderable` to false; the blockquote overrides it at its own call
 	// site, so dropping that prop is a silent affordance loss — children render, undraggable.
+	// Headings, not paragraphs: a paragraph is a background block and renders no handle even
+	// as a reorder unit, so it cannot witness the handle half of the assertion.
 	it('marks its children as reorder units, unlike the seam default', () => {
-		mounted = mountQuote('> alpha\n>\n> beta\n', true);
+		mounted = mountQuote('> # alpha\n>\n> # beta\n', true);
 
 		const hosts = mounted.target.querySelectorAll('.blockquote-block > .block-list > .block-host');
 
