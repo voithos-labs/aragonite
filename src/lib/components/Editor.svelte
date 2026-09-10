@@ -36,6 +36,8 @@
 	} from '../cursor/scroll-ancestors';
 	import { createScrollport, type Scrollport } from '../cursor/scrollport';
 	import { createDeadSpaceCaret } from '../selection/dead-space-caret';
+	import { selectWordAtPoint, trimDoubleClickSelection } from '$lib/selection/double-click-trim';
+	import { isEditableEventTarget } from '$lib/editor-actions/whole-block-focus-surface';
 	import { resetForPointerDown } from '../selection/cross-block/pointer';
 	import { installDragListener } from '../selection/drag-pointer';
 	import { createContentVersion } from '../reactivity/content-version.svelte';
@@ -475,6 +477,15 @@
 		pick: (id: string) => void;
 	} | null>(null);
 
+	// Open/close transitions only, never the mount, so a subscriber's first news is a real menu.
+	let menuWasOpen = false;
+	$effect(() => {
+		const open = blockMenu !== null;
+		if (open === menuWasOpen) return;
+		menuWasOpen = open;
+		events.emit('menuChange', open);
+	});
+
 	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
 		const rect = el.getBoundingClientRect();
 		const dx = point.x - rect.left;
@@ -683,8 +694,12 @@
 				// A press on a block HOST's own box (the padding beside a table) is dead space the
 				// click helper does not claim; a release that did not move still places the caret.
 				if (pressed && e.target instanceof Element && e.target.classList.contains('block-host')) {
-					placeCaretAtPoint(e.clientX, e.clientY);
+					if (placeCaretAtPoint(e.clientX, e.clientY)) return;
 				}
+				// Declined everywhere: a click on nothing still LEAVES what was being edited (a
+				// revealed equation folds on blur), since the margin press suppressed the blur the
+				// browser would have done.
+				if (pressed) blurEditingSurface(root);
 				return;
 			}
 			// Host chrome follows the page's link behaviour, not plain-click-edits.
@@ -750,6 +765,14 @@
 		};
 		return removeAll(
 			onRoot(root, 'click', handleClick),
+			// The second press of a double-click: the word is selected here, trimmed, before the
+			// browser can paint its own wider range. The dblclick trim stays as the fallback.
+			onRoot(root, 'mousedown', (e: MouseEvent) => {
+				if (e.detail !== 2 || e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+				if (!isEditableEventTarget(e.target)) return;
+				if (selectWordAtPoint(root.ownerDocument, e.clientX, e.clientY)) e.preventDefault();
+			}),
+			onRoot(root, 'dblclick', () => trimDoubleClickSelection(root.ownerDocument)),
 			onRoot(root, 'pointerdown', startMarginDrag),
 			onRoot(root, 'mousedown', (e: MouseEvent) => {
 				deadSpaceCaret.notePress(root, e);
@@ -1646,6 +1669,11 @@
 	 * focused surface. A gap caret declines: its proxy is not a block, and a NESTED gap's proxy
 	 * sits inside its container's host, which must not receive what was aimed at the gap.
 	 */
+	function blurEditingSurface(root: HTMLElement): void {
+		const active = document.activeElement;
+		if (active instanceof HTMLElement && root.contains(active) && active !== root) active.blur();
+	}
+
 	function focusedSurfacePath(): number[] | null {
 		if (selectionState.gapCaret) return null;
 		const active = document.activeElement;

@@ -37,7 +37,9 @@ export type TableMenuItem =
 	| { kind: 'action'; action: TableAxisAction; label: string; enabled: boolean; index: number }
 	| { kind: 'clipboard'; action: ClipboardAction; label: string; enabled: boolean }
 	| { kind: 'alignment'; current: TableAlignment }
-	| { kind: 'separator' };
+	| { kind: 'separator' }
+	/** A flyout: the row's or column's less-used actions behind one entry. */
+	| { kind: 'group'; id: 'row' | 'column'; label: string; items: TableMenuItem[] };
 
 export function tableMenuItems(
 	target: { rowIdx?: number; colIdx?: number },
@@ -53,8 +55,30 @@ export function tableMenuItems(
 		items.push(...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true), {
 			kind: 'separator'
 		});
+	// A cell's menu carries both axes, so each axis's inserts and moves fold behind one flyout
+	// and only the two deletes and the alignment stay in the list; a grip's menu is one axis and
+	// stays flat.
+	if (isCell && target.rowIdx != null && target.colIdx != null) {
+		const rows = rowGroup(target.rowIdx, dims.rowCount);
+		const cols = columnGroup(target.colIdx, dims.colCount, alignments);
+		const isDelete = (i: TableMenuItem) =>
+			i.kind === 'action' && (i.action === 'deleteRow' || i.action === 'deleteColumn');
+		items.push(
+			{ kind: 'group', id: 'row', label: 'Row', items: rows.filter((i) => !isDelete(i)) },
+			{
+				kind: 'group',
+				id: 'column',
+				label: 'Column',
+				items: cols.filter((i) => !isDelete(i) && i.kind !== 'alignment')
+			},
+			{ kind: 'separator' },
+			...rows.filter(isDelete),
+			...cols.filter(isDelete),
+			...cols.filter((i) => i.kind === 'alignment')
+		);
+		return items;
+	}
 	if (target.rowIdx != null) items.push(...rowGroup(target.rowIdx, dims.rowCount));
-	if (isCell) items.push({ kind: 'separator' });
 	if (target.colIdx != null) items.push(...columnGroup(target.colIdx, dims.colCount, alignments));
 	return items;
 }

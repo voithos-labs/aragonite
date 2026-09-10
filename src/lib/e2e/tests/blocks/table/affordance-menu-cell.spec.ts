@@ -37,10 +37,12 @@ test.describe('table block: cell right-click menu', () => {
 		expect(await editor.bridge.getSource()).toContain('| 3 | 4 |');
 	});
 
+	// Prose has a right-click menu of its own (clipboard), so the oracle is the table's items.
 	test('right-clicking outside the table does not open the affordance menu', async ({ page }) => {
 		await editor.loadContent(`${TABLE}text below\n`);
 		await page.getByText('text below').click({ button: 'right' });
-		await expect(page.getByRole('menu')).toHaveCount(0);
+		await expect(page.getByRole('menuitem', { name: /delete row/i })).toHaveCount(0);
+		await expect(page.getByRole('menuitem', { name: /delete column/i })).toHaveCount(0);
 	});
 
 	test('right-click within an active intra-table rectangle preserves the rectangle', async ({

@@ -69,6 +69,12 @@ export interface EditableLeafDeps {
 	mode?: EditableLeafMode;
 	/** A kind whose bytes are one line: Enter splits the block rather than typing a newline. */
 	singleLine?: boolean;
+	/**
+	 * render-primary only: whether a click on the rendered view is ON what it paints rather than
+	 * in the view's own box beside it. Absent, every click on the view reveals; a view wider than
+	 * its content (a centred equation) declines the rest, so a click on nothing focuses nothing.
+	 */
+	revealHitTest?: (e: MouseEvent) => boolean;
 	/** render-primary only: the component owns the swap flag and both views. */
 	isRevealed?(): boolean;
 	setRevealed?(revealed: boolean): void;
@@ -681,6 +687,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		renderPress = null;
 		if (!press || e.shiftKey || isReading()) return;
 		if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
+		if (deps.revealHitTest && !deps.revealHitTest(e)) return;
 		// The reveal lands a caret, so this owes the shared preamble. NOT through
 		// crossBlock.handlePointerDown: that hit-tests against the SOURCE text, which the
 		// rendered view is not.

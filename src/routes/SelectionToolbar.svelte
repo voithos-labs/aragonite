@@ -100,6 +100,41 @@
 		return editor.getEvents().on('selectionChange', update);
 	});
 
+	// Only once the drag is over: a bar that appears and re-seats under a moving pointer is in the
+	// way of the very selection being made. The press is watched at the document, since the drag
+	// can end anywhere; the release places the bar from the selection that stood at that moment.
+	let pointerHeld = false;
+	$effect(() => {
+		const down = (e: PointerEvent) => {
+			if (e.button === 0) pointerHeld = true;
+		};
+		const up = () => {
+			if (!pointerHeld) return;
+			pointerHeld = false;
+			update(current);
+		};
+		document.addEventListener('pointerdown', down, true);
+		document.addEventListener('pointerup', up, true);
+		document.addEventListener('pointercancel', up, true);
+		return () => {
+			document.removeEventListener('pointerdown', down, true);
+			document.removeEventListener('pointerup', up, true);
+			document.removeEventListener('pointercancel', up, true);
+		};
+	});
+
+	// The editor's own right-click menu takes the selection's spot; two cards over one range read
+	// as a glitch, so the bar hides while it is open and comes back where the selection still is.
+	let menuOpen = false;
+	$effect(() => {
+		if (!editor) return;
+		return editor.getEvents().on('menuChange', (open) => {
+			menuOpen = open;
+			if (open) placement = null;
+			else if (current) update(current);
+		});
+	});
+
 	// Sticky with the text: the rects are viewport coordinates, so a scroll or resize moves the
 	// selection under the bar and the bar re-measures. One frame per burst, not one per event.
 	$effect(() => {
@@ -108,7 +143,9 @@
 			if (frame || !current) return;
 			frame = requestAnimationFrame(() => {
 				frame = 0;
-				placement = current ? place(current) : null;
+				// Same gates as a selection change: a scroll mid-drag (autoscroll included) must not
+				// bring the bar out before the release does.
+				placement = current && !pointerHeld && !menuOpen ? place(current) : null;
 			});
 		};
 		window.addEventListener('scroll', reanchor, { capture: true, passive: true });
@@ -128,7 +165,10 @@
 			: null;
 		// Prose only: over a code fence or an equation's source the marks mean nothing, so the bar
 		// stays away rather than opening greyed out.
-		placement = selection && blockKind !== null && PROSE_KINDS.has(blockKind) ? place(selection) : null;
+		placement =
+			selection && !menuOpen && !pointerHeld && blockKind !== null && PROSE_KINDS.has(blockKind)
+				? place(selection)
+				: null;
 		// Asked per selection change, not per render: the answers are snapshots of this selection.
 		declined = new Set(
 			BUTTONS.filter((b) => !editor?.canRunCommand(b.command)).map((b) => b.command)

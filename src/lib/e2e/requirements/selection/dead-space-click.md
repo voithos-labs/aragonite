@@ -16,11 +16,6 @@ claiming only root-targeted clicks leaves that band inert.
 - Click in the right margin beside a line: the caret lands at the end of THAT line,
   not at the end of the block.
 - Click below a document ending in a list: the caret lands at the end of the last item.
-- Click below a table: the caret lands at the end of the geometrically nearest cell of
-  the last row. The end-of-document gesture aims at the block box's trailing corner,
-  so that is the last row's last cell.
-- Click beside a table: y picks the row and x picks the column, so a click level with a
-  middle row lands in that row — not in the table's last cell.
 - Click in the block list's own padding under a host layout that pads it
   (`?paddedList=on`): the caret lands at the end of that line, same as the root's padding.
 - Click beside a line that ends at an atomic widget (an image-only paragraph): the caret
@@ -37,6 +32,12 @@ claiming only root-targeted clicks leaves that band inert.
   caret placement).
 - A document ending in a thematic break declines: a rule holds no character position,
   so the click must not hand it the whole-block focus that a click ON the rule means.
+- The same for every block with no character surface: a table, a rendered equation, a
+  diagram. Prose has a line for a click beside it to land on (Google Docs lands the caret
+  on that line, and so does this editor); these do not, so a click that was not ON the block
+  focuses nothing — below the table, beside it in the editor's padding, or in the host's own
+  padding around it. The press still resets a live range, as every margin press does. The
+  old "nearest cell" landing is gone with it: it focused a table the user never clicked.
 - A kind that addresses its own internals but declares no caret landing still declines,
   and declines before ending any live range — a rejected click must leave the selection
   exactly as it found it.

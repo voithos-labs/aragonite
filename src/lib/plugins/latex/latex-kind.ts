@@ -61,6 +61,9 @@ function recognizeMath(
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
 	if (isWhitespace(opener) || isDigit(opener)) return null;
+	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
+	// opener, or its closer search would jump to the far end of the next formula on the line.
+	if (opener === '$') return null;
 
 	// The index spans the whole block, so `end` decides the claim: a closer past the
 	// scan range leaves the `$` literal.
@@ -76,7 +79,9 @@ export function registerMathInline(): void {
 	// the inline registries also clears this guard.
 	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
-	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind));
+	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind), {
+		autoPair: true
+	});
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
 		component: MathInline,

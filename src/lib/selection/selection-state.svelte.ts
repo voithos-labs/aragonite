@@ -17,6 +17,7 @@ import {
 } from './table-endpoint-snap';
 import { normalizeCharEndpoint } from './char-endpoint-snap';
 import { pathsEqual } from './path-math';
+import { displayLength } from '../core/lines';
 import { assertInvariant } from '../assert';
 import { checkCrossBlockEndpointCoordinates } from '../invariants/selection-endpoints';
 
@@ -55,6 +56,12 @@ export interface SelectionState {
 	readonly selectAllCount: number;
 	/** The third mode: a collapsed caret in a between-blocks boundary (`gap-caret.ts`). */
 	readonly gapCaret: GapCaretPosition | null;
+	/**
+	 * One block taken whole as the entire range — a press on a surface-less leaf (an equation)
+	 * dragged inside it. The stored pair spans the block's bytes on a shared path, which the
+	 * same-path guard would otherwise refuse, so the overlay reads this to paint it as a unit.
+	 */
+	readonly wholeUnitPath: number[] | null;
 
 	// Every mutator below is silent when it changes nothing: a preamble that clears what is
 	// already clear must not wake a subscriber into re-reading an unmoved selection.
@@ -107,6 +114,7 @@ class SelectionStateImpl implements SelectionState {
 	#anchor: SelectionPoint | null = $state(null);
 	#focus: SelectionPoint | null = $state(null);
 	#gapCaret: GapCaretPosition | null = $state(null);
+	#wholeUnit: number[] | null = $state(null);
 	#selectAllCount: number = $state(0);
 	#onChange?: () => void;
 	#getDoc?: () => DocumentView;
@@ -158,12 +166,17 @@ class SelectionStateImpl implements SelectionState {
 		return this.#anchor !== null && this.#focus !== null;
 	}
 
+	get wholeUnitPath(): number[] | null {
+		return this.#wholeUnit?.slice() ?? null;
+	}
+
 	get isCustomRendered(): boolean {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return this.isCrossBlock;
 		const anchor = this.#anchor;
 		const focus = this.#focus;
 		if (!anchor || !focus) return false;
+		if (this.#wholeUnit) return true;
 		if (!pathsEqual(anchor.path, focus.path)) return true;
 		if (anchor.offset === focus.offset) return false;
 		const node = nodeAt(getDoc(), anchor.path);
@@ -195,6 +208,21 @@ class SelectionStateImpl implements SelectionState {
 
 	enterCrossBlock(anchor: SelectionEndpoint, focus: SelectionEndpoint): void {
 		this.#gapCaret = null;
+		// Both ends the same surface-less block: the unit itself is the range, stored as its full
+		// byte span and flagged, since below a same-path pair is refused as prose.
+		if (
+			isWholeBlockEndpoint(anchor) &&
+			isWholeBlockEndpoint(focus) &&
+			pathsEqual(anchor.path, focus.path)
+		) {
+			const path = anchor.path.slice();
+			this.#anchor = { path, offset: 0 };
+			this.#focus = { path: path.slice(), offset: this.#byteLengthAt(path) };
+			this.#wholeUnit = path.slice();
+			this.#notify();
+			return;
+		}
+		this.#wholeUnit = null;
 		const a = this.#normalizePoint(anchor, focus.path);
 		const f = this.#normalizePoint(focus, anchor.path);
 		// A same-path prose pair is a single-block range the browser owns; storing it mints an
@@ -217,6 +245,13 @@ class SelectionStateImpl implements SelectionState {
 			throw new Error('SelectionState.extendFocus called without an anchor');
 		}
 		this.#gapCaret = null;
+		// Leaving a whole unit: its anchor is the block as a whole again, so the side it means
+		// (start below the new focus, end above it) is resolved afresh rather than kept at 0.
+		if (this.#wholeUnit) {
+			const unit = { path: this.#wholeUnit, wholeBlock: true as const };
+			this.#anchor = this.#normalizePoint(unit, point.path);
+			this.#wholeUnit = null;
+		}
 		const f = this.#normalizePoint(point, this.#anchor.path);
 		// A focus back on the anchor's prose leaf contracts to a single-block range. No
 		// `offset !== offset` guard, unlike #isSamePathProseRange: extendFocus never seeds, so
@@ -237,6 +272,12 @@ class SelectionStateImpl implements SelectionState {
 
 	// G1.29 at the storing seam, the belt behind #normalizePoint: both entries carry it because
 	// both store an endpoint pair.
+	#byteLengthAt(path: number[]): number {
+		const doc = this.#getDoc?.();
+		const node = doc ? nodeAt(doc, path) : null;
+		return node && 'raw' in node ? displayLength(node.raw) : 0;
+	}
+
 	#assertEndpointCoordinates(anchor: SelectionPoint, focus: SelectionPoint): void {
 		const getDoc = this.#getDoc;
 		if (!getDoc) return;
@@ -275,6 +316,7 @@ class SelectionStateImpl implements SelectionState {
 		this.#anchor = null;
 		this.#focus = null;
 		this.#gapCaret = null;
+		this.#wholeUnit = null;
 		this.#notify();
 	}
 
@@ -283,6 +325,7 @@ class SelectionStateImpl implements SelectionState {
 		this.#anchor = null;
 		this.#focus = null;
 		this.#gapCaret = null;
+		this.#wholeUnit = null;
 		this.#selectAllCount = 0;
 		this.#notify();
 	}
@@ -298,6 +341,7 @@ class SelectionStateImpl implements SelectionState {
 	setGapCaret(pos: GapCaretPosition): void {
 		this.#anchor = null;
 		this.#focus = null;
+		this.#wholeUnit = null;
 		this.#gapCaret = { parentPath: pos.parentPath.slice(), index: pos.index };
 		this.#notify();
 	}

@@ -13,6 +13,7 @@
 		TABLE_ACTIONS
 	} from '../../../a11y-strings';
 	import MenuIcon, { type MenuIconName } from '../../menu/MenuIcon.svelte';
+	import { tick, untrack } from 'svelte';
 
 	// The glyph each entry carries, limestone's context-menu convention: an icon slot per row,
 	// the destructive rows in the accent.
@@ -57,6 +58,8 @@
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
+	/** The open flyout, if any: hover or ArrowRight on its row opens it, ArrowLeft closes it. */
+	let openGroup = $state<'row' | 'column' | null>(null);
 
 	// The open point, viewport coordinates, re-read on scroll and resize so the menu stays on
 	// what it opened on and leaves the viewport with it — never re-clamped into view, which
@@ -91,8 +94,10 @@
 	const top = $derived(at.y + (shift?.y ?? 0));
 
 	// The first enabled item is the keyboard entry point; disabled items are never stops.
+	// Untracked: `focusStop` reads the open flyout, and a tracked read here would re-run this
+	// mount-time landing every time a flyout opened, pulling focus straight back out of it.
 	$effect(() => {
-		if (menuEl) focusStop(0);
+		if (menuEl) untrack(() => focusStop(0));
 	});
 
 	$effect(() => {
@@ -132,7 +137,23 @@
 		const stops = focusableStops();
 		if (stops.length === 0) return;
 		const n = stops.length;
-		stops[((index % n) + n) % n].focus();
+		const stop = stops[((index % n) + n) % n];
+		stop.focus();
+		// Focus that leaves an open flyout (and its own row) closes it, so the list reads as one.
+		if (openGroup && !stop.closest('.table-action-menu-flyout') && stop.dataset.group !== openGroup) {
+			openGroup = null;
+		}
+	}
+
+	/** Open a group's flyout and land on its first enabled item. */
+	function openFlyout(id: 'row' | 'column'): void {
+		openGroup = id;
+		void tick().then(() => {
+			const first = menuEl?.querySelector<HTMLElement>(
+				'.table-action-menu-flyout [role="menuitem"]:not([disabled])'
+			);
+			first?.focus();
+		});
 	}
 
 	function activeStopIndex(stops: HTMLElement[]): number {
@@ -163,10 +184,30 @@
 				e.preventDefault();
 				focusStop(last);
 				return;
-			case 'ArrowRight':
-			case 'ArrowLeft':
+			case 'ArrowRight': {
+				const group = (document.activeElement as HTMLElement | null)?.dataset.group;
+				if (group === 'row' || group === 'column') {
+					e.preventDefault();
+					openFlyout(group);
+					return;
+				}
 				moveWithinAlignment(e);
 				return;
+			}
+			case 'ArrowLeft': {
+				const inFlyout = (document.activeElement as HTMLElement | null)?.closest(
+					'.table-action-menu-flyout'
+				);
+				if (inFlyout && openGroup) {
+					e.preventDefault();
+					const row = menuEl?.querySelector<HTMLElement>(`[data-group="${openGroup}"]`);
+					openGroup = null;
+					row?.focus();
+					return;
+				}
+				moveWithinAlignment(e);
+				return;
+			}
 		}
 	}
 
@@ -181,6 +222,20 @@
 		const delta = e.key === 'ArrowRight' ? 1 : -1;
 		segments[(((i + delta) % n) + n) % n].focus();
 	}
+
+	// The actions that live inside a flyout: hovering one keeps its flyout open; hovering a
+	// top-level row closes whichever flyout is open.
+	const GROUPED = new Set<TableAxisAction>([
+		'insertRowAbove',
+		'insertRowBelow',
+		'moveRowUp',
+		'moveRowDown',
+		'insertColumnLeft',
+		'insertColumnRight',
+		'moveColumnLeft',
+		'moveColumnRight'
+	]);
+	const isGrouped = (action: TableAxisAction): boolean => GROUPED.has(action);
 
 	// 'none' renders identically to 'left', so the left segment reads active for both.
 	// The glyph is the visible label; the accessible name carries the full word.
@@ -203,22 +258,36 @@
 >
 	{#each items as item, i (i)}
 		{#if item.kind === 'action' || item.kind === 'clipboard'}
-			{@const activate =
-				item.kind === 'action'
-					? () => onaction(item.action, item.index)
-					: () => onclipboard(item.action)}
-			<button
-				type="button"
-				role="menuitem"
-				tabindex="-1"
-				class="md-menu-item table-action-menu-item"
-				disabled={!item.enabled}
-				aria-disabled={!item.enabled}
-				onclick={activate}
-			>
-				<span class="md-menu-icon"><MenuIcon name={ICONS[item.action]} /></span>
-				<span>{item.label}</span>
-			</button>
+			{@render actionRow(item)}
+		{:else if item.kind === 'group'}
+			<div class="table-action-menu-group" role="presentation">
+				<button
+					type="button"
+					role="menuitem"
+					tabindex="-1"
+					class="md-menu-item table-action-menu-item"
+					data-group={item.id}
+					aria-haspopup="menu"
+					aria-expanded={openGroup === item.id}
+					onpointerenter={() => (openGroup = item.id)}
+					onclick={() => openFlyout(item.id)}
+				>
+					<span class="md-menu-icon"
+						><MenuIcon name={item.id === 'row' ? 'rows-2' : 'columns-2'} /></span
+					>
+					<span class="table-action-menu-label">{item.label}</span>
+					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+				</button>
+				{#if openGroup === item.id}
+					<div class="md-menu table-action-menu-flyout" role="menu" aria-label={item.label}>
+						{#each item.items as sub, j (j)}
+							{#if sub.kind === 'action' || sub.kind === 'clipboard'}
+								{@render actionRow(sub)}
+							{/if}
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{:else if item.kind === 'separator'}
 			<div class="md-menu-divider table-action-menu-separator" role="separator"></div>
 		{:else}
@@ -242,6 +311,28 @@
 	{/each}
 </div>
 
+{#snippet actionRow(item: Extract<TableMenuItem, { kind: 'action' | 'clipboard' }>)}
+	{@const activate =
+		item.kind === 'action'
+			? () => onaction(item.action, item.index)
+			: () => onclipboard(item.action)}
+	<button
+		type="button"
+		role="menuitem"
+		tabindex="-1"
+		class="md-menu-item table-action-menu-item"
+		disabled={!item.enabled}
+		aria-disabled={!item.enabled}
+		onpointerenter={() => {
+			if (!(item.kind === 'action' && isGrouped(item.action))) openGroup = null;
+		}}
+		onclick={activate}
+	>
+		<span class="md-menu-icon"><MenuIcon name={ICONS[item.action]} /></span>
+		<span class="table-action-menu-label">{item.label}</span>
+	</button>
+{/snippet}
+
 <style>
 	/* The surface, rows, icons and dividers are the shared `.md-menu` family (editor.css); only
 	   the alignment trio is this menu's own — three glyph buttons on one row, the active one
@@ -250,6 +341,20 @@
 		display: flex;
 		gap: 2px;
 		padding: 4px 6px;
+	}
+	.table-action-menu-label {
+		flex: 1;
+	}
+	.table-action-menu-group {
+		position: relative;
+	}
+	/* limestone's submenu: a second surface hung off the row's right edge. */
+	.table-action-menu-flyout {
+		position: absolute;
+		left: 100%;
+		top: -4px;
+		margin-left: 4px;
+		white-space: nowrap;
 	}
 	.alignment-segment {
 		flex: 1;

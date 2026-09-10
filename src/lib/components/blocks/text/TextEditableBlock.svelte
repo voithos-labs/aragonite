@@ -47,6 +47,11 @@
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { hidesStructuralSuffix } from './hidden-suffix';
 	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
+	import {
+		resolveDelimiterAutoPair,
+		resolveEmptyPairBackspace,
+		stepsOverRevealedCloser
+	} from './delimiter-autopair';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
@@ -77,6 +82,7 @@
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { type CommandId } from '../../../schema/commands';
 	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
+	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
 	import {
 		perfEnabled,
 		recordBlockRender,
@@ -686,9 +692,9 @@
 			// Only while this block still owns focus: a blur-commit also arms a pending
 			// offset, and restoring would yank the selection back into the blurred block.
 			// The clear runs regardless, so a skipped restore is dropped, never re-armed.
-			const applied = consumePendingRestore(el ?? null, pendingCursorOffset, (offset) =>
-				cursor.setRaw(asRawOffset(offset))
-			);
+			const applied = consumePendingRestore(el ?? null, pendingCursorOffset, (offset) => {
+				if (!widgetInteraction.revealInterior(offset)) cursor.setRaw(asRawOffset(offset));
+			});
 			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
 		}
@@ -855,9 +861,55 @@
 		);
 	}
 
+	// A typed delimiter closes itself (delimiter-autopair.ts). The write and the caret take the
+	// ranged edit's road above, so the surface repaints once with the caret inside the pair.
+	function handleDelimiterAutoPair(e: InputEvent): boolean {
+		const typing = e.inputType === 'insertText';
+		if (!typing && e.inputType !== 'deleteContentBackward') return false;
+		if (e.isComposing || cursor.getRawSelection()) return false;
+		const caret = cursor.getRaw();
+		if (caret === null) return false;
+		if (widgetInteraction.isRevealing()) {
+			if (!typing || !stepsOverRevealedCloser(readRawText(), caret, e.data ?? '')) return false;
+			e.preventDefault();
+			cursor.setRaw(asRawOffset(caret + 1));
+			void widgetInteraction.foldRevealBeforeMutation()?.settled;
+			return true;
+		}
+		const text = getDisplayText();
+		const edit = typing
+			? resolveDelimiterAutoPair(text, getContentRange(node), caret, e.data ?? '')
+			: resolveEmptyPairBackspace(text, caret);
+		if (!edit) return false;
+		e.preventDefault();
+		if (edit.kind === 'step-over') {
+			if (edit.overConstruct && !paintsFocusedMarkers(presentationMode)) {
+				// An unpainted closer: the caret already sits on the right pixel and Chromium seats
+				// a native insert upstream of the run anyway, so only the side moves (edge-seat.ts).
+				edgeAffinity.noteExtreme();
+			} else if (planTypedCompletion(node, edit.caret)) {
+				// No byte changed, but the line is now one an on-type completer claims (`$$`), and
+				// only the content door consults them.
+				const raw = text + trailingLineEnding(node.raw);
+				void blockEdit.updateBlockContent(index, raw, caret, edit.caret);
+				setPendingCursorOffset(edit.caret, 'delimiter-autopair');
+			} else cursor.setRaw(asRawOffset(edit.caret));
+			return true;
+		}
+		void blockEdit.updateBlockContent(
+			index,
+			edit.text + trailingLineEnding(node.raw),
+			caret,
+			edit.caret
+		);
+		setPendingCursorOffset(edit.caret, 'delimiter-autopair');
+		return true;
+	}
+
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
 		if (handleLiveSelectionEdit(e)) return;
+		if (handleDelimiterAutoPair(e)) return;
 		// Soft-keyboard/IME insertLineBreak slipped past onKeyDown — swallow; Shift+Enter there owns hard breaks.
 		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();

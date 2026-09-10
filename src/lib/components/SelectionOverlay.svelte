@@ -15,6 +15,7 @@
 		type BlockSelectionClass
 	} from '../selection/primitives';
 	import { snapCrossBlockTableEndpoints } from '../selection/table-endpoint-snap';
+	import { pathsEqual } from '../selection/path-math';
 	import { wireOverlayRemeasure } from '../cursor/overlay-remeasure';
 
 	let {
@@ -50,6 +51,15 @@
 			anchor: selection.anchor,
 			focus: selection.focus
 		});
+	});
+
+	// A whole unit (one surface-less block taken as the entire range) paints as a middle block
+	// does: its full box, no measuring.
+	const paintsWholeBox = $derived.by(() => {
+		if (classification === 'middle') return true;
+		if (classification !== 'single-block') return false;
+		const unit = selection?.wholeUnitPath ?? null;
+		return unit !== null && pathsEqual(unit, path);
 	});
 
 	// The measuring effect and the template read this one predicate, so a rendered
@@ -149,7 +159,7 @@
 	});
 </script>
 
-{#if classification === 'middle'}
+{#if paintsWholeBox}
 	<div class="selection-overlay selection-overlay-middle" contenteditable="false"></div>
 {:else if paintsEndpoints}
 	{#each endpointRects as rect, i (i)}

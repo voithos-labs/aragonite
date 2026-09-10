@@ -105,6 +105,12 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 
 		const hit = blockAtPoint(root, probeX, probeY);
 		if (!hit) return false;
+		// Prose lands the caret on the line the click is level with, as any editor does. A block
+		// with no character surface (an equation, a table, a rule) has no such line, and a revealed
+		// source is one only while it is being edited: a click that was not ON the block is a click
+		// on nothing, and focuses nothing (the click's owner then blurs what was being edited).
+		const transient = hit.charSurface?.classList.contains('md-source-surface') ?? false;
+		if ((!hit.charSurface || transient) && !pressedOnBlockContent(root, x, y)) return false;
 		const landing = landingFor(hit, probeX, probeY);
 		if (!landing) return false;
 
@@ -228,6 +234,15 @@ function leafOf(component: BlockComponent, path: number[]): BlockComponent | nul
 function isDeadSpace(root: HTMLElement, target: EventTarget | null): boolean {
 	if (target === root) return true;
 	return target instanceof Element && target.classList.contains('block-list');
+}
+
+/** Whether the ORIGINAL point (not the clamped probe) sits inside some block's content: on a
+ *  descendant of a host, not on the host's own box or the dead space around it. */
+function pressedOnBlockContent(root: HTMLElement, x: number, y: number): boolean {
+	const direct = document.elementFromPoint(x, y);
+	if (!(direct instanceof Element) || isDeadSpace(root, direct)) return false;
+	const host = direct.closest('[data-block-path]');
+	return host !== null && host !== direct;
 }
 
 /**

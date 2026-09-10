@@ -107,6 +107,9 @@ export interface WidgetInteraction {
 	/** Snap a click that landed outside any text node to the nearest widget edge, or open a
 	 *  reveal-source widget it hit. */
 	snapClickToWidgetEdge(clickX: number | null, clickY: number | null, press?: WidgetPress): void;
+	/** A caret restored strictly inside a reveal-source widget — a formula that just closed
+	 *  around it — opens that source there instead of being pushed past the island. */
+	revealInterior(offset: number): boolean;
 	/** A reveal-source widget currently shows its editable `$…$` source. */
 	isRevealing(): boolean;
 	/** Escape (cancel to rendered) while source is shown. Enter is deliberately NOT
@@ -743,6 +746,21 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 	}
 
+	// Only where the kind names a content span and the caret is inside it: a hard break is two
+	// bytes with a caret position between them and nothing to edit there.
+	function revealInterior(offset: number): boolean {
+		if (revealState) return false;
+		const widget = widgetsOf().find((w) => w.start < offset && offset < w.end);
+		if (!widget) return false;
+		const editing = getInlineWidgetEditing(widget.kind);
+		if (!editing?.revealSource || !editing.revealContentSpan) return false;
+		const at = offset - widget.start;
+		const span = editing.revealContentSpan(deps.node.raw.slice(widget.start, widget.end));
+		if (!span || at < span.start || at > span.end) return false;
+		void startReveal(widget, offset, at);
+		return true;
+	}
+
 	function enterEdgeWidget(side: 'start' | 'end'): boolean {
 		const inlines = inlinesOf(deps.node);
 		if (inlines.length === 0) return false;
@@ -839,6 +857,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		handleSelectedWidgetKeydown,
 		handleShiftArrowIntoWidget,
 		enterWidget,
+		revealInterior,
 		enterEdgeWidget,
 		snapClickToWidgetEdge,
 		isRevealing,

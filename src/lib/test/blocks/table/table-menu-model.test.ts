@@ -7,11 +7,15 @@ import type { TableAxisAction } from '../../../action-contracts';
 
 type ActionItem = Extract<TableMenuItem, { kind: 'action' }>;
 
+/** The list with every flyout opened into it, so enablement reads the same either way. */
+const flat = (items: TableMenuItem[]): TableMenuItem[] =>
+	items.flatMap((i) => (i.kind === 'group' ? flat(i.items) : [i]));
+
 const actionItem = (items: TableMenuItem[], action: TableAxisAction): ActionItem | undefined =>
-	items.find((i): i is ActionItem => i.kind === 'action' && i.action === action);
+	flat(items).find((i): i is ActionItem => i.kind === 'action' && i.action === action);
 
 const hasAction = (items: TableMenuItem[], action: TableAxisAction): boolean =>
-	items.some((i) => i.kind === 'action' && i.action === action);
+	flat(items).some((i) => i.kind === 'action' && i.action === action);
 
 describe('tableMenuItems: delete enablement', () => {
 	it('disables delete-column at the last column, enables it otherwise', () => {
@@ -248,16 +252,36 @@ describe('tableMenuItems: group selection by target shape', () => {
 		expect(items.some((i) => i.kind === 'separator')).toBe(false);
 	});
 
-	it('a cell target emits the row group, a separator, then the column group in order', () => {
+	it('a cell target folds each axis behind a flyout and keeps the deletes and alignment in the list', () => {
 		const items = tableMenuItems({ rowIdx: 1, colIdx: 0 }, { rowCount: 3, colCount: 2 }, [
 			'none',
 			'none'
 		]);
-		const sepIdx = items.findIndex((i) => i.kind === 'separator');
-		const delRowIdx = items.findIndex((i) => i.kind === 'action' && i.action === 'deleteRow');
-		const delColIdx = items.findIndex((i) => i.kind === 'action' && i.action === 'deleteColumn');
-		expect(sepIdx).toBeGreaterThan(-1);
-		expect(delRowIdx).toBeLessThan(sepIdx);
-		expect(delColIdx).toBeGreaterThan(sepIdx);
+		const kinds = items.map((i) => (i.kind === 'group' ? `group:${i.id}` : i.kind));
+		expect(kinds).toEqual([
+			'group:row',
+			'group:column',
+			'separator',
+			'action',
+			'action',
+			'alignment'
+		]);
+		const rowGroup = items[0];
+		const colGroup = items[1];
+		if (rowGroup.kind !== 'group' || colGroup.kind !== 'group') throw new Error('groups');
+		expect(rowGroup.items.map((i) => (i.kind === 'action' ? i.action : i.kind))).toEqual([
+			'insertRowAbove',
+			'insertRowBelow',
+			'moveRowUp',
+			'moveRowDown'
+		]);
+		expect(colGroup.items.map((i) => (i.kind === 'action' ? i.action : i.kind))).toEqual([
+			'insertColumnLeft',
+			'insertColumnRight',
+			'moveColumnLeft',
+			'moveColumnRight'
+		]);
+		expect(items[3]).toMatchObject({ kind: 'action', action: 'deleteRow' });
+		expect(items[4]).toMatchObject({ kind: 'action', action: 'deleteColumn' });
 	});
 });

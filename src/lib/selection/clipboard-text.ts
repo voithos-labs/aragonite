@@ -49,6 +49,12 @@ export function collectCrossBlockText(
 	const startRaw = isBlockNode(startNode) ? startNode.raw : '';
 	const endRaw = isBlockNode(endNode) ? endNode.raw : '';
 
+	// One leaf taken whole (`SelectionState.wholeUnitPath`): the only same-path prose pair the
+	// state stores, and the head/tail split below would emit its bytes twice.
+	if (pathsEqual(start.path, end.path) && !start.cellCoordinate) {
+		return startRaw.slice(start.offset, end.offset);
+	}
+
 	let effectiveStartPath = start.path;
 	let chromeStart: ChromeStartContainer | null = null;
 	let startTail = '';

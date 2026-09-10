@@ -27,6 +27,7 @@
 	import { mathDisplaySource } from './latex-kind';
 	import { completeBareMathSource, renderMathSource } from './math-source';
 	import { resolveDefaultLayout, type MathBlockLayout } from './math-layout';
+	import { paintedExtent } from './painted-extent';
 
 	let {
 		node,
@@ -47,12 +48,26 @@
 	// so the live preview reads the surface, not the node. Null when nothing is in flight.
 	let draft = $state<string | null>(null);
 
+	// Slack either side of the ink, so a click just off a narrow `x` still counts.
+	const INK_SLACK = 12;
+
+	// The view is the block's full width with the equation centred in it, so most of the box is
+	// not the equation: a click there is a click on nothing and reveals nothing. An empty
+	// equation is all box, and keeps the whole of it.
+	function isOnEquation(e: MouseEvent): boolean {
+		if (!renderEl || renderEl.hasAttribute('data-empty')) return true;
+		const ink = paintedExtent(renderEl);
+		if (!ink) return true;
+		return e.clientX >= ink.left - INK_SLACK && e.clientX <= ink.right + INK_SLACK;
+	}
+
 	const leaf = createEditableLeaf({
 		getNode: () => node,
 		getIndex: () => index,
 		getPath: () => myPath,
 		getEl: () => sourceEl ?? null,
 		mode: 'render-primary',
+		revealHitTest: isOnEquation,
 		isRevealed: () => revealed,
 		setRevealed: (value) => {
 			revealed = value;
@@ -155,9 +170,9 @@
 				class="math-block-source md-source-surface"
 				aria-label="Math source"
 			></div>
-			{#if !previewOpen}
-				{@render layoutToggle()}
-			{/if}
+			<!-- Always on the source card, the first one in every layout, so the toggle never moves
+				as the layouts cycle. -->
+			{@render layoutToggle()}
 		</div>
 	{/if}
 	{#if !revealed || previewOpen}
@@ -172,9 +187,6 @@
 				{...leaf.renderProps}
 				onmousedown={keepSourceFocus}
 			></div>
-			{#if revealed}
-				{@render layoutToggle()}
-			{/if}
 		</div>
 	{/if}
 </div>

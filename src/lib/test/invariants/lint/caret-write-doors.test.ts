@@ -44,6 +44,7 @@ const NATIVE_RANGE_WRITERS: Record<string, string> = {
 	'src/lib/cursor/focused-caret.ts': 'restoreCaretAtWalkOffset, the render-rebuild carry',
 	'src/lib/selection/caret-restore.ts': 'the menu-blur saved-range restore',
 	'src/lib/selection/cross-block/keydown.ts': 'the first-press Ctrl+A content range',
+	'src/lib/selection/double-click-trim.ts': 'the dblclick trailing-whitespace trim of the browser range',
 	'src/lib/selection/native-bridge.ts':
 		'the SelectionPoint door — the collapsed-caret landable clamp lives here'
 };

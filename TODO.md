@@ -14,6 +14,6 @@
 - [x] check list renders upsettingly, should look like this:
       ![alt text](image-2.png), like this, edge align, no account fill, check nicely placed, size relative to text perfect
 - [ ] image editing, image drag handle, drag-image-onto-image to make a carousel, and selection, and copy and paste
-- [ ] drag handles for things that make sense (e.g. bullet lists, check lists)
+- [ ] drag handles for things that make sense (e.g. bullet lists, check lists, blocks that are not paragraphs generally)
 - [ ] CTRL + F menu reskin
 - [ ] in-line commands with '/', but maybe this is a limestone-side feature

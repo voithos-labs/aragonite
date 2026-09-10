@@ -31,6 +31,13 @@ describe('inline math decline bounds', () => {
 		expect(mathIn(raw)).toEqual([{ kind: MATH_INLINE, start: 0, end: 1205 }]);
 	});
 
+	// `$$` is the display fence or a just-closed empty pair, never an opener: the closer search
+	// from it would otherwise swallow the prose up to the next formula's end.
+	it('a $$ run opens nothing, so a later formula keeps its own delimiters', () => {
+		expect(mathIn('$$ and $x^2$ later')).toEqual([{ kind: MATH_INLINE, start: 7, end: 12 }]);
+		expect(mathIn('$$x$$')).toEqual([{ kind: MATH_INLINE, start: 1, end: 4 }]);
+	});
+
 	// The scan range, not the block string, bounds a claim — a closer past `end`
 	// must stay invisible or a heading's trailing bytes would be swallowed.
 	it('ignores a closer beyond the scan range', () => {

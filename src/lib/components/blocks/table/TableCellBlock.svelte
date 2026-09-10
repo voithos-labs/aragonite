@@ -28,6 +28,11 @@
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
 	import { blockNodeAt, cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 	import { applyLiveRangeEdit } from '../text/live-selection-edit';
+	import {
+		resolveDelimiterAutoPair,
+		resolveEmptyPairBackspace,
+		stepsOverRevealedCloser
+	} from '../text/delimiter-autopair';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
@@ -533,9 +538,9 @@
 			carryCaret: pendingCursorOffset === null
 		});
 		if (pendingCursorOffset !== null) {
-			consumePendingRestore(el, pendingCursorOffset, (offset) =>
-				cursor.setRaw(asRawOffset(offset))
-			);
+			consumePendingRestore(el, pendingCursorOffset, (offset) => {
+				if (!widgetInteraction.revealInterior(offset)) cursor.setRaw(asRawOffset(offset));
+			});
 			pendingCursorOffset = null;
 		}
 	});
@@ -768,9 +773,41 @@
 		);
 	}
 
+	// The cell at the prose surface's self-closing delimiter arm (delimiter-autopair.ts).
+	function handleDelimiterAutoPair(e: InputEvent): boolean {
+		const typing = e.inputType === 'insertText';
+		if (!typing && e.inputType !== 'deleteContentBackward') return false;
+		if (e.isComposing || cursor.getRawSelection()) return false;
+		const caret = cursor.getRaw();
+		if (caret === null) return false;
+		const text = readCellText();
+		if (widgetInteraction.isRevealing()) {
+			if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '')) return false;
+			e.preventDefault();
+			cursor.setRaw(asRawOffset(caret + 1));
+			void widgetInteraction.foldRevealBeforeMutation()?.settled;
+			return true;
+		}
+		const edit = typing
+			? resolveDelimiterAutoPair(text, { start: 0, end: text.length }, caret, e.data ?? '')
+			: resolveEmptyPairBackspace(text, caret);
+		if (!edit) return false;
+		e.preventDefault();
+		if (edit.kind === 'step-over') {
+			if (edit.overConstruct && !paintsFocusedMarkers(presentationMode)) {
+				edgeAffinity.noteExtreme();
+			} else cursor.setRaw(asRawOffset(edit.caret));
+			return true;
+		}
+		void blockEdit.updateBlockContent(index, edit.text, caret, edit.caret);
+		parkCursor(edit.caret, edit.text);
+		return true;
+	}
+
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
 		if (handleLiveSelectionEdit(e)) return;
+		if (handleDelimiterAutoPair(e)) return;
 		if (e.inputType === 'insertLineBreak') {
 			// GFM cells can't carry raw newlines, so a line break is a literal `<br>`,
 			// which the inline-HTML pipeline renders as a live widget.

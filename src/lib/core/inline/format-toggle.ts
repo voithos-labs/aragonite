@@ -90,7 +90,7 @@ export function toggleInlineFormat(
 	const union = formatUnionOf(inlines, start, end, format);
 	if (union)
 		return firstFlipVerified(
-			absorbCandidates(display, inlines, union, format, mark),
+			absorbCandidates(display, inlines, union, { start, end }, format, mark),
 			edit,
 			format,
 			'apply'
@@ -362,23 +362,41 @@ function formatUnionOf(
 	return touched ? { start: from, end: to } : null;
 }
 
+/** The run grows to the union, the SELECTION does not: each endpoint is carried through the
+ *  strip and re-wrap, so a press over half a run leaves that half selected. An endpoint on the
+ *  union's edge keeps the new marker inside the range, as a bare wrap's selection does. */
 function absorbCandidates(
 	display: string,
 	inlines: readonly InlineNode[],
 	union: { start: number; end: number },
+	selected: { start: number; end: number },
 	format: InlineMarkKind,
 	mark: InlineMarkPolicy
 ): ToggleInlineFormatResult[] {
 	if (!cutsLandCleanly(inlines, union, union)) return [];
-	const stripped = stripKindMarkers(display, inlines, format, union.start, union.end);
+	const cuts = kindMarkerCuts(inlines, format, union.start, union.end);
+	const stripped = spliceOutCuts(display, cuts, union.start, union.end);
 	const prefix = display.slice(0, union.start);
 	const suffix = display.slice(union.end);
 	const wrapAt = (lead: string, core: string, trail: string): ToggleInlineFormatResult => {
 		const wrapped = wrapSlice(core, mark);
+		// The kind may pad its fence, so the marker widths are read off the wrap, not the row.
+		const found = core ? wrapped.indexOf(core) : -1;
+		const open = found >= 0 ? found : (wrapped.length - core.length) / 2;
+		const close = wrapped.length - core.length - open;
+		const coreStart = lead.length;
+		const coreEnd = lead.length + core.length;
+		const startAt = strippedOffset(cuts, union.start, selected.start);
+		const endAt = strippedOffset(cuts, union.start, selected.end);
+		const shift = (at: number, edgeInclusive: 'start' | 'end') => {
+			if (edgeInclusive === 'start' ? at <= coreStart : at < coreStart) return at;
+			if (edgeInclusive === 'start' ? at <= coreEnd : at < coreEnd) return at + open;
+			return at + open + close;
+		};
 		return {
 			newDisplay: prefix + lead + wrapped + trail + suffix,
-			newSelStart: prefix.length + lead.length,
-			newSelEnd: prefix.length + lead.length + wrapped.length
+			newSelStart: prefix.length + shift(startAt, 'start'),
+			newSelEnd: prefix.length + shift(endAt, 'end')
 		};
 	};
 	const out = [wrapAt('', stripped, '')];
@@ -416,6 +434,16 @@ function stripKindMarkers(
 	from: number,
 	to: number
 ): string {
+	return spliceOutCuts(display, kindMarkerCuts(inlines, format, from, to), from, to);
+}
+
+/** The marker byte ranges of every `format` run lying wholly inside [from, to), in order. */
+function kindMarkerCuts(
+	inlines: readonly InlineNode[],
+	format: InlineMarkKind,
+	from: number,
+	to: number
+): [number, number][] {
 	const cuts: [number, number][] = [];
 	for (const node of inlineDescendants(inlines)) {
 		if (node.kind !== format) continue;
@@ -423,7 +451,10 @@ function stripKindMarkers(
 		if (!span || span.start < from || span.end > to) continue;
 		cuts.push([span.start, span.contentStart], [span.contentEnd, span.end]);
 	}
-	cuts.sort((a, b) => a[0] - b[0]);
+	return cuts.sort((a, b) => a[0] - b[0]);
+}
+
+function spliceOutCuts(display: string, cuts: [number, number][], from: number, to: number) {
 	let out = '';
 	let at = from;
 	for (const [cutFrom, cutTo] of cuts) {
@@ -431,6 +462,15 @@ function stripKindMarkers(
 		at = cutTo;
 	}
 	return out + display.slice(at, to);
+}
+
+/** Where a display offset lands in the stripped slice: the cut bytes before it fall away, and an
+ *  offset inside a marker rides to that marker's start. */
+function strippedOffset(cuts: [number, number][], from: number, offset: number): number {
+	let removed = 0;
+	for (const [cutFrom, cutTo] of cuts)
+		if (cutFrom < offset) removed += Math.min(cutTo, offset) - cutFrom;
+	return Math.max(0, offset - from - removed);
 }
 
 // ── Wrap ─────────────────────────────────────────────────────────────────────
