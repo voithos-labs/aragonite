@@ -27,7 +27,7 @@ import {
 	movedColumnToPosition,
 	movedRowToPosition
 } from '../a11y-strings';
-import { ensureUnsharedChildren } from '../tree-operations/unshare';
+import { ensureUnsharedChildren, ensureUnsharedSubtree } from '../tree-operations/unshare';
 import { rebuildTableRowRaw, rebuildTableRaw } from '../schema/container-rebuilders';
 import { writeOwnRaw } from '../tree-operations/node-ops';
 import { reorderChildren } from '../tree-operations/reorder';
@@ -205,7 +205,10 @@ export function createTableMutationsContext(
 			scopes,
 			snapshot: { path: docPathFrom(myPath), offset: 0 },
 			mutate: ([tableScope, ...rowScopes]) => {
-				ensureUnsharedChildren(tableScope.node, tableScope.sharing);
+				// Subtree, not children: the cell writes below land at depth two, and a row's
+				// cells stay shared with the undo snapshot when only the rows are unshared —
+				// the write would go through it and undo would restore the pasted bytes.
+				ensureUnsharedSubtree(tableScope.node, tableScope.sharing);
 				assertInvariant('column-scope-alignment', () =>
 					rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])
 						? null

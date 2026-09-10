@@ -49,3 +49,10 @@ A grid is data for the cells, not a block to splice between them — the spreads
   the cell-paste family unit-tested its hooks and never the classification that chooses between
   them, so no unit run could see a cell target take the wrong route. Both now have pins
   (`dispatch-strategy.test.ts`, `cell-paste-classification.test.ts`).
+
+## Undo
+
+- One Ctrl+Z undoes a whole grid paste, however many rows and columns it added
+- Undo restores the RENDERED cells, not only the bytes: the cell writes land at depth two, so
+  the table's whole subtree (rows AND cells) is unshared before them, or the write goes through
+  the undo snapshot and undo puts the pasted text back

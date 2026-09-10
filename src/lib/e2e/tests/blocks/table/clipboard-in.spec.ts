@@ -86,6 +86,36 @@ test.describe('table block: paste in', () => {
 		await editor.bridge.waitForSourceEquals(TABLE_2BODY, 3000);
 	});
 
+	// The bytes came back while the RENDERED cells did not: an expanding paste writes cell raws
+	// at depth two, and unsharing only the rows left each row's cells shared with the undo
+	// snapshot, so the write went through it and undo restored the pasted text.
+	test('undo of an expanding paste restores the rendered cells, not just the bytes', async ({
+		page
+	}) => {
+		const grid = () =>
+			page.evaluate(() =>
+				[...document.querySelectorAll('.table-row')]
+					.map((row) =>
+						[...row.querySelectorAll('[role="cell"], [role="columnheader"]')]
+							.map((cell) => cell.textContent?.trim() ?? '')
+							.join('|')
+					)
+					.join(' // ')
+			);
+
+		await editor.loadContent(TABLE_2BODY);
+		const before = await grid();
+
+		await page.locator('[role="cell"]').nth(2).click(); // "1": row 1, col 0
+		await editor.seedClipboard('p\tq\tr\ns\tt\tu\n');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('| s | t | u |');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(TABLE_2BODY, 3000);
+		await expect.poll(grid).toBe(before);
+	});
+
 	test('pasting a heading breaks the table at the paste row', async ({ page }) => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(2).click();
