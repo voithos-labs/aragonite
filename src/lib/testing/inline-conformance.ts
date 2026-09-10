@@ -636,7 +636,8 @@ function assertRewriteReproducesSource(fixture: string, node: InlineNode, rung: 
 		...(node.title !== undefined ? { title: node.title } : {}),
 		...(node.label !== undefined ? { label: node.label } : {}),
 		...(node.width !== undefined ? { width: node.width } : {}),
-		...(node.height !== undefined ? { height: node.height } : {})
+		...(node.height !== undefined ? { height: node.height } : {}),
+		...(node.crop !== undefined ? { crop: node.crop } : {})
 	};
 	assertIs(
 		rung.rewriteImage(source, fields),

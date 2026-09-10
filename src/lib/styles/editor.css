@@ -170,6 +170,19 @@
 	display: block;
 }
 
+/* A cropped image: the widget is the frame (width and aspect set inline from the `|WxH` hint,
+   capped to the column) and the image pans inside it, sized and offset by `image-crop.ts`. */
+:where(.editor) .md-image-widget.md-image-cropped {
+	overflow: hidden;
+	max-width: 100%;
+}
+
+:where(.editor) .md-image-widget.md-image-cropped img {
+	position: absolute;
+	max-width: none;
+	object-fit: cover;
+}
+
 /* Image-bearing list-item / blockquote paragraph: the ambient marker sits at the image's
    bottom-left, pulled out of flow rather than laid out with `display: flex`, which leaves no
    caret anchor past a contenteditable=false widget. The widget side of each `:has()` is a

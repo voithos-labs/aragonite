@@ -146,6 +146,8 @@
 	}
 </script>
 
+<!-- One grip, on the right edge: width is the only thing a drag sets (Shift unlocks the
+	aspect), so a second corner grip was the same gesture twice. -->
 {#if !isBroken}
 	<div
 		class="md-resize-handle md-resize-handle-right"
@@ -155,34 +157,30 @@
 		onpointerup={endDrag}
 		onpointercancel={cancelDrag}
 	></div>
-	<div
-		class="md-resize-handle md-resize-handle-corner"
-		role="presentation"
-		onpointerdown={startDrag}
-		onpointermove={moveDrag}
-		onpointerup={endDrag}
-		onpointercancel={cancelDrag}
-	></div>
 {/if}
 
 <style>
+	/* An accent pill straddling the edge with a white rim, so it reads on any picture. The hit
+	   strip is wider than the paint. */
 	.md-resize-handle {
 		position: absolute;
-		width: 8px;
-		height: 8px;
+		right: -3px;
+		top: 50%;
+		width: 6px;
+		height: 44px;
+		max-height: 60%;
+		transform: translateY(-50%);
+		border-radius: 3px;
 		background: var(--color-accent, #567b67);
-		border: 1px solid #fff;
+		box-shadow:
+			0 0 0 1.5px rgba(255, 255, 255, 0.9),
+			0 1px 3px rgba(0, 0, 0, 0.3);
 		z-index: 10;
 		cursor: ew-resize;
 	}
-	.md-resize-handle-right {
-		right: -4px;
-		top: 50%;
-		transform: translateY(-50%);
-	}
-	.md-resize-handle-corner {
-		right: -4px;
-		bottom: -4px;
-		cursor: nwse-resize;
+	.md-resize-handle::before {
+		content: '';
+		position: absolute;
+		inset: -6px -8px;
 	}
 </style>

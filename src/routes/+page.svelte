@@ -15,6 +15,7 @@
 	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { createPanelState } from './debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from './debug-panel/panel-feed.svelte';
+	import { demoPasteImage, resolveDemoImageUrl } from './demo-image-store';
 
 	// Live-changeable props — the toggles flip these in place, no remount.
 	const MODES: PresentationMode[] = [
@@ -151,6 +152,8 @@
 				{source}
 				plugins={showcasePlugins}
 				blockDragHandles={dragHandles}
+				onPasteImage={demoPasteImage}
+				resolveImageUrl={resolveDemoImageUrl}
 				{presentationMode}
 				{theme}
 			/>
