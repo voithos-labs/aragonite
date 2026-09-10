@@ -16,6 +16,9 @@ import { collectEditorSources } from './scan-source';
 const ALLOWLIST: Record<string, string> = {
 	// An animation cadence, not async ordering.
 	'src/lib/selection/autoscroll.ts': 'rAF autoscroll loop (frame cadence)',
+	// The fold a drag's release owes runs after the frame that measured the range under the
+	// pointer; the blur it answers arrives inside that frame.
+	'src/lib/components/blocks/editable-leaf.ts': 'rAF fold of a revealed source after a range drag',
 	// The ONE home for drag coalescing: every drag lifecycle runs on this session.
 	'src/lib/selection/pointer-session.ts': 'rAF pointermove coalescing (shared drag session)',
 	// Wall-clock pause detection, which microtask-grained tick() cannot express.

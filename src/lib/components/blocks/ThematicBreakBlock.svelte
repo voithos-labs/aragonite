@@ -72,13 +72,21 @@
 	export function runCommand(id: CommandId): boolean {
 		return reorderRunCommand(id, reorder, () => myPath);
 	}
+
+	// The rule has no text to measure, so any non-empty range over it is its whole box — what a
+	// range ending on it, or the rule taken as a unit, paints.
+	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
+		if (endOffset <= startOffset || !boxEl) return [];
+		return [boxEl.getBoundingClientRect()];
+	}
 	void ({
 		editable,
 		focusable,
 		focus,
 		parkCaret,
 		getCursorOffset,
-		runCommand
+		runCommand,
+		measurePartialRects
 	} satisfies BlockComponent);
 
 	// ── Event Handlers ──────────────────────────────────────────────────

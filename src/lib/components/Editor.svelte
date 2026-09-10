@@ -750,8 +750,11 @@
 		// Dead space, and the parts of a block that are neither editable nor controls: a rendered
 		// equation, a diagram, a card's rendered face. A press on any of them cannot grow a native
 		// selection, so the editor's drag runs from it.
+		// A whole-block input proxy is an editable in name only (it catches IME for a block with no
+		// text), so a press on it starts the editor's drag like a press on the block itself.
 		const NOT_A_DRAG_START =
-			'[contenteditable="true"], button, input, textarea, select, a, summary, [role="checkbox"], ' +
+			'[contenteditable="true"]:not([data-whole-block-input]), button, input, textarea, select, ' +
+			'a, summary, [role="checkbox"], ' +
 			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle, ' +
 			'[data-table-col-grip], [data-table-row-grip], .table-grip';
 		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {

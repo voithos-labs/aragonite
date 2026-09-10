@@ -372,12 +372,27 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		);
 	}
 
-	async function commitReveal(): Promise<void> {
+	// A blur that arrives with a cross-block range live is the release of a drag that began in
+	// this source and left it: the fold waits one frame, so the range's rects measured real text
+	// under the pointer, then folds unless focus came back — else the source stays open with
+	// nothing focused in it and no further blur to close it.
+	let foldFrame = 0;
+	function foldAfterRange(): void {
+		if (foldFrame) return;
+		foldFrame = requestAnimationFrame(() => {
+			foldFrame = 0;
+			const el = deps.getEl();
+			if (!isRevealed() || (el && el.contains(document.activeElement))) return;
+			void commitReveal(true);
+		});
+	}
+
+	async function commitReveal(force = false): Promise<void> {
 		if (mode !== 'render-primary' || !isRevealed()) return;
-		// A cross-block selection sweeping through keeps the source revealed so its rects
-		// measure real text, and focusout is this fold's only entry — so the leaf stays in
-		// source view until the user focuses it and leaves again.
-		if (selection.isCrossBlock) return;
+		if (selection.isCrossBlock && !force) {
+			foldAfterRange();
+			return;
+		}
 		// Only wired to onFocusOut — the block leaf folds on blur, never Escape-cancel.
 		traceRevealFold('blur');
 		const edited = deps.getEl()?.textContent ?? sourceText();

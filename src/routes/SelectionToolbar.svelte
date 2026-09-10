@@ -108,10 +108,12 @@
 		const down = (e: PointerEvent) => {
 			if (e.button === 0) pointerHeld = true;
 		};
+		// The release is heard at capture, before the editor's own handlers settle the range, so the
+		// bar is placed a frame later from the selection as it then stands.
 		const up = () => {
 			if (!pointerHeld) return;
 			pointerHeld = false;
-			update(current);
+			requestAnimationFrame(() => update(editor?.getSelection() ?? current));
 		};
 		document.addEventListener('pointerdown', down, true);
 		document.addEventListener('pointerup', up, true);
