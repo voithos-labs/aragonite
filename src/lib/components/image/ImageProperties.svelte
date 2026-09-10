@@ -407,7 +407,8 @@
 		</button>
 	{/if}
 	{#if fieldOpen}
-		<div class="md-image-field" {@attach keepFieldOnScreen}>
+		<label class="md-image-field" {@attach keepFieldOnScreen}>
+			<span class="md-image-field-label">Alt</span>
 			<input
 				type="text"
 				bind:this={fieldInput}
@@ -416,7 +417,7 @@
 				placeholder={IMAGE_ALT_PLACEHOLDER}
 				onkeydown={onFieldKeydown}
 			/>
-		</div>
+		</label>
 	{/if}
 </div>
 
@@ -461,14 +462,18 @@
 		background: var(--color-surface, #2d3033);
 	}
 
-	/* The alt field, hung off the toolbar's far side on the menu surface. */
+	/* The alt field, hung off the toolbar's far side on the menu surface: a caption over its
+	   input, the way a properties row reads, rather than a label beside a box. */
 	.md-image-field {
 		position: absolute;
 		top: 0;
 		left: calc(100% + 6px);
 		width: 240px;
-		padding: 6px;
+		padding: 8px 10px 10px;
 		box-sizing: border-box;
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
 		background: var(--color-bg, #2c2c2a);
 		border: 1px solid var(--color-border, #3e3e3b);
 		border-radius: 8px;
@@ -483,20 +488,33 @@
 		right: 0;
 		top: calc(100% + 6px);
 	}
+	.md-image-field-label {
+		font-size: 10.5px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-text-muted, #aaaaaa);
+	}
+
+	/* Underlined, not boxed: one rule under the text reads as a field to fill in and keeps the
+	   surface calm, where a second rounded box inside a rounded card reads as chrome on chrome. */
 	.md-image-field input {
 		width: 100%;
 		box-sizing: border-box;
-		background: var(--color-surface, #2d3033);
+		background: transparent;
 		color: var(--color-text-primary, #e8e8e5);
-		border: 1px solid var(--color-border, #3e3e3b);
-		padding: 5px 8px;
-		border-radius: 5px;
+		border: none;
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 0;
+		padding: 3px 1px 5px;
 		font-family: inherit;
 		font-size: 13px;
+		line-height: 1.4;
 		outline: none;
+		transition: border-color 120ms ease-out;
 	}
 	.md-image-field input:focus {
-		border-color: var(--color-ui-muted, #a4a4a4);
+		border-bottom-color: var(--color-accent, #567b67);
 	}
 	.md-image-field input::placeholder {
 		color: var(--color-text-muted, #aaaaaa);
