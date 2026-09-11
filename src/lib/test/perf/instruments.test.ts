@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parse } from '../../core/parser';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { createSharingState } from '../../tree-operations/sharing';
 import type { PerfSnapshot } from '../../perf/instruments';
 import {

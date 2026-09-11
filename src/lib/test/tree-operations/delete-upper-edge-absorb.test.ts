@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { deleteNode, mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
+import { deleteNode } from '$lib/tree-operations/settle';
+import { mergeIntoPrevDeepLeaf } from '$lib/tree-operations/node-ops';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 // GH #173: `deleteNode`'s seam absorb looked downward only, so a merge whose rewritten survivor

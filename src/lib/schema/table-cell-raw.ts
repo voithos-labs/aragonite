@@ -1,6 +1,6 @@
 /**
  * The tableCell raw-write rule, declared on the kind as `normalizeRawWrite` and applied at the
- * write sink (`tree-operations/node-ops.updateNodeContent`). A cell's bytes are joined verbatim
+ * write sink (`tree-operations/content-write.updateNodeContent`). A cell's bytes are joined verbatim
  * into its row, and the parser truncates a row reparsing wider than the delimiter's column
  * count, so a bare `|` or line break reaching a cell raw deletes the last column's content.
  * Both passes are prefix-composable, which is what makes `escapedCellOffset` an exact caret image.

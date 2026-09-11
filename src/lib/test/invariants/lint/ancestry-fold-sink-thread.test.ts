@@ -33,7 +33,7 @@ const SITES: Record<string, SiteStance> = {
 		sinks: 1,
 		why: 'the routine-typing spine; it publishes no descriptor of its own, so it reconciles the splice directly'
 	},
-	'src/lib/tree-operations/unshare.ts': {
+	'src/lib/tree-operations/chain-rebuild.ts': {
 		declines: 0,
 		sinks: 1,
 		why: 'the ancestry wrapper threads its own parameter through, so its caller states a stance rather than inheriting one'

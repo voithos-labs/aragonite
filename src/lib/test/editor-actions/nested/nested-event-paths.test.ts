@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
-import { nodeAt } from '$lib/tree-operations/node-ops';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';

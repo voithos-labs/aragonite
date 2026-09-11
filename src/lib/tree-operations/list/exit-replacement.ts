@@ -3,7 +3,7 @@ import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
 import { trailingLineEnding } from '../../core/lines';
 import { cloneNode } from '../clone';
-import { emptyParagraph } from '../node-ops';
+import { emptyParagraph } from '../node-primitives';
 import { assembleListHalf } from './list-builders';
 import { partitionItemChildren } from './item-partition';
 import { orderedBaseOf } from './ordered-markers';

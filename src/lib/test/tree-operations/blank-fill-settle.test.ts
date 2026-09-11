@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { updateNodeContent } from '$lib/tree-operations/node-ops';
+import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 // B-F1: the blank→content fill arm returned before the seam funnel, so filling a blank line whose

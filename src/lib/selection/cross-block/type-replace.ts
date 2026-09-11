@@ -15,18 +15,20 @@ import { charOffsetOf } from '../primitives';
 import {
 	blockNodeAt,
 	normalizeBodyWrite,
+	writeOwnRaw
+} from '../../tree-operations/node-primitives';
+import {
 	updateNodeContent,
-	writeOwnRaw,
 	settledCaretTarget,
 	type SettledContent
-} from '../../tree-operations/node-ops';
+} from '../../tree-operations/content-write';
 import { focusCollapsedCaret } from '../native-bridge';
 import {
 	ensureUnsharedChild,
 	ensureUnsharedNode,
-	ensureUnsharedPath,
-	rebuildUnsharedChain
+	ensureUnsharedPath
 } from '../../tree-operations/unshare';
+import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { getStateForNode } from '../../reactivity/state-registry';
 import { docPathFrom } from '../../cursor/coordinate-spaces';

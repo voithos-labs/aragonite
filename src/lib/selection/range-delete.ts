@@ -15,24 +15,20 @@ import { comparePaths, lowestCommonAncestor, isPathSubtreeBetween } from './path
 import { firstLeafAtOrAfter } from './path-lookup';
 import {
 	blockNodeAt,
-	cleanJoinedRaw,
 	nodeAt,
 	normalizeBodyWrite,
 	normalizeOwnRaw,
-	settleSeparatorOnBlank,
 	writeOwnRaw
-} from '../tree-operations/node-ops';
+} from '../tree-operations/node-primitives';
+import { settleSeparatorOnBlank } from '../tree-operations/settle';
+import { cleanJoinedRaw } from '../tree-operations/node-ops';
 import {
 	deleteSubtreesIdentityGated,
 	installTruncatedEndpoint,
 	reparseTruncatedEndpoint
 } from './range-delete-ceremony';
-import {
-	ensureUnsharedNode,
-	ensureUnsharedPath,
-	rebuildUnsharedAncestry,
-	rebuildUnsharedChain
-} from '../tree-operations/unshare';
+import { ensureUnsharedNode, ensureUnsharedPath } from '../tree-operations/unshare';
+import { rebuildUnsharedAncestry, rebuildUnsharedChain } from '../tree-operations/chain-rebuild';
 import { involvesTable, tableAwareRangeDelete } from './range-delete-table';
 import { involvesReservedChrome, chromeAwareRangeDelete } from './range-delete-chrome';
 

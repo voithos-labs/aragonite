@@ -9,7 +9,12 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { docPathFrom } from '../cursor/coordinate-spaces';
 import { expectStateForNode } from '../reactivity/state-registry';
 import type { GrammarView } from '../schema/block-openers';
-import { isBlockNode, nodeAt, normalizeOwnRaw, writeOwnRaw } from '../tree-operations/node-ops';
+import {
+	isBlockNode,
+	nodeAt,
+	normalizeOwnRaw,
+	writeOwnRaw
+} from '../tree-operations/node-primitives';
 import { ensureUnsharedChild, ensureUnsharedPath } from '../tree-operations/unshare';
 import type { UndoController } from './deps';
 

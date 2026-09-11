@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { mergeIntoPrevDeepLeaf } from '../../tree-operations';
-import { writeOwnRaw } from '../../tree-operations/node-ops';
+import { writeOwnRaw } from '../../tree-operations/node-primitives';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 
 // GH #54: the in-place write discipline left kind and parse-owned metadata stale — the door

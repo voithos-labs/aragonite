@@ -11,7 +11,7 @@ import { CURSOR_START } from '../block-component';
 import type { CommandId } from '../schema/commands';
 import { reorderChildrenWithTrivia } from '../tree-operations/reorder';
 import { resolveReorderUnit, type ReorderUnit } from '../tree-operations/reorder-unit';
-import { blockNodeAt, nodeAt } from '../tree-operations/node-ops';
+import { blockNodeAt, nodeAt } from '../tree-operations/node-primitives';
 import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
 import { expectStateForNode } from '../reactivity/state-registry';
 import { readCurrentSelection } from '../selection/native-bridge';

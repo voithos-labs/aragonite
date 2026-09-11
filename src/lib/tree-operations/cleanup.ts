@@ -1,6 +1,6 @@
 import type { CstNode, Document } from '../core/nodes';
 import type { SharingState } from './sharing';
-import { spliceChildrenSettled } from './node-ops';
+import { spliceChildrenSettled } from './settle';
 import { ensureUnsharedPath } from './unshare';
 
 /**

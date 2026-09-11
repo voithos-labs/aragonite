@@ -9,7 +9,7 @@
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { nodeAt, ensureEditableContainers } from '../node-ops';
+import { nodeAt, ensureEditableContainers } from '../node-primitives';
 import { cloneNode } from '../clone';
 import { containerPasteFor } from './container-paste';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';

@@ -12,8 +12,9 @@ import type { CstNode } from '$lib/core/nodes';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { dropChildSpans } from '$lib/schema/child-spans';
 import { createSharingState } from '$lib/tree-operations/sharing';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '$lib/tree-operations/unshare';
-import { updateNodeContent } from '$lib/tree-operations/node-ops';
+import { ensureUnsharedPath } from '$lib/tree-operations/unshare';
+import { rebuildUnsharedChain } from '$lib/tree-operations/chain-rebuild';
+import { updateNodeContent } from '$lib/tree-operations/content-write';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';
 
 // The first keystroke seeds the spans and the second rides them, which is why one press never

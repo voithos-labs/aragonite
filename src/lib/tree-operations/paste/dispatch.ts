@@ -11,7 +11,8 @@ import type { CstNode, Document } from '../../core/nodes';
 import type { GrammarView } from '../../schema/block-openers';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { parse } from '../../core/parser';
-import { cutRangeFromDisplay, isBlockNode, nodeAt } from '../node-ops';
+import { isBlockNode, nodeAt } from '../node-primitives';
+import { cutRangeFromDisplay } from '../node-ops';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import {
 	getPasteSurface,

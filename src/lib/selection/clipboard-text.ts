@@ -6,7 +6,7 @@ import type { SelectionPoint } from './primitives';
 import { makeBlockNode, metadataOf, type CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { cloneMetadata } from '../tree-operations/clone';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { walkBetween, normalize, charOffsetOf, cellIndexOf } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { isStrictAncestorOf, pathHasPrefix, pathsEqual, sharedPrefixLength } from './path-math';

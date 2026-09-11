@@ -1,11 +1,11 @@
 /**
- * Publishing side of the ancestry settle (`tree-operations/unshare.ts`): a fold at a container's
+ * Publishing side of the ancestry settle (`tree-operations/chain-rebuild.ts`): a fold at a container's
  * own slot splices its PARENT's children, a scope the commit's own change descriptor never
  * covers, so that scope's ids and refs are resynced here instead.
  */
 
 import type { CstNode } from '../core/nodes';
-import type { AncestrySeamFold } from '../tree-operations/unshare';
+import type { AncestrySeamFold } from '../tree-operations/chain-rebuild';
 import {
 	applyStructuralChangeToIdsRefs,
 	type StructuralChange

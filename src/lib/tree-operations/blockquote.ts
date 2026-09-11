@@ -4,7 +4,7 @@ import { cloneMetadata, cloneNode } from './clone';
 import { rebuildBlockquoteRaw } from '../schema/container-rebuilders';
 import { rebuildContainerRaw } from '../schema/container-raw';
 import { assignIds } from '../block-id';
-import { emptyParagraph } from './node-ops';
+import { emptyParagraph } from './node-primitives';
 import { trailingLineEnding } from '../core/lines';
 
 /**

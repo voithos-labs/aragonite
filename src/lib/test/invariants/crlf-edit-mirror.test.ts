@@ -28,7 +28,7 @@ import { insertEmptyRow } from '../../tree-operations/table-mutations';
 import { rangeDelete } from '../../selection/range-delete';
 import type { SelectionPoint } from '../../selection/primitives';
 import { createSharingState } from '../../tree-operations/sharing';
-import { ensureEditableContainers } from '../../tree-operations/node-ops';
+import { ensureEditableContainers } from '../../tree-operations/node-primitives';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
 import { pasteDispatch, __getDefaultTextSurface } from '../../tree-operations/paste/dispatch';
 import {

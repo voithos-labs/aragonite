@@ -29,7 +29,7 @@ import { isBlockOpenerRegistered } from '../schema/block-openers';
 import { getBlockKindDescriptor, type BlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildContainerRawIfContainer } from '../schema/container-raw';
 import { createSharingState } from '../tree-operations/sharing';
-import { rebuildUnsharedAncestry } from '../tree-operations/unshare';
+import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { assertParseConverged } from './parse-convergence';
 import {
 	createHeadlessActions,
@@ -723,7 +723,7 @@ function assertContentStartSpaceIsRebuilt(
 /**
  * `container.bodyWrap` is probed, never trusted: the separator settle reads it to decide whether
  * a freed blank line belongs to the wrap, and a kind whose parse disagrees loses its body head
- * on reload (`tree-operations/node-ops.clearRedundantSeparator`).
+ * on reload (`tree-operations/settle.clearRedundantSeparator`).
  */
 function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDescriptor): void {
 	if (descriptor.containerContract === 'grid') return;

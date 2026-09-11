@@ -138,19 +138,19 @@ function relocateRemainingChildren(
 				for (let i = 0; i < child.children.length; i++) {
 					const item = sharing ? ensureUnsharedChild(child, i, sharing) : child.children[i];
 					item.leadingTrivia = '';
-					// discovered-descendant mutation, see node-ops.ts header
+					// discovered-descendant mutation, see node-primitives.ts header
 					pushChild(depthOneList, item);
 				}
 				rebuildListRaw(depthOneList);
 				continue;
 			}
-			// discovered-descendant mutation, see node-ops.ts header
+			// discovered-descendant mutation, see node-primitives.ts header
 			pushChild(targetItem, child);
 		} else {
 			// A trailing paragraph keeps its blank-line separator, or the two lazy-continue
 			// into one on reload. Other leaves start fresh and need none.
 			child.leadingTrivia = child.kind === 'paragraph' ? lineEnding : '';
-			// discovered-descendant mutation, see node-ops.ts header
+			// discovered-descendant mutation, see node-primitives.ts header
 			pushChild(targetItem, child);
 		}
 	}

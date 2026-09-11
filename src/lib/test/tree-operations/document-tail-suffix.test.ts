@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
-import { emptyParagraph, settleSeparatorOnBlank } from '../../tree-operations/node-ops';
+import { emptyParagraph } from '../../tree-operations/node-primitives';
+import { settleSeparatorOnBlank } from '../../tree-operations/settle';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
 

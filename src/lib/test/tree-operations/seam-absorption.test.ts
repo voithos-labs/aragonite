@@ -4,7 +4,7 @@ import { serialize } from '../../core/serializer';
 import { deleteNode, splitNode, updateNodeContent } from '../../tree-operations';
 import { describeConvergence } from '$lib/test/harness/parse-converged';
 import { settled } from '$lib/test/harness/settle-funnel';
-import type { SettledContent } from '$lib/tree-operations/node-ops';
+import type { SettledContent } from '$lib/tree-operations/content-write';
 
 // GH #61: a splice can leave neighbours whose adjacent bytes re-read as ONE block on reload —
 // a list newly standing above indented code absorbs it, since no separator line can hold

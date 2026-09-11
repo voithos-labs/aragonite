@@ -7,7 +7,7 @@
  */
 
 import type { DocumentView } from '../core/node-views';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import type { BlockElLookup } from '../editor-keys';
 import type { EditorSelection, SelectionPoint } from './primitives';
 import { applySelectionToDom } from './native-bridge';

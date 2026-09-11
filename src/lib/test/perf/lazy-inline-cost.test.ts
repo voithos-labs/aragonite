@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { computeInlineContent } from '../../core/inline';
 import { getInlineContent } from '../../core/inline/inline-cache';
-import { updateNodeContent } from '../../tree-operations/node-ops';
+import { updateNodeContent } from '../../tree-operations/content-write';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createHistoryActions } from '../../editor-actions/commit/history';
 import { makeEditorActionsDeps } from '../harness/editor-actions';

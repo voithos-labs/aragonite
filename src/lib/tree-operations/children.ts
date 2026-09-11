@@ -1,6 +1,6 @@
 /**
  * Container children mutations that keep `childIds` in lockstep, for out-of-commit-scope
- * writes (discovered descendants/ancestors — see the `node-ops.ts` header). Inside a
+ * writes (discovered descendants/ancestors — see the `node-primitives.ts` header). Inside a
  * commit scope the StructuralChange descriptor owns id/ref sync; here a hand-rolled
  * splice would let the parallel id array drift and break Svelte's keyed-each rendering.
  * The same shape change invalidates `childSpans`, so both parallel arrays settle here.

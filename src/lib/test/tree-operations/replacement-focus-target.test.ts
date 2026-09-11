@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { focusTargetInReplacement } from '../../tree-operations';
-import { settledCaretTarget } from '../../tree-operations/node-ops';
+import { settledCaretTarget } from '../../tree-operations/content-write';
 
 describe('focusTargetInReplacement', () => {
 	it('maps an offset inside the first block to that block', () => {

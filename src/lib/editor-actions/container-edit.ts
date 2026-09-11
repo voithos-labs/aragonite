@@ -6,11 +6,8 @@
 import type { ContainerEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from '../tree-operations/sharing';
-import {
-	ensureUnsharedPath,
-	rebuildUnsharedChain,
-	type AncestrySeamFold
-} from '../tree-operations/unshare';
+import { ensureUnsharedPath } from '../tree-operations/unshare';
+import { rebuildUnsharedChain, type AncestrySeamFold } from '../tree-operations/chain-rebuild';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { publishAncestryFolds, publishScopeFold } from './ancestry-folds';
 import type { EditorActionsDeps, UndoController } from './deps';

@@ -23,7 +23,7 @@ import {
 	lastLeafAtOrBefore,
 	findCellPathForElement
 } from './path-lookup';
-import { nodeAt } from '../tree-operations/node-ops';
+import { nodeAt } from '../tree-operations/node-primitives';
 import { comparePaths, isStrictAncestorOf, pathsEqual } from './path-math';
 import { displayLength } from '../core/lines';
 

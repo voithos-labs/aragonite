@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Editor, type EditorSelection } from '$lib';
-	import { nodeAt } from '$lib/tree-operations/node-ops';
+	import { nodeAt } from '$lib/tree-operations/node-primitives';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 
 	// Journal shape: two entries in ONE ancestor scroller, plus a clipped pane no scroll can

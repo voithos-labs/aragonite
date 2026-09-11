@@ -6,7 +6,7 @@
 
 import { CURSOR_END } from '../../block-component';
 import type { CstNode, Document } from '../../core/nodes';
-import { nodeAt, ensureEditableContainers } from '../node-ops';
+import { nodeAt, ensureEditableContainers } from '../node-primitives';
 import { cloneNode } from '../clone';
 import { spliceMany } from '../splice-many';
 import { stampStructuralChange, type StructuralChange } from '../structural-change';

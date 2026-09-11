@@ -9,7 +9,7 @@ import { parse } from '../../core/parser';
 import { enablePerfInstruments } from '../../perf/instruments';
 import { dropChildSpans } from '../../schema/child-spans';
 import { createSharingState } from '../../tree-operations/sharing';
-import { rebuildUnsharedChain } from '../../tree-operations/unshare';
+import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { generateDeepNested, generateFixture } from './fixtures/generate';
 
 // Every row below would otherwise time G1.38's dev-only re-derive alongside the rebuild it

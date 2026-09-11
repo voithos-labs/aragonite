@@ -17,7 +17,7 @@ import { focusCollapsedCaret } from '../native-bridge';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parse } from '../../core/parser';
-import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { pathsEqual } from '../path-math';
 import { replaceBlockAtParent } from '../../tree-operations/paste/replace-block-at-parent';
 import { ensureEditableContainers, normalizeReplacementTrivia } from '../../tree-operations';

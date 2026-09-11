@@ -6,7 +6,7 @@
  */
 
 import type { DocumentView } from '../core/node-views';
-import { nodeAt } from '../tree-operations/node-ops';
+import { nodeAt } from '../tree-operations/node-primitives';
 import type { GapCaretPosition } from './gap-caret';
 import type { SelectionEndpoint, SelectionPoint } from './primitives';
 import { isWholeBlockEndpoint, normalize } from './primitives';

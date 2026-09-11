@@ -6,7 +6,7 @@
 import type { CstNode, TableAlignment } from './core/nodes';
 import type { NodeView } from './core/node-views';
 import type { StructuralChange } from './tree-operations/structural-change';
-import type { TrackedPosition } from './tree-operations/node-ops';
+import type { TrackedPosition } from './tree-operations/settle';
 import type { SharingState } from './tree-operations/sharing';
 import type { BlockComponent, FocusPosition } from './block-component';
 import type { ScopedOpDescriptor } from './schema/operations';
