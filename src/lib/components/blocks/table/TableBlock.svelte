@@ -32,7 +32,8 @@
 	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/caret-doors';
 	import { columnNearestX } from './cell-x-mapping';
-	import { cellAtPoint, mountedRowEls, rowCellEls } from './cell-pointer';
+	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
+	import { tableCaretAtPoint } from './table-caret-at-point';
 	import { intraTableRect } from './cell-clipboard';
 	import { selectedCells } from './selected-cells';
 	import { createBlockListState } from '../../../reactivity/block-list-state.svelte';
@@ -54,6 +55,8 @@
 	import TableRowBlock from './TableRowBlock.svelte';
 	import TableGrip from './TableGrip.svelte';
 	import TableActionMenu from './TableActionMenu.svelte';
+	import MenuIcon from '../../menu/MenuIcon.svelte';
+	import { ADD_COLUMN_RIGHT, ADD_ROW_BELOW } from '../../../a11y-strings';
 	import { tableMenuItems, type ClipboardAction } from './table-menu-model';
 
 	let {
@@ -83,14 +86,14 @@
 		lifetime: editorLifetime,
 		linkRef
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
-	const { presentationMode: getPresentationMode, blockDragHandles: getDragHandles } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const { presentationMode: getPresentationMode } = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	// Every menu item mutates the table, so reading mode declines to open it and the
 	// native context menu (with Copy) shows instead.
 	const readOnly = $derived(getPresentationMode() === 'reading');
-	// The block handle's switch covers the grips: one mouse-only affordance policy, and the
-	// getter already folds reading mode in.
-	const showGrips = $derived(getDragHandles());
+	// Off, always: a table's own block handle moves the table, and every row/column action —
+	// insert, delete, move, align — lives in the right-click cell menu. Per-row and per-column
+	// grips put a second gutter inside the block for gestures that menu already covers.
+	const showGrips = false;
 
 	const meta = $derived(metadataOf(node, 'table'));
 	const rowCount = $derived(node.children?.length ?? 0);
@@ -110,6 +113,14 @@
 	// the focusout handler, which Svelte 5 traps as state_unsafe_mutation.
 	let internalStickyColumn: number | null = null;
 	let focusedCell: { rowIdx: number; colIdx: number } | null = null;
+	// The reactive mirror the edge affordances read, written a microtask after the plain one so
+	// a focusout fired mid-reconcile never mutates state inside the render.
+	let caretCell = $state<{ rowIdx: number; colIdx: number } | null>(null);
+	function mirrorCaretCell(): void {
+		void tick().then(() => {
+			caretCell = focusedCell;
+		});
+	}
 	let tableEl: HTMLDivElement | undefined = $state();
 
 	const rowsState = createBlockListState(() => node);
@@ -227,6 +238,7 @@
 	}
 
 	const mutations = createTableMutationsContext({
+		grammar: registryView.grammar,
 		get node() {
 			return node;
 		},
@@ -272,9 +284,11 @@
 		},
 		notifyCellFocused(rowIdx, colIdx) {
 			focusedCell = { rowIdx, colIdx };
+			mirrorCaretCell();
 		},
 		notifyCellBlurred() {
 			focusedCell = null;
+			mirrorCaretCell();
 		},
 		...mutations
 	};
@@ -295,6 +309,8 @@
 		x: number;
 		y: number;
 		clipboardSel: CellSelection | null;
+		/** Re-reads the open point where its element is now (scroll, resize). */
+		anchor?: () => { x: number; y: number } | null;
 	} | null>(null);
 
 	// A live rectangle suppresses the cell-local selection, so the menu reads it
@@ -314,14 +330,57 @@
 			: []
 	);
 
+	// Notion's edge affordances: a strip past the table's right edge adds a column, one below
+	// it adds a row. Each shows on hover of its strip, and stays shown while the caret is in
+	// the last column / row. Geometry is the table's own box, measured after layout settles and
+	// again whenever the table resizes.
+	const addAffordance = $derived({
+		column: !readOnly && caretCell?.colIdx === columnCount - 1,
+		row: !readOnly && caretCell?.rowIdx === rowCount - 1
+	});
+	let addGeometry = $state<{ left: number; top: number; width: number; height: number } | null>(
+		null
+	);
+	$effect(() => {
+		const el = tableEl;
+		if (readOnly || !el) {
+			addGeometry = null;
+			return;
+		}
+		const measure = () => {
+			addGeometry = {
+				left: el.offsetLeft,
+				top: el.offsetTop,
+				width: el.offsetWidth,
+				height: el.offsetHeight
+			};
+		};
+		void tick().then(measure);
+		const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+		observer?.observe(el);
+		return () => observer?.disconnect();
+	});
+
 	function openMenu(axis: MenuAxis, axisIdx: number, e: MouseEvent): void {
-		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const grip = e.currentTarget as HTMLElement;
+		const rect = grip.getBoundingClientRect();
 		const target: MenuTarget = axis === 'column' ? { colIdx: axisIdx } : { rowIdx: axisIdx };
 		// A row grip opens beside itself rather than below, so the menu clears the left edge.
-		menu =
-			axis === 'column'
-				? { target, x: rect.left, y: rect.bottom, clipboardSel: null }
-				: { target, x: rect.right, y: rect.top, clipboardSel: null };
+		const point =
+			axis === 'column' ? { x: rect.left, y: rect.bottom } : { x: rect.right, y: rect.top };
+		menu = { target, ...point, clipboardSel: null, anchor: anchorOn(grip, point) };
+	}
+
+	// The open point as an offset into an element's box, so a scroll re-reads it where the
+	// element is now rather than where the viewport left it.
+	function anchorOn(el: Element, point: { x: number; y: number }): () => { x: number; y: number } {
+		const rect = el.getBoundingClientRect();
+		const dx = point.x - rect.left;
+		const dy = point.y - rect.top;
+		return () => {
+			const now = el.getBoundingClientRect();
+			return { x: now.left + dx, y: now.top + dy };
+		};
 	}
 
 	function cellRefAt(rowIdx: number, colIdx: number): BlockComponent | null {
@@ -332,7 +391,9 @@
 	// Cut/Copy have a range to act on.
 	function openMenuAtCell(rowIdx: number, colIdx: number, x: number, y: number): void {
 		const clipboardSel = cellRefAt(rowIdx, colIdx)?.getSelectionOffsets?.() ?? null;
-		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel };
+		const cellEl = cellElementAt(rowIdx, colIdx);
+		const anchor = cellEl ? anchorOn(cellEl, { x, y }) : undefined;
+		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, anchor };
 	}
 
 	// preventDefault only over a cell, so a right-click in the table's padding gaps keeps
@@ -605,6 +666,24 @@
 		return { start: win.start, end: win.end };
 	}
 
+	// A press beside the table runs the same cell drag a press IN a cell runs, anchored at the
+	// nearest cell — so a sweep that starts in the margin grows the same rectangle it would from
+	// that cell, and leaves the table as a cross-block range the same way.
+	export function startDragAtPoint(clientX: number, clientY: number, e: PointerEvent): boolean {
+		if (!tableEl || readOnly) return false;
+		const host = tableEl.parentElement;
+		const target = host ? tableCaretAtPoint(host, clientX, clientY) : null;
+		const editorRoot = getEditorRoot();
+		if (!target || !editorRoot) return false;
+		const [rowIdx, colIdx] = target.path;
+		installCellDragListener(
+			{ editorRoot, selection, lifetimeSignal: editorLifetime },
+			{ tableEl, tablePath: myPath.slice(), rowIdx, colIdx, columnCount },
+			e
+		);
+		return true;
+	}
+
 	function cellElementAt(rowIdx: number, colIdx: number): HTMLElement | null {
 		if (!tableEl) return null;
 		if (rowIdx < 0 || rowIdx >= rowCount || colIdx < 0 || colIdx >= columnCount) return null;
@@ -699,6 +778,7 @@
 			onaction={runAction}
 			onclipboard={runClipboard}
 			onalign={runAlign}
+			anchor={menu.anchor}
 			onclose={() => (menu = null)}
 			onescape={closeMenuRestoringFocus}
 		/>
@@ -714,6 +794,38 @@
 		></div>
 	{/if}
 </div>
+{#if addGeometry}<div
+		class="table-add-zone table-add-zone-column"
+		class:table-add-pinned={addAffordance.column}
+		style="left:{addGeometry.left +
+			addGeometry.width}px;top:{addGeometry.top}px;height:{addGeometry.height}px"
+	>
+		<button
+			type="button"
+			class="table-add table-add-column"
+			aria-label={ADD_COLUMN_RIGHT}
+			title={ADD_COLUMN_RIGHT}
+			onmousedown={(e) => e.preventDefault()}
+			onclick={() => void ctx.insertColumnRight(columnCount - 1)}
+			><MenuIcon name="plus" size={12} /></button
+		>
+	</div>
+	<div
+		class="table-add-zone table-add-zone-row"
+		class:table-add-pinned={addAffordance.row}
+		style="left:{addGeometry.left}px;top:{addGeometry.top +
+			addGeometry.height}px;width:{addGeometry.width}px"
+	>
+		<button
+			type="button"
+			class="table-add table-add-row"
+			aria-label={ADD_ROW_BELOW}
+			title={ADD_ROW_BELOW}
+			onmousedown={(e) => e.preventDefault()}
+			onclick={() => void ctx.insertRowBelow(rowCount - 1)}
+			><MenuIcon name="plus" size={12} /></button
+		>
+	</div>{/if}
 
 <style>
 	.table-block {
@@ -722,7 +834,62 @@
 		max-width: 100%;
 		overflow-x: auto;
 		scrollbar-width: thin;
-		scrollbar-color: var(--color-ui-muted, #a4a4a4) transparent;
+		scrollbar-color: var(--color-border, #3e3e3b) transparent;
+		/* The two sides the cells do not draw — see `.table-cell`. */
+		border-top: 1px solid var(--color-border, #3e3e3b);
+		border-left: 1px solid var(--color-border, #3e3e3b);
+	}
+	/* The edge strips sit in the host's box beside and below the grid, out of the grid's own
+	   scroller, and start exactly at the table's edge so they never cover a cell. Pure-CSS
+	   reveal on hover; `.table-add-pinned` is the caret's claim. The mousedown is swallowed so
+	   the cell keeps the caret that pinned them. */
+	.table-add-zone {
+		position: absolute;
+		z-index: 3;
+		display: flex;
+	}
+	.table-add-zone-column {
+		width: 28px;
+		padding-left: 4px;
+		align-items: stretch;
+	}
+	.table-add-zone-row {
+		height: 22px;
+		padding-top: 4px;
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.table-add {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0;
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 3px;
+		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
+		color: var(--color-ui-muted, #8f8f89);
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 120ms ease-out;
+	}
+	.table-add-pinned .table-add {
+		opacity: 0.7;
+	}
+	.table-add-zone:hover .table-add,
+	.table-add:focus-visible {
+		opacity: 1;
+		color: var(--color-text-primary, #e8e8e5);
+	}
+	.table-add-column {
+		width: 18px;
+	}
+	.table-add-row {
+		height: 16px;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.table-add {
+			transition: none;
+		}
 	}
 	/* Spacers are direct grid children; span all columns to reserve a full row band. */
 	.vr-spacer {
@@ -756,7 +923,7 @@
 		background: transparent;
 	}
 	.table-block::-webkit-scrollbar-thumb {
-		background: var(--color-ui-muted, #a4a4a4);
+		background: var(--color-border, #3e3e3b);
 		border-radius: 3px;
 	}
 	.table-block::-webkit-scrollbar-thumb:hover {

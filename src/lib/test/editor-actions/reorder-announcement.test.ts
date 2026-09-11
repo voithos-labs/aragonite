@@ -82,10 +82,12 @@ describe('reorder announcement and landing — document scope', () => {
 		expect(h.announced).toEqual(['Moved block to position 2 of 2']);
 	});
 
+	// The keyboard nudge, which is the gesture that carries the caret: a drop does not focus
+	// what it dropped (`reorder-action.ts`), so only this path can witness the landing ref.
 	it('focuses the block the move landed on after the fold above it', async () => {
 		const h = makeTop('a\n# h\nb\n');
 
-		await h.reorder.moveReorderUnit([1], 2);
+		await h.reorder.nudgeReorderUnit([1], 1);
 
 		// Slot 1 after the fold, and the ref that got there is the moved block's own.
 		expect(h.focused).toEqual([1]);
@@ -98,7 +100,8 @@ describe('reorder announcement and landing — document scope', () => {
 
 		expect(serialize(h.doc)).toBe('b\n\nc\n\na\n');
 		expect(h.announced).toEqual(['Moved block to position 3 of 3']);
-		expect(h.focused).toEqual([2]);
+		// A drop is not a request to edit what was dropped: it focuses nothing.
+		expect(h.focused).toEqual([]);
 	});
 });
 
@@ -116,7 +119,7 @@ describe('reorder announcement and landing — container scope', () => {
 	it('focuses the body block the move landed on', async () => {
 		const h = makeContainer('> a\n> # h\n> b\n');
 
-		await h.reorder.moveReorderUnit([0, 1], 2);
+		await h.reorder.nudgeReorderUnit([0, 1], 1);
 
 		expect(h.focused).toEqual([1]);
 	});

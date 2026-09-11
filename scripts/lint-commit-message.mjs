@@ -170,8 +170,8 @@ export function commitMessageProblems(raw) {
  * @param {CommitMessageProblem[]} problems
  * @param {string} label
  */
-function report(problems, label) {
-	console.error(`commit message rejected${label ? ` (${label})` : ''}:`);
+function report(problems, label, heading = 'commit message rejected') {
+	console.error(`${heading}${label ? ` (${label})` : ''}:`);
 	for (const problem of problems) {
 		console.error(`  line ${problem.line}  ${problem.rule}: ${problem.detail}`);
 		console.error(`    ${problem.text}`);
@@ -180,13 +180,16 @@ function report(problems, label) {
 }
 
 /**
- * The `commit-msg` hook's entry: validate one message file, reporting to stderr.
+ * The `commit-msg` hook's entry: validate one message file, reporting to stderr. `heading`
+ * lets an ADVISORY caller say so — the hook does not reject, and a report that claims it did
+ * would be a lie the author has to decode.
  * @param {string} filePath
+ * @param {string} [heading]
  * @returns {boolean} Whether the message passes.
  */
-export function checkMessageFile(filePath) {
+export function checkMessageFile(filePath, heading) {
 	const problems = commitMessageProblems(readFileSync(filePath, 'utf8'));
-	if (problems.length > 0) report(problems, '');
+	if (problems.length > 0) report(problems, '', heading);
 	return problems.length === 0;
 }
 

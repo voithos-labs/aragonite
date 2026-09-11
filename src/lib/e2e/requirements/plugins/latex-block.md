@@ -9,6 +9,11 @@ and the caret's survival across it are exactly what the unit layer could not pro
 
 ## Happy paths
 
+- A block with no body line (`$$$$`, or `$$` straight over `$$`) reveals as opener, one empty
+  body line and closer, so the caret has a line to sit on; Backspace on that empty line deletes
+  the block and lands the caret in the block above, in live and source mode alike. Backspace at
+  the start of a body that has content deletes nothing
+
 - Renders the KaTeX display by default: a folded block shows `.katex`, no source
   contenteditable, and the CST still holds `$$x^2$$`
 - Click reveals the editable source without touching the CST: the render is gone, the

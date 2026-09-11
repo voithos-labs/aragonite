@@ -54,11 +54,12 @@ export function blockAtPoint(
 				path,
 				// A cell-addressed kind's first contenteditable is one of its CELLS, so declaring
 				// the drag hook withdraws the block-level surface rather than offering that. The
-				// whole-block editing host is chrome, not characters, so it is excluded too.
+				// whole-block editing host is chrome, not characters, so it is excluded too, as is
+				// the selection overlay (`contenteditable="false"`, mounted while a range is live).
 				charSurface: dragHitTest
 					? null
 					: (wrapper.querySelector(
-							`[contenteditable]:not([${WHOLE_BLOCK_INPUT_ATTR}])`
+							`[contenteditable]:not([${WHOLE_BLOCK_INPUT_ATTR}]):not(.selection-overlay)`
 						) as HTMLElement | null),
 				foreignDragHitTest: dragHitTest && ((cx, cy) => dragHitTest(wrapper, cx, cy)),
 				caretTargetAtPoint: caretTarget && ((cx, cy) => caretTarget(wrapper, cx, cy))

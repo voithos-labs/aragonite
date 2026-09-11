@@ -107,6 +107,8 @@ function stubbedPolicies(): EditorPolicies {
 		theme: () => 'dark',
 		keybindingOverrides: () => ({ global: new Map(), byKind: new Map() }),
 		onPasteImage: undefined,
+		onRunCode: undefined,
+		codeMenuItems: undefined,
 		brokenImageUrls: new Set<string>()
 	};
 }

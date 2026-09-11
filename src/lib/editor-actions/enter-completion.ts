@@ -10,7 +10,11 @@ import type { BlockEditActions } from '../action-contracts';
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { completeTypedLine, type CompletionResult } from '../schema/block-completions';
+import {
+	completeLineOnType,
+	completeTypedLine,
+	type CompletionResult
+} from '../schema/block-completions';
 
 export interface EnterCompletion {
 	replacement: CstNode[];
@@ -44,6 +48,23 @@ export function withEnterCompletion(
 				{ replacementIndex: 0, ...completion.caret },
 				{ snapshotOffset: offset }
 			);
+		},
+		// The typed arm: a keystroke that leaves the block as a line an on-type completer claims
+		// (see `BlockCompleter.onType`) forms the structure at once, the way a typed ` ``` ` is a
+		// fence the moment the parser sees it. The write lands first, so the typed line is its own
+		// undo step and the mint replaces the bytes the CST actually holds.
+		async updateBlockContent(index, text, preEditOffset, postEditFocusOffset) {
+			await blockEdit.updateBlockContent(index, text, preEditOffset, postEditFocusOffset);
+			const offset = postEditFocusOffset ?? preEditOffset;
+			if (offset === undefined) return;
+			const completion = planTypedCompletion(childAt(index), offset);
+			if (!completion) return;
+			await blockEdit.replaceBlock(
+				index,
+				completion.replacement,
+				{ replacementIndex: 0, ...completion.caret },
+				{ snapshotOffset: offset }
+			);
 		}
 	};
 }
@@ -53,10 +74,26 @@ export function planEnterCompletion(
 	node: NodeView | undefined,
 	offset: number
 ): EnterCompletion | null {
+	return planCompletion(node, offset, completeTypedLine);
+}
+
+/** The completion a keystroke earns, consulting only the completers that answer on type. */
+export function planTypedCompletion(
+	node: NodeView | undefined,
+	offset: number
+): EnterCompletion | null {
+	return planCompletion(node, offset, completeLineOnType);
+}
+
+function planCompletion(
+	node: NodeView | undefined,
+	offset: number,
+	consult: (line: string) => CompletionResult | null
+): EnterCompletion | null {
 	if (!node) return null;
 	const line = wholeTypedLine(node);
 	if (line === null || offset !== displayLength(node.raw)) return null;
-	const claim = completeTypedLine(line);
+	const claim = consult(line);
 	if (!claim) return null;
 
 	// Through the parser rather than a hand-built node, so the mint is exactly what a reload of

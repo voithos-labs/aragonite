@@ -18,5 +18,5 @@ captured when the menu opened, native-equivalent.
 
 ## Menu surface
 
-- Clipboard items (Cut/Copy/Paste) appear only in the cell right-click menu.
-- Row and column grip menus never show clipboard items.
+- Clipboard items (Cut/Copy/Paste) appear only in the cell right-click menu, at its top level.
+- The Row and Column flyouts carry only their axis's inserts and moves — never a clipboard item.

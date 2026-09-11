@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { type Locator, type Page } from '@playwright/test';
 
 // Shared image-widget probes for the image block e2e specs.
 
@@ -34,4 +34,12 @@ export async function clickPastImageRightEdge(page: Page): Promise<void> {
 	if (!widgetBox || !paraBox) throw new Error('layout boxes missing');
 	const clickX = Math.min(widgetBox.x + widgetBox.width + 80, paraBox.x + paraBox.width - 20);
 	await page.mouse.click(clickX, widgetBox.y + widgetBox.height / 2);
+}
+
+/** The toolbar's one field, the alt: press its button, then the input is the one there. */
+export async function openImageField(page: Page, name: 'Alt text' = 'Alt text'): Promise<Locator> {
+	await page.locator('.md-image-properties').getByRole('button', { name, exact: true }).click();
+	const input = page.locator('.md-image-properties input');
+	await input.waitFor({ state: 'visible' });
+	return input;
 }

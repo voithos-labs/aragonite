@@ -285,8 +285,20 @@ export function revealsNoMarkers(container: ParentNode): boolean {
 export function screenVisibilityOf(container: ParentNode | null): VisibilityContext {
 	return screenVisibility(
 		container === null ? 'source' : (markerHidingMode(container) ?? 'source'),
-		{ chromePaints: container instanceof Element && container.hasAttribute(CONTENT_EMPTY_ATTR) }
+		{ chromePaints: container instanceof Element && chromeStampPaints(container) }
 	);
+}
+
+/**
+ * The stamp's own condition, as `styles/editor.css` states it: the container carries
+ * `data-content-empty` AND holds focus. The seat is for a caret, so a stamped block nobody is in
+ * keeps its chrome hidden and reads as the empty construct it is. Focus containment rather than
+ * `:focus-within`, so a selector engine without that pseudo-class (jsdom's) reads the same answer.
+ */
+function chromeStampPaints(container: Element): boolean {
+	if (!container.hasAttribute(CONTENT_EMPTY_ATTR)) return false;
+	const active = container.ownerDocument.activeElement;
+	return active !== null && container.contains(active);
 }
 
 /**
@@ -326,6 +338,21 @@ export function landableDomTextBounds(container: ParentNode): {
  * questions: a reference label is chrome that stays hidden, so it is not content standing behind
  * the stamp, and it is not the paint the stamp promises either.
  */
+/**
+ * The container's bytes outside its marker chrome — what a painted source holds as CONTENT,
+ * whatever the mode paints. A fence with an empty body answers whitespace; the leaf reads that
+ * as "nothing here a Backspace could mean but the block".
+ */
+export function chromeFreeText(container: ParentNode): string {
+	let text = '';
+	for (const seg of walkSegments(container, null)) {
+		if (seg.kind !== 'text' || seg.len === 0) continue;
+		if (markerRootOf(seg.node, container) !== null) continue;
+		text += seg.node.textContent ?? '';
+	}
+	return text;
+}
+
 export function holdsOnlyMarkerChrome(container: ParentNode): boolean {
 	let chrome = false;
 	for (const seg of walkSegments(container, null)) {
@@ -435,8 +462,7 @@ function markerRootOf(node: Node, root: ParentNode): { el: Element; family: Mark
 /** Whether `root` carries the content-empty stamp under a mode that paints it. */
 function chromeStandsAloneUnder(root: ParentNode, mode: PresentationMode | null): boolean {
 	if (mode === null || !(root instanceof Element)) return false;
-	return screenVisibility(mode, { chromePaints: root.hasAttribute(CONTENT_EMPTY_ATTR) })
-		.chromePaints;
+	return screenVisibility(mode, { chromePaints: chromeStampPaints(root) }).chromePaints;
 }
 
 /**
@@ -495,7 +521,16 @@ function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | nu
 		return { node: sibling, offset: side === 'before' ? (sibling.textContent?.length ?? 0) : 0 };
 	}
 	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
+	// A pending hard break's first anchor (`inline-render.ts`) ends the line the marker sat on;
+	// the seat past the marker is the start of the next one, which is after that anchor.
+	if (side === 'after' && isBreakAnchor(sibling)) return { node: parent, offset: idx + 2 };
 	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
+}
+
+function isBreakAnchor(node: Node | null): boolean {
+	return (
+		node instanceof HTMLElement && node.tagName === 'BR' && node.dataset.caretAnchor === 'break'
+	);
 }
 
 type WalkSegment =

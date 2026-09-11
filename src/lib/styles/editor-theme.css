@@ -9,40 +9,46 @@
 /* ── Host-chrome tier: the consumer's vocabulary, defaults behind the class ── */
 
 :where(.aragonite-editor-theme) {
+	/* Two faces, because they answer different questions. `--font-editor` is the SURFACE
+	   face — prose, headings, markers — and a host may legitimately set it proportional.
+	   `--font-code` is what must stay monospace whatever that choice is: code blocks, code
+	   spans, raw HTML, revealed source. Defaulted to the same stack, so a consumer that
+	   never names the second one sees exactly what it saw before. */
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+	--font-code: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	/* Type-scale root: headings, code and markers are all `em`-relative, so one override
 	   scales the surface. A themed host sets it on any ancestor instead. */
 	--editor-font-size: 1rem;
 
 	/* Corner radii by role: small controls (buttons, inputs, chips) and elevated surfaces
 	   (overlays, popovers). Chrome whose corner is neither keeps its own literal. */
-	--radius-ui: 3px;
+	--radius-ui: 4px;
 	--radius-surface: 8px;
 
-	--color-surface: #1b1c21;
-	--color-text-secondary: #d6d9e0;
-	--color-text-primary: #ffffff;
-	--color-border: #3d4047;
-	--color-ui-muted: #a4a4a4;
-	--color-ui-dulled: #afb1b3;
-	/* Split per mode: no single value clears AA on both a near-black and a white surface. */
-	--color-accent: #6c9d83;
+	--color-surface: #1a1a19;
+	--color-text-secondary: #cfcfca;
+	--color-text-primary: #e8e8e5;
+	--color-border: #3e3e3b;
+	--color-ui-muted: #8f8f89;
+	--color-ui-dulled: #a3a39d;
+	--color-accent: #567b67;
 	/* Base the selection, search-match and reorder washes derive from, so one declaration
-	   moves all of them; the washes themselves stay editor-owned. */
-	--color-selection: #6496ff;
-	--color-error: #e06c75;
+	   moves all of them; the washes themselves stay editor-owned. Tracking the accent means
+	   a host that recolors one recolors all four. */
+	--color-selection: var(--color-accent, #567b67);
+	--color-error: #ff5f57;
 }
 
 :where(.aragonite-editor-theme)[data-editor-theme='light'] {
-	--color-surface: #ffffff;
-	--color-text-secondary: #1f2328;
-	--color-text-primary: #000000;
-	--color-border: #d0d7de;
-	--color-ui-muted: #6e7781;
-	--color-ui-dulled: #8c959f;
-	--color-accent: #496e5b;
-	--color-selection: #6496ff;
-	--color-error: #cf222e;
+	--color-surface: #efeee9;
+	--color-text-secondary: #4a4a45;
+	--color-text-primary: #2a2a27;
+	--color-border: #c9c7c0;
+	--color-ui-muted: #83837b;
+	--color-ui-dulled: #71716a;
+	--color-accent: #567b67;
+	--color-selection: var(--color-accent, #567b67);
+	--color-error: #d03025;
 }
 
 /* ── Editor-owned tier: defaults on `.editor`, so they hold with or without the class ── */
@@ -69,7 +75,10 @@
 	--syntax-code: currentColor;
 	--syntax-comment: currentColor;
 	--syntax-list: currentColor;
-	--syntax-separator: var(--color-ui-muted, #a4a4a4);
+	/* The rendered rule's colour, and its ONLY consumer. A divider separates rather than
+	   announces, so it defaults to the border token; mid-grey at this weight competed with
+	   the text either side. A host that wants a louder rule still names this token. */
+	--syntax-separator: var(--color-border, #3e3e3b);
 	--syntax-task: currentColor;
 	--syntax-task-done: rgba(128, 128, 128, 0.7);
 
@@ -114,35 +123,52 @@
 	--reorder-scope-bg: color-mix(in srgb, var(--color-selection, #6496ff) 14%, transparent);
 	--syntax-marker-dim: 0.65;
 
+	/* Menu/popout elevation, per mode: a shadow tuned for a near-black surface is invisible
+	   over a white one. Editor-owned rather than host-family, since a host palette names
+	   colors, not elevation. */
+	--menu-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+	/* The rest of the host app's menu family, so a menu here is the host's menu to the pixel. */
+	--menu-item-hover: rgba(255, 255, 255, 0.07);
+	--menu-search-divider: rgba(255, 255, 255, 0.08);
+	--menu-scrollbar-thumb: rgba(255, 255, 255, 0.18);
+	--menu-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+	--font-ui: 'Inter', system-ui, sans-serif;
+
 	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the
 	   window recompute reads as "loading" rather than a white tear. */
 	--vr-spacer-bg: rgba(255, 255, 255, 0.025);
 }
 
 :where(.editor, .aragonite-editor-theme)[data-editor-theme='light'] {
-	--color-bg-secondary: rgba(0, 0, 0, 0.05);
+	--color-bg-secondary: rgba(0, 0, 0, 0.035);
 	--color-bg-elevated: #f5f6f8;
 	--color-bg-muted: #eaeaea;
 	--color-text-muted: #57606a;
 	--color-ui-faint: rgba(0, 0, 0, 0.06);
+	--menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+	--menu-item-hover: rgba(0, 0, 0, 0.05);
+	--menu-search-divider: rgba(0, 0, 0, 0.07);
+	--menu-scrollbar-thumb: rgba(0, 0, 0, 0.2);
+	--menu-scrollbar-thumb-hover: rgba(0, 0, 0, 0.32);
+	--font-ui: 'Inter', system-ui, sans-serif;
 
 	/* --syntax-* tokens are mode-independent — no light overrides. */
 
 	/* Code block syntax highlighting — GitHub Light-inspired palette */
-	--code-tok-keyword: #cf222e;
+	--code-tok-keyword: #c1202b;
 	--code-tok-string: #0a3069;
 	--code-tok-number: #0550ae;
 	--code-tok-literal: #0550ae;
-	--code-tok-comment: #666f79;
+	--code-tok-comment: #5c646d;
 	--code-tok-type: #953800;
-	--code-tok-function: #8250df;
-	--code-tok-operator: #cf222e;
+	--code-tok-function: #7447c6;
+	--code-tok-operator: #c1202b;
 	--code-tok-meta: #953800;
 	--code-tok-attr: #116329;
 	--code-tok-regexp: #116329;
 	--code-tok-symbol: #0550ae;
 	--code-tok-added: #116329;
-	--code-tok-removed: #cf222e;
+	--code-tok-removed: #c1202b;
 	--code-tok-heading: #0550ae;
 	--code-tok-link: #0550ae;
 

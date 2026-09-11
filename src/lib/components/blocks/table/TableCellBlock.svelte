@@ -29,6 +29,19 @@
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 	import { applyLiveRangeEdit } from '../text/live-selection-edit';
+	import {
+		gridToHtmlTable,
+		parseClipboardGrid,
+		tileGridTo
+	} from '../../../tree-operations/table-grid-clipboard';
+	import { tableCellCount } from '../../../selection/table-endpoint-snap';
+	import { pathsEqual } from '../../../selection/path-math';
+	import { isBlockNode, nodeAt } from '../../../tree-operations/node-ops';
+	import {
+		resolveDelimiterAutoPair,
+		resolveEmptyPairBackspace,
+		stepsOverRevealedCloser
+	} from '../text/delimiter-autopair';
 	import { hasSelection as hasSelectionHelper } from '../../../cursor/content-offsets';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../cursor/typography-estimates';
 	import {
@@ -61,7 +74,7 @@
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import { intraTableRectPayload } from './cell-clipboard';
+	import { intraTableRectPayload, intraTableRectBounds, intraTableRectGrid } from './cell-clipboard';
 	import { escapedCellOffset } from './table-cell-paste';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
@@ -535,9 +548,9 @@
 			carryCaret: pendingCursorOffset === null
 		});
 		if (pendingCursorOffset !== null) {
-			consumePendingRestore(el, pendingCursorOffset, (offset) =>
-				cursor.setRaw(asRawOffset(offset))
-			);
+			consumePendingRestore(el, pendingCursorOffset, (offset) => {
+				if (!widgetInteraction.revealInterior(offset)) cursor.setRaw(asRawOffset(offset));
+			});
 			pendingCursorOffset = null;
 		}
 	});
@@ -665,23 +678,13 @@
 				if (edgeDispatch.handleKeydown(e, cursor.getRaw())) return;
 				return;
 			}
-			// Cells override the document-level 2-stage Ctrl+A with a 3-stage table-aware
-			// variant; the intra-cell step stays native.
+			// The document-level two-stage Ctrl+A, cell first: the intra-cell step stays native,
+			// the second press takes the document.
 			case 'select-all-step':
 				selection.incrementSelectAllCount();
 				if (plan.step === 'native') return;
 				e.preventDefault();
-				if (plan.step === 'table') {
-					const tablePath = myPath.slice(0, -2);
-					// Flagged row-major like the drag/shift-click anchor, so a later
-					// exit-the-table extend snaps its whole row.
-					selection.enterCrossBlock(
-						{ path: tablePath, offset: 0, cellCoordinate: true } satisfies CellSelectionPoint,
-						{ path: tablePath, offset: columnCount * rowCount - 1 }
-					);
-				} else {
-					selectWholeDocument(selection, getDoc(), getBlockElByPath);
-				}
+				selectWholeDocument(selection, getDoc(), getBlockElByPath);
 				return;
 			default:
 				e.preventDefault();
@@ -782,9 +785,41 @@
 		);
 	}
 
+	// The cell at the prose surface's self-closing delimiter arm (delimiter-autopair.ts).
+	function handleDelimiterAutoPair(e: InputEvent): boolean {
+		const typing = e.inputType === 'insertText';
+		if (!typing && e.inputType !== 'deleteContentBackward') return false;
+		if (e.isComposing || cursor.getRawSelection()) return false;
+		const caret = cursor.getRaw();
+		if (caret === null) return false;
+		const text = readCellText();
+		if (widgetInteraction.isRevealing()) {
+			if (!typing || !stepsOverRevealedCloser(text, caret, e.data ?? '')) return false;
+			e.preventDefault();
+			cursor.setRaw(asRawOffset(caret + 1));
+			void widgetInteraction.foldRevealBeforeMutation()?.settled;
+			return true;
+		}
+		const edit = typing
+			? resolveDelimiterAutoPair(text, { start: 0, end: text.length }, caret, e.data ?? '')
+			: resolveEmptyPairBackspace(text, caret);
+		if (!edit) return false;
+		e.preventDefault();
+		if (edit.kind === 'step-over') {
+			if (edit.overConstruct && !paintsFocusedMarkers(presentationMode)) {
+				edgeAffinity.noteExtreme();
+			} else cursor.setRaw(asRawOffset(edit.caret));
+			return true;
+		}
+		void blockEdit.updateBlockContent(index, edit.text, caret, edit.caret);
+		parkCursor(edit.caret, edit.text);
+		return true;
+	}
+
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
 		if (handleLiveSelectionEdit(e)) return;
+		if (handleDelimiterAutoPair(e)) return;
 		if (e.inputType === 'insertLineBreak') {
 			// GFM cells can't carry raw newlines, so a line break is a literal `<br>`,
 			// which the inline-HTML pipeline renders as a live widget.
@@ -857,6 +892,36 @@
 	// Copy/cut/paste through the shared skeleton. The cell's extra arms are the intra-table
 	// rectangle (copied as a GFM sub-table) and the intra-cell raw slice, which preserves
 	// widget bytes like `<br>` that the browser's rendered-textContent copy drops.
+	// The rectangle's spreadsheet form rides beside the GFM: Excel and Sheets read text/html.
+	function writeRectHtml(e: ClipboardEvent): void {
+		const grid = intraTableRectGrid({ selection, getDoc });
+		if (grid) e.clipboardData?.setData('text/html', gridToHtmlTable(grid));
+	}
+
+	// A grid (tabs from a spreadsheet, or a GFM table) fills cells from here — the rectangle's
+	// top-left when one is live, else this cell — growing the table to fit. A whole-table
+	// selection keeps its replace route; a non-grid payload keeps the ordinary paste.
+	async function pasteGridHere(text: string): Promise<boolean> {
+		const grid = parseClipboardGrid(text);
+		if (!grid) return false;
+		const tablePath = myPath.slice(0, -2);
+		const bounds = intraTableRectBounds({ selection, getDoc });
+		const inThisTable = bounds !== null && pathsEqual(bounds.tablePath, tablePath);
+		if (bounds && !inThisTable) return false;
+		const tableNode = nodeAt(getDoc(), tablePath);
+		const wholeTable =
+			bounds !== null &&
+			tableNode !== null &&
+			isBlockNode(tableNode) &&
+			bounds.rows * bounds.cols === tableCellCount(tableNode);
+		if (wholeTable) return false;
+		const origin = bounds ? { rowIdx: bounds.top, colIdx: bounds.left } : { rowIdx, colIdx };
+		const fitted = bounds ? tileGridTo(grid, bounds.rows, bounds.cols) : grid;
+		if (bounds) selection.collapse();
+		await tableContext.pasteGrid(origin, fitted);
+		return true;
+	}
+
 	const clipboard = createClipboardHandlers({
 		stickyColumn,
 		edgeAffinity,
@@ -873,8 +938,10 @@
 			if (rectPayload === null) return false;
 			e.preventDefault();
 			e.clipboardData?.setData('text/plain', rectPayload);
+			writeRectHtml(e);
 			return true;
 		},
+		pastePreHook: pasteGridHere,
 		// During a reveal the swapped DOM holds an edit `node.raw` hasn't seen; copy never
 		// mutates, so it slices the live DOM text rather than folding first.
 		copyTail: (e) => {
@@ -893,6 +960,7 @@
 			const rectPayload = intraTableRectPayload({ selection, getDoc });
 			if (rectPayload === null) return false;
 			e.clipboardData?.setData('text/plain', rectPayload);
+			writeRectHtml(e);
 			await crossBlock.performCrossBlockDeleteFromEvent();
 			return true;
 		},
@@ -986,7 +1054,7 @@
 		// mutating: execCommand needs the restored range, paste needs a focused caret.
 		stickyColumn.reset();
 		edgeAffinity.reset();
-		el.focus();
+		el.focus({ preventScroll: true });
 		if (action === 'paste') {
 			let raw: string;
 			try {
@@ -1064,13 +1132,18 @@
 ></div>
 
 <style>
+	/* Two sides only. The grid has no `border-collapse`, so a cell drawing all four put two
+	   1px lines on every shared edge — visibly heavier inside the table than around it. The
+	   container draws the top and left, these draw the right and bottom, and every rule in
+	   the grid is one line wide. */
 	.table-cell {
 		outline: none;
 		padding: 4px 8px;
 		min-height: 1.4em;
 		white-space: pre-wrap;
 		word-wrap: break-word;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-right: 1px solid var(--color-border, #3e3e3b);
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
 	}
 	.table-cell:focus {
 		outline: 2px solid var(--color-accent, #567b67);

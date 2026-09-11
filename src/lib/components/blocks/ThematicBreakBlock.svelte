@@ -72,13 +72,21 @@
 	export function runCommand(id: CommandId): boolean {
 		return reorderRunCommand(id, reorder, () => myPath);
 	}
+
+	// The rule has no text to measure, so any non-empty range over it is its whole box — what a
+	// range ending on it, or the rule taken as a unit, paints.
+	export function measurePartialRects(startOffset: number, endOffset: number): DOMRect[] {
+		if (endOffset <= startOffset || !boxEl) return [];
+		return [boxEl.getBoundingClientRect()];
+	}
 	void ({
 		editable,
 		focusable,
 		focus,
 		parkCaret,
 		getCursorOffset,
-		runCommand
+		runCommand,
+		measurePartialRects
 	} satisfies BlockComponent);
 
 	// ── Event Handlers ──────────────────────────────────────────────────
@@ -136,21 +144,26 @@
 		position: relative;
 	}
 
+	/* The rule is a hairline, so the SPACE around it is what reads as a division. Cramped
+	   padding on a heavy line reads as a border instead. */
 	.thematic-break-rule {
 		outline: none;
-		padding: 8px 0;
+		padding: 14px 0;
 	}
 
-	/* `:focus-within`: whole-block focus lands on the host, not the separator. */
+	/* `:focus-within`: whole-block focus lands on the host, not the separator. Painted as the
+	   SAME wash the selection overlay uses, not an accent ring: a rule that showed focus one
+	   way and selection another read as two different states of the same block. */
 	.thematic-break-block:focus-within .thematic-break-rule {
-		outline: 2px solid var(--color-accent, #567b67);
-		outline-offset: 2px;
+		background: var(--selection-overlay-bg, rgba(100, 150, 255, 0.3));
 		border-radius: 2px;
 	}
 
 	hr {
 		border: none;
-		border-top: 2px solid var(--color-ui-muted, #a4a4a4);
+		/* A hairline on the BORDER token, not the muted-UI one: a divider separates, and at
+		   2px of mid-grey it competed with the text it sits between. */
+		border-top: 1px solid var(--color-border, #3e3e3b);
 		margin: 0;
 	}
 </style>

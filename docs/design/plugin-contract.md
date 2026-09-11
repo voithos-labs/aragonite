@@ -234,7 +234,7 @@ The built-in line grammars a plugin would otherwise fork, exposed so a construct
 
 ### Enter completion
 
-`registerBlockCompleter` is the opener's sibling for a grammar whose lines must be adjacent, which Enter alone can never type into existence. An opener recognizes a line while parsing; a completer reads the one line the user just typed at an Enter press and answers the lines that complete it. Block math is the validating consumer (`$$` plus Enter inserts the fence pair with the caret in the body); without the plugin the same line splits like any other paragraph.
+`registerBlockCompleter` is the opener's sibling for a grammar whose lines must be adjacent, which Enter alone can never type into existence. An opener recognizes a line while parsing; a completer reads the one line the user just typed at an Enter press and answers the lines that complete it. Block math is the validating consumer (`$$` plus Enter inserts the fence pair with the caret in the body); without the plugin the same line splits like any other paragraph. A completer whose claim can only mean one thing the moment the line is complete registers `onType: true` and is consulted as the line is typed as well, so the structure forms at once the way a typed ` ``` ` is a fence — block math does, so `$$` alone forms the block as the second `$` lands; a table's header row does not, since it is a prefix of a longer row still being typed.
 
 ```ts
 import { registerBlockCompleter, type CompletionResult } from '@voithos-labs/aragonite/plugin';

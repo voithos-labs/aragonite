@@ -21,8 +21,10 @@ never sees it and the render effect's `replaceChildren` cannot destroy it.
 - The chip renders in the marker-hiding modes (`reading`, both `preview-*` rungs, `live`)
   when the block is NOT content-empty, and never in source mode, which paints its fence
   always.
-- A content-empty block (an empty fence) paints its own chrome and gets no chip: the info
-  string is already reachable by caret there, which is how a fence is authored.
+- A content-empty block (an empty fence) paints its own dimmed chrome AND gets the rail. The
+  caret can reach the info string there, but the picker is the authoring path now, and a fence
+  with no language is exactly where it is wanted; the markers stay because the caret walk
+  mirrors that rule and the two must not diverge.
 - Reveal is hover on the block OR focus inside it; the field being open keeps it revealed.
 - The hover is the block's OWN, not its container's: a fence nested in a blockquote or a list
   item stays unrevealed while the pointer sits elsewhere inside that container.
@@ -69,10 +71,10 @@ routes already share (`fence-content-validity.md`), so all three arms behave ali
 - **No keyboard chord.** v1 is pointer-first; minting a chord before the 1.0 freeze is a
   bigger decision than this affordance. A Tab reaching the button works because the button
   is a button, which is as far as v1 goes.
-- **Reading + content-empty paints nothing.** The content-empty reveal CSS covers only
-  `preview-*` and `live`, so an empty fence in reading mode shows neither its markers nor a
-  chip. Following the stated visibility rule literally rather than special-casing reading;
-  an empty code block in a reading view has nothing to say.
+- **Reading + content-empty paints markers nowhere, but still rails.** The content-empty
+  marker reveal covers only `preview-*` and `live`, so an empty fence in reading mode shows no
+  markers; the rail renders regardless, as an inert language label beside a copy affordance,
+  which is what a reader can still use.
 - **A focused preview block shows both.** The preview rungs reveal the fence on the focused
   block, and the chip also shows there (the caret is inside, and an open field counts as
   inside). Redundant, harmless, and cheaper than teaching the chip to read the focus stamp.

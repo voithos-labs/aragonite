@@ -1,5 +1,12 @@
 <script lang="ts">
 	import { Editor, type PresentationMode } from '$lib';
+	// `?extraLanguage=on` registers a grammar the editor does NOT bundle, through the same
+	// public seam a host uses (`@voithos-labs/aragonite/plugin`). This is the worked example
+	// for the registry export: one import, one call, before any editor mounts. Off by default,
+	// because the language list is geometry the picker specs read.
+	import { registerLanguage } from '$lib/plugin';
+	import elixir from 'highlight.js/lib/languages/elixir';
+	import swift from 'highlight.js/lib/languages/swift';
 	import { HARNESS_SHOWCASE_CONTENT } from '$lib/e2e/test-content';
 	import type { KeybindingOverride } from '$lib/schema/keybinding-overrides';
 	import DebugPanel from '../../debug-panel/DebugPanel.svelte';
@@ -39,6 +46,32 @@
 	// sits OUTSIDE that container, so clicking it cannot scroll the position under test.
 	const headerOn = param('header') === 'on';
 	let headerTall = $state(false);
+
+	// Module scope would run this during SSR too, where it is pointless; the guard keeps the
+	// registration on the client, still ahead of the editor's own mount below.
+	const extraLanguagesOn = param('extraLanguage') === 'on';
+	if (extraLanguagesOn) {
+		registerLanguage('elixir', elixir, ['ex', 'exs']);
+		registerLanguage('swift', swift);
+	}
+
+	// `?codeActions=on` installs stub host hooks for the code block's rail, so the run and
+	// overflow affordances render. Off by default: the rail's width is geometry the block
+	// specs measure, and the editor ships neither hook.
+	const codeActionsOn = param('codeActions') === 'on';
+	// Recorded on the body dataset rather than rendered: a visible readout would shift the
+	// block geometry the rest of the suite measures, and this only has to prove the hook fired.
+	const onRunCode = codeActionsOn
+		? (req: { code: string; info: string }) => {
+				document.body.dataset.lastCodeRun = `${req.info || 'text'}: ${req.code.trim().slice(0, 40)}`;
+			}
+		: undefined;
+	const codeMenuItems = codeActionsOn
+		? () => [
+				{ id: 'stub-run-above', label: 'Run all above', run: () => {} },
+				{ id: 'stub-clear', label: 'Clear output', run: () => {}, disabled: true }
+			]
+		: undefined;
 
 	// `?paddedList=on` reproduces the documented host layout that pads the block list itself, so
 	// the visible side gutter reports the LIST as the click target rather than the editor root.
@@ -158,6 +191,14 @@
 				value="Outside the editor"
 			/>
 		{/if}
+		<button
+			type="button"
+			class="demo-btn"
+			data-testid="header-theme-toggle"
+			onclick={() => (editorTheme = editorTheme === 'dark' ? 'light' : 'dark')}
+		>
+			{editorTheme === 'dark' ? 'Soft dark' : 'Soft light'}
+		</button>
 		{#each PRESENTATION_TOGGLES as toggle (toggle.mode)}
 			<label class="demo-toggle">
 				<input
@@ -183,6 +224,8 @@
 					blockDragHandles={dragHandlesOn}
 					{keybindings}
 					{presentationMode}
+					{onRunCode}
+					{codeMenuItems}
 					onLinkActivate={presentationMode === 'reading' ? recordLinkActivation : undefined}
 					{onPasteImage}
 					header={headerOn ? documentHero : undefined}
@@ -235,11 +278,26 @@
 		display: flex;
 		gap: 6px;
 	}
+	/* The demo dresses itself as the host app the editor ships into (limestone): its page
+	   ground, its UI face, and a PROPORTIONAL surface face — which is that app's own default
+	   for `--font-editor`. Code stays monospace through `--font-code`, so this page also
+	   stands as the worked example of the two faces pulling apart. */
 	.test-harness {
 		width: 100vw;
 		height: 100vh;
 		display: flex;
 		flex-direction: column;
+		--font-ui: Inter, system-ui, sans-serif;
+		--font-editor: Inter, system-ui, sans-serif;
+		--font-code: 'JetBrains Mono', ui-monospace, monospace;
+		--color-bg: #2c2c2a;
+		background: var(--color-bg);
+		color: var(--color-text-primary, #ffffff);
+		font-family: var(--font-ui);
+	}
+
+	.test-harness[data-editor-theme='light'] {
+		--color-bg: #dfddd7;
 	}
 	.demo-header {
 		flex: 0 0 auto;
@@ -248,7 +306,7 @@
 		justify-content: space-between;
 		gap: 1rem;
 		padding: 0.75rem 1rem;
-		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
 	}
 	.demo-heading {
 		min-width: 0;
@@ -258,9 +316,10 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-size: 0.85rem;
-		font-family: var(--font-editor, ui-monospace, monospace);
-		color: var(--color-text-secondary, #888);
+		font-size: 13px;
+		font-family: var(--font-ui, system-ui, sans-serif);
+		color: var(--color-text-secondary, #cfcfca);
+		accent-color: var(--color-accent, #567b67);
 		cursor: pointer;
 		user-select: none;
 		white-space: nowrap;
@@ -269,17 +328,22 @@
 		cursor: pointer;
 		margin: 0;
 	}
+	/* The host app's button: transparent, bordered, and warming to primary on hover. */
 	.demo-btn {
 		flex: 0 0 auto;
-		font-size: 0.85rem;
-		font-family: var(--font-editor, ui-monospace, monospace);
-		color: var(--color-text-secondary, #888);
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 4px;
-		padding: 0.25rem 0.6rem;
+		padding: 7px 14px;
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 8px;
+		background: transparent;
+		color: var(--color-text-secondary, #cfcfca);
+		font-family: var(--font-ui, system-ui, sans-serif);
+		font-size: 13px;
 		cursor: pointer;
 		white-space: nowrap;
+	}
+
+	.demo-btn:hover {
+		color: var(--color-text-primary, #e8e8e5);
 	}
 	.demo-hero {
 		display: flex;
@@ -289,7 +353,7 @@
 		overflow: hidden;
 		box-sizing: border-box;
 		padding: 0.5rem 0;
-		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
 	}
 	.demo-hero-title {
 		font-size: 1.6rem;
@@ -299,12 +363,12 @@
 		margin: 0;
 		font-size: 1.1rem;
 		font-weight: 600;
-		font-family: var(--font-editor, ui-monospace, monospace);
+		font-family: var(--font-ui, system-ui, sans-serif);
 	}
 	.demo-note {
 		margin: 0.25rem 0 0;
-		font-size: 0.85rem;
-		color: var(--color-text-secondary, #888);
+		font-size: 13px;
+		color: var(--color-ui-dulled, #a3a39d);
 	}
 	.demo-body {
 		flex: 1;

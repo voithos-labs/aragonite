@@ -36,6 +36,7 @@ export function imageWidgetOnSelectedKey(
 		...(inline.height !== undefined
 			? { height: Math.round((newWidth / currentWidth) * inline.height) }
 			: {}),
+		...(inline.crop !== undefined ? { crop: inline.crop } : {}),
 		...(inline.label !== undefined ? { label: inline.label } : {})
 	};
 	const newBytes = buildImageEditBytes(inline, node.raw, newFields);

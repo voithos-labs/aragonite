@@ -113,6 +113,13 @@ interface HandWrittenArm {
 
 const HAND_WRITTEN_ARMS: readonly HandWrittenArm[] = [
 	{
+		path: 'src/lib/components/menu/default-context-actions.ts',
+		detection: 'kind-literal',
+		fate: 'outside',
+		reason:
+			'a label map, not an arm: it names block kinds only to name them in a menu row ("Remove code block"); no gesture reads it and no construct policy hangs on it'
+	},
+	{
 		path: 'src/lib/components/blocks/text/construct-edge-delete.ts',
 		detection: 'declared',
 		fate: 'outside',

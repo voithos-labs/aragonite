@@ -7,6 +7,7 @@ import type { ImageLoadPolicy } from '../../core/inline-render';
 import { isAllowedImageSrcScheme } from '../../core/url-policy';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import { devWarn } from '../../dev-warn';
+import { applyCropToWidget } from './image-crop';
 
 export interface BuildImageWidgetOpts {
 	resolveImageUrl: (rawUrl: string) => string;
@@ -75,9 +76,12 @@ export function buildImageWidget(
 	if (node.height !== undefined) img.setAttribute('height', String(node.height));
 	// A declared `|WxH` box belongs to the author, so it both reserves space before the bytes
 	// arrive and survives the decode: the attribute pair alone loses to the natural ratio the
-	// moment `height: auto` has one to read.
+	// moment `height: auto` has one to read. With a crop the box is a frame the image pans in.
 	if (node.width !== undefined && node.height !== undefined) {
 		img.style.aspectRatio = `${node.width} / ${node.height}`;
+		if (node.crop) {
+			applyCropToWidget(widget, img, { width: node.width, height: node.height }, node.crop);
+		}
 	}
 	const markBroken = (): void => {
 		opts.brokenUrlCache.add(resolvedUrl);

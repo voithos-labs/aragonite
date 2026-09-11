@@ -22,7 +22,8 @@ import { asDomTextOffset } from '../../cursor/coordinate-spaces';
 import {
 	setCursorOffset,
 	getCursorOffset,
-	getSelectionOffsets
+	getSelectionOffsets,
+	getRangeOffsets
 } from '../../cursor/content-offsets';
 import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
@@ -33,6 +34,12 @@ import {
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
+import {
+	CONTENT_EMPTY_ATTR,
+	chromeFreeText,
+	clampToLandableRaw,
+	holdsOnlyMarkerChrome
+} from '../../cursor/widget-offset';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import { resetForPointerDown } from '../../selection/cross-block/pointer';
 import { placeCaret } from '../../selection/caret-doors';
@@ -63,6 +70,7 @@ export interface EditableLeafDeps {
 	mode?: EditableLeafMode;
 	/** A kind whose bytes are one line: Enter splits the block rather than typing a newline. */
 	singleLine?: boolean;
+
 	/** render-primary only: the component owns the swap flag and both views. */
 	isRevealed?(): boolean;
 	setRevealed?(revealed: boolean): void;
@@ -72,6 +80,25 @@ export interface EditableLeafDeps {
 	 * platform treats it as `unknown`; the plugin casts it.
 	 */
 	commandHooks?: () => unknown;
+	/**
+	 * Paints the source as DOM instead of one text node — fence lines the mode CSS hides,
+	 * highlight tokens. Must keep `fragment.textContent === text` (G1.28); the offset walk sees
+	 * through spans, and hidden marker runs behave as they do in a code block.
+	 */
+	renderSource?(text: string): DocumentFragment;
+	/**
+	 * The surface's text after each edit the leaf applies itself (a painted source's typing,
+	 * deleting, Enter). A render-primary host keeping a live preview reads this: the CST sees
+	 * the edit only on blur, and a cancelled `beforeinput` fires no `input` event.
+	 */
+	onSourceEdit?(text: string): void;
+	/**
+	 * A source that is only its own chrome (a `$$$$` with no body line), completed to the shape
+	 * a caret can sit in, with where the caret goes. Applied as the source is revealed, so the
+	 * block the user just entered is one they can type into and delete; null leaves the bytes
+	 * alone. The edit is the reveal's own, committed on blur like any other.
+	 */
+	completeBareSource?(text: string): { text: string; caret: number } | null;
 }
 
 /**
@@ -87,6 +114,7 @@ export interface EditableLeafSurfaceProps {
 	role: 'textbox';
 	spellcheck: 'false';
 	oninput: () => void;
+	onbeforeinput: (e: InputEvent) => void;
 	onkeydown: (e: KeyboardEvent) => void | Promise<void>;
 	oncopy: (e: ClipboardEvent) => void;
 	oncut: (e: ClipboardEvent) => Promise<void>;
@@ -106,8 +134,10 @@ export interface EditableLeafSurfaceProps {
  * stand down while the source is up, so the spread may sit on a wrapper the fold keeps.
  */
 export interface EditableLeafRenderProps {
-	/** Reveal-on-click (shift-click extends a selection instead). */
+	/** Notes the press; the reveal is the CLICK's (shift-click extends a selection instead). */
 	onpointerdown: (e: PointerEvent) => void;
+	/** Reveal on a click that did not drag — a press that moved is a selection, not an entry. */
+	onclick: (e: MouseEvent) => void;
 	/** Chord dispatch at this block's kind: the global tier, then its own commands. */
 	onkeydown: (e: KeyboardEvent) => void;
 }
@@ -115,6 +145,12 @@ export interface EditableLeafRenderProps {
 export interface EditableLeaf {
 	/** The block's source minus its trailing line ending — the editable text. */
 	readonly sourceText: string;
+
+	/**
+	 * Re-run `renderSource` over the surface's CURRENT text with the caret kept, for a host
+	 * that repaints as the user types (highlighting goes stale otherwise). No-op without it.
+	 */
+	repaintSource(): void;
 
 	/** The one-spread source surface (attributes + handlers + view/park attachments). */
 	surfaceProps: EditableLeafSurfaceProps;
@@ -195,6 +231,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const wiring = wireSurfaceContexts();
 	const {
 		blockEdit,
+		focusActions,
 		stickyColumn,
 		edgeAffinity,
 		selection,
@@ -294,13 +331,30 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		showSource: () => {
 			traceRevealOpen('leaf');
 			revealedBase = sourceText();
+			sourceUndo = [];
+			sourceRedo = [];
 			deps.setRevealed?.(true);
 		},
 		showRendered: () => {
 			revealedBase = null;
+			sourceUndo = [];
+			sourceRedo = [];
 			deps.setRevealed?.(false);
 		}
 	});
+
+	// Every open goes through here rather than the kernel directly, so a chrome-only source is
+	// completed (see `EditableLeafDeps.completeBareSource`) whatever door revealed it.
+	async function revealSource(atSourceOffset = 0): Promise<void> {
+		await revealKernel.reveal(atSourceOffset);
+		const el = deps.getEl();
+		if (!el || !deps.completeBareSource || !isRevealed() || isReading()) return;
+		const completed = deps.completeBareSource(el.textContent ?? '');
+		if (!completed) return;
+		paintSource(el, completed.text);
+		deps.onSourceEdit?.(completed.text);
+		setCursorOffset(el, asDomTextOffset(completed.caret));
+	}
 
 	// ── Commit ─────────────────────────────────────────────────────────────────
 
@@ -319,12 +373,27 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		);
 	}
 
-	async function commitReveal(): Promise<void> {
+	// A blur that arrives with a cross-block range live is the release of a drag that began in
+	// this source and left it: the fold waits one frame, so the range's rects measured real text
+	// under the pointer, then folds unless focus came back — else the source stays open with
+	// nothing focused in it and no further blur to close it.
+	let foldFrame = 0;
+	function foldAfterRange(): void {
+		if (foldFrame) return;
+		foldFrame = requestAnimationFrame(() => {
+			foldFrame = 0;
+			const el = deps.getEl();
+			if (!isRevealed() || (el && el.contains(document.activeElement))) return;
+			void commitReveal(true);
+		});
+	}
+
+	async function commitReveal(force = false): Promise<void> {
 		if (mode !== 'render-primary' || !isRevealed()) return;
-		// A cross-block selection sweeping through keeps the source revealed so its rects
-		// measure real text, and focusout is this fold's only entry — so the leaf stays in
-		// source view until the user focuses it and leaves again.
-		if (selection.isCrossBlock) return;
+		if (selection.isCrossBlock && !force) {
+			foldAfterRange();
+			return;
+		}
 		// Only wired to onFocusOut — the block leaf folds on blur, never Escape-cancel.
 		traceRevealFold('blur');
 		const edited = deps.getEl()?.textContent ?? sourceText();
@@ -347,7 +416,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			// Reading mode: a rendered view has no source to reveal; focus is a no-op
 			// and block-level traversal passes over.
 			if (isReading()) return;
-			void revealKernel.reveal(offset);
+			void revealSource(offset);
 			return;
 		}
 		surface.parkCaret(offset);
@@ -363,7 +432,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 				if (isReading()) return;
 				// Through the kernel like every other open, so this entry gets the same trace pair,
 				// length assert and reveal base; it seats a caret at 0, which the column re-seats.
-				await revealKernel.reveal();
+				await revealSource();
 			}
 			if (!deps.getEl()) return;
 			surface.focusAtColumn(x, from);
@@ -378,6 +447,26 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── View sync ──────────────────────────────────────────────────────────────
 
+	// The one place source bytes become DOM. A painter's chrome-only case (a fence with no body
+	// line) takes the same stamp a code block does, so its markers paint while focused.
+	function paintSource(el: HTMLElement, text: string): void {
+		if (deps.renderSource) {
+			el.replaceChildren(deps.renderSource(text));
+			el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
+		} else {
+			el.textContent = text;
+		}
+		anchorTrailingNewline(el);
+	}
+
+	function repaintSource(): void {
+		const el = deps.getEl();
+		if (!el || !deps.renderSource || composing) return;
+		const offset = getCursorOffset(el);
+		paintSource(el, el.textContent ?? '');
+		if (offset !== null) setCursorOffset(el, asDomTextOffset(offset));
+	}
+
 	function syncSource(): void {
 		const text = sourceText();
 		const el = deps.getEl();
@@ -385,8 +474,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const pending = pendingCursor;
 		pendingCursor = null;
 		if ((el.textContent ?? '') !== text) {
-			el.textContent = text;
-			anchorTrailingNewline(el);
+			paintSource(el, text);
 			// Restore only under a live caret — an external rewrite (undo, structural
 			// replace) must not steal focus.
 			consumePendingRestore(el, pending, (offset) => setCursorOffset(el, asDomTextOffset(offset)));
@@ -395,13 +483,36 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── Event handlers ─────────────────────────────────────────────────────────
 
+	// The open reveal's own edit history (painted sources only): every splice pushes the text it
+	// replaced, and the undo chords pop it back. Cleared as the reveal opens and folds.
+	interface SourceEntry {
+		text: string;
+		caret: number;
+	}
+	let sourceUndo: SourceEntry[] = [];
+	let sourceRedo: SourceEntry[] = [];
+
+	function restoreSourceEntry(el: HTMLElement, from: SourceEntry[], to: SourceEntry[]): void {
+		const entry = from.pop();
+		if (!entry) return;
+		to.push({ text: el.textContent ?? '', caret: getCursorOffset(el) ?? 0 });
+		paintSource(el, entry.text);
+		setCursorOffset(el, asDomTextOffset(entry.caret));
+		deps.onSourceEdit?.(entry.text);
+	}
+
 	// Splice `insert` over the source text node's [start, end) and reseat the caret. A
 	// DOM-text mutation keeps the offset walk exact where a native Enter/cut/paste would
 	// inject <div>/<br> that vanish from textContent.
 	function spliceSourceText(el: HTMLElement, start: number, end: number, insert: string): void {
 		const text = el.textContent ?? '';
-		el.textContent = text.slice(0, start) + insert + text.slice(end);
-		anchorTrailingNewline(el);
+		if (deps.renderSource) {
+			sourceUndo.push({ text, caret: getCursorOffset(el) ?? start });
+			sourceRedo = [];
+		}
+		const next = text.slice(0, start) + insert + text.slice(end);
+		paintSource(el, next);
+		deps.onSourceEdit?.(next);
 		preEditOffset = start;
 		setCursorOffset(el, asDomTextOffset(start + insert.length));
 		if (mode === 'plain') editableSurface.onInput();
@@ -451,6 +562,49 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if (composing || !el) return;
 		preEditOffset = getCursorOffset(el) ?? 0;
 
+		// Undo INSIDE an open reveal steps back through this session's own edits: the document's
+		// history sees the session as one entry written on blur, so until then Mod+Z had nothing
+		// to undo. Once the local stack is spent the chord falls through to the document's.
+		if (deps.renderSource && isRevealed() && (e.ctrlKey || e.metaKey) && !e.altKey) {
+			const key = e.key.toUpperCase();
+			const undo = key === 'Z' && !e.shiftKey;
+			const redo = (key === 'Z' && e.shiftKey) || (key === 'Y' && !e.shiftKey);
+			if (undo && sourceUndo.length > 0) {
+				e.preventDefault();
+				restoreSourceEntry(el, sourceUndo, sourceRedo);
+				return;
+			}
+			if (redo && sourceRedo.length > 0) {
+				e.preventDefault();
+				restoreSourceEntry(el, sourceRedo, sourceUndo);
+				return;
+			}
+		}
+
+		// Backspace in a painted source that holds nothing but its own chrome deletes the block, as
+		// it does in a code block: an empty body has no byte the press could mean, and a seat that
+		// only steps out (or eats the one blank line) leaves a block the user just asked to be rid
+		// of. In every mode — the gate is the byte BEFORE the caret: whitespace, or nothing, so a
+		// press that sits right after a visible marker still edits that marker in source mode.
+		if (e.key === 'Backspace' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			const offset = deps.renderSource ? getCursorOffset(el) : null;
+			const text = el.textContent ?? '';
+			if (
+				offset !== null &&
+				(offset === 0 || /\s/.test(text[offset - 1] ?? '')) &&
+				!hasSelectionIn(el) &&
+				chromeFreeText(el).trim() === ''
+			) {
+				e.preventDefault();
+				revealedBase = null;
+				deps.setRevealed?.(false);
+				const index = deps.getIndex();
+				await blockEdit.deleteBlock(index);
+				void focusActions.moveFocus(index - 1, 'end');
+				return;
+			}
+		}
+
 		if ((await handleSharedKeydown(e, editableSurface.sharedCtx)) || editableSurface.isDetached())
 			return;
 
@@ -475,6 +629,48 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		}
 	}
 
+	/**
+	 * A painted source takes plain text edits here, not from the engine: Chromium treats a lone
+	 * `\n` text node as a placeholder and replaces it on insert (a fresh `$$` block lost the line
+	 * before its closer), and a native delete has no notion of hidden chrome. The edit range is
+	 * clamped to the landable span, so nothing reaches a fence line. Composition stays native.
+	 */
+	function onBeforeInput(e: InputEvent): void {
+		if (!deps.renderSource || composing || e.isComposing) return;
+		const el = deps.getEl();
+		if (!el) return;
+		let insert: string;
+		switch (e.inputType) {
+			case 'insertText':
+				insert = e.data ?? '';
+				break;
+			case 'insertLineBreak':
+			case 'insertParagraph':
+				insert = '\n';
+				break;
+			case 'deleteContentBackward':
+			case 'deleteContentForward':
+			case 'deleteWordBackward':
+			case 'deleteWordForward':
+				insert = '';
+				break;
+			default:
+				return;
+		}
+		const target = e.getTargetRanges()[0];
+		const range = target ? getRangeOffsets(el, target) : null;
+		if (!range) return;
+		e.preventDefault();
+		const start = clampToLandableRaw(el, range.start, 0);
+		const end = Math.max(start, clampToLandableRaw(el, range.end, 0));
+		spliceSourceText(el, start, end, insert);
+	}
+
+	function hasSelectionIn(el: HTMLElement): boolean {
+		const sel = window.getSelection();
+		return Boolean(sel && !sel.isCollapsed && el.contains(sel.anchorNode));
+	}
+
 	function onPointerDown(e: PointerEvent): void {
 		void crossBlock.handlePointerDown(e);
 	}
@@ -482,23 +678,31 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// The rendered view and the source are different strings, so only the kind can map a point
 	// to a source offset: `caretTargetAtPoint` is that one declaration, and a kind naming none
 	// reveals at the source start. The host, not the component root, is what the hook is bound to.
-	function revealOffsetAt(e: PointerEvent): number {
+	function revealOffsetAt(e: MouseEvent): number {
 		const host = getBlockElByPath(deps.getPath())?.closest('[data-block-path]');
 		if (!(host instanceof HTMLElement)) return 0;
 		const descriptor = tryGetBlockKindDescriptor(deps.getNode().kind);
 		return descriptor?.caretTargetAtPoint?.(host, e.clientX, e.clientY)?.offset ?? 0;
 	}
 
+	// The press only notes where it landed: revealing on the press swallowed every drag that
+	// began on a rendered equation. The editor's own drag runs from such a press (its root
+	// handler), and the CLICK — a release that did not move — is what reveals.
+	let renderPress: { x: number; y: number } | null = null;
 	function onRenderPointerDown(e: PointerEvent): void {
-		// Shift-click extends a selection; a plain click reveals. Reading mode: no reveal
-		// and no preventDefault, so native selection over the rendered view stays live.
-		if (e.shiftKey || isReading()) return;
-		e.preventDefault();
+		renderPress = e.shiftKey || isReading() ? null : { x: e.clientX, y: e.clientY };
+	}
+
+	function onRenderClick(e: MouseEvent): void {
+		const press = renderPress;
+		renderPress = null;
+		if (!press || e.shiftKey || isReading()) return;
+		if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
 		// The reveal lands a caret, so this owes the shared preamble. NOT through
 		// crossBlock.handlePointerDown: that hit-tests against the SOURCE text, which the
 		// rendered view is not.
-		resetForPointerDown(selection, stickyColumn, edgeAffinity, e.shiftKey);
-		void revealKernel.reveal(revealOffsetAt(e));
+		resetForPointerDown(selection, stickyColumn, edgeAffinity, false);
+		void revealSource(revealOffsetAt(e));
 	}
 
 	// The revealed source owns the press and has already spent the chord, so a spread the fold
@@ -506,6 +710,9 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	const renderProps: EditableLeafRenderProps = {
 		onpointerdown: (e) => {
 			if (!isRevealed()) onRenderPointerDown(e);
+		},
+		onclick: (e) => {
+			if (!isRevealed()) onRenderClick(e);
 		},
 		onkeydown: (e) => {
 			if (!isRevealed()) void dispatchChord(e);
@@ -519,6 +726,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		role: 'textbox' as const,
 		spellcheck: 'false' as const,
 		oninput: editableSurface.onInput,
+		onbeforeinput: onBeforeInput,
 		onkeydown: withKeydownVerdict(handleKeydown),
 		oncopy: clipboard.onCopy,
 		oncut: clipboard.onCut,
@@ -563,6 +771,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		get sourceText() {
 			return sourceText();
 		},
+		repaintSource,
 
 		surfaceProps,
 		renderProps,
@@ -594,7 +803,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 		reveal: (offset = 0) => {
 			if (mode !== 'render-primary') return Promise.resolve(surface.focus(offset));
-			return isReading() ? Promise.resolve() : revealKernel.reveal(offset);
+			return isReading() ? Promise.resolve() : revealSource(offset);
 		},
 		commitSource: (edited) => void commitSource(edited)
 	};

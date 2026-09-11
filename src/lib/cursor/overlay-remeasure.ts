@@ -45,5 +45,14 @@ export function wireOverlayRemeasure(opts: {
 		disposers.push(() => editorRoot.removeEventListener('scroll', measure));
 	}
 
+	// The block's own box changing under a live range — a paragraph set to a heading, a font
+	// load, a resize — moves the text the rects were measured against. Layout-driven, so it
+	// fires after the change has painted; absent (jsdom) the scroll paths above still hold.
+	if (typeof ResizeObserver === 'function') {
+		const observer = new ResizeObserver(() => measure());
+		observer.observe(el);
+		disposers.push(() => observer.disconnect());
+	}
+
 	return () => disposers.forEach((dispose) => dispose());
 }

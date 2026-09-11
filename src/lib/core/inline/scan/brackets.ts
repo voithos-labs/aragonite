@@ -139,6 +139,7 @@ function buildImage(
 		...(target.title !== undefined ? { title: target.title } : {}),
 		...(dims.width !== undefined ? { width: dims.width } : {}),
 		...(dims.height !== undefined ? { height: dims.height } : {}),
+		...(dims.crop !== undefined ? { crop: dims.crop } : {}),
 		...(target.label !== undefined ? { label: target.label } : {})
 	};
 }

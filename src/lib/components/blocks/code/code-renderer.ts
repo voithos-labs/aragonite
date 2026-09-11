@@ -266,6 +266,17 @@ export function renderCodeBlock(node: NodeView): DocumentFragment {
 
 	frag.appendChild(renderOpenerLine(slice, meta.fenceMarker, meta.fenceLength));
 	frag.appendChild(tokenizeBody(bodyText, slice.infoString));
+	// An empty last body line ends the body in `\n` with only the (hidden) closer after it.
+	// Chromium paints no caret after a trailing `\n` unless something follows, so it
+	// canonicalises the seat to BEFORE the newline and the next key lands one byte early —
+	// the second line of a code block was untypeable in live mode. A `br` anchors the line
+	// without touching textContent; source mode, where the closer line itself follows, hides
+	// it in CSS.
+	if (separatorNewline && bodyText.endsWith('\n')) {
+		const anchor = document.createElement('br');
+		anchor.dataset.caretAnchor = 'closer';
+		frag.appendChild(anchor);
+	}
 	frag.appendChild(renderCloserLine(slice, separatorNewline));
 
 	assertInvariant('rendered-text-fidelity', () =>

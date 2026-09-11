@@ -13,12 +13,13 @@ const PADDED = '```js  \nconst x = 1\n```\n';
 
 let mounted: MountedCode;
 
-/** Click the chip, returning the field it swapped itself for. */
+/** Click the chip, returning the picker's search field. The chip itself no longer swaps for
+ *  a field — it stays a fixed button and the field lives in the menu, so opening moves nothing. */
 function openField(): HTMLInputElement {
-	const button = mounted.target.querySelector('.code-lang-chip button') as HTMLButtonElement;
+	const button = mounted.target.querySelector('.code-lang-button') as HTMLButtonElement;
 	button.click();
 	flushSync();
-	return mounted.target.querySelector('.code-lang-chip input') as HTMLInputElement;
+	return mounted.target.querySelector('.code-lang-picker input') as HTMLInputElement;
 }
 
 function pressEnter(field: HTMLInputElement): void {
@@ -41,9 +42,13 @@ afterEach(async () => {
 });
 
 describe('CodeBlock — the language chip’s commit gate', () => {
-	it('writes nothing when Enter submits the info string the field opened with', () => {
+	// The field opens EMPTY and the highlight seats on the block's own language, so a bare
+	// Enter re-commits `js` — which the gate reads as unchanged and writes nothing, padding
+	// and all.
+	it('writes nothing when Enter submits the language the block already has', () => {
 		const field = openField();
-		expect(field.value).toBe('js');
+		expect(field.value).toBe('');
+		expect(mounted.target.querySelector('.code-lang-button')?.textContent).toContain('js');
 
 		pressEnter(field);
 

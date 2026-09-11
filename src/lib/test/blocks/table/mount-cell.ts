@@ -55,7 +55,8 @@ function makeStubTableContext(): StubTableContext {
 		moveColumnLeft: vi.fn(),
 		moveColumnRight: vi.fn(),
 		cycleAlignment: vi.fn(),
-		setColumnAlignment: vi.fn()
+		setColumnAlignment: vi.fn(),
+		pasteGrid: vi.fn()
 	};
 }
 

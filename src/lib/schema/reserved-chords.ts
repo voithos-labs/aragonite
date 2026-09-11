@@ -61,15 +61,21 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/blocks/editable-leaf.ts',
-		chords: [],
-		keys: ['Enter'],
-		note: 'Shift-click gate on the rendered surface — a pointer read.'
+		chords: ['Mod+Shift+Z', 'Mod+Y', 'Mod+Z'],
+		keys: ['Backspace', 'Enter', 'Y', 'Z'],
+		note: 'Shift-click gate on the rendered surface — a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does; the undo chords step an open reveal\'s own edits before falling through to the document\'s history.'
 	},
 	{
 		file: 'components/link-card/LinkCard.svelte',
 		chords: ['Shift+Tab', 'Mod+K'],
 		keys: ['Enter', 'K', 'Tab', 'k'],
 		note: "Backwards step of the open card's focus trap, plus the entry chord swallowed as a no-op where the focus already is — the kind keymaps claim it everywhere else. Escape lives on the host, which must also close a card the document still holds the caret for."
+	},
+	{
+		file: 'components/menu/BlockMenu.svelte',
+		chords: [],
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape'],
+		note: 'The open block menu steps and picks; the modifier read is the guard that leaves every chord to the editor.'
 	},
 	{
 		file: 'components/blocks/table/TableActionMenu.svelte',

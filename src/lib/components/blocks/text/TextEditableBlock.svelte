@@ -16,6 +16,7 @@
 	import type { IndexedDecoration } from '../../../decorations/buckets';
 	import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/types';
 	import { getContentRange, isProseKind } from '../../../core/inline';
+	import { headingLevel } from '../../../core/nodes';
 	import { devWarn } from '../../../dev-warn';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import type { LinkReferenceResolver } from '../../../core/inline/link-reference-resolver';
@@ -46,6 +47,11 @@
 	import { createEdgePolicyDispatch } from './edge-policy-dispatch';
 	import { hidesStructuralSuffix } from './hidden-suffix';
 	import { applyLiveRangeEdit, resolveSelectionEdit } from './live-selection-edit';
+	import {
+		resolveDelimiterAutoPair,
+		resolveEmptyPairBackspace,
+		stepsOverRevealedCloser
+	} from './delimiter-autopair';
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { assertInvariant } from '../../../assert';
@@ -80,6 +86,7 @@
 	import { createAmbientCursorIO } from '../../../ambient/ambient-cursor';
 	import { type CommandId } from '../../../schema/commands';
 	import { reorderRunCommand } from '../../../editor-actions/reorder-action';
+	import { planTypedCompletion } from '../../../editor-actions/enter-completion';
 	import {
 		perfEnabled,
 		recordBlockRender,
@@ -114,6 +121,12 @@
 
 	const ambientPrefixText = $derived(
 		typeof ambientPrefix === 'string' ? ambientPrefix : ambientPrefix.text
+	);
+	// The hanging indent is the prefix's painted width: its text width by default, or what a
+	// prefix painting itself as chrome (the task box) declares.
+	const ambientIndent = $derived(
+		(typeof ambientPrefix === 'string' ? undefined : ambientPrefix.indent) ??
+			`${ambientPrefixText.length}ch`
 	);
 
 	const wiring = wireSurfaceContexts();
@@ -497,7 +510,18 @@
 		const always = (perform: () => void) => ({ applies: () => true, perform });
 		switch (id) {
 			case 'block.split':
-				return always(() => blockEdit.splitBlock(index, offset));
+				return always(() => {
+					// Enter at the head of a heading's text moves the heading DOWN under a new empty
+					// line, rather than leaving an empty heading above and demoting the text: the
+					// marker belongs with its text, and an empty heading is nothing anyone asked for.
+					const content = getContentRange(node);
+					const atHead =
+						headingLevel(node) !== null &&
+						content.start > 0 &&
+						offset <= content.start &&
+						content.end > content.start;
+					return blockEdit.splitBlock(index, atHead ? 0 : offset);
+				});
 			case 'chrome.descendToBody':
 				return always(() => blockEdit.descendToBody(index));
 			case 'block.hardBreak':
@@ -672,9 +696,9 @@
 			// Only while this block still owns focus: a blur-commit also arms a pending
 			// offset, and restoring would yank the selection back into the blurred block.
 			// The clear runs regardless, so a skipped restore is dropped, never re-armed.
-			const applied = consumePendingRestore(el ?? null, pendingCursorOffset, (offset) =>
-				cursor.setRaw(asRawOffset(offset))
-			);
+			const applied = consumePendingRestore(el ?? null, pendingCursorOffset, (offset) => {
+				if (!widgetInteraction.revealInterior(offset)) cursor.setRaw(asRawOffset(offset));
+			});
 			tracePendingCursorConsume(pendingCursorOffset, applied);
 			pendingCursorOffset = null;
 		}
@@ -843,9 +867,55 @@
 		);
 	}
 
+	// A typed delimiter closes itself (delimiter-autopair.ts). The write and the caret take the
+	// ranged edit's road above, so the surface repaints once with the caret inside the pair.
+	function handleDelimiterAutoPair(e: InputEvent): boolean {
+		const typing = e.inputType === 'insertText';
+		if (!typing && e.inputType !== 'deleteContentBackward') return false;
+		if (e.isComposing || cursor.getRawSelection()) return false;
+		const caret = cursor.getRaw();
+		if (caret === null) return false;
+		if (widgetInteraction.isRevealing()) {
+			if (!typing || !stepsOverRevealedCloser(readRawText(), caret, e.data ?? '')) return false;
+			e.preventDefault();
+			cursor.setRaw(asRawOffset(caret + 1));
+			void widgetInteraction.foldRevealBeforeMutation()?.settled;
+			return true;
+		}
+		const text = getDisplayText();
+		const edit = typing
+			? resolveDelimiterAutoPair(text, getContentRange(node), caret, e.data ?? '')
+			: resolveEmptyPairBackspace(text, caret);
+		if (!edit) return false;
+		e.preventDefault();
+		if (edit.kind === 'step-over') {
+			if (edit.overConstruct && !paintsFocusedMarkers(presentationMode)) {
+				// An unpainted closer: the caret already sits on the right pixel and Chromium seats
+				// a native insert upstream of the run anyway, so only the side moves (edge-seat.ts).
+				edgeAffinity.noteExtreme();
+			} else if (planTypedCompletion(node, edit.caret)) {
+				// No byte changed, but the line is now one an on-type completer claims (`$$`), and
+				// only the content door consults them.
+				const raw = text + trailingLineEnding(node.raw);
+				void blockEdit.updateBlockContent(index, raw, caret, edit.caret);
+				setPendingCursorOffset(edit.caret, 'delimiter-autopair');
+			} else cursor.setRaw(asRawOffset(edit.caret));
+			return true;
+		}
+		void blockEdit.updateBlockContent(
+			index,
+			edit.text + trailingLineEnding(node.raw),
+			caret,
+			edit.caret
+		);
+		setPendingCursorOffset(edit.caret, 'delimiter-autopair');
+		return true;
+	}
+
 	async function onBeforeInput(e: InputEvent): Promise<void> {
 		if (await handleSharedBeforeInput(e, sharedCtx)) return;
 		if (handleLiveSelectionEdit(e)) return;
+		if (handleDelimiterAutoPair(e)) return;
 		// Soft-keyboard/IME insertLineBreak slipped past onKeyDown — swallow; Shift+Enter there owns hard breaks.
 		if (e.inputType === 'insertLineBreak') {
 			e.preventDefault();
@@ -874,6 +944,18 @@
 		// Persist a revealed source edit before the caret is gone.
 		widgetInteraction.commitRevealOnBlur();
 		lastSnapTargetOffset = null;
+		demoteEmptyHeadingOnBlur();
+	}
+
+	// An ATX heading left with no text is a marker standing over nothing: unfocused it paints
+	// nothing (the chrome-only stamp is focus-scoped), so the block would survive invisibly and
+	// resurface as a `#` on the next click. It becomes the empty paragraph it looks like.
+	function demoteEmptyHeadingOnBlur(): void {
+		if (readOnly || node.kind !== 'heading' || editableSurface.isDetached()) return;
+		const content = getContentRange(node);
+		if (content.start === 0 || content.end > content.start) return;
+		const demoted = demoteToParagraph(node.raw, content, 0);
+		if (demoted) void blockEdit.updateBlockContent(index, demoted.newRaw, 0);
 	}
 
 	function onClick(e: MouseEvent): void {
@@ -939,8 +1021,8 @@
 	contenteditable={readOnly ? 'false' : 'true'}
 	aria-readonly={readOnly ? 'true' : undefined}
 	role="textbox"
-	style:text-indent={ambientPrefixText ? `-${ambientLength}ch` : null}
-	style:padding-left={ambientPrefixText ? `${ambientLength}ch` : null}
+	style:text-indent={ambientPrefixText ? `-${ambientIndent}` : null}
+	style:padding-left={ambientPrefixText ? ambientIndent : null}
 	oninput={onInput}
 	onkeydown={onKeyDownTraced}
 	onbeforeinput={onBeforeInput}
@@ -992,7 +1074,7 @@
 	}
 
 	.text-editable-block.raw-block {
-		font-family: var(--font-editor, ui-monospace, monospace);
+		font-family: var(--font-code, ui-monospace, monospace);
 		font-size: 0.9em;
 		opacity: 0.85;
 	}
@@ -1004,7 +1086,7 @@
 	}
 
 	.text-editable-block :global(.inline-code-content) {
-		font-family: var(--font-editor, ui-monospace, monospace);
+		font-family: var(--font-code, ui-monospace, monospace);
 		font-size: 0.9em;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
 		border-radius: 3px;

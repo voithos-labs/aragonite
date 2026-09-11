@@ -15,6 +15,7 @@
 	import SelectionToolbar from './SelectionToolbar.svelte';
 	import { createPanelState } from './debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from './debug-panel/panel-feed.svelte';
+	import { demoPasteImage, resolveDemoImageUrl } from './demo-image-store';
 
 	// Live-changeable props — the toggles flip these in place, no remount.
 	const MODES: PresentationMode[] = [
@@ -24,8 +25,8 @@
 		'preview-inline',
 		'live'
 	];
-	let presentationMode = $state<PresentationMode>('source');
-	let theme = $state<'dark' | 'light'>('dark');
+	let presentationMode = $state<PresentationMode>('live');
+	let theme = $state<'dark' | 'light'>('light');
 
 	// The showcase installs no probe surface, so `trackParityDocument` is the only thing
 	// putting its container-dense document under the teardown parity net.
@@ -35,8 +36,9 @@
 	// blockDragHandles and the plugin set are both set-once at mount, so their toggles remount
 	// the editor via {#key}, carrying the live content across so a visitor's edits survive.
 	let source = $state(SHOWCASE_DOCUMENT);
-	let dragHandles = $state(false);
+	let dragHandles = $state(true);
 	let occurrences = $state(false);
+	let selectionMenu = $state(true);
 	const showcasePlugins = $derived(occurrences ? DEMO_PLUGINS : WITHOUT_OCCURRENCES);
 
 	function toggleDragHandles() {
@@ -92,6 +94,17 @@
 		<button
 			type="button"
 			class="showcase-toggle"
+			class:active={selectionMenu}
+			data-testid="selection-menu-toggle"
+			aria-pressed={selectionMenu}
+			title="Show the formatting menu over a selection"
+			onclick={() => (selectionMenu = !selectionMenu)}
+		>
+			selection menu
+		</button>
+		<button
+			type="button"
+			class="showcase-toggle"
 			class:active={occurrences}
 			data-testid="occurrences-toggle"
 			aria-pressed={occurrences}
@@ -139,11 +152,13 @@
 				{source}
 				plugins={showcasePlugins}
 				blockDragHandles={dragHandles}
+				onPasteImage={demoPasteImage}
+				resolveImageUrl={resolveDemoImageUrl}
 				{presentationMode}
 				{theme}
 			/>
 		{/key}
-		{#if presentationMode === 'live'}
+		{#if presentationMode === 'live' && selectionMenu}
 			<SelectionToolbar {editor} topInset={headerHeight} />
 		{/if}
 	</div>
@@ -157,8 +172,23 @@
 		display: flex;
 		flex-direction: column;
 		/* The wrapper carries the theme tokens, so the page chrome flips with the editor. */
-		background: var(--color-surface, #1b1c21);
-		color: var(--color-text-secondary, #d6d9e0);
+		background: var(--color-bg, #2c2c2a);
+		color: var(--color-text-secondary, #cfcfca);
+		/* The host app's two faces: a PROPORTIONAL surface, and code that stays monospace
+		   whatever the surface is. Set on the wrapper, which is where a consumer sets them. */
+		--font-editor: 'Inter', system-ui, sans-serif;
+		--font-code: 'JetBrains Mono', ui-monospace, monospace;
+		font-family: var(--font-ui, system-ui, sans-serif);
+	}
+
+	/* Soft Light: the page chrome flips with the editor, off the same stamp. */
+	.showcase[data-editor-theme='light'] {
+		--color-bg: #dfddd7;
+		--color-border: #c9c7c0;
+		--color-text-primary: #2a2a27;
+		--color-text-secondary: #4a4a45;
+		--color-ui-dulled: #71716a;
+		--color-ui-muted: #83837b;
 	}
 	.showcase-header {
 		flex: 0 0 auto;
@@ -167,8 +197,8 @@
 		align-items: baseline;
 		gap: 0.6rem;
 		padding: 0.75rem 1rem;
-		border-bottom: 1px solid var(--color-ui-muted, #a4a4a4);
-		font-family: var(--font-editor, ui-monospace, monospace);
+		border-bottom: 1px solid var(--color-border, #3e3e3b);
+		font-family: var(--font-ui, system-ui, sans-serif);
 	}
 	.showcase-title {
 		font-size: 1.1rem;
@@ -183,8 +213,8 @@
 		display: inline-flex;
 		gap: 2px;
 		padding: 2px;
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 6px;
+		border: 1px solid var(--color-border, #3e3e3b);
+		border-radius: 8px;
 	}
 	.showcase-mode,
 	.showcase-toggle {
@@ -201,8 +231,8 @@
 	}
 	.showcase-mode.active,
 	.showcase-toggle.active {
-		color: var(--color-text-primary, #fff);
-		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.18));
+		color: var(--color-text-primary, #e8e8e5);
+		background: var(--color-ui-faint, rgba(255, 255, 255, 0.07));
 	}
 	.showcase-toggle:disabled {
 		opacity: 0.4;
@@ -216,12 +246,21 @@
 		font-size: 0.85rem;
 		color: var(--color-accent, #567b67);
 	}
+	/* A reading column, not the whole window — but the SCROLLER is the whole window's width, so
+	   the scrollbar sits at the screen's edge and the margins are the editor's own dead space
+	   (a drag can start there). The column is the root's padding, centred at 1000px. */
 	.showcase-editor {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
+		width: 100%;
 		min-width: 0;
 		min-height: 0;
+	}
+	.showcase-editor :global(.editor) {
+		box-sizing: border-box;
+		padding-left: max(1rem, calc((100% - 1000px) / 2));
+		padding-right: max(1rem, calc((100% - 1000px) / 2));
 	}
 	/* The library paints the overlay's geometry and leaves its color to the host page. */
 	.showcase-editor :global(.decoration-overlay.hl-occurrence) {

@@ -235,7 +235,8 @@ test.describe('latex acceptance axes', () => {
 
 		const errorNode = editor.inlineWidget.locator('.math-error');
 		await expect(errorNode).toHaveCount(1);
-		expect((await errorNode.textContent())?.toLowerCase()).toContain('error');
+		// The source itself, painted as an error; the parser's message rides the hover title.
+		expect((await errorNode.getAttribute('title'))?.toLowerCase()).toContain('error');
 		await expect(editor.page.locator('.katex-error')).toHaveCount(0);
 	});
 });

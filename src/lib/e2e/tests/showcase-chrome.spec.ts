@@ -38,12 +38,12 @@ test.describe('/ showcase chrome', () => {
 		await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
 	});
 
-	test('drag-handles toggle adds the grips and carries the edit across the remount', async ({
+	test('drag-handles toggle drops the grips and carries the edit across the remount', async ({
 		page
 	}) => {
 		const handles = page.locator('.block-drag-handle');
-		// Handles are opt-in, so the showcase opens gutter-free like any default embed.
-		await expect(handles).toHaveCount(0);
+		// Handles are on by default, so the showcase opens with them like any default embed.
+		await expect.poll(() => handles.count()).toBeGreaterThan(0);
 
 		// The prop is set-once, so the toggle remounts the editor — an edit made first is
 		// the only thing that can show whether the route carried the live source across.
@@ -54,11 +54,16 @@ test.describe('/ showcase chrome', () => {
 		await expect(intro).toContainText('ZZMARKER');
 
 		await page.getByTestId('drag-handles-toggle').click();
-		await expect.poll(() => handles.count()).toBeGreaterThan(0);
+		// Not zero: a picture's grip does not answer to the toggle.
+		await expect
+			.poll(() =>
+				page.locator('.block-host:not([data-block-kind="paragraph"]) .block-drag-handle').count()
+			)
+			.toBe(0);
 		await expect(page.locator('.editor')).toContainText('ZZMARKER');
 
 		await page.getByTestId('drag-handles-toggle').click();
-		await expect(handles).toHaveCount(0);
+		await expect.poll(() => handles.count()).toBeGreaterThan(0);
 	});
 
 	test('reading mode disables the drag-handles toggle', async ({ page }) => {

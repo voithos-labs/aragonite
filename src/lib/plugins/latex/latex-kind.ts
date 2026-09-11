@@ -61,6 +61,9 @@ function recognizeMath(
 	if (afterOpen >= end) return null;
 	const opener = raw[afterOpen];
 	if (isWhitespace(opener) || isDigit(opener)) return null;
+	// `$$` is the display fence, or the empty pair a keystroke just closed: never an inline
+	// opener, or its closer search would jump to the far end of the next formula on the line.
+	if (opener === '$') return null;
 
 	// The index spans the whole block, so `end` decides the claim: a closer past the
 	// scan range leaves the `$` literal.
@@ -76,11 +79,19 @@ export function registerMathInline(): void {
 	// the inline registries also clears this guard.
 	if (isInlineKindDeclared(MATH_INLINE)) return;
 	const kind = declarePluginInlineKind(MATH_INLINE);
-	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind));
+	registerInlineSyntax('$', (raw, pos, end) => recognizeMath(raw, pos, end, kind), {
+		autoPair: true
+	});
 	registerInlineWidgetKind(kind, {
 		isWidget: () => true,
 		component: MathInline,
-		editing: { revealSource: true }
+		editing: {
+			revealSource: true,
+			// `$…$`: one delimiter each side, so a revealing click seats the caret on the last
+			// character of the formula rather than past its closing `$`.
+			revealContentSpan: (source) =>
+				source.length >= 2 ? { start: 1, end: source.length - 1 } : null
+		}
 	});
 }
 
@@ -130,6 +141,10 @@ export function registerMathBlock(): void {
 		// edge can grow a sibling.
 		gapEdges: 'both',
 		conformanceFixture: '$$\nx^2\n$$\n',
+		// A click on the rendered equation seats the caret at the END of the source, as a click on
+		// inline math does; the leaf clamps it inside the fence. (Past the end is fine: the reveal
+		// clamps to the source length first.)
+		caretTargetAtPoint: () => ({ path: [], offset: Number.MAX_SAFE_INTEGER }),
 		closure: simpleLeafClosure({
 			focus: {
 				mode: 'implemented',

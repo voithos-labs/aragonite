@@ -12,6 +12,15 @@
 - Click without shift while cross-block active: collapses selection
 - Click collapse restores native caret in the clicked block: typing inserts at click point
 
+- A block with no positions inside it (a rendered equation, a diagram, a rule) joins a drag's
+  range as a unit once the pointer has crossed its centre line coming from the anchor's side.
+  A sweep that only touched its edge has not asked for it, and the last focus stands until the
+  pointer commits; the rule is symmetric for drags coming down onto it and up onto it.
+- A drag that STARTS on such a block (on the equation or beside it in its box) selects that block
+  alone as soon as the pointer moves, painted as a whole unit; leaving the block grows the range
+  from it, and coming back takes it whole again. Focus parks on the editor root when the drag
+  ends, so copy yields the block's source and Backspace removes it.
+
 ## User interactions
 
 - Drag across a blockquote boundary: cross-container selection works

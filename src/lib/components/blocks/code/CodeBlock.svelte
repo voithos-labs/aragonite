@@ -5,6 +5,7 @@
 	import {
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
+		type CodeRunRequest,
 		type EditorPolicies,
 		type EditorServices
 	} from '../../../editor-keys';
@@ -26,7 +27,7 @@
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
-	import { renderCodeBlock } from './code-renderer';
+	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
 	import {
 		getLineLeadingWhitespace,
 		isBetweenEmptyPair,
@@ -41,7 +42,7 @@
 		writeFenceInfo
 	} from '../../../schema/fenced-code-raw';
 	import { hidesMarkers } from '../../../presentation-mode';
-	import CodeLanguageChip from './CodeLanguageChip.svelte';
+	import CodeBlockRail from './CodeBlockRail.svelte';
 	import { computeFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
@@ -81,15 +82,16 @@
 		events: editorEvents
 	} = wiring.deps;
 	const { reorder } = getContext<EditorServices>(EDITOR_SERVICES_KEY);
-	const { presentationMode: getPresentationMode, onPasteImage } =
-		getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
+	const {
+		presentationMode: getPresentationMode,
+		onPasteImage,
+		onRunCode,
+		codeMenuItems
+	} = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const presentationMode = $derived(getPresentationMode?.() ?? 'source');
 	const readOnly = $derived(presentationMode === 'reading');
 	let el: HTMLDivElement | undefined = $state();
 	let composing = $state(false);
-	// The walk container's own stamp, kept as state rather than re-derived: it is what
-	// decides whether this block paints its fence chrome, and so whether it needs a chip.
-	let contentEmpty = $state(false);
 	let pendingCursorOffset = $state<number | null>(null);
 	let pendingSelection = $state<{ start: number; end: number } | null>(null);
 	let lastRenderedRaw = '';
@@ -193,9 +195,10 @@
 
 		el.replaceChildren(renderCodeBlock(node));
 		anchorTrailingNewline(el);
-		const chromeOnly = holdsOnlyMarkerChrome(el);
-		el.toggleAttribute(CONTENT_EMPTY_ATTR, chromeOnly);
-		contentEmpty = chromeOnly;
+		// The walk container's own stamp, and the only surviving consumer of the emptiness
+		// read: both the marker-hiding CSS and the caret walk key off this attribute. The
+		// rail no longer gates on it — a content-empty fence gets one either way.
+		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		lastRenderedRaw = node.raw;
 
 		// Restore only while this block still holds focus: an edit reparsing to multiple
@@ -225,12 +228,94 @@
 
 	useParkFocusOnUnmount(() => el ?? null, getEditorRoot);
 
-	// ── The language chip ─────────────────────────────────────────────────────
+	// ── The rail ──────────────────────────────────────────────────────────────
 
-	// The chip stands in for fence chrome the mode paints nothing for, so it shows exactly
-	// where that chrome is missing: never in source, never on a block painting its own.
-	const showChip = $derived(hidesMarkers(presentationMode) && !contentEmpty);
+	// The rail stands in for fence chrome the mode paints nothing for: never in source, which
+	// paints its own always. A content-empty block DOES paint dimmed markers of its own and
+	// still gets the rail — the picker is the authoring path now, and a fence with no language
+	// is exactly where it is wanted. The two overlapping is the same accepted redundancy as a
+	// focused preview block showing fence and rail together.
+	const showRail = $derived(hidesMarkers(presentationMode));
 	const infoString = $derived(metadataOf(node, 'fencedCode').info);
+
+	/** The fence body alone, which is what a host executes or a copy writes — never the
+	 *  opener and closer lines, which are this block's syntax rather than its content. */
+	function bodyText(): string {
+		return sliceFencedCode(node).body;
+	}
+
+	function runRequest(): CodeRunRequest {
+		return { code: bodyText(), info: infoString, path: myPath };
+	}
+
+	/**
+	 * A fence with no language and no body, the moment it takes focus. Gated on FIRST focus
+	 * per mount, not on the creating edit: a block made by an insert command mounts AFTER the
+	 * commit that made it and never hears that edit, so the caret arriving is the only signal
+	 * every creation path shares. Loading a document focuses nothing and opens no pickers.
+	 */
+	let autoOpenLanguage = $state(false);
+	let languageOffered = false;
+	function onSurfaceFocus(): void {
+		if (languageOffered || readOnly || !showRail) return;
+		languageOffered = true;
+		const offerLanguage = infoString === '' && bodyText().trim() === '';
+		// Deferred past the commit's OWN focus work. Creating a fence focuses this surface
+		// twice — once as it mounts, once when the commit seats its caret — and opening on the
+		// first would put the field up only for the second to blur it straight back down. A
+		// fence that is still bare is completed first (language or not), so the picker opens
+		// over a real block.
+		void tick().then(() => {
+			const completed = completeBareFence();
+			if (!offerLanguage) return;
+			if (completed) {
+				void tick().then(() => {
+					autoOpenLanguage = true;
+				});
+			} else {
+				autoOpenLanguage = true;
+			}
+		});
+	}
+
+	/**
+	 * A fence with no body line — a just-typed opener, or an opener glued to its closer — is a
+	 * block whose only bytes are its own chrome: nowhere for a caret, so the markers must paint.
+	 * Writes opener, one empty body line, closer, with the caret on that line. Block math gets
+	 * this from the Enter-completion seam, which a fence cannot use: ``` parses as an (unclosed)
+	 * fence the moment it is typed, so no paragraph is left for that seam to claim.
+	 */
+	function completeBareFence(): boolean {
+		if (!el) return false;
+		const meta = metadataOf(node, 'fencedCode');
+		const slice = sliceFencedCode(node);
+		const text = getDisplayText();
+		const ending = trailingLineEnding(node.raw);
+		const offset = backend.getRaw() ?? 0;
+		if (!meta.closed) {
+			if (slice.body.trim() !== '') return false;
+			const closer = meta.fenceMarker.repeat(meta.fenceLength);
+			const completed = text + ending + ending + closer;
+			pendingCursorOffset = commitDisplay(completed, offset, text.length + ending.length);
+			return true;
+		}
+		if (slice.body !== '') return false;
+		const openerLength = slice.openerLine.length;
+		const completed = text.slice(0, openerLength) + ending + text.slice(openerLength);
+		pendingCursorOffset = commitDisplay(completed, offset, openerLength);
+		return true;
+	}
+
+	async function copyBody(): Promise<boolean> {
+		try {
+			await navigator.clipboard.writeText(bodyText());
+			return true;
+		} catch {
+			// A denied or absent clipboard is the host's business, not an editor error: the
+			// affordance simply reports nothing copied.
+			return false;
+		}
+	}
 
 	// The chip's write: the opener's info span, through the display funnel so the fence rule
 	// runs over it, isolated so no typing burst on either side joins its undo entry.
@@ -250,10 +335,26 @@
 		returnCaretToBody();
 	}
 
-	// This block's own door, not `moveFocus`: the chip is chrome over one block, and a
-	// traversal to it stops at the gap above instead. The seat waits for the commit's render.
+	/**
+	 * This block's own door, not `moveFocus`: the rail is chrome over one block. Offset 0 is
+	 * NOT the body — on an UNCLOSED fence the opener run counts as content by design (that is
+	 * what lets a just-typed ` ``` ` be deleted back out), so `focus(0)` parks the caret BEFORE
+	 * the backticks and the next keystroke rewrites the opener. `clampRangeToBody` clamps
+	 * unconditionally, which is the "wherever the body starts" this needs.
+	 */
 	function returnCaretToBody(): void {
-		void tick().then(() => focus(0));
+		// Focus first and SEAT through the pending-caret channel the render effect drains. A
+		// bare `focus()` after a tick raced the commit's own re-render, which replaces every
+		// child of the walk container and dropped the seat on the floor.
+		el?.focus({ preventScroll: true });
+		void tick().then(() => {
+			// Read the body AFTER the commit lands. Writing a language lengthens the opener, so
+			// an offset measured against the pre-commit node points into the info string that
+			// just grew — the caret arrived inside `js` and typing split it.
+			const at = clampRangeToBody(node, { start: 0, end: 0 }).start;
+			pendingCursorOffset = at;
+			focus(at);
+		});
 	}
 
 	// ── Event handlers ────────────────────────────────────────────────────────
@@ -345,7 +446,8 @@
 	function guardFenceRangedEdit(e: InputEvent): boolean {
 		if (composing || !el) return false;
 		const range = pendingEditRange(e, el);
-		if (!range || !crossesFenceBoundary(node, range)) return false;
+		if (!range) return false;
+		if (!crossesFenceBoundary(node, range)) return guardHiddenFenceDelete(e, range);
 
 		e.preventDefault();
 		const insert = rangedEditInsertion(e, fenceEditSpan(node, range));
@@ -355,6 +457,27 @@
 		// Mobile/IME beforeinput arrives without a preceding keydown, so the undo
 		// anchor reads fresh rather than trusting preEditOffset (see the soft-break arm).
 		pendingCursorOffset = commitDisplay(edit.newText, backend.getRaw() ?? 0, edit.newCursor);
+		return true;
+	}
+
+	/**
+	 * A delete while the fence lines hide is applied here, whatever range the engine reports:
+	 * Chromium, deleting the last visible character of a line, also removes the unrendered nodes
+	 * beside it — the opener's whole fence line — so a Backspace on the last body character
+	 * left `\n\`\`\`` and reparsed the block into a fresh fence. The span is clamped to the body.
+	 */
+	function guardHiddenFenceDelete(e: InputEvent, range: CodeRange): boolean {
+		if (!showRail || !/^delete(?!By)/.test(e.inputType)) return false;
+		e.preventDefault();
+		const span = clampRangeToBody(node, range);
+		if (span.end > span.start) {
+			const text = getDisplayText();
+			pendingCursorOffset = commitDisplay(
+				text.slice(0, span.start) + text.slice(span.end),
+				backend.getRaw() ?? 0,
+				span.start
+			);
+		}
 		return true;
 	}
 
@@ -446,6 +569,15 @@
 			offset === 0 ||
 			classifyFenceBoundary({ node, offset, forward: false }).kind === 'exitPrev'
 		) {
+			// At the top of an EMPTY fence the block is the only thing the press could mean:
+			// there is no text to delete and nothing to merge, and stepping the caret out
+			// leaves a block the user just asked to be rid of. A fence with a body keeps the
+			// step-out — one press must never take code with it.
+			if (bodyText().trim() === '') {
+				void blockEdit.deleteBlock(index);
+				focusActions.moveFocus(index - 1, 'end');
+				return true;
+			}
 			focusActions.moveFocus(index - 1, 'end');
 			return true;
 		}
@@ -483,6 +615,18 @@
 		const offset = backend.getRaw() ?? 0;
 		const text = getDisplayText();
 		const meta = metadataOf(node, 'fencedCode');
+
+		// Source mode paints the markers and never completes a bare fence on focus, so Enter is
+		// where it happens there; the marker-hiding rungs already did it as the caret arrived.
+		if (completeBareFence()) {
+			if (infoString === '' && !readOnly && !languageOffered) {
+				languageOffered = true;
+				void tick().then(() => {
+					autoOpenLanguage = true;
+				});
+			}
+			return true;
+		}
 
 		const exit = computeFenceExit({ text, offset, meta });
 		if (exit.kind === 'closeAndExit') {
@@ -674,6 +818,7 @@
 	role="textbox"
 	spellcheck="false"
 	oninput={onInput}
+	onfocus={onSurfaceFocus}
 	onkeydown={onKeyDownTraced}
 	onbeforeinput={onBeforeInput}
 	oncopy={onCopy}
@@ -685,26 +830,32 @@
 ></div>
 <!-- Beside the walk container, never inside it: the render effect replaces that element's
 	children on every commit, and the offset walk counts everything that survives there. -->
-{#if showChip}
-	<CodeLanguageChip
+{#if showRail}
+	<CodeBlockRail
 		info={infoString}
 		editable={!readOnly}
+		autoOpen={autoOpenLanguage}
 		onCommit={commitLanguage}
 		onCancel={(returnCaret) => returnCaret && returnCaretToBody()}
+		onRun={onRunCode ? () => onRunCode(runRequest()) : undefined}
+		onCopy={copyBody}
+		menuItems={codeMenuItems ? () => codeMenuItems(runRequest()) : undefined}
 	/>
 {/if}
 
 <style>
+	/* A recessed slab rather than an outlined field: the fill carries the block and the
+	   border only closes its edge, so a page of prose reads code as a surface it sits on. */
 	.code-block {
 		width: 100%;
 		outline: none;
-		padding: 12px;
-		font-family: var(--font-editor, ui-monospace, monospace);
+		padding: 14px 16px;
+		font-family: var(--font-code, ui-monospace, monospace);
 		font-size: 0.9em;
-		line-height: 1.5;
+		line-height: 1.55;
 		background: var(--color-bg-secondary, rgba(128, 128, 128, 0.12));
-		border: 1px solid var(--color-ui-muted, #a4a4a4);
-		border-radius: 4px;
+		border: 1px solid transparent;
+		border-radius: var(--radius-surface, 8px);
 		color: inherit;
 		white-space: pre;
 		overflow-x: auto;
@@ -712,10 +863,22 @@
 		tab-size: 4;
 		box-sizing: border-box;
 		min-height: 1.4em;
+		transition: border-color 120ms ease-out;
 	}
 
-	.code-block:focus {
-		border-color: var(--color-accent, #567b67);
+	/* The caret is the primary focus signal inside the box; the border only warms, so a
+	   click into code does not flash a heavy ring across the page. */
+	/* Focus lives in the rail's search field while the picker is open — outside this element —
+	   so the block would otherwise drop its focused look mid-interaction. */
+	.code-block:focus,
+	.code-block:has(~ :global(.code-rail-open)) {
+		border-color: var(--color-border, #3d4047);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.code-block {
+			transition: none;
+		}
 	}
 
 	.code-block :global(.md-marker) {

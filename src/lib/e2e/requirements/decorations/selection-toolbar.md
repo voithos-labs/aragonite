@@ -17,9 +17,9 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 
 ## Happy paths
 
-- selecting text inside one paragraph shows the toolbar above the selection's
-  first rect
-- a cross-block selection shows the toolbar anchored above the selection's
+- selecting text inside one paragraph opens the toolbar like a menu: below the
+  selection's last rect and to the right of where it ends, never over the text
+- a cross-block selection anchors the toolbar the same way off the selection's
   start-block rects (the `rangeRects` public door)
 
 ## Happy paths (state paint)
@@ -57,14 +57,11 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
 
 ## Edge cases
 
-- a host passes `topInset` for its own fixed chrome, and a bar that cannot
-  clear it flips below the selection (pinned on the showcase mount, in
-  `showcase-chrome.md`, where the header makes the collision reachable; the
-  harness passes no inset and extending a selection re-scrolls its line back
-  into view, so the flip has no stable repro here)
-- scroll is v1 non-glue: the bar re-anchors on the next selection change, not
-  on scroll (documented, untested — asserting a stale position would pin the
-  gap, not the contract)
+- a bar with no room below the selection flips above its first rect, and one
+  at the right edge of the viewport is pushed left; `topInset` (the host's own
+  fixed chrome) floors the flip
+- the bar re-anchors on scroll and resize as well as on selection change, so it
+  stays with the text it acts on
 
 ## Miss-analysis
 

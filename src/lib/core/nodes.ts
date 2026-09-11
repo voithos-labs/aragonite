@@ -414,6 +414,8 @@ export interface InlineNode {
 	decoded?: string;
 	width?: number;
 	height?: number;
+	/** Pan/zoom inside the `|WxH` frame, read from a `@X,Y[,Z]` tail on the hint. */
+	crop?: ImageCrop;
 	/** Discriminator for `unresolvedReference` nodes: which form they would have been. */
 	refKind?: 'link' | 'image';
 	/**
@@ -427,12 +429,25 @@ export interface InlineNode {
  * Optional keys are omitted rather than set to `undefined`, so a serializer can tell "no title"
  * from "empty title" and reproduce a node that never carried one.
  */
+/**
+ * How an image sits inside its `|WxH` frame: the image point (`x`%, `y`%) pinned to the same
+ * point of the frame, at `z` times the smallest scale that fills it. `{50, 50, 1}` is a plain
+ * centred cover fit; absent, the frame stretches the image the way `<img width height>` does.
+ */
+export interface ImageCrop {
+	x: number;
+	y: number;
+	z: number;
+}
+
 export interface ImageFields {
 	alt: string;
 	url: string;
 	title?: string;
 	width?: number;
 	height?: number;
+	/** Needs both dimensions: a crop is a window into a fixed frame. */
+	crop?: ImageCrop;
 	/**
 	 * Reference-style images only (`![alt][label]`). When set, the serializer emits the reference
 	 * form and writes no url/title: those live in the LRD, and inlining them would orphan it.

@@ -26,7 +26,8 @@
 - Every chord above is a `tableCell` keymap binding, resolved through the same override-aware
   dispatcher as every other kind's, so the consumer `keybindings` prop can disable or rebind it
   (scoped to `tableCell` — the cell holds the caret, not the table). Cell arrow navigation and the
-  three-stage Ctrl+A stay off the keymap: both read where the caret sits inside the cell.
+  two-stage Ctrl+A (the cell's text, then the document — no table stage, matching every other
+  block and the standard editors) stay off the keymap: both read where the caret sits inside the cell.
 
 ## User interactions
 

@@ -7,6 +7,7 @@
 import type { CellPosition, ContainerEditActions, TableContext } from '../action-contracts';
 import type { OpDescriptor } from '../schema/operations';
 import type { CstNode } from '../core/nodes';
+import type { GrammarView } from '../schema/block-openers';
 import type { NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import { extendDocPath, docPathFrom } from '../cursor/coordinate-spaces';
@@ -26,8 +27,9 @@ import {
 	movedColumnToPosition,
 	movedRowToPosition
 } from '../a11y-strings';
-import { ensureUnsharedChildren } from '../tree-operations/unshare';
+import { ensureUnsharedChildren, ensureUnsharedSubtree } from '../tree-operations/unshare';
 import { rebuildTableRowRaw, rebuildTableRaw } from '../schema/container-rebuilders';
+import { writeOwnRaw } from '../tree-operations/node-ops';
 import { reorderChildren } from '../tree-operations/reorder';
 import {
 	insertEmptyRow,
@@ -79,6 +81,8 @@ export interface TableMutationsContextDeps {
 	controller: UndoController;
 	focusCell: (rowIdx: number, colIdx: number, position: CellPosition) => void;
 	announceReorder: (message: string) => void;
+	/** The instance grammar the cell byte-write door threads (absent: the global one). */
+	grammar?: GrammarView;
 }
 
 export type TableMutationsContext = Pick<
@@ -97,6 +101,7 @@ export type TableMutationsContext = Pick<
 	| 'moveColumnRight'
 	| 'cycleAlignment'
 	| 'setColumnAlignment'
+	| 'pasteGrid'
 >;
 
 export function createTableMutationsContext(
@@ -183,6 +188,64 @@ export function createTableMutationsContext(
 		});
 	}
 
+	// Grown at the bottom and the right only, so each scope's change is one contiguous insert:
+	// rows for the table, cells for every mounted row. Cell texts go through the cell kind's own
+	// raw rule in place, and the table raw is rebuilt once, delimiter line included.
+	async function pasteGrid(
+		origin: { rowIdx: number; colIdx: number },
+		grid: string[][]
+	): Promise<void> {
+		const { myPath, controller, focusCell } = deps;
+		const rows = grid.length;
+		let cols = 0;
+		for (const line of grid) cols = Math.max(cols, line.length);
+		if (rows === 0 || cols === 0) return;
+		const { scopes, rowIndices } = mountedColumnScopes();
+		await controller.commitMultiScope({
+			scopes,
+			snapshot: { path: docPathFrom(myPath), offset: 0 },
+			mutate: ([tableScope, ...rowScopes]) => {
+				// Subtree, not children: the cell writes below land at depth two, and a row's
+				// cells stay shared with the undo snapshot when only the rows are unshared —
+				// the write would go through it and undo would restore the pasted bytes.
+				ensureUnsharedSubtree(tableScope.node, tableScope.sharing);
+				assertInvariant('column-scope-alignment', () =>
+					rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])
+						? null
+						: {
+								code: 'column-scope-alignment',
+								message: 'pasteGrid: row scopes misaligned with owned table children'
+							}
+				);
+				const table = tableScope.node;
+				const oldRows = table.children?.length ?? 0;
+				const oldCols = metadataOf(table, 'table').columnCount;
+				const needRows = origin.rowIdx + rows;
+				const needCols = origin.colIdx + cols;
+				for (let r = oldRows; r < needRows; r++) insertEmptyRow(table, r - 1, 'below');
+				for (let c = oldCols; c < needCols; c++) insertEmptyColumn(table, c - 1, 'right');
+				grid.forEach((line, r) => {
+					const cells = table.children![origin.rowIdx + r].children!;
+					line.forEach((text, c) => writeOwnRaw(cells[origin.colIdx + c], text, deps.grammar));
+				});
+				rebuildTableRaw(table);
+				const addedRows = needRows - oldRows;
+				const addedCols = needCols - oldCols;
+				const tableChange: StructuralChange =
+					addedRows > 0 ? { op: 'insert', at: oldRows, count: addedRows } : { op: 'noop' };
+				const rowChange: StructuralChange =
+					addedCols > 0 ? { op: 'insert', at: oldCols, count: addedCols } : { op: 'noop' };
+				return [tableChange, ...rowScopes.map(() => rowChange)];
+			},
+			op: {
+				kind: 'tablePasteGrid',
+				detail: { rowIdx: origin.rowIdx, colIdx: origin.colIdx, rows, cols },
+				eventPath: docPathFrom(myPath)
+			},
+			afterTick: () => focusCell(origin.rowIdx + rows - 1, origin.colIdx + cols - 1, 'end')
+		});
+	}
+
 	async function insertColumn(colIdx: number, side: 'left' | 'right'): Promise<void> {
 		const { focusCell, focusedCell } = deps;
 		const insertAt = side === 'left' ? colIdx : colIdx + 1;
@@ -264,6 +327,7 @@ export function createTableMutationsContext(
 	return {
 		insertRowAbove: (rowIdx) => insertRow(rowIdx, 'above'),
 		insertRowBelow: (rowIdx) => insertRow(rowIdx, 'below'),
+		pasteGrid,
 		insertColumnLeft: (colIdx) => insertColumn(colIdx, 'left'),
 		insertColumnRight: (colIdx) => insertColumn(colIdx, 'right'),
 		reorderRowTo,

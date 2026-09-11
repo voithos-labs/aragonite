@@ -64,10 +64,25 @@
 		return getWidgetEl()?.querySelector('img') ?? null;
 	}
 
+	/**
+	 * What the drag measures and previews on. A cropped image is a FRAME (the widget) with the
+	 * picture panned inside it, so the `<img>` is neither the size being changed nor the box the
+	 * user is dragging: previewing on it bulges the picture out of its frame, and at a zoom above
+	 * 1 the drag would start from the painted image's width and jump.
+	 */
+	function isCropped(): boolean {
+		return getWidgetEl()?.classList.contains('md-image-cropped') ?? false;
+	}
+
+	function previewEl(): HTMLElement | null {
+		return isCropped() ? getWidgetEl() : imgEl();
+	}
+
 	function startDrag(e: PointerEvent) {
 		const img = imgEl();
-		if (!img) return;
-		const { width: startWidth, height: startHeight } = img.getBoundingClientRect();
+		const preview = previewEl();
+		if (!img || !preview) return;
+		const { width: startWidth, height: startHeight } = preview.getBoundingClientRect();
 		// Unmeasurable width makes every snap run against 0 and commit a tiny image
 		// whichever way the drag goes; bail before pointer capture.
 		if (startWidth < MIN_WIDTH || editorContentWidth < MIN_WIDTH) return;
@@ -79,7 +94,10 @@
 			startWidth,
 			startHeight,
 			naturalWidth: img.naturalWidth,
-			aspectLocked: !e.shiftKey,
+			// A crop's frame keeps its shape through a resize (`commitImageResize` derives the
+			// height from it), so Shift has nothing to unlock here; the crop session's corner
+			// brackets are where a frame's aspect changes.
+			aspectLocked: isCropped() || !e.shiftKey,
 			currentWidth: startWidth
 		};
 	}
@@ -95,12 +113,13 @@
 		const clamped = clampWidth(proposed, editorContentWidth);
 		const snapped = snapWidth(clamped, editorContentWidth, SNAP_THRESHOLD_PX);
 		dragState.currentWidth = snapped;
-		const img = imgEl();
-		if (!img) return;
-		img.style.width = `${snapped}px`;
+		const preview = previewEl();
+		if (!preview) return;
+		preview.style.width = `${snapped}px`;
 		// Shift unlocks the aspect: the height stays where the user found it and the image
-		// distorts. Locked, the stylesheet's `height: auto` derives it from the new width.
-		img.style.height = dragState.aspectLocked ? '' : `${dragState.startHeight}px`;
+		// distorts. Locked, the frame's own `aspect-ratio` (cropped) or the stylesheet's
+		// `height: auto` (plain) derives it from the new width.
+		preview.style.height = dragState.aspectLocked ? '' : `${dragState.startHeight}px`;
 	}
 
 	function endDrag(e: PointerEvent) {
@@ -126,26 +145,36 @@
 				dx: e.clientX - startX,
 				editorContentWidth,
 				naturalWidth,
-				imgRectWidth: imgEl()?.getBoundingClientRect().width,
+				imgRectWidth: previewEl()?.getBoundingClientRect().width,
 				imgWidthAttr: imgEl()?.getAttribute('width')
 			});
 		}
 		onCommit(Math.round(finalWidth), resolveDraggedHeight(aspectLocked, startHeight));
 	}
 
+	/** The frame's committed width, from the `|WxH` hint the widget was built with. */
+	function restoreFrameWidth(widget: HTMLElement): void {
+		const width = imgEl()?.getAttribute('width');
+		if (width) widget.style.width = `${width}px`;
+	}
+
 	function cancelDrag(e: PointerEvent) {
 		if (!dragState) return;
-		// Fall back to the widget's committed width/height attributes.
-		const img = imgEl();
-		if (img) {
-			img.style.width = '';
-			img.style.height = '';
+		// Fall back to the committed geometry: the widget's width/height attributes, or for a
+		// cropped image the frame width `applyCropToWidget` wrote.
+		const preview = previewEl();
+		if (preview) {
+			preview.style.height = '';
+			if (preview === imgEl()) preview.style.width = '';
+			else restoreFrameWidth(preview);
 		}
 		dragState = null;
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 	}
 </script>
 
+<!-- One grip, on the right edge: width is the only thing a drag sets (Shift unlocks the
+	aspect), so a second corner grip was the same gesture twice. -->
 {#if !isBroken}
 	<div
 		class="md-resize-handle md-resize-handle-right"
@@ -155,34 +184,30 @@
 		onpointerup={endDrag}
 		onpointercancel={cancelDrag}
 	></div>
-	<div
-		class="md-resize-handle md-resize-handle-corner"
-		role="presentation"
-		onpointerdown={startDrag}
-		onpointermove={moveDrag}
-		onpointerup={endDrag}
-		onpointercancel={cancelDrag}
-	></div>
 {/if}
 
 <style>
+	/* An accent pill straddling the edge with a white rim, so it reads on any picture. The hit
+	   strip is wider than the paint. */
 	.md-resize-handle {
 		position: absolute;
-		width: 8px;
-		height: 8px;
+		right: -3px;
+		top: 50%;
+		width: 6px;
+		height: 44px;
+		max-height: 60%;
+		transform: translateY(-50%);
+		border-radius: 3px;
 		background: var(--color-accent, #567b67);
-		border: 1px solid #fff;
+		box-shadow:
+			0 0 0 1.5px rgba(255, 255, 255, 0.9),
+			0 1px 3px rgba(0, 0, 0, 0.3);
 		z-index: 10;
 		cursor: ew-resize;
 	}
-	.md-resize-handle-right {
-		right: -4px;
-		top: 50%;
-		transform: translateY(-50%);
-	}
-	.md-resize-handle-corner {
-		right: -4px;
-		bottom: -4px;
-		cursor: nwse-resize;
+	.md-resize-handle::before {
+		content: '';
+		position: absolute;
+		inset: -6px -8px;
 	}
 </style>

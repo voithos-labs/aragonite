@@ -8,9 +8,19 @@
 - Paste a single-paragraph clipboard (no blank-line separators): same rules as plain text — single-paragraph clipboards take the inline path.
 - Paste text a copy wrapped in blank lines: the blank blocks at either edge are packaging, so one content paragraph still takes the inline path and the table stays whole.
 
+## Happy paths (grid)
+
+A grid is data for the cells, not a block to splice between them — the spreadsheet convention.
+
+- Paste a markdown table into a body cell: its cells fill the table from the caret's cell, row by
+  row, and the table grows rows and columns as needed; the delimiter row is regenerated. One
+  block, one commit.
+- Paste tab-separated rows (what Excel and Sheets put on the clipboard): the same fill, with the
+  rows and columns the grid needs appended at the bottom and the right. Pipes in the data are
+  escaped on the way in.
+
 ## Happy paths (structural)
 
-- Paste a markdown table into a body cell: original table splits at the paste row; pasted table is inserted between the halves.
 - Paste a heading into a body cell: original table splits; the heading appears between the halves.
 - Paste a multi-block clipboard (paragraph + heading): all blocks are inserted between the halves in order.
 
@@ -26,6 +36,9 @@
 ## Multi-cell selection at paste
 
 - Sub-rectangle selection + paste plain text: cells inside the rectangle are cleared; pasted text lands inside the anchor cell. Cells outside the rectangle remain untouched. Single Ctrl+Z restores the original document.
+- Sub-rectangle selection + paste a grid: the grid fills from the rectangle's top-left, tiled over
+  it when the rectangle's sides are multiples of the grid's (a 1×2 grid over a 2×2 rectangle
+  fills both rows), else placed once.
 - Whole-table selection (Ctrl+A 2nd press) + paste a paragraph: the table block is removed and replaced by the pasted block(s) at the table's position. Single Ctrl+Z restores the original table.
 
 ## Miss-analysis
@@ -36,3 +49,10 @@
   the cell-paste family unit-tested its hooks and never the classification that chooses between
   them, so no unit run could see a cell target take the wrong route. Both now have pins
   (`dispatch-strategy.test.ts`, `cell-paste-classification.test.ts`).
+
+## Undo
+
+- One Ctrl+Z undoes a whole grid paste, however many rows and columns it added
+- Undo restores the RENDERED cells, not only the bytes: the cell writes land at depth two, so
+  the table's whole subtree (rows AND cells) is unshared before them, or the write goes through
+  the undo snapshot and undo puts the pasted text back

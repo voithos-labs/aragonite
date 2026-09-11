@@ -24,8 +24,9 @@ definition.
 
 ## User interactions
 
-- Editing the url in the image properties popover deliberately inlines the
-  image: the new url is written in place and the reference form is gone (the
-  one edit that opts out of the reference).
+- Changing the url deliberately inlines the image: the new url is written in
+  place and the reference form is gone (the one edit that opts out of the
+  reference). The toolbar carries no URL field, so that is a source-mode edit;
+  the seam's rule is unit-covered in `image-source-bytes.test.ts`.
 - Dismissing the properties popover without changing anything is a true no-op:
   the reference and its definition are preserved and no undo entry is added.

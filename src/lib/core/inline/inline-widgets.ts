@@ -90,6 +90,14 @@ export const ON_EDGE_POLICIES = ['select', 'step-over'] as const;
  */
 export interface InlineWidgetEditingPolicy {
 	revealSource?: boolean;
+	/**
+	 * Where this kind's editable CONTENT sits inside its source span, as offsets relative to
+	 * that span — `$x$` answers `{ start: 1, end: 2 }`. A click that reveals the source seats
+	 * the caret at `end`, so typing continues the construct instead of escaping past its
+	 * closing delimiter. Only the kind knows its own delimiters; absent, the caret lands at
+	 * the trailing edge of the whole span.
+	 */
+	revealContentSpan?: (source: string) => { start: number; end: number } | null;
 	deleteGranularity?: (typeof DELETE_GRANULARITIES)[number];
 	onEdge?: (typeof ON_EDGE_POLICIES)[number];
 	onSelectedKey?: (e: KeyboardEvent, ctx: InlineWidgetEditingContext) => boolean;

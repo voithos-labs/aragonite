@@ -94,9 +94,19 @@ describe('math widget dispatch', () => {
 	// reveal-source is the editing contract the widget-interaction layer reads to
 	// swap the rendered math island for its editable source; pin its exact shape.
 	it('registers the reveal-source editing policy', () => {
-		expect(getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])).toEqual({
-			revealSource: true
-		});
+		const policy = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind']);
+		expect(policy?.revealSource).toBe(true);
+		expect(Object.keys(policy ?? {}).sort()).toEqual(['revealContentSpan', 'revealSource']);
+	});
+
+	// The span is what seats the caret INSIDE the delimiters when a click reveals the source,
+	// so typing continues the formula instead of escaping past its closing `$`.
+	it('reports its content span inside the `$` delimiters', () => {
+		const span = getInlineWidgetEditing(MATH_INLINE as InlineNode['kind'])?.revealContentSpan;
+		expect(span?.('$x^2$')).toEqual({ start: 1, end: 4 });
+		expect(span?.('$a$')).toEqual({ start: 1, end: 2 });
+		// Too short to hold delimiters plus content: no span rather than a nonsense one.
+		expect(span?.('$')).toBeNull();
 	});
 });
 

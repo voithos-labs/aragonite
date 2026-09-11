@@ -9,12 +9,17 @@ import { PluginsPage } from './helpers';
 
 const COMPLETED = '$$\n\n$$\n';
 
-/** Type `text` at the end of block `index` and press Enter there. */
-async function typeAndEnter(editor: EditorPage, index: number, text: string): Promise<void> {
+/** Type `text` at the end of block `index`. A lone `$$` completes as it lands (the on-type arm),
+ *  so the Enter that used to be the gesture is now only pressed where the line is NOT `$$`. */
+async function typeAtEnd(editor: EditorPage, index: number, text: string): Promise<void> {
 	await editor.clickBlock(index);
 	await editor.page.keyboard.press('End');
 	await editor.waitForRenderFlush();
 	await editor.typeSlowly(text);
+}
+
+async function typeAndEnter(editor: EditorPage, index: number, text: string): Promise<void> {
+	await typeAtEnd(editor, index, text);
 	await editor.bridge.waitForSourceContains(text);
 	await editor.waitForRenderFlush();
 	await editor.page.keyboard.press('Enter');
@@ -29,8 +34,44 @@ test.describe('block math: typed formation', () => {
 		await editor.loadContent('\n');
 	});
 
-	test('a lone $$ plus Enter becomes one math block around an empty body', async () => {
-		await typeAndEnter(editor, 0, '$$');
+	// The second `$` is the whole gesture: a lone `$$` can only open the pair, so the block forms
+	// as it lands — the way a typed ``` is a fence at once — and the caret is already on the body.
+	test('a lone $$ forms the block as it is typed, no Enter needed', async ({ page }) => {
+		await editor.loadContent('Before\n\n\n');
+		await editor.clickBlock(1);
+		await editor.page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		await editor.typeSlowly('$$');
+
+		await editor.bridge.waitForSourceContains(COMPLETED);
+		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
+
+		await page.keyboard.type('x^2');
+		await editor.getBlock(0).click();
+		await editor.bridge.waitForSourceContains('$$\nx^2\n$$\n');
+	});
+
+	// Mid-line the pair is prose: only a line that IS `$$` opens anything.
+	test('$$ after other text on the line stays a paragraph', async () => {
+		await editor.loadContent('hello\n');
+		await editor.clickBlock(0);
+		await editor.page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		await editor.typeSlowly(' $$');
+		await editor.bridge.waitForSourceEquals('hello $$\n');
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
+	});
+
+	// The Enter arm is still there for a `$$` line that arrived without the on-type arm seeing it
+	// typed — a loaded document, a paste — and it mints the same shape.
+	test('a loaded lone $$ plus Enter becomes one math block around an empty body', async ({
+		page
+	}) => {
+		await editor.loadContent('$$\n');
+		await editor.clickBlock(0);
+		await page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		await page.keyboard.press('Enter');
 
 		await editor.bridge.waitForSourceEquals(COMPLETED);
 		expect(await editor.bridge.getBlockKind(0)).toBe('mathBlock');
@@ -43,7 +84,7 @@ test.describe('block math: typed formation', () => {
 		page
 	}) => {
 		await editor.loadContent('Before\n\n\n');
-		await typeAndEnter(editor, 1, '$$');
+		await typeAtEnd(editor, 1, '$$');
 		await editor.bridge.waitForSourceContains(COMPLETED);
 
 		await page.keyboard.type('x^2');
@@ -57,7 +98,7 @@ test.describe('block math: typed formation', () => {
 	// gesture under test, not a workaround the caret assertions could skip.
 	test('one undo after the blur restores the paragraph byte-for-byte', async ({ page }) => {
 		await editor.loadContent('Before\n\n\n');
-		await typeAndEnter(editor, 1, '$$');
+		await typeAtEnd(editor, 1, '$$');
 		await editor.bridge.waitForSourceContains(COMPLETED);
 		await editor.getBlock(0).click();
 		await editor.waitForRenderFlush();
@@ -73,8 +114,13 @@ test.describe('block math: typed formation', () => {
 
 	// An opener line carrying body text implies no multi-line form, so it leaves the shape any
 	// tail-block split leaves rather than a shape of its own.
-	test('an opener carrying body text falls through to the ordinary split', async () => {
-		await typeAndEnter(editor, 0, '$$ x');
+	test('an opener carrying body text falls through to the ordinary split', async ({ page }) => {
+		// Loaded, not typed: the on-type arm would take the `$$` before the ` x` arrived.
+		await editor.loadContent('$$ x\n');
+		await editor.clickBlock(0);
+		await page.keyboard.press('End');
+		await editor.waitForRenderFlush();
+		await page.keyboard.press('Enter');
 
 		await editor.bridge.waitForBlockCount(2);
 		await editor.bridge.waitForSourceEquals('$$ x\n\n\n');
@@ -85,7 +131,7 @@ test.describe('block math: typed formation', () => {
 		await editor.loadContent('Before\n\n\n');
 		await editor.setPresentationMode('live');
 		await editor.waitForRenderFlush();
-		await typeAndEnter(editor, 1, '$$');
+		await typeAtEnd(editor, 1, '$$');
 		await editor.bridge.waitForSourceContains(COMPLETED);
 
 		await page.keyboard.type('x^2');
