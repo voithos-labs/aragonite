@@ -271,7 +271,9 @@ interrupted run leaves a server alive, and the next run serves whatever that tre
 `E2E_ISOLATED=1` starts the run's own servers instead, on 1430 (and 1431 for the `PERF_PROD`
 preview), reusing neither, so a run can only measure the checkout it was launched from.
 `npm run test:e2e:isolated` runs the whole suite that way, and anything narrower is the same
-script with Playwright's own arguments appended:
+script with Playwright's own arguments appended. `E2E_PORT=1440` picks the isolated port (the
+preview takes the next one), so two isolated runs on one machine, from two worktrees say, never
+race for 1430:
 
 ```
 $ npm run test:e2e:isolated -- --project=e2e-top smoke.spec.ts
