@@ -121,7 +121,8 @@ function run(command, args) {
 	try {
 		return execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 	} catch (failure) {
-		console.error(String(failure.stderr ?? failure.message).trim());
+		const reason = /** @type {{ stderr?: string; message?: string }} */ (failure);
+		console.error(String(reason.stderr ?? reason.message).trim());
 		process.exit(1);
 	}
 }

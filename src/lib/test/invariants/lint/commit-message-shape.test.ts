@@ -155,7 +155,7 @@ describe('G4.58 commit-message shape — the co-founder exemption', () => {
 		expect(EXEMPT_AUTHORS.length).toBeGreaterThan(0);
 	});
 
-	it.each(EXEMPT_AUTHORS)('passes over %s in range mode', (author) => {
+	it.each(EXEMPT_AUTHORS.map((author) => [author]))('passes over %s in range mode', (author) => {
 		expect(rangeProblems(log(['abc1234', author, OFFENDING]))).toEqual([]);
 	});
 
@@ -178,10 +178,13 @@ describe('G4.58 commit-message shape — the co-founder exemption', () => {
 			rmSync(scratch, { recursive: true, force: true });
 		});
 
-		it.each(EXEMPT_AUTHORS)('passes a message %s is committing', (author) => {
-			process.env.GIT_AUTHOR_NAME = author;
-			expect(checkMessageFile(messageFile)).toBe(true);
-		});
+		it.each(EXEMPT_AUTHORS.map((author) => [author]))(
+			'passes a message %s is committing',
+			(author) => {
+				process.env.GIT_AUTHOR_NAME = author;
+				expect(checkMessageFile(messageFile)).toBe(true);
+			}
+		);
 
 		it('still rejects the same message from anybody else', () => {
 			process.env.GIT_AUTHOR_NAME = 'somebody-else';
