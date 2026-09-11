@@ -24,12 +24,17 @@ been broken before, and nearly every one is the same rule in a different costume
 at the call sites. So when you want to add a branch at one of these files, the rule in that row
 is what you're arguing with.
 
-Six words the table leans on, since this may be your first doc in the repo:
+Eleven words the table and the code comments lean on, since this may be your first doc in the repo:
 
 - **raw**: a node's verbatim source bytes, markers included.
 - **kind**: the string on a node that says what block it is.
 - **descriptor**: the per-kind metadata record: how a kind merges, edits, renders.
 - **seam**: a boundary where responsibility passes from one piece of code to another.
+- **door**: a seam that is the ONE sanctioned entry for a class of operation (a caret door places a caret, a write door writes bytes); a second way in is the bug.
+- **funnel**: the one call every sibling path routes through, so a rule enforced there holds on all of them.
+- **settle**: after a structural edit, re-deriving the bookkeeping the edit left stale: blank-line separators, seams between neighbours, a container's kind.
+- **mint**: to create a node, id or command at the one place authorized to; a duplicate mint throws.
+- **peel**: to unwrap one layer of container syntax from a line or a block (a `> ` or list marker), the parse-side inverse of wrapping.
 - **landable**: an offset the caret can actually sit at (a hidden marker's bytes are not).
 - **live mode**: the presentation mode that hides every marker standing over content.
 

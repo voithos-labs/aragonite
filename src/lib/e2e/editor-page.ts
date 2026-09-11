@@ -49,7 +49,7 @@ export class EditorPage {
 				return actual.replace(/\s+$/, '') === expected.replace(/\s+$/, '');
 			},
 			md,
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		);
 		await this.editorContainer.waitFor({ state: 'visible' });
 	}
@@ -119,8 +119,8 @@ export class EditorPage {
 		return this.page.evaluate(() => (window as any).__test.parseConverged() as boolean);
 	}
 
-	// 5s to match expect()'s default — a wait is a ceiling, not a measurement,
-	// and 2s under-provisioned saturated parallel-worker runs.
+	// Every harness wait defaults to 5s, expect()'s own default: a wait is a ceiling, not a
+	// measurement, and 2s under-provisioned saturated parallel-worker runs.
 	async waitForCrossBlock(active: boolean): Promise<void> {
 		if (active) {
 			await this.page.waitForSelector('[data-cross-block]', { state: 'attached', timeout: 5000 });
@@ -433,7 +433,7 @@ export class EditorPage {
 	 * the serialized source, so `getSource()` predicates see no change. DOM count is the
 	 * cheapest signal that the post-Enter tree flushed.
 	 */
-	async waitForListItemCount(expected: number, timeout = 2000): Promise<void> {
+	async waitForListItemCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.list-item-block').length === n,
 			expected,
@@ -446,7 +446,7 @@ export class EditorPage {
 	 * source, so `getBlockCount()` — which re-parses it — cannot see it. Every block wraps in
 	 * `.block-host`, so the total moves by one per insertion.
 	 */
-	async waitForBlockHostCount(expected: number, timeout = 2000): Promise<void> {
+	async waitForBlockHostCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(n) => document.querySelectorAll('.block-host').length === n,
 			expected,
@@ -489,7 +489,7 @@ export class EditorPage {
 		await this.page.waitForTimeout(150);
 	}
 
-	async waitForClipboardContains(expected: string, timeout = 2000): Promise<void> {
+	async waitForClipboardContains(expected: string, timeout = 5000): Promise<void> {
 		await this.clipboard.waitForContains(expected, timeout);
 	}
 }

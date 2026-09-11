@@ -43,6 +43,8 @@ The test for all of it: a maintainer can answer "what does this file do, and whe
 
 Default to none. The one you do write explains **why** (the non-obvious choice, the workaround, the deliberate exclusion), never **what**; names and types already carry the what. The budget: a comment is 1-2 lines, and a header (the comment at the top of a file, or the one stating a module's contract) is at most ~5. A why that needs more room moves to a design doc, with a one-line pointer left behind.
 
+The comments share a working vocabulary (seam, door, funnel, settle, mint, peel, landable), defined once at the top of `docs/contributing/codebase-map.md`. Use those words; don't redefine them in place, and don't coin a new one without adding it there.
+
 The budget has teeth, too. A source scan in the unit suite (G4.26 in `docs/design/invariants.md`) fails any comment block over six text lines, or a file header over seven; the slack above the stated budget is for contract prose that needs it. Here's the red line, from a seven-line comment I planted for the occasion:
 
 ```

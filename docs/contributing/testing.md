@@ -378,7 +378,9 @@ project exist at all, so the run can't half-happen inside the default suite. It 
 curated slice of the existing typing, split/merge, selection and round-trip specs, plus
 everything under `tests/webkit/`, which holds the specs only this run executes, covering the two
 helpers that branch on the engine. It fails rather than reports, and it can afford to because it
-carries no known-red backlog for a regression to hide behind. Run it alone, and on a quiet tree:
+carries no known-red backlog for a regression to hide behind. CI runs it as a non-blocking job on
+the release pull request (`dev` to `main`) and on manual dispatch, so a release sees the second
+engine without adding it to the per-commit loop. Locally, run it alone, and on a quiet tree:
 it shares the dev server with every other project, and a save into `src/` mid-run triggers an
 SSR reload whose component re-registration turns the run red for a reason the product never had.
 

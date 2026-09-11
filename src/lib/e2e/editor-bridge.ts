@@ -24,15 +24,15 @@ export class EditorBridge {
 	// guard: Playwright rejects a wait whose predicate THROWS, so a page that has not
 	// installed its probes yet must read as "not settled" rather than dereference undefined.
 
-	async waitForSourceContains(expected: string, timeout = 2000): Promise<void> {
+	async waitForSourceContains(expected: string, timeout = 5000): Promise<void> {
 		await this.waitForSourceWith((source, arg) => source.includes(arg), expected, timeout);
 	}
 
-	async waitForSourceNotContains(forbidden: string, timeout = 2000): Promise<void> {
+	async waitForSourceNotContains(forbidden: string, timeout = 5000): Promise<void> {
 		await this.waitForSourceWith((source, arg) => !source.includes(arg), forbidden, timeout);
 	}
 
-	async waitForSourceMatches(pattern: RegExp, timeout = 2000): Promise<void> {
+	async waitForSourceMatches(pattern: RegExp, timeout = 5000): Promise<void> {
 		await this.waitForSourceWith(
 			(source, arg) => new RegExp(arg.source, arg.flags).test(source),
 			{ source: pattern.source, flags: pattern.flags },
@@ -40,11 +40,11 @@ export class EditorBridge {
 		);
 	}
 
-	async waitForSourceEquals(expected: string, timeout = 2000): Promise<void> {
+	async waitForSourceEquals(expected: string, timeout = 5000): Promise<void> {
 		await this.waitForSourceWith((source, arg) => source === arg, expected, timeout);
 	}
 
-	async waitForBlockCount(expected: number, timeout = 2000): Promise<void> {
+	async waitForBlockCount(expected: number, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(e) => (window as any).__test?.getBlockCount() === e,
 			expected,
@@ -52,7 +52,7 @@ export class EditorBridge {
 		);
 	}
 
-	async waitForSource(predicate: (source: string) => boolean, timeout = 2000): Promise<void> {
+	async waitForSource(predicate: (source: string) => boolean, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(predSrc) => {
 				const source = (window as any).__test?.getSource() as string | undefined;
@@ -67,7 +67,7 @@ export class EditorBridge {
 	async waitForSourceWith<T>(
 		predicate: (source: string, arg: T) => boolean,
 		arg: T,
-		timeout = 2000
+		timeout = 5000
 	): Promise<void> {
 		await this.page.waitForFunction(
 			({ predSrc, value }) => {
@@ -101,7 +101,7 @@ export class EditorBridge {
 	}
 
 	/** Settles on the gap an arrival gesture parks; `null` waits for one to end. */
-	async waitForGapCaret(expected: GapCaretPosition | null, timeout = 2000): Promise<void> {
+	async waitForGapCaret(expected: GapCaretPosition | null, timeout = 5000): Promise<void> {
 		await this.page.waitForFunction(
 			(want) => {
 				const probe = (window as any).__test?.getGapCaret;
