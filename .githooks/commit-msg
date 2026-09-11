@@ -2,19 +2,8 @@
 // Node, not shell: the Windows shell is not to be trusted with a hook. A dynamic import of a
 // relative specifier resolves against this file under either module system, which an
 // extensionless entry point cannot rely on a static `import` to do.
-//
-// ADVISORY by default: the shape is a convention worth knowing, not a gate worth losing a
-// written message to. A commit that does not match prints the report and lands anyway.
-// `ARAGONITE_STRICT_COMMIT=1` restores the block for anyone who wants the gate locally, and
-// CI still lints a pull request's own commits either way (see docs/contributing/commit-conventions.md).
 import('../scripts/lint-commit-message.mjs')
-	.then((lint) => {
-		const strict = process.env.ARAGONITE_STRICT_COMMIT === '1';
-		const heading = strict ? undefined : 'commit message does not match the convention';
-		if (lint.checkMessageFile(process.argv[2], heading)) return;
-		if (strict) process.exit(1);
-		console.error('  advisory only — this commit was not blocked');
-	})
+	.then((lint) => process.exit(lint.checkMessageFile(process.argv[2]) ? 0 : 1))
 	.catch((error) => {
 		console.error(error);
 		process.exit(1);
