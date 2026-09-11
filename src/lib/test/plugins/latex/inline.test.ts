@@ -1,15 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { parseInline, computeInlineContent } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
+import { parse, serialize, parseInline, type InlineNode } from '$lib';
+import { computeInlineContent } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import {
 	buildCoreInlineWidget,
 	getInlineWidgetComponent,
 	getInlineWidgetEditing
 } from '$lib/core/inline/inline-widgets';
-import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import {
 	renderInlineMath,

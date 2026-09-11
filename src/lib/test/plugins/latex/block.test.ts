@@ -1,11 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins } from '$lib';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
+import { installPlugins, parse, serialize } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { getInlineRungs } from '$lib/core/inline/scan/plugin-syntax';
 import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import { latexPlugin } from '$lib/plugins/latex';
@@ -114,13 +111,13 @@ describe('latexPlugin requires an injected renderer', () => {
 // A schema reset clears the block registry but leaves the inline registries live, so a
 // reinstall must re-register the block kind yet NOT the inline one. The inline guard is
 // keyed on the surviving declared kind; mis-key it and the re-register throws.
-describe('latexPlugin reinstall after a schema reset', () => {
+describe('latexPlugin reinstall after a platform reset', () => {
 	it('re-registers the block kind and leaves the inline path intact', () => {
 		installPlugins([latexPlugin({ renderer: stubRenderer })]);
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);
 		expect(getInlineRungs('$').length).toBeGreaterThan(0);
 
-		__resetSchemaRegistriesForTests();
+		resetPluginPlatformForTests();
 		installPlugins([latexPlugin({ renderer: stubRenderer })]);
 
 		expect(parse('$$\nx^2\n$$\n').children[0].kind).toBe(MATH_BLOCK);

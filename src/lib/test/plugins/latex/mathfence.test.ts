@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { parse, serialize } from '$lib';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { roundTripCases } from '$lib/test/support/round-trip';
 import { registerMathFence, MATH_FENCE, mathDisplaySource } from '$lib/plugins/latex/latex-kind';
 
@@ -10,7 +9,7 @@ import { registerMathFence, MATH_FENCE, mathDisplaySource } from '$lib/plugins/l
 
 describe('math fence claims and declines', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
+		resetPluginPlatformForTests();
 		registerMathFence();
 	});
 
@@ -68,7 +67,7 @@ describe('math fence claims and declines', () => {
 // `math` code block — byte-identical either way.
 describe('unterminated math fence declines to fencedCode', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
+		resetPluginPlatformForTests();
 		registerMathFence();
 	});
 
@@ -86,7 +85,7 @@ describe('unterminated math fence declines to fencedCode', () => {
 // CRLF threading: the closer line and its ending survive verbatim through raw.
 describe('math fence round-trip', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
+		resetPluginPlatformForTests();
 		registerMathFence();
 	});
 
@@ -100,7 +99,7 @@ describe('math fence round-trip', () => {
 });
 
 describe('math fence with the plugin uninstalled', () => {
-	beforeEach(() => __resetSchemaRegistriesForTests());
+	beforeEach(() => resetPluginPlatformForTests());
 
 	it('parses as plain fencedCode and serializes byte-identically', () => {
 		const src = '```math\nx^2\n```\n';

@@ -1,11 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { parse, serialize } from '$lib';
+import { declaredPluginKind } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { planEnterCompletion } from '$lib/editor-actions/enter-completion';
 import { completeTypedLine } from '$lib/schema/block-completions';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { registerMathBlock, MATH_BLOCK } from '$lib/plugins/latex/latex-kind';
 import {
 	registerMathBlockCompleter,

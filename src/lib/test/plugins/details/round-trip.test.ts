@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { getPluginMetadata } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+import { parse, serialize } from '$lib';
+import { getPluginMetadata } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerDetailsKind, rebuildDetailsRaw } from '$lib/plugins/details/details-kind';
 
 // A canonical open details with a titled summary and a blank-line-wrapped body.
@@ -11,10 +9,7 @@ const OPEN_SRC = '<details open>\n<summary>Title</summary>\n\nBody\n\n</details>
 const CLOSED_SRC = '<details>\n<summary>Title</summary>\n\nBody\n\n</details>\n';
 
 function resetAndRegister(): void {
-	// registerDetailsKind registers a chrome-leaf paste surface; reset it too or
-	// the re-register collides with the orphaned entry (callout suite convention).
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
+	resetPluginPlatformForTests();
 	registerDetailsKind();
 }
 

@@ -2,8 +2,7 @@
 // own level: word-under-caret resolution (`anchorWord`) and the whole-document
 // occurrence index the memoizing source looks that word up in.
 import { describe, expect, it } from 'vitest';
-import { parse } from '$lib/core/parser';
-import type { EditorSelection } from '$lib';
+import { parse, type EditorSelection } from '$lib';
 import {
 	OCCURRENCE_CLASS,
 	anchorWord,

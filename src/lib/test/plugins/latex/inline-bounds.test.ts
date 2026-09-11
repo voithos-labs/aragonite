@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parseInline } from '$lib/core/inline';
+import { parseInline } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerMathInline, MATH_INLINE } from '$lib/plugins/latex/latex-kind';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';

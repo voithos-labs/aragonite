@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { parse, serialize } from '$lib';
+import { declaredPluginKind } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';
 import { createStandardNestedActions } from '$lib/editor-actions/nested/nested-actions';
@@ -12,10 +13,7 @@ import {
 	makeStubFocus
 } from '$lib/test/harness/editor-actions';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
 import { registerDetailsKind, DETAILS } from '$lib/plugins/details/details-kind';
-import { declaredPluginKind } from '$lib/schema/plugin-kind';
 import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 
 /**
@@ -26,8 +24,7 @@ import { getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
  * everywhere else. The structural doors live in terminator-collision-structural.test.ts.
  */
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
+	resetPluginPlatformForTests();
 	registerDetailsKind();
 });
 

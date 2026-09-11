@@ -1,16 +1,13 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins } from '$lib';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { installPlugins, parse, serialize } from '$lib';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerTocBlock, tocPlugin, TOC_BLOCK } from '$lib/plugins/toc/toc-plugin';
 import { roundTripCases } from '$lib/test/support/round-trip';
 
-// The opener registers through the schema registry alone (no inline path), so the
-// schema reset is the whole teardown — a leaked registration would let the
-// dormant-until-registered gate pass for the wrong reason.
-beforeEach(__resetSchemaRegistriesForTests);
-afterEach(__resetSchemaRegistriesForTests);
+// A leaked registration would let the dormant-until-registered gate below pass for
+// the wrong reason, so every case starts from a cleared platform.
+beforeEach(resetPluginPlatformForTests);
+afterEach(resetPluginPlatformForTests);
 
 // Recognition is gated on the opener registering — with no plugin loaded `[[toc]]`
 // is an ordinary paragraph, byte-identical to bare GFM.

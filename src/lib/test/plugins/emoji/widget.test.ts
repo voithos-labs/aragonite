@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { AnyInlineKind, InlineNode } from '$lib/core/nodes';
-import { getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
+import type { InlineNode } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { registerEmoji, buildEmojiWidget, EMOJI_KIND } from '$lib/plugins/emoji/emoji-recognizer';
 
 beforeEach(resetPluginPlatformForTests);
@@ -13,7 +13,12 @@ afterEach(resetPluginPlatformForTests);
 // back while the DOM shows 😄.
 describe('buildEmojiWidget — atomic island shell', () => {
 	it('stamps the widget marker, source span, and the glyph', () => {
-		const node: InlineNode = { kind: EMOJI_KIND as AnyInlineKind, start: 2, end: 9, decoded: '😄' };
+		const node: InlineNode = {
+			kind: EMOJI_KIND as InlineNode['kind'],
+			start: 2,
+			end: 9,
+			decoded: '😄'
+		};
 		const el = buildEmojiWidget(node);
 		expect(el.hasAttribute('data-inline-widget')).toBe(true);
 		expect(el.getAttribute('contenteditable')).toBe('false');
@@ -29,7 +34,7 @@ describe('emoji widget registration', () => {
 	// Atomic delete + step-over is what makes a caret-adjacent Backspace remove the
 	// whole reference in one press and a plain arrow walk across it like a character.
 	it('registers the atomic, step-over editing policy', () => {
-		expect(getInlineWidgetEditing(EMOJI_KIND as AnyInlineKind)).toEqual({
+		expect(getInlineWidgetEditing(EMOJI_KIND as InlineNode['kind'])).toEqual({
 			deleteGranularity: 'atomic',
 			onEdge: 'step-over'
 		});

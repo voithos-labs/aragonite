@@ -4,10 +4,9 @@
 // terminator cell is the class's home and cannot reach this shape: it drives the last CHILD
 // through `bodyWrite`, and this container has neither.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { getPluginMetadata, setPluginMetadata, type CstNode, type Document } from '$lib/core/nodes';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
+import { parse, serialize, type CstNode, type Document } from '$lib';
+import { getPluginMetadata, setPluginMetadata } from '$lib/plugin';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { describeConvergence } from '$lib/testing/parse-convergence';
 import {
 	registerMermaidKind,
@@ -28,7 +27,7 @@ function commitCode(source: string, code: string): { node: CstNode; doc: Documen
 
 describe('a mermaid body carrying a fence run', () => {
 	beforeEach(() => {
-		__resetSchemaRegistriesForTests();
+		resetPluginPlatformForTests();
 		registerMermaidKind();
 	});
 

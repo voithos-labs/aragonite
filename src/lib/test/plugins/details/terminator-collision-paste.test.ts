@@ -1,18 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
+import { parse, serialize, type CstNode } from '$lib';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { checkOpaqueStaleRaw } from '$lib/invariants/node-shape';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createPasteCoordinator } from '$lib/editor-actions/paste-coordinator';
 import { pasteDispatch } from '$lib/tree-operations/paste/dispatch';
 import { replaceBlockAtParent } from '$lib/tree-operations/paste/replace-block-at-parent';
 import { registerBlockListState } from '$lib/reactivity/state-registry';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import {
-	__resetPasteSurfacesForTests,
-	registerPasteSurface
-} from '$lib/tree-operations/paste-surfaces';
+import { registerPasteSurface } from '$lib/tree-operations/paste-surfaces';
 import { __getDefaultTextSurface } from '$lib/tree-operations/paste/hooks';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 import {
@@ -20,7 +16,6 @@ import {
 	makeEditorActionsDeps,
 	makeStubBlockEdit
 } from '$lib/test/harness/editor-actions';
-import type { CstNode } from '$lib/core/nodes';
 
 // Miss-analysis: every terminator-collision suite drove the node-ops byte sinks (typing,
 // split, cross-block delete); paste builds its nodes upstream of every sink, and no test
@@ -29,8 +24,7 @@ import type { CstNode } from '$lib/core/nodes';
 const OPEN_DETAILS = '<details>\n<summary>T</summary>\n\nbody\n\n</details>\n';
 
 beforeEach(() => {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
+	resetPluginPlatformForTests();
 	registerDetailsKind();
 	registerPasteSurface(__getDefaultTextSurface('paragraph'));
 });

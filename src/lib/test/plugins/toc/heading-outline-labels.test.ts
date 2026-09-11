@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { computeInlineContent } from '$lib/core/inline';
+import { installPlugins, parse } from '$lib';
+import { computeInlineContent } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
-import { registerEmoji } from '$lib/plugins/emoji/emoji-recognizer';
+import { emojiPlugin } from '$lib/plugins/emoji';
 import { projectInlineText } from '$lib/plugins/toc/heading-outline';
 
 // The label projection turns a heading's inline parse into clean display text: markers
@@ -35,7 +35,7 @@ describe('projectInlineText — emoji glyph projection', () => {
 	afterEach(resetPluginPlatformForTests);
 
 	it('renders an emoji shortcode as its glyph when the emoji plugin is registered', () => {
-		registerEmoji();
+		installPlugins([emojiPlugin()]);
 		expect(label('# Mood :smile: today\n')).toBe('Mood 😄 today');
 	});
 

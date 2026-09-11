@@ -1,16 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse } from '$lib/core/parser';
-import { serialize } from '$lib/core/serializer';
-import { __resetSchemaRegistriesForTests } from '$lib/schema/registry-reset';
-import { __resetPasteSurfacesForTests } from '$lib/tree-operations/paste-surfaces';
+import { parse, serialize } from '$lib';
+import { resetPluginPlatformForTests } from '$lib/testing';
 import { registerDetailsKind } from '$lib/plugins/details/details-kind';
 
 // The close-scan must track fenced code in the body: inside a fence, `</details>` is
 // content and `<details>` must not inflate the depth. Bytes round-trip either way, so
 // a fence-blind scan fails structurally (early close, spurious decline), not visibly.
 function resetAndRegister(): void {
-	__resetSchemaRegistriesForTests();
-	__resetPasteSurfacesForTests();
+	resetPluginPlatformForTests();
 	registerDetailsKind();
 }
 

@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { installPlugins } from '$lib';
-import { parseInline } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
-import { activateDirectiveGrammar } from '$lib/core/directive/activate';
-import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
+import { installPlugins, parseInline, type InlineNode } from '$lib';
+import { activateDirectives } from '$lib/plugin';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { DIRECTIVE_TEXT } from '$lib/core/directive/kinds';
 import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 
 // Both grammars ride the bare `:` trigger, and register-once forbids the same
@@ -13,7 +11,7 @@ import { emojiPlugin, EMOJI_KIND } from '$lib/plugins/emoji';
 // coexist. The grammars are disjoint, so the order decides first refusal only.
 beforeEach(() => {
 	resetPluginPlatformForTests();
-	activateDirectiveGrammar();
+	activateDirectives();
 	installPlugins([emojiPlugin()]);
 });
 afterEach(() => resetPluginPlatformForTests());
@@ -51,7 +49,7 @@ describe('the directive text tier survives a plugin that took `:` first', () => 
 	beforeEach(() => {
 		resetPluginPlatformForTests();
 		installPlugins([emojiPlugin()]);
-		activateDirectiveGrammar();
+		activateDirectives();
 	});
 
 	it('recognizes :name[label] with emoji already on the trigger', () => {

@@ -838,6 +838,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.60 | Every spread into a call's argument list declares what bounds its count       | L       |
 | G4.61 | The commit scope is set in production, not behind a build flag                | L       |
 | G4.62 | Every code token clears AA on the surface and the fence, in both themes       | L       |
+| G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
 
 ### The entries
 
@@ -1359,6 +1360,15 @@ page the editor was dropped onto, so it can report the shell's palette and never
 Completeness is the load-bearing half — the family is derived from the CSS by prefix, so a token
 added tomorrow is measured, and a value in a form the reader can't parse fails instead of escaping.
 `lint/code-token-contrast.test.ts`.
+
+**G4.63 · Bundled-plugin test boundary.** Every file under a per-plugin test directory
+(`src/lib/test/plugins/<plugin>/`) imports only the published entry points (`$lib`, `$lib/plugin`,
+`$lib/testing`), its own plugin's source, another plugin's published subpath, the copyable in-repo
+test support, a relative path outside library code, or an npm package. G4.16's twin one layer out:
+that one proves the barrels can build a plugin, this one that they can test it, so a suite reaching
+a `$lib` deep path names a testing door the surface is missing. Each allowlist entry carries that
+door's name, and a dead entry fails too. The loose platform tests directly under
+`src/lib/test/plugins/` are out of scope. `lint/bundled-plugin-test-boundary.test.ts`.
 
 ## Accessibility
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parse } from '$lib/core/parser';
+import { parse } from '$lib';
 import { collectHeadings } from '$lib/plugins/toc/heading-outline';
 
 // The walk collects `heading`/`setextHeading` nodes anywhere in the tree, with

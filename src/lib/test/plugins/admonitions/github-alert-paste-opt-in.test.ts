@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '$lib';
-import { resetPluginPlatformForTests } from '$lib/testing';
-import { applyPasteTransforms } from '$lib/tree-operations/paste/paste-transforms';
+import { resetPluginPlatformForTests, applyPasteTransforms } from '$lib/testing';
 import { admonitionsPlugin } from '$lib/plugins/admonitions';
 
 // Native rendering makes the alert paste transform opt-in. By default a pasted

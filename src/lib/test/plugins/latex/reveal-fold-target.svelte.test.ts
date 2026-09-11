@@ -7,12 +7,11 @@
 // component, so no in-repo unit or e2e case could have caught it while asserting only bytes.
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { mount, unmount, flushSync, tick } from 'svelte';
-import Editor from '$lib/components/Editor.svelte';
-import type { EditorInstance } from '$lib/editor-props';
+import { Editor, type EditorInstance } from '$lib';
 import { installEditorDomStubsForTests, resetPluginPlatformForTests } from '$lib/testing';
-import { installLayoutStubs } from '../../blocks/editor-mount';
 import { latexPlugin } from '$lib/plugins/latex';
 import type { MathRenderer } from '$lib/plugins/latex/math-renderer';
+import { installLayoutStubs } from '../../blocks/editor-mount';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 

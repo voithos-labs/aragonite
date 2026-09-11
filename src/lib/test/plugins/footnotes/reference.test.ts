@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { parseInline } from '$lib/core/inline';
-import type { InlineNode } from '$lib/core/nodes';
-import { getInlineWidgetComponent, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
+import { parseInline, type InlineNode } from '$lib';
 import { resetPluginPlatformForTests } from '$lib/testing';
+import { getInlineWidgetComponent, getInlineWidgetEditing } from '$lib/core/inline/inline-widgets';
 import { registerFootnoteReference } from '$lib/plugins/footnotes/footnote-reference';
 import { FOOTNOTE_REF_KIND } from '$lib/plugins/footnotes/constants';
 
