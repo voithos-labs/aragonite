@@ -58,20 +58,19 @@ export function toggleInlineFormat(
 	// Painted delimiters are the mode's own answer, so those modes write their candidate unverified.
 	// The preview rungs paint: this seam only writes into the block those rungs reveal.
 	const paints = paintsFocusedMarkers(mode ?? 'source');
-	const covering = coveringSpansOf(inlines, start, end, format);
+	const { from, to, covering } = coveredReading(display, inlines, start, end, format);
 
 	// A strip sheds ONE run, so where a second of the same kind covers the selection too, the answer
 	// is the covering arm's split: stripping there leaves the press's own read still active.
-	const sole =
-		covering.length > 1 ? null : soleStripCandidate(display, inlines, start, end, format);
+	const sole = covering.length > 1 ? null : soleStripCandidate(display, inlines, from, to, format);
 	if (sole) return paints || preservesScreen(sole, edit, screenOf(display, content)) ? sole : null;
 
 	// The flank strip rewrites bytes OUTSIDE the selection, and byte equality can mistake a nested
 	// run's delimiters for the enclosing one's, so its candidate verifies like the split's.
-	const enclosing = enclosingSpanOf(inlines, start, end, format);
-	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) {
+	const enclosing = enclosingSpanOf(inlines, from, to, format);
+	if (enclosing && flanksAreItsMarkers(display, from, to, enclosing)) {
 		const flank = firstFlipVerified(
-			[flankStrip(display, start, end, enclosing)],
+			[flankStrip(display, from, to, enclosing)],
 			edit,
 			format,
 			'unapply'
@@ -81,7 +80,7 @@ export function toggleInlineFormat(
 
 	if (covering.length > 0)
 		return firstFlipVerified(
-			covering.flatMap((span) => splitCandidates(display, inlines, span, start, end, format)),
+			covering.flatMap((span) => splitCandidates(display, inlines, span, from, to, format)),
 			edit,
 			format,
 			'unapply'
@@ -221,7 +220,29 @@ function coverageCarries(
 	if (soleSpanOfSelection(sliceNodes, inlines, start, end, format)) return true;
 	const enclosing = enclosingSpanOf(inlines, start, end, format);
 	if (enclosing && flanksAreItsMarkers(display, start, end, enclosing)) return true;
-	return coveringSpansOf(inlines, start, end, format).length > 0;
+	return coveredReading(display, inlines, start, end, format).covering.length > 0;
+}
+
+/**
+ * The range an unapply reads, with the runs covering it. A run closes against a word and never
+ * whitespace, so the wrap leaves a boundary space OUTSIDE the delimiters: a selection reaching
+ * past a run by whitespace alone is still that run's own, or it could not take its own mark off.
+ */
+function coveredReading(
+	display: string,
+	inlines: readonly InlineNode[],
+	start: number,
+	end: number,
+	format: InlineMarkKind
+): { from: number; to: number; covering: FormatSpan[] } {
+	const covering = coveringSpansOf(inlines, start, end, format);
+	if (covering.length > 0) return { from: start, to: end, covering };
+	const trimmed = trimmedRange(display, start, end);
+	if (!trimmed) return { from: start, to: end, covering };
+	const inner = coveringSpansOf(inlines, trimmed.start, trimmed.end, format);
+	return inner.length > 0
+		? { from: trimmed.start, to: trimmed.end, covering: inner }
+		: { from: start, to: end, covering };
 }
 
 // ── Aligned unapply ──────────────────────────────────────────────────────────
@@ -493,20 +514,6 @@ function wrapCandidates(
 	return readings
 		.filter((range) => cutsLandCleanly(inlines, range, range))
 		.map((range) => wrapRange(display, range.start, range.end, mark));
-}
-
-/** The selection minus its boundary whitespace, or null when there is none to trim or nothing
- *  left once it goes. */
-function trimmedRange(
-	display: string,
-	start: number,
-	end: number
-): { start: number; end: number } | null {
-	let from = start;
-	let to = end;
-	while (from < to && /\s/.test(display[from])) from++;
-	while (to > from && /\s/.test(display[to - 1])) to--;
-	return (from === start && to === end) || from === to ? null : { start: from, end: to };
 }
 
 function wrapRange(
@@ -801,6 +808,20 @@ function leadingWs(text: string): string {
 
 function trailingWs(text: string): string {
 	return /\s*$/.exec(text)![0];
+}
+
+/** The selection minus its boundary whitespace, or null when there is none to trim or nothing
+ *  left once it goes. */
+function trimmedRange(
+	display: string,
+	start: number,
+	end: number
+): { start: number; end: number } | null {
+	let from = start;
+	let to = end;
+	while (from < to && /\s/.test(display[from])) from++;
+	while (to > from && /\s/.test(display[to - 1])) to--;
+	return (from === start && to === end) || from === to ? null : { start: from, end: to };
 }
 
 // ── Content clamp ────────────────────────────────────────────────────────────

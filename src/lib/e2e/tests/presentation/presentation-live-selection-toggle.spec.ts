@@ -115,6 +115,19 @@ test.describe('live mode — a toggle over a selection writes its bytes at once'
 		expect(await ep.bridge.getSource()).not.toContain('**words **');
 	});
 
+	// The wrap above put the space OUTSIDE the delimiters, so the selection that applied the mark
+	// still reaches past the run it made: the same on-screen selection has to take it back.
+	test('a selection carrying its boundary space takes its own wrap back', async ({ page }) => {
+		await selectFrom(ep, page, PLAIN, 5, 6);
+		await page.keyboard.press(CHORD.strong);
+		await ep.bridge.waitForSourceContains('plain **words** here');
+
+		await selectFrom(ep, page, PLAIN, 5, 6);
+		await page.keyboard.press(CHORD.strong);
+		await ep.bridge.waitForSourceContains('plain words here');
+		expect(await ep.bridge.getSource()).not.toContain('**words**');
+	});
+
 	test('a toggle inside a heading leaves the unpainted prefix alone', async ({ page }) => {
 		// Home lands past the hidden `## `, so the selection can only start in content.
 		await selectFrom(ep, page, HEADING, 3, 7);

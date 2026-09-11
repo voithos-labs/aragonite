@@ -177,6 +177,7 @@ Over a SELECTION the same chord writes bytes at once, in every mode. Its questio
 
 Unapplying, when it is:
 
+- The coverage question reads past the selection's boundary whitespace. A run closes against a word and never a space, so the wrap below already left that space outside the delimiters it wrote: the selection that applied a mark is the selection that takes it back.
 - The aligned strip goes first: a construct whose delimiters line up with the selection sheds them. Otherwise the construct splits around the selection, each half keeping the construct's own delimiter run and handing a boundary space to the text beside it.
 - Where runs of one kind nest, the press owes both directions. Every covering run is a candidate, since shedding only the inner one leaves the outer still covering the range the press just called formatted; and a strip sheds the runs of its own kind inside what it takes, since one left standing there unapplies the range only in part.
 - A selection taking a construct WHOLE is asked about the content that construct's delimiters enclose, whatever kind it is. The press means the mark on that content, so a run already covering it counts however the parse layered the two. That reading is what makes `***ab***` read as strong, and a link whose whole text is already marked read as marked.
