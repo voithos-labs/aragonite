@@ -28,7 +28,7 @@
 	import { createPendingMarksState } from '../cursor/pending-marks';
 	import { createRevealAnchorState } from '../cursor/reveal-anchor';
 	import { createHeightOracle } from '../cursor/height-oracle';
-	import { ESTIMATE_BASE_FONT_SIZE, HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
+	import { HEIGHT_ESTIMATES } from '../cursor/typography-estimates';
 	import {
 		clippingAncestors,
 		userScrollportFor,
@@ -80,19 +80,25 @@
 	} from '../debug/interaction-trace';
 	import { readCurrentSelection } from '../selection/native-bridge';
 	import { restoreSelection, type SelectionRestoreOutcome } from '../selection/selection-restore';
-	import { findSurfacePathForElement, readBlockPath } from '../selection/path-lookup';
+	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createCaretRestore } from '../selection/caret-restore';
 	import { createCrossBlockHandlers } from '../selection/cross-block/dispatch';
 	import { createCrossBlockCommands } from '../selection/cross-block/format-toggle';
-	import { isPreviewMode } from '../presentation-mode';
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root-keydown';
 	import { createEditorRootClipboard } from './editor-root-clipboard';
+	import { createModeFlip } from './editor-root-mode-flip';
+	import { createFocusAttribution } from './editor-root-focus';
+	import {
+		installHeaderSlotCompensation,
+		installTypeScaleProbe,
+		installViewportHeightWatcher,
+		installWidthWatcher
+	} from './editor-root-geometry';
 	import {
 		installEditorBlurAnnouncer,
 		installModActiveTracker,
 		installSelectionChangeBridge,
-		installViewportHeightWatcher,
 		onRoot,
 		removeAll
 	} from './editor-root-listeners';
@@ -102,12 +108,8 @@
 		registerEditor,
 		unregisterEditor,
 		markEditorInteracted,
-		releaseInteractedEditor,
-		isTextEntrySurface
+		releaseInteractedEditor
 	} from '../active-editor';
-	import { ambientLengthOf } from '../ambient/ambient-dom';
-	import { toClampedRawOffset } from '../cursor/coordinate-spaces';
-	import { domTextOffsetAtNode } from '../cursor/widget-offset';
 	import {
 		canRunCommandById,
 		isCommandActiveById,
@@ -134,7 +136,6 @@
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '../assert';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
-	import { checkLandableCaret } from '../invariants/landable-caret';
 	import { registerBuiltInBlocks } from './built-in-blocks';
 	import { BLOCK_CONTENT_SELECTOR } from './block-content-selector';
 
@@ -879,84 +880,33 @@
 
 	// ── Root DOM effects ────────────────────────────────────────────────
 
-	/** The focused leaf's caret as (path, raw offset): the per-backend road while a leaf holds
-	 *  focus, else the native range a toggle click leaves behind while chrome takes focus. */
-	function captureFlipCaret(): { path: number[]; offset: number } | null {
-		if (selectionState.isCrossBlock || selectionState.gapCaret) return null;
-		const focused = readCurrentSelection(selectionState, blockRefs)?.focus;
-		if (focused) return { path: focused.path, offset: focused.offset };
-		const sel = window.getSelection();
-		if (!sel?.focusNode || !editorEl?.contains(sel.focusNode) || isHostChrome(sel.focusNode))
-			return null;
-		const node = sel.focusNode;
-		const el = node instanceof Element ? node : node.parentElement;
-		const path = findSurfacePathForElement(el);
-		if (!path) return null;
-		const contentEl = getBlockElByPath(path);
-		if (!contentEl?.contains(node)) return null;
-		const offset = toClampedRawOffset(
-			domTextOffsetAtNode(contentEl, node, sel.focusOffset),
-			ambientLengthOf(contentEl)
-		);
-		return { path, offset };
-	}
-
-	// The flip's PRE phase, the last moment the outgoing mode owns the DOM: past it the mode's
-	// render key has rebuilt every block from its own CST bytes, and the reveal's ephemeral edit
-	// is gone. Reading keeps its entry snapshot — no caret of its own to recapture on the way out.
-	let flipCaret: { path: number[]; offset: number } | null = null;
-	// svelte-ignore state_referenced_locally
-	let preFlipSeenMode = effectiveMode;
+	// The pre half runs while the outgoing mode still owns the DOM, the post half after the
+	// mode's render key has rebuilt every block; the factory carries the caret across the gap.
+	const modeFlip = createModeFlip({
+		get editorEl() {
+			return editorEl;
+		},
+		get mode() {
+			return effectiveMode;
+		},
+		selection: selectionState,
+		getSelection,
+		getBlockElByPath,
+		isHostChrome,
+		edgeAffinity,
+		// Built below; a flip runs post-init, so the getter reads past the TDZ.
+		get heightOracle() {
+			return heightOracle;
+		},
+		events,
+		restoreCaret: (path, offset) => restoreThroughRevealRoad(caretAt(path, offset), 'mount')
+	});
 	$effect.pre(() => {
 		const mode = effectiveMode;
-		if (mode === preFlipSeenMode) return;
-		const from = preFlipSeenMode;
-		preFlipSeenMode = mode;
-		untrack(() => {
-			if (from !== 'reading') flipCaret = captureFlipCaret();
-			// A flip is a blur-class event: a live reveal or composition folds through the existing
-			// blur choke point. Host chrome is exempt, or a mode toggle blurs a title field mid-edit.
-			const active = document.activeElement;
-			if (active instanceof HTMLElement && editorEl?.contains(active) && !isHostChrome(active)) {
-				active.blur();
-				// A blur the editor performs announces the selection it drops: the document listener
-				// only reports a range the browser still anchors in the root, and this one is gone.
-				events.emit('selectionChange', getSelection());
-			}
-		});
+		untrack(() => modeFlip.beforeFlip(mode));
 	});
-
-	// svelte-ignore state_referenced_locally
-	let lastEffectiveMode = effectiveMode;
 	$effect(() => {
-		const mode = effectiveMode;
-		if (mode === lastEffectiveMode) return;
-		lastEffectiveMode = mode;
-		// Which markers paint just changed, so a side recorded against the old geometry
-		// no longer names the offset the user meant.
-		edgeAffinity.reset();
-		// Hidden markers re-wrap prose, so every measured height is the other mode's. Not paired
-		// with `widthVersion++`: the flip has blurred, so a rebuild here loses the caret pin.
-		heightOracle.dropMeasured();
-		if (mode === 'reading') {
-			// The gap is an editor-owned caret no DOM blur can reach, so the flip clears it
-			// rather than each arrival path.
-			selectionState.clearGapCaret();
-		} else if (flipCaret) {
-			const caret = flipCaret;
-			flipCaret = null;
-			void (async () => {
-				// A post-tick focus like every structural op's; the road clamps the saved offset
-				// into the destination mode's landable range at the door. Yielding to a focused
-				// text-entry surface keeps the restore from stealing a host field mid-typing.
-				// The reveal is the bare MOUNT: a flip is a view operation, so it re-seats the
-				// caret without writing the scrollport the reader chose.
-				await tick();
-				if (effectiveMode !== mode || isTextEntrySurface(document.activeElement)) return;
-				await restoreThroughRevealRoad(caretAt(caret.path, caret.offset), 'mount');
-			})();
-		}
-		events.emit('presentationModeChange', mode);
+		modeFlip.afterFlip(effectiveMode);
 	});
 
 	// A theme flip invalidates no live edit, so it only has to be announced — for
@@ -1151,22 +1101,14 @@
 	// ── Resize invalidation ─────────────────────────────────────────────
 
 	// A WIDTH change re-wraps prose, staling every cached height, so the scopes rebuild
-	// off this counter; a height-only resize spares the measured cache. ResizeObserver's
-	// per-callback batching is the coalescing — no setTimeout/rAF debounce (G4.4).
+	// off this counter; a height-only resize spares the measured cache.
 	let widthVersion = $state(0);
 	$effect(() => {
-		const el = editorEl;
-		if (!el) return;
-		let lastWidth = el.clientWidth;
-		const observer = new ResizeObserver(() => {
-			const width = el.clientWidth;
-			if (width === lastWidth) return;
-			lastWidth = width;
+		if (!editorEl) return;
+		return installWidthWatcher(editorEl, () => {
 			heightOracle.dropMeasured();
 			widthVersion++;
 		});
-		observer.observe(el);
-		return () => observer.disconnect();
 	});
 
 	// The slice's own axis, watched on the RESOLVED port: the window's extent comes from the
@@ -1183,117 +1125,51 @@
 
 	// ── Type scale ──────────────────────────────────────────────────────
 
-	// The width change's sibling: a font-size move puts estimates off several-fold, so a
-	// document whose true height clears the activation watermark can fail to window at
-	// all. Only the off-window set depends on the ESTIMATE moving. The width observer
-	// can't see this (no other box in the root resizes), hence the `1em` probe.
-	function applyTypeScale(fontSizePx: number): void {
-		const next = fontSizePx / ESTIMATE_BASE_FONT_SIZE;
-		// Sub-percent moves are sub-pixel on a line box — not worth a full rebuild.
-		if (!(next > 0) || Math.abs(next - typeScale) < 0.01) return;
-		typeScale = next;
-		heightOracle.dropMeasured();
-		widthVersion++;
-	}
+	// A font-size move puts the estimates off several-fold, which no other box in the root
+	// reports; the probe's scale rides the width signal, since a rebuild is what it needs.
 	$effect(() => {
-		const el = typeScaleProbeEl;
-		if (!el) return;
-		applyTypeScale(el.getBoundingClientRect().height);
-		const observer = new ResizeObserver((entries) => {
-			const box = entries[0]?.borderBoxSize?.[0];
-			applyTypeScale(box ? box.blockSize : el.getBoundingClientRect().height);
+		if (!typeScaleProbeEl) return;
+		return installTypeScaleProbe(typeScaleProbeEl, {
+			getScale: () => typeScale,
+			onScale: (next) => {
+				typeScale = next;
+				heightOracle.dropMeasured();
+				widthVersion++;
+			}
 		});
-		observer.observe(el);
-		return () => observer.disconnect();
 	});
 
 	// ── Header slot compensation ────────────────────────────────────────
 
-	// The header slot's height lives outside the height model, so while the editor owns the
-	// correction a growing header would slide the document under the reader. Compensating from
-	// the SLOT's own resize is what composes with `correctAnchor` instead of double-correcting;
-	// a reveal already holding the scroll outranks it.
 	$effect(() => {
 		const el = headerEl;
 		if (!el || !editorEl) return;
 		const port = getScrollport();
 		if (!port) return;
-		let lastHeight = el.getBoundingClientRect().height;
-		const observer = new ResizeObserver((entries) => {
-			// Border boxes throughout, seed and fallback alike, so a browser without
-			// `borderBoxSize` computes the same delta.
-			const box = entries[0]?.borderBoxSize?.[0];
-			const height = box ? box.blockSize : el.getBoundingClientRect().height;
-			const delta = height - lastHeight;
-			lastHeight = height;
-			if (delta === 0 || !ownsScrollCorrection() || port.scrollTop() === 0) return;
-			if (!topWindowing.revealHoldsScroll()) port.setScrollTop(port.scrollTop() + delta);
+		return installHeaderSlotCompensation({
+			el,
+			port,
+			ownsScrollCorrection,
+			revealHoldsScroll: () => topWindowing.revealHoldsScroll()
 		});
-		observer.observe(el);
-		return () => observer.disconnect();
 	});
 
 	// ── Focus attribution ───────────────────────────────────────────────
 
-	// Drives each windowing scope's per-level pin, so a scroll that pushes the caret
-	// off-screen never tears down native focus/IME. Plain `let`, not $state: focusout
-	// fires mid-teardown during a structural commit, where a reactive write would trip
-	// state_unsafe_mutation.
-	let focusedPath: number[] | null = null;
-
-	// Marks the block host whose leaf holds the caret; both preview modes' CSS key their
-	// focused-block reveal off it. Imperative for focusedPath's teardown-safety reason,
-	// and mode-gated so source/reading DOM stays byte-identical.
-	let focusedHostEl: HTMLElement | null = null;
-	function applyFocusedAttr(): void {
-		if (focusedHostEl && isPreviewMode(effectiveMode)) {
-			focusedHostEl.setAttribute('data-focused', '');
-		} else {
-			focusedHostEl?.removeAttribute('data-focused');
+	const focusAttribution = createFocusAttribution({
+		get mode() {
+			return effectiveMode;
 		}
-	}
-	function setFocusedHost(host: HTMLElement | null): void {
-		if (focusedHostEl === host) return;
-		focusedHostEl?.removeAttribute('data-focused');
-		focusedHostEl = host;
-		applyFocusedAttr();
-	}
-	// Entering a preview mode marks the already-focused block, since no re-focus fires.
+	});
 	$effect(() => {
 		void effectiveMode;
-		applyFocusedAttr();
+		focusAttribution.applyForMode();
 	});
-
 	$effect(() => {
 		if (!editorEl) return;
-		const root = editorEl;
-		const onFocusIn = (e: FocusEvent) => {
-			const host = (e.target as Element | null)?.closest('[data-block-path]');
-			if (!host || !root.contains(host)) {
-				focusedPath = null;
-				setFocusedHost(null);
-				return;
-			}
-			setFocusedHost(host as HTMLElement);
-			const path = readBlockPath(host);
-			focusedPath = path && path.length > 0 ? path : null;
-			// G1.33 at the seam every caret door crosses: a door seats a caret by focusing the
-			// surface, whoever minted it, so a consumer's own door inherits the guard here.
-			const landed = e.target;
-			if (landed instanceof HTMLElement) {
-				assertInvariant('landable-caret', () =>
-					checkLandableCaret(landed, effectiveMode, path ?? [])
-				);
-			}
-		};
-		const onFocusOut = (e: FocusEvent) => {
-			const next = e.relatedTarget as Node | null;
-			if (next && root.contains(next)) return; // moving between blocks — keep the pin
-			focusedPath = null;
-			setFocusedHost(null);
-		};
-		return removeAll(onRoot(root, 'focusin', onFocusIn), onRoot(root, 'focusout', onFocusOut));
+		return focusAttribution.install(editorEl);
 	});
+
 	// ── Top-level windowing ─────────────────────────────────────────────
 
 	// Assembled here, after the windowing signals it carries exist; the block
@@ -1308,7 +1184,7 @@
 		scrollHost: getScrollHost,
 		scrollport: getScrollport,
 		blockElLookup: getBlockElByPath,
-		focusedPath: () => focusedPath,
+		focusedPath: focusAttribution.getFocusedPath,
 		heightOracle,
 		correctsScroll: ownsScrollCorrection,
 		widthVersion: () => widthVersion,
