@@ -23,6 +23,8 @@ npm run dev
 
 Currently, the e2e suite and the perf gate both drive chromium, so don't skip the second line please.
 
+If your checkout sits on a Windows drive mounted into WSL (`/mnt/c/...`), the watcher gets no events there and your edits look like they did nothing: run `ARAGONITE_POLL=1 npm run dev` instead, which polls for them.
+
 ## The shape of the thing
 
 The editor keeps one tree, the CST (the parsed form of your markdown, where every node holds its own slice of the original text, markers included). Markdown parses into it, the blocks on screen render from it, and saving concatenates it back out.
@@ -50,6 +52,7 @@ The library is `src/lib/`; `src/routes/test/editor` is the dev harness. Inside `
 | Directory                                                                  | What's in it                                                                                                                                                                                                                                       |
 | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `components/`                                                              | the Svelte components: Editor, BlockList, BlockHost, and one component per block kind                                                                                                                                                              |
+| `components/menu/`                                                         | the menu surface every block shares: the block menu, the icons, the flyout placement, and the default context actions                                                                                                                              |
 | `editor-actions/`                                                          | what a block asks the editor to do for it (split, merge, paste), and the versions of those a container substitutes for its children                                                                                                                |
 | `tree-operations/`                                                         | pure functions that change the tree (paste, list, blockquote, the primitives), plus the copy-on-write sharing (`sharing.ts`) that lets undo snapshots share nodes with the live tree                                                               |
 | `schema/`                                                                  | everything about a block kind that more than one subsystem reads: its metadata record (the descriptor), the registries, the parser piece that recognizes the syntax it starts with (the opener), merge rules, commands and their keybindings       |
