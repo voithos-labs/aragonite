@@ -16,6 +16,8 @@
 	   never names the second one sees exactly what it saw before. */
 	--font-editor: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 	--font-code: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+	/* The menus' and popovers' face: the host's own UI font where it names one. */
+	--font-ui: 'Inter', system-ui, sans-serif;
 	/* Type-scale root: headings, code and markers are all `em`-relative, so one override
 	   scales the surface. A themed host sets it on any ancestor instead. */
 	--editor-font-size: 1rem;
@@ -25,6 +27,8 @@
 	--radius-ui: 4px;
 	--radius-surface: 8px;
 
+	/* The page ground, which the menus and the image toolbar paint on. */
+	--color-bg: #2c2c2a;
 	--color-surface: #1a1a19;
 	--color-text-secondary: #cfcfca;
 	--color-text-primary: #e8e8e5;
@@ -40,6 +44,7 @@
 }
 
 :where(.aragonite-editor-theme)[data-editor-theme='light'] {
+	--color-bg: #dfddd7;
 	--color-surface: #efeee9;
 	--color-text-secondary: #4a4a45;
 	--color-text-primary: #2a2a27;
@@ -132,7 +137,6 @@
 	--menu-search-divider: rgba(255, 255, 255, 0.08);
 	--menu-scrollbar-thumb: rgba(255, 255, 255, 0.18);
 	--menu-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
-	--font-ui: 'Inter', system-ui, sans-serif;
 
 	/* Placeholder tint behind off-window content (VR-8), so a spacer that outruns the
 	   window recompute reads as "loading" rather than a white tear. */
@@ -150,7 +154,6 @@
 	--menu-search-divider: rgba(0, 0, 0, 0.07);
 	--menu-scrollbar-thumb: rgba(0, 0, 0, 0.2);
 	--menu-scrollbar-thumb-hover: rgba(0, 0, 0, 0.32);
-	--font-ui: 'Inter', system-ui, sans-serif;
 
 	/* --syntax-* tokens are mode-independent — no light overrides. */
 

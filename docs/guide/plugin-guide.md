@@ -1608,6 +1608,25 @@ registerGlobalCommand('mine.bold', handler, { chord: 'Mod+B' }); // fine: fires 
 
 Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters.
 
+## Block context actions
+
+**`registerBlockContextActions(kind, provider)`**
+
+The right-click menu on a block of `kind` (a code block, a table, a plugin's own block) lists what its providers return, ahead of the editor's own rows (copy, replace with the clipboard, remove). Register from `setup`. The provider is consulted on every open, so it reads the block as it is then; several may stack on one kind, and `EVERY_KIND` (`'*'`) registers for every kind. Prose is the page's background: a paragraph or heading keeps the browser's own menu and consults no provider.
+
+```ts
+registerBlockContextActions(conspiracy, (node) => [
+	{
+		id: 'conspiracy.debunk',
+		label: 'Mark debunked',
+		icon: 'check',
+		run: (ctx) => ctx.replaceRaw(node.raw.replace(/^:::conspiracy/, ':::debunked'))
+	}
+]);
+```
+
+`run` receives a `BlockActionContext`: the node, its path, `deleteBlock()`, and `replaceRaw(raw)`, which rewrites the block's bytes wholesale and reparses them, the road the default replace row takes. Each is one undo entry. `icon` names a glyph the editor's menus already draw (the same set the code rail and the table menu use); a row without one shows none. `danger` paints the row in the error colour, for an action that is not one undo away.
+
 ## Paste transforms
 
 `registerPasteTransform` records a **content-keyed, pre-parse** rewrite of pasted plain text. Each transform is a `{ name, transform(text) }` unit: `transform` returns a replacement string, or `null` to decline ("not mine"). Transforms run at every paste site before the clipboard text is parsed, in **install order**, each one seeing the previous transform's output, so a plugin keys off the _content_ it recognizes rather than the block it lands in. The name is unique (register-once; a duplicate throws, naming the owning plugin) and scopes the transform for attribution.

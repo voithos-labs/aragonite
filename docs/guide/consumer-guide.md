@@ -157,7 +157,7 @@ And what you can write:
 | `setSelection(snapshot)`  | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection))                             |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
 | `insertMarkdown(md)`      | Inserts Markdown at the caret, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret))    |
-| `runCommand(id)`          | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands))                                       |
+| `runCommand(id, arg?)`    | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands))                                       |
 
 ### Reading the document and the selection
 
@@ -267,7 +267,7 @@ One call runs the whole paste route:
 
 ### Toolbar commands
 
-`runCommand(commandId: string): boolean`
+`runCommand(commandId: string, arg?: unknown): boolean`
 
 Runs an editor command by name at the focused block, no keystroke involved. It's what a formatting button calls: the button means "toggle bold", not "press Ctrl+B", so a user who rebinds the shortcut moves it without silently rewiring your button. The command behaves exactly as it would from the keyboard: same edit, one undo entry, caret and selection left where the keystroke would leave them.
 
@@ -282,7 +282,10 @@ editor.runCommand('nope'); // false, unknown id, nothing changed
 The ids you can pass:
 
 - **`TOOLBAR_COMMANDS`** (exported from the package) has what a selection toolbar needs: `toggleStrong`, `toggleEmphasis`, `toggleStrikethrough`, `toggleCode`, and `editLink`. The rest of the built-in commands stay internal for now.
+- **`heading.cycle`, with a level.** The arm behind `Mod+0` to `Mod+6`: `runCommand('heading.cycle', 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls.
 - **A plugin's global command name.** `registerGlobalCommand` registers it (see the [plugin guide](plugin-guide.md)), and it resolves ahead of the focused block, so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
+
+`arg` is the argument a keymap binding would bake in (`{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 }`), handed to the command as it is; a command that takes none ignores it.
 
 What the boolean means:
 
@@ -334,7 +337,7 @@ const off = events.on('edit', (e) => console.log(e.op, e.path));
 off();
 ```
 
-Five channels:
+Six channels:
 
 | Channel                  | Fires                                                                                                                        |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -587,6 +590,8 @@ The module owns its CSS. Two stylesheets ship under `styles/`:
 
 A plugin's render engine may carry its own stylesheet (KaTeX's `katex.min.css`, say). That CSS is the plugin's to load, not the editor module's.
 
+No font ships either. The `/` showcase and the harness load Inter and JetBrains Mono from `@fontsource/*` devDependencies to dress as the app the editor ships into; those packages never reach the published module, so the `--font-*` tokens resolve to whatever your page provides, and to their fallback stacks otherwise.
+
 ### Scope
 
 Nothing is declared on `:root`; the module never puts custom properties into your global scope. The tokens come in two tiers, and the tier decides where you override:
@@ -612,17 +617,17 @@ Three paths, by how much you want to change:
 
 The role table below is the stable **host-chrome contract**: the tokens the editor and its plugins read to blend into your app, named the way a host theme system names them. Declare them anywhere in your cascade, or take the defaults through the opt-in class.
 
-| Role          | Token(s)                                                                   |
-| ------------- | -------------------------------------------------------------------------- |
-| **Font**      | `--font-editor`, `--editor-font-size` _(mode-independent; one value each)_ |
-| **Radius**    | `--radius-ui` _(controls)_, `--radius-surface` _(overlays, popovers)_      |
-| **Surface**   | `--color-surface`                                                          |
-| **Text**      | `--color-text-secondary` _(body)_, `--color-text-primary`                  |
-| **Muted**     | `--color-ui-muted`, `--color-ui-dulled`                                    |
-| **Accent**    | `--color-accent`                                                           |
-| **Selection** | `--color-selection`                                                        |
-| **Borders**   | `--color-border`                                                           |
-| **Error**     | `--color-error`                                                            |
+| Role          | Token(s)                                                                                                                                                                                                                                 |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Font**      | `--font-editor` _(the surface)_, `--font-code` _(what stays monospace whatever the surface is: code blocks, code spans, revealed source)_, `--font-ui` _(menus and popovers)_, `--editor-font-size` _(mode-independent; one value each)_ |
+| **Radius**    | `--radius-ui` _(controls)_, `--radius-surface` _(overlays, popovers)_                                                                                                                                                                    |
+| **Surface**   | `--color-bg` _(the page ground; menus and the image toolbar paint on it)_, `--color-surface`                                                                                                                                             |
+| **Text**      | `--color-text-secondary` _(body)_, `--color-text-primary`                                                                                                                                                                                |
+| **Muted**     | `--color-ui-muted`, `--color-ui-dulled`                                                                                                                                                                                                  |
+| **Accent**    | `--color-accent`                                                                                                                                                                                                                         |
+| **Selection** | `--color-selection`                                                                                                                                                                                                                      |
+| **Borders**   | `--color-border`                                                                                                                                                                                                                         |
+| **Error**     | `--color-error`                                                                                                                                                                                                                          |
 
 The editor supplies these host-family surfaces itself, in both modes, because a host vocabulary rarely names them. Override them at `.editor`; a `:root` declaration would lose to the default:
 

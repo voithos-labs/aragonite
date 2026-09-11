@@ -61,9 +61,9 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	},
 	{
 		file: 'components/blocks/editable-leaf.ts',
-		chords: ['Mod+Shift+Z', 'Mod+Y', 'Mod+Z'],
-		keys: ['Backspace', 'Enter', 'Y', 'Z'],
-		note: "Shift-click gate on the rendered surface — a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does; the undo chords step an open reveal's own edits before falling through to the document's history."
+		chords: [],
+		keys: ['Backspace', 'Enter'],
+		note: "Shift-click gate on the rendered surface — a pointer read; plain Backspace (no modifier) at the top of an empty painted source deletes the block, as the code block does. An open reveal's own undo answers whatever chord the keymap binds to history.undo, so it claims nothing here."
 	},
 	{
 		file: 'components/link-card/LinkCard.svelte',
@@ -138,8 +138,17 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/blocks/text/widget-interaction.ts',
 		chords: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
-		keys: ['Arrow*', 'ArrowLeft', 'ArrowRight', 'Backspace', 'Delete', 'Escape'],
-		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding.'
+		keys: [
+			'Arrow*',
+			'ArrowDown',
+			'ArrowLeft',
+			'ArrowRight',
+			'ArrowUp',
+			'Backspace',
+			'Delete',
+			'Escape'
+		],
+		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow seats a caret and declines.'
 	},
 	{
 		file: 'components/image/ImageResizeHandles.svelte',

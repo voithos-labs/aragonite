@@ -563,20 +563,20 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		preEditOffset = getCursorOffset(el) ?? 0;
 
 		// Undo INSIDE an open reveal steps back through this session's own edits: the document's
-		// history sees the session as one entry written on blur, so until then Mod+Z had nothing
-		// to undo. Once the local stack is spent the chord falls through to the document's.
-		if (deps.renderSource && isRevealed() && (e.ctrlKey || e.metaKey) && !e.altKey) {
-			const key = e.key.toUpperCase();
-			const undo = key === 'Z' && !e.shiftKey;
-			const redo = (key === 'Z' && e.shiftKey) || (key === 'Y' && !e.shiftKey);
-			if (undo && sourceUndo.length > 0) {
+		// history sees the session as one entry written on blur, so until then undo had nothing
+		// to undo. Once the local stack is spent the chord falls through to the document's. Which
+		// chord means undo is the keymap's to say, so a host's rebind or disable reaches here.
+		if (deps.renderSource && isRevealed()) {
+			const command = wiring.resolveChord(e, deps.getNode().kind);
+			const stacks =
+				command === 'history.undo'
+					? [sourceUndo, sourceRedo]
+					: command === 'history.redo'
+						? [sourceRedo, sourceUndo]
+						: null;
+			if (stacks && stacks[0].length > 0) {
 				e.preventDefault();
-				restoreSourceEntry(el, sourceUndo, sourceRedo);
-				return;
-			}
-			if (redo && sourceRedo.length > 0) {
-				e.preventDefault();
-				restoreSourceEntry(el, sourceRedo, sourceUndo);
+				restoreSourceEntry(el, stacks[0], stacks[1]);
 				return;
 			}
 		}

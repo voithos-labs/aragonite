@@ -208,4 +208,46 @@ test.describe('selection toolbar', () => {
 		await editor.bridge.waitForSourceEquals('**first block**\n\n**second block**\n', 3000);
 		await expect(bold).toHaveAttribute('aria-pressed', 'true');
 	});
+
+	// The editor's own menu takes the selection's spot: two cards over one range read as a glitch.
+	test('the bar hides while the editor menu is open and returns when it closes', async ({
+		page
+	}) => {
+		await editor.loadContent('select some of this text\n\nsecond block\n');
+		await editor.focusBlock(0, 7);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+
+		// A right-click inside the selection opens the clipboard menu over it.
+		const rect = (await firstSelectionRect(page))!;
+		await page.mouse.click(rect.left + 2, (rect.top + rect.bottom) / 2, { button: 'right' });
+		await expect(page.getByRole('menu', { name: 'Block actions' })).toBeVisible();
+		await expect(page.locator(TOOLBAR)).toHaveCount(0);
+
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+	});
+
+	// `runCommand` with an argument: the picker fires the `heading.cycle` arm with its level.
+	test('Set heading runs heading.cycle with the picked level, and Normal text with zero', async ({
+		page
+	}) => {
+		await editor.loadContent('select some of this text\n\nsecond block\n');
+		await editor.focusBlock(0, 7);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+
+		// The picker opens on hover, the way a menu's flyout does.
+		await page.locator('[data-testid="toolbar-set-heading"]').hover();
+		await page.locator('[data-testid="toolbar-set-heading-2"]').click();
+		await editor.bridge.waitForSourceEquals('## select some of this text\n\nsecond block\n');
+
+		await editor.focusBlock(0, 10);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await expect(page.locator(TOOLBAR)).toBeVisible();
+		await page.locator('[data-testid="toolbar-set-heading"]').hover();
+		await page.locator('[data-testid="toolbar-set-heading-0"]').click();
+		await editor.bridge.waitForSourceEquals('select some of this text\n\nsecond block\n');
+	});
 });

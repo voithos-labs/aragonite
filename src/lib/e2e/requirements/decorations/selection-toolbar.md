@@ -55,6 +55,13 @@ call `runCommand(id)` rather than synthesizing a chord, each greyed by
   (`~~a~~ b ~~c~~`) and unpresses: shedding only the inner run would leave the
   selection struck through under a bar that just said it was not
 
+- the "Set heading" row opens a picker whose rows run `runCommand('heading.cycle', level)`:
+  Heading 2 re-marks the selected block as `## `, Normal text (level 0) strips it back to
+  a paragraph, through the same arm the `Mod+0`..`Mod+6` chords take
+- the editor's own right-click menu opening over the selection hides the bar (the
+  `menuChange` channel), and closing it brings the bar back over the selection that
+  still stands
+
 ## Edge cases
 
 - a bar with no room below the selection flips above its first rect, and one

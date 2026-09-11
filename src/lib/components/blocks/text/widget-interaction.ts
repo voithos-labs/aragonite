@@ -564,14 +564,21 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		void startReveal(target, target.start, insideEndOffset(target));
 	}
 
-	/** Take the whole revealed token; declines unless the native selection sits inside it. */
-	function selectRevealedSource(): boolean {
+	/**
+	 * Take the whole revealed token; declines unless the double-click landed on it. Keyed off the
+	 * point, not the selection: the root's second-press word select runs before this click and
+	 * may have moved the selection off the source.
+	 */
+	function selectRevealedSource(x: number, y: number | null): boolean {
 		const source = activeSourceNode;
-		if (!revealState || !source) return false;
-		const selection = window.getSelection();
-		if (!selection || !selection.anchorNode || !source.contains(selection.anchorNode)) return false;
+		if (!revealState || !source || y === null) return false;
 		const range = document.createRange();
 		range.selectNodeContents(source);
+		const onSource = Array.from(range.getClientRects()).some(
+			(r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+		);
+		const selection = window.getSelection();
+		if (!onSource || !selection) return false;
 		selection.removeAllRanges();
 		selection.addRange(range);
 		return true;
@@ -674,6 +681,13 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 				deps.widgetSelection.clear();
 			}
 			return true;
+		}
+		// A vertical arrow is the shared pipeline's line walk, which needs a real caret to read:
+		// seat one at the edge the arrow leaves from and decline, so the walk runs from there.
+		if (!e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+			deps.cursor.setRaw(asRawOffset(e.key === 'ArrowUp' ? widget.start : widget.end));
+			deps.widgetSelection.clear();
+			return false;
 		}
 		// Reading mode still swallows — a selected widget owns its keys — but commits nothing.
 		// Undo anchored at the pre-select caret, so Ctrl+Z restores the caret where the user
@@ -806,7 +820,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		}
 		// The first click of a double-click already revealed, so the second lands in the source
 		// text and the browser's word rule takes `[` or `$` as a word of its own.
-		if (doubleClick && revealOpenedByLastClick && selectRevealedSource()) return;
+		if (doubleClick && revealOpenedByLastClick && selectRevealedSource(clickX, clickY)) return;
 		// A click in a real text node keeps the native caret; a synthetic overlay would compete.
 		if (caretIsInTextContent(el, window.getSelection())) return;
 		for (const inline of widgetsOf()) {

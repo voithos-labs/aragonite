@@ -21,6 +21,9 @@ import {
 import { emitCommandError } from '../../editor-events';
 import { eventToChord } from '../../schema/keybindings';
 import { dispatchKeyCommand, type KindCommandTarget } from '../../schema/block-commands';
+import { resolveBinding } from '../../schema/commands';
+import type { AnyBlockKind } from '../../core/nodes';
+import type { AnyCommandId } from '../../schema/command-id';
 import { parkFocusOnEditorRoot } from '../../selection/native-bridge';
 import type { EditableSurfaceDeps } from './editable-surface';
 
@@ -55,6 +58,8 @@ export interface SurfaceWiring {
 	deps: SharedSurfaceDeps;
 	/** Resolve a chord at `target` through the shared gates; consumes the event when spent. */
 	dispatchChord(e: KeyboardEvent, target: KindCommandTarget): boolean;
+	/** The command a press names at `kind`, overrides included, without running it. */
+	resolveChord(e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null;
 }
 
 export function wireSurfaceContexts(): SurfaceWiring {
@@ -133,7 +138,13 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		return true;
 	};
 
-	return { deps, dispatchChord };
+	const resolveChord = (e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null => {
+		const chord = eventToChord(e);
+		if (!chord) return null;
+		return resolveBinding(chord, kind, keybindingOverrides(), activePlugins)?.command ?? null;
+	};
+
+	return { deps, dispatchChord, resolveChord };
 }
 
 // Windowed out while focused: hand focus to the editor root so the next keystroke
