@@ -127,6 +127,45 @@ test.describe('drag to reorder', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
+	// Focusing what was dropped opens whatever a caret opens there — an equation reveals its
+	// source, so a dragged one came back in edit mode. The latex kind lives on the plugins
+	// route, so the contract is pinned here on the block this route has.
+	test('a drop focuses nothing it dropped', async ({ page }) => {
+		await editor.loadContent('```js\nfirst\n```\n\n```js\nsecond\n```\n\ntail\n');
+		const first = page.locator('.block-host[data-block-kind="fencedCode"]').first();
+		await first.hover();
+		const hb = (await first.locator(':scope > .block-drag-handle svg').boundingBox())!;
+		const dst = (await page
+			.locator('.block-host[data-block-kind="fencedCode"]')
+			.last()
+			.boundingBox())!;
+
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(dst.x + dst.width / 2, dst.y + dst.height - 2, { steps: 12 });
+		await page.mouse.up();
+
+		await editor.bridge.waitForSourceMatches(/second[\s\S]*first/);
+		const focusedInsideABlock = await page.evaluate(
+			() => !!document.activeElement?.closest('.block-host')
+		);
+		expect(focusedInsideABlock, 'a drop must not focus what it dropped').toBe(false);
+	});
+
+	test('the ghost names a table rather than sampling its cells', async ({ page }) => {
+		await editor.loadContent('| A | B |\n| --- | --- |\n| 1 | 2 |\n\ntail\n');
+		const table = page.locator('.block-host[data-block-kind="table"]').first();
+		await table.hover();
+		const hb = (await table.locator(':scope > .block-drag-handle svg').boundingBox())!;
+		await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(hb.x + 120, hb.y + 60, { steps: 6 });
+
+		await expect(page.locator('.reorder-ghost')).toHaveText('Table · 2 × 2');
+		await page.keyboard.press('Escape');
+		await page.mouse.up();
+	});
+
 	test('dragging the handle starts no text selection', async () => {
 		await editor.loadContent('```\nA\n```\n\n```\nB\n```\n\n```\nC\n```\n');
 		await dragHandle('.block-host', 'A', '.block-host', 'C', true);

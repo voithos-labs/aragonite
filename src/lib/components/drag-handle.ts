@@ -47,20 +47,26 @@ export function showsDragHandle(node: NodeView, handlesEnabled: boolean): boolea
 	return handlesEnabled && !GRIPLESS_KINDS.has(node.kind);
 }
 
+/** A box within this many line-heights holds one row of content, margins included. */
+const SINGLE_LINE = 1.5;
+
 /**
- * Vertical centre of the grip: the first line-height of the block's OWN box, measured rather
- * than derived from the host's line-height. Not the first line of text — a card pads above it,
- * and a grip level with the first code line hangs well below the card's shoulder. A declared
- * anchor SHORTER than a line is a marker to centre on instead (a task item's checkbox, which
- * is taller than the text beside it); a taller one is a card, and the band already covers it.
+ * Vertical centre of the grip. A one-line block centres on its row. A taller one takes the
+ * first line-height of its OWN box — not its first line of text, since a card pads above that
+ * and a grip level with the first code line hangs below the card's shoulder. A declared anchor
+ * SHORTER than a line is a marker to centre on instead (a wrapped task item's checkbox); a
+ * taller one is a card, and the band already covers it.
  */
 export function dragHandleAnchorY(host: HTMLElement): number | null {
 	const content = host.querySelector<HTMLElement>(BLOCK_CONTENT_SELECTOR);
 	if (!content) return null;
 	const hostRect = host.getBoundingClientRect();
 	const line = lineHeightOf(content);
-	const marker = markerRect(content, line);
-	const box = marker ?? bandRect(paintedRect(content), line);
+	const rect = paintedRect(content);
+	// A one-line block IS its own band, and the eye puts the grip level with the row rather
+	// than a hair above its middle — a list item, a task row, a rule.
+	const box =
+		rect.height <= line * SINGLE_LINE ? rect : (markerRect(content, line) ?? bandRect(rect, line));
 	if (!box || box.height === 0) return null;
 	const y = box.top + box.height / 2 - hostRect.top;
 	// A box painting outside the host (a scrolled or offscreen region) seats nothing.

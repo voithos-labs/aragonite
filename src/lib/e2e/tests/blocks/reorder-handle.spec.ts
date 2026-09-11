@@ -145,14 +145,18 @@ test.describe('reorder hover handle', () => {
 		expect(seat.aboveFirstLine, 'above the first code line').toBeGreaterThan(0);
 	});
 
-	test('the handle grip centres on a task item checkbox', async ({ page }) => {
+	// A one-line block centres on its ROW, checkbox or bullet alike: level with the row is where
+	// the eye puts it, and the checkbox sits a little below that centre.
+	test('the handle grip centres on a one-line list row', async ({ page }) => {
 		await editor.goto('?presentationMode=live');
-		await editor.loadContent('- [ ] open task\n\ntail\n');
-		const item = page.locator('.list-item-block').first();
-		await item.hover();
-		await expect(item.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
-		const delta = await gripOffset(item, '.task-checkbox');
-		expect(Math.abs(delta), `off the checkbox centre by ${delta}px`).toBeLessThanOrEqual(2);
+		await editor.loadContent('- [ ] open task\n- plain bullet\n\ntail\n');
+		for (const text of ['open task', 'plain bullet']) {
+			const item = page.locator('.list-item-block', { hasText: text }).last();
+			await item.hover();
+			await expect(item.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
+			const delta = await gripOffset(item, ':scope');
+			expect(Math.abs(delta), `${text}: off the row centre by ${delta}px`).toBeLessThanOrEqual(2);
+		}
 	});
 
 	test('the handle grip centres on a divider', async ({ page }) => {
@@ -220,6 +224,10 @@ test.describe('reorder hover handle', () => {
 	}) => {
 		await editor.loadContent('# head\n\n![cat|300](/test-fixtures/sample.png)\n');
 		const host = page.locator('.block-host[data-block-path="[1]"]');
+		// The seat is measured, so the picture must have laid out before the hover reads it.
+		await expect
+			.poll(() => host.locator('img').evaluate((img) => img.getBoundingClientRect().height))
+			.toBeGreaterThan(40);
 		await host.hover();
 		await expect(host.locator('.block-drag-handle')).toHaveCSS('opacity', '1');
 

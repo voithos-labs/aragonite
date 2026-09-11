@@ -4,6 +4,15 @@ Mouse drag from a block's hover handle moves it among its siblings. A ghost
 follows the pointer and a single insertion line marks the drop gap; nothing
 reflows mid-drag and the tree changes once, on release.
 
+The ghost is LABELLED, not a text sample: a table's cells run together into
+`IngredientAmountWater35 L` and an equation reads as its own source, so those
+kinds name themselves (`Table · 13 × 2`, `Equation`, `Code`, `Diagram`,
+`Divider`, `Image`) and prose keeps its first words.
+
+A drop focuses nothing. Focusing what was dropped opens whatever a caret opens
+there — an equation reveals its source — which a drag never asked for. The
+keyboard nudge is the opposite: the caret rides the block it moves.
+
 ## Happy paths
 
 - Drag a top-level block down past two siblings: it lands after them.
