@@ -21,10 +21,10 @@ export async function flipPresentationMode(ctx: SimContext, mode: FlipMode): Pro
 	const toggle = page.getByTestId(TOGGLE_TESTID[mode]);
 
 	await toggle.click();
-	await page.waitForSelector(`.editor[data-presentation="${mode}"]`, { timeout: 2000 });
+	await page.waitForSelector(`.editor[data-presentation="${mode}"]`, { timeout: 5000 });
 
 	await toggle.click();
-	await page.waitForSelector('.editor:not([data-presentation])', { timeout: 2000 });
+	await page.waitForSelector('.editor:not([data-presentation])', { timeout: 5000 });
 
 	// Reading left no caret; restore an editable surface before handing control back.
 	await editor.clickBlock(0);

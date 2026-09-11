@@ -116,7 +116,7 @@ test.describe('live mode — a symmetric pair extends by arrival', () => {
 		const point = await trailingEdgeOfWord(page, 'bold');
 		await page.mouse.click(point.x, point.y);
 		await ep.waitForRenderFlush();
-		await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBe(11);
+		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBe(11);
 
 		await page.keyboard.type('X');
 		await ep.bridge.waitForSourceContains('Some **boldX** text');

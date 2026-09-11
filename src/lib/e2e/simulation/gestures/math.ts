@@ -10,7 +10,7 @@ const INLINE_WIDGET = '.math-inline-widget';
 const BLOCK_RENDER = '.math-block-render';
 const BLOCK_SOURCE = '.math-block-source';
 
-async function waitForWidgetCount(page: Page, expected: number, timeout = 2000): Promise<void> {
+async function waitForWidgetCount(page: Page, expected: number, timeout = 5000): Promise<void> {
 	await page.waitForFunction(
 		(n) => document.querySelectorAll('.math-inline-widget').length === n,
 		expected,

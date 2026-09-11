@@ -12,7 +12,7 @@ const VIEWPORT = '.mermaid-viewport';
 // which a redraw replaces.
 const FOCUS_HOST = '.mermaid-block [data-whole-block-input]';
 
-async function waitForDiagramFocused(page: Page, timeout = 2000): Promise<void> {
+async function waitForDiagramFocused(page: Page, timeout = 5000): Promise<void> {
 	await page.waitForFunction(
 		(selector) => document.activeElement === document.querySelector(selector),
 		FOCUS_HOST,

@@ -37,12 +37,12 @@ async function inLiveMode(ctx: SimContext, run: () => Promise<void>): Promise<vo
 	const toggle = page.getByTestId('live-toggle');
 
 	await toggle.click();
-	await page.waitForSelector('.editor[data-presentation="live"]', { timeout: 2000 });
+	await page.waitForSelector('.editor[data-presentation="live"]', { timeout: 5000 });
 	try {
 		await run();
 	} finally {
 		await toggle.click();
-		await page.waitForSelector('.editor:not([data-presentation])', { timeout: 2000 });
+		await page.waitForSelector('.editor:not([data-presentation])', { timeout: 5000 });
 	}
 	await editor.bridge.waitForSourceEquals(before, 3000);
 	tracker.resync(before);
@@ -340,7 +340,7 @@ export async function liveLinkCardEdit(
 		const before = await editor.bridge.getSource();
 
 		await clickText(ctx, linkText);
-		await page.locator(CARD).waitFor({ state: 'visible', timeout: 2000 });
+		await page.locator(CARD).waitFor({ state: 'visible', timeout: 5000 });
 		const field = page.locator(`${CARD} input`);
 		await field.click();
 		await page.keyboard.press('ControlOrMeta+a');

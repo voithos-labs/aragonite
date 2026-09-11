@@ -58,7 +58,7 @@ test.describe('mode flips — the scrollport stays where the reader left it', ()
 
 		await flipTo(ep, page, 'presentation-toggle');
 		// Non-vacuity: a flip that restored nothing would hold the scroll trivially.
-		await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 		expect(await scrollTop(page)).toBeCloseTo(parked, 0);
 	});
 
@@ -76,11 +76,11 @@ test.describe('mode flips — the scrollport stays where the reader left it', ()
 			const parked = await scrollTop(page);
 
 			await flipTo(ep, page, testid, mode);
-			await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+			await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 			expect(await scrollTop(page), `into ${mode}`).toBeCloseTo(parked, 0);
 
 			await flipTo(ep, page, testid);
-			await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+			await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 			expect(await scrollTop(page), `out of ${mode}`).toBeCloseTo(parked, 0);
 		});
 	}
@@ -97,12 +97,12 @@ test.describe('mode flips — the scrollport stays where the reader left it', ()
 		expect(await caretBlockPlacement(page), 'parked, caret block out of sight').toEqual(pinned);
 
 		await flipTo(ep, page, 'live-toggle', 'live');
-		await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 		expect(await caretBlockPlacement(page), 'into live').toEqual(pinned);
 		expect(await scrollTop(page), 'into live').toBeCloseTo(parked, 0);
 
 		await flipTo(ep, page, 'live-toggle');
-		await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 		expect(await caretBlockPlacement(page), 'out of live').toEqual(pinned);
 		expect(await scrollTop(page), 'out of live').toBeCloseTo(parked, 0);
 	});

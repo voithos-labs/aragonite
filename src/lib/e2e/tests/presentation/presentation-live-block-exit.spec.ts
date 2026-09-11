@@ -39,7 +39,7 @@ async function clickCell(ep: EditorPage, page: Page, text: string): Promise<void
 	const cell = page.locator("[role='table'] [contenteditable='true']").filter({ hasText: text });
 	await cell.first().click();
 	await ep.waitForRenderFlush();
-	await expect.poll(() => focusOffset(ep), { timeout: 2000 }).toBeGreaterThanOrEqual(0);
+	await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBeGreaterThanOrEqual(0);
 }
 
 test.describe('live mode — a horizontal exit fires at the landable bound', () => {

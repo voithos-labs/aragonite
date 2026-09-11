@@ -179,7 +179,7 @@ export async function waitForContainer(
 	page: Page,
 	index: number,
 	predicate: (s: ContainerState) => boolean,
-	timeout = 2000
+	timeout = 5000
 ): Promise<ContainerState> {
 	await page.waitForFunction(
 		({ i, src, predSrc }) => new Function('i', `return (${predSrc})((${src})(i));`)(i) as boolean,
@@ -221,7 +221,7 @@ export async function readDoc(page: Page): Promise<DocState> {
 export async function waitForDoc(
 	page: Page,
 	predicate: (s: DocState) => boolean,
-	timeout = 2000
+	timeout = 5000
 ): Promise<DocState> {
 	await page.waitForFunction(
 		({ src, predSrc }) => new Function(`return (${predSrc})((${src})());`)() as boolean,

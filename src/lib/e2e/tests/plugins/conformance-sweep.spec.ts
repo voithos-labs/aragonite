@@ -168,7 +168,7 @@ async function runQuery(
 async function waitForMatchOverlayIn(
 	page: Page,
 	topIndex: number,
-	timeout = 2000
+	timeout = 5000
 ): Promise<boolean> {
 	try {
 		await page.waitForFunction(

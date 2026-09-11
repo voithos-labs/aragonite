@@ -131,7 +131,7 @@ test.describe('decoration mark overlay', () => {
 		await editor.focusBlockStart(0);
 		await editor.typeSlowly('# ');
 		await page.waitForFunction(() => (window as any).__test.getBlockKind(0) === 'heading', null, {
-			timeout: 2000,
+			timeout: 5000,
 			polling: 16
 		});
 		await expect

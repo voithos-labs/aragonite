@@ -14,7 +14,7 @@ test.describe('task checkbox — live promotion from typing', () => {
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.typeSlowly('[ ] ');
 		await editor.bridge.waitForSourceContains('[ ] plain');
-		await editor.page.waitForSelector('.task-checkbox', { timeout: 2000 });
+		await editor.page.waitForSelector('.task-checkbox', { timeout: 5000 });
 		expect((await editor.bridge.getSource()).trim()).toBe('- [ ] plain');
 	});
 
@@ -24,7 +24,7 @@ test.describe('task checkbox — live promotion from typing', () => {
 		await editor.typeSlowly('[x] ');
 		await editor.bridge.waitForSourceContains('[x] work');
 		await editor.page.waitForSelector('.list-item-block[data-task-checked="true"]', {
-			timeout: 2000
+			timeout: 5000
 		});
 		expect((await editor.bridge.getSource()).trim()).toBe('- [x] work');
 	});

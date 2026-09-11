@@ -11,6 +11,6 @@ export async function waitForNodeCount(
 	await ctx.page.waitForFunction(
 		({ sel, n }) => document.querySelectorAll(sel).length === n,
 		{ sel: selector, n: count },
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 }

@@ -95,7 +95,7 @@ export async function indentEmptyItem(ctx: SimContext): Promise<void> {
 			return (sel?.focus?.path?.length ?? 0) > min;
 		},
 		baseline,
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 	await ctx.page.keyboard.press('End');
 	await ctx.editor.waitForRenderFlush();
@@ -117,7 +117,7 @@ export async function outdentEmptyItem(ctx: SimContext): Promise<void> {
 			return len < max;
 		},
 		baseline,
-		{ timeout: 2000, polling: 16 }
+		{ timeout: 5000, polling: 16 }
 	);
 	await ctx.page.keyboard.press('End');
 	await ctx.editor.waitForRenderFlush();

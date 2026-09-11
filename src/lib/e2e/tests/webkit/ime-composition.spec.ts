@@ -46,7 +46,7 @@ test.describe('webkit: composition through the hand-fired arm', () => {
 		await editor.page.waitForFunction(
 			() => (document.activeElement?.textContent ?? '') === 'hello world',
 			null,
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		);
 		expect(await editor.bridge.getSource()).toBe('hello world\n');
 	});

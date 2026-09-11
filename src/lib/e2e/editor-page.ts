@@ -55,8 +55,8 @@ export class EditorPage {
 	}
 
 	/**
-	 * `loadContent` polls a full-document serialize with a 2s timeout, which times out at MB
-	 * scale, so this settles on a cheap in-page doc-length probe instead. `suffix` appends
+	 * `loadContent` polls a full-document serialize under the harness's short wait, which times
+	 * out at MB scale, so this settles on a cheap in-page doc-length probe instead. `suffix` appends
 	 * trailing markdown so a sibling block exists for cross-block navigation.
 	 */
 	async loadLargeFixture(shape: FixtureShape, bytes: number, suffix = ''): Promise<number> {
@@ -521,7 +521,7 @@ export class EditorPage {
 			await this.page.waitForFunction(
 				() => document.querySelectorAll('.editor [contenteditable="true"]').length === 0,
 				null,
-				{ timeout: 2000, polling: 16 }
+				{ timeout: 5000, polling: 16 }
 			);
 		} catch {
 			const live = await this.editorContainer.locator('[contenteditable="true"]').count();

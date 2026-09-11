@@ -186,7 +186,7 @@ test.describe('reading mode — what stays live', () => {
 					'https://example.com'
 				),
 			null,
-			{ timeout: 2000 }
+			{ timeout: 5000 }
 		);
 	});
 

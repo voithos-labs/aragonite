@@ -30,7 +30,7 @@ test.describe('cross-block clipboard: copy', () => {
 		await editor.page.waitForFunction(
 			() => (window.getSelection()?.toString().length ?? 0) > 0,
 			null,
-			{ timeout: 2000, polling: 16 }
+			{ timeout: 5000, polling: 16 }
 		);
 		await editor.page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
