@@ -43,6 +43,16 @@ const TOGGLES = [
 		expected: '**a x b**'
 	},
 	{
+		chord: 'Ctrl+B',
+		effect: 'over a bold run and the space beside it removes **',
+		doc: 'Hello **world** today\n',
+		offset: 5,
+		extend: 10,
+		press: 'ControlOrMeta+b',
+		expected: 'Hello world today',
+		forbidden: '**'
+	},
+	{
 		chord: 'Ctrl+I',
 		effect: 'wraps selection with *',
 		doc: 'Hello world\n',

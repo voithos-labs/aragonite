@@ -72,6 +72,30 @@ describe('a live toggle over a selection with boundary whitespace', () => {
 	});
 });
 
+// The wrap put the boundary space OUTSIDE the delimiters, so the selection that applied the mark
+// still reaches past the run it made: a second press on that selection has to take the mark back.
+// Miss-analysis: every boundary-space case above applies, and every unapply case in these suites
+// selected the run's own bytes — so no test ever pressed twice on one selection.
+describe('a toggle takes back the wrap that same selection wrote', () => {
+	// The three on-screen readings of one run with its neighbouring spaces: ` b `, ` b` and `b `,
+	// whose endpoints sit on the run's CONTENT here, since live paints no delimiter to select.
+	it.each(MARK_FORMATS)('strips through a space on either flank (%s)', (format) => {
+		const m = markersOf(format).length;
+		const raw = `a ${markersOf(format)}b${markersOf(format)} c`;
+		expect(live(raw, { start: 1, end: 4 + 2 * m }, format)?.newDisplay).toBe('a b c');
+		expect(live(raw, { start: 1, end: 3 + m }, format)?.newDisplay).toBe('a b c');
+		expect(live(raw, { start: 2 + m, end: 4 + 2 * m }, format)?.newDisplay).toBe('a b c');
+	});
+
+	// The strip re-reads the construct rather than the chord's own row, so an author's `_` survives
+	// a press that would have minted `*`.
+	it('keeps the run selected and the author’s delimiters unwritten', () => {
+		const stripped = live('pre _mid_ post', { start: 3, end: 8 }, 'emphasis');
+		expect(stripped?.newDisplay).toBe('pre mid post');
+		expect(stripped?.newDisplay.slice(stripped.newSelStart, stripped.newSelEnd)).toBe('mid');
+	});
+});
+
 // The preview rungs hide markers everywhere EXCEPT the block the caret is in, and a toggle only
 // ever writes into the block the caret is in — so the delimiters this seam mints DO paint there,
 // and the mode owes source's answer rather than live's (live-mode.md § 4.3). Miss-analysis: the
@@ -97,5 +121,12 @@ describe('source mode writes the same bytes it always did', () => {
 	it('keeps the boundary space inside the run', () => {
 		expect(source('hello world', { start: 0, end: 6 })?.newDisplay).toBe('**hello **world');
 		expect(source('a b', { start: 1, end: 2 })?.newDisplay).toBe('a** **b');
+	});
+
+	// Painted delimiters put the run's own bytes inside the selection, which is the same reading
+	// past a boundary space that live takes over hidden ones.
+	it('strips a run the selection reaches past by a space', () => {
+		expect(source('a **b** c', { start: 1, end: 7 })?.newDisplay).toBe('a b c');
+		expect(source('a **b** c', { start: 2, end: 8 })?.newDisplay).toBe('a b c');
 	});
 });

@@ -30,6 +30,12 @@ since live paints no delimiter to assert against.
   range — the `# ` prefix keeps its bytes whatever the selection reached
 - the selection survives the toggle: a second press on the same selection
   reverses the first
+- a selection carrying a boundary space takes its own wrap back: the wrap left
+  that space outside the delimiters, so the same on-screen selection reaches past
+  the run it just made and the second press has to read it as covered.
+  Miss-analysis: the boundary-space scenarios all applied and the strip scenarios
+  all selected the run's own bytes, so no case pressed twice on one selection —
+  the one place the wrap's reading and the coverage read could disagree
 - a selection that ends on a trailing space wraps only the word: markdown closes
   a run against a word, so the literal wrap would paint four asterisks the reader
   cannot delete. Miss-analysis: every toggle scenario, here and in the unit
