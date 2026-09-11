@@ -20,7 +20,12 @@ import {
  * property is a fresh node, not a separator anybody was relying on, and is not a write.
  */
 const TRIVIA_WRITERS: Record<string, string> = {
-	'src/lib/tree-operations/node-ops.ts': 'the settle doors and the two funnel entries live here',
+	'src/lib/tree-operations/settle.ts': 'the settle doors and the two funnel entries live here',
+	'src/lib/tree-operations/node-ops.ts':
+		'the merge-installed leaf and the reparsed halves carry the slot’s own line',
+	'src/lib/tree-operations/content-write.ts':
+		'the content write and the container re-derive carry the slot’s line onto the reparse',
+	'src/lib/tree-operations/node-primitives.ts': 'the same carry, for a replacement built elsewhere',
 	'src/lib/tree-operations/reorder.ts':
 		'trivia is positional, so a rotation carries each slot’s line rather than its node’s',
 	'src/lib/tree-operations/blockquote.ts':
@@ -45,10 +50,12 @@ const TRIVIA_WRITERS: Record<string, string> = {
 
 /** Files that may name a settle door rather than reaching it through the funnel. */
 const HAND_SETTLE_CALLERS: Record<string, string> = {
-	'src/lib/tree-operations/node-ops.ts': 'defines them, and the funnel entries beside them',
+	'src/lib/tree-operations/settle.ts': 'defines them, and the funnel entries beside them',
+	'src/lib/tree-operations/content-write.ts':
+		'the content door’s two blank transitions settle by hand, ahead of the seam ask',
 	'src/lib/tree-operations/index.ts': 're-exports the two the gap-caret mint still needs',
 	'src/lib/tree-operations/list/sublist-separator.ts': 'defines the empty-marker sublist door',
-	'src/lib/tree-operations/unshare.ts':
+	'src/lib/tree-operations/chain-rebuild.ts':
 		'the chain rebuild is where a list rebuilt down to an empty marker becomes visible',
 	'src/lib/editor-actions/block-edit-core.ts':
 		'the gap-caret paragraph is a block of its own on both sides, which a splice window cannot say',
@@ -123,10 +130,17 @@ describe('separator-write-door census', () => {
 /**
  * A settle door rewrites bytes the owner's child spans describe, so it retires them
  * (`schema/child-spans.ts`). The censuses above fix which FILES may write a separator; this one
- * fixes which functions inside the doors’ own file may, and every one of them answers for the
- * retire. Door N+1 is born failing this rather than waiting for a sweep case to reach it.
+ * fixes which FUNCTIONS may, and every one of them answers for the retire. Door N+1 is born
+ * failing this rather than waiting for a sweep case to reach it.
  */
-const DOORS_FILE = 'tree-operations/node-ops.ts';
+const DOORS_FILE = 'tree-operations/settle.ts';
+
+/** The files that inherited node-ops’ other separator carries, held to the same parity. */
+const CARRY_FILES = [
+	'tree-operations/node-ops.ts',
+	'tree-operations/content-write.ts',
+	'tree-operations/node-primitives.ts'
+];
 
 /** Every `function name(` body in `code`, braces balanced. */
 function functionBodies(code: string): { name: string; body: string }[] {
@@ -145,9 +159,9 @@ function functionBodies(code: string): { name: string; body: string }[] {
 const WRITES_SEPARATOR_BYTES = /(?:\.leadingTrivia|slots\.inner(?:Prefix|Suffix))\s*\+?=(?!=)/;
 
 describe('every separator door retires the child spans it invalidates', () => {
-	const doors = functionBodies(readEditorFile(DOORS_FILE).code).filter((fn) =>
-		WRITES_SEPARATOR_BYTES.test(fn.body)
-	);
+	const doors = [DOORS_FILE, ...CARRY_FILES]
+		.flatMap((file) => functionBodies(readEditorFile(file).code))
+		.filter((fn) => WRITES_SEPARATOR_BYTES.test(fn.body));
 
 	/**
 	 * Every settle door by name: each retires FIRST, before its own guards. A retire that has

@@ -1,7 +1,7 @@
 import type { CstNode } from '../core/nodes';
 import type { SharingState } from './sharing';
 import { ensureUnsharedChild } from './unshare';
-import { absorbWindowSeams, type SettledSplice } from './node-ops';
+import { absorbWindowSeams, type SettledSplice } from './settle';
 import type { StructuralChange } from './structural-change';
 import { devWarn } from '../dev-warn';
 

@@ -128,7 +128,7 @@ export function createTopLevelScope(
 
 export function createContainerScope(state: BlockListState, deps: NestedActionsDeps): CommitScope {
 	return {
-		// A fold at this container's own slot detaches it (`tree-operations/unshare.ts`), so a
+		// A fold at this container's own slot detaches it (`tree-operations/chain-rebuild.ts`), so a
 		// post-commit read can find the scope gone rather than merely empty.
 		children: () => deps.node?.children ?? [],
 		refAt: (i) => state.innerBlockRefs[i],

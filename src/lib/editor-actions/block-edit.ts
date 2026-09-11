@@ -8,7 +8,7 @@ import { tick } from 'svelte';
 import type { BlockEditActions } from '../action-contracts';
 import { updateNodeContent as performUpdate, ensureUnsharedPath } from '../tree-operations';
 import { publishScopeFold } from './ancestry-folds';
-import type { SettledContent } from '../tree-operations/node-ops';
+import type { SettledContent } from '../tree-operations/content-write';
 import { stampStructuralChange } from '../tree-operations/structural-change';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { createTopLevelScope } from './block-edit-scope';

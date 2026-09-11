@@ -6,8 +6,9 @@
  */
 
 import type { CstNode, Document } from '$lib/core/nodes';
-import type { BodyParent } from '$lib/tree-operations/node-ops';
-import { settleSeparator, type SeparatorParent } from '$lib/tree-operations/node-ops';
+import type { BodyParent } from '$lib/tree-operations/node-primitives';
+import { type SeparatorParent } from '$lib/tree-operations/node-primitives';
+import { settleSeparator } from '$lib/tree-operations/settle';
 import type { StructuralChange } from '$lib/tree-operations/structural-change';
 
 /** `editor-actions/block-edit-core.bodyParentOf` — no `suffix` slot, by contract. */

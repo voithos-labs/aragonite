@@ -13,7 +13,7 @@ import {
 	ensureUnsharedChild,
 	reconcileTaskMetadata
 } from '../../tree-operations';
-import type { SettledContent } from '../../tree-operations/node-ops';
+import type { SettledContent } from '../../tree-operations/content-write';
 import { stampStructuralChange } from '../../tree-operations/structural-change';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isCollapsedContainer } from '../../schema/reserved-chrome';

@@ -839,6 +839,7 @@ directory as well as this table before assuming a rule is unguarded.
 | G4.61 | The commit scope is set in production, not behind a build flag                | L       |
 | G4.62 | Every code token clears AA on the surface and the fence, in both themes       | L       |
 | G4.63 | The bundled plugins' own suites import only the published entry points        | L       |
+| G4.64 | The tree-ops ladder has no upward import                                      | L       |
 
 ### The entries
 
@@ -1037,7 +1038,7 @@ writes the documented whole-document default), as are the published kits (fixtur
 documents). `lint/parse-scope-sites.test.ts`.
 
 **G4.28 · Leaf raw-write rule parity.** A kind's own `normalizeRawWrite` reaches its bytes through
-two readers in `node-ops`: `writeOwnRaw` for a sink that writes in place, and `normalizeOwnRaw` for
+two readers in `node-primitives`: `writeOwnRaw` for a sink that writes in place, and `normalizeOwnRaw` for
 one that replaces the leaf with a reparse of the result. Exactly the documented sinks call each
 (find/replace's private clone, the same-block range merge, the degraded typed-char splice, the
 container-matching paste; and the cross-block merge and the truncated-endpoint reparse), plus the
@@ -1369,6 +1370,13 @@ that one proves the barrels can build a plugin, this one that they can test it, 
 a `$lib` deep path names a testing door the surface is missing. Each allowlist entry carries that
 door's name, and a dead entry fails too. The loose platform tests directly under
 `src/lib/test/plugins/` are out of scope. `lint/bundled-plugin-test-boundary.test.ts`.
+
+**G4.64 · The tree-ops ladder.** The six files `node-ops.ts` split into (`node-primitives.ts`,
+`unshare.ts`, `settle.ts`, `content-write.ts`, `node-ops.ts`, `chain-rebuild.ts`) import only
+downward, in that order. The cycle the split broke (`unshare.ts` reading the seam absorb and the
+kind re-derive out of `node-ops.ts`, which read the copy-on-write door back) passed every
+behavioral test, and `svelte-check` reports nothing for an import cycle, so only a source scan can
+hold the shape. `lint/tree-op-ladder.test.ts`.
 
 ## Accessibility
 

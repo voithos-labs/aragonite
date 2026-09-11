@@ -2,8 +2,9 @@ import { expect, it } from 'vitest';
 
 import { parse } from '../../core/parser';
 import { createSharingState } from '../../tree-operations/sharing';
-import type { AncestrySeamFold } from '../../tree-operations/unshare';
-import { ensureUnsharedPath, rebuildUnsharedAncestry } from '../../tree-operations/unshare';
+import type { AncestrySeamFold } from '../../tree-operations/chain-rebuild';
+import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
 
 // Miss-analysis: the slot ask's cost was pinned only by the perf gate's wall clock on the pinned
 // host, so an O(children) eager snapshot rode in as machine noise; an element-read oracle fails

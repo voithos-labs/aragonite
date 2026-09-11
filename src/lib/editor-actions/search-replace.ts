@@ -13,7 +13,7 @@ import {
 	normalizeBodyWrite,
 	normalizeReplacementTrivia,
 	writeOwnRaw
-} from '../tree-operations/node-ops';
+} from '../tree-operations/node-primitives';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import {
 	replacePreservingFirst,

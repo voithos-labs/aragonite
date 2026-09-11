@@ -1,6 +1,6 @@
 /**
  * The paste family's `bodyWrite` moment: paste builds nodes upstream of every
- * node-ops byte sink, so a container's escape lands here instead — on the clipboard text
+ * content-write byte sink, so a container's escape lands here instead — on the clipboard text
  * ahead of the strategy-picking parse, and on the built replacement at the splice.
  */
 
@@ -14,7 +14,7 @@ import {
 	nodeAt,
 	normalizeBodyWrite,
 	normalizeReplacementTrivia
-} from '../node-ops';
+} from '../node-primitives';
 
 /** Clipboard text made legal inside every `bodyWrite`-declaring ancestor of the paste target. */
 export function normalizeClipboardForBody(

@@ -9,7 +9,7 @@ import {
 	findBlockPathForElement,
 	findCellPathForElement
 } from '../../selection/path-lookup';
-import { nodeAt } from '../../tree-operations/node-ops';
+import { nodeAt } from '../../tree-operations/node-primitives';
 import type { CstNode } from '../../core/nodes';
 import { mountTableGrid } from './table-grid';
 import { para, bq, doc } from './cst-builders';

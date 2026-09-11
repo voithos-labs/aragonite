@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { ensureEditableContainers, emptyParagraph, nodeAt } from '../../tree-operations/node-ops';
+import {
+	ensureEditableContainers,
+	emptyParagraph,
+	nodeAt
+} from '../../tree-operations/node-primitives';
 import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { declarePluginKind } from '../../schema/plugin-kind';

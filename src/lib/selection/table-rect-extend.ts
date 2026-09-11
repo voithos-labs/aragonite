@@ -7,7 +7,7 @@
 
 import type { DocumentView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { cellRowCol } from '../cursor/coordinate-spaces';
 import type { SelectionPoint } from './primitives';
 import { pathsEqual } from './path-math';

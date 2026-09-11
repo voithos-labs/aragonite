@@ -13,7 +13,7 @@ import type { BlockElLookup, DocumentGetter, PresentationModeGetter } from '../.
 import type { CrossBlockCommandRouter } from '../../schema/block-commands';
 import type { GrammarView } from '../../schema/block-openers';
 import { inlineMarkForCommand, type InlineMarkKind } from '../../schema/inline-construct-policy';
-import { blockNodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { comparePaths } from '../path-math';
 import type { SelectionPoint } from '../primitives';
 import { restoreSelection } from '../selection-restore';

@@ -1,5 +1,5 @@
 import type { CstNode, Document } from '../../core/nodes';
-import { nodeAt } from '../node-ops';
+import { nodeAt } from '../node-primitives';
 
 /** Returns null when no list ancestor exists or the target isn't a direct leaf of a listItem. */
 export function findEnclosingListForPaste(

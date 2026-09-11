@@ -1,7 +1,7 @@
 /** Document-tree path navigation. Pure functions over a Document + path. */
 
 import type { CstNode, Document } from '../core/nodes';
-import { nodeAt } from '../tree-operations/node-ops';
+import { nodeAt } from '../tree-operations/node-primitives';
 
 /** Block immediately after `path` in doc order (children before siblings), else null. */
 export function nextPath(doc: Document, path: number[]): number[] | null {

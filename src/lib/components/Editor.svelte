@@ -48,7 +48,7 @@
 	import { bootstrapCodeLanguages } from './blocks/code/code-bootstrap';
 	import { assignIds } from '../block-id';
 	import { ensureEditableContainers, emptyParagraph } from '../tree-operations';
-	import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-ops';
+	import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 	import { serialize } from '../core/serializer';
 	import { parse } from '../core/parser';
 	import { defaultLinkActivation } from '../core/url-policy';

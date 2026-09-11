@@ -24,9 +24,14 @@ import type { InlineMarkKind } from '../../schema/inline-construct-policy';
 import type { PresentationMode } from '../../presentation-mode';
 import type { GrammarView } from '../../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
-import { normalizeBodyWrite, writeOwnRaw, type NodeParent } from '../../tree-operations/node-ops';
+import {
+	normalizeBodyWrite,
+	writeOwnRaw,
+	type NodeParent
+} from '../../tree-operations/node-primitives';
 import type { SharingState } from '../../tree-operations/sharing';
-import { ensureUnsharedPath, rebuildUnsharedChain } from '../../tree-operations/unshare';
+import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import { rebuildUnsharedChain } from '../../tree-operations/chain-rebuild';
 import { comparePaths } from '../path-math';
 import { charOffsetOf, type SelectionPoint } from '../primitives';
 import { coveredGridCells, gridEndpointCellIndex } from '../table-endpoint-snap';

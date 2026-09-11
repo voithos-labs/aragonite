@@ -39,7 +39,7 @@
 		type TextEditResult
 	} from './text-keydown';
 	import { tryGetBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
-	import { blockNodeAt } from '../../../tree-operations/node-ops';
+	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { createTextClipboard } from './text-clipboard';
 	import { createTextRender } from './text-render';
 	import { createWidgetInteraction } from './widget-interaction';

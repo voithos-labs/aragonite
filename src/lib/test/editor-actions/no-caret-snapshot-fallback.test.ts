@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nodeAt } from '$lib/tree-operations/node-ops';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { rangeSelectionOf } from '$lib/test/support/undo-entry';
 import { createUndoController } from '$lib/editor-actions/commit/undo-controller';
 import { createContainerEditActions } from '$lib/editor-actions/container-edit';

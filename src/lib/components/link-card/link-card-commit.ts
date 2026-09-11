@@ -13,7 +13,7 @@ import { createInlineRangeCommit } from '../../editor-actions/inline-range-commi
 import type { EditorEvents } from '../../editor-events';
 import type { LinkReferenceResolverRef } from '../../editor-keys';
 import type { GrammarView } from '../../schema/block-openers';
-import { isBlockNode, nodeAt } from '../../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { linkConstructAt, type LinkTarget } from '../blocks/text/link-at-point';
 import {
 	buildLinkEditBytes,

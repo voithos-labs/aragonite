@@ -8,7 +8,7 @@ import { createInlineRangeCommit } from '../../editor-actions/inline-range-commi
 import type { EditorEvents } from '../../editor-events';
 import type { GrammarView } from '../../schema/block-openers';
 import { FALLBACK_CONTENT_WIDTH } from '../../cursor/typography-estimates';
-import { blockNodeAt } from '../../tree-operations/node-ops';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { buildImageEditBytes } from './image-source-bytes';
 import type { WidgetSelectionState, WidgetTarget } from './widget-selection-state.svelte';
 

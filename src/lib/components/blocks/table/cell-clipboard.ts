@@ -6,7 +6,7 @@
 import type { DocumentGetter } from '../../../editor-keys';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import { metadataOf } from '../../../core/nodes';
-import { isBlockNode, nodeAt } from '../../../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
 import { pathsEqual } from '../../../selection/path-math';
 import { cellRowCol } from '../../../cursor/coordinate-spaces';
 import { copyRectangleAsSubTable } from '../../../tree-operations/sub-table-copy';

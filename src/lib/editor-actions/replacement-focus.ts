@@ -4,7 +4,7 @@
  */
 
 import { updateNodeContent } from '../tree-operations';
-import { settledCaretTarget, type SettledContent } from '../tree-operations/node-ops';
+import { settledCaretTarget, type SettledContent } from '../tree-operations/content-write';
 import { makeBlockNode, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';

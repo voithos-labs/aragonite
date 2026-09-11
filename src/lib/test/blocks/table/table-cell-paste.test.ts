@@ -8,7 +8,7 @@ import {
 	tableCellInlinePaste
 } from '../../../components/blocks/table/table-cell-paste';
 import type { PasteRange, PasteSeam } from '../../../tree-operations/paste-surfaces';
-import { updateNodeContent } from '../../../tree-operations/node-ops';
+import { updateNodeContent } from '../../../tree-operations/content-write';
 import { writeTableRow } from '../../../schema/container-rebuilders';
 import { parse } from '../../../core/parser';
 import { cleanLiveJoinSeam } from '../../../components/blocks/text/live-join-seam';

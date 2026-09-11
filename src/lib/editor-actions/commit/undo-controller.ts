@@ -19,14 +19,15 @@ import { assertInvariant } from '../../assert';
 import { beginCommit, endCommit } from '../../invariants/commit-scope';
 import { assignIds } from '../../block-id';
 import { replaceRefs } from '../../reactivity/publish-ref.svelte';
-import { nodeAt, settleSeparator, type SeparatorParent } from '../../tree-operations/node-ops';
+import { nodeAt, type SeparatorParent } from '../../tree-operations/node-primitives';
+import { settleSeparator } from '../../tree-operations/settle';
+import { ensureUnsharedPath } from '../../tree-operations/unshare';
 import {
 	attachedChainPrefix,
-	ensureUnsharedPath,
 	rebuildUnsharedChain,
 	type AncestrySeamFold,
 	type ContainerReclassification
-} from '../../tree-operations/unshare';
+} from '../../tree-operations/chain-rebuild';
 import { foldLandingFor, publishAncestryFolds, type FoldLanding } from '../ancestry-folds';
 import { createTextBatch } from './text-batch';
 import type { EditorActionsDeps, UndoController } from '../deps';

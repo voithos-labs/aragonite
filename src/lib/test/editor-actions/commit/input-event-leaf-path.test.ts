@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { nodeAt } from '$lib/tree-operations/node-ops';
+import { nodeAt } from '$lib/tree-operations/node-primitives';
 import { lrdMapCouldChange } from '$lib/components/lrd-map-gate';
 import { UNDO_DEBOUNCE_MS } from '$lib/editor-actions/commit/text-batch';
 import { makeNestedHarness } from '$lib/test/harness/editor-actions';

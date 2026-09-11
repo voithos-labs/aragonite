@@ -27,14 +27,14 @@ import {
 	type LiveSeamContext
 } from './range-delete-ceremony';
 import { comparePaths } from './path-math';
-import { blockNodeAt, emptyParagraph } from '../tree-operations/node-ops';
+import { blockNodeAt, emptyParagraph } from '../tree-operations/node-primitives';
 import {
 	ensureUnsharedNode,
 	ensureUnsharedPath,
 	ensureUnsharedSubtree,
-	rebuildOwnedContainer,
-	rebuildUnsharedAncestry
+	rebuildOwnedContainer
 } from '../tree-operations/unshare';
+import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { rebuildTableRowRaw } from '../schema/container-rebuilders';
 import { isCollapsedContainer } from '../schema/reserved-chrome';
 import { nearestChromeContainer, isChromeChild } from './range-delete-chrome';

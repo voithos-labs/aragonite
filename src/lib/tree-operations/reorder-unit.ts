@@ -8,7 +8,7 @@
 
 import type { Document } from '../core/nodes';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { nodeAt } from './node-ops';
+import { nodeAt } from './node-primitives';
 
 export interface ReorderUnit {
 	parentPath: number[];

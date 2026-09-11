@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
-import { splitNode, updateNodeContent } from '$lib/tree-operations/node-ops';
+import { updateNodeContent } from '$lib/tree-operations/content-write';
+import { splitNode } from '$lib/tree-operations/node-ops';
 import { expectParseConverged, layoutOf as layout } from '$lib/test/harness/parse-converged';
 import type { Document } from '$lib/core/nodes';
 

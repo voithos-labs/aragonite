@@ -8,7 +8,7 @@ import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { snapToScalarBoundary, trailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { isBlankParagraph } from '../../core/parser';
-import { ensureEditableContainers } from '../node-ops';
+import { ensureEditableContainers } from '../node-primitives';
 import { parseFirstBlock } from '../parse-block';
 
 export function buildPastedReplacement(

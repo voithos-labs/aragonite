@@ -8,7 +8,7 @@ import { registerMathBlock } from '$lib/plugins/latex/latex-kind';
 import { registerMermaidKind } from '$lib/plugins/mermaid/mermaid-kind';
 import { getAllRegisteredKinds, getBlockKindDescriptor } from '$lib/schema/block-kind-descriptor';
 import { isBlockOpenerRegistered } from '$lib/schema/block-openers';
-import { lineOpensAs } from '$lib/tree-operations/node-ops';
+import { lineOpensAs } from '$lib/tree-operations/content-write';
 import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import type { AnyBlockKind, CstNode } from '$lib/core/nodes';
 

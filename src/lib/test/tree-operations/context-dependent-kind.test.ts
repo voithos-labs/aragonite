@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { updateNodeContent, splitNode } from '../../tree-operations/node-ops';
+import { updateNodeContent } from '../../tree-operations/content-write';
+import { splitNode } from '../../tree-operations/node-ops';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind } from '../../schema/block-kind-descriptor';
 import { __resetSchemaRegistriesForTests } from '../../schema/registry-reset';

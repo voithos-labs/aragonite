@@ -20,7 +20,7 @@ import type {
 import { assertInvariant } from '../assert';
 import { isCommitInProgress } from '../invariants/commit-scope';
 import { contentLengthOf, isProseKind } from '../core/inline';
-import { isBlockNode, nodeAt } from '../tree-operations/node-ops';
+import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { devWarn } from '../dev-warn';
 import { recordDecorationRun } from '../perf/instruments';
 

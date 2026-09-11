@@ -1,6 +1,6 @@
 /** Applies the results a paste surface hook produced to the document. */
 
-import { settledCaretTarget, updateNodeContent, type SettledContent } from '../node-ops';
+import { settledCaretTarget, updateNodeContent, type SettledContent } from '../content-write';
 import { ensureUnsharedChild } from '../unshare';
 import { docPathFrom } from '../../cursor/coordinate-spaces';
 import { stampStructuralChange } from '../structural-change';
