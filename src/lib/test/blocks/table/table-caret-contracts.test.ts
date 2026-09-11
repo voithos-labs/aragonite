@@ -33,24 +33,21 @@ function ownTextOf(el: Element): string[] {
 		.map((child) => child.textContent ?? '');
 }
 
-// The table renders no row/column grips any more (the whole-table drag handle in the gutter is
-// the only one left), so there is a single adjacency to hold: the `{#if}` boundaries around the
-// chrome the grips used to occupy.
 describe('the table markup contributes no characters to the raw-offset walk', () => {
-	it('holds no text node between the corner slot and the rows', () => {
+	it('holds no text node between the grid and its rows', () => {
 		mounted = mountTable(GRID);
 
-		expect(mounted.el.querySelectorAll('[data-table-col-grip]')).toHaveLength(0);
 		expect(ownTextOf(mounted.el)).toEqual([]);
 	});
 
-	it('holds none inside a row either, between its chrome and its cells', () => {
+	// A sole-child `{#each}` gets an empty text anchor from the Svelte runtime, and the walk
+	// sums lengths: what a row must hold is no CHARACTER, not no text node.
+	it('holds no character inside a row either, between the row and its cells', () => {
 		mounted = mountTable(GRID);
 
 		const rows = mounted.el.querySelectorAll(':scope > [data-table-row-idx]');
 		expect(rows).toHaveLength(3);
-		expect(mounted.el.querySelectorAll('[data-table-row-grip]')).toHaveLength(0);
-		for (const row of rows) expect(ownTextOf(row)).toEqual([]);
+		for (const row of rows) expect(ownTextOf(row).join('')).toBe('');
 	});
 });
 

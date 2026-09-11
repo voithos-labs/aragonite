@@ -757,8 +757,7 @@
 		const NOT_A_DRAG_START =
 			'[contenteditable="true"]:not([data-whole-block-input]), button, input, textarea, select, ' +
 			'a, summary, [role="checkbox"], ' +
-			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle, ' +
-			'[data-table-col-grip], [data-table-row-grip], .table-grip';
+			'.code-rail, .table-add-zone, .editor-tail, .md-menu, .block-drag-handle';
 		const dragStartsHere = (rootEl: HTMLElement, target: EventTarget | null): boolean => {
 			if (deadSpaceCaret.isDeadSpaceTarget(rootEl, target)) return true;
 			if (!(target instanceof Element) || !rootEl.contains(target)) return false;
@@ -1143,8 +1142,7 @@
 		resolveImageUrl: resolveImageUrlImpl,
 		resolveLinkUrl: resolveLinkUrlImpl,
 		imageLoadPolicy: () => imageLoadPolicy,
-		// Reading mode forces the affordances off through the prop's own funnel; the handle
-		// and the table grips all read this one getter.
+		// Reading mode forces the affordance off through the prop's own funnel.
 		blockDragHandles: () => blockDragHandles && effectiveMode !== 'reading',
 		presentationMode: () => effectiveMode,
 		theme: () => theme,

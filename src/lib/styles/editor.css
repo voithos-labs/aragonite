@@ -455,14 +455,6 @@
 	color: var(--syntax-task, currentColor);
 }
 
-/* Table grips reveal on table hover, in pure CSS with no per-grip reactive state. The grip's
-   own <style> holds the at-rest state, so it never intercepts a caret click until then. */
-:where(.editor) [role='table']:hover [data-table-col-grip],
-:where(.editor) [role='table']:hover [data-table-row-grip] {
-	opacity: 1;
-	pointer-events: auto;
-}
-
 /* ── Menus ──────────────────────────────────────────────────────────────────
    One surface for every menu the editor opens (the table's context menu, the code rail's
    picker and overflow), copied from the host app's context menu value for value and reading

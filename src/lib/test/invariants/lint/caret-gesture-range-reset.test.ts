@@ -71,11 +71,7 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/components/blocks/table/TableActionMenu.svelte':
 		'document-capture dismiss-on-outside-press for the menu',
 	'src/lib/components/blocks/table/TableBlock.svelte':
-		'column-grip forwarder; the grip selects cells, not a caret',
-	'src/lib/components/blocks/table/TableRowBlock.svelte':
-		'row-grip forwarder; same as the column grip',
-	'src/lib/components/blocks/table/TableGrip.svelte':
-		'selects a row/column rectangle — a selection gesture, not a caret one',
+		'the add-row and add-column strips swallow their press so the cell keeps the caret that pinned them',
 	'src/lib/components/blocks/code/CodeBlockRail.svelte':
 		'preventDefault on a language-list option so the field keeps focus long enough to commit the pick; the caret returns through the block’s own door afterwards',
 	'src/lib/components/image/ImageOverlayHost.svelte':
