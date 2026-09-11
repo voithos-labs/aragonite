@@ -29,7 +29,7 @@ import {
 } from '../a11y-strings';
 import { ensureUnsharedChildren, ensureUnsharedSubtree } from '../tree-operations/unshare';
 import { rebuildTableRowRaw, rebuildTableRaw } from '../schema/container-rebuilders';
-import { writeOwnRaw } from '../tree-operations/node-ops';
+import { writeOwnRaw } from '../tree-operations/node-primitives';
 import { reorderChildren } from '../tree-operations/reorder';
 import {
 	insertEmptyRow,

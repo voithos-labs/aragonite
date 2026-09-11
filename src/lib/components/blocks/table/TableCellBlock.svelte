@@ -26,7 +26,7 @@
 	import type { TableAlignment } from '../../../core/nodes';
 	import { trimTrailingLineEnding, normalizeLineEndings } from '../../../core/lines';
 	import { pasteDispatch } from '../../../tree-operations/paste/dispatch';
-	import { blockNodeAt } from '../../../tree-operations/node-primitives';
+	import { blockNodeAt, isBlockNode, nodeAt } from '../../../tree-operations/node-primitives';
 	import { cutRangeFromDisplay } from '../../../tree-operations/node-ops';
 	import { applyLiveRangeEdit } from '../text/live-selection-edit';
 	import {
@@ -36,7 +36,6 @@
 	} from '../../../tree-operations/table-grid-clipboard';
 	import { tableCellCount } from '../../../selection/table-endpoint-snap';
 	import { pathsEqual } from '../../../selection/path-math';
-	import { isBlockNode, nodeAt } from '../../../tree-operations/node-ops';
 	import {
 		resolveDelimiterAutoPair,
 		resolveEmptyPairBackspace,
