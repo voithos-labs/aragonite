@@ -45,13 +45,12 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		await selectBravo(ep, page);
 		const before = await ep.bridge.getSource();
 
-		await page.keyboard.press('ControlOrMeta+k');
+		await ep.pressDeclined('ControlOrMeta+k');
 
 		// Entered, empty, and the document untouched: the construct is minted only on commit.
 		await expect(page.locator(CARD)).toBeVisible();
 		await expect(page.locator(URL_FIELD)).toBeFocused();
 		await expect(page.locator(URL_FIELD)).toHaveValue('');
-		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 
 		await page.keyboard.type('https://new.test/b');
@@ -79,6 +78,7 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		await page.keyboard.press('Escape');
 
 		await expect(page.locator(CARD)).toHaveCount(0);
+		// The card's URL field is its own input, outside every editable surface.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 		// The range rides the caret-restore slot while the card borrows focus; Escape re-arms it.
@@ -93,11 +93,10 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		// Extend until the focus sits inside the link text — raw 10 of block 1 is in `example`.
 		await extendTo(ep, page, 'ArrowRight', [1], 10);
 
-		await page.keyboard.press('ControlOrMeta+k');
+		await ep.pressDeclined('ControlOrMeta+k');
 		await ep.waitForRenderFlush();
 
 		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
@@ -116,11 +115,10 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		}
 		expect(await ep.bridge.isCrossBlockActive()).toBe(true);
 
-		await page.keyboard.press('ControlOrMeta+k');
+		await ep.pressDeclined('ControlOrMeta+k');
 		await ep.waitForRenderFlush();
 
 		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
@@ -130,11 +128,10 @@ test.describe('live-mode link card — the create half of Mod+K', () => {
 		expect(await page.evaluate(() => window.getSelection()?.isCollapsed)).toBe(false);
 		const before = await ep.bridge.getSource();
 
-		await page.keyboard.press('ControlOrMeta+k');
+		await ep.pressDeclined('ControlOrMeta+k');
 		await ep.waitForRenderFlush();
 
 		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 });

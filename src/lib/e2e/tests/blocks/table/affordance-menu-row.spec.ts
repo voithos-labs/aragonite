@@ -88,6 +88,7 @@ test.describe('table block: row affordance menu', () => {
 
 		const before = await editor.bridge.getSource();
 		await deleteItem.click({ force: true });
+		// A menu-item click, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

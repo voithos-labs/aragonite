@@ -56,6 +56,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 
 		await page.keyboard.press('ControlOrMeta+c');
 
+		// The whole-block input proxy is the focus target here, not an editable surface.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 	});
@@ -70,7 +71,7 @@ test.describe('whole-block focus — a typed character mints a paragraph below',
 		await expect(wholeBlockInput(rule(readingEditor))).toBeFocused();
 		await page.keyboard.press('x');
 
-		await readingEditor.waitForNoSourceMutation();
+		await readingEditor.expectSurfaceInert();
 		expect(await readingEditor.bridge.getSource()).toBe(original);
 	});
 });

@@ -66,8 +66,7 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		await editor.waitForCrossBlock(true);
 
 		const before = await editor.bridge.getSource();
-		await editor.page.keyboard.press('ControlOrMeta+c');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('ControlOrMeta+c');
 
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await editor.bridge.isCrossBlockActive()).toBe(true);

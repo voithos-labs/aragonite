@@ -88,13 +88,11 @@ test.describe('opaque containers decline nested reorder', () => {
 		const before = await editor.bridge.getSource();
 
 		await editor.focusBlockAtPath([1, 1], 0); // caret in "Body one"
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp');
 		expect(await editor.bridge.getSource()).toBe(before);
 
 		await editor.focusBlockAtPath([1, 1], 0);
-		await page.keyboard.press('Alt+ArrowDown');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowDown');
 		expect(await editor.bridge.getSource()).toBe(before);
 
 		// The container never teleported to another document index: order is preserved.
@@ -111,8 +109,7 @@ test.describe('opaque containers decline nested reorder', () => {
 		await page.keyboard.type('X'); // a real edit to undo
 		await editor.bridge.waitForSourceContains('Body oneX');
 
-		await page.keyboard.press('Alt+ArrowUp'); // declined — must push no phantom entry
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp'); // must push no phantom entry
 
 		await editor.undo(); // undoes the typed X, not a phantom reorder
 		await editor.bridge.waitForSourceContains('Body one');

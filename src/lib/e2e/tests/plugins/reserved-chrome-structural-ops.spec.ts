@@ -47,8 +47,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 	}) => {
 		await editor.loadContent(FIXTURE);
 		await editor.focusBlockAtPath([1, 1], 0); // start of "Body"
-		await page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 
 		// The not-mergeable title refuses the merge; focus moves to the title end,
 		// the tree is unchanged — body prose never enters chrome.
@@ -62,8 +61,7 @@ test.describe('reserved child-0 chrome: structural ops + paste', () => {
 	test('Gate 2b(ii): Backspace at start of the title is a no-op', async ({ page }) => {
 		await editor.loadContent(FIXTURE);
 		await editor.focusBlockAtPath([1, 0], 0); // start of "Title"
-		await page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 
 		// The callout declares firstChildBackspace='keep-reserved-chrome', the strategy that says
 		// child 0 is chrome: no lift runs, so the title is neither carried out nor destroyed.

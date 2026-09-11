@@ -174,6 +174,7 @@ test.describe('selection toolbar', () => {
 		await expect(strike).toHaveAttribute('aria-pressed', 'true');
 		await strike.click();
 
+		// A toolbar button click, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe('~~a ~b~ c~~\n');
 		expect(await editor.bridge.getSelectionPaths()).toMatchObject({

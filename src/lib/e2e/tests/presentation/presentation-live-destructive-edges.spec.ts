@@ -178,8 +178,7 @@ test.describe('live mode — the widened cut, and the press with no reading at a
 		await stepTo(ep, page, 'ArrowRight', 3);
 		const before = await ep.bridge.getSource();
 
-		await page.keyboard.press('Backspace');
-		await ep.waitForNoSourceMutation();
+		await ep.pressDeclined('Backspace');
 
 		expect(await ep.bridge.getSource()).toBe(before);
 		await expect(ep.getBlock(UNSOUND)).toHaveText('a b c', { useInnerText: true });

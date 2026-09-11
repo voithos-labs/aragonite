@@ -30,8 +30,7 @@ test.describe('code block — content the fence cannot hold', () => {
 
 	test('a backtick typed into the info string is inert', async () => {
 		await editor.focusBlock(0, 5); // end of "js"
-		await editor.typeSlowly('`');
-		await editor.waitForNoSourceMutation();
+		await editor.typeDeclined('`');
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
 	});

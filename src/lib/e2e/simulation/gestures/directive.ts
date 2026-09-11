@@ -101,8 +101,8 @@ export async function editLeafInfo(
 
 /**
  * A directive leaf is `not-mergeable`, so the walk must move focus rather than concatenate.
- * Confirms byte-identity by a positive RE-READ after the settle window — absence of mutation
- * cannot be waited for as a delta.
+ * Confirms byte-identity by a positive RE-READ ordered on the press's own verdict — absence of
+ * mutation cannot be waited for as a delta.
  */
 export async function leafBackspaceAtStart(ctx: SimContext, leafIndex: number): Promise<void> {
 	const { page, editor, tracker } = ctx;
@@ -110,8 +110,7 @@ export async function leafBackspaceAtStart(ctx: SimContext, leafIndex: number): 
 
 	await editor.clickBlock(leafIndex);
 	await page.keyboard.press('Home');
-	await page.keyboard.press('Backspace');
-	await editor.waitForNoSourceMutation();
+	await editor.pressDeclined('Backspace');
 
 	const after = await editor.bridge.getSource();
 	if (after !== before) {

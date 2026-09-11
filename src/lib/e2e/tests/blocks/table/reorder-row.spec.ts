@@ -43,12 +43,10 @@ test.describe('table block: keyboard row reorder', () => {
 		await page.locator('[role="cell"]').nth(0).click();
 		const before = await editor.bridge.getSource();
 
-		await page.keyboard.press('Alt+ArrowDown');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowDown');
 		expect(await editor.bridge.getSource()).toBe(before);
 
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -65,8 +63,7 @@ test.describe('table block: keyboard row reorder', () => {
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceMatches(/\| (?:Z1|1Z) \| 2 \|/);
 
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp');
 		await editor.bridge.waitForSourceMatches(/\| (?:Z1|1Z) \| 2 \|/);
 
 		await editor.undo();
@@ -78,8 +75,7 @@ test.describe('table block: keyboard row reorder', () => {
 		await editor.loadContent(TABLE_2BODY);
 		await page.locator('[role="cell"]').nth(4).click();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('Alt+ArrowDown');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowDown');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 

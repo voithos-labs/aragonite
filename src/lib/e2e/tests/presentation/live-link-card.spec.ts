@@ -144,6 +144,7 @@ test.describe('live-mode link card', () => {
 		// Enter over the re-seeded draft must not put the undone bytes back.
 		await page.locator(URL_FIELD).click();
 		await page.keyboard.press('Enter');
+		// The card's URL field is its own input, outside every editable surface.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toContain('[example](https://example.com)');
 	});
@@ -159,6 +160,7 @@ test.describe('live-mode link card', () => {
 		await page.keyboard.press('Escape');
 
 		await expect(page.locator(CARD)).toHaveCount(0);
+		// The card's URL field is its own input, outside every editable surface.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 		await expect.poll(async () => (await ep.bridge.getSelectionPaths())?.focus).toEqual(seated);
@@ -213,6 +215,7 @@ test.describe('live-mode link card', () => {
 		await ep.clickBlock(2);
 
 		await expect(page.locator(CARD)).toHaveCount(0);
+		// A click outside the card, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
@@ -291,10 +294,9 @@ test.describe('live-mode link card', () => {
 		const before = await ep.bridge.getSource();
 		await ep.clickBlock(2);
 
-		await page.keyboard.press('ControlOrMeta+k');
+		await ep.pressDeclined('ControlOrMeta+k');
 
 		await expect(page.locator(CARD)).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 

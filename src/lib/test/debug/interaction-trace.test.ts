@@ -5,8 +5,10 @@ import {
 	isInteractionTraceEnabled,
 	resetInteractionTrace,
 	interactionTraceSnapshot,
+	interactionTraceKeydownCount,
 	traceRebuild,
 	traceCompositionStart,
+	traceKeydownVerdict,
 	traceRevealFold
 } from '$lib/debug/interaction-trace';
 
@@ -72,5 +74,31 @@ describe('interaction-trace ring buffer', () => {
 		resetInteractionTrace();
 		expect(interactionTraceSnapshot()).toHaveLength(0);
 		expect(isInteractionTraceEnabled()).toBe(true);
+	});
+});
+
+// Miss-analysis: the absence oracles it backs read green either way, so nothing but this could
+// catch a count that the ring buffer's eviction rolls back — the e2e helper would simply wait
+// out its timeout and report the key as having reached no surface.
+describe('interaction-trace keydown verdicts', () => {
+	it('counts only while enabled', () => {
+		disableInteractionTrace();
+		traceKeydownVerdict('Tab', true);
+		enableInteractionTrace();
+		traceKeydownVerdict('Tab', true);
+		expect(interactionTraceKeydownCount()).toBe(1);
+	});
+
+	it('keeps counting past the eviction that drops its own entries', () => {
+		for (let i = 0; i < 205; i++) traceKeydownVerdict('a', false);
+		expect(interactionTraceSnapshot()).toHaveLength(200);
+		expect(interactionTraceKeydownCount()).toBe(205);
+	});
+
+	it('records the key and the verdict', () => {
+		traceKeydownVerdict('Backspace', false);
+		const [entry] = interactionTraceSnapshot();
+		expect(entry.site).toBe('keydown');
+		expect(entry.detail).toEqual({ key: 'Backspace', handled: false });
 	});
 });

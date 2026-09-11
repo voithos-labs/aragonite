@@ -120,8 +120,7 @@ test.describe('plugin container: footnote definition', () => {
 	test('a Backspace in the paragraph below the note leaves the bytes alone', async ({ page }) => {
 		await editor.loadContent('[^a]: The note body.\n\nAfter.\n');
 		await editor.focusBlockAtPath([1], 0);
-		await page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 
 		// A note is leaf-like outward: the keystroke moves the caret into the body rather than
 		// turning the paragraph below into note text.

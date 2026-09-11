@@ -21,7 +21,8 @@
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
-		consumePendingRestore
+		consumePendingRestore,
+		withKeydownVerdict
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { createContentOffsetBackend, anchorTrailingNewline } from '../plain-text-backend';
@@ -406,6 +407,8 @@
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 	}
 
+	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
+
 	// ── Commands ────────────────────────────────────────────────────────
 
 	export function runCommand(id: CommandId): boolean {
@@ -671,7 +674,7 @@
 	role="textbox"
 	spellcheck="false"
 	oninput={onInput}
-	onkeydown={onKeyDown}
+	onkeydown={onKeyDownTraced}
 	onbeforeinput={onBeforeInput}
 	oncopy={onCopy}
 	oncut={onCut}

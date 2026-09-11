@@ -81,6 +81,7 @@ test.describe('reading-mode flip commits a render-primary reveal', () => {
 		await toggleMode(); // flip to reading with the source revealed but unedited
 		await expect(page.locator(SOURCE)).toHaveCount(0);
 		await expect(page.locator(`${RENDER} .katex`)).toHaveCount(1);
+		// A mode-toggle click over an unedited reveal, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});

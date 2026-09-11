@@ -24,8 +24,7 @@ async function typeQuoteOpener(editor: EditorPage, depth: number): Promise<void>
 /** The marker-completion press: consumed, so not one byte of the document moves. */
 async function pressMarkerSpace(editor: EditorPage): Promise<void> {
 	const before = await editor.bridge.getSource();
-	await editor.page.keyboard.press('Space');
-	await editor.waitForNoSourceMutation();
+	await editor.pressDeclined('Space');
 	expect(await editor.bridge.getSource()).toBe(before);
 }
 

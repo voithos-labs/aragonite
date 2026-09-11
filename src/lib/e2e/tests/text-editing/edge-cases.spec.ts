@@ -63,10 +63,9 @@ test.describe('text editing — edge cases', () => {
 		const breakBlock = editor.page.locator('.thematic-break-block');
 
 		await editor.focusBlockStart(2);
-		await editor.page.keyboard.press('Backspace');
+		await editor.pressDeclined('Backspace');
 
 		await expect(wholeBlockInput(breakBlock)).toBeFocused();
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 		expect(await editor.bridge.getBlockCount()).toBe(countBefore);
 

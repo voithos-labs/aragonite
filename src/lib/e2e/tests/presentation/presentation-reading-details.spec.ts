@@ -50,7 +50,7 @@ test.describe('reading mode — transient details disclosure', () => {
 		await expect.poll(() => bodyHostCount(page)).toBe(1);
 		await expect(page.locator('.details-toggle')).toHaveAttribute('aria-expanded', 'false');
 
-		await editor.waitForNoSourceMutation();
+		await editor.expectSurfaceInert();
 		expect(await editor.bridge.getSource()).toBe(before);
 		expect(await undoStackDump(page)).toBe(stackBefore);
 		expect(

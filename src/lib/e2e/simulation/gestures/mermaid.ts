@@ -28,6 +28,7 @@ async function diagramIsFocused(page: Page): Promise<boolean> {
 }
 
 async function assertUnchanged(ctx: SimContext, before: string, what: string): Promise<void> {
+	// The arrow lands on the diagram box, not an editable surface, so there is no verdict.
 	await ctx.editor.waitForNoSourceMutation();
 	const now = await ctx.editor.bridge.getSource();
 	if (now !== before) {

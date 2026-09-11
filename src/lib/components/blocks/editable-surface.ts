@@ -51,9 +51,33 @@ import { writeCrossBlockCopy, writeCrossBlockCut } from '../../selection/cross-b
 import { createImagePasteArm, type ImagePasteArm } from '../paste-image-arm';
 import { clampToLandableRaw, revealsNoMarkers } from '../../cursor/widget-offset';
 import type { SharedKeydownContext } from '../../selection/shared-keydown';
-import { traceCompositionStart, traceCompositionEnd } from '../../debug/interaction-trace';
+import {
+	isInteractionTraceEnabled,
+	traceCompositionEnd,
+	traceCompositionStart,
+	traceKeydownVerdict
+} from '../../debug/interaction-trace';
 import { assertInvariant } from '../../assert';
 import { checkCompositionEndPaired } from '../../invariants/inline-transitions';
+
+// ── Keydown verdict ─────────────────────────────────────────────────────────
+
+/**
+ * Binds a surface's keydown handler so the interaction trace records ONE verdict per event,
+ * after the handler's own await chain settles. That record is the e2e harness's only positive
+ * signal that a gesture which must change nothing has finished. Disabled, one boolean read.
+ */
+export function withKeydownVerdict(
+	handle: (e: KeyboardEvent) => Promise<void>
+): (e: KeyboardEvent) => void {
+	return (e) => {
+		if (!isInteractionTraceEnabled()) {
+			void handle(e);
+			return;
+		}
+		void handle(e).then(() => traceKeydownVerdict(e.key, e.defaultPrevented));
+	};
+}
 
 /**
  * Per-surface cursor I/O in raw-content coordinates (ambient marker excluded).

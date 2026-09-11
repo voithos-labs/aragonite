@@ -163,6 +163,7 @@ test.describe('code language chip — the commit', () => {
 		await openChip(editor);
 		await expect(chipInput(page)).toHaveValue('js');
 		await page.keyboard.press('Enter');
+		// The chip is its own input, outside every editable surface: no verdict is recorded.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe('```js  \nZconst x = 1\n```\n\n# Heading\n');
 
@@ -201,6 +202,7 @@ test.describe('code language chip — cancelling', () => {
 		await page.keyboard.type('ts');
 		await page.keyboard.press('Escape');
 		await expect(chipInput(page)).toHaveCount(0);
+		// The chip is its own input, outside every editable surface: no verdict is recorded.
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);
@@ -212,6 +214,7 @@ test.describe('code language chip — cancelling', () => {
 		await page.keyboard.type('ts');
 		await editor.getBlock(1).click();
 		await expect(chipInput(page)).toHaveCount(0);
+		// A click, not a keystroke.
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(SOURCE);

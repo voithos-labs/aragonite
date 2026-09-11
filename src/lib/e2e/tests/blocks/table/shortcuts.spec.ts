@@ -96,8 +96,7 @@ test.describe('table block: keyboard vocabulary', () => {
 	test('Ctrl+Shift+Backspace is a no-op when only one body row remains', async ({ page }) => {
 		await page.locator('[role="cell"]').nth(2).click();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('ControlOrMeta+Shift+Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('ControlOrMeta+Shift+Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -105,8 +104,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.loadContent('| A |\n| --- |\n| 1 |\n');
 		await page.locator('[role="cell"]').nth(0).click();
 		const before = await editor.bridge.getSource();
-		await page.keyboard.press('Alt+Shift+Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+Shift+Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -141,8 +139,7 @@ test.describe('table block: keyboard vocabulary', () => {
 		await editor.bridge.waitForSourceEquals(`${TABLE_2x2}\nlead\n`);
 		// The row reorder still owns the bare chord — the two must not collide.
 		await page.locator('[role="cell"]').nth(2).click();
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp');
 		expect(await editor.bridge.getSource()).toBe(`${TABLE_2x2}\nlead\n`);
 	});
 

@@ -72,8 +72,7 @@ test.describe('keyboard reorder', () => {
 		await editor.page.keyboard.type('X');
 		await editor.bridge.waitForSourceEquals('XA\n\nB\n');
 
-		await editor.page.keyboard.press('Alt+ArrowUp'); // first block — nothing above
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowUp'); // first block — nothing above
 		expect(await editor.bridge.getSource()).toBe('XA\n\nB\n');
 
 		await editor.page.keyboard.press('ControlOrMeta+z'); // undoes the typing, not a phantom reorder
@@ -84,8 +83,7 @@ test.describe('keyboard reorder', () => {
 		await editor.loadContent('A\n\nB\n');
 		await editor.page.locator('[contenteditable="true"]', { hasText: 'B' }).click();
 		const before = await editor.bridge.getSource();
-		await editor.page.keyboard.press('Alt+ArrowDown');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowDown');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

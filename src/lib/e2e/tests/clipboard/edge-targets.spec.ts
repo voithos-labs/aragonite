@@ -105,6 +105,7 @@ test.describe('clipboard exploration: edge targets', () => {
 
 		await editor.focusBlockAtPath([0], 'unchanged'.length);
 		await editor.paste();
+		// A paste event, not a keystroke: no keydown, so no verdict.
 		await editor.waitForNoSourceMutation();
 
 		// Byte-exact: a stray newline or a duplicated block would still "contain

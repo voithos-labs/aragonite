@@ -71,6 +71,7 @@ test.describe('minting a paragraph at the gap', () => {
 		await editor.seedClipboard('pasted\n');
 
 		await editor.paste();
+		// A paste event, not a keystroke: no keydown, so no verdict.
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe(TABLE_THEN_FENCE);

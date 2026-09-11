@@ -144,8 +144,7 @@ test.describe('live mode — Backspace at a heading’s content start demotes be
 		await ep.waitForRenderFlush();
 		const before = await ep.bridge.getSource();
 
-		await page.keyboard.press('Delete');
-		await ep.waitForNoSourceMutation();
+		await ep.pressDeclined('Delete');
 
 		expect(await ep.bridge.getSource()).toBe(before);
 	});

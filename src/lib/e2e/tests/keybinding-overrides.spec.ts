@@ -89,9 +89,8 @@ test.describe('keybinding-override prop', () => {
 
 		await editor.page.locator('.text-editable-block', { hasText: 'two' }).click();
 		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Tab');
+		await editor.pressDeclined('Tab');
 
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).not.toMatch(/- one\n {2}- two/);
 		expect(await editor.bridge.getSource()).toContain('- two');
 	});
@@ -104,9 +103,8 @@ test.describe('keybinding-override prop', () => {
 
 		await editor.page.locator('.text-editable-block', { hasText: 'two' }).click();
 		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Tab');
+		await editor.pressDeclined('Tab');
 
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).not.toMatch(/- one\n {2}- two/);
 		expect(await editor.bridge.getSource()).toContain('- two');
 	});

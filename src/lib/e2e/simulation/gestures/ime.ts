@@ -65,6 +65,7 @@ export async function composeAbort(
 
 	for (const update of composition.updates) await ime.compose(update);
 	await ime.abort();
+	// A CDP composition, not a keystroke: the abort fires no keydown to take a verdict from.
 	await editor.waitForNoSourceMutation();
 	if ((await editor.bridge.getSource()) !== before) {
 		throw new Error(

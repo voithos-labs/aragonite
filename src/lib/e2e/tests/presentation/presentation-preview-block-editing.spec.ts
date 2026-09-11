@@ -46,7 +46,7 @@ test.describe('preview-block — editing stays live', () => {
 		await ep.typeText('ZZZ');
 		await ep.bridge.waitForSourceContains('ZZZ');
 		await ep.undo();
-		await ep.waitForNoSourceMutation();
+		await ep.bridge.waitForSourceEquals(before);
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
@@ -112,6 +112,7 @@ test.describe('preview-block — selection, search, mode flips', () => {
 		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
 		await togglePreview(page); // source → preview-block
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'preview-block');
+		// A toggle click, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
