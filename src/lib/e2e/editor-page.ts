@@ -464,8 +464,10 @@ export class EditorPage {
 	}
 
 	/**
-	 * A predicate cannot observe a NON-event, so absence of mutation is confirmed by waiting
-	 * past the window a wrongly-committed mutation would surface in, then re-reading.
+	 * The absence oracle of last resort, for a gesture that produces NO keydown verdict — a
+	 * click, a drag, a paste, a menu item, a programmatic door. A predicate cannot observe a
+	 * non-event, so it waits past the window a wrongly-committed mutation would surface in.
+	 * A keyboard gesture has a verdict: use `pressDeclined` / `typeDeclined` instead.
 	 */
 	async waitForNoSourceMutation(): Promise<void> {
 		await this.page.waitForTimeout(150);
@@ -491,5 +493,72 @@ export class EditorPage {
 
 	async waitForClipboardContains(expected: string, timeout = 2000): Promise<void> {
 		await this.clipboard.waitForContains(expected, timeout);
+	}
+
+	// ── Absence Oracles ─────────────────────────────────────────────────
+
+	/**
+	 * Press a key that must change nothing, returning once the editor's verdict for it is
+	 * recorded — the surface handler's await chain has settled, so the caller's source read is
+	 * ordered after the gesture rather than after a timer.
+	 */
+	async pressDeclined(key: string): Promise<void> {
+		await this.awaitKeydownVerdicts(key, 1, () => this.page.keyboard.press(key));
+	}
+
+	/** Per-character typing: one keydown, and so one verdict, per character. */
+	async typeDeclined(text: string): Promise<void> {
+		await this.awaitKeydownVerdicts(text, text.length, () => this.page.keyboard.type(text));
+	}
+
+	/**
+	 * Reading mode takes no keystrokes, so no verdict exists to wait on; the positive signal is
+	 * the structural one — the editor root holds no editable surface — plus a drained tick for
+	 * whatever an effect would still commit.
+	 */
+	async expectSurfaceInert(): Promise<void> {
+		try {
+			await this.page.waitForFunction(
+				() => document.querySelectorAll('.editor [contenteditable="true"]').length === 0,
+				null,
+				{ timeout: 2000, polling: 16 }
+			);
+		} catch {
+			const live = await this.editorContainer.locator('[contenteditable="true"]').count();
+			throw new Error(`expectSurfaceInert: ${live} editable surface(s) under the editor root`);
+		}
+		await this.page.evaluate(() => (window as any).__test.drainTick());
+	}
+
+	/**
+	 * A count that never advances is a finding, not a timeout to widen: the key reached no
+	 * instrumented surface, so the gesture the spec believes it made never happened.
+	 */
+	private async awaitKeydownVerdicts(
+		gesture: string,
+		expected: number,
+		dispatch: () => Promise<void>
+	): Promise<void> {
+		const before = await this.page.evaluate(() => {
+			const trace = (window as any).__test.trace;
+			trace.enable();
+			return trace.keydownCount() as number;
+		});
+		await dispatch();
+		try {
+			await this.page.waitForFunction(
+				(target) => ((window as any).__test.trace.keydownCount() as number) >= target,
+				before + expected,
+				{ timeout: 5000, polling: 16 }
+			);
+		} catch {
+			const after = await this.page.evaluate(
+				() => (window as any).__test.trace.keydownCount() as number
+			);
+			throw new Error(
+				`no keydown verdict for '${gesture}': the editor recorded ${after - before} of ` +
+					`${expected} (count ${before} → ${after}), so the key reached no editor surface`
+			);
+		}
 	}
 }

@@ -167,11 +167,10 @@ test.describe('the sibling that stays declined — Mod+K over a cross-block rang
 		}
 		await ep.waitForCrossBlock(true);
 
-		await page.keyboard.press('ControlOrMeta+k');
+		await ep.pressDeclined('ControlOrMeta+k');
 		await ep.waitForRenderFlush();
 
 		await expect(page.locator('[data-link-card]')).toHaveCount(0);
-		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 		await ep.waitForCrossBlock(true);
 	});

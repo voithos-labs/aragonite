@@ -56,6 +56,7 @@ test.describe('mode flips — the bytes never move', () => {
 
 		for (const [mode, testid] of RUNGS) {
 			await flipThrough(ep, page, mode, testid);
+			// A toggle click, not a keystroke.
 			await ep.waitForNoSourceMutation();
 			expect(await ep.bridge.getSource(), `after ${mode}`).toBe(baseline);
 		}
@@ -75,6 +76,7 @@ test.describe('mode flips — the bytes never move', () => {
 
 		for (const [mode, testid] of RUNGS.filter(([m]) => m !== 'live')) {
 			await flipThrough(ep, page, mode, testid);
+			// A toggle click, not a keystroke.
 			await ep.waitForNoSourceMutation();
 			expect(await ep.bridge.getSource(), `after ${mode}`).toBe(edited);
 		}
@@ -93,6 +95,7 @@ test.describe('mode flips — the bytes never move', () => {
 		await page.getByTestId('live-toggle').click();
 		await expect(ep.editorContainer).not.toHaveAttribute('data-presentation');
 		await flipThrough(ep, page, 'live', 'live-toggle');
+		// A toggle click, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(baseline);
 	});

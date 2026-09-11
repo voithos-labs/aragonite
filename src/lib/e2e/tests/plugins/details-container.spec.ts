@@ -96,8 +96,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		await editor.bridge.waitForSourceContains('<summary>SumX</summary>');
 		await editor.waitForUndoBatchFlush();
 
-		await page.keyboard.press('Enter');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Enter');
 		// The gate consumed Enter: no body minted, caret stays in the summary.
 		expect((await readDetails(page, 0)).childCount).toBe(1);
 		expect(await activeBlockPath(page)).toEqual([0, 0]);
@@ -171,8 +170,7 @@ test.describe('plugin container: <details> collapsible', () => {
 		// The cross-boundary merge walk must not write into the clamped-out body: no mutation,
 		// caret to the summary end (the interior not-mergeable-title rule, mirrored across the
 		// container boundary).
-		await page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 		expect(await editor.bridge.getSource()).toBe(CLOSED_WITH_BELOW);
 		await expect.poll(() => activeBlockPath(page)).toEqual([0, 0]);
 		await expect(page.getByText('Below')).toBeVisible();

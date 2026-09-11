@@ -91,6 +91,7 @@ test.describe('live mode — a pended mark rides the next insertion', () => {
 		const before = await ep.bridge.getSource();
 		await bold(page);
 		await clickBlockSettled(ep, BOLD);
+		// A click away from the pending mark, not a keystroke.
 		await ep.waitForNoSourceMutation();
 
 		expect(await ep.bridge.getSource()).toBe(before);

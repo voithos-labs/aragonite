@@ -88,11 +88,10 @@ test.describe('plugin leaf: generic ::name directive', () => {
 
 		await page.locator('.directive-leaf[contenteditable="true"]').click();
 		await page.keyboard.press('Home');
-		await page.keyboard.press('Backspace');
 
 		// Not-mergeable: Backspace moves focus but never concatenates — a merge would
 		// collapse the two blocks into one and rewrite the source.
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 		state = await readDoc(page);
 		expect(state.rootCount).toBe(2);
 		expect(state.kinds).toEqual(['paragraph', 'directiveLeaf']);

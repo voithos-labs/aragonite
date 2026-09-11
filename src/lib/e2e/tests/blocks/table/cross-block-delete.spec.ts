@@ -206,8 +206,7 @@ test.describe('table block: cross-block delete', () => {
 		);
 		await dragBetweenBoxes(page, fromBox, toBox);
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
@@ -238,8 +237,7 @@ test.describe('table block: cross-block delete', () => {
 		await page.keyboard.press('End');
 		await page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForCrossBlock(true);
-		await page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 		const source = await editor.bridge.getSource();
 		// The grid must stay valid: external paragraph text must never fuse into a cell (the old
 		// bug produced `| 3 | 4after |`). Whole-row snap removes the anchor's entire bottom row;

@@ -82,7 +82,7 @@ test.describe('reading mode — inertness', () => {
 		await page.keyboard.press('Enter');
 		await page.keyboard.press('Backspace');
 		await page.keyboard.press('Delete');
-		await ep.waitForNoSourceMutation();
+		await ep.expectSurfaceInert();
 		expect(await ep.bridge.getSource()).toBe(baseline);
 		expect(await ep.getDomBlockCount()).toBeGreaterThan(0);
 	});
@@ -93,7 +93,7 @@ test.describe('reading mode — inertness', () => {
 		await ep.paste();
 		await ep.dragFromTo([1], 0, [1], 4);
 		await page.keyboard.press('ControlOrMeta+x');
-		await ep.waitForNoSourceMutation();
+		await ep.expectSurfaceInert();
 		expect(await ep.bridge.getSource()).toBe(baseline);
 	});
 
@@ -105,7 +105,7 @@ test.describe('reading mode — inertness', () => {
 		await toggleReadingMode(page);
 		await ep.clickBlock(1);
 		await ep.undo();
-		await ep.waitForNoSourceMutation();
+		await ep.expectSurfaceInert();
 		expect(await ep.bridge.getSource()).toContain('EDIT');
 	});
 
@@ -113,7 +113,7 @@ test.describe('reading mode — inertness', () => {
 		// force: CSS drops the checkbox's pointer-events in reading mode — the
 		// click must still be attempted to prove the JS belt behind it.
 		await page.locator('.task-checkbox').first().click({ force: true });
-		await ep.waitForNoSourceMutation();
+		await ep.expectSurfaceInert();
 		expect(await ep.bridge.getSource()).toContain('- [ ] task');
 	});
 
@@ -135,7 +135,7 @@ test.describe('reading mode — inertness', () => {
 		await ep.clickBlock(0);
 		await page.keyboard.press('Enter');
 		await page.keyboard.press('Tab');
-		await ep.waitForNoSourceMutation();
+		await ep.expectSurfaceInert();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
@@ -202,6 +202,8 @@ test.describe('reading mode — what stays live', () => {
 		await ep.clickBlock(0);
 		await page.keyboard.type('zzz');
 		await page.keyboard.press('Enter');
+		// The flip back to source leaves the surfaces editable again, so the inert oracle no
+		// longer applies: the last gesture here is a toggle click.
 		await toggleReadingMode(page);
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);

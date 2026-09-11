@@ -46,9 +46,8 @@ test.describe('mermaid broken-fence whole-block focus', () => {
 
 		await editor.getBlock(2).click();
 		await page.keyboard.press('Home');
-		await page.keyboard.press('Backspace');
+		await editor.pressDeclined('Backspace');
 		await expect(editor.inputHost).toBeFocused();
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original); // focus only — no byte change
 
 		await page.keyboard.press('Backspace');

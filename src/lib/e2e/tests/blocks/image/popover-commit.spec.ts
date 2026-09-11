@@ -70,6 +70,7 @@ test.describe('image popover commit', () => {
 		await expect(urlInput).toHaveValue('/test-fixtures/sample.png');
 
 		await page.locator('.paragraph-block').first().click();
+		// A click away from the popover, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).not.toContain('?v=1');
 	});

@@ -8,9 +8,11 @@ import { EditorPage } from '../../../editor-page';
 // here: the offset is local to the block's own contenteditable, and a quote's `> ` is ambient.
 const CLOSER_BOUNDARY = 8;
 
+// Forward-Delete at the closer only ever moves focus, so every call takes the press's own
+// verdict as its settle.
 async function pressDeleteAtCloser(editor: EditorPage, path: number[]) {
 	await editor.focusBlockAtPath(path, CLOSER_BOUNDARY);
-	await editor.page.keyboard.press('Delete');
+	await editor.pressDeclined('Delete');
 }
 
 test.describe('code block — forward-Delete at closer exit', () => {
@@ -69,7 +71,6 @@ test.describe('code block — forward-Delete at closer exit', () => {
 		// The caret parks in the blockquote's scope-end gap; the document is untouched,
 		// which is what the container-local-index regression is about.
 		await editor.bridge.waitForGapCaret({ parentPath: [1], index: 1 });
-		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).toBe('para\n\n> ```\n> code\n> ```\n');
 		expect(await editor.bridge.getBlockCount()).toBe(2);

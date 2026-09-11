@@ -100,6 +100,7 @@ test.describe('image inside a link + reference-style images', () => {
 		await expect(page.locator('.md-image-properties')).toBeVisible();
 		const undoBefore = await undoDepth(page);
 		await page.locator('.paragraph-block').first().click();
+		// A click away from the popover, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await undoDepth(page)).toBe(undoBefore);
 		const src = await editor.bridge.getSource();

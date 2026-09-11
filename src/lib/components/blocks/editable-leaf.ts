@@ -28,7 +28,8 @@ import { handleSharedKeydown } from '../../selection/shared-keydown';
 import {
 	createEditableSurface,
 	createClipboardHandlers,
-	consumePendingRestore
+	consumePendingRestore,
+	withKeydownVerdict
 } from './editable-surface';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { createContentOffsetBackend, anchorTrailingNewline } from './plain-text-backend';
@@ -518,7 +519,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		role: 'textbox' as const,
 		spellcheck: 'false' as const,
 		oninput: editableSurface.onInput,
-		onkeydown: handleKeydown,
+		onkeydown: withKeydownVerdict(handleKeydown),
 		oncopy: clipboard.onCopy,
 		oncut: clipboard.onCut,
 		onpaste: clipboard.onPaste,

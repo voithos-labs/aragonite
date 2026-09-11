@@ -210,10 +210,9 @@ export async function backspaceRevealEditInlineMath(
 	await waitForWidgetCount(page, widgetCount - 1);
 
 	await page.keyboard.press('ArrowLeft');
-	await page.keyboard.type(insert);
-	// The reveal suppresses the per-keystroke CST commit, so a settle-then-compare here proves
-	// the insert never leaked into the source.
-	await editor.waitForNoSourceMutation();
+	// The reveal suppresses the per-keystroke CST commit, so each keystroke's own verdict is
+	// what orders the byte comparison that proves the insert never leaked into the source.
+	await editor.typeDeclined(insert);
 	if ((await editor.bridge.getSource()) !== before) {
 		throw new Error(
 			`[${ctx.label}] reveal edit committed before escape.\n` +

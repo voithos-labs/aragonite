@@ -55,7 +55,7 @@ test.describe('preview-inline — editing stays live', () => {
 		await page.keyboard.type('ZZ');
 		await ep.bridge.waitForSourceContains('**beZZta**');
 		await ep.undo();
-		await ep.waitForNoSourceMutation();
+		await ep.bridge.waitForSourceEquals(before);
 		expect(await ep.bridge.getSource()).toBe(before);
 	});
 
@@ -102,6 +102,7 @@ test.describe('preview-inline — editing stays live', () => {
 
 		await page.evaluate(() => (window as any).__test.setPresentationMode('source'));
 		await expect(ep.getBlock(0).locator('.md-marker').first()).toBeVisible();
+		// A programmatic mode set, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(before);
 	});

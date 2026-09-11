@@ -53,8 +53,7 @@ test.describe('table block: keyboard column reorder', () => {
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
 
-		await page.keyboard.press('Alt+ArrowLeft');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Alt+ArrowLeft');
 		await editor.bridge.waitForSourceMatches(/\| (?:ZA|AZ) \|/);
 
 		await editor.undo();

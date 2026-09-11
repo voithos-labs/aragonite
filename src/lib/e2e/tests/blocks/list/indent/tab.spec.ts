@@ -20,8 +20,7 @@ test.describe('list Tab', () => {
 		await editor.loadContent('- Item 1\n- Item 2\n');
 		const items = editor.page.locator('.list-item-block [contenteditable="true"]');
 		await items.nth(0).click();
-		await editor.page.keyboard.press('Tab');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Tab');
 		expect(await editor.bridge.getSource()).toBe('- Item 1\n- Item 2\n');
 	});
 

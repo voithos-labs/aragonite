@@ -67,9 +67,8 @@ export async function reorder(ctx: SimContext, blockIndex: number, dir: -1 | 1):
 export async function reorderInContainer(ctx: SimContext, bodyPath: number[]): Promise<void> {
 	const before = await ctx.editor.bridge.getSource();
 	await ctx.editor.clickBlockAtPath(bodyPath, 0);
-	await ctx.page.keyboard.press('Alt+ArrowUp');
-	await ctx.page.keyboard.press('Alt+ArrowDown');
-	await ctx.editor.waitForNoSourceMutation();
+	await ctx.editor.pressDeclined('Alt+ArrowUp');
+	await ctx.editor.pressDeclined('Alt+ArrowDown');
 	const after = await ctx.editor.bridge.getSource();
 	if (after !== before) {
 		throw new Error(

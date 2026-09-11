@@ -45,7 +45,8 @@
 	import {
 		createEditableSurface,
 		createClipboardHandlers,
-		consumePendingRestore
+		consumePendingRestore,
+		withKeydownVerdict
 	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import { resetForPointerDown } from '../../../selection/cross-block/pointer';
@@ -690,6 +691,8 @@
 		}
 	}
 
+	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
+
 	// The navigation plans, no live event needed; the caller preventDefaults. The fold is here
 	// rather than at each caller: insert-row-below rebuilds every row from cell raws, so an open
 	// reveal's edit would be re-derived away.
@@ -1046,7 +1049,7 @@
 	role="cell"
 	style:text-align={alignment === 'none' ? undefined : alignment}
 	oninput={onInput}
-	onkeydown={onKeyDown}
+	onkeydown={onKeyDownTraced}
 	onbeforeinput={onBeforeInput}
 	onpointerdown={onPointerDown}
 	onclick={onClick}

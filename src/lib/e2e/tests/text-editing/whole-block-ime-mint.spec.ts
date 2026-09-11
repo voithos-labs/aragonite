@@ -52,6 +52,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 		await ime.compose('にほん');
 		await ime.abort();
 
+		// A CDP composition, not a keystroke: the abort fires no keydown to take a verdict from.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(original);
 	});
@@ -77,7 +78,7 @@ test.describe('whole-block focus — AltGr and IME input mint a paragraph below'
 		await expect(wholeBlockInput(rule(readingEditor))).toBeFocused();
 		await insertTextViaCdp(readingEditor, '€');
 
-		await readingEditor.waitForNoSourceMutation();
+		await readingEditor.expectSurfaceInert();
 		expect(await readingEditor.bridge.getSource()).toBe(original);
 	});
 });

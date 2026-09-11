@@ -100,6 +100,8 @@ test.describe('drag to reorder', () => {
 		await editor.page.mouse.down();
 		await editor.page.mouse.up();
 
+		// A mouse gesture, and then an undo chord pressed with focus outside every surface:
+		// neither produces a keydown verdict.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 
@@ -122,6 +124,7 @@ test.describe('drag to reorder', () => {
 		await editor.page.keyboard.press('Escape');
 		await editor.page.mouse.up();
 
+		// The drag session owns Escape through a document listener, not a block surface.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

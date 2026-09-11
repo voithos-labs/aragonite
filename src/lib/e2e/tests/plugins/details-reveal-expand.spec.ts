@@ -136,6 +136,7 @@ test.describe('plugin container: reveal expands a collapsed <details>', () => {
 			});
 
 		// No collapsed ancestor on the path → no door opened, so the bytes are untouched.
+		// A TOC entry click, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(opened);
 		expect(await capturedErrors(page)).toEqual([]);

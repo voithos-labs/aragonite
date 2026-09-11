@@ -82,8 +82,7 @@ test.describe('cross-container merge on Backspace (list prev)', () => {
 		await para.click();
 		const before = await editor.bridge.getSource();
 		await editor.page.keyboard.press('Home');
-		await editor.page.keyboard.press('Backspace');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Backspace');
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 });

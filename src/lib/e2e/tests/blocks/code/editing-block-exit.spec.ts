@@ -72,11 +72,10 @@ test.describe('code block editing — edge cases', () => {
 		await editor.loadContent('```\ncode\n```\n');
 		// Raw offset 4 — start of the body, just after the opener fence and its newline.
 		await editor.focusBlockAtPath([0], 4);
-		await editor.page.keyboard.press('Backspace');
+		await editor.pressDeclined('Backspace');
 		// The fence leads the document, so the focus exit meets the start gap
 		// (requirements/selection/gap-caret-arrival.md) rather than dead-ending.
 		await editor.bridge.waitForGapCaret({ parentPath: [], index: 0 });
-		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
 	});
 
@@ -84,8 +83,7 @@ test.describe('code block editing — edge cases', () => {
 		await editor.loadContent('```\ncode\n```\n');
 		// Raw offset 8 — end of the body, just before the closer fence's leading newline.
 		await editor.focusBlockAtPath([0], 8);
-		await editor.page.keyboard.press('Delete');
-		await editor.waitForNoSourceMutation();
+		await editor.pressDeclined('Delete');
 		expect(await editor.bridge.getSource()).toBe('```\ncode\n```\n');
 	});
 

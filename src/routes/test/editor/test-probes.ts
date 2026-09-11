@@ -1,3 +1,4 @@
+import { tick } from 'svelte';
 import type { Editor, PastedImage, PresentationMode } from '$lib';
 import { parse } from '$lib/core/parser';
 import { serialize } from '$lib/core/serializer';
@@ -36,6 +37,7 @@ import { enablePerfInstruments, resetPerfInstruments, perfSnapshot } from '$lib/
 import {
 	enableInteractionTrace,
 	disableInteractionTrace,
+	interactionTraceKeydownCount,
 	interactionTraceSnapshot
 } from '$lib/debug/interaction-trace';
 import type { ClosureBlock } from '$lib/schema/closure';
@@ -483,8 +485,11 @@ export function installTestProbes({
 		trace: {
 			enable: enableInteractionTrace,
 			disable: disableInteractionTrace,
-			snapshot: interactionTraceSnapshot
+			snapshot: interactionTraceSnapshot,
+			keydownCount: interactionTraceKeydownCount
 		},
+		// The harness's one drain for a gesture with no keydown verdict to wait on.
+		drainTick: (): Promise<void> => tick(),
 		// ── Consumer diagnostics door (real, not the extracted builder) ────
 		// Through the actual door, so the includeSource `?? false` default is exercised
 		// where it lives.

@@ -128,6 +128,7 @@ test.describe('table block: mouse drag row reorder', () => {
 		await editor.loadContent(T);
 		const before = await editor.bridge.getSource();
 		await dragGripToCell(page, 0, 2, (b) => b.y + b.height - 2);
+		// A grip drag, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 		await expect(page.locator('.table-reorder-line')).toHaveCount(0);

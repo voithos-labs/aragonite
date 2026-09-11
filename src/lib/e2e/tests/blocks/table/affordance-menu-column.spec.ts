@@ -61,6 +61,7 @@ test.describe('table block: column affordance menu', () => {
 
 		const before = await editor.bridge.getSource();
 		await deleteItem.click({ force: true });
+		// A menu-item click, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
@@ -91,6 +92,7 @@ test.describe('table block: column affordance menu', () => {
 		if (!box) throw new Error('menu has no bounding box');
 		await page.mouse.click(box.x + box.width + 80, box.y + box.height / 2);
 		await expect(page.getByRole('menu')).toHaveCount(0);
+		// A click outside the menu, not a keystroke.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
@@ -103,6 +105,7 @@ test.describe('table block: column affordance menu', () => {
 		const before = await editor.bridge.getSource();
 		await page.keyboard.press('Escape');
 		await expect(page.getByRole('menu')).toHaveCount(0);
+		// The open menu owns Escape through its own document listener, not a cell surface.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

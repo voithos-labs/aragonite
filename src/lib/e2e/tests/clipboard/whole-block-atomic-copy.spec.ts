@@ -63,6 +63,7 @@ test.describe('whole-block atomic copy/cut — thematic break', () => {
 		await page.keyboard.press('ControlOrMeta+x');
 		await editor.waitForClipboardWrite();
 		expect(await editor.readClipboard()).toBe(BREAK_MD);
+		// The whole-block input proxy is the focus target here, not an editable surface.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

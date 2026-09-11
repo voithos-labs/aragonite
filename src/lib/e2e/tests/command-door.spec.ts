@@ -122,6 +122,7 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.focusBlock(0, 'Hello '.length);
 
 		expect(await run('format.toggleStrong')).toBe(true);
+		// The `runCommand` door, with no keystroke behind it.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 
@@ -168,6 +169,7 @@ test.describe('runCommand — the semantic command door', () => {
 		await editor.waitForCrossBlock(true);
 
 		expect(await run('link.openCard')).toBe(false);
+		// The `runCommand` door, with no keystroke behind it.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
@@ -185,6 +187,7 @@ test.describe('runCommand — the semantic command door', () => {
 
 		for (const [commandId] of TOGGLES) expect(await run(commandId)).toBe(false);
 
+		// The `runCommand` door, with no keystroke behind it.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(quotedFence);
 		expect(await editor.bridge.getGapCaret()).toEqual(atQuoteEnd);
@@ -201,6 +204,7 @@ test.describe('runCommand — the semantic command door', () => {
 			await selectWorld();
 
 			expect(await run('format.toggleRainbow')).toBe(false);
+			// The `runCommand` door, with no keystroke behind it.
 			await editor.waitForNoSourceMutation();
 			expect(await editor.bridge.getSource()).toBe(before);
 		});
@@ -215,6 +219,7 @@ test.describe('runCommand — the semantic command door', () => {
 		for (const [commandId] of TOGGLES) expect(await run(commandId)).toBe(false);
 		expect(await run('link.openCard')).toBe(false);
 
+		// The `runCommand` door, with no keystroke behind it.
 		await editor.waitForNoSourceMutation();
 		expect(await editor.bridge.getSource()).toBe(before);
 	});

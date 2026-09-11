@@ -56,7 +56,11 @@
 		handleSharedKeydown,
 		handleSharedBeforeInput
 	} from '../../../selection/shared-keydown';
-	import { createEditableSurface, consumePendingRestore } from '../editable-surface';
+	import {
+		createEditableSurface,
+		consumePendingRestore,
+		withKeydownVerdict
+	} from '../editable-surface';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../surface-wiring.svelte';
 	import {
 		domTextOffsetAtNode,
@@ -815,6 +819,8 @@
 		if (wiring.dispatchChord(e, { kind: node.kind, runCommand })) return;
 	}
 
+	const onKeyDownTraced = withKeydownVerdict(onKeyDown);
+
 	/**
 	 * A native ranged edit inside ONE block, in a mode that paints no delimiter: the engine would
 	 * write the runs the range crossed literally, so the edit goes through the join seam instead.
@@ -936,7 +942,7 @@
 	style:text-indent={ambientPrefixText ? `-${ambientLength}ch` : null}
 	style:padding-left={ambientPrefixText ? `${ambientLength}ch` : null}
 	oninput={onInput}
-	onkeydown={onKeyDown}
+	onkeydown={onKeyDownTraced}
 	onbeforeinput={onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}

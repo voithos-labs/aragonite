@@ -134,11 +134,15 @@ export async function rangeInterrupt(
 		gapBoundary
 	});
 
-	await ctx.editor.typeSlowly(char);
 	if (spec.consumes === 'reveal-escape' || spec.consumes === 'reveal-blur') {
+		// A revealed source takes the char into the DOM without committing it, so the press's own
+		// verdict is what orders the byte-identity read below.
+		await ctx.editor.typeDeclined(char);
 		await assertRevealEphemeral(ctx, gesture, before);
 		if (spec.consumes === 'reveal-blur') await commitRevealByBlur(ctx, before, landing);
 		else await escapeRevealToCommit(ctx, before);
+	} else {
+		await ctx.editor.typeSlowly(char);
 	}
 	await settleTypedSource(ctx, predicted);
 
@@ -461,7 +465,6 @@ async function assertRevealEphemeral(
 	gesture: RangeInterruptGesture,
 	before: string
 ): Promise<void> {
-	await ctx.editor.waitForNoSourceMutation();
 	const now = await ctx.editor.bridge.getSource();
 	if (now !== before) {
 		throw new Error(

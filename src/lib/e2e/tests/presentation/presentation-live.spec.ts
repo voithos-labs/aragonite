@@ -117,6 +117,7 @@ test.describe('live mode — markers never reveal', () => {
 
 		await toggle.click();
 		await expect(ep.editorContainer).toHaveAttribute('data-presentation', 'live');
+		// A header-toggle click, not a keystroke.
 		await ep.waitForNoSourceMutation();
 		expect(await ep.bridge.getSource()).toBe(baseline);
 	});
