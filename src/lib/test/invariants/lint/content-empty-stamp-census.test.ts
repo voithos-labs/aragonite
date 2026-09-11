@@ -17,7 +17,8 @@ const WALK_CONTAINER_SURFACES: Record<string, string> = {
 	'src/lib/components/blocks/code/CodeBlock.svelte': 'the fenced-code surface',
 	'src/lib/components/blocks/table/cell-render.ts': 'the table-cell surface',
 	'src/lib/components/blocks/text/text-render.ts': 'the prose surface',
-	'src/lib/components/blocks/editable-leaf.ts': 'the plugin leaf surface, when its host paints source'
+	'src/lib/components/blocks/editable-leaf.ts':
+		'the plugin leaf surface, when its host paints source'
 };
 
 /** Files naming a renderer whose output no caret parks in, so nothing reads a stamp back. Each

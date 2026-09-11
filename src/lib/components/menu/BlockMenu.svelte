@@ -36,7 +36,12 @@
 		{ id: 'quote', label: 'Quote', icon: 'text-quote', md: '> ' },
 		{ id: 'divider', label: 'Divider', icon: 'minus', md: '---\n' },
 		{ id: 'code', label: 'Code block', icon: 'code', md: '```\n\n```\n' },
-		{ id: 'table', label: 'Table', icon: 'table', md: '| Column | Column |\n| --- | --- |\n|  |  |\n' }
+		{
+			id: 'table',
+			label: 'Table',
+			icon: 'table',
+			md: '| Column | Column |\n| --- | --- |\n|  |  |\n'
+		}
 	];
 	// Listed only while the plugin that reads the syntax is installed.
 	const FROM_PLUGINS: readonly { plugin: string; item: BlockMenuItem }[] = [
@@ -185,7 +190,8 @@
 				case 'ArrowUp': {
 					claim(e);
 					const delta = e.key === 'ArrowDown' ? 1 : -1;
-					if (open) flyout = { ...open, child: (open.child + delta + children.length) % children.length };
+					if (open)
+						flyout = { ...open, child: (open.child + delta + children.length) % children.length };
 					else activeIndex = step(activeIndex, delta);
 					return;
 				}
@@ -250,10 +256,16 @@
 				>
 					{#if item.icon}<span class="md-menu-icon"><MenuIcon name={item.icon} /></span>{/if}
 					<span class="block-menu-label">{item.label}</span>
-					{#if item.children}<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>{/if}
+					{#if item.children}<span class="md-menu-icon"
+							><MenuIcon name="chevron-right" size={13} /></span
+						>{/if}
 				</button>
 				{#if item.children && flyout?.row === i}
-					<div class="md-menu block-menu block-menu-flyout" role="menu" {@attach keepFlyoutOnScreen}>
+					<div
+						class="md-menu block-menu block-menu-flyout"
+						role="menu"
+						{@attach keepFlyoutOnScreen}
+					>
 						{#each item.children as child, j (child.id)}
 							<button
 								type="button"
@@ -266,7 +278,8 @@
 								onpointerenter={() => (flyout = { row: i, child: j })}
 								onclick={() => onPick(child.id)}
 							>
-								{#if child.icon}<span class="md-menu-icon"><MenuIcon name={child.icon} /></span>{/if}
+								{#if child.icon}<span class="md-menu-icon"><MenuIcon name={child.icon} /></span
+									>{/if}
 								<span class="block-menu-label">{child.label}</span>
 							</button>
 						{/each}

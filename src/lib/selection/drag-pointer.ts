@@ -93,7 +93,10 @@ export function installDragListener(
 		// Both ends whole: the pointer's position INSIDE the block is not a rectangle to grow (a
 		// press beside a table dragged up over it would otherwise select the rows below the
 		// pointer, the opposite of the sweep). The block is the unit until the drag leaves it.
-		ctx.selection.enterCrossBlock(anchorPoint, { path: anchorPoint.path.slice(), wholeBlock: true });
+		ctx.selection.enterCrossBlock(anchorPoint, {
+			path: anchorPoint.path.slice(),
+			wholeBlock: true
+		});
 	}
 
 	// A margin-started drag has no native selection under it, so the range inside the anchor

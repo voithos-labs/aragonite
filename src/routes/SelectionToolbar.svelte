@@ -90,8 +90,10 @@
 		if (!size) return { x: placement.x, y: placement.y };
 		const margin = 8;
 		let { x, y } = placement;
-		if (x + size.w > window.innerWidth - margin) x = Math.max(margin, window.innerWidth - margin - size.w);
-		if (y + size.h > window.innerHeight - margin) y = Math.max(topInset + 4, placement.flipY - size.h - BAR_GAP);
+		if (x + size.w > window.innerWidth - margin)
+			x = Math.max(margin, window.innerWidth - margin - size.w);
+		if (y + size.h > window.innerHeight - margin)
+			y = Math.max(topInset + 4, placement.flipY - size.h - BAR_GAP);
 		return { x, y };
 	});
 
@@ -291,7 +293,8 @@
 							onclick={() => fire(TURN_INTO_COMMAND, option.level)}
 						>
 							<span class="toolbar-row-label">{option.label}</span>
-							{#if current}<span class="toolbar-row-icon"><MenuIcon name="check" size={13} /></span>{/if}
+							{#if current}<span class="toolbar-row-icon"><MenuIcon name="check" size={13} /></span
+								>{/if}
 						</button>
 					{/each}
 				</div>
@@ -309,7 +312,9 @@
 			>
 				<span class="toolbar-row-icon"><MenuIcon name={row.icon} size={14} /></span>
 				<span class="toolbar-row-label">{row.label}</span>
-				{#if active.has(row.command)}<span class="toolbar-row-icon"><MenuIcon name="check" size={13} /></span>{/if}
+				{#if active.has(row.command)}<span class="toolbar-row-icon"
+						><MenuIcon name="check" size={13} /></span
+					>{/if}
 			</button>
 		{/each}
 		<button

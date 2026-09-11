@@ -12,11 +12,10 @@ export function keepFlyoutOnScreen(node: HTMLElement): void {
 	const parentMenu = node.parentElement?.closest<HTMLElement>('.md-menu');
 	if (!parentMenu) return;
 	const rect = node.getBoundingClientRect();
-	const { dy, flip } = flyoutPlacement(
-		rect,
-		parentMenu.getBoundingClientRect(),
-		{ width: window.innerWidth, height: window.innerHeight }
-	);
+	const { dy, flip } = flyoutPlacement(rect, parentMenu.getBoundingClientRect(), {
+		width: window.innerWidth,
+		height: window.innerHeight
+	});
 	if (dy !== 0) node.style.top = `${node.offsetTop + dy}px`;
 	if (flip) {
 		node.style.left = 'auto';

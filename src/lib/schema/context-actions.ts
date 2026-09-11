@@ -31,7 +31,10 @@ export type BlockContextActionProvider = (node: NodeView, path: number[]) => Blo
 const providers = new Map<string, BlockContextActionProvider[]>();
 
 /** Add a provider for `kind`, or for every kind with `EVERY_KIND`. Several may stack. */
-export function registerBlockContextActions(kind: string, provider: BlockContextActionProvider): void {
+export function registerBlockContextActions(
+	kind: string,
+	provider: BlockContextActionProvider
+): void {
 	const list = providers.get(kind) ?? [];
 	list.push(provider);
 	providers.set(kind, list);

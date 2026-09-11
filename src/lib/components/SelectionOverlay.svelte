@@ -88,7 +88,8 @@
 
 		for (let i = 1; i < sorted.length; i++) {
 			const r = sorted[i];
-			const overlap = Math.min(current.top + current.height, r.top + r.height) - Math.max(current.top, r.top);
+			const overlap =
+				Math.min(current.top + current.height, r.top + r.height) - Math.max(current.top, r.top);
 			if (overlap > Math.min(current.height, r.height) * 0.5) {
 				const left = Math.min(current.left, r.left);
 				const right = Math.max(current.left + current.width, r.left + r.width);

@@ -411,7 +411,11 @@
 </div>
 
 {#if editing}
-	<div bind:this={pickerEl} class="md-menu code-rail-popout code-lang-picker" style={popoutStyle(listAt)}>
+	<div
+		bind:this={pickerEl}
+		class="md-menu code-rail-popout code-lang-picker"
+		style={popoutStyle(listAt)}
+	>
 		<div class="code-lang-search">
 			{@render icon('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>')}
 			<input

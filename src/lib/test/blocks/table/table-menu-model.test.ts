@@ -300,7 +300,7 @@ describe('flyoutPlacement', () => {
 		expect(flyoutPlacement(at, { left: 100 }, viewport).dy).toBe(-12);
 	});
 
-	it('flips to the parent menu\'s left when the right edge overflows and the left fits', () => {
+	it("flips to the parent menu's left when the right edge overflows and the left fits", () => {
 		const at = { top: 100, bottom: 300, right: 1100, width: 200 };
 		expect(flyoutPlacement(at, { left: 700 }, viewport)).toEqual({ dy: 0, flip: true });
 		expect(flyoutPlacement(at, { left: 100 }, viewport).flip).toBe(false);

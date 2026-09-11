@@ -141,7 +141,11 @@
 		const stop = stops[((index % n) + n) % n];
 		stop.focus();
 		// Focus that leaves an open flyout (and its own row) closes it, so the list reads as one.
-		if (openGroup && !stop.closest('.table-action-menu-flyout') && stop.dataset.group !== openGroup) {
+		if (
+			openGroup &&
+			!stop.closest('.table-action-menu-flyout') &&
+			stop.dataset.group !== openGroup
+		) {
 			openGroup = null;
 		}
 	}

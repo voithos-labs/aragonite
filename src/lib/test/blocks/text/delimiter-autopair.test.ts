@@ -10,7 +10,11 @@ const whole = (text: string) => ({ start: 0, end: text.length });
 const type = (text: string, caret: number, typed: string) =>
 	resolveDelimiterAutoPair(text, whole(text), caret, typed);
 const written = (text: string, caret: number) => ({ kind: 'write', text, caret });
-const stepped = (caret: number, overConstruct: boolean) => ({ kind: 'step-over', caret, overConstruct });
+const stepped = (caret: number, overConstruct: boolean) => ({
+	kind: 'step-over',
+	caret,
+	overConstruct
+});
 
 describe('delimiter auto-pair', () => {
 	beforeEach(() => {
@@ -41,7 +45,7 @@ describe('delimiter auto-pair', () => {
 		expect(type('$$', 2, '$')).toBeNull();
 	});
 
-	it('does not pair in front of another span\'s opener', () => {
+	it("does not pair in front of another span's opener", () => {
 		expect(type('a `code` b', 2, '`')).toBeNull();
 	});
 

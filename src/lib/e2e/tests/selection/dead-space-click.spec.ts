@@ -166,8 +166,8 @@ test.describe('dead-space clicks place a caret', () => {
 		await editor.waitForNoSourceMutation();
 
 		expect(await editor.bridge.getSource()).not.toContain('!');
-		const focusedKind = await editor.page.evaluate(
-			() => document.activeElement?.closest('[data-block-kind]')?.getAttribute('data-block-kind')
+		const focusedKind = await editor.page.evaluate(() =>
+			document.activeElement?.closest('[data-block-kind]')?.getAttribute('data-block-kind')
 		);
 		expect(focusedKind).not.toBe('table');
 	});

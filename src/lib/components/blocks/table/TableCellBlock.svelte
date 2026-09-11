@@ -74,7 +74,11 @@
 	import { isAtFirstVisualLine, isAtLastVisualLine } from '../../../cursor/visual-lines';
 	import { cellKeydownPlan, type CellKeyPlan, type CellKeyState } from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import { intraTableRectPayload, intraTableRectBounds, intraTableRectGrid } from './cell-clipboard';
+	import {
+		intraTableRectPayload,
+		intraTableRectBounds,
+		intraTableRectGrid
+	} from './cell-clipboard';
 	import { escapedCellOffset } from './table-cell-paste';
 	import type { CellSelectionPoint, SelectionPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';

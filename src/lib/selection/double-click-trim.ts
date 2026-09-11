@@ -41,7 +41,11 @@ export function selectWordAtPoint(doc: Document, x: number, y: number): boolean 
 	return true;
 }
 
-function textPositionAt(doc: Document, x: number, y: number): { node: Text; offset: number } | null {
+function textPositionAt(
+	doc: Document,
+	x: number,
+	y: number
+): { node: Text; offset: number } | null {
 	const position = doc.caretPositionFromPoint?.(x, y);
 	if (position?.offsetNode instanceof Text) {
 		return { node: position.offsetNode, offset: position.offset };
