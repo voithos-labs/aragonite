@@ -67,7 +67,7 @@ const WRITE_HELPER_NAMERS: Record<string, string> = {
  */
 const LANDABLE_CARET_NAMERS: Record<string, string> = {
 	'src/lib/invariants/landable-caret.ts': 'defines the predicate',
-	'src/lib/components/Editor.svelte': 'the editor root focusin seam — the one fire site'
+	'src/lib/components/editor-root-focus.ts': 'the editor root focusin seam — the one fire site'
 };
 
 /** Files that may mint a public `focus` from `selection/caret-doors`' placeCaret. */

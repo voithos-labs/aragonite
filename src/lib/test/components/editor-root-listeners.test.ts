@@ -4,8 +4,7 @@ import { tick } from 'svelte';
 import {
 	installEditorBlurAnnouncer,
 	installModActiveTracker,
-	installSelectionChangeBridge,
-	installViewportHeightWatcher
+	installSelectionChangeBridge
 } from '$lib/components/editor-root-listeners';
 
 // Teardowns collect here so no test leaks a document-level listener into the next.
@@ -190,79 +189,5 @@ describe('editor-root listeners — selectionchange bridge', () => {
 		selectInside(b.content);
 		fire();
 		expect(b.emits()).toBe(0);
-	});
-});
-
-// ── Viewport-height watcher ──────────────────────────────────────────────────
-
-describe('editor-root listeners — viewport-height watcher, window port', () => {
-	it('bumps on a window resize, and stops after teardown', () => {
-		let bumps = 0;
-		const teardown = installViewportHeightWatcher(window, () => bumps++);
-		teardowns.push(teardown);
-		window.dispatchEvent(new Event('resize'));
-		expect(bumps).toBe(1);
-		teardown();
-		window.dispatchEvent(new Event('resize'));
-		expect(bumps).toBe(1);
-	});
-});
-
-describe('editor-root listeners — viewport-height watcher, element port', () => {
-	// Observable stand-in for the observer jsdom does not implement.
-	class FakeResizeObserver {
-		static instances: FakeResizeObserver[] = [];
-		disconnected = false;
-		constructor(private callback: ResizeObserverCallback) {
-			FakeResizeObserver.instances.push(this);
-		}
-		observe(): void {}
-		disconnect(): void {
-			this.disconnected = true;
-		}
-		trigger(): void {
-			this.callback([], this as unknown as ResizeObserver);
-		}
-	}
-
-	beforeEach(() => {
-		FakeResizeObserver.instances.length = 0;
-		(globalThis as { ResizeObserver?: unknown }).ResizeObserver = FakeResizeObserver;
-	});
-
-	afterEach(() => {
-		delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
-	});
-
-	function elementPort(initialHeight: number) {
-		const el = document.createElement('div');
-		let height = initialHeight;
-		Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => height });
-		let bumps = 0;
-		teardowns.push(installViewportHeightWatcher(el, () => bumps++));
-		return {
-			observer: FakeResizeObserver.instances[0],
-			setHeight: (h: number) => (height = h),
-			bumps: () => bumps
-		};
-	}
-
-	it('bumps when the observed height changed', () => {
-		const port = elementPort(100);
-		port.setHeight(200);
-		port.observer.trigger();
-		expect(port.bumps()).toBe(1);
-	});
-
-	it('a report with the height unchanged (a width-only resize) does not bump', () => {
-		const port = elementPort(100);
-		port.observer.trigger();
-		expect(port.bumps()).toBe(0);
-	});
-
-	it('teardown disconnects the observer', () => {
-		const port = elementPort(100);
-		teardowns.splice(0).forEach((teardown) => teardown());
-		expect(port.observer.disconnected).toBe(true);
 	});
 });

@@ -1,12 +1,11 @@
 /**
  * Editor-root ambient listeners: the mod-active cursor tracker, the selectionchange
- * bridge, and the viewport-height watcher. Pure dispatch over live getters; each
- * installing `$effect` stays in `Editor.svelte` as a guard plus one install call,
- * returning the teardown. `onRoot`/`removeAll` capture that add/remove pair once.
+ * bridge, and the blur announcer. Pure dispatch over live getters; each installing
+ * `$effect` stays in `Editor.svelte` as a guard plus one install call, returning the
+ * teardown. `onRoot`/`removeAll` capture that add/remove pair once.
  */
 
 import { tick } from 'svelte';
-import type { UserScrollport } from '../cursor/scroll-ancestors';
 
 // ── Listener plumbing ───────────────────────────────────────────────
 
@@ -110,28 +109,4 @@ export function installEditorBlurAnnouncer(deps: {
 		});
 	};
 	return onRoot(deps.root, 'focusout', handler);
-}
-
-/** Calls `bump` on a height change of the resolved scrollport `target`. */
-export function installViewportHeightWatcher(target: UserScrollport, bump: () => void): () => void {
-	if (target === window) {
-		// The page viewport has no box to observe, and a visualViewport move (a mobile URL
-		// bar retracting) never touches documentElement's height — hence both, ungated.
-		const visual = window.visualViewport;
-		return removeAll(
-			onRoot(window, 'resize', bump),
-			visual ? onRoot(visual, 'resize', bump) : () => {}
-		);
-	}
-	// Cast, not a narrowing: `UserScrollport` is a union of object types, which `=== window`
-	// does not narrow — the same cast `createScrollport` makes on the same split.
-	const el = target as HTMLElement;
-	let lastHeight = el.clientHeight;
-	const observer = new ResizeObserver(() => {
-		if (el.clientHeight === lastHeight) return;
-		lastHeight = el.clientHeight;
-		bump();
-	});
-	observer.observe(el);
-	return () => observer.disconnect();
 }
