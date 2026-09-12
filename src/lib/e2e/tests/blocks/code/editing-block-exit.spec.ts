@@ -22,6 +22,20 @@ test.describe('code block editing — edge cases', () => {
 		expect(source.indexOf('after code')).toBeGreaterThan(source.lastIndexOf('```'));
 	});
 
+	// The other way a writer says "done here": type the closer rather than pressing Enter twice.
+	// The run is the exit, so none of its bytes reach the body and the fence keeps its own length.
+	test('exit code block by typing the closer on the empty trailing line', async () => {
+		await editor.loadContent('```\nsome code\n```\n');
+		// Raw offset 13 — the body's end, so Enter opens the empty line the closer goes on.
+		await editor.focusBlockAtPath([0], 13);
+		await editor.page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceContains('some code\n\n```');
+		await editor.typeSlowly('```');
+		await editor.typeText('after code');
+		await editor.bridge.waitForSourceContains('after code');
+		expect(await editor.bridge.getSource()).toBe('```\nsome code\n```\n\nafter code\n');
+	});
+
 	test('ArrowUp in first line exits to previous block', async () => {
 		await editor.loadContent('Above paragraph\n\n```\ncode here\n```\n');
 		await editor.getBlock(1).click();

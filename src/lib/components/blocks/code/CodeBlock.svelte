@@ -43,7 +43,7 @@
 	} from '../../../schema/fenced-code-raw';
 	import { hidesMarkers } from '../../../presentation-mode';
 	import CodeBlockRail from './CodeBlockRail.svelte';
-	import { computeFenceExit } from './code-fence-exit';
+	import { computeFenceExit, computeTypedFenceExit } from './code-fence-exit';
 	import {
 		classifyFenceBoundary,
 		clampCaretToBody,
@@ -405,6 +405,17 @@
 		const offset = selOffsets ? selOffsets.start : (backend.getRaw() ?? 0);
 
 		const meta = metadataOf(node, 'fencedCode');
+		const collapsed = !selOffsets || selOffsets.start === selOffsets.end;
+		const typedExit = collapsed
+			? computeTypedFenceExit({ text, offset, meta, typed: data })
+			: { kind: 'none' as const };
+		if (typedExit.kind === 'exitWithEdit') {
+			e.preventDefault();
+			commitDisplay(typedExit.newText, offset, offset);
+			exitDownward();
+			return;
+		}
+
 		const result = computeAutoPair({
 			text,
 			selection: selOffsets ?? { start: offset, end: offset },
